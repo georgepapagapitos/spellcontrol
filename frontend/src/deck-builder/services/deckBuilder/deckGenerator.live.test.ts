@@ -79,16 +79,18 @@ const COLLECTION_STRATEGY: CollectionStrategy | undefined =
   (process.env.LIVE_GEN_COLLECTION_STRATEGY as CollectionStrategy | undefined) ??
   (COLLECTION_NAMES ? 'prefer' : undefined);
 
-let fixtureNamesCache: Set<string> | undefined;
-function fixtureCollectionNames(): Set<string> {
-  fixtureNamesCache ??= new Set<string>(
-    (
-      JSON.parse(
-        readFileSync(resolve(here, '__fixtures__', 'owned-collection.fixture.json'), 'utf8')
-      ) as { names: string[] }
-    ).names
-  );
-  return fixtureNamesCache;
+// E391: fixture rows get the fixture's owned pool too. Names alone left the
+// owned-substitute tier and the partial-mode quota repair with nothing to pick
+// from, so collection modes measured far below what the app delivers.
+let fixtureCache: { names: Set<string>; pool: SubstituteCandidate[] } | undefined;
+function fixtureCollection(): { names: Set<string>; pool: SubstituteCandidate[] } {
+  if (!fixtureCache) {
+    const file = JSON.parse(
+      readFileSync(resolve(here, '__fixtures__', 'owned-collection.fixture.json'), 'utf8')
+    ) as { names: string[]; pool: SubstituteCandidate[] };
+    fixtureCache = { names: new Set(file.names), pool: file.pool };
+  }
+  return fixtureCache;
 }
 
 // E231 A/B knob: LIVE_GEN_MANA_PHILOSOPHY="reliable,greedy,spelllands,budget"
@@ -640,8 +642,8 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
             custom.nonBasicLandCount = data.stats.landDistribution?.nonbasic ?? 15;
           }
         }
-        const collectionNames =
-          COLLECTION_NAMES ?? (spec.collection ? fixtureCollectionNames() : undefined);
+        const fixture = !COLLECTION_NAMES && spec.collection ? fixtureCollection() : undefined;
+        const collectionNames = COLLECTION_NAMES ?? fixture?.names;
         const ctx: GenerationContext = {
           commander,
           partnerCommander,
@@ -662,7 +664,7 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
                 ]
               : [],
           collectionNames,
-          collectionPool: collectionNames ? COLLECTION_POOL : undefined,
+          collectionPool: fixture ? fixture.pool : collectionNames ? COLLECTION_POOL : undefined,
         };
 
         const deck = await generateDeck(ctx);

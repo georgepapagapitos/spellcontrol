@@ -1,5 +1,5 @@
 {
-  "_assembly": "E122 owned-preference repro fixture (LIVE_GEN_COLLECTION). Broad 'collection' of real card names for A/B-ing collectionStrategy=prefer against a live deck generation. Two parts: (1) ~1200 format staples + midrange filler, deterministically random.sample()'d (seed 42) from public/tagger-tags.json's generic ramp/removal/spot-removal/card-advantage/draw/tutor/counterspell/bounce/boardwipe/lifegain/mana-rock/mana-dork/sacrifice/cantrip/protection/mana-fix/utility-land/graveyard-hate/wheel/extra-turn/mass-land-denial/cost-reducer/tapland tag lists \u2014 gives color- and role-spread across the whole card pool without hand-typing names. (2) ~30 hand-picked on-theme staples for three panel commanders (Yuriko ninjutsu/ninjas, Sythis enchantress payoffs, Krenko goblin tribal) so the theme/high-synergy tier has guaranteed owned overlap to measure against. Regenerate part 1 by re-running the sampler described in the E122 PR against a refreshed tagger-tags.json; part 2 is manual and stable.",
+  "_assembly": "E122 owned-preference repro fixture (LIVE_GEN_COLLECTION). Broad 'collection' of real card names for A/B-ing collectionStrategy=prefer against a live deck generation. Two parts: (1) ~1200 format staples + midrange filler, deterministically random.sample()'d (seed 42) from public/tagger-tags.json's generic ramp/removal/spot-removal/card-advantage/draw/tutor/counterspell/bounce/boardwipe/lifegain/mana-rock/mana-dork/sacrifice/cantrip/protection/mana-fix/utility-land/graveyard-hate/wheel/extra-turn/mass-land-denial/cost-reducer/tapland tag lists — gives color- and role-spread across the whole card pool without hand-typing names. (2) ~30 hand-picked on-theme staples for three panel commanders (Yuriko ninjutsu/ninjas, Sythis enchantress payoffs, Krenko goblin tribal) so the theme/high-synergy tier has guaranteed owned overlap to measure against. Regenerate part 1 by re-running the sampler described in the E122 PR against a refreshed tagger-tags.json; part 2 is manual and stable. pool (E391): the lean owned pool the app passes as collectionPool, one {name, colorIdentity, cmc, typeLine} per name, resolved once from Scryfall POST /cards/collection (75 names per request, 500ms apart; a split or double-faced card looked up by its front face). The 15 names with no paper printing (Alchemy A- cards, one Unfinity card) have no entry.",
   "names": [
     "A-Buy Your Silence",
     "A-Carnelian Orb of Dragonkind",
@@ -1264,6 +1264,7502 @@
     "Zareth San, the Trickster",
     "Zhentarim Bandit",
     "________ Goblin",
-    "\u00c9omer, King of Rohan"
+    "Éomer, King of Rohan"
+  ],
+  "pool": [
+    {
+      "name": "Aang's Defense",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Abeyance",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Abundance",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Abundant Maw",
+      "colorIdentity": ["B"],
+      "cmc": 8,
+      "typeLine": "Creature — Eldrazi Leech"
+    },
+    {
+      "name": "Abzan Advantage",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Accumulate Wisdom",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant — Lesson"
+    },
+    {
+      "name": "Aesi, Tyrant of Gyre Strait",
+      "colorIdentity": ["G", "U"],
+      "cmc": 6,
+      "typeLine": "Legendary Creature — Serpent"
+    },
+    {
+      "name": "Aether Membrane",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Wall"
+    },
+    {
+      "name": "Aetherjacket",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact Creature — Thopter"
+    },
+    {
+      "name": "Agent Venom",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Symbiote Soldier Hero"
+    },
+    {
+      "name": "Agent of Erebos",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Enchantment Creature — Zombie"
+    },
+    {
+      "name": "Agonizing Demise",
+      "colorIdentity": ["B", "R"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Ajani Vengeant",
+      "colorIdentity": ["R", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Ajani"
+    },
+    {
+      "name": "Ajani's Aid",
+      "colorIdentity": ["G", "W"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Ajani's Mantra",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Akoum Warrior // Akoum Teeth",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Creature — Minotaur Warrior // Land"
+    },
+    {
+      "name": "Alabaster Host Intercessor",
+      "colorIdentity": ["W"],
+      "cmc": 6,
+      "typeLine": "Creature — Phyrexian Samurai"
+    },
+    {
+      "name": "Aladdin's Ring",
+      "colorIdentity": [],
+      "cmc": 8,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Alchemist's Gambit",
+      "colorIdentity": ["R", "U"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Alela, Artful Provocateur",
+      "colorIdentity": ["B", "U", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Faerie Warlock"
+    },
+    {
+      "name": "Alpine Meadow",
+      "colorIdentity": ["R", "W"],
+      "cmc": 0,
+      "typeLine": "Snow Land — Mountain Plains"
+    },
+    {
+      "name": "Alrund's Epiphany",
+      "colorIdentity": ["U"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Ambrosia Whiteheart",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Bird"
+    },
+    {
+      "name": "Ancestral Recall",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Ancient Copper Dragon",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Creature — Elder Dragon"
+    },
+    {
+      "name": "Angelic Ascension",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Anger of the Gods",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Anhelo, the Painter",
+      "colorIdentity": ["B", "R", "U"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Vampire Assassin"
+    },
+    {
+      "name": "Anowon, the Ruin Thief",
+      "colorIdentity": ["B", "U"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Vampire Rogue"
+    },
+    {
+      "name": "Aphetto Dredging",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Applied Geometry",
+      "colorIdentity": ["G", "U"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Arcane Spyglass",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Argothian Enchantress",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Argothian Opportunist",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Scout"
+    },
+    {
+      "name": "Arms of Hadar",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Artifact Blast",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Artist's Talent",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Class"
+    },
+    {
+      "name": "Artistic Refusal",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Ash Barrens",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Ashiok, Nightmare Muse",
+      "colorIdentity": ["B", "U"],
+      "cmc": 5,
+      "typeLine": "Legendary Planeswalker — Ashiok"
+    },
+    {
+      "name": "Ashling, Rekindled // Ashling, Rimebound",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Elemental Sorcerer // Legendary Creature — Elemental Wizard"
+    },
+    {
+      "name": "Asylum Visitor",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Vampire Wizard"
+    },
+    {
+      "name": "Audacious Swap",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Auramancer",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Auriok Steelshaper",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Soldier"
+    },
+    {
+      "name": "Aven Battle Priest",
+      "colorIdentity": ["W"],
+      "cmc": 6,
+      "typeLine": "Creature — Bird Cleric"
+    },
+    {
+      "name": "Avenging Druid",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Avian Oddity",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Bird"
+    },
+    {
+      "name": "Awakening",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Axgard Armory",
+      "colorIdentity": ["R", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Azorius Cluestone",
+      "colorIdentity": ["U", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Azorius Guildmage",
+      "colorIdentity": ["U", "W"],
+      "cmc": 2,
+      "typeLine": "Creature — Vedalken Wizard"
+    },
+    {
+      "name": "Baba Lysaga, Night Witch",
+      "colorIdentity": ["B", "G"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Human Warlock"
+    },
+    {
+      "name": "Baleful Ammit",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Crocodile Demon"
+    },
+    {
+      "name": "Bandit's Haul",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Bane's Contingency",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Banishment",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Bar the Gate",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Baral, Chief of Compliance",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Human Wizard"
+    },
+    {
+      "name": "Barren Moor",
+      "colorIdentity": ["B"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Barrin's Unmaking",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Basal Sliver",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Sliver"
+    },
+    {
+      "name": "Basalt Monolith",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Basilica Screecher",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Bat"
+    },
+    {
+      "name": "Battle Hymn",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Baylen, the Haymaker",
+      "colorIdentity": ["G", "R", "W"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Rabbit Warrior"
+    },
+    {
+      "name": "Befuddle",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Behemoth of Vault 0",
+      "colorIdentity": [],
+      "cmc": 6,
+      "typeLine": "Artifact Creature — Robot"
+    },
+    {
+      "name": "Betrayer's Bargain",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Birchlore Rangers",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Creature — Elf Druid Ranger"
+    },
+    {
+      "name": "Bjorna, Nightfall Alchemist",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Human"
+    },
+    {
+      "name": "Blade Banish",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Blanket of Night",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Blasphemous Act",
+      "colorIdentity": ["R"],
+      "cmc": 9,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Blazing Bomb",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Creature — Elemental"
+    },
+    {
+      "name": "Blazing Salvo",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Blighted Fen",
+      "colorIdentity": ["B"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Blindblast",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Blitzball",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Blizzard Specter",
+      "colorIdentity": ["B", "U"],
+      "cmc": 4,
+      "typeLine": "Snow Creature — Specter"
+    },
+    {
+      "name": "Blockbuster",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Bloodstone Cameo",
+      "colorIdentity": ["B", "R"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Blossom Dryad",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Dryad"
+    },
+    {
+      "name": "Blot Out",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Boggart Loggers",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Goblin Rogue"
+    },
+    {
+      "name": "Bogslither's Embrace",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Boilerbilges Ripper",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Human Assassin"
+    },
+    {
+      "name": "Bomat Bazaar Barge",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact — Vehicle"
+    },
+    {
+      "name": "Bond of Flourishing",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Bonder's Ornament",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Bonders' Enclave",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Bone Shredder",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Phyrexian Minion"
+    },
+    {
+      "name": "Bone Splinters",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Bonecrusher Giant // Stomp",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Giant // Instant — Adventure"
+    },
+    {
+      "name": "Bonehoard Dracosaur",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Dinosaur Dragon"
+    },
+    {
+      "name": "Bootleggers' Stash",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Boreas Charger",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Pegasus"
+    },
+    {
+      "name": "Boros Locket",
+      "colorIdentity": ["R", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Boros Signet",
+      "colorIdentity": ["R", "W"],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Bosk Banneret",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Treefolk Shaman"
+    },
+    {
+      "name": "Bottomless Pool // Locker Room",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Enchantment — Room // Enchantment — Room"
+    },
+    {
+      "name": "Bounce Chamber",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Artifact — Attraction"
+    },
+    {
+      "name": "Bounty Board",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Bovine Intervention",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Braids's Frightful Return",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "Braidwood Sextant",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Brass's Bounty",
+      "colorIdentity": ["R"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Breath of Fire",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Brigid, Clachan's Heart // Brigid, Doun's Mind",
+      "colorIdentity": ["G", "W"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Kithkin Warrior // Legendary Creature — Kithkin Soldier"
+    },
+    {
+      "name": "Broken Ambitions",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Builder's Bane",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Burdened Aerialist",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Pirate"
+    },
+    {
+      "name": "Buried in the Garden",
+      "colorIdentity": ["G", "W"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Burn Away",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Burning Oil",
+      "colorIdentity": ["R", "W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Cactus Preserve",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land — Desert"
+    },
+    {
+      "name": "Caduceus, Staff of Hermes",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Legendary Artifact — Equipment"
+    },
+    {
+      "name": "Caged Sun",
+      "colorIdentity": [],
+      "cmc": 6,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Calamity of Cinders",
+      "colorIdentity": ["R"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Calibrated Blast",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Calix, Destiny's Hand",
+      "colorIdentity": ["G", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Calix"
+    },
+    {
+      "name": "Callous Bloodmage",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Vampire Warlock"
+    },
+    {
+      "name": "Callous Sell-Sword // Burn Together",
+      "colorIdentity": ["B", "R"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Soldier // Sorcery — Adventure"
+    },
+    {
+      "name": "Cancel",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Candy Grapple",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Captivating Cave",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land — Cave"
+    },
+    {
+      "name": "Captivating Gyre",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Capture of Jingzhou",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Carnage, Crimson Chaos",
+      "colorIdentity": ["B", "R"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Symbiote Villain"
+    },
+    {
+      "name": "Carnelian Orb of Dragonkind",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Carnivorous Canopy",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Carrion Imp",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Imp"
+    },
+    {
+      "name": "Casal, Lurkwood Pathfinder // Casal, Pathbreaker Owlbear",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Tiefling Druid // Legendary Creature — Bird Bear"
+    },
+    {
+      "name": "Castle Garenbrig",
+      "colorIdentity": ["G"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Catalyst Stone",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Cateran Enforcer",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Horror Mercenary"
+    },
+    {
+      "name": "Cathartic Operation",
+      "colorIdentity": ["B", "U"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Cathartic Parting",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Cathedral of Serra",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Caustic Exhale",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Cavalcade of Calamity",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Cecil, Dark Knight // Cecil, Redeemed Paladin",
+      "colorIdentity": ["B", "W"],
+      "cmc": 1,
+      "typeLine": "Legendary Creature — Human Knight // Legendary Creature — Human Knight"
+    },
+    {
+      "name": "Celes, Rune Knight",
+      "colorIdentity": ["B", "R", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Human Wizard Knight"
+    },
+    {
+      "name": "Celestial Colonnade",
+      "colorIdentity": ["U", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Centaur Archer",
+      "colorIdentity": ["G", "R"],
+      "cmc": 3,
+      "typeLine": "Creature — Centaur Archer"
+    },
+    {
+      "name": "Cephalid Broker",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Octopus"
+    },
+    {
+      "name": "Cephalid Shrine",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Chakra Meditation",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Champion's Victory",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Chandra, Bold Pyromancer",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Legendary Planeswalker — Chandra"
+    },
+    {
+      "name": "Changeling Outcast",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Creature — Shapeshifter"
+    },
+    {
+      "name": "Chaos Balor",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Demon"
+    },
+    {
+      "name": "Charged Conjuration",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Chief Engineer",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Vedalken Artificer"
+    },
+    {
+      "name": "Chittering Harvester",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Creature — Nightmare"
+    },
+    {
+      "name": "Chittering Skullspeaker",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Squirrel Warlock"
+    },
+    {
+      "name": "Chrome Courier",
+      "colorIdentity": ["U", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact Creature — Thopter"
+    },
+    {
+      "name": "Chronatog Totem",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Cinder Hellion",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Hellion"
+    },
+    {
+      "name": "Circle of Elders",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Shaman"
+    },
+    {
+      "name": "Cirith Ungol Patrol",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Orc Soldier"
+    },
+    {
+      "name": "Clarion Ultimatum",
+      "colorIdentity": ["G", "U", "W"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Claws of Gix",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Cleon, Merry Champion",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Human Soldier"
+    },
+    {
+      "name": "Clever Conjurer",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Gnome Wizard"
+    },
+    {
+      "name": "Cling to Dust",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Cloud, Planet's Champion",
+      "colorIdentity": ["R", "W"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Human Soldier Mercenary"
+    },
+    {
+      "name": "Clutch of Currents",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Coastal Wizard",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Codie, Vociferous Codex",
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 3,
+      "typeLine": "Legendary Artifact Creature — Book Construct"
+    },
+    {
+      "name": "Coiling Oracle",
+      "colorIdentity": ["G", "U"],
+      "cmc": 2,
+      "typeLine": "Creature — Snake Elf Druid"
+    },
+    {
+      "name": "Coin of Fate",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Cold Case Cracker",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Spirit Detective"
+    },
+    {
+      "name": "Coldsteel Heart",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Snow Artifact"
+    },
+    {
+      "name": "Collective Voyage",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Colossal Skyturtle",
+      "colorIdentity": ["G", "U"],
+      "cmc": 7,
+      "typeLine": "Enchantment Creature — Turtle"
+    },
+    {
+      "name": "Colossal Whale",
+      "colorIdentity": ["U"],
+      "cmc": 7,
+      "typeLine": "Creature — Whale"
+    },
+    {
+      "name": "Commune with Beavers",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Commune with Lava",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Conciliator's Duelist",
+      "colorIdentity": ["B", "W"],
+      "cmc": 4,
+      "typeLine": "Creature — Kor Warlock"
+    },
+    {
+      "name": "Consign to Memory",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Consume Spirit",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Consuming Bonfire",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Kindred Sorcery — Elemental"
+    },
+    {
+      "name": "Consuming Vortex",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant — Arcane"
+    },
+    {
+      "name": "Contaminated Landscape",
+      "colorIdentity": ["B", "U", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Contract Killing",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Contract from Below",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Corpse Harvester",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Zombie Wizard"
+    },
+    {
+      "name": "Counterintelligence",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Countervailing Winds",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Country Roads",
+      "colorIdentity": ["W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Coveted Falcon",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Artifact Creature — Bird"
+    },
+    {
+      "name": "Coveted Jewel",
+      "colorIdentity": [],
+      "cmc": 6,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Covetous Elegy",
+      "colorIdentity": ["B", "W"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Cowardice",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Crashing Tide",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Crib Swap",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Kindred Instant — Shapeshifter"
+    },
+    {
+      "name": "Crime // Punishment",
+      "colorIdentity": ["B", "G", "W"],
+      "cmc": 7,
+      "typeLine": "Sorcery // Sorcery"
+    },
+    {
+      "name": "Crown of Skemfar",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Crush the Weak",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Cryptex",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Cryptic Caves",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Cryptic Command",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Crystalline Crawler",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact Creature — Construct"
+    },
+    {
+      "name": "Cubwarden",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Cat"
+    },
+    {
+      "name": "Cultivator Colossus",
+      "colorIdentity": ["G"],
+      "cmc": 7,
+      "typeLine": "Creature — Plant Beast"
+    },
+    {
+      "name": "Curate",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Curator's Ward",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Curious Homunculus",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Homunculus // Creature — Eldrazi Homunculus"
+    },
+    {
+      "name": "Currency Converter",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Curse of the Cabal",
+      "colorIdentity": ["B"],
+      "cmc": 10,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Cursed Courtier",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Noble"
+    },
+    {
+      "name": "Daily Bugle Building",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Dark Betrayal",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Darkheart Sliver",
+      "colorIdentity": ["B", "G"],
+      "cmc": 2,
+      "typeLine": "Creature — Sliver"
+    },
+    {
+      "name": "Daru Warchief",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Soldier"
+    },
+    {
+      "name": "Dauntless Scrapbot",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact Creature — Robot"
+    },
+    {
+      "name": "Dauthi Voidwalker",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Dauthi Rogue"
+    },
+    {
+      "name": "Dawnbringer Charioteers",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Soldier"
+    },
+    {
+      "name": "Dawnbringer Cleric",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Dawnhart Rejuvenator",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Warlock"
+    },
+    {
+      "name": "Day of Judgment",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Deadly Embrace",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Deadshot",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Death in Heaven",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "Deathbringer Regent",
+      "colorIdentity": ["B"],
+      "cmc": 7,
+      "typeLine": "Creature — Dragon"
+    },
+    {
+      "name": "Decaying Time Loop",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Deduce",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Deem Worthy",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Deeproot Wayfinder",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Merfolk Scout"
+    },
+    {
+      "name": "Defend the Rider",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Defiled Crypt // Cadaver Lab",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Enchantment — Room // Enchantment — Room"
+    },
+    {
+      "name": "Defiler of Dreams",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Creature — Phyrexian Sphinx"
+    },
+    {
+      "name": "Defiler of Flesh",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Phyrexian Horror"
+    },
+    {
+      "name": "Demon of Dark Schemes",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Creature — Demon"
+    },
+    {
+      "name": "Demonic Hordes",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Creature — Demon"
+    },
+    {
+      "name": "Depose // Deploy",
+      "colorIdentity": ["U", "W"],
+      "cmc": 6,
+      "typeLine": "Instant // Instant"
+    },
+    {
+      "name": "Depressurize",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Desert Twister",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Desolation",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Desperate Ritual",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant — Arcane"
+    },
+    {
+      "name": "Destructor Dragon",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Creature — Dragon"
+    },
+    {
+      "name": "Devastation",
+      "colorIdentity": ["R"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Devoted Druid",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Devourer of Destiny",
+      "colorIdentity": [],
+      "cmc": 7,
+      "typeLine": "Creature — Eldrazi"
+    },
+    {
+      "name": "Devout Decree",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Didact Echo",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Creature — Spirit Cleric"
+    },
+    {
+      "name": "Digsite Conservator",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact Creature — Gnome"
+    },
+    {
+      "name": "Dimir Doppelganger",
+      "colorIdentity": ["B", "U"],
+      "cmc": 3,
+      "typeLine": "Creature — Shapeshifter"
+    },
+    {
+      "name": "Dina's Guidance",
+      "colorIdentity": ["B", "G"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Diregraf Horde",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Zombie"
+    },
+    {
+      "name": "Discovery // Dispersal",
+      "colorIdentity": ["B", "U"],
+      "cmc": 7,
+      "typeLine": "Sorcery // Instant"
+    },
+    {
+      "name": "Dismantling Blow",
+      "colorIdentity": ["U", "W"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Dispel",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Dissipation Field",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Distended Mindbender",
+      "colorIdentity": ["B"],
+      "cmc": 8,
+      "typeLine": "Creature — Eldrazi Insect"
+    },
+    {
+      "name": "Diversion Specialist",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Warrior"
+    },
+    {
+      "name": "Divide by Zero",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Divine Reckoning",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Diviner Spirit",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Creature — Spirit"
+    },
+    {
+      "name": "Divining Witch",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Spellshaper"
+    },
+    {
+      "name": "Dockside Extortionist",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Creature — Goblin Pirate"
+    },
+    {
+      "name": "Dokuchi Silencer",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Ninja"
+    },
+    {
+      "name": "Don't Make a Sound",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Doomfall",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Draconic Disciple",
+      "colorIdentity": ["G", "R"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Shaman"
+    },
+    {
+      "name": "Dragonstorm Globe",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Dragonweave Tapestry",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Dream Chisel",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Dreamcatcher",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Creature — Spirit"
+    },
+    {
+      "name": "Dreamscape Artist",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Spellshaper"
+    },
+    {
+      "name": "Dreamspoiler Witches",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Faerie Wizard"
+    },
+    {
+      "name": "Dreamtail Heron",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Creature — Elemental Bird"
+    },
+    {
+      "name": "Dregs of Sorrow",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Driftgloom Coyote",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Creature — Elemental Coyote"
+    },
+    {
+      "name": "Dromoka Monument",
+      "colorIdentity": ["G", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Drown in Sorrow",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Drown in the Loch",
+      "colorIdentity": ["B", "U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Drownyard Behemoth",
+      "colorIdentity": ["U"],
+      "cmc": 9,
+      "typeLine": "Creature — Eldrazi Crab"
+    },
+    {
+      "name": "Druids' Repository",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Dryad of the Ilysian Grove",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Enchantment Creature — Nymph Dryad"
+    },
+    {
+      "name": "Dutiful Attendant",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Warrior"
+    },
+    {
+      "name": "Easy Prey",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Eaten Alive",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Echoing Return",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Eclipsed Merrow",
+      "colorIdentity": ["U", "W"],
+      "cmc": 3,
+      "typeLine": "Creature — Merfolk Scout"
+    },
+    {
+      "name": "Ecological Appreciation",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Eidolon of Blossoms",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment Creature — Spirit"
+    },
+    {
+      "name": "Elaborate Firecannon",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Elderwood Scion",
+      "colorIdentity": ["G", "W"],
+      "cmc": 5,
+      "typeLine": "Creature — Elemental"
+    },
+    {
+      "name": "Elesh Norn // The Argent Etchings",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Phyrexian Praetor // Enchantment — Saga"
+    },
+    {
+      "name": "Eliminate the Competition",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Elite Archers",
+      "colorIdentity": ["W"],
+      "cmc": 6,
+      "typeLine": "Creature — Human Soldier Archer"
+    },
+    {
+      "name": "Elspeth Conquers Death",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "Elven Farsight",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Ember Shot",
+      "colorIdentity": ["R"],
+      "cmc": 7,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Embrace the Paradox",
+      "colorIdentity": ["G", "U"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Endbringer",
+      "colorIdentity": [],
+      "cmc": 6,
+      "typeLine": "Creature — Eldrazi"
+    },
+    {
+      "name": "Enduring Ideal",
+      "colorIdentity": ["W"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Energybending",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Instant — Lesson"
+    },
+    {
+      "name": "Escape Detection",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Escape Tunnel",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Essence Filter",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Essence Reliquary",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Estrid, the Masked",
+      "colorIdentity": ["G", "U", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Estrid"
+    },
+    {
+      "name": "Etali's Favor",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Ethereal Absolution",
+      "colorIdentity": ["B", "W"],
+      "cmc": 6,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Ethereal Armor",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Ethersworn Adjudicator",
+      "colorIdentity": ["B", "U", "W"],
+      "cmc": 5,
+      "typeLine": "Artifact Creature — Vedalken Knight"
+    },
+    {
+      "name": "Eumidian Wastewaker",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Insect Cleric"
+    },
+    {
+      "name": "Eventide's Shadow",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Everythingamajig",
+      "colorIdentity": [],
+      "cmc": 5,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Excavation",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Expedition Healer",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Kor Cleric"
+    },
+    {
+      "name": "Exterminate!",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Eyeblight Massacre",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Saga // Enchantment Creature — Goblin Shaman"
+    },
+    {
+      "name": "Faceless Haven",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Snow Land"
+    },
+    {
+      "name": "Faerie Trickery",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Kindred Instant — Faerie"
+    },
+    {
+      "name": "Fake Your Own Death",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Falkenrath Exterminator",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Creature — Vampire Archer"
+    },
+    {
+      "name": "Fall of the Gavel",
+      "colorIdentity": ["U", "W"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Fallen Shinobi",
+      "colorIdentity": ["B", "U"],
+      "cmc": 5,
+      "typeLine": "Creature — Zombie Ninja"
+    },
+    {
+      "name": "False Dawn",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "False Prophet",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Famished Ghoul",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Zombie"
+    },
+    {
+      "name": "Fang Dragon // Forktail Sweep",
+      "colorIdentity": ["R"],
+      "cmc": 7,
+      "typeLine": "Creature — Dragon // Sorcery — Adventure"
+    },
+    {
+      "name": "Far Wanderings",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Farbog Revenant",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Spirit"
+    },
+    {
+      "name": "Fatal Mutation",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Fathom Fleet Cutthroat",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Pirate"
+    },
+    {
+      "name": "Fell the Profane // Fell Mire",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Instant // Land"
+    },
+    {
+      "name": "Femeref Enchantress",
+      "colorIdentity": ["G", "W"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Fertilid's Favor",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Fervent Champion",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Knight"
+    },
+    {
+      "name": "Fervent Mastery",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Festercreep",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Elemental"
+    },
+    {
+      "name": "Feudkiller's Verdict",
+      "colorIdentity": ["W"],
+      "cmc": 6,
+      "typeLine": "Kindred Sorcery — Giant"
+    },
+    {
+      "name": "Fevered Visions",
+      "colorIdentity": ["R", "U"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Fiend Hunter",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Fiendslayer Paladin",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Knight"
+    },
+    {
+      "name": "Fiery Intervention",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Final Act",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Final Flare",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Finishing Blow",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Fire // Ice",
+      "colorIdentity": ["R", "U"],
+      "cmc": 4,
+      "typeLine": "Instant // Instant"
+    },
+    {
+      "name": "Firemane Angel",
+      "colorIdentity": ["R", "W"],
+      "cmc": 6,
+      "typeLine": "Creature — Angel"
+    },
+    {
+      "name": "Firemind's Research",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "First Responder",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Ogre Citizen"
+    },
+    {
+      "name": "Flame Javelin",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Flamekin Herald",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Elemental Wizard"
+    },
+    {
+      "name": "Flamekin Village",
+      "colorIdentity": ["R"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Flameshot",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Flametongue Yearling",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Creature — Kavu"
+    },
+    {
+      "name": "Flamewar, Brash Veteran // Flamewar, Streetwise Operative",
+      "colorIdentity": ["B", "R"],
+      "cmc": 3,
+      "typeLine": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Flare of Cultivation",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Flashfreeze",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Fleetfoot Dancer",
+      "colorIdentity": ["G", "R", "W"],
+      "cmc": 4,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Focus the Mind",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Fool's Tome",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact — Book"
+    },
+    {
+      "name": "Foreshadow",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Forever Young",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Foriysian Totem",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Foulmire Knight // Profane Insight",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Creature — Zombie Knight // Instant — Adventure"
+    },
+    {
+      "name": "Fountain of Renewal",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Fountainport",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Fractured Powerstone",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Frogify",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Frost Fair Lure Fish",
+      "colorIdentity": ["R", "U"],
+      "cmc": 7,
+      "typeLine": "Creature — Fish"
+    },
+    {
+      "name": "Fry",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Fuel Tank Feaster",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Ooze Druid"
+    },
+    {
+      "name": "Fugitive Droid",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Artifact Creature — Robot Scientist"
+    },
+    {
+      "name": "Fugitive of the Judoon",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "Furious Assault",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Furious Reprisal",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Furnace Skullbomb",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Furtive Courier",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Merfolk Advisor"
+    },
+    {
+      "name": "Fyndhorn Elves",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Gaea's Blessing",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Galadriel, Gift-Giver",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Elf Noble"
+    },
+    {
+      "name": "Galvanic Giant // Storm Reading",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Giant Wizard // Instant — Adventure"
+    },
+    {
+      "name": "Garruk Wildspeaker",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Garruk"
+    },
+    {
+      "name": "Garth One-Eye",
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Human Wizard"
+    },
+    {
+      "name": "Gate to the Aether",
+      "colorIdentity": [],
+      "cmc": 6,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Gatecreeper Vine",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Plant"
+    },
+    {
+      "name": "Gemstone Array",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Gene Pollinator",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Artifact Creature — Robot Insect"
+    },
+    {
+      "name": "Genesis Ultimatum",
+      "colorIdentity": ["G", "R", "U"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Geosurge",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Getaway Glamer",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Giant Albatross",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Bird"
+    },
+    {
+      "name": "Giant Inheritance",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Gibbering Barricade",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Nightmare Wall"
+    },
+    {
+      "name": "Gideon, the Oathsworn",
+      "colorIdentity": ["W"],
+      "cmc": 6,
+      "typeLine": "Legendary Planeswalker — Gideon"
+    },
+    {
+      "name": "Gilded Light",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Glacial Revelation",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Glamorous Outlaw",
+      "colorIdentity": ["B", "R", "U"],
+      "cmc": 6,
+      "typeLine": "Creature — Vampire Rogue"
+    },
+    {
+      "name": "Glass Casket",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Gleaming Geardrake",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Artifact Creature — Drake"
+    },
+    {
+      "name": "Glistening Deluge",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Glitch Ghost Surveyor",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Spirit Scout"
+    },
+    {
+      "name": "Glittering Stockpile",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Artifact — Treasure"
+    },
+    {
+      "name": "Gloryheath Lynx",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Cat Mount"
+    },
+    {
+      "name": "Gluntch, the Bestower",
+      "colorIdentity": ["G", "W"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Jellyfish"
+    },
+    {
+      "name": "Glyph of Reincarnation",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Goblin Chieftain",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Goblin"
+    },
+    {
+      "name": "Goblin King",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Goblin"
+    },
+    {
+      "name": "Goblin Lyre",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Goblin Matron",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Goblin"
+    },
+    {
+      "name": "Goblin Recruiter",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Creature — Goblin"
+    },
+    {
+      "name": "Goblin Soothsayer",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Creature — Goblin Shaman"
+    },
+    {
+      "name": "Goblin Warchief",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Goblin Warrior"
+    },
+    {
+      "name": "Goblin Welder",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Creature — Goblin Artificer"
+    },
+    {
+      "name": "Gohn, Town of Ruin",
+      "colorIdentity": ["B", "G"],
+      "cmc": 0,
+      "typeLine": "Land — Town"
+    },
+    {
+      "name": "Gold Myr",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Artifact Creature — Myr"
+    },
+    {
+      "name": "Gold-Forged Thopteryx",
+      "colorIdentity": ["U", "W"],
+      "cmc": 2,
+      "typeLine": "Artifact Creature — Dinosaur Thopter"
+    },
+    {
+      "name": "Golgari Locket",
+      "colorIdentity": ["B", "G"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Golgari Rot Farm",
+      "colorIdentity": ["B", "G"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Gorbag of Minas Morgul",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Orc Soldier"
+    },
+    {
+      "name": "Goreclaw, Terror of Qal Sisma",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Bear"
+    },
+    {
+      "name": "Gourmand's Talent",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Enchantment — Class"
+    },
+    {
+      "name": "Grave Birthing",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Grave Exchange",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Graveyard Shovel",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Great Divide Guide",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Scout Ally"
+    },
+    {
+      "name": "Great Train Heist",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Greater Gargadon",
+      "colorIdentity": ["R"],
+      "cmc": 10,
+      "typeLine": "Creature — Beast"
+    },
+    {
+      "name": "Greenside Watcher",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Greenweaver Druid",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Greymond, Avacyn's Stalwart",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Human Soldier"
+    },
+    {
+      "name": "Griffin Dreamfinder",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Creature — Griffin"
+    },
+    {
+      "name": "Grim Monolith",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Griselbrand",
+      "colorIdentity": ["B"],
+      "cmc": 8,
+      "typeLine": "Legendary Creature — Demon"
+    },
+    {
+      "name": "Gruul Charm",
+      "colorIdentity": ["G", "R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Guardian Archon",
+      "colorIdentity": ["W"],
+      "cmc": 6,
+      "typeLine": "Creature — Archon"
+    },
+    {
+      "name": "Guardian Idol",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Gutless Ghoul",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Snow Creature — Zombie"
+    },
+    {
+      "name": "Gwenna, Eyes of Gaea",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Elf Druid Scout"
+    },
+    {
+      "name": "Halt Order",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Hammerfist Giant",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Creature — Giant Warrior"
+    },
+    {
+      "name": "Hand of Death",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Hand of Emrakul",
+      "colorIdentity": [],
+      "cmc": 9,
+      "typeLine": "Creature — Eldrazi"
+    },
+    {
+      "name": "Harbinger of the Seas",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Merfolk Wizard"
+    },
+    {
+      "name": "Hardened Tactician",
+      "colorIdentity": ["B", "W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Warrior"
+    },
+    {
+      "name": "Harvest Wurm",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Wurm"
+    },
+    {
+      "name": "Hazel of the Rootbloom",
+      "colorIdentity": ["B", "G"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Squirrel Druid"
+    },
+    {
+      "name": "Healing Hands",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Heart of Bogardan",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Heart-Piercer Bow",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact — Equipment"
+    },
+    {
+      "name": "Hearth Elemental // Stoke Genius",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Creature — Elemental // Sorcery — Adventure"
+    },
+    {
+      "name": "Heartless Summoning",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Heartwood Storyteller",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Treefolk"
+    },
+    {
+      "name": "Heraldic Banner",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Heritage Reclamation",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Heroic Intervention",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Heron of Hope",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Bird"
+    },
+    {
+      "name": "Hibernation",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Hide // Seek",
+      "colorIdentity": ["B", "R", "W"],
+      "cmc": 4,
+      "typeLine": "Instant // Instant"
+    },
+    {
+      "name": "Highway Reaver",
+      "colorIdentity": ["B", "R"],
+      "cmc": 4,
+      "typeLine": "Creature — Scorpion Dragon"
+    },
+    {
+      "name": "Higure, the Still Wind",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Human Ninja"
+    },
+    {
+      "name": "Hindering Light",
+      "colorIdentity": ["U", "W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Hinterland Chef",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Scout"
+    },
+    {
+      "name": "Hoard-Smelter Dragon",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Creature — Dragon"
+    },
+    {
+      "name": "Hoarding Broodlord",
+      "colorIdentity": ["B"],
+      "cmc": 8,
+      "typeLine": "Creature — Dragon"
+    },
+    {
+      "name": "Homeward Path",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Honor-Worn Shaku",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Honored Hierarch",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Horned Stoneseeker",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Creature — Lizard"
+    },
+    {
+      "name": "Horobi's Whisper",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Instant — Arcane"
+    },
+    {
+      "name": "Hour of Reckoning",
+      "colorIdentity": ["W"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Hurl into History",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Ice-Fang Coatl",
+      "colorIdentity": ["G", "U"],
+      "cmc": 2,
+      "typeLine": "Snow Creature — Snake"
+    },
+    {
+      "name": "Ichor Drinker",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Creature — Phyrexian Vampire"
+    },
+    {
+      "name": "Idyllic Grange",
+      "colorIdentity": ["W"],
+      "cmc": 0,
+      "typeLine": "Land — Plains"
+    },
+    {
+      "name": "Igneous Pouncer",
+      "colorIdentity": ["B", "R"],
+      "cmc": 6,
+      "typeLine": "Creature — Elemental"
+    },
+    {
+      "name": "Ill-Gotten Inheritance",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Illusion of Choice",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Illvoi Infiltrator",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Jellyfish Rogue"
+    },
+    {
+      "name": "Ilysian Caryatid",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Plant"
+    },
+    {
+      "name": "Impact Tremors",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Incendiary Command",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Incendiary Sabotage",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Incinerating Blast",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Increasing Ambition",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Induce Paranoia",
+      "colorIdentity": ["B", "U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Indulgent Aristocrat",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Creature — Vampire Noble"
+    },
+    {
+      "name": "Ingenious Infiltrator",
+      "colorIdentity": ["B", "U"],
+      "cmc": 4,
+      "typeLine": "Creature — Vedalken Ninja"
+    },
+    {
+      "name": "Inherited Envelope",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Inquisitor Eisenhorn",
+      "colorIdentity": ["B", "U"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Human Inquisitor"
+    },
+    {
+      "name": "Insidious Will",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Inspiration",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Inspired Tinkering",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Intellectual Offering",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Intelligence Bobblehead",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact — Bobblehead"
+    },
+    {
+      "name": "Interdimensional Web Watch",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Into the Roil",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Into the Wilds",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Invasion of Amonkhet // Lazotep Convert",
+      "colorIdentity": ["B", "U"],
+      "cmc": 3,
+      "typeLine": "Battle — Siege // Creature — Zombie"
+    },
+    {
+      "name": "Invasion of Fiora // Marchesa, Resolute Monarch",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Battle — Siege // Legendary Creature — Human Noble"
+    },
+    {
+      "name": "Invasion of Innistrad // Deluge of the Dead",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Battle — Siege // Enchantment"
+    },
+    {
+      "name": "Invasion of Segovia // Caetus, Sea Tyrant of Segovia",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Battle — Siege // Legendary Creature — Serpent"
+    },
+    {
+      "name": "Invasion of the Giants",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "Invasive Surgery",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Invoke the Firemind",
+      "colorIdentity": ["R", "U"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Involuntary Employment",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Ipnu Rivulet",
+      "colorIdentity": ["U"],
+      "cmc": 0,
+      "typeLine": "Land — Desert"
+    },
+    {
+      "name": "Irreverent Revelers",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Satyr"
+    },
+    {
+      "name": "Island of Wak-Wak",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Isolation Zone",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Izoni, Thousand-Eyed",
+      "colorIdentity": ["B", "G"],
+      "cmc": 6,
+      "typeLine": "Legendary Creature — Elf Shaman"
+    },
+    {
+      "name": "Izzet Cluestone",
+      "colorIdentity": ["R", "U"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Izzet Keyrune",
+      "colorIdentity": ["R", "U"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Jace's Ruse",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Jace, Unraveler of Secrets",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Legendary Planeswalker — Jace"
+    },
+    {
+      "name": "Jack-in-the-Mox",
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 0,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Jalum Tome",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact — Book"
+    },
+    {
+      "name": "Jaya Ballard",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Legendary Planeswalker — Jaya"
+    },
+    {
+      "name": "Jenny Flint",
+      "colorIdentity": ["R", "U"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Human Detective"
+    },
+    {
+      "name": "Jeska's Will",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Jeskai Banner",
+      "colorIdentity": ["R", "U", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Jeweled Amulet",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Joiner Adept",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Jolene, the Plunder Queen",
+      "colorIdentity": ["G", "R"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Human Warrior"
+    },
+    {
+      "name": "Jolrael, Voice of Zhalfir",
+      "colorIdentity": ["G", "U"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Human Druid"
+    },
+    {
+      "name": "Journey of Discovery",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Jund Panorama",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Junkyard Genius",
+      "colorIdentity": ["B", "R"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Artificer"
+    },
+    {
+      "name": "Jwar Isle Refuge",
+      "colorIdentity": ["B", "U"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Jwari Disruption // Jwari Ruins",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant // Land"
+    },
+    {
+      "name": "Kaalia, Zenith Seeker",
+      "colorIdentity": ["B", "R", "W"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Human Cleric"
+    },
+    {
+      "name": "Kabira Crossroads",
+      "colorIdentity": ["W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Kaijin of the Vanishing Touch",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Spirit"
+    },
+    {
+      "name": "Kaleidostone",
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Kalitas, Traitor of Ghet",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Vampire Warrior"
+    },
+    {
+      "name": "Kami of Jealous Thirst",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Spirit"
+    },
+    {
+      "name": "Kamiz, Obscura Oculus",
+      "colorIdentity": ["B", "U", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Octopus Rogue"
+    },
+    {
+      "name": "Kappa Cannoneer",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Artifact Creature — Turtle Warrior"
+    },
+    {
+      "name": "Karn's Sylex",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Legendary Artifact"
+    },
+    {
+      "name": "Karn, Living Legacy",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Karn"
+    },
+    {
+      "name": "Karoo",
+      "colorIdentity": ["W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Kaslem's Stonetree // Kaslem's Strider",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Artifact // Artifact Creature — Golem"
+    },
+    {
+      "name": "Kavu Lair",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Kayla's Command",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Kaza, Roil Chaser",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Human Wizard"
+    },
+    {
+      "name": "Kazandu Refuge",
+      "colorIdentity": ["G", "R"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Kazandu Stomper",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Creature — Beast"
+    },
+    {
+      "name": "Keeper of the Accord",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Soldier"
+    },
+    {
+      "name": "Kefnet the Mindful",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — God"
+    },
+    {
+      "name": "Kellan, Inquisitive Prodigy // Tail the Suspect",
+      "colorIdentity": ["G", "U"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Human Faerie Detective // Sorcery — Adventure"
+    },
+    {
+      "name": "Kenrith's Transformation",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Kher Keep",
+      "colorIdentity": ["R"],
+      "cmc": 0,
+      "typeLine": "Legendary Land"
+    },
+    {
+      "name": "Kibo, Uktabi Prince",
+      "colorIdentity": ["G", "R"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Monkey Noble"
+    },
+    {
+      "name": "Killer Service",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Kinetic Ooze",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Creature — Ooze"
+    },
+    {
+      "name": "Kinjalli's Caller",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Kiora Bests the Sea God",
+      "colorIdentity": ["U"],
+      "cmc": 7,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "Kiora, Behemoth Beckoner",
+      "colorIdentity": ["G", "U"],
+      "cmc": 3,
+      "typeLine": "Legendary Planeswalker — Kiora"
+    },
+    {
+      "name": "Kitesail Larcenist",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Pirate"
+    },
+    {
+      "name": "Knife and Death",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Knollspine Dragon",
+      "colorIdentity": ["R"],
+      "cmc": 7,
+      "typeLine": "Creature — Dragon"
+    },
+    {
+      "name": "Kraul Foragers",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Creature — Insect Scout"
+    },
+    {
+      "name": "Krav, the Unredeemed",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Demon"
+    },
+    {
+      "name": "Kris Mage",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Spellshaper"
+    },
+    {
+      "name": "Krosan Tusker",
+      "colorIdentity": ["G"],
+      "cmc": 7,
+      "typeLine": "Creature — Boar Beast"
+    },
+    {
+      "name": "Krovikan Sorcerer",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Wizard Sorcerer"
+    },
+    {
+      "name": "Kroxa and Kunoros",
+      "colorIdentity": ["B", "R", "W"],
+      "cmc": 6,
+      "typeLine": "Legendary Creature — Elder Giant Dog"
+    },
+    {
+      "name": "Kumena's Awakening",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Kura, the Boundless Sky",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Dragon Spirit"
+    },
+    {
+      "name": "Kutzil's Flanker",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Cat Warrior"
+    },
+    {
+      "name": "Laquatus's Disdain",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Lassoed by the Law",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Last Thoughts",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Lat-Nam's Legacy",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Lava Axe",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Lavaclaw Reaches",
+      "colorIdentity": ["B", "R"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Leaf Gilder",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Leaf-Crowned Visionary",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Leafkin Avenger",
+      "colorIdentity": ["G", "R"],
+      "cmc": 4,
+      "typeLine": "Creature — Elemental Druid"
+    },
+    {
+      "name": "Leave // Chance",
+      "colorIdentity": ["R", "W"],
+      "cmc": 6,
+      "typeLine": "Instant // Sorcery"
+    },
+    {
+      "name": "Leechridden Swamp",
+      "colorIdentity": ["B"],
+      "cmc": 0,
+      "typeLine": "Land — Swamp"
+    },
+    {
+      "name": "Leonardo, the Balance",
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Mutant Ninja Turtle"
+    },
+    {
+      "name": "Let the Galaxy Burn",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Lethal Throwdown",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Ley Weaver",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Leyline of Abundance",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Lich-Knights' Conquest",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Licia, Sanguine Tribune",
+      "colorIdentity": ["B", "R", "W"],
+      "cmc": 8,
+      "typeLine": "Legendary Creature — Vampire Soldier"
+    },
+    {
+      "name": "Lifeforce",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Lifegift",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Lighthouse Chronologist",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Liliana's Contract",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Liliana's Influence",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Liliana's Scorn",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Liliana's Standard Bearer",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Zombie Knight"
+    },
+    {
+      "name": "Limited Resources",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Live Fast",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Living Twister",
+      "colorIdentity": ["G", "R"],
+      "cmc": 3,
+      "typeLine": "Creature — Elemental"
+    },
+    {
+      "name": "Llanowar Envoy",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Scout"
+    },
+    {
+      "name": "Llanowar Tribe",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Loan Shark",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Shark Rogue"
+    },
+    {
+      "name": "Lochmere Serpent",
+      "colorIdentity": ["B", "U"],
+      "cmc": 6,
+      "typeLine": "Creature — Serpent"
+    },
+    {
+      "name": "Lord Skitter, Sewer King",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Rat Noble"
+    },
+    {
+      "name": "Lore Broker",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Rogue"
+    },
+    {
+      "name": "Loreseeker's Stone",
+      "colorIdentity": [],
+      "cmc": 6,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Lost in Space",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Lost in the Mist",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Lounge",
+      "colorIdentity": ["B", "G"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Lozhan, Dragons' Legacy",
+      "colorIdentity": ["R", "U"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Dragon Shaman"
+    },
+    {
+      "name": "Lullmage's Familiar",
+      "colorIdentity": ["G", "U"],
+      "cmc": 3,
+      "typeLine": "Creature — Beast"
+    },
+    {
+      "name": "Lumengrid Drake",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Drake"
+    },
+    {
+      "name": "Luminescent Rain",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Luminollusk",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Elemental"
+    },
+    {
+      "name": "Luminous Rebuke",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Machinate",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Maggot Therapy",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Magosi, the Waterveil",
+      "colorIdentity": ["U"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Magus of the Coffers",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Magus of the Disk",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Magus of the Wheel",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Main Event Horizon",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Malboro",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Creature — Plant Horror"
+    },
+    {
+      "name": "Malevolent Rumble",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Mana Bloom",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Mana Chains",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Mana Echoes",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Mana Flair",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Mana Reflection",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Mana Vault",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Manakin",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact Creature — Construct"
+    },
+    {
+      "name": "Manamorphose",
+      "colorIdentity": ["G", "R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Manascape Refractor",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Manticore of the Gauntlet",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Manticore"
+    },
+    {
+      "name": "Marauding Brinefang",
+      "colorIdentity": ["U"],
+      "cmc": 7,
+      "typeLine": "Creature — Dinosaur"
+    },
+    {
+      "name": "Marauding Raptor",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Creature — Dinosaur"
+    },
+    {
+      "name": "March of Souls",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Mark of Eviction",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Market Festival",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Martyr of Frost",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Mask of Griselbrand",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Legendary Artifact — Equipment"
+    },
+    {
+      "name": "Mask of the Mimic",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Masked Admirers",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Elf Shaman"
+    },
+    {
+      "name": "Massacre",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Massacre Girl",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Human Assassin"
+    },
+    {
+      "name": "Master's Rebuke",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Matterbending Mage",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Maze's End",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Mechan Navigator",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Artifact Creature — Robot Pilot"
+    },
+    {
+      "name": "Medomai the Ageless",
+      "colorIdentity": ["U", "W"],
+      "cmc": 6,
+      "typeLine": "Legendary Creature — Sphinx"
+    },
+    {
+      "name": "Medomai's Prophecy",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "Melek, Reforged Researcher",
+      "colorIdentity": ["R", "U"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Weird Detective"
+    },
+    {
+      "name": "Mental Note",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Mentor of the Meek",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Soldier"
+    },
+    {
+      "name": "Mercadian Bazaar",
+      "colorIdentity": ["R"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Mesa Enchantress",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Metallic Rebuke",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Metamorphic Alteration",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Michelangelo, Improviser",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Mutant Ninja Turtle"
+    },
+    {
+      "name": "Migloz, Maze Crusher",
+      "colorIdentity": ["G", "R"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Phyrexian Beast"
+    },
+    {
+      "name": "Mind Transfer Protocol",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Mine Collapse",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Mirari's Wake",
+      "colorIdentity": ["G", "W"],
+      "cmc": 5,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Misfortune Teller",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Warlock"
+    },
+    {
+      "name": "Mishra's Command",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Mishra's Factory",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Mishra, Lost to Phyrexia",
+      "colorIdentity": ["B", "R"],
+      "cmc": 7,
+      "typeLine": "Legendary Artifact Creature — Phyrexian Artificer"
+    },
+    {
+      "name": "Mishra, Tamer of Mak Fawa",
+      "colorIdentity": ["B", "R"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Human Artificer"
+    },
+    {
+      "name": "Mistblade Shinobi",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Ninja"
+    },
+    {
+      "name": "Mnemonic Wall",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Creature — Wall"
+    },
+    {
+      "name": "Molder Slug",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Creature — Slug Beast"
+    },
+    {
+      "name": "Mole Module",
+      "colorIdentity": [],
+      "cmc": 5,
+      "typeLine": "Artifact — Vehicle"
+    },
+    {
+      "name": "Molten Man, Inferno Incarnate",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Elemental Villain"
+    },
+    {
+      "name": "Monstrous Onslaught",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Moon-Circuit Hacker",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Enchantment Creature — Human Ninja"
+    },
+    {
+      "name": "Moonbow Illusionist",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Moonfolk Wizard"
+    },
+    {
+      "name": "Moonlit Scavengers",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Creature — Merfolk Rogue"
+    },
+    {
+      "name": "Moorland Haunt",
+      "colorIdentity": ["U", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Morbid Hunger",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Mordant Dragon",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Creature — Dragon"
+    },
+    {
+      "name": "Morkrut Banshee",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Spirit"
+    },
+    {
+      "name": "Morkrut Behemoth",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Zombie Giant"
+    },
+    {
+      "name": "Morningtide",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Mortiphobia",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Mossbeard Ancient",
+      "colorIdentity": ["G"],
+      "cmc": 7,
+      "typeLine": "Creature — Treefolk"
+    },
+    {
+      "name": "Mount Doom",
+      "colorIdentity": ["B", "R"],
+      "cmc": 0,
+      "typeLine": "Legendary Land"
+    },
+    {
+      "name": "Mox Diamond",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Mudhole",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Multani's Acolyte",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Elf"
+    },
+    {
+      "name": "Murasa Rootgrazer",
+      "colorIdentity": ["G", "W"],
+      "cmc": 2,
+      "typeLine": "Creature — Beast"
+    },
+    {
+      "name": "Mutational Advantage",
+      "colorIdentity": ["G", "U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Muxus, Goblin Grandee",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Legendary Creature — Goblin Noble"
+    },
+    {
+      "name": "My Precious // Allure of Power",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Legendary Artifact — Equipment // Instant — Adventure"
+    },
+    {
+      "name": "Myojin of Cleansing Fire",
+      "colorIdentity": ["W"],
+      "cmc": 8,
+      "typeLine": "Legendary Creature — Spirit"
+    },
+    {
+      "name": "Myr Convert",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact Creature — Phyrexian Myr"
+    },
+    {
+      "name": "Myr Reservoir",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Mystic Skull // Mystic Monstrosity",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact // Artifact Creature — Construct"
+    },
+    {
+      "name": "Nahiri, the Unforgiving",
+      "colorIdentity": ["R", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Nahiri"
+    },
+    {
+      "name": "Nameless Inversion",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Kindred Instant — Shapeshifter"
+    },
+    {
+      "name": "Nantuko Cultivator",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Insect Druid"
+    },
+    {
+      "name": "Nature's Ruin",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Naya Panorama",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Necrosavant",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Creature — Zombie Giant"
+    },
+    {
+      "name": "Need for Speed",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Neheb, Dreadhorde Champion",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Zombie Minotaur Warrior"
+    },
+    {
+      "name": "Nephalia Drownyard",
+      "colorIdentity": ["B", "U"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Nest Invader",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Eldrazi Drone"
+    },
+    {
+      "name": "Network Terminal",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Nevinyrral's Disk",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "New Perspectives",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Nicol Bolas, Planeswalker",
+      "colorIdentity": ["B", "R", "U"],
+      "cmc": 8,
+      "typeLine": "Legendary Planeswalker — Bolas"
+    },
+    {
+      "name": "Night of the Sweets' Revenge",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Ninja of the Deep Hours",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Ninja"
+    },
+    {
+      "name": "Nissa's Expedition",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Nissa, Steward of Elements",
+      "colorIdentity": ["G", "U"],
+      "cmc": 2,
+      "typeLine": "Legendary Planeswalker — Nissa"
+    },
+    {
+      "name": "Noble Purpose",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Noggle Bridgebreaker",
+      "colorIdentity": ["R", "U"],
+      "cmc": 4,
+      "typeLine": "Creature — Noggle Rogue"
+    },
+    {
+      "name": "Notorious Assassin",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Spellshaper Assassin"
+    },
+    {
+      "name": "Null Group Biological Assets",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Mutant Mercenary"
+    },
+    {
+      "name": "Nylea's Presence",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Oath of Jace",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Legendary Enchantment"
+    },
+    {
+      "name": "Obelisk of Esper",
+      "colorIdentity": ["B", "U", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Obscura Confluence",
+      "colorIdentity": ["B", "U", "W"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Obsidian Obelisk",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Oculus",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Phyrexian Homunculus"
+    },
+    {
+      "name": "Offalsnout",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Elemental"
+    },
+    {
+      "name": "Ogre Arsonist",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Ogre"
+    },
+    {
+      "name": "Ogre Shaman",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Ogre Shaman"
+    },
+    {
+      "name": "Ogre-Head Helm",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Artifact Creature — Equipment Ogre"
+    },
+    {
+      "name": "Oil-Gorger Troll",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Creature — Phyrexian Troll Warrior"
+    },
+    {
+      "name": "Ojer Kaslem, Deepest Growth // Temple of Cultivation",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — God // Land"
+    },
+    {
+      "name": "Oloro, Ageless Ascetic",
+      "colorIdentity": ["B", "U", "W"],
+      "cmc": 6,
+      "typeLine": "Legendary Creature — Giant Soldier"
+    },
+    {
+      "name": "Omen Hawker",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Creature — Octopus Advisor"
+    },
+    {
+      "name": "Omen of the Dead",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Omenpath Journey",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Omnath, Locus of the Roil",
+      "colorIdentity": ["G", "R", "U"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Elemental"
+    },
+    {
+      "name": "Omo, Queen of Vesuva",
+      "colorIdentity": ["G", "U"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Shapeshifter Noble"
+    },
+    {
+      "name": "Once More with Feeling",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Opposition Agent",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Rogue"
+    },
+    {
+      "name": "Orcus, Prince of Undeath",
+      "colorIdentity": ["B", "R"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Demon"
+    },
+    {
+      "name": "Oriq Loremage",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Warlock"
+    },
+    {
+      "name": "Orochi Merge-Keeper",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Snake Druid"
+    },
+    {
+      "name": "Orochi Sustainer",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Snake Shaman"
+    },
+    {
+      "name": "Oroku Saki, Shredder Rising",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Human Ninja"
+    },
+    {
+      "name": "Orzhov Keyrune",
+      "colorIdentity": ["B", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Orzhov Locket",
+      "colorIdentity": ["B", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Orzhov Pontiff",
+      "colorIdentity": ["B", "W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Osseous Exhale",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Otawara, Soaring City",
+      "colorIdentity": ["U"],
+      "cmc": 0,
+      "typeLine": "Legendary Land"
+    },
+    {
+      "name": "Otepec Huntmaster",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Shaman"
+    },
+    {
+      "name": "Oubliette",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Overmaster",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Overwhelming Intellect",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Ox of Agonas",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Ox"
+    },
+    {
+      "name": "Pact of Negation",
+      "colorIdentity": ["U"],
+      "cmc": 0,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Parallax Tide",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Path to the World Tree",
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Patron of the Orochi",
+      "colorIdentity": ["G"],
+      "cmc": 8,
+      "typeLine": "Legendary Creature — Spirit"
+    },
+    {
+      "name": "Pearl Collector",
+      "colorIdentity": ["B", "W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Warlock"
+    },
+    {
+      "name": "Pearl Lake Warden // Nesting Instinct",
+      "colorIdentity": ["G", "U"],
+      "cmc": 4,
+      "typeLine": "Creature — Dragon // Sorcery — Omen"
+    },
+    {
+      "name": "Penregon Besieged",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Pentad Prism",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Perilous Voyage",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Pestilent Haze",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Phabine, Boss's Confidant",
+      "colorIdentity": ["G", "R", "W"],
+      "cmc": 6,
+      "typeLine": "Legendary Creature — Cat Advisor"
+    },
+    {
+      "name": "Phyrexian Atlas",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Phyrexian Ghoul",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Phyrexian Zombie"
+    },
+    {
+      "name": "Phyrexian Scrapyard",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Phyrexian Totem",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Phyrexian Vindicator",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Phyrexian Horror"
+    },
+    {
+      "name": "Pick Your Poison",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Piece It Together",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Pilgrim's Eye",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact Creature — Thopter"
+    },
+    {
+      "name": "Pious Interdiction",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Pirated Copy",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Creature — Shapeshifter Pirate"
+    },
+    {
+      "name": "Pit Keeper",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Plumb the Forbidden",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Plunge into Winter",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Polis Crusher",
+      "colorIdentity": ["G", "R"],
+      "cmc": 4,
+      "typeLine": "Creature — Cyclops"
+    },
+    {
+      "name": "Polluted Delta",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Portal of Sanctuary",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Portent",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Power Depot",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Artifact Land"
+    },
+    {
+      "name": "Power Word Kill",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Prayer of Binding",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Precision Bolt",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Predatory Urge",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Preemptive Strike",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Presence of the Master",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Preston Garvey, Minuteman",
+      "colorIdentity": ["G", "R", "W"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Human Soldier"
+    },
+    {
+      "name": "Preyseizer Dragon",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Creature — Dragon"
+    },
+    {
+      "name": "Primal Boost",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Prime Speaker Vannifar",
+      "colorIdentity": ["G", "U"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Elf Ooze Wizard"
+    },
+    {
+      "name": "Primeval Titan",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Creature — Giant"
+    },
+    {
+      "name": "Prismari Charm",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Prismatic Ending",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Prismatic Omen",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Professor Hojo",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Human Scientist"
+    },
+    {
+      "name": "Profound Journey",
+      "colorIdentity": ["W"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Progenitor's Icon",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Promise of Power",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Protector of the Crown",
+      "colorIdentity": ["W"],
+      "cmc": 6,
+      "typeLine": "Creature — Giant Soldier"
+    },
+    {
+      "name": "Psychotrope Thallid",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Fungus"
+    },
+    {
+      "name": "Public Thoroughfare",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Purphoros, God of the Forge",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Legendary Enchantment Creature — God"
+    },
+    {
+      "name": "Pyramid of the Pantheon",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Pyroclast Consul",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Elemental Shaman"
+    },
+    {
+      "name": "Qarsi Deceiver",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Snake Wizard"
+    },
+    {
+      "name": "Qarsi High Priest",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Qarsi Sadist",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Quash",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Quirion Explorer",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Elf Druid Scout"
+    },
+    {
+      "name": "Radiant Fountain",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Rag Dealer",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Rogue"
+    },
+    {
+      "name": "Rampaging Growth",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Raugrin Triome",
+      "colorIdentity": ["R", "U", "W"],
+      "cmc": 0,
+      "typeLine": "Land — Island Mountain Plains"
+    },
+    {
+      "name": "Rayami, First of the Fallen",
+      "colorIdentity": ["B", "G", "U"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Vampire"
+    },
+    {
+      "name": "Reach of Shadows",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Realmwright",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Creature — Vedalken Wizard"
+    },
+    {
+      "name": "Rebellious Strike",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Reckless Assault",
+      "colorIdentity": ["B", "R"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Reckless Blaze",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Sorcery — Lesson"
+    },
+    {
+      "name": "Reckless Ransacking",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Reckless Scholar",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Recurring Nightmare",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Recycle",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Redemption Arc",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Regal Caracal",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Creature — Cat"
+    },
+    {
+      "name": "Reinforced Ronin",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Artifact Creature — Human Samurai"
+    },
+    {
+      "name": "Relic of Legends",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Renewed Faith",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Reno and Rude",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Human Assassin"
+    },
+    {
+      "name": "Repair and Recharge",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Repeal",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Reprocess",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Requiem Monolith",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Rescue from the Underworld",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Research Assistant",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Resounding Roar",
+      "colorIdentity": ["G", "R", "W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Rest in Peace",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Restless Prairie",
+      "colorIdentity": ["G", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Restoration Magic",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Restricted Office // Lecture Hall",
+      "colorIdentity": ["U", "W"],
+      "cmc": 11,
+      "typeLine": "Enchantment — Room // Enchantment — Room"
+    },
+    {
+      "name": "Return to Dust",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Reweave",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Instant — Arcane"
+    },
+    {
+      "name": "Ribbons of the Reikai",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Sorcery — Arcane"
+    },
+    {
+      "name": "Ribskiff",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact — Vehicle"
+    },
+    {
+      "name": "Rift Sower",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Rime Tender",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Snow Creature — Human Druid"
+    },
+    {
+      "name": "Ripjaw Raptor",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Dinosaur"
+    },
+    {
+      "name": "Rishkar, Peema Renegade",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Elf Druid"
+    },
+    {
+      "name": "Rising Waters",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Risk Factor",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Risky Shortcut",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Rite of Consumption",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Riveteers Confluence",
+      "colorIdentity": ["B", "G", "R"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Rix Maadi Reveler",
+      "colorIdentity": ["B", "R"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Shaman"
+    },
+    {
+      "name": "Road // Ruin",
+      "colorIdentity": ["G", "R"],
+      "cmc": 6,
+      "typeLine": "Instant // Sorcery"
+    },
+    {
+      "name": "Roadside Reliquary",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Rod of Ruin",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Rofellos, Llanowar Emissary",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Elf Druid"
+    },
+    {
+      "name": "Ronin Cliffrider",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Human Samurai"
+    },
+    {
+      "name": "Rooftop Nuisance",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Rootgrapple",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Kindred Instant — Treefolk"
+    },
+    {
+      "name": "Rootwater Hunter",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Merfolk"
+    },
+    {
+      "name": "Rotten Reunion",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Roving Harper",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Scout"
+    },
+    {
+      "name": "Rubble Reading",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Ruby, Daring Tracker",
+      "colorIdentity": ["G", "R"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Human Scout"
+    },
+    {
+      "name": "Rude Awakening",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Ruin Grinder",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Artifact Creature — Construct"
+    },
+    {
+      "name": "Ruination",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Run Ashore",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Rune of Speed",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Aura Rune"
+    },
+    {
+      "name": "Rune-Scarred Demon",
+      "colorIdentity": ["B"],
+      "cmc": 7,
+      "typeLine": "Creature — Demon"
+    },
+    {
+      "name": "Rysorian Badger",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Badger"
+    },
+    {
+      "name": "Sab-Sunen, Luxa Embodied",
+      "colorIdentity": ["G", "U"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — God"
+    },
+    {
+      "name": "Sacellum Godspeaker",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Sacred Mesa",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Sacrifice",
+      "colorIdentity": ["B"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sage of Lat-Nam",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Artificer"
+    },
+    {
+      "name": "Sage of the Beyond",
+      "colorIdentity": ["U"],
+      "cmc": 7,
+      "typeLine": "Creature — Spirit Giant"
+    },
+    {
+      "name": "Sage of the Maze",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Wizard"
+    },
+    {
+      "name": "Sage's Dousing",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Kindred Instant — Wizard"
+    },
+    {
+      "name": "Saheeli Rai",
+      "colorIdentity": ["R", "U"],
+      "cmc": 3,
+      "typeLine": "Legendary Planeswalker — Saheeli"
+    },
+    {
+      "name": "Sail into the West",
+      "colorIdentity": ["G", "U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sakashima's Student",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Ninja"
+    },
+    {
+      "name": "Sanar, Unfinished Genius // Wild Idea",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Goblin Sorcerer // Sorcery"
+    },
+    {
+      "name": "Sanguine Spy",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Vampire Rogue"
+    },
+    {
+      "name": "Sapphire Collector",
+      "colorIdentity": ["R", "U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Mercenary"
+    },
+    {
+      "name": "Sarcatog",
+      "colorIdentity": ["B", "R"],
+      "cmc": 3,
+      "typeLine": "Creature — Atog"
+    },
+    {
+      "name": "Sarevok's Tome",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact — Book"
+    },
+    {
+      "name": "Sarkhan's Resolve",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sarkhan's Triumph",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sarkhan, Dragon Ascendant",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Legendary Creature — Human Druid"
+    },
+    {
+      "name": "Sarkhan, Soul Aflame",
+      "colorIdentity": ["R", "U"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Human Shaman"
+    },
+    {
+      "name": "Sarkhan, Wanderer to Shiv",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Sarkhan"
+    },
+    {
+      "name": "Savaen Elves",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Creature — Elf"
+    },
+    {
+      "name": "Savage Ventmaw",
+      "colorIdentity": ["G", "R"],
+      "cmc": 6,
+      "typeLine": "Creature — Dragon"
+    },
+    {
+      "name": "Savor the Moment",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Scarring Memories",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery — Lesson"
+    },
+    {
+      "name": "Scattershot Archer",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Creature — Elf Archer"
+    },
+    {
+      "name": "Scorched Ruins",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Scorching Spear",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Scour All Possibilities",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Scrapwork Rager",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Artifact Creature — Phyrexian Horror"
+    },
+    {
+      "name": "Scroll of Avacyn",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Sea Drake",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Drake"
+    },
+    {
+      "name": "Sea Gate Loremaster",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Creature — Merfolk Wizard Ally"
+    },
+    {
+      "name": "Search Party Captain",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Soldier"
+    },
+    {
+      "name": "Seaside Haven",
+      "colorIdentity": ["U", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Season of Loss",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Second Guess",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Secret Passage",
+      "colorIdentity": ["B", "U"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Seismic Shudder",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Selesnya Locket",
+      "colorIdentity": ["G", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Selfless Exorcist",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Selvala, Heart of the Wilds",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Elf Scout"
+    },
+    {
+      "name": "Serene Sleuth",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Detective"
+    },
+    {
+      "name": "Serrated Arrows",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Setessan Champion",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Warrior"
+    },
+    {
+      "name": "Setessan Petitioner",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Sewerdreg",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Spirit"
+    },
+    {
+      "name": "Shadow-Rite Priest",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Shambling Vent",
+      "colorIdentity": ["B", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Shanid, Sleepers' Scourge",
+      "colorIdentity": ["B", "R", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Human Knight"
+    },
+    {
+      "name": "Shard Phoenix",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Phoenix"
+    },
+    {
+      "name": "Shattered Perception",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Shell of the Last Kappa",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Legendary Artifact"
+    },
+    {
+      "name": "Shelldock Isle",
+      "colorIdentity": ["U"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Sheltered Aerie",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Sheltered Thicket",
+      "colorIdentity": ["G", "R"],
+      "cmc": 0,
+      "typeLine": "Land — Mountain Forest"
+    },
+    {
+      "name": "Sheoldred's Restoration",
+      "colorIdentity": ["B", "W"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Shielding Plax",
+      "colorIdentity": ["G", "U"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Shifting Shadow",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Shimmerdrift Vale",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Snow Land"
+    },
+    {
+      "name": "Shivan Harvest",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Shoot Down",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Shrivel",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Sidequest: Raise a Chocobo // Black Chocobo",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Enchantment // Creature — Bird"
+    },
+    {
+      "name": "Siege-Gang Commander",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Goblin"
+    },
+    {
+      "name": "Sift Through Sands",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant — Arcane"
+    },
+    {
+      "name": "Sigarda's Splendor",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Sigarda, Font of Blessings",
+      "colorIdentity": ["G", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Angel"
+    },
+    {
+      "name": "Silent Gravestone",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Silent Submersible",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Artifact — Vehicle"
+    },
+    {
+      "name": "Silhana Starfletcher",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Druid Archer"
+    },
+    {
+      "name": "Silkweaver Elite",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Archer"
+    },
+    {
+      "name": "Silumgar Sorcerer",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Wizard Sorcerer"
+    },
+    {
+      "name": "Silundi Vision // Silundi Isle",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant // Land"
+    },
+    {
+      "name": "Silver-Fur Master",
+      "colorIdentity": ["B", "U"],
+      "cmc": 2,
+      "typeLine": "Creature — Rat Ninja"
+    },
+    {
+      "name": "Silverquill Command",
+      "colorIdentity": ["B", "W"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Silverquill Silencer",
+      "colorIdentity": ["B", "W"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Silverquill, the Disputant",
+      "colorIdentity": ["B", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Elder Dragon"
+    },
+    {
+      "name": "Simic Cluestone",
+      "colorIdentity": ["G", "U"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Skirk Prospector",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Creature — Goblin"
+    },
+    {
+      "name": "Skittering Surveyor",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact Creature — Construct"
+    },
+    {
+      "name": "Skull Prophet",
+      "colorIdentity": ["B", "G"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Skyfisher Spider",
+      "colorIdentity": ["B", "G"],
+      "cmc": 4,
+      "typeLine": "Creature — Spider"
+    },
+    {
+      "name": "Skymark Roc",
+      "colorIdentity": ["U", "W"],
+      "cmc": 4,
+      "typeLine": "Creature — Bird"
+    },
+    {
+      "name": "Slice in Twain",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Slinza, the Spiked Stampede",
+      "colorIdentity": ["G", "R"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Beast"
+    },
+    {
+      "name": "Smellerbee, Rebel Fighter",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Human Rebel Ally"
+    },
+    {
+      "name": "Smoldering Crater",
+      "colorIdentity": ["R"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Snort",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Socketed Sprocketer",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Artifact Creature — Cyborg Knight"
+    },
+    {
+      "name": "Sojourner's Companion",
+      "colorIdentity": [],
+      "cmc": 7,
+      "typeLine": "Artifact Creature — Salamander"
+    },
+    {
+      "name": "Sol Grail",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Soldevi Machinist",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Wizard Artificer"
+    },
+    {
+      "name": "Solitude",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Creature — Elemental Incarnation"
+    },
+    {
+      "name": "Sonar Strike",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sonic Screwdriver",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Soramaro, First to Dream",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Legendary Creature — Spirit"
+    },
+    {
+      "name": "Sorin's Guide",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Vampire"
+    },
+    {
+      "name": "Sorin's Vengeance",
+      "colorIdentity": ["B"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Sorin, Lord of Innistrad",
+      "colorIdentity": ["B", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Sorin"
+    },
+    {
+      "name": "Soul Manipulation",
+      "colorIdentity": ["B", "U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Soul Net",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Soul Shepherd",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Soul Warden",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Soul of New Phyrexia",
+      "colorIdentity": [],
+      "cmc": 6,
+      "typeLine": "Artifact Creature — Phyrexian Avatar"
+    },
+    {
+      "name": "South Pole Voyager",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Scout Ally"
+    },
+    {
+      "name": "Spatial Contortion",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Spectral Sailor",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Creature — Spirit Pirate"
+    },
+    {
+      "name": "Spell Shrivel",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Spell Swindle",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Spellscorn Coven // Take It Back",
+      "colorIdentity": ["B", "U"],
+      "cmc": 4,
+      "typeLine": "Creature — Faerie Warlock // Instant — Adventure"
+    },
+    {
+      "name": "Spelunking",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Sphere of the Suns",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Spider-Man 2099, Miguel O'Hara",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Spider Human Hero"
+    },
+    {
+      "name": "Spider-Man India",
+      "colorIdentity": ["G", "W"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Spider Human Hero"
+    },
+    {
+      "name": "Spider-UK",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Spider Human Hero"
+    },
+    {
+      "name": "Spikefield Hazard // Spikefield Cave",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Instant // Land"
+    },
+    {
+      "name": "Spined Fluke",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Worm Horror"
+    },
+    {
+      "name": "Spirited Companion",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Enchantment Creature — Dog"
+    },
+    {
+      "name": "Spiritual Focus",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Spoils of Victory",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Springjack Pasture",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Springleaf Drum",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Squelch",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sram's Expertise",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Staff of the Letter Magus",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Stampeding Serow",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Antelope Beast"
+    },
+    {
+      "name": "Star of Extinction",
+      "colorIdentity": ["R"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Starfield of Nyx",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Starnheim Memento",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Starscream, Power Hungry // Starscream, Seeker Leader",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Legendary Artifact Creature — Robot // Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "Starting Column",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Stasis",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Staunch Throneguard",
+      "colorIdentity": [],
+      "cmc": 5,
+      "typeLine": "Artifact Creature — Construct"
+    },
+    {
+      "name": "Steel Leaf Paladin",
+      "colorIdentity": ["G", "W"],
+      "cmc": 6,
+      "typeLine": "Creature — Elf Knight"
+    },
+    {
+      "name": "Steelshaper's Gift",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Steelswarm Operator",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Artifact Creature — Robot Soldier"
+    },
+    {
+      "name": "Stench of Evil",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Steward of Valeron",
+      "colorIdentity": ["G", "W"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Druid Knight"
+    },
+    {
+      "name": "Stinging Shot",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Stirring Wildwood",
+      "colorIdentity": ["G", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Stitcher's Graft",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact — Equipment"
+    },
+    {
+      "name": "Stolen Goods",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Stonecloaker",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Gargoyle"
+    },
+    {
+      "name": "Stoneforge Mystic",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Kor Artificer"
+    },
+    {
+      "name": "Stoneshaker Shaman",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Shaman"
+    },
+    {
+      "name": "Storm Fleet Spy",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Pirate"
+    },
+    {
+      "name": "Storm Skreelix",
+      "colorIdentity": ["R", "U"],
+      "cmc": 5,
+      "typeLine": "Creature — Drake Horror"
+    },
+    {
+      "name": "Storm of Forms",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Stormclaw Rager",
+      "colorIdentity": ["B", "R"],
+      "cmc": 3,
+      "typeLine": "Creature — Ogre Warrior"
+    },
+    {
+      "name": "Strixhaven Stadium",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Structural Collapse",
+      "colorIdentity": ["R"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Struggle // Survive",
+      "colorIdentity": ["G", "R"],
+      "cmc": 5,
+      "typeLine": "Instant // Sorcery"
+    },
+    {
+      "name": "Study Break",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Suit Up",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sultai Monument",
+      "colorIdentity": ["B", "G", "U"],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Summer Bloom",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Summon: Esper Valigarmanda",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Enchantment Creature — Saga Drake"
+    },
+    {
+      "name": "Summon: Leviathan",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Enchantment Creature — Saga Leviathan"
+    },
+    {
+      "name": "Summoner's Bane",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sun-Spider, Nimble Webber",
+      "colorIdentity": ["U", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Spider Human Hero"
+    },
+    {
+      "name": "Sunbeam Spellbomb",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Sunder",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sunderflock",
+      "colorIdentity": ["U"],
+      "cmc": 9,
+      "typeLine": "Creature — Elemental"
+    },
+    {
+      "name": "Sunken Citadel",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land — Cave"
+    },
+    {
+      "name": "Sunpearl Kirin",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Kirin"
+    },
+    {
+      "name": "Superior Numbers",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Supportive Parents",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Citizen"
+    },
+    {
+      "name": "Surge of Thoughtweft",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Kindred Instant — Kithkin"
+    },
+    {
+      "name": "Surgeon General Commander",
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Wombat Bat Chameleon"
+    },
+    {
+      "name": "Surgespanner",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Merfolk Wizard"
+    },
+    {
+      "name": "Surgical Skullbomb",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Survival Cache",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Swampbenders",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Creature — Human Druid Ally"
+    },
+    {
+      "name": "Swell of Growth",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Swift Silence",
+      "colorIdentity": ["U", "W"],
+      "cmc": 5,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Sword of Sinew and Steel",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact — Equipment"
+    },
+    {
+      "name": "Sylvan Tutor",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Tablet of Compleation",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Tablet of Discovery",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Taken by Nightmares",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Talisman of Hierarchy",
+      "colorIdentity": ["B", "W"],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Talisman of Indulgence",
+      "colorIdentity": ["B", "R"],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Tallyman of Nurgle",
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "typeLine": "Creature — Astartes Warrior"
+    },
+    {
+      "name": "Tamiyo's Safekeeping",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Tanglespan Lookout",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Satyr"
+    },
+    {
+      "name": "Tanufel Rimespeaker",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Elemental Wizard"
+    },
+    {
+      "name": "Taste of Death",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Tectonic Break",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Tectonic Split",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Teferi's Care",
+      "colorIdentity": ["U", "W"],
+      "cmc": 3,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Teferi, Hero of Dominaria",
+      "colorIdentity": ["U", "W"],
+      "cmc": 5,
+      "typeLine": "Legendary Planeswalker — Teferi"
+    },
+    {
+      "name": "Teferi, Master of Time",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Teferi"
+    },
+    {
+      "name": "Tegwyll's Scouring",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Temple of Mystery",
+      "colorIdentity": ["G", "U"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Temporal Extortion",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Temur Banner",
+      "colorIdentity": ["G", "R", "U"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Temur Battlecrier",
+      "colorIdentity": ["G", "R", "U"],
+      "cmc": 3,
+      "typeLine": "Creature — Orc Ranger"
+    },
+    {
+      "name": "Temur Charm",
+      "colorIdentity": ["G", "R", "U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Tender Wildguide",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Possum Druid"
+    },
+    {
+      "name": "Terisiare's Devastation",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Teroh's Faithful",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Creature — Human Cleric"
+    },
+    {
+      "name": "Terror Tide",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Tezzeret's Betrayal",
+      "colorIdentity": ["B", "U"],
+      "cmc": 5,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Tezzeret's Reckoning",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Tezzeret, Artifice Master",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Legendary Planeswalker — Tezzeret"
+    },
+    {
+      "name": "Thancred Waters",
+      "colorIdentity": ["W"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Human Warrior"
+    },
+    {
+      "name": "Thassa's Bounty",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Thassa's Rebuff",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "The Autonomous Furnace",
+      "colorIdentity": ["R"],
+      "cmc": 0,
+      "typeLine": "Land — Sphere"
+    },
+    {
+      "name": "The Belligerent",
+      "colorIdentity": ["R", "U"],
+      "cmc": 4,
+      "typeLine": "Legendary Artifact — Vehicle"
+    },
+    {
+      "name": "The Brothers' War",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "The Celestus",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Legendary Artifact"
+    },
+    {
+      "name": "The Dross Pits",
+      "colorIdentity": ["B"],
+      "cmc": 0,
+      "typeLine": "Land — Sphere"
+    },
+    {
+      "name": "The Elder Dragon War",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "The Enigma Jewel // Locus of Enlightenment",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Legendary Artifact // Legendary Artifact"
+    },
+    {
+      "name": "The Fair Basilica",
+      "colorIdentity": ["W"],
+      "cmc": 0,
+      "typeLine": "Land — Sphere"
+    },
+    {
+      "name": "The Flame of Keld",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "The Gitrog Monster",
+      "colorIdentity": ["B", "G"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Frog Horror"
+    },
+    {
+      "name": "The Irencrag",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Legendary Artifact"
+    },
+    {
+      "name": "The Kami War // O-Kagachi Made Manifest",
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 6,
+      "typeLine": "Enchantment — Saga // Enchantment Creature — Dragon Spirit"
+    },
+    {
+      "name": "The Last Agni Kai",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "The Legend of Kuruk // Avatar Kuruk",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Saga // Legendary Creature — Avatar"
+    },
+    {
+      "name": "The Mightstone and Weakstone",
+      "colorIdentity": [],
+      "cmc": 5,
+      "typeLine": "Legendary Artifact — Powerstone"
+    },
+    {
+      "name": "The Moment",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Legendary Artifact"
+    },
+    {
+      "name": "The Pride of Hull Clade",
+      "colorIdentity": ["G", "U"],
+      "cmc": 11,
+      "typeLine": "Legendary Creature — Crocodile Elk Turtle"
+    },
+    {
+      "name": "The Wandering Emperor",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker"
+    },
+    {
+      "name": "The Witch's Vanity",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "The World Tree",
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Their Number Is Legion",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "There and Back Again",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "Thespian's Stage",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Thieves' Tools",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Artifact — Equipment"
+    },
+    {
+      "name": "Thing in the Ice // Awoken Horror",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Horror // Creature — Kraken Horror"
+    },
+    {
+      "name": "Thornvault Forager",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Squirrel Ranger"
+    },
+    {
+      "name": "Thornwood Falls",
+      "colorIdentity": ["G", "U"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Thousand-Faced Shadow",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Ninja"
+    },
+    {
+      "name": "Thrashing Wumpus",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Beast"
+    },
+    {
+      "name": "Thunderblade Charge",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Thunderclap Drake",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Creature — Drake"
+    },
+    {
+      "name": "Thunderherd Migration",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Tiger-Tribe Hunter",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Human Barbarian"
+    },
+    {
+      "name": "Tigereye Cameo",
+      "colorIdentity": ["G", "W"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Time Sieve",
+      "colorIdentity": ["B", "U"],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Timesifter",
+      "colorIdentity": [],
+      "cmc": 5,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Timetwister",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Titania's Command",
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Toggo, Goblin Weaponsmith",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Goblin Artificer"
+    },
+    {
+      "name": "Tolaria",
+      "colorIdentity": ["U"],
+      "cmc": 0,
+      "typeLine": "Legendary Land"
+    },
+    {
+      "name": "Torrent of Lava",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Touch of Invisibility",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Towashi Guide-Bot",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact Creature — Construct"
+    },
+    {
+      "name": "Toxicrene",
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "typeLine": "Creature — Tyranid"
+    },
+    {
+      "name": "Trace of Abundance",
+      "colorIdentity": ["G", "R", "W"],
+      "cmc": 2,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Tranquil Cove",
+      "colorIdentity": ["U", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Trash for Treasure",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Traumatic Critique",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Treebeard, Gracious Host",
+      "colorIdentity": ["G", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Treefolk"
+    },
+    {
+      "name": "Treva's Charm",
+      "colorIdentity": ["G", "U", "W"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Trial // Error",
+      "colorIdentity": ["B", "U", "W"],
+      "cmc": 4,
+      "typeLine": "Instant // Instant"
+    },
+    {
+      "name": "Triangle of War",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Trostani, Selesnya's Voice",
+      "colorIdentity": ["G", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Dryad"
+    },
+    {
+      "name": "Truce",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "True Ancestry",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Sorcery — Lesson"
+    },
+    {
+      "name": "Truth or Consequences",
+      "colorIdentity": ["R", "U"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Tsabo's Decree",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Tsabo's Web",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Tui and La, Moon and Ocean",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Fish Spirit"
+    },
+    {
+      "name": "Turbulent Dreams",
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Turf Wound",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Turn Aside",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Turntimber Ascetic",
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "typeLine": "Creature — Giant Cleric"
+    },
+    {
+      "name": "Turntimber Grove",
+      "colorIdentity": ["G"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Turtles in Time",
+      "colorIdentity": ["U"],
+      "cmc": 7,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Tweeze",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Twinmaw Stormbrood // Charring Bite",
+      "colorIdentity": ["R", "W"],
+      "cmc": 6,
+      "typeLine": "Creature — Dragon // Sorcery — Omen"
+    },
+    {
+      "name": "Twisted Justice",
+      "colorIdentity": ["B", "U"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Tyrant's Choice",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Ukkima, Stalking Shadow",
+      "colorIdentity": ["B", "U"],
+      "cmc": 3,
+      "typeLine": "Legendary Creature — Whale Wolf"
+    },
+    {
+      "name": "Ulamog's Dreadsire",
+      "colorIdentity": [],
+      "cmc": 10,
+      "typeLine": "Creature — Eldrazi"
+    },
+    {
+      "name": "Ulvenwald Captive // Ulvenwald Abomination",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Werewolf Horror // Creature — Eldrazi Werewolf"
+    },
+    {
+      "name": "Umbra Mystic",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Wizard"
+    },
+    {
+      "name": "Unlucky Witness",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Creature — Human Citizen"
+    },
+    {
+      "name": "Unquestioned Authority",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Unravel",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Unstable Obelisk",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Unyielding Gatekeeper",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Elephant Cleric"
+    },
+    {
+      "name": "Upheaval",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Urban Retreat",
+      "colorIdentity": ["G", "U", "W"],
+      "cmc": 0,
+      "typeLine": "Land"
+    },
+    {
+      "name": "Urborg Shambler",
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "typeLine": "Creature — Horror"
+    },
+    {
+      "name": "Urborg, Tomb of Yawgmoth",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Legendary Land"
+    },
+    {
+      "name": "Ureni of the Unwritten",
+      "colorIdentity": ["G", "R", "U"],
+      "cmc": 7,
+      "typeLine": "Legendary Creature — Spirit Dragon"
+    },
+    {
+      "name": "Utopia Tree",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Plant"
+    },
+    {
+      "name": "Valiant Endeavor",
+      "colorIdentity": ["W"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Valiant Farewell",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Vandalblast",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Vanquish the Horde",
+      "colorIdentity": ["W"],
+      "cmc": 8,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Vapor Snag",
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Vault 11: Voter's Dilemma",
+      "colorIdentity": ["B", "W"],
+      "cmc": 4,
+      "typeLine": "Enchantment — Saga"
+    },
+    {
+      "name": "Vayne's Treachery",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Verduran Enchantress",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Very Cryptic Command",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Vessel of Endless Rest",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Vesuvan Mist",
+      "colorIdentity": ["B", "U"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Vexing Puzzlebox",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Vibrance",
+      "colorIdentity": ["G", "R"],
+      "cmc": 5,
+      "typeLine": "Creature — Elemental Incarnation"
+    },
+    {
+      "name": "Vindictive Mob",
+      "colorIdentity": ["B"],
+      "cmc": 6,
+      "typeLine": "Creature — Human Berserker"
+    },
+    {
+      "name": "Visage of Bolas",
+      "colorIdentity": ["B", "R", "U"],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Vithian Stinger",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Shaman"
+    },
+    {
+      "name": "Volcanic Hammer",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Voldaren Thrillseeker",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Creature — Vampire Warrior"
+    },
+    {
+      "name": "Volition Reins",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Volley of Boulders",
+      "colorIdentity": ["R"],
+      "cmc": 9,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Voltage Surge",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Voracious Dragon",
+      "colorIdentity": ["R"],
+      "cmc": 5,
+      "typeLine": "Creature — Dragon"
+    },
+    {
+      "name": "Vow of Duty",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Vow of Wildness",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Enchantment — Aura"
+    },
+    {
+      "name": "Vraska's Stoneglare",
+      "colorIdentity": ["B", "G"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Vraska, Golgari Queen",
+      "colorIdentity": ["B", "G"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Vraska"
+    },
+    {
+      "name": "Vraska, Swarm's Eminence",
+      "colorIdentity": ["B", "G"],
+      "cmc": 4,
+      "typeLine": "Legendary Planeswalker — Vraska"
+    },
+    {
+      "name": "Walk the Aeons",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Walker of Secret Ways",
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "typeLine": "Creature — Human Ninja"
+    },
+    {
+      "name": "Warrior's Oath",
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Wash Out",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Waste Not",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Watcher of the Spheres",
+      "colorIdentity": ["U", "W"],
+      "cmc": 2,
+      "typeLine": "Creature — Bird Wizard"
+    },
+    {
+      "name": "Waterspout Djinn",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Creature — Djinn"
+    },
+    {
+      "name": "Waterspout Elemental",
+      "colorIdentity": ["U"],
+      "cmc": 5,
+      "typeLine": "Creature — Elemental"
+    },
+    {
+      "name": "Wayward Angel",
+      "colorIdentity": ["W"],
+      "cmc": 6,
+      "typeLine": "Creature — Angel Horror"
+    },
+    {
+      "name": "Weaponize the Monsters",
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "typeLine": "Enchantment"
+    },
+    {
+      "name": "Weather Maker",
+      "colorIdentity": [],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Weatherseed Totem",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Weaver of Harmony",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Enchantment Creature — Snake Druid"
+    },
+    {
+      "name": "Wedding Security",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Vampire Soldier"
+    },
+    {
+      "name": "Weird Angel Flame",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Stickers"
+    },
+    {
+      "name": "Welding Sparks",
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Well of Lost Dreams",
+      "colorIdentity": [],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Werefox Bodyguard",
+      "colorIdentity": ["W"],
+      "cmc": 3,
+      "typeLine": "Creature — Elf Fox Knight"
+    },
+    {
+      "name": "Westvale Abbey // Ormendahl, Profane Prince",
+      "colorIdentity": ["B"],
+      "cmc": 0,
+      "typeLine": "Land // Legendary Creature — Demon"
+    },
+    {
+      "name": "Wheel and Deal",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Whelming Wave",
+      "colorIdentity": ["U"],
+      "cmc": 4,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Whippoorwill",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Creature — Bird"
+    },
+    {
+      "name": "Whisperer of the Wilds",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Shaman"
+    },
+    {
+      "name": "White Auracite",
+      "colorIdentity": ["W"],
+      "cmc": 4,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "White Orchid Phantom",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Spirit Knight"
+    },
+    {
+      "name": "Whitemane Lion",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Creature — Cat"
+    },
+    {
+      "name": "Wild Ogre Bupkis",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Stickers"
+    },
+    {
+      "name": "Will of the Temur",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Windcaller Aven",
+      "colorIdentity": ["U"],
+      "cmc": 6,
+      "typeLine": "Creature — Bird Wizard"
+    },
+    {
+      "name": "Winds of Abandon",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Winter Moon",
+      "colorIdentity": [],
+      "cmc": 2,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Wirewood Elf",
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "typeLine": "Creature — Elf Druid"
+    },
+    {
+      "name": "Wish Good Luck",
+      "colorIdentity": ["G", "R"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Witherbloom Apprentice",
+      "colorIdentity": ["B", "G"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Druid"
+    },
+    {
+      "name": "Witherbloom Pledgemage",
+      "colorIdentity": ["B", "G"],
+      "cmc": 5,
+      "typeLine": "Creature — Treefolk Warlock"
+    },
+    {
+      "name": "Without Weakness",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Woebringer Demon",
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "typeLine": "Creature — Demon"
+    },
+    {
+      "name": "World Breaker",
+      "colorIdentity": ["G"],
+      "cmc": 7,
+      "typeLine": "Creature — Eldrazi"
+    },
+    {
+      "name": "World Map",
+      "colorIdentity": [],
+      "cmc": 1,
+      "typeLine": "Artifact"
+    },
+    {
+      "name": "Worldslayer",
+      "colorIdentity": [],
+      "cmc": 5,
+      "typeLine": "Artifact — Equipment"
+    },
+    {
+      "name": "Wrath of the Skies",
+      "colorIdentity": ["W"],
+      "cmc": 2,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Wreck and Rebuild",
+      "colorIdentity": ["G", "R"],
+      "cmc": 3,
+      "typeLine": "Sorcery"
+    },
+    {
+      "name": "Wrenn and Realmbreaker",
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "typeLine": "Legendary Planeswalker — Wrenn"
+    },
+    {
+      "name": "Wrexial, the Risen Deep",
+      "colorIdentity": ["B", "U"],
+      "cmc": 6,
+      "typeLine": "Legendary Creature — Kraken"
+    },
+    {
+      "name": "Yasharn, Implacable Earth",
+      "colorIdentity": ["G", "W"],
+      "cmc": 4,
+      "typeLine": "Legendary Creature — Elemental Boar"
+    },
+    {
+      "name": "Yavimaya, Cradle of Growth",
+      "colorIdentity": [],
+      "cmc": 0,
+      "typeLine": "Legendary Land"
+    },
+    {
+      "name": "Yotian Courier",
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "typeLine": "Creature — Human Artificer"
+    },
+    {
+      "name": "You Line Up the Shot",
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "You're Ambushed on the Road",
+      "colorIdentity": ["W"],
+      "cmc": 1,
+      "typeLine": "Instant"
+    },
+    {
+      "name": "Yuki-Onna",
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "typeLine": "Creature — Spirit"
+    },
+    {
+      "name": "Zacama, Primal Calamity",
+      "colorIdentity": ["G", "R", "W"],
+      "cmc": 9,
+      "typeLine": "Legendary Creature — Elder Dinosaur"
+    },
+    {
+      "name": "Zagoth Triome",
+      "colorIdentity": ["B", "G", "U"],
+      "cmc": 0,
+      "typeLine": "Land — Swamp Forest Island"
+    },
+    {
+      "name": "Zareth San, the Trickster",
+      "colorIdentity": ["B", "U"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Merfolk Rogue"
+    },
+    {
+      "name": "Zhentarim Bandit",
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "typeLine": "Creature — Halfling Rogue"
+    },
+    {
+      "name": "Éomer, King of Rohan",
+      "colorIdentity": ["R", "W"],
+      "cmc": 5,
+      "typeLine": "Legendary Creature — Human Noble"
+    }
   ]
 }
