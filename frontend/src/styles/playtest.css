@@ -715,18 +715,31 @@ body[data-felt='slate'] {
    it. Out of flow (above the pile's own box), so the four pile labels stay on
    one line and the coins ride up with the pile when it opens on hover. A
    click adds a cast, a right-click takes one off. */
-.playtest-pile__coins {
+.playtest-tax-coins {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.playtest-tax-coins--pile {
   position: absolute;
   bottom: 100%;
   left: 0;
   right: 0;
-  display: flex;
   justify-content: center;
-  gap: var(--space-2);
   padding-bottom: var(--space-1);
 }
 
-.playtest-pile__coin {
+/* The phone's command tile: in its header row beside the name, where the
+   "Tax +N" text used to be, on the panel's surface rather than the felt. */
+.playtest-tax-coins--inline {
+  margin-left: auto;
+}
+
+.playtest-tax-coins--inline .playtest-tax-coin {
+  color: var(--text-primary);
+}
+
+.playtest-tax-coin {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -742,21 +755,21 @@ body[data-felt='slate'] {
   cursor: pointer;
 }
 
-.playtest-pile__coin svg {
+.playtest-tax-coin svg {
   color: var(--mtg-counter-gold);
 }
 
-.playtest-pile__coin--partner svg {
+.playtest-tax-coin--partner svg {
   color: var(--mtg-counter-silver);
 }
 
-.playtest-pile__coin:focus-visible {
+.playtest-tax-coin:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .playtest-pile__coin:hover {
+  .playtest-tax-coin:hover {
     background: color-mix(in oklab, var(--felt-text) 12%, transparent);
   }
 }
@@ -765,11 +778,11 @@ body[data-felt='slate'] {
    row does not grow (the mana steppers' pattern). The wider gap keeps two
    partners' ghosts from overlapping. */
 @media (pointer: coarse) {
-  .playtest-pile__coins {
+  .playtest-tax-coins {
     gap: var(--space-4);
   }
 
-  .playtest-pile__coin::after {
+  .playtest-tax-coin::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -837,14 +850,14 @@ body[data-felt='slate'] {
    `:has()` out-ranks the two openers above, so the pile keeps its resting
    slice (the same 0.35 as `.playtest-pile__stack`) and no ring promises a
    click on the card. */
-.playtest-pile:has(.playtest-pile__coin:focus-visible) .playtest-pile__stack {
+.playtest-pile:has(.playtest-tax-coin:focus-visible) .playtest-pile__stack {
   height: calc(var(--pt-card-h) * 0.35);
 }
 
 @media (hover: hover) and (pointer: fine) {
   /* `:hover` again so this matches the hover ring's specificity (its
      `:not(:has())` counts), and wins by coming later. */
-  .playtest-pile:has(.playtest-pile__coins:hover):hover .playtest-pile__stack {
+  .playtest-pile:has(.playtest-tax-coins:hover):hover .playtest-pile__stack {
     height: calc(var(--pt-card-h) * 0.35);
     outline: none;
   }
@@ -2311,11 +2324,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-primary);
-}
-
-.playtest-zone-tile__tax {
-  color: var(--mtg-counter-gold);
-  font-weight: 700;
 }
 
 .playtest-zone-tile__kebab:focus-visible {

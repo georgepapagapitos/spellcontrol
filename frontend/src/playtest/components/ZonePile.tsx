@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { Coins } from 'lucide-react';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { useLongPress } from '@/lib/use-long-press';
-import { commanderTaxAmount } from '../lib/zones';
+import { TaxCoins } from './TaxCoins';
 
 /** How many command-zone cards the corner row draws. Two, because that is a
  *  commander and a partner — the zone may hold any number. */
@@ -97,15 +96,12 @@ export function ZonePile({
   // parked on top of a card is chrome the table does not have.
   const longPress = useLongPress({
     onLongPress: (x, y) => {
-      const under = document.elementFromPoint(x, y);
-      // A hold on a coin takes a cast off, as a right-click does.
-      const coinId = under?.closest('.playtest-pile__coin')?.getAttribute('data-tax-card-id');
-      if (coinId && onAdjustTax) {
-        onAdjustTax(coinId, -1);
-        return;
-      }
       // A hold on one commander is that card's menu, as a right-click is.
-      const id = under?.closest('.playtest-pile__commander')?.getAttribute('data-card-id');
+      // (A hold on a tax coin never reaches here: TaxCoins keeps its touches.)
+      const id = document
+        .elementFromPoint(x, y)
+        ?.closest('.playtest-pile__commander')
+        ?.getAttribute('data-card-id');
       const card = id ? cards.find((c) => c.id === id) : undefined;
       if (card && onCardMenu) onCardMenu(card, x, y);
       else onMenu(x, y);
@@ -151,37 +147,13 @@ export function ZonePile({
       onTouchEnd={longPress.onTouchEnd}
       onTouchCancel={longPress.onTouchCancel}
     >
-      {zone === 'command' && taxCards.length > 0 && (
-        <div className="playtest-pile__coins">
-          {taxCards.map((c, i) => {
-            const amount = commanderTaxAmount(commanderTax ?? {}, c.id);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                className={`playtest-pile__coin${i > 0 ? ' playtest-pile__coin--partner' : ''}`}
-                data-tax-card-id={c.id}
-                // Hovering a coin shows whose it is, which is the question
-                // two coins side by side raise.
-                data-preview-id={c.imageUrl ? c.id : undefined}
-                aria-label={`${c.name} commander tax, ${amount}`}
-                title={`${c.name}: click to add 2, right-click to take 2 off`}
-                onClick={() => {
-                  if (longPress.consumedClick()) return;
-                  onAdjustTax?.(c.id, 1);
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onAdjustTax?.(c.id, -1);
-                }}
-              >
-                <Coins aria-hidden width={14} height={14} />
-                {amount}
-              </button>
-            );
-          })}
-        </div>
+      {zone === 'command' && onAdjustTax && (
+        <TaxCoins
+          cards={taxCards}
+          commanderTax={commanderTax ?? {}}
+          onAdjust={onAdjustTax}
+          placement="pile"
+        />
       )}
       {/* The command zone is a row of commanders, not a pile with a top card:
           partners put two there at once, each with its own tax, and either

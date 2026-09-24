@@ -2160,7 +2160,7 @@ describe('PlaytestBoard — ctrl + wheel sizes the cards', () => {
  * matters.
  */
 describe('PlaytestBoard — commander tax coins', () => {
-  const coins = () => [...document.querySelectorAll('.playtest-pile__coin')];
+  const coins = () => [...document.querySelectorAll('.playtest-tax-coin')];
 
   function withPartners(tax: Record<string, number> = {}) {
     const base = seededState();
@@ -2192,7 +2192,7 @@ describe('PlaytestBoard — commander tax coins', () => {
       'Halana commander tax, 4',
       'Alena commander tax, 0',
     ]);
-    expect(coins()[1].classList.contains('playtest-pile__coin--partner')).toBe(true);
+    expect(coins()[1].classList.contains('playtest-tax-coin--partner')).toBe(true);
   });
 
   it('adds a cast on a click and takes one off on a right-click, opening nothing', () => {

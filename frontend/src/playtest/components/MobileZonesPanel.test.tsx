@@ -7,8 +7,8 @@
  * up and the board renders the SAME menu as a bottom sheet, so these tests
  * pin the hand-off rather than a duplicate list.
  */
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { MobileZonesPanel } from './MobileZonesPanel';
 
@@ -28,16 +28,19 @@ const ZONES: Record<Zone, PlaytestCard[]> = {
 function renderPanel(overrides: Partial<Parameters<typeof MobileZonesPanel>[0]> = {}) {
   const onOpenZone = vi.fn();
   const onMenu = vi.fn();
+  const onAdjustTax = vi.fn();
   render(
     <MobileZonesPanel
       zones={ZONES}
       commanderTax={{}}
+      taxCards={[]}
+      onAdjustTax={onAdjustTax}
       onOpenZone={onOpenZone}
       onMenu={onMenu}
       {...overrides}
     />
   );
-  return { onOpenZone, onMenu };
+  return { onOpenZone, onMenu, onAdjustTax };
 }
 
 function openDrawer() {
@@ -108,5 +111,56 @@ describe('MobileZonesPanel', () => {
     expect(
       screen.getByRole('button', { name: 'Exile actions' }).getAttribute('aria-haspopup')
     ).toBe('menu');
+  });
+});
+
+/**
+ * The phone's command tile carries the same tax coins as the table's command
+ * pile. Before them, a phone showed the tax only for a card still in the zone,
+ * so once the commander was cast its tax was nowhere on screen (user,
+ * 2026-09-24).
+ */
+describe('MobileZonesPanel — commander tax coins', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const pako: PlaytestCard = { id: 'cmd-p', name: 'Pako', origin: 'command' };
+
+  function coin() {
+    openDrawer();
+    return screen.getByRole('button', { name: 'Pako commander tax, 4' });
+  }
+
+  it('shows the coin while the commander is off the zone, and a tap adds a cast', () => {
+    // The zone is empty: Pako is on the battlefield, cast twice.
+    const { onAdjustTax, onOpenZone } = renderPanel({
+      taxCards: [pako],
+      commanderTax: { 'cmd-p': 2 },
+    });
+    fireEvent.click(coin());
+    expect(onAdjustTax).toHaveBeenCalledWith('cmd-p', 1);
+    // A tap on the coin is not a tap on the tile: the viewer stays shut and
+    // the drawer stays open.
+    expect(onOpenZone).not.toHaveBeenCalled();
+    expect(screen.getByRole('region', { name: 'Exile and the command zone' })).toBeTruthy();
+  });
+
+  it('takes a cast off on a long-press, and the release is not also a tap', () => {
+    vi.useFakeTimers();
+    const { onAdjustTax } = renderPanel({ taxCards: [pako], commanderTax: { 'cmd-p': 2 } });
+    const el = coin();
+    fireEvent.touchStart(el, { touches: [{ clientX: 5, clientY: 5 }] });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    fireEvent.touchEnd(el);
+    fireEvent.click(el);
+    expect(onAdjustTax).toHaveBeenCalledTimes(1);
+    expect(onAdjustTax).toHaveBeenCalledWith('cmd-p', -1);
+  });
+
+  it('shows no coin for a list with no commander', () => {
+    renderPanel();
+    openDrawer();
+    expect(document.querySelectorAll('.playtest-tax-coin')).toHaveLength(0);
   });
 });
