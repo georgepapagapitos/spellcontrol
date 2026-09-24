@@ -161,6 +161,42 @@ describe('fillWithScryfall', () => {
     expect(sentQuery).toContain('cmc<=4');
     expect(sentQuery).toContain('game:arena');
     expect(sentQuery).toContain('set:mkm');
+    // No price cap set, so no price clause.
+    expect(sentQuery).not.toMatch(/usd<=|eur<=/);
+  });
+
+  // LIVE: a $0.25 cap + $15 budget shipped Krenko with 66 lands. The search
+  // returned the most-played cards (nearly all over a quarter), the price
+  // gate discarded them, and the in-budget commons were never fetched.
+  it('asks Scryfall for in-budget cards instead of discarding an over-budget page', async () => {
+    searchCards.mockResolvedValue({ data: [] });
+    const run = (currency: 'USD' | 'EUR', ignoreOwnedBudget = false, owned?: Set<string>) =>
+      fillWithScryfall(
+        'base',
+        ['R'],
+        3,
+        new Set(),
+        new Set(),
+        0.25,
+        null,
+        null,
+        null,
+        owned,
+        currency,
+        false,
+        '',
+        'full',
+        ignoreOwnedBudget
+      );
+
+    await run('USD');
+    expect(searchCards.mock.calls[0][0]).toContain('usd<=0.25');
+    await run('EUR');
+    expect(searchCards.mock.calls[1][0]).toContain('eur<=0.25');
+    // Owned cards that skip the budget must stay reachable, and the query
+    // can't see ownership.
+    await run('USD', true, new Set(['Goblin Bushwhacker']));
+    expect(searchCards.mock.calls[2][0]).not.toContain('usd<=');
   });
 
   it('treats available-only as a hard collection constraint', async () => {

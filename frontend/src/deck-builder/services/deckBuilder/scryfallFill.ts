@@ -118,6 +118,17 @@ export async function fillWithScryfall(
   if (arenaOnly) {
     fullQuery += ` game:arena`;
   }
+  // The price cap goes into the query too, not only the pass-2 gate below.
+  // The search is ordered by EDHREC rank, so under a tight cap nearly every
+  // card on the page it returns is over it: the fill threw the page away and
+  // reported the pool exhausted while thousands of in-budget commons were
+  // never asked for (LIVE: a $0.25 cap with a $15 budget shipped Krenko with
+  // 66 lands). Skipped when owned cards are budget-exempt — the query can't
+  // see ownership, and an owned pricey card must still be reachable.
+  const queryPriceCap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
+  if (queryPriceCap !== null && !(ignoreOwnedBudget && collectionNames?.size)) {
+    fullQuery += ` ${currency === 'EUR' ? 'eur' : 'usd'}<=${queryPriceCap.toFixed(2)}`;
+  }
   // Append user's additional Scryfall filters
   if (scryfallQuery.trim()) {
     fullQuery += ` ${scryfallQuery.trim()}`;
