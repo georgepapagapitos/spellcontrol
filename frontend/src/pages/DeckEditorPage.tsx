@@ -975,6 +975,7 @@ export function DeckEditorPage() {
   const bracketAnalysis = useCommanderBracketAnalysis({
     deck,
     comboData: comboData.data,
+    combosLoading: comboData.loading,
     mainboardSize: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
     hasCommander: deck ? DECK_FORMAT_CONFIGS[deck.format].hasCommander : false,
     colorIdentity: commanderColorIdentity,
@@ -2785,6 +2786,14 @@ export function DeckEditorPage() {
   // Bracket is glanceable info — it rides the hero meta line now (the old
   // feature-strip chip is gone); the Tune view still owns the override UI.
   const bracketValue = effectiveBracket(deck);
+  // An estimate made before the combo match answered is a floor (combos only
+  // raise a bracket); the glanceable readouts say "2+" like the hero's "At least".
+  const bracketText =
+    bracketValue === undefined
+      ? undefined
+      : bracketAnalysis.missesCombos && deck.bracketOverride == null
+        ? `${bracketValue}+`
+        : String(bracketValue);
   // Power + Tune are Commander-only: their analysis (bracket fit, EDHREC-driven
   // Improve, command-zone-aware stats) doesn't apply to 60-card formats, where
   // it read as misleading. Gate them to commander formats (E2/T19) — a commander
@@ -2796,10 +2805,10 @@ export function DeckEditorPage() {
   // E223 — Power's tab badge is its already-computed verdict. The checks
   // verdict that used to badge Stats now leads the Deck tab's stat strip.
   const powerBadge: TabBadge | null =
-    bracketValue !== undefined
+    bracketValue !== undefined && bracketText !== undefined
       ? {
-          text: String(bracketValue),
-          description: `bracket ${bracketValue} of 5, ${bracketLabel(bracketValue)}`,
+          text: bracketText,
+          description: `bracket ${bracketText} of 5, ${bracketLabel(bracketValue)}`,
           tone: 'neutral',
         }
       : null;
@@ -2961,7 +2970,7 @@ export function DeckEditorPage() {
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip). */}
             {bracketValue != null && (
-              <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketValue}`}</span>
+              <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketText}`}</span>
             )}
           </p>
           <DeckVisibilityChip
@@ -3271,6 +3280,10 @@ export function DeckEditorPage() {
                   comboOneAway={comboData.data?.oneAway.length ?? 0}
                   comboOwnedMissing={comboOwnedMissingCount}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
+                  bracketMissesCombos={bracketAnalysis.missesCombos}
+                  combosError={comboData.error}
+                  onRetryCombos={comboData.refetch}
+                  bracketPending={analysisState === 'pending'}
                   // Link a pillar to its panel only when that panel actually renders below.
                   onViewBracket={
                     deck.bracketEstimation || deck.bracketOverride != null

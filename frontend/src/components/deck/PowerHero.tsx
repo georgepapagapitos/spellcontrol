@@ -31,6 +31,24 @@ export interface PowerHeroProps {
   /** The one-away combos whose missing piece the user already owns. */
   comboOwnedMissing: number;
   combosLoading: boolean;
+  /**
+   * The estimate was made before the combo match answered (slow or failed).
+   * Combos only raise a bracket, so the number reads as a floor ("At least
+   * Bracket 3") until an estimate that saw them lands.
+   */
+  bracketMissesCombos?: boolean;
+  /**
+   * The combo match failed: the combo line becomes the load-failure strip
+   * instead of claiming "No combos in deck".
+   */
+  combosError?: string | null;
+  /** Re-run the combo match. Shown as the strip's Retry when `combosError` is set. */
+  onRetryCombos?: () => void;
+  /**
+   * The first estimate is still being worked out (it waits for the combo check).
+   * With no bracket yet, the line says so instead of showing "Bracket —".
+   */
+  bracketPending?: boolean;
   /** Reveal the Bracket panel below. When omitted, the bracket line is static. */
   onViewBracket?: () => void;
   /** Reveal the Engine panel below. When omitted, the engine line is static. */
@@ -148,6 +166,10 @@ export function PowerHero({
   comboOneAway,
   comboOwnedMissing,
   combosLoading,
+  bracketMissesCombos,
+  combosError,
+  onRetryCombos,
+  bracketPending,
   onViewBracket,
   onViewEngine,
   onViewCombos,
@@ -169,6 +191,7 @@ export function PowerHero({
   const payoffs = enginePayoffs ?? 0;
   const engineBalanced = producers > 0 && payoffs > 0 && !engineLopsided;
   const showReasons = !bracketOverridden && bracketReasons.length > 0;
+  const bracketIsFloor = !!bracketMissesCombos && !bracketOverridden && bracket != null;
 
   // UX-313: "Target" control — shows when the caller provides the override callback.
   const showTargetControl = !!onSetBracketOverride;
@@ -180,24 +203,39 @@ export function PowerHero({
         {/* ── Power level ── */}
         <div className="power-hero-pillar">
           <span className="power-hero-eyebrow">Power level</span>
-          <HeroLink
-            onClick={onViewBracket}
-            ariaLabel="View bracket details"
-            contentClassName="power-hero-bracket"
-          >
-            {bracket != null ? (
-              <>
-                Bracket <strong className="power-hero-bracket-num">{bracketDisplay}</strong> ·{' '}
-                {bracketLabel(bracket)}
-              </>
-            ) : (
-              <>Bracket —</>
-            )}
-            {bracketOverridden && <span className="power-hero-tag">manual</span>}
-            {onViewBracket && <LinkChevron />}
-          </HeroLink>
+          {bracket == null && bracketPending ? (
+            <p className="power-hero-bracket is-loading" aria-live="polite">
+              <Loader2 className="power-hero-spinner" aria-hidden="true" />
+              Estimating bracket…
+            </p>
+          ) : (
+            <HeroLink
+              onClick={onViewBracket}
+              ariaLabel="View bracket details"
+              contentClassName="power-hero-bracket"
+            >
+              {bracket != null ? (
+                <>
+                  {bracketIsFloor ? 'At least Bracket' : 'Bracket'}{' '}
+                  <strong className="power-hero-bracket-num">{bracketDisplay}</strong> ·{' '}
+                  {bracketLabel(bracket)}
+                </>
+              ) : (
+                <>Bracket —</>
+              )}
+              {bracketOverridden && <span className="power-hero-tag">manual</span>}
+              {onViewBracket && <LinkChevron />}
+            </HeroLink>
+          )}
           {showReasons && (
             <p className="power-hero-because">because: {bracketReasons.slice(0, 3).join(', ')}</p>
+          )}
+          {bracketIsFloor && (
+            <p className="power-hero-because">
+              {combosError
+                ? "Combos weren't checked, so it may be higher."
+                : 'Still checking combos, so it may be higher.'}
+            </p>
           )}
           {/* UX-313: Target bracket control — visible entry point for the Coach
               feed's Bracket filter. Replaces the buried <select> in the Bracket
@@ -265,6 +303,19 @@ export function PowerHero({
               <Loader2 className="power-hero-spinner" aria-hidden="true" />
               Checking for combos…
             </p>
+          ) : combosError ? (
+            <div className="discover-decks-error" role="alert">
+              <span>{combosError}</span>
+              {onRetryCombos && (
+                <button
+                  type="button"
+                  className="discover-decks-error-retry"
+                  onClick={onRetryCombos}
+                >
+                  Retry
+                </button>
+              )}
+            </div>
           ) : (
             <HeroLink
               onClick={onViewCombos}

@@ -64,15 +64,16 @@ async function run(): Promise<boolean> {
 
   if (comboCount > 0 && cached) {
     // Have combos already (combos-only cache or full offline mode). Refresh
-    // only when we can see the server version AND it moved — and if that
-    // refresh fails, keep serving the (slightly stale) cache: the import
-    // upserts in place and prunes last, so the store is never emptied.
+    // only when we can see the server version AND it moved, and do it in the
+    // background: the import upserts in 1000-row transactions and prunes last,
+    // so matching reads a whole (slightly stale) dataset the entire time.
+    // Awaiting it held every combo check, and the deck's bracket behind it,
+    // for the full download after each nightly ingest (10–40 s on a phone).
+    // A failed refresh keeps the stale cache and retries next session.
     if (server && cached !== server.combosVersion) {
-      try {
-        await download(server.combosVersion);
-      } catch {
+      download(server.combosVersion).catch(() => {
         /* serve the stale cache */
-      }
+      });
     }
     return true;
   }

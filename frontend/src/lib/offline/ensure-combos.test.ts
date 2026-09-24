@@ -87,14 +87,25 @@ describe('ensureCombosCached', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1); // only the manifest
   });
 
-  it('re-downloads when the dataset version moved', async () => {
+  it('refreshes a moved dataset in the background, answering from the cache meanwhile', async () => {
     vi.mocked(getOfflineDataStats).mockResolvedValue({ cardCount: 0, comboCount: 3 });
     vi.mocked(readStandaloneCombosVersion).mockResolvedValue('v1');
     routeFetch({ manifest: jsonResponse(manifest('v2')) });
+    let finishImport!: () => void;
+    vi.mocked(importCombos).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishImport = resolve;
+      }) as never
+    );
 
+    // Resolves while the download is still running: a combo check never waits
+    // on the nightly refresh when a usable dataset is already on the device.
     expect(await ensureCombosCached()).toBe(true);
-    expect(importCombos).toHaveBeenCalledTimes(1);
-    expect(writeStandaloneCombosVersion).toHaveBeenCalledWith('v2');
+    await vi.waitFor(() => expect(importCombos).toHaveBeenCalledTimes(1));
+    expect(writeStandaloneCombosVersion).not.toHaveBeenCalled();
+
+    finishImport();
+    await vi.waitFor(() => expect(writeStandaloneCombosVersion).toHaveBeenCalledWith('v2'));
   });
 
   it('falls back to the full manifest version when no standalone version is stored', async () => {
@@ -139,7 +150,7 @@ describe('ensureCombosCached', () => {
     );
 
     expect(await ensureCombosCached()).toBe(true); // stale served, not a hard failure
-    expect(importCombos).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(importCombos).toHaveBeenCalledTimes(1));
     expect(writeStandaloneCombosVersion).not.toHaveBeenCalled(); // v1 stamp stays
   });
 

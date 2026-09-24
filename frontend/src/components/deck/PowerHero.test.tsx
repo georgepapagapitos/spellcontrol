@@ -54,6 +54,55 @@ describe('PowerHero', () => {
     expect(hasText(/^Bracket —$/)).toBe(true);
   });
 
+  it('says the first estimate is still coming instead of "Bracket —"', () => {
+    renderHero({ bracket: null, bracketPending: true, combosLoading: true });
+    expect(screen.getByText('Estimating bracket…')).toBeTruthy();
+    expect(hasText(/^Bracket —$/)).toBe(false);
+  });
+
+  it('keeps a known bracket on screen while a re-estimate is pending', () => {
+    renderHero({ bracketPending: true });
+    expect(hasText(/^Bracket 3 · Upgraded$/)).toBe(true);
+  });
+
+  it('reads the bracket as a floor while combos are still being checked', () => {
+    renderHero({ bracketMissesCombos: true, combosLoading: true });
+    expect(hasText(/^At least Bracket 3 · Upgraded$/)).toBe(true);
+    expect(screen.getByText('Still checking combos, so it may be higher.')).toBeTruthy();
+  });
+
+  it('combos landed but the estimate has not caught up: still a floor, not "unchecked"', () => {
+    renderHero({ bracketMissesCombos: true, combosLoading: false });
+    expect(hasText(/^At least Bracket 3 · Upgraded$/)).toBe(true);
+    expect(screen.getByText('Still checking combos, so it may be higher.')).toBeTruthy();
+  });
+
+  it('a bracket that saw the combo check is not a floor while a re-check runs', () => {
+    renderHero({ combosLoading: true });
+    expect(hasText(/^Bracket 3 · Upgraded$/)).toBe(true);
+  });
+
+  it('reads the bracket as a floor when combos could not be checked', () => {
+    const onRetryCombos = vi.fn();
+    renderHero({ bracketMissesCombos: true, combosError: "Couldn't load combos.", onRetryCombos });
+    expect(hasText(/^At least Bracket 3 · Upgraded$/)).toBe(true);
+    expect(screen.getByText("Combos weren't checked, so it may be higher.")).toBeTruthy();
+    // The combo line must not claim the deck has none.
+    expect(hasText(/combos? in deck/)).toBe(false);
+    expect(screen.getByRole('alert').textContent).toContain("Couldn't load combos.");
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetryCombos).toHaveBeenCalledTimes(1);
+  });
+
+  it('a manual bracket is not a floor, even when combos failed', () => {
+    renderHero({
+      bracketOverridden: true,
+      bracketMissesCombos: true,
+      combosError: "Couldn't load combos.",
+    });
+    expect(hasText(/^At least/)).toBe(false);
+  });
+
   it('renders the engine label and a "Balanced engine" verdict with spelled-out counts', () => {
     renderHero();
     expect(screen.getByText('Tokens / go-wide')).toBeTruthy();

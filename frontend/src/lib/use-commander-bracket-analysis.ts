@@ -11,6 +11,15 @@ interface Args {
   deck: Deck | null;
   /** Latest combos-panel result (data only); used for the bracket combo floor. */
   comboData: ComboMatchResponse | null;
+  /**
+   * True while the combo match is in flight. `comboData` is null both while
+   * loading and when the match failed, so without this the analysis ran on "no
+   * combos", persisted the lower bracket over a correct one, then recomputed
+   * when combos landed: every visit read 3, then jumped to 4. Combos only ever
+   * raise the estimate, so the analysis waits for them (a deck with no
+   * estimate yet waits up to COMBO_WAIT_MS).
+   */
+  combosLoading: boolean;
   /** Numeric mainboard size from the format config (99 for Commander). */
   mainboardSize: number | undefined;
   /** Whether the deck's format has a commander (gates the whole feature). */
@@ -30,6 +39,18 @@ interface Args {
 }
 
 const DEBOUNCE_MS = 500;
+
+/**
+ * How long the analysis holds for the combo match before running without it.
+ * A warm device matches in well under this; a cold one downloads the whole
+ * dataset first (10–40 s on a phone), and the rest of the Power and Coach tabs
+ * should not sit behind that. An estimate made without combos is marked in its
+ * signature, the UI calls it a floor, and it recomputes once combos land.
+ */
+const COMBO_WAIT_MS = 6_000;
+
+/** Signature segment for "the combo match hadn't answered": not the same as no combos. */
+const COMBOS_UNCHECKED = '?';
 
 /**
  * E162: a defensive ceiling on a single analysis attempt. `analyzeCommanderDeck`
@@ -118,13 +139,18 @@ function buildSignature(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   const cardNames = deck.cards.map((c) => c.card.name).sort();
-  const comboIds = (comboData?.inDeck ?? []).map((m) => m.combo.id).sort();
+  const comboIds = comboData
+    ? comboData.inDeck
+        .map((m) => m.combo.id)
+        .sort()
+        .join(',')
+    : COMBOS_UNCHECKED;
   return [
     ANALYSIS_ENGINE_VERSION,
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     cardNames.join(','),
-    comboIds.join(','),
+    comboIds,
     String(bracketOverride ?? ''),
   ].join('|');
 }
@@ -154,10 +180,16 @@ function buildSignature(
 export function useCommanderBracketAnalysis(args: Args): {
   status: 'pending' | 'ready' | 'error';
   retry: () => void;
+  /**
+   * The persisted estimate was made before the combo match answered (it timed
+   * out or failed), so its bracket is a floor: combos can only raise it.
+   */
+  missesCombos: boolean;
 } {
   const {
     deck,
     comboData,
+    combosLoading,
     mainboardSize,
     hasCommander,
     colorIdentity,
@@ -186,6 +218,15 @@ export function useCommanderBracketAnalysis(args: Args): {
   // `signature` nor `persistedSignature` changed.
   const [retryNonce, setRetryNonce] = useState(0);
 
+  // The signature whose combo wait ran out. Keyed by signature, so a deck edit
+  // or the combos landing starts a fresh wait with no reset to manage.
+  const [comboWaitOver, setComboWaitOver] = useState<string | null>(null);
+  useEffect(() => {
+    if (!combosLoading || !signature) return;
+    const timer = window.setTimeout(() => setComboWaitOver(signature), COMBO_WAIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [combosLoading, signature]);
+
   const retry = useCallback(() => {
     setFailedSignature(null);
     setRetryNonce((n) => n + 1);
@@ -194,6 +235,10 @@ export function useCommanderBracketAnalysis(args: Args): {
   useEffect(() => {
     if (!enabled || !deck || mainboardSize == null || !deck.commander) return;
     if (!signature) return;
+    // Hold for the combo match. Only a deck with no estimate at all stops
+    // waiting at COMBO_WAIT_MS: one that has an estimate keeps it on screen
+    // rather than trading it for a floor.
+    if (combosLoading && (persistedSignature || comboWaitOver !== signature)) return;
     if (signature === persistedSignature) return;
     if (signature === failedSignature) return;
 
@@ -282,7 +327,15 @@ export function useCommanderBracketAnalysis(args: Args): {
     // `signature`; depending on the array identity would thrash the effect.
     // retryNonce is a manual re-trigger only — its value is never read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature, persistedSignature, enabled, failedSignature, retryNonce]);
+  }, [
+    signature,
+    persistedSignature,
+    enabled,
+    failedSignature,
+    retryNonce,
+    combosLoading,
+    comboWaitOver,
+  ]);
 
   const status: 'pending' | 'ready' | 'error' =
     !enabled || !signature || !!persistedSignature
@@ -291,5 +344,9 @@ export function useCommanderBracketAnalysis(args: Args): {
         ? 'error'
         : 'pending';
 
-  return { status, retry };
+  // The combo segment is second to last (only the target follows it), and no
+  // card or commander name contains '|'.
+  const missesCombos = persistedSignature?.split('|').at(-2) === COMBOS_UNCHECKED;
+
+  return { status, retry, missesCombos };
 }
