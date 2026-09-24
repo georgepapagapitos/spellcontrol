@@ -48,7 +48,9 @@ function OwnerBadge({
   const style = { '--deck-color': color } as React.CSSProperties;
 
   if (owners.length === 1 && !nonInteractive) {
-    const to = kind === 'cube' ? `/decks/cube/${owners[0].ownerId}` : `/decks/${owners[0].ownerId}`;
+    const to =
+      owners[0].href ??
+      (kind === 'cube' ? `/decks/cube/${owners[0].ownerId}` : `/decks/${owners[0].ownerId}`);
     return (
       <Link
         to={to}
