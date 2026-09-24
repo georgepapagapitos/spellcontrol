@@ -239,16 +239,22 @@ export function WinConditionPanel({
   );
 
   if (analysis.noClearWinCondition) {
+    // Complete combos that don't end the game (E380): say they need a payoff,
+    // not "add a combo" above a combo list the deck already fills.
+    const loops = analysis.loopsWithoutPayoff ?? 0;
+    const emptyCopy =
+      loops === 0
+        ? 'This deck has no dominant path to victory yet. Add a combo, a damage plan, or a synergy engine to give it one.'
+        : loops === 1
+          ? "The combo in this deck doesn't end the game on its own. Add a payoff for it, a damage plan, or a synergy engine to give the deck a way to win."
+          : `The ${loops} combos in this deck don't end the game on their own. Add a payoff for one of them, a damage plan, or a synergy engine to give the deck a way to win.`;
     return (
       <section className="win-con-panel" aria-label="Win condition analysis">
         <p className="win-con-headline win-con-headline--warn">
           <AlertTriangle className="win-con-warn-icon" width={14} height={14} aria-hidden />
           No clear win condition detected
         </p>
-        <p className="win-con-empty">
-          This deck has no dominant path to victory yet. Add a combo, a damage plan, or a synergy
-          engine to give it one.
-        </p>
+        <p className="win-con-empty">{emptyCopy}</p>
         {taggedSection}
         {carousel.preview}
       </section>

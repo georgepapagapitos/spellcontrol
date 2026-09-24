@@ -120,23 +120,52 @@ describe('infinite combo', () => {
     expect(result.primary?.category).not.toBe('infinite-combo');
   });
 
-  // E78 item 1 regression: real produces[] shapes from live decks that the
-  // narrower regexes previously dropped into 'other' and silently ignored.
-  it("counts an infinite card-draw combo (Kozilek: Sensei's Top + Mystic Forge)", () => {
+  // E380: the Ulamog deck's three Sensei's Divining Top loops, with the labels
+  // the ingested Spellbook dataset carries (ids 777-985-5078, 985-2604-5078,
+  // 777-5078-5642, all bracket tag E). They draw the library and stop there, so
+  // the page read "Wins via Infinite combo" beside a bracket panel saying these
+  // loops don't end the game.
+  it("does not call a loop that only draws cards a win path (Ulamog: three Sensei's Top loops)", () => {
+    const draw = ['Infinite card draw', 'Near-infinite storm count', 'Infinite draw triggers'];
+    const top = "Sensei's Divining Top";
+    const result = detectWinConditions(
+      input({
+        combosInDeck: [
+          { results: draw, cards: [top, 'Foundry Inspector', 'Mystic Forge'] },
+          { results: draw, cards: [top, 'Mystic Forge', 'Ugin, the Ineffable'] },
+          { results: draw, cards: [top, 'Echoes of Eternity', 'Foundry Inspector'] },
+        ],
+      })
+    );
+    expect(result.noClearWinCondition).toBe(true);
+    expect([result.primary, ...result.secondary].map((w) => w?.category)).not.toContain(
+      'infinite-combo'
+    );
+    expect(result.loopsWithoutPayoff).toBe(3);
+  });
+
+  it('still counts a draw loop that also has a payoff (Top + Echoes + The Vision and Scarlet Witch)', () => {
     const result = detectWinConditions(
       input({
         combosInDeck: [
           {
-            results: ['Infinite card draw', 'Near-infinite storm count', 'Infinite draw triggers'],
-            cards: ["Sensei's Divining Top", 'Foundry Inspector', 'Mystic Forge'],
+            results: [
+              'Infinite card draw',
+              'Infinite draw triggers',
+              'Near-infinite +1/+1 counters on a creature',
+              'Near-infinite storm count',
+            ],
+            cards: ["Sensei's Divining Top", 'Echoes of Eternity', 'The Vision and Scarlet Witch'],
           },
         ],
       })
     );
     expect(result.primary?.category).toBe('infinite-combo');
-    expect(result.primary?.summary).toContain("Sensei's Divining Top");
+    expect(result.primary?.summary).toContain('infinitely large creature loops');
   });
 
+  // E78 item 1 regression: real produces[] shapes from live decks that the
+  // narrower regexes previously dropped into 'other' and silently ignored.
   it('counts an infinite combat-damage combo (Ur-Dragon: Aggravated Assault)', () => {
     const result = detectWinConditions(
       input({

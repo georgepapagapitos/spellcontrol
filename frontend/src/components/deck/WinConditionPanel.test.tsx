@@ -174,3 +174,20 @@ describe('WinConditionPanel — the clock is kill-categories only', () => {
     expect(screen.getByRole('button', { name: 'Preview Thassa’s Oracle' })).toBeTruthy();
   });
 });
+
+// E380: three Sensei's Divining Top loops are complete combos that draw the
+// library and stop. "Add a combo" above them read as if the combos were missed.
+describe('WinConditionPanel — combos that do not end the game', () => {
+  it('says the combos need a payoff instead of asking for a combo', () => {
+    render(<WinConditionPanel analysis={analysis({ loopsWithoutPayoff: 3 })} />);
+    expect(
+      screen.getByText(/^The 3 combos in this deck don't end the game on their own\./)
+    ).toBeTruthy();
+    expect(screen.queryByText(/Add a combo/)).toBeNull();
+  });
+
+  it('keeps the general advice when the deck has no combos', () => {
+    render(<WinConditionPanel analysis={analysis({ loopsWithoutPayoff: 0 })} />);
+    expect(screen.getByText(/Add a combo, a damage plan/)).toBeTruthy();
+  });
+});

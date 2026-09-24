@@ -166,8 +166,8 @@ const COMBO_NOT_WIN_RE = /\b(?:can't|unable to) lose the game\b/i;
 // win-relevant label).
 const COMBO_DAMAGE_RE =
   /\b(?:near-)?infinite (?:combat )?damage\b|\bunlimited damage\b|\binfinite lifeloss\b|\b(?:near-)?infinite combat phases\b/i;
-// An infinite creature-token loop is a win the same way infinite draw is
-// (inevitability — swing next turn, or this turn with haste). Commander
+// An infinite creature-token loop is a win by inevitability (swing next
+// turn, or this turn with haste). Commander
 // Spellbook phrases it "Infinite creature tokens with haste" / "Infinite hasty
 // creature tokens" / "Infinite creature tokens"; Godo's Dualcaster Mage +
 // Twinflame line fell to 'other' and the deck showed zero win-path combos.
@@ -187,20 +187,15 @@ const COMBO_GROW_RE =
 // "Win the game" on its own); only an OPPONENT's library going away is mill.
 const COMBO_MILL_RE =
   /\binfinite mill\b|\bexile (?:each opponent's|all opponents'|target opponent's|their) librar/i;
-// Infinite card draw is a genuine plan (assemble any answer, or deck the
-// table via inevitability) — unlike a bare infinite-mana loop below, which
-// still needs a second piece to spend the mana on, so it stays excluded.
-const COMBO_DRAW_RE = /\binfinite (?:card )?draw\b|\binfinite draw triggers\b|\bstorm count\b/i;
-const COMBO_MANA_RE = /\binfinite mana\b/i;
-
 // Audited against every distinct Commander Spellbook produces[] label in the
 // ingested dataset (1,087 labels, 2026-09-11); the label families that are
 // wins are bucketed here, everything else ('Infinite ETB', 'Infinite
-// lifegain', 'Lock', bare mana) stays 'other' because it needs a separate
-// payoff card, which Spellbook lists as its own combo when present.
-function comboBucket(
-  results: string[]
-): 'win' | 'damage' | 'tokens' | 'grow' | 'mill' | 'draw' | 'mana' | 'other' {
+// lifegain', 'Lock', bare mana, infinite card draw / storm count) stays
+// 'other' because it needs a separate payoff card, which Spellbook lists as
+// its own combo when present. Draw loops were a win path until E380: three
+// Sensei's Divining Top loops read "Wins via Infinite combo" while the
+// bracket panel, correctly, said they don't end the game.
+function comboBucket(results: string[]): 'win' | 'damage' | 'tokens' | 'grow' | 'mill' | 'other' {
   // Per-label, not joined: a negative clause must veto only its own label.
   const has = (re: RegExp, veto?: RegExp) =>
     results.some((l) => re.test(l) && !(veto && veto.test(l)));
@@ -209,9 +204,6 @@ function comboBucket(
   if (has(COMBO_TOKENS_RE, COMBO_NOT_TOKENS_RE)) return 'tokens';
   if (has(COMBO_GROW_RE)) return 'grow';
   if (has(COMBO_MILL_RE)) return 'mill';
-  const joined = results.join(' ');
-  if (COMBO_DRAW_RE.test(joined)) return 'draw';
-  if (COMBO_MANA_RE.test(joined)) return 'mana';
   return 'other';
 }
 
@@ -320,30 +312,19 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
   const candidates: WinCondition[] = [];
 
   // ── 1. Infinite combos ────────────────────────────────────────────────────
-  const comboWin = combosInDeck.filter((c) => {
-    const b = comboBucket(c.results);
-    return (
-      b === 'win' ||
-      b === 'damage' ||
-      b === 'tokens' ||
-      b === 'grow' ||
-      b === 'mill' ||
-      b === 'draw'
-    );
-  });
+  const comboWin = combosInDeck.filter((c) => comboBucket(c.results) !== 'other');
   if (comboWin.length > 0) {
     const allCards = Array.from(new Set(comboWin.flatMap((c) => c.cards)));
     const buckets = comboWin.map((c) => comboBucket(c.results));
-    const dominant =
-      (['win', 'damage', 'tokens', 'grow', 'mill'] as const).find((b) => buckets.includes(b)) ??
-      'draw';
+    const dominant = (['win', 'damage', 'tokens', 'grow', 'mill'] as const).find((b) =>
+      buckets.includes(b)
+    );
     const suffixes: Record<string, string> = {
       win: 'auto-win lines',
       damage: 'infinite damage loops',
       tokens: 'infinite creature-token loops',
       grow: 'infinitely large creature loops',
       mill: 'infinite mill loops',
-      draw: 'infinite card-draw engines',
     };
     // Name the marquee pair — the tightest (fewest-card) complete combo reads
     // as the cleanest line to show the user, e.g. "Sensei's Divining Top +
@@ -352,7 +333,7 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
     candidates.push({
       category: 'infinite-combo',
       label: 'Infinite combo',
-      summary: `${comboWin.length} complete ${suffixes[dominant] ?? 'combo'} in the deck: ${marquee.slice(0, 2).join(' + ')}`,
+      summary: `${comboWin.length} complete ${dominant ? suffixes[dominant] : 'combo'} in the deck: ${marquee.slice(0, 2).join(' + ')}`,
       evidence: allCards.slice(0, 8),
       score: 5 + comboWin.length * 3,
       // Assembled = every library piece of any ONE complete combo drawn.
@@ -607,7 +588,13 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
   const tutors = cards.filter((c) => isTutor(parseCard(c).oracle)).map((c) => c.name);
 
   if (candidates.length === 0) {
-    return { primary: null, secondary: [], noClearWinCondition: true, tutors };
+    return {
+      primary: null,
+      secondary: [],
+      noClearWinCondition: true,
+      tutors,
+      loopsWithoutPayoff: combosInDeck.length - comboWin.length,
+    };
   }
 
   const [primary, ...rest] = candidates;
