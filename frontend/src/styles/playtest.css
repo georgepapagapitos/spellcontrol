@@ -4234,15 +4234,48 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 /* ── Rotate prompt: a phone held upright is asked to turn sideways ─────── */
 
-/* Centred, not top-anchored: it is the only thing to read on the screen. */
+/* An overlay, not a dialog: no panel, the words sit on the scrim. The scrim
+   is the opening-hand takeover's own (`.playtest-opening-root.is-takeover`),
+   so the two layers read as one surface in every theme. Centred, not
+   top-anchored: it is the only thing to read on the screen. */
 .modal-backdrop.playtest-rotate-backdrop {
   align-items: center;
+  background: color-mix(in oklab, var(--bg) 82%, transparent);
+  backdrop-filter: blur(6px);
 }
 
 .playtest-rotate {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  align-self: center;
+  gap: var(--space-3);
+  max-width: 20rem;
   text-align: center;
+}
+
+.playtest-rotate__title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.playtest-rotate__body {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* The one action is sized to its label, not stretched across the screen. */
+.playtest-rotate .btn-primary {
+  min-width: 12rem;
+  margin-top: var(--space-2);
+}
+
+/* The way out is quiet: a word under the action, not a second button. */
+.btn-link.playtest-rotate__skip {
+  color: var(--text-secondary);
+  text-decoration: none;
 }
 
 .playtest-rotate__icon {
@@ -4271,13 +4304,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   .playtest-rotate__icon {
     animation: none;
   }
-}
-
-.playtest-rotate__actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  width: 100%;
 }
 
 /* ── Keyboard shortcuts sheet: rebindable key chips ─────────────────────── */

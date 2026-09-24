@@ -2431,11 +2431,15 @@ sheet is unchanged — a phone has no room for the fan.
   "Waiting for players to join" and never counts down — `every()` over no
   opponents is `true`, so the count is checked first.
 - **An upright phone is asked to turn sideways, once per visit.**
-  `RotatePrompt` is a centred `Modal` over the whole board (opening hand
-  included) while `(orientation: portrait) and (max-width: 767px) and
-  (pointer: coarse)` matches. It is a suggestion, not a wall: the upright
-  layout works, so "Play upright", Esc or the backdrop dismisses it for the
-  session (`sessionStorage`), and turning the phone clears it on its own.
+  `RotatePrompt` covers the whole board (opening hand included) while
+  `(orientation: portrait) and (max-width: 767px) and (pointer: coarse)`
+  matches. It is an **overlay, not a dialog**: a `Modal` for the focus trap
+  and Esc, but with no panel. Icon, title, one compact primary and a quiet
+  text link sit straight on the opening-hand takeover's scrim (`--bg` at 82%
+  plus a 6px blur), so it is themed like the board. It is a suggestion, not a
+  wall: the upright layout works, so "Play upright", Esc or the backdrop
+  dismisses it for the session (`sessionStorage`), and turning the phone
+  clears it on its own.
   "Go fullscreen" is drawn only where `document.fullscreenEnabled` (never on
   iPhone Safari) and also locks the orientation to landscape, since Android
   Chrome allows the lock only in fullscreen.
