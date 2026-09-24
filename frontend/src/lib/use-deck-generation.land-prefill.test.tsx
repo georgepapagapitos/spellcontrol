@@ -24,10 +24,10 @@ const landsFor = (total: number, nonbasic: number) => ({
 const fetchCommanderData = vi.fn(async (name: string) =>
   name === 'Clara Oswald' ? landsFor(35, 10) : landsFor(39, 15)
 );
-const fetchPartnerCommanderData = vi.fn(async () => landsFor(36, 12));
+const fetchPartnerCommanderData = vi.fn(async (..._a: unknown[]) => landsFor(36, 12));
 vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchCommanderData: (name: string) => fetchCommanderData(name),
-  fetchPartnerCommanderData: (a: string, b: string) => fetchPartnerCommanderData(a, b),
+  fetchPartnerCommanderData: (...a: unknown[]) => fetchPartnerCommanderData(...a),
 }));
 
 import { useDeckGeneration } from './use-deck-generation';
