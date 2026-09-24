@@ -307,7 +307,9 @@ export function CommanderSearch({
     async (name: string): Promise<void> => {
       // Readiness scores a commander's EDHREC staples against the collection —
       // meaningless for PDH (no EDHREC data), so the % surface stays hidden.
-      if (pdh) return;
+      // Same for an empty collection: every commander would read 0%, and each
+      // score costs an EDHREC fetch.
+      if (pdh || ownedCardNames.size === 0) return;
       const key = name.toLowerCase();
       if (readinessDone.current.has(key) || readinessInflight.current.has(key)) return;
       readinessInflight.current.add(key);
@@ -961,7 +963,7 @@ export function CommanderSearch({
               ))}
             </div>
           )}
-          {!pdh && (
+          {!pdh && ownedCardNames.size > 0 && (
             <div className="commander-pick-readiness">
               <CommanderReadiness
                 score={selectedReadiness === 'loading' ? undefined : selectedReadiness}

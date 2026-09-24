@@ -434,7 +434,7 @@ export function DeckNewPage() {
             </p>
           )}
           <p className="combo-seed-banner-hint">
-            These cards are pinned as must-includes below. Generation seats them first.
+            These cards are pinned as must-includes. Generation seats them first.
           </p>
         </section>
       )}
@@ -506,7 +506,7 @@ export function DeckNewPage() {
           in reach was a secondary mode. A commander already picked here
           rides along (router state) — brew resets the builder store on mount
           and used to ask for the same commander a second time. */}
-      {formatConfig.hasCommander && !isPdh && (
+      {formatConfig.hasCommander && !isPdh && !commander && (
         <section className="deck-builder-section guided-cta">
           <div className="guided-cta-text">
             <strong>Prefer to pick every card?</strong>
@@ -541,6 +541,21 @@ export function DeckNewPage() {
         />
       )}
 
+      {/* Themes come right after the build method they depend on, ahead of
+          Customize: most builds pick a theme and never open the settings.
+          Themes only steer the EDHREC generator — the Scryfall-driven modes
+          define their own pool, so the theme picker is irrelevant there. */}
+      {formatConfig.hasCommander &&
+        !isPdh &&
+        commander &&
+        customization.generationMode === 'edhrec' && (
+          <ThemePicker
+            commanderName={commander.name}
+            selectedSlugs={selectedThemeSlugs}
+            onToggle={toggleTheme}
+          />
+        )}
+
       {/* Customizer sits ahead of the partner picker so collection-mode is
           decided before partner selection — the picker filters its
           suggestions (and warns) based on what's owned. */}
@@ -566,19 +581,6 @@ export function DeckNewPage() {
             commander={null}
             partner={partnerCommander}
             onChoose={setChosenColor}
-          />
-        )}
-
-      {/* Themes only steer the EDHREC generator — the Scryfall-driven modes
-          define their own pool, so the theme picker is irrelevant there. */}
-      {formatConfig.hasCommander &&
-        !isPdh &&
-        commander &&
-        customization.generationMode === 'edhrec' && (
-          <ThemePicker
-            commanderName={commander.name}
-            selectedSlugs={selectedThemeSlugs}
-            onToggle={toggleTheme}
           />
         )}
 
@@ -610,6 +612,29 @@ export function DeckNewPage() {
               </p>
               {error && <div className="error-banner deck-builder-error">{error}</div>}
             </section>
+            {/* Once a commander is picked, Brew sits with Generate and Start blank:
+                the three ways to build, in one place. The commander rides along
+                (router state). Before a pick, the promo sits under the picker. */}
+            {formatConfig.hasCommander && !isPdh && commander && (
+              <section className="deck-builder-section guided-cta">
+                <div className="guided-cta-text">
+                  <strong>Prefer to pick every card?</strong>
+                  <span>
+                    Build the deck one slot at a time. Each stop deals you a hand of candidates to
+                    add or pass.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() =>
+                    navigate('/decks/new/brew', commander ? { state: { commander } } : undefined)
+                  }
+                >
+                  Start brewing <ArrowRight width={14} height={14} aria-hidden />
+                </button>
+              </section>
+            )}
           </>
         )
       ) : (
