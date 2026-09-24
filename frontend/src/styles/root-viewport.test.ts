@@ -28,7 +28,9 @@ const dialogs = readFileSync(join(dir, 'modals-dialogs.css'), 'utf8');
 
 /** The declarations of the first rule whose selector is exactly `selector`. */
 function rule(css: string, selector: string): string {
-  const escaped = selector.replace(/[.#]/g, '\\$&');
+  // Every regex metacharacter, backslash included, as the sibling guards do
+  // (CodeQL js/incomplete-sanitization flagged the old `.#`-only escape).
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = new RegExp(`(?:^|\\})\\s*${escaped}\\s*\\{([^}]*)\\}`, 'm').exec(css);
   expect(match, `${selector} rule not found`).not.toBeNull();
   return match![1];
