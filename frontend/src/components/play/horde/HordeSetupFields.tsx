@@ -11,6 +11,8 @@ import {
   type RevealMode,
 } from '@/lib/horde';
 import type { HordeBanWarning } from '@/lib/horde/ban-list';
+import { aggregateHordeRecords } from '@/lib/horde-records';
+import { usePlayStore } from '@/store/play';
 import './horde-setup.css';
 
 const LEVELS: HordeLevel[] = ['casual', 'standard', 'brutal'];
@@ -88,6 +90,8 @@ export function HordeSetupFields({
 }: Props) {
   const horde = HORDE_CATALOG.find((h) => h.id === hordeId) ?? HORDE_CATALOG[0];
   const effective = resolveHordeSettings(level, survivorCount, overrides);
+  const history = usePlayStore((s) => s.history);
+  const records = aggregateHordeRecords(history);
 
   function patch(next: Partial<HordeSettings>) {
     onOverridesChange({ ...overrides, ...next });
@@ -100,6 +104,7 @@ export function HordeSetupFields({
           <HordeTile
             key={h.id}
             horde={h}
+            record={records.find((r) => r.hordeId === h.id)}
             selected={h.id === hordeId}
             onSelect={() => onHordeChange(h.id)}
           />

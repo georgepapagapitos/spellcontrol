@@ -1,8 +1,11 @@
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/use-sheet-exit';
+import { usePlayStore } from '@/store/play';
+import { aggregateHordeRecords } from '@/lib/horde-records';
 
 interface Props {
   outcome: 'won' | 'lost';
+  hordeId: string;
   hordeTurns: number;
   damageTaken: number;
   cardsMilledByDamage: number;
@@ -18,6 +21,7 @@ interface Props {
  */
 export function HordeEndSheet({
   outcome,
+  hordeId,
   hordeTurns,
   damageTaken,
   cardsMilledByDamage,
@@ -27,6 +31,8 @@ export function HordeEndSheet({
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onDone);
   useLockBodyScroll();
+  const history = usePlayStore((s) => s.history);
+  const record = aggregateHordeRecords(history).find((r) => r.hordeId === hordeId);
 
   const headline = outcome === 'won' ? 'The horde is gone' : `Overrun on turn ${hordeTurns}`;
 
@@ -49,6 +55,11 @@ export function HordeEndSheet({
             <li>Damage taken: {damageTaken}</li>
             <li>Cards milled by damage: {cardsMilledByDamage}</li>
             <li>Bosses beaten: {bossesBeaten}</li>
+            {record && (
+              <li>
+                Record against this horde: {record.won}-{record.lost}
+              </li>
+            )}
           </ul>
         </div>
         <div className="card-picker-footer">

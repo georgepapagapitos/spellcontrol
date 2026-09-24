@@ -311,6 +311,7 @@ export function HordeTable() {
       {outcome && (
         <HordeEndSheet
           outcome={outcome}
+          hordeId={config.hordeId}
           hordeTurns={hordeTurn}
           damageTaken={damageTaken}
           cardsMilledByDamage={cardsMilledByDamage}

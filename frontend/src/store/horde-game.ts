@@ -23,6 +23,9 @@ import {
   type HordeLevel,
   type HordeSettings,
 } from '@/lib/horde';
+import { genId } from '@/lib/id';
+import { createGameState, gameToRecord, makePlayer, type GameState } from '@/lib/game-state';
+import { usePlayStore } from '@/store/play';
 
 export interface HordeSurvivor {
   name: string;
@@ -220,11 +223,82 @@ function captureData(s: HordeStore): HordeData {
   };
 }
 
+/**
+ * Builds the shared-shape `GameState` a finished Horde game posts through —
+ * the same durable local-result path a real local game uses (see
+ * `store/play.ts`'s `recordIfFinished`): queued into `pendingResults` if
+ * offline/signed out, flushed when possible, and idempotent on `id`. Built
+ * directly with `status: 'finished'` rather than dispatched through `start`/
+ * `end` — this record is a fact about a game that already happened on this
+ * board, not one this app will keep playing through the online reducer.
+ */
+function buildHordeGameState(s: HordeStore, id: string, outcome: 'won' | 'lost'): GameState {
+  const config = s.config!;
+  const now = Date.now();
+  const players = config.survivors.map((survivor, i) =>
+    makePlayer({
+      id: `local_${i}`,
+      userId: null,
+      seat: i,
+      name: survivor.name,
+      deckId: survivor.deckId,
+      deckName: survivor.deckName,
+      startingLife: config.settings.life,
+      isHost: i === 0,
+    })
+  );
+  // Every survivor shares one life total — the shared pool at the moment the
+  // game ended, on every seat, since the row builder reads life per player.
+  for (const p of players) p.life = s.survivorsLife;
+  const base = createGameState({
+    id,
+    code: '',
+    mode: 'local',
+    hostUserId: null,
+    format: 'horde',
+    startingLife: config.settings.life,
+    commanderDamageEnabled: false,
+    poisonEnabled: false,
+    players,
+    ts: s.startedAt ?? now,
+  });
+  return {
+    ...base,
+    status: 'finished',
+    startedAt: s.startedAt,
+    endedAt: now,
+    updatedAt: now,
+    winnerSeat: null,
+    coopOutcome: outcome,
+    hordeId: config.hordeId,
+  };
+}
+
+/** Posts a finished Horde game into Play history the same way a real local
+ *  game does: a record in `usePlayStore.history` plus a queued/flushed
+ *  `pendingResults` entry. Both writes are deduped on `id`, so a repeat call
+ *  (there should never be one — every caller transitions `phase` to `ended`
+ *  first) can never double-post. */
+function postHordeResult(s: HordeStore, id: string, outcome: 'won' | 'lost'): void {
+  const game = buildHordeGameState(s, id, outcome);
+  const play = usePlayStore.getState();
+  if (play.history.some((r) => r.id === game.id)) return;
+  usePlayStore.setState((p) => ({
+    history: [gameToRecord(game, game.endedAt!), ...p.history].slice(0, 500),
+    pendingResults: p.pendingResults.some((g) => g.id === game.id)
+      ? p.pendingResults
+      : [...p.pendingResults, game],
+  }));
+  void usePlayStore.getState().flushPendingResults();
+}
+
 function recordFinished(s: HordeStore, outcome: 'won' | 'lost'): HordeFinishedRecord | null {
   if (!s.config || !s.board) return null;
   const bossesBeaten = s.board.zones.graveyard.filter((c) => c.id.startsWith('horde-boss-')).length;
+  const id = genId('horde');
+  postHordeResult(s, id, outcome);
   return {
-    id: `horde-${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+    id,
     hordeId: s.config.hordeId,
     hordeName: s.config.hordeName,
     level: s.config.level,

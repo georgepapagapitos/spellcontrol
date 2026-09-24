@@ -96,6 +96,12 @@
   gap: 2px;
 }
 
+.horde-tile-record {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
 .horde-special-rule {
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);

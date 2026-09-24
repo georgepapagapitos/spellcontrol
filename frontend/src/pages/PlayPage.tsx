@@ -831,7 +831,7 @@ function LocalSetup({
         <div className="play-setup-row" style={{ marginTop: '0.5rem' }}>
           <div className="play-field play-field-inline">
             <span>Format</span>
-            <SelectMenu<GameFormat | 'horde'>
+            <SelectMenu<GameFormat>
               ariaLabel="Format"
               value={isHorde ? 'horde' : format}
               onChange={(next) => {
@@ -847,10 +847,7 @@ function LocalSetup({
                 applyFormat(next);
               }}
               options={[
-                ...FORMAT_OPTIONS.map((f) => ({
-                  value: f.value as GameFormat | 'horde',
-                  label: f.label,
-                })),
+                ...FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label })),
                 { value: 'horde' as const, label: 'Horde (co-op)' },
               ]}
             />

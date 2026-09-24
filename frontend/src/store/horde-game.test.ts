@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useHordeGameStore, type HordeSurvivor } from './horde-game';
 import { resolveHordeSettings } from '@/lib/horde';
+import { usePlayStore } from '@/store/play';
 
 const SURVIVORS: HordeSurvivor[] = [
   { name: 'Alice', deckId: null, deckName: null },
@@ -36,6 +37,7 @@ beforeEach(() => {
     past: [],
     finished: [],
   });
+  usePlayStore.setState({ local: null, online: null, history: [], pendingResults: [] });
 });
 
 async function start(overrides?: Parameters<typeof resolveHordeSettings>[2]) {
@@ -265,6 +267,37 @@ describe('leaveGame / concede', () => {
     expect(s.phase).toBe('ended');
     expect(s.finished[0]?.outcome).toBe('lost');
     expect(s.config).not.toBeNull();
+  });
+});
+
+describe('posting the result (T118: same durable path as a real local game)', () => {
+  it('a finished game lands in Play history as a co-op record, and queues for post', async () => {
+    await start();
+    useHordeGameStore.getState().concede();
+    const finishedId = useHordeGameStore.getState().finished[0]?.id;
+    const play = usePlayStore.getState();
+    const record = play.history.find((r) => r.id === finishedId);
+    expect(record).toBeDefined();
+    expect(record?.format).toBe('horde');
+    expect(record?.coopOutcome).toBe('lost');
+    expect(record?.hordeId).toBe('zombies');
+    expect(record?.winnerSeat).toBeNull();
+    expect(record?.players).toHaveLength(2);
+    // Guest (the test default): flushPendingResults no-ops, so the game
+    // stays queued rather than silently dropped.
+    expect(play.pendingResults.some((g) => g.id === finishedId)).toBe(true);
+  });
+
+  it('every survivor posts with the shared life total at the end', async () => {
+    await start();
+    useHordeGameStore.setState({ survivorsLife: 17 });
+    useHordeGameStore.getState().concede();
+    const finishedId = useHordeGameStore.getState().finished[0]?.id;
+    const game = usePlayStore.getState().pendingResults.find((g) => g.id === finishedId);
+    expect(game?.players.every((p) => p.life === 17)).toBe(true);
+    expect(game?.players).toHaveLength(2);
+    expect(game?.status).toBe('finished');
+    expect(game?.mode).toBe('local');
   });
 });
 

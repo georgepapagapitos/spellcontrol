@@ -1,12 +1,15 @@
 import { Check } from 'lucide-react';
 import { ColorPip } from '../../shared/ManaSymbol';
 import type { HordeCatalogEntry } from '@/lib/horde';
+import type { HordeRecordRow } from '@/lib/horde-records';
 import './horde-setup.css';
 
 interface Props {
   horde: HordeCatalogEntry;
   selected: boolean;
   onSelect(): void;
+  /** This table's own record against this horde, if it's played it before. */
+  record?: HordeRecordRow;
 }
 
 /**
@@ -15,7 +18,7 @@ interface Props {
  * catalog entry that isn't a deck: no owner, no stats, just what you're
  * fighting. See STYLE_GUIDE "Discover deck tiles".
  */
-export function HordeTile({ horde, selected, onSelect }: Props) {
+export function HordeTile({ horde, selected, onSelect, record }: Props) {
   return (
     <li className="horde-tile-item">
       <button
@@ -41,6 +44,11 @@ export function HordeTile({ horde, selected, onSelect }: Props) {
               ))}
             </span>
             <span className="deck-format-badge">{horde.badge}</span>
+            {record && (
+              <span className="horde-tile-record">
+                {record.won}-{record.lost}
+              </span>
+            )}
           </span>
         </span>
       </button>
