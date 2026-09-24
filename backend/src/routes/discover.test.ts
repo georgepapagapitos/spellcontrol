@@ -103,7 +103,12 @@ async function unpublish(cookie: string, deckId: string): Promise<void> {
  *  for deterministic ordering. */
 async function stampPublication(
   deckId: string,
-  fields: Partial<{ viewCount: number; copyCount: number; publishedAt: number }>
+  fields: Partial<{
+    viewCount: number;
+    copyCount: number;
+    publishedAt: number;
+    likeCount: number;
+  }>
 ): Promise<void> {
   const sets: string[] = [];
   const params: unknown[] = [deckId];
@@ -118,6 +123,10 @@ async function stampPublication(
   if (fields.publishedAt !== undefined) {
     params.push(fields.publishedAt);
     sets.push(`published_at = $${params.length}`);
+  }
+  if (fields.likeCount !== undefined) {
+    params.push(fields.likeCount);
+    sets.push(`like_count = $${params.length}`);
   }
   if (sets.length === 0) return;
   await pool.query(`UPDATE deck_publications SET ${sets.join(', ')} WHERE deck_id = $1`, params);
@@ -322,6 +331,51 @@ describe('GET /api/discover/decks', () => {
       .get('/api/discover/decks')
       .query({ commander: cmdr, sort: 'most-copied' });
     expect(slugsOf(mostCopied.body)).toEqual([first.slug, third.slug, second.slug]);
+  });
+
+  it('sorts by most liked (T136)', async () => {
+    const cmdr = uid('Disco Liked Cmdr');
+    const decks = [];
+    for (let i = 0; i < 3; i++) {
+      decks.push(
+        await publishDeck({
+          commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['G'] },
+        })
+      );
+    }
+    await stampPublication(decks[0].deckId, { likeCount: 2, publishedAt: 3_000 });
+    await stampPublication(decks[1].deckId, { likeCount: 9, publishedAt: 1_000 });
+    await stampPublication(decks[2].deckId, { likeCount: 0, publishedAt: 2_000 });
+
+    const res = await request(app)
+      .get('/api/discover/decks')
+      .query({ commander: cmdr, sort: 'most-liked' });
+    expect(slugsOf(res.body)).toEqual([decks[1].slug, decks[0].slug, decks[2].slug]);
+  });
+
+  it('pages a count sort full of ties without repeating or skipping a deck', async () => {
+    // Most decks have 0 likes, copies and views; ORDER BY a tied column alone
+    // left the order to Postgres, so OFFSET could hand a deck to two pages.
+    const cmdr = uid('Disco Ties Cmdr');
+    const slugs: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const d = await publishDeck({
+        commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['R'] },
+      });
+      await stampPublication(d.deckId, { likeCount: 0, publishedAt: 1_000 });
+      slugs.push(d.slug);
+    }
+    const seen: string[] = [];
+    for (let page = 1; page <= 3; page++) {
+      const res = await request(app)
+        .get('/api/discover/decks')
+        .query({ commander: cmdr, sort: 'most-liked', pageSize: 2, page });
+      seen.push(...slugsOf(res.body));
+    }
+    expect(seen).toHaveLength(5);
+    expect(new Set(seen)).toEqual(new Set(slugs));
+    // Total ties fall back to the slug, so the order is fixed, not luck.
+    expect(seen).toEqual([...slugs].sort());
   });
 
   it('budget band includes only in-range decks and excludes a deck with zero Scryfall cache coverage — which still appears under sort=newest', async () => {

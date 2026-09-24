@@ -4,7 +4,7 @@ import type { DiscoverFilters } from './discover-filters';
 /** Sort values `GET /api/discover/decks` itself accepts (`routes/discover.ts`
  *  `SortKey`). `buildable` (percent-owned) is a client-only value computed
  *  over the fetched page and never sent to the server — see discover-buildable.ts. */
-export type DiscoverSortKey = 'newest' | 'most-copied' | 'most-viewed';
+export type DiscoverSortKey = 'newest' | 'most-copied' | 'most-viewed' | 'most-liked';
 
 /**
  * One page of the public Discover browse (`w2-discover-listing-api`'s

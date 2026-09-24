@@ -30,12 +30,17 @@ const MAX_PAGE_SIZE = 48;
 // original bucket spec).
 const BUDGET_CANDIDATE_CAP = 500;
 
-type SortKey = 'newest' | 'most-copied' | 'most-viewed';
+type SortKey = 'newest' | 'most-copied' | 'most-viewed' | 'most-liked';
 const SORT_COLUMNS: Record<SortKey, string> = {
   newest: 'dp.published_at',
   'most-copied': 'dp.copy_count',
   'most-viewed': 'dp.view_count',
+  'most-liked': 'dp.like_count',
 };
+// Ties are the norm on the count sorts (most decks have 0 likes, copies and
+// views), and OFFSET paging over an unstable order repeats or skips decks
+// between pages. Newest first, then the unique slug, makes it total.
+const TIEBREAK = 'dp.published_at DESC, dp.slug';
 
 type BudgetKey = 'under50' | '50to150' | '150to400' | '400plus';
 const BUDGET_BANDS: Record<BudgetKey, (v: number) => boolean> = {
@@ -191,7 +196,7 @@ discoverRouter.get(
         `SELECT ${LISTING_COLUMNS}
          FROM deck_publications dp JOIN users u ON u.id = dp.user_id
         WHERE ${LISTING_WHERE}
-        ORDER BY ${sortCol} DESC
+        ORDER BY ${sortCol} DESC, ${TIEBREAK}
         LIMIT $5 OFFSET $6`,
         [...whereParams, filters.pageSize + 1, offset]
       );
@@ -208,7 +213,7 @@ discoverRouter.get(
       `SELECT ${LISTING_COLUMNS}
        FROM deck_publications dp JOIN users u ON u.id = dp.user_id
       WHERE ${LISTING_WHERE}
-      ORDER BY ${sortCol} DESC
+      ORDER BY ${sortCol} DESC, ${TIEBREAK}
       LIMIT ${BUDGET_CANDIDATE_CAP}`,
       whereParams
     );

@@ -504,6 +504,8 @@ export async function createTestEnv(): Promise<TestEnv> {
       ON deck_publications (copy_count DESC) WHERE unpublished_at IS NULL;
     CREATE INDEX deck_publications_view_count_idx
       ON deck_publications (view_count DESC) WHERE unpublished_at IS NULL;
+    CREATE INDEX deck_publications_like_count_idx
+      ON deck_publications (like_count DESC) WHERE unpublished_at IS NULL;
     CREATE INDEX deck_publications_commander_prefix_idx
       ON deck_publications (lower(commander_name) text_pattern_ops) WHERE unpublished_at IS NULL;
     CREATE TABLE deck_likes (
