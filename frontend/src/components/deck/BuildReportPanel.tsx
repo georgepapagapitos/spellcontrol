@@ -489,7 +489,8 @@ export function BuildReportPanel({
 
       {builtFromCollection && typeof ownedPercentActual === 'number' && (
         <p className="build-report-line">
-          <strong>{ownedPercentActual}%</strong> from your collection
+          <strong>{ownedPercentActual}%</strong>
+          {isPartial ? ' of the nonland cards' : ''} from your collection
           {isPartial && typeof ownedPercentTarget === 'number' && (
             <span className="build-report-muted"> (target {ownedPercentTarget}%)</span>
           )}

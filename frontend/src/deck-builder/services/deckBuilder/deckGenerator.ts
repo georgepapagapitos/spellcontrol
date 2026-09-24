@@ -115,7 +115,12 @@ import {
 import { buildManabaseSummary } from './manabaseMath';
 import { auditDeckCoherence } from './coherenceAudit';
 import { summarizeSeatedBlend } from './archetypeBlend';
-import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
+import {
+  buildSubstitutionPlan,
+  type SubstituteCandidate,
+  type SubstituteRow,
+} from './substituteFinder';
+import { sameType } from '@/lib/card-matching';
 import { resolveMultiCopyCards } from './multiCopy';
 import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 import { resolveManaPhilosophy } from './manaPhilosophy';
@@ -3924,13 +3929,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // "if (currentCount < targetDeckSize)" shortage block above — the per-type
   // picks usually already fill the deck to size, so this must run regardless;
   // it's about OWNERSHIP composition, not deck size. Swap the weakest unowned
-  // filler for a still-eligible, not-yet-seated owned card until the
-  // requested share is met or no more eligible owned candidates / swappable
-  // unowned cards remain. Never touches lands (pickFromPrefetched's own
-  // partial-mode phase handles those separately) or the deck's size — a
-  // straight 1-for-1 swap.
+  // filler for an owned card until the requested share is met or no more
+  // owned candidates / swappable unowned cards remain. Never touches lands
+  // (pickFromPrefetched's own partial-mode phase handles those separately)
+  // or the deck's size — a straight 1-for-1 swap.
+  //
+  // E403: owned candidates come in three tiers. EDHREC's pool for this
+  // commander alone offered Lathril 9 owned cards from a collection holding
+  // 464 that fit, so "100% owned" shipped 13% while "Only my cards" shipped
+  // 97-100% from the same collection. Past the pool, the collection's own
+  // cards (context.collectionPool) fill the rest, the way owned-only modes do.
   if (collectionStrategy === 'partial' && context.collectionNames && state.edhrecData) {
     const collectionNames = context.collectionNames;
+    const edhrecNonLand = state.edhrecData.cardlists.allNonLand;
     const nonLandCats = (Object.keys(categories) as DeckCategory[]).filter(
       (cat) => cat !== 'lands'
     );
@@ -3944,90 +3955,173 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     );
     let deficit = ownedWanted - ownedCountIn(nonLandNow());
 
-    // Every owned name this commander's pool actually offers (seated or
-    // not) — the honest "only N owned cards fit this pool" denominator,
-    // computed regardless of whether a swap ends up needed.
-    const eligibleOwned = state.edhrecData.cardlists.allNonLand.filter((ec) =>
-      collectionNames.has(ec.name)
+    // The collection's nonland cards that can legally go in this deck.
+    const poolFits = (context.collectionPool ?? []).filter(
+      (c) =>
+        !c.typeLine?.includes('Land') &&
+        !bannedCards.has(c.name) &&
+        c.colorIdentity.every((color) => colorIdentity.includes(color))
     );
-    partialOwnedEligibleCount = new Set(eligibleOwned.map((ec) => ec.name)).size;
+    // Every owned nonland name that could go in this deck (seated or not):
+    // the honest denominator for the report's gap note, computed regardless
+    // of whether a swap ends up needed.
+    const eligibleOwned = edhrecNonLand.filter((ec) => collectionNames.has(ec.name));
+    partialOwnedEligibleCount = new Set([
+      ...eligibleOwned.map((ec) => ec.name),
+      ...poolFits.map((c) => c.name),
+    ]).size;
 
-    if (deficit > 0) {
-      const inclusionByName = new Map<string, number>();
-      for (const ec of state.edhrecData.cardlists.allNonLand) {
-        inclusionByName.set(ec.name, ec.inclusion);
+    const inclusionByName = new Map<string, number>();
+    for (const ec of edhrecNonLand) inclusionByName.set(ec.name, ec.inclusion);
+
+    // Swap one owned card in for an unowned one. `preferEvict` names the card
+    // it was matched against (an owned substitute's staple); otherwise the
+    // weakest unowned card of the same role, then of the same type, then any.
+    // Never a must-include. `strictRole` (tier 3, which knows nothing about
+    // this commander) lets a role-crossing swap only fill a role still under
+    // its target: past the cap's tolerance it seated Blasphemous Act and
+    // Nevinyrral's Disk as a third and fourth wipe in a Krenko deck.
+    const trySeatOwned = (
+      card: ScryfallCard,
+      preferEvict?: string,
+      strictRole = false
+    ): boolean => {
+      if (usedNames.has(card.name)) return false;
+      if (!fitsColorIdentity(card, colorIdentity) || isDeadInIdentity(card, colorIdentity)) {
+        return false;
       }
-      // Most-wanted (highest EDHREC inclusion) unseated owned candidates first.
+      if (!isCardAllowedBySynergyDependencies(card)) return false;
+      // The static caps, not the shortage block's relaxed ones (this is a
+      // composition swap, not a size-shortage backfill).
+      if (violatesUserCaps(card, state.cfg, collectionNames)) return false;
+
+      const swappable = nonLandNow().filter(
+        (c) => !collectionNames.has(c.name) && !c.isMustInclude
+      );
+      if (swappable.length === 0) return false;
+      const wantedRole = validateCardRole(card);
+      const matched = preferEvict ? swappable.filter((c) => c.name === preferEvict) : [];
+      const sameRole = wantedRole
+        ? swappable.filter((c) => validateCardRole(c) === wantedRole)
+        : [];
+      const sameKind = swappable.filter((c) => sameType(c, card));
+      const evictPool =
+        matched.length > 0
+          ? matched
+          : sameRole.length > 0
+            ? sameRole
+            : sameKind.length > 0
+              ? sameKind
+              : swappable;
+      evictPool.sort(
+        (a, b) => (inclusionByName.get(a.name) ?? -1) - (inclusionByName.get(b.name) ?? -1)
+      );
+      // Role cap only guards a role-CROSSING swap (same-role is net-zero).
+      const target = wantedRole ? (roleTargets?.[wantedRole] ?? 0) : 0;
+      const roleFull = strictRole
+        ? target > 0 && (currentRoleCounts[wantedRole!] ?? 0) >= target
+        : isOverRoleCap(card, roleTargets, currentRoleCounts);
+      const evicted = evictPool.find((c) => validateCardRole(c) === wantedRole || !roleFull);
+      if (!evicted) return false;
+
+      // Remove the evicted unowned card (mirrors phaseBudgetConverge's removeCard).
+      for (const cat of nonLandCats) {
+        const idx = categories[cat].indexOf(evicted);
+        if (idx !== -1) {
+          categories[cat].splice(idx, 1);
+          break;
+        }
+      }
+      usedNames.delete(evicted.name);
+      if (evicted.name.includes(' // ')) usedNames.delete(frontFaceName(evicted.name));
+      const evictedRole = validateCardRole(evicted);
+      if (evictedRole && currentRoleCounts[evictedRole] > 0) currentRoleCounts[evictedRole]--;
+      const evictedCmc = Math.min(Math.floor(evicted.cmc), 7);
+      if (currentCurveCounts[evictedCmc] > 0) currentCurveCounts[evictedCmc]--;
+
+      // Seat the owned card in its place.
+      stampRoleSubtypes(card);
+      routeCardByType(card, categories);
+      usedNames.add(card.name);
+      if (card.name.includes(' // ')) usedNames.add(frontFaceName(card.name));
+      bumpRoleCapCount(card, roleTargets, currentRoleCounts, roleCapOverflowCounts, false);
+      const cardCmc = Math.min(Math.floor(card.cmc), 7);
+      currentCurveCounts[cardCmc] = (currentCurveCounts[cardCmc] ?? 0) + 1;
+      deficit--;
+      return true;
+    };
+
+    // Tier 1: owned cards EDHREC suggests for this commander, most-played first.
+    if (deficit > 0) {
       const candidates = eligibleOwned
         .filter((ec) => !usedNames.has(ec.name) && !bannedCards.has(ec.name))
         .sort((a, b) => b.inclusion - a.inclusion);
-
       for (const ec of candidates) {
         if (deficit <= 0) break;
         const card = scryfallCardMap.get(ec.name);
-        if (!card || usedNames.has(card.name)) continue;
-        if (!fitsColorIdentity(card, colorIdentity)) continue;
-        if (!isCardAllowedBySynergyDependencies(card)) continue;
-        if (notLegalForFormat(card, state.cfg.mtgFormat)) continue;
-        const ownedExempt = isOwnedBudgetExempt(card.name, collectionNames, ignoreOwnedBudget);
-        // The static cap, not the shortage block's relaxed one (out of scope
-        // here — this is a composition swap, not a size-shortage backfill).
-        if (!ownedExempt && exceedsMaxPrice(card, maxCardPrice, currency)) continue;
-        if (
-          !isOwnedRarityExempt(card.name, collectionNames, ignoreOwnedRarity) &&
-          exceedsMaxRarity(card, maxRarity)
-        )
-          continue;
-        if (exceedsCmcCap(card, maxCmc)) continue;
-        if (notOnArena(card, arenaOnly)) continue;
+        if (card) trySeatOwned(card);
+      }
+    }
 
-        // Evict the weakest swappable unowned card — same functional role
-        // first (role-neutral swap, mirrors phaseBudgetConverge's same-role
-        // tier), any unowned card otherwise. Never a must-include.
-        const swappable = nonLandNow().filter(
-          (c) => !collectionNames.has(c.name) && !c.isMustInclude
+    // Tier 2: an owned card that does the same job as an unowned card in the
+    // deck, weakest unowned first (the owned-only modes' substitute finder).
+    // A surviving swap shows in the report as "Wanted X, used your Y".
+    const unseated = (): SubstituteCandidate[] => poolFits.filter((c) => !usedNames.has(c.name));
+    if (deficit > 0 && poolFits.length > 0) {
+      const unownedWithRole: GapAnalysisCard[] = [];
+      for (const c of nonLandNow()) {
+        if (collectionNames.has(c.name) || c.isMustInclude) continue;
+        const role = getCardRole(c.name);
+        if (!role) continue;
+        unownedWithRole.push({
+          name: c.name,
+          price: null,
+          inclusion: inclusionByName.get(c.name) ?? 0,
+          synergy: 0,
+          typeLine: getFrontFaceTypeLine(c),
+          cmc: c.cmc,
+          role,
+        });
+      }
+      unownedWithRole.sort((a, b) => a.inclusion - b.inclusion);
+      const deckNames = new Set(nonLandNow().map((c) => c.name));
+      const plan = buildSubstitutionPlan(unownedWithRole, unseated(), deckNames, colorIdentity, {
+        inclusionByName,
+      });
+      if (plan.rows.length > 0) {
+        const fetched = await getCardsByNames(
+          plan.rows.map((r) => r.usedName),
+          undefined,
+          undefined,
+          { arenaOnly }
         );
-        if (swappable.length === 0) break; // nothing left to swap for
-        const wantedRole = validateCardRole(card);
-        const sameRole = wantedRole
-          ? swappable.filter((c) => validateCardRole(c) === wantedRole)
-          : [];
-        const evictPool = sameRole.length > 0 ? sameRole : swappable;
-        evictPool.sort(
-          (a, b) => (inclusionByName.get(a.name) ?? -1) - (inclusionByName.get(b.name) ?? -1)
-        );
-        // Role cap only guards a role-CROSSING swap (same-role is net-zero).
-        const evicted = evictPool.find(
-          (c) =>
-            validateCardRole(c) === wantedRole ||
-            !isOverRoleCap(card, roleTargets, currentRoleCounts)
-        );
-        if (!evicted) continue;
-
-        // Remove the evicted unowned card (mirrors phaseBudgetConverge's removeCard).
-        for (const cat of nonLandCats) {
-          const idx = categories[cat].indexOf(evicted);
-          if (idx !== -1) {
-            categories[cat].splice(idx, 1);
-            break;
-          }
+        for (const row of plan.rows) {
+          if (deficit <= 0) break;
+          const card = fetched.get(row.usedName);
+          if (card && trySeatOwned(card, row.wantedName)) substitutionRows.push(row);
         }
-        usedNames.delete(evicted.name);
-        if (evicted.name.includes(' // ')) usedNames.delete(frontFaceName(evicted.name));
-        const evictedRole = validateCardRole(evicted);
-        if (evictedRole && currentRoleCounts[evictedRole] > 0) currentRoleCounts[evictedRole]--;
-        const evictedCmc = Math.min(Math.floor(evicted.cmc), 7);
-        if (currentCurveCounts[evictedCmc] > 0) currentCurveCounts[evictedCmc]--;
+      }
+    }
 
-        // Seat the owned card in its place.
-        stampRoleSubtypes(card);
-        routeCardByType(card, categories);
-        usedNames.add(card.name);
-        if (card.name.includes(' // ')) usedNames.add(frontFaceName(card.name));
-        bumpRoleCapCount(card, roleTargets, currentRoleCounts, roleCapOverflowCounts, false);
-        const cardCmc = Math.min(Math.floor(card.cmc), 7);
-        currentCurveCounts[cardCmc] = (currentCurveCounts[cardCmc] ?? 0) + 1;
-        deficit--;
+    // Tier 3: the rest of the collection, most-played across Commander first.
+    // ponytail: fetches every remaining owned card that fits (a few Scryfall
+    // batches for a large collection); pre-rank by type need if it gets slow.
+    if (deficit > 0) {
+      const rest = unseated();
+      if (rest.length > 0) {
+        const fetched = await getCardsByNames(
+          rest.map((c) => c.name),
+          undefined,
+          undefined,
+          { arenaOnly }
+        );
+        const ranked = [...fetched.values()].sort(
+          (a, b) => (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity)
+        );
+        for (const card of ranked) {
+          if (deficit <= 0) break;
+          trySeatOwned(card, undefined, true);
+        }
       }
     }
   }

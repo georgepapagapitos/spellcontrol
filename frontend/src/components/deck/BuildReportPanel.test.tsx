@@ -49,6 +49,7 @@ describe('BuildReportPanel', () => {
         })}
       />
     );
+    expect(container.textContent).toContain('60% of the nonland cards from your collection');
     expect(container.textContent).toContain('target 75%');
   });
 
@@ -60,11 +61,11 @@ describe('BuildReportPanel', () => {
           ownedPercentActual: 10,
           ownedPercentTarget: 100,
           ownedPercentGapNote:
-            "You asked for 100% owned cards, but only 12 owned cards fit this commander's pool. 12 were used and the rest came from recommendations.",
+            "You asked for 100% owned cards, but only 12 of your cards fit this commander's colors. 12 were used and the rest came from recommendations.",
         })}
       />
     );
-    expect(container.textContent).toContain("only 12 owned cards fit this commander's pool");
+    expect(container.textContent).toContain("only 12 of your cards fit this commander's colors");
   });
 
   it('lists the actual card names behind collectionRelaxed, not just the count', () => {

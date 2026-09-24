@@ -215,6 +215,7 @@ export function applyFlagshipSeating(
       if (cat === 'lands') continue;
       for (const card of state.categories[cat]) {
         if (exclude.has(card.name)) continue;
+        if (state.cfg.ownedQuotaProtects?.(card.name)) continue;
         const score = survivalScore(card);
         if (!best || score < best.score) best = { card, category: cat, score };
       }

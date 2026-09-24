@@ -228,26 +228,33 @@ export function assembleBuildReport(input: {
       const target = customization.collectionOwnedPercent;
       report.ownedPercentTarget = target;
 
-      // "Why" disclosure: only when a thin owned pool (not a bug elsewhere)
-      // honestly explains a gap between what was asked and what shipped —
-      // fires only when the commander's candidate pool genuinely couldn't
-      // supply enough owned names to hit the requested count, never when
-      // more were actually available (that would be a bug, not a pool limit).
-      // Same basis as the eligible count (nonland pool names): the partial
-      // quota is a share of NONLAND cards, and counting owned lands here once
-      // produced "only 9 fit ... 11 were used" (LIVE, Lathril partial-100%).
-      const eligible = generated.partialOwnedEligibleCount;
+      // The partial quota is a share of NONLAND cards (lands have their own
+      // partial-mode pass), so the delivered share is measured on the same
+      // basis. E404: measured over the whole mainboard it read "15% (target
+      // 25%)" for a deck at 21.5% of its nonland cards.
       const nonland = mainboard.filter(
         (card) => !getFrontFaceTypeLine(card).toLowerCase().includes('land')
       );
-      if (eligible != null && nonland.length > 0) {
+      if (nonland.length > 0) {
         const ownedCount = nonland.filter((card) => collectionNames.has(card.name)).length;
         const ownedTargetCount = Math.round((nonland.length * target) / 100);
-        if (eligible < ownedTargetCount) {
+        report.ownedPercentActual = Math.round((ownedCount / nonland.length) * 100);
+
+        // Any shortfall is disclosed, with its reason. `eligible` counts every
+        // owned nonland card that fits the deck's colors (EDHREC's pool plus
+        // the rest of the collection), so a count under the target means the
+        // collection itself ran out; otherwise the generator's own limits held
+        // the rest back. E404: the old note fired only for the first case, so
+        // Krenko at 25% shipped short with nothing said.
+        const eligible = generated.partialOwnedEligibleCount;
+        if (ownedCount < ownedTargetCount) {
+          const used = `${ownedCount} ${ownedCount === 1 ? 'was' : 'were'} used`;
           report.ownedPercentGapNote =
-            `You asked for ${target}% owned cards, but only ${eligible} owned ` +
-            `card${eligible === 1 ? '' : 's'} fit this commander's pool. ${ownedCount} ` +
-            `${ownedCount === 1 ? 'was' : 'were'} used and the rest came from recommendations.`;
+            eligible != null && eligible < ownedTargetCount
+              ? `You asked for ${target}% owned cards, but only ${eligible} of your ` +
+                `cards fit this commander's colors. ${used} and the rest came from recommendations.`
+              : `You asked for ${target}% owned cards and got ${report.ownedPercentActual}%. ` +
+                'Your other cards that fit are over your card limits or would overfill a role like ramp or removal.';
         }
       }
     }
