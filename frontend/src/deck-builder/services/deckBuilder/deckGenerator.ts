@@ -381,10 +381,19 @@ export function buildEdhrecCoverageNote(
   return `${lead}, so this deck is built from card function and how widely each card is played in Commander overall, not from what other players run with it.`;
 }
 
+/**
+ * E405: the land sliders pre-fill from EDHREC's average when a commander is
+ * picked, so the requested count is often EDHREC's, not the player's. Said
+ * "You set land count to 29" for Thrasios + Tymna, whose pair page averages
+ * 29. When the request matches the average of the page this build read, the
+ * note names it; otherwise it stays neutral, since a pre-fill from a different
+ * page (no bracket, say) can't be told apart from a typed value.
+ */
 export function buildLandCountClampNote(
   requestedLandCount: number,
   plannedLandCount: number,
-  finalLandCount: number
+  finalLandCount: number,
+  edhrec?: { label: string; averageLands: number }
 ): string | undefined {
   if (requestedLandCount === plannedLandCount) return undefined;
   const clause =
@@ -393,7 +402,11 @@ export function buildLandCountClampNote(
       : `only has room for ${plannedLandCount}`;
   const deliveredClause =
     finalLandCount !== plannedLandCount ? ` Delivered ${finalLandCount}.` : '';
-  return `You set land count to ${requestedLandCount}, but this deck size ${clause}.${deliveredClause}`;
+  const lead =
+    edhrec?.averageLands === requestedLandCount
+      ? `EDHREC's average for ${edhrec.label} is ${requestedLandCount} lands`
+      : `The land count was set to ${requestedLandCount}`;
+  return `${lead}, but this deck size ${clause}.${deliveredClause}`;
 }
 
 // A land-count delta this small is routine land-generation rounding (color-
@@ -4688,10 +4701,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       deliveredByPoolExhaustion: !!poolExhaustionNote,
     });
   } else {
+    const averageLands = state.edhrecData?.stats.landDistribution?.total;
     landCountNote = buildLandCountClampNote(
       customization.landCount,
       targets.lands,
-      categories.lands.length
+      categories.lands.length,
+      averageLands
+        ? {
+            label: partnerCommander
+              ? `${commander.name} and ${partnerCommander.name}`
+              : commander.name,
+            averageLands,
+          }
+        : undefined
     );
   }
 
