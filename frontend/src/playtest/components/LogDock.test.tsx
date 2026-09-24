@@ -68,6 +68,29 @@ describe('LogDock', () => {
     expect(screen.getByText('Maya')).toBeTruthy();
   });
 
+  // Online, the Table feed is the whole game (every seat's plays and the
+  // chat), so the dock opens on it, and the own-log chip says whose it is.
+  it('opens on the table feed when seated online, until you pick a chip', () => {
+    const { unmount } = render(
+      <LogDock log={log} table={{ items: tableItems, nameFor }} onClose={() => {}} />
+    );
+    expect(screen.getByRole('button', { name: 'Table' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('Maya')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'All' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'You' }));
+    expect(screen.getByText('Drew 7 cards')).toBeTruthy();
+    unmount();
+
+    // The choice sticks: the next table opens where you left it.
+    render(<LogDock log={log} table={{ items: tableItems, nameFor }} onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'You' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('opens on your own log in solo playtest, where it is everything', () => {
+    render(<LogDock log={log} onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('copies the log and says so', async () => {
     render(<LogDock log={log} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Copy log' }));

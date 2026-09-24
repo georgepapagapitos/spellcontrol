@@ -7,7 +7,6 @@ function links(onOpen = vi.fn()) {
   return [
     { label: 'Takeback rule', value: 'Free', onOpen },
     { label: 'Resistance', value: 'Off', onOpen },
-    { label: 'Designations', value: 'None', onOpen },
   ];
 }
 
@@ -57,7 +56,6 @@ describe('the preferences it gathers', () => {
     for (const [label, value] of [
       ['Takeback rule', 'Free'],
       ['Resistance', 'Off'],
-      ['Designations', 'None'],
     ]) {
       expect(screen.getByRole('button', { name: `${label} ${value}` })).toBeTruthy();
     }
@@ -118,5 +116,31 @@ describe('TableSettingsSheet — how the table looks', () => {
   it('shows no swatches at all when the caller offers no skin', () => {
     renderSheet();
     expect(screen.queryByRole('group', { name: 'Felt' })).toBeNull();
+  });
+});
+
+describe('TableSettingsSheet — switches', () => {
+  it('renders each toggle as a named switch with its hint, and flips it', () => {
+    const onChange = vi.fn();
+    render(
+      <TableSettingsSheet
+        toggles={[
+          {
+            label: 'Snap cards to grid',
+            hint: 'Cards you drop line up on a half-card grid.',
+            on: false,
+            onChange,
+          },
+        ]}
+        links={links()}
+        onClose={vi.fn()}
+      />
+    );
+    const sw = screen.getByRole('switch', { name: 'Snap cards to grid' });
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+    expect(sw.getAttribute('aria-describedby')).toBeTruthy();
+    expect(screen.getByText('Cards you drop line up on a half-card grid.')).toBeTruthy();
+    fireEvent.click(sw);
+    expect(onChange).toHaveBeenCalledWith(true);
   });
 });

@@ -76,16 +76,23 @@ const CHIP_FOR: Record<LogEntryKind, Filter | null> = {
 /** These read as the app narrating, not as something you did. */
 const SYSTEM_KINDS = new Set<LogEntryKind>(['undo', 'reset', 'turn']);
 
-function readFilter(): Filter {
+/** The chip last chosen, or `null` when there is none to go back to. */
+function readFilter(): Filter | null {
   try {
     const saved = localStorage.getItem(FILTER_KEY);
-    if (saved === 'cards' || saved === 'life' || saved === 'turns' || saved === 'table') {
+    if (
+      saved === 'all' ||
+      saved === 'cards' ||
+      saved === 'life' ||
+      saved === 'turns' ||
+      saved === 'table'
+    ) {
       return saved;
     }
   } catch {
     // Private mode / blocked storage: the default is fine.
   }
-  return 'all';
+  return null;
 }
 
 /**
@@ -104,8 +111,13 @@ function formatTime(ts: number): string {
 }
 
 export function LogDock({ log, table, onClose, popoutHref, variant = 'dock', phase }: Props) {
-  const [saved, setFilter] = useState<Filter>(readFilter);
-  const filter = saved === 'table' && !table ? 'all' : saved;
+  const [saved, setFilter] = useState<Filter | null>(readFilter);
+  // Seated online, the Table feed is the whole game: every seat's plays, your
+  // own included, and the chat, in the order they happened (EDHPlay's
+  // "unified chat & event log"). So it is where the log opens until you pick
+  // a chip; solo, there is no table and your own log is everything.
+  const filter: Filter =
+    saved === null || (saved === 'table' && !table) ? (table ? 'table' : 'all') : saved;
   const bodyRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLElement>(null);
   const [stuck, setStuck] = useState(true);
@@ -169,7 +181,8 @@ export function LogDock({ log, table, onClose, popoutHref, variant = 'dock', pha
     .filter((g) => g.entries.length > 0 || filter === 'turns');
 
   const chips: Array<{ id: Filter; label: string }> = [
-    { id: 'all', label: 'All' },
+    // Online, this chip is your own log beside the table's, so it says whose.
+    { id: 'all', label: table ? 'You' : 'All' },
     { id: 'cards', label: 'Cards' },
     { id: 'life', label: 'Life' },
     { id: 'turns', label: 'Turns' },

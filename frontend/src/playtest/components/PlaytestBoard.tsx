@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   BarChart3,
   BookOpen,
+  Crown,
   Eraser,
   Flag,
   Gavel,
@@ -69,6 +70,9 @@ const MULLIGAN_TABLE_NOTE: Record<MulliganType, string> = {
 };
 import { PHONE_MAX_WIDTH, useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { applyTableSkin, readFelt, writeFelt } from '../lib/table-skin';
+import { readSnap, readTurnAlert, writeSnap, writeTurnAlert } from '../lib/table-prefs';
+import { snapToGrid } from '../lib/snap-grid';
+import { useTurnAlert } from '../hooks/use-turn-alert';
 import { useTurnSweep } from '../hooks/use-turn-sweep';
 import { useTablePointer } from '../hooks/use-table-pointer';
 import { useHoverTarget } from '../hooks/use-hover-target';
@@ -132,7 +136,7 @@ import {
   type ShortcutOverrides,
 } from '../lib/shortcuts';
 import { ShortcutsSheet } from './ShortcutsSheet';
-import { TableSettingsSheet, type SettingLink } from './TableSettingsSheet';
+import { TableSettingsSheet, type SettingLink, type SettingToggle } from './TableSettingsSheet';
 import { TableArrows } from './TableArrows';
 import { PhaseChip } from '@/components/play/PhaseChip';
 import { ReactionPicker } from './ReactionPicker';
@@ -401,6 +405,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // size — it never leaves the device and nothing about it is published.
   const [felt, setFelt] = useState(readFelt);
   useEffect(() => applyTableSkin(felt), [felt]);
+  const [snap, setSnap] = useState(readSnap);
+  const [turnAlert, setTurnAlert] = useState(readTurnAlert);
   /** A mouse (and therefore a right-click and a keyboard) is driving the
    *  board — the one place a click can mean "select" without stranding a
    *  player who has no other way to tap a permanent. */
@@ -410,6 +416,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // Publishes `state` internally; solo playtest never touches it beyond this
   // one hook call, and null here means the rail below never renders.
   const onlineTable = useOnlineTable(state);
+  useTurnAlert(onlineTable !== null && onlineTable.activeSeat === onlineTable.mySeat, turnAlert);
   // The card a per-card shortcut acts on when nothing is selected — see
   // hooks/use-hover-target. A ref, not state: it changes on every card the
   // pointer crosses and is only ever read inside a keydown.
@@ -652,7 +659,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           event.delta.x / Math.max(1, width - cardW),
           event.delta.y / Math.max(1, height - cardH)
         );
-        for (const move of plan.moves) dispatch({ type: 'MOVE_BF_POSITION', ...move });
+        for (const move of plan.moves) {
+          const pos = snap
+            ? snapToGrid(move.x, move.y, { width, height, cardW, cardH })
+            : { x: move.x, y: move.y };
+          dispatch({ type: 'MOVE_BF_POSITION', cardId: move.cardId, ...pos });
+        }
         return;
       }
       const zoneMatch = /^zone:(.+)$/.exec(overId);
@@ -676,7 +688,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       if (width > 0 && translated) {
         const x = (translated.left - left) / Math.max(1, width - cardW);
         const y = (translated.top - top) / Math.max(1, height - cardH);
-        dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: parsed.cardId, x, y });
+        const pos = snap ? snapToGrid(x, y, { width, height, cardW, cardH }) : { x, y };
+        dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: parsed.cardId, ...pos });
       } else {
         dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: parsed.cardId, ...FALLBACK_DROP_POS });
       }
@@ -1761,14 +1774,33 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         setShowResistancePicker(true);
       },
     },
+  ];
+
+  // Set-and-forget switches, rendered in full in the sheet. The turn alert
+  // only means something where the turn can pass to you from someone else.
+  const settingsToggles: SettingToggle[] = [
     {
-      label: 'Designations',
-      value: heldDesignations.length > 0 ? heldDesignations.join(', ') : 'None',
-      onOpen: () => {
-        setShowTableSettings(false);
-        setShowDesignations(true);
+      label: 'Snap cards to grid',
+      hint: 'Cards you drop line up on a half-card grid.',
+      on: snap,
+      onChange: (on) => {
+        setSnap(on);
+        writeSnap(on);
       },
     },
+    ...(onlineTable
+      ? [
+          {
+            label: 'Turn alert',
+            hint: 'A chime when the turn passes to you, and a tab title that says so.',
+            on: turnAlert,
+            onChange: (on: boolean) => {
+              setTurnAlert(on);
+              writeTurnAlert(on);
+            },
+          },
+        ]
+      : []),
   ];
 
   // What the drawer carries, in the order you reach for it: the things you
@@ -1806,6 +1838,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         // The same quick-look reference the live tracker's menu opens — one
         // sheet, mounted once in Layout, so the board just asks for it.
         { label: 'Rules reference', icon: BookOpen, onClick: openRules },
+        // Game state that changes hands mid-game when a card resolves, so it
+        // sits with the things you open during play, not in the settings.
+        {
+          label: 'Designations',
+          icon: Crown,
+          note: heldDesignations.length > 0 ? heldDesignations.join(', ') : undefined,
+          onClick: () => setShowDesignations(true),
+        },
       ],
     },
     {
@@ -1882,7 +1922,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // Drawing and every library peek are on the library pile (and on their own
   // keys); the log and the shortcuts sheet are in the game menu. What is left
   // is what you reach for with the pointer already on the felt.
-  // EDHPlay's felt menu, row for row, then the two this table adds.
+  // EDHPlay's felt menu, row for row, then the ones this table adds.
   const tableMenuItems: MenuEntry[] = [
     canPassTurn
       ? { label: 'Pass turn', shortcut: keyFor('pass-turn'), onClick: doPassTurn }
@@ -1911,6 +1951,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       shortcut: keyFor('dice'),
       onClick: () => setShowDice(true),
     },
+    { label: 'Designations', onClick: () => setShowDesignations(true) },
     ...(onlineTable
       ? [
           {
@@ -3116,6 +3157,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               writeFelt(id);
             },
           }}
+          toggles={settingsToggles}
           links={settingsLinks}
           onClose={() => setShowTableSettings(false)}
         />
