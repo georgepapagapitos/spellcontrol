@@ -560,8 +560,8 @@
 }
 
 /* Card list — a command zone strip, then N real columns. The section→column
-   assignment is done in JS (packSections: largest-first, then back into type
-   order) because sections are unbreakable cards and CSS multi-column flow
+   assignment is done in JS (packSections: balanced runs in type order) because
+   sections are unbreakable cards and CSS multi-column flow
    could only place them in document order — a 1-row Commander section at the
    top of a column stranded a 30-row hole under it. `--deck-cols` is set inline
    by DeckDisplay from the measured list width (280px min per column, matching

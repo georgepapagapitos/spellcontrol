@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  packInOrder,
   packSections,
   listColumnCount,
   sectionRowCount,
@@ -20,31 +21,30 @@ describe('packSections', () => {
     sec('Land', 35),
   ];
 
-  it('gives each giant its own column and shares the small sections', () => {
+  it('gives each giant its own column and shares the small sections, in type order', () => {
+    // Was [Creature] [Artifact, Sorcery] [Enchantment, Instant] [Land]: balanced
+    // by reordering, so reading down the columns put Sorcery before Enchantment
+    // and Instant, while the card carousel stepped Enchantment → Instant →
+    // Sorcery. Same balance now, and the columns read in type order.
     expect(names(packSections(deck, 4))).toEqual([
       ['Creature'],
-      ['Artifact', 'Sorcery'],
-      ['Enchantment', 'Instant'],
+      ['Artifact', 'Enchantment'],
+      ['Instant', 'Sorcery'],
       ['Land'],
     ]);
   });
 
-  it('keeps type order inside a column and orders columns by their first type', () => {
-    const cols = packSections(deck, 3);
-    for (const col of cols) {
-      const idx = col.map((s) => deck.indexOf(s));
-      expect(idx).toEqual([...idx].sort((a, b) => a - b));
+  it('reads, column by column, in exactly the type order (the carousel order)', () => {
+    for (const cols of [1, 2, 3, 4, 5, 6]) {
+      expect(packSections(deck, cols).flat()).toEqual(deck);
     }
-    const firsts = cols.map((c) => deck.indexOf(c[0]));
-    expect(firsts).toEqual([...firsts].sort((a, b) => a - b));
-    expect(cols.flat()).toHaveLength(deck.length);
   });
 
   it('balances heights instead of flowing in document order', () => {
     const heights = packSections(deck, 4).map((c) => c.reduce((h, s) => h + s.rows.length, 0));
     // Document-order flow left a column holding only Enchantment (3 rows).
-    expect(Math.min(...heights)).toBeGreaterThanOrEqual(14);
-    expect(Math.max(...heights)).toBeLessThanOrEqual(37);
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(13);
+    expect(Math.max(...heights)).toBeLessThanOrEqual(35);
   });
 
   it('one column is the plain type order', () => {
@@ -54,6 +54,40 @@ describe('packSections', () => {
   it('never emits an empty column and handles no sections', () => {
     expect(packSections([], 4)).toEqual([]);
     expect(names(packSections([sec('Creature', 5)], 4))).toEqual([['Creature']]);
+  });
+});
+
+describe('packInOrder', () => {
+  // Every contiguous split of `hs` into exactly k non-empty runs.
+  function* splits(hs: number[], k: number, from = 0): Generator<number[][]> {
+    if (k === 1) {
+      yield [hs.slice(from)];
+      return;
+    }
+    for (let end = from + 1; end <= hs.length - (k - 1); end++) {
+      for (const rest of splits(hs, k - 1, end)) yield [hs.slice(from, end), ...rest];
+    }
+  }
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+
+  // A seeded generator, so a failure reproduces.
+  let seed = 7;
+  const rand = (max: number) => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return 1 + (seed % max);
+  };
+
+  it('keeps the input order and the shortest possible tallest column, on 300 random decks', () => {
+    for (let t = 0; t < 300; t++) {
+      const hs = Array.from({ length: rand(9) }, () => rand(36));
+      const cols = rand(6);
+      const packed = packInOrder(hs, cols, (h) => h);
+      expect(packed.flat()).toEqual(hs);
+      expect(packed.every((c) => c.length > 0)).toBe(true);
+      expect(packed).toHaveLength(Math.min(cols, hs.length));
+      const best = Math.min(...[...splits(hs, packed.length)].map((s) => Math.max(...s.map(sum))));
+      expect(Math.max(...packed.map(sum))).toBe(best);
+    }
   });
 });
 

@@ -22,6 +22,7 @@ import {
   cardFilterRoles,
   foilTileClass,
   allocationSummary,
+  packInOrder,
   type CurrencyCode,
   type Row,
   type TypedGroup,
@@ -40,8 +41,9 @@ const STACK_GAP_PX = 16;
  *
  * `flex-wrap` made every row of columns as tall as its tallest stack, so a
  * 28-card Creature column left a screen-high hole beside Commander and pushed
- * Sorcery and Land far below the fold. Masonry fills the shortest column
- * instead, which is how Archidekt reads.
+ * Sorcery and Land far below the fold. The columns are balanced instead, by
+ * the same in-order split the list uses (`packInOrder`), so the stacks read
+ * in the deck's order, the carousel's order, down each column in turn.
  *
  * The heights are computed, not measured: a stack is a header plus one card
  * plus a strip per card after it, all of which follow from the stack width, so
@@ -52,17 +54,13 @@ export function packStacks<T extends { rows: unknown[] }>(
   columns: number,
   stackW: number
 ): T[][] {
-  const out: T[][] = Array.from({ length: Math.max(1, columns) }, () => []);
-  const heights = new Array(out.length).fill(0);
   const cardH = (stackW * 680) / 488;
-  for (const g of groups) {
-    let shortest = 0;
-    for (let i = 1; i < out.length; i++) if (heights[i] < heights[shortest]) shortest = i;
-    out[shortest].push(g);
-    // Header, the one card that shows in full, and a strip for each below it.
-    heights[shortest] += 46 + cardH + Math.max(0, g.rows.length - 1) * cardH * 0.11;
-  }
-  return out.filter((col) => col.length > 0);
+  // Header, the one card that shows in full, and a strip for each below it.
+  return packInOrder(
+    groups,
+    columns,
+    (g) => 46 + cardH + Math.max(0, g.rows.length - 1) * cardH * 0.11
+  );
 }
 
 /**
