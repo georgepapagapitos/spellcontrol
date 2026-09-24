@@ -16,6 +16,13 @@ import { logger } from '@/lib/logger';
 export const SCRYFALL_BASE_URL = import.meta.env.DEV ? '/scryfall-api' : 'https://api.scryfall.com';
 
 const MIN_REQUEST_DELAY = 100; // 100ms between requests (Scryfall allows 10/sec)
+// Scryfall's documented hard limits (scryfall.com/docs/api/rate-limits) are
+// per endpoint: search, named, random and collection allow 2 requests a
+// second, everything else 10. Spacing those four at the general 100ms is what
+// made a deck generation trip 429s (Retry-After: 60) every few dozen searches
+// — and Scryfall bans clients that keep drawing them.
+const SEARCH_CLASS_DELAY = 500;
+const SEARCH_CLASS_PATH = /^\/cards\/(search|named|random|collection)(?![\w-])/;
 const MAX_RETRIES = 4; // cap 429/503 retries so a sustained throttle or outage fails instead of hanging
 // A CORS-blocked 429 is indistinguishable from a dead network at the API level,
 // so it gets its own much smaller budget: enough to park the shared queue, not
@@ -50,18 +57,21 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, Math.
  * All Scryfall requests MUST go through this to prevent 429 errors.
  */
 class RateLimiter {
-  private queue: Array<() => void> = [];
+  // FIFO on purpose: a search-class request at the head holds the fast ones
+  // behind it, which costs a little latency but keeps release order simple.
+  private queue: Array<{ resolve: () => void; searchClass: boolean }> = [];
   private processing = false;
   private lastRequestTime = 0;
+  private lastSearchClassTime = 0;
   private cooldownUntil = 0;
 
   /**
    * Wait for permission to make a request.
    * Returns a promise that resolves when it's safe to send.
    */
-  async acquire(): Promise<void> {
+  async acquire(searchClass = false): Promise<void> {
     return new Promise((resolve) => {
-      this.queue.push(resolve);
+      this.queue.push({ resolve, searchClass });
       void this.processQueue();
     });
   }
@@ -80,6 +90,7 @@ class RateLimiter {
   reset(): void {
     this.cooldownUntil = 0;
     this.lastRequestTime = 0;
+    this.lastSearchClassTime = 0;
   }
 
   private async processQueue(): Promise<void> {
@@ -97,18 +108,22 @@ class RateLimiter {
         continue;
       }
 
-      const minDelay = MIN_REQUEST_DELAY * timeScale;
-      const timeSinceLastRequest = now - this.lastRequestTime;
-      if (timeSinceLastRequest < minDelay) {
-        await sleep(minDelay - timeSinceLastRequest);
+      const head = this.queue[0];
+      const wait = Math.max(
+        MIN_REQUEST_DELAY * timeScale - (now - this.lastRequestTime),
+        head.searchClass ? SEARCH_CLASS_DELAY * timeScale - (now - this.lastSearchClassTime) : 0
+      );
+      if (wait > 0) {
+        await sleep(wait);
         // Re-check from the top: a 429 can land *while* we're spacing, and the
         // request we're about to release must be parked by it too.
         continue;
       }
 
       this.lastRequestTime = Date.now();
-      const resolve = this.queue.shift();
-      if (resolve) resolve();
+      if (head.searchClass) this.lastSearchClassTime = this.lastRequestTime;
+      this.queue.shift();
+      head.resolve();
     }
 
     this.processing = false;
@@ -218,8 +233,9 @@ export function parseRetryAfter(header: string | null): number | null {
 export async function scryfallRequest(path: string, init?: RequestInit): Promise<Response> {
   let opaqueFailures = 0;
 
+  const searchClass = SEARCH_CLASS_PATH.test(path);
   for (let attempt = 0; ; attempt++) {
-    await rateLimiter.acquire();
+    await rateLimiter.acquire(searchClass);
     stats.requests += 1;
 
     let response: Response;
