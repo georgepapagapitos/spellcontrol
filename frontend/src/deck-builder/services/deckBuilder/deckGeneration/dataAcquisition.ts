@@ -22,6 +22,7 @@ import {
 } from '@/deck-builder/services/edhrec/client';
 import { prefetchBasicLands, getGameChangerNames } from '@/deck-builder/services/scryfall/client';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
+import { offlineCombosCached, offlineGetCombosByIds } from '@/lib/offline';
 import { bracketLabel } from '../bracketEstimator';
 import { calculateCardPriority } from '../cardPicking';
 import { loadCardSimilar, hasCardSimilar } from '../cardSimilar';
@@ -362,6 +363,49 @@ export function setGenerationCacheCardMap(cardMap: Map<string, ScryfallCard>): v
   }
 }
 
+/**
+ * Best-effort enrichment: EDHREC's own combo feed hard-codes `bracketTag:
+ * null` on every entry (client.ts's fetchCommanderCombosRaw) — EDHREC never
+ * exposes Spellbook's per-combo bracket call. But EDHREC's `comboId` IS the
+ * Commander Spellbook variant id verbatim, template suffix included (verified
+ * live 2026-09-24: EDHREC's "1529-1887" for Vraska + Vorinclex is the exact id
+ * Spellbook's own API returns for that pair), so the same tag the deck page
+ * reads from the local Spellbook dataset (`lib/offline`) can be looked up by
+ * id here too. Without it, the bracket estimator (`deck-metrics`) treats every
+ * EDHREC-sourced combo as untagged: an Exhibition/Core loop (e.g. Hullbreaker
+ * Horror + Sol Ring) floors a deck that shouldn't floor, and a Ruthless
+ * two-card combo reads as a slow Bracket 3 line instead of the automatic
+ * Bracket 4 the tag means — so generation and the deck page (which sees the
+ * real Spellbook tag) disagree on the same deck.
+ *
+ * Only a dataset already on the device is used. It is 17 MB gzipped, and a
+ * device that has never cached it must not make generation wait for (or share
+ * its bandwidth with) that download; the deck page fetches it and re-estimates
+ * with the tags anyway.
+ *
+ * Runs once per generation, right after the EDHREC fetch, so every downstream
+ * phase (combo detection, the combo floor, bracket convergence, the build
+ * report) reads an already-tagged `state.combos` — nothing else needs to know
+ * this lookup happens. Never blocks or fails generation: leaves `bracketTag`
+ * null (today's conservative behavior) when the dataset isn't cached or a
+ * lookup errors.
+ */
+async function enrichCombosWithBracketTags(combos: EDHRECCombo[]): Promise<EDHRECCombo[]> {
+  if (combos.length === 0) return combos;
+  try {
+    if (!(await offlineCombosCached())) return combos;
+    const rows = await offlineGetCombosByIds(combos.map((c) => c.comboId));
+    if (rows.size === 0) return combos;
+    return combos.map((c) => {
+      const row = rows.get(c.comboId);
+      return row ? { ...c, bracketTag: row.bracketTag ?? null } : c;
+    });
+  } catch (error) {
+    logger.warn('[DeckGen] combo bracketTag enrichment skipped —', error);
+    return combos;
+  }
+}
+
 export interface AcquireCommanderDataResult {
   usingCache: boolean;
   integrityNotes: string[];
@@ -415,7 +459,7 @@ export async function acquireCommanderDataPhase(
       retryOnce(loadCardSimilar, (d) => d !== null), // EDHREC substitute index for shortage-fill ranking
     ]);
     state.gameChangerNames = fetchedGCNames;
-    state.combos = fetchedCombos;
+    state.combos = await enrichCombosWithBracketTags(fetchedCombos);
     onProgress?.('Studying the cards…', 7);
     logger.debug(`[DeckGen] Fetched ${state.combos.length} combos from EDHREC`);
     logger.debug(
