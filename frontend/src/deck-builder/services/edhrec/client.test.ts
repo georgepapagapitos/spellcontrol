@@ -6,6 +6,7 @@ import {
   parseSaltIndex,
   fetchCardLiftPool,
   fetchTopCommanders,
+  fetchCommanderCombosRaw,
   MIN_HEALTHY_POOL_DECKS,
   MIN_HEALTHY_POOL_CARDS,
   MAX_RETRIES,
@@ -501,5 +502,42 @@ describe('fetchTopCommanders — a failed fetch is not an empty list (E278)', ()
     await vi.runAllTimersAsync();
     expect((await second).map((c) => c.name)).toEqual(['Krenko, Mob Boss']);
     expect(calls).toBe(2);
+  });
+});
+
+// E392: EDHREC answers a missing combos page with 403 (La'An Noonien-Singh,
+// Security, a commander with no decks yet). The build read that as a failed
+// fetch and told the player combo detection had been skipped.
+describe('fetchCommanderCombosRaw: a missing page is no combos, not a failure', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function stubStatus(status: number) {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status,
+      statusText: String(status),
+      headers: { get: () => null },
+      json: async () => ({}),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+    return fetchMock;
+  }
+
+  it.each([403, 404])('returns no combos when the page answers %i', async (status) => {
+    stubStatus(status);
+    const pending = fetchCommanderCombosRaw(`No Combo Page ${status}`);
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toEqual([]);
+  });
+
+  it('still throws on a real failure', async () => {
+    stubStatus(500);
+    const pending = fetchCommanderCombosRaw('Combo Server Down').catch((e: Error) => e.message);
+    await vi.runAllTimersAsync();
+    expect(await pending).toMatch(/EDHREC API error: 500/);
   });
 });
