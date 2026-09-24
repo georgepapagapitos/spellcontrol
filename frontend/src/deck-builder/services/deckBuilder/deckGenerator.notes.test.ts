@@ -230,7 +230,7 @@ describe('buildLandCountClampNote', () => {
     // LIVE-CONFIRMED: `landCount: 25` shipped 33 lands with zero disclosure —
     // only the archetype auto-tune branch composed a note.
     const note = buildLandCountClampNote(25, 32, 32);
-    expect(note).toContain('You set land count to 25');
+    expect(note).toContain('The land count was set to 25');
     expect(note).toContain('needs at least 32');
     expect(note).not.toContain('Delivered');
   });
@@ -249,6 +249,24 @@ describe('buildLandCountClampNote', () => {
   it('discloses when an absurd request got capped down to deckCards-1', () => {
     const note = buildLandCountClampNote(999, 98, 98);
     expect(note).toContain('only has room for 98');
+  });
+
+  // E405: the sliders pre-fill from EDHREC, so "You set land count to 29" was
+  // wrong for Thrasios + Tymna, whose pair page averages 29.
+  it("names EDHREC's average when the request is that average", () => {
+    const note = buildLandCountClampNote(29, 32, 32, {
+      label: 'Thrasios, Triton Hero and Tymna the Weaver',
+      averageLands: 29,
+    });
+    expect(note).toBe(
+      "EDHREC's average for Thrasios, Triton Hero and Tymna the Weaver is 29 lands, but this deck size needs at least 32."
+    );
+    expect(note).not.toMatch(/you set/i);
+  });
+
+  it('stays neutral when the request differs from the average', () => {
+    const note = buildLandCountClampNote(25, 32, 32, { label: 'Krenko', averageLands: 34 });
+    expect(note).toBe('The land count was set to 25, but this deck size needs at least 32.');
   });
 
   it('is undefined when the plan matches what was typed', () => {
