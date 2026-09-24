@@ -21,7 +21,7 @@ import {
 } from './offline/scryfall-query';
 import { normalizeForSearch } from './normalize-search';
 import type { EnrichedCard } from '../types';
-import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
+import { flavorNameOf, nameMatchesNormalized } from '@spellcontrol/binder-routing';
 
 /** Does the query use operator syntax (vs a plain name/text search)? */
 export function hasQuerySyntax(query: string): boolean {
@@ -48,6 +48,7 @@ const MISS = { hit: false, nameHit: false } as const;
 function toQueryCard(c: EnrichedCard, tagsFor?: (name: string) => string[]): QueryCard {
   return {
     name: c.name,
+    flavorName: flavorNameOf(c),
     cmc: c.cmc ?? 0,
     typeLine: c.typeLine ?? '',
     oracleText: c.oracleText,

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { flavorNameOf, printedName, nameMatchesNormalized } from './printed-name.js';
+import {
+  flavorNameOf,
+  printedName,
+  nameMatchesNormalized,
+  printingsWithFlavorName,
+} from './printed-name.js';
 import { normalizeForSearch } from './normalize-search.js';
 import { sortCards } from './sorting.js';
 import { cardMatchesFilter } from './rules.js';
@@ -71,5 +76,33 @@ describe('printed name', () => {
     const f = { nameContains: 'promise fulfilled' };
     expect(cardMatchesFilter(promise, f)).toBe(true);
     expect(cardMatchesFilter(plainStage, f)).toBe(false);
+  });
+
+  it('finds the printing a typed flavor name names, however it is typed', () => {
+    expect(printingsWithFlavorName('A Promise Fulfilled')).toEqual([
+      { set: 'fca', collectorNumber: '39' },
+    ]);
+    expect(printingsWithFlavorName('a promise fulfilled')[0]).toEqual({
+      set: 'fca',
+      collectorNumber: '39',
+    });
+    // A double-faced flavor name answers to its front face too.
+    expect(printingsWithFlavorName('African Swallow')[0]).toEqual({
+      set: 'sld',
+      collectorNumber: '1675',
+    });
+    expect(printingsWithFlavorName('Light Up the Stage')).toEqual([]);
+  });
+
+  it('puts the printing from the named set first when a flavor name has several', () => {
+    const name = 'King Caesar, Ancient Guardian';
+    expect(printingsWithFlavorName(name, 'PRM')[0]).toEqual({
+      set: 'prm',
+      collectorNumber: '80927',
+    });
+    expect(printingsWithFlavorName(name, 'IKO')[0]).toEqual({
+      set: 'iko',
+      collectorNumber: '370',
+    });
   });
 });
