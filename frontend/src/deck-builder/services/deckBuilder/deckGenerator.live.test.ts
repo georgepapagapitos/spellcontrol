@@ -22,7 +22,8 @@
 // other fetch goes out for real, with a User-Agent header merged in (Scryfall
 // 400s on Node's default UA; EDHREC doesn't care).
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import type { SubstituteCandidate } from './substituteFinder';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,9 +41,19 @@ import { assembleBuildReport } from './buildReport';
 import { getCardByName, getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { getScryfallStats, resetScryfallStats, type ScryfallStats } from '@/lib/scryfall-fetch';
 import { validateCardRole, getCardTags } from '@/deck-builder/services/tagger/client';
+import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = process.env.LIVE_GEN_OUTDIR ?? join(tmpdir(), 'spellcontrol-live-gen');
+
+// LIVE_GEN_HTTP_CACHE=<dir>: replay Scryfall/EDHREC responses from disk,
+// recording on a miss. Two wins: Scryfall now answers a burst with a 60-second
+// 429 cooldown, which turned a 100-row panel into a multi-hour run; and an A/B
+// whose two panels read the SAME recorded data has no data-drift term at all,
+// which the same-hour detached-main baseline only approximates. Unset (the
+// default) keeps every fetch live, exactly as before.
+const HTTP_CACHE_DIR = process.env.LIVE_GEN_HTTP_CACHE;
+if (HTTP_CACHE_DIR) mkdirSync(HTTP_CACHE_DIR, { recursive: true });
 
 // E122: env-gated owned-collection knob so the panel can A/B
 // collectionStrategy=prefer (and 'partial'/'available') against a real
@@ -187,7 +198,24 @@ beforeAll(async () => {
       ...(init?.headers as Record<string, string> | undefined),
       'User-Agent': 'SpellControl-DeckGen-EvalHarness/1.0',
     };
-    return realFetch(input, { ...init, headers });
+    if (!HTTP_CACHE_DIR) return realFetch(input, { ...init, headers });
+    const key = createHash('sha1')
+      .update(`${init?.method ?? 'GET'} ${url} ${typeof init?.body === 'string' ? init.body : ''}`)
+      .digest('hex');
+    const file = join(HTTP_CACHE_DIR, `${key}.json`);
+    if (existsSync(file)) {
+      const hit = JSON.parse(readFileSync(file, 'utf8')) as { status: number; body: string };
+      return new Response(hit.body, { status: hit.status });
+    }
+    const res = await realFetch(input, { ...init, headers });
+    // Only definitive answers are cached: a 404 ("no such card/page") is as
+    // stable as a 200, but a 429/5xx is weather and must be retried live.
+    if (res.ok || res.status === 404) {
+      const body = await res.text();
+      writeFileSync(file, JSON.stringify({ status: res.status, body }));
+      return new Response(body, { status: res.status });
+    }
+    return res;
   });
 }, 120_000);
 
@@ -590,6 +618,24 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           ...new Set([...commander.color_identity, ...(partnerCommander?.color_identity ?? [])]),
         ];
         const custom = customization(spec.overrides);
+        // LIVE_GEN_APP_LANDS=1: start from the land count the APP actually
+        // builds with. use-deck-generation pre-fills the land sliders from
+        // the commander's EDHREC averages the moment one is picked, so an
+        // in-app build almost never reaches the generator at the 37/15
+        // defaults this harness uses (and isDefaultLandCount keys off).
+        // Mirrors that effect exactly: primary commander's page only, a row's
+        // own explicit land override wins.
+        if (
+          process.env.LIVE_GEN_APP_LANDS === '1' &&
+          spec.overrides?.landCount === undefined &&
+          spec.overrides?.nonBasicLandCount === undefined
+        ) {
+          const data = await fetchCommanderData(commander.name).catch(() => null);
+          if (data) {
+            custom.landCount = data.stats.landDistribution?.total ?? 37;
+            custom.nonBasicLandCount = data.stats.landDistribution?.nonbasic ?? 15;
+          }
+        }
         const collectionNames =
           COLLECTION_NAMES ?? (spec.collection ? fixtureCollectionNames() : undefined);
         const ctx: GenerationContext = {
