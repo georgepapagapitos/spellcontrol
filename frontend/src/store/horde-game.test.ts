@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest';
+import { waitFor } from '@testing-library/react';
 import { useHordeGameStore, type HordeSurvivor } from './horde-game';
 import { resolveHordeSettings } from '@/lib/horde';
 import { usePlayStore } from '@/store/play';
@@ -72,8 +73,10 @@ describe('startHorde', () => {
       pendingStart: s.pendingStart ? { ...s.pendingStart, hordeId: 'zombies' } : null,
     }));
     useHordeGameStore.getState().retryLoad();
-    await new Promise((r) => setTimeout(r, 0));
-    expect(useHordeGameStore.getState().status).toBe('idle');
+    // retryLoad is fire-and-forget (its own type is `void`) — poll rather
+    // than a fixed single-tick wait, which flaked under a loaded test worker
+    // where the dynamic deck-JSON import took longer than one macrotask.
+    await waitFor(() => expect(useHordeGameStore.getState().status).toBe('idle'));
     expect(useHordeGameStore.getState().config?.hordeId).toBe('zombies');
   });
 
@@ -173,12 +176,25 @@ describe('damaging the horde', () => {
     const s = useHordeGameStore.getState();
     expect(s.bossTicksCrossed).toEqual([0]);
     expect(s.lastDamageResult?.bossesEntered.length).toBe(1);
+    // The result carries the crossed FRACTION too, not just the boss name —
+    // the damage sheet's banner wording depends on it (a quarter/half/three
+    // quarters/library-empty all read differently).
+    expect(s.lastDamageResult?.bossesEntered[0]?.tick).toBe(0.5);
     const bossOnBoard = s.board!.battlefield.filter((b) => b.card.id.startsWith('horde-boss-'));
     expect(bossOnBoard.length).toBe(1);
 
     // Milling further never re-fires the same tick.
     useHordeGameStore.getState().damageHorde(1);
     expect(useHordeGameStore.getState().bossTicksCrossed).toEqual([0]);
+  });
+
+  it('records every crossed tick fraction on a multi-tick mill', async () => {
+    await start({ librarySize: 20, bossTicks: [0.25, 0.5] });
+    // One big mill crosses both ticks at once (the zombies fixture has 2
+    // bosses, so both can actually enter).
+    useHordeGameStore.getState().damageHorde(10);
+    const s = useHordeGameStore.getState();
+    expect(s.lastDamageResult?.bossesEntered.map((b) => b.tick)).toEqual([0.25, 0.5]);
   });
 });
 

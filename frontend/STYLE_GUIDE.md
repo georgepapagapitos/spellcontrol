@@ -6257,7 +6257,35 @@ playtest components, never a bespoke card grid.
   horde creature on its own — a card menu (Destroyed / Exiled / Returned to
   the library) is the one way a permanent, including a boss that entered on a
   tick, leaves the battlefield. Copy is past tense, the same "you report a
-  physical act already done" grammar as the binder review queue.
+  physical act already done" grammar as the binder review queue. Opens on a
+  click, a touch tap, a long-press, right-click, or the Context Menu key — the
+  same four-path parity the main playtest board's card menu holds.
+- **The library/graveyard tiles read at full card height, not the tucked
+  peek.** `.horde-table-piles .playtest-pile__stack` overrides the main
+  board's 35%-sliver default (`height: var(--pt-card-h)`, scoped to this
+  table only) — a peek sized for a lap-held phone disappears from across a
+  real table, and there is no hand/drag gesture here to defer it for.
+- **The library meter carries the horde's own boss ticks.** A gold hairline
+  per `HordeSettings.bossTicks` fraction, dimmed once crossed, plus a "Next
+  boss in N" line under it — the meter is read as the horde's health bar
+  ("Horde library · N / N"), not a generic progress indicator.
+- **A boss banner's wording is derived from the crossed fraction, never
+  hard-coded to "Half".** Casual has no ticks; Standard crosses only 50% and
+  100%; Brutal (and any Customise override) can cross a quarter, three
+  quarters, or the library emptying outright — "A quarter of the horde is
+  gone." / "Half…" / "Three quarters…" / "The horde's library is empty.",
+  each still followed by which boss joined.
+- **The reveal sheet reads left to right, in reveal order.** A horizontal
+  row (scrolling if a wave overflows it), each card captioned "N · Name" —
+  or "N · ends the wave" on the card that closes it, which also wears the
+  gold selected-style ring. Widened past the phone default at ≥1024px (`min(48.75rem,
+  calc(100vw - 4rem))`, the dense-dialog pattern) so a normal wave reads as
+  one row instead of a single narrow column.
+- **A sheet built on the card-picker shell supplies its own body padding.**
+  `.card-picker-list` ships with none by design — every sheet's content
+  decides its own gutter. The end summary's stat list follows "Real tables
+  speak print" (label left, number right, `1px dotted var(--border)` row
+  rules, tabular figures), the same voice as `.play-records-table`.
 
 ---
 

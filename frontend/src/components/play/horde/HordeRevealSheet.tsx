@@ -2,6 +2,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { PlaytestCardFace } from '@/playtest/components/PlaytestCardFace';
 import type { PlaytestCard } from '@/lib/playtest';
+import './horde-sheets.css';
 
 interface Props {
   revealed: PlaytestCard[];
@@ -38,12 +39,15 @@ export function HordeRevealSheet({ revealed, toResolveIds, waveEndId, onConfirm 
           <h2 className="card-picker-title">The horde reveals</h2>
         </div>
         <div className="card-picker-list horde-reveal-list">
-          {revealed.map((card) => (
+          {revealed.map((card, i) => (
             <div
               key={card.id}
               className={`horde-reveal-card${card.id === waveEndId ? ' is-wave-end' : ''}`}
             >
               <PlaytestCardFace card={card} size="sm" />
+              <span className="horde-reveal-card-caption">
+                {i + 1} · {card.id === waveEndId ? 'ends the wave' : card.name}
+              </span>
             </div>
           ))}
         </div>

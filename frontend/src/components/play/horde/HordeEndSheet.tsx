@@ -2,6 +2,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { usePlayStore } from '@/store/play';
 import { aggregateHordeRecords } from '@/lib/horde-records';
+import './horde-sheets.css';
 
 interface Props {
   outcome: 'won' | 'lost';
@@ -51,13 +52,28 @@ export function HordeEndSheet({
         </div>
         <div className="card-picker-list horde-end-body">
           <ul className="horde-end-stats">
-            <li>Horde turns: {hordeTurns}</li>
-            <li>Damage taken: {damageTaken}</li>
-            <li>Cards milled by damage: {cardsMilledByDamage}</li>
-            <li>Bosses beaten: {bossesBeaten}</li>
+            <li>
+              <span>Horde turns</span>
+              <span>{hordeTurns}</span>
+            </li>
+            <li>
+              <span>Damage taken</span>
+              <span>{damageTaken}</span>
+            </li>
+            <li>
+              <span>Cards milled by damage</span>
+              <span>{cardsMilledByDamage}</span>
+            </li>
+            <li>
+              <span>Bosses beaten</span>
+              <span>{bossesBeaten}</span>
+            </li>
             {record && (
               <li>
-                Record against this horde: {record.won}-{record.lost}
+                <span>Record against this horde</span>
+                <span>
+                  {record.won}-{record.lost}
+                </span>
               </li>
             )}
           </ul>

@@ -61,12 +61,19 @@ export interface HordePendingAttack {
   groups: AttackerGroup[];
 }
 
+export interface HordeBossArrival {
+  name: string;
+  /** The `bossTicks` fraction crossed (0-1, 1 = library emptied) — drives the
+   *  banner's wording ("Half the horde is gone.", …). */
+  tick: number;
+}
+
 export interface HordeDamageResult {
   amount: number;
   before: number;
   after: number;
   milled: PlaytestCard[];
-  bossesEntered: string[];
+  bossesEntered: HordeBossArrival[];
 }
 
 export interface HordeFinishedRecord {
@@ -474,14 +481,14 @@ export const useHordeGameStore = create<HordeStore>()(
           after,
           s.config.settings.bossTicks
         ).filter((i) => !s.bossTicksCrossed.includes(i));
-        const bossesEntered: string[] = [];
+        const bossesEntered: HordeBossArrival[] = [];
         let bossesRemaining = s.bossesRemaining;
-        for (const _tick of crossed) {
+        for (const tickIndex of crossed) {
           const boss = board.zones.command[0];
           if (!boss) continue;
           const { x, y } = autoPlace(boss, board.battlefield);
           board = applyAction(board, { type: 'MOVE_TO_BATTLEFIELD', cardId: boss.id, x, y });
-          bossesEntered.push(boss.name);
+          bossesEntered.push({ name: boss.name, tick: s.config.settings.bossTicks[tickIndex] });
           bossesRemaining = Math.max(0, bossesRemaining - 1);
         }
 

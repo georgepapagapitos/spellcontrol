@@ -1,0 +1,138 @@
+/* horde-sheets.css — the Horde table's four card-picker sheets (reveal,
+   damage, end, card menu). `.card-picker-list` ships with no padding of its
+   own by design (every other sheet supplies it per-content), so each of
+   these needs the shell's own space-4 horizontal gutter, matching the
+   header/footer, or its text runs flush to the sheet's edge. */
+
+/* ── The horde reveals ───────────────────────────────────────────────────── */
+
+/* Desktop: wide enough to read ~5 cards in one row without scrolling for a
+   normal wave (the prototype measured ~780px) — the 480px phone default
+   crushed the row to a single narrow column. */
+@media (min-width: 1024px) {
+  .card-picker-sheet.horde-reveal-sheet {
+    width: min(48.75rem, calc(100vw - 4rem));
+  }
+}
+
+/* Revealed cards read left to right in reveal order, one horizontal row —
+   never a stacked column with the sheet's width going unused. Overflows into
+   a horizontal scroll rather than wrapping, so the ORDER stays legible as a
+   line. */
+.horde-reveal-list {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.horde-reveal-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+/* The card that ends the wave — the same gold the battlefield uses for a
+   selected permanent, since this is the same "this one, specifically" cue. */
+.horde-reveal-card.is-wave-end .playtest-card {
+  box-shadow:
+    inset 0 0 0 3px var(--mtg-counter-gold),
+    0 0 0 1px var(--mtg-counter-gold);
+}
+
+.horde-reveal-card-caption {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 6rem;
+}
+
+.horde-reveal-callout {
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  color: var(--warn-text);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+/* ── Damage the horde ────────────────────────────────────────────────────── */
+
+.horde-damage-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.horde-damage-boss-banner {
+  margin: 0;
+  font-weight: 600;
+}
+
+.horde-damage-milled-heading {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.horde-damage-milled {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* ── End summary ─────────────────────────────────────────────────────────── */
+
+.horde-end-body {
+  padding: var(--space-3) var(--space-4);
+}
+
+/* Real tables speak print (STYLE_GUIDE): label left, number right, dotted
+   row rules, tabular figures — the same voice as `.play-records-table`. */
+.horde-end-stats {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.horde-end-stats li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px dotted var(--border);
+  font-size: var(--text-sm);
+}
+
+.horde-end-stats li:last-child {
+  border-bottom: none;
+}
+
+.horde-end-stats li span:last-child {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* ── Card menu ───────────────────────────────────────────────────────────── */
+
+.horde-card-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.horde-card-menu-body .btn {
+  width: 100%;
+}

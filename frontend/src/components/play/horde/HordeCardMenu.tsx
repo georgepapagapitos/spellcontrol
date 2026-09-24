@@ -2,6 +2,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { PlaytestCard } from '@/lib/playtest';
+import './horde-sheets.css';
 
 interface Props {
   card: PlaytestCard;

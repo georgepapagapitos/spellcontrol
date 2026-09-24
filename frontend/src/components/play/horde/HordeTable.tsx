@@ -31,6 +31,21 @@ function levelLabel(level: string): string {
   return level.charAt(0).toUpperCase() + level.slice(1);
 }
 
+/** How many cards still need to leave the library before the next
+ *  not-yet-crossed `bossTicks` fraction fires (design point 3's "next boss
+ *  in N"). `null` once every tick is crossed (or the horde has none). */
+function cardsUntilNextBoss(
+  librarySizeAtStart: number,
+  remaining: number,
+  bossTicks: readonly number[],
+  crossed: readonly number[]
+): number | null {
+  const nextIndex = bossTicks.findIndex((_, i) => !crossed.includes(i));
+  if (nextIndex === -1) return null;
+  const nextRemaining = Math.ceil(librarySizeAtStart * (1 - bossTicks[nextIndex]));
+  return Math.max(0, remaining - nextRemaining);
+}
+
 /** Reads the live battlefield box for `autoPlace`: the felt's pixel size plus
  *  the card box the CSS density var currently resolves to. Reserved
  *  fractions are ponytail-level constants (the horde table's own corner
@@ -72,6 +87,7 @@ export function HordeTable() {
   const damageTaken = useHordeGameStore((s) => s.damageTaken);
   const cardsMilledByDamage = useHordeGameStore((s) => s.cardsMilledByDamage);
   const undoCount = useHordeGameStore((s) => s.past.length);
+  const bossTicksCrossed = useHordeGameStore((s) => s.bossTicksCrossed);
 
   const endSurvivorTurn = useHordeGameStore((s) => s.endSurvivorTurn);
   const startHordeTurn = useHordeGameStore((s) => s.startHordeTurn);
@@ -123,6 +139,13 @@ export function HordeTable() {
   }
 
   const bossesBeaten = board.zones.graveyard.filter((c) => c.id.startsWith('horde-boss-')).length;
+  const libraryRemaining = board.zones.library.length;
+  const nextBossIn = cardsUntilNextBoss(
+    librarySizeAtStart,
+    libraryRemaining,
+    config.settings.bossTicks,
+    bossTicksCrossed
+  );
 
   if (isPortraitTablet && !portraitSkipped) {
     return (
@@ -183,14 +206,29 @@ export function HordeTable() {
 
         <div className="horde-table-corner">
           <div className="horde-table-corner-top">
-            <span className="horde-table-meter-label">
-              {board.zones.library.length} / {librarySizeAtStart}
-            </span>
-            <MeterBar
-              className="horde-table-meter"
-              value={board.zones.library.length}
-              max={librarySizeAtStart}
-            />
+            <div className="horde-table-meter-block">
+              <span className="horde-table-meter-label">
+                Horde library · {libraryRemaining} / {librarySizeAtStart}
+              </span>
+              <div className="horde-table-meter-wrap">
+                <MeterBar
+                  className="horde-table-meter"
+                  value={libraryRemaining}
+                  max={librarySizeAtStart}
+                />
+                {config.settings.bossTicks.map((tick, i) => (
+                  <span
+                    key={tick}
+                    className={`horde-table-meter-tick${bossTicksCrossed.includes(i) ? ' is-crossed' : ''}`}
+                    style={{ left: `${(1 - tick) * 100}%` }}
+                    aria-hidden
+                  />
+                ))}
+              </div>
+              {nextBossIn != null && (
+                <span className="horde-table-meter-next">Next boss in {nextBossIn}</span>
+              )}
+            </div>
             <button
               type="button"
               className="overflow-menu-trigger"
@@ -245,6 +283,7 @@ export function HordeTable() {
               e.preventDefault();
               setCardMenuId(cardId);
             }}
+            onCardLongPress={(cardId) => setCardMenuId(cardId)}
           />
         </DndContext>
 

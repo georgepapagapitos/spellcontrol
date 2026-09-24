@@ -103,8 +103,35 @@
   gap: var(--space-2);
 }
 
-.horde-table-meter {
+.horde-table-meter-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.horde-table-meter-wrap {
+  position: relative;
   width: 10rem;
+}
+
+.horde-table-meter {
+  width: 100%;
+}
+
+/* Boss ticks: a gold hairline at each `bossTicks` fraction of the library
+   gone, dimmed once that tick has already fired. */
+.horde-table-meter-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--mtg-counter-gold);
+  transform: translateX(-1px);
+}
+
+.horde-table-meter-tick.is-crossed {
+  opacity: 0.4;
 }
 
 .horde-table-meter-label {
@@ -113,9 +140,25 @@
   white-space: nowrap;
 }
 
+.horde-table-meter-next {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .horde-table-piles {
   display: flex;
   gap: var(--space-2);
+}
+
+/* Horde table only: the library/graveyard tiles read at full card height
+   instead of the main board's tucked 35% peek (`.playtest-pile__stack`'s
+   default) — a sliver is legible up close but not from across a real table,
+   and there is no hand/drag interaction here to defer it for. Two-class
+   descendant selector, so it wins over the base rule regardless of import
+   order (same pattern as a dense card-picker sheet override). */
+.horde-table-piles .playtest-pile__stack {
+  height: var(--pt-card-h);
 }
 
 /* ── Bottom-right: the two horde actions ─────────────────────────────────── */

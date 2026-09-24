@@ -91,6 +91,15 @@ describe('HordeTable', () => {
     expect(screen.getByRole('button', { name: 'Horde turn' })).toBeTruthy();
   });
 
+  it('shows the library meter with a boss tick per bossTicks entry and the next-boss countdown', () => {
+    seed(); // standard preset: bossTicks [0.5, 1], an 8-card fixture library
+    render(<HordeTable />);
+    expect(screen.getByText(/Horde library · 8 \/ 8/)).toBeTruthy();
+    expect(document.querySelectorAll('.horde-table-meter-tick').length).toBe(2);
+    // Half of 8 is 4 remaining — the next tick (0.5) fires 4 cards from now.
+    expect(screen.getByText('Next boss in 4')).toBeTruthy();
+  });
+
   it('disables Horde turn during setup and names the turn it arrives', () => {
     seed({ setupTurns: 3 });
     useHordeGameStore.setState({ phase: 'setup' });
@@ -119,7 +128,7 @@ describe('HordeTable', () => {
     expect(useHordeGameStore.getState().cardsMilledByDamage).toBeGreaterThan(0);
   });
 
-  it("opens a card's menu from the battlefield and records it destroyed", () => {
+  function seedBattlefieldCard() {
     seed();
     // A card already on the battlefield gets its own id, distinct from any
     // library card — `locate()` checks zones before the battlefield, so a
@@ -141,11 +150,44 @@ describe('HordeTable', () => {
         ],
       },
     }));
+  }
+
+  it("opens a card's menu from a mouse click on the battlefield and records it destroyed", () => {
+    seedBattlefieldCard();
     render(<HordeTable />);
     const cardEl = document.querySelector('[data-card-id="onboard-1"]') as HTMLElement;
     fireEvent.click(cardEl);
     expect(screen.getByRole('dialog', { name: 'Zombie' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Destroyed' }));
     expect(useHordeGameStore.getState().board?.battlefield).toEqual([]);
+  });
+
+  it("opens a card's menu from the keyboard (Enter)", () => {
+    seedBattlefieldCard();
+    render(<HordeTable />);
+    const cardEl = document.querySelector('[data-card-id="onboard-1"]') as HTMLElement;
+    cardEl.focus();
+    fireEvent.keyDown(cardEl, { key: 'Enter' });
+    expect(screen.getByRole('dialog', { name: 'Zombie' })).toBeTruthy();
+  });
+
+  it("opens a card's menu from the Context Menu key", () => {
+    seedBattlefieldCard();
+    render(<HordeTable />);
+    const cardEl = document.querySelector('[data-card-id="onboard-1"]') as HTMLElement;
+    cardEl.focus();
+    fireEvent.keyDown(cardEl, { key: 'ContextMenu' });
+    expect(screen.getByRole('dialog', { name: 'Zombie' })).toBeTruthy();
+  });
+
+  it("opens a card's menu from a touch tap (a release that never reached the long-press delay)", () => {
+    seedBattlefieldCard();
+    render(<HordeTable />);
+    const cardEl = document.querySelector('[data-card-id="onboard-1"]') as HTMLElement;
+    fireEvent.touchStart(cardEl, { touches: [{ clientX: 10, clientY: 10 }] });
+    fireEvent.touchEnd(cardEl);
+    // A quick tap synthesizes a click, same as a real touchscreen.
+    fireEvent.click(cardEl);
+    expect(screen.getByRole('dialog', { name: 'Zombie' })).toBeTruthy();
   });
 });
