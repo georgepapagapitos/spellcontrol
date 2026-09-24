@@ -624,6 +624,9 @@ body[data-felt='slate'] {
   color: var(--text-primary);
   cursor: pointer;
   font-size: var(--text-xs);
+  /* A pile's top card can be lifted off and dropped elsewhere; dnd-kit's
+     pointer sensor needs the touch gesture, or a finger drag never starts. */
+  touch-action: none;
 }
 
 .playtest-pile__open:disabled {
@@ -686,7 +689,10 @@ body[data-felt='slate'] {
   border: 0;
   background: none;
   color: var(--text-primary);
-  cursor: pointer;
+  /* A click opens the commander's menu; the gesture it invites is the drag
+     that puts it on the battlefield, as a card on the felt does. */
+  cursor: grab;
+  touch-action: none;
   border-radius: var(--radius);
 }
 

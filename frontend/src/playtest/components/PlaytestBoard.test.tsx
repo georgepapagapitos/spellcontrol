@@ -32,6 +32,23 @@ vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   resolveTokenOption: async () => null,
 }));
 
+// happy-dom lays nothing out, so dnd-kit's collision detection can never
+// find a drop target there. The drop ROUTING is what these tests pin, so the
+// real DndContext renders as normal and its onDragEnd is kept for a test to
+// call with the drop dnd-kit would have reported in a browser.
+const dnd = vi.hoisted(() => ({ onDragEnd: null as null | ((e: unknown) => void) }));
+vi.mock('@dnd-kit/core', async (orig) => {
+  const real = await orig<typeof import('@dnd-kit/core')>();
+  const { createElement } = await import('react');
+  return {
+    ...real,
+    DndContext: (props: Parameters<typeof real.DndContext>[0]) => {
+      dnd.onDragEnd = props.onDragEnd as (e: unknown) => void;
+      return createElement(real.DndContext, props);
+    },
+  };
+});
+
 // Art resolution for the quadrants' cards — see OpponentQuadrant.test.tsx.
 vi.mock('@/lib/card-thumbs', () => ({
   useCardThumb: (name?: string) => (name ? `https://cards.example/${name}.jpg` : undefined),
@@ -1880,28 +1897,29 @@ describe('PlaytestBoard — the command zone with partners', () => {
     );
   }
 
-  it('shows both commanders, each castable by name', () => {
+  it('shows both commanders, each reachable by name', () => {
     mount(withCommanders(['Halana, Kessig Ranger', 'Alena, Kessig Trapper']));
-    expect(screen.getByRole('button', { name: /^Cast Halana, Kessig Ranger/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^Cast Alena, Kessig Trapper/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Halana, Kessig Ranger/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Alena, Kessig Trapper/ })).toBeTruthy();
     expect(document.querySelectorAll('.playtest-pile__commander').length).toBe(2);
   });
 
-  it('casts the one you clicked, not the top of the pile', () => {
+  // User, 2026-09-24: "clicking my commander should not play it to the
+  // battlefield". A click opens that commander's own menu and moves nothing;
+  // casting is the menu's Move to ▸ Battlefield, or a drag onto the felt.
+  it('opens the clicked commander’s menu and plays nothing', () => {
     mount(withCommanders(['Halana', 'Alena']));
-    fireEvent.click(screen.getByRole('button', { name: /^Cast Alena/ }));
-    expect(dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmd-1' })
-    );
-    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ cardId: 'cmd-0' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Alena/ }));
+    expect(screen.getByRole('menu', { name: 'Alena' })).toBeTruthy();
+    expect(dispatch).not.toHaveBeenCalled();
   });
 
   it('gives each commander its own tax, not one number for the zone', () => {
     // cmd-0 cast twice (+4), cmd-1 never (+0) — the reducer stores casts, the
     // badge doubles them (MTG 903.10).
     mount(withCommanders(['Halana', 'Alena'], { 'cmd-0': 2 }));
-    const halana = screen.getByRole('button', { name: /^Cast Halana/ });
-    const alena = screen.getByRole('button', { name: /^Cast Alena/ });
+    const halana = screen.getByRole('button', { name: /^Halana/ });
+    const alena = screen.getByRole('button', { name: /^Alena/ });
     expect(halana.getAttribute('aria-label')).toContain('tax +4');
     expect(alena.getAttribute('aria-label')).not.toContain('tax');
     // Both badges render, so the row cannot reflow when one goes from 0.
@@ -1910,9 +1928,12 @@ describe('PlaytestBoard — the command zone with partners', () => {
 
   it('still works with a single commander', () => {
     mount(withCommanders(['Krenko, Mob Boss'], { 'cmd-0': 1 }));
-    const btn = screen.getByRole('button', { name: /^Cast Krenko, Mob Boss/ });
+    const btn = screen.getByRole('button', { name: /^Krenko, Mob Boss/ });
     expect(btn.getAttribute('aria-label')).toContain('tax +2');
     fireEvent.click(btn);
+    expect(dispatch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Move to/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Battlefield/ }));
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmd-0' })
     );
@@ -1937,7 +1958,7 @@ describe('PlaytestBoard — the command zone with partners', () => {
   // Move to leads with the battlefield, which from here is casting it.
   it('gives each commander its own card menu', () => {
     mount(withCommanders(['Halana', 'Alena']));
-    fireEvent.contextMenu(screen.getByRole('button', { name: /^Cast Alena/ }), {
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Alena/ }), {
       clientX: 10,
       clientY: 10,
     });
@@ -1947,6 +1968,138 @@ describe('PlaytestBoard — the command zone with partners', () => {
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmd-1' })
     );
+  });
+});
+
+/**
+ * Every pile's card can be picked up and put somewhere else, as at a real
+ * table: the top of the library, graveyard and exile, and each commander.
+ * The pile is the drag source (`zone:<cardId>`); these pin where the drop
+ * sends it.
+ */
+describe('PlaytestBoard — dragging a card off a pile', () => {
+  function withPiles() {
+    const base = seededState();
+    return {
+      ...base,
+      zones: {
+        ...base.zones,
+        graveyard: [{ id: 'gy-1', name: 'Grave Card' }],
+        exile: [{ id: 'ex-1', name: 'Exiled Card' }],
+        command: [{ id: 'cmd-0', name: 'Krenko' }],
+      },
+    };
+  }
+
+  function drop(cardId: string, over: string | null) {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={withPiles()} />
+      </MemoryRouter>
+    );
+    act(() =>
+      dnd.onDragEnd?.({
+        active: { id: `zone:${cardId}`, rect: { current: { translated: null } } },
+        over: over ? { id: over } : null,
+        delta: { x: 0, y: 0 },
+      })
+    );
+  }
+
+  it('plays a graveyard card onto the battlefield', () => {
+    drop('gy-1', 'battlefield');
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'gy-1' })
+    );
+  });
+
+  it('casts a commander dragged onto the battlefield', () => {
+    drop('cmd-0', 'battlefield');
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmd-0' })
+    );
+  });
+
+  it('puts an exiled card in the hand', () => {
+    drop('ex-1', 'hand');
+    expect(dispatch).toHaveBeenCalledWith({ type: 'MOVE_TO_ZONE', cardId: 'ex-1', to: 'hand' });
+  });
+
+  it('moves a card between piles, a library drop landing on top', () => {
+    drop('gy-1', 'zone:library');
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'MOVE_TO_ZONE',
+      cardId: 'gy-1',
+      to: 'library',
+      toIndex: 0,
+    });
+  });
+
+  it('mills the top of the library into the graveyard', () => {
+    const top = withPiles().zones.library[0].id;
+    drop(top, 'zone:graveyard');
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MOVE_TO_ZONE', cardId: top, to: 'graveyard' })
+    );
+  });
+
+  it('does nothing when the card is dropped back on its own pile', () => {
+    drop('gy-1', 'zone:graveyard');
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * EDHPlay's gesture (user, 2026-09-24): ctrl + the wheel sizes the cards and
+ * never zooms the browser. The card size is the same setting the slider and
+ * the = / - keys drive, read here off the body's `--pt-zoom`.
+ */
+describe('PlaytestBoard — ctrl + wheel sizes the cards', () => {
+  beforeEach(() => localStorage.clear());
+
+  function wheel(deltaY: number, ctrlKey = true) {
+    const e = new WheelEvent('wheel', { deltaY, cancelable: true });
+    // happy-dom's WheelEvent drops `ctrlKey` from its init; a browser keeps it.
+    Object.defineProperty(e, 'ctrlKey', { value: ctrlKey });
+    act(() => {
+      window.dispatchEvent(e);
+    });
+    return e;
+  }
+
+  function mountBoard() {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+  }
+
+  const zoom = () => document.body.style.getPropertyValue('--pt-zoom');
+
+  it('grows the cards one step per notch and stops the browser zooming', () => {
+    mountBoard();
+    const e = wheel(-100);
+    expect(e.defaultPrevented).toBe(true);
+    expect(zoom()).toBe('1.1');
+    wheel(100);
+    wheel(100);
+    expect(zoom()).toBe('0.9');
+  });
+
+  it('adds a pinch’s small deltas up to a step', () => {
+    mountBoard();
+    for (let i = 0; i < 9; i++) wheel(-10);
+    expect(zoom()).toBe('1');
+    wheel(-10);
+    expect(zoom()).toBe('1.1');
+  });
+
+  it('leaves a plain scroll alone', () => {
+    mountBoard();
+    const e = wheel(-100, false);
+    expect(e.defaultPrevented).toBe(false);
+    expect(zoom()).toBe('1');
   });
 });
 

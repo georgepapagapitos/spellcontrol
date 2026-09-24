@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { useLongPress } from '@/lib/use-long-press';
 import { commanderTaxAmount } from '../lib/zones';
@@ -7,6 +7,31 @@ import { commanderTaxAmount } from '../lib/zones';
 /** How many command-zone cards the corner row draws. Two, because that is a
  *  commander and a partner — the zone may hold any number. */
 const COMMAND_ROW_MAX = 2;
+
+/**
+ * Pick a pile's card up and put it somewhere else: the battlefield, the hand,
+ * another pile. The draggable id is `zone:<cardId>`, which PlaytestBoard's
+ * drop handler routes the same way it routes a hand card. dnd-kit itself
+ * swallows the click that ends a drag, so a card dropped back on its own pile
+ * neither draws nor opens the viewer.
+ *
+ * Pointer only. dnd-kit's keyboard sensor would take Enter and Space for a
+ * drag, and on a pile those keys are the tile's own click (draw, open the
+ * viewer, open a commander's menu). The keyboard reaches every move a drag
+ * makes through that viewer and those menus.
+ */
+function usePileDrag(zone: Zone, card: PlaytestCard | undefined) {
+  const { setNodeRef, listeners, isDragging } = useDraggable({
+    // An empty pile still calls the hook, and ids must stay unique per pile.
+    id: `zone:${card?.id ?? `empty-${zone}`}`,
+    data: { cardId: card?.id },
+    disabled: !card,
+  });
+  // The listener map is typed as bare `Function`s; this gives the one used a
+  // handler type.
+  const onPointerDown = (e: React.PointerEvent) => listeners?.onPointerDown?.(e);
+  return { setNodeRef, isDragging, onPointerDown };
+}
 
 interface Props {
   zone: Zone;
@@ -35,16 +60,11 @@ interface Props {
    * replace; every other pile already shows its top card.
    */
   revealTop?: boolean;
-  /**
-   * Cast one specific card out of this pile. The command zone is the only
-   * one that needs it: with partners there are two commanders sitting there
-   * at once, each with its OWN tax, and a pile that renders a single top
-   * card cannot say which one you meant. Absent elsewhere, where a pile is
-   * a pile and the tile's own click is the whole interaction.
-   */
-  onCastCommander?(card: PlaytestCard): void;
-  /** Opens one commander's own card menu. Right-click or a long-press on a
-   *  commander reaches it; anywhere else on the tile is the zone's menu. */
+  /** Opens one commander's own card menu, where Move to ▸ Battlefield casts
+   *  it. A click,
+   *  a right-click or a long-press on a commander reaches it; anywhere else
+   *  on the tile is the zone's menu. With partners there are two commanders
+   *  sitting there at once, each with its OWN tax, so the menu is per card. */
   onCardMenu?(card: PlaytestCard, x: number, y: number): void;
 }
 
@@ -56,7 +76,6 @@ export function ZonePile({
   click,
   onMenu,
   revealTop = false,
-  onCastCommander,
   onCardMenu,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `zone:${zone}` });
@@ -79,20 +98,30 @@ export function ZonePile({
   // Which end is "top" differs by zone: the library is drawn from index 0,
   // while a discard pile's top is the card put there last.
   const top = zone === 'library' ? cards[0] : cards[cards.length - 1];
+  // The command zone's commanders are drag sources of their own (see
+  // CommanderTile), so the tile itself lifts nothing there.
+  const {
+    setNodeRef: setDragRef,
+    isDragging,
+    onPointerDown,
+  } = usePileDrag(zone, zone === 'command' ? undefined : top);
+  // While its top card is in the player's hand, the pile shows what is under
+  // it, as a real pile does the moment you lift a card off it.
+  const shown = isDragging ? (zone === 'library' ? cards[1] : cards.at(-2)) : top;
   // Tracks the id of a card whose image failed, so a new top card (the pile
   // shuffles/draws constantly) always gets a fresh chance to load.
   const [erroredId, setErroredId] = useState<string | null>(null);
   const tax = zone === 'command' ? commanderTaxAmount(commanderTax ?? {}, top?.id) : 0;
   // The library is the only pile with something to hide, and only while it
   // is not being revealed. Everything else is a face-up pile by definition.
-  const faceUp = Boolean(top) && (zone !== 'library' || revealTop);
+  const faceUp = Boolean(shown) && (zone !== 'library' || revealTop);
   // An empty command zone stays a plain empty well — there is nothing to lay
   // out, and the row would just be a labelled gap.
   const isCommandRow = zone === 'command' && cards.length > 0;
   return (
     <div
       ref={setNodeRef}
-      className={`playtest-pile${isOver ? ' is-over' : ''}${cards.length === 0 ? ' is-empty' : ''}`}
+      className={`playtest-pile${isOver ? ' is-over' : ''}${shown ? '' : ' is-empty'}`}
       // Fires for the Context Menu key and Shift+F10 as well as a right-click,
       // and bubbles from whichever child has focus — so the keyboard reaches
       // the same menu without the tile needing a key handler of its own.
@@ -124,63 +153,37 @@ export function ZonePile({
             {label} <span className="playtest-pile__count">({cards.length})</span>
           </span>
           <span className="playtest-pile__commanders">
-            {cards.slice(-COMMAND_ROW_MAX).map((c) => {
-              const ctax = commanderTaxAmount(commanderTax ?? {}, c.id);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="playtest-pile__commander"
-                  // The card under the pointer for the per-card keys (A, H,
-                  // K…), and the art the hover preview enlarges.
-                  data-card-id={c.id}
-                  data-preview-id={c.imageUrl ? c.id : undefined}
-                  onContextMenu={(e) => {
-                    if (!onCardMenu) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onCardMenu(c, e.clientX, e.clientY);
-                  }}
-                  onClick={() => {
-                    // Same suppression as the pile's own button: a hold that
-                    // opened the menu must not also cast the commander.
-                    if (longPress.consumedClick()) return;
-                    onCastCommander?.(c);
-                  }}
-                  aria-label={`Cast ${c.name}${ctax > 0 ? `, tax +${ctax}` : ''}`}
-                >
-                  {/* Above the art, as the coin counters are — the tax is a
-                      cost you read before deciding, not a footnote. */}
-                  <span
-                    className={`playtest-pile__tax playtest-pile__tax--own${
-                      ctax > 0 ? '' : ' is-zero'
-                    }`}
-                    aria-hidden
-                  >
-                    +{ctax}
-                  </span>
-                  <span className="playtest-pile__stack">
-                    {c.imageUrl && c.id !== erroredId ? (
-                      <img
-                        src={c.imageUrl}
-                        alt={c.name}
-                        draggable={false}
-                        loading="lazy"
-                        decoding="async"
-                        onError={() => setErroredId(c.id)}
-                      />
-                    ) : (
-                      <span className="playtest-card__placeholder">{c.name}</span>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
+            {cards.slice(-COMMAND_ROW_MAX).map((c) => (
+              <CommanderTile
+                key={c.id}
+                card={c}
+                tax={commanderTaxAmount(commanderTax ?? {}, c.id)}
+                imageFailed={c.id === erroredId}
+                onImageError={() => setErroredId(c.id)}
+                onContextMenu={(e) => {
+                  if (!onCardMenu) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onCardMenu(c, e.clientX, e.clientY);
+                }}
+                onClick={(e) => {
+                  // Same suppression as the pile's own button: a hold that
+                  // opened the menu must not open it a second time.
+                  if (longPress.consumedClick()) return;
+                  // From the card's top edge, so the menu opens beside the
+                  // commander whether a mouse or the keyboard pressed it.
+                  const r = e.currentTarget.getBoundingClientRect();
+                  onCardMenu?.(c, r.left + r.width / 2, r.top);
+                }}
+              />
+            ))}
           </span>
         </div>
       ) : (
         <button
+          ref={setDragRef}
           type="button"
+          onPointerDown={onPointerDown}
           onClick={() => {
             // The menu already handled this press; without this the release
             // would ALSO draw a card or open the viewer behind it.
@@ -199,20 +202,20 @@ export function ZonePile({
             {label} <span className="playtest-pile__count">({cards.length})</span>
           </span>
           <span className="playtest-pile__stack">
-            {faceUp && top?.imageUrl && top.id !== erroredId ? (
+            {faceUp && shown?.imageUrl && shown.id !== erroredId ? (
               <img
-                src={top.imageUrl}
-                alt={top.name}
+                src={shown.imageUrl}
+                alt={shown.name}
                 draggable={false}
                 loading="lazy"
                 decoding="async"
-                onError={() => setErroredId(top.id)}
+                onError={() => setErroredId(shown.id)}
               />
-            ) : faceUp && top ? (
+            ) : faceUp && shown ? (
               // A card whose art is missing or slow is still a card the player
               // is entitled to read — the same text placeholder a card face
               // degrades to, never a card back, which would say "hidden".
-              <span className="playtest-card__placeholder">{top.name}</span>
+              <span className="playtest-card__placeholder">{shown.name}</span>
             ) : (
               <span className={`playtest-pile__back playtest-pile__back--${zone}`} />
             )}
@@ -225,5 +228,69 @@ export function ZonePile({
         </button>
       )}
     </div>
+  );
+}
+
+/** One commander in the command zone's row. Its own component because each
+ *  commander is its own drag source, and a hook cannot be called per item of
+ *  a map. A click opens its menu (casting is in there); a drag puts it wherever it
+ *  is dropped, the battlefield included, where the reducer bumps its tax. */
+function CommanderTile({
+  card,
+  tax,
+  imageFailed,
+  onImageError,
+  onClick,
+  onContextMenu,
+}: {
+  card: PlaytestCard;
+  tax: number;
+  imageFailed: boolean;
+  onImageError(): void;
+  onClick(e: React.MouseEvent<HTMLButtonElement>): void;
+  onContextMenu(e: React.MouseEvent): void;
+}) {
+  const { setNodeRef, isDragging, onPointerDown } = usePileDrag('command', card);
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className="playtest-pile__commander"
+      // The card under the pointer for the per-card keys (A, H, K…), and the
+      // art the hover preview enlarges.
+      data-card-id={card.id}
+      data-preview-id={card.imageUrl ? card.id : undefined}
+      aria-haspopup="menu"
+      aria-label={`${card.name}${tax > 0 ? `, tax +${tax}` : ''}`}
+      // Transparent, not removed, while it rides the pointer: the row keeps
+      // its shape and dnd-kit keeps a node to measure.
+      style={isDragging ? { opacity: 0 } : undefined}
+      onPointerDown={onPointerDown}
+      onContextMenu={onContextMenu}
+      onClick={onClick}
+    >
+      {/* Above the art, as the coin counters are — the tax is a cost you read
+          before deciding, not a footnote. */}
+      <span
+        className={`playtest-pile__tax playtest-pile__tax--own${tax > 0 ? '' : ' is-zero'}`}
+        aria-hidden
+      >
+        +{tax}
+      </span>
+      <span className="playtest-pile__stack">
+        {card.imageUrl && !imageFailed ? (
+          <img
+            src={card.imageUrl}
+            alt={card.name}
+            draggable={false}
+            loading="lazy"
+            decoding="async"
+            onError={onImageError}
+          />
+        ) : (
+          <span className="playtest-card__placeholder">{card.name}</span>
+        )}
+      </span>
+    </button>
   );
 }
