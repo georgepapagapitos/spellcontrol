@@ -1631,101 +1631,6 @@
   }
 }
 
-/* ── Binder mode toggle (new binder form) ────────────────────── */
-
-/* A <fieldset>: strip its default chrome, same as .settings-currency-toggle.
-   Track-style segmented control — padded track + inset raised chip, per the
-   STYLE_GUIDE ruling. Reference: .share-audience. */
-.binder-mode-toggle {
-  display: flex;
-  gap: var(--space-1);
-  margin: 0 1.25rem var(--space-1);
-  padding: var(--space-1);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  min-inline-size: 0;
-}
-
-/* A <label> wrapping a visually-hidden radio, so the whole segment stays the
-   hit target while keyboard/AT semantics are native. */
-.binder-mode-pill {
-  position: relative;
-  flex: 1;
-  display: inline-flex;
-  border-radius: var(--radius);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition:
-    background var(--motion-fast),
-    color var(--motion-fast);
-}
-
-.binder-mode-pill input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.binder-mode-pill span {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.4rem var(--space-3);
-  color: inherit;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  text-align: center;
-}
-
-/* Coarse floor on the span — see .share-audience-option span. */
-@media (pointer: coarse) {
-  .binder-mode-pill span {
-    min-height: 44px;
-  }
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .binder-mode-pill:not(.active):hover {
-    color: var(--text-primary);
-  }
-}
-
-/* Selected = raised chip on the track, NOT an accent fill: accent stays
-   reserved for primary actions (STYLE_GUIDE § Segmented controls). */
-.binder-mode-pill.active {
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
-}
-
-@media (max-width: 480px) {
-  .binder-mode-toggle {
-    margin: 0 var(--space-4) var(--space-1);
-  }
-}
-
-/* Inside a form field (the editor's Sections / Page filling controls) the
-   track hugs its options and sits flush with the field label — the modal
-   margin above indented it 1.25rem past its own label. */
-.binder-mode-toggle--inline {
-  display: inline-flex;
-  margin: 0;
-}
-
-/* Three options wrapped every label onto three lines at 390px ("NEW / PAGE /
-   PER / SECTION"). Stack them full-width instead. */
-@media (max-width: 600px) {
-  .binder-mode-toggle--inline {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-  }
-}
-
 /* ── Import binder (inside BinderEditor) ─────────────────────── */
 
 .import-binder-textarea {
@@ -1815,13 +1720,7 @@
 }
 /* Inset ring — .binder-mode-toggle is overflow:hidden, so an outset outline
    on the end segments would be clipped. */
-/* The track is no longer overflow:hidden (padded track + inset chip), so an
-   outset ring is safe and matches every other segmented control. */
-.binder-mode-pill input:focus-visible + span {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius);
-}
+
 .inline-card-search-item:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

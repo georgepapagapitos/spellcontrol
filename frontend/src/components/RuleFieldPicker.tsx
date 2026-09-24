@@ -11,7 +11,7 @@ interface Props {
 }
 
 /**
- * "Add rule" — a searchable, grouped picker over the 22 filter fields.
+ * "Add condition" — a searchable, grouped picker over the 22 filter fields.
  *
  * It replaces a "More rules" disclosure triangle that hid seventeen of them
  * behind one word, in a fixed order, with a single dot as the only clue that
@@ -53,7 +53,7 @@ export function RuleFieldPicker({ inUse, onPick }: Props) {
         onClick={openPicker}
       >
         <Plus width={14} height={14} strokeWidth={2} aria-hidden />
-        Add rule
+        Add condition
       </button>
       {open &&
         panelStyle &&
@@ -62,7 +62,7 @@ export function RuleFieldPicker({ inUse, onPick }: Props) {
             ref={panelRef}
             className="rule-field-panel"
             role="dialog"
-            aria-label="Add a rule"
+            aria-label="Add a condition"
             style={panelStyle}
           >
             <div className="rule-field-search">
@@ -70,8 +70,8 @@ export function RuleFieldPicker({ inUse, onPick }: Props) {
               <input
                 type="search"
                 value={query}
-                placeholder="Search rules…"
-                aria-label="Search rules"
+                placeholder="Search conditions…"
+                aria-label="Search conditions"
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
                   // Enter on a single remaining match adds it — the fast path
@@ -89,8 +89,8 @@ export function RuleFieldPicker({ inUse, onPick }: Props) {
               {sections.length === 0 && (
                 <p className="rule-field-empty">
                   {inUse.size > 0
-                    ? `No rule matches “${query.trim()}”. Every other rule is already in this group.`
-                    : `No rule matches “${query.trim()}”.`}
+                    ? `Nothing matches “${query.trim()}”. Every other condition is already in this rule.`
+                    : `Nothing matches “${query.trim()}”.`}
                 </p>
               )}
               {sections.map(({ group, fields }) => (

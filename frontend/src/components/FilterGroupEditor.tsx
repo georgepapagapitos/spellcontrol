@@ -1,11 +1,12 @@
-import { useState, useEffect, useId, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { currencySymbol } from '../lib/currency';
 import { isFilterEmpty } from '../lib/rules';
 import { countBinderMatches } from '../lib/binder-counts';
 import { cardTagLabel } from '../lib/card-tags';
-import { STARTER_TEMPLATES, type StarterTemplate } from '../lib/binder-templates';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { InfoTip } from './InfoTip';
+import { OverflowMenu } from './OverflowMenu';
+import { SegmentedControl, type Option } from './shared/form';
 import { BinderRow as RuleRow, FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
 import { RuleFieldContext } from './RuleFieldContext';
 import { RuleFieldPicker } from './RuleFieldPicker';
@@ -33,6 +34,16 @@ const COLORS: { key: ColorChoice; label: string }[] = [
 ];
 const DEFAULT_EDHREC_TOP_N = 100;
 
+/** A yes/no/either predicate as a segmented control's value. */
+type TriState = 'any' | 'is' | 'not';
+const TRI_STATE_OPTIONS: Option<TriState>[] = [
+  { value: 'any', label: 'Any' },
+  { value: 'is', label: 'Is' },
+  { value: 'not', label: 'Is not' },
+];
+const triState = (v: boolean | undefined): TriState => (v === undefined ? 'any' : v ? 'is' : 'not');
+const fromTriState = (v: TriState): boolean | undefined => (v === 'any' ? undefined : v === 'is');
+
 /**
  * A rule group's badge count (B4-01). `matchCount` always comes from
  * `countBinderMatches`, which treats an empty filter as a binder's
@@ -48,32 +59,21 @@ export function groupBadgeCount(
   return emptyGroupMatchesNothing && isFilterEmpty(filter) ? null : matchCount;
 }
 
-// ── Progressive-disclosure field split ────────────────────────────────────
-// ABOVE the fold (always visible, most-reached-for fields):
-//   Type line, Color identity, Rarity, CMC (mana value), Price
-// BELOW the fold (collapsed behind "More rules" expander):
-//   Name contains, Mana cost, Commander, Proxy, Sets, Finishes, Layout,
-//   Treatment, Border, EDHREC popularity, Legalities, Oracle text, Scryfall
-//   query
-//
-// Auto-open rule: if any collapsed field carries a value, the expander must
-// start open so the user can see their active rules when editing.
-
 /* ─────────────────────────── filter-group UI ─────────────────────────── */
 
 /**
- * Renders the OR-list of filter groups. Each group is a `<fieldset>` whose
- * `<legend>` carries the optional name (acting as a heading for assistive tech)
- * and a remove button. An "OR" divider sits between groups (decorative;
- * meaning is in the fieldset semantics). A single "+ Add OR group" button
- * follows the list.
+ * Renders the OR-list of rule groups. A binder has RULES; each rule is a card
+ * that matches when every one of its CONDITIONS does ("Match all of"), and the
+ * binder takes a card that matches any rule. Each group is a `<fieldset>`
+ * whose `<legend>` names it for assistive tech; an "or" divider sits between
+ * groups (decorative — the meaning is in the fieldset list). One button
+ * follows the list to add another rule.
  */
 // Exported for reuse by the dynamic-list rule editor (ListRuleEditor) — the
 // group list is pure rule-editing UI with no binder-specific chrome.
 export function FilterGroupList({
   groups,
   cards,
-  keepPrintingsTogether,
   ownedSets,
   typeSuggestions,
   oracleSuggestions,
@@ -84,12 +84,11 @@ export function FilterGroupList({
   onAdd,
   onDuplicate,
   onRemove,
-  isNewBinder,
+  revealSetsSignal = 0,
   emptyGroupMatchesNothing = false,
 }: {
   groups: BinderFilterGroup[];
   cards: EnrichedCard[];
-  keepPrintingsTogether: boolean;
   ownedSets: { code: string; label: string }[];
   typeSuggestions: string[];
   oracleSuggestions: string[];
@@ -100,7 +99,9 @@ export function FilterGroupList({
   onAdd: () => void;
   onDuplicate: (idx: number) => void;
   onRemove: (idx: number) => void;
-  isNewBinder: boolean;
+  /** Bumped by the "A set binder" start: add a Sets condition to the first
+   *  rule and scroll it into view. */
+  revealSetsSignal?: number;
   /** A binder's empty rule group is a deliberate catch-all (matches every
    *  remaining card); a list's empty rule matches nothing (see
    *  `dynamic-list.ts`'s `isRuleEmpty`). `countBinderMatches` always computes
@@ -109,13 +110,10 @@ export function FilterGroupList({
    *  catch-all count (B4-01). */
   emptyGroupMatchesNothing?: boolean;
 }) {
-  // Per-group counts are always raw rule matches; the total expands to
-  // pulled-in printings when "keep all printings together" is on. See
-  // countBinderMatches.
-  const { perGroup, total } = useMemo(
-    () => countBinderMatches(cards, groups, keepPrintingsTogether),
-    [groups, cards, keepPrintingsTogether]
-  );
+  // Per-group counts are raw rule matches. The whole-binder answer (and what
+  // "keep printings together" pulls in) belongs to the host's footer, which
+  // is the one place a count is stated — not a second total down here.
+  const { perGroup } = useMemo(() => countBinderMatches(cards, groups, false), [groups, cards]);
 
   return (
     <div className="filter-group-list">
@@ -135,12 +133,12 @@ export function FilterGroupList({
             onSetName={(n) => onSetName(i, n)}
             onDuplicate={() => onDuplicate(i)}
             onRemove={() => onRemove(i)}
-            showTemplates={isNewBinder && i === 0 && groups.length === 1}
+            revealSetsSignal={i === 0 ? revealSetsSignal : 0}
             emptyGroupMatchesNothing={emptyGroupMatchesNothing}
           />
           {i < groups.length - 1 && (
             <div className="filter-group-or" aria-hidden="true">
-              <span>OR</span>
+              <span>or</span>
             </div>
           )}
         </div>
@@ -148,24 +146,8 @@ export function FilterGroupList({
 
       <div className="filter-group-footer">
         <button type="button" className="btn btn-add-group" onClick={onAdd}>
-          + Add OR rule
+          + Or match other cards too
         </button>
-        <span className="filter-group-help" aria-hidden>
-          OR rules add a whole alternative pattern, such as Mythic creatures OR Rare instants. For
-          OR within one field, use the <strong>AND</strong>/<strong>OR</strong> pill between chips
-          instead.
-        </span>
-        {(groups.length > 1 || keepPrintingsTogether) && (
-          <span className="filter-group-total" aria-live="polite">
-            Matches <strong>{total.toLocaleString()}</strong> {total === 1 ? 'card' : 'cards'} total
-          </span>
-        )}
-        {keepPrintingsTogether && (
-          <span className="filter-group-help" aria-hidden>
-            Per-rule counts are rule matches; the total also counts every printing pulled in by
-            “keep all printings together”.
-          </span>
-        )}
       </div>
     </div>
   );
@@ -185,7 +167,7 @@ function FilterGroupCard({
   onSetName,
   onDuplicate,
   onRemove,
-  showTemplates,
+  revealSetsSignal,
   emptyGroupMatchesNothing,
 }: {
   group: BinderFilterGroup;
@@ -201,93 +183,88 @@ function FilterGroupCard({
   onSetName: (n: string) => void;
   onDuplicate: () => void;
   onRemove: () => void;
-  showTemplates: boolean;
+  revealSetsSignal: number;
   emptyGroupMatchesNothing: boolean;
 }) {
+  const cardRef = useRef<HTMLFieldSetElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  // Renaming is an explicit act from the ⋯ menu. The group used to open with
+  // an always-editable name field, which made every rule look like a form to
+  // fill in before it could do anything.
+  const [renaming, setRenaming] = useState(false);
+
+  // A freshly added rule hands focus to its "Add condition" button, which is
+  // the next thing anyone does with an empty rule.
   useEffect(() => {
-    if (autofocus && nameRef.current) {
-      nameRef.current.focus();
-      onAutofocusHandled();
-    }
+    if (!autofocus) return;
+    cardRef.current?.querySelector<HTMLButtonElement>('.btn-add-rule')?.focus();
+    onAutofocusHandled();
   }, [autofocus, onAutofocusHandled]);
 
-  // Bumped when the "A set binder" template is tapped → FilterGroupFields opens
-  // its "More rules" section and scrolls the Sets picker into view.
-  const [revealSetsSignal, setRevealSetsSignal] = useState(0);
+  useEffect(() => {
+    if (renaming) nameRef.current?.select();
+  }, [renaming]);
 
   const summary = autoSummary(group.filter);
-  const fallback = `Rule group ${index + 1}`;
-  const displayLabel = group.name?.trim() || summary || fallback;
-
-  // Templates are only visible when there is no filter content yet.
-  const hasContent = !isFilterEmpty(group.filter);
-  const shouldShowTemplates = showTemplates && !hasContent;
+  const name = group.name?.trim() ?? '';
+  const displayLabel = name || summary || `Rule ${index + 1}`;
   const badgeCount = groupBadgeCount(group.filter, matchCount, emptyGroupMatchesNothing);
 
   return (
-    <fieldset className="filter-group">
-      <legend className="filter-group-legend">
-        <input
-          ref={nameRef}
-          className="filter-group-name"
-          value={group.name ?? ''}
-          onChange={(e) => onSetName(e.target.value)}
-          placeholder={summary || fallback}
-          aria-label={`Rule group ${index + 1} name`}
-        />
+    <fieldset className="filter-group" ref={cardRef}>
+      <legend className="sr-only">{displayLabel}</legend>
+      <div className="filter-group-head">
+        {renaming ? (
+          <input
+            ref={nameRef}
+            className="filter-group-name"
+            value={group.name ?? ''}
+            onChange={(e) => onSetName(e.target.value)}
+            onBlur={() => setRenaming(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Escape') {
+                // Escape here closes the field, not the dialog around it.
+                e.stopPropagation();
+                e.preventDefault();
+                setRenaming(false);
+              }
+            }}
+            placeholder={summary || 'Name this rule'}
+            aria-label={`Name for rule ${index + 1}`}
+          />
+        ) : name ? (
+          <span className="filter-group-title">{name}</span>
+        ) : (
+          <span className="filter-group-title is-generic">Match all of</span>
+        )}
         {/* `aria-live` because this is the feedback loop of the whole editor:
-            you change a rule to watch this number move. The aggregate total
-            below already announced; the per-group count — the one that responds
-            to the field you are actually touching — did not. */}
+            you change a condition to watch this number move. */}
         <span
           className="filter-group-count"
           aria-live="polite"
           aria-label={
             badgeCount === null
-              ? `Rule group ${index + 1} has no rule yet`
-              : `Rule group ${index + 1} matches ${badgeCount} ${badgeCount === 1 ? 'card' : 'cards'}`
+              ? `Rule ${index + 1} has no conditions yet`
+              : `Rule ${index + 1} matches ${badgeCount} ${badgeCount === 1 ? 'card' : 'cards'}`
           }
         >
-          {badgeCount === null
-            ? 'No rule yet'
-            : `${badgeCount.toLocaleString()} ${badgeCount === 1 ? 'card' : 'cards'}`}
+          {badgeCount === null ? '' : badgeCount.toLocaleString()}
         </span>
-        <span className="filter-group-actions">
-          <button
-            type="button"
-            className="tab-action"
-            onClick={onDuplicate}
-            title="Duplicate this rule group"
-            aria-label={`Duplicate rule group: ${displayLabel}`}
-          >
-            ⎘
-          </button>
-          <button
-            type="button"
-            className="tab-action"
-            onClick={onRemove}
-            disabled={total <= 1}
-            title={total <= 1 ? 'Keep at least one rule group' : 'Remove this rule group'}
-            aria-label={`Remove rule group: ${displayLabel}`}
-          >
-            ×
-          </button>
-        </span>
-      </legend>
-      {shouldShowTemplates && (
-        <StarterTemplates
-          onApply={(tpl) => {
-            if (tpl.filter) onPatchFilter(tpl.filter);
-            // Pre-fill the group name with the template label if the user
-            // hasn't typed anything yet.
-            if (!group.name?.trim()) onSetName(tpl.label);
-            // Action-only template: reveal the Sets picker rather than applying
-            // an (empty, match-everything) constraint.
-            if (tpl.revealSets) setRevealSetsSignal((n) => n + 1);
-          }}
+        <OverflowMenu
+          ariaLabel={`Actions for rule: ${displayLabel}`}
+          items={[
+            { label: name ? 'Rename' : 'Name this rule', onClick: () => setRenaming(true) },
+            { label: 'Duplicate', onClick: onDuplicate },
+            {
+              label: total <= 1 ? 'Remove (a binder keeps one rule)' : 'Remove',
+              onClick: onRemove,
+              danger: true,
+              disabled: total <= 1,
+            },
+          ]}
         />
-      )}
+      </div>
+      {name && <span className="filter-group-sub">Match all of</span>}
       <FilterGroupFields
         filter={group.filter}
         onPatch={onPatchFilter}
@@ -302,46 +279,9 @@ function FilterGroupCard({
 }
 
 /**
- * One-tap starter templates. Shown only on a new binder's first rule group
- * when that group has no rule content. Tapping a template pre-fills the form
- * fields (the user can still edit everything); the templates disappear once
- * any real rule content exists.
- */
-function StarterTemplates({ onApply }: { onApply: (tpl: StarterTemplate) => void }) {
-  return (
-    <div className="starter-templates" aria-label="Quick-start templates">
-      <span className="starter-templates-label">Start with a template:</span>
-      <div className="starter-templates-list">
-        {STARTER_TEMPLATES.map((tpl) => (
-          <button
-            key={tpl.id}
-            type="button"
-            className="starter-template-btn"
-            onClick={() => onApply(tpl)}
-          >
-            <span className="starter-template-label">{tpl.label}</span>
-            {/* Description is visible (not a hover title) so it works on touch. */}
-            <span className="starter-template-desc">{tpl.description}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * The rule-rows that make up a single filter group, split into above-fold
- * (always visible) and below-fold (collapsed behind "More rules" expander).
- *
- * Above the fold — common rules reached for most binders:
- *   Type line, Color identity, Rarity, Mana value (CMC), Price
- *
- * Below the fold (collapsed by default):
- *   Name contains, Mana cost, Commander, Proxy, Sets, Finishes, Layout,
- *   Treatment, Border, EDHREC popularity, Legalities, Oracle text
- *
- * Auto-open: if any below-fold field has a value (editing an existing binder),
- * the expander starts open so active rules are never hidden.
+ * The condition rows that make up one rule. A row exists because its field is
+ * SET (STYLE_GUIDE § Rule & filter editors): fields with a value render, plus
+ * any the user just added from the "Add condition" picker.
  */
 function FilterGroupFields({
   filter,
@@ -357,24 +297,23 @@ function FilterGroupFields({
   ownedSets: { code: string; label: string }[];
   typeSuggestions: string[];
   oracleSuggestions: string[];
-  /** Bumped by the "A set binder" template — open this section + reveal Sets. */
+  /** Bumped by the "A set binder" start — add a Sets row and reveal it. */
   revealSetsSignal?: number;
-  /** See `groupBadgeCount` — also corrects the "no rules yet" hint's wording
-   *  for a list, whose empty rule matches nothing rather than catching every
-   *  remaining card. */
+  /** See `groupBadgeCount` — also corrects the "no conditions yet" hint's
+   *  wording for a list, whose empty rule matches nothing rather than catching
+   *  every remaining card. */
   emptyGroupMatchesNothing?: boolean;
 }) {
   const patch = onPatch;
-  // Radios group by shared `name` — several rule editors can be on screen.
-  const commanderEligibleGroup = useId();
-  const proxyGroup = useId();
   const edhrecEnabled = filter.edhrecRankMax !== undefined;
   const setsRowRef = useRef<HTMLDivElement>(null);
 
   // Fields the user added that don't hold a value yet. A field with a value is
   // visible on its own account (`setFilterFields`), so this only has to carry
   // the gap between "I picked Rarity" and "I typed a rarity into it".
-  const [added, setAdded] = useState<Set<FilterFieldId>>(() => new Set());
+  const [added, setAdded] = useState<Set<FilterFieldId>>(() =>
+    revealSetsSignal > 0 ? new Set<FilterFieldId>(['setCodes']) : new Set()
+  );
   const withValues = setFilterFields(filter);
   const visibleFields = useMemo(() => {
     const next = new Set(withValues);
@@ -399,27 +338,25 @@ function FilterGroupFields({
     [visibleFields, patch]
   );
 
-  // "A set binder" template: reveal + scroll to the Sets row. Render-phase
-  // rising-edge compare, so the lint-discouraged setState-in-effect isn't
-  // needed. Signal 0 = initial mount → no reveal, so editing an existing
-  // binder is unaffected.
+  // "A set binder": reveal + scroll to the Sets row. Render-phase rising-edge
+  // compare, so the lint-discouraged setState-in-effect isn't needed. Signal 0
+  // = no reveal, so editing an existing binder is unaffected.
   const [prevRevealSignal, setPrevRevealSignal] = useState(revealSetsSignal);
   if (revealSetsSignal !== prevRevealSignal) {
     setPrevRevealSignal(revealSetsSignal);
-    setAdded((prev) => new Set(prev).add('setCodes'));
+    if (revealSetsSignal > 0) setAdded((prev) => new Set(prev).add('setCodes'));
   }
   useEffect(() => {
     if (revealSetsSignal === 0) return;
     const raf = requestAnimationFrame(() => {
       setsRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setsRowRef.current?.querySelector<HTMLInputElement>('input')?.focus();
     });
     return () => cancelAnimationFrame(raf);
   }, [revealSetsSignal]);
 
   return (
     <RuleFieldContext.Provider value={visibility}>
-      {/* ── Above the fold: Type line, Color identity, Rarity, CMC, Price ── */}
-
       {/* Type chips */}
       <RuleRow
         fieldId="typeChips"
@@ -534,28 +471,12 @@ function FilterGroupFields({
           </>
         }
       >
-        <fieldset className="rule-segmented" aria-label="Commander eligibility">
-          {(
-            [
-              { v: undefined, label: 'Any' },
-              { v: true, label: 'Is' },
-              { v: false, label: 'Is not' },
-            ] as const
-          ).map(({ v, label }) => (
-            <label
-              key={label}
-              className={`rule-segmented-pill${filter.commanderEligible === v ? ' active' : ''}`}
-            >
-              <input
-                type="radio"
-                name={commanderEligibleGroup}
-                checked={filter.commanderEligible === v}
-                onChange={() => patch({ commanderEligible: v })}
-              />
-              <span>{label}</span>
-            </label>
-          ))}
-        </fieldset>
+        <SegmentedControl
+          ariaLabel="Commander eligibility"
+          value={triState(filter.commanderEligible)}
+          options={TRI_STATE_OPTIONS}
+          onChange={(v) => patch({ commanderEligible: fromTriState(v) })}
+        />
       </RuleRow>
 
       {/* Proxy */}
@@ -571,28 +492,12 @@ function FilterGroupFields({
           </>
         }
       >
-        <fieldset className="rule-segmented" aria-label="Proxy">
-          {(
-            [
-              { v: undefined, label: 'Any' },
-              { v: true, label: 'Is' },
-              { v: false, label: 'Is not' },
-            ] as const
-          ).map(({ v, label }) => (
-            <label
-              key={label}
-              className={`rule-segmented-pill${filter.proxy === v ? ' active' : ''}`}
-            >
-              <input
-                type="radio"
-                name={proxyGroup}
-                checked={filter.proxy === v}
-                onChange={() => patch({ proxy: v })}
-              />
-              <span>{label}</span>
-            </label>
-          ))}
-        </fieldset>
+        <SegmentedControl
+          ariaLabel="Proxy"
+          value={triState(filter.proxy)}
+          options={TRI_STATE_OPTIONS}
+          onChange={(v) => patch({ proxy: fromTriState(v) })}
+        />
       </RuleRow>
 
       {/* Sets */}
@@ -672,8 +577,8 @@ function FilterGroupFields({
         {visibleFields.size === 0 && (
           <span className="rule-add-hint">
             {emptyGroupMatchesNothing
-              ? 'No rule yet. This group matches nothing until you add one.'
-              : 'No rules yet. This group matches every card left over from the binders above it.'}
+              ? 'No conditions yet. This rule matches nothing until you add one.'
+              : 'No conditions yet. This rule takes every card the binders above leave over.'}
           </span>
         )}
       </div>

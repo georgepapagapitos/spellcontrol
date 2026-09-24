@@ -90,7 +90,11 @@
   gap: 5px;
 }
 
-.field label,
+/* A field's own label, never a checkbox's. `.field label` alone also caught
+   every `.field-checkbox` inside a field, so "DOUBLE-SIDED" and "FIXED" in
+   the binder editor rendered as uppercase headings instead of options
+   (guard: styles/form-labels.test.ts). */
+.field label:not(.field-checkbox),
 .field .field-label {
   font-size: var(--text-xs);
   color: var(--text-muted);

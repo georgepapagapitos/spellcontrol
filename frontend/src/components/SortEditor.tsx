@@ -20,8 +20,6 @@ interface Props {
   valueOrders: ValueOrders;
   onSortsChange: (next: SortEntry[]) => void;
   onValueOrdersChange: (next: ValueOrders) => void;
-  /** Hide the verbose explanatory paragraph (used in the compact popover). */
-  compact?: boolean;
 }
 
 /**
@@ -45,22 +43,9 @@ interface Props {
  * rank is most-popular-FIRST, so the raw word is ambiguous even to a reader who
  * knows what it means.
  */
-export function SortEditor({
-  sorts,
-  valueOrders,
-  onSortsChange,
-  onValueOrdersChange,
-  compact,
-}: Props) {
+export function SortEditor({ sorts, valueOrders, onSortsChange, onValueOrdersChange }: Props) {
   return (
     <>
-      {!compact && (
-        <p className="muted sort-editor-intro">
-          The first sort splits the binder into section headers; later sorts order cards within each
-          section. Up to {MAX_SORTS} rules. Treatment, finish, and name break ties automatically
-          after yours.
-        </p>
-      )}
       {/* Container for the sort rows' layout query. The row grid's breakpoint
           has to key off THIS element's width, not the viewport's: the popover
           host is capped at 26rem no matter how wide the screen is, so a

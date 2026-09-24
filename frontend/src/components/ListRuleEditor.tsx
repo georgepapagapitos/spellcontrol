@@ -141,7 +141,6 @@ export function ListRuleEditor({ list, onClose }: Props) {
           <FilterGroupList
             groups={groups}
             cards={taggedCards}
-            keepPrintingsTogether={false}
             ownedSets={ownedSets}
             typeSuggestions={typeSuggestions}
             oracleSuggestions={oracleSuggestions}
@@ -177,7 +176,6 @@ export function ListRuleEditor({ list, onClose }: Props) {
                 prev.length === 1 ? [newGroup()] : prev.filter((_, i) => i !== idx)
               )
             }
-            isNewBinder={false}
             emptyGroupMatchesNothing
           />
         </div>

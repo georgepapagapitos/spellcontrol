@@ -8,7 +8,6 @@ function setup(sorts: SortEntry[]) {
   const onSortsChange = vi.fn();
   render(
     <SortEditor
-      compact
       sorts={sorts}
       valueOrders={{}}
       onSortsChange={onSortsChange}

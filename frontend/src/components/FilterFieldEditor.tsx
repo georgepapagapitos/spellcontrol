@@ -221,8 +221,8 @@ export function BinderRow({
         <button
           type="button"
           className="rule-row-clear"
-          aria-label={`Remove the ${filterFieldSpec(fieldId)?.label ?? 'rule'} rule`}
-          title="Remove this rule"
+          aria-label={`Remove the ${filterFieldSpec(fieldId)?.label ?? 'this'} condition`}
+          title="Remove this condition"
           onClick={() => visibility.clearField(fieldId)}
         >
           <X width={13} height={13} strokeWidth={2.2} aria-hidden />

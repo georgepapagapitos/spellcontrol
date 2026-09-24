@@ -15,8 +15,8 @@ export interface StarterTemplate {
   /** One-tap concrete constraint. Omitted for action-only templates. */
   filter?: Partial<BinderFilter>;
   /**
-   * Action template: instead of a constraint, open the "More rules" section
-   * and scroll the Sets picker into view. "A set" can't be a one-tap constant
+   * Action template: instead of a constraint, add an empty Sets condition
+   * and bring it into view. "A set" can't be a one-tap constant
    * (there's no universal set), so this is an honest "take me to the picker"
    * shortcut rather than an empty filter that matches everything.
    */
@@ -52,7 +52,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   {
     id: 'one-color',
     label: 'One color',
-    description: 'Single-color cards, pick your color after',
+    description: 'Single-color cards',
     filter: {
       colors: {
         chips: [{ value: 'W', negate: false }],
@@ -84,7 +84,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   {
     id: 'set',
     label: 'A set binder',
-    description: 'Pick a specific set',
+    description: 'Every card from one set',
     revealSets: true,
   },
 ];
