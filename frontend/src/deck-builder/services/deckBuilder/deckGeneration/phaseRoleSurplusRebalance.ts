@@ -456,6 +456,7 @@ export function applyRoleSurplusRebalance(
 
   const isProtected = (card: ScryfallCard): boolean =>
     !!card.isMustInclude ||
+    !!state.cfg.ownedQuotaProtects?.(card.name) ||
     ctx.mustIncludeNames.has(card.name.toLowerCase()) ||
     state.comboCardNames.has(card.name) ||
     completeComboNames.has(card.name) ||

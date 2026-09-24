@@ -112,6 +112,7 @@ export function comboIntegrityAuditPhase(
         if (completeComboCards.has(card.name)) continue;
         if (isProtectionPiece(card) || isFreeInteraction(card)) continue;
         if (skipNames?.has(card.name)) continue;
+        if (state.cfg.ownedQuotaProtects?.(card.name)) continue;
         const incl = auditInclusion.get(card.name) ?? 0;
         if (!best || incl < best.incl) best = { card, category: cat, incl };
       }

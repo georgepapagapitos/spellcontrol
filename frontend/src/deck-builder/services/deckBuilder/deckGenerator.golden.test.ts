@@ -1020,6 +1020,52 @@ describe('generateDeck — collection relaxation (T43 PR-3)', () => {
     expect(ownedNonLandCount).toBeGreaterThan(8);
     clearGenerationCache();
   });
+
+  // E403: partial mode only took owned cards from EDHREC's pool for the
+  // commander, so Lathril at 100% owned shipped 13% while "Only my cards"
+  // shipped 97-100% from the same collection. Here EDHREC's pool offers no
+  // owned card at all; the collection's own cards must still meet the share.
+  it('partial mode: meets the owned share from the collection when EDHREC offers no owned cards (E403)', async () => {
+    const owned = Array.from({ length: 60 }, (_, i) =>
+      mkSC(`Owned_${i + 1}`, 'Creature — Elf', (i % 5) + 1)
+    );
+    const ownedByName = new Map(owned.map((c) => [c.name, c]));
+    const ctx = baseContext();
+    ctx.customization = customization({
+      collectionMode: true,
+      collectionStrategy: 'partial',
+      collectionOwnedPercent: 50,
+    });
+    Object.assign(ctx, {
+      collectionNames: new Set(['Test Commander', ...ownedByName.keys()]),
+      collectionPool: owned.map((c) => ({
+        name: c.name,
+        colorIdentity: c.color_identity,
+        cmc: c.cmc,
+        typeLine: c.type_line,
+      })),
+    });
+    const mockedFetch = vi.mocked(getCardsByNames);
+    const realFetch = mockedFetch.getMockImplementation()!;
+    mockedFetch.mockImplementation(async (names: string[], ...rest) => {
+      const m = await realFetch(names, ...rest);
+      for (const n of names) if (ownedByName.has(n)) m.set(n, ownedByName.get(n)!);
+      return m;
+    });
+    clearGenerationCache();
+    try {
+      const deck = await generateDeck(ctx);
+      const nonLand = Object.entries(deck.categories)
+        .filter(([cat]) => cat !== 'lands')
+        .flatMap(([, cards]) => cards);
+      const ownedCount = nonLand.filter((c) => ownedByName.has(c.name)).length;
+      expect(ownedCount).toBeGreaterThanOrEqual(Math.round(nonLand.length * 0.5));
+      expect(Object.values(deck.categories).flat()).toHaveLength(99);
+    } finally {
+      mockedFetch.mockImplementation(realFetch);
+      clearGenerationCache();
+    }
+  });
 });
 
 describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', () => {

@@ -188,7 +188,7 @@ describe('assembleBuildReport', () => {
     });
 
     expect(report.ownedPercentGapNote).toBe(
-      "You asked for 100% owned cards, but only 3 owned cards fit this commander's pool. 1 was used and the rest came from recommendations."
+      "You asked for 100% owned cards, but only 3 of your cards fit this commander's colors. 1 was used and the rest came from recommendations."
     );
   });
 
@@ -217,22 +217,71 @@ describe('assembleBuildReport', () => {
     expect(report.ownedPercentGapNote).toContain('1 was used');
   });
 
-  it('omits the gap note when the pool had enough eligible owned cards (a real bug would look different)', () => {
+  // E404: Krenko at 25% owned shipped short with no note, because the note
+  // only fired when the collection itself ran out.
+  it('discloses a shortfall even when enough owned cards fit', () => {
     const mainboard = Array.from({ length: 10 }, (_, i) => makeCard(`Card ${i + 1}`));
     const report = assembleBuildReport({
       generated: makeGenerated({
         builtFromCollection: true,
         categories: categories({ creatures: mainboard }),
-        partialOwnedEligibleCount: 10, // plenty — a shortfall here isn't a pool limit
+        partialOwnedEligibleCount: 10,
       }),
       customization: makeCustomization({
         collectionMode: true,
         collectionStrategy: 'partial',
-        collectionOwnedPercent: 100,
+        collectionOwnedPercent: 50,
       }),
-      collectionNames: new Set(['Card 1']),
+      collectionNames: new Set(['Card 1', 'Card 2']),
     });
 
+    expect(report.ownedPercentGapNote).toBe(
+      'You asked for 50% owned cards and got 20%. Your other cards that fit are over your card limits or would overfill a role like ramp or removal.'
+    );
+  });
+
+  it('says nothing when partial mode meets its target', () => {
+    const mainboard = Array.from({ length: 4 }, (_, i) => makeCard(`Card ${i + 1}`));
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2']),
+    });
+
+    expect(report.ownedPercentGapNote).toBeUndefined();
+  });
+
+  // E404: the target is a share of nonland cards, so the delivered share must
+  // be too, or "15% (target 25%)" shows for a deck at 21.5% of its spells.
+  it('measures the partial owned share over nonland cards, like its target', () => {
+    const spells = Array.from({ length: 4 }, (_, i) => makeCard(`Card ${i + 1}`));
+    const lands = Array.from({ length: 4 }, (_, i) => ({
+      ...makeCard(`Land ${i + 1}`),
+      type_line: 'Land',
+    }));
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: spells, lands }),
+        partialOwnedEligibleCount: 10,
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2']),
+    });
+
+    expect(report.ownedPercentActual).toBe(50);
     expect(report.ownedPercentGapNote).toBeUndefined();
   });
 

@@ -659,14 +659,15 @@ export interface BuildReport {
   brewDialNote?: string;
   builtFromCollection: boolean;
   collectionStrategy?: CollectionStrategy;
-  /** % of the mainboard that came from the user's collection. */
+  /** % of the mainboard that came from the user's collection. In partial mode,
+   *  % of the NONLAND cards, the same basis as ownedPercentTarget. */
   ownedPercentActual?: number;
   /** Requested owned-% target (partial mode only). */
   ownedPercentTarget?: number;
-  /** Why the delivered owned share (ownedPercentActual) falls meaningfully
-   *  short of ownedPercentTarget — set only when a thin owned pool (not a
-   *  bug) is the honest reason, e.g. "You asked for 100% owned cards, but
-   *  only 12 owned cards fit this commander's pool." Partial mode only. */
+  /** Why the delivered owned share (ownedPercentActual) falls short of
+   *  ownedPercentTarget, set on any shortfall: either the collection ran out
+   *  ("only 12 of your cards fit this commander's colors") or the build's
+   *  limits held the rest back. Partial mode only. */
   ownedPercentGapNote?: string;
   /** Basic lands added as last-resort filler (collection + filter shortfall). */
   basicsPadded?: number;

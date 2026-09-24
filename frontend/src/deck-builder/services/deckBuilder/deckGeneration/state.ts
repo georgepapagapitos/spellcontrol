@@ -93,6 +93,14 @@ export interface GenerationConfig {
    *  phases swap cards long after the pick-time running tally was taken. */
   isGameChanger?: (name: string) => boolean;
   gameChangerLimitReached?: () => boolean;
+  /** E403: partial mode's owned share, kept. True for an owned card while the
+   *  deck's owned nonland count is at or below the requested share, so a
+   *  phase that swaps for quality (combo audit, coherence repair, flagship
+   *  seating, role-surplus conversion) cuts an unowned card instead of
+   *  undoing the quota. Budget and bracket convergence ignore it: those
+   *  enforce limits the player set. Wired in createState like the Game
+   *  Changer headroom above. */
+  ownedQuotaProtects?: (name: string) => boolean;
 }
 
 export interface GenerationState {
@@ -274,6 +282,15 @@ export function createState(context: GenerationContext): GenerationState {
       (n, cards) => n + cards.filter((c) => state.gameChangerNames.has(c.name)).length,
       0
     ) >= cfg.maxGameChangers;
+  cfg.ownedQuotaProtects = (name) => {
+    const owned = state.context.collectionNames;
+    if (cfg.collectionStrategy !== 'partial' || !owned?.has(name)) return false;
+    const nonLand = Object.entries(state.categories)
+      .filter(([cat]) => cat !== 'lands')
+      .flatMap(([, cards]) => cards);
+    const ownedCount = nonLand.filter((c) => owned.has(c.name)).length;
+    return ownedCount <= Math.round((nonLand.length * cfg.collectionOwnedPercent) / 100);
+  };
   return state;
 }
 
