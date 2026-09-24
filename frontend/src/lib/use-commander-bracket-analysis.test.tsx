@@ -47,10 +47,13 @@ function sig(
       .map((c) => c.card.name)
       .sort()
       .join(','),
-    (combo?.inDeck ?? [])
-      .map((m) => m.combo.id)
-      .sort()
-      .join(','),
+    // '?' = the combo match hadn't answered, which is not "no combos".
+    combo
+      ? combo.inDeck
+          .map((m) => m.combo.id)
+          .sort()
+          .join(',')
+      : '?',
     String(bracketOverride ?? ''),
   ].join('|');
 }
@@ -59,6 +62,7 @@ function args(over: Partial<Parameters<typeof useCommanderBracketAnalysis>[0]> =
   return {
     deck: makeDeck(),
     comboData: null,
+    combosLoading: false,
     mainboardSize: 99,
     hasCommander: true,
     colorIdentity: ['R'],
@@ -294,5 +298,117 @@ describe('useCommanderBracketAnalysis — status/retry (E162)', () => {
     (a.deck as Deck).gradeBracketSignature = sig(a.deck as Deck);
     rerender();
     expect(result.current.status).toBe('ready');
+  });
+});
+
+// The Power tab read Bracket 3, then jumped to 4 once combos loaded. `comboData`
+// is null both while the match is in flight and when nothing matched, so the
+// analysis ran on "no combos", persisted the lower bracket over a correct one,
+// and recomputed when combos landed. It now waits for the match to settle.
+describe('useCommanderBracketAnalysis — waits for the combo match', () => {
+  const combo = {
+    inDeck: [{ combo: { id: 'cx' } }],
+    oneAway: [],
+    almostInCollection: [],
+  } as unknown as ComboMatchResponse;
+
+  it('does not analyze or persist while combos are loading, then runs once with them', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+    const deck = makeDeck();
+    let a = args({ deck, combosLoading: true });
+    const { rerender, result } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    expect(analyzeCommanderDeck).not.toHaveBeenCalled();
+    expect(a.updateDeck).not.toHaveBeenCalled();
+    expect(result.current.status).toBe('pending');
+
+    a = { ...a, comboData: combo, combosLoading: false };
+    rerender();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+    expect(a.updateDeck).toHaveBeenCalledTimes(1);
+    expect(a.updateDeck).toHaveBeenCalledWith(
+      'd1',
+      expect.objectContaining({ gradeBracketSignature: sig(deck, combo) }),
+      true
+    );
+  });
+
+  it('a persisted estimate survives a revisit: no combo-less recompute while loading', async () => {
+    const deck = makeDeck();
+    (deck as Deck).gradeBracketSignature = sig(deck, combo);
+    let a = args({ deck, combosLoading: true });
+    const { rerender, result } = renderHook(() => useCommanderBracketAnalysis(a));
+    // Well past the wait cap: an existing estimate is never traded for a floor.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(result.current.missesCombos).toBe(false);
+    a = { ...a, comboData: combo, combosLoading: false };
+    rerender();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    expect(analyzeCommanderDeck).not.toHaveBeenCalled();
+    expect(a.updateDeck).not.toHaveBeenCalled();
+  });
+
+  it('a failed match settles and the analysis runs without combos', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+    const a = args({ comboData: null, combosLoading: false });
+    renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useCommanderBracketAnalysis — a slow combo match on a first estimate', () => {
+  it('stops waiting after the cap and marks the estimate as missing combos', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+    const deck = makeDeck();
+    const a = args({ deck, combosLoading: true });
+    const { rerender, result } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(analyzeCommanderDeck).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000); // the cap
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500); // the debounce
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+    expect(a.updateDeck).toHaveBeenCalledWith(
+      'd1',
+      expect.objectContaining({ gradeBracketSignature: sig(deck, null) }),
+      true
+    );
+
+    // The store stamps the signature back; the hook reads the estimate as a floor.
+    (deck as Deck).gradeBracketSignature = sig(deck, null);
+    rerender();
+    expect(result.current.missesCombos).toBe(true);
+  });
+
+  it('an estimate that saw the combo match is not a floor, even with no combos', () => {
+    const deck = makeDeck();
+    const none = {
+      inDeck: [],
+      oneAway: [],
+      almostInCollection: [],
+    } as unknown as ComboMatchResponse;
+    (deck as Deck).gradeBracketSignature = sig(deck, none);
+    const { result } = renderHook(() =>
+      useCommanderBracketAnalysis(args({ deck, comboData: none }))
+    );
+    expect(result.current.missesCombos).toBe(false);
   });
 });

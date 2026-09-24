@@ -223,6 +223,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The bracket line is baseline-aligned for its number; the spinner row
+   centres like the combo line's. */
+.power-hero-bracket.is-loading {
+  align-items: center;
+}
+
+.power-hero-bracket.is-loading,
 .power-hero-combos.is-loading {
   color: var(--text-muted);
 }
