@@ -172,7 +172,7 @@ export function applyLandSqueezeReconcile(
     }
   }
   const deckAveragePriority =
-    pool.length > 0 ? pool.reduce((sum, c) => sum + calculateCardPriority(c), 0) / pool.length : 0;
+    pool.length > 0 ? pool.reduce((sum, c) => sum + calculateCardPriority(c, state.cfg.brewLevel), 0) / pool.length : 0;
 
   // E123 (E122 follow-up, pick/cut symmetry): this scoreOf blends
   // calculateCardPriority + lift + protection-tier boosts with NO ownership
@@ -197,7 +197,7 @@ export function applyLandSqueezeReconcile(
     const ec = poolByName.get(card.name);
     const role = validateCardRole(card);
     const roleFallback = role ? roleAverageInclusion.get(role) : undefined;
-    let score = ec ? calculateCardPriority(ec) : (roleFallback ?? deckAveragePriority);
+    let score = ec ? calculateCardPriority(ec, state.cfg.brewLevel) : (roleFallback ?? deckAveragePriority);
     // iter-10 Slice A: was `score += ctx.liftScoreOf(card.name)` — raw,
     // unscaled clusterScore (median ~2150, p75 ~8350, observed outliers
     // >20000, packageBoost.ts:137-143). Every OTHER lift-aware consumer

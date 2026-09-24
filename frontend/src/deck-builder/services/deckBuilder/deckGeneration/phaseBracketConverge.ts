@@ -338,7 +338,7 @@ export function applyBracketConvergence(
 
     const ranked = pool
       .filter(eligible)
-      .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
+      .sort((a, b) => calculateCardPriority(b, state.cfg.brewLevel) - calculateCardPriority(a, state.cfg.brewLevel));
     if (ranked.length === 0) return null;
 
     if (cutRole) {
@@ -354,7 +354,7 @@ export function applyBracketConvergence(
   for (const c of pool) priorityByName.set(c.name, c);
   const priorityFor = (name: string): number => {
     const pooled = priorityByName.get(name);
-    const base = pooled ? calculateCardPriority(pooled) : (inclusionMap[name] ?? 0);
+    const base = pooled ? calculateCardPriority(pooled, state.cfg.brewLevel) : (inclusionMap[name] ?? 0);
     return base + ownedBoostFor(name, !!pooled && isHighSynergyCard(pooled));
   };
 
