@@ -493,13 +493,8 @@
   transition: transform var(--motion-fast) ease;
 }
 
-/* Focus is a ring, not the hover's 10% grow: keyboard users need to see
-   which of the page's sliders has focus. The track drops its own outline so
-   the ring sits on the thumb they are moving. */
-.deck-customizer-range:focus-visible {
-  outline: none;
-}
-
+/* Focus is a ring on the thumb, not the hover's 10% grow: keyboard users
+   need to see which of the page's sliders has focus. */
 .deck-customizer-range:focus-visible::-webkit-slider-thumb {
   transform: scale(1.1);
   box-shadow:
