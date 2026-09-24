@@ -26,7 +26,9 @@ export interface PowerHeroProps {
   /** True when the synergy analysis flagged a lopsided engine. */
   engineLopsided?: boolean;
   comboInDeck: number;
-  /** One-away combos whose missing piece the user already owns (completable). */
+  /** One-away combos: every piece but one is in the deck. */
+  comboOneAway: number;
+  /** The one-away combos whose missing piece the user already owns. */
   comboOwnedMissing: number;
   combosLoading: boolean;
   /** Reveal the Bracket panel below. When omitted, the bracket line is static. */
@@ -105,6 +107,22 @@ const TARGET_OPTIONS: SelectOption<string>[] = [
 ];
 
 /**
+ * The hero's combo line. The two counts are different combos, so the second
+ * clause names its own bucket in the Combos panel's words ("one card away"):
+ * "3 combos in deck · none you can complete now" read as if the three
+ * complete combos were the unfinished ones (E385).
+ */
+function comboLine(inDeck: number, oneAway: number, ownedMissing: number): string {
+  const head =
+    inDeck === 0 ? 'No combos in deck' : `${inDeck} ${inDeck === 1 ? 'combo' : 'combos'} in deck`;
+  if (ownedMissing > 0) {
+    return `${head} · ${ownedMissing}${inDeck > 0 ? ' more' : ''} you can finish from your collection`;
+  }
+  if (oneAway > 0) return `${head} · ${oneAway} one card away`;
+  return head;
+}
+
+/**
  * The Power-tab verdict hero: a two-pillar summary that leads with how strong a
  * deck is (Power level, self-explained via its bracket floors) and what it does
  * (Gameplan — the primary engine + combo counts). The combo line already says
@@ -127,6 +145,7 @@ export function PowerHero({
   enginePayoffs,
   engineLopsided,
   comboInDeck,
+  comboOneAway,
   comboOwnedMissing,
   combosLoading,
   onViewBracket,
@@ -252,10 +271,7 @@ export function PowerHero({
               ariaLabel="View combos"
               contentClassName="power-hero-combos"
             >
-              {comboInDeck} {comboInDeck === 1 ? 'combo' : 'combos'} in deck ·{' '}
-              {comboOwnedMissing > 0
-                ? `${comboOwnedMissing} you can complete`
-                : 'none you can complete now'}
+              {comboLine(comboInDeck, comboOneAway, comboOwnedMissing)}
               {onViewCombos && <LinkChevron />}
             </HeroLink>
           )}
