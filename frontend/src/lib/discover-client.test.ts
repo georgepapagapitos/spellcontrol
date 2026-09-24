@@ -40,6 +40,15 @@ describe('listDiscoverDecks', () => {
     expect(url.searchParams.get('page')).toBe('2');
   });
 
+  it('sends exclude=mine only when asked', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ decks: [], page: 1, hasMore: false }));
+    await listDiscoverDecks({ exclude: 'mine' });
+    const url = new URL(fetchedUrl(fetchSpy), 'http://x');
+    expect(url.searchParams.get('exclude')).toBe('mine');
+  });
+
   it('sends the requested sort key', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')

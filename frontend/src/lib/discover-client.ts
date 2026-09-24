@@ -50,10 +50,17 @@ async function readError(res: Response, fallback: string): Promise<string> {
 
 /** Filtered/sorted/paginated public deck browse. Unauthenticated — works logged out. */
 export async function listDiscoverDecks(
-  params: { page?: number; sort?: DiscoverSortKey } & Partial<DiscoverFilters>
+  params: {
+    page?: number;
+    sort?: DiscoverSortKey;
+    /** Drop the signed-in viewer's own decks — Home's row is "decks from other
+     *  players"; the browse page leaves it off so a published deck still shows. */
+    exclude?: 'mine';
+  } & Partial<DiscoverFilters>
 ): Promise<ListDiscoverDecksResult> {
   const qs = new URLSearchParams({ sort: params.sort ?? 'newest' });
   if (params.page) qs.set('page', String(params.page));
+  if (params.exclude) qs.set('exclude', params.exclude);
   if (params.commander) qs.set('commander', params.commander);
   if (params.format) qs.set('format', params.format);
   if (params.brackets && params.brackets.length > 0) qs.set('bracket', params.brackets.join(','));

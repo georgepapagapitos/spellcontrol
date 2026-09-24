@@ -537,7 +537,7 @@ row already does.
 **Segmented options carry the 44px coarse floor on the SPAN, not the label.**
 The label-wrapping-a-hidden-radio pattern (`.share-audience-option`,
 `.binder-mode-pill`, `.rule-segmented-pill`, `.playtest-scry-mode`,
-`.home-hero-scope-option`, `.settings-currency-option`) puts padding and text
+`.settings-currency-option`) puts padding and text
 in an inner `<span>`. A `min-height: 44px` on the label wrapper grows the pill
 but leaves the span text-height and top-aligned inside it — the Private /
 Public toggle shipped that way on phones. The span is a centering flex box
@@ -1361,7 +1361,7 @@ above pages that each re-list their own, is the pattern this replaced.
   "Artist Series Mark Poole +23 more" and leaves the full run on `title`. The
   count is of groups **still visible** after search/filters, so a header never
   advertises a drop with no rows under it. `+N more` is the app's standing
-  overflow idiom (`TradeTargetsCard`, `DeckAnalysisPanel`) — don't invent
+  overflow idiom (Home's `WaitingOnYou`, `DeckAnalysisPanel`) — don't invent
   another.
 - **One card's context is never the section label.** Anything naming a single
   card's group — the preview carousel's context line — reads
@@ -4404,8 +4404,9 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   (`deck-builder-analysis.css`) query the **wrapper's** `bento-host` name,
   not the bento's own `bento` name (which stays for the bento's _children_ —
   PowerHero, the identity-card pillars — whose queries measure the board).
-  Hosts: `.deck-analysis-view` (Stats/Power/Tune share it), `.home-page`,
-  `.pods-index-section`, `.trending-rail`. A new surface mounting a
+  Hosts: `.deck-analysis-view` (Stats/Power/Tune share it),
+  `.pods-index-section`, `.trending-rail` (`/home` stopped being a bento
+  in T138, § Home). A new surface mounting a
   `.deck-bento` MUST add `container: bento-host / inline-size` on its
   wrapper, or every card renders full-width at every viewport (the E157
   "empty dashboard" bug). Two invariants that keep the deck tabs stable
@@ -4940,74 +4941,95 @@ stat-tile delta convention:
   no empty state. A full plotted chart instead follows § Charts (line /
   trend); reference: `components/ValueTrend.tsx`.
 
-## Home signal cards
+## Home — the page reads as questions, not a board (2026-09-24, T138)
 
-Home's board overrides the shared `.deck-bento` on two axes, and both
-overrides are written as **two-class `.deck-bento.home-bento` (0,2,0)** — the
-board's own rules are single-class and load from a later stylesheet, so an
-equal-specificity override loses the cascade silently and the page renders as
-if the file weren't there (same trap as the coarse-pointer floor):
+`/home` was a bento of nine equal cards. It answered no one question: the
+collection value appeared twice word for word (hero and Value movers),
+Discover listed the viewer's own decks beside Recent decks, "326 new" summed
+per-deck counts so one card counted once per deck it fit, and four empty
+cards collapsed to 44px rows that still took whole grid cells and left holes
+beside their tall neighbours. The rebuild (mockups: Direction A, "the desk")
+is a column of sections in a fixed order, each answering one question:
 
-- **Three columns from a 1200px container, not the board's two.** Home carries
-  nine cards that are all short lists; at the 2-col tier a card is ~690px wide
-  at 1440 and every row renders as a name at one end with its meta at the
-  other. The deck analysis board keeps 2-col + spanning heroes — that ruling is
-  about charts, and does not transfer.
-- **Row-stretch stays; the slack goes INSIDE the card, absorbed by the body.**
-  An `align-items: start` pass shipped briefly (#1679) and was rejected on
-  sight ("weird spacing… broken up look"): grid rows are still tracks, so a
-  short card's slack rendered as a floating gap _outside_ its border against
-  its row-mates — worse than the stretch it replaced. The settled ruling:
-  cards in a row share one height (the board's default stretch), and
-  `.home-card-body { flex: 1 1 auto }` absorbs the difference between the
-  list and the View-all footer, pinning the footer to the card's bottom edge —
-  the standard equal-tile bento read. Only `.home-card--empty` keeps its
-  `align-self: start` opt-out; a 44px invitation row must never inflate to a
-  list card's height.
-- **The entrance cascade is CSS-only here.** Home's cards are fixed JSX
-  children, not a mapped list, so there is no index to thread
-  `panelCascadeClass` through nine components for — `.home-bento > *` +
-  `:nth-child` delays reuse the shared `panel-cascade-in` keyframe, capped at
-  6 slots like `MAX_STAGGER`, inside `prefers-reduced-motion: no-preference`.
+1. **The hero** — the collection itself (value + its sparkline, the scale
+   line, the day's card, the actions). An empty collection's hero is the
+   setup checklist instead.
+2. **Waiting on you** — what needs an answer.
+3. **Your decks** — what you were working on.
+4. **Price movers · Recently added** — what changed (one band, two cards).
+5. **Around the table** — game nights, activity, friends' new decks.
+6. **Discover** — what other players are building.
 
-A `/home` bento card (`components/home/HomeCard.tsx` shell) that has nothing
-to show does not get a full-height placeholder panel — it collapses:
+Rulings:
 
-- **Empty (not loading, not errored) → one-line invitation row.** Icon +
-  title + a muted hint + the card's own "View all" door, all on one flex
-  row (`.home-card--empty`), never the full header/body chrome a populated
-  card gets. This applies uniformly — a card can't opt out of the compact
-  row just because its empty copy is longer; the row wraps the door under at
-  narrow widths rather than growing back into a panel.
-- **Insight-only cards with no invitation value render nothing at all.**
-  Loading/error/populated are the only states some cards can meaningfully
-  have — a purely informational surface with an empty result (no friends
-  yet, no want-list shortfall) has no next action to invite the user toward,
-  so it renders `null` rather than an empty `HomeCard` shell.
-  `TradeTargetsCard` is the reference: `rows.length === 0` returns `null`
-  before ever mounting `HomeCard`. This is the same "zero visible items →
-  render nothing" instinct as the § Index-page insight strips ruling, just
-  applied to a bento card instead of a toolbar strip.
-- **Loading takes last visit's footprint (E277).** Every hero line and
-  bento card resolves asynchronously, and each resolve is a reflow: a
-  skeleton becomes a tall list, or a 44px row that `order`s to the bottom,
-  or nothing. Measured with layout-shift attribution (2026-09-09), a
-  returning signed-in visitor took CLS 0.43 desktop / 0.21 phone on `/home`
-  from exactly that. The ruling: a skeleton reserves the shape it resolved
-  to on this browser's last visit — `lib/home-shape.ts` (`sc-home-shape`)
-  remembers, per card title, empty (→ the collapsed row skeletons in place,
-  door hidden) or the rendered height (→ `min-height` on the shell), and
-  the hero's value and scale lines reserve their box the same way. A first
-  visit still reflows once; a fresh account remembers "absent" and never
-  gets a phantom row. Same trade as `TrendingRail`'s `sc-trending-shape`.
-  Corollary: a card must report `loading` while its store is hydrating —
-  "No new arrivals" over an un-hydrated collection is a false empty state,
-  not an empty state.
-- **Trade-target prices always render in the author's stamped currency**,
-  never the viewer's display-currency setting — `formatMoney(price,
-{ currency: row.currency ?? 'USD' })`, explicit per-row, same "as-entered,
-  never converted" contract as `ListEntry.currency` and the friend trade
-  radar's target prices.
+- **One fact, one place.** The collection value and its sparkline live in the
+  hero only; Price movers is the cards that moved, never the total again. A
+  deck's new-card count sits on that deck's tile ("+42 new cards", an on-art
+  scrim plate at the tile's top-left: state on the left, § Card corner
+  ribbons). Recently added headlines the latest import's own `count`, never a
+  sum across decks. A deck appears in one list: Discover asks the server for
+  `exclude: 'mine'`.
+- **Nothing to show renders nothing.** A `HomeCard` with `empty` renders
+  `null` (the collapsed invitation row is retired, along with
+  `.home-card--empty`). Every door those rows carried moved somewhere with
+  content: Plan a game night and Friends into the hero's ⋮, Find friends into
+  Around the table, the setup steps into the hero checklist and Waiting on
+  you. Two sections keep **one quiet line** instead of vanishing, because
+  they are ways out rather than insights: Around the table (with its two
+  doors) and Discover ("No public decks from other players yet." + Browse).
+  The quiet line is dashed like an empty sleeve and is not a card.
+- **Waiting on you is one line, never a stack.** Trade offers, friend
+  requests, unreplied game nights, cards to file in binders, want-list cards
+  under their target price, and setup steps left once the collection has
+  cards. A four-up row on desktop, a swipe row with an edge fade below it
+  (§ Layout system: chip rows are one line). It appears only once every
+  source has settled and holds its line while loading if the last visit had
+  one (`home-shape` slot `waiting`), so it never pushes the decks down after
+  first paint.
+- **Tiles are the index's tiles.** Your decks renders the decks index's own
+  `.decks-index-card` markup and Discover renders `DiscoverDeckTile` — one
+  tile for a deck everywhere it appears. Both sit in `.home-rail`: five
+  across on desktop, a swipe row below it with the next tile peeking (72% of
+  a phone, 30% of a tablet) so the row reads as scrollable. The rail runs
+  out to the screen edge past `--page-gutter` and sets `overflow-y: hidden`
+  (one-axis strip guard).
+- **Each list carries its own search.** The hero's one search box with a My
+  decks / Discover scope toggle is retired: "Search your decks" sits in the
+  Your decks head, "Search commanders" in the Discover head
+  (`HomeSectionSearch`). From 600px it is a SearchPill; on a phone it is a
+  44px search button that opens the list's page, because a second full-width
+  pill in every section head costs more than it earns.
+- **The hero's actions follow the action rule.** Add cards (filled, opens
+  `AddCardsSheet`), New deck (outline), and a ⋮ (`OverflowMenu`) for Plan a
+  game night and Friends. 44 / 40 / 36px by tier, 44 on any coarse pointer.
+- **Rows vs tiles by the card's width, not the viewport.** Price movers
+  switches from rows to card tiles at a 32rem container; Around the table's
+  columns sit side by side from a 48rem container and stack with a hairline
+  below it. The band is 3fr / 2fr from 600px, and a lone card spans it.
+- **Inline RSVP is the same write as the Play page's.** Around the table's
+  next night takes Going / Maybe / Can't through `rsvpGameNight` with
+  `STATUS_LABELS` from `GameNights`, `aria-pressed` on the chosen answer, a
+  44px floor on touch (mutating actions take the floor), and an error toast
+  that leaves the buttons usable. A host sees "You're hosting."; a night
+  still voting on its date links to vote.
+- **Loading takes last visit's footprint (E277), unchanged in spirit.**
+  `lib/home-shape.ts` (`sc-home-shape`) remembers, per `HomeCard` title, the
+  rendered height or 0 for absent — a remembered-absent card stays absent
+  while loading, never a phantom skeleton — plus the hero's value, scale and
+  caption lines, the `your-decks` tile count and the `waiting` line. A first
+  visit still reflows once. A card must report `loading` while its store is
+  hydrating: "nothing here" over an un-hydrated collection is a false empty.
+- **Cards in a row share one height; the body absorbs the slack.** The band
+  keeps grid row-stretch and `.home-card-body { flex: 1 1 auto }`, so the
+  shorter card's slack is inside its own frame, never a floating gap beside
+  it (the #1680 reversal of `align-items: start` still stands).
+- **The entrance cascade is CSS-only** — `.home-page > *` with `:nth-child`
+  delays on the shared `panel-cascade-in` keyframe, capped at 6 slots, inside
+  `prefers-reduced-motion: no-preference`.
+- **Trade-target prices render in the author's stamped currency**, never the
+  viewer's display-currency setting — the "as-entered, never converted"
+  contract of `ListEntry.currency`. (The full want-list shortfall now lives on
+  /collection/lists; Home surfaces only the under-target hits.)
 
 ## Radar / polar charts
 
@@ -5556,20 +5578,23 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   the thinned zones carries `text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5)` as
   a second legibility floor. Flat `--art-scrim` coverage remains correct for
   small tiles/badges where content genuinely spans the whole art.
-- **A hero band's functional column carries FOUR rows, or the card sets the
-  height and the column falls apart.** `HomeHero` is a two-column band whose
-  right column (the featured sleeve, capped at `20rem`) is the taller of the
-  two, so `justify-content: space-between` renders every unit of the
-  difference as one dead gap in the middle of the left column — the "boring
-  and bland, a lot of empty space" report. The fix is content, not a smaller
-  card: greeting/value → **scale line** → search → Quick Actions, four rows
-  that fill the sleeve's own height. The scale line is three link plates
-  (`Cards` / `Decks` / `Binders`, `--font-label` caption over a `--font-serif`
-  tabular numeral on a `--surface` plate), each a door to its surface. Two
-  hard rules: it is **suppressed wholesale when every count is zero** (a row
-  of zeroes reads worse than no row) and for guests (the hero shows a guest
-  nothing personal — same rule as the art pick); and labels **singularize at
-  1** ("1 Binder"), because a figure that small makes "1 Binders" read as a
+- **A hero band's slack goes to the chart, not to a gap.** `HomeHero` is a
+  two-column grid whose right column (the featured sleeve, 15rem on a
+  tablet, 21rem on desktop) is the taller of the two, so any difference
+  used to render as one dead band in the left column — the "boring and
+  bland, a lot of empty space" report (#1679 answered it with a fourth
+  row; T138 removed the search row). The rule now: the left column is
+  head (greeting + value) → sparkline → foot (scale line + actions), and
+  the sparkline's grid row is `minmax(0, 1fr)`, so the chart grows into
+  whatever height the card leaves over (`ValueSparkline` measures both
+  axes). On a phone the card sits beside the head and the chart is 48px.
+  The scale line is three link plates (`Cards` / `Decks` / `Binders`,
+  `--font-label` caption over a `--font-serif` tabular numeral on a
+  `--surface` plate), each a door to its surface. Two hard rules: it is
+  **suppressed wholesale when every count is zero** (a row of zeroes reads
+  worse than no row) and for guests (the hero shows a guest nothing
+  personal — same rule as the art pick); and labels **singularize at 1**
+  ("1 Binder"), because a figure that small makes "1 Binders" read as a
   bug. Restating the header's own nav chips is deliberate — those are
   abbreviated glyphs (`12K`), these are the real figures.
 
@@ -5577,7 +5602,7 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   A dashboard hero band is ~8:1 while card art crops are ~4:3, so a `cover`
   backdrop discards ~85% of the illustration — no scrim tuning fixes that.
   `HomeHero` therefore shows the day's card as an **object**: the panel
-  itself is sleeve matte (`--surface-raised` + `--shadow-card` + `--border`,
+  itself is sleeve matte (`--surface-raised` + `--shadow-card`, no outline,
   normal theme-token type — no scrim, no on-art text), and the card sits in
   a right-hand sleeve frame (`aspect-ratio: 4/3`, `--border-strong` +
   `--shadow-card`) at its full aspect, captioned by a **tape label** (T53
@@ -5586,9 +5611,7 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   most valuable cards" / "One of your newest arrivals" / "Your latest
   commander" — `PICK_REASON_LABEL`; the sub-line hides ≤600px). An unlabeled
   pick reads as random even when it isn't — the picker always knows which
-  tier won, so the caption says so. The
-  scope toggle's active pill wears `--accent`/`--on-accent` — the divider-tab
-  "accent fill on current" idiom. Don't reintroduce an art backdrop here; if
+  tier won, so the caption says so. Don't reintroduce an art backdrop here; if
   a future surface wants one, it takes the backdrop ruling above and a real
   (Moxfield-scale) height.
 - **Collection-drawn hero art shows the OWNED printing.** When the pick comes

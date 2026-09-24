@@ -78,8 +78,8 @@ export function useActivity(): {
   actionRequired: ActionRequiredItem[];
   recent: RecentActivityItem[];
   /** True until the first fetch settles (authed only — a guest never fetches,
-   *  so this is false immediately). Home's ActivityStripCard is the one
-   *  consumer that needs a loading signal; Header/MobileTabBar only render
+   *  so this is false immediately). Home (Waiting on you, Around the table)
+   *  is the one consumer that needs a loading signal; Header/MobileTabBar only render
    *  the count, which just pops in once resolved. */
   loading: boolean;
 } {

@@ -1,0 +1,104 @@
+/* PriceMoversCard.css — Home's price movers.
+
+   Rows in a narrow card, card tiles in a wide one. The switch asks the card's
+   own width, not the viewport: the card is the wider half of a two-card band
+   from 600px up, so its width is what decides whether a row would stretch
+   into a name at one end and a number at the other. */
+
+.home-movers-card .home-card-body {
+  container-type: inline-size;
+}
+
+.home-movers-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-movers-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+}
+
+.home-movers-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.home-movers-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.home-movers-price {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-movers-delta {
+  flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Inherits the parent's up/down color (STYLE_GUIDE "color every rendering of
+   the same delta" — the % is the same signal as the $ amount beside it, not
+   a neutral aside), just a size step down for hierarchy. */
+.home-movers-delta-pct {
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.home-movers-delta--up {
+  color: var(--success);
+}
+
+.home-movers-delta--down {
+  color: var(--err-text);
+}
+
+/* Wide card: each mover is its own card, the move printed under it. */
+@container (min-width: 32rem) {
+  .home-movers-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .home-movers-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    min-height: 0;
+  }
+
+  .home-movers-row .home-mover-thumb {
+    width: 100%;
+    max-width: 7.5rem;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+  }
+
+  .home-movers-info {
+    width: 100%;
+  }
+}

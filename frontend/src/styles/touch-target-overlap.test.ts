@@ -67,8 +67,8 @@ describe('touch targets do not overlap each other', () => {
   it('reads the stylesheets at all', () => {
     // Guard the guard — an empty read would pass everything below vacuously.
     for (const f of [
-      'components/home/NewFromFriendsCard.css',
-      'components/home/DiscoverCard.css',
+      'components/home/HomeCard.css',
+      'pages/HomePage.css',
       'components/deck/EnginePanel.css',
       'styles/collection.css',
     ]) {
@@ -77,12 +77,7 @@ describe('touch targets do not overlap each other', () => {
   });
 
   // ── The negative-margin idiom, per fixed rule ────────────────────────────
-  const stackedRows: [string, string][] = [
-    ['components/home/NewFromFriendsCard.css', '.new-from-friends-link'],
-    ['components/home/ActivityStripCard.css', '.activity-strip-link'],
-    ['components/home/DiscoverCard.css', '.discover-card-link'],
-    ['components/deck/EnginePanel.css', '.engine-axis-btn'],
-  ];
+  const stackedRows: [string, string][] = [['components/deck/EnginePanel.css', '.engine-axis-btn']];
 
   for (const [file, selector] of stackedRows) {
     it(`${selector} bleeds over its container on the inline axis only`, () => {
@@ -156,13 +151,13 @@ describe('touch targets do not overlap each other', () => {
     }
   });
 
-  it('the hero search ghost grows away from the field, not over it', () => {
-    for (const [file, cls] of [
-      ['components/home/HomeHero.css', 'home'],
-      ['components/welcome/WelcomeHero.css', 'welcome'],
+  it('an in-pill search submit ghost grows away from the field, not over it', () => {
+    for (const [file, selector] of [
+      ['pages/HomePage.css', '.home-section-search-submit::after'],
+      ['components/welcome/WelcomeHero.css', '.welcome-hero-search-submit::after'],
     ] as const) {
-      const body = ruleBody(read(file), `.${cls}-hero-search-submit::after`);
-      expect(body, `${cls} hero submit lost its ghost`).toBeTruthy();
+      const body = ruleBody(read(file), selector);
+      expect(body, `${selector} lost its ghost`).toBeTruthy();
       expect(
         body!,
         'A 44px ghost centred on the 1.6rem circle reached 2.8px into the ' +

@@ -48,7 +48,8 @@ export function MobileTabBar() {
   // landing destination — and because a 6th co-equal cell does not fit: six
   // 44px cells + the 44px search utility + the bar's own 12.8px padding is
   // 320.8px, wider than the 320px floor, before a single label. So the
-  // phone's social door is on Home itself (QuickActionsRow), which is where
+  // phone's social door is on Home itself (Waiting on you for requests and
+  // offers, the hero's ⋮ and Around the table for Friends), which is where
   // this badge already sends you; desktop, which has room, gets a nav link.
   const { count } = useActivity();
   const syncNeedsAttention = useSyncNeedsAttention();

@@ -1,10 +1,11 @@
 import './HomeHero.css';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { CalendarPlus, Check, ChevronRight, Plus, Upload, Users } from 'lucide-react';
 import { BrandMark } from '../shared/BrandMark';
-import { SearchPill } from '../SearchPill';
-import { QuickActionsRow } from './QuickActionsRow';
+import { AddCardsSheet } from '../AddCardsSheet';
+import { OverflowMenu } from '../OverflowMenu';
+import { ValueSparkline } from './ValueSparkline';
 import { useAuth } from '../../store/auth';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -16,6 +17,9 @@ import { formatMoney } from '../../lib/format-money';
 import { formatIdentity } from '../../lib/display-name';
 import { pickHeroCard, heroGreeting, type HeroPickReason } from '../../lib/home-hero';
 import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
+import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
+import { useLoadSamples } from '../../lib/use-load-samples';
+import { track } from '../../lib/analytics';
 import {
   computeValueDelta,
   dayKey,
@@ -25,15 +29,13 @@ import {
   type ValuePoint,
 } from '../../lib/value-history';
 
-type SearchScope = 'mine' | 'discover';
-
-/** The caption's provenance line states WHY this card was picked — an
- *  unlabeled pick read as random to real users ("why does it pick that
- *  card?"), and the picker always knows its reason. */
 /** Every scale-line label is a plain plural, so one copy of the s-strip
  *  covers all three — "1 Binders" reads as a bug in a figure that small. */
 const singularize = (n: number, label: string) => (n === 1 ? label.slice(0, -1) : label);
 
+/** The caption's provenance line states WHY this card was picked — an
+ *  unlabeled pick read as random to real users ("why does it pick that
+ *  card?"), and the picker always knows its reason. */
 const PICK_REASON_LABEL: Record<HeroPickReason, string> = {
   top: 'One of your most valuable cards',
   recent: 'One of your newest arrivals',
@@ -41,19 +43,166 @@ const PICK_REASON_LABEL: Record<HeroPickReason, string> = {
 };
 
 /**
- * /home's hero panel ("your collection is the hero", featured-card revision):
- * a sleeve-matte panel (T53 material system) with the greeting/value, the
- * scale line (cards/decks/binders, each a door), scoped deck search, and
- * Quick Actions in the main column, and the day's card from
- * the viewer's own collection displayed as an OBJECT — a full, uncropped art
- * crop in a sleeve frame with a tape-label caption — instead of a
- * letterboxed backdrop. (The old full-bleed backdrop cover-cropped a ~4:3
- * illustration into an ~8:1 band, discarding most of the art; no scrim
- * tuning fixes that geometry.) Guests and settled-empty collections get the
- * empty sleeve with the brand mark — never personal data, never a gap.
+ * The hero's actions, per § Layout system: one filled primary, one outline
+ * secondary, and a ⋮ for the rest. They were four equal outline buttons under
+ * a search box with a scope toggle — seven controls and no primary. Search
+ * moved beside the lists it searches (HomeSectionSearch).
+ */
+function HeroActions({ secondary }: { secondary: React.ReactNode }) {
+  const navigate = useNavigate();
+  const [addOpen, setAddOpen] = useState(false);
+  return (
+    <div className="home-hero-actions">
+      <button
+        type="button"
+        className="btn btn-primary home-hero-action"
+        aria-haspopup="dialog"
+        onClick={() => setAddOpen(true)}
+      >
+        <Upload width={16} height={16} strokeWidth={1.8} aria-hidden />
+        Add cards
+      </button>
+      {secondary}
+      <OverflowMenu
+        ariaLabel="More actions"
+        triggerClassName="btn home-hero-more"
+        items={[
+          {
+            label: 'Plan a game night',
+            icon: CalendarPlus,
+            onClick: () => navigate('/play/nights'),
+          },
+          { label: 'Friends', icon: Users, onClick: () => navigate('/friends') },
+        ]}
+      />
+      {addOpen && <AddCardsSheet onClose={() => setAddOpen(false)} />}
+    </div>
+  );
+}
+
+/**
+ * An empty collection's hero IS the setup checklist (it used to be a separate
+ * Get started card beside eight empty rows). Done steps stay listed, ticked,
+ * so the order reads as progress. Once the collection has cards the hero
+ * switches to the collection and any steps left move to Waiting on you.
+ */
+function HeroChecklist({ greeting }: { greeting: string }) {
+  const navigate = useNavigate();
+  const binderCount = useCollectionStore((s) => s.binders.length);
+  const deckCount = useDecksStore((s) => s.decks.length);
+  const { load: loadSamples, loading: loadingSamples, error: sampleError } = useLoadSamples();
+
+  const steps = [
+    {
+      label: 'Add your collection',
+      hint: 'Paste a list, upload a file or scan',
+      href: '/collection?add=list',
+      done: false,
+    },
+    {
+      label: 'Build your first binder',
+      hint: 'Rules sort your cards for you',
+      href: '/collection/binders',
+      done: binderCount > 0,
+    },
+    {
+      label: 'Make a deck',
+      hint: 'From scratch, or start from a draft',
+      href: '/decks/new',
+      done: deckCount > 0,
+    },
+  ];
+
+  async function trySamples() {
+    const ok = await loadSamples();
+    if (!ok) return;
+    track('sample_loaded');
+    navigate('/collection');
+  }
+
+  return (
+    <>
+      <div className="home-hero-head">
+        <p className="home-hero-hello">{greeting}</p>
+        <h1 className="home-hero-title">Start with your cards</h1>
+        <ol className="home-hero-steps">
+          {steps.map((step, i) => (
+            <li key={step.label}>
+              {step.done ? (
+                <span className="home-hero-step is-done">
+                  <span className="home-hero-step-mark" aria-hidden="true">
+                    <Check width={14} height={14} strokeWidth={2.6} />
+                  </span>
+                  <span className="home-hero-step-text">
+                    {step.label}
+                    <span className="sr-only">, done</span>
+                  </span>
+                </span>
+              ) : (
+                <Link to={step.href} className="home-hero-step">
+                  <span className="home-hero-step-mark" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <span className="home-hero-step-text">
+                    {step.label}
+                    <span className="home-hero-step-hint">{step.hint}</span>
+                  </span>
+                  <ChevronRight
+                    className="home-hero-step-chevron"
+                    width={16}
+                    height={16}
+                    strokeWidth={1.8}
+                    aria-hidden
+                  />
+                </Link>
+              )}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="home-hero-foot">
+        <HeroActions
+          secondary={
+            <button
+              type="button"
+              className="btn home-hero-action"
+              onClick={() => void trySamples()}
+              disabled={loadingSamples}
+            >
+              {loadingSamples ? (
+                'Loading samples…'
+              ) : (
+                <>
+                  <span className="home-hero-label-long">Try the sample collection</span>
+                  <span className="home-hero-label-short">Try samples</span>
+                </>
+              )}
+            </button>
+          }
+        />
+        {sampleError && <p className="home-hero-error">{sampleError}</p>}
+        <a href="/guides/" className="home-door" onClick={() => track('guide_cta')}>
+          Read the guides
+          <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
+        </a>
+      </div>
+    </>
+  );
+}
+
+/**
+ * /home's hero ("your collection is the hero"): the greeting, the collection's
+ * value with its sparkline under it, the scale line (cards/decks/binders, each
+ * a door) and the actions on the left; the day's card from the viewer's own
+ * collection displayed as an OBJECT on the right — a full, uncropped art crop
+ * in a sleeve frame with a tape-label caption. The value and its chart live
+ * only here: the Value movers card used to restate both word for word.
+ *
+ * Guests and settled-empty collections get the empty sleeve with the brand
+ * mark — never personal data, never a gap — and an empty collection gets the
+ * setup checklist in place of the value.
  */
 export function HomeHero() {
-  const navigate = useNavigate();
   const authed = useAuth((s) => s.status === 'authed');
   const user = useAuth((s) => s.user);
   const profile = useAuth((s) => s.profile);
@@ -62,14 +211,14 @@ export function HomeHero() {
   const binders = useCollectionStore((s) => s.binders);
   const importHistory = useCollectionStore((s) => s.importHistory);
   const decks = useDecksStore((s) => s.decks);
+  const decksHydrated = useDecksStore((s) => s.hydrated);
+  const awaitingFirstPull = useAwaitingFirstPull();
 
   // Same acquiredAt derivation as home-signals.ts's own (private) helper:
-  // import time, falling back to last-edited. Component-level, like every
-  // other home card's own store-to-plain-data mapping (NewArrivalsCard
-  // builds this exact map itself too) — pickHeroCard stays store-free. Each
-  // row also carries its OWNED printing's art crop (imageNormal →
-  // scryfallArtCrop, the binder-cover idiom, #843) so the hero shows the
-  // copy you actually have, not Scryfall's name-resolved default printing.
+  // import time, falling back to last-edited. Each row also carries its OWNED
+  // printing's art crop (imageNormal → scryfallArtCrop, the binder-cover
+  // idiom, #843) so the hero shows the copy you actually have, not
+  // Scryfall's name-resolved default printing.
   const addedAtByImportId = useMemo(
     () => new Map(importHistory.map((e) => [e.id, e.addedAt])),
     [importHistory]
@@ -96,7 +245,7 @@ export function HomeHero() {
 
   // Guests never see personal art, regardless of what a local-only
   // collection might hold (local-first means a guest CAN have local cards/
-  // decks) — the hero's background is never personal data for a guest.
+  // decks) — the hero is never personal data for a guest.
   const pick = useMemo(
     () => (authed ? pickHeroCard(heroCards, heroDecks) : null),
     [authed, heroCards, heroDecks]
@@ -109,7 +258,7 @@ export function HomeHero() {
 
   // While the local IDB hydrate or a first pull on a fresh device is still
   // in flight, an empty collection is indeterminate, not empty — show the
-  // loading shimmer, never flash the brand fallback under the search bar.
+  // loading shimmer, never flash the brand fallback or the checklist.
   // Same subscribe-and-rerender idiom as SyncIndicator.
   const hydrating = useCollectionStore((s) => s.hydrating);
   // Last visit's resolved hero shape (lib/home-shape) — read once at mount.
@@ -118,10 +267,8 @@ export function HomeHero() {
   useEffect(() => onSyncedChange(() => syncTick((n) => n + 1)), []);
   const settling = authed && !pick && (hydrating || getSyncState() === 'syncing');
   const showFallback = !pick && !settling;
-  // The art box is a fixed 4:3, but the caption under it is not reserved by
-  // the shimmer — and `.home-hero-main` is `space-between`, so a figure that
-  // grows by a caption spreads every functional row apart (the residual
-  // 4x-CPU shift after the value/scale reservations). Remembered like them.
+  const fresh =
+    !hydrating && decksHydrated && !awaitingFirstPull && !settling && collectionCards.length === 0;
   useEffect(() => {
     if (authed && !settling && (!pick || art))
       rememberHomeShape('hero-caption', pick && art ? 1 : 0);
@@ -129,8 +276,7 @@ export function HomeHero() {
 
   const currency = useCurrency();
   // today is captured inside the async callback, not read via Date.now() in
-  // the render body — react-hooks/purity forbids the latter (mirrors
-  // ValueMoversCard's own MoversData.today for the identical reason).
+  // the render body — react-hooks/purity forbids the latter.
   const [valueData, setValueData] = useState<{ points: ValuePoint[]; today: string } | undefined>(
     undefined
   );
@@ -138,8 +284,7 @@ export function HomeHero() {
   // fire-and-forget background path — the collection subscriber, the boot
   // catch-all in autoRefreshStalePrices, the price-refresh tick — and several
   // of them land AFTER this component mounted, so watching the log beats
-  // guessing at a proxy (a card count can't see a price refresh, and a store
-  // change fires before the write it triggers has landed).
+  // guessing at a proxy.
   const [logTick, setLogTick] = useState(0);
   useEffect(() => onValueHistoryChange(() => setLogTick((n) => n + 1)), []);
   useEffect(() => {
@@ -161,11 +306,12 @@ export function HomeHero() {
   const delta = computeValueDelta(points);
   const chip = formatValueDeltaChip(delta, valueData?.today ?? '');
   const latestValue = points.length > 0 ? points[points.length - 1].value : null;
+  const showSparkline = points.length >= 2 && delta !== null;
 
   // Both async lines below (value, scale) reserve their box while pending IF
-  // this browser rendered them last time (`remembered`) — the hero's
-  // functional column otherwise grows ~130px under the search bar after
-  // first paint (E277). A fresh account has no memory and reserves nothing.
+  // this browser rendered them last time (`remembered`) — the hero otherwise
+  // grows under the greeting after first paint (E277). A fresh account has
+  // no memory and reserves nothing.
   const valuePending = authed && valueData === undefined;
   useEffect(() => {
     if (authed && !valuePending) rememberHomeShape('hero-value', latestValue !== null ? 1 : 0);
@@ -173,10 +319,8 @@ export function HomeHero() {
   const reserveValue = valuePending && remembered['hero-value'] === 1;
 
   // Scale line: the three things this collection IS, each one a door. The
-  // header's nav chips carry the same two counts abbreviated to "12K"/"6";
-  // these are the real figures, and they're what keeps the hero's functional
-  // column from opening a dead gap between the greeting and the search when
-  // the featured card sets the panel height. Suppressed wholesale on a fresh
+  // header's nav chips carry two of these abbreviated ("12K"); these are the
+  // real figures, and they're clickable. Suppressed wholesale on a fresh
   // account — a row of zeroes is worse than no row.
   const stats = [
     { label: 'Cards', value: collectionCards.length, to: '/collection' },
@@ -194,33 +338,63 @@ export function HomeHero() {
     displayName: profile?.displayName ?? null,
   }).primary;
   const greeting = heroGreeting();
+  const hello = name ? `${greeting}, ${name}` : greeting;
 
-  const [query, setQuery] = useState('');
-  const [scope, setScope] = useState<SearchScope>('mine');
+  const figure = (
+    <figure className="home-hero-card">
+      {pick && art ? (
+        <>
+          <img className="home-hero-art" src={art} alt="" loading="lazy" />
+          <figcaption className="home-hero-caption">
+            <span className="home-hero-caption-tape" title={pick.name}>
+              {pick.name}
+            </span>
+            <span className="home-hero-caption-sub">{PICK_REASON_LABEL[pick.reason]}</span>
+          </figcaption>
+        </>
+      ) : showFallback ? (
+        <span className="home-hero-fallback" aria-hidden="true">
+          <BrandMark size={48} motion="idle" aria-hidden />
+        </span>
+      ) : (
+        <>
+          <span className="home-hero-art-loading" aria-hidden="true" />
+          {remembered['hero-caption'] === 1 && (
+            <span className="home-hero-caption home-hero-caption--loading" aria-hidden="true">
+              <span className="home-hero-caption-tape">{' '}</span>
+              <span className="home-hero-caption-sub">{' '}</span>
+            </span>
+          )}
+        </>
+      )}
+    </figure>
+  );
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const term = query.trim();
-    if (scope === 'mine') {
-      navigate(term ? `/decks?query=${encodeURIComponent(term)}` : '/decks');
-    } else {
-      navigate(term ? `/decks/discover?commander=${encodeURIComponent(term)}` : '/decks/discover');
-    }
+  if (fresh) {
+    return (
+      <header className="home-hero home-hero--checklist">
+        <HeroChecklist greeting={authed ? hello : 'Welcome to SpellControl'} />
+        {figure}
+      </header>
+    );
   }
+
+  const hasValue = latestValue !== null || reserveValue;
 
   return (
     <header className="home-hero">
-      <div className="home-hero-main">
-        <div className="home-hero-headline">
-          {authed ? (
-            <>
-              <h1 className="home-hero-greeting">{name ? `${greeting}, ${name}` : greeting}</h1>
-              {reserveValue && (
-                <div className="home-hero-value home-hero-value--loading" aria-hidden="true">
-                  <span className="home-hero-value-amount">{'\u00a0'}</span>
-                </div>
-              )}
-              {latestValue !== null && (
+      <div className="home-hero-head">
+        {!authed ? (
+          <h1 className="home-hero-title">Plan your Magic: The Gathering collection</h1>
+        ) : hasValue ? (
+          <>
+            <h1 className="home-hero-hello">{hello}</h1>
+            {reserveValue ? (
+              <div className="home-hero-value home-hero-value--loading" aria-hidden="true">
+                <span className="home-hero-value-amount">{' '}</span>
+              </div>
+            ) : (
+              latestValue !== null && (
                 <div className="home-hero-value">
                   <span className="home-hero-value-amount">
                     {formatMoney(latestValue, { wholeDollars: true })}
@@ -233,19 +407,29 @@ export function HomeHero() {
                     </span>
                   )}
                 </div>
-              )}
-            </>
-          ) : (
-            <h1 className="home-hero-greeting">Plan your Magic: The Gathering collection</h1>
-          )}
-        </div>
+              )
+            )}
+          </>
+        ) : (
+          <h1 className="home-hero-title">{hello}</h1>
+        )}
+      </div>
 
+      {figure}
+
+      {showSparkline && valueData && (
+        <div className="home-hero-spark">
+          <ValueSparkline points={points} today={valueData.today} />
+        </div>
+      )}
+
+      <div className="home-hero-foot">
         {reserveStats && (
           <ul className="home-hero-stats home-hero-stats--loading" aria-hidden="true">
             {stats.map((stat) => (
               <li key={stat.label}>
                 <span className="home-hero-stat">
-                  <span className="home-hero-stat-value">{'\u00a0'}</span>
+                  <span className="home-hero-stat-value">{' '}</span>
                   <span className="home-hero-stat-label">{stat.label}</span>
                 </span>
               </li>
@@ -273,78 +457,15 @@ export function HomeHero() {
             ))}
           </ul>
         )}
-
-        <form className="home-hero-search" role="search" onSubmit={handleSubmit}>
-          {/* A setting (what the search below targets), not a view switch —
-              STYLE_GUIDE "An exclusive-value picker is NOT a tab strip":
-              native radio semantics give exclusivity + arrow-key group nav
-              for free, same family as .settings-currency-toggle. */}
-          <fieldset className="home-hero-search-scope" aria-label="Search scope">
-            <label className="home-hero-scope-option">
-              <input
-                type="radio"
-                name="home-search-scope"
-                value="mine"
-                checked={scope === 'mine'}
-                onChange={() => setScope('mine')}
-              />
-              <span>My decks</span>
-            </label>
-            <label className="home-hero-scope-option">
-              <input
-                type="radio"
-                name="home-search-scope"
-                value="discover"
-                checked={scope === 'discover'}
-                onChange={() => setScope('discover')}
-              />
-              <span>Discover</span>
-            </label>
-          </fieldset>
-          <SearchPill
-            value={query}
-            onChange={setQuery}
-            placeholder={scope === 'mine' ? 'Search your decks' : 'Search commanders'}
-            ariaLabel={scope === 'mine' ? 'Search your decks' : 'Search public decks by commander'}
-            className="home-hero-search-pill"
-            trailing={
-              <button type="submit" className="home-hero-search-submit" aria-label="Search">
-                <ArrowRight width={16} height={16} strokeWidth={2} aria-hidden />
-              </button>
-            }
-          />
-        </form>
-
-        <QuickActionsRow />
+        <HeroActions
+          secondary={
+            <Link to="/decks/new" className="btn home-hero-action">
+              <Plus width={16} height={16} strokeWidth={1.8} aria-hidden />
+              New deck
+            </Link>
+          }
+        />
       </div>
-
-      <figure className="home-hero-card">
-        {pick && art ? (
-          <>
-            <img className="home-hero-art" src={art} alt="" loading="lazy" />
-            <figcaption className="home-hero-caption">
-              <span className="home-hero-caption-tape" title={pick.name}>
-                {pick.name}
-              </span>
-              <span className="home-hero-caption-sub">{PICK_REASON_LABEL[pick.reason]}</span>
-            </figcaption>
-          </>
-        ) : showFallback ? (
-          <span className="home-hero-fallback" aria-hidden="true">
-            <BrandMark size={48} motion="idle" aria-hidden />
-          </span>
-        ) : (
-          <>
-            <span className="home-hero-art-loading" aria-hidden="true" />
-            {remembered['hero-caption'] === 1 && (
-              <span className="home-hero-caption home-hero-caption--loading" aria-hidden="true">
-                <span className="home-hero-caption-tape">{'\u00a0'}</span>
-                <span className="home-hero-caption-sub">{'\u00a0'}</span>
-              </span>
-            )}
-          </>
-        )}
-      </figure>
     </header>
   );
 }

@@ -1,51 +1,60 @@
 import './HomePage.css';
 import { HomeHero } from '../components/home/HomeHero';
-import { GetStartedCard } from '../components/home/GetStartedCard';
-import { ActivityStripCard } from '../components/home/ActivityStripCard';
-import { NewFromFriendsCard } from '../components/home/NewFromFriendsCard';
-import { DiscoverCard } from '../components/home/DiscoverCard';
-import { RecentDecksCard } from '../components/home/RecentDecksCard';
-import { GameNightCard } from '../components/home/GameNightCard';
-import { ValueMoversCard } from '../components/home/ValueMoversCard';
-import { TradeTargetsCard } from '../components/home/TradeTargetsCard';
-import { NewArrivalsCard } from '../components/home/NewArrivalsCard';
-import { BinderReviewCard } from '../components/home/BinderReviewCard';
+import { WaitingOnYou } from '../components/home/WaitingOnYou';
+import { YourDecks } from '../components/home/YourDecks';
+import { PriceMoversCard } from '../components/home/PriceMoversCard';
+import { RecentlyAddedCard } from '../components/home/RecentlyAddedCard';
+import { AroundTheTable } from '../components/home/AroundTheTable';
+import { DiscoverRow } from '../components/home/DiscoverRow';
+import { useGameNights } from '../components/play/GameNights';
+import { useActivity } from '../lib/use-activity';
+import { useAuth } from '../store/auth';
 
 /**
- * The /home dashboard (social program W3) — the default landing for authed
- * users since w3-nav-activation shipped (App.tsx routes both `/` and the
- * catch-all here for them); still reachable by direct URL for guests, who
- * are never auto-routed here. The
- * hero band (HomeHero — pass 2b, "your collection is the hero") replaces the
- * old plain `<h1>` + Quick Actions with collection art, the greeting/value,
- * the scale line, a scoped deck search, and Quick Actions along its bottom
- * edge; the bento grid below (3 columns from a 1200px container, cards at
- * their natural height — see HomePage.css) holds the three social cards
- * (activity/friends/discover) plus
- * the five signal cards (decks/game nights/value/arrivals/binder review) and
- * one insight-only card (trade targets) — each card reads state the app
- * already computes elsewhere, never a re-capture. TradeTargetsCard renders
- * nothing when there's nothing to show (no invitation value in an empty
- * want-list summary), so the mounted count varies 8-9 in practice.
- * GetStartedCard leads the grid and renders nothing once an account has
- * imported a collection, built a binder, and made a deck (T117).
+ * /home — the default landing for signed-in users (App.tsx routes both `/`
+ * and the catch-all here for them); reachable by direct URL for guests.
+ *
+ * Read top to bottom it answers, in order: what needs me (Waiting on you),
+ * what was I working on (Your decks), what changed (Price movers, Recently
+ * added), who's around (Around the table), and what others are building
+ * (Discover). The hero above them is the collection itself.
+ *
+ * It replaced a bento of nine equal cards, several of which said the same
+ * thing twice and a quarter of which were empty rows (STYLE_GUIDE § Home).
+ * Anything with nothing to show renders nothing, so the page is as long as
+ * what it has to say.
+ *
+ * Game nights and the activity feed are read once here: two sections use
+ * each, and both hooks fetch per call.
  */
 export function HomePage() {
+  const guest = useAuth((s) => s.status === 'guest');
+  const nights = useGameNights(!guest);
+  const activity = useActivity();
+
   return (
     <div className="home-page">
       <HomeHero />
-      <div className="deck-bento home-bento">
-        <GetStartedCard />
-        <ActivityStripCard />
-        <NewFromFriendsCard />
-        <DiscoverCard />
-        <RecentDecksCard />
-        <GameNightCard />
-        <ValueMoversCard />
-        <TradeTargetsCard />
-        <NewArrivalsCard />
-        <BinderReviewCard />
+      <WaitingOnYou
+        actionRequired={activity.actionRequired}
+        activityLoading={activity.loading}
+        nights={nights.nights}
+        nightsLoading={nights.loading}
+      />
+      <YourDecks />
+      <div className="home-band">
+        <PriceMoversCard />
+        <RecentlyAddedCard />
       </div>
+      <AroundTheTable
+        nights={nights.nights}
+        nightsLoading={nights.loading}
+        nightsError={nights.error}
+        refreshNights={nights.refresh}
+        recent={activity.recent}
+        activityLoading={activity.loading}
+      />
+      <DiscoverRow />
     </div>
   );
 }
