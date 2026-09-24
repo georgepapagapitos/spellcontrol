@@ -608,9 +608,18 @@ const MULTI_CARD_COMBO_WEIGHT = 0.5;
  * Spellbook's bracket tags for combos it rates as fine at Bracket 1–2:
  * `E` Exhibition (a loop that does not end the game on its own, e.g. Hullbreaker
  * Horror + Sol Ring, Gravecrawler + Phyrexian Altar) and `C` Core (a
- * precon-level finisher, e.g. The World Tree + Maskwood Nexus). The RC's combo
- * rule is about combos that END the game, and Spellbook tags every variant
- * against that rule, so these never set a floor.
+ * precon-level finisher, e.g. The World Tree + Maskwood Nexus). These never set
+ * a floor.
+ *
+ * The RC's text limits "intentional two-card infinite combos" (none in Brackets
+ * 1-2, none early in Bracket 3), not only combos that end the game, and leaves
+ * each combo's call to classification. Spellbook's per-combo tag IS that call,
+ * so the floor follows the tag rather than re-deciding from produces[]: an
+ * S-tagged loop that only draws cards still floors, and a two-card infinite-mana
+ * combo does too. Measured 2026-09-24 (E382): overriding the tag from produces[]
+ * moved 0 decks for draw-only loops and, for every non-winning label, took
+ * Jump Scare! from 4 to 2 and broke the 195/197 floor agreement with Spellbook.
+ * "Doesn't end the game" is the win-condition detector's question, not this one.
  *
  * Counting them did real damage: a 197-precon calibration run (2026-09-23)
  * floored 14 precons on E/C combos alone, and "Everyone's Invited!" reached
@@ -863,7 +872,7 @@ export function estimateBracket(
         bracket: 3,
         reason: comboLabel,
         detail:
-          'A combo that ends the game keeps a deck out of Bracket 2. Nothing here speeds up the assembly, so it reads as a late-game combo, which Bracket 3 allows.',
+          'Bracket 2 allows no intentional infinite combos. Nothing here speeds up the assembly, so it reads as a late-game combo, which Bracket 3 allows.',
       });
     }
   }

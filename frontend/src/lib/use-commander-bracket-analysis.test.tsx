@@ -40,7 +40,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v11-draw-loop-not-a-win',
+    'v12-combo-rule-copy',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards

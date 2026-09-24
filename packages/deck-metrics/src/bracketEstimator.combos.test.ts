@@ -231,9 +231,29 @@ describe('explainability helpers', () => {
   });
 });
 
-// A loop that doesn't end the game sets no floor, but a deck that can draw its
-// library is stronger than one that can't. The Ulamog deck that raised this ran
-// all three of these (Spellbook: E, "Infinite card draw").
+// A loop Spellbook rates fine at Bracket 2 (E/C) sets no floor, but a deck that
+// can draw its library is stronger than one that can't. The Ulamog deck that
+// raised this ran all three of these (Spellbook: E, "Infinite card draw").
+// E382, measured 2026-09-24: the RC limits "intentional two-card infinite
+// combos", not only ones that end the game, and Spellbook's per-combo tag is the
+// classification. So the floor follows the tag, never the produces[] labels: an
+// S-tagged loop that only draws cards floors like any other two-card combo, and
+// the floor's explanation quotes the rule instead of "ends the game".
+describe('the combo floor follows the tag, not what the combo produces', () => {
+  it('floors an S-tagged two-card draw loop at 3 and states the rule as written', () => {
+    const drawLoop: DetectedCombo = {
+      ...sb(['Draw Loop A', 'Draw Loop B'], 'S'),
+      results: ['Infinite card draw', 'Infinite draw triggers', 'Near-infinite storm count'],
+    };
+    const r = estimate([drawLoop]);
+    expect(r.bracket).toBe(3);
+    expect(r.hardFloors[0].detail).toBe(
+      'Bracket 2 allows no intentional infinite combos. Nothing here speeds up the assembly, so it reads as a late-game combo, which Bracket 3 allows.'
+    );
+    expect(r.hardFloors[0].detail).not.toMatch(/ends? the game/);
+  });
+});
+
 describe('loop combos add to the power signal as combo engines', () => {
   const top = "Sensei's Divining Top";
   const ulamogLoops = [
