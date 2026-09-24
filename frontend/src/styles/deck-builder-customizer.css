@@ -403,8 +403,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.deck-customizer-slider-value.is-word {
+  font-family: var(--font-serif);
+}
+
 .deck-customizer-slider-value-suffix {
-  font-family: inherit;
+  font-family: var(--font-serif);
   font-size: var(--text-xs);
   font-weight: 400;
   color: var(--text-muted);

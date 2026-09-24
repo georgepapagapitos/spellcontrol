@@ -430,7 +430,7 @@ function BrewGroup({ customization, update }: DeckCustomizerProps) {
     <div className="deck-customizer-group">
       <div className="deck-customizer-group-header">
         <h3 className="deck-customizer-group-title">Staples ↔ Synergy</h3>
-        <span className="deck-customizer-slider-value">{label}</span>
+        <span className="deck-customizer-slider-value is-word">{label}</span>
       </div>
       <div className="deck-customizer-group-body">
         <div className="deck-customizer-slider">

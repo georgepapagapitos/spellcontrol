@@ -230,7 +230,6 @@ hr {
   color: var(--text-muted);
   font-size: var(--text-base);
   padding: var(--space-7);
-  font-family: var(--font-mono);
 }
 
 @media (max-width: 1024px) {
