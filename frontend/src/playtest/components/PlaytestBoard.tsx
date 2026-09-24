@@ -303,6 +303,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [endingTable, setEndingTable] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  // Whether the log was opened from the table feed's button, which lands it
+  // on the Table view rather than the last chip picked.
+  const [logOnTable, setLogOnTable] = useState(false);
   // Highest resistance-entry seq seen so far — drives the ActionBar's unread
   // dot; not persisted, a soft nice-to-have that resets on remount.
   const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
@@ -1058,8 +1061,20 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const hasUnreadLog = gameLog.some((e) => e.kind === 'resistance' && e.seq > lastSeenLogSeq);
   const handleOpenLog = useCallback(() => {
     setLastSeenLogSeq(gameLog.at(-1)?.seq ?? 0);
+    setLogOnTable(false);
     setShowLog(true);
   }, [gameLog]);
+  // The table feed's button (online, table tier): opens the same log dock on
+  // its Table view, or closes it if it is open, however it was opened.
+  const toggleTableLog = () => {
+    if (showLog) {
+      setShowLog(false);
+      return;
+    }
+    setLastSeenLogSeq(gameLog.at(-1)?.seq ?? 0);
+    setLogOnTable(true);
+    setShowLog(true);
+  };
 
   // ── Shared board actions ────────────────────────────────────────────────
   // One implementation behind each of the three ways to reach it: the table
@@ -2736,7 +2751,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
       {/* Bottom-left dock column (table tier; the narrow tier keeps the log
           sheet and puts mana in the trackers row). Mana sits above the log,
-          above the table log toggle, and they stack with flexbox rather than
+          above the table feed's button, and they stack with flexbox rather than
           arithmetic: the log's height is content-driven and capped at a MAX,
           and it is unmounted entirely when closed — any hand-computed offset
           is wrong in both directions (an early one put the mana column off
@@ -2769,10 +2784,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                     }
                   : undefined
               }
+              startOnTable={logOnTable}
               onClose={() => setShowLog(false)}
             />
           )}
-          {onlineTable && <TableTickerDock onlineTable={onlineTable} />}
+          {onlineTable && (
+            <TableTickerDock onlineTable={onlineTable} open={showLog} onToggle={toggleTableLog} />
+          )}
         </div>
       )}
 
