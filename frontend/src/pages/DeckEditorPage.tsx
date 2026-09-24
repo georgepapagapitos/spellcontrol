@@ -88,6 +88,7 @@ import { PowerHero } from '../components/deck/PowerHero';
 import { TableRecordPanel } from '../components/deck/TableRecordPanel';
 import { CoachFeed } from '../components/deck/CoachFeed';
 import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
+import { FillDeckSheet } from '../components/deck/FillDeckSheet';
 import { filterCostPlanByOwnership } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import { EnginePanel } from '../components/deck/EnginePanel';
 import { WinConditionPanel } from '../components/deck/WinConditionPanel';
@@ -484,6 +485,8 @@ export function DeckEditorPage() {
   // Deck-size guard prompts: a pending full-deck add awaiting a replace choice,
   // and a post-cut refill nudge (the card just cut + its role).
   const [pendingAdd, setPendingAdd] = useState<string | null>(null);
+  // "Fill the rest" sheet (under-size Commander deck).
+  const [showFill, setShowFill] = useState(false);
   // Resolved ScryfallCard for `pendingAdd`, so the replace-when-full ranker can
   // judge relatedness by card type + mana cost (not just name-based role). Tagged
   // with `forName` so a stale resolve from a previous prompt is ignored; null
@@ -3203,6 +3206,12 @@ export function DeckEditorPage() {
             categoryTargets={deck.categoryTargets}
             buildReport={deck.buildReport}
             onAddSuggestedCard={handleAddEngineCard}
+            {...(isCommander &&
+              deck.commander &&
+              deck.cards.length < mainboardLimit && {
+                openSlots: mainboardLimit - deck.cards.length,
+                onFill: () => setShowFill(true),
+              })}
             addingSuggestedCardNames={addingEngineNames}
             oneAwayCombos={comboData.data?.oneAway}
             ownedOracleIds={ownedOracleIdSet}
@@ -3391,6 +3400,11 @@ export function DeckEditorPage() {
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
                   onNbmNavigate={handleNbmNavigate}
                   onNbmApply={handleAddEngineCard}
+                  onNbmFill={
+                    isCommander && deck.commander && deck.cards.length < mainboardLimit
+                      ? () => setShowFill(true)
+                      : undefined
+                  }
                 />
               ) : undefined
             }
@@ -3672,6 +3686,45 @@ export function DeckEditorPage() {
             collectionMode={false}
           />
         </Modal>
+      )}
+
+      {showFill && deck && (
+        <FillDeckSheet
+          deck={deck}
+          target={mainboardLimit}
+          ownedNames={ownedNames}
+          onClose={() => setShowFill(false)}
+          onAdd={(cards) => {
+            setShowFill(false);
+            // One write and one undo entry for the whole fill, binding free
+            // owned copies the same way a quantity increment does.
+            recordEdit(deck.id, `fill ${cards.length} cards`, () => {
+              const allocations = buildAllocationMap(
+                useDecksStore.getState().decks,
+                useCubeStore.getState().saved
+              );
+              const entries = cards.map((card) => {
+                const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
+                const allocatedCopyId = claim?.copyId ?? null;
+                if (allocatedCopyId) {
+                  allocations.set(
+                    allocatedCopyId,
+                    makeDeckAllocationInfo(deck.id, deck.name, deck.color, card.name)
+                  );
+                }
+                return { card, allocatedCopyId };
+              });
+              bulkAddCards(deck.id, 'cards', entries);
+            });
+            pushToast({
+              message: `Added ${cards.length} ${cards.length === 1 ? 'card' : 'cards'}`,
+              tone: 'success',
+              actionLabel: 'Undo',
+              onAction: () => undoEdit(deck.id),
+            });
+            haptics.tap();
+          }}
+        />
       )}
 
       {/* Deck-size guard: replace-when-full (adding to a full Commander deck). */}
