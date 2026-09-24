@@ -88,12 +88,20 @@ function e(col: 1 | 2, row: number, span?: { c?: 1 | 2; r?: 1 | 2 }): EmptyCell 
 // Indexed by player count. The first entry is the default for new games at
 // that count. Within a count, layouts are ordered roughly by how common
 // they are at a real table.
+//
+// Seat order (all counts): index 0 is the topmost-leftmost seat, and the
+// rest follow CLOCKWISE around the table as seen from above — far row
+// left→right, down the right side, near row right→left, up the left side —
+// because turn order (seat index + 1) is clockwise from above in real MTG
+// play. A Wide seat's clockwise position is taken from its right-hand cell.
+// `board-layouts.test.ts` pins this with an angle-around-center assertion.
 
 const LAYOUTS: Record<number, BoardLayout[]> = {
   // ── 2 players ──────────────────────────────────────────────────────────
   // 2p uniquely supports both row-seam (stacked) and col-seam
   // (side-by-side) arrangements — the device sits flat between two
-  // players who face each other across either axis.
+  // players who face each other across either axis. Only 2 seats, so
+  // clockwise vs counterclockwise is the same alternation either way.
   2: [
     {
       // Stacked Wide rows — facing across the short edge of the device.
@@ -126,19 +134,21 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
       // bottom pair face each other across the column split, so each reads
       // along their cell's long axis and gets a far bigger numeral than an
       // upright half-width cell allows. The hub stays on the row seam.
+      // Clockwise: top, then right, then left.
       id: '3p-wide-top-sides',
       cols: 2,
       rows: 2,
       seam: { row: 1 },
-      seats: [s(1, 1, 180, { c: 2 }), s(1, 2, 90), s(2, 2, 270)],
+      seats: [s(1, 1, 180, { c: 2 }), s(2, 2, 270), s(1, 2, 90)],
     },
     {
       // Wide top + 2 normal bottom. Lone player faces the pair.
+      // Clockwise: top, bottom-right, bottom-left.
       id: '3p-wide-top',
       cols: 2,
       rows: 2,
       seam: { row: 1 },
-      seats: [s(1, 1, 180, { c: 2 }), s(1, 2, 0), s(2, 2, 0)],
+      seats: [s(1, 1, 180, { c: 2 }), s(2, 2, 0), s(1, 2, 0)],
     },
     {
       // 2 normal top + Wide bottom — inverse pairing.
@@ -167,21 +177,23 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
       empty: [e(1, 2)],
     },
     {
-      // 1 top-right + 2 bottom, top-left empty corner.
+      // 1 top-right + 2 bottom, top-left empty corner. Clockwise: top,
+      // bottom-right, bottom-left.
       id: '3p-tr-bb',
       cols: 2,
       rows: 2,
       seam: { row: 1 },
-      seats: [s(2, 1, 180), s(1, 2, 0), s(2, 2, 0)],
+      seats: [s(2, 1, 180), s(2, 2, 0), s(1, 2, 0)],
       empty: [e(1, 1)],
     },
     {
-      // 1 top-left + 2 bottom, top-right empty corner.
+      // 1 top-left + 2 bottom, top-right empty corner. Clockwise: top,
+      // bottom-right, bottom-left.
       id: '3p-tl-bb',
       cols: 2,
       rows: 2,
       seam: { row: 1 },
-      seats: [s(1, 1, 180), s(1, 2, 0), s(2, 2, 0)],
+      seats: [s(1, 1, 180), s(2, 2, 0), s(1, 2, 0)],
       empty: [e(2, 1)],
     },
   ],
@@ -195,31 +207,31 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
       // on-the-table 4-player seating. Both seats in the LEFT column read
       // rotated 90°, both in the RIGHT column 270° (mirror), so each
       // *column* faces one way and the hub sits on the vertical seam
-      // between the columns.
+      // between the columns. Clockwise: TL, TR, BR, BL.
       id: '4p-sides',
       cols: 2,
       rows: 2,
       seam: { col: 1 },
-      seats: [s(1, 1, 90), s(2, 1, 270), s(1, 2, 90), s(2, 2, 270)],
+      seats: [s(1, 1, 90), s(2, 1, 270), s(2, 2, 270), s(1, 2, 90)],
     },
     {
       // Classic Commander pod — 2 on the far side of the device (rotated
-      // 180°) facing 2 on the near side (upright).
+      // 180°) facing 2 on the near side (upright). Clockwise: TL, TR, BR, BL.
       id: '4p-pod',
       cols: 2,
       rows: 2,
       seam: { row: 1 },
-      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 0), s(2, 2, 0)],
+      seats: [s(1, 1, 180), s(2, 1, 180), s(2, 2, 0), s(1, 2, 0)],
     },
     {
       // Wide top + 2 middle + Wide bottom. The two outer players each
       // sit alone on a long edge; the middle pair sits across from each
-      // other at the seam.
+      // other at the seam. Clockwise: top, right-middle, bottom, left-middle.
       id: '4p-wide-middle',
       cols: 2,
       rows: 3,
       seam: { row: 2 },
-      seats: [s(1, 1, 180, { c: 2 }), s(1, 2, 180), s(2, 2, 180), s(1, 3, 0, { c: 2 })],
+      seats: [s(1, 1, 180, { c: 2 }), s(2, 2, 180), s(1, 3, 0, { c: 2 }), s(1, 2, 180)],
     },
   ],
 
@@ -228,27 +240,30 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
   5: [
     {
       // Wide top + 2 middle + 2 bottom (3 across the far side, 2 near).
+      // Clockwise: top, mid-right, bottom-right, bottom-left, mid-left.
       id: '5p-wide-top',
       cols: 2,
       rows: 3,
       seam: { row: 2 },
-      seats: [s(1, 1, 180, { c: 2 }), s(1, 2, 180), s(2, 2, 180), s(1, 3, 0), s(2, 3, 0)],
+      seats: [s(1, 1, 180, { c: 2 }), s(2, 2, 180), s(2, 3, 0), s(1, 3, 0), s(1, 2, 180)],
     },
     {
-      // 2 top + 2 middle + Wide bottom (inverse).
+      // 2 top + 2 middle + Wide bottom (inverse). Clockwise: TL, TR,
+      // mid-right, bottom, mid-left.
       id: '5p-wide-bottom',
       cols: 2,
       rows: 3,
       seam: { row: 2 },
-      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 180), s(2, 2, 180), s(1, 3, 0, { c: 2 })],
+      seats: [s(1, 1, 180), s(2, 1, 180), s(2, 2, 180), s(1, 3, 0, { c: 2 }), s(1, 2, 180)],
     },
     {
-      // 2 top + Wide middle + 2 bottom (2 vs 1 vs 2).
+      // 2 top + Wide middle + 2 bottom (2 vs 1 vs 2). Clockwise: TL, TR,
+      // middle, bottom-right, bottom-left.
       id: '5p-wide-middle',
       cols: 2,
       rows: 3,
       seam: { row: 2 },
-      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 180, { c: 2 }), s(1, 3, 0), s(2, 3, 0)],
+      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 180, { c: 2 }), s(2, 3, 0), s(1, 3, 0)],
     },
   ],
 
@@ -257,26 +272,192 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
   6: [
     {
       // 4 across the far side (top + middle rows rotated) and 2 near.
+      // Clockwise: TL, TR, mid-right, bottom-right, bottom-left, mid-left.
       id: '6p-4v2',
       cols: 2,
       rows: 3,
       seam: { row: 2 },
-      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 180), s(2, 2, 180), s(1, 3, 0), s(2, 3, 0)],
+      seats: [s(1, 1, 180), s(2, 1, 180), s(2, 2, 180), s(2, 3, 0), s(1, 3, 0), s(1, 2, 180)],
     },
     {
-      // 2 far + 4 near.
+      // 2 far + 4 near. Clockwise: TL, TR, mid-right, bottom-right,
+      // bottom-left, mid-left.
       id: '6p-2v4',
       cols: 2,
       rows: 3,
       seam: { row: 1 },
-      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 0), s(2, 2, 0), s(1, 3, 0), s(2, 3, 0)],
+      seats: [s(1, 1, 180), s(2, 1, 180), s(2, 2, 0), s(2, 3, 0), s(1, 3, 0), s(1, 2, 0)],
+    },
+  ],
+
+  // ── 7 players ──────────────────────────────────────────────────────────
+  // 4 rows × 2 cols; the odd seat is a Wide row (top or bottom) rather than
+  // an empty cell, matching how 3p/5p absorb their odd seat.
+  7: [
+    {
+      // Wide top (1) + 2 far + 4 near. Clockwise: top, row2-right,
+      // row3-right, row4-right, row4-left, row3-left, row2-left.
+      id: '7p-wide-top',
+      cols: 2,
+      rows: 4,
+      seam: { row: 2 },
+      seats: [
+        s(1, 1, 180, { c: 2 }),
+        s(2, 2, 180),
+        s(2, 3, 0),
+        s(2, 4, 0),
+        s(1, 4, 0),
+        s(1, 3, 0),
+        s(1, 2, 180),
+      ],
+    },
+    {
+      // 4 far + 2 near + Wide bottom (1). Clockwise: TL, TR, row2-right,
+      // row3-right, bottom, row3-left, row2-left.
+      id: '7p-wide-bottom',
+      cols: 2,
+      rows: 4,
+      seam: { row: 2 },
+      seats: [
+        s(1, 1, 180),
+        s(2, 1, 180),
+        s(2, 2, 180),
+        s(2, 3, 0),
+        s(1, 4, 0, { c: 2 }),
+        s(1, 3, 0),
+        s(1, 2, 180),
+      ],
+    },
+  ],
+
+  // ── 8 players ────────────────────────────────────────────────────────────
+  // 4 rows × 2 cols, fully populated.
+  8: [
+    {
+      // 4 far + 4 near. Clockwise: TL, TR, row2-right, row3-right,
+      // bottom-right, bottom-left, row3-left, row2-left.
+      id: '8p-4v4',
+      cols: 2,
+      rows: 4,
+      seam: { row: 2 },
+      seats: [
+        s(1, 1, 180),
+        s(2, 1, 180),
+        s(2, 2, 180),
+        s(2, 3, 0),
+        s(2, 4, 0),
+        s(1, 4, 0),
+        s(1, 3, 0),
+        s(1, 2, 180),
+      ],
+    },
+    {
+      // 2 far + 6 near.
+      id: '8p-2v6',
+      cols: 2,
+      rows: 4,
+      seam: { row: 1 },
+      seats: [
+        s(1, 1, 180),
+        s(2, 1, 180),
+        s(2, 2, 0),
+        s(2, 3, 0),
+        s(2, 4, 0),
+        s(1, 4, 0),
+        s(1, 3, 0),
+        s(1, 2, 0),
+      ],
+    },
+  ],
+
+  // ── 9 players ────────────────────────────────────────────────────────────
+  // 5 rows × 2 cols; the odd seat is a Wide row (top or bottom).
+  9: [
+    {
+      // Wide top (1) + 4 far + 4 near.
+      id: '9p-wide-top',
+      cols: 2,
+      rows: 5,
+      seam: { row: 3 },
+      seats: [
+        s(1, 1, 180, { c: 2 }),
+        s(2, 2, 180),
+        s(2, 3, 180),
+        s(2, 4, 0),
+        s(2, 5, 0),
+        s(1, 5, 0),
+        s(1, 4, 0),
+        s(1, 3, 180),
+        s(1, 2, 180),
+      ],
+    },
+    {
+      // 4 far + 4 near + Wide bottom (1).
+      id: '9p-wide-bottom',
+      cols: 2,
+      rows: 5,
+      seam: { row: 2 },
+      seats: [
+        s(1, 1, 180),
+        s(2, 1, 180),
+        s(2, 2, 180),
+        s(2, 3, 0),
+        s(2, 4, 0),
+        s(1, 5, 0, { c: 2 }),
+        s(1, 4, 0),
+        s(1, 3, 0),
+        s(1, 2, 180),
+      ],
+    },
+  ],
+
+  // ── 10 players ───────────────────────────────────────────────────────────
+  // 5 rows × 2 cols, fully populated — the ceiling Lotus supports.
+  10: [
+    {
+      // 6 far + 4 near.
+      id: '10p-6v4',
+      cols: 2,
+      rows: 5,
+      seam: { row: 3 },
+      seats: [
+        s(1, 1, 180),
+        s(2, 1, 180),
+        s(2, 2, 180),
+        s(2, 3, 180),
+        s(2, 4, 0),
+        s(2, 5, 0),
+        s(1, 5, 0),
+        s(1, 4, 0),
+        s(1, 3, 180),
+        s(1, 2, 180),
+      ],
+    },
+    {
+      // 4 far + 6 near.
+      id: '10p-4v6',
+      cols: 2,
+      rows: 5,
+      seam: { row: 2 },
+      seats: [
+        s(1, 1, 180),
+        s(2, 1, 180),
+        s(2, 2, 180),
+        s(2, 3, 0),
+        s(2, 4, 0),
+        s(2, 5, 0),
+        s(1, 5, 0),
+        s(1, 4, 0),
+        s(1, 3, 0),
+        s(1, 2, 180),
+      ],
     },
   ],
 };
 
 /** All layouts available at the given player count (default first). */
 export function layoutsForCount(count: number): BoardLayout[] {
-  const c = Math.max(2, Math.min(count, 6));
+  const c = Math.max(2, Math.min(count, 10));
   return LAYOUTS[c] ?? LAYOUTS[2];
 }
 
@@ -532,7 +713,7 @@ export function resolveLayout(
   count: number,
   id: GameLayout | string | undefined | null
 ): BoardLayout {
-  const c = Math.max(2, Math.min(count, 6));
+  const c = Math.max(2, Math.min(count, 10));
   const custom = decodeCustomLayout(id, c);
   if (custom) return custom;
   const available = layoutsForCount(count);

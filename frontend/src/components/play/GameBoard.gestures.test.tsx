@@ -66,7 +66,7 @@ vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 import { GameBoard } from './GameBoard';
 
-/** 3p default: Alice across the top (180°), Bob left (90°), Carol right (270°). */
+/** 3p default: Alice across the top (180°), Bob right (270°), Carol left (90°) — seat order is clockwise from above. */
 const pod = () => [seat(0, 'Alice'), seat(1, 'Bob'), seat(2, 'Carol')];
 
 function zone(seatIndex: number) {
@@ -100,10 +100,10 @@ describe('the seat drawer', () => {
   it('opens on a sideways seat from a sideways swipe, never a screen-vertical one', () => {
     render(<GameBoard game={makeTestState(pod())} dispatch={vi.fn()} canControlAll />);
 
-    // Bob sits on the left long edge (90°): toward him is screen LEFT.
+    // Bob sits on the right long edge (270°): toward him is screen RIGHT.
     drag(zone(1), 0, 60);
     expect(drawer('Bob')).toBeNull();
-    drag(zone(1), -60, 0);
+    drag(zone(1), 60, 0);
     expect(drawer('Bob')).toBeTruthy();
   });
 

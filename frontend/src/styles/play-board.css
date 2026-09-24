@@ -304,6 +304,22 @@
   }
 }
 
+/* 7-10 player boards push rows to 4-5, producing ~104-140px-tall cells at
+   320px wide where the tier above still runs the numeral into the
+   top-left name (measured with the seam-geometry-style probe: ~440px² of
+   overlap at a 104px cell, ~250px² at 132px). The fixed seam-keepout corner
+   offset alone costs ~45px of vertical room regardless of cell height, so a
+   104px cell can't fit a legible numeral AND clear it — this tier cuts the
+   overlap substantially rather than to zero, the same "smaller than before,
+   not gone" tradeoff already accepted for 320px boards. Placed after the
+   12rem tier so it wins where both match (104/132px cells); the 5p/6p cells
+   this tier doesn't reach (179px) are untouched. */
+@container (max-height: 9rem) {
+  .game-board:not(.game-board-2) .player-panel:not([data-sideways]) {
+    --life-size: min(30cqh, 38cqw);
+  }
+}
+
 .player-panel-corner {
   position: absolute;
   top: calc(var(--space-2) + var(--seam-keepout));
@@ -445,7 +461,11 @@
   .game-board-3 .player-panel-subtitle,
   .game-board-4 .player-panel-subtitle,
   .game-board-5 .player-panel-subtitle,
-  .game-board-6 .player-panel-subtitle {
+  .game-board-6 .player-panel-subtitle,
+  .game-board-7 .player-panel-subtitle,
+  .game-board-8 .player-panel-subtitle,
+  .game-board-9 .player-panel-subtitle,
+  .game-board-10 .player-panel-subtitle {
     display: none;
   }
 }

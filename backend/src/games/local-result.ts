@@ -16,7 +16,7 @@ import { VALID_FORMATS } from '../routes/games';
  */
 
 export const MAX_LOCAL_RESULT_BYTES = 256 * 1024;
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 10;
 const MIN_PLAYERS = 2;
 // Horde is co-op: 1-4 survivors sharing one life total against a self-running
 // horde deck, so its player-count band is its own rather than PvP's 2-8.

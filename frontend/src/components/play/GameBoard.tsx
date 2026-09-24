@@ -185,7 +185,7 @@ export function GameBoard({
 
   return (
     <div
-      className={`game-board game-board-${Math.min(total, 6)} layout-${
+      className={`game-board game-board-${Math.min(total, 10)} layout-${
         isCustomLayout(board.id) ? 'custom' : board.id
       } mode-${game.mode}${cmdFocus ? ' is-cmd-focus' : ''}`}
       data-shared={isShared || undefined}

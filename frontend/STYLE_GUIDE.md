@@ -6747,3 +6747,53 @@ besides. Every other pixel is a −1/+1.
 - **The board teaches its gestures once per device** (`BoardGestureHint`),
   screen-relative, and the game menu brings the card back ("How the board
   works"). A board with no buttons owes its players that.
+
+## Play board: 7-10 players, and seat order is clockwise (2026-09-24)
+
+Lotus's layout gallery goes to 10 players; ours now does too, in the same
+2-column grid model as 2-6. Two rulings, one about capacity and one about a
+correctness bug the capacity work exposed.
+
+- **7-10 players fit the existing 2-column model.** 7p and 9p (odd) get a
+  Wide top or Wide bottom row for the extra seat, the same device 3p/5p
+  already use — never an empty grey cell (`board-layouts.ts`'s `LAYOUTS[7]`
+  through `LAYOUTS[9]`). 8p and 10p (even) are fully populated 4- and 5-row
+  grids, each with two far/near split variants (`8p-4v4`/`8p-2v6`,
+  `10p-6v4`/`10p-4v6`), mirroring 4p/6p's own pair of splits. `MAX_LOCAL_PLAYERS`
+  (setup roster), the in-game roster (`GameMenu.tsx`'s `MAX_PLAYERS`) and the
+  backend's recorded-local-result cap (`local-result.ts`'s `MAX_PLAYERS`) all
+  moved to 10 together. **Online seats stay at 8** (`routes/games.ts`'s
+  `MAX_SEATS`, unchanged) — an online game's whole state is one JSONB row, and
+  raising that cap is a separate decision this change didn't need to make.
+- **A very short panel needs a third numeral tier.** 9p/10p at 320px produce
+  ~104px-tall cells, and 7p/8p ~132px ones — shorter than the 5p/6p cells
+  (~179px) the existing `@container (max-height: 12rem)` tier was tuned for.
+  A further `@container (max-height: 9rem)` step (`--life-size: min(30cqh,
+  38cqw)`) cuts the 320px numeral/name overlap from ~440px² to ~190px² on
+  9p/10p's shortest cells, and eliminates it entirely on 7p/8p's — measured
+  with the board probe, not read off the CSS. The fixed seam-keepout corner
+  offset alone costs ~45px of a 104px cell regardless of numeral size, so a
+  small residual overlap remains at that one extreme (320px, 9-10 players);
+  it is smaller than what shipped before this fix, the same "smaller, not
+  gone" bar already accepted for 320px boards generally, and disappears by
+  390px. Every count is collision-free against the hub/clock/undo satellites
+  at every width tested (320/390/820) — that part scales for free, since
+  `seamSatellite` already keys off row/col count, not player count.
+- **Seat order is clockwise from above, seat 0 first (fixed for 2-10).** Turn
+  order is seat index + 1 (`packages/game-core`), and MTG passes the turn to
+  the player on your left — clockwise as seen from above. Before this fix,
+  every 3p/4p+ preset listed seats in reading order (TL, TR, BL, BR), which
+  zig-zags across the table instead. Every preset's `seats` array (2 through
+  10, including the seven 3p variants) is now ordered clockwise from the
+  topmost-leftmost seat: far row left→right, down the right side, near row
+  right→left, up the left side. A Wide (colSpan-2) seat's position in that
+  walk is taken from its right-hand cell, which is what keeps the order
+  well-defined even for `5p-wide-middle`'s seat sitting exactly on the grid's
+  centre line. `board-layouts.test.ts`'s `clockwise seat order` suite pins
+  this by computing each seat's angle around the grid centre and asserting it
+  increases monotonically (mod 360) in seat order, for every preset. A local
+  game already mid-play when this ships will see seats 3/4 (and similar)
+  swap screen position on the next load — seat *state* follows the seat
+  number, so nothing is lost, only where it's drawn. Counterclockwise seating
+  is not supported; if it's ever wanted, it's a second `seats` ordering per
+  preset, not a reducer change.
