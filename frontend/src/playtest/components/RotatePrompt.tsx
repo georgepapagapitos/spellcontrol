@@ -37,10 +37,12 @@ interface Props {
  * the backdrop) holds for the rest of the visit. A suggestion, not a wall:
  * the table works either way.
  *
- * Android Chrome only lets a page lock its orientation once it is fullscreen,
- * so "Go fullscreen" is also what turns the table for you there. iPhone
- * Safari offers neither, so upright it just asks, and sideways there is
- * nothing to offer and nothing shows.
+ * "Go fullscreen" only goes fullscreen. It never locks the orientation:
+ * turning the phone is the player's call, and a lock would hold the table
+ * sideways even after they turned back upright. Upright and fullscreen, the
+ * prompt keeps asking for the turn without the button. iPhone Safari has no
+ * fullscreen, so upright it just asks, and sideways there is nothing to
+ * offer and nothing shows.
  */
 export function RotatePrompt({ fullscreen }: Props) {
   const upright = useMediaQuery(UPRIGHT_PHONE);
@@ -60,15 +62,9 @@ export function RotatePrompt({ fullscreen }: Props) {
     setSkipped(true);
   };
 
-  const goFullscreen = async () => {
-    try {
-      await document.documentElement.requestFullscreen();
-      await screen.orientation.lock('landscape');
-    } catch {
-      // No lock on this browser: fullscreen still happened (or was refused),
-      // and the prompt stays until the phone is turned.
-    }
-  };
+  // A refusal (no user gesture, a policy) leaves the prompt up with its
+  // button; it must not surface as an unhandled rejection.
+  const goFullscreen = () => document.documentElement.requestFullscreen().catch(() => {});
 
   return (
     <Modal

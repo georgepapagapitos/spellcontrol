@@ -117,7 +117,11 @@ describe('RotatePrompt', () => {
     expect(screen.getByRole('button', { name: 'Skip' })).toBeTruthy();
   });
 
-  it('Go fullscreen goes fullscreen, then locks to landscape', async () => {
+  /* Fullscreen and nothing else. It used to lock the orientation to
+     landscape as well, which on Android forced the screen sideways while the
+     phone was held upright and held it there until fullscreen ended. Turning
+     the phone is the player's call. */
+  it('Go fullscreen only goes fullscreen, and never locks the orientation', async () => {
     stubDevice(UPRIGHT_PHONE);
     const requestFullscreen = vi.fn().mockResolvedValue(undefined);
     const lock = vi.fn().mockResolvedValue(undefined);
@@ -125,7 +129,23 @@ describe('RotatePrompt', () => {
     Object.defineProperty(window.screen, 'orientation', { value: { lock }, configurable: true });
     render(<RotatePrompt fullscreen={false} />);
     fireEvent.click(screen.getByRole('button', { name: 'Go fullscreen' }));
-    await vi.waitFor(() => expect(lock).toHaveBeenCalledWith('landscape'));
-    expect(requestFullscreen).toHaveBeenCalled();
+    await vi.waitFor(() => expect(requestFullscreen).toHaveBeenCalled());
+    expect(lock).not.toHaveBeenCalled();
+  });
+
+  it('a refused fullscreen request is swallowed, not thrown', async () => {
+    stubDevice(UPRIGHT_PHONE);
+    const requestFullscreen = vi.fn().mockRejectedValue(new TypeError('not allowed'));
+    document.documentElement.requestFullscreen = requestFullscreen;
+    const unhandled = vi.fn();
+    window.addEventListener('unhandledrejection', unhandled);
+    render(<RotatePrompt fullscreen={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Go fullscreen' }));
+    await vi.waitFor(() => expect(requestFullscreen).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    window.removeEventListener('unhandledrejection', unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+    // Still asking, button and all: nothing changed.
+    expect(screen.getByRole('button', { name: 'Go fullscreen' })).toBeTruthy();
   });
 });

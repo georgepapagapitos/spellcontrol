@@ -2524,9 +2524,14 @@ sheet is unchanged — a phone has no room for the fan.
   - "Skip", Esc or the backdrop dismisses it for the session
     (`sessionStorage`), in both orientations. It is a suggestion, not a wall.
   - "Go fullscreen" is drawn only where `document.fullscreenEnabled` (never
-    on iPhone Safari) and also locks the orientation to landscape, since
-    Android Chrome allows the lock only in fullscreen. So a sideways iPhone
-    has nothing to be offered, and sees nothing.
+    on iPhone Safari), so a sideways iPhone has nothing to be offered, and
+    sees nothing.
+  - **"Go fullscreen" only goes fullscreen. It never locks the orientation.**
+    It briefly called `screen.orientation.lock('landscape')` too, which on
+    Android forced the screen sideways while the phone was held upright and
+    kept it there until fullscreen ended (corrected 2026-09-24). Turning the
+    phone is the player's call. Upright and fullscreen, the prompt keeps
+    asking for the turn without the button.
 
 - **The log can leave the table.** The docked log's pop-out opens
   `/decks/:id/playtest/log` as a named popup window; that page renders the same
