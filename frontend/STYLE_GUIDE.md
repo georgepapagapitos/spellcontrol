@@ -6594,3 +6594,38 @@ shows it?
   collisions this caught were 7–10px slivers invisible in a static read, and
   two of them were on layouts (`4p-pod`, the default four-player board, and
   `2p-stacked`) that a previous audit had recorded as clean.
+
+## Play board: legible across the table (2026-09-24)
+
+Set against Lotus, the counter people at a real table reach for. The job is
+reading a life total from across the table, and every ruling below serves it.
+
+- **The numeral is sized from its own panel, never the viewport.**
+  `--life-size` is `min(60cqh, 38cqw)` of the panel's cell (axes swapped on a
+  sideways seat), and the ± and their spacing derive from it. A per-player-count
+  `vmin` clamp drew a 62px number in a 410px seat. Two-seat boards take 72% of
+  the height; a short panel (under 10rem across a sideways seat, 12rem tall
+  upright) drops to ~40%, because the 44px corner chips are fixed-size and a
+  percentage alone runs the digits into them.
+- **The ± hug the numeral at every count.** Pinned to the panel ends they sat
+  on a sideways seat's corner controls.
+- **Ink is black or white per seat, whichever reads better.** White everywhere
+  gave the W seat 1.8:1. `styles/play-numeral.test.ts` recomputes the choice
+  for every palette; a new colour picks its ink there, not by eye.
+- **A zero count is not board state.** Poison at zero hides (the "+" chip's
+  cover holds it). Commander damage stays because it is the only way into focus
+  mode, but at zero it drops the "0" and reads as the action it is.
+- **The board ground is black in every theme.** It was already an always-dark
+  surface (white rings, near-black hub); a light theme's `--bg` framed the seats
+  in a pale border.
+- **The hub is ≡, a seat menu is ⋯.** One glyph for two menus made the board's
+  one control cluster look like another seat's.
+- **Seats face the edge their player sits at.** Three players default to
+  `3p-wide-top-sides`: one across the short edge, two on the long edges, like
+  `4p-sides` for four. Gestures read in the panel's own axes
+  (`toPanelSpace`), so "swipe away from you" works at 90° and 270° as well as
+  0° and 180°.
+
+Verify on every preset at 320–820px in a real browser (satellites, numeral vs
+rails, ⋯ vs chips) and against `main` for the same run. At 320px some
+collisions remain, all smaller than the ones `main` has there.

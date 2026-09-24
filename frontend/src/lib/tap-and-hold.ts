@@ -25,6 +25,20 @@ export interface TapAndHoldOpts {
 const SWIPE_THRESHOLD_PX = 40;
 const SWIPE_AXIS_RATIO = 1.5;
 
+/** A screen-space delta in the axes of a panel rotated `rot`° clockwise. */
+export function toPanelSpace(dx: number, dy: number, rot: number): [number, number] {
+  switch (((rot % 360) + 360) % 360) {
+    case 90:
+      return [dy, -dx];
+    case 180:
+      return [-dx, -dy];
+    case 270:
+      return [-dy, dx];
+    default:
+      return [dx, dy];
+  }
+}
+
 /**
  * Hook that returns a getHandlers(arg) factory which produces the pointer
  * event handlers for a tap-and-hold zone. A single click fires `onTap(arg)`;
@@ -36,10 +50,12 @@ const SWIPE_AXIS_RATIO = 1.5;
  * size increases; `gearUp` is true on that tick so the caller can skip the
  * redundant light tap.
  *
- * Also detects vertical swipes: if the pointer moves >40px vertically (and
- * predominantly vertically) before lift, the hold timer is cancelled and
- * onSwipeUp/onSwipeDown fires instead of a tap or repeater. For 180°-rotated
- * panels, screen-space "down" is panel-local "up", so we invert.
+ * Also detects vertical swipes in the PANEL's own space: if the pointer moves
+ * >40px along the panel's up/down axis (and predominantly along it) before
+ * lift, the hold timer is cancelled and onSwipeUp/onSwipeDown fires instead
+ * of a tap or repeater. "Up" is away from the seat's player whatever the
+ * rotation — on a sideways (90°/270°) seat that is a horizontal screen motion,
+ * which a screen-vertical check used to ignore.
  *
  * Using pointer events (not touch/mouse separately) lets the same handler
  * cover mouse, touch, and pen with no synthetic-click double-fire.
@@ -109,16 +125,12 @@ export function useTapAndHold({
       onPointerMove?.(e);
       const s = startRef.current;
       if (!s || swipedRef.current) return;
-      const dx = e.clientX - s.x;
-      const dy = e.clientY - s.y;
+      const [dx, dy] = toPanelSpace(e.clientX - s.x, e.clientY - s.y, rotation);
       if (Math.abs(dy) >= SWIPE_THRESHOLD_PX && Math.abs(dy) > Math.abs(dx) * SWIPE_AXIS_RATIO) {
         // Crossed the swipe threshold — cancel any pending tap/hold.
         swipedRef.current = true;
         clear();
-        const isScreenDown = dy > 0;
-        // Panel rotated 180° → screen-down is panel-up.
-        const isPanelUp = rotation === 180 ? isScreenDown : !isScreenDown;
-        if (isPanelUp) onSwipeUp?.();
+        if (dy < 0) onSwipeUp?.();
         else onSwipeDown?.();
       }
     },

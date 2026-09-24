@@ -93,9 +93,10 @@ function renderPod(dispatch = vi.fn(), alice: Partial<GamePlayer> = {}) {
 }
 
 /**
- * Tap zones in seat order. In the default 3p layout ("wide top + 2 bottom")
- * seat 0 is rotated 180° and seats 1–2 are upright, which is exactly why the
- * gesture is interpreted in panel-local space rather than screen space.
+ * Tap zones in seat order. In the default 3p layout ("wide top + 2 sideways")
+ * seat 0 is rotated 180° and seats 1–2 face each other at 90° / 270°, which is
+ * exactly why the gesture is interpreted in panel-local space rather than
+ * screen space.
  */
 function tapZone(seat: number, label = '+1 life') {
   // The +1 step button carries the same label as the tap zone, so filter to
@@ -106,10 +107,10 @@ function tapZone(seat: number, label = '+1 life') {
   return zones[seat];
 }
 
-/** Drag `dy` px in SCREEN space (negative = toward the top of the display). */
-function drag(el: Element, dy: number) {
+/** Drag `dy` (and `dx`) px in SCREEN space (negative dy = toward the top). */
+function drag(el: Element, dy: number, dx = 0) {
   fireEvent.pointerDown(el, { clientX: 100, clientY: 200, pointerId: 1 });
-  fireEvent.pointerMove(el, { clientX: 100, clientY: 200 + dy, pointerId: 1 });
+  fireEvent.pointerMove(el, { clientX: 100 + dx, clientY: 200 + dy, pointerId: 1 });
 }
 
 function tap(el: Element, pointerId = 9) {
@@ -142,12 +143,15 @@ describe('entering commander-damage focus mode', () => {
     expect(screen.getByLabelText('Alice: 40 life')).toBeTruthy();
   });
 
-  it('reads the gesture in panel space, so an upright seat swipes screen-up', () => {
+  it('reads the gesture in panel space, so a sideways seat swipes across the screen', () => {
     renderPod();
 
-    // Bob (seat 1) is upright: his "up" is the opposite screen direction to
-    // Alice's. Same physical motion toward each player, opposite dy.
+    // Bob (seat 1) sits on the left long edge (90°): away from him is screen
+    // RIGHT. A screen-vertical drag is sideways for him and must not fire.
     drag(tapZone(1), -60);
+    expect(focusBar()).toBeNull();
+
+    drag(tapZone(1), 0, 60);
 
     // Bob is now the anchor (his life), and the OTHER seats became sources.
     expect(screen.getByLabelText('Bob: 40 life')).toBeTruthy();
@@ -169,9 +173,9 @@ describe('entering commander-damage focus mode', () => {
       Array.from(document.querySelectorAll('.player-panel[data-seat]')).map((el) =>
         (el as HTMLElement).style.getPropertyValue('--pp-rot')
       );
-    // Default 3p layout: seat 0 rotated 180°, seats 1–2 upright.
+    // Default 3p layout: seat 0 rotated 180°, seats 1–2 sideways.
     const before = rotations();
-    expect(before).toEqual(['180deg', '0deg', '0deg']);
+    expect(before).toEqual(['180deg', '90deg', '270deg']);
 
     drag(tapZone(0), ALICE_UP);
 

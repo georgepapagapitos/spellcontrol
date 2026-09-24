@@ -1,4 +1,4 @@
-import { Compass, Crown, FastForward, MoreHorizontal, Plus, Trash2, Undo2 } from 'lucide-react';
+import { Compass, Crown, FastForward, Menu, Plus, Trash2, Undo2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey } from '../../lib/game-state';
@@ -250,7 +250,7 @@ export function GameBoard({
             setMenuOpen(true);
           }}
         >
-          <MoreHorizontal width={22} height={22} strokeWidth={2} aria-hidden />
+          <Menu width={22} height={22} strokeWidth={2} aria-hidden />
         </button>
 
         {/* Clock and undo are the seam's two satellites. On a row seam they sit
@@ -616,7 +616,9 @@ function PlayerPanel({
     >
       <section
         ref={panelRef}
-        className={`player-panel ${colorKey ? `pp-color-${colorKey}` : 'pp-seat'} ${
+        className={`player-panel ${
+          colorKey ? `pp-color-${colorKey}` : `pp-seat pp-ink-${seatPalette.ink}`
+        } ${
           player.eliminated ? 'is-eliminated' : ''
         } ${game.winnerSeat === player.seat ? 'is-winner' : ''} ${canEdit ? 'is-mine' : ''} ${
           lethalFlash ? 'is-lethal-flash' : ''
@@ -848,7 +850,9 @@ function PlayerPanel({
 
           {!cmdFocus && (
             <div className="player-panel-counters">
-              {game.poisonEnabled && (
+              {/* Poison shows once it's on the board; at zero it's reached
+                  through the "+" chip, whose cover lists it first. */}
+              {game.poisonEnabled && player.poison > 0 && (
                 <button
                   type="button"
                   className={`pp-counter-chip ${player.poison >= 10 ? 'is-lethal' : ''}`}
@@ -865,10 +869,14 @@ function PlayerPanel({
                   {player.poison}
                 </button>
               )}
+              {/* Always present: it's the only way into damage focus mode. At
+                  zero it's an action, not a count, so it drops the "0". */}
               {game.commanderDamageEnabled && (
                 <button
                   type="button"
-                  className={`pp-counter-chip ${maxCmdDmg >= 21 ? 'is-lethal' : ''}`}
+                  className={`pp-counter-chip ${maxCmdDmg >= 21 ? 'is-lethal' : ''} ${
+                    maxCmdDmg === 0 ? 'is-idle' : ''
+                  }`}
                   aria-label={`Commander damage, highest ${maxCmdDmg}. Log damage you've received`}
                   disabled={!canOpenCounters}
                   onPointerDown={(e) => e.stopPropagation()}
@@ -880,7 +888,7 @@ function PlayerPanel({
                   <span className="pp-counter-icon" aria-hidden="true">
                     ⚔
                   </span>
-                  {maxCmdDmg}
+                  {maxCmdDmg > 0 && maxCmdDmg}
                 </button>
               )}
               {/* One chip per free-form counter this seat is tracking. They
