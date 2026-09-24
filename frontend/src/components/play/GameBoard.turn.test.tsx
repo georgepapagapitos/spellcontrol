@@ -4,10 +4,13 @@
  *
  * Turn tracking existed before this and was invisible: `activeSeat` starts
  * null, the only way to set it was a seat's ⋯ menu, and the marker itself was
- * a thin ring that consequently never appeared. These pin the two affordances
- * that make it discoverable — the active seat's own "Turn" chip (which passes
- * on tap, rotated with their panel so it faces them) and the cold-start button
- * inside the table clock — and the conditions under which each must NOT show.
+ * a thin ring that consequently never appeared. These pin the table clock's
+ * two turn controls — the cold start, and once a seat holds the turn, the
+ * "Player 1 0:12" segment that passes it — and when each must NOT show.
+ *
+ * The pass control used to be a chip on the active seat. Seats carry no
+ * buttons since the Lotus rework (every pixel of a seat is a life tap), so it
+ * lives in the board's one control cluster instead.
  *
  * Mirrors the mock harness in GameBoard.test.tsx; this file additionally turns
  * `showClock` on, since the board clock is half the subject.
@@ -88,13 +91,17 @@ const table = () => [seat(0, 'Alice'), seat(1, 'Bob')];
 const passes = (dispatch: ReturnType<typeof vi.fn>) =>
   dispatch.mock.calls.map(([a]) => a as GameAction).filter((a) => a.type === 'pass-turn');
 
-describe('turn chip — the active seat passes from their own panel', () => {
-  it('shows on the active seat and nowhere else', () => {
+describe("passing the turn — the clock's turn segment", () => {
+  it('is one control, naming the seat that holds the turn', () => {
     const game = makeTestState(table(), { activeSeat: 1 });
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
 
     expect(screen.getAllByRole('button', { name: /Pass to the next player/ })).toHaveLength(1);
     expect(screen.getByRole('button', { name: /^Bob's turn/ })).toBeTruthy();
+    // ...and it is the clock's, not a seat's.
+    for (const panel of document.querySelectorAll('.player-panel')) {
+      expect(panel.querySelector('button[aria-label*="Pass"]')).toBeNull();
+    }
   });
 
   it('passes the turn on tap, crediting the seat it was tapped on', () => {
@@ -105,7 +112,7 @@ describe('turn chip — the active seat passes from their own panel', () => {
     fireEvent.click(screen.getByRole('button', { name: /Pass to the next player/ }));
 
     // No `toSeat`: passing means "advance from here", which is the reducer's
-    // job. A targeted move is what the seat menu's "Start turn here" is for.
+    // job. A targeted move is what the seat drawer's "Start turn here" is for.
     expect(passes(dispatch)).toEqual([{ type: 'pass-turn', actorSeat: 1 }]);
   });
 
@@ -114,12 +121,14 @@ describe('turn chip — the active seat passes from their own panel', () => {
     expect(screen.queryByRole('button', { name: /Pass to the next player/ })).toBeNull();
   });
 
-  it('goes with the seat when it is eliminated, exactly like the ring', () => {
+  it('still passes when the seat holding the turn is out, so the table is never stuck', () => {
+    const dispatch = vi.fn();
     const game = makeTestState([seat(0, 'Alice'), seat(1, 'Bob', { eliminated: true })], {
       activeSeat: 1,
     });
-    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
-    expect(screen.queryByRole('button', { name: /Pass to the next player/ })).toBeNull();
+    render(<GameBoard game={game} dispatch={dispatch} canControlAll />);
+    fireEvent.click(screen.getByRole('button', { name: /Pass to the next player/ }));
+    expect(passes(dispatch)).toEqual([{ type: 'pass-turn', actorSeat: 1 }]);
   });
 });
 

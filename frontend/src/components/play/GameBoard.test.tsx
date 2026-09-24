@@ -132,13 +132,13 @@ describe('Board overlays answer Escape', () => {
     expect(screen.queryByRole('dialog', { name: 'Local game' })).toBeNull();
   });
 
-  it('closes the seat menu and returns focus to its trigger', () => {
+  it('closes the seat drawer and returns focus to its trigger, the seat name', () => {
     const game = makeTestState([makeTestPlayer({ name: 'Alice' })], {
       mode: 'local',
       status: 'active',
     });
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
-    const trigger = screen.getByRole('button', { name: 'Seat menu' });
+    const trigger = screen.getByRole('button', { name: 'Alice: seat menu' });
     trigger.focus();
     fireEvent.click(trigger);
     const menu = screen.getByRole('dialog', { name: 'Seat menu for Alice' });
@@ -173,12 +173,12 @@ describe('Right-click belongs to the board', () => {
       status: 'active',
     });
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
-    fireEvent.click(screen.getByRole('button', { name: 'Seat menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alice: seat menu' }));
 
-    // The seat menu's "Set life to" field is a real input on the board — the
-    // one place a player types rather than taps, and the case the board-wide
+    // The seat drawer's name field is a real input on the board — one of the
+    // few places a player types rather than taps, and the case the board-wide
     // suppression has to leave alone.
-    const lifeInput = screen.getByLabelText('Set life to');
-    expect(fireEvent.contextMenu(lifeInput)).toBe(true);
+    const nameInput = screen.getByLabelText('Name');
+    expect(fireEvent.contextMenu(nameInput)).toBe(true);
   });
 });

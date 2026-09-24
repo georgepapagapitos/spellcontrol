@@ -382,7 +382,7 @@
 }
 
 .player-panel-name {
-  /* Button reset — it's a <button> (taps open the seat menu) styled as a label. */
+  /* Button reset — it's a <button> (taps open the seat drawer) styled as a label. */
   appearance: none;
   background: none;
   border: 0;
@@ -456,68 +456,8 @@
   }
 }
 
-.player-panel-menu-btn {
-  background: rgba(0, 0, 0, 0.35);
-  border: none;
-  color: rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  width: 2.5rem;
-  height: 2.5rem;
-  font-size: var(--text-md);
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: background var(--motion-fast) ease;
-}
-
-/* Per-player seat menu sits in the bottom-right corner of each panel (in
-   panel-local coords) so it stays far from the central game-menu hub at
-   the panel seams. For top-row panels (rotated 180°) bottom-right of the
-   panel renders at the screen's top-left corner — also clear of the hub. */
-.player-panel-menu-btn.is-corner-br {
-  position: absolute;
-  bottom: var(--space-1);
-  right: 0.35rem;
-  z-index: 3;
-}
-
-/* A sideways seat's bottom-right corner can land on a seam gutter (the right
-   seat of 3p-wide-top-sides sits it right under the row seam, where the
-   clock pill covered it), so it takes the seam keep-out like the other
-   corner rails. Upright seats keep it tight: their corner is on the board
-   edge, and a narrow one needs the room for its counter chips. */
-.player-panel[data-sideways] .player-panel-menu-btn.is-corner-br {
-  bottom: calc(var(--space-1) + var(--seam-keepout));
-  right: calc(0.35rem + var(--seam-keepout));
-}
-
 /* 44px touch-target floor (UX-320 pattern) — the resting 2.5rem (40px)
    circle is 4px short on a coarse pointer. */
-@media (pointer: coarse) {
-  .player-panel-menu-btn.is-corner-br {
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .player-panel-menu-btn:hover {
-    background: rgba(0, 0, 0, 0.55);
-  }
-}
-
-.player-panel-menu-btn:focus-visible {
-  background: rgba(0, 0, 0, 0.55);
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-  outline-offset: 2px;
-}
-
-.player-panel-menu-btn:active {
-  background: rgba(0, 0, 0, 0.7);
-}
 
 .player-panel-life-wrap {
   /* Fills the entire panel content area. The life numeral is absolutely

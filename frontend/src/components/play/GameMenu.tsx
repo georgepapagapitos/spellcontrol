@@ -1,4 +1,4 @@
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Hand } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import type { GameAction, GameState } from '../../lib/game-state';
 import { makePlayer } from '../../lib/game-state';
@@ -29,6 +29,7 @@ export function GameMenu({
   onRematch,
   onUndo,
   undoLabel,
+  onShowGestures,
 }: {
   game: GameState;
   canControlAll: boolean;
@@ -40,6 +41,8 @@ export function GameMenu({
   onRematch?: () => void;
   onUndo: () => void;
   undoLabel: string | null;
+  /** Bring back the "How the board works" card. */
+  onShowGestures?: () => void;
 }) {
   const isFinished = game.status === 'finished';
   const hapticsEnabled = usePlayStore((s) => s.hapticsEnabled);
@@ -226,6 +229,19 @@ export function GameMenu({
                 >
                   <BookOpen width={16} height={16} strokeWidth={1.8} aria-hidden /> Rules reference
                 </button>
+                {onShowGestures && (
+                  <button
+                    type="button"
+                    className="game-menu-btn is-wide"
+                    onClick={() => {
+                      onClose();
+                      onShowGestures();
+                    }}
+                  >
+                    <Hand width={16} height={16} strokeWidth={1.8} aria-hidden /> How the board
+                    works
+                  </button>
+                )}
               </section>
 
               {/* ── Destructive actions — anchored at the bottom ── */}

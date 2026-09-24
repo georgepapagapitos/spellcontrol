@@ -148,6 +148,50 @@
   border-left: 1px solid rgba(255, 255, 255, 0.18);
 }
 
+/* Once a seat holds the turn, the segment is the pass-turn control. The
+   reset keeps it looking like the readout it also is; the pass glyph is the
+   tell. Seats carry no turn button any more (see GameClock.tsx). */
+button.game-clock-turn {
+  font: inherit;
+  font-size: var(--text-xs);
+  align-items: center;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: 0;
+  background: none;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+}
+
+button.game-clock-turn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.game-clock-pass {
+  flex: 0 0 auto;
+  opacity: 0.8;
+}
+
+/* The segment is ~20px tall inside a pill that must not grow, so the 44px
+   floor is a ghost (the UX-320 pattern), full width, centred on it. */
+@media (pointer: coarse) {
+  button.game-clock-turn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2.75rem;
+    transform: translateY(-50%);
+  }
+}
+
 .game-clock-turn-name {
   max-width: 6ch;
   min-width: 0;
@@ -780,4 +824,67 @@
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   color: var(--text-secondary);
+}
+
+/* ── How the board works (BoardGestureHint) ──
+   Screen-relative like the clock: it is for whoever holds the device. Above
+   the seats, their covers and the seam furniture. */
+.board-hint-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(0, 0, 0, 0.6);
+  animation: pp-fade-in 160ms ease-out;
+}
+
+.board-hint {
+  width: min(24rem, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgba(14, 17, 24, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: var(--shadow-modal);
+  color: #f4f6fa;
+}
+
+.board-hint-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}
+
+.board-hint-list {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.board-hint-list strong {
+  color: #fff;
+}
+
+.board-hint-done {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: #fff;
+  color: #12151c;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.board-hint-done:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
