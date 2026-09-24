@@ -54,6 +54,8 @@ export interface ResultRow {
   participants: GameResultParticipant[];
   notable_events: GameEvent[] | null;
   summary: GameSummary | null;
+  coop_outcome: 'won' | 'lost' | null;
+  horde_id: string | null;
 }
 
 export function toPublic(r: ResultRow): PublicGameResult {
@@ -73,6 +75,8 @@ export function toPublic(r: ResultRow): PublicGameResult {
     participants: r.participants,
     notableEvents: r.notable_events,
     summary: r.summary,
+    coopOutcome: r.coop_outcome,
+    hordeId: r.horde_id,
   };
 }
 
@@ -81,7 +85,7 @@ export function toPublic(r: ResultRow): PublicGameResult {
  *  `undefined` at runtime with no type error. */
 export const RESULT_COLUMNS = `session_id, code, mode, recorded_by_user_id, host_user_id, format, starting_life,
             winner_seat, winner_user_id, started_at, ended_at, duration_ms, participants,
-            notable_events, summary`;
+            notable_events, summary, coop_outcome, horde_id`;
 
 /** Accepted-friend ids of `userId`, both directions. */
 async function friendIdsOf(userId: string): Promise<Set<string>> {
@@ -279,6 +283,11 @@ gameResultsRouter.patch(
     const row = current.rows[0];
     if (!row) return res.status(404).json({ error: 'No such game.' });
 
+    // A horde game has no winning seat — its outcome is `coopOutcome`, which
+    // this edit path does not touch.
+    if (row.format === 'horde' && edit.winnerSeat !== null) {
+      return res.status(400).json({ error: 'A horde game has no winning seat.' });
+    }
     const seats = new Set(row.participants.map((p) => p.seat));
     if (edit.winnerSeat !== null && !seats.has(edit.winnerSeat)) {
       return res.status(400).json({ error: 'That seat is not in this game.' });
@@ -410,6 +419,8 @@ gameResultsRouter.get(
          FROM game_results
          WHERE participants @> $2::jsonb
            AND ($3::text IS NULL OR mode = $3)
+           -- Co-op games have no winning seat and are never a PvP result.
+           AND format <> 'horde'
        ),
        shared AS (
          SELECT g.session_id, g.ended_at, g.winner_user_id, fi.friend_id
@@ -479,6 +490,8 @@ gameResultsRouter.get(
        FROM game_results
        WHERE participants @> $1::jsonb AND participants @> $2::jsonb
          AND ($3::text IS NULL OR mode = $3)
+         -- Co-op games have no winning seat and are never a PvP result.
+         AND format <> 'horde'
        ORDER BY ended_at DESC
        LIMIT 100`,
       [participantFilter(callerId), participantFilter(friendId), mf.mode]

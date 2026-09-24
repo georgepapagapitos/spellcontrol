@@ -863,6 +863,18 @@ export const gameResults = pgTable(
      * written before this column existed.
      */
     hostUserId: text('host_user_id'),
+    /**
+     * Co-op result (format = 'horde' only): 'won' or 'lost' for the whole
+     * table — there is no winning seat in co-op, so winnerSeat/winnerUserId
+     * stay null on these rows. Null for every non-co-op row.
+     */
+    coopOutcome: text('coop_outcome').$type<'won' | 'lost' | null>(),
+    /**
+     * Which horde deck a co-op game was fought against (display name/id) —
+     * what the client's per-horde W/L tally groups by. Null for every
+     * non-co-op row.
+     */
+    hordeId: text('horde_id'),
   },
   (t) => ({
     endedIdx: index('game_results_ended_idx').on(t.endedAt),

@@ -53,6 +53,12 @@ export interface PublicGameResult {
   /** Derived stats (summarizeGame) captured at record time; null for a
    *  pre-migration row. Carried into `GameRecord.summary` by resultToRecord. */
   summary?: GameSummary | null;
+  /** Co-op outcome (format = 'horde' only) — there is no winning seat in
+   *  co-op, so `winnerSeat`/`winnerUserId` stay null on these rows. Null for
+   *  every other format. */
+  coopOutcome?: 'won' | 'lost' | null;
+  /** Which horde deck a co-op game was fought against. Null otherwise. */
+  hordeId?: string | null;
 }
 
 export type GameResultMode = PublicGameResult['mode'];
@@ -282,5 +288,7 @@ export function resultToRecord(r: PublicGameResult): GameRecord {
     recordedByUserId: r.recordedByUserId,
     ...(r.hostUserId !== null ? { hostUserId: r.hostUserId } : {}),
     ...(r.summary ? { summary: r.summary } : {}),
+    ...(r.coopOutcome ? { coopOutcome: r.coopOutcome } : {}),
+    ...(r.hordeId ? { hordeId: r.hordeId } : {}),
   };
 }

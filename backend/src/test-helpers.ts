@@ -456,7 +456,9 @@ export async function createTestEnv(): Promise<TestEnv> {
       created_at BIGINT NOT NULL,
       mode TEXT NOT NULL DEFAULT 'online',
       recorded_by_user_id TEXT,
-      host_user_id TEXT
+      host_user_id TEXT,
+      coop_outcome TEXT,
+      horde_id TEXT
     );
     CREATE INDEX game_results_participants_idx ON game_results USING GIN (participants);
     CREATE INDEX game_results_ended_idx ON game_results(ended_at DESC);

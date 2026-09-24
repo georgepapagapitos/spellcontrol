@@ -61,7 +61,10 @@ type PodParticipant = Omit<GameResultParticipant, 'userId' | 'username'> & {
  *    free-text `note` messages typed at the table.
  *  - `hostUserId` — an account id, out for the same reason as the two above.
  *    It decides who may DELETE an online row; the pod hub has no such control
- *    and should not learn who hosted. */
+ *    and should not learn who hosted.
+ *  - `coopOutcome` / `hordeId` — `fetchPodGames` already excludes
+ *    `format = 'horde'` rows (co-op has no winning seat and is never a PvP
+ *    result), so every row reaching this projection has both null. */
 type PodGameResult = Omit<
   PublicGameResult,
   | 'code'
@@ -71,6 +74,8 @@ type PodGameResult = Omit<
   | 'participants'
   | 'notableEvents'
   | 'summary'
+  | 'coopOutcome'
+  | 'hordeId'
 > & { participants: PodParticipant[] };
 
 function toPublicForPod(r: ResultRow): PodGameResult {
@@ -124,6 +129,8 @@ async function fetchPodGames(memberIds: string[]): Promise<ResultRow[]> {
         SELECT COUNT(*) FROM unnest($1::text[]) AS m(uid)
          WHERE g.participants @> jsonb_build_array(jsonb_build_object('userId', m.uid))
       ) >= 2
+        -- Co-op games have no winning seat and are never a PvP result.
+        AND g.format <> 'horde'
       ORDER BY ended_at DESC
       LIMIT 200`,
     [memberIds]

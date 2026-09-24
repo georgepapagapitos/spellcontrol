@@ -84,6 +84,7 @@ async function insertResult(opts: {
   participants: Array<{ userId: string | null; username?: string | null }>;
   /** Omitted → a pre-summary row, which the rollups must skip entirely. */
   summary?: GameSummary;
+  format?: string;
 }): Promise<string> {
   const sessionId = `pod-res-${++resultSeq}`;
   const participants = opts.participants.map((p, i) => ({
@@ -102,12 +103,13 @@ async function insertResult(opts: {
     `INSERT INTO game_results
        (session_id, code, format, starting_life, winner_seat, winner_user_id,
         started_at, ended_at, duration_ms, participants, notable_events, summary, created_at)
-     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1, 100, 99, $3, NULL, $4, 100)`,
+     VALUES ($1, 'CODE', $5, 40, 0, $2, 1, 100, 99, $3, NULL, $4, 100)`,
     [
       sessionId,
       opts.winnerUserId,
       JSON.stringify(participants),
       opts.summary ? JSON.stringify(opts.summary) : null,
+      opts.format ?? 'commander',
     ]
   );
   return sessionId;
@@ -139,6 +141,33 @@ describe('GET /api/pods/:id/games', () => {
     expect(res.status).toBe(200);
     expect(res.body.games).toHaveLength(1);
     expect(res.body.games[0].sessionId).toBe(includedId);
+  });
+
+  it('excludes a horde (co-op) game even with 2+ pod members present', async () => {
+    const owner = await makeUser('ps-horde-owner');
+    const member = await makeUser('ps-horde-member');
+    await befriend(owner.cookie, 'ps-horde-member', member.cookie, 'ps-horde-owner');
+    const pod = await createPod(owner.cookie);
+    await addMember(owner.cookie, pod.id, member.id, member.cookie);
+
+    await insertResult({
+      winnerUserId: null,
+      participants: [{ userId: owner.id }, { userId: member.id }],
+      format: 'horde',
+    });
+    const pvpId = await insertResult({
+      winnerUserId: member.id,
+      participants: [{ userId: owner.id }, { userId: member.id }],
+    });
+
+    const games = await request(app).get(`/api/pods/${pod.id}/games`).set('Cookie', owner.cookie);
+    expect(games.body.games.map((g: { sessionId: string }) => g.sessionId)).toEqual([pvpId]);
+
+    const board = await request(app)
+      .get(`/api/pods/${pod.id}/leaderboard`)
+      .set('Cookie', owner.cookie);
+    const memberRow = board.body.standings.find((s: { userId: string }) => s.userId === member.id);
+    expect(memberRow.played).toBe(1);
   });
 
   it("nulls every participant's userId/username, including pod members' own", async () => {

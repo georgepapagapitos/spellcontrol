@@ -1800,4 +1800,34 @@ describe('aggregateDeckRecords', () => {
     expect(rows[0].losses).toBe(0);
     expect(rows[0].winRate).toBe(0);
   });
+
+  it('ignores horde (co-op) games — no deck win rate from a self-running opponent', () => {
+    const records: GameRecord[] = [
+      {
+        id: 'g1',
+        code: '',
+        format: 'horde',
+        startingLife: 40,
+        mode: 'local',
+        startedAt: 1,
+        endedAt: 2,
+        durationMs: 1,
+        winnerSeat: null,
+        coopOutcome: 'won',
+        players: [
+          {
+            seat: 0,
+            userId: null,
+            name: 'A',
+            deckId: 'd1',
+            deckName: 'D1',
+            commander: null,
+            finalLife: 5,
+            eliminated: false,
+          },
+        ],
+      },
+    ];
+    expect(aggregateDeckRecords(records, null)).toEqual([]);
+  });
 });

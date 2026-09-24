@@ -601,6 +601,15 @@ export async function ensureSchema(): Promise<void> {
     -- stay hide-only, which is what they were before.
     ALTER TABLE game_results ADD COLUMN IF NOT EXISTS host_user_id TEXT;
     CREATE INDEX IF NOT EXISTS game_results_host_idx ON game_results(host_user_id);
+    -- Co-op result (format = 'horde' only): 'won' or 'lost', the whole table
+    -- together — there is no winning seat, so winner_seat/winner_user_id stay
+    -- null on these rows. App-level validation only (parseLocalResult), no
+    -- CHECK, matching content_reports.kind above. Null for every non-co-op row.
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS coop_outcome TEXT;
+    -- Which horde deck a co-op game was fought against (display name/id, the
+    -- host's choice) — what the client's per-horde W/L tally groups by. Null
+    -- for every non-co-op row.
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS horde_id TEXT;
     -- Per-account hide list for ONLINE rows. An online game is the table's
     -- shared record, so one seat may not retract it — but they can drop it out
     -- of their own history list (a test table, a game they would rather not

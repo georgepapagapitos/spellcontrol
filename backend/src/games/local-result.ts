@@ -18,6 +18,10 @@ import { VALID_FORMATS } from '../routes/games';
 export const MAX_LOCAL_RESULT_BYTES = 256 * 1024;
 const MAX_PLAYERS = 8;
 const MIN_PLAYERS = 2;
+// Horde is co-op: 1-4 survivors sharing one life total against a self-running
+// horde deck, so its player-count band is its own rather than PvP's 2-8.
+const HORDE_MIN_PLAYERS = 1;
+const HORDE_MAX_PLAYERS = 4;
 const MAX_EVENTS = 5000;
 const MAX_NAME_LEN = 40;
 const MAX_LABEL_LEN = 200;
@@ -78,6 +82,7 @@ export function parseLocalResult(body: unknown): LocalResultParse {
   if (typeof g.format !== 'string' || !VALID_FORMATS.includes(g.format as GameFormat)) {
     return { ok: false, error: 'Unknown format.' };
   }
+  const isHorde = g.format === 'horde';
   if (!isInt(g.startingLife) || g.startingLife < 1 || g.startingLife > 999) {
     return { ok: false, error: 'Bad starting life.' };
   }
@@ -86,12 +91,15 @@ export function parseLocalResult(body: unknown): LocalResultParse {
     isInt(g.startedAt) && g.startedAt > 0 && g.startedAt <= g.endedAt ? g.startedAt : null;
   const startingSeat = isInt(g.startingSeat) ? g.startingSeat : null;
 
-  if (
-    !Array.isArray(g.players) ||
-    g.players.length < MIN_PLAYERS ||
-    g.players.length > MAX_PLAYERS
-  ) {
-    return { ok: false, error: `A game has ${MIN_PLAYERS} to ${MAX_PLAYERS} players.` };
+  const minPlayers = isHorde ? HORDE_MIN_PLAYERS : MIN_PLAYERS;
+  const maxPlayers = isHorde ? HORDE_MAX_PLAYERS : MAX_PLAYERS;
+  if (!Array.isArray(g.players) || g.players.length < minPlayers || g.players.length > maxPlayers) {
+    return {
+      ok: false,
+      error: isHorde
+        ? `A horde game has ${HORDE_MIN_PLAYERS} to ${HORDE_MAX_PLAYERS} survivors.`
+        : `A game has ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`,
+    };
   }
   const seats = new Set<number>();
   const players: GamePlayer[] = [];
@@ -145,6 +153,21 @@ export function parseLocalResult(body: unknown): LocalResultParse {
     winnerSeat = g.winnerSeat;
   }
 
+  // Horde is co-op: the table wins or loses together, so there is no winning
+  // seat — the outcome is `coopOutcome` instead, and it is required.
+  let coopOutcome: 'won' | 'lost' | undefined;
+  let hordeId: string | undefined;
+  if (isHorde) {
+    if (winnerSeat !== null) {
+      return { ok: false, error: 'A horde game has no winning seat.' };
+    }
+    if (g.coopOutcome !== 'won' && g.coopOutcome !== 'lost') {
+      return { ok: false, error: 'A horde game needs a won or lost outcome.' };
+    }
+    coopOutcome = g.coopOutcome;
+    hordeId = optStr(g.hordeId, MAX_LABEL_LEN) ?? undefined;
+  }
+
   const rawEvents = Array.isArray(g.events) ? g.events : [];
   if (rawEvents.length > MAX_EVENTS) return { ok: false, error: 'Too many events.' };
   const events: GameEvent[] = [];
@@ -194,6 +217,8 @@ export function parseLocalResult(body: unknown): LocalResultParse {
       startedAt,
       endedAt: g.endedAt,
       updatedAt: g.endedAt,
+      ...(coopOutcome !== undefined ? { coopOutcome } : {}),
+      ...(hordeId !== undefined ? { hordeId } : {}),
     },
   };
 }

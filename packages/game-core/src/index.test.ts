@@ -145,6 +145,19 @@ describe('applyAction', () => {
     expect(rec.winnerSeat).toBeNull();
   });
 
+  it('gameToRecord carries coopOutcome and hordeId when the state sets them, and omits them otherwise', () => {
+    const s = applyAction(lobby(2, { format: 'horde' }), { type: 'end', winnerSeat: null });
+    const withCoop = { ...s, coopOutcome: 'won' as const, hordeId: 'zombies' };
+    const rec = gameToRecord(withCoop, 9999);
+    expect(rec.coopOutcome).toBe('won');
+    expect(rec.hordeId).toBe('zombies');
+    expect(rec.winnerSeat).toBeNull();
+
+    const plain = gameToRecord(s, 9999);
+    expect(plain.coopOutcome).toBeUndefined();
+    expect(plain.hordeId).toBeUndefined();
+  });
+
   it('end is a no-op when already finished', () => {
     let s = applyAction(lobby(), { type: 'start' });
     s = applyAction(s, { type: 'end', winnerSeat: 0 });

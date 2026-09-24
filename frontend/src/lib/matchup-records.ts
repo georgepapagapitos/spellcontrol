@@ -46,6 +46,9 @@ export function aggregateMatchupRecords(
   const byPair = new Map<string, MatchupAccum>();
 
   for (const rec of records) {
+    // Horde is co-op — there is no winning seat, and no deck-vs-deck matchup
+    // to speak of against a self-running horde deck.
+    if (rec.format === 'horde') continue;
     // Collect players that have a deckId.
     const players = rec.players.filter((p) => p.deckId != null);
 

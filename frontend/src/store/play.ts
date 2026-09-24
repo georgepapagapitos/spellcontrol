@@ -1537,6 +1537,9 @@ export function aggregateDeckRecords(
 ): DeckRecordRow[] {
   const byDeck = new Map<string, DeckRecordRow>();
   for (const rec of history) {
+    // Horde is co-op — there is no winning seat, and it belongs in its own
+    // horde tally (aggregateHordeRecords), not a deck's PvP win rate.
+    if (rec.format === 'horde') continue;
     for (const p of rec.players) {
       if (!p.deckId) continue;
       // For online games, attribute by userId; for local, attribute by deck

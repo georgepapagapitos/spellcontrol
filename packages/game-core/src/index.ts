@@ -79,7 +79,13 @@ export type GameFormat =
   | 'vintage'
   | 'pauper'
   | 'brawl'
-  | 'casual';
+  | 'casual'
+  /**
+   * Co-op: 1-4 survivors sharing one life total against a self-running horde
+   * deck. There is no winning seat — `winnerSeat` stays null and the outcome
+   * lives in `GameState.coopOutcome` instead. See that field's doc.
+   */
+  | 'horde';
 
 export interface GamePlayer {
   /** Stable id; for online games this is the user id when authed, else a guest token. */
@@ -306,6 +312,19 @@ export interface GameState {
   players: GamePlayer[];
   events: GameEvent[];
   winnerSeat: number | null;
+  /**
+   * Outcome of a CO-OP format (currently only `'horde'`). There is no winning
+   * seat in co-op, so `winnerSeat` stays null and this field carries the
+   * result instead. Absent for every non-co-op format and for any co-op game
+   * that never finished. Never set alongside a non-null `winnerSeat`.
+   */
+  coopOutcome?: 'won' | 'lost';
+  /**
+   * Which horde deck this co-op game was fought against (display name/id,
+   * host's choice) — the key `aggregateHordeRecords` groups by. Absent for
+   * every non-co-op format.
+   */
+  hordeId?: string;
   createdAt: number;
   updatedAt: number;
   startedAt: number | null;
@@ -1321,6 +1340,10 @@ export interface GameRecord {
    * genuinely uneventful game. Same discipline as `game_results.notable_events`.
    */
   summary?: GameSummary;
+  /** See `GameState.coopOutcome`. Absent for every non-co-op format. */
+  coopOutcome?: 'won' | 'lost';
+  /** See `GameState.hordeId`. Absent for every non-co-op format. */
+  hordeId?: string;
 }
 
 export function gameToRecord(state: GameState, endedAt: number = Date.now()): GameRecord {
@@ -1346,6 +1369,8 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
     mode: state.mode,
     ...(state.hostUserId !== null ? { hostUserId: state.hostUserId } : {}),
     summary: summarizeGame(state, endedAt),
+    ...(state.coopOutcome !== undefined ? { coopOutcome: state.coopOutcome } : {}),
+    ...(state.hordeId !== undefined ? { hordeId: state.hordeId } : {}),
   };
 }
 

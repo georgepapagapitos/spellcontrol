@@ -26,12 +26,13 @@ function game(
   players: ReturnType<typeof player>[],
   winnerSeat: number | null,
   mode: 'local' | 'online' = 'local',
-  endedAt = 1000
+  endedAt = 1000,
+  format: GameRecord['format'] = 'commander'
 ): GameRecord {
   return {
     id,
     code: id,
-    format: 'commander',
+    format,
     startingLife: 40,
     startedAt: endedAt - 60000,
     endedAt,
@@ -236,5 +237,12 @@ describe('aggregateMatchupRecords', () => {
     ];
     const rows = aggregateMatchupRecords(records, null);
     expect(rows[0].lastPlayedAt).toBe(5000);
+  });
+
+  it('ignores horde (co-op) games — no deck-vs-deck matchup against a self-running opponent', () => {
+    const records: GameRecord[] = [
+      game('g1', [player(0, 'd1'), player(1, 'd2')], null, 'local', 1000, 'horde'),
+    ];
+    expect(aggregateMatchupRecords(records, null)).toEqual([]);
   });
 });
