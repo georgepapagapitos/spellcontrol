@@ -322,7 +322,7 @@ export function DeckNewPage() {
         : genMode === 'oracle-role'
           ? 'Builds a full 100 chosen by card function, not crowd data.'
           : isPdh
-            ? 'Builds a full 100 from Pauper Commander–legal cards, chosen by card function (EDHREC has no PDH data).'
+            ? 'Builds a full 100 from Pauper Commander–legal cards, chosen by card function. EDHREC has no PDH data.'
             : 'Generate uses EDHREC data to draft a full 100.';
 
   // Full card images for the takeover panel — it shows the actual card(s).
@@ -511,8 +511,8 @@ export function DeckNewPage() {
           <div className="guided-cta-text">
             <strong>Prefer to pick every card?</strong>
             <span>
-              Brew mode builds the deck slot by slot: ramp, draw, removal, wipes, your theme,
-              finishers. Each stop deals you a hand of candidates to add or pass.
+              Build the deck one slot at a time. Each stop deals you a hand of candidates to add or
+              pass.
             </span>
           </div>
           <button

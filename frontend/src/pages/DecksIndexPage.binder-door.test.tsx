@@ -73,7 +73,7 @@ describe('DecksIndexPage — "From my binder" door', () => {
     mockCards = cards(MIN_COLLECTION_SIZE);
     renderPage();
     openDeckMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: /New deck from my binder/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /New deck from my collection/ }));
     expect(screen.getByText('new deck picker, source binder')).toBeTruthy();
   });
 
@@ -81,6 +81,6 @@ describe('DecksIndexPage — "From my binder" door', () => {
     mockCards = cards(MIN_COLLECTION_SIZE - 1);
     renderPage();
     openDeckMenu();
-    expect(screen.queryByRole('menuitem', { name: /from my binder/i })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /from my collection/i })).toBeNull();
   });
 });

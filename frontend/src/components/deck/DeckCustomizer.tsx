@@ -479,10 +479,10 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
       ? strategy === 'partial'
         ? `Prioritizing your cards (~${pct}% owned); the rest come from outside your collection.`
         : strategy === 'available'
-          ? 'Generator will only use copies not committed to other decks.'
+          ? 'Uses only copies not committed to other decks.'
           : strategy === 'prefer'
             ? 'Builds the best deck it can while favoring cards you already own. No card is excluded.'
-            : 'Generator will only suggest cards you own.'
+            : 'Uses only cards you own.'
       : 'Constrain the build to your owned cards.';
   return (
     <div className={`deck-customizer-group collection-group${active ? ' active' : ''}`}>

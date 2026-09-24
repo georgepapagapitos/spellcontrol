@@ -32,7 +32,7 @@ const SKIP_FILE =
   /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|__snapshots__|\.stories\.|\/src\/test\/)/;
 
 const COPY_PROPS =
-  /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|emptyText|helper|text|summary|reason|note|alt)$/;
+  /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|emptyText|helper|text|summary|reason|note|alt|blurb)$/;
 const LOG_CALLEE = /^(console\.|logger?\.|debug\b|warn\b|log\b|trace\b|reportError\b)/;
 
 type Rule = [id: string, test: (text: string, kind: string) => boolean, why: string];

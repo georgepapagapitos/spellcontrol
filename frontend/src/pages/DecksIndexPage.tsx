@@ -548,7 +548,7 @@ export function DecksIndexPage() {
             ...(canBuildFromBinder
               ? [
                   {
-                    label: 'New deck from my binder',
+                    label: 'New deck from my collection',
                     icon: BookOpen,
                     onClick: () => navigate('/decks/new', { state: { commanderSource: 'binder' } }),
                   },
@@ -700,8 +700,7 @@ export function DecksIndexPage() {
             <EmptyStateMark />
             <p className="empty-state-tagline">No decks yet.</p>
             <p className="empty-state-hint">
-              Build one from scratch, import a list you already have, or add a precon or Secret Lair
-              drop.
+              Build one, or bring in a list or precon you already have.
             </p>
             <div className="empty-state-actions decks-empty-actions">
               <Link to="/decks/new" className="btn btn-primary empty-state-action">
@@ -968,7 +967,7 @@ export function DecksIndexPage() {
                         ...(deck.source === 'generated' && deck.commander
                           ? [
                               {
-                                label: 'Re-generate',
+                                label: 'Regenerate',
                                 icon: RefreshCw,
                                 onClick: () => handleRegenerate(deck),
                               },

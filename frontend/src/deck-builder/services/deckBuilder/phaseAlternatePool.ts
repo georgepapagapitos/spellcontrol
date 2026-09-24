@@ -82,10 +82,10 @@ export const ART_THEME_PRESETS: ReadonlyArray<{ tag: string; label: string }> = 
 export const HISTORICAL_MIN_YEAR = 1995;
 /** Curated era presets for the Historical picker. */
 export const HISTORICAL_PRESETS: ReadonlyArray<{ year: number; label: string; blurb: string }> = [
-  { year: 2000, label: 'Classic', blurb: 'Pre-2000 — the foundational era' },
-  { year: 2005, label: 'Old-School', blurb: 'Through 2005 — Kamigawa & Ravnica' },
-  { year: 2010, label: 'Golden Age', blurb: 'Through 2010 — the first Commander decks' },
-  { year: 2015, label: 'Modern', blurb: 'Through 2015 — Khans & origins' },
+  { year: 2000, label: 'Classic', blurb: 'Through 2000: the foundational era' },
+  { year: 2005, label: 'Old-School', blurb: 'Through 2005: Kamigawa and Ravnica' },
+  { year: 2010, label: 'Golden Age', blurb: 'Through 2010: the first Commander decks' },
+  { year: 2015, label: 'Modern', blurb: 'Through 2015: Khans and Origins' },
 ];
 
 // Oracle role facets — each pulls the globally best cards that perform a function,
