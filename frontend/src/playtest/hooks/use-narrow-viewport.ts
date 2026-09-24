@@ -11,10 +11,19 @@ import { useEffect, useState } from 'react';
  * The phone boundary, as opposed to the tier boundary above. The board's
  * layout is the same at every width; this is the one question that is not —
  * whether four card-width zone piles fit along the bottom beside the hand.
- * MUST agree with playtest.css's `@media (max-width: 767px)` block, which
- * sizes the same split.
+ * MUST agree with playtest.css's phone block, which sizes the same split.
  */
 export const PHONE_MAX_WIDTH = 767;
+
+/** A phone on its side: 800 to 930px wide, so the width test above misses
+ *  it, but a table under 500px tall has no room for four piles either. 500
+ *  clears the tallest phones (about 430px) and stays under every tablet.
+ *  RotatePrompt and the opening hand use the same line. */
+export const SHORT_LANDSCAPE_QUERY = '(max-height: 500px) and (orientation: landscape)';
+
+/** Upright and narrow, or on its side. MUST agree with playtest.css's phone
+ *  block. */
+export const PHONE_QUERY = `(max-width: ${PHONE_MAX_WIDTH}px), ${SHORT_LANDSCAPE_QUERY}`;
 
 export function useNarrowViewport(maxWidth = 1023): boolean {
   const [narrow, setNarrow] = useState(() => {

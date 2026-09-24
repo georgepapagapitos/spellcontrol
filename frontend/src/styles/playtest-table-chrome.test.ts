@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { PHONE_QUERY } from '@/playtest/hooks/use-narrow-viewport';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, 'playtest.css'), 'utf8');
@@ -178,12 +179,17 @@ describe('table chrome at the wide tier', () => {
     expect(block('.playtest-hand-menu-btn {')).toContain('width: var(--pt-hand-btn-w)');
     expect(css).not.toContain('.playtest-hand__toggle');
     expect(css).not.toContain('.playtest-hand--fan.is-collapsed');
-    // A phone has no room for it in the row (the fan covered it at 390px),
-    // so it stands above the library instead and the phone span leaves it out.
-    const [tablet, phone] = [...css.matchAll(/--pt-pile-span: calc\([^;]+;/g)].map((m) => m[0]);
+    // An upright phone has no room for it in the row (the fan covered it at
+    // 390px), so it stands above the library instead and the phone span
+    // leaves it out. On its side the phone has the width, so the button is
+    // back in the row and that span counts it again.
+    const [tablet, phone, sideways] = [...css.matchAll(/--pt-pile-span: calc\([^;]+;/g)].map(
+      (m) => m[0]
+    );
     expect(tablet).toContain('--pt-hand-btn-w');
     expect(phone).not.toContain('--pt-hand-btn-w');
-    const phoneTier = css.slice(css.lastIndexOf('@media (max-width: 767px) {'));
+    expect(sideways).toContain('--pt-hand-btn-w');
+    const phoneTier = css.slice(css.lastIndexOf(`@media ${PHONE_QUERY} {`));
     expect(phoneTier).toContain(
       '.playtest-hand-menu-btn {\n    position: absolute;\n    bottom: 100%;'
     );
@@ -268,7 +274,7 @@ describe('the narrow tier is the same board, sized for a thumb', () => {
   const narrow = narrowBlock('first');
   const phone = narrowBlock('last');
   const phoneOnly = (() => {
-    const start = css.indexOf('@media (max-width: 767px) {');
+    const start = css.indexOf(`@media ${PHONE_QUERY} {`);
     expect(start, 'the phone-only block is missing').toBeGreaterThan(-1);
     return css.slice(start);
   })();
@@ -280,9 +286,9 @@ describe('the narrow tier is the same board, sized for a thumb', () => {
 
   /* The edge tab is a PHONE answer, not a tier answer: four card-width
      piles plus a hand do not fit 412px, but a tablet has the width for all
-     four and keeps them on the felt. The 767 here must stay in step with
-     PHONE_MAX_WIDTH in use-narrow-viewport.ts, which decides the same split
-     in the markup. */
+     four and keeps them on the felt. "Phone" is PHONE_QUERY: narrow, or on
+     its side (a phone on its side is wider than 767px). The block is found by
+     that exact string, so the CSS and the markup cannot split differently. */
   it('hands the zones tab to phones alone, and sizes the fan around the piles', () => {
     expect(phoneOnly).toContain('.playtest-zones-tab {\n    display: block;\n  }');
     expect(narrow).not.toContain('.playtest-zones-tab');

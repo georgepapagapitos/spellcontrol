@@ -68,7 +68,7 @@ const MULLIGAN_TABLE_NOTE: Record<MulliganType, string> = {
   london: 'Table rule: London mulligans.',
   free: 'Table rule: free mulligans. Nothing goes to the bottom.',
 };
-import { PHONE_MAX_WIDTH, useNarrowViewport } from '../hooks/use-narrow-viewport';
+import { PHONE_QUERY, useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { applyTableSkin, readFelt, writeFelt } from '../lib/table-skin';
 import { readSnap, readTurnAlert, writeSnap, writeTurnAlert } from '../lib/table-prefs';
 import { snapToGrid } from '../lib/snap-grid';
@@ -112,7 +112,6 @@ import { Battlefield } from './Battlefield';
 import { Hand } from './Hand';
 import { HandCardMenu } from './HandCardMenu';
 import { CardHoverPreview, type PreviewFaces } from './CardHoverPreview';
-import { HandDrawer, SHORT_LANDSCAPE_QUERY } from './HandDrawer';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { ZonePile } from './ZonePile';
 import { ZoneViewerModal } from './ZoneViewerModal';
@@ -273,10 +272,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const { confirm, dialog: confirmDialog } = useConfirm();
 
   const battlefieldRef = useRef<HTMLDivElement | null>(null);
-  // Short landscape (E264): the hand collapses to a 44px drawer strip so the
-  // battlefield keeps its height; `handOpen` is the drawer's sheet.
-  const shortLandscape = useMediaQuery(SHORT_LANDSCAPE_QUERY);
-  const [handOpen, setHandOpen] = useState(false);
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
   const [handMenu, setHandMenu] = useState<HandMenuState>(null);
@@ -399,8 +394,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   /* A phone, specifically. `isNarrow` is the tier boundary the CSS uses for
      sizing (≤1023px covers a tablet too); this one answers the narrower
      question of whether four card-width piles fit along the bottom beside
-     the hand. On a tablet they do. */
-  const isPhone = useNarrowViewport(PHONE_MAX_WIDTH);
+     the hand. On a tablet they do. A phone on its side is wider than the
+     phone line, so this asks about its height too. */
+  const isPhone = useMediaQuery(PHONE_QUERY);
   // How this device's table looks (E347): a per-device preference, like card
   // size — it never leaves the device and nothing about it is published.
   const [felt, setFelt] = useState(readFelt);
@@ -633,7 +629,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       // From hand: cast it straight onto the creature — enter the battlefield,
       // then attach; the reducer snaps it to the host.
       if (parsed.source === 'hand') {
-        setHandOpen(false);
         dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: parsed.cardId, ...FALLBACK_DROP_POS });
       }
       dispatch({ type: 'ATTACH', cardId: parsed.cardId, targetId: hostId });
@@ -680,9 +675,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     }
 
     if (overId === 'battlefield') {
-      // A card dragged out of the short-landscape hand sheet: the play is the
-      // dismissal, same as a tap.
-      if (parsed.source === 'hand') setHandOpen(false);
       const { width, height, left, top, cardW, cardH } = getBattlefieldGeometry();
       const translated = event.active.rect.current.translated;
       if (width > 0 && translated) {
@@ -990,7 +982,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   const anySheetOpen =
     phase !== 'playing' ||
-    handOpen ||
     viewer !== null ||
     ctx !== null ||
     handMenu !== null ||
@@ -2470,23 +2461,20 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
      has the width for all four, so it keeps them. */
   const piles = (
     <aside className="playtest-piles">
-      {/* The hand's count and its menu, beside the library as in EDHPlay. The
-          short-landscape drawer strip is the hand's control there. */}
-      {!shortLandscape && (
-        <button
-          type="button"
-          className="playtest-hand-menu-btn"
-          aria-haspopup="menu"
-          aria-expanded={pileMenu?.zone === 'hand'}
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            setPileMenu({ zone: 'hand', x: r.right, y: r.top, origin: 'bottom-end' });
-          }}
-        >
-          <ChevronDown aria-hidden width={14} height={14} />
-          Hand ({state.zones.hand.length})
-        </button>
-      )}
+      {/* The hand's count and its menu, beside the library as in EDHPlay. */}
+      <button
+        type="button"
+        className="playtest-hand-menu-btn"
+        aria-haspopup="menu"
+        aria-expanded={pileMenu?.zone === 'hand'}
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setPileMenu({ zone: 'hand', x: r.right, y: r.top, origin: 'bottom-end' });
+        }}
+      >
+        <ChevronDown aria-hidden width={14} height={14} />
+        Hand ({state.zones.hand.length})
+      </button>
       <ZonePile
         zone="library"
         label="Library"
@@ -2684,15 +2672,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                   </div>
                 )}
                 {piles}
-                {!shortLandscape && (
-                  <Hand
-                    cards={state.zones.hand}
-                    fan
-                    reorderable
-                    onCardMenu={handleHandCardMenu}
-                    revealedIds={revealedIds}
-                  />
-                )}
+                <Hand
+                  cards={state.zones.hand}
+                  fan
+                  reorderable
+                  onCardMenu={handleHandCardMenu}
+                  revealedIds={revealedIds}
+                />
               </>
             }
           </div>
@@ -2702,19 +2688,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               : opponents.slice(2).map(renderQuadrant))}
           {gridMode && opponents.length === 2 && <OpenSeatQuadrant />}
         </div>
-        {shortLandscape && (
-          <HandDrawer
-            cards={state.zones.hand}
-            open={handOpen}
-            onOpen={() => setHandOpen(true)}
-            onClose={() => setHandOpen(false)}
-            onCardMenu={handleHandCardMenu}
-            revealedIds={revealedIds}
-          />
-        )}
         <CardHoverPreview suspended={activeId !== null || anySheetOpen} resolve={resolvePreview} />
-        {/* Above `--z-overlay` so a card dragged out of the hand sheet renders
-            over the sheet, not behind it. */}
+        {/* Above `--z-overlay` so a card dragged out of a sheet renders over
+            the sheet, not behind it. */}
         {/* `playtest-drag-overlay` centres the copy in the wrapper, which
             dnd-kit sizes from the source's box. For a TAPPED card that box is
             the rotated one — width and height swapped — while the copy inside
@@ -2977,7 +2953,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               castCommander(handMenuCard);
               return;
             }
-            setHandOpen(false);
             playFromHand(handMenu.cardId, opts);
           }}
           onMoveTo={(zone, toIndex) =>
