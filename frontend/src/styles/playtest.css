@@ -24,7 +24,9 @@
   padding-right: var(--safe-right);
   padding-bottom: var(--safe-bottom);
   padding-left: var(--safe-left);
-  overflow: hidden;
+  /* Not a scroll container, or focus can scroll the table out of place. See
+     `.playtest-battlefield-wrap`. */
+  overflow: clip;
 }
 
 /* Any modal opened from inside playtest (Mulligan sheet, Zone Viewer,
@@ -465,7 +467,11 @@ body:has(.playtest-hold-banner) .playtest-takeback-consent {
   position: relative;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  /* `clip`, not `hidden`, here and on `.playtest-page`: `hidden` is still a
+     scroll container, and Tab onto a hand card tucked below the edge scrolled
+     it ~50px to bring the card into view. Nothing can scroll it back, so the
+     whole table stayed shifted up, the life panel cut off at the top. */
+  overflow: clip;
   /* Recessed "playmat": the chrome (header / action bar / hand / piles) sits
      on --surface, the mat drops to --bg, and the two radial glows pick up
      the theme's accent so each guild tints the play surface. Painted on the
@@ -918,8 +924,15 @@ body[data-felt='slate'] {
   touch-action: pan-x;
 }
 
+/* Pressing a card does not move it or change the cursor. It is `role="button"`,
+   so base-layout's pressed floor pushed it down 1px on every press, left or
+   right, and it rode back up on release: on a right-click, which only opens
+   the menu, the card visibly "grabbed" and dropped. This out-ranks that floor
+   (0,2,0 over 0,1,0); a tapped card's rotation is inline and unaffected. The
+   closed hand belongs to an actual drag, which `.playtest-card--dragging`
+   (the copy under the pointer) already shows. */
 .playtest-card:active {
-  cursor: grabbing;
+  transform: none;
 }
 
 /* Battlefield hover: the card must NOT move. Position on the battlefield is

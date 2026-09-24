@@ -133,3 +133,44 @@ describe('battlefield cards do not move on hover', () => {
     expect(selected?.body).not.toContain('var(--pt-ring-hover)');
   });
 });
+
+/**
+ * Nor on a press. A card is `role="button"`, so base-layout.css's pressed
+ * floor (`:where(button, [role='button']):active { transform: translateY(1px) }`)
+ * nudged it down and back on every click, left or right. Measured in a real
+ * window: y 505.64 → 506.64 over the press, back on release, on every card.
+ */
+describe('cards do not move on press', () => {
+  it('cancels the baseline press nudge on every card', () => {
+    const active = rules(css).find((r) => r.selector === '.playtest-card:active');
+    expect(active, '.playtest-card:active went missing').toBeTruthy();
+    expect(active?.body).toMatch(/(^|[;\s])transform:\s*none/);
+  });
+
+  // A right-click only opens the menu; a closed hand on it read as a grab.
+  // The drag copy (`--dragging`) carries the grabbing cursor for a real drag.
+  it('leaves the grabbing cursor to an actual drag', () => {
+    const active = rules(css).find((r) => r.selector === '.playtest-card:active');
+    expect(active?.body).not.toMatch(/cursor:\s*grabbing/);
+    const dragging = rules(css).find((r) => r.selector === '.playtest-card--dragging');
+    expect(dragging?.body).toMatch(/cursor:\s*grabbing/);
+  });
+});
+
+/**
+ * Nor when a card takes focus. `overflow: hidden` still makes a scroll
+ * container, and the browser scrolls one to reveal whatever gets focus: Tab
+ * onto a hand card tucked below the table's edge scrolled the battlefield
+ * wrap ~50px, and with no scrollbar nothing could scroll it back, so the
+ * whole table stayed shifted up. `clip` clips the same and cannot scroll.
+ */
+describe('the table does not scroll to reveal a focused card', () => {
+  it.each(['.playtest-page', '.playtest-battlefield-wrap'])('%s clips rather than hides', (sel) => {
+    // Every rule for it, media-query overrides included.
+    const all = rules(css).filter((r) => r.selector === sel);
+    expect(all.some((r) => /overflow:\s*clip/.test(r.body))).toBe(true);
+    expect(
+      all.filter((r) => /overflow(-[xy])?:\s*(hidden|auto|scroll)/.test(r.body)).map((r) => r.body)
+    ).toEqual([]);
+  });
+});
