@@ -36,6 +36,7 @@ describe('SeatMenu — scroll strip', () => {
         game={game}
         canEdit
         canLayout
+        rotation={0}
         dispatch={() => {}}
         onClose={() => {}}
         isActiveTurn={false}
@@ -55,6 +56,7 @@ describe('SeatMenu — scroll strip', () => {
         game={game}
         canEdit
         canLayout
+        rotation={0}
         dispatch={() => {}}
         onClose={() => {}}
         isActiveTurn={false}

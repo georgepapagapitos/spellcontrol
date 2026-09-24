@@ -1,4 +1,4 @@
-import { Play } from 'lucide-react';
+import { FastForward, Play } from 'lucide-react';
 import type { GameAction, GameState } from '../../lib/game-state';
 import { describeClock, formatClock, gameElapsed, turnElapsed } from '../../lib/game-clock';
 import { haptics } from '../../lib/haptics';
@@ -19,16 +19,13 @@ import { useNow } from '../../lib/use-now';
  * finished game's clocks freeze (`gameElapsed` reads `endedAt`), so this stops
  * on its own without the parent needing to unmount it.
  *
- * Mostly a readout — but it carries the one control that *starts* turn
- * tracking, which reverses this file's older "readout, never a control"
- * ruling. The reason: with the marker reachable only through a seat's ⋯ menu,
- * tables never found turn tracking at all. It has to be offered in the board's
- * own chrome, and the seam hub is already the board's one control cluster — so
- * the button lives inside the existing chip rather than becoming a fourth
- * satellite, because seam satellites collide on column-seam layouts.
- * *Passing* the turn is the active seat's control and lives on their panel,
- * rotated to them; this button is only the cold start, before any seat holds
- * the turn.
+ * Mostly a readout, but it carries the turn's two controls: the cold start
+ * (before any seat holds the turn) and, once one does, passing it. Tapping
+ * the "Player 1 0:12" segment passes to the next seat. Seats carry no buttons
+ * any more (they are all number, the Lotus model), so the turn lives in the
+ * board's one control cluster, the seam hub, inside this existing chip rather
+ * than as a fourth satellite, because seam satellites collide on column-seam
+ * layouts. A seat's drawer can also take the turn directly ("Start turn here").
  */
 export function GameClock({
   game,
@@ -55,23 +52,50 @@ export function GameClock({
   // `startingSeat` deliberately refuses to.
   const startSeat = game.startingSeat ?? game.players.find((p) => !p.eliminated)?.seat ?? null;
   const canStart = canEdit && turn == null && game.status === 'active' && startSeat != null;
+  const canPass = canEdit && turn != null && game.status === 'active';
 
   return (
     <div className="game-clock" role="group" aria-label="Table clock">
       <span className="game-clock-total" aria-label={`Game time ${describeClock(total)}`}>
         {formatClock(total)}
       </span>
-      {turn != null && (
-        <span
-          className="game-clock-turn"
-          aria-label={`${active ? `${active.name}'s turn` : 'Turn'}, ${describeClock(turn)}`}
-        >
-          <span className="game-clock-turn-name" aria-hidden="true">
-            {active?.name ?? 'Turn'}
+      {turn != null &&
+        (canPass ? (
+          <button
+            type="button"
+            className="game-clock-turn"
+            aria-label={`${active ? `${active.name}'s turn` : 'Turn'}, ${describeClock(turn)}. Pass to the next player`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              haptics.tap();
+              dispatch({ type: 'pass-turn', actorSeat: game.activeSeat });
+            }}
+          >
+            <span className="game-clock-turn-name" aria-hidden="true">
+              {active?.name ?? 'Turn'}
+            </span>
+            <span aria-hidden="true">{formatClock(turn)}</span>
+            <FastForward
+              className="game-clock-pass"
+              width={12}
+              height={12}
+              strokeWidth={2.4}
+              aria-hidden
+            />
+          </button>
+        ) : (
+          <span
+            className="game-clock-turn"
+            aria-label={`${active ? `${active.name}'s turn` : 'Turn'}, ${describeClock(turn)}`}
+          >
+            <span className="game-clock-turn-name" aria-hidden="true">
+              {active?.name ?? 'Turn'}
+            </span>
+            <span aria-hidden="true">{formatClock(turn)}</span>
           </span>
-          <span aria-hidden="true">{formatClock(turn)}</span>
-        </span>
-      )}
+        ))}
       {canStart && (
         <button
           type="button"

@@ -51,38 +51,80 @@
   color: #fff;
 }
 
-/* ── Seat menu (popover inside a panel) ─────────────────────────────────── */
+/* ── Seat drawer (inside a panel) ───────────────────────────────────────── */
 
 .seat-menu {
-  /* Same model as the counters cover: a full-panel sheet that grows out of
-     the ⋯ corner (bottom-right) and inherits the panel's rotation, so it
-     reads upright for that seat on any layout (incl. 90°/270° sideways).
-     No tiny box that overflows a small/rotated panel. */
+  /* The seat's drawer, Lotus's model: a shade pulled down over the panel from
+     its far edge, leaving a strip of the seat showing at the player's edge.
+     It lives inside the rotated panel, so "down" is toward that seat's
+     player on every layout (incl. 90°/270° sideways). */
   position: absolute;
   inset: 0;
   z-index: 6;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: 0.6rem 0.7rem;
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, var(--pp-edge, #4a5566) 70%, black 30%) 0%,
-    color-mix(in srgb, var(--pp-base, #2a3340) 92%, black 8%) 100%
-  );
-  clip-path: circle(150% at 88% 88%);
-  animation: pp-seat-open 220ms var(--ease-out-soft);
 }
 
-@keyframes pp-seat-open {
+.seat-menu-sheet {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0.6rem 0.7rem;
+  /* Near-black with a trace of the seat's colour: it has to read as a sheet
+     over the seat, not as more of it (Lotus's drawer is a neutral dark). */
+  background: color-mix(in srgb, var(--pp-base, #2a3340) 18%, #15171d);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  animation: seat-drawer-down 220ms var(--ease-out-soft);
+}
+
+@keyframes seat-drawer-down {
   from {
-    clip-path: circle(0% at 88% 88%);
-    opacity: 0.4;
+    transform: translateY(-100%);
   }
   to {
-    clip-path: circle(150% at 88% 88%);
-    opacity: 1;
+    transform: translateY(0);
   }
+}
+
+/* The strip of the seat left showing. Tap it or drag it back up to close;
+   the grab bar is the tell, in the seat's own ink. */
+.seat-menu-strip {
+  flex: 0 0 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.seat-menu-grab {
+  width: 2.5rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pp-ink, #fff) 55%, transparent);
+}
+
+.seat-menu-strip:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: -4px;
+}
+
+/* The seat's one-tap actions, above everything that needs typing. */
+.seat-menu-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.seat-menu-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .seat-menu-head {
@@ -341,6 +383,21 @@
 
 .game-board-menu-btn:active {
   transform: translate(-50%, -50%) scale(0.94);
+}
+
+/* Commander-damage mode: the hub turns gold and shows the dagger (Lotus), so
+   the board itself says which mode it is in, and a tap returns to the game.
+   --brand-seal-gold is theme-invariant, tuned for dark chrome. */
+.game-board-menu-btn.is-cmd {
+  background: var(--brand-seal-gold);
+  border-color: color-mix(in srgb, var(--brand-seal-gold) 60%, white 40%);
+  color: #12151c;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .game-board-menu-btn.is-cmd:hover {
+    background: color-mix(in srgb, var(--brand-seal-gold) 85%, white 15%);
+  }
 }
 
 /* Empty cells are quiet placeholders — never interactive (the global menu

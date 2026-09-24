@@ -1,4 +1,4 @@
-import { Compass, Crown, FastForward, Menu, Plus, Trash2, Undo2 } from 'lucide-react';
+import { Compass, Crown, Menu, Swords, Trash2, Undo2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey } from '../../lib/game-state';
@@ -16,7 +16,6 @@ import { haptics } from '../../lib/haptics';
 import { suppressNativeContextMenu } from '../../lib/suppress-context-menu';
 import { useWakeLock } from '../../lib/use-wake-lock';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
@@ -28,9 +27,12 @@ import {
   seatCounters,
 } from '../../lib/game-state';
 import { usePlayStore } from '../../store/play';
+import { HOLD_JUMP } from '../../lib/hold-ramp';
 import { useTapAndHold } from '../../lib/tap-and-hold';
 import { LifeKeypad } from './LifeKeypad';
 import { SeatMenu } from './SeatMenu';
+import { hasSeenBoardGestures } from '../../lib/board-gestures-seen';
+import { BoardGestureHint } from './BoardGestureHint';
 import { GameClock } from './GameClock';
 import { GameMenu } from './GameMenu';
 import { GameRecap } from './GameRecap';
@@ -59,13 +61,17 @@ interface Props {
  * full-width), and top-row panels rotate 180° so each player reads upright
  * when the phone is passed across the table.
  *
- * Interaction model is touch-first: tap the left half of a panel to decrement
- * life, the right half to increment (top/bottom when tapOrientation is
- * vertical). Press and hold to repeat. Visible ±1 step buttons sit on the
- * edges as a discoverable backup.
+ * Interaction model is touch-first and Lotus-shaped: a seat carries nothing but
+ * its number and faint ± hints. Tap the left half of a panel to decrement life,
+ * the right half to increment (top/bottom when tapOrientation is vertical); a
+ * long press jumps ±10 and repeats. Swipe a seat toward its player to pull its
+ * drawer (name, partner, counters, colour, turn, out) down over it like a
+ * shade; swipe it away from them for commander damage. Tap the number to type
+ * a total.
  *
  * Commander damage is a board-level *focus mode* rather than a per-panel
- * drawer: one player claims focus (⚔ chip or swipe up on their own panel) and
+ * drawer: one player claims focus (swipe away on their own panel, or the
+ * drawer's button) and
  * every OTHER panel stops showing its owner's life and starts showing the
  * commander damage that player has dealt to the focused player — same seats,
  * same colors, same positions, so "who is hitting me" is answered by the
@@ -89,6 +95,11 @@ export function GameBoard({
   const board = resolveLayout(total, game.layout);
   const [menuOpen, setMenuOpen] = useState(false);
   const showClock = usePlayStore((st) => st.showClock);
+  // Seats carry no buttons, so a shared board teaches its gestures once per
+  // device; the game menu brings the card back.
+  const [hintOpen, setHintOpen] = useState(
+    () => isShared && canControlAll && game.status !== 'finished' && !hasSeenBoardGestures()
+  );
   // Commander-damage focus mode: the seat currently asking "how much has each
   // of you hit me for?". Null = normal board. Held here (not per panel)
   // because entering it changes every OTHER panel's meaning.
@@ -235,22 +246,30 @@ export function GameBoard({
           push the seam off the real row/column boundary. */}
         <button
           type="button"
-          className="game-board-menu-btn"
+          className={`game-board-menu-btn${cmdFocus ? ' is-cmd' : ''}`}
           style={{
             ['--seam-top-pct' as never]:
               'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
             ['--seam-left-pct' as never]:
               'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
           }}
-          aria-label="Game menu"
+          // In commander-damage mode the hub says so (Lotus's dagger) and is
+          // the way back out, from the middle of the table where anyone can
+          // reach it; the menu waits until the board is back to life totals.
+          aria-label={cmdFocus ? 'Return to game' : 'Game menu'}
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
-            setMenuOpen(true);
+            if (cmdFocus) exitCmdFocus();
+            else setMenuOpen(true);
           }}
         >
-          <Menu width={22} height={22} strokeWidth={2} aria-hidden />
+          {cmdFocus ? (
+            <Swords width={22} height={22} strokeWidth={2.2} aria-hidden />
+          ) : (
+            <Menu width={22} height={22} strokeWidth={2} aria-hidden />
+          )}
         </button>
 
         {/* Clock and undo are the seam's two satellites. On a row seam they sit
@@ -328,6 +347,15 @@ export function GameBoard({
           onUndo={onUndo}
           undoLabel={undoLabel}
           dispatch={dispatchTracked}
+          onShowGestures={() => setHintOpen(true)}
+        />
+      )}
+
+      {hintOpen && (
+        <BoardGestureHint
+          vertical={(game.tapOrientation ?? 'horizontal') === 'vertical'}
+          showClock={showClock}
+          onClose={() => setHintOpen(false)}
         />
       )}
     </div>
@@ -380,7 +408,6 @@ function PlayerPanel({
   isInitiative: boolean;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [seatMenuOpen, setSeatMenuOpen] = useState(false);
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [lethalFlash, setLethalFlash] = useState(false);
   const [elimBeat, setElimBeat] = useState(false);
@@ -426,13 +453,8 @@ function PlayerPanel({
   // their panel must stay tickable while you reconstruct the damage.
   const disabled = cmdTarget
     ? !cmdFocusCanEdit || cmdTarget.eliminated || game.status === 'finished'
-    : !canEdit ||
-      player.eliminated ||
-      game.status === 'finished' ||
-      seatMenuOpen ||
-      drawerOpen ||
-      keypadOpen;
-  // The counters popover's OWN +/- controls must stay live while it's open,
+    : !canEdit || player.eliminated || game.status === 'finished' || drawerOpen || keypadOpen;
+  // The drawer's OWN counter +/- controls must stay live while it's open,
   // so they use this narrower gate (no overlay flags).
   const countersDisabled = !canEdit || player.eliminated || game.status === 'finished';
 
@@ -553,30 +575,23 @@ function PlayerPanel({
     [disabled, dispatch, player.seat, pushDelta, cmdTarget]
   );
 
-  // Corner chips remain the tap/keyboard affordance; swipe-up is an additive
-  // shortcut for the common in-game move (log what just hit you without
-  // hunting for a small chip). Commander damage claims the gesture when it's
-  // enabled — it's the frequent one — and poison keeps the counters cover.
-  // `rotation` makes "up" panel-local, so it means up *for that seat*.
-  // A vertical swipe also cancels the pending life tap/hold inside the hook.
-  const canOpenCounters = canEdit && !player.eliminated && game.status !== 'finished';
+  // The seat's two gestures, both panel-local (`rotation` makes "up" mean
+  // away from THAT seat's player). Away: commander damage, the frequent
+  // in-game move. Toward: the seat's drawer, which is also the way to revive
+  // an eliminated seat, so it opens whatever the seat's state. In focus mode
+  // toward is the exact reverse of the swipe that opened it. A swipe cancels
+  // the pending life tap/hold inside the hook.
+  const canFocusCmd =
+    canEdit && !player.eliminated && game.status !== 'finished' && game.commanderDamageEnabled;
   const tapHandlers = useTapAndHold({
     onTap: (delta: number) => adjust(delta),
     onHoldTick: (delta: number, gearUp: boolean) => adjust(delta, gearUp),
     onPointerStart: (e) => recordPointer(e.clientX, e.clientY),
     onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
-    onSwipeUp: cmdFocus
-      ? undefined
-      : canOpenCounters && game.commanderDamageEnabled
-        ? onCmdFocus
-        : canOpenCounters && game.poisonEnabled
-          ? () => setDrawerOpen(true)
-          : undefined,
-    // Swiping back down leaves focus mode. Panel-local like every other board
-    // gesture, so on your own panel it's the exact reverse of the swipe that
-    // opened it; the button and Esc cover anyone reaching across the table.
-    onSwipeDown: cmdFocus ? onCmdFocusExit : undefined,
+    onSwipeUp: cmdFocus ? undefined : canFocusCmd ? onCmdFocus : undefined,
+    onSwipeDown: cmdFocus ? onCmdFocusExit : canEdit ? () => setDrawerOpen(true) : undefined,
     rotation,
+    holdStep: HOLD_JUMP,
     disabled,
   });
   // A second, independent tap/hold instance for the partner half. Hooks can't
@@ -589,6 +604,7 @@ function PlayerPanel({
     onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
     onSwipeDown: cmdFocus ? onCmdFocusExit : undefined,
     rotation,
+    holdStep: HOLD_JUMP,
     disabled,
   });
 
@@ -600,12 +616,7 @@ function PlayerPanel({
   // that actually matters (lethal at 21 from one commander).
   const cmdDmgValues = Object.values(player.commanderDamage);
   const maxCmdDmg = cmdDmgValues.length > 0 ? Math.max(...cmdDmgValues) : 0;
-  // The turn marker, as a control. The ring alone says whose turn it is; this
-  // says what to do about it, on the seat that owns the decision and rotated
-  // with their panel so it faces them across the table. Suppressed in
-  // commander-damage focus mode for the same reason the clock is: that mode
-  // strips the board down to the damage question.
-  const showTurnChip = isActiveTurn && !player.eliminated && !cmdFocus && canEdit;
+  const customCounters = Object.entries(seatCounters(player)).filter(([, v]) => v !== 0);
   return (
     <div
       className="player-panel-cell"
@@ -693,8 +704,9 @@ function PlayerPanel({
 
         <div className="player-panel-content" aria-hidden="false">
           <div className="player-panel-corner is-tl">
-            {/* A button (not a label) so a tap on the name opens the seat menu
-                instead of falling through to the −1 tap zone beneath it. */}
+            {/* A button (not a label) so a tap on the name opens the drawer
+                instead of falling through to the −1 tap zone beneath it. It is
+                also the drawer's keyboard and screen-reader route in. */}
             <button
               type="button"
               className="player-panel-name"
@@ -703,7 +715,7 @@ function PlayerPanel({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                setSeatMenuOpen((v) => !v);
+                setDrawerOpen((v) => !v);
               }}
             >
               {player.isHost && (
@@ -723,22 +735,6 @@ function PlayerPanel({
               </div>
             )}
           </div>
-
-          {/* Hidden in focus mode: it would collide with the return bar, and
-              seat admin isn't what anyone is doing mid-damage-log. */}
-          {!cmdFocus && (
-            <button
-              type="button"
-              className="player-panel-menu-btn is-corner-br"
-              aria-label="Seat menu"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSeatMenuOpen((v) => !v);
-              }}
-            >
-              ⋯
-            </button>
-          )}
 
           {isCmdSplit ? (
             <div className="pp-cmd-split-wrap">
@@ -848,114 +844,45 @@ function PlayerPanel({
             </div>
           )}
 
-          {!cmdFocus && (
-            <div className="player-panel-counters">
-              {/* Poison shows once it's on the board; at zero it's reached
-                  through the "+" chip, whose cover lists it first. */}
-              {game.poisonEnabled && player.poison > 0 && (
-                <button
-                  type="button"
-                  className={`pp-counter-chip ${player.poison >= 10 ? 'is-lethal' : ''}`}
-                  aria-label={`Poison ${player.poison}. Open counters`}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDrawerOpen(true);
-                  }}
-                >
-                  <span className="pp-counter-icon" aria-hidden="true">
-                    ☠
+          {/* What this seat is carrying, read-only: the board shows state and
+              the drawer changes it. Only non-zero counts appear, so a fresh
+              seat is just its number. */}
+          {!cmdFocus &&
+            ((game.poisonEnabled && player.poison > 0) ||
+              maxCmdDmg > 0 ||
+              customCounters.length > 0) && (
+              <div className="player-panel-counters">
+                {game.poisonEnabled && player.poison > 0 && (
+                  <span
+                    className={`pp-counter-badge ${player.poison >= 10 ? 'is-lethal' : ''}`}
+                    role="img"
+                    aria-label={`Poison ${player.poison}`}
+                  >
+                    ☠ {player.poison}
                   </span>
-                  {player.poison}
-                </button>
-              )}
-              {/* Always present: it's the only way into damage focus mode. At
-                  zero it's an action, not a count, so it drops the "0". */}
-              {game.commanderDamageEnabled && (
-                <button
-                  type="button"
-                  className={`pp-counter-chip ${maxCmdDmg >= 21 ? 'is-lethal' : ''} ${
-                    maxCmdDmg === 0 ? 'is-idle' : ''
-                  }`}
-                  aria-label={`Commander damage, highest ${maxCmdDmg}. Log damage you've received`}
-                  disabled={!canOpenCounters}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCmdFocus();
-                  }}
-                >
-                  <span className="pp-counter-icon" aria-hidden="true">
-                    ⚔
+                )}
+                {maxCmdDmg > 0 && (
+                  <span
+                    className={`pp-counter-badge ${maxCmdDmg >= 21 ? 'is-lethal' : ''}`}
+                    role="img"
+                    aria-label={`Commander damage, highest ${maxCmdDmg}`}
+                  >
+                    ⚔ {maxCmdDmg}
                   </span>
-                  {maxCmdDmg > 0 && maxCmdDmg}
-                </button>
-              )}
-              {/* One chip per free-form counter this seat is tracking. They
-                  read on the board itself rather than only inside the
-                  popover — a counter you have to open a drawer to see is a
-                  counter nobody trusts mid-game. */}
-              {Object.entries(seatCounters(player)).map(([name, value]) => (
-                <button
-                  key={name}
-                  type="button"
-                  className="pp-counter-chip is-custom"
-                  aria-label={`${name} ${value}. Open counters`}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDrawerOpen(true);
-                  }}
-                >
-                  <span className="pp-counter-chip-name">{name}</span>
-                  {value}
-                </button>
-              ))}
-              {/* The always-present way in. Without it a table with poison off
-                  and no counters yet has no route to the popover at all. */}
-              <button
-                type="button"
-                className="pp-counter-chip is-add"
-                aria-label="Counters"
-                title="Counters"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDrawerOpen(true);
-                }}
-              >
-                <Plus width={13} height={13} strokeWidth={2.6} aria-hidden />
-              </button>
-            </div>
-          )}
+                )}
+                {customCounters.map(([name, value]) => (
+                  <span key={name} className="pp-counter-badge is-custom">
+                    <span className="pp-counter-badge-name">{name}</span>
+                    {value}
+                  </span>
+                ))}
+              </div>
+            )}
 
-          {/* Turn + designation chips — shown at top-right so they don't collide
-              with counters (bottom-left). They render inside the rotated panel so
-              they always read upright for that seat, which is what makes the turn
-              chip tappable by the player whose turn it actually is. */}
-          {(showTurnChip || isMonarch || isInitiative) && (
+          {/* Designations read on the seat that holds them, rotated to face
+              that player. Marks only: the drawer is where they change hands. */}
+          {(isMonarch || isInitiative) && (
             <div className="pp-designation-chips">
-              {showTurnChip && (
-                <button
-                  type="button"
-                  className="pp-turn-chip"
-                  aria-label={`${player.name}'s turn. Pass to the next player`}
-                  title="Pass turn"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onPointerUp={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    haptics.tap();
-                    dispatch({ type: 'pass-turn', actorSeat: player.seat });
-                  }}
-                >
-                  <FastForward width={13} height={13} strokeWidth={2.2} aria-hidden />
-                  {/* The word is dropped on a panel too narrow to hold it and
-                      the seat name (see play-counters-panel.css); the chip's
-                      aria-label carries the meaning either way. */}
-                  <span className="pp-turn-chip-label">Turn</span>
-                </button>
-              )}
               {isMonarch && (
                 <span className="pp-designation-chip is-monarch" role="img" aria-label="Monarch">
                   <Crown width={14} height={14} aria-hidden />
@@ -1011,28 +938,26 @@ function PlayerPanel({
         )}
 
         {drawerOpen && (
-          <CountersPopover
-            player={player}
-            game={game}
-            disabled={countersDisabled}
-            rotation={rotation}
-            dispatch={dispatch}
-            onClose={() => setDrawerOpen(false)}
-          />
-        )}
-
-        {seatMenuOpen && (
           <SeatMenu
             player={player}
             game={game}
             canEdit={canEdit}
             canLayout={canLayout}
+            rotation={rotation}
             dispatch={dispatch}
-            onClose={() => setSeatMenuOpen(false)}
+            onClose={() => setDrawerOpen(false)}
+            onCommanderDamage={canFocusCmd ? onCmdFocus : undefined}
             isActiveTurn={isActiveTurn}
             isMonarch={isMonarch}
             isInitiative={isInitiative}
-          />
+          >
+            <SeatCounters
+              player={player}
+              game={game}
+              disabled={countersDisabled}
+              dispatch={dispatch}
+            />
+          </SeatMenu>
         )}
 
         {game.winnerSeat === player.seat && <div className="player-panel-winner-tag">Winner</div>}
@@ -1096,76 +1021,40 @@ const CommanderArt = memo(function CommanderArt({ name }: { name: string | null 
   );
 });
 
-// ── Counters popover (poison) ──────────────────────────────────────────────
+// ── Seat counters (inside the seat drawer) ─────────────────────────────────
 
 /**
- * Full-panel counters cover, opened by tapping the poison chip and dismissed
- * by swiping back down (or the ✕ / Esc). Lives inside the panel so it
- * inherits the seat's rotation and reads upright for that player.
+ * The seat's counters: poison, plus whatever this table tracks by name. A
+ * section of the seat drawer (see `SeatMenu`), which is why it has no cover,
+ * heading bar or close of its own.
  *
  * Commander damage is NOT here — it's the board-level focus mode (see
  * `PlayerPanel`), which puts each opponent's damage on that opponent's own
  * seat instead of in a list.
  */
-function CountersPopover({
+function SeatCounters({
   player,
   game,
   disabled,
-  rotation,
   dispatch,
-  onClose,
 }: {
   player: GamePlayer;
   game: GameState;
   disabled: boolean;
-  /** Panel rotation, so swipe-to-dismiss is panel-local for every seat. */
-  rotation: number;
   dispatch: (a: GameAction) => void;
-  onClose: () => void;
 }) {
-  // Reuse the tap/hold hook purely as a swipe detector: `disabled` skips the
-  // tap + hold-repeat arming but still records the pointer start and fires
-  // the swipe callbacks. Bubbles from the tiles too, so a downward drag
-  // started anywhere on the cover dismisses it (and the tile's own hook
-  // cancels its pending tap at the same threshold, so nothing double-fires).
-  const swipeHandlers = useTapAndHold({
-    onTap: () => {},
-    onHoldTick: () => {},
-    onSwipeDown: onClose,
-    rotation,
-    disabled: true,
-  });
-  const panelRef = useRef<HTMLDivElement>(null);
-  useOverlayDismiss(onClose, panelRef);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const errorId = useId();
+  const headingId = useId();
   const counters = Object.entries(seatCounters(player));
   const atCap = counters.length >= MAX_COUNTERS_PER_SCOPE;
   return (
-    <div
-      ref={panelRef}
-      className="pp-counters-cover"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${player.name} counters`}
-      {...swipeHandlers(0)}
-    >
+    <section className="pp-counters" aria-labelledby={headingId}>
+      <span id={headingId} className="seat-menu-label">
+        Counters
+      </span>
       <div className="pp-counters-inner">
-        {/* Grab handle — the conventional "this dismisses by swiping" tell.
-            Decorative: the ✕ beside it is the accessible control. */}
-        <span className="pp-counters-grab" aria-hidden="true" />
-        <div className="pp-counters-head">
-          <span className="pp-counters-title">Counters</span>
-          <button
-            type="button"
-            className="pp-counters-close"
-            aria-label="Close counters"
-            onClick={onClose}
-          >
-            ✕
-          </button>
-        </div>
         <div className="pp-counters-body">
           {game.poisonEnabled && (
             <CounterRow
@@ -1273,7 +1162,7 @@ function CountersPopover({
           </p>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 

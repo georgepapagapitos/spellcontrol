@@ -9,6 +9,7 @@ import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { cmdDamageFillRatio, cmdDamageToLethal } from '../../lib/cmd-damage';
+import { HOLD_JUMP } from '../../lib/hold-ramp';
 import { useTapAndHold } from '../../lib/tap-and-hold';
 import { useAuth } from '../../store/auth';
 import { usePlayStore } from '../../store/play';
@@ -306,6 +307,7 @@ function LifeControls({
   const tapHandlers = useTapAndHold({
     onTap: (delta) => adjust(delta),
     onHoldTick: (delta, gearUp) => adjust(delta, gearUp),
+    holdStep: HOLD_JUMP,
     disabled,
   });
 

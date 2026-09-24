@@ -10,6 +10,7 @@ const board = read('play-board.css');
 const counters = read('play-counters-panel.css');
 const enhancements = read('play-enhancements.css');
 const setup = read('play-setup.css');
+const panelMenus = read('play-panel-menus.css');
 
 /**
  * The play board is the one surface driven entirely by thumbs on a device
@@ -80,45 +81,28 @@ describe('play board touch targets', () => {
     expect(setup.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
   });
 
-  it('the icon-only counter chip states the floor on BOTH axes', () => {
-    const body = ruleBody(counters, '.pp-counter-chip.is-add');
-    expect(
-      body,
-      'An icon-only chip has no text to widen it, so padding-inline alone left it ~39px across.'
-    ).toBeTruthy();
-    expect(body).toMatch(/min-width:\s*2\.75rem/);
-    // The shared chip rule supplies the height floor for every chip.
-    expect(ruleBody(counters, '.pp-counter-chip')).toMatch(/min-height:\s*2\.75rem/);
-    // Commander damage at zero drops its number and becomes icon-only too.
-    const coarse = counters.slice(counters.lastIndexOf('@media (pointer: coarse)'));
-    expect(coarse).toMatch(/\.pp-counter-chip\.is-idle \{\s*min-width:\s*2\.75rem/);
+  it('a seat carries no buttons: its counters are read-only badges taps pass through', () => {
+    // Lotus's model (2026-09-24): the ⋯ button, the counter chips and the turn
+    // chip all moved into the seat drawer, so every pixel of a seat is a life
+    // tap. A badge that took pointer events would eat the −1/+1 beneath it.
+    expect(ruleBody(counters, '.player-panel-counters')).toMatch(/pointer-events:\s*none/);
+    for (const gone of ['.pp-counter-chip', '.pp-turn-chip', '.player-panel-menu-btn']) {
+      expect(counters + board, `${gone} came back onto the seat`).not.toContain(gone);
+    }
   });
 
-  it('the counter-chip floors live inside a coarse-pointer block', () => {
-    const at = counters.indexOf('.pp-counter-chip.is-add {\n    min-width');
-    const idx = at > -1 ? at : counters.lastIndexOf('.pp-counter-chip.is-add');
-    const coarseBefore = counters.lastIndexOf('@media (pointer: coarse)', idx);
-    expect(
-      coarseBefore,
-      'the is-add min-width floor must not inflate the desktop board'
-    ).toBeGreaterThan(-1);
+  it("the drawer's strip, the way back to the seat, is a full-height 44px target", () => {
+    expect(ruleBody(panelMenus, '.seat-menu-strip')).toMatch(/flex:\s*0 0 2\.75rem/);
   });
 
-  it('the turn chip takes the floor the way every other pill does', () => {
-    // The active seat's pass-turn control. A pill with text, so min-height +
-    // a wider inline pad is the whole floor — the same shape .pp-counter-chip
-    // takes, rather than a ghost.
-    const body = ruleBody(counters, '.pp-turn-chip');
-    expect(body, '.pp-turn-chip is missing').toBeTruthy();
-    expect(body).toMatch(/min-height:\s*2\.75rem/);
-    const at = counters.indexOf(
-      'min-height: 2.75rem',
-      counters.indexOf('.pp-turn-chip {\n    min-height')
-    );
-    const coarseBefore = counters.lastIndexOf('@media (pointer: coarse)', at);
-    expect(coarseBefore, 'the turn-chip floor must not inflate the desktop board').toBeGreaterThan(
-      -1
-    );
+  it("the clock's pass-turn segment carries a ghost inside a coarse-pointer block", () => {
+    // Passing the turn moved off the seat and into the clock's turn segment,
+    // a ~20px line inside a pill that must not grow.
+    const at = enhancements.indexOf('button.game-clock-turn::after');
+    expect(at, 'button.game-clock-turn::after is missing').toBeGreaterThan(-1);
+    expect(enhancements.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
+    expect(ruleBody(enhancements, 'button.game-clock-turn::after')).toMatch(/height:\s*2\.75rem/);
+    expect(ruleBody(enhancements, 'button.game-clock-turn')).toContain('pointer-events: auto');
   });
 
   it('the clock cold-start button carries a ghost, being icon-only', () => {
@@ -196,19 +180,6 @@ describe('panel corners hold back from the seam', () => {
       )?.[1];
       expect(body, `${sel} must allow shrinking`).toMatch(/min-width:\s*0/);
     }
-  });
-
-  it('only the seat holding the turn pays for the turn chip', () => {
-    // The narrow-panel name cap reserves room for the wide chip, and exactly
-    // one panel has one. Applying it to every panel made all four seats
-    // truncate at 320px for something only the active seat carries.
-    const narrow = counters.match(/@container \(max-width: 11rem\)\s*\{([\s\S]*?)\n\}/)?.[1];
-    expect(narrow, 'the narrow-panel container query is missing').toBeTruthy();
-    expect(narrow).toMatch(
-      /\.player-panel\.is-active-turn[^{]*\.player-panel-corner\.is-tl\s*\{[^}]*max-width/
-    );
-    // The label drop needs no such scope — it only matters where a chip is.
-    expect(narrow).toMatch(/\.pp-turn-chip-label\s*\{\s*display:\s*none/);
   });
 
   it('applies on every layout, not only the grid ones', () => {

@@ -12,7 +12,7 @@
  * usePlayStore / haptics / wake-lock / undo-stack / dnd-kit regardless of
  * scenario, so those have to be stubbed before importing it.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { GamePlayer, GameState } from '../../lib/game-state';
 import { createGameState, makePlayer } from '../../lib/game-state';
@@ -159,12 +159,14 @@ describe('entering commander-damage focus mode', () => {
     expect(screen.getByLabelText('Carol: 0 commander damage dealt to Bob')).toBeTruthy();
   });
 
-  it('the commander-damage chip opens the same mode on web', () => {
+  it("the seat drawer's button opens the same mode, for anyone who can't swipe", () => {
     renderPod();
 
-    fireEvent.click(screen.getAllByLabelText(/^Commander damage, highest/)[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Alice: seat menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Commander damage' }));
 
     expect(focusBar()).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Seat menu for Alice' })).toBeNull();
   });
 
   it('does NOT re-orient the board — every seat keeps its own rotation', () => {
@@ -368,10 +370,27 @@ describe('leaving focus mode', () => {
     renderPod();
     drag(tapZone(0), ALICE_UP);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Return to game' }));
+    fireEvent.click(
+      within(focusBar() as HTMLElement).getByRole('button', { name: 'Return to game' })
+    );
 
     expect(focusBar()).toBeNull();
     expect(screen.getByLabelText('Bob: 40 life')).toBeTruthy();
+  });
+
+  it('the hub turns into the way back out, from the middle of the table', () => {
+    renderPod();
+    drag(tapZone(0), ALICE_UP);
+
+    const hub = document.querySelector('.game-board-menu-btn') as HTMLElement;
+    expect(hub.classList.contains('is-cmd')).toBe(true);
+    expect(hub.getAttribute('aria-label')).toBe('Return to game');
+    fireEvent.click(hub);
+
+    expect(focusBar()).toBeNull();
+    // Back to the menu hub, not a menu opened by the same tap.
+    expect(hub.getAttribute('aria-label')).toBe('Game menu');
+    expect(screen.queryByRole('dialog', { name: 'Local game' })).toBeNull();
   });
 
   it('swiping back down leaves the mode', () => {

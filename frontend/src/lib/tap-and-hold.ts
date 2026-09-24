@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { haptics } from './haptics';
-import { HOLD_DWELL_MS, HOLD_REPEAT_MS, holdStepFor } from './hold-ramp';
+import { HOLD_DWELL_MS, HOLD_JUMP_REPEAT_MS, HOLD_REPEAT_MS, holdStepFor } from './hold-ramp';
 
 /**
  * The tap/press-and-hold gesture that drives every ±1 life/counter control in
@@ -19,6 +19,13 @@ export interface TapAndHoldOpts {
   onSwipeDown?: () => void;
   /** Panel rotation in degrees; affects swipe direction interpretation. */
   rotation?: number;
+  /**
+   * A fixed jump per hold tick instead of the time ramp: a long press moves
+   * this much at once, then repeats every HOLD_JUMP_REPEAT_MS. Life totals
+   * use ±10 (Lotus's long tap); counters leave it unset, because a held
+   * poison counter must never land on 10 in one go.
+   */
+  holdStep?: number;
   disabled: boolean;
 }
 
@@ -48,7 +55,8 @@ export function toPanelSpace(dx: number, dy: number, rot: number): [number, numb
  * start, ×10 after 3.5 s from repeater start (i.e. after the dwell, not from
  * pointer-down). A haptic bump fires — before the tick — each time the step
  * size increases; `gearUp` is true on that tick so the caller can skip the
- * redundant light tap.
+ * redundant light tap. With `holdStep` set there is no ramp: every tick is
+ * that fixed jump, and each one gets its own tap.
  *
  * Also detects vertical swipes in the PANEL's own space: if the pointer moves
  * >40px along the panel's up/down axis (and predominantly along it) before
@@ -68,6 +76,7 @@ export function useTapAndHold({
   onSwipeUp,
   onSwipeDown,
   rotation = 0,
+  holdStep,
   disabled,
 }: TapAndHoldOpts) {
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,6 +114,12 @@ export function useTapAndHold({
       clear();
       holdTimer.current = setTimeout(() => {
         heldRef.current = true;
+        if (holdStep != null) {
+          const jump = Math.sign(arg) * holdStep;
+          onHoldTick(jump, false);
+          repeatTimer.current = setInterval(() => onHoldTick(jump, false), HOLD_JUMP_REPEAT_MS);
+          return;
+        }
         holdStartRef.current = performance.now();
         prevStepRef.current = 1;
         // First tick at step 1 (elapsed ≈ 0) — never a gear-up.

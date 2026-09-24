@@ -6570,13 +6570,11 @@ The board's turn marker settled a question that recurs for every board-level
 state: where does the _action_ on a state live, relative to the _mark_ that
 shows it?
 
-- **The mark and its control belong on the thing they describe, rotated with
-  it.** Whose turn it is is a fact about a seat, so the active panel carries
-  both the ring and a `.pp-turn-chip` — a white pill reading "Turn" that passes
-  on tap. It sits in the panel's existing chip rail (`.pp-designation-chips`,
-  top-right) and inherits the panel's rotation, so it faces the player whose
-  decision it is across a physical table. That rail is `pointer-events: none`;
-  a chip that does something opts itself back in.
+- ~~**The mark and its control belong on the thing they describe, rotated
+  with it.**~~ **Reversed 2026-09-24** (see "Play board: a seat is all
+  number" below): the mark stays on the seat (the white active-turn ring), but
+  seats carry no controls, so passing the turn moved to the clock's turn
+  segment in the seam hub. The `.pp-turn-chip` is gone.
 - **A mark with no control is a mark nobody finds.** Turn tracking shipped
   ring-only, reachable only through a seat's ⋯ menu, and stayed invisible: the
   ring needs a seat to be active and nothing made a seat active. If a state has
@@ -6652,3 +6650,36 @@ reading a life total from across the table, and every ruling below serves it.
 Verify on every preset at 320–820px in a real browser (satellites, numeral vs
 rails, ⋯ vs chips) and against `main` for the same run. At 320px some
 collisions remain, all smaller than the ones `main` has there.
+
+## Play board: a seat is all number (2026-09-24)
+
+Lotus's model, and the reason its seats read from across a table: a seat
+carries its life total, faint ± hints and its name, and nothing you tap
+besides. Every other pixel is a −1/+1.
+
+- **No buttons on a seat.** The ⋯ seat button, the counter chips and the turn
+  chip are gone. What a seat is carrying still shows, as **read-only badges**
+  for non-zero counts (`.pp-counter-badge`, `pointer-events: none`, so a tap on
+  one is a life tap). Zero counts don't show at all.
+- **Two swipes, both in the seat's own axes** (`toPanelSpace`). *Away from its
+  player*: commander damage. *Toward its player*: the seat's drawer, which slides
+  down over the seat like a shade and leaves a 44px strip at the player's edge
+  (tap it or drag it back to close). The drawer holds everything the seat used
+  to have buttons for: commander damage (for anyone who can't swipe), pass /
+  start turn, monarch, initiative, out / revive, counters, name, partner, color,
+  facing. The seat's **name stays a button** that opens it: the keyboard and
+  screen-reader route in.
+- **The drawer is a dark sheet**, near-black with a trace of the seat's color,
+  so it reads as something over the seat, not more of it.
+- **Long press is ±10 at once, then again every 0.6s** (`holdStep: HOLD_JUMP`),
+  for life and commander damage. Counters keep the gentle 1→5→10 ramp: a held
+  poison counter must never land on 10 in one press.
+- **Passing the turn lives in the clock**: its "Player 1 0:12" segment is the
+  control, with a pass glyph as its tell. The seat drawer can also take the
+  turn directly.
+- **Commander-damage mode keeps every seat in its own color** and turns the hub
+  gold with the dagger; the hub is then the way back out, from the middle of the
+  table where anyone can reach it.
+- **The board teaches its gestures once per device** (`BoardGestureHint`),
+  screen-relative, and the game menu brings the card back ("How the board
+  works"). A board with no buttons owes its players that.

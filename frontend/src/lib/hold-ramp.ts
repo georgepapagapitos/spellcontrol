@@ -14,6 +14,14 @@ export const HOLD_DWELL_MS = 400;
 export const HOLD_REPEAT_MS = 130;
 
 /**
+ * Life's long press: one jump of HOLD_JUMP, then another every
+ * HOLD_JUMP_REPEAT_MS while held. Slow enough to count along with, and to let
+ * go on the number you meant.
+ */
+export const HOLD_JUMP = 10;
+export const HOLD_JUMP_REPEAT_MS = 600;
+
+/**
  * [thresholdMs, stepSize] pairs, sorted ascending by threshold.
  * The first entry's threshold is 0, so it is always the floor.
  */
