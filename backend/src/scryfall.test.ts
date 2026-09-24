@@ -233,6 +233,64 @@ describe('resolveCards', () => {
     expect(out.unresolvedNames).toEqual([]);
   });
 
+  describe('a list typed off a flavor-named card', () => {
+    // The Final Fantasy "through the ages" Light Up the Stage prints "A Promise Fulfilled".
+    const promise = card({
+      id: 'sf-fca',
+      name: 'Light Up the Stage',
+      set: 'fca',
+      collector_number: '39',
+    });
+    const empty = () => jsonResponse({ object: 'list', not_found: [], data: [] });
+    const identifiersOf = (spy: ReturnType<typeof vi.spyOn>, call: number) =>
+      JSON.parse((spy.mock.calls[call][1] as RequestInit).body as string).identifiers;
+
+    it('resolves the printed name to that printing by set and number', async () => {
+      const cache = fakeCache();
+      const fetchSpy = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce(empty())
+        .mockResolvedValueOnce(jsonResponse({ object: 'list', not_found: [], data: [promise] }));
+      const rows: ImportRow[] = [
+        { name: 'A Promise Fulfilled', quantity: 1, sourceFormat: 'plain' },
+      ];
+      const pending = resolveCards(rows, cache);
+      await vi.runAllTimersAsync();
+      const out = await pending;
+      expect(out.resolved[0]?.id).toBe('sf-fca');
+      expect(out.unresolvedNames).toEqual([]);
+      expect(identifiersOf(fetchSpy, 1)).toEqual([{ set: 'fca', collector_number: '39' }]);
+    });
+
+    it('never retries a name that resolved as a real card', async () => {
+      const cache = fakeCache();
+      const fetchSpy = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValue(jsonResponse({ object: 'list', not_found: [], data: [card()] }));
+      const rows: ImportRow[] = [{ name: 'Sol Ring', quantity: 1, sourceFormat: 'plain' }];
+      const pending = resolveCards(rows, cache);
+      await vi.runAllTimersAsync();
+      await pending;
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports an outage on the retry by the name the user typed', async () => {
+      const cache = fakeCache();
+      vi.spyOn(global, 'fetch')
+        .mockResolvedValueOnce(empty())
+        .mockResolvedValue(new Response('boom', { status: 500 }));
+      const rows: ImportRow[] = [
+        { name: 'A Promise Fulfilled', quantity: 1, sourceFormat: 'plain' },
+      ];
+      const pending = resolveCards(rows, cache);
+      await vi.runAllTimersAsync();
+      const out = await pending;
+      expect(out.resolved[0]).toBeUndefined();
+      expect(out.fetchErrorNames).toEqual(['A Promise Fulfilled']);
+      expect(out.unresolvedNames).toEqual([]);
+    });
+  });
+
   it('reports rows in fetchErrorNames after a 429 storm exhausts retries', async () => {
     const cache = fakeCache();
     vi.spyOn(global, 'fetch').mockResolvedValue(new Response('rate limited', { status: 429 }));

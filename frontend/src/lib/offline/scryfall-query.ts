@@ -199,6 +199,10 @@ const WUBRG = ['W', 'U', 'B', 'R', 'G'] as const;
  */
 export interface QueryCard {
   name: string;
+  /** The name printed on this printing when it differs from `name` ("A Promise
+   *  Fulfilled"). Name clauses match either. Only a printing-level card (the
+   *  collection) has one; oracle-level slim cards never do. */
+  flavorName?: string;
   cmc: number;
   typeLine: string;
   oracleText?: string;
@@ -288,11 +292,12 @@ function matchPositive(card: QueryCard, c: Clause, opts?: MatchOpts): boolean {
     case 'is':
       return matchIs(card, c.value);
     case 'exactName':
-      return card.name.toLowerCase() === c.value;
+      return card.name.toLowerCase() === c.value || card.flavorName?.toLowerCase() === c.value;
     case 'free':
-      // Plain words fuzzy-match name or oracle text.
+      // Plain words fuzzy-match either name or oracle text.
       return (
         card.name.toLowerCase().includes(c.value) ||
+        !!card.flavorName?.toLowerCase().includes(c.value) ||
         (card.oracleText ?? '').toLowerCase().includes(c.value)
       );
     case 'unknown':

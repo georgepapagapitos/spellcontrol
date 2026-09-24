@@ -134,3 +134,19 @@ describe('compareResults', () => {
     expect(sortBy('edhrec').map((r) => r.name)).toEqual(['Beta', 'Zeta', 'Alpha']);
   });
 });
+
+describe('buildCollectionSearch — flavor-named printings', () => {
+  // The Final Fantasy "through the ages" Light Up the Stage prints "A Promise Fulfilled".
+  const promise = mkCard({ name: 'Light Up the Stage', setCode: 'FCA', collectorNumber: '39' });
+  const plain = mkCard({ name: 'Light Up the Stage', setCode: 'RNA', collectorNumber: '107' });
+  const hits = (q: string) => [promise, plain].map((c) => buildCollectionSearch(q).match(c).hit);
+
+  it('an exact-name clause matches the printed name or the oracle name', () => {
+    expect(hits('!"A Promise Fulfilled"')).toEqual([true, false]);
+    expect(hits('!"Light Up the Stage"')).toEqual([true, true]);
+  });
+
+  it('a free word in a syntax query matches the printed name too', () => {
+    expect(hits('promise t:sorcery')).toEqual([true, false]);
+  });
+});

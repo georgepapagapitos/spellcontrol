@@ -47,3 +47,45 @@ export function nameMatchesNormalized(card: PrintingNameFields, normalizedQuery:
   const flavor = flavorNameOf(card);
   return flavor !== undefined && normalizeForSearch(flavor).includes(normalizedQuery);
 }
+
+export interface FlavorPrinting {
+  /** Lowercased Scryfall set code. */
+  set: string;
+  collectorNumber: string;
+}
+
+let printingsByFlavor: Map<string, FlavorPrinting[]> | undefined;
+
+/**
+ * Every printing that carries this flavor name, so a list typed off the card
+ * ("A Promise Fulfilled") can resolve to the printing it names. Matched through
+ * `normalizeForSearch`, so case and punctuation don't matter, and a double-faced
+ * flavor name also answers to its front face alone.
+ *
+ * When `set` (and `collectorNumber`) are given, the printings that match them
+ * come first. Empty when nothing carries the name.
+ */
+export function printingsWithFlavorName(
+  name: string,
+  set?: string,
+  collectorNumber?: string
+): FlavorPrinting[] {
+  if (!printingsByFlavor) {
+    printingsByFlavor = new Map();
+    for (const [key, flavor] of Object.entries(FLAVOR_NAMES)) {
+      const split = key.indexOf(':');
+      const printing = { set: key.slice(0, split), collectorNumber: key.slice(split + 1) };
+      const names = new Set([flavor, flavor.split(' // ')[0]].map(normalizeForSearch));
+      for (const n of names) {
+        const list = printingsByFlavor.get(n);
+        if (list) list.push(printing);
+        else printingsByFlavor.set(n, [printing]);
+      }
+    }
+  }
+  const found = printingsByFlavor.get(normalizeForSearch(name)) ?? [];
+  const s = set?.toLowerCase();
+  const rank = (p: FlavorPrinting) =>
+    (p.set === s ? 0 : 2) + (p.collectorNumber === collectorNumber ? 0 : 1);
+  return [...found].sort((a, b) => rank(a) - rank(b));
+}

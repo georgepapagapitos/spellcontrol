@@ -2,6 +2,7 @@ import { logger } from './logger';
 import type { ScryfallCard, Ruling } from './types';
 import type { ScryfallCache } from './cache';
 import type { ImportRow } from './parsers/types';
+import { printingsWithFlavorName } from '@spellcontrol/binder-routing';
 
 export const SCRYFALL_USER_AGENT = 'spellcontrol/1.0';
 
@@ -71,7 +72,8 @@ type Identifier =
   | { id: string }
   | { name: string; set: string; collector_number: string }
   | { name: string; set: string }
-  | { name: string };
+  | { name: string }
+  | { set: string; collector_number: string };
 
 interface CollectionResponse {
   object: 'list';
@@ -108,43 +110,83 @@ export interface LookupResult {
  * a single resolved card back to every row that produced that identifier.
  */
 export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Promise<LookupResult> {
-  const firstPass = await resolveCardsOnce(rows, cache);
-  const resolved = firstPass.resolved;
+  let result: LookupResult = await resolveCardsOnce(rows, cache);
 
   // Some exports carry a collectorNumber Scryfall doesn't recognize for the
   // exact printing (Secret-Lair-style drops, promo variants) — retry those
   // rows by name+set alone, dropping the collector number. This retry used to
   // live only in the deck-import path (resolveDeckRows); centralizing it here
   // means every caller of resolveCards — including /api/import — gets it.
-  const retryIdxs: number[] = [];
-  resolved.forEach((card, i) => {
-    if (!card && rows[i].collectorNumber) retryIdxs.push(i);
-  });
-  if (retryIdxs.length === 0) return firstPass;
+  result = await retryUnresolved(rows, result, cache, (row) =>
+    row.collectorNumber ? { ...row, collectorNumber: undefined } : null
+  );
 
-  const retryRows = retryIdxs.map((i) => ({ ...rows[i], collectorNumber: undefined }));
+  // A list typed off the card names a flavor-named printing by what it reads
+  // ("A Promise Fulfilled"), which Scryfall's collection endpoint does not
+  // resolve. Retry those by the printing's set and number instead. Only a row
+  // that already missed is tried, so a real card that shares a flavor name can
+  // never be pulled onto the flavor-named printing.
+  result = await retryUnresolved(rows, result, cache, (row) => {
+    const [printing] = row.name
+      ? printingsWithFlavorName(row.name, row.setCode, row.collectorNumber)
+      : [];
+    return printing
+      ? { ...row, name: '', setCode: printing.set, collectorNumber: printing.collectorNumber }
+      : null;
+  });
+
+  return result;
+}
+
+/**
+ * Re-resolves the rows a pass left unresolved, each rewritten by `rewrite`
+ * (null skips the row), and folds the answers back in. A retried row takes its
+ * outage-vs-miss verdict from the retry; every other row keeps the one it had.
+ * Unresolved names are always reported by the row's ORIGINAL name.
+ */
+async function retryUnresolved(
+  rows: ImportRow[],
+  prev: LookupResult,
+  cache: ScryfallCache,
+  rewrite: (row: ImportRow) => ImportRow | null
+): Promise<LookupResult> {
+  const retryIdxs: number[] = [];
+  const retryRows: ImportRow[] = [];
+  prev.resolved.forEach((card, i) => {
+    if (card) return;
+    const rewritten = rewrite(rows[i]);
+    if (!rewritten) return;
+    retryIdxs.push(i);
+    retryRows.push(rewritten);
+  });
+  if (retryIdxs.length === 0) return prev;
+
   const retry = await resolveCardsOnce(retryRows, cache);
+  const resolved = [...prev.resolved];
   retryIdxs.forEach((origIdx, j) => {
     if (retry.resolved[j]) resolved[origIdx] = retry.resolved[j];
   });
 
-  // A retried row takes its outage-vs-miss verdict from the retry pass;
-  // everything else keeps the first pass's verdict.
   const retriedNames = new Set(retryIdxs.map((i) => rows[i].name).filter(Boolean));
-  const unresolvedNames = firstPass.unresolvedNames.filter((n) => !retriedNames.has(n));
-  const fetchErrorNames = firstPass.fetchErrorNames.filter((n) => !retriedNames.has(n));
-  retryIdxs.forEach((origIdx) => {
+  const unresolvedNames = prev.unresolvedNames.filter((n) => !retriedNames.has(n));
+  const fetchErrorNames = prev.fetchErrorNames.filter((n) => !retriedNames.has(n));
+  retryIdxs.forEach((origIdx, j) => {
     if (resolved[origIdx]) return;
     const name = rows[origIdx].name;
     if (!name) return;
-    (retry.fetchErrorNames.includes(name) ? fetchErrorNames : unresolvedNames).push(name);
+    (retry.fetchFailedRows.has(j) ? fetchErrorNames : unresolvedNames).push(name);
   });
 
   return { resolved, unresolvedNames, fetchErrorNames };
 }
 
-/** Single-pass resolution — no collector-number retry. See {@link resolveCards}. */
-async function resolveCardsOnce(rows: ImportRow[], cache: ScryfallCache): Promise<LookupResult> {
+/** One pass's result, plus which rows (by index) never got an answer from Scryfall. */
+interface PassResult extends LookupResult {
+  fetchFailedRows: Set<number>;
+}
+
+/** Single-pass resolution — no retries. See {@link resolveCards}. */
+async function resolveCardsOnce(rows: ImportRow[], cache: ScryfallCache): Promise<PassResult> {
   const resolved: Array<ScryfallCard | undefined> = new Array(rows.length).fill(undefined);
 
   // Step 1: build the identifier each row needs, and group rows by identifier key.
@@ -198,7 +240,7 @@ async function resolveCardsOnce(rows: ImportRow[], cache: ScryfallCache): Promis
   }
 
   if (identifierByKey.size === 0) {
-    return { resolved, unresolvedNames: [], fetchErrorNames: [] };
+    return { resolved, unresolvedNames: [], fetchErrorNames: [], fetchFailedRows: new Set() };
   }
 
   logger.info(
@@ -258,14 +300,16 @@ async function resolveCardsOnce(rows: ImportRow[], cache: ScryfallCache): Promis
   // Scryfall said "not found" (genuine miss) vs the batch never got an answer.
   const unresolvedNames: string[] = [];
   const fetchErrorNames: string[] = [];
+  const fetchFailedRows = new Set<number>();
   rows.forEach((row, i) => {
-    if (resolved[i] || !row.name) return;
+    if (resolved[i]) return;
     const ident = buildIdentifier(row);
     const failed = ident !== null && fetchFailedKeys.has(identifierKey(ident));
-    (failed ? fetchErrorNames : unresolvedNames).push(row.name);
+    if (failed) fetchFailedRows.add(i);
+    if (row.name) (failed ? fetchErrorNames : unresolvedNames).push(row.name);
   });
 
-  return { resolved, unresolvedNames, fetchErrorNames };
+  return { resolved, unresolvedNames, fetchErrorNames, fetchFailedRows };
 }
 
 /**
@@ -403,6 +447,7 @@ const nscKeyFor = (name: string, set: string, collector: string): string =>
  */
 function identifierKey(ident: Identifier): string {
   if ('id' in ident) return `id:${ident.id}`;
+  if (!('name' in ident)) return `sc:${ident.set}:${ident.collector_number}`;
   const name = ident.name.toLowerCase();
   if ('collector_number' in ident && 'set' in ident) {
     return nscKeyFor(ident.name, ident.set, ident.collector_number);
@@ -446,13 +491,14 @@ export function cardAliasKeys(card: {
  */
 function buildIdentifier(row: ImportRow): Identifier | null {
   if (row.scryfallId) return { id: row.scryfallId };
-  if (!row.name) return null;
-
-  const name = row.name.split(' // ')[0].trim();
-  if (!name) return null;
 
   const set = row.setCode?.toLowerCase().trim();
   const collector = row.collectorNumber?.trim();
+  const name = row.name?.split(' // ')[0].trim();
+
+  // No name, but a printing: Scryfall resolves set + collector number alone.
+  // The flavor-name retry in resolveCards sends exactly this.
+  if (!name) return set && collector ? { set, collector_number: collector } : null;
 
   if (set && collector) return { name, set, collector_number: collector };
   if (set) return { name, set };
@@ -547,6 +593,12 @@ async function fetchSearchPageWithRetry(url: string): Promise<SearchResponse | n
 function identifierMatchesCard(identifier: Identifier, card: ScryfallCard): boolean {
   if ('id' in identifier) {
     return card.id === identifier.id;
+  }
+  if (!('name' in identifier)) {
+    return (
+      card.set.toLowerCase() === identifier.set &&
+      card.collector_number === identifier.collector_number
+    );
   }
 
   // Card data always carries the full "Front // Back" form for split / DFC / adventure cards.
