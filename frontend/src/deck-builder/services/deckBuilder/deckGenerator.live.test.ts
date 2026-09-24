@@ -106,7 +106,9 @@ function manaPhilosophyEnv(): ManaPhilosophy | undefined {
 
 function customization(overrides: Partial<Customization> = {}): Customization {
   return {
-    deckFormat: 99, // app store defaults (landCount 37 / nonBasic 15) so auto-land-count engages like in-app
+    // The store's 37/15. In the app these are overwritten by the commander's
+    // EDHREC land averages before a build (see LIVE_GEN_APP_LANDS below).
+    deckFormat: 99,
     landCount: 37,
     nonBasicLandCount: 15,
     bannedCards: [],
@@ -618,15 +620,17 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           ...new Set([...commander.color_identity, ...(partnerCommander?.color_identity ?? [])]),
         ];
         const custom = customization(spec.overrides);
-        // LIVE_GEN_APP_LANDS=1: start from the land count the APP actually
-        // builds with. use-deck-generation pre-fills the land sliders from
-        // the commander's EDHREC averages the moment one is picked, so an
-        // in-app build almost never reaches the generator at the 37/15
-        // defaults this harness uses (and isDefaultLandCount keys off).
-        // Mirrors that effect exactly: primary commander's page only, a row's
-        // own explicit land override wins.
+        // Start from the land count the APP builds with. use-deck-generation
+        // pre-fills the land sliders from the commander's EDHREC averages the
+        // moment one is picked, so an in-app build almost never reaches the
+        // generator at the 37/15 defaults (the Karsten auto-tune keys off
+        // those). This harness used to run at 37/15 and so measured a land
+        // path users never get; a blind 15-deck review on 2026-09-24 then
+        // preferred the app's EDHREC counts 13 to 2. Mirrors the effect
+        // exactly: primary commander's page only, and a row's own explicit
+        // land override wins. LIVE_GEN_APP_LANDS=0 restores the 37/15 path.
         if (
-          process.env.LIVE_GEN_APP_LANDS === '1' &&
+          process.env.LIVE_GEN_APP_LANDS !== '0' &&
           spec.overrides?.landCount === undefined &&
           spec.overrides?.nonBasicLandCount === undefined
         ) {
