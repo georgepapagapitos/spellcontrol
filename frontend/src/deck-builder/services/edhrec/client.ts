@@ -249,7 +249,9 @@ async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
       await new Promise((resolve) => setTimeout(resolve, waitMs));
       return edhrecFetch<T>(endpoint, attempt + 1);
     }
-    throw new Error(`EDHREC API error: ${response.status} ${response.statusText}`);
+    throw Object.assign(new Error(`EDHREC API error: ${response.status} ${response.statusText}`), {
+      status: response.status,
+    });
   }
 
   const data = await response.json();
@@ -1617,7 +1619,17 @@ export async function fetchCommanderCombosRaw(commanderName: string): Promise<ED
 
   if (offlineActive()) return [];
 
-  const response = await edhrecFetch<RawComboResponse>(`/pages/combos/${slug}.json`);
+  let response: RawComboResponse;
+  try {
+    response = await edhrecFetch<RawComboResponse>(`/pages/combos/${slug}.json`);
+  } catch (error) {
+    // A commander with no combos page (new, or never built) gets a 403 from
+    // EDHREC, sometimes a 404. That's "no combos", not a failed fetch.
+    const status = (error as { status?: number }).status;
+    if (status !== 403 && status !== 404) throw error;
+    comboCache.set(slug, { data: [], timestamp: Date.now() });
+    return [];
+  }
 
   const rawCombos = response.container?.json_dict?.cardlists || [];
 
