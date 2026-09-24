@@ -64,4 +64,11 @@ export interface WinConditionAnalysis {
    * absurdly slow, which is the raw math but not how the deck plays.
    */
   tutors?: string[];
+  /**
+   * Complete combos in the deck that don't end the game (a loop that only
+   * draws cards or makes mana, a lock). Set only with `noClearWinCondition`,
+   * so the empty state can say the combos need a payoff instead of telling the
+   * user to add a combo the deck already has.
+   */
+  loopsWithoutPayoff?: number;
 }

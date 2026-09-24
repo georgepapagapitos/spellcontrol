@@ -93,8 +93,12 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        precons), cEDH needs 4+ Game Changers, separate combo packages count
  *        as separate engines, a lone sub-gate combo adds power, and a half-built
  *        deck no longer divides its interaction by 1.
+ *   v11 — a loop that only draws cards (infinite draw / storm count, no
+ *        payoff) is no longer a win path, so the Gameplan hero and Win
+ *        conditions stop saying "Wins via Infinite combo" beside a Bracket
+ *        panel that says the same loops don't end the game (E380).
  */
-const ANALYSIS_ENGINE_VERSION = 'v10-stress-test';
+const ANALYSIS_ENGINE_VERSION = 'v11-draw-loop-not-a-win';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)
