@@ -5,8 +5,12 @@ import {
   rollDice,
   pickFirstPlayer,
   describeRoll,
+  highRoll,
   type RandomFn,
 } from './game-tools';
+
+/** rand() value that makes randInt(1, 20, ...) return exactly `v`. */
+const d20 = (v: number) => (v - 1 + 0.5) / 20;
 
 /** Deterministic sequence-backed RandomFn for testing. */
 function seq(values: number[]): RandomFn {
@@ -78,6 +82,65 @@ describe('pickFirstPlayer', () => {
 
   it('returns null for an empty roster', () => {
     expect(pickFirstPlayer([])).toBeNull();
+  });
+});
+
+describe('highRoll', () => {
+  it('the highest single roll wins outright', () => {
+    const result = highRoll(
+      [
+        { seat: 0, eliminated: false },
+        { seat: 1, eliminated: false },
+        { seat: 2, eliminated: false },
+      ],
+      seq([d20(11), d20(20), d20(5)])
+    );
+    expect(result).toEqual({ rolls: { 0: 11, 1: 20, 2: 5 }, winnerSeat: 1 });
+  });
+
+  it('re-rolls only the tied seats, overwriting their earlier roll', () => {
+    const result = highRoll(
+      [
+        { seat: 0, eliminated: false },
+        { seat: 1, eliminated: false },
+        { seat: 2, eliminated: false },
+      ],
+      // Round 1: seat 0 and 1 tie at 20, seat 2 rolls 5 (out).
+      // Round 2 (seats 0 and 1 only): seat 0 rolls 10, seat 1 rolls 15.
+      seq([d20(20), d20(20), d20(5), d20(10), d20(15)])
+    );
+    expect(result).toEqual({ rolls: { 0: 10, 1: 15, 2: 5 }, winnerSeat: 1 });
+  });
+
+  it('skips eliminated seats, same fallback as pickFirstPlayer', () => {
+    const result = highRoll(
+      [
+        { seat: 0, eliminated: true },
+        { seat: 1, eliminated: false },
+      ],
+      seq([d20(3)])
+    );
+    expect(result).toEqual({ rolls: { 1: 3 }, winnerSeat: 1 });
+  });
+
+  it('falls back to the full roster when every seat is eliminated', () => {
+    const result = highRoll(
+      [
+        { seat: 0, eliminated: true },
+        { seat: 1, eliminated: true },
+      ],
+      seq([d20(9), d20(14)])
+    );
+    expect(result).toEqual({ rolls: { 0: 9, 1: 14 }, winnerSeat: 1 });
+  });
+
+  it('a single living seat wins with no roll needed to break a tie', () => {
+    const result = highRoll([{ seat: 4, eliminated: false }], seq([d20(1)]));
+    expect(result).toEqual({ rolls: { 4: 1 }, winnerSeat: 4 });
+  });
+
+  it('returns null for an empty roster', () => {
+    expect(highRoll([])).toBeNull();
   });
 });
 

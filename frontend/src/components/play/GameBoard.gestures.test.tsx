@@ -197,7 +197,15 @@ describe('how the board works', () => {
   it('comes back from the game menu', () => {
     render(<GameBoard game={makeTestState(pod())} dispatch={vi.fn()} canControlAll />);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
     fireEvent.click(screen.getByRole('button', { name: 'How the board works' }));
+    expect(screen.getByRole('dialog', { name: 'How the board works' })).toBeTruthy();
+  });
+
+  it('comes back from the hub ring directly, via Help', () => {
+    render(<GameBoard game={makeTestState(pod())} dispatch={vi.fn()} canControlAll />);
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Help' }));
     expect(screen.getByRole('dialog', { name: 'How the board works' })).toBeTruthy();
   });
 });

@@ -78,7 +78,10 @@ function activeGame(actions: GameAction[] = []): GameState {
 
 function openMenu(game: GameState, canControlAll = true) {
   render(<GameBoard game={game} dispatch={vi.fn()} canControlAll={canControlAll} />);
+  // The hub now opens a radial petal ring first; "Menu" is the petal that
+  // opens this sheet (see BoardHubMenu / GameBoard's hub petals).
   fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
 }
 
 const tab = (name: string) => screen.getByRole('tab', { name });
@@ -91,6 +94,7 @@ describe('Reset asks first', () => {
     const dispatch = vi.fn();
     render(<GameBoard game={activeGame()} dispatch={dispatch} canControlAll />);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(screen.getByText('Reset the game?')).toBeTruthy();
     expect(dispatch).not.toHaveBeenCalled();
