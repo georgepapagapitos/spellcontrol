@@ -823,4 +823,25 @@ describe('playtest store — printed-body backfill', () => {
     store().applyPrintedBodies(new Map([['Nobody Here', { power: '1', toughness: '1' }]]));
     expect(store().state).toBe(before);
   });
+
+  // The patch once rebuilt `zones` from a hand-kept list that predated the
+  // sideboard, so the first backfill erased it and the board crashed reading
+  // `zones.sideboard.length` on every load, the undo stack included.
+  it('keeps every zone, the sideboard included, in the present and in history', () => {
+    store().init('deck-1', {
+      library: bodilessLibrary(),
+      sideboard: [{ id: 'sb-1', name: 'Goblin Trashmaster', origin: 'sideboard' }],
+      seed: 7,
+    });
+    store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: 'c-1', x: 0.5, y: 0.5 });
+    store().applyPrintedBodies(BODIES);
+    const s = store().state as PlaytestState;
+    expect(Object.keys(s.zones).sort()).toEqual(
+      ['command', 'exile', 'graveyard', 'hand', 'library', 'sideboard'].sort()
+    );
+    expect(s.zones.sideboard).toEqual([
+      expect.objectContaining({ id: 'sb-1', power: '3', toughness: '3' }),
+    ]);
+    for (const entry of s.past) expect(entry.zones.sideboard).toHaveLength(1);
+  });
 });

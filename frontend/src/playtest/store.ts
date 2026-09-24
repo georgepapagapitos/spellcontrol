@@ -489,15 +489,14 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     };
     // Generic over the state shape because history entries are stored as
     // `Omit<PlaytestState, 'past'>` — the same patch, one implementation.
+    // Every zone the state has, not a hand-kept list: the generic spread lets
+    // a short list type-check, and a list that missed `sideboard` wiped it and
+    // crashed the board on every load.
     const patchState = <T extends Omit<PlaytestState, 'past'>>(s: T): T => ({
       ...s,
-      zones: {
-        library: s.zones.library.map(patchCard),
-        hand: s.zones.hand.map(patchCard),
-        graveyard: s.zones.graveyard.map(patchCard),
-        exile: s.zones.exile.map(patchCard),
-        command: s.zones.command.map(patchCard),
-      },
+      zones: Object.fromEntries(
+        Object.entries(s.zones).map(([zone, cards]) => [zone, cards.map(patchCard)])
+      ) as T['zones'],
       battlefield: s.battlefield.map((bf) => {
         const card = patchCard(bf.card);
         return card === bf.card ? bf : { ...bf, card };
