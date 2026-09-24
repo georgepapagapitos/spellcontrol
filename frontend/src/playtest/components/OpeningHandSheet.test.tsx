@@ -179,7 +179,7 @@ describe('the mulligan rule in force', () => {
  * E348: the takeover was the ONLY place a hand could be rearranged — at the
  * one moment you are deciding keep-or-mulligan, and on the same cards the
  * bottom-N step wants you to tap. Arranging moved to the hand you play with
- * (`Hand` / `HandDrawer`); this pins the takeover staying out of it, since a
+ * (`Hand`); this pins the takeover staying out of it, since a
  * dnd-kit wrapper is exactly the kind of thing that creeps back.
  */
 describe('OpeningHandSheet — no dragging here (E348)', () => {

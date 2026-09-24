@@ -171,7 +171,7 @@ export function OpeningHandSheet({
   // the hand you play with, not to the one moment you are deciding
   // keep-or-mulligan — and in the bottom-N step these same cards are
   // tap-to-select, so a drag on that target only competed with the tap (E348,
-  // user 2026-09-20). Reorder lives in `Hand` / `HandDrawer` now.
+  // user 2026-09-20). Reorder lives in `Hand` now.
   const orderedHand = hand;
 
   // EnrichedCard projection for CardPreview, parallel to the *displayed*

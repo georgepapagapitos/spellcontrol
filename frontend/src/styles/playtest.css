@@ -3199,8 +3199,15 @@ button.playtest-card-pt__value--editable:focus-visible {
    ≤1023px tier above wherever both apply (same specificity, later wins);
    `orientation: landscape` keeps a merely-short *portrait* phone (which has
    width to spare, not height) out of this. Target: battlefield keeps at
-   least 40% of viewport height. */
-@media (max-height: 420px) and (orientation: landscape) {
+   least 40% of viewport height.
+
+   500px, not the 420 this began at: the tallest phones are about 430px on
+   their side, and at 420 they fell through to the desk card size (90px, so
+   126px tall on a 430px screen). Keep it in step with SHORT_LANDSCAPE_QUERY
+   in use-narrow-viewport.ts. The hand is the same tucked fan as every other
+   tier; this tier used to swap it for a 44px strip of card NAMES under the
+   table (E264, from before the table moved to corner overlays). */
+@media (max-height: 500px) and (orientation: landscape) {
   /* The standalone header is an entire 44px+-touch-target row on its own
      (back button) for two facts (deck name, "Playtest") that the game menu
      carries as "Back to <deck>" — cut the row, not the way out. */
@@ -3233,117 +3240,9 @@ button.playtest-card-pt__value--editable:focus-visible {
     padding: 2px var(--space-2);
   }
 
-  .playtest-hand {
-    min-height: 0;
-    padding: var(--space-1) var(--space-3);
-  }
-
   body:has(.playtest-page) {
     --pt-card-w: 56px;
     --pt-card-h: 78px;
-  }
-
-  /* E264: the hand is a 44px drawer strip here (HandDrawer.tsx) — count plus
-     the first few names as chips — and opens as a sheet over the battlefield,
-     which keeps the ~100px the always-open strip used to take. */
-  .playtest-hand-drawer {
-    flex-shrink: 0;
-    border-top: 0.5px solid var(--border);
-    background: var(--surface);
-  }
-
-  .playtest-hand-drawer.is-over {
-    background: var(--accent-light);
-  }
-
-  .playtest-hand-drawer__toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    width: 100%;
-    min-height: 44px;
-    padding: 0 var(--space-3);
-    background: none;
-    border: 0;
-    color: var(--text-primary);
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .playtest-hand-drawer__toggle:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
-  }
-
-  .playtest-hand-drawer__chips {
-    display: flex;
-    gap: var(--space-1);
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .playtest-hand-drawer__chip {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 10rem;
-    padding: 2px var(--space-2);
-    border: 0.5px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface-raised);
-    color: var(--text-secondary);
-    font-size: var(--text-xs);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .playtest-hand-drawer__chip--more {
-    flex-shrink: 0;
-  }
-
-  .playtest-hand-drawer__chevron {
-    flex-shrink: 0;
-    color: var(--text-muted);
-  }
-
-  /* The sheet reuses `.playtest-hand` for its cards (same droppable, same
-     drag source) but lays them out as a wrapping grid so every card in hand
-     is on screen at once, one size up from the strip's. */
-  .playtest-hand-sheet .playtest-hand {
-    flex: 1;
-    min-height: 0;
-    align-items: flex-start;
-    padding: var(--space-2) var(--space-3);
-    border-top: 0;
-    overflow-y: auto;
-  }
-
-  .playtest-hand-sheet .playtest-hand__label {
-    display: none;
-  }
-
-  .playtest-hand-sheet .playtest-hand__cards {
-    flex-wrap: wrap;
-    overflow: visible;
-    padding-bottom: 0;
-  }
-
-  .playtest-hand-sheet .playtest-card--sm {
-    width: 88px;
-    height: 123px;
-  }
-
-  .playtest-hand-sheet__empty {
-    margin: 0;
-    padding: var(--space-4) var(--space-3);
-    color: var(--text-muted);
-    font-size: var(--text-sm);
-  }
-
-  .playtest-hand-sheet .card-picker-header,
-  .playtest-hand-sheet .card-picker-footer {
-    padding: var(--space-1) var(--space-3);
   }
 }
 
@@ -4663,18 +4562,21 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 /* ── Phone only ───────────────────────────────────────────────────────────
    The one thing that is not shared with a tablet: four card-width piles
-   plus a hand do not fit 412px. The library and the graveyard stay out on
-   the felt (PlaytestBoard renders only those two below PHONE_MAX_WIDTH) and
-   the edge tab holds exile and the command zone. Keep this 767 in step with
-   `PHONE_MAX_WIDTH` in use-narrow-viewport.ts. */
-@media (max-width: 767px) {
+   plus a hand do not fit a phone, whichever way up it is held. The library
+   and the graveyard stay out on the felt (PlaytestBoard renders only those
+   two when PHONE_QUERY matches) and the edge tab holds exile and the command
+   zone. Keep this query in step with `PHONE_QUERY` in use-narrow-viewport.ts:
+   narrow, or on its side. A phone on its side is 800 to 930px wide, so the
+   width test alone handed it four piles and no tab. */
+@media (max-width: 767px), (max-height: 500px) and (orientation: landscape) {
   .playtest-board {
     --pt-pile-span: calc(2 * var(--pt-card-w) + 3 * var(--space-2));
   }
 
-  /* A seven-card fan, the button and two piles do not fit one 390px row: in
-     the row, the fan covered the button. It stands above the library's label
-     instead, still beside the zones, and the fan keeps the width it had. */
+  /* Upright, a seven-card fan, the button and two piles do not fit one 390px
+     row. In the row, the fan covered the button, so it stands above the
+     library's label instead, still beside the zones, and the fan keeps the
+     width it had. A phone on its side puts it back in the row (below). */
   .playtest-hand-menu-btn {
     position: absolute;
     bottom: 100%;
@@ -4688,5 +4590,28 @@ button.playtest-card-pt__value--editable:focus-visible {
 
   .playtest-board--narrow .playtest-zones-panel {
     display: grid;
+  }
+}
+
+/* On its side there is width to spare, so the button stays in the row beside
+   the library, as in EDHPlay, and the fan centres in what the button and the
+   two piles leave. Placed after the phone block so it wins wherever both
+   match. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .playtest-board {
+    --pt-pile-span: calc(2 * var(--pt-card-w) + var(--pt-hand-btn-w) + 4 * var(--space-2));
+  }
+
+  .playtest-hand-menu-btn {
+    position: static;
+  }
+
+  /* Centred, the tab rose into the menu and TURN stack on a 340px screen.
+     It sits in the gap between that stack and the piles instead, anchored
+     just above the piles' labels. */
+  .playtest-zones-tab {
+    top: auto;
+    bottom: 4.5rem;
+    transform: none;
   }
 }

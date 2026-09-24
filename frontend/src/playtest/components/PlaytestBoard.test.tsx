@@ -1783,6 +1783,77 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
 });
 
 /**
+ * A phone on its side (about 830x360) is wider than the 767px phone line, so
+ * a width-only test gave it the TABLET table: four piles clipped along the
+ * bottom edge and no edge tab. The short-landscape tier then swapped the fan
+ * for a 44px strip of card NAMES under the table. Both are asserted against
+ * the board's real media queries, evaluated for that screen, comma lists
+ * included (PHONE_QUERY is one).
+ */
+describe('PlaytestBoard — a phone on its side', () => {
+  function stubScreen(width: number, height: number) {
+    const clause = (q: string) => {
+      const num = (re: RegExp) => Number(re.exec(q)?.[1] ?? NaN);
+      const minW = num(/min-width:\s*(\d+)px/);
+      const maxW = num(/max-width:\s*(\d+)px/);
+      const maxH = num(/max-height:\s*(\d+)px/);
+      const landscape = width > height;
+      return (
+        !(minW > width) &&
+        !(maxW < width) &&
+        !(maxH < height) &&
+        !(/orientation:\s*landscape/.test(q) && !landscape) &&
+        !(/orientation:\s*portrait/.test(q) && landscape) &&
+        // A touch screen: coarse, no hover.
+        !/hover:\s*hover|pointer:\s*fine/.test(q)
+      );
+    };
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: query.split(',').some(clause),
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    });
+  }
+
+  function renderBoard() {
+    const { container } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    return container;
+  }
+
+  it('gets the phone table: two piles and the exile / command tab', () => {
+    stubScreen(832, 360);
+    renderBoard();
+    expect(screen.getByRole('button', { name: /^Draw a card\./ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^View the graveyard\./ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^View exile\./ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show exile and the command zone' })).toBeTruthy();
+  });
+
+  it('holds the hand as the fan, with its Hand button beside the library', () => {
+    stubScreen(832, 360);
+    const container = renderBoard();
+    expect(container.querySelector('.playtest-hand--fan')).not.toBeNull();
+    expect(screen.getByRole('button', { name: /^Hand \(\d+\)$/ })).toBeTruthy();
+  });
+
+  it('leaves a tablet on its side the four piles', () => {
+    stubScreen(1024, 768);
+    renderBoard();
+    expect(screen.getByRole('button', { name: /^View exile\./ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Show exile and the command zone' })).toBeNull();
+  });
+});
+
+/**
  * Partners put two commanders in the command zone at once, each accruing its
  * OWN tax. A pile that renders a single top card cannot say which one you
  * are casting, so the command zone is a row: both cards visible, both

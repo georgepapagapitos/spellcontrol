@@ -2234,6 +2234,9 @@ full-bleed felt and nothing else** — every row of chrome is gone and what it
 carried floats in the corners. Below 1024px, and in the short-landscape phone
 tier, nothing changed: those tiers keep the header, the action bar, the
 tracker rows, the flat hand strip and `MobileZonesPanel` exactly as they were.
+(Superseded for phones on 2026-09-24: see "A phone is one tier, whichever
+way up it is held" at the end of this section. There is no flat hand strip
+or name strip any more; the hand is the fan.)
 The split is made in JS (`useNarrowViewport`), so most of the table's CSS
 lives on classes only the wide tier's markup carries and needs no media query;
 only shared elements (the felt itself, the density cap) are gated on
@@ -2395,6 +2398,26 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   the fan's own padding and toggle. Both reservations are real inputs to
   `auto-place.ts` (`reservedBottom` / `reservedTop`, fractions, never pixels),
   so nothing auto-played lands under the fan, the piles, or the life panel.
+- **A phone is one tier, whichever way up it is held** (revised 2026-09-24,
+  against EDHPlay's landscape phone). `PHONE_QUERY` (`use-narrow-viewport.ts`)
+  is `(max-width: 767px), (max-height: 500px) and (orientation: landscape)`,
+  and playtest.css's phone block uses the same string (pinned by
+  `styles/playtest-phone-query.test.ts`).
+  - A phone on its side is 800 to 930px wide, so the width test alone gave
+    it the tablet table: four piles clipped along the bottom edge and no
+    tab. It now gets the phone split: library and graveyard on the felt,
+    exile and the command zone behind the edge tab.
+  - On its side, the Hand button stays in the pile row beside the library
+    (upright it stands above the library's label), and the tab is anchored
+    just above the piles instead of centred, where it rose into the menu
+    and TURN stack.
+  - **The hand is the tucked fan at every size.** The short-landscape tier
+    used to swap it for `HandDrawer`, a 44px strip of card NAMES under the
+    table (E264, from before the corner overlays). That strip is deleted:
+    the fan shows the cards, costs the table no height, and is the same
+    object everywhere else. Don't bring a name strip back.
+  - Pinned by the "a phone on its side" block in `PlaytestBoard.test.tsx`,
+    which evaluates the board's real queries for an 832×360 touch screen.
 
 ### Opening hand — a takeover at 1024px and up, a sheet below
 
@@ -2437,7 +2460,7 @@ sheet is unchanged — a phone has no room for the fan.
   could be rearranged, which is the inverse of useful, and in the
   mulligan-bottom step a drag competed with the tap that selects a card for
   the bottom.) The takeover now shows the hand exactly as it was dealt and has
-  no drag at all; arranging lives in `Hand` / `HandDrawer`, where each card
+  no drag at all; arranging lives in `Hand`, where each card
   registers a hand-slot droppable **on its own node** (the same shape as the
   battlefield's host droppable) and a drop dispatches `REORDER_HAND`. Two
   rulings survive the move and still hold:
