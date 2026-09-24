@@ -31,6 +31,9 @@ interface Props {
    * otherwise they only show where the turn is. Absent off the table.
    */
   phase?: { current: GamePhase | undefined; mine: boolean; onSet(phase: GamePhase): void };
+  /** Opened from the table feed's own button: land on the Table view whatever
+   *  chip was last picked. The pick itself is not overwritten. */
+  startOnTable?: boolean;
 }
 
 type Filter = 'all' | 'cards' | 'life' | 'turns' | 'table';
@@ -110,8 +113,18 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-export function LogDock({ log, table, onClose, popoutHref, variant = 'dock', phase }: Props) {
-  const [saved, setFilter] = useState<Filter | null>(readFilter);
+export function LogDock({
+  log,
+  table,
+  onClose,
+  popoutHref,
+  variant = 'dock',
+  phase,
+  startOnTable,
+}: Props) {
+  const [saved, setFilter] = useState<Filter | null>(() =>
+    startOnTable && table ? 'table' : readFilter()
+  );
   // Seated online, the Table feed is the whole game: every seat's plays, your
   // own included, and the chat, in the order they happened (EDHPlay's
   // "unified chat & event log"). So it is where the log opens until you pick

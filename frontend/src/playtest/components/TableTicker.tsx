@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageCircle, X } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { usePlayStore, type TickerItem } from '@/store/play';
 import { paletteForIndex } from '@/lib/seat-palette';
 import type { OnlineTable } from '../hooks/use-online-table';
 import { useMediaQuery } from '../hooks/use-media-query';
 import { GLANCE_QUERY } from './OpponentRail';
-import { TableChat } from './TableChat';
 import './TableTicker.css';
 
 /** Transient-line auto-dismiss (presence density) — long enough to read a
@@ -50,58 +49,36 @@ export function TableTicker({ onlineTable }: Props) {
 }
 
 /**
- * The table tier's persistent chat/log entry point — a bottom-left button in
- * PlaytestBoard's `.playtest-left-dock` column, beside the mana pool and the
- * game log. Carries an unread count for lines that arrived while it was
- * closed (own-seat lines never count — see `TickerFlash`'s same rule) and
- * resets the moment it opens. The feed and composer are the same ones the
- * old always-open glance panel rendered; they now have a way to close.
+ * The table tier's way into the table feed: a bottom-left button in
+ * PlaytestBoard's `.playtest-left-dock` column, under the mana pool and the
+ * game log. It opens the log dock on its Table view (every seat's plays and
+ * the chat, with the composer) rather than a panel of its own: the two used
+ * to show the same feed and the same composer side by side. It stays as its
+ * own button because it carries what the log's entry points don't: an unread
+ * count of lines from other seats that arrived while the log was shut.
  *
- * Dismiss follows the dock's other panel (LogDock)'s own convention rather
- * than a modal's: a close button and Escape while focus is already inside,
- * no backdrop, no click-outside, no focus trap. It's a companion panel
- * beside the felt, not a decision that should vanish because you clicked
- * the board mid-turn.
+ * Controlled: `open` is whether the log dock is open, so the button reads as
+ * pressed whichever way the log was opened (L, the game menu, this button).
  */
-export function TableTickerDock({ onlineTable }: Props) {
+export function TableTickerDock({
+  onlineTable,
+  open,
+  onToggle,
+}: Props & { open: boolean; onToggle(): void }) {
   const items = usePlayStore((s) => s.onlineTicker);
-  const [open, setOpen] = useState(false);
-  const panelRef = useRef<HTMLElement>(null);
   // Seeded with the current tail so backlog already in the feed when this
   // mounts never inflates the very first badge (same reasoning as
-  // TickerFlash's lastIdRef). Only advances on close (see `close` below) —
-  // everything that arrived while the panel was open was already visible in
-  // the list, so there is nothing to mark read until it shuts again.
-  const [lastSeenId, setLastSeenId] = useState(() =>
-    items.length > 0 ? items[items.length - 1].id : 0
-  );
-
-  function close() {
-    setOpen(false);
-    if (items.length > 0) setLastSeenId(items[items.length - 1].id);
+  // TickerFlash's lastIdRef). Advances when the log closes: everything that
+  // arrived while it was open was already on screen.
+  const tail = items.length > 0 ? items[items.length - 1].id : 0;
+  const [lastSeenId, setLastSeenId] = useState(tail);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) setLastSeenId(tail);
   }
 
-  // Bound to the panel's own node, not the document, so Escape closes it
-  // only when focus is already inside — a keystroke aimed at the board
-  // never reaches this (same technique as LogDock). Keyed on `open`: the
-  // panel (and its ref target) only exists while open, so the listener has
-  // to re-attach to the freshly mounted node each time rather than binding
-  // once against a `null` ref before the panel ever opens; keyed on `items`
-  // too so a late Escape still stamps the tail it closes against.
-  useEffect(() => {
-    const el = panelRef.current;
-    if (!el) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      setOpen(false);
-      if (items.length > 0) setLastSeenId(items[items.length - 1].id);
-    };
-    el.addEventListener('keydown', onKeyDown);
-    return () => el.removeEventListener('keydown', onKeyDown);
-  }, [open, items]);
-
-  // Zero while open — everything that arrives is already visible in the list
-  // below — so the badge only ever counts what showed up while it was shut.
+  // Zero while open, so the badge only ever counts what showed up while shut.
   const unread = open
     ? 0
     : items.filter((it) => it.id > lastSeenId && it.seat !== onlineTable.mySeat).length;
@@ -109,76 +86,21 @@ export function TableTickerDock({ onlineTable }: Props) {
   const label = unread > 0 ? `Table log, ${unread} unread` : 'Table log';
 
   return (
-    <div className="table-ticker-dock">
-      {open && (
-        <TickerPanel items={items} onlineTable={onlineTable} panelRef={panelRef} onClose={close} />
+    <button
+      type="button"
+      className={`table-ticker-dock__toggle${open ? ' is-open' : ''}`}
+      aria-expanded={open}
+      aria-label={label}
+      title="Table log"
+      onClick={onToggle}
+    >
+      <MessageCircle width={20} height={20} aria-hidden />
+      {unread > 0 && (
+        <span className="table-ticker-dock__badge" aria-hidden="true">
+          {unread > 99 ? '99+' : unread}
+        </span>
       )}
-      <button
-        type="button"
-        className={`table-ticker-dock__toggle${open ? ' is-open' : ''}`}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={label}
-        title="Table log"
-        onClick={() => (open ? close() : setOpen(true))}
-      >
-        <MessageCircle width={20} height={20} aria-hidden />
-        {unread > 0 && (
-          <span className="table-ticker-dock__badge" aria-hidden="true">
-            {unread > 99 ? '99+' : unread}
-          </span>
-        )}
-      </button>
-    </div>
-  );
-}
-
-function TickerPanel({
-  items,
-  onlineTable,
-  panelRef,
-  onClose,
-}: {
-  items: TickerItem[];
-  onlineTable: OnlineTable;
-  /** Given by `TableTickerDock` so Escape can bind to the panel's own node. */
-  panelRef?: RefObject<HTMLElement | null>;
-  onClose?: () => void;
-}) {
-  const listRef = useRef<HTMLOListElement>(null);
-  // Keep the newest line in view — the feed reads downward like a chat log.
-  useEffect(() => {
-    const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [items]);
-  return (
-    <section className="table-ticker" aria-label="Table log" ref={panelRef}>
-      <div className="table-ticker__head">
-        <h3 className="table-ticker__heading">Table log</h3>
-        {onClose && (
-          <button
-            type="button"
-            className="table-ticker__close"
-            aria-label="Close table log"
-            onClick={onClose}
-          >
-            <X width={16} height={16} aria-hidden />
-          </button>
-        )}
-      </div>
-      {items.length === 0 ? (
-        <p className="table-ticker__empty">Plays and messages will appear here.</p>
-      ) : (
-        // role="log" = implicit polite live region: new lines are announced
-        // without stealing focus.
-        <ol ref={listRef} className="table-ticker__list" role="log">
-          {items.map((it) => (
-            <TickerLine key={it.id} item={it} name={tickerSeatName(onlineTable, it.seat)} />
-          ))}
-        </ol>
-      )}
-      <TableChat idPrefix="ticker-dock" />
-    </section>
+    </button>
   );
 }
 

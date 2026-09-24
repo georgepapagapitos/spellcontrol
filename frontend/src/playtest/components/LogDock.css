@@ -48,6 +48,14 @@
   bottom: calc(var(--pt-card-h) + 5rem);
 }
 
+/* Two seats: one row, so your half is the full table height and the
+   quarter-height cap above has no seat to keep clear of. Kept, it left the
+   log about 40px of feed under its header, phase strip, chips and composer:
+   a line and a half, with the first one clipped under the chips. */
+.playtest-board:has(.playtest-main--seats-2) .playtest-log-dock {
+  max-height: min(60vh, 640px);
+}
+
 .playtest-log-dock__header {
   display: flex;
   align-items: center;

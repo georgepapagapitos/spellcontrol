@@ -4153,20 +4153,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   max-width: calc(50% - var(--space-4));
 }
 
-.playtest-ticker-dock .table-ticker {
-  margin-top: 0;
-  padding: var(--space-2);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in oklab, var(--surface) 88%, transparent);
-  box-shadow: var(--shadow-tooltip);
-  backdrop-filter: blur(6px);
-}
-
-.playtest-ticker-dock .table-ticker__list {
-  max-height: 7rem;
-}
-
 /* Two clusters anchor to the VIEWPORT, not to your quadrant: the turn/menu
    stack and the floating banners are table-wide chrome and belong in the
    screen's corners, not squeezed into the bottom-left board. Everything else

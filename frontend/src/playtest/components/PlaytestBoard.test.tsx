@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { applyAction, createPlaytestState } from '@/lib/playtest';
@@ -1914,5 +1914,68 @@ describe('PlaytestBoard — the sideboard', () => {
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'MOVE_TO_ZONE', cardId: 'sb-1', to: 'hand' })
     );
+  });
+});
+
+// One table feed, not two: the chat button beside the log opens the log
+// dock on its Table view (every seat's plays, the chat, the composer)
+// instead of a second panel carrying the same feed and composer.
+describe('PlaytestBoard — the table feed is one surface', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    usePlayStore.setState({ onlineTicker: [] });
+  });
+
+  it('the Table log button opens the log dock on Table, and closes it again', () => {
+    onlineTable = seatedTable([opponent(1)]);
+    // A chip picked earlier must not stop the button landing on Table.
+    localStorage.setItem('spellcontrol:playtest:log-filter', 'cards');
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    const toggle = screen.getByRole('button', { name: 'Table log' });
+    fireEvent.click(toggle);
+    const dock = screen.getByRole('region', { name: 'Game log' });
+    expect(within(dock).getByRole('button', { name: 'Table' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    expect(screen.getAllByRole('region', { name: 'Game log' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Table log' }).getAttribute('aria-expanded')).toBe(
+      'true'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Table log' }));
+    expect(screen.queryByRole('region', { name: 'Game log' })).toBeNull();
+    // The pick is still the pick for the next ordinary open.
+    expect(localStorage.getItem('spellcontrol:playtest:log-filter')).toBe('cards');
+  });
+});
+
+// The turn alert end to end: the board passes "is it my turn" from the
+// online table into the hook, so a turn arriving marks a background tab.
+describe('PlaytestBoard — turn alert', () => {
+  afterEach(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+  });
+
+  it('marks a background tab when the table hands this seat the turn', () => {
+    localStorage.clear();
+    document.title = 'Table · SpellControl';
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    onlineTable = { ...seatedTable([opponent(1)]), activeSeat: 1 };
+    const { rerender } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(document.title).toBe('Table · SpellControl');
+    onlineTable = { ...seatedTable([opponent(1)]), activeSeat: 0 };
+    rerender(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(document.title).toBe('● Your turn · Table · SpellControl');
   });
 });
