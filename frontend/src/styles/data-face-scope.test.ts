@@ -58,6 +58,19 @@ describe('data face scope', () => {
     expect(offenders).toEqual([]);
   });
 
+  // The build report's bracket line is a sentence ("Estimated Bracket 4 ·
+  // Optimized") and its commander eyebrow is a label, not data.
+  it('keeps the build report words off the data face', () => {
+    const panel = readFileSync(join(srcRoot, 'components/deck/BuildReportPanel.css'), 'utf8');
+    const sheet = readFileSync(join(srcRoot, 'components/deck/BuildReportSheet.css'), 'utf8');
+    const face = (css: string, sel: string) =>
+      css.match(
+        new RegExp(`${sel.replace(/\./g, '\\.')}\\s*\\{[^}]*font-family:\\s*([^;]+);`)
+      )?.[1] ?? null;
+    expect(face(panel, '.build-report-bracket') ?? '').not.toMatch(/--font-mono/);
+    expect(face(sheet, '.build-report-sheet-commander')).toMatch(/--font-label/);
+  });
+
   it('keeps the slider value words and suffix off the data face', () => {
     const css = readFileSync(join(here, 'deck-builder-customizer.css'), 'utf8');
     const rule = (sel: string) =>
