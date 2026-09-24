@@ -204,7 +204,7 @@ function LayoutShell() {
           the tab bar — the one action the tab bar has no room for. ScanFab
           renders nothing where scanning isn't available. */}
       <MobileTabBar />
-      <ScanFab />
+      <ScanFab scrollEl={scrollEl} />
       <ToastViewport />
       <ConflictPanel />
       <RulesReferenceSheet />

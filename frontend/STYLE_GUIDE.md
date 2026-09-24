@@ -133,8 +133,13 @@ meanwhile.
   `--shadow-card`, no outline). A list is hairline rows under a section header,
   never a bordered card holding bordered rows. Outlines belong to controls.
 - **The camera button lives on the collection pages, on phones, only**, with
-  bottom padding on the content so it never covers a row. Everywhere else,
-  scanning is reached through Add cards.
+  bottom padding on the content so the last row scrolls clear of it. Everywhere
+  else, scanning is reached through Add cards. **Built** (`ScanFab`): it tucks
+  away while the page scrolls down (that is when you are reading the prices it
+  floats over) and comes back on the way up or near the top; a focused button
+  never tucks; reduced motion fades instead of sliding. The padding is keyed on
+  `.app-shell:has(.scan-fab-btn)`, because the button is a sibling of
+  `.app-main`, not inside it (`styles/scan-fab-clearance.test.ts`).
 - **Density tiers: phone ≤599 · tablet 600–1023 · desktop ≥1024.** Controls
   44 / 40 / 36px, rows 44 / 40 / 36px, body text 16 / 15 / 15px, page gutter
   16 / 24 / 32px, all driven by tier tokens rather than per-component media

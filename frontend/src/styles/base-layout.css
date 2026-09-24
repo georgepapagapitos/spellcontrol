@@ -128,8 +128,12 @@ body {
    floating is ScanFab, which sits just above the tab bar; reserve enough
    room at the bottom of the scroll region so the last row of any page
    clears it too. No var(--safe-bottom) term here — the in-flow tab bar
-   already accounts for that once. */
-.app-main:has(.scan-fab-root) {
+   already accounts for that once.
+   Keyed on the SHELL: the button is a sibling of .app-main (Layout.tsx), not
+   inside it, so the old `.app-main:has(.scan-fab-root)` never matched and the
+   last row sat under the button on every page (guard:
+   styles/scan-fab-clearance.test.ts). */
+.app-shell:has(.scan-fab-btn) .app-main {
   padding-bottom: 5rem;
 }
 
