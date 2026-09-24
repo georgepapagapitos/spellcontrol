@@ -40,6 +40,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
 }));
 
 import {
+  buildEdhrecCoverageNote,
   buildLandCountNote,
   buildLandCountClampNote,
   buildPoolExhaustionNote,
@@ -1684,5 +1685,26 @@ describe('assembleCardProvenance', () => {
       themeNames: [],
     });
     expect(result['Oracle Role Pick']).toBe('Filled in by a broader card search for this slot');
+  });
+});
+
+// LIVE (stress sweep 2026-09-24): La'An Noonien-Singh, Security, a spoiled
+// commander, has an EDHREC page with zero decks. The deck fell back to generic
+// function/popularity picks and the report never said so.
+describe('buildEdhrecCoverageNote', () => {
+  it('says so when EDHREC has a page but no decks', () => {
+    const note = buildEdhrecCoverageNote("La'An Noonien-Singh, Security", 0);
+    expect(note).toContain("EDHREC has no decks for La'An Noonien-Singh, Security yet");
+    expect(note).toContain('not from what other players run');
+  });
+
+  it('says so when no EDHREC data could be loaded at all', () => {
+    expect(buildEdhrecCoverageNote('Krenko, Mob Boss', null)).toMatch(
+      /^Couldn't load EDHREC data for Krenko, Mob Boss/
+    );
+  });
+
+  it('stays silent when there are real decks behind the build', () => {
+    expect(buildEdhrecCoverageNote('Krenko, Mob Boss', 4418)).toBeUndefined();
   });
 });
