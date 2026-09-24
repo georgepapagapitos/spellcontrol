@@ -146,12 +146,17 @@ const LISTING_COLUMNS = `dp.user_id, dp.deck_id, dp.slug, dp.deck_name, u.userna
 
 // Real deck_publications columns only — the required fold. $4 (colorIdentity)
 // is the one JSONB predicate, over deck_publications' own small denormalized
-// array column, not user_decks.data.
+// array column, not user_decks.data. $5 drops one owner's decks: Home asks for
+// `exclude=mine` because its Discover row is "decks from other players", and
+// since new decks default to public the newest listings were mostly the
+// viewer's own. The browse page leaves it off, so your published deck still
+// shows up in the gallery.
 const LISTING_WHERE = `dp.unpublished_at IS NULL
       AND ($1::text IS NULL OR dp.commander_name = $1)
       AND ($2::text IS NULL OR dp.format = $2)
       AND ($3::int[] IS NULL OR dp.bracket = ANY($3))
-      AND ($4::text[] IS NULL OR dp.color_identity <@ to_jsonb($4::text[]))`;
+      AND ($4::text[] IS NULL OR dp.color_identity <@ to_jsonb($4::text[]))
+      AND ($5::text IS NULL OR dp.user_id <> $5)`;
 
 interface ParsedFilters {
   commander: string | null;
@@ -162,6 +167,7 @@ interface ParsedFilters {
   budget: BudgetKey | null;
   page: number;
   pageSize: number;
+  excludeMine: boolean;
 }
 
 function parseFilters(query: Request['query']): ParsedFilters {
@@ -174,6 +180,7 @@ function parseFilters(query: Request['query']): ParsedFilters {
     budget: parseBudget(query.budget),
     page: parsePage(query.page),
     pageSize: parsePageSize(query.pageSize),
+    excludeMine: query.exclude === 'mine',
   };
 }
 
@@ -184,9 +191,15 @@ discoverRouter.get(
   async (req: Request, res: Response) => {
     const filters = parseFilters(req.query);
     const pool = getPool();
-    const whereParams = [filters.commander, filters.format, filters.brackets, filters.colors];
-    const sortCol = SORT_COLUMNS[filters.sort];
     const viewerId = req.user?.id;
+    const whereParams = [
+      filters.commander,
+      filters.format,
+      filters.brackets,
+      filters.colors,
+      filters.excludeMine ? (viewerId ?? null) : null,
+    ];
+    const sortCol = SORT_COLUMNS[filters.sort];
 
     if (!filters.budget) {
       // Fetch pageSize+1 to detect hasMore without a second COUNT query
@@ -197,7 +210,7 @@ discoverRouter.get(
          FROM deck_publications dp JOIN users u ON u.id = dp.user_id
         WHERE ${LISTING_WHERE}
         ORDER BY ${sortCol} DESC, ${TIEBREAK}
-        LIMIT $5 OFFSET $6`,
+        LIMIT $6 OFFSET $7`,
         [...whereParams, filters.pageSize + 1, offset]
       );
       const hasMore = rows.length > filters.pageSize;

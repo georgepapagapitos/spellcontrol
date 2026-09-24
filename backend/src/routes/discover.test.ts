@@ -211,6 +211,35 @@ describe('GET /api/discover/decks', () => {
     expect(slugs).not.toContain(gone.slug);
   });
 
+  it("exclude=mine drops the viewer's own decks and nobody else's", async () => {
+    const cmdr = uid('Disco Mine Cmdr');
+    const mine = await publishDeck({
+      commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['U'] },
+    });
+    const theirs = await publishDeck({
+      commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['U'] },
+    });
+
+    const excluded = await request(app)
+      .get('/api/discover/decks')
+      .set('Cookie', mine.cookie)
+      .query({ commander: cmdr, exclude: 'mine' });
+    expect(excluded.status).toBe(200);
+    expect(slugsOf(excluded.body)).toEqual([theirs.slug]);
+
+    const everyone = await request(app)
+      .get('/api/discover/decks')
+      .set('Cookie', mine.cookie)
+      .query({ commander: cmdr });
+    expect(slugsOf(everyone.body).sort()).toEqual([mine.slug, theirs.slug].sort());
+
+    // A guest has no "mine", so the flag is a no-op rather than an error.
+    const guest = await request(app)
+      .get('/api/discover/decks')
+      .query({ commander: cmdr, exclude: 'mine' });
+    expect(slugsOf(guest.body).sort()).toEqual([mine.slug, theirs.slug].sort());
+  });
+
   it('filters by exact commander name', async () => {
     const cmdrA = uid('Disco Cmdr Alpha');
     const cmdrB = uid('Disco Cmdr Beta');
