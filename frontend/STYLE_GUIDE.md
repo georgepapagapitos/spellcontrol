@@ -2171,6 +2171,25 @@ cleaner with the sub menus"). Three rulings, all on the battlefield:
   click putting a card onto the table was the misfire; `PlaytestBoard.test.tsx`
   ("never plays a hand card on a click or a tap") pins it.
 
+### Table settings holds preferences, never game state (2026-09-24)
+
+The sheet is for what you set once and forget: card size, felt, snap to grid,
+the turn alert, the takeback rule, Resistance. Anything that **changes
+mid-game because a card resolved** is game state and lives where you reach
+during play: Designations (Monarch, Initiative, City's Blessing) is a game-menu
+row and a felt-menu row, not a settings row. EDHPlay's Preferences draws the
+same line.
+
+- **An on/off preference is a full-width `role="switch"` row**: the link row's
+  shape, the label with one line under it saying what On does
+  (`aria-describedby`), and `On` / `Off` where a link row shows its value, in
+  the accent when on. Not a segmented Off | On pair: two buttons for one bit
+  cost twice the width and read as a choice between equals.
+- **Changes apply as you make them.** No Save button: the sheet sits over the
+  table so you can watch the change land.
+- **An option that only means something online appears only online.** The turn
+  alert is absent in solo playtest, where nobody passes the turn to you.
+
 ### The table's look is per-device, never table-wide (2026-09-20, E347)
 
 The felt colour and the sleeves are **preferences on this device**, the same

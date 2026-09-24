@@ -889,6 +889,44 @@ describe('PlaytestBoard — = and − read the context', () => {
   });
 });
 
+// Table settings holds only set-and-forget preferences. Designations change
+// hands mid-game when a card resolves, so they sit in the game menu (and the
+// felt menu) where you reach during play.
+describe('PlaytestBoard — table settings vs game state', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('offers Designations from the game menu, not from Table settings', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    const drawer = screen.getByRole('dialog', { name: 'Game menu' });
+    expect(within(drawer).getByRole('button', { name: 'Designations' })).toBeTruthy();
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Table settings' }));
+    const sheet = screen.getByRole('dialog', { name: 'Table settings' });
+    expect(within(sheet).queryByText('Designations')).toBeNull();
+  });
+
+  it('snap to grid is a remembered switch, off by default; the turn alert is online only', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Table settings' }));
+    const snap = screen.getByRole('switch', { name: 'Snap cards to grid' });
+    expect(snap.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(snap);
+    expect(snap.getAttribute('aria-checked')).toBe('true');
+    expect(localStorage.getItem('playtest-snap-v1')).toBe('1');
+    // Solo there is no one to pass the turn to you.
+    expect(screen.queryByRole('switch', { name: 'Turn alert' })).toBeNull();
+  });
+});
+
 // Card size on the wide tier: = and − zoom when nothing is selected, the
 // value lives on <body> so the drag overlay inherits it, and it is remembered.
 describe('PlaytestBoard — card size', () => {

@@ -4548,6 +4548,25 @@ button.playtest-card-pt__value--editable:focus-visible {
   font-size: var(--text-xs);
 }
 
+/* An on/off row: the same row as a link, the state where the value sits, and
+   the one line saying what On does under the label. */
+.playtest-settings__toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.playtest-settings__toggle-hint {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.playtest-settings__toggle.is-on .playtest-settings__link-value {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .playtest-settings__link:hover {
     border-color: var(--accent);

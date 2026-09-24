@@ -26,7 +26,9 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
   useEscapeKey(beginClose);
-  const [view, setView] = useState<'you' | 'table'>('you');
+  // Online, the Table feed is the whole game (every seat's plays and the
+  // chat), so it is the tab the sheet opens on; the same default as LogDock.
+  const [view, setView] = useState<'you' | 'table'>(table ? 'table' : 'you');
 
   const groups = [...groupLogByTurn(log)].reverse(); // newest turn first
 

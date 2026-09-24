@@ -11,6 +11,15 @@ export interface SettingLink {
   onOpen(): void;
 }
 
+/** An on/off preference that lives here in full: one row, a switch. */
+export interface SettingToggle {
+  label: string;
+  /** One line under the label saying what On does. */
+  hint: string;
+  on: boolean;
+  onChange(on: boolean): void;
+}
+
 /** How the table looks, both halves of it (E347). Per-device, like card size
  *  — opponents see the board you publish, never your CSS. */
 export interface TableSkin {
@@ -69,7 +78,9 @@ interface Props {
   zoom?: { value: number; min: number; max: number; step: number; onZoom(zoom: number): void };
   /** Felt colour. Absent (tests, previews) hides the row. */
   skin?: TableSkin;
-  /** Takeback rule, Resistance, Designations — in that order. */
+  /** Snap to grid, and the turn alert when seated online. */
+  toggles?: SettingToggle[];
+  /** Takeback rule and Resistance, in that order. */
   links: SettingLink[];
   onClose(): void;
 }
@@ -81,9 +92,12 @@ interface Props {
  *
  * Card size is the one setting rendered in full, because a slider you drag
  * while watching the table cannot be a separate sheet. The rest state their
- * current value and open the picker that already owns them.
+ * current value and open the picker that already owns them. Game state you
+ * change mid-game (Monarch, Initiative) is not a preference and lives in the
+ * game menu instead.
  */
-export function TableSettingsSheet({ zoom, skin, links, onClose }: Props) {
+export function TableSettingsSheet({ zoom, skin, toggles = [], links, onClose }: Props) {
+  const toggleId = useId();
   const pct = zoom ? Math.round(zoom.value * 100) : 0;
   const progress = zoom
     ? `${Math.round(((zoom.value - zoom.min) / (zoom.max - zoom.min)) * 100)}%`
@@ -139,6 +153,35 @@ export function TableSettingsSheet({ zoom, skin, links, onClose }: Props) {
               Your table only. Everyone else sees their own felt.
             </p>
           </>
+        )}
+        {toggles.length > 0 && (
+          <ul className="playtest-settings__links" role="list">
+            {toggles.map((t, i) => (
+              <li key={t.label}>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={t.on}
+                  aria-labelledby={`${toggleId}-${i}`}
+                  aria-describedby={`${toggleId}-${i}-hint`}
+                  className={`playtest-settings__link playtest-settings__toggle${t.on ? ' is-on' : ''}`}
+                  onClick={() => t.onChange(!t.on)}
+                >
+                  <span className="playtest-settings__toggle-text">
+                    <span id={`${toggleId}-${i}`} className="playtest-settings__link-label">
+                      {t.label}
+                    </span>
+                    <span id={`${toggleId}-${i}-hint`} className="playtest-settings__toggle-hint">
+                      {t.hint}
+                    </span>
+                  </span>
+                  <span className="playtest-settings__link-value" aria-hidden="true">
+                    {t.on ? 'On' : 'Off'}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
         <ul className="playtest-settings__links" role="list">
           {links.map((l) => (

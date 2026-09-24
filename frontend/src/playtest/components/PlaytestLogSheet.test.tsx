@@ -29,13 +29,16 @@ describe('PlaytestLogSheet — Table tab', () => {
     expect(screen.getByText('Drew 7 cards')).toBeTruthy();
   });
 
-  it('shows the You/Table strip when seated online and defaults to the own log', () => {
+  // The Table feed is every seat's plays plus the chat, the whole game in one
+  // timeline, so seated online that is what the sheet opens on.
+  it('shows the You/Table strip when seated online and opens on the table feed', () => {
     render(
       <PlaytestLogSheet log={log} table={{ items: tableItems, nameFor }} onClose={() => {}} />
     );
-    expect(screen.getByRole('tablist')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Table' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('Sol Ring played from hand')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'You' }));
     expect(screen.getByText('Drew 7 cards')).toBeTruthy();
-    expect(screen.queryByText('Sol Ring played from hand')).toBeNull();
   });
 
   it('the Table tab lists the feed newest-first with seat names', () => {
