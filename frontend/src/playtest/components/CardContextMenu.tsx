@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { usePressRepeat } from '@/lib/use-press-repeat';
 import type { Zone } from '@/lib/playtest';
 import type { ShortcutId } from '../lib/shortcuts';
 import { nextGenericCounter } from '../lib/counter-kinds';
@@ -81,25 +80,6 @@ interface Props {
    *  Omitted (tests, previews) hides the "X from top" row — there is no
    *  honest maximum to offer without it. */
   libraryCount?: number;
-}
-
-/** A ± counter step that repeats while held. Own component because the hook
- *  can't be called inside a `.map`. */
-function CounterStep({
-  label,
-  onAdjust,
-  children,
-}: {
-  label: string;
-  onAdjust(): void;
-  children: React.ReactNode;
-}) {
-  const press = usePressRepeat(onAdjust);
-  return (
-    <button type="button" aria-label={label} {...press}>
-      {children}
-    </button>
-  );
 }
 
 /** Power and toughness typed in as the numbers the card should read, for the
@@ -210,51 +190,6 @@ export function CardContextMenu({
   }
 
   const hasCounters = Object.keys(counters).length > 0;
-
-  const ptPage = (
-    <>
-      {/* A running modifier, not an absolute — the card face adds it to the
-          printed body. Kept apart from the +1/+1 counters because a pump that
-          wears off at end of turn and a counter that stays are different
-          things at a real table. */}
-      {(
-        [
-          ['Power', pt?.power ?? 0, (d: number) => onAdjustPT(d, 0), 'power-inc', 'power-dec'],
-          [
-            'Toughness',
-            pt?.toughness ?? 0,
-            (d: number) => onAdjustPT(0, d),
-            'toughness-inc',
-            'toughness-dec',
-          ],
-        ] as const
-      ).map(([label, value, adjust, upId, downId]) => {
-        const reading = value >= 0 ? `+${value}` : String(value);
-        const down = key(downId);
-        const up = key(upId);
-        return (
-          <div key={label} className="playtest-ctx-counter">
-            <span>{label}</span>
-            <span className="playtest-ctx-counter__value" aria-hidden>
-              {reading}
-            </span>
-            <CounterStep
-              label={`${label} down, currently ${reading}${down ? `, ${down}` : ''}`}
-              onAdjust={() => adjust(-1)}
-            >
-              −
-            </CounterStep>
-            <CounterStep
-              label={`${label} up, currently ${reading}${up ? `, ${up}` : ''}`}
-              onAdjust={() => adjust(1)}
-            >
-              +
-            </CounterStep>
-          </div>
-        );
-      })}
-    </>
-  );
 
   const attachPage = (
     <>
@@ -400,7 +335,10 @@ export function CardContextMenu({
     },
     {
       label: 'Power / toughness',
-      content: ptPage,
+      // EDHPlay's rows: one click a step, each printing its key. The running
+      // total is on the card's own plates. A pump is a modifier, kept apart
+      // from +1/+1 counters, because a pump that wears off at end of turn and
+      // a counter that stays are different things at a real table.
       items: [
         ...(printedPt
           ? [
@@ -418,6 +356,20 @@ export function CardContextMenu({
               },
             ]
           : []),
+        SEPARATOR,
+        ...(
+          [
+            ['Power +1', 'power-inc', 1, 0],
+            ['Power −1', 'power-dec', -1, 0],
+            ['Toughness +1', 'toughness-inc', 0, 1],
+            ['Toughness −1', 'toughness-dec', 0, -1],
+          ] as const
+        ).map(([label, id, dp, dt]) => ({
+          label,
+          shortcut: key(id),
+          onClick: () => onAdjustPT(dp, dt),
+        })),
+        SEPARATOR,
         {
           label: 'Back to printed size',
           disabled: !pt,

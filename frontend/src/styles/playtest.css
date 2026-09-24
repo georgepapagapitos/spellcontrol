@@ -1952,66 +1952,9 @@ button.playtest-card-pt__value--editable:focus-visible {
   padding: var(--space-1) 0.65rem 0.1rem;
 }
 
-.playtest-ctx-counter {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.15rem 0.65rem;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-}
-
-/* First child only — the kind label stretches, the tally beside it doesn't. */
-.playtest-ctx-counter > span:first-child {
-  flex: 1;
-}
-
-.playtest-ctx-counter__value {
-  min-width: 1.5rem;
-  text-align: right;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-}
-
-.playtest-ctx-counter button {
-  padding: 0.15rem var(--space-2);
-  min-width: 1.6rem;
-  text-align: center;
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  color: var(--text-primary);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition:
-    border-color var(--motion-fast) ease,
-    color var(--motion-fast) ease,
-    background var(--motion-fast) ease;
-}
-
-.playtest-ctx-counter button:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .playtest-ctx-counter button:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    outline: none;
-  }
-}
-
-.playtest-ctx-counter button:active {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 /* A count page (Draw several, and each bulk move): a stepper over the
    button that acts, so the count and the thing it does read top to bottom
-   rather than as one crowded row. Borrows the counter row's controls. */
+   rather than as one crowded row. */
 .playtest-ctx-count {
   display: flex;
   flex-direction: column;
@@ -2103,8 +2046,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   }
 }
 
-.playtest-ctx-sticker-add,
-.playtest-ctx-counter-add {
+.playtest-ctx-sticker-add {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -2186,12 +2128,10 @@ button.playtest-card-pt__value--editable:focus-visible {
 @media (pointer: coarse) {
   .playtest-ctx-attach-select,
   .playtest-ctx-attached button,
-  /* The sheet variant's counter/sticker controls were left out of this floor
-     when it was written — they're the touch presentation, so they need it
-     most. Padding alone left them at ~31px. */
-  .ctx-menu-sheet .playtest-ctx-counter button,
+  /* The sheet variant's sticker controls were left out of this floor when it
+     was written — they're the touch presentation, so they need it most.
+     Padding alone left them at ~31px. */
   .ctx-menu-sheet .playtest-ctx-sticker button,
-  .ctx-menu-sheet .playtest-ctx-counter-add button,
   .ctx-menu-sheet .playtest-ctx-sticker-add button,
   /* …and the action list itself — the most-tapped control set on the touch
      board was the one left out (its padding computed to ~37px). */
@@ -2200,8 +2140,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   }
 }
 
-.playtest-ctx-sticker-add input,
-.playtest-ctx-counter-add input {
+.playtest-ctx-sticker-add input {
   flex: 1;
   min-width: 0;
   background: var(--surface-raised);
@@ -2212,15 +2151,13 @@ button.playtest-card-pt__value--editable:focus-visible {
   font-size: var(--text-sm);
 }
 
-.playtest-ctx-sticker-add input:focus-visible,
-.playtest-ctx-counter-add input:focus-visible {
+.playtest-ctx-sticker-add input:focus-visible {
   border-color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
 .playtest-ctx-sticker-add button,
-.playtest-ctx-counter-add button,
 .playtest-ctx-sticker button {
   padding: 0.15rem var(--space-2);
   min-width: 1.6rem;
@@ -2236,14 +2173,12 @@ button.playtest-card-pt__value--editable:focus-visible {
     background var(--motion-fast) ease;
 }
 
-.playtest-ctx-sticker-add button:disabled,
-.playtest-ctx-counter-add button:disabled {
+.playtest-ctx-sticker-add button:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
 .playtest-ctx-sticker-add button:focus-visible,
-.playtest-ctx-counter-add button:focus-visible,
 .playtest-ctx-sticker button:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
@@ -2252,7 +2187,6 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 @media (hover: hover) and (pointer: fine) {
   .playtest-ctx-sticker-add button:enabled:hover,
-  .playtest-ctx-counter-add button:enabled:hover,
   .playtest-ctx-sticker button:hover {
     border-color: var(--accent);
     color: var(--accent);
@@ -2261,7 +2195,6 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 .playtest-ctx-sticker-add button:enabled:active,
-.playtest-ctx-counter-add button:enabled:active,
 .playtest-ctx-sticker button:active {
   background: var(--accent-light);
   border-color: var(--accent);
@@ -2292,19 +2225,12 @@ button.playtest-card-pt__value--editable:focus-visible {
   font-size: var(--text-base);
 }
 
-.ctx-menu-sheet .playtest-ctx-counter button {
-  padding: 0.4rem 0.85rem;
-  min-width: 2.5rem;
-}
-
 .ctx-menu-sheet .playtest-ctx-sticker button,
-.ctx-menu-sheet .playtest-ctx-counter-add button,
 .ctx-menu-sheet .playtest-ctx-sticker-add button {
   padding: 0.4rem 0.85rem;
 }
 
-.ctx-menu-sheet .playtest-ctx-sticker-add input,
-.ctx-menu-sheet .playtest-ctx-counter-add input {
+.ctx-menu-sheet .playtest-ctx-sticker-add input {
   padding: 0.4rem var(--space-2);
   font-size: var(--text-base);
 }

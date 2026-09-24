@@ -1,6 +1,6 @@
-import { forwardRef, memo, useEffect, useState } from 'react';
+import { forwardRef, memo, useState } from 'react';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
-import { displayPT } from '../lib/power-toughness';
+import { displayPT, type PtDisplay } from '../lib/power-toughness';
 import { CardCounters } from './CardCounters';
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
@@ -20,6 +20,29 @@ interface Props extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const MAX_VISIBLE_STICKERS = 3;
+
+/** The read-only body box in the card's bottom-right corner. Shared with the
+ *  hover preview, so the enlarged card reads the body the board does. */
+export function CardPtBox({ pt }: { pt: PtDisplay }) {
+  return (
+    <span
+      className={`playtest-card__pt${pt.modified ? ' is-modified' : ''}`}
+      // One label, not two numbers read out separately — a screen reader
+      // should say "3 by 4", which is how the board is read aloud at a table.
+      aria-label={`${pt.power} by ${pt.toughness}`}
+    >
+      {/* Two boxes rather than "4/4": at the smallest card tier the slash
+          costs a character's width and reads as noise, and the pair is what
+          a real card prints. */}
+      <span className="playtest-card__pt-half" aria-hidden>
+        {pt.power}
+      </span>
+      <span className="playtest-card__pt-half" aria-hidden>
+        {pt.toughness}
+      </span>
+    </span>
+  );
+}
 
 /**
  * Pure presentational card face — image / face-down back / placeholder plus
@@ -49,11 +72,11 @@ export const PlaytestCardFace = memo(
     // turned face-down, in which case the back-of-card art still wins below.
     const src = bf?.showBackFace && card.backImageUrl ? card.backImageUrl : card.imageUrl;
     // A broken/slow image degrades to the same text placeholder used for
-    // cards with no imageUrl at all — never a broken-image glyph. Resets
-    // whenever the underlying image changes (e.g. a new card lands here, or a
-    // transform swaps which face's art is showing).
-    const [imgError, setImgError] = useState(false);
-    useEffect(() => setImgError(false), [src]);
+    // cards with no imageUrl at all — never a broken-image glyph. Keyed to the
+    // image that failed, so a new one (a new card lands here, or a transform
+    // swaps which face's art is showing) gets its own chance to load.
+    const [failedSrc, setFailedSrc] = useState<string>();
+    const imgError = failedSrc !== undefined && failedSrc === src;
     // Face-down hides the body along with everything else: a morph is a 2/2
     // whatever is underneath, and printing the real numbers on the back of
     // the card would give it away.
@@ -122,30 +145,12 @@ export const PlaytestCardFace = memo(
             draggable={false}
             loading="lazy"
             decoding="async"
-            onError={() => setImgError(true)}
+            onError={() => setFailedSrc(src)}
           />
         ) : (
           <div className="playtest-card__placeholder">{card.name}</div>
         )}
-        {pt && (
-          <span
-            className={`playtest-card__pt${pt.modified ? ' is-modified' : ''}`}
-            // One label, not two numbers read out separately — a screen
-            // reader should say "3 slash 4", which is how the board is read
-            // aloud at a table.
-            aria-label={`${pt.power} by ${pt.toughness}`}
-          >
-            {/* Two boxes rather than "4/4": at the smallest card tier the
-                slash costs a character's width and reads as noise, and the
-                pair is what a real card prints. */}
-            <span className="playtest-card__pt-half" aria-hidden>
-              {pt.power}
-            </span>
-            <span className="playtest-card__pt-half" aria-hidden>
-              {pt.toughness}
-            </span>
-          </span>
-        )}
+        {pt && <CardPtBox pt={pt} />}
         {stickers.length > 0 && (
           <div className="playtest-card__stickers">
             {/* Cap the visible stack: the smallest card tier (100px) fits ~4

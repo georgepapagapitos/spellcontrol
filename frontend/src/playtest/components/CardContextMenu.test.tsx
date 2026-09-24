@@ -277,12 +277,42 @@ describe('CardContextMenu — EDHPlay’s shape', () => {
     expect(onAdjustAllCounters).toHaveBeenCalledWith('clear');
   });
 
-  it('steps power from the power / toughness submenu', () => {
+  it('lists Power / toughness as EDHPlay does: one-click rows, each with its key', () => {
+    // The user's pick over our old steppers (2026-09-24).
     const props = baseProps();
-    render(<CardContextMenu {...props} pt={{ power: 1, toughness: 0 }} />);
+    render(
+      <CardContextMenu
+        {...props}
+        printedPt={{ power: 2, toughness: 2 }}
+        keyFor={(id) =>
+          ({
+            'power-inc': 'Alt 1',
+            'toughness-inc': 'Alt 2',
+            'power-dec': 'Alt 3',
+            'toughness-dec': 'Alt 4',
+          })[id as string]
+        }
+      />
+    );
     fireEvent.click(screen.getByRole('menuitem', { name: /^Power \/ toughness/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Power up, currently \+1/ }));
-    expect(props.onAdjustPT).toHaveBeenCalledWith(1, 0);
+    const panel = screen.getByRole('menu', { name: 'Power / toughness' });
+    const shape = [...panel.querySelectorAll(':scope > [role]')].map((el) =>
+      el.getAttribute('role') === 'separator' ? '—' : (el.textContent ?? '')
+    );
+    expect(shape).toEqual([
+      'Set power / toughness',
+      '—',
+      'Power +1Alt 1',
+      'Power −1Alt 3',
+      'Toughness +1Alt 2',
+      'Toughness −1Alt 4',
+      '—',
+      'Back to printed size',
+    ]);
+    expect(screen.queryByRole('button', { name: /currently/ })).toBeNull();
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Toughness −1/ }));
+    expect(props.onAdjustPT).toHaveBeenCalledWith(0, -1);
+    expect(props.onClose).toHaveBeenCalled();
   });
 
   // "Set" is absolute and the card stores a modifier, so the step it sends is

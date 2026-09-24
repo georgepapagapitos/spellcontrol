@@ -146,7 +146,7 @@ import { TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import { REACTION_EMOTES, REACTION_LABEL } from '../lib/table-signals';
 import { CardContextMenu } from './CardContextMenu';
 import { CustomCountersDialog } from './CustomCountersDialog';
-import { printedBase } from '../lib/power-toughness';
+import { displayPT, printedBase } from '../lib/power-toughness';
 import { useDeckTokens } from '@/components/deck/use-deck-tokens';
 import type { MadeToken } from './menu-entries';
 import { CardInfoDialog } from './CardInfoDialog';
@@ -968,6 +968,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           ? { src: back, back: b.card.imageUrl }
           : { src: b.card.imageUrl, ...(back && { back }) }),
         counters: b.counters,
+        pt: displayPT(b.card, b) ?? undefined,
       });
     }
     for (const c of [...state.zones.hand, ...state.zones.command])
