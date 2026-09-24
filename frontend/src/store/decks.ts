@@ -15,6 +15,7 @@ import type {
   HiddenGemRow,
   BuildReport,
   Archetype,
+  Customization,
 } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
@@ -130,6 +131,10 @@ export interface Deck {
     generationMode?: string;
     /** Mode-specific descriptor (art motif slug, or "year<=YYYY"). */
     generationModeDetail?: string;
+    /** Every build setting (budget, rarity, brew dial, must-includes, lands,
+     *  …) so Regenerate rebuilds like-for-like. Absent on decks generated
+     *  before it was recorded; see regenerateSettings for what's left out. */
+    customization?: Partial<Customization>;
   } | null;
   /**
    * Optional generator-derived stats. Only present on freshly generated decks

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { saveGeneratedDeck } from './save-generated-deck';
+import { regenerateSettings, saveGeneratedDeck } from './save-generated-deck';
 import type { EnrichedCard } from '../types';
 import type { Deck, DeckCard } from '../store/decks';
 import type {
@@ -255,5 +255,34 @@ describe('saveGeneratedDeck', () => {
     saveGeneratedDeck(generated, customization(), [], [], [], createDeck);
 
     expect(calls[0].categoryTargets).toBeUndefined();
+  });
+
+  // Regenerate used to rebuild from five saved fields, so a $50 budget deck
+  // came back with no budget, the brew dial reset, and so on.
+  it('records every build setting Regenerate needs, minus one-shot and app-wide ones', () => {
+    const { createDeck, calls } = fakeCreateDeck();
+    const settings = customization({
+      deckBudget: 50,
+      maxRarity: 'rare',
+      brewLevel: 0.25,
+      mustIncludeCards: ['Sol Ring'],
+      tempBannedCards: ['Armageddon'],
+      bannedCards: ['Cyclonic Rift'],
+      currency: 'EUR',
+    });
+
+    saveGeneratedDeck(generatedDeck(), settings, [], [], [], createDeck);
+
+    const saved = calls[0].generationContext?.customization;
+    expect(saved).toEqual(regenerateSettings(settings));
+    expect(saved).toMatchObject({
+      deckBudget: 50,
+      maxRarity: 'rare',
+      brewLevel: 0.25,
+      mustIncludeCards: ['Sol Ring'],
+    });
+    for (const key of ['tempBannedCards', 'bannedCards', 'currency', 'banLists'] as const) {
+      expect(saved).not.toHaveProperty(key);
+    }
   });
 });

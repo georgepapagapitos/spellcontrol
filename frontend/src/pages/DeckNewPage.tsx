@@ -24,7 +24,7 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
 import { usePublishOnCreate, type PublishOutcome } from '../lib/use-publish-on-create';
-import type { ScryfallCard, DeckFormat, EDHRECTheme } from '@/deck-builder/types';
+import type { ScryfallCard, DeckFormat, EDHRECTheme, Customization } from '@/deck-builder/types';
 import type { ComboSeedContext } from '../types/combos';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 
@@ -56,6 +56,11 @@ interface PrefillState {
   sourceDeckId?: string;
   /** Format of the source deck — a PDH regenerate must stay PDH. */
   format?: DeckFormat;
+  /** The source deck's partner — a partner deck must regenerate with both. */
+  partnerCommander?: ScryfallCard | null;
+  /** The source deck's full build settings (absent on older decks, which
+   *  fall back to the three fields above). */
+  customization?: Partial<Customization>;
 }
 
 export function DeckNewPage() {
@@ -73,6 +78,8 @@ export function DeckNewPage() {
   const updateCustomizationStore = useDeckBuilderStore((s) => s.updateCustomization);
   const resetDeckBuilder = useDeckBuilderStore((s) => s.reset);
   const setChosenColor = useDeckBuilderStore((s) => s.setChosenColor);
+  const setPartnerCommanderStore = useDeckBuilderStore((s) => s.setPartnerCommander);
+  const setUserEditedLands = useDeckBuilderStore((s) => s.setUserEditedLands);
 
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
@@ -224,7 +231,12 @@ export function DeckNewPage() {
       // written AFTER it, never before — swapping these two lines silently
       // drops them, with no type error. Covered by DeckNewPage.prefill.test.
       setCommander(prefill.commander);
+      // After setCommander, which clears any partner.
+      if (prefill.partnerCommander) setPartnerCommanderStore(prefill.partnerCommander);
       updateCustomizationStore({
+        // A regenerate replays every setting the source deck was built with;
+        // the explicit fields below agree with it and cover older decks.
+        ...prefill.customization,
         // Regenerate supplies these; a combo seed doesn't and must keep the
         // page's defaults, so each is written only when actually present.
         ...(prefill.targetBracket !== undefined && {
@@ -234,6 +246,10 @@ export function DeckNewPage() {
         ...(prefill.collectionMode !== undefined && { collectionMode: prefill.collectionMode }),
         ...(prefill.mustIncludeCards?.length ? { mustIncludeCards: prefill.mustIncludeCards } : {}),
       });
+      // A replayed land count is the build's own, not a suggestion: without
+      // this the EDHREC land pre-fill (use-deck-generation) overwrites it as
+      // soon as the commander's page loads.
+      if (prefill.customization || prefill.landCount !== undefined) setUserEditedLands(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

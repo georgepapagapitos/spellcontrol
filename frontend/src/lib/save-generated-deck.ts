@@ -1,4 +1,10 @@
-import type { ScryfallCard, GeneratedDeck, DeckCategory, ThemeResult } from '@/deck-builder/types';
+import type {
+  ScryfallCard,
+  GeneratedDeck,
+  DeckCategory,
+  ThemeResult,
+  Customization,
+} from '@/deck-builder/types';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore, newDeckCard } from '../store/decks';
@@ -10,6 +16,26 @@ import {
 } from './allocations';
 import { assembleBuildReport } from '@/deck-builder/services/deckBuilder/buildReport';
 import { defaultNewDeckVisibility, type NewDeckVisibility } from './new-deck-visibility';
+
+/**
+ * The settings a Regenerate replays to rebuild like-for-like. Leaves out the
+ * one-shot temp lists and the app-wide preferences (display currency, saved
+ * ban lists, applied user lists): those live in their own stores, and a
+ * Regenerate must not roll them back to whatever they were at build time.
+ */
+export function regenerateSettings(c: Customization): Partial<Customization> {
+  const {
+    tempBannedCards: _tempBans,
+    tempMustIncludeCards: _tempIncludes,
+    currency: _currency,
+    bannedCards: _bans,
+    banLists: _banLists,
+    appliedExcludeLists: _excludeLists,
+    appliedIncludeLists: _includeLists,
+    ...settings
+  } = c;
+  return settings;
+}
 
 /**
  * Persist a generated deck and return its new id. Shared by the one-shot
@@ -93,6 +119,7 @@ export function saveGeneratedDeck(
       collectionMode: customization.collectionMode,
       generationMode: generated.generationMode ?? customization.generationMode,
       generationModeDetail: generated.generationModeDetail,
+      customization: regenerateSettings(customization),
     },
     roleCounts: generated.roleCounts,
     categoryTargets: generated.composition,
