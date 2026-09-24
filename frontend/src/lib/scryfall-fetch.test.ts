@@ -187,6 +187,36 @@ describe('scryfallRequest', () => {
     expect(at).toHaveLength(2);
     expect(at[1] - at[0]).toBeGreaterThanOrEqual(100);
   });
+
+  // Scryfall's hard limits are per endpoint: search/named/random/collection
+  // allow 2 a second, everything else 10. Spacing all of them at 100ms drew a
+  // 60-second 429 every few dozen searches during a deck generation.
+  it('spaces the 2-per-second endpoints at 500ms and leaves the rest at 100ms', async () => {
+    setScryfallRealTimingForTests(true);
+    vi.useFakeTimers();
+    const at: Array<{ url: string; t: number }> = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      at.push({ url: String(input), t: Date.now() });
+      return ok();
+    });
+
+    const pending = Promise.all([
+      scryfallRequest('/cards/search?q=a'),
+      scryfallRequest('/cards/collection', { method: 'POST', body: '{}' }),
+      scryfallRequest('/sets/mkm'),
+      scryfallRequest('/cards/autocomplete?q=sol'),
+      scryfallRequest('/cards/named?exact=Sol%20Ring'),
+    ]);
+    await vi.runAllTimersAsync();
+    await pending;
+
+    const gap = (i: number) => at[i].t - at[i - 1].t;
+    expect(gap(1)).toBeGreaterThanOrEqual(500); // search → collection
+    expect(gap(2)).toBeLessThan(500); // → /sets: general spacing only
+    expect(gap(2)).toBeGreaterThanOrEqual(100);
+    expect(gap(3)).toBeLessThan(500); // autocomplete is not a search-class path
+    expect(at[4].t - at[1].t).toBeGreaterThanOrEqual(500); // named waits on the last collection
+  });
 });
 
 // The tally is the only way we can answer "did the 429s actually stop?" —
