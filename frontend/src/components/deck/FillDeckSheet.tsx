@@ -1,12 +1,11 @@
 import './FillDeckSheet.css';
 import { type JSX, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
-import { useCardThumb } from '@/lib/card-thumbs';
+import { imageFromCard } from '@/lib/card-thumbs';
 import { buildFill, type FillResult } from '@/lib/fill-deck';
 import { userMessage } from '@/lib/user-error';
 import { MeterBar } from '../shared/MeterBar';
@@ -30,8 +29,11 @@ const GROUPS = [
   'Battle',
   'Land',
 ] as const;
-const groupOf = (c: ScryfallCard) =>
-  GROUPS.find((g) => getFrontFaceTypeLine(c).includes(g)) ?? 'Creature';
+// Lands first, so an artifact land (Darksteel Citadel) lists with the lands.
+const groupOf = (c: ScryfallCard) => {
+  const type = getFrontFaceTypeLine(c);
+  return type.includes('Land') ? 'Land' : (GROUPS.find((g) => type.includes(g)) ?? 'Creature');
+};
 const PLURAL: Record<(typeof GROUPS)[number], string> = {
   Creature: 'Creatures',
   Planeswalker: 'Planeswalkers',
@@ -43,8 +45,10 @@ const PLURAL: Record<(typeof GROUPS)[number], string> = {
   Land: 'Lands',
 };
 
-function Thumb({ name }: { name: string }): JSX.Element {
-  const url = useCardThumb(name, 'small');
+// The generator hands back full card objects, so the art is already here; no
+// by-name lookup (which needs the backend) is required.
+function Thumb({ card }: { card: ScryfallCard }): JSX.Element {
+  const url = imageFromCard(card, 'small');
   return (
     <span className="fill-deck-thumb" aria-hidden>
       {url && <img src={url} alt="" loading="lazy" />}
@@ -90,13 +94,15 @@ export function FillDeckSheet({
   const [preferOwned, setPreferOwned] = useState(ownedNames.size > 0);
   const [phase, setPhase] = useState<Phase>({ kind: 'setup' });
   // A build can't be cancelled mid-flight; closing just drops its answer.
+  // Re-armed on every mount: StrictMode runs the cleanup once after the first
+  // mount, and a flag only ever set false there dropped every result.
   const alive = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    alive.current = true;
+    return () => {
       alive.current = false;
-    },
-    []
-  );
+    };
+  }, []);
 
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   const dismiss = useCallback(() => {
@@ -243,7 +249,7 @@ export function FillDeckSheet({
                     <ul className="fill-deck-list" role="list">
                       {cards.map((c, i) => (
                         <li key={`${c.name}-${i}`} className="fill-deck-row">
-                          <Thumb name={c.name} />
+                          <Thumb card={c} />
                           <span className="fill-deck-card">
                             <span className="fill-deck-name">{c.name}</span>
                             {phase.result.reasons[c.name] && (
@@ -267,7 +273,7 @@ export function FillDeckSheet({
           )}
         </div>
 
-        <div className="card-picker-footer fill-deck-footer">
+        <div className="card-picker-footer">
           {phase.kind === 'setup' && (
             <>
               <button type="button" className="btn" onClick={dismiss}>
@@ -304,8 +310,7 @@ export function FillDeckSheet({
                 disabled={additions.length === 0}
                 onClick={() => onAdd(additions)}
               >
-                <Plus width={14} height={14} aria-hidden /> Add {additions.length}{' '}
-                {additions.length === 1 ? 'card' : 'cards'}
+                Add {additions.length} {additions.length === 1 ? 'card' : 'cards'}
               </button>
             </>
           )}

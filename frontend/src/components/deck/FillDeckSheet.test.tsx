@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -6,7 +7,6 @@ import type { Deck } from '../../store/decks';
 
 const buildFill = vi.fn();
 vi.mock('@/lib/fill-deck', () => ({ buildFill: (...a: unknown[]) => buildFill(...a) }));
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 import { FillDeckSheet } from './FillDeckSheet';
 
@@ -20,14 +20,18 @@ const deck = {
 } as unknown as Deck;
 
 function renderSheet(onAdd = vi.fn()) {
+  // StrictMode on purpose: it runs effect cleanups once after the first mount,
+  // which is how an unmount flag that never re-armed dropped every result.
   render(
-    <FillDeckSheet
-      deck={deck}
-      target={4}
-      ownedNames={new Set(['Goblin Bombardment'])}
-      onClose={vi.fn()}
-      onAdd={onAdd}
-    />
+    <StrictMode>
+      <FillDeckSheet
+        deck={deck}
+        target={4}
+        ownedNames={new Set(['Goblin Bombardment'])}
+        onClose={vi.fn()}
+        onAdd={onAdd}
+      />
+    </StrictMode>
   );
   return onAdd;
 }
