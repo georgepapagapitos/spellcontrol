@@ -35,9 +35,12 @@ import {
   floorsAtFourAlone,
   estimateBracket,
   isStaxPiece,
+  isFastMana,
+  isMassLandDenialFloor,
+  isTutor,
   type BracketEstimation,
 } from './bracketEstimator';
-import { getCardRole, isMassLandDenial, isExtraTurn } from '@/deck-builder/services/tagger/client';
+import { getCardRole, isExtraTurn } from '@/deck-builder/services/tagger/client';
 import { frontFaceName } from '@/lib/card-text';
 import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
 import { ROLE_LABELS } from './deckAnalyzer';
@@ -278,15 +281,58 @@ function comboCardNames(combo: DetectedCombo): string[] {
   return combo.cards;
 }
 
+/**
+ * True when `name` would re-trigger a bracket signal the coach is trying to
+ * lower or route around: a Game Changer, mass land denial, extra turns, a
+ * stax piece, fast mana, or a tutor. Shared by the downshift replacement
+ * finder (never swap IN a power signal) and deck generation's bracket
+ * convergence pass (never swap one back in) — one predicate, so the two
+ * can't drift onto separately-inlined checks.
+ */
+export function isPowerSignal(name: string, gameChangerNames: Set<string>): boolean {
+  return (
+    gameChangerNames.has(name) ||
+    isMassLandDenialFloor(name) ||
+    isExtraTurn(name) ||
+    isStaxPiece(name) ||
+    isFastMana(name) ||
+    isTutor(name)
+  );
+}
+
+/**
+ * Adapt a one-away {@link ComboMatch} into the {@link DetectedCombo} shape
+ * `countsTowardComboFloor` / `floorsAtFourAlone` expect, as if its one missing
+ * piece were already in the deck — so the upshift planner can ask "would
+ * completing this actually move the bracket?" with the same predicates the
+ * estimator itself uses, instead of assuming every completion helps.
+ */
+function comboMatchAsComplete(match: ComboMatch): DetectedCombo {
+  return {
+    comboId: match.combo.id,
+    cards: match.combo.cards.map((c) => c.cardName),
+    results: match.combo.produces,
+    isComplete: true,
+    missingCards: [],
+    deckCount: match.combo.popularity,
+    bracket: match.combo.bracket,
+    bracketTag: match.combo.bracketTag,
+    cardCount: match.combo.cardCount,
+  };
+}
+
 // ── Replacement matching ──────────────────────────────────────────────────────
 
 /**
  * Find a same-role/type replacement for a cut card from the target-bracket
- * EDHREC pool. Excludes cards already in the deck, Game Changers, mass-land-
- * denial, extra-turn, and stax cards (they'd re-trigger a floor — a stax
- * replacement for a stax cut would leave the bracket unchanged). Highest
- * inclusion wins. Returns null when no suitable card exists (offline, no role
- * match).
+ * EDHREC pool. Excludes cards already in the deck and any card that is a
+ * bracket power signal itself — a Game Changer, mass land denial, extra
+ * turns, stax, fast mana, or a tutor (they'd re-trigger a floor or a soft
+ * bump the cut was meant to lower). Also excludes any name in `avoidNames`
+ * — the missing piece of a floor-setting one-away combo, so a "helpful"
+ * replacement can't complete a combo and re-raise the very floor the cut
+ * targets. Highest inclusion wins. Returns null when no suitable card exists
+ * (offline, no role match).
  *
  * Ownership preference is applied by the caller (the engine is ownership-blind);
  * the returned card carries `isOwned` from the pool build only if present.
@@ -295,7 +341,8 @@ export function findReplacement(
   cutName: string,
   targetPool: EDHRECCommanderData | null,
   deckNames: Set<string>,
-  gameChangerNames: Set<string>
+  gameChangerNames: Set<string>,
+  avoidNames?: ReadonlySet<string>
 ): GapAnalysisCard | null {
   if (!targetPool) return null;
 
@@ -305,10 +352,8 @@ export function findReplacement(
   const matches: EDHRECCard[] = [];
   for (const card of candidates) {
     if (deckNames.has(card.name)) continue;
-    if (gameChangerNames.has(card.name) || card.isGameChanger) continue;
-    if (isMassLandDenial(card.name)) continue;
-    if (isExtraTurn(card.name)) continue;
-    if (isStaxPiece(card.name)) continue;
+    if (card.isGameChanger || isPowerSignal(card.name, gameChangerNames)) continue;
+    if (avoidNames?.has(card.name)) continue;
     // Same functional role (when the cut card has one). When the cut card has
     // no tagger role, fall back to matching primary card type.
     if (cutRole) {
@@ -341,10 +386,17 @@ function makeCutMove(
   reason: string,
   signal: BracketFitSignal,
   input: BracketFitInput,
-  deckNames: Set<string>
+  deckNames: Set<string>,
+  avoidNames: ReadonlySet<string>
 ): BracketFitMove {
   const role = getCardRole(cutName) || undefined;
-  const replacement = findReplacement(cutName, input.targetPool, deckNames, input.gameChangerNames);
+  const replacement = findReplacement(
+    cutName,
+    input.targetPool,
+    deckNames,
+    input.gameChangerNames,
+    avoidNames
+  );
   if (replacement) {
     return {
       type: 'swap',
@@ -387,7 +439,7 @@ function makeCutMove(
  *      prohibit ALL intentional 2-card combos; target == 3 → break early combos
  *      only, since B3 allows late/setup combos)
  *   4. Stax over threshold (target <= 2 → below 3; target == 3 → below 5)
- *   5. Extra turns (target == 1 and >= 3 → below 3)
+ *   5. Extra turns (target < 4 and >= 3 → below 3)
  *   6. Soft bump: cut fast mana (8pts) then tutors (5pts) until soft drops
  *      below the bump threshold.
  */
@@ -405,6 +457,16 @@ function computeDownshiftPlanWithTarget(
   const { breakdown } = input.estimation;
   const deckNames = deckNameSet(input.allCardNames);
 
+  // The single missing piece of a one-away combo that would set a floor if
+  // completed — never offered as a replacement, or the "fix" completes the
+  // combo and re-raises the very floor the cut targets.
+  const oneAwayFloorPieces = new Set<string>();
+  for (const match of input.oneAwayCombos) {
+    const missing = oneAwayMissingNames(match).filter((n) => !deckNames.has(n));
+    if (missing.length !== 1) continue;
+    if (countsTowardComboFloor(comboMatchAsComplete(match))) oneAwayFloorPieces.add(missing[0]);
+  }
+
   // Mutable working copy of the deck card list and the running cut set.
   let working = [...input.allCardNames];
   const cutMoves: BracketFitMove[] = [];
@@ -414,7 +476,7 @@ function computeDownshiftPlanWithTarget(
     if (cutSet.has(name)) return;
     cutSet.add(name);
     working = working.filter((n) => n !== name);
-    cutMoves.push(makeCutMove(name, reason, signal, input, deckNames));
+    cutMoves.push(makeCutMove(name, reason, signal, input, deckNames, oneAwayFloorPieces));
   };
 
   const stillAbove = () => reestimate(working, cutSet, input).bracket > target;
@@ -577,6 +639,30 @@ function computeDownshiftPlanWithTarget(
     }
   }
 
+  // ── Re-verify with replacements ──
+  // The verify loop above only scored the deck with the CUTS applied — a
+  // swap's replacement is a real card going back in, and one (or several
+  // together) can push the estimate right back above target even though
+  // findReplacement already excludes the obvious power signals. Re-check
+  // with every accepted replacement in place, in cut order; the first one
+  // that would re-raise the bracket degrades to a plain cut instead.
+  let withReplacements = [...working];
+  for (const move of cutMoves) {
+    if (move.type !== 'swap' || !move.inName) continue;
+    const candidateNames = [...withReplacements, move.inName];
+    if (reestimate(candidateNames, cutSet, input).bracket > target) {
+      move.type = 'cut';
+      move.inName = undefined;
+      move.inclusion = undefined;
+      move.synergy = undefined;
+      move.cmc = undefined;
+      move.typeLine = undefined;
+      move.imageUrl = undefined;
+    } else {
+      withReplacements = candidateNames;
+    }
+  }
+
   const achievable = !stillAbove();
   const finalEstimate = reestimate(working, cutSet, input);
 
@@ -710,10 +796,22 @@ function computeUpshiftPlanWithTarget(
   ceiling: boolean
 ): BracketFitPlan {
   const deckNames = deckNameSet(input.allCardNames);
-  const moves: BracketFitMove[] = [];
-  const added = new Set<string>();
 
-  const addCard = (
+  /** A staged add, not yet verified. */
+  interface UpshiftCandidate {
+    move: BracketFitMove;
+    /** The name actually going into the deck (pre full-deck pairing rewrite). */
+    addName: string;
+    cmc?: number;
+    /** Set when accepting this candidate completes a one-away combo — folded
+     *  into the verify re-estimate as a newly-complete DetectedCombo. */
+    completesCombo?: DetectedCombo;
+  }
+
+  const candidates: UpshiftCandidate[] = [];
+  const staged = new Set<string>();
+
+  const stage = (
     card: {
       name: string;
       inclusion?: number;
@@ -724,24 +822,30 @@ function computeUpshiftPlanWithTarget(
       isGameChanger?: boolean;
     },
     reason: string,
-    signal: BracketFitSignal
+    signal: BracketFitSignal,
+    completesCombo?: DetectedCombo
   ) => {
-    if (added.has(card.name) || deckNames.has(card.name)) return;
-    added.add(card.name);
+    if (staged.has(card.name) || deckNames.has(card.name)) return;
+    staged.add(card.name);
     const role = getCardRole(card.name) || undefined;
-    moves.push({
-      type: 'add',
-      name: card.name,
-      reason,
-      signal,
-      role,
-      roleLabel: roleLabelFor(role),
-      inclusion: card.inclusion,
-      synergy: card.synergy,
+    candidates.push({
+      addName: card.name,
       cmc: card.cmc,
-      typeLine: card.typeLine,
-      imageUrl: card.imageUrl,
-      isGameChanger: card.isGameChanger,
+      completesCombo,
+      move: {
+        type: 'add',
+        name: card.name,
+        reason,
+        signal,
+        role,
+        roleLabel: roleLabelFor(role),
+        inclusion: card.inclusion,
+        synergy: card.synergy,
+        cmc: card.cmc,
+        typeLine: card.typeLine,
+        imageUrl: card.imageUrl,
+        isGameChanger: card.isGameChanger,
+      },
     });
   };
 
@@ -755,10 +859,19 @@ function computeUpshiftPlanWithTarget(
   for (const match of topOneAway) {
     const missing = oneAwayMissingNames(match).filter((n) => !deckNames.has(n));
     if (missing.length !== 1) continue; // only truly "one away" adds are deterministic
+    const asComplete = comboMatchAsComplete(match);
+    // A combo Spellbook rates Exhibition/Core sets no floor — completing it
+    // doesn't actually move the bracket, so it isn't sold as a deterministic
+    // jump. Same for a template variant whose unnamed requirement we can't
+    // verify (needsUnnamedCard, folded into countsTowardComboFloor).
+    if (!countsTowardComboFloor(asComplete)) continue;
+    // A Ruthless two-card combo or a commander combo floors at 4 outright —
+    // completing one toward a Bracket 3 target would overshoot it.
+    if (target === 3 && floorsAtFourAlone(asComplete, input.commanderNames)) continue;
     const name = missing[0];
     // Enrich from the pool if available.
     const poolCard = input.targetPool?.cardlists.allNonLand.find((c) => c.name === name);
-    addCard(
+    stage(
       {
         name,
         inclusion: poolCard?.inclusion,
@@ -769,11 +882,12 @@ function computeUpshiftPlanWithTarget(
         isGameChanger: poolCard?.isGameChanger,
       },
       `Completes a combo. Adding this single card finishes a known infinite, a deterministic jump toward Bracket ${target}.`,
-      'upshift-combo'
+      'upshift-combo',
+      asComplete
     );
   }
 
-  // The B5 ceiling case adds only combo completions (above) — B4 and B5 are
+  // The B5 ceiling case stages only combo completions (above) — B4 and B5 are
   // indistinguishable at deckbuilding level.
   if (!ceiling && input.targetPool) {
     const pool = input.targetPool.cardlists.allNonLand;
@@ -789,7 +903,7 @@ function computeUpshiftPlanWithTarget(
       .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a))
       .slice(0, gcLimit);
     for (const c of missingGCs) {
-      addCard(
+      stage(
         {
           name: c.name,
           inclusion: c.inclusion,
@@ -805,12 +919,14 @@ function computeUpshiftPlanWithTarget(
     }
 
     // 3. Fill with high-inclusion gap cards (engines / tutors / interaction).
+    // These rarely move the bracket on their own — the verify loop below only
+    // keeps them while the target isn't reached yet.
     const fillLimit = target >= 4 ? 5 : 3;
     let filled = 0;
     for (const g of input.gapAnalysis) {
       if (filled >= fillLimit) break;
-      if (added.has(g.name) || deckNames.has(g.name)) continue;
-      addCard(
+      if (staged.has(g.name) || deckNames.has(g.name)) continue;
+      stage(
         {
           name: g.name,
           inclusion: g.inclusion,
@@ -819,7 +935,7 @@ function computeUpshiftPlanWithTarget(
           typeLine: g.typeLine,
           imageUrl: g.imageUrl,
         },
-        `Popular high-power inclusion for this commander. Tightens the deck toward Bracket ${target}.`,
+        `Popular high-power inclusion for this commander. Rarely moves the bracket on its own, but tightens the deck toward Bracket ${target}.`,
         'upshift-fill'
       );
       filled++;
@@ -827,8 +943,59 @@ function computeUpshiftPlanWithTarget(
   }
 
   // Hard ceiling — keep the highest-priority head (combos → GCs → fills) and drop
-  // the rest. Prevents an absurd "swap in 100+ cards" lane on combo-dense decks.
-  if (moves.length > MAX_UPSHIFT_MOVES) moves.length = MAX_UPSHIFT_MOVES;
+  // the rest, BEFORE verification, so a trimmed candidate list is what gets
+  // checked against the real estimator. Prevents an absurd "swap in 100+ cards"
+  // lane on combo-dense decks.
+  if (candidates.length > MAX_UPSHIFT_MOVES) candidates.length = MAX_UPSHIFT_MOVES;
+
+  // ── Verify loop ──
+  // The B5 build ceiling can't be verified against the estimator (4 and 5 read
+  // identically to it), so every staged combo completion is accepted as-is,
+  // matching the existing ceiling contract.
+  //
+  // Otherwise, accept candidates in priority order (combos → Game Changers →
+  // fills), re-estimating with the real estimator after each — a completed
+  // one-away combo is folded in as a newly-complete DetectedCombo, and the
+  // running card list carries every accepted add. A candidate that would push
+  // the estimate PAST the target is rejected (skipped, trying the next one
+  // instead of giving up); once the target is reached, no further move is
+  // needed, so accepting stops there.
+  const cmcMap: Record<string, { cmc: number; isLand: boolean }> = { ...(input.cardCmcMap ?? {}) };
+  let workingNames = [...input.allCardNames];
+  let workingCombos = [...input.detectedCombos];
+  let currentEstimate = input.estimation;
+  const acceptedMoves: BracketFitMove[] = [];
+
+  for (const candidate of candidates) {
+    if (ceiling) {
+      acceptedMoves.push(candidate.move);
+      continue;
+    }
+    if (currentEstimate.bracket >= target) break;
+    if (Number.isFinite(candidate.cmc)) {
+      cmcMap[candidate.addName] = { cmc: candidate.cmc as number, isLand: false };
+    }
+    const nextNames = [...workingNames, candidate.addName];
+    const nextCombos = candidate.completesCombo
+      ? [...workingCombos, candidate.completesCombo]
+      : workingCombos;
+    const nextEstimate = estimateBracket(
+      nextNames,
+      nextCombos,
+      recomputeAverageCmc(nextNames, cmcMap, input.averageCmc),
+      undefined,
+      input.roleCounts,
+      input.gameChangerNames,
+      input.commanderNames
+    );
+    if (nextEstimate.bracket > target) continue; // would overshoot — try the next candidate
+    workingNames = nextNames;
+    workingCombos = nextCombos;
+    currentEstimate = nextEstimate;
+    acceptedMoves.push(candidate.move);
+  }
+
+  const moves = acceptedMoves;
 
   // ── Full-deck pairing ──
   // A tuned 100-card deck has no open slots, so every raw ADD would otherwise
@@ -854,22 +1021,26 @@ function computeUpshiftPlanWithTarget(
     }
   }
 
+  const offlineDegraded = input.targetPool === null;
+  const achievable = ceiling ? true : currentEstimate.bracket >= target;
+
   let note: string | undefined;
   if (ceiling) {
     note =
       'Already at the build ceiling. Bracket 5 is mindset and metagame, not more cards. Showing combo-completion opportunities only.';
-  }
-
-  const offlineDegraded = input.targetPool === null;
-  if (offlineDegraded && moves.length === 0) {
-    note = note ?? 'Connect to EDHREC for power-up suggestions. No card pool is available offline.';
+  } else if (offlineDegraded && moves.length === 0) {
+    note = 'Connect to EDHREC for power-up suggestions. No card pool is available offline.';
+  } else if (!achievable) {
+    note = `Couldn't reach Bracket ${target}. Still Bracket ${currentEstimate.bracket} after every available add.`;
   }
 
   const verb = pairedCount > 0 ? 'Swap in' : 'Add';
   const summary =
-    moves.length > 0
-      ? `${verb} ${moves.length} card${moves.length === 1 ? '' : 's'} to reach Bracket ${target}.`
-      : `No concrete adds available${offlineDegraded ? ' offline' : ''}.`;
+    moves.length === 0
+      ? `No concrete adds available${offlineDegraded ? ' offline' : ''}.`
+      : achievable
+        ? `${verb} ${moves.length} card${moves.length === 1 ? '' : 's'} to reach Bracket ${target}.`
+        : `Best effort: ${verb.toLowerCase()} ${moves.length} card${moves.length === 1 ? '' : 's'} (still Bracket ${currentEstimate.bracket}).`;
 
   return {
     direction: 'too-weak',
@@ -877,7 +1048,7 @@ function computeUpshiftPlanWithTarget(
     detectedBracket: input.estimation.bracket,
     moves,
     summary,
-    achievable: true, // adds are always "achievable"; we just suggest what we can
+    achievable,
     note,
     offlineDegraded,
   };

@@ -784,6 +784,55 @@ describe('findReplacement', () => {
     expect(rep).not.toBeNull();
     expect(rep!.name).toBe('Arcane Signet'); // stax 'Static Orb' skipped despite higher inclusion
   });
+
+  it('excludes fast mana — never swaps in a power-density card the cut was meant to remove', () => {
+    // 'Mana Vault' is a real FAST_MANA entry in the shared estimator package.
+    ROLES.set('Mana Vault', 'ramp');
+    ROLES.set('Cultivate', 'ramp');
+    const pool = makePool([
+      poolCard({ name: 'Mana Vault', inclusion: 99 }), // higher inclusion, but fast mana
+      poolCard({ name: 'Cultivate', inclusion: 40 }),
+    ]);
+    const rep = findReplacement('Sol Ring', pool, new Set(['Sol Ring']), new Set());
+    expect(rep).not.toBeNull();
+    expect(rep!.name).toBe('Cultivate'); // fast-mana 'Mana Vault' skipped
+  });
+
+  it('excludes tutors — never swaps in a card that raises the soft score the cut was meant to lower', () => {
+    ROLES.set('Some Draw', 'cardDraw');
+    ROLES.set('Vampiric Tutor', 'cardDraw');
+    ROLES.set('Read the Bones', 'cardDraw');
+    TAGS.set('Vampiric Tutor', new Set(['tutor']));
+    const pool = makePool([
+      poolCard({ name: 'Vampiric Tutor', inclusion: 99, primary_type: 'instant' }), // tutor
+      poolCard({ name: 'Read the Bones', inclusion: 40, primary_type: 'sorcery' }),
+    ]);
+    const rep = findReplacement('Some Draw', pool, new Set(['Some Draw']), new Set());
+    expect(rep).not.toBeNull();
+    expect(rep!.name).toBe('Read the Bones'); // tutor 'Vampiric Tutor' skipped
+  });
+
+  it('excludes the missing piece of a floor-setting one-away combo', () => {
+    // Completing the deck's one-away combo would set a floor — swapping its
+    // missing piece IN as a "fix" would re-raise the very floor the cut
+    // targets, so it's excluded even though it's the highest-inclusion match.
+    ROLES.set('Cut Me', 'ramp');
+    ROLES.set('Combo Piece', 'ramp');
+    ROLES.set('Clean Ramp', 'ramp');
+    const pool = makePool([
+      poolCard({ name: 'Combo Piece', inclusion: 99 }),
+      poolCard({ name: 'Clean Ramp', inclusion: 40 }),
+    ]);
+    const rep = findReplacement(
+      'Cut Me',
+      pool,
+      new Set(['Cut Me']),
+      new Set(),
+      new Set(['Combo Piece'])
+    );
+    expect(rep).not.toBeNull();
+    expect(rep!.name).toBe('Clean Ramp'); // 'Combo Piece' avoided despite higher inclusion
+  });
 });
 
 describe('downshift — replacement attachment', () => {
@@ -849,6 +898,70 @@ describe('upshift — oneAway combo completion', () => {
     expect(first.name).toBe('Need It');
     expect(first.signal).toBe('upshift-combo');
     expect(first.type).toBe('add');
+  });
+
+  it('does not suggest completing an Exhibition-tagged (E) combo — it sets no floor', () => {
+    // Spellbook rates this combo Exhibition: it loops without ending the
+    // game, so completing it never moves the bracket — it isn't a
+    // "deterministic jump" toward anything.
+    const oneAway: ComboMatch = {
+      combo: {
+        id: 'x',
+        identity: 'WU',
+        produces: ['Draw'],
+        prerequisites: null,
+        description: null,
+        manaNeeded: null,
+        popularity: 100,
+        cardCount: 2,
+        bracket: null,
+        bracketTag: 'E',
+        cards: [
+          { oracleId: 'o-have', cardName: 'Have It', quantity: 1 },
+          { oracleId: 'o-need', cardName: 'Need It', quantity: 1 },
+        ],
+      },
+      presentOracleIds: ['o-have'],
+      missingOracleIds: ['o-need'],
+    };
+    const input = makeInput({
+      allCardNames: ['Have It', 'Forest'],
+      oneAwayCombos: [oneAway],
+    });
+    const plan = computeUpshiftPlan(input, 4);
+    expect(plan.moves.some((m) => m.signal === 'upshift-combo')).toBe(false);
+  });
+
+  it('does not suggest completing a Ruthless (R) two-card combo toward a Bracket 3 target — it overshoots to 4', () => {
+    const oneAway: ComboMatch = {
+      combo: {
+        id: 'y',
+        identity: 'UB',
+        produces: ['Win'],
+        prerequisites: null,
+        description: null,
+        manaNeeded: null,
+        popularity: 100,
+        cardCount: 2,
+        bracket: null,
+        bracketTag: 'R',
+        cards: [
+          { oracleId: 'o-have2', cardName: 'Have Two', quantity: 1 },
+          { oracleId: 'o-need2', cardName: 'Need Two', quantity: 1 },
+        ],
+      },
+      presentOracleIds: ['o-have2'],
+      missingOracleIds: ['o-need2'],
+    };
+    const input = makeInput({
+      allCardNames: ['Have Two', 'Forest'],
+      oneAwayCombos: [oneAway],
+    });
+    const planB3 = computeUpshiftPlan(input, 3);
+    expect(planB3.moves.some((m) => m.signal === 'upshift-combo')).toBe(false);
+    // The same combo IS worth suggesting toward Bracket 4 — it doesn't overshoot there.
+    const planB4 = computeUpshiftPlan(input, 4);
+    expect(planB4.moves.some((m) => m.signal === 'upshift-combo')).toBe(true);
   });
 });
 
@@ -977,7 +1090,10 @@ describe('upshift — full-deck pairing (each add → a 1-for-1 swap)', () => {
     // The incoming GC keeps its GC flag; the cut (weak) card is not a GC.
     expect(gcMoves.every((m) => m.inIsGameChanger === true)).toBe(true);
     expect(gcMoves.every((m) => m.isGameChanger === false)).toBe(true);
-    expect(plan.summary).toContain('Swap in');
+    // These fixture "GC" cards aren't wired into a real gameChangerNames set,
+    // so the verify loop never sees the estimate reach Bracket 3 — an honest
+    // "best effort" summary, not the old hard-coded "achievable" claim.
+    expect(plan.summary.toLowerCase()).toContain('swap');
   });
 
   it('never cuts a Game Changer already in the deck to make room', () => {
@@ -1033,7 +1149,8 @@ describe('upshift — full-deck pairing (each add → a 1-for-1 swap)', () => {
     });
     const plan = computeUpshiftPlan(input, 3);
     expect(plan.moves.every((m) => m.type === 'add')).toBe(true);
-    expect(plan.summary).toContain('Add');
+    // Same honest-summary note as above — no real GC signal reaches target.
+    expect(plan.summary.toLowerCase()).toContain('add');
   });
 });
 
@@ -1061,7 +1178,12 @@ describe('upshift — bounded suggestion count', () => {
   it('completes at most the 5 most popular one-away combos', () => {
     const combos = [1, 2, 3, 4, 5, 6, 7].map((n) => oneAway(`c${n}`, n, `Need ${n}`));
     const input = makeInput({ allCardNames: ['Forest'], oneAwayCombos: combos });
-    const plan = computeUpshiftPlan(input, 4);
+    // Target 5: 4 independent two-card combos already floor the deck at
+    // Bracket 4 via redundancy (COMBO_REDUNDANCY_THRESHOLD) — a target of 4
+    // would let the verify loop stop there. Target 5 keeps accepting past
+    // that floor (nothing here reaches the cEDH bump), so this test still
+    // isolates the ONEAWAY_COMBO_LIMIT cap rather than the verify loop.
+    const plan = computeUpshiftPlan(input, 5);
     const comboMoves = plan.moves.filter((m) => m.signal === 'upshift-combo');
     expect(comboMoves).toHaveLength(5);
     // The 5 highest-popularity combos (7,6,5,4,3) → their missing pieces.
@@ -1090,8 +1212,10 @@ describe('upshift — bounded suggestion count', () => {
       targetPool: pool,
       gapAnalysis: gap,
     });
+    // Target 5 (see note above) — the verify loop never reaches it from this
+    // fixture, so every candidate survives up to the MAX_UPSHIFT_MOVES cap.
     // 5 combos + 6 GCs + 5 fills = 16 candidates → capped to 12.
-    const plan = computeUpshiftPlan(input, 4);
+    const plan = computeUpshiftPlan(input, 5);
     expect(plan.moves).toHaveLength(12);
   });
 });
@@ -1160,6 +1284,48 @@ describe('B4 == B5 ceiling', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Upshift — verified achievability
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('upshift — verified achievability', () => {
+  it('achievable is false when the available adds cannot reach the target', () => {
+    // Only one real Game Changer is available to add — completing it floors
+    // the deck at Bracket 3, not the Bracket 4 target, and there's nothing
+    // else in the pool to close the rest of the gap.
+    const pool = makePool([poolCard({ name: 'GC A', inclusion: 90, isGameChanger: true })]);
+    const gcNames = new Set(['GC A']);
+    const input = makeInput({
+      allCardNames: ['Forest'],
+      targetPool: pool,
+      gameChangerNames: gcNames,
+    });
+    const plan = computeUpshiftPlan(input, 4);
+    expect(plan.moves.map((m) => m.name)).toEqual(['GC A']);
+    expect(plan.achievable).toBe(false);
+    expect(plan.note).toContain('Bracket 4');
+  });
+
+  it('achievable is true once real signals close the gap', () => {
+    // 4 real Game Changers floor the deck at Bracket 4 outright.
+    const pool = makePool([
+      poolCard({ name: 'GC A', inclusion: 90, isGameChanger: true }),
+      poolCard({ name: 'GC B', inclusion: 80, isGameChanger: true }),
+      poolCard({ name: 'GC C', inclusion: 70, isGameChanger: true }),
+      poolCard({ name: 'GC D', inclusion: 60, isGameChanger: true }),
+    ]);
+    const gcNames = new Set(['GC A', 'GC B', 'GC C', 'GC D']);
+    const input = makeInput({
+      allCardNames: ['Forest'],
+      targetPool: pool,
+      gameChangerNames: gcNames,
+    });
+    const plan = computeUpshiftPlan(input, 4);
+    expect(plan.achievable).toBe(true);
+    expect(plan.summary).not.toContain('Best effort');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Offline degraded
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1198,6 +1364,54 @@ describe('offline degraded', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Robustness
 // ─────────────────────────────────────────────────────────────────────────────
+
+describe('downshift — replacement re-verify', () => {
+  it('a swap whose replacement would re-raise the bracket degrades to a plain cut', () => {
+    // 5 fast mana (40 soft pts, capped) + a single cmc-12 filler (avg 2.0,
+    // curve capped at 20) + 14 removal (15 interaction pts, capped) = 75,
+    // which soft-bumps the Core (2) baseline to Upgraded (3).
+    const fast = ['Mana Crypt', 'Mana Vault', 'Grim Monolith', 'Chrome Mox', 'Mox Diamond'];
+    fast.forEach((n) => ROLES.set(n, 'ramp'));
+    ROLES.set('Cheap Rock', 'ramp');
+    const cardCmcMap: Record<string, { cmc: number; isLand: boolean }> = {
+      'Mana Crypt': { cmc: 0, isLand: false },
+      'Mana Vault': { cmc: 0, isLand: false },
+      'Grim Monolith': { cmc: 0, isLand: false },
+      'Chrome Mox': { cmc: 0, isLand: false },
+      'Mox Diamond': { cmc: 0, isLand: false },
+      Filler: { cmc: 12, isLand: false },
+      'Cheap Rock': { cmc: 0, isLand: false },
+    };
+    // 'Cheap Rock' is same-role, non-power-signal (not FAST_MANA/tutor/GC/MLD/
+    // stax) — findReplacement has no static reason to skip it.
+    const pool = makePool([
+      poolCard({ name: 'Cheap Rock', inclusion: 99, primary_type: 'artifact', cmc: 0 }),
+    ]);
+    const input = makeInput({
+      allCardNames: [...fast, 'Filler', 'Forest'],
+      averageCmc: 2.0, // (5*0 + 12) / 6
+      cardCmcMap,
+      roleCounts: { removal: 14 },
+      targetPool: pool,
+      cardInclusionMap: Object.fromEntries(fast.map((n) => [n, 50])),
+    });
+    expect(input.estimation.bracket).toBe(3);
+
+    const plan = computeDownshiftPlan(input, 2);
+    // Cutting just ONE fast-mana card is enough on its own: losing an 8-pt
+    // fast-mana signal AND raising the average CMC (shrinking the curve
+    // bonus) together drop the soft score under the promotion threshold.
+    const fastCuts = plan.moves.filter((m) => m.signal === 'fast-mana');
+    expect(fastCuts).toHaveLength(1);
+    // But 'Cheap Rock' is 0-cmc too — putting it back restores the ORIGINAL
+    // average and with it the same curve bonus that made the deck read
+    // Bracket 3 in the first place, re-crossing the threshold. The swap must
+    // degrade to a plain cut rather than ship a "fix" that doesn't fix it.
+    expect(fastCuts[0].type).toBe('cut');
+    expect(fastCuts[0].inName).toBeUndefined();
+    expect(plan.achievable).toBe(true);
+  });
+});
 
 describe('robustness', () => {
   it('empty deck produces no moves and does not crash', () => {
