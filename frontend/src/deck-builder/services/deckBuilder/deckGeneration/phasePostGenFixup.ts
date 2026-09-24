@@ -145,7 +145,11 @@ export function postGenFixupPhase(
           isOwnedCandidate(c.name) &&
           !violatesUserCaps(scryfallCardMap.get(c.name)!, state.cfg, collectionNames)
       )
-      .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
+      .sort(
+        (a, b) =>
+          calculateCardPriority(b, state.cfg.brewLevel) -
+          calculateCardPriority(a, state.cfg.brewLevel)
+      );
     return candidates.length > 0 ? scryfallCardMap.get(candidates[0].name)! : null;
   }
 
@@ -221,7 +225,11 @@ export function postGenFixupPhase(
                   // E-arena-leak: same missing gate as findRoleCandidate above.
                   !violatesUserCaps(scryfallCardMap.get(c.name)!, state.cfg, collectionNames)
               )
-              .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
+              .sort(
+                (a, b) =>
+                  calculateCardPriority(b, state.cfg.brewLevel) -
+                  calculateCardPriority(a, state.cfg.brewLevel)
+              );
             if (candidates.length > 0) {
               const replacement = scryfallCardMap.get(candidates[0].name)!;
               fixupRemoveCard(weak.card, weak.category);

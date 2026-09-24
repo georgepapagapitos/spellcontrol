@@ -208,6 +208,7 @@ export function BuildReportPanel({
     brewDialNote,
     landSqueezeTrimNote,
     bracketPoolFallbackNote,
+    dialSeedNote,
     archetypeBlendNote,
     similarPoolNote,
     integrityNotes,
@@ -325,6 +326,7 @@ export function BuildReportPanel({
         <p className="build-report-line build-report-source">{humanizeDataSource(dataSource)}</p>
       )}
 
+      {dialSeedNote && <p className="build-report-line build-report-source">{dialSeedNote}</p>}
       {bracketPoolFallbackNote && (
         <p className="build-report-line build-report-source">{bracketPoolFallbackNote}</p>
       )}

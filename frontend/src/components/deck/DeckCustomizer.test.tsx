@@ -148,10 +148,10 @@ describe('DeckCustomizer — collection controls', () => {
   });
 });
 
-describe('DeckCustomizer — Staples <-> Theme dial (always visible)', () => {
+describe('DeckCustomizer — Staples <-> Synergy dial (always visible)', () => {
   it('shows Balanced with its description at the 0.5 default', () => {
     render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
-    expect(screen.getByLabelText(/Staples to Theme dial/)).toBeTruthy();
+    expect(screen.getByLabelText(/Staples to Synergy dial/)).toBeTruthy();
     expect(screen.getAllByText('Balanced').length).toBeGreaterThan(0);
     expect(screen.getByText(/even mix of proven staples/)).toBeTruthy();
   });
@@ -159,19 +159,19 @@ describe('DeckCustomizer — Staples <-> Theme dial (always visible)', () => {
   it('shows the Staples label and description at 0', () => {
     render(<DeckCustomizer customization={baseCustomization({ brewLevel: 0 })} update={vi.fn()} />);
     expect(screen.getAllByText('Staples').length).toBeGreaterThan(0);
-    expect(screen.getByText(/EDHREC's most-played picks/)).toBeTruthy();
+    expect(screen.getByText(/EDHREC's average deck/)).toBeTruthy();
   });
 
-  it('shows the Theme label and description at 1', () => {
+  it('shows the Synergy label and description at 1', () => {
     render(<DeckCustomizer customization={baseCustomization({ brewLevel: 1 })} update={vi.fn()} />);
-    expect(screen.getAllByText('Theme').length).toBeGreaterThan(0);
-    expect(screen.getByText(/commander's mechanics/)).toBeTruthy();
+    expect(screen.getAllByText('Synergy').length).toBeGreaterThan(0);
+    expect(screen.getByText(/plays far more than other decks/)).toBeTruthy();
   });
 
   it('patches brewLevel when the slider changes', () => {
     const update = vi.fn();
     render(<DeckCustomizer customization={baseCustomization()} update={update} />);
-    fireEvent.change(screen.getByLabelText(/Staples to Theme dial/), {
+    fireEvent.change(screen.getByLabelText(/Staples to Synergy dial/), {
       target: { value: '0.75' },
     });
     expect(update).toHaveBeenCalledWith({ brewLevel: 0.75 });

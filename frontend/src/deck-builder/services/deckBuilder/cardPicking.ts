@@ -213,23 +213,35 @@ export function isHighSynergyCard(card: EDHRECCard): boolean {
   return false;
 }
 
-// Staples <-> Brew dial: reweights calculateCardPriority's inclusion vs
-// synergy terms. 0 = Staples, 0.5 = Balanced (default), 1 = Brew. Both
-// multipliers are linear and centered at exactly 1.0 for brewLevel=0.5, so
-// every existing caller that omits the param (the repair/analysis phases —
-// see cardPicking.ts's own callers) keeps today's exact scores untouched.
-// Linear scaling preserves within-tier order (it can never invert two
-// same-tier cards' ranking), and the +100 theme-synergy floor and >0.3
-// synergy threshold are untouched by the dial — so at full Brew a "dead"
-// zero-synergy/low-inclusion card can never leapfrog a theme-synergy staple
-// (100 + ... always beats a damped-but-still-inclusion-only score), and at
-// full Staples a card never gets rewarded merely for being obscure (linear
-// scaling can't flip an obscure card above a more-included same-tier peer).
+// Staples <-> Synergy dial: reweights calculateCardPriority's inclusion vs
+// synergy terms. 0 = Staples, 0.5 = Balanced (default), 1 = Synergy. Every
+// term is piecewise-linear through exactly its Balanced value at 0.5, so a
+// Balanced build is byte-identical to the pre-dial formula.
+//
+// The ends are deliberately strong. The first version (1.5x/0.4x inclusion,
+// 0.4x/1.6x synergy, theme-list floor untouched) measured almost no movement
+// (E238: mean play rate 40.0% at Staples vs 39.7% at Brew): the flat +100
+// theme-list floor outranked any inclusion difference, and most of the
+// repair/trim phases scored at Balanced whatever the dial said, so they
+// quietly re-picked what the dial had passed over. Now Staples is a pure
+// play-rate ranking (no synergy term, no list floor) and Synergy is a
+// synergy ranking with play rate as a tie-breaker, and the dial reaches every
+// generation phase that scores cards (state.cfg.brewLevel).
+//
+// Linear scaling still preserves within-tier order, so at full Staples a card
+// is never rewarded for being obscure, and at full Synergy a zero-synergy card
+// never leapfrogs a synergy card on popularity alone.
 function inclusionMultiplier(brewLevel: number): number {
-  return 1.5 - brewLevel; // Staples(0)=1.5 · Balanced(0.5)=1.0 · Brew(1)=0.5
+  // Staples(0)=2.0 · Balanced(0.5)=1.0 · Synergy(1)=0.25
+  return brewLevel <= 0.5 ? 1 + 2 * (0.5 - brewLevel) : 1 - 1.5 * (brewLevel - 0.5);
 }
 function synergyMultiplier(brewLevel: number): number {
-  return 0.4 + brewLevel * 1.2; // Staples(0)=0.4 · Balanced(0.5)=1.0 · Brew(1)=1.6
+  // Staples(0)=0 · Balanced(0.5)=1.0 · Synergy(1)=2.2
+  return brewLevel <= 0.5 ? 2 * brewLevel : 1 + 2.4 * (brewLevel - 0.5);
+}
+function themeListFloor(brewLevel: number): number {
+  // EDHREC's high-synergy/top-card lists: Staples(0)=0 · Balanced/Synergy=100
+  return 100 * Math.min(1, 2 * brewLevel);
 }
 
 // Calculate a priority score for EDHREC cards
@@ -244,7 +256,7 @@ export function calculateCardPriority(card: EDHRECCard, brewLevel: number = 0.5)
   if (card.isThemeSynergyCard) {
     // Theme synergy cards get a big boost: 100 + synergy bonus + inclusion
     // This ensures they're prioritized over regular high-inclusion cards
-    return 100 + synergy * 50 * synergyMul + inclusion * inclusionMul;
+    return themeListFloor(brewLevel) + synergy * 50 * synergyMul + inclusion * inclusionMul;
   }
 
   // New cards get a small relevancy boost to compensate for having fewer total decks,
