@@ -177,6 +177,34 @@ describe('AI sources contract (T112)', () => {
   });
 });
 
+// E381: a partner pair used to go out as one "A // B" commander string, which
+// the server can't look up as a card, so check_bracket and colour identity
+// ignored both commanders.
+describe('partner commanders', () => {
+  it('sends the partner as its own card name', async () => {
+    stubApi(true);
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/decks/d1', state: { openAiReview: true } }]}>
+        <DeckAiReview
+          deckId="d1"
+          format="commander"
+          commander={card('Tymna the Weaver')}
+          partnerCommander={card('Kraum, Ludevic’s Opus')}
+          mainboard={[{ slotId: 's1', card: card('Sol Ring') }]}
+        />
+      </MemoryRouter>
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Read the deck' }));
+    await screen.findByText(/It wins by connecting/);
+
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    const call = fetchMock.mock.calls.find((c) => c[0] === '/api/ai/deck-review')!;
+    const body = JSON.parse((call[1] as RequestInit).body as string);
+    expect(body.commander).toBe('Tymna the Weaver');
+    expect(body.partnerCommander).toBe('Kraum, Ludevic’s Opus');
+  });
+});
+
 describe('insight-strip posture (E244)', () => {
   it('starts as a compact strip and expands in place without spending anything', async () => {
     const calls = stubApi(true);

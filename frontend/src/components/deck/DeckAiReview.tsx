@@ -189,7 +189,15 @@ export function DeckAiReview({
       [commander, ...(partnerCommander ? [partnerCommander] : []), ...mainboard.map((m) => m.card)]
     );
     requestDeckReview(
-      { deckId, commander: commanderName, cards, scope, currency: aiPriceCurrency(), analysis },
+      {
+        deckId,
+        commander: commander.name,
+        partnerCommander: partnerCommander?.name,
+        cards,
+        scope,
+        currency: aiPriceCurrency(),
+        analysis,
+      },
       setStreamed,
       controller.signal
     )

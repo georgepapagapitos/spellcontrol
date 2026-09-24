@@ -26,6 +26,7 @@ import {
   END_MARK,
   WEAKNESS_MARK,
   buildUserMessage,
+  commandZone,
   hashDeckReviewInput,
   parseDeckReviewRequest,
   renderFetchedCards,
@@ -75,15 +76,22 @@ import { getRulesIndex, type RuleEntry } from '../rules';
 const ORACLE_MAX_AGE_MS = Number.MAX_SAFE_INTEGER;
 
 /**
- * The commander's colour identity, so card search only returns cards this deck
- * could legally run. A miss returns undefined, which searches unrestricted —
- * better a wider search than none, and the prompt still states the rule.
+ * The command zone's colour identity (both partners, unioned), so card search
+ * only returns cards this deck could legally run. A miss on either commander
+ * returns undefined, which searches unrestricted — better a wider search than
+ * one missing a partner's colours, and the prompt still states the rule.
  */
 function commanderIdentity(
   cache: ReturnType<typeof getScryfallCache>,
-  commander: string
+  commanders: string[]
 ): string[] | undefined {
-  return cache.getCheapestByName(commander, ORACLE_MAX_AGE_MS)?.color_identity ?? undefined;
+  const identity = new Set<string>();
+  for (const name of commanders) {
+    const colors = cache.getCheapestByName(name, ORACLE_MAX_AGE_MS)?.color_identity;
+    if (!colors) return undefined;
+    for (const c of colors) identity.add(c);
+  }
+  return [...identity];
 }
 
 /**
@@ -351,7 +359,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   const scoped = await scopeSearch(userId, request.scope, request.deckId, request.currency);
   const oracle: OracleEntry[] = [];
   const seen = new Set<string>();
-  for (const card of [{ name: request.commander }, ...request.cards]) {
+  for (const card of [...commandZone(request).map((name) => ({ name })), ...request.cards]) {
     if (seen.has(card.name)) continue;
     seen.add(card.name);
     const hit = cache.getCheapestByName(card.name);
@@ -395,8 +403,8 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
         // prompt as "stay inside the colour identity" is now in the query.
         tools: [
           lookupCardsTool(cache, {
-            colorIdentity: commanderIdentity(cache, request.commander),
-            exclude: [request.commander, ...request.cards.map((c) => c.name)],
+            colorIdentity: commanderIdentity(cache, commandZone(request)),
+            exclude: [...commandZone(request), ...request.cards.map((c) => c.name)],
             ...scoped,
           }),
         ],
@@ -448,7 +456,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   const unverified = unverifiedCitations(
     generation.content,
     [
-      request.commander,
+      ...commandZone(request),
       ...request.cards.map((c) => c.name),
       ...generation.fetched.map((f) => f.name),
     ],
@@ -617,17 +625,18 @@ export async function loadOwnedNames(
  * nothing; a model with a broken one asserts a wrong number.
  */
 function bracketTools(
-  request: { cards: { name: string }[]; commander: string },
+  request: { cards: { name: string }[]; commander: string; partnerCommander?: string },
   cache: ReturnType<typeof getScryfallCache>
 ): AiTool[] {
   const tags = getTagLookup();
   if (!tags) return [];
-  const deckNames = [request.commander, ...request.cards.map((c) => c.name)];
+  const commanders = commandZone(request);
+  const deckNames = [...commanders, ...request.cards.map((c) => c.name)];
   const inputs = {
     cache,
     tags,
     loadCombos: loadRelevantCombos,
-    commanderNames: [request.commander],
+    commanderNames: commanders,
   };
   return [
     checkBracketTool(deckNames, (names) => estimateForNames(names, inputs), renderBracketCheck),
@@ -745,8 +754,8 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   const cache = getScryfallCache();
   const scoped = await scopeSearch(userId, request.scope, request.deckId, request.currency);
   const searchContext = {
-    colorIdentity: commanderIdentity(cache, request.commander),
-    exclude: [request.commander, ...request.cards.map((c) => c.name)],
+    colorIdentity: commanderIdentity(cache, commandZone(request)),
+    exclude: [...commandZone(request), ...request.cards.map((c) => c.name)],
     ...scoped,
   };
   const resolveCandidate = makeCandidateResolver(cache, searchContext);
@@ -800,7 +809,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   // candidate it only knows the name of. Cards it looks up arrive with their
   // oracle text already attached, so they need nothing here.
   const oracle = hydrateOracle([
-    request.commander,
+    ...commandZone(request),
     ...request.cards.map((c) => c.name),
     ...request.pool.map((c) => c.name),
   ]);

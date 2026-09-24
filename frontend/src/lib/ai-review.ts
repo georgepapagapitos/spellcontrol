@@ -137,6 +137,8 @@ export type { AiScope } from './ai-scope';
 export interface DeckReviewPayload {
   deckId: string;
   commander: string;
+  /** Sent as its own name: the server looks both commanders up as cards. */
+  partnerCommander?: string;
   cards: { name: string; oracleId: string; qty: number }[];
   scope: AiScope;
   /** Display currency; the server reads it only under the `budget` scope. */

@@ -42,6 +42,8 @@ export interface DeckRefineResult {
 export interface DeckRefinePayload {
   deckId: string;
   commander: string;
+  /** Sent as its own name: the server looks both commanders up as cards. */
+  partnerCommander?: string;
   cards: RefineCard[];
   pool: RefineCard[];
   /** The deck's AI sources contract — see {@link AiScope}. */

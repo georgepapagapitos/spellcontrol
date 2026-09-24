@@ -170,9 +170,6 @@ export function DeckAiRefine({
   // `alternatives` list. Absent ⇒ showing the AI's original pick.
   const [rerollIndex, setRerollIndex] = useState<Map<string, number>>(new Map());
 
-  const commanderName = partnerCommander
-    ? `${commander.name} // ${partnerCommander.name}`
-    : commander.name;
   const cards = useMemo(() => buildDeckReviewCards(mainboard), [mainboard]);
   const cardsByName = useMemo(() => {
     const m = new Map<string, ScryfallCard>();
@@ -210,7 +207,8 @@ export function DeckAiRefine({
     requestDeckRefine(
       {
         deckId,
-        commander: commanderName,
+        commander: commander.name,
+        partnerCommander: partnerCommander?.name,
         cards,
         pool,
         scope,

@@ -1047,6 +1047,57 @@ describe('POST /api/ai/deck-refine', () => {
     expect(options.answerMarker).toBe('---STRATEGY---');
   });
 
+  // E381: the client used to send a partner pair as one "A // B" commander
+  // string, which is no card's name, so check_bracket counted NEITHER
+  // commander (no Game Changer, no commander combo). A partner that is a Game
+  // Changer is the smallest case that shows it.
+  it('check_bracket counts BOTH partner commanders', async () => {
+    const cookie = await makeUser('ai-refine-partner');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(async () => ({
+      content: refineReply(PROSE, []),
+      inputTokens: 1,
+      outputTokens: 1,
+      fetched: [],
+    }));
+    const body = refineBody({ commander: 'Ai Partner Lead', partnerCommander: 'Rhystic Study' });
+    const first = await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+    expect(first.status).toBe(200);
+
+    const options = mockState.generate.mock.calls[0][4] as {
+      tools: {
+        definition: { name: string };
+        run(i: Record<string, unknown>): Promise<{ text: string }>;
+      }[];
+    };
+    const check = options.tools.find((t) => t.definition.name === 'check_bracket');
+    const { text } = await check!.run({ add: 'Forest' });
+    // Without the partner the deck has no floor at all and reads Bracket 2.
+    expect(text).toMatch(/Before: bracket 3, floors: .*Game Changer/);
+    // The model reads the pair exactly as it did before the field existed.
+    expect(mockState.generate.mock.calls[0][1] as string).toContain(
+      'Commander: Ai Partner Lead // Rhystic Study'
+    );
+
+    // …and so does the cache: an old client's joined string is the same
+    // question, so it replays the stored reading instead of spending a new one.
+    const old = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody({ commander: 'Ai Partner Lead // Rhystic Study' }));
+    expect((parseStream(old.text).done as { cached: boolean }).cached).toBe(true);
+  });
+
+  it('rejects a partnerCommander that is not a card name', async () => {
+    const cookie = await makeUser('ai-refine-partner-bad');
+    await optIn(cookie);
+    const res = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody({ partnerCommander: 42 }));
+    expect(res.status).toBe(400);
+  });
+
   it('WITHHOLDS check_bracket when the tag data is missing', async () => {
     // A TagLookup over absent data does not throw — it answers "no" to every
     // predicate, so the estimator reports no mass land denial, no extra turns

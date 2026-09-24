@@ -379,6 +379,10 @@ export function parseAiScope(scope: unknown, ownedOnly?: unknown): AiScope {
 export interface DeckReviewRequest {
   deckId: string;
   commander: string;
+  /** The second commander of a partner pair. Its own field, not joined into
+   *  `commander`: a double-faced commander's name already contains " // ", so
+   *  the pair can't be split back apart. */
+  partnerCommander?: string;
   cards: DeckReviewCard[];
   scope: AiScope;
   /** The player's display currency; only the `budget` scope reads it. */
@@ -391,6 +395,28 @@ export const MAX_CARDS = 260;
 /** Route-level payload ceiling — far under the global body limit. */
 export const MAX_ANALYSIS_JSON_BYTES = 64 * 1024;
 
+/** Every command-zone card name: the lookups, exclusions and bracket input. */
+export function commandZone(req: { commander: string; partnerCommander?: string }): string[] {
+  return req.partnerCommander ? [req.commander, req.partnerCommander] : [req.commander];
+}
+
+/** "A // B" for a partner pair: the prompt's Commander line and the cache
+ *  key, both unchanged from when clients sent the pair as one string. */
+export function commanderLabel(req: { commander: string; partnerCommander?: string }): string {
+  return commandZone(req).join(' // ');
+}
+
+/** Optional partner name: absent, or a non-empty card name. */
+export function parsePartnerCommander(
+  value: unknown
+): { ok: true; value: string | undefined } | { ok: false; error: string } {
+  if (value === undefined || value === null || value === '') return { ok: true, value: undefined };
+  if (typeof value !== 'string' || !value.trim() || value.length > 200) {
+    return { ok: false, error: 'Invalid partnerCommander.' };
+  }
+  return { ok: true, value: value.trim() };
+}
+
 /** Validate an untrusted body into a DeckReviewRequest, or return an error string. */
 export function parseDeckReviewRequest(
   body: unknown
@@ -401,6 +427,8 @@ export function parseDeckReviewRequest(
   if (typeof b.commander !== 'string' || !b.commander.trim()) {
     return { ok: false, error: 'commander is required.' };
   }
+  const partner = parsePartnerCommander(b.partnerCommander);
+  if (!partner.ok) return partner;
   if (!Array.isArray(b.cards) || b.cards.length === 0) {
     return { ok: false, error: 'cards is required.' };
   }
@@ -433,6 +461,7 @@ export function parseDeckReviewRequest(
     value: {
       deckId: b.deckId,
       commander: (b.commander as string).trim(),
+      partnerCommander: partner.value,
       cards,
       scope: parseAiScope(b.scope),
       currency: parseCurrency(b.currency),
@@ -475,7 +504,7 @@ function stableStringify(value: unknown): string {
 export function hashDeckReviewInput(req: DeckReviewRequest): string {
   const canonical = stableStringify({
     promptVersion: DECK_REVIEW_PROMPT_VERSION,
-    commander: req.commander,
+    commander: commanderLabel(req),
     cards: [...req.cards]
       .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
       .map((c) => ({ name: c.name, oracleId: c.oracleId, qty: c.qty })),
@@ -641,7 +670,7 @@ export function unverifiedCitations(
 export function buildUserMessage(req: DeckReviewRequest, oracle: OracleEntry[]): string {
   const decklist = req.cards.map((c) => `${c.qty} ${c.name}`).join('\n');
   const parts = [
-    `Commander: ${req.commander}`,
+    `Commander: ${commanderLabel(req)}`,
     `## Decklist (${req.cards.reduce((n, c) => n + c.qty, 0)})\n\n${decklist}`,
     `## Statistics (already shown to the user on the same screen)\n\n${renderAnalysis(req.analysis)}`,
   ];

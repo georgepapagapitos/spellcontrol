@@ -1,9 +1,12 @@
 import crypto from 'node:crypto';
 import {
   budgetLabel,
+  commandZone,
+  commanderLabel,
   isCollectionScope,
   parseAiScope,
   parseCurrency,
+  parsePartnerCommander,
   renderAnalysis,
   type AiScope,
   type OracleEntry,
@@ -198,6 +201,8 @@ export interface RefineCard {
 export interface RefineRequest {
   deckId: string;
   commander: string;
+  /** See `DeckReviewRequest.partnerCommander`. */
+  partnerCommander?: string;
   cards: RefineCard[];
   /** Engine-supplied candidates — the ONLY cards the model may propose. */
   pool: RefineCard[];
@@ -252,6 +257,8 @@ export function parseRefineRequest(
   if (typeof b.commander !== 'string' || !b.commander.trim()) {
     return { ok: false, error: 'commander is required.' };
   }
+  const partner = parsePartnerCommander(b.partnerCommander);
+  if (!partner.ok) return partner;
   const cards = parseCardList(b.cards, MAX_CARDS, 'cards');
   if (!cards.ok) return cards;
   if (cards.value.length === 0) return { ok: false, error: 'cards is required.' };
@@ -269,6 +276,7 @@ export function parseRefineRequest(
     value: {
       deckId: b.deckId,
       commander: (b.commander as string).trim(),
+      partnerCommander: partner.value,
       cards: cards.value,
       pool: pool.value,
       scope,
@@ -305,7 +313,7 @@ export function hashRefineInput(req: RefineRequest): string {
     .update(
       stableStringify({
         promptVersion: DECK_REFINE_PROMPT_VERSION,
-        commander: req.commander,
+        commander: commanderLabel(req),
         cards: [...req.cards].sort(byName),
         pool: [...req.pool].sort(byName).map((c) => c.name),
         ownedOnly: req.ownedOnly,
@@ -374,7 +382,7 @@ function engineCardNames(analysis: Record<string, unknown> | undefined): Set<str
  */
 export function parseRefineOutput(
   raw: string,
-  req: Pick<RefineRequest, 'commander' | 'cards' | 'pool'> &
+  req: Pick<RefineRequest, 'commander' | 'partnerCommander' | 'cards' | 'pool'> &
     Partial<Pick<RefineRequest, 'analysis'>>,
   resolveCandidate?: (name: string) => string | null
 ): RefineOutput {
@@ -406,7 +414,7 @@ export function parseRefineOutput(
   // invented name can't.
   const poolByName = new Map(req.pool.map((c) => [c.name.toLowerCase(), c.name]));
   const deckByName = new Map(req.cards.map((c) => [c.name.toLowerCase(), c.name]));
-  const commander = req.commander.toLowerCase();
+  const commanders = new Set(commandZone(req).map((n) => n.toLowerCase()));
   const engineNames = engineCardNames(req.analysis);
 
   const tweaks: RefineTweak[] = [];
@@ -434,8 +442,8 @@ export function parseRefineOutput(
     let cutName: string | null = null;
     if (typeof cut === 'string' && cut.trim()) {
       const lower = cut.trim().toLowerCase();
-      // Cutting the commander is never a legal change in this format.
-      if (lower === commander) continue;
+      // Cutting a commander is never a legal change in this format.
+      if (commanders.has(lower)) continue;
       cutName = deckByName.get(lower) ?? null;
       if (!cutName) {
         rejected.push(cut.trim());
@@ -470,7 +478,7 @@ export function buildRefineMessage(req: RefineRequest, oracle: OracleEntry[]): s
           ? `## ENGINE SUGGESTIONS — BUDGET (every card here is under ${budgetLabel(req.currency)} today)`
           : "## ENGINE SUGGESTIONS (the app's own analysis flagged these for this deck)";
   const parts = [
-    `Commander: ${req.commander}`,
+    `Commander: ${commanderLabel(req)}`,
     `## Decklist (${req.cards.reduce((n, c) => n + c.qty, 0)})\n\n${decklist}`,
     `## Statistics\n\n${renderAnalysis(req.analysis)}`,
     // An empty list is normal, not a signal to stay quiet: several of the coach
