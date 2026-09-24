@@ -112,6 +112,7 @@ describe('Win celebration', () => {
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll onLeave={vi.fn()} />);
     fireEvent.click(screen.getByRole('dialog', { name: 'Alice wins' }).parentElement!);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
     expect(screen.getByRole('button', { name: 'Clear the table' })).toBeTruthy();
     // Exactly one control named "Close" in the sheet — the ✕.
     expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1);
@@ -126,10 +127,23 @@ describe('Board overlays answer Escape', () => {
     const game = makeTestState([makeTestPlayer()], { mode: 'local', status: 'active' });
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
     expect(screen.getByRole('dialog', { name: 'Local game' })).toBeTruthy();
 
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Local game' })).toBeNull();
+  });
+
+  it('closes the hub ring on Escape and returns focus to the hub', () => {
+    const game = makeTestState([makeTestPlayer()], { mode: 'local', status: 'active' });
+    render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
+    const hub = screen.getByRole('button', { name: 'Game menu' });
+    fireEvent.click(hub);
+    expect(screen.getByRole('menu', { name: 'Board menu' })).toBeTruthy();
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('menu', { name: 'Board menu' })).toBeNull();
+    expect(document.activeElement).toBe(hub);
   });
 
   it('closes the seat drawer and returns focus to its trigger, the seat name', () => {

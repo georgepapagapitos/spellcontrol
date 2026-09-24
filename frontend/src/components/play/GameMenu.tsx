@@ -1,4 +1,4 @@
-import { BookOpen, Hand } from 'lucide-react';
+import { BookOpen, Hand, Maximize, Minimize } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import type { GameAction, GameState } from '../../lib/game-state';
 import { makePlayer } from '../../lib/game-state';
@@ -6,6 +6,7 @@ import { resolveLayout } from '../../lib/board-layouts';
 import { usePlayStore } from '../../store/play';
 import { useRulesReferenceStore } from '../../store/rules-reference';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
+import { useFullscreen } from '../../lib/use-fullscreen';
 import { GameHistory } from './GameHistory';
 import { TurnTimes } from './TurnTimes';
 import { GameTools } from './GameTools';
@@ -30,6 +31,7 @@ export function GameMenu({
   onUndo,
   undoLabel,
   onShowGestures,
+  initialTab,
 }: {
   game: GameState;
   canControlAll: boolean;
@@ -43,6 +45,9 @@ export function GameMenu({
   undoLabel: string | null;
   /** Bring back the "How the board works" card. */
   onShowGestures?: () => void;
+  /** Which tab the sheet opens on — the hub's Players petal jumps straight
+   *  to Setup instead of making the host click through from Now. */
+  initialTab?: MenuTab;
 }) {
   const isFinished = game.status === 'finished';
   const hapticsEnabled = usePlayStore((s) => s.hapticsEnabled);
@@ -52,11 +57,12 @@ export function GameMenu({
   const setShowClock = usePlayStore((s) => s.setShowClock);
   const setPreferredLayout = usePlayStore((s) => s.setPreferredLayout);
   const openRules = useRulesReferenceStore((s) => s.open);
+  const fullscreen = useFullscreen();
   const [editorOpen, setEditorOpen] = useState(false);
   // Reset wipes every life total, counter and elimination and clears Undo —
   // one tap next to "End game" on the Now tab. It asks, like Discard does.
   const [confirmReset, setConfirmReset] = useState(false);
-  const [tab, setTab] = useState<MenuTab>('now');
+  const [tab, setTab] = useState<MenuTab>(initialTab ?? 'now');
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   useOverlayDismiss(onClose, panelRef);
@@ -240,6 +246,28 @@ export function GameMenu({
                   >
                     <Hand width={16} height={16} strokeWidth={1.8} aria-hidden /> How the board
                     works
+                  </button>
+                )}
+                {fullscreen.supported && (
+                  <button
+                    type="button"
+                    className="game-menu-btn is-wide"
+                    onClick={() => {
+                      fullscreen.toggle();
+                      onClose();
+                    }}
+                  >
+                    {fullscreen.isFullscreen ? (
+                      <>
+                        <Minimize width={16} height={16} strokeWidth={1.8} aria-hidden /> Exit full
+                        screen
+                      </>
+                    ) : (
+                      <>
+                        <Maximize width={16} height={16} strokeWidth={1.8} aria-hidden /> Full
+                        screen
+                      </>
+                    )}
                   </button>
                 )}
               </section>

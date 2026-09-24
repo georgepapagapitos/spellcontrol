@@ -1,4 +1,16 @@
-import { Compass, Crown, Menu, Swords, Trash2, Undo2 } from 'lucide-react';
+import {
+  CircleHelp,
+  Compass,
+  Crown,
+  Dices,
+  Menu,
+  RotateCcw,
+  Swords,
+  Trash2,
+  Undo2,
+  Users,
+  X,
+} from 'lucide-react';
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey } from '../../lib/game-state';
@@ -16,10 +28,12 @@ import { haptics } from '../../lib/haptics';
 import { suppressNativeContextMenu } from '../../lib/suppress-context-menu';
 import { useWakeLock } from '../../lib/use-wake-lock';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
+import { useFullscreen } from '../../lib/use-fullscreen';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
 import { cmdDamageFillRatio, cmdDamageToLethal } from '../../lib/cmd-damage';
+import { highRoll as rollHighRoll, type HighRollResult } from '../../lib/game-tools';
 import {
   MAX_COUNTERS_PER_SCOPE,
   MAX_COUNTER_NAME_LENGTH,
@@ -31,11 +45,14 @@ import { HOLD_JUMP } from '../../lib/hold-ramp';
 import { useTapAndHold } from '../../lib/tap-and-hold';
 import { LifeKeypad } from './LifeKeypad';
 import { SeatMenu } from './SeatMenu';
+import { ConfirmDialog } from '../ConfirmDialog';
 import { hasSeenBoardGestures } from '../../lib/board-gestures-seen';
 import { BoardGestureHint } from './BoardGestureHint';
+import { BoardHubMenu, type HubPetal } from './BoardHubMenu';
 import { GameClock } from './GameClock';
 import { GameMenu } from './GameMenu';
 import { GameRecap } from './GameRecap';
+import './BoardHighRoll.css';
 
 interface Props {
   game: GameState;
@@ -111,6 +128,32 @@ export function GameBoard({
   const cmdFocusCanEdit = cmdFocus != null && canControlAll;
   const exitCmdFocus = useCallback(() => setCmdFocusSeat(null), []);
 
+  // The hub's radial petal ring (Lotus's fan-out): open outside commander-
+  // damage mode, closed by the hub itself (now an ✕), Escape, or an outside
+  // tap. `hubBtnRef` anchors the ring's fan math and is where focus returns.
+  const hubBtnRef = useRef<HTMLButtonElement>(null);
+  const [hubOpen, setHubOpen] = useState(false);
+  const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
+  const [menuInitialTab, setMenuInitialTab] = useState<'now' | 'setup'>('now');
+  // The board-level "High Roll" table moment — a d20 per living seat at once.
+  // Held here (not per panel) for the same reason commander-damage focus is:
+  // it changes what every panel shows, not just one.
+  const [highRollState, setHighRollState] = useState<HighRollResult | null>(null);
+  const dismissHighRoll = useCallback(() => setHighRollState(null), []);
+
+  // Offer fullscreen on touch devices the first time this board is tapped —
+  // the Fullscreen API needs a genuine gesture, so this can't wait for the
+  // player to find the toggle in the menu. Capture phase so it fires ahead of
+  // any panel's own onClick calling stopPropagation, and a ref (not state) so
+  // it fires at most once per board mount regardless of what else changes.
+  const fullscreen = useFullscreen();
+  const firstGestureRef = useRef(false);
+  const handleFirstGesture = useCallback(() => {
+    if (firstGestureRef.current) return;
+    firstGestureRef.current = true;
+    fullscreen.enter();
+  }, [fullscreen]);
+
   // Keep the screen awake while a game is in progress (real-table use: the
   // phone sits untouched between turns).
   useWakeLock(game.status !== 'finished');
@@ -174,6 +217,45 @@ export function GameBoard({
     return () => window.removeEventListener('keydown', onKey);
   }, [cmdFocusSeat, exitCmdFocus]);
 
+  // High Roll dismisses itself: a few seconds to read the rolls, Escape, or a
+  // tap anywhere (each panel's own overlay handles the tap — see PlayerPanel).
+  useEffect(() => {
+    if (!highRollState) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      dismissHighRoll();
+    };
+    window.addEventListener('keydown', onKey);
+    const t = setTimeout(dismissHighRoll, 4000);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      clearTimeout(t);
+    };
+  }, [highRollState, dismissHighRoll]);
+
+  // Start a High Roll: one d20 per living seat, then record the winner
+  // exactly the way the quiet "First player" menu tool does (same two
+  // actions, so both routes feed the same on-the-play stat).
+  const startHighRoll = useCallback(() => {
+    const result = rollHighRoll(
+      game.players.map((p) => ({ seat: p.seat, eliminated: p.eliminated }))
+    );
+    if (!result) return;
+    setHighRollState(result);
+    const winner = game.players.find((p) => p.seat === result.winnerSeat);
+    dispatchTracked({
+      type: 'note',
+      actorSeat: null,
+      message: `High roll: ${winner?.name ?? `seat ${result.winnerSeat}`} goes first (rolled ${
+        result.rolls[result.winnerSeat]
+      })`,
+    });
+    dispatchTracked({ type: 'settings', patch: { startingSeat: result.winnerSeat } });
+    dispatchTracked({ type: 'pass-turn', actorSeat: null, toSeat: result.winnerSeat });
+    haptics.tap();
+  }, [game.players, dispatchTracked]);
+
   // Lock body scroll while the board is mounted — it's a fullscreen overlay.
   useLockBodyScroll();
 
@@ -182,6 +264,62 @@ export function GameBoard({
   const undoPlaceLg = seamSatellite(board.seam, board.rows, -1, '4rem');
   const clockPlace = seamSatellite(board.seam, board.rows, 1, '3.4rem');
   const clockPlaceLg = seamSatellite(board.seam, board.rows, 1, '4rem');
+
+  // The hub ring's petals. Restart/Players mirror the game menu's own
+  // gating (host-only, meaningless once the game is over); High Roll is a
+  // table tool like the menu's coin/dice/first-player, open to any viewer
+  // while the game is live. Menu and Help are always reachable.
+  const canSetup = canControlAll && game.status !== 'finished';
+  const hubPetals: HubPetal[] = [
+    ...(canSetup
+      ? [
+          {
+            id: 'restart',
+            label: 'Restart',
+            icon: <RotateCcw width={16} height={16} strokeWidth={2} aria-hidden />,
+            onSelect: () => setRestartConfirmOpen(true),
+          },
+        ]
+      : []),
+    ...(game.status !== 'finished'
+      ? [
+          {
+            id: 'high-roll',
+            label: 'High roll',
+            icon: <Dices width={16} height={16} strokeWidth={2} aria-hidden />,
+            onSelect: startHighRoll,
+          },
+        ]
+      : []),
+    ...(canSetup
+      ? [
+          {
+            id: 'players',
+            label: 'Players',
+            icon: <Users width={16} height={16} strokeWidth={2} aria-hidden />,
+            onSelect: () => {
+              setMenuInitialTab('setup');
+              setMenuOpen(true);
+            },
+          },
+        ]
+      : []),
+    {
+      id: 'menu',
+      label: 'Menu',
+      icon: <Menu width={16} height={16} strokeWidth={2} aria-hidden />,
+      onSelect: () => {
+        setMenuInitialTab('now');
+        setMenuOpen(true);
+      },
+    },
+    {
+      id: 'help',
+      label: 'Help',
+      icon: <CircleHelp width={16} height={16} strokeWidth={2} aria-hidden />,
+      onSelect: () => setHintOpen(true),
+    },
+  ];
 
   return (
     <div
@@ -192,6 +330,11 @@ export function GameBoard({
       // Right-click belongs to the board, not the browser — same ruling as the
       // playtest table.
       onContextMenu={suppressNativeContextMenu}
+      // Capture phase: fires ahead of any panel's own onClick/onPointerDown
+      // stopPropagation, and only does anything on the first call (see
+      // handleFirstGesture) — a coarse-pointer device gets one fullscreen
+      // offer per board mount, not a nag on every tap.
+      onPointerDownCapture={handleFirstGesture}
     >
       <div
         className="game-board-grid"
@@ -230,6 +373,10 @@ export function GameBoard({
               isActiveTurn={activeSeat === p.seat}
               isMonarch={designations.monarch === p.seat}
               isInitiative={designations.initiative === p.seat}
+              highRollValue={highRollState ? (highRollState.rolls[p.seat] ?? null) : null}
+              isHighRollWinner={highRollState?.winnerSeat === p.seat}
+              highRollActive={highRollState != null}
+              onHighRollDismiss={dismissHighRoll}
             />
           );
         })}
@@ -246,6 +393,7 @@ export function GameBoard({
           push the seam off the real row/column boundary. */}
         <button
           type="button"
+          ref={hubBtnRef}
           className={`game-board-menu-btn${cmdFocus ? ' is-cmd' : ''}`}
           style={{
             ['--seam-top-pct' as never]:
@@ -255,30 +403,40 @@ export function GameBoard({
           }}
           // In commander-damage mode the hub says so (Lotus's dagger) and is
           // the way back out, from the middle of the table where anyone can
-          // reach it; the menu waits until the board is back to life totals.
-          aria-label={cmdFocus ? 'Return to game' : 'Game menu'}
+          // reach it. Otherwise it opens/closes the radial petal ring — the
+          // menu itself is one of the ring's petals now, not a direct tap.
+          aria-label={cmdFocus ? 'Return to game' : hubOpen ? 'Close menu' : 'Game menu'}
+          aria-haspopup={cmdFocus ? undefined : 'menu'}
+          aria-expanded={cmdFocus ? undefined : hubOpen}
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             if (cmdFocus) exitCmdFocus();
-            else setMenuOpen(true);
+            else setHubOpen((v) => !v);
           }}
         >
           {cmdFocus ? (
             <Swords width={22} height={22} strokeWidth={2.2} aria-hidden />
+          ) : hubOpen ? (
+            <X width={22} height={22} strokeWidth={2.2} aria-hidden />
           ) : (
             <Menu width={22} height={22} strokeWidth={2} aria-hidden />
           )}
         </button>
 
+        {hubOpen && (
+          <BoardHubMenu hubRef={hubBtnRef} onClose={() => setHubOpen(false)} petals={hubPetals} />
+        )}
+
         {/* Clock and undo are the seam's two satellites. On a row seam they sit
             either side of the hub, over the gutter. On a column seam the hub is
             a four-corner crossing, so they take the middle of an adjacent
             panel's edge instead — see `seamSatellite`. Hidden in
-            commander-damage focus mode: that mode deliberately strips the board
-            down to the damage question. */}
-        {showClock && !cmdFocus && (
+            commander-damage focus mode (strips the board down to the damage
+            question) and while the hub's ring is open (the ring hides them
+            rather than risk a petal landing on top of one). */}
+        {showClock && !cmdFocus && !hubOpen && (
           <div
             className={`game-board-clock ${'col' in board.seam ? 'is-col-seam' : 'is-row-seam'}`}
             style={{
@@ -295,7 +453,7 @@ export function GameBoard({
           </div>
         )}
 
-        {undoLabel && (
+        {undoLabel && !hubOpen && (
           <button
             type="button"
             className="game-board-undo-btn"
@@ -348,6 +506,7 @@ export function GameBoard({
           undoLabel={undoLabel}
           dispatch={dispatchTracked}
           onShowGestures={() => setHintOpen(true)}
+          initialTab={menuInitialTab}
         />
       )}
 
@@ -356,6 +515,25 @@ export function GameBoard({
           vertical={(game.tapOrientation ?? 'horizontal') === 'vertical'}
           showClock={showClock}
           onClose={() => setHintOpen(false)}
+        />
+      )}
+
+      {restartConfirmOpen && (
+        // Board-level restart, reached from the hub ring: same confirm copy
+        // and the same `reset` action as the game menu's own Reset (below the
+        // Setup tab) — `dispatchTracked` clears Undo and, for a local game,
+        // `dispatchLocal` chains the `start` a local board needs to come back
+        // live (store/play.ts) instead of stranding it in `lobby`.
+        <ConfirmDialog
+          title="Restart the game?"
+          body="Every life total, counter and elimination goes back to the start, and Undo can't bring them back."
+          confirmLabel="Restart"
+          danger
+          onCancel={() => setRestartConfirmOpen(false)}
+          onConfirm={() => {
+            setRestartConfirmOpen(false);
+            dispatchTracked({ type: 'reset' });
+          }}
         />
       )}
     </div>
@@ -382,6 +560,10 @@ function PlayerPanel({
   isActiveTurn,
   isMonarch,
   isInitiative,
+  highRollValue,
+  isHighRollWinner,
+  highRollActive,
+  onHighRollDismiss,
 }: {
   player: GamePlayer;
   game: GameState;
@@ -406,6 +588,12 @@ function PlayerPanel({
   /** Designations held by this player. */
   isMonarch: boolean;
   isInitiative: boolean;
+  /** This seat's own d20, while a board-level High Roll is showing. */
+  highRollValue: number | null;
+  isHighRollWinner: boolean;
+  /** A High Roll is showing on SOME seat — every panel freezes its taps. */
+  highRollActive: boolean;
+  onHighRollDismiss: () => void;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [keypadOpen, setKeypadOpen] = useState(false);
@@ -453,7 +641,12 @@ function PlayerPanel({
   // their panel must stay tickable while you reconstruct the damage.
   const disabled = cmdTarget
     ? !cmdFocusCanEdit || cmdTarget.eliminated || game.status === 'finished'
-    : !canEdit || player.eliminated || game.status === 'finished' || drawerOpen || keypadOpen;
+    : !canEdit ||
+      player.eliminated ||
+      game.status === 'finished' ||
+      drawerOpen ||
+      keypadOpen ||
+      highRollActive;
   // The drawer's OWN counter +/- controls must stay live while it's open,
   // so they use this narrower gate (no overlay flags).
   const countersDisabled = !canEdit || player.eliminated || game.status === 'finished';
@@ -915,6 +1108,33 @@ function PlayerPanel({
             <Undo2 width={16} height={16} strokeWidth={2.2} aria-hidden />
             Undo
           </button>
+        )}
+
+        {/* High Roll: covers the whole panel (so a dismiss-tap can't leak
+            through to a life change underneath it — same trick the drawer and
+            keypad covers already rely on) and renders inside the rotated
+            section, so it reads upright for whoever sits at this seat.
+            role="presentation" + dismiss-only-on-self mirrors the win
+            celebration's own backdrop, the established pattern for a
+            non-interactive full-panel dismiss surface. */}
+        {highRollValue != null && (
+          <div
+            className={`pp-highroll ${isHighRollWinner ? 'is-winner' : 'is-dim'}`}
+            role="presentation"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (e.target === e.currentTarget) onHighRollDismiss();
+            }}
+          >
+            <span className="pp-highroll-die" aria-hidden="true">
+              <Dices width={28} height={28} strokeWidth={2} />
+            </span>
+            <span className="pp-highroll-value" aria-live="polite">
+              {highRollValue}
+            </span>
+            {isHighRollWinner && <span className="pp-highroll-caption">goes first</span>}
+          </div>
         )}
 
         {/* The focused player's own panel carries the mode's title and the

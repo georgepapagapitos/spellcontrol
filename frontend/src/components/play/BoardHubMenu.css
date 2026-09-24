@@ -1,0 +1,79 @@
+/* The board hub's radial petal ring (Lotus fan-out). Co-located rather than
+   in styles/play-*.css — see BoardHubMenu.tsx's header comment. Sits above
+   the board's panels but below the hub button itself (z-index 10 in
+   play-panel-menus.css) so the hub stays visible and tappable to close the
+   ring, exactly like `.game-board-clock` / `.game-board-undo-btn` which the
+   ring's open state hides outright. */
+
+.board-hub-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.board-hub-ring {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.board-hub-petal {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(18, 20, 26, 0.94);
+  color: #fff;
+  font: inherit;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .board-hub-petal:hover {
+    background: #1c222d;
+  }
+}
+
+.board-hub-petal:active {
+  transform: translate(-50%, -50%) scale(0.94);
+}
+
+.board-hub-petal:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+@media (pointer: coarse) {
+  .board-hub-petal {
+    min-height: 44px;
+  }
+}
+
+/* No fan-out motion here at all: petals are placed at their final position on
+   mount, never animated from the hub outward, so there is nothing to gate
+   behind prefers-reduced-motion for the placement itself. A plain fade-in is
+   still worth the one keyframe, and reduced motion skips it outright rather
+   than getting a neutralized "fade to the same place" no-op. */
+@media (prefers-reduced-motion: no-preference) {
+  .board-hub-petal {
+    animation: board-hub-petal-in 140ms ease-out both;
+  }
+}
+
+@keyframes board-hub-petal-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

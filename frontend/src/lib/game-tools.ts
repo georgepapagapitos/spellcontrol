@@ -76,3 +76,35 @@ export function describeRoll(r: DiceRoll): string {
   if (r.count === 1) return `🎲 ${spec} → ${r.total}`;
   return `🎲 ${spec} → [${r.rolls.join(', ')}] = ${r.total}`;
 }
+
+export interface HighRollResult {
+  /** Every rolling seat's own last d20 roll — a tied seat's earlier roll is
+   *  overwritten by its re-roll, so this is always the value that decided
+   *  the game, never a stale tie. */
+  rolls: Record<number, number>;
+  winnerSeat: number;
+}
+
+/**
+ * The board-level "High Roll" table moment: a d20 per living seat at once,
+ * ties re-rolling only among the tied seats until one winner remains. Same
+ * skip-eliminated-seats fallback as `pickFirstPlayer` (whose full roster the
+ * table still wants a starting seat from once everyone's out).
+ */
+export function highRoll(
+  players: { seat: number; eliminated: boolean }[],
+  rand: RandomFn = defaultRandom
+): HighRollResult | null {
+  const living = players.filter((p) => !p.eliminated);
+  const pool = living.length > 0 ? living : players;
+  if (pool.length === 0) return null;
+  const rolls: Record<number, number> = {};
+  let contenders = pool.map((p) => p.seat);
+  for (;;) {
+    for (const seat of contenders) rolls[seat] = randInt(1, 20, rand);
+    const max = Math.max(...contenders.map((s) => rolls[s]));
+    const tied = contenders.filter((s) => rolls[s] === max);
+    if (tied.length === 1) return { rolls, winnerSeat: tied[0] };
+    contenders = tied;
+  }
+}

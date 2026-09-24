@@ -6888,3 +6888,74 @@ correctness bug the capacity work exposed.
   number, so nothing is lost, only where it's drawn. Counterclockwise seating
   is not supported; if it's ever wanted, it's a second `seats` ordering per
   preset, not a reducer change.
+
+## Play board: the hub ring and its table moments (2026-09-24)
+
+Lotus parity group 2 (`BoardHubMenu.tsx`, `GameBoard.tsx`'s High Roll section,
+`lib/use-fullscreen.ts`). The hub was a direct shortcut to the game menu;
+tapping it now opens a fan of labelled petals first, Lotus's radial menu.
+
+- **The hub opens a ring, not the menu.** Tapping `.game-board-menu-btn`
+  outside commander-damage mode fans out five screen-relative petals —
+  Restart, High roll, Players, Menu, Help — and the hub itself becomes ✕.
+  Restart and Players are dropped for a viewer who can't control the table
+  (mirrors the game menu's own Setup-tab gating); High Roll drops once the
+  game is finished. Menu and Help stay reachable always. **Players** jumps the
+  game menu straight to its Setup tab (`GameMenu`'s new `initialTab` prop) —
+  it exists so "change the layout" is one tap from the ring instead of two
+  taps through Now. **Menu** opens the same sheet at Now, unchanged.
+- **The ring is a real menu, reused, not reinvented.** `BoardHubMenu` is
+  `useMenuKeyboard` (the same hook OverflowMenu/SelectMenu use) pointed at a
+  `role="menu"` of `role="menuitem"` petals: focus moves into the first petal
+  on open, Arrow/Home/End roam it, Escape and an outside tap close it and
+  return focus to the hub. A backdrop sits behind the petals for the same
+  reason `.game-menu-backdrop` exists — an outside tap meant to dismiss must
+  land on something covering the panels, or it falls through onto whichever
+  seat is underneath it.
+- **Petal positions fan toward the open side of the screen, then clamp.**
+  `hubPetalPositions` (`lib/board-hub-layout.ts`) spreads petals across a
+  half-circle centered on the direction from the hub toward the viewport's
+  middle — so a hub sitting near an edge (the seam can land anywhere
+  depending on layout) opens inward rather than off-screen — then clamps
+  every point inside the viewport. Pure and unit-tested on its own: this is
+  the one part of the ring worth trusting to arithmetic rather than an
+  eyeball pass at one layout.
+- **The ring hides the clock and undo satellites while open**, the same
+  ruling commander-damage focus mode already established for the clock — a
+  petal landing on top of a satellite is exactly the seam collision the
+  three seam rules above exist to prevent, and hiding is cheaper than adding
+  a fourth keep-out zone.
+- **Board-level Restart reuses the game menu's own confirm, verbatim.** Same
+  title, body and `reset` dispatch as the Setup tab's Reset — a table-level
+  action gets a table-level entry point, not a second copy of the copy. A
+  local game's `reset` still needs the `start` that follows it (see the life
+  counter board invariants memory) — `dispatchLocal` already chains that, so
+  the board-level Restart button is not a second place that has to remember it.
+- **High Roll is a seat-level moment, not a screen-level one.** Each living
+  seat's d20 renders inside that seat's own panel — same trick as commander
+  damage and the seat drawer — so it's already rotated to face that player
+  instead of needing its own counter-rotation math. The overlay covers the
+  whole panel (`role="presentation"`, dismiss only on `e.target ===
+  e.currentTarget`, mirrors the win celebration's backdrop) so a
+  dismiss-tap can't fall through to a life change, and every panel's life
+  taps disable for the moment's duration regardless of whose seat is
+  showing the roll. It dismisses on a tap, on Escape, or after four seconds.
+  Ties re-roll only the tied seats (`highRoll` in `lib/game-tools.ts`) and
+  the winner is recorded through the exact same `settings`/`pass-turn`
+  dispatch pair the quiet "First player" tool already uses, so both routes
+  feed one on-the-play stat. The two tools stay separate on purpose: High
+  Roll is a ceremonial table moment (a d20 per seat, a winner treatment,
+  four seconds to read it) and "First player" is a quiet menu pick — folding
+  them into one code path would save a few lines at the cost of blurring two
+  moments the rest of this section treats as different in kind.
+- **Fullscreen is offered, never forced, and only where a gesture can ask for
+  it.** `lib/use-fullscreen.ts` gates on `document.fullscreenEnabled` AND
+  `(pointer: coarse)` — a mouse user already owns their window, and an
+  unsupported browser (iOS Safari among them) gets a hook that quietly does
+  nothing rather than a menu item that fails silently when tapped. The board
+  requests fullscreen on the first pointerdown anywhere on it (a capture-
+  phase listener, so it fires ahead of a panel's own `stopPropagation`) —
+  once per mount, not on every tap, because the Fullscreen API needs a
+  genuine gesture and re-asking after someone backs out of it reads as a nag.
+  The menu keeps a manual "Full screen" / "Exit full screen" toggle for
+  anyone who dismissed the browser's own prompt or wants back in later.
