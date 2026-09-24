@@ -6912,14 +6912,32 @@ tapping it now opens a fan of labelled petals first, Lotus's radial menu.
   reason `.game-menu-backdrop` exists — an outside tap meant to dismiss must
   land on something covering the panels, or it falls through onto whichever
   seat is underneath it.
-- **Petal positions fan toward the open side of the screen, then clamp.**
-  `hubPetalPositions` (`lib/board-hub-layout.ts`) spreads petals across a
-  half-circle centered on the direction from the hub toward the viewport's
-  middle — so a hub sitting near an edge (the seam can land anywhere
-  depending on layout) opens inward rather than off-screen — then clamps
-  every point inside the viewport. Pure and unit-tested on its own: this is
-  the one part of the ring worth trusting to arithmetic rather than an
-  eyeball pass at one layout.
+- **Petals go evenly around a full circle when the hub has room, Lotus's own
+  layout — a half-circle fan is the fallback, not the default.** The first
+  cut fanned every hub across a half-circle toward the viewport's middle
+  unconditionally, which put five petals lopsided around a hub that already
+  has room on every side (true for every layout this app's fixed 2-column
+  board can produce — only a seam's row varies, its column is always
+  centred) and let two of them nearly touch. `hubPetalPositions`
+  (`lib/board-hub-layout.ts`) now tries a full circle first — 72° apart for
+  five, starting straight up — at the largest radius that clears every
+  petal's own angle (exact per-angle geometry, not a coarse four-direction
+  guess: a full circle whose specific angles never point due left/right
+  isn't penalized for a constraint none of its petals actually hits) and
+  never smaller than the radius that keeps adjacent petals from overlapping
+  (solved from the chord length between points `2π / count` apart). Only
+  when that floor doesn't fit anywhere does it fall back to the half-circle
+  fan toward the open side, tuned the same way against the hub positions
+  this app's own presets can reach — not against a literal viewport corner,
+  which this board's fixed-centred-column geometry can't produce and which
+  five petals at their real measured width (101px, the widest label) can't
+  occupy without overlapping regardless of algorithm (verified empirically:
+  every arrangement tried still overlaps inside roughly the closest 40-45%
+  of either dimension). Every point is still clamped inside the viewport as
+  a final safety net. Pure and unit-tested on its own, including a pairwise
+  rectangle-overlap check at the hub positions this app's boards actually
+  produce — this is the one part of the ring worth trusting to arithmetic
+  rather than an eyeball pass at one layout.
 - **The ring hides the clock and undo satellites while open**, the same
   ruling commander-damage focus mode already established for the clock — a
   petal landing on top of a satellite is exactly the seam collision the
@@ -6934,7 +6952,13 @@ tapping it now opens a fan of labelled petals first, Lotus's radial menu.
 - **High Roll is a seat-level moment, not a screen-level one.** Each living
   seat's d20 renders inside that seat's own panel — same trick as commander
   damage and the seat drawer — so it's already rotated to face that player
-  instead of needing its own counter-rotation math. The overlay covers the
+  instead of needing its own counter-rotation math. The rolled number is
+  sized off `.player-panel`'s own `--life-size` (play-board.css) rather than
+  a fixed cap — the overlay lives inside the panel, so it inherits the same
+  per-player-count, short-panel-tier-aware value the real life numeral uses,
+  and reads like an actual life total instead of a third its size. The die
+  glyph stays small and the "goes first" caption stays caption-sized so
+  neither competes with the number for the read. The overlay covers the
   whole panel (`role="presentation"`, dismiss only on `e.target ===
   e.currentTarget`, mirrors the win celebration's backdrop) so a
   dismiss-tap can't fall through to a life change, and every panel's life

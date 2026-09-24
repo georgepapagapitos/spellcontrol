@@ -1138,7 +1138,7 @@ function PlayerPanel({
             }}
           >
             <span className="pp-highroll-die" aria-hidden="true">
-              <Dices width={28} height={28} strokeWidth={2} />
+              <Dices width={20} height={20} strokeWidth={2} />
             </span>
             <span className="pp-highroll-value" aria-live="polite">
               {highRollValue}

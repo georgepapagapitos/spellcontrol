@@ -11,7 +11,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   color: #fff;
   /* Opaque enough that the seat's own life numeral (already a bold dark
      glyph on a saturated fill) doesn't ghost through behind the roll and
@@ -23,10 +23,15 @@
 .pp-highroll-die {
   display: inline-flex;
   opacity: 0.85;
+  flex-shrink: 0;
 }
 
 .pp-highroll-value {
-  font-size: min(20cqh, 16cqw, 4rem);
+  /* Reads like a life total, because it's sized off the same custom property
+     the seat's own life numeral uses (`.player-panel`'s `--life-size`,
+     play-board.css) — the overlay lives inside that panel, so it inherits
+     the same per-player-count, short-panel-tier-aware value for free. */
+  font-size: var(--life-size);
   font-weight: 700;
   line-height: 1;
 }
