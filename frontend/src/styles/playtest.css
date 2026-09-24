@@ -3997,6 +3997,15 @@ button.playtest-card-pt__value--editable:focus-visible {
   white-space: nowrap;
 }
 
+/* A hand card's badges leave with it when it is dragged, as the battlefield's
+   P/T does (`.playtest-card-slot:has(> [data-dragging])`). They are siblings
+   of the card, so the source going transparent left the cost floating over
+   the felt where the card had been. The drag copy carries neither. */
+.playtest-hand__lift:has(> [data-dragging]) > :is(.playtest-hand__mv, .playtest-hand__revealed),
+.playtest-hand__flat:has(> [data-dragging]) > .playtest-hand__revealed {
+  visibility: hidden;
+}
+
 /* The hand's count and menu (EDHPlay's "⌄ Hand (7)"), the first thing in the
    pile row, beside the library. Plain small text, no pill: it is a caption
    on the felt, not a control competing with the cards. Opens the hand menu;
