@@ -32,7 +32,7 @@
 /* Any modal opened from inside playtest (Mulligan sheet, Zone Viewer,
    Token Creator) needs to sit above the fixed page. Mirrors the same
    pattern used for the GameBoard fullscreen surface. */
-body:has(.playtest-page) .modal-backdrop {
+body:has(.playtest-page, .horde-table-page) .modal-backdrop {
   z-index: calc(var(--z-overlay) + 50);
 }
 
@@ -60,7 +60,7 @@ body:has(.playtest-page) .modal-backdrop {
   initial-value: 126px;
 }
 
-body:has(.playtest-page) {
+body:has(.playtest-page, .horde-table-page) {
   /* Table density scales with the board instead of a fixed 90px: 7% of the
      viewport width, capped by what three type rows (permanents / creatures /
      lands, see auto-place.ts) fit, floored at the old 90px and ceilinged at
@@ -100,6 +100,11 @@ body:has(.playtest-page) {
      `.playtest-card--selected`. */
   --pt-ring-hover: #4cc3f0;
   --pt-ring-selected: var(--mtg-counter-gold);
+  /* A third, horde-table-only ring: fixed red, for a creature declared
+     attacking (see STYLE_GUIDE "Horde table"). Fixed for the same reason as
+     the pair above — drawn on card art, and "this one is swinging" has to
+     read the same in every theme. */
+  --pt-ring-attack: #e5484d;
 }
 
 .playtest-page__header {
@@ -328,7 +333,7 @@ body:has(.playtest-page) {
    four words — at two lines the hold banner is 56px tall and lands 20px ON TOP
    of this prompt, measured in a browser at 1440x900. HoldBanner.css says the
    two "must never visually collide when both are live at once"; this is what
-   makes that true. `:has` mirrors the `body:has(.playtest-page)` precedent
+   makes that true. `:has` mirrors the `body:has(.playtest-page, .horde-table-page)` precedent
    above. */
 body:has(.playtest-hold-banner) .playtest-takeback-consent {
   top: calc(var(--safe-top) + 8.5rem);
@@ -1049,6 +1054,16 @@ body[data-felt='slate'] {
   box-shadow:
     inset 0 0 0 3px var(--pt-ring-selected),
     0 0 0 1px var(--pt-ring-selected);
+}
+
+/* The horde table's attack ring: a creature the horde is swinging with, NOT
+   tapped (the horde has no tap step of its own — see STYLE_GUIDE "Horde
+   table"). Drawn outside the card, like the hover ring, because it is a
+   standing declaration rather than a selection. */
+.playtest-card--attacking {
+  box-shadow:
+    0 0 0 2px var(--pt-ring-attack),
+    var(--shadow-card);
 }
 
 /* Select mode (touch multi-select). The board dims slightly and battlefield
@@ -2461,7 +2476,7 @@ button.playtest-card-pt__value--editable:focus-visible {
     height: min(90px, var(--pt-card-h));
   }
 
-  body:has(.playtest-page) {
+  body:has(.playtest-page, .horde-table-page) {
     --pt-card-w: 72px;
     --pt-card-h: 100px;
   }
@@ -3186,7 +3201,7 @@ button.playtest-card-pt__value--editable:focus-visible {
     padding: 2px var(--space-2);
   }
 
-  body:has(.playtest-page) {
+  body:has(.playtest-page, .horde-table-page) {
     --pt-card-w: 56px;
     --pt-card-h: 78px;
   }

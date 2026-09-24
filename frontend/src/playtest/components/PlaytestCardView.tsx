@@ -38,6 +38,9 @@ interface Props {
   size?: 'sm' | 'md' | 'lg';
   /** Waiting to resolve — see `PlaytestCardFace.onStack`. */
   onStack?: boolean;
+  /** Wears the fixed red attacking ring (horde table only — see
+   *  `Battlefield.attackingIds`). */
+  attacking?: boolean;
 }
 
 export const PlaytestCardView = memo(function PlaytestCardView({
@@ -55,6 +58,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   selected = false,
   size = 'md',
   onStack = false,
+  attacking = false,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: draggableId,
@@ -119,6 +123,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       className={
         [
           selected && 'playtest-card--selected',
+          attacking && 'playtest-card--attacking',
           host.isOver && 'is-attach-target',
           slot.isOver && 'is-hand-drop',
         ]

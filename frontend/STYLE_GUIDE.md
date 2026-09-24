@@ -6228,6 +6228,39 @@ ribbon in half. The rule: ribbon on a card, chip in a list.
 
 ---
 
+## Horde table (Local Horde, 2026-09-24)
+
+The horde plays itself. There is no opposing player's board on screen — only
+the horde's own `Battlefield`/`ZonePile`/`LifeStrip`, built from the real
+playtest components, never a bespoke card grid.
+
+- **The attack ring is a third fixed colour, not a tap.** A creature the horde
+  declares as attacking wears a fixed red ring (`--pt-ring-attack`,
+  `.playtest-card--attacking`), alongside the existing cyan-hover /
+  gold-selected pair. It is never `tapped` — the horde has no tap step of its
+  own, so "attacking" and "tapped" stay two different facts, the way the ring
+  and the printed body already keep hover and selection apart.
+- **The damage-total banner is a proposal, not a fact.** It prefills the
+  numeric field with the horde's full power and lets the number go down (a
+  survivor blocked or removed some of it) — it never recomputes the total
+  itself. Taking 0 reads as "Skip", not "Take 0".
+- **Landscape-first, tablet-first.** The table's four-corner layout assumes
+  the ≥1024px table tier by construction; a phone or tablet held in portrait
+  gets a "turn it sideways" prompt (reusing playtest's `RotatePrompt` on a
+  phone) rather than a squeezed version of the corner chrome.
+- **No piles for the horde's own board.** Every horde permanent is its own
+  card on the felt, exactly like a real player's battlefield — the "no piles"
+  rule that governs the rest of the table applies here too, even though
+  nobody chose where each card landed.
+- **A horde permanent's death is recorded by hand.** This board never
+  simulates the survivors' side of combat, so nothing here ever removes a
+  horde creature on its own — a card menu (Destroyed / Exiled / Returned to
+  the library) is the one way a permanent, including a boss that entered on a
+  tick, leaves the battlefield. Copy is past tense, the same "you report a
+  physical act already done" grammar as the binder review queue.
+
+---
+
 ## Extending this guide
 
 When you and a reviewer settle a recurring visual question ("should X be a pill?",

@@ -1,0 +1,181 @@
+/* horde-table.css — the Local Horde full-screen table (design point 3):
+   landscape-first, tablet-first, four corners over one felt, reusing the
+   real playtest primitives (Battlefield, ZonePile, LifeStrip, MeterBar). See
+   STYLE_GUIDE "Horde table". */
+
+.horde-table-page {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.horde-table-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
+}
+
+/* ── Top-left: survivors' shared life ───────────────────────────────────── */
+
+.horde-table-life {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.horde-table-life-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Enlarged so the shared total reads across a real table. */
+.horde-table-life .playtest-life-table__total {
+  font-size: var(--text-2xl, 2rem);
+  min-width: 3ch;
+}
+
+/* ── Top-centre: name + status ──────────────────────────────────────────── */
+
+.horde-table-status {
+  position: absolute;
+  top: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-1) var(--space-3);
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(6px);
+  text-align: center;
+}
+
+.horde-table-status-name {
+  font-weight: 700;
+}
+
+.horde-table-status-line {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.horde-table-next-turn {
+  margin-top: 2px;
+  padding: 2px var(--space-2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+/* ── Top-right: library meter + piles + game menu ───────────────────────── */
+
+.horde-table-corner {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.horde-table-corner-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.horde-table-meter {
+  width: 10rem;
+}
+
+.horde-table-meter-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.horde-table-piles {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ── Bottom-right: the two horde actions ─────────────────────────────────── */
+
+.horde-table-actions {
+  position: absolute;
+  bottom: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.horde-table-actions .btn {
+  min-height: 44px;
+}
+
+/* ── Attack banner (floats top-centre, under the status cluster) ────────── */
+
+.horde-attack-banner {
+  position: absolute;
+  top: calc(var(--space-3) + 4.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 36rem;
+  padding: var(--space-3);
+  background: color-mix(in oklab, var(--surface) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tooltip);
+  text-align: center;
+}
+
+.horde-attack-banner-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.horde-attack-banner-input input {
+  width: 5ch;
+  text-align: center;
+}
+
+.horde-attack-banner-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+@media (max-width: 1023px), (max-height: 500px) and (orientation: landscape) {
+  .horde-table-status {
+    max-width: 60vw;
+  }
+
+  .horde-table-meter {
+    width: 6rem;
+  }
+}

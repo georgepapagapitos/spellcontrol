@@ -62,7 +62,7 @@ export function rowForCard(card: PlaytestCard): BattlefieldRow {
   return 'permanents';
 }
 
-interface Rect {
+export interface Rect {
   width: number;
   height: number;
   /** Live card box, when the caller can measure it (reads `--pt-card-w`/

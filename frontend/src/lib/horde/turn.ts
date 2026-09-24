@@ -1,5 +1,5 @@
 import type { BattlefieldCard, PlaytestAction, PlaytestCard, PlaytestState } from '@/lib/playtest';
-import { autoPlace } from '@/playtest/lib/auto-place';
+import { autoPlace, type Rect } from '@/playtest/lib/auto-place';
 import { displayPT } from '@/playtest/lib/power-toughness';
 import { DEFAULT_WAVE_PATTERN, type HordeSettings } from './settings';
 
@@ -84,7 +84,8 @@ export function planHordeTurn(
  */
 export function hordeTurnActions(
   revealed: readonly PlaytestCard[],
-  battlefield: readonly BattlefieldCard[]
+  battlefield: readonly BattlefieldCard[],
+  rect?: Rect | null
 ): { toBattlefield: PlaytestAction[]; toResolve: PlaytestCard[] } {
   const toBattlefield: PlaytestAction[] = [];
   const toResolve: PlaytestCard[] = [];
@@ -95,7 +96,7 @@ export function hordeTurnActions(
       toResolve.push(card);
       continue;
     }
-    const { x, y } = autoPlace(card, simulated);
+    const { x, y } = autoPlace(card, simulated, rect);
     toBattlefield.push({ type: 'MOVE_TO_BATTLEFIELD', cardId: card.id, x, y });
     simulated = [
       ...simulated,

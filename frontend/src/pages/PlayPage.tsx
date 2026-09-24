@@ -53,6 +53,12 @@ import type { PublicBoard } from '../lib/playtest/projection';
 
 import { userMessage } from '@/lib/user-error';
 import { PlayHome, type PlayHomeTarget } from '../components/play/PlayHome';
+import { HordeSetupFields } from '../components/play/horde/HordeSetupFields';
+import { HordeTable } from '../components/play/horde/HordeTable';
+import { HordeResumeBanner } from '../components/play/horde/HordeResumeBanner';
+import { findBannedCards } from '../lib/horde/ban-list';
+import { HORDE_CATALOG, type HordeLevel, type HordeSettings } from '@/lib/horde';
+import { useHordeGameStore, type HordeSurvivor } from '../store/horde-game';
 type Tab = 'home' | 'local' | 'online' | 'nights' | 'history';
 const TABS: ReadonlySet<string> = new Set(['home', 'local', 'online', 'nights', 'history']);
 
@@ -85,6 +91,9 @@ export function PlayPage() {
 
   const hideBoard = usePlayStore((s) => s.hideBoard);
   const showBoard = usePlayStore((s) => s.showBoard);
+
+  const hordeConfig = useHordeGameStore((s) => s.config);
+  const hordeBoardVisible = useHordeGameStore((s) => s.boardVisible);
 
   // The lobby replaces the board only for a SEATED player before the host
   // starts. A spectator (no seat in this session) still gets the board view,
@@ -311,7 +320,9 @@ export function PlayPage() {
 
       {tab === 'local' && (
         <>
-          {local && boardVisible ? (
+          {hordeConfig && hordeBoardVisible ? (
+            <HordeTable />
+          ) : local && boardVisible ? (
             <GameBoard
               game={local}
               dispatch={dispatchLocal}
@@ -327,6 +338,7 @@ export function PlayPage() {
             />
           ) : (
             <>
+              {hordeConfig && <HordeResumeBanner />}
               {local && (
                 <ResumeBanner
                   game={local}
@@ -571,6 +583,21 @@ function LocalSetup({
   const [startingLife, setStartingLife] = useState<number>(formatCfg.defaultLife);
   const [commanderDamageEnabled, setCmdDmg] = useState<boolean>(formatCfg.cmdDmg);
   const [poisonEnabled, setPoison] = useState<boolean>(false);
+
+  // Horde (co-op) — a UI-level fork of this same form, not a real
+  // `GameFormat`: picking it swaps the Game/Rules sections and Start begins a
+  // game in the horde's own store instead of a normal local game (see
+  // `store/horde-game.ts`).
+  const [isHorde, setIsHorde] = useState(false);
+  const [hordeId, setHordeId] = useState<string>(HORDE_CATALOG[0].id);
+  const [hordeLevel, setHordeLevel] = useState<HordeLevel>('standard');
+  const [hordeCustomiseOpen, setHordeCustomiseOpen] = useState(false);
+  const [hordeOverrides, setHordeOverrides] = useState<Partial<HordeSettings>>({});
+  const hordeStatus = useHordeGameStore((s) => s.status);
+  const hordeLoadError = useHordeGameStore((s) => s.loadError);
+  const minSeats = isHorde ? 1 : MIN_LOCAL_PLAYERS;
+  const maxSeats = isHorde ? 4 : MAX_LOCAL_PLAYERS;
+
   const [count, setCount] = useState<number>(() =>
     seed && seed.players.length > 0
       ? Math.max(MIN_LOCAL_PLAYERS, Math.min(seed.players.length, MAX_LOCAL_PLAYERS))
@@ -639,7 +666,7 @@ function LocalSetup({
         ...members.filter((m) => m.userId === me.id),
         ...members.filter((m) => m.userId !== me.id),
       ];
-      const seated = ordered.slice(0, MAX_LOCAL_PLAYERS);
+      const seated = ordered.slice(0, maxSeats);
       const next = Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) => {
         const m = seated[i];
         if (!m) return blankPlayer('');
@@ -658,10 +685,10 @@ function LocalSetup({
         };
       });
       setPlayers(next);
-      setCount(Math.max(MIN_LOCAL_PLAYERS, seated.length));
+      setCount(Math.max(minSeats, seated.length));
       if (ordered.length > seated.length) {
         toast.show({
-          message: `Seated the first ${MAX_LOCAL_PLAYERS} of ${pod.name}. The rest need a second table.`,
+          message: `Seated the first ${maxSeats} of ${pod.name}. The rest need a second table.`,
         });
       }
     } catch (err) {
@@ -693,10 +720,42 @@ function LocalSetup({
     };
   }
 
+  /** Named seats + their owned deck's card names, for the Horde ban-list
+   *  check — a starter deck (not in `decks`) has nothing to check against and
+   *  is silently skipped rather than treated as clean. */
+  const hordeBanWarnings = useMemo(() => {
+    if (!isHorde) return [];
+    const seats = players.slice(0, count).map((p, i) => {
+      const deck = p.deckId ? decks.find((d) => d.id === p.deckId) : null;
+      const cardNames = deck
+        ? [
+            deck.commander?.name,
+            deck.partnerCommander?.name,
+            ...deck.cards.map((c) => c.card.name),
+          ].filter((n): n is string => Boolean(n))
+        : [];
+      return { name: p.name.trim() || `Player ${i + 1}`, cardNames };
+    });
+    return findBannedCards(seats);
+  }, [isHorde, players, count, decks]);
+
+  function submitHorde() {
+    const survivors: HordeSurvivor[] = players.slice(0, count).map((p, i) => ({
+      name: p.name.trim() || `Player ${i + 1}`,
+      deckId: p.deckId,
+      deckName: p.deckName,
+    }));
+    const overrides = Object.keys(hordeOverrides).length > 0 ? hordeOverrides : undefined;
+    void useHordeGameStore.getState().startHorde(hordeId, hordeLevel, overrides, survivors);
+  }
+
   /** Load a profile over the form. A genuine reset: every field is replaced,
    *  including the seats beyond the profile's own count, so nothing from the
    *  previous setup survives underneath. */
   function applySetup(setup: LocalGameSetup) {
+    // A saved table profile is always a real game — loading one over an
+    // in-progress Horde pick returns the form to the normal Format/Rules.
+    setIsHorde(false);
     setFormat(setup.format);
     setStartingLife(setup.startingLife);
     setCmdDmg(setup.commanderDamageEnabled);
@@ -731,12 +790,12 @@ function LocalSetup({
   }
 
   function addPlayer() {
-    if (count >= MAX_LOCAL_PLAYERS) return;
-    setCount((c) => Math.min(c + 1, MAX_LOCAL_PLAYERS));
+    if (count >= maxSeats) return;
+    setCount((c) => Math.min(c + 1, maxSeats));
   }
 
   function removePlayer(index: number) {
-    if (count <= MIN_LOCAL_PLAYERS) return;
+    if (count <= minSeats) return;
     // Shift names down so the visible seats stay 1..N after the splice,
     // then drop the last seat.
     setPlayers((prev) => {
@@ -745,7 +804,7 @@ function LocalSetup({
       next.push(blankPlayer(''));
       return next;
     });
-    setCount((c) => Math.max(c - 1, MIN_LOCAL_PLAYERS));
+    setCount((c) => Math.max(c - 1, minSeats));
   }
 
   return (
@@ -753,7 +812,8 @@ function LocalSetup({
       className="play-setup play-setup-form-grid"
       onSubmit={(e) => {
         e.preventDefault();
-        onStart(buildSetup());
+        if (isHorde) submitHorde();
+        else onStart(buildSetup());
       }}
     >
       <header className="play-setup-header">
@@ -762,7 +822,7 @@ function LocalSetup({
         </h2>
       </header>
 
-      <TableProfiles current={buildSetup} onLoad={applySetup} />
+      {!isHorde && <TableProfiles current={buildSetup} onLoad={applySetup} />}
 
       <section className="play-setup-game" aria-labelledby="play-setup-game-label">
         <h3 id="play-setup-game-label" className="play-setup-section-title">
@@ -771,96 +831,134 @@ function LocalSetup({
         <div className="play-setup-row" style={{ marginTop: '0.5rem' }}>
           <div className="play-field play-field-inline">
             <span>Format</span>
-            <SelectMenu<GameFormat>
+            <SelectMenu<GameFormat | 'horde'>
               ariaLabel="Format"
-              value={format}
-              onChange={applyFormat}
-              options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
+              value={isHorde ? 'horde' : format}
+              onChange={(next) => {
+                if (next === 'horde') {
+                  // Horde allows only 1-4 survivors — a 5-6 player real-game
+                  // roster shrinks to fit the moment the format flips.
+                  setIsHorde(true);
+                  setCount((c) => Math.min(c, 4));
+                  return;
+                }
+                setIsHorde(false);
+                setCount((c) => Math.max(c, MIN_LOCAL_PLAYERS));
+                applyFormat(next);
+              }}
+              options={[
+                ...FORMAT_OPTIONS.map((f) => ({
+                  value: f.value as GameFormat | 'horde',
+                  label: f.label,
+                })),
+                { value: 'horde' as const, label: 'Horde (co-op)' },
+              ]}
             />
           </div>
 
-          <div className="play-field play-field-inline">
-            <span id="starting-life-label">Starting life</span>
-            <Stepper
-              value={startingLife}
-              min={1}
-              max={200}
-              step={5}
-              ariaLabelledBy="starting-life-label"
-              onChange={setStartingLife}
-            />
-          </div>
+          {!isHorde && (
+            <div className="play-field play-field-inline">
+              <span id="starting-life-label">Starting life</span>
+              <Stepper
+                value={startingLife}
+                min={1}
+                max={200}
+                step={5}
+                ariaLabelledBy="starting-life-label"
+                onChange={setStartingLife}
+              />
+            </div>
+          )}
         </div>
       </section>
 
       <section className="play-setup-rules" aria-labelledby="play-setup-rules-label">
         <h3 id="play-setup-rules-label" className="play-setup-section-title">
-          Rules
+          {isHorde ? 'The horde' : 'Rules'}
         </h3>
-        <RulePill
-          on={commanderDamageEnabled}
-          onChange={setCmdDmg}
-          label="Commander damage"
-          hint="Lose at 21 combat damage from a single commander."
-        />
-        <RulePill
-          on={poisonEnabled}
-          onChange={setPoison}
-          label="Poison counters"
-          hint="Lose at 10 poison counters."
-        />
+        {isHorde ? (
+          <HordeSetupFields
+            hordeId={hordeId}
+            onHordeChange={setHordeId}
+            level={hordeLevel}
+            onLevelChange={setHordeLevel}
+            survivorCount={count}
+            customiseOpen={hordeCustomiseOpen}
+            onToggleCustomise={() => setHordeCustomiseOpen((v) => !v)}
+            overrides={hordeOverrides}
+            onOverridesChange={setHordeOverrides}
+            warnings={hordeBanWarnings}
+          />
+        ) : (
+          <>
+            <RulePill
+              on={commanderDamageEnabled}
+              onChange={setCmdDmg}
+              label="Commander damage"
+              hint="Lose at 21 combat damage from a single commander."
+            />
+            <RulePill
+              on={poisonEnabled}
+              onChange={setPoison}
+              label="Poison counters"
+              hint="Lose at 10 poison counters."
+            />
+          </>
+        )}
 
         {/* Free-form counters every seat starts with. Nothing here is a rule:
             these never cause a loss, they are just what this table counts. */}
-        <div className="play-setup-counters">
-          <span id="setup-counters-label" className="play-setup-counters-label">
-            Counters on every seat
-          </span>
-          {counters.length > 0 && (
-            <ul className="play-setup-counter-chips" aria-labelledby="setup-counters-label">
-              {counters.map((name) => (
-                <li key={name}>
-                  <button
-                    type="button"
-                    className="play-setup-counter-chip"
-                    aria-label={`Remove ${name}`}
-                    onClick={() => setCounters((prev) => prev.filter((c) => c !== name))}
-                  >
-                    {name}
-                    <span aria-hidden="true">✕</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {counters.length < MAX_COUNTERS_PER_SCOPE && (
-            <div className="play-setup-counter-add">
-              <input
-                className="play-setup-counter-input"
-                value={counterDraft}
-                onChange={(e) => setCounterDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  // Enter inside a form submits it, which would start the
-                  // game instead of adding the counter.
-                  if (e.key !== 'Enter') return;
-                  e.preventDefault();
-                  addCounter();
-                }}
-                maxLength={MAX_COUNTER_NAME_LENGTH}
-                placeholder="Energy"
-                aria-label="New counter name"
-              />
-              <button
-                type="button"
-                className="play-setup-counter-btn"
-                disabled={!counterDraft.trim()}
-                onClick={addCounter}
-              >
-                Add
-              </button>
-            </div>
-          )}
-        </div>
+        {!isHorde && (
+          <div className="play-setup-counters">
+            <span id="setup-counters-label" className="play-setup-counters-label">
+              Counters on every seat
+            </span>
+            {counters.length > 0 && (
+              <ul className="play-setup-counter-chips" aria-labelledby="setup-counters-label">
+                {counters.map((name) => (
+                  <li key={name}>
+                    <button
+                      type="button"
+                      className="play-setup-counter-chip"
+                      aria-label={`Remove ${name}`}
+                      onClick={() => setCounters((prev) => prev.filter((c) => c !== name))}
+                    >
+                      {name}
+                      <span aria-hidden="true">✕</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {counters.length < MAX_COUNTERS_PER_SCOPE && (
+              <div className="play-setup-counter-add">
+                <input
+                  className="play-setup-counter-input"
+                  value={counterDraft}
+                  onChange={(e) => setCounterDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Enter inside a form submits it, which would start the
+                    // game instead of adding the counter.
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    addCounter();
+                  }}
+                  maxLength={MAX_COUNTER_NAME_LENGTH}
+                  placeholder="Energy"
+                  aria-label="New counter name"
+                />
+                <button
+                  type="button"
+                  className="play-setup-counter-btn"
+                  disabled={!counterDraft.trim()}
+                  onClick={addCounter}
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="play-setup-roster" aria-label="Players">
@@ -945,7 +1043,7 @@ function LocalSetup({
                   })
                 }
               />
-              {count > MIN_LOCAL_PLAYERS && (
+              {count > minSeats && (
                 <button
                   type="button"
                   className="play-setup-seat-remove"
@@ -958,7 +1056,7 @@ function LocalSetup({
             </li>
           ))}
         </ul>
-        {count < MAX_LOCAL_PLAYERS && (
+        {count < maxSeats && (
           <button
             type="button"
             className="play-setup-roster-add"
@@ -970,9 +1068,26 @@ function LocalSetup({
         )}
       </section>
 
-      <button type="submit" className="btn btn-primary play-setup-start">
+      {isHorde && hordeStatus === 'error' && (
+        <div className="discover-decks-error" role="alert">
+          <span>{hordeLoadError ?? "Couldn't load that horde."}</span>
+          <button
+            type="button"
+            className="discover-decks-error-retry"
+            onClick={() => useHordeGameStore.getState().retryLoad()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        className="btn btn-primary play-setup-start"
+        disabled={isHorde && hordeStatus === 'loading'}
+      >
         <Swords width={16} height={16} strokeWidth={2} aria-hidden />
-        Start game
+        {isHorde && hordeStatus === 'loading' ? 'Loading the horde…' : 'Start game'}
       </button>
     </form>
   );
