@@ -268,7 +268,7 @@ function collectEarlyLiftSeeds(state: GenerationState): string[] {
   if (state.edhrecData) {
     const themeCards = state.edhrecData.cardlists.allNonLand
       .filter((c) => c.isThemeSynergyCard)
-      .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
+      .sort((a, b) => calculateCardPriority(b, state.cfg.brewLevel) - calculateCardPriority(a, state.cfg.brewLevel));
     for (const c of themeCards) add(c.name);
   }
   for (const name of state.mustIncludeNames) add(name);
