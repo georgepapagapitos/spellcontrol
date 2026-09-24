@@ -140,24 +140,41 @@
 .game-clock-strip-turn {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.3em;
+  /* No gap: the name and "'s turn 1:12" read as one continuous run
+     ("Priyanka's turn 1:12"), not two chips with a space between them —
+     see `.game-clock-strip-name`. */
+  gap: 0;
   /* The one shrinkable segment: letting IT shrink (rather than the fixed
      parts above) is what gives the name below any room to give up. */
   flex: 1 1 auto;
   min-width: 0;
 }
 
-/* The name is the only thing that truncates. A min-width floor keeps at
-   least a couple of characters (plus the ellipsis) rather than letting flex
-   shrink it all the way to nothing, which is what happened before this had
-   one — the name vanished entirely, leaving a bare "'s turn 0:00". */
+/* The name is the only thing that truncates, and only when it genuinely
+   doesn't fit — no fixed ch cap, so "Player 1" renders in full the moment
+   there's room for it (390px+ has room even for most long names) instead of
+   always clipping to a fixed width regardless of how much space is free. A
+   min-width floor keeps at least a couple of characters plus the ellipsis
+   rather than letting flex shrink it all the way to nothing (which is what a
+   bare `flex: 0 1 auto` with no floor did — the name vanished entirely,
+   leaving a bare "'s turn 0:00"). `flex-grow: 0` keeps it from ballooning
+   past its own text and opening a gap before "'s turn" when the row has
+   slack; growing to fill space is `.game-clock-strip-turn`'s job, not this
+   span's. No `gap` above plus no margin here is what keeps "…" and "'s turn"
+   touching when it does truncate ("Priyanka…'s turn 1:12").
+   `text-align: right`: the min-width floor is in `ch` (the width of "0"),
+   which is WIDER than a short name's actual glyphs ("Jo" measured ~11px in a
+   ~14px-wide box) — left-aligned, that slack sits after the name and reads
+   as a stray gap before "'s turn"; right-aligned, the name hugs the
+   possessive with zero gap and the slack goes where it's invisible, before
+   the name (next to the dot separator). */
 .game-clock-strip-name {
-  max-width: 6ch;
   min-width: 2ch;
   flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: right;
   display: inline-block;
 }
 
@@ -221,10 +238,6 @@
   .game-clock-strip-text {
     gap: 0.4em;
     font-size: var(--text-sm);
-  }
-
-  .game-clock-strip-name {
-    max-width: 10ch;
   }
 
   .game-clock-strip-actions {
