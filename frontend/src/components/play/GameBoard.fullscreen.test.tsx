@@ -36,8 +36,10 @@ vi.mock('../../store/play', () => {
       setHaptics: vi.fn(),
       preferredLayouts: {},
       setPreferredLayout: vi.fn(),
-      showClock: true,
-      setShowClock: vi.fn(),
+      gameTimerEnabled: true,
+      turnTrackerEnabled: true,
+      setGameTimerEnabled: vi.fn(),
+      setTurnTrackerEnabled: vi.fn(),
     });
   usePlayStore.getState = getState;
   return { usePlayStore };

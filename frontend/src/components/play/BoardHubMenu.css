@@ -2,8 +2,11 @@
    in styles/play-*.css — see BoardHubMenu.tsx's header comment. Sits above
    the board's panels but below the hub button itself (z-index 10 in
    play-panel-menus.css) so the hub stays visible and tappable to close the
-   ring, exactly like `.game-board-clock` / `.game-board-undo-btn` which the
-   ring's open state hides outright. */
+   ring, exactly like `.game-board-undo-btn`, which the ring's open state
+   hides outright. The table clock is no longer part of this: it moved out
+   of the seam into a full-width edge strip below the grid (see STYLE_GUIDE
+   "the table clock is an edge strip"), so it stays visible while the ring
+   is open — a petal can no longer reach it. */
 
 .board-hub-backdrop {
   position: fixed;
