@@ -757,6 +757,13 @@ describe('POST /api/admin/reports/:id/resolve', () => {
     ).rows[0];
     expect(row.resolved_at).not.toBeNull();
     expect(row.resolution).toBe('hidden');
+
+    // ...but it still marks the deck taken down, so the owner can't simply
+    // publish it again (one tap, now that decks are public by default).
+    const republish = await request(app)
+      .post(`/api/publications/decks/${deckId}`)
+      .set('Cookie', cookie);
+    expect(republish.status).toBe(403);
   });
 
   it('hide on a profile report sets profile_hidden_at AND cascades to unpublish every one of that user’s live decks', async () => {

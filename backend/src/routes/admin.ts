@@ -467,6 +467,13 @@ adminRouter.post(
          RETURNING slug`,
           [report.target_owner_id, report.target_id, now]
         );
+        // moderated_at is what keeps it down: the owner's publish refuses
+        // while it's set, so a one-tap re-publish can't undo the takedown.
+        // Stamped even when the owner had already unpublished it.
+        await pool.query(
+          `UPDATE deck_publications SET moderated_at = $3 WHERE user_id = $1 AND deck_id = $2`,
+          [report.target_owner_id, report.target_id, now]
+        );
         changed = updated.rows.length > 0;
         if (updated.rows[0]) invalidateDeckPublicationCache(updated.rows[0].slug);
         invalidatePublicUserCache(report.owner_username);

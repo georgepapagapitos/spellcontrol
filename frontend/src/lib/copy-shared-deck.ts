@@ -1,6 +1,7 @@
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { useDecksStore, newDeckCard } from '../store/decks';
 import type { PublicDeck } from '../lib/shared-types';
+import { defaultNewDeckVisibility } from './new-deck-visibility';
 
 /**
  * Pure mapper: converts a PublicDeck payload into the input shape expected by
@@ -41,5 +42,8 @@ export function sharedDeckToCreateInput(data: PublicDeck, token?: string) {
  * account automatically.
  */
 export function copySharedDeck(data: PublicDeck, token?: string): string {
-  return useDecksStore.getState().createDeck(sharedDeckToCreateInput(data, token));
+  return useDecksStore.getState().createDeck({
+    ...sharedDeckToCreateInput(data, token),
+    initialVisibility: defaultNewDeckVisibility(),
+  });
 }

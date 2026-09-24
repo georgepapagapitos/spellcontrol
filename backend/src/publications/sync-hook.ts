@@ -1,7 +1,9 @@
 import { getPool } from '../db';
 import { logger } from '../logger';
-import { extractListingFields } from './listing-fields';
+import { extractListingFields, type ListingFields } from './listing-fields';
 import { invalidateDeckPublicationCache, invalidatePublicUserCache } from './cache';
+import { insertPublication } from './insert';
+import { invalidatePublicUserCacheById } from './purge';
 import type { AppliedRow } from '../routes/sync';
 
 /**
@@ -9,8 +11,17 @@ import type { AppliedRow } from '../routes/sync';
  * (see routes/sync.ts, which never awaits this). Keeps the denormalized
  * `deck_publications` listing columns fresh for an already-published deck
  * that was upserted, and fully removes (+ cache-invalidates) the publication
- * for one that was tombstoned. A deck that was never published is untouched
- * either way — publish stays explicit-only.
+ * for one that was tombstoned.
+ *
+ * It is also where a NEW deck becomes public by default. A deck created by a
+ * current signed-in client carries `initialVisibility` ('public' or
+ * 'private'), and the first time the server sees that deck with no
+ * publication row, this records the choice: a live row, or an already
+ * unpublished one. After that a row always exists, so the field is never
+ * read again. That's what keeps it safe on a last-write-wins row: a stale
+ * device re-sending the deck can't re-publish something its owner has since
+ * made private. Decks from before this shipped carry no intent and stay
+ * exactly as they were.
  *
  * Uses a fresh `getPool().query()`, never the sync route's transaction
  * `client` — by the point this runs, that transaction has already committed
@@ -58,8 +69,8 @@ export async function refreshDeckPublications(
 
       // `deck_rev < $11` makes a redelivered/retried push with the same or
       // older rev a correct no-op, and this naturally no-ops (0 rows) for any
-      // never-published deck — editing an unpublished deck never auto-publishes it.
-      await pool.query(
+      // deck with no publication row.
+      const refreshed = await pool.query(
         `UPDATE deck_publications
             SET deck_name = $3, format = $4, commander_name = $5,
                 commander_image_normal = $6, og_art_crop = $7, color_identity = $8::jsonb,
@@ -80,8 +91,46 @@ export async function refreshDeckPublications(
           Date.now(),
         ]
       );
+      if (refreshed.rowCount === 0)
+        await publishByDefault(userId, row.id, row.rev, deck.rows[0]?.data, fields);
     } catch (err) {
       logger.warn(`[publications] sync-hook refresh failed user=${userId} deck=${row.id}`, err);
     }
   }
+}
+
+/**
+ * First sight of a deck with a creation intent: record it. A no-op when the
+ * deck carries no intent (created before public-by-default, or by a guest),
+ * when a row already exists (the ON CONFLICT in insertPublication), and for a
+ * public deck on an account a moderator hid.
+ */
+async function publishByDefault(
+  userId: string,
+  deckId: string,
+  rev: number,
+  data: unknown,
+  fields: ListingFields
+): Promise<void> {
+  const intent = (data as { initialVisibility?: unknown } | null)?.initialVisibility;
+  if (intent !== 'public' && intent !== 'private') return;
+
+  const pool = getPool();
+  const exists = await pool.query(
+    `SELECT 1 FROM deck_publications WHERE user_id = $1 AND deck_id = $2`,
+    [userId, deckId]
+  );
+  if (exists.rows.length > 0) return;
+  if (intent === 'public') {
+    const user = await pool.query<{ profile_hidden_at: string | null }>(
+      `SELECT profile_hidden_at FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (user.rows[0]?.profile_hidden_at != null) return;
+  }
+
+  const inserted = await insertPublication(userId, deckId, fields, rev, Date.now(), {
+    unpublished: intent === 'private',
+  });
+  if (inserted && intent === 'public') await invalidatePublicUserCacheById(userId);
 }

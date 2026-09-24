@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../store/auth';
-import * as authApi from '../lib/auth-api';
 
 const {
   createShareMock,
@@ -176,7 +175,7 @@ describe('ShareDialog — Private revokes everything', () => {
 });
 
 describe('ShareDialog — going Public', () => {
-  it('with no display name set, shows the inline sub-step; saving it proceeds straight to publishDeck', async () => {
+  it('with no display name set, still publishes directly: the page falls back to @username', async () => {
     useAuth.setState({ profile: { ...PROFILE_WITH_NAME, displayName: null } });
     publishDeckMock.mockResolvedValue({
       slug: 'test-deck',
@@ -187,23 +186,14 @@ describe('ShareDialog — going Public', () => {
       viewCount: 0,
       copyCount: 0,
     });
-    const updateSpy = vi
-      .spyOn(authApi, 'updateProfile')
-      .mockResolvedValue({ ...PROFILE_WITH_NAME, displayName: 'Alice' });
 
     renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
 
     fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Make it public' }));
 
-    const nameInput = await screen.findByLabelText('Display name');
-    expect(publishDeckMock).not.toHaveBeenCalled();
-
-    fireEvent.change(nameInput, { target: { value: 'Alice' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save & continue' }));
-
-    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith({ displayName: 'Alice' }));
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d1'));
+    expect(screen.queryByLabelText('Display name')).toBeNull();
   });
 
   it('with a display name already set, confirming publishes directly with no sub-step', async () => {

@@ -693,6 +693,10 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS deck_bookmarks_user_idx ON deck_bookmarks (user_id, created_at DESC);
 
     ALTER TABLE deck_publications ADD COLUMN IF NOT EXISTS like_count INTEGER NOT NULL DEFAULT 0;
+    -- A moderator took this deck down. Kept apart from unpublished_at (which
+    -- the takedown also sets) so an owner's publish can't quietly undo it now
+    -- that decks publish by default: the publish route refuses while it's set.
+    ALTER TABLE deck_publications ADD COLUMN IF NOT EXISTS moderated_at BIGINT;
     -- Not indexed for sorting -- like_count is deliberately never a Discover
     -- sort field in v1 (see w2-discover-listing-api's open_questions).
 

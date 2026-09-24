@@ -51,9 +51,11 @@ type OnCreated = (
 ) => boolean | Promise<boolean>;
 
 let capturedOnCreated: OnCreated | undefined;
+let capturedVisibility: string | undefined;
 vi.mock('../lib/use-deck-generation', () => ({
-  useDeckGeneration: (opts: { onCreated?: OnCreated }) => {
+  useDeckGeneration: (opts: { onCreated?: OnCreated; initialVisibility?: string }) => {
     capturedOnCreated = opts.onCreated;
+    capturedVisibility = opts.initialVisibility;
     return {
       commander: null,
       partnerCommander: null,
@@ -154,8 +156,17 @@ describe('DeckNewPage — generated decks obey the visibility fieldset', () => {
     );
   });
 
-  it('leaves navigation to the generation hook when Private (the default) is kept', async () => {
+  it('creates the generated deck as Public by default (board T136)', () => {
     renderPage();
+    expect(capturedVisibility).toBe('public');
+  });
+
+  it('leaves navigation to the generation hook when Private is picked, and stamps it private', async () => {
+    // The stamp is what keeps it private: the server would otherwise publish
+    // a new deck by default on its first sync.
+    renderPage();
+    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
+    expect(capturedVisibility).toBe('private');
 
     const tookOverNavigation = await capturedOnCreated!('gen-id', '/decks/gen-id', {
       justGenerated: true,

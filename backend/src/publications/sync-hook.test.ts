@@ -210,7 +210,7 @@ describe('refreshDeckPublications — upserts', () => {
     expect(Number(row!.updated_at)).toBeGreaterThan(1000);
   });
 
-  it('is a no-op for a never-published deck — publish stays explicit-only', async () => {
+  it('never publishes a deck with no creation intent (made before public-by-default)', async () => {
     const userId = 'u-never-pub';
     await seedUser(userId, 'never-pub');
     await upsertDeck(userId, 'deck-2', baseDeckData(), 3);
@@ -301,5 +301,79 @@ describe('refreshDeckPublications — tombstones', () => {
     expect(await readPublication(userId, 'deck-5')).toBeUndefined();
     expect(mockInvalidateDeckPublicationCache).not.toHaveBeenCalled();
     expect(mockInvalidatePublicUserCache).not.toHaveBeenCalled();
+  });
+});
+
+describe('refreshDeckPublications — public by default for new decks', () => {
+  async function liveState(userId: string, deckId: string) {
+    const r = await pool.query<{ unpublished_at: string | null; slug: string }>(
+      `SELECT unpublished_at, slug FROM deck_publications WHERE user_id = $1 AND deck_id = $2`,
+      [userId, deckId]
+    );
+    if (r.rows.length === 0) return 'none';
+    return r.rows[0].unpublished_at === null ? 'public' : 'private';
+  }
+  const push = (userId: string, deckId: string, rev: number) =>
+    refreshDeckPublications(userId, [{ kind: 'deck', id: deckId, rev, deletedAt: null }]);
+
+  it('publishes a new deck created as public, once', async () => {
+    const userId = 'u-default-pub';
+    await seedUser(userId, 'default-pub');
+    await upsertDeck(userId, 'd1', baseDeckData({ initialVisibility: 'public' }), 1);
+    await push(userId, 'd1', 1);
+    expect(await liveState(userId, 'd1')).toBe('public');
+    expect(mockInvalidatePublicUserCache).toHaveBeenCalledWith('default-pub');
+
+    // A second push (an edit) refreshes the same row; it doesn't mint another.
+    await upsertDeck(
+      userId,
+      'd1',
+      baseDeckData({ initialVisibility: 'public', name: 'Renamed' }),
+      2
+    );
+    await push(userId, 'd1', 2);
+    const rows = await pool.query(`SELECT deck_name FROM deck_publications WHERE deck_id = 'd1'`);
+    expect(rows.rows).toEqual([{ deck_name: 'Renamed' }]);
+  });
+
+  it('records a deck created as private as private, so it is never reconsidered', async () => {
+    const userId = 'u-default-priv';
+    await seedUser(userId, 'default-priv');
+    await upsertDeck(userId, 'd2', baseDeckData({ initialVisibility: 'private' }), 1);
+    await push(userId, 'd2', 1);
+    expect(await liveState(userId, 'd2')).toBe('private');
+  });
+
+  it('a stale device re-sending a deck its owner made private does not re-publish it', async () => {
+    // The intent rides a last-write-wins row, which is exactly why it is read
+    // only when no publication row exists yet.
+    const userId = 'u-stale';
+    await seedUser(userId, 'stale');
+    await upsertDeck(userId, 'd3', baseDeckData({ initialVisibility: 'public' }), 1);
+    await push(userId, 'd3', 1);
+    await pool.query(
+      `UPDATE deck_publications SET unpublished_at = 5 WHERE user_id = $1 AND deck_id = 'd3'`,
+      [userId]
+    );
+    await upsertDeck(userId, 'd3', baseDeckData({ initialVisibility: 'public' }), 7);
+    await push(userId, 'd3', 7);
+    expect(await liveState(userId, 'd3')).toBe('private');
+  });
+
+  it('never publishes by default on an account a moderator hid', async () => {
+    const userId = 'u-hidden';
+    await seedUser(userId, 'hidden');
+    await pool.query(`UPDATE users SET profile_hidden_at = 1 WHERE id = $1`, [userId]);
+    await upsertDeck(userId, 'd4', baseDeckData({ initialVisibility: 'public' }), 1);
+    await push(userId, 'd4', 1);
+    expect(await liveState(userId, 'd4')).toBe('none');
+  });
+
+  it('ignores an intent value it does not know', async () => {
+    const userId = 'u-junk';
+    await seedUser(userId, 'junk');
+    await upsertDeck(userId, 'd5', baseDeckData({ initialVisibility: 'friends' }), 1);
+    await push(userId, 'd5', 1);
+    expect(await liveState(userId, 'd5')).toBe('none');
   });
 });

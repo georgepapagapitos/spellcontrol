@@ -11,6 +11,7 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { useCubeStore } from '../store/cube';
 import { saveGeneratedDeck } from './save-generated-deck';
+import { defaultNewDeckVisibility, type NewDeckVisibility } from './new-deck-visibility';
 import {
   buildAvailableCollection,
   buildBasicPrintingAvailability,
@@ -87,6 +88,9 @@ interface Options {
    *  build's one-shot nav state so the post-build summary can confirm the
    *  combo assembled. Never persisted on the deck; see ComboSeedContext. */
   comboContext?: ComboSeedContext;
+  /** The page's Public/Private choice for the new deck. Omitted: the
+   *  signed-in default (see defaultNewDeckVisibility). */
+  initialVisibility?: NewDeckVisibility;
 }
 
 /**
@@ -150,6 +154,7 @@ export function useDeckGeneration({
   sourceDeckId,
   onCreated,
   comboContext,
+  initialVisibility,
 }: Options = {}) {
   const navigate = useNavigate();
 
@@ -344,7 +349,8 @@ export function useDeckGeneration({
         decks,
         collectionCards,
         createDeck,
-        committedExcluded
+        committedExcluded,
+        initialVisibility ?? defaultNewDeckVisibility()
       );
       if (haptic) haptics.success();
       await beforeNavigate?.();
@@ -390,6 +396,7 @@ export function useDeckGeneration({
     sourceDeckId,
     onCreated,
     comboContext,
+    initialVisibility,
   ]);
 
   return {

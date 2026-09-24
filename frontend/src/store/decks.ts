@@ -313,6 +313,14 @@ export interface Deck {
    */
   forkedFrom?: { slug: string; ownerUsername: string; deckName: string };
   /**
+   * What the deck was created as (board T136). Read by the server ONCE, the
+   * first time it sees the deck, to publish it or record it as private; after
+   * that the publication row is the truth and this field is inert. Absent on
+   * decks made before public-by-default and on a guest's decks, which the
+   * server leaves alone. Never change it after create: it would do nothing.
+   */
+  initialVisibility?: 'public' | 'private';
+  /**
    * Paste-and-diff resync bookkeeping (E173). Stamped only by `resyncDeck`,
    * which only ever targets an EXISTING deck — unlike `sourceProduct`/
    * `forkedFrom` above (set at `createDeck` time), this has no create-time
@@ -374,6 +382,7 @@ interface DecksState {
     sourceProduct?: { code: string; fileName: string; name: string };
     primer?: string;
     forkedFrom?: Deck['forkedFrom'];
+    initialVisibility?: Deck['initialVisibility'];
   }): string;
 
   /**
@@ -646,6 +655,7 @@ export const useDecksStore = create<DecksState>()(
           // key isn't present" discipline for these two fields.
           ...(input.primer !== undefined ? { primer: input.primer } : {}),
           ...(input.forkedFrom !== undefined ? { forkedFrom: input.forkedFrom } : {}),
+          ...(input.initialVisibility ? { initialVisibility: input.initialVisibility } : {}),
           color: input.color ?? pickRandomPresetColor(),
           createdAt: now,
           updatedAt: now,
@@ -719,8 +729,12 @@ export const useDecksStore = create<DecksState>()(
         if (!original) return null;
         const newDeckId = genId('deck');
         const now = Date.now();
+        // A duplicate never inherits the original's creation intent: a copy
+        // of your deck stays private until you choose otherwise.
+        const { initialVisibility: _intent, ...rest } = original;
+        void _intent;
         const copy: Deck = {
-          ...original,
+          ...rest,
           id: newDeckId,
           name: `${original.name} (copy)`,
           commanderAllocatedCopyId: null,

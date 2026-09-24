@@ -114,7 +114,7 @@ describe('POST /api/publications/decks/:deckId', () => {
     expect(res.body.publication.copyCount).toBe(0);
   });
 
-  it('requires a display name before publishing', async () => {
+  it('publishes without a display name: the page falls back to @username', async () => {
     const cookie = await makeUser('pub-nodisplay');
     await setSnapshotViaSyncApi(request(app), cookie, { decks: [makeDeck('deck-nodisplay')] });
 
@@ -122,9 +122,64 @@ describe('POST /api/publications/decks/:deckId', () => {
       .post('/api/publications/decks/deck-nodisplay')
       .set('Cookie', cookie);
 
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe('display_name_required');
-    expect(res.body.message).toBe('Set a display name before publishing.');
+    expect(res.status).toBe(201);
+    expect(res.body.publication.unpublishedAt).toBeNull();
+  });
+
+  it('refuses on an account a moderator hid', async () => {
+    const cookie = await makeUser('pub-hidden');
+    const userId = await userIdFromCookie(cookie);
+    await setSnapshotViaSyncApi(request(app), cookie, { decks: [makeDeck('deck-hidden')] });
+    await pool.query(`UPDATE users SET profile_hidden_at = 1 WHERE id = $1`, [userId]);
+
+    const res = await request(app)
+      .post('/api/publications/decks/deck-hidden')
+      .set('Cookie', cookie);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/moderator hid this account/);
+  });
+
+  it('refuses to re-publish a deck a moderator took down', async () => {
+    const cookie = await makeUser('pub-moderated');
+    const userId = await userIdFromCookie(cookie);
+    await setSnapshotViaSyncApi(request(app), cookie, { decks: [makeDeck('deck-mod')] });
+    expect(
+      (await request(app).post('/api/publications/decks/deck-mod').set('Cookie', cookie)).status
+    ).toBe(201);
+    await pool.query(
+      `UPDATE deck_publications SET unpublished_at = 2, moderated_at = 2
+        WHERE user_id = $1 AND deck_id = 'deck-mod'`,
+      [userId]
+    );
+
+    const res = await request(app).post('/api/publications/decks/deck-mod').set('Cookie', cookie);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/took this deck down/);
+    const row = await pool.query(
+      `SELECT unpublished_at FROM deck_publications WHERE user_id = $1 AND deck_id = 'deck-mod'`,
+      [userId]
+    );
+    expect(row.rows[0].unpublished_at).not.toBeNull();
+  });
+
+  it('updates the row the default publish already made instead of failing on it', async () => {
+    // The sync hook and this route can both be first to a new deck. When the
+    // hook wins, the route's insert conflicts and must land on the update.
+    const cookie = await makeUser('pub-race');
+    const userId = await userIdFromCookie(cookie);
+    await setSnapshotViaSyncApi(request(app), cookie, { decks: [makeDeck('deck-race')] });
+    await pool.query(
+      `INSERT INTO deck_publications (user_id, deck_id, slug, deck_name, format, published_at, updated_at)
+       VALUES ($1, 'deck-race', 'hook-made-slug', 'Atraxa Superfriends', 'commander', 1, 1)`,
+      [userId]
+    );
+
+    const res = await request(app).post('/api/publications/decks/deck-race').set('Cookie', cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body.publication.slug).toBe('hook-made-slug');
   });
 
   it('rejects an empty-name deck seeded via a raw SQL fixture', async () => {

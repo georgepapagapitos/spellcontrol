@@ -24,7 +24,7 @@ vi.mock('../../store/decks', () => ({
   useDecksStore: (sel: (s: { decks: unknown[] }) => unknown) => sel({ decks: [] }),
 }));
 
-const buildDeckFromResultMock = vi.fn(() => 'new-deck-id');
+const buildDeckFromResultMock = vi.fn((..._args: unknown[]) => 'new-deck-id');
 vi.mock('../../lib/build-deck-from-import', () => ({
   useBuildDeckFromImport: () => buildDeckFromResultMock,
 }));
@@ -130,22 +130,26 @@ beforeEach(() => {
 afterEach(() => localStorage.clear());
 
 describe('ImportDeckDialog — creation-time visibility', () => {
-  it('shows the Visibility fieldset on the single-deck (no staged files) path, defaulting to Private', () => {
+  it('shows the Visibility fieldset on the single-deck (no staged files) path, defaulting to Public', () => {
     renderDialog();
     selectStandardFormat();
     // Native <input type="radio"> now — `checked`/`disabled`, not aria-*.
-    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).disabled).toBe(
+    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).disabled).toBe(
       false
     );
   });
 
-  it('never calls publishDeck when Private (the default) is kept, and closes + navigates with no router state', async () => {
+  it('creates the deck as private and never publishes it when Private is picked, and closes + navigates with no router state', async () => {
     const { onClose } = renderDialog();
     selectStandardFormat();
+    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
     pasteAndImport();
 
     await waitFor(() => expect(buildDeckFromResultMock).toHaveBeenCalledTimes(1));
+    expect(buildDeckFromResultMock.mock.calls[0][4]).toMatchObject({
+      initialVisibility: 'private',
+    });
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id'));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(publishDeckMock).not.toHaveBeenCalled();

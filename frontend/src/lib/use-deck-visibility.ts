@@ -3,6 +3,19 @@ import { getPublication, type Publication } from './publications-client';
 import { listShares } from './share-client';
 import type { ShareRow } from './shared-types';
 import { useAuth } from '../store/auth';
+import { useDecksStore } from '../store/decks';
+
+const CHANGED_EVENT = 'sc:deck-visibility-changed';
+
+/** Tell every mounted visibility reader for `deckId` to look again, e.g. the
+ *  header chip after the post-create nudge made the deck private. */
+export function notifyDeckVisibilityChanged(deckId: string): void {
+  window.dispatchEvent(new CustomEvent(CHANGED_EVENT, { detail: deckId }));
+}
+
+/** How many times to look again for a new deck's default publish to land. */
+const PENDING_TRIES = 4;
+const PENDING_RETRY_MS = 1000;
 
 export type DeckVisibility = 'public' | 'friends' | 'link' | 'private';
 
@@ -50,10 +63,24 @@ export function useDeckVisibility(deckId: string): Result {
   const [fetched, setFetched] = useState<DeckVisibility | null>(null);
   const [loading, setLoading] = useState(false);
   const [gen, setGen] = useState(0);
+  // A deck created as public has no publication row until the server's
+  // first sync of it lands, a moment after the editor opens. Read as Public
+  // meanwhile and look again, rather than flashing Private.
+  const intent = useDecksStore((s) => s.decks.find((d) => d.id === deckId)?.initialVisibility);
+
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === deckId) setGen((g) => g + 1);
+    };
+    window.addEventListener(CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(CHANGED_EVENT, onChanged);
+  }, [deckId]);
 
   useEffect(() => {
     if (status !== 'authed') return;
     let cancelled = false;
+    let tries = 0;
+    let retry: ReturnType<typeof setTimeout> | undefined;
 
     // Nested (not a direct effect-body statement) so the initial setLoading
     // isn't read as a synchronous reset-in-effect — mirrors use-inbox.ts's
@@ -65,7 +92,14 @@ export function useDeckVisibility(deckId: string): Result {
         listShares().catch((): ShareRow[] => []),
       ])
         .then(([publication, shares]) => {
-          if (!cancelled) setFetched(resolveDeckVisibility(publication, shares, deckId));
+          if (cancelled) return;
+          if (publication === null && intent === 'public' && tries < PENDING_TRIES) {
+            tries++;
+            setFetched('public');
+            retry = setTimeout(load, PENDING_RETRY_MS);
+            return;
+          }
+          setFetched(resolveDeckVisibility(publication, shares, deckId));
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -75,8 +109,9 @@ export function useDeckVisibility(deckId: string): Result {
 
     return () => {
       cancelled = true;
+      clearTimeout(retry);
     };
-  }, [deckId, status, gen]);
+  }, [deckId, status, gen, intent]);
 
   const refetch = useCallback(() => setGen((g) => g + 1), []);
   const visibility: DeckVisibility = status === 'authed' && fetched ? fetched : 'private';

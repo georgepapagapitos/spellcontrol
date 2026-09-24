@@ -935,6 +935,8 @@ export const deckPublications = pgTable(
     publishedAt: bigint('published_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
     unpublishedAt: bigint('unpublished_at', { mode: 'number' }),
+    /** A moderator took the deck down; the owner can't republish it. */
+    moderatedAt: bigint('moderated_at', { mode: 'number' }),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.deckId] }),

@@ -63,7 +63,6 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
   const isGuest = useAuth((s) => s.status === 'guest');
   const signInHref = useSignInPath();
   const username = useAuth((s) => s.user?.username);
-  const displayName = useAuth((s) => s.profile?.displayName);
   const [audience, setAudience] = useState<DialogAudience>('link');
   const [addresseeId, setAddresseeId] = useState('');
   const [friends, setFriends] = useState<Friend[] | null>(null);
@@ -320,11 +319,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
   const handleConfirmPublic = async () => {
     if (working) return;
     setError(null);
-    if (!displayName) {
-      setNeedsDisplayName(true);
-      setAnnouncement('Set a display name to continue publishing.');
-      return;
-    }
+    // No display name needed: a public page falls back to @username (T136).
     setWorking(true);
     try {
       await doPublish();

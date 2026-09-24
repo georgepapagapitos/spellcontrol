@@ -1,13 +1,23 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { resolveDeckVisibility, useDeckVisibility } from './use-deck-visibility';
+import {
+  notifyDeckVisibilityChanged,
+  resolveDeckVisibility,
+  useDeckVisibility,
+} from './use-deck-visibility';
 import type { Publication } from './publications-client';
 import type { ShareRow } from './shared-types';
 
 let authStatus: 'unknown' | 'loading' | 'authed' | 'guest' = 'authed';
 vi.mock('../store/auth', () => ({
   useAuth: <T>(selector: (s: { status: string }) => T): T => selector({ status: authStatus }),
+}));
+
+let deckIntent: 'public' | 'private' | undefined;
+vi.mock('../store/decks', () => ({
+  useDecksStore: <T>(selector: (s: { decks: unknown[] }) => T): T =>
+    selector({ decks: [{ id: 'd1', initialVisibility: deckIntent }] }),
 }));
 
 const getPublicationMock = vi.fn<() => Promise<Publication | null>>();
@@ -86,6 +96,7 @@ describe('resolveDeckVisibility (state precedence)', () => {
 describe('useDeckVisibility', () => {
   beforeEach(() => {
     authStatus = 'authed';
+    deckIntent = undefined;
     getPublicationMock.mockReset().mockResolvedValue(null);
     listSharesMock.mockReset().mockResolvedValue([]);
   });
@@ -121,5 +132,37 @@ describe('useDeckVisibility', () => {
 
     await waitFor(() => expect(getPublicationMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(result.current.visibility).toBe('public'));
+  });
+
+  it('reads a new public-by-default deck as Public while its publish lands, then looks again', async () => {
+    // No row yet: the server publishes on its first sync of the deck, a
+    // moment after the editor opens. Flashing Private there would be a lie.
+    deckIntent = 'public';
+    const { result } = renderHook(() => useDeckVisibility('d1'));
+    await waitFor(() => expect(result.current.visibility).toBe('public'));
+
+    getPublicationMock.mockResolvedValue(PUB_LIVE);
+    await waitFor(() => expect(getPublicationMock).toHaveBeenCalledTimes(2), { timeout: 2500 });
+    expect(result.current.visibility).toBe('public');
+  });
+
+  it('a deck created private reads Private from the first fetch', async () => {
+    deckIntent = 'private';
+    getPublicationMock.mockResolvedValue(PUB_UNPUBLISHED);
+    const { result } = renderHook(() => useDeckVisibility('d1'));
+    await waitFor(() => expect(getPublicationMock).toHaveBeenCalledTimes(1));
+    expect(result.current.visibility).toBe('private');
+  });
+
+  it('looks again when told the deck changed elsewhere (the post-create nudge)', async () => {
+    getPublicationMock.mockResolvedValue(PUB_LIVE);
+    const { result } = renderHook(() => useDeckVisibility('d1'));
+    await waitFor(() => expect(result.current.visibility).toBe('public'));
+
+    getPublicationMock.mockResolvedValue(PUB_UNPUBLISHED);
+    notifyDeckVisibilityChanged('other-deck');
+    notifyDeckVisibilityChanged('d1');
+    await waitFor(() => expect(result.current.visibility).toBe('private'));
+    expect(getPublicationMock).toHaveBeenCalledTimes(2);
   });
 });

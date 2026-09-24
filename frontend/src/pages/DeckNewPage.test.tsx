@@ -93,12 +93,12 @@ describe('DeckNewPage — creation-time visibility', () => {
   });
   afterEach(() => localStorage.clear());
 
-  it('defaults to Private, with Public selectable when authed', () => {
+  it('defaults to Public when authed (board T136)', () => {
     renderPage();
     selectStandardFormat();
     // Native <input type="radio"> now — `checked`/`disabled`, not aria-*.
-    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).disabled).toBe(
+    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).disabled).toBe(
       false
     );
   });
@@ -126,7 +126,7 @@ describe('DeckNewPage — creation-time visibility', () => {
 
     await waitFor(() => expect(createDeckMock).toHaveBeenCalledTimes(1));
     expect(createDeckMock).toHaveBeenCalledWith(
-      expect.objectContaining({ format: 'standard', source: 'manual' })
+      expect.objectContaining({ format: 'standard', source: 'manual', initialVisibility: 'public' })
     );
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledTimes(1));
     await waitFor(() =>
@@ -151,12 +151,18 @@ describe('DeckNewPage — creation-time visibility', () => {
     );
   });
 
-  it('never calls publishDeck when Private (the default) is kept', async () => {
+  it('creates the deck as private, and never publishes it, when Private is picked', async () => {
+    // The stamp is what keeps it private: the server would otherwise publish
+    // a new deck by default on its first sync.
     renderPage();
     selectStandardFormat();
+    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
 
     await waitFor(() => expect(createDeckMock).toHaveBeenCalledTimes(1));
+    expect(createDeckMock).toHaveBeenCalledWith(
+      expect.objectContaining({ initialVisibility: 'private' })
+    );
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id'));
     expect(publishDeckMock).not.toHaveBeenCalled();
   });
