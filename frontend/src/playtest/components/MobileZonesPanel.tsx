@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { MoreVertical } from 'lucide-react';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
-import { commanderTaxAmount } from '../lib/zones';
+import { TaxCoins } from './TaxCoins';
 
 interface Props {
   zones: Record<Zone, PlaytestCard[]>;
   commanderTax: Record<string, number>;
+  /** The commanders whose tax rides on the command tile as coins, the same
+   *  coins the table's command pile carries (see `TaxCoins`). They show while
+   *  a commander is on the battlefield too, which is when the tax matters. */
+  taxCards: PlaytestCard[];
+  onAdjustTax(cardId: string, delta: 1 | -1): void;
   onOpenZone(zone: Zone): void;
   /**
    * Open this zone's menu. The same list of items the table tier's pile
@@ -24,7 +29,14 @@ interface ZoneEntry {
   peek: 'top' | 'back';
 }
 
-export function MobileZonesPanel({ zones, commanderTax, onOpenZone, onMenu }: Props) {
+export function MobileZonesPanel({
+  zones,
+  commanderTax,
+  taxCards,
+  onAdjustTax,
+  onOpenZone,
+  onMenu,
+}: Props) {
   const [open, setOpen] = useState(false);
   // Per-zone map of a top-card id whose image failed, so a new top card
   // always gets a fresh chance to load (mirrors ZonePile).
@@ -55,14 +67,20 @@ export function MobileZonesPanel({ zones, commanderTax, onOpenZone, onMenu }: Pr
         <div className="playtest-zones-panel" role="region" aria-label="Exile and the command zone">
           {entries.map((e) => {
             const top = e.cards[e.cards.length - 1];
-            const tax = e.key === 'command' ? commanderTaxAmount(commanderTax, top?.id) : 0;
             return (
               <div key={e.key} className="playtest-zone-tile">
                 <div className="playtest-zone-tile__head">
                   <span className="playtest-zone-tile__name">
                     {e.label} ({e.cards.length})
-                    {tax > 0 && <span className="playtest-zone-tile__tax"> · Tax +{tax}</span>}
                   </span>
+                  {e.key === 'command' && (
+                    <TaxCoins
+                      cards={taxCards}
+                      commanderTax={commanderTax}
+                      onAdjust={onAdjustTax}
+                      placement="inline"
+                    />
+                  )}
                   <button
                     type="button"
                     className="playtest-zone-tile__kebab"

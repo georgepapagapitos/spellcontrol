@@ -2875,6 +2875,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         <MobileZonesPanel
           zones={state.zones}
           commanderTax={state.commanderTax}
+          taxCards={taxCards}
+          onAdjustTax={(cardId, delta) => dispatch({ type: 'ADJUST_COMMANDER_TAX', cardId, delta })}
           onOpenZone={(zone) => setViewer({ zone })}
           // The sheet variant is anchored by the viewport, not the pointer,
           // so the coordinates are unused here — 0,0 says so.

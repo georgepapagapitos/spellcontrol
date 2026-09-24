@@ -6091,6 +6091,10 @@ next cast's price matters, and the card's own menu no longer repeats it.
 Hovering or focusing a coin never opens the pile under it: the coins ride on
 the pile's top, and an opening pile would slide a coin out from under the
 pointer between one click and the next (the first build did exactly that).
+One `TaxCoins` component draws them everywhere: floating above the table's
+command pile, and inline in the phone's command tile, which is where a phone's
+command zone lives. The phone had shown the tax only for a card still in the
+zone, so a cast commander's tax was nowhere on screen until the coins came.
 
 **Every key has a pointer twin.** A shortcut that exists only on the keyboard
 is not shipped: each one is also a card-menu item, a table-menu item, or a
