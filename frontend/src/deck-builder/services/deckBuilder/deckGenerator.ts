@@ -4856,7 +4856,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     composition: targets,
     dataSource: state.dataSource,
     bracketPoolFallbackNote: state.bracketPoolFallbackNote,
-    dialSeedNote: dialSeed.note,
+    dialSeedNote:
+      dialSeed.note ??
+      dialSeed.describe?.((name) =>
+        Object.values(categories).some((cards) => cards.some((c) => c.name === name))
+      ),
     archetypeBlendNote: archetypeBlendSeated.note,
     archetypeBlendNames: archetypeBlendSeated.names,
     similarPoolNote: similarPoolSeated.note,

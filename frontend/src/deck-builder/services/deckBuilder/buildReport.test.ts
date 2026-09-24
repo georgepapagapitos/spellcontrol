@@ -723,7 +723,7 @@ describe('assembleBuildReport', () => {
     });
   });
 
-  describe('brewDialNote (Staples <-> Brew dial)', () => {
+  describe('brewDialNote (Staples <-> Synergy dial)', () => {
     it('discloses nothing at the 0.5 Balanced default, or when unset', () => {
       expect(
         assembleBuildReport({
@@ -741,13 +741,13 @@ describe('assembleBuildReport', () => {
       ).toBeUndefined();
     });
 
-    it('discloses a Theme-leaning note above 0.5', () => {
+    it('discloses a Synergy-leaning note above 0.5', () => {
       const report = assembleBuildReport({
         generated: makeGenerated(),
         customization: makeCustomization({ brewLevel: 1 }),
         collectionNames: new Set(),
       });
-      expect(report.brewDialNote).toMatch(/toward Theme/i);
+      expect(report.brewDialNote).toMatch(/toward high-synergy/i);
     });
 
     it('discloses a Staples-leaning note below 0.5', () => {
@@ -756,7 +756,17 @@ describe('assembleBuildReport', () => {
         customization: makeCustomization({ brewLevel: 0 }),
         collectionNames: new Set(),
       });
-      expect(report.brewDialNote).toMatch(/staples/i);
+      expect(report.brewDialNote).toMatch(/most-played/i);
+    });
+
+    it("stays out of the way when the dial's seed note already says what it did", () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({ dialSeedNote: "Started from EDHREC's average deck." }),
+        customization: makeCustomization({ brewLevel: 0 }),
+        collectionNames: new Set(),
+      });
+      expect(report.brewDialNote).toBeUndefined();
+      expect(report.dialSeedNote).toBe("Started from EDHREC's average deck.");
     });
   });
 

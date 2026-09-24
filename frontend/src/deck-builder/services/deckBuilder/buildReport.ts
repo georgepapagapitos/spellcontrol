@@ -129,12 +129,13 @@ export function assembleBuildReport(input: {
     if (generated.generationRelaxedNote) report.generationNote = generated.generationRelaxedNote;
   }
 
-  // Staples <-> Theme dial disclosure — undefined at the 0.5 Balanced default.
+  // Staples <-> Synergy dial disclosure — undefined at the 0.5 Balanced
+  // default, and when the dial's seed note already says what it did.
   const brewLevel = customization.brewLevel ?? 0.5;
-  if (brewLevel > 0.5) {
-    report.brewDialNote = 'Leaned toward theme fits over raw play-rate.';
-  } else if (brewLevel < 0.5) {
-    report.brewDialNote = 'Leaned toward EDHREC staples over theme fit.';
+  if (!generated.dialSeedNote && brewLevel > 0.5) {
+    report.brewDialNote = 'Leaned toward high-synergy cards over play rate.';
+  } else if (!generated.dialSeedNote && brewLevel < 0.5) {
+    report.brewDialNote = 'Leaned toward the most-played cards over synergy.';
   }
 
   // Archetype-aware land count auto-tune disclosure (undefined when the user

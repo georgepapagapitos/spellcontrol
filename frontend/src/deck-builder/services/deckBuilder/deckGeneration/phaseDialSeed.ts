@@ -49,10 +49,16 @@ export interface DialSeedContext {
 }
 
 export interface DialSeedResult {
-  /** Build-report line saying what was seeded and what didn't fit. */
+  /** Build-report line for when there was nothing to seed from. */
   note?: string;
   /** Per-card provenance for the seeded cards. */
   reasons: Map<string, string>;
+  /** The build-report line, given how many of the targeted cards are in the
+   *  FINAL deck. Taken at the end of generation, not here: later phases can
+   *  still trim a seed (a land count that leaves no room for all 68 of an
+   *  average deck's spells), and a count taken at seating time once claimed
+   *  "68 of its 68 spells made it in" over a deck missing eight of them. */
+  describe?: (inFinalDeck: (name: string) => boolean) => string | undefined;
 }
 
 const norm = (n: string) =>
@@ -76,7 +82,7 @@ export async function dialSeedPhase(
 
   let names: string[];
   let reason: string;
-  let describe: (seated: number, total: number, skipped: number) => string;
+  let describe: (present: number, total: number) => string;
   if (brew <= 0.25) {
     const avg = await fetchAverageDeckSpells(
       [commander.name, ...(partnerCommander ? [partnerCommander.name] : [])],
@@ -100,12 +106,12 @@ export async function dialSeedPhase(
     reason = core
       ? `In over half of EDHREC's ${commander.name} decks`
       : `In EDHREC's average ${commander.name} deck`;
-    describe = (seated, total, skipped) =>
+    describe = (present, total) =>
       (core
-        ? `Locked in the ${total} cards played in over half of EDHREC's ${label} decks: ${seated} made it in.`
-        : `Started from EDHREC's average${page} deck for ${label}: ${seated} of its ${total} spells made it in.`) +
-      (skipped > 0
-        ? ` ${skipped} didn't fit your settings, so the builder picked replacements.`
+        ? `Started from the ${total} cards played in over half of EDHREC's ${label} decks: ${present} are in this one.`
+        : `Started from EDHREC's average${page} deck for ${label}: ${present} of its ${total} spells are in this one.`) +
+      (present < total
+        ? ' The rest were over your settings or lost their slot to the land count.'
         : '');
   } else {
     const [minSynergy, max] = brew >= 1 ? SYNERGY_SEED.full : SYNERGY_SEED.lean;
@@ -115,8 +121,8 @@ export async function dialSeedPhase(
       .slice(0, max)
       .map((c) => c.name);
     reason = `One of the cards ${commander.name} decks play far more than other decks do`;
-    describe = (seated) =>
-      `Built around ${seated} of ${label}'s highest-synergy cards, the ones its decks play far more than other decks in its colors.`;
+    describe = (present) =>
+      `Built around ${present} of ${label}'s highest-synergy cards, the ones its decks play far more than other decks in its colors.`;
   }
   if (names.length === 0) return { reasons };
 
@@ -179,5 +185,12 @@ export async function dialSeedPhase(
     seated++;
   }
   logger.debug(`[DeckGen] Dial seed: ${seated} seated, ${skipped} skipped`);
-  return { reasons, note: seated > 0 ? describe(seated, names.length, skipped) : undefined };
+  const targeted = names.map((n) => (resolved.get(n) ?? byNorm.get(norm(n)))?.name ?? n);
+  return {
+    reasons,
+    describe: (inFinalDeck) => {
+      const present = targeted.filter(inFinalDeck).length;
+      return present > 0 ? describe(present, targeted.length) : undefined;
+    },
+  };
 }
