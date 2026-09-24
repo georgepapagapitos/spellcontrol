@@ -51,6 +51,9 @@ export interface PublicUserProfile {
   /** Internal only, like `id` — the route derives `moderationHidden` (and
    *  the stranger-facing 404) from this per request; never echoed as-is. */
   profileHiddenAt: number | null;
+  /** `users.collection_visibility`; null = the owner never chose. The route
+   *  decides per viewer whether the Collection tab opens. */
+  collectionVisibility: 'public' | 'friends' | 'private' | null;
   deckCount: number;
   decks: PublicDeckSummary[];
 }

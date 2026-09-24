@@ -203,6 +203,29 @@ export async function fetchIdentities(): Promise<MyIdentities> {
   return handleResponse<MyIdentities>(res);
 }
 
+/** Who can see a collection (board T136). */
+export type CollectionVisibility = 'public' | 'friends' | 'private';
+
+/** Your own collection's visibility; null = never chosen (an account from
+ *  before T136, whose friends see which cards but not quantities or prices). */
+export async function fetchCollectionVisibility(): Promise<CollectionVisibility | null> {
+  const res = await authedFetch('/api/auth/me', { method: 'GET' });
+  const data = await handleResponse<{ collectionVisibility?: CollectionVisibility | null }>(res);
+  return data.collectionVisibility ?? null;
+}
+
+export async function setCollectionVisibility(
+  visibility: CollectionVisibility
+): Promise<CollectionVisibility> {
+  const res = await authedFetch('/api/auth/me/collection-visibility', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visibility }),
+  });
+  return (await handleResponse<{ collectionVisibility: CollectionVisibility }>(res))
+    .collectionVisibility;
+}
+
 /** Toggle the T117 notification emails. */
 export async function setNotifyEmail(enabled: boolean): Promise<void> {
   const res = await authedFetch('/api/auth/me/notify-email', {

@@ -15,7 +15,7 @@ import { AddCardsSheet } from '../components/AddCardsSheet';
 import { PageHeader } from '../components/PageHeader';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
-import { ShareDialog } from '../components/ShareDialog';
+import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
 import { CollectionExportDialog } from '../components/CollectionExportDialog';
 
 export function CollectionPage() {
@@ -172,7 +172,7 @@ export function CollectionPage() {
                       label: 'Share',
                       icon: Share2,
                       opensDialog: true,
-                      title: 'Share a read-only link to this collection',
+                      title: 'Choose who can see your collection',
                       onClick: () => setShareOpen(true),
                     },
                   ]),
@@ -246,13 +246,7 @@ export function CollectionPage() {
           {exportOpen && (
             <CollectionExportDialog cards={cards} onClose={() => setExportOpen(false)} />
           )}
-          {shareOpen && (
-            <ShareDialog
-              kind="collection"
-              resourceLabel="your collection"
-              onClose={() => setShareOpen(false)}
-            />
-          )}
+          {shareOpen && <CollectionVisibilityDialog onClose={() => setShareOpen(false)} />}
         </>
       )}
 

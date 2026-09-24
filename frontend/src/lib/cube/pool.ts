@@ -42,6 +42,12 @@ export interface FriendCard {
 
 export interface FriendCollectionResponse {
   ownerUsername: string;
+  /** They set their collection to Private (board T136): `cards` is empty on
+   *  purpose. Optional for an older backend. */
+  collectionPrivate?: true;
+  /** Their profile's Collection tab opens for you, with the quantities and
+   *  prices this card-level view leaves out. */
+  fullView?: boolean;
   /** Already oracle-deduped server-side. */
   cards: FriendCard[];
 }

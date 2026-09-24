@@ -1,4 +1,5 @@
 import { apiUrl } from './api-base';
+import type { PublicCollection } from './shared-types';
 
 export interface PublicProfileDeck {
   slug: string;
@@ -26,11 +27,14 @@ export interface PublicProfile {
   moderationHidden: boolean;
   deckCount: number;
   decks: PublicProfileDeck[];
+  /** The Collection tab (board T136). `canView` is decided per viewer on the
+   *  server; `visibility` is the owner's choice (null = never chose). */
+  collection?: { visibility: 'public' | 'friends' | 'private' | null; canView: boolean };
 }
 
-/** Thrown for an unknown username, a stranger viewing a hidden profile, or a
- *  real user with zero live publications — the server 404s all three
- *  identically (stealth: a stranger can't distinguish which applies). */
+/** Thrown for an unknown username or a stranger viewing a moderator-hidden
+ *  profile; the server 404s both identically, so a stranger can't tell which
+ *  applies. Every other account resolves, public decks or not (T136). */
 export class ProfileNotFoundError extends Error {
   constructor() {
     super('Profile not found.');
@@ -89,4 +93,24 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
     );
   }
   return (await res.json()) as PublicProfile;
+}
+
+/**
+ * The full collection on a profile's Collection tab (board T136): one entry
+ * per physical copy, with printing, finish and market price, the same shape
+ * a collection share link serves. 404s like a missing profile when the
+ * viewer may not see it.
+ */
+export async function fetchProfileCollection(username: string): Promise<PublicCollection> {
+  const res = await fetch(apiUrl(`/api/public/users/${encodeURIComponent(username)}/collection`), {
+    credentials: 'include',
+  });
+  if (res.status === 404) throw new ProfileNotFoundError();
+  if (!res.ok) throw new Error(await readError(res, "Couldn't load this collection. Try again."));
+  return (await res.json()) as PublicCollection;
+}
+
+/** Where a public or friends-only collection lives: its owner's profile. */
+export function profileCollectionUrl(username: string): string {
+  return `${window.location.origin}/u/${username}?tab=collection`;
 }

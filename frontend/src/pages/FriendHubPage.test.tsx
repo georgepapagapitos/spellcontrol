@@ -230,6 +230,35 @@ describe('FriendHubPage — Collection browser', () => {
     expect(panel.textContent).not.toMatch(/\d+ (free|spare)/);
   });
 
+  it('says a Private collection is private, rather than empty (T136)', async () => {
+    fetchFriendCollection.mockResolvedValue({
+      ownerUsername: 'friendo',
+      cards: [],
+      collectionPrivate: true,
+      fullView: false,
+    });
+    renderPage();
+    await openCollectionTab();
+    const panel = document.getElementById('friend-hub-panel-collection')!;
+    expect(await within(panel).findAllByText(/keeps their collection private/)).not.toHaveLength(0);
+    expect(panel.textContent).not.toMatch(/hasn't added anything/);
+  });
+
+  it('points to the full view on their profile when it opens for this friend (T136)', async () => {
+    fetchFriendCollection.mockResolvedValue({
+      ownerUsername: 'friendo',
+      cards: [makeCard({ name: 'Sol Ring', oracleId: 'sol' })],
+      fullView: true,
+    });
+    renderPage();
+    await openCollectionTab();
+    const panel = document.getElementById('friend-hub-panel-collection')!;
+    const link = await within(panel).findByRole('link', {
+      name: 'See quantities and prices on their profile',
+    });
+    expect(link.getAttribute('href')).toBe('/u/friendo?tab=collection');
+  });
+
   it('shows the contract line and the empty state when the friend owns nothing', async () => {
     fetchFriendCollection.mockResolvedValue({ ownerUsername: 'friendo', cards: [] });
     renderPage();

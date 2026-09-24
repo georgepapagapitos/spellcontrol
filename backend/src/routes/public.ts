@@ -5,7 +5,9 @@ import { testAwareLimiter } from '../route-utils';
 import { normalizeUsername, optionalAuth } from '../auth';
 import { getPool } from '../db';
 import { ORIGIN, type ShareLandingMeta, type ShareLandingResult } from '../shares/og';
-import { projectDeck, type PublicDeck } from '../shares/projections';
+import { projectCollection, projectDeck, type PublicDeck } from '../shares/projections';
+import { stampSharePrices } from '../shares/context';
+import { canViewFullCollection, parseCollectionVisibility } from '../collections/visibility';
 import {
   deckPublicationCache,
   publicUserCache,
@@ -201,6 +203,7 @@ interface PublicUserRow {
   avatar_image_url: string | null;
   created_at: string;
   profile_hidden_at: string | null;
+  collection_visibility: string | null;
 }
 
 /**
@@ -218,7 +221,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
   const user = (
     await pool.query<PublicUserRow>(
       `SELECT id, username, display_name, bio, avatar_card_name, avatar_image_url,
-              created_at, profile_hidden_at
+              created_at, profile_hidden_at, collection_visibility
          FROM users WHERE username = $1`,
       [username]
     )
@@ -250,6 +253,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
     avatarImageUrl: user.avatar_image_url,
     memberSince: Number(user.created_at),
     profileHiddenAt: user.profile_hidden_at === null ? null : Number(user.profile_hidden_at),
+    collectionVisibility: parseCollectionVisibility(user.collection_visibility),
     // True total, not decks.length — the 200 cap means those diverge for a
     // heavy publisher.
     deckCount: Number(countResult.rows[0].count),
@@ -261,10 +265,13 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
 
 /**
  * `optionalAuth` so the owner of a profile can always see it (even hidden by
- * moderation, or with zero live decks) while a stranger gets the same 404
- * either way — a stranger can't distinguish "never existed" from "hidden"
- * from "nothing published yet". Both owner-gating checks below short-circuit
- * for `isOwner`, so the loader/cache above stays completely viewer-agnostic.
+ * moderation) while a stranger gets the same 404 for "never existed" and
+ * "hidden". Every other account resolves, decks or not (board T136: click an
+ * author, see their stuff): an empty profile is a page with nothing on it
+ * yet, not a missing one. Whether it is INDEXED is a separate rule, still
+ * keyed on having a live deck (lookupPublicUserLandingMeta, sitemap.ts).
+ * The owner and collection checks happen per request, so the loader/cache
+ * above stays viewer-agnostic.
  */
 publicRouter.get(
   '/users/:username',
@@ -284,7 +291,7 @@ publicRouter.get(
     }
 
     const isOwner = req.user?.id === profile.id;
-    if (!isOwner && (profile.profileHiddenAt !== null || profile.decks.length === 0)) {
+    if (!isOwner && profile.profileHiddenAt !== null) {
       return res.status(404).json(USER_NOT_FOUND);
     }
 
@@ -300,7 +307,56 @@ publicRouter.get(
       moderationHidden,
       deckCount: profile.deckCount,
       decks: moderationHidden ? [] : profile.decks,
+      collection: {
+        // The owner's own choice, for their "who can see this" note; null
+        // means never chose.
+        visibility: profile.collectionVisibility,
+        canView:
+          !moderationHidden &&
+          (await canViewFullCollection(profile.id, profile.collectionVisibility, req.user?.id)),
+      },
     });
+  }
+);
+
+/**
+ * The full collection on a profile's Collection tab: one entry per physical
+ * copy with its printing, finish, condition and market price, the same
+ * projection a collection share link serves. Gated per request by
+ * `canViewFullCollection` (public / friends-only / private, NULL = never
+ * chose = no), and answered with the same 404 as a missing profile so a
+ * stranger can't tell "private" from "no such user".
+ *
+ * ponytail: no response cache. A share token's collection is cached 60 s
+ * (shares/cache.ts); add the same here, keyed by username and purged in
+ * purgeUserPublicCaches, if profile traffic ever makes big collections hot.
+ */
+publicRouter.get(
+  '/users/:username/collection',
+  publicReadLimiter,
+  optionalAuth,
+  async (req: Request, res: Response) => {
+    const username = normalizeUsername(req.params.username);
+    if (!username) return res.status(404).json(USER_NOT_FOUND);
+    const profile = await loadPublicUserProfile(username);
+    if (!profile) return res.status(404).json(USER_NOT_FOUND);
+    const isOwner = req.user?.id === profile.id;
+    if (!isOwner && profile.profileHiddenAt !== null) {
+      return res.status(404).json(USER_NOT_FOUND);
+    }
+    if (!(await canViewFullCollection(profile.id, profile.collectionVisibility, req.user?.id))) {
+      return res.status(404).json(USER_NOT_FOUND);
+    }
+
+    const rows = await getPool().query<{ data: unknown }>(
+      `SELECT data FROM user_cards WHERE user_id = $1 AND deleted_at IS NULL`,
+      [profile.id]
+    );
+    const cards = rows.rows.map((r) => r.data).filter((d) => d != null);
+    stampSharePrices(cards);
+    res.json(
+      projectCollection({ username: profile.username, displayName: profile.displayName }, { cards })
+    );
   }
 );
 

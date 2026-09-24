@@ -268,11 +268,12 @@ describe('GET /api/public/users/:username', () => {
     expect(res.body.decks[0].commanderImage).toBe('https://cards.scryfall.io/art_crop/atraxa.jpg');
   });
 
-  it('404s a user with no live publications, viewed by a stranger (blocking fix, w1-public-profile-page)', async () => {
+  it('resolves a profile with no public decks for a stranger: click an author, see their page (T136)', async () => {
     await makeUser('pub-profile-empty');
     const res = await request(app).get('/api/public/users/pub-profile-empty');
-    expect(res.status).toBe(404);
-    expect(res.body.error).toBe('User not found.');
+    expect(res.status).toBe(200);
+    expect(res.body.decks).toEqual([]);
+    expect(res.body.isOwner).toBe(false);
   });
 
   it('200s with an empty decks array for the owner viewing their own 0-deck profile', async () => {
@@ -494,5 +495,106 @@ describe('a released handle keeps pointing at the account that had it', () => {
     expect(res.status).toBe(404);
     expect(res.body.renamedTo).toBeUndefined();
     expect(await lookupPublicUserLandingMeta('doesnotexist')).toBeNull();
+  });
+});
+
+describe('a profile Collection tab (T136)', () => {
+  function card(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      copyId: `copy-${Math.random().toString(36).slice(2)}`,
+      name: 'Sol Ring',
+      scryfallId: 'sol-ring-id',
+      setCode: 'cmr',
+      collectorNumber: '472',
+      rarity: 'uncommon',
+      finish: 'nonfoil',
+      foil: false,
+      purchasePrice: 1.5,
+      cmc: 1,
+      typeLine: 'Artifact',
+      importId: 'import-1',
+      ...overrides,
+    };
+  }
+  async function owner(username: string, visibility: string | null) {
+    const cookie = await makeUser(username);
+    await setSnapshotViaSyncApi(request(app), cookie, {
+      collection: { cards: [card(), card({ name: 'Rhystic Study', scryfallId: 'rhystic-id' })] },
+    });
+    const id = await userIdFromCookie(cookie);
+    await pool.query(`UPDATE users SET collection_visibility = $2 WHERE id = $1`, [id, visibility]);
+    return cookie;
+  }
+  async function befriend(a: string, aName: string, b: string, bName: string) {
+    await request(app).post('/api/friends/requests').set('Cookie', a).send({ username: bName });
+    const r = await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', b)
+      .send({ username: aName });
+    expect(r.body.friendStatus).toBe('friends');
+  }
+  const collection = (username: string, cookie?: string) => {
+    const r = request(app).get(`/api/public/users/${username}/collection`);
+    return cookie ? r.set('Cookie', cookie) : r;
+  };
+
+  it('a new account starts public: anyone sees every copy, with printing and finish', async () => {
+    await makeUser('coll-new');
+    const cookie = await makeUser('coll-new-owner');
+    await setSnapshotViaSyncApi(request(app), cookie, { collection: { cards: [card(), card()] } });
+    const res = await collection('coll-new-owner');
+    expect(res.status).toBe(200);
+    expect(res.body.ownerUsername).toBe('coll-new-owner');
+    expect(res.body.cards).toHaveLength(2);
+    expect(res.body.cards[0]).toMatchObject({
+      name: 'Sol Ring',
+      setCode: 'cmr',
+      finish: 'nonfoil',
+    });
+    const profile = await request(app).get('/api/public/users/coll-new-owner');
+    expect(profile.body.collection).toEqual({ visibility: 'public', canView: true });
+  });
+
+  it('friends-only opens for a friend, not a stranger or a guest', async () => {
+    const o = await owner('coll-fr-owner', 'friends');
+    const friend = await makeUser('coll-fr-friend');
+    const stranger = await makeUser('coll-fr-stranger');
+    await befriend(o, 'coll-fr-owner', friend, 'coll-fr-friend');
+    expect((await collection('coll-fr-owner', friend)).status).toBe(200);
+    expect((await collection('coll-fr-owner', stranger)).status).toBe(404);
+    expect((await collection('coll-fr-owner')).status).toBe(404);
+    const asFriend = await request(app)
+      .get('/api/public/users/coll-fr-owner')
+      .set('Cookie', friend);
+    expect(asFriend.body.collection.canView).toBe(true);
+  });
+
+  it('private opens for its owner only, and answers everyone else like a missing page', async () => {
+    const o = await owner('coll-priv-owner', 'private');
+    const friend = await makeUser('coll-priv-friend');
+    await befriend(o, 'coll-priv-owner', friend, 'coll-priv-friend');
+    const asFriend = await collection('coll-priv-owner', friend);
+    expect(asFriend.status).toBe(404);
+    expect(asFriend.body.error).toBe('User not found.');
+    expect((await collection('coll-priv-owner', o)).status).toBe(200);
+  });
+
+  it('an account that never chose keeps its old promise: no quantities or prices, even to a friend', async () => {
+    const o = await owner('coll-null-owner', null);
+    const friend = await makeUser('coll-null-friend');
+    await befriend(o, 'coll-null-owner', friend, 'coll-null-friend');
+    expect((await collection('coll-null-owner', friend)).status).toBe(404);
+    const profile = await request(app)
+      .get('/api/public/users/coll-null-owner')
+      .set('Cookie', friend);
+    expect(profile.body.collection).toEqual({ visibility: null, canView: false });
+  });
+
+  it('a moderator-hidden account shows its collection to nobody else', async () => {
+    const o = await owner('coll-hidden-owner', 'public');
+    await pool.query(`UPDATE users SET profile_hidden_at = 1 WHERE id = $1`, [
+      await userIdFromCookie(o),
+    ]);
+    expect((await collection('coll-hidden-owner')).status).toBe(404);
   });
 });

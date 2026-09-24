@@ -195,3 +195,20 @@
     max-width: 80vw;
   }
 }
+
+/* Decks | Collection (board T136). */
+.public-profile-tabs {
+  margin-bottom: var(--space-4);
+}
+
+.public-profile-collection-note {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.public-profile-collection-skeleton {
+  display: block;
+  height: 12rem;
+  border-radius: var(--radius-lg);
+}

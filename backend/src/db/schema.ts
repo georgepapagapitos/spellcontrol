@@ -89,6 +89,12 @@ export const users = pgTable('users', {
    * notified; only takes effect once `emailVerified` is also true.
    */
   notifyEmail: boolean('notify_email').notNull().default(true),
+  /**
+   * Who can see the collection (board T136): 'public' | 'friends' |
+   * 'private'. NULL means the owner never chose (every account from before
+   * this shipped): friends see which cards, never quantities or prices.
+   */
+  collectionVisibility: text('collection_visibility').default('public'),
 });
 
 /**
