@@ -1,4 +1,5 @@
 import './FriendHubPage.css';
+import { PageHeader } from '@/components/PageHeader';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
@@ -584,11 +585,10 @@ export function FriendHubPage() {
   return (
     <div className="friend-hub social-page-shell friend-hub--wide">
       <BackLink to="/friends" label="Friends" />
-      <header className="binder-hero">
-        <h1 className="binder-hero-name">{heading}</h1>
-        {hasDisplayName && <p className="binder-hero-meta">{handle}</p>}
-        <p className="binder-hero-meta">Shared with friends</p>
-      </header>
+      <PageHeader
+        title={heading}
+        meta={hasDisplayName ? `${handle} · Shared with friends` : 'Shared with friends'}
+      />
 
       <Tabs
         ariaLabel="Friend hub views"

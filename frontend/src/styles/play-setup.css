@@ -20,13 +20,9 @@
   gap: var(--space-4);
 }
 
-/* Play hero — layout (row-with-actions) and text-flex rules live in
-   global.css alongside .collection-hero / .decks-index-hero /
-   .binders-index-hero so every page header shares one definition. */
-
-/* The Local/Online/History strip is the shared <Tabs> primitive
-   (components/Tabs.tsx, `fitted` variant); only the in-progress dot is
-   Play-specific. */
+/* The Play header is components/PageHeader.tsx. The Local/Online/History
+   strip under it is the shared <Tabs> primitive (components/Tabs.tsx);
+   only the in-progress dot is Play-specific. */
 .play-tab-dot {
   width: 0.45rem;
   height: 0.45rem;
@@ -37,12 +33,6 @@
      label and raised so "Online●" stops reading as a typo. */
   margin-left: 0.3rem;
   transform: translateY(-0.45em);
-}
-
-.play-page-hero-sub {
-  margin: 0.2rem 0 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
 }
 
 /* ── Setup forms ─────────────────────────────────────────────────────────── */

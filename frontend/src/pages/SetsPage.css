@@ -7,10 +7,6 @@
   gap: var(--space-4);
 }
 
-.sets-page-sub {
-  margin: 0;
-}
-
 /* Search + sort control row; wraps on narrow screens. */
 .sets-toolbar {
   display: flex;

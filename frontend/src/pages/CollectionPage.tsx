@@ -12,7 +12,7 @@ import { useSetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { BrandMark } from '../components/shared/BrandMark';
 import { AddCardsSheet } from '../components/AddCardsSheet';
-import { OverflowMenu } from '../components/OverflowMenu';
+import { PageHeader } from '../components/PageHeader';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 import { ShareDialog } from '../components/ShareDialog';
@@ -146,10 +146,39 @@ export function CollectionPage() {
               a separate import screen — adding/importing happens through the
               always-present "Add cards" sheet (search · list · scan). Stats and
               Share hide when there's nothing yet to break down or share. */}
-          <header className="binder-hero collection-hero">
-            <div className="collection-hero-text">
-              <h1 className="binder-hero-name">Collection</h1>
-              <p className="binder-hero-meta collection-hero-meta">
+          <PageHeader
+            title="Collection"
+            metaClassName="collection-hero-meta"
+            menuLabel="More collection actions"
+            actions={[
+              {
+                label: 'Add cards',
+                icon: Plus,
+                primary: true,
+                opensDialog: true,
+                onClick: () => setAddCardsOpen(true),
+              },
+              ...(isEmpty
+                ? []
+                : [
+                    {
+                      label: 'Export',
+                      icon: Download,
+                      opensDialog: true,
+                      title: 'Download your collection for another tool',
+                      onClick: () => setExportOpen(true),
+                    },
+                    {
+                      label: 'Share',
+                      icon: Share2,
+                      opensDialog: true,
+                      title: 'Share a read-only link to this collection',
+                      onClick: () => setShareOpen(true),
+                    },
+                  ]),
+            ]}
+            meta={
+              <>
                 <span aria-label="Collection totals">
                   {displayCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'}{' '}
                   ·{' '}
@@ -204,58 +233,9 @@ export function CollectionPage() {
                     </button>
                   </>
                 )}
-              </p>
-            </div>
-            <div className="collection-hero-actions">
-              <button
-                type="button"
-                className="pill-btn collection-hero-action"
-                aria-haspopup="dialog"
-                onClick={() => setAddCardsOpen(true)}
-              >
-                <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Add cards</span>
-              </button>
-              {/* Export + Share are secondary: full pills on desktop/tablet,
-                  collapsed into the ⋮ kebab on phones, where three pills wrap
-                  onto a second row and push the collection further down a
-                  screen that only had room for two card rows. Mirrors the
-                  decks and binder heroes. */}
-              {!isEmpty && (
-                <>
-                  <button
-                    type="button"
-                    className="pill-btn collection-hero-action collection-hero-action-secondary"
-                    aria-haspopup="dialog"
-                    onClick={() => setExportOpen(true)}
-                    title="Download your collection for another tool"
-                  >
-                    <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
-                    <span>Export</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="pill-btn collection-hero-action collection-hero-action-secondary"
-                    aria-haspopup="dialog"
-                    onClick={() => setShareOpen(true)}
-                    title="Share a read-only link to this collection"
-                  >
-                    <Share2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                    <span>Share</span>
-                  </button>
-                  <OverflowMenu
-                    className="collection-hero-actions-overflow"
-                    triggerClassName="pill-btn collection-hero-actions-kebab"
-                    ariaLabel="More collection actions"
-                    items={[
-                      { label: 'Export', icon: Download, onClick: () => setExportOpen(true) },
-                      { label: 'Share', icon: Share2, onClick: () => setShareOpen(true) },
-                    ]}
-                  />
-                </>
-              )}
-            </div>
-          </header>
+              </>
+            }
+          />
           <CardListTable
             cards={cards}
             binders={materialized}

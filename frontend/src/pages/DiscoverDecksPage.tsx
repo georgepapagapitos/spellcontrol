@@ -3,6 +3,7 @@ import { LayoutGrid, List as ListIconLucide } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
+import { PageHeader } from '../components/PageHeader';
 import {
   DiscoverDeckTile,
   DiscoverTileSkeleton,
@@ -279,10 +280,7 @@ export function DiscoverDecksPage() {
     <>
       <DecksHubTabs />
       <div className="decks-index-page">
-        <header className="binder-hero">
-          <h1 className="binder-hero-name">Discover</h1>
-          <p className="binder-hero-meta">Public decks from the SpellControl community.</p>
-        </header>
+        <PageHeader title="Discover" meta="Public decks from the SpellControl community." />
 
         <TrendingRail
           enabled={true}

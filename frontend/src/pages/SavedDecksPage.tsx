@@ -5,6 +5,7 @@ import './DiscoverDecksPage.css';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
+import { PageHeader } from '../components/PageHeader';
 import {
   DiscoverDeckTile,
   DiscoverTileSkeleton,
@@ -72,10 +73,7 @@ export function SavedDecksPage() {
     <>
       <DecksHubTabs />
       <div className="decks-index-page">
-        <header className="binder-hero">
-          <h1 className="binder-hero-name">Saved</h1>
-          <p className="binder-hero-meta">Decks you've bookmarked from Discover.</p>
-        </header>
+        <PageHeader title="Saved" meta="Decks you've bookmarked from Discover." />
 
         {!isAuthed ? (
           <div className="empty-state">

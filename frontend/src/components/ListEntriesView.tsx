@@ -9,6 +9,7 @@ import { isTrackingList } from '../lib/lists';
 import { formatMoney } from '../lib/format-money';
 import { useCollectionStore } from '../store/collection';
 import { BackLink } from './BackLink';
+import { PageHeader } from './PageHeader';
 import { InfoTip } from './InfoTip';
 import { ListDetailView } from './ListDetailView';
 import { ListAddCardSheet } from './ListAddCardSheet';
@@ -83,10 +84,20 @@ export function ListEntriesView({ list }: Props) {
   return (
     <div className="binders-index-page">
       <BackLink to="/collection/lists" label="All lists" />
-      <header className="binder-hero binders-index-hero">
-        <div className="binders-index-hero-text">
-          <h1 className="binder-hero-name">{list.name}</h1>
-          <p className="binder-hero-meta">
+      <PageHeader
+        title={list.name}
+        actions={[
+          isDynamic
+            ? {
+                label: 'Edit rule',
+                icon: SlidersHorizontal,
+                primary: true,
+                onClick: () => setRuleOpen(true),
+              }
+            : { label: 'Add card', icon: Plus, primary: true, onClick: () => setAddOpen(true) },
+        ]}
+        meta={
+          <>
             {cardCount.toLocaleString()} {cardCount === 1 ? 'card' : 'cards'}
             {isDynamic ? (
               <>
@@ -146,30 +157,9 @@ export function ListEntriesView({ list }: Props) {
                 </>
               )
             )}
-          </p>
-        </div>
-        <div className="binders-index-actions">
-          {isDynamic ? (
-            <button
-              type="button"
-              className="pill-btn pill-btn-primary"
-              onClick={() => setRuleOpen(true)}
-            >
-              <SlidersHorizontal width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>Edit rule</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="pill-btn pill-btn-primary"
-              onClick={() => setAddOpen(true)}
-            >
-              <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>Add card</span>
-            </button>
-          )}
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <ListDetailView
         list={list}

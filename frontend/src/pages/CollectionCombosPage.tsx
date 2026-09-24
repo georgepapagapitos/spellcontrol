@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '@/components/PageHeader';
 // Shared with the deck editor; ships with the two chunks, not the boot payload (E265).
 import '@/styles/deck-builder-combos-list.css';
 import type { ComboMatch } from '../types/combos';
@@ -299,37 +300,36 @@ export function CollectionCombosPage() {
 
   return (
     <>
-      <header className="binder-hero collection-hero">
-        <div className="collection-hero-text">
-          <h1 className="binder-hero-name">Combos</h1>
-          <p className="binder-hero-meta collection-hero-meta">
-            <span>
-              {loading
-                ? 'Checking your collection…'
-                : searchMode
-                  ? // In search mode the bucket counts describe a list that
-                    // isn't on screen — showing "4 complete · 9 one away" above
-                    // 22 search results reads as a contradiction. Fall back to
-                    // the collection-wide totals, which stay true either way.
-                    `${rawComplete.length.toLocaleString()} complete · ${oneAwayTotal.toLocaleString()} one away in your collection`
-                  : // The one-away bucket is CAPPED (ALMOST_LIMIT). Unfiltered,
-                    // `oneAway.length` is that cap, not a count — the hero read
-                    // "200 one away" while the panel below it said "Showing 200
-                    // of 8,409", so the page contradicted itself in the one line
-                    // read first. `oneAwayTotal` is the honest number and is
-                    // already computed above (and already suppressed on the
-                    // server path, where no total is trustworthy). Once a filter
-                    // or a search narrows the list, the narrowed count is the
-                    // true answer to the question actually being asked.
-                    `${complete.length.toLocaleString()} complete · ${(oneAwayTruncated &&
-                    filterChips.length === 0
-                      ? oneAwayTotal
-                      : oneAway.length
-                    ).toLocaleString()} one away`}
-            </span>
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title="Combos"
+        metaClassName="collection-hero-meta"
+        meta={
+          <span>
+            {loading
+              ? 'Checking your collection…'
+              : searchMode
+                ? // In search mode the bucket counts describe a list that
+                  // isn't on screen — showing "4 complete · 9 one away" above
+                  // 22 search results reads as a contradiction. Fall back to
+                  // the collection-wide totals, which stay true either way.
+                  `${rawComplete.length.toLocaleString()} complete · ${oneAwayTotal.toLocaleString()} one away in your collection`
+                : // The one-away bucket is CAPPED (ALMOST_LIMIT). Unfiltered,
+                  // `oneAway.length` is that cap, not a count — the hero read
+                  // "200 one away" while the panel below it said "Showing 200
+                  // of 8,409", so the page contradicted itself in the one line
+                  // read first. `oneAwayTotal` is the honest number and is
+                  // already computed above (and already suppressed on the
+                  // server path, where no total is trustworthy). Once a filter
+                  // or a search narrows the list, the narrowed count is the
+                  // true answer to the question actually being asked.
+                  `${complete.length.toLocaleString()} complete · ${(oneAwayTruncated &&
+                  filterChips.length === 0
+                    ? oneAwayTotal
+                    : oneAway.length
+                  ).toLocaleString()} one away`}
+          </span>
+        }
+      />
 
       {partial && (
         <div className="deck-combos-partial-banner" role="status" aria-live="polite">

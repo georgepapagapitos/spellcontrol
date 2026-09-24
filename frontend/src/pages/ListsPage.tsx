@@ -8,6 +8,7 @@ import {
   SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
@@ -240,24 +241,15 @@ export function ListsPage() {
 
   return (
     <div className="binders-index-page">
-      <header className="binder-hero binders-index-hero">
-        <div className="binders-index-hero-text">
-          <h1 className="binder-hero-name">Lists</h1>
-          <p className="binder-hero-meta">
-            {lists.length.toLocaleString()} {lists.length === 1 ? 'list' : 'lists'}
-          </p>
-        </div>
-        <div className="binders-index-actions">
-          <button type="button" className="pill-btn" onClick={handleCreateDynamic}>
-            <SlidersHorizontal width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span>New dynamic list</span>
-          </button>
-          <button type="button" className="pill-btn pill-btn-primary" onClick={handleCreate}>
-            <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span>New list</span>
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        title="Lists"
+        meta={`${lists.length.toLocaleString()} ${lists.length === 1 ? 'list' : 'lists'}`}
+        menuLabel="More list actions"
+        actions={[
+          { label: 'New list', icon: Plus, primary: true, onClick: handleCreate },
+          { label: 'New dynamic list', icon: SlidersHorizontal, onClick: handleCreateDynamic },
+        ]}
+      />
 
       {lists.length > 0 && (
         <div className="binders-index-search-row">
