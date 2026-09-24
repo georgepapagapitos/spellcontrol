@@ -740,7 +740,6 @@
 .import-card-desc {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  font-family: var(--font-mono);
   line-height: 1.5;
   margin: 0;
 }
@@ -853,7 +852,6 @@
 .import-card-hint {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-family: var(--font-mono);
 }
 
 .import-card-hint a {
