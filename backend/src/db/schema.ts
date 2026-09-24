@@ -955,6 +955,7 @@ export const deckPublications = pgTable(
     publishedIdx: index('deck_publications_published_idx').on(t.publishedAt),
     copyCountIdx: index('deck_publications_copy_count_idx').on(t.copyCount),
     viewCountIdx: index('deck_publications_view_count_idx').on(t.viewCount),
+    likeCountIdx: index('deck_publications_like_count_idx').on(t.likeCount),
     commanderPrefixIdx: index('deck_publications_commander_prefix_idx').on(t.commanderName),
   })
 );

@@ -697,8 +697,9 @@ export async function ensureSchema(): Promise<void> {
     -- the takedown also sets) so an owner's publish can't quietly undo it now
     -- that decks publish by default: the publish route refuses while it's set.
     ALTER TABLE deck_publications ADD COLUMN IF NOT EXISTS moderated_at BIGINT;
-    -- Not indexed for sorting -- like_count is deliberately never a Discover
-    -- sort field in v1 (see w2-discover-listing-api's open_questions).
+    -- Discover's "Most liked" sort (board T136), alongside the copy/view ones.
+    CREATE INDEX IF NOT EXISTS deck_publications_like_count_idx
+      ON deck_publications (like_count DESC) WHERE unpublished_at IS NULL;
 
     -- Content reports (social program W1) — the app's first moderation
     -- surface. kind covers 'game-result' from day one (app-level validation

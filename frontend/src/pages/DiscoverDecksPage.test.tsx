@@ -216,6 +216,21 @@ describe('DiscoverDecksPage', () => {
     });
   });
 
+  it('Most liked is offered to everyone and asks the server for it (T136)', async () => {
+    authStatus = 'guest';
+    collectionCards = [];
+    mockListDiscoverDecks.mockResolvedValue({ decks: [makeDeck()], page: 1, hasMore: false });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Atraxa Superfriends')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /sort discover decks by/i }));
+    fireEvent.click(screen.getByRole('option', { name: 'Most liked' }));
+    await waitFor(() =>
+      expect(mockListDiscoverDecks).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sort: 'most-liked' })
+      )
+    );
+  });
+
   it('buildable sort re-sorts the accumulated list client-side, descending, with stable ties (no refetch)', async () => {
     authStatus = 'authed';
     collectionCards = [ownedCard('x1'), ownedCard('x2'), ownedCard('z1'), ownedCard('w1')];

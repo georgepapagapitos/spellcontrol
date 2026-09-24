@@ -50,6 +50,7 @@ const DISCOVER_SORT_DIR: Record<DiscoverSortField, 'asc' | 'desc'> = {
   newest: 'desc',
   'most-copied': 'desc',
   'most-viewed': 'desc',
+  'most-liked': 'desc',
   buildable: 'desc',
 };
 
@@ -57,6 +58,7 @@ const BASE_SORT_OPTIONS: SelectOption<DiscoverSortField>[] = [
   { value: 'newest', label: 'Newest' },
   { value: 'most-copied', label: 'Most copied' },
   { value: 'most-viewed', label: 'Most viewed' },
+  { value: 'most-liked', label: 'Most liked' },
 ];
 
 /**
