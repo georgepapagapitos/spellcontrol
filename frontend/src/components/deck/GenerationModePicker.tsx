@@ -11,8 +11,6 @@ import {
 } from '@/deck-builder/services/deckBuilder/phaseAlternatePool';
 import './GenerationModePicker.css';
 
-const CURRENT_YEAR = 2024; // ceiling for the era slider (kept static for determinism)
-
 interface ModeDef {
   id: GenerationMode;
   label: string;
@@ -328,7 +326,7 @@ function HistoricalConfig({
           type="range"
           className="gen-mode-slider"
           min={HISTORICAL_MIN_YEAR}
-          max={CURRENT_YEAR}
+          max={new Date().getFullYear()}
           step={1}
           value={year}
           onChange={(e) => update({ historicalYear: Number(e.target.value) })}
