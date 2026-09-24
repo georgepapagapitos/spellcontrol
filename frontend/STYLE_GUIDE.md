@@ -3463,6 +3463,21 @@ moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
   card in another column. `deck-display-rows.pack.test.ts` and
   `DeckDisplay.stacks.test.tsx` assert that flattening the columns gives back
   the input order.
+- **The grid packs small groups into shared rows (2026-09-24, T135).** Every
+  group used to start its own row, so a one-card Commander stranded a row of
+  empty slots and so did a four-card Planeswalker group. The grid is now one
+  set of columns for the whole deck (`--grid-cols`, the zoom step's column
+  count at the grid's measured width) and each group spans only its own cards
+  (`gridSectionSpan`), so Commander + Planeswalker and Instant + Sorcery share
+  rows while a group bigger than a row takes the full width and wraps inside
+  it. The order holds, left to right then down, and `grid-auto-flow: dense` is
+  banned in that CSS (a test pins it). Each group spans two rows as a row
+  subgrid, so a header that wraps moves its row's cards down together. A group
+  under three columns wide drops its price from the header; a collapsed or
+  empty group takes the full width. On a shared grid the tiles are the chrome,
+  so grid-view groups lose their framed box (§ Layout system, one frame per
+  surface). On a phone (three columns) Commander still stands alone when the
+  next group does not fit beside it, which is fine: the commander is special.
 - **The out-zone is ONE stack.** "Not in the deck" is a holding pile of a
   handful of cards, so in the stacks lens it collapses its type groups into a
   single column and drops the section header — the tab directly above already

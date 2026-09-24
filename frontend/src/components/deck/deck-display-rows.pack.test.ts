@@ -1,5 +1,10 @@
+/// <reference types="node" />
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
+  gridSectionSpan,
   packInOrder,
   packSections,
   listColumnCount,
@@ -140,5 +145,35 @@ describe('listColumnCount', () => {
     expect(listColumnCount(besideInspector(1440), rows)).toBe(3);
     // A wider display gets the fourth column back.
     expect(listColumnCount(besideInspector(1800), rows)).toBe(4);
+  });
+});
+
+describe('gridSectionSpan (grid view, packed)', () => {
+  it('spans only its own cards, so small groups share a row', () => {
+    // A 7-column desktop grid: Commander (1) and Planeswalker (4) share row 1.
+    expect(gridSectionSpan(1, 7, false)).toBe(1);
+    expect(gridSectionSpan(4, 7, false)).toBe(4);
+  });
+
+  it('a group bigger than the row takes the full width and wraps inside it', () => {
+    expect(gridSectionSpan(21, 7, false)).toBe(7);
+  });
+
+  it('a collapsed or empty group takes the full width, never a one-column strip', () => {
+    expect(gridSectionSpan(4, 7, true)).toBe(7);
+    expect(gridSectionSpan(0, 7, false)).toBe(7);
+  });
+});
+
+describe('packed grid CSS', () => {
+  // `dense` fills holes by moving later groups up, which would break the one
+  // reading order the grid shares with the list, the stacks and the carousel.
+  it('never reorders groups to fill holes', () => {
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../styles/deck-builder-card-list.css'),
+      'utf8'
+    ).replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toContain('.deck-card-grid-sections--packed');
+    expect(css).not.toMatch(/grid-auto-flow:[^;]*dense/);
   });
 });
