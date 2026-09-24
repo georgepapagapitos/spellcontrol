@@ -688,40 +688,81 @@ export function sectionRowCount(sections: ReadonlyArray<{ rows: unknown[] }>): n
 const SECTION_HEADER_ROWS = 2;
 
 /**
+ * Split `items` into columns WITHOUT reordering them: each column is a
+ * contiguous run, so reading down column 1, then column 2, … is exactly the
+ * input order. That order is the one the card carousel steps through and the
+ * grid shows, which is the point: every deck view, and the carousel opened
+ * from it, reads the deck the same way.
+ *
+ * The split is balanced two ways. First the tallest column is made as short as
+ * any split allows; then, among splits that achieve it, the most even one
+ * wins (least sum of squared heights), so a giant section sits alone while the
+ * small ones share — without a small section jumping ahead of a bigger one.
+ * Uses min(cols, items) columns; never returns an empty column.
+ *
+ * Replaced (2026-09-24) the largest-first / shortest-column packing both the
+ * list and the stacks used, which balanced heights by reordering: Sorcery read
+ * before Enchantment and Instant, and the carousel opened from a row stepped
+ * to a card in a different column.
+ */
+export function packInOrder<T>(items: T[], cols: number, heightOf: (item: T) => number): T[][] {
+  const n = items.length;
+  if (n === 0) return [];
+  const k = Math.max(1, Math.min(Math.floor(cols) || 1, n));
+  const prefix = [0];
+  for (const item of items) prefix.push(prefix[prefix.length - 1] + heightOf(item));
+  const run = (from: number, to: number) => prefix[to] - prefix[from];
+
+  // Pass 1: the shortest possible tallest column over the first i items in j columns.
+  let tallest = new Array<number>(n + 1).fill(Infinity);
+  tallest[0] = 0;
+  for (let j = 1; j <= k; j++) {
+    const next = new Array<number>(n + 1).fill(Infinity);
+    for (let i = j; i <= n; i++) {
+      for (let p = j - 1; p < i; p++) next[i] = Math.min(next[i], Math.max(tallest[p], run(p, i)));
+    }
+    tallest = next;
+  }
+  const cap = tallest[n] + 1e-6;
+
+  // Pass 2: under that cap, the most even split.
+  const cost = Array.from({ length: k + 1 }, () => new Array<number>(n + 1).fill(Infinity));
+  const cut = Array.from({ length: k + 1 }, () => new Array<number>(n + 1).fill(0));
+  cost[0][0] = 0;
+  for (let j = 1; j <= k; j++) {
+    for (let i = j; i <= n; i++) {
+      for (let p = j - 1; p < i; p++) {
+        const h = run(p, i);
+        if (h > cap || cost[j - 1][p] === Infinity) continue;
+        const c = cost[j - 1][p] + h * h;
+        if (c < cost[j][i]) {
+          cost[j][i] = c;
+          cut[j][i] = p;
+        }
+      }
+    }
+  }
+  const out: T[][] = [];
+  for (let j = k, i = n; j > 0; j--) {
+    const p = cut[j][i];
+    out.unshift(items.slice(p, i));
+    i = p;
+  }
+  return out;
+}
+
+/**
  * Lay type sections into `cols` columns for the list view.
  *
  * Sections are unbreakable cards, and a Commander deck has one or two giants
  * (Creature, Land) next to several 3–10 row groups. CSS multi-column flow
  * placed them in document order and could not split them, so a 1-row section
  * stranded alone at the top of a column left a 30-row hole under it.
- *
- * Assignment is largest-first into the currently shortest column (LPT), which
- * balances heights; then each column's sections are put back in type order and
- * the columns themselves are ordered by the first type they contain, so the
- * page still reads Creature → Artifact → … left to right. Heights are row
- * counts (+ a header allowance), so this needs no DOM measurement.
+ * `packInOrder` keeps the balance and the order. Heights are row counts (+ a
+ * header allowance), so this needs no DOM measurement.
  */
 export function packSections<T extends { rows: unknown[] }>(sections: T[], cols: number): T[][] {
-  const n = Math.max(1, Math.floor(cols));
-  if (sections.length === 0) return [];
-  if (n === 1) return [sections.slice()];
-  const indexed = sections.map((section, index) => ({ section, index }));
-  const bySize = indexed
-    .slice()
-    .sort((a, b) => b.section.rows.length - a.section.rows.length || a.index - b.index);
-  const heights = new Array<number>(n).fill(0);
-  const buckets: Array<typeof indexed> = Array.from({ length: n }, () => []);
-  for (const item of bySize) {
-    let shortest = 0;
-    for (let c = 1; c < n; c++) if (heights[c] < heights[shortest]) shortest = c;
-    buckets[shortest].push(item);
-    heights[shortest] += item.section.rows.length + SECTION_HEADER_ROWS;
-  }
-  return buckets
-    .filter((b) => b.length > 0)
-    .map((b) => b.slice().sort((a, z) => a.index - z.index))
-    .sort((a, b) => a[0].index - b[0].index)
-    .map((b) => b.map((item) => item.section));
+  return packInOrder(sections, cols, (s) => s.rows.length + SECTION_HEADER_ROWS);
 }
 
 // Buckets that never render a header gauge in category view — 'synergy' and

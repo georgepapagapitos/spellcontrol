@@ -3287,8 +3287,9 @@ three times on one screen, so these rulings now hold:
   its rows sit on the same column grid as the sections below (`--deck-cols`),
   so one commander row is exactly a column wide and a partner pair reads as two
   aligned cells. The remaining sections are placed by `packSections`
-  (`deck-display-rows.ts`): largest-first into the shortest column, then back
-  into type order within each column, columns ordered by their first type.
+  (`deck-display-rows.ts` → `packInOrder`): balanced contiguous runs, so
+  reading down each column in turn is exactly the type order. See "One reading
+  order" under § Deck list on a wide screen.
   Unbreakable section cards in `column-width` flow could only follow document
   order, which left a 30-row hole under a 1-row Commander card and a
   Sorcery-above-a-gap when Land could not fit. Under 1100px the flat single
@@ -3432,11 +3433,23 @@ moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
   the reflow-per-frame mistake above — that one animated `margin-top` on a
   CARD, moving the cards themselves by layout; here the cards are on transforms
   throughout and only their container animates.
-- **Stacks pack, they do not wrap.** `packStacks` fills the shortest column, so
+- **Stacks pack, they do not wrap.** `packStacks` balances the columns, so
   a 28-card Creature stack never holds a screen-high hole beside a 1-card
   Commander. On a phone there is exactly ONE stack, as wide as the screen: a
   stack is a name strip you have to be able to read, and the −/+ stepper hides
   there because the screen sets the size.
+- **One reading order: every view, and the carousel (2026-09-24).** The deck
+  has ONE order: the lens's group order (Commander first), then the sort
+  inside each group. List, grid and stacks all show it, reading down each
+  column in turn, and the preview carousel opened from any of them steps
+  through it. Balance never buys reordering: `packSections` and `packStacks`
+  both split with `packInOrder` (contiguous runs, the tallest column as short
+  as any split allows, then the most even). The largest-first / shortest-column
+  packing both used before put Sorcery ahead of Enchantment and Instant in the
+  list, interleaved the stacks differently again, and sent the carousel to a
+  card in another column. `deck-display-rows.pack.test.ts` and
+  `DeckDisplay.stacks.test.tsx` assert that flattening the columns gives back
+  the input order.
 - **The out-zone is ONE stack.** "Not in the deck" is a holding pile of a
   handful of cards, so in the stacks lens it collapses its type groups into a
   single column and drops the section header — the tab directly above already

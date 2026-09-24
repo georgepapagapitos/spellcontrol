@@ -167,14 +167,33 @@ describe('deck Stacks view', () => {
 describe('packStacks', () => {
   const g = (title: string, n: number) => ({ title, rows: new Array(n).fill(0) });
 
-  it('fills the shortest column, so a tall stack never holds a row hostage', () => {
+  it('balances the columns, so a tall stack never holds a row hostage', () => {
     // The flex-wrap bug: Creature (28) made its whole row 28 cards tall, and
-    // Sorcery/Land landed below all of it. Here they sit beside it.
+    // Sorcery/Land landed below all of it. Here Sorcery sits beside it, and
+    // the columns still read in the deck's order.
     const packed = packStacks([g('Commander', 1), g('Creature', 28), g('Sorcery', 2)], 2, 210);
     expect(packed.map((c) => c.map((s) => s.title))).toEqual([
-      ['Commander', 'Sorcery'],
-      ['Creature'],
+      ['Commander', 'Creature'],
+      ['Sorcery'],
     ]);
+  });
+
+  it('reads, column by column, in the deck order the list and the carousel use', () => {
+    // Shortest-column filling interleaved the groups (Commander, then
+    // Planeswalker in column 2, Creature in 3, …) so the stacks, the list and
+    // the carousel each put the deck in a different order.
+    const groups = [
+      g('Commander', 1),
+      g('Planeswalker', 4),
+      g('Creature', 21),
+      g('Instant', 2),
+      g('Sorcery', 2),
+      g('Artifact', 20),
+      g('Land', 30),
+    ];
+    for (const cols of [1, 2, 3, 4, 5, 8]) {
+      expect(packStacks(groups, cols, 210).flat()).toEqual(groups);
+    }
   });
 
   it('keeps every group exactly once, and drops the columns it did not need', () => {

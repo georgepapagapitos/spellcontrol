@@ -1385,8 +1385,9 @@ export function DeckDisplay({
   // List view columns: as many as the measured width allows, capped by the
   // deck's own row count so a 100-card deck stops at four columns and the
   // remaining width goes to the card names (listColumnCount). Sections are
-  // PLACED by size (packSections) rather than flowed in document order, and
-  // the ≤1100px flat single panel stays one column.
+  // split into balanced, in-order columns (packSections → packInOrder), so the
+  // columns read in the same order the carousel steps through, and the
+  // ≤1100px flat single panel stays one column.
   const [listRef, listWidth] = useElementWidth<HTMLDivElement>();
   const narrowList = useMediaQuery('(max-width: 1100px)');
   const commandGroups = useMemo(
