@@ -198,7 +198,10 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       name: string,
       partner: ScryfallCard | null = null
     ) => {
-      const id = buildDeckFromResult(result, commander, name, selectedFormat, { partner });
+      const id = buildDeckFromResult(result, commander, name, selectedFormat, {
+        partner,
+        initialVisibility: visibility,
+      });
       if (visibility === 'public' && canPublish) {
         void publishAfterCreate(id);
         return;
@@ -894,8 +897,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                 >
                   {(
                     [
-                      { value: 'private', label: 'Private', blocked: false },
                       { value: 'public', label: 'Public', blocked: !canPublish },
+                      { value: 'private', label: 'Private', blocked: false },
                     ] as const
                   ).map((opt) => (
                     <label

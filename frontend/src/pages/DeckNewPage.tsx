@@ -169,6 +169,7 @@ export function DeckNewPage() {
     beforeNavigate: waitForTakeoverExit,
     onCreated: publishGeneratedDeck,
     comboContext: prefill?.comboContext,
+    initialVisibility: visibility,
   });
 
   const [showImport, setShowImport] = useState(false);
@@ -260,6 +261,7 @@ export function DeckNewPage() {
       commanderAllocatedCopyId: commanderAlloc,
       partnerCommander: partnerCommander ?? null,
       partnerCommanderAllocatedCopyId: partnerAlloc,
+      initialVisibility: visibility,
     });
     if (visibility === 'public' && canPublish) {
       await publishAfterCreate(id);
@@ -317,8 +319,8 @@ export function DeckNewPage() {
       <fieldset className="share-audience" aria-label="Deck visibility">
         {(
           [
-            { value: 'private', label: 'Private', disabled: false },
             { value: 'public', label: 'Public', disabled: !canPublish },
+            { value: 'private', label: 'Private', disabled: false },
           ] as const
         ).map((opt) => (
           <label

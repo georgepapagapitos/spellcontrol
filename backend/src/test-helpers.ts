@@ -491,6 +491,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       published_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL,
       unpublished_at BIGINT,
+      moderated_at BIGINT,
       PRIMARY KEY (user_id, deck_id)
     );
     CREATE UNIQUE INDEX deck_publications_slug_idx ON deck_publications(slug);

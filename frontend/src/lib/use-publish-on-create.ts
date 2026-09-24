@@ -76,7 +76,7 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
       ? "You're offline. Reconnect to publish."
       : null;
 
-  const [visibility, setVisibility] = useState<CreateVisibility>('private');
+  const [visibility, setVisibility] = useState<CreateVisibility>('public');
   // Never leave Public selected-but-disabled (e.g. connectivity drops after
   // it was chosen) — snap back to Private during render, mirroring
   // DeckNewPage's identical guarded render-time setState (terminating, so

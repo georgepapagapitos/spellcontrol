@@ -1042,6 +1042,27 @@ describe('createDeck — primer / forkedFrom', () => {
   });
 });
 
+describe('createDeck / duplicateDeck — creation intent (board T136)', () => {
+  it('stamps the creation intent it is given, and nothing when given none', () => {
+    const pub = useDecksStore
+      .getState()
+      .createDeck({ source: 'manual', commander: null, initialVisibility: 'public' });
+    const none = useDecksStore.getState().createDeck({ source: 'manual', commander: null });
+    const decks = useDecksStore.getState().decks;
+    expect(decks.find((d) => d.id === pub)!.initialVisibility).toBe('public');
+    expect('initialVisibility' in decks.find((d) => d.id === none)!).toBe(false);
+  });
+
+  it('a duplicate never inherits it, so a copy of your deck starts private', () => {
+    const id = useDecksStore
+      .getState()
+      .createDeck({ source: 'manual', commander: null, initialVisibility: 'public' });
+    const copyId = useDecksStore.getState().duplicateDeck(id)!;
+    const copy = useDecksStore.getState().decks.find((d) => d.id === copyId)!;
+    expect('initialVisibility' in copy).toBe(false);
+  });
+});
+
 describe('local mutation token (E177)', () => {
   it('bumps on a local mutation (add/remove/allocate/move/rename)', () => {
     useDecksStore.setState({ decks: [baseDeck({ id: 'd-tok-1' })] });

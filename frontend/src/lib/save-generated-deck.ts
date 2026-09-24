@@ -9,6 +9,7 @@ import {
   type AllocationInfo,
 } from './allocations';
 import { assembleBuildReport } from '@/deck-builder/services/deckBuilder/buildReport';
+import { defaultNewDeckVisibility, type NewDeckVisibility } from './new-deck-visibility';
 
 /**
  * Persist a generated deck and return its new id. Shared by the one-shot
@@ -22,7 +23,9 @@ export function saveGeneratedDeck(
   existingDecks: ReturnType<typeof useDecksStore.getState>['decks'],
   collection: ReturnType<typeof useCollectionStore.getState>['cards'],
   createDeck: ReturnType<typeof useDecksStore.getState>['createDeck'],
-  committedExcluded?: number
+  committedExcluded?: number,
+  /** The page's own Public/Private choice; otherwise the signed-in default. */
+  initialVisibility: NewDeckVisibility | undefined = defaultNewDeckVisibility()
 ): string {
   // Build a running allocation map so we never claim the same physical
   // copy twice within a single deck (e.g. when the deck contains
@@ -102,5 +105,6 @@ export function saveGeneratedDeck(
     averageSalt: generated.stats.averageSalt,
     saltiestCards: generated.stats.saltiestCards,
     buildReport,
+    initialVisibility,
   });
 }

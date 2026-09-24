@@ -2816,13 +2816,7 @@ export function DeckEditorPage() {
     <div className="deck-editor-page">
       {sealMoment}
       <BackLink to="/decks" label="All decks" />
-      {showPublishNudge && (
-        <DeckPublishNudge
-          deckId={deck.id}
-          deckName={deck.name}
-          colorIdentity={commanderColorIdentity}
-        />
-      )}
+      {showPublishNudge && <DeckPublishNudge deckId={deck.id} />}
       <header className="deck-editor-header">
         {/* `--art` gates the phone-only full-bleed treatment (min-height +
             bottom-anchored text) — without a commander there's no art to give

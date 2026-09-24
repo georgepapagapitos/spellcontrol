@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useDecksStore, type DeckSource, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
+import { defaultNewDeckVisibility, type NewDeckVisibility } from './new-deck-visibility';
 import {
   buildAllocationMap,
   pickCollectionCopy,
@@ -30,6 +31,8 @@ export interface BuildDeckOptions {
   sourceProduct?: SourceProduct;
   /** Deck source; defaults to 'manual'. */
   source?: DeckSource;
+  /** The dialog's Public/Private choice; otherwise the signed-in default. */
+  initialVisibility?: NewDeckVisibility;
 }
 
 /** The fully-allocated deck shape handed to `createDeck`. */
@@ -151,9 +154,17 @@ export function useBuildDeckFromImport() {
       // pre-add collection and mark every card unowned (T17 bug).
       const decks = useDecksStore.getState().decks;
       const collectionCards = useCollectionStore.getState().cards;
-      return createDeck(
-        buildDeckInputFromImport(result, commander, name, format, { decks, collectionCards }, opts)
-      );
+      return createDeck({
+        ...buildDeckInputFromImport(
+          result,
+          commander,
+          name,
+          format,
+          { decks, collectionCards },
+          opts
+        ),
+        initialVisibility: opts.initialVisibility ?? defaultNewDeckVisibility(),
+      });
     },
     [createDeck]
   );
