@@ -698,7 +698,18 @@ async function fetchCheapestPrintingByName(
 
     if (response.ok) {
       const searchResult = (await response.json()) as ScryfallSearchResponse;
-      const playable = searchResult.data.filter(isPlayableCard);
+      // Scryfall's `!"name"` also matches a card whose SECOND face carries
+      // the name: `!"Brainstorm"` returns Harmonized Trio // Brainstorm, and
+      // when its printing was the cheapest, decks shipped it in place of
+      // Brainstorm (LIVE, 2026-09-24). Keep the card itself, or its front
+      // face, and only fall back to every hit when Scryfall matched a
+      // spelling we don't (punctuation, case).
+      const wanted = name.toLowerCase();
+      const allPlayable = searchResult.data.filter(isPlayableCard);
+      const sameCard = allPlayable.filter(
+        (c) => c.name.toLowerCase() === wanted || frontFaceName(c.name).toLowerCase() === wanted
+      );
+      const playable = sameCard.length > 0 ? sameCard : allPlayable;
       if (playable.length > 0) {
         // Prefer a printing with a normal USD price, then any price, then first result
         const card =

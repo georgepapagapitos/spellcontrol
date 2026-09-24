@@ -88,6 +88,11 @@ export interface GenerationConfig {
   /** Staples <-> Brew dial (0..1, 0.5 default/no-op) — see cardPicking.ts's
    *  calculateCardPriority for the multiplier math it drives. */
   brewLevel: number;
+  /** Game Changer headroom for violatesUserCaps (deckFilters.ts). Wired to
+   *  this state in createState, so they read the deck as it stands: repair
+   *  phases swap cards long after the pick-time running tally was taken. */
+  isGameChanger?: (name: string) => boolean;
+  gameChangerLimitReached?: () => boolean;
 }
 
 export interface GenerationState {
@@ -207,7 +212,7 @@ export function createState(context: GenerationContext): GenerationState {
     brewLevel: Math.min(1, Math.max(0, customization.brewLevel ?? 0.5)),
   };
 
-  return {
+  const state: GenerationState = {
     context,
     cfg,
     usedNames: new Set<string>(),
@@ -262,6 +267,14 @@ export function createState(context: GenerationContext): GenerationState {
     representativeStats: undefined,
     usedThemes: undefined,
   };
+  cfg.isGameChanger = (name) => state.gameChangerNames.has(name);
+  cfg.gameChangerLimitReached = () =>
+    cfg.maxGameChangers !== Infinity &&
+    Object.values(state.categories).reduce(
+      (n, cards) => n + cards.filter((c) => state.gameChangerNames.has(c.name)).length,
+      0
+    ) >= cfg.maxGameChangers;
+  return state;
 }
 
 // --- Shared closures, promoted to free functions taking `state` first. ---

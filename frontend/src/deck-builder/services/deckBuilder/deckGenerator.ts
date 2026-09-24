@@ -351,6 +351,26 @@ export function buildLandCountNote(params: {
  * is what generation actually delivered afterward — named only when it goes
  * on to differ from the plan too.
  */
+/**
+ * Disclosure for a build with no EDHREC decks behind it: a brand-new or
+ * obscure commander (EDHREC keeps a page with zero decks for spoiled cards),
+ * or a page that couldn't be loaded. The generator then ranks cards by
+ * function and format-wide popularity, which reads nothing like "what other
+ * players run with this commander" — and nothing said so. `numDecks` null
+ * means no page was loaded at all. Undefined when there's real data.
+ */
+export function buildEdhrecCoverageNote(
+  commanderLabel: string,
+  numDecks: number | null
+): string | undefined {
+  if (numDecks !== null && numDecks > 0) return undefined;
+  const lead =
+    numDecks === null
+      ? `Couldn't load EDHREC data for ${commanderLabel}`
+      : `EDHREC has no decks for ${commanderLabel} yet`;
+  return `${lead}, so this deck is built from card function and how widely each card is played in Commander overall, not from what other players run with it.`;
+}
+
 export function buildLandCountClampNote(
   requestedLandCount: number,
   plannedLandCount: number,
@@ -1677,6 +1697,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const acquirePoolResult = await acquireCardPoolPhase(state, { usingCache, scryfallQuery });
   altPool = acquirePoolResult.altPool;
   scryfallQuery = acquirePoolResult.scryfallQuery;
+
+  if (!altPool && customization.mtgFormat !== 'paupercommander') {
+    const coverageNote = buildEdhrecCoverageNote(
+      partnerCommander ? `${commander.name} and ${partnerCommander.name}` : commander.name,
+      state.dataSource === 'scryfall' ? null : (state.edhrecData?.stats.numDecks ?? 0)
+    );
+    if (coverageNote) integrityNotes.unshift(coverageNote);
+  }
 
   // ── Salt tolerance: filter or boost based on EDHREC salt scores ──
   // EDHREC's cardlist payloads don't carry per-card salt, so we fetch the

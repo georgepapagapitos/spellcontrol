@@ -512,6 +512,39 @@ describe('getCardByName foil-only-default fallback', () => {
     expect(result.prices.usd).toBe('1.28');
   });
 
+  // LIVE (2026-09-24): `!"Brainstorm"` also matches Harmonized Trio //
+  // Brainstorm, whose second face shares the name. Its printing was the
+  // cheapest, so decks shipped it in place of Brainstorm.
+  it('never trades a card for a different card whose second face shares its name', async () => {
+    const name = 'Brainstorm Faceclash';
+    const foilDefault = makeCard({
+      id: 'foil',
+      name,
+      layout: 'normal',
+      prices: { usd: null, usd_foil: '9.00' },
+    });
+    const impostor = makeCard({
+      id: 'impostor',
+      name: `Harmonized Trio // ${name}`,
+      layout: 'prepare',
+      prices: { usd: '0.10' },
+    });
+    const real = makeCard({ id: 'real', name, layout: 'normal', prices: { usd: '0.50' } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/cards/named')) return { ok: true, json: async () => foilDefault };
+        if (url.includes('/cards/search'))
+          return { ok: true, json: async () => ({ data: [impostor, real], has_more: false }) };
+        return { ok: false, status: 404, statusText: 'Not Found' };
+      })
+    );
+
+    const result = await getCardByName(name);
+
+    expect(result.id).toBe('real');
+  });
+
   it('keeps the default printing when no nonfoil printing exists anywhere', async () => {
     const name = 'Truly Foil Exclusive';
     const foilOnly = makeCard({

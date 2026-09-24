@@ -73,3 +73,30 @@ describe('addMustInclude — ban conflict', () => {
     expect(state.mustIncludeBanConflicts).toEqual([]);
   });
 });
+
+describe('createState — Game Changer headroom', () => {
+  const gc = (name: string) => ({ name }) as unknown as ScryfallCard;
+
+  it('reads the deck as it stands, so a repair swap counts', () => {
+    const state = createState(makeContext({ gameChangerLimit: 1 }));
+    state.gameChangerNames = new Set(['Cyclonic Rift', "Thassa's Oracle"]);
+    expect(state.cfg.gameChangerLimitReached?.()).toBe(false);
+    state.categories.boardWipes.push(gc('Cyclonic Rift'));
+    expect(state.cfg.gameChangerLimitReached?.()).toBe(true);
+    expect(state.cfg.isGameChanger?.("Thassa's Oracle")).toBe(true);
+    state.categories.boardWipes.pop();
+    expect(state.cfg.gameChangerLimitReached?.()).toBe(false);
+  });
+
+  it('is never reached without a limit', () => {
+    const state = createState(makeContext({ gameChangerLimit: 'unlimited' }));
+    state.gameChangerNames = new Set(['Cyclonic Rift']);
+    state.categories.boardWipes.push(gc('Cyclonic Rift'));
+    expect(state.cfg.gameChangerLimitReached?.()).toBe(false);
+  });
+
+  it('is reached immediately at "none"', () => {
+    const state = createState(makeContext({ gameChangerLimit: 'none' }));
+    expect(state.cfg.gameChangerLimitReached?.()).toBe(true);
+  });
+});
