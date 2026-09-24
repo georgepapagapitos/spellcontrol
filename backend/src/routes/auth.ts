@@ -47,7 +47,8 @@ import {
   type GoogleIdentity,
 } from '../oauth/google';
 import { logger } from '../logger';
-import { getDb } from '../db';
+import { getDb, getPool } from '../db';
+import { parseCollectionVisibility } from '../collections/visibility';
 import { authIdentities, authTokens, users } from '../db/schema';
 import { purgeUserPublicCaches } from '../publications/purge';
 import { sendMail } from '../mail';
@@ -702,12 +703,15 @@ authRouter.get('/me', sessionLimiter, async (req: Request, res: Response) => {
       avatarCardId: users.avatarCardId,
       avatarCardName: users.avatarCardName,
       avatarImageUrl: users.avatarImageUrl,
+      collectionVisibility: users.collectionVisibility,
     })
     .from(users)
     .where(eq(users.id, user.id))
     .limit(1);
   res.json({
     user,
+    // Who can see the collection (board T136); null = never chose.
+    collectionVisibility: parseCollectionVisibility(row[0]?.collectionVisibility),
     autoLinkedAt: row[0]?.autoLinkedAt ?? null,
     // Server truth for the inbox/friend-request unseen badges (T117) — see
     // POST /api/users/me/inbox-seen.
@@ -1150,6 +1154,41 @@ authRouter.patch(
     const db = getDb();
     await db.update(users).set({ notifyEmail: req.body.enabled }).where(eq(users.id, req.user!.id));
     res.json({ ok: true });
+  }
+);
+
+/**
+ * Who can see your collection: 'public' | 'friends' | 'private' (board T136).
+ * Narrowing it also revokes any older collection share link that would
+ * still let someone past the new choice (a 'link' share when going friends,
+ * every share when going private), so the choice is the truth everywhere.
+ */
+authRouter.patch(
+  '/me/collection-visibility',
+  requireAuth,
+  profileLimiter,
+  async (req: Request, res: Response) => {
+    const visibility = parseCollectionVisibility(req.body?.visibility);
+    if (!visibility) {
+      return res
+        .status(400)
+        .json({ error: "visibility must be 'public', 'friends' or 'private'." });
+    }
+    const userId = req.user!.id;
+    const db = getDb();
+    await db.update(users).set({ collectionVisibility: visibility }).where(eq(users.id, userId));
+    const narrower =
+      visibility === 'private' ? ['link', 'friends'] : visibility === 'friends' ? ['link'] : [];
+    if (narrower.length > 0) {
+      await getPool().query(
+        `UPDATE shares SET revoked_at = $2
+          WHERE user_id = $1 AND kind = 'collection' AND revoked_at IS NULL
+            AND audience = ANY($3::text[])`,
+        [userId, Date.now(), narrower]
+      );
+    }
+    await purgeUserPublicCaches(userId);
+    res.json({ collectionVisibility: visibility });
   }
 );
 

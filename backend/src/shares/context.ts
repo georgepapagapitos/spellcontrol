@@ -22,7 +22,7 @@ import { getScryfallCache, pickUsdForFinish } from '../scryfall-cache';
  * Finish-aware: a shared foil shows the foil price, not the non-foil one.
  * Mutates the card objects in place (they're about to be cached in shareCache).
  */
-function stampSharePrices(cards: unknown[]): void {
+export function stampSharePrices(cards: unknown[]): void {
   const ids = new Set<string>();
   for (const c of cards) {
     const id = c && typeof c === 'object' ? (c as { scryfallId?: unknown }).scryfallId : null;

@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends } from '../friends/relations';
 import { summarizeCardUse } from '../friends/card-use';
+import { parseCollectionVisibility } from '../collections/visibility';
 import { resolveShareLabels } from '../shares/labels';
 import { asRecord, pickLegalities } from '../shares/projections';
 import { extractListingFields } from '../publications/listing-fields';
@@ -552,6 +553,12 @@ interface FriendCollectionResponse {
   ownerUsername: string;
   ownerDisplayName: string | null;
   cards: FriendCard[];
+  /** They set their collection to Private (board T136): `cards` is empty on
+   *  purpose, and the hub says so instead of "hasn't added anything". */
+  collectionPrivate?: true;
+  /** Their profile's Collection tab opens for this friend (public, or
+   *  friends-only), with quantities and prices this card-level view omits. */
+  fullView: boolean;
 }
 
 /**
@@ -610,6 +617,27 @@ friendsRouter.get(
     // 1. Confirm friendship and fetch the owner's username
     const target = await requireFriendship(res, callerId, friendId);
     if (!target) return;
+
+    // 2. Private means private, friends included (board T136). "Never chose"
+    //    (NULL) keeps the ambient card-level view friends always had.
+    const vis = parseCollectionVisibility(
+      (
+        await pool.query<{ collection_visibility: string | null }>(
+          `SELECT collection_visibility FROM users WHERE id = $1`,
+          [friendId]
+        )
+      ).rows[0]?.collection_visibility
+    );
+    if (vis === 'private') {
+      const hidden: FriendCollectionResponse = {
+        ownerUsername: target.username,
+        ownerDisplayName: target.displayName,
+        cards: [],
+        collectionPrivate: true,
+        fullView: false,
+      };
+      return res.json(hidden);
+    }
 
     // 3. Fetch friend's non-deleted cards, plus what claims them: every deck
     //    and cube (for "spare") and the deck shelf the viewer may see (for
@@ -745,6 +773,7 @@ friendsRouter.get(
       ownerUsername: target.username,
       ownerDisplayName: target.displayName,
       cards,
+      fullView: vis === 'public' || vis === 'friends',
     };
 
     // Gzipped by hand, like /api/cards/oracle-facts: there is no compression

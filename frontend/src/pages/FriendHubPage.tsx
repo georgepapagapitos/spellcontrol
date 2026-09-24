@@ -156,6 +156,10 @@ export function FriendHubPage() {
     key: string;
     cards: FriendCard[] | null;
     error: boolean;
+    /** Set to Private by its owner (T136): the empty list is a choice. */
+    isPrivate?: boolean;
+    /** Their profile's Collection tab opens for this viewer (T136). */
+    fullView?: boolean;
   } | null>(null);
   const collectionKey = `${friendId ?? ''}:${collectionAttempt}`;
 
@@ -217,7 +221,15 @@ export function FriendHubPage() {
     const key = `${friendId}:${collectionAttempt}`;
     fetchFriendCollection(friendId)
       .then((res) => {
-        if (!cancelled) setCollectionResult({ key, cards: res.cards, error: false });
+        if (!cancelled) {
+          setCollectionResult({
+            key,
+            cards: res.cards,
+            error: false,
+            isPrivate: !!res.collectionPrivate,
+            fullView: !!res.fullView,
+          });
+        }
       })
       .catch(() => {
         if (!cancelled) setCollectionResult({ key, cards: null, error: true });
@@ -813,7 +825,19 @@ export function FriendHubPage() {
         hidden={tab !== 'collection'}
       >
         <p className="friend-hub-collection-contract">
-          What {who} owns, never quantities or values.
+          {collectionCurrent?.isPrivate ? (
+            `${who} keeps their collection private.`
+          ) : collectionCurrent?.fullView && ownerUsername ? (
+            <>
+              Which cards {who} owns.{' '}
+              <Link to={`/u/${ownerUsername}?tab=collection`}>
+                See quantities and prices on their profile
+              </Link>
+              .
+            </>
+          ) : (
+            `What ${who} owns, never quantities or values.`
+          )}
         </p>
 
         {collectionError ? (
@@ -889,8 +913,16 @@ export function FriendHubPage() {
               <div role="status">
                 <SharedEmptyState
                   empty={friendCards.length === 0}
-                  emptyTagline={`${who} hasn't added anything to their collection yet.`}
-                  emptyHint="There's nothing to browse until they do."
+                  emptyTagline={
+                    collectionCurrent?.isPrivate
+                      ? `${who} keeps their collection private.`
+                      : `${who} hasn't added anything to their collection yet.`
+                  }
+                  emptyHint={
+                    collectionCurrent?.isPrivate
+                      ? 'Only they can see it.'
+                      : "There's nothing to browse until they do."
+                  }
                   filteredTagline="No cards match your search or filters."
                   onClearSearch={
                     collectionQuery || collectionFilterCount > 0

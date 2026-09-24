@@ -10,10 +10,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
 import { ProfileNotFoundError, ProfileRenamedError } from '../lib/profile-client';
 
-const { fetchPublicProfileMock } = vi.hoisted(() => ({ fetchPublicProfileMock: vi.fn() }));
+const { fetchPublicProfileMock, fetchProfileCollectionMock } = vi.hoisted(() => ({
+  fetchPublicProfileMock: vi.fn(),
+  fetchProfileCollectionMock: vi.fn(),
+}));
 vi.mock('../lib/profile-client', async (importOriginal) => {
   const real = await importOriginal<typeof import('../lib/profile-client')>();
-  return { ...real, fetchPublicProfile: fetchPublicProfileMock };
+  return {
+    ...real,
+    fetchPublicProfile: fetchPublicProfileMock,
+    fetchProfileCollection: fetchProfileCollectionMock,
+  };
 });
 vi.mock('../lib/use-panel-cascade', () => ({
   usePanelCascade: () => ({ animating: false }),
@@ -38,9 +45,9 @@ function profile(overrides: Partial<PublicProfile> = {}): PublicProfile {
   };
 }
 
-function renderProfile() {
+function renderProfile(path = '/u/alice') {
   return render(
-    <MemoryRouter initialEntries={['/u/alice']}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/u/:username" element={<PublicProfilePage />} />
       </Routes>
@@ -50,6 +57,7 @@ function renderProfile() {
 
 afterEach(() => {
   fetchPublicProfileMock.mockReset();
+  fetchProfileCollectionMock.mockReset();
 });
 
 function deck(
@@ -153,5 +161,80 @@ describe('PublicProfilePage — a handle that moved', () => {
     fetchPublicProfileMock.mockRejectedValue(new ProfileNotFoundError());
     renderProfile();
     expect(await screen.findByText(/doesn't exist/i)).toBeTruthy();
+  });
+});
+
+describe('PublicProfilePage — the Collection tab (T136)', () => {
+  const COLLECTION = {
+    ownerUsername: 'alice',
+    ownerDisplayName: null,
+    cards: [
+      {
+        name: 'Sol Ring',
+        scryfallId: 'sol',
+        setCode: 'cmr',
+        collectorNumber: '472',
+        rarity: 'uncommon',
+        finish: 'nonfoil',
+        purchasePrice: 1.5,
+        cmc: 1,
+        typeLine: 'Artifact',
+      },
+    ],
+  };
+
+  it('shows Decks and Collection tabs when the viewer may see the collection, and loads it on open', async () => {
+    fetchPublicProfileMock.mockResolvedValue(
+      profile({ collection: { visibility: 'public', canView: true } })
+    );
+    fetchProfileCollectionMock.mockResolvedValue(COLLECTION);
+    renderProfile('/u/alice?tab=collection');
+    expect(await screen.findByRole('tab', { name: 'Collection' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Decks' })).toBeTruthy();
+    await waitFor(() => expect(fetchProfileCollectionMock).toHaveBeenCalledWith('alice'));
+    expect(await screen.findByText(/1 card/)).toBeTruthy();
+    // A stranger gets no owner controls.
+    expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+  });
+
+  it('has no Collection tab, and never fetches it, when the viewer may not see it', async () => {
+    fetchPublicProfileMock.mockResolvedValue(
+      profile({ collection: { visibility: 'friends', canView: false } })
+    );
+    renderProfile('/u/alice?tab=collection');
+    expect(await screen.findByText(/hasn.t shared any decks yet/)).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Collection' })).toBeNull();
+    expect(fetchProfileCollectionMock).not.toHaveBeenCalled();
+  });
+
+  it('tells the owner who else sees it, with a way to change it', async () => {
+    fetchPublicProfileMock.mockResolvedValue(
+      profile({ isOwner: true, collection: { visibility: null, canView: true } })
+    );
+    fetchProfileCollectionMock.mockResolvedValue(COLLECTION);
+    renderProfile('/u/alice?tab=collection');
+    expect(await screen.findByText(/Your friends see which cards you own/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy();
+  });
+
+  it('offers a retry when the collection fails to load', async () => {
+    fetchPublicProfileMock.mockResolvedValue(
+      profile({ collection: { visibility: 'public', canView: true } })
+    );
+    fetchProfileCollectionMock.mockRejectedValueOnce(new Error('offline'));
+    fetchProfileCollectionMock.mockResolvedValue(COLLECTION);
+    renderProfile('/u/alice?tab=collection');
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    retry.click();
+    expect(await screen.findByText(/1 card/)).toBeTruthy();
+  });
+});
+
+describe('PublicProfilePage — a stranger reaching a profile with no public decks', () => {
+  it('says so plainly, with no owner call to action', async () => {
+    fetchPublicProfileMock.mockResolvedValue(profile());
+    renderProfile();
+    expect(await screen.findByText("@alice hasn't shared any decks yet.")).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Go to your decks' })).toBeNull();
   });
 });

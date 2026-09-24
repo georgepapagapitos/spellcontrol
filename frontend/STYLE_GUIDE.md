@@ -2457,10 +2457,10 @@ sheet is unchanged — a phone has no room for the fan.
   takeover's scrim (`--bg` at 82% plus a 6px blur), so it is themed like the
   board.
   - **Upright** (`(orientation: portrait) and (max-width: 767px) and
-    (pointer: coarse)`): icon, "Turn your phone sideways", one compact
+(pointer: coarse)`): icon, "Turn your phone sideways", one compact
     "Go fullscreen" primary and a quiet "Skip" text link.
   - **On its side** (`(orientation: landscape) and (max-height: 500px) and
-    (pointer: coarse)`, where 500 clears the tallest phone and stays under
+(pointer: coarse)`, where 500 clears the tallest phone and stays under
     every tablet): turning does **not** end it. Only "Go fullscreen" and
     "Skip" stay, because the browser's bars still take a big share of a
     ~390px screen. Fullscreen ends it on its own.
@@ -3601,7 +3601,10 @@ to revoke anywhere in Settings. The dialog opens on the real current state
 and never creates anything just by opening. The link it shows is the thing's
 own address, to copy; it is never something the owner manages. New decks
 start Public (the create form's first option); "Send to a friend" sits below
-the choice because it isn't one. The group sizes each option to its label
+the choice because it isn't one. The collection has the same three choices in
+`CollectionVisibilityDialog`, stored on the account, and a public or
+friends-only collection lives on the owner's profile (`/u/:name?tab=collection`),
+not at a link of its own. The group sizes each option to its label
 (`flex: 1 1 auto`), so three short choices hold one line at 320px.
 
 ### Feedback view (suggestion-mode deck share)

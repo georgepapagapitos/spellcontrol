@@ -22,6 +22,10 @@ import { formatIdentity } from '../../lib/display-name';
 
 interface Props {
   data: PublicCollection;
+  /** Inside a page that already has its own heading and wrapper (a profile's
+   *  Collection tab): drops the "Shared by" header and the `.shared-view`
+   *  shell, and keeps the count and value as a plain summary line. */
+  embedded?: boolean;
 }
 
 type ViewKind = 'grid' | 'list' | 'compact';
@@ -41,7 +45,7 @@ const SORT_OPTIONS: SortMenuOption<SharedSortKey>[] = [
   { value: 'qty', label: 'Quantity', dirLabels: ['Fewest', 'Most'] },
 ];
 
-export function SharedCollectionView({ data }: Props) {
+export function SharedCollectionView({ data, embedded = false }: Props) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SharedSortKey>('name');
   const [dir, setDir] = useState<SortDir>('asc');
@@ -108,20 +112,28 @@ export function SharedCollectionView({ data }: Props) {
     displayName: data.ownerDisplayName,
   });
 
+  const summary = (
+    <p className="shared-view-subtitle">
+      {totalCards.toLocaleString()} {totalCards === 1 ? 'card' : 'cards'} ·{' '}
+      {/* Shared projections are server-stamped USD — pin the symbol. */}
+      {formatMoney(totalValue, { wholeDollars: true, currency: 'USD' })}
+    </p>
+  );
+
   return (
-    <div className="shared-view">
-      <header className="shared-view-header">
-        <p className="shared-view-owner">
-          Shared by {owner.primary}
-          {owner.secondary && <span className="shared-view-owner-handle">{owner.secondary}</span>}
-        </p>
-        <h1 className="shared-view-title">Collection</h1>
-        <p className="shared-view-subtitle">
-          {totalCards.toLocaleString()} {totalCards === 1 ? 'card' : 'cards'} ·{' '}
-          {/* Shared projections are server-stamped USD — pin the symbol. */}
-          {formatMoney(totalValue, { wholeDollars: true, currency: 'USD' })}
-        </p>
-      </header>
+    <div className={embedded ? 'shared-collection-embedded' : 'shared-view'}>
+      {embedded ? (
+        summary
+      ) : (
+        <header className="shared-view-header">
+          <p className="shared-view-owner">
+            Shared by {owner.primary}
+            {owner.secondary && <span className="shared-view-owner-handle">{owner.secondary}</span>}
+          </p>
+          <h1 className="shared-view-title">Collection</h1>
+          {summary}
+        </header>
+      )}
 
       <div className="shared-toolbar">
         <SearchPill

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { UserAvatar } from '../components/UserAvatar';
 import { ReportDialog } from '../components/share/ReportDialog';
@@ -8,16 +8,33 @@ import { formatIdentity, standaloneIdentity } from '../lib/display-name';
 import { formatSocialCount } from '../lib/social-proof';
 import { formatRelativeTime } from '../lib/format-time';
 import {
+  fetchProfileCollection,
   fetchPublicProfile,
   ProfileNotFoundError,
   ProfileRenamedError,
 } from '../lib/profile-client';
+import type { PublicCollection } from '../lib/shared-types';
+import type { CollectionVisibility } from '../lib/auth-api';
+import { Tabs, type TabItem } from '../components/Tabs';
+import { SharedCollectionView } from '../components/share/SharedCollectionView';
+import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
 import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
 import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import './PublicProfilePage.css';
 
 import { userMessage } from '@/lib/user-error';
-const NOT_FOUND_MESSAGE = "This profile doesn't exist or has no public decks to show.";
+const NOT_FOUND_MESSAGE = "This profile doesn't exist.";
+
+type ProfileTab = 'decks' | 'collection';
+
+/** The owner's own line above their Collection tab: who else sees it. */
+const OWNER_COLLECTION_NOTE: Record<CollectionVisibility | 'never', string> = {
+  public: 'Anyone can see your collection here.',
+  friends: 'Only your friends can see your collection here.',
+  private: 'Only you can see your collection.',
+  never:
+    "Only you can see it here. Your friends see which cards you own, not how many or what they're worth.",
+};
 const SKELETON_TILE_COUNT = 6;
 
 /** displayName-or-@username for the page heading/title — deliberately NOT
@@ -140,6 +157,88 @@ function DeckGrid({ decks, username }: { decks: PublicProfileDeck[]; username: s
   );
 }
 
+/**
+ * A profile's Collection tab (board T136): the full collection, with
+ * quantities, printings and prices, in the same browser a collection share
+ * link opens. Fetched the first time the tab opens, not with the profile.
+ */
+function ProfileCollection({
+  username,
+  isOwner,
+  visibility,
+  onVisibilityChanged,
+}: {
+  username: string;
+  isOwner: boolean;
+  visibility: CollectionVisibility | null;
+  onVisibilityChanged: (v: CollectionVisibility) => void;
+}) {
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{
+    attempt: number;
+    data: PublicCollection | null;
+    error: string | null;
+  } | null>(null);
+  const [changing, setChanging] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProfileCollection(username)
+      .then((data) => {
+        if (!cancelled) setResult({ attempt, data, error: null });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setResult({
+            attempt,
+            data: null,
+            error: userMessage(err, "Couldn't load this collection. Try again."),
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [username, attempt]);
+
+  const current = result?.attempt === attempt ? result : null;
+
+  return (
+    <>
+      {isOwner && (
+        <p className="public-profile-collection-note">
+          {OWNER_COLLECTION_NOTE[visibility ?? 'never']}{' '}
+          <button type="button" className="btn-link" onClick={() => setChanging(true)}>
+            Change
+          </button>
+        </p>
+      )}
+      {current === null ? (
+        <div
+          className="public-profile-skeleton public-profile-collection-skeleton"
+          aria-busy="true"
+          aria-label="Loading collection"
+        />
+      ) : current.error ? (
+        <p className="public-profile-collection-note" role="alert">
+          {current.error}{' '}
+          <button type="button" className="btn-link" onClick={() => setAttempt((n) => n + 1)}>
+            Try again
+          </button>
+        </p>
+      ) : (
+        <SharedCollectionView data={current.data!} embedded />
+      )}
+      {changing && (
+        <CollectionVisibilityDialog
+          onClose={() => setChanging(false)}
+          onChanged={onVisibilityChanged}
+        />
+      )}
+    </>
+  );
+}
+
 export function PublicProfilePage() {
   const { username } = useParams<{ username: string }>();
   if (!username) {
@@ -158,6 +257,9 @@ function PublicProfilePageInner({ username }: { username: string }) {
   >({ status: 'loading' });
   const [reporting, setReporting] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The owner can change it from the Collection tab without a refetch.
+  const [visibilityOverride, setVisibilityOverride] = useState<CollectionVisibility | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -204,6 +306,44 @@ function PublicProfilePageInner({ username }: { username: string }) {
 
   const { profile } = state;
   const { heading, handle } = pageHeading(profile);
+  const canViewCollection = !profile.moderationHidden && !!profile.collection?.canView;
+  const tab: ProfileTab =
+    canViewCollection && searchParams.get('tab') === 'collection' ? 'collection' : 'decks';
+  const setTab = (next: ProfileTab) =>
+    setSearchParams(next === 'collection' ? { tab: 'collection' } : {}, { replace: true });
+  const profileTabs: TabItem<ProfileTab>[] = [
+    { id: 'decks', label: 'Decks', controls: 'public-profile-panel-decks' },
+    { id: 'collection', label: 'Collection', controls: 'public-profile-panel-collection' },
+  ];
+  const decksBody = profile.moderationHidden ? (
+    <div className="public-profile-hidden-banner">
+      <p>
+        Your profile was hidden by a moderator. Contact support if you believe this is a mistake.
+      </p>
+    </div>
+  ) : profile.decks.length === 0 ? (
+    profile.isOwner ? (
+      <div className="empty-state">
+        <EmptyStateMark />
+        <p className="empty-state-tagline">No public decks yet.</p>
+        <p className="empty-state-hint">
+          New decks are public unless you pick Private, and they show up here.
+        </p>
+        <div className="empty-state-actions">
+          <Link to="/decks" className="btn btn-primary empty-state-action">
+            Go to your decks
+          </Link>
+        </div>
+      </div>
+    ) : (
+      <div className="empty-state">
+        <EmptyStateMark />
+        <p className="empty-state-tagline">{heading} hasn&apos;t shared any decks yet.</p>
+      </div>
+    )
+  ) : (
+    <DeckGrid decks={profile.decks} username={profile.username} />
+  );
   const joined = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
     new Date(profile.joinedAt)
   );
@@ -241,28 +381,42 @@ function PublicProfilePageInner({ username }: { username: string }) {
           </div>
         </header>
 
-        {profile.moderationHidden ? (
-          <div className="public-profile-hidden-banner">
-            <p>
-              Your profile was hidden by a moderator. Contact support if you believe this is a
-              mistake.
-            </p>
-          </div>
-        ) : profile.decks.length === 0 ? (
-          <div className="empty-state">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">No public decks yet.</p>
-            <p className="empty-state-hint">
-              Publish a deck from its share menu to feature it here.
-            </p>
-            <div className="empty-state-actions">
-              <Link to="/decks" className="btn btn-primary empty-state-action">
-                Go to your decks
-              </Link>
+        {canViewCollection ? (
+          <>
+            <Tabs
+              ariaLabel="Profile views"
+              variant="underline"
+              value={tab}
+              onChange={setTab}
+              tabs={profileTabs}
+              className="public-profile-tabs"
+            />
+            <div
+              role="tabpanel"
+              id="public-profile-panel-decks"
+              aria-labelledby="sc-tab-decks"
+              hidden={tab !== 'decks'}
+            >
+              {decksBody}
             </div>
-          </div>
+            <div
+              role="tabpanel"
+              id="public-profile-panel-collection"
+              aria-labelledby="sc-tab-collection"
+              hidden={tab !== 'collection'}
+            >
+              {tab === 'collection' && (
+                <ProfileCollection
+                  username={profile.username}
+                  isOwner={profile.isOwner}
+                  visibility={visibilityOverride ?? profile.collection?.visibility ?? null}
+                  onVisibilityChanged={setVisibilityOverride}
+                />
+              )}
+            </div>
+          </>
         ) : (
-          <DeckGrid decks={profile.decks} username={profile.username} />
+          decksBody
         )}
       </div>
 
