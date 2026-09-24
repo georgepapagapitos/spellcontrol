@@ -1,0 +1,211 @@
+{
+  "id": "dinosaurs",
+  "name": "Dinosaurs",
+  "badge": "Horde",
+  "themeColors": ["R", "G", "W"],
+  "credit": "SpellControl",
+  "specialRule": "Enrage triggers whenever a Dinosaur is dealt damage in combat and survives it. Resolve the bonus immediately, even on a hit that doesn't kill it.",
+  "tokens": [
+    {
+      "name": "Dinosaur",
+      "scryfallId": "2bbb7151-cf71-49bc-8d99-b0230d5465e5",
+      "imageUrl": "https://cards.scryfall.io/normal/front/2/b/2bbb7151-cf71-49bc-8d99-b0230d5465e5.jpg?1783913607",
+      "typeLine": "Token Creature \u2014 Dinosaur",
+      "power": "3",
+      "toughness": "3",
+      "count": 40
+    }
+  ],
+  "spells": [
+    {
+      "name": "Charging Monstrosaur",
+      "scryfallId": "d5222448-95d1-4b63-ab76-d5060febcf38",
+      "imageUrl": "https://cards.scryfall.io/normal/front/d/5/d5222448-95d1-4b63-ab76-d5060febcf38.jpg?1783935749",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "5",
+      "toughness": "5",
+      "manaCost": "{4}{R}",
+      "count": 6
+    },
+    {
+      "name": "Colossal Dreadmaw",
+      "scryfallId": "8059c52b-5d25-4052-b48a-e9e219a7a546",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/0/8059c52b-5d25-4052-b48a-e9e219a7a546.jpg?1783930678",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "6",
+      "toughness": "6",
+      "manaCost": "{4}{G}{G}",
+      "count": 6
+    },
+    {
+      "name": "Frenzied Raptor",
+      "scryfallId": "5fb22ac0-3863-4165-8c93-f2ec1775474f",
+      "imageUrl": "https://cards.scryfall.io/normal/front/5/f/5fb22ac0-3863-4165-8c93-f2ec1775474f.jpg?1783931050",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "4",
+      "toughness": "2",
+      "manaCost": "{2}{R}",
+      "count": 6
+    },
+    {
+      "name": "Snapping Sailback",
+      "scryfallId": "0af1eadf-f7ea-40be-a0cc-b79e4161db34",
+      "imageUrl": "https://cards.scryfall.io/normal/front/0/a/0af1eadf-f7ea-40be-a0cc-b79e4161db34.jpg?1783935719",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "4",
+      "toughness": "4",
+      "manaCost": "{4}{G}",
+      "count": 6
+    },
+    {
+      "name": "Silverclad Ferocidons",
+      "scryfallId": "5f0d0c8d-c057-4a44-bd1e-38e1dd175778",
+      "imageUrl": "https://cards.scryfall.io/normal/front/5/f/5f0d0c8d-c057-4a44-bd1e-38e1dd175778.jpg?1783935293",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "8",
+      "toughness": "5",
+      "manaCost": "{5}{R}{R}",
+      "count": 5
+    },
+    {
+      "name": "Shifting Ceratops",
+      "scryfallId": "8be37115-b4aa-437a-9b72-01af0cf0a0cd",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/b/8be37115-b4aa-437a-9b72-01af0cf0a0cd.jpg?1783913853",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "5",
+      "toughness": "4",
+      "manaCost": "{2}{G}{G}",
+      "count": 3
+    },
+    {
+      "name": "Territorial Hammerskull",
+      "scryfallId": "af5a237a-31e7-43ee-8d47-3eb12dd1a60c",
+      "imageUrl": "https://cards.scryfall.io/normal/front/a/f/af5a237a-31e7-43ee-8d47-3eb12dd1a60c.jpg?1783935788",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "2",
+      "toughness": "3",
+      "manaCost": "{2}{W}",
+      "count": 3
+    },
+    {
+      "name": "Sun-Crested Pterodon",
+      "scryfallId": "c298b51f-b725-4a51-a91e-4c66cf6dfe9d",
+      "imageUrl": "https://cards.scryfall.io/normal/front/c/2/c298b51f-b725-4a51-a91e-4c66cf6dfe9d.jpg?1783935331",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "2",
+      "toughness": "5",
+      "manaCost": "{4}{W}",
+      "count": 3
+    },
+    {
+      "name": "Grazing Whiptail",
+      "scryfallId": "b7e16e48-25f0-4099-9892-09586561ebc3",
+      "imageUrl": "https://cards.scryfall.io/normal/front/b/7/b7e16e48-25f0-4099-9892-09586561ebc3.jpg?1783931650",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "3",
+      "toughness": "4",
+      "manaCost": "{2}{G}{G}",
+      "count": 3
+    },
+    {
+      "name": "Thrash of Raptors",
+      "scryfallId": "2a03b859-811c-45ff-8d8a-9e87e4bbf113",
+      "imageUrl": "https://cards.scryfall.io/normal/front/2/a/2a03b859-811c-45ff-8d8a-9e87e4bbf113.jpg?1783935735",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "3",
+      "toughness": "3",
+      "manaCost": "{3}{R}",
+      "count": 3
+    },
+    {
+      "name": "Ravenous Daggertooth",
+      "scryfallId": "309b204b-774a-47bc-aead-c78db90f3be2",
+      "imageUrl": "https://cards.scryfall.io/normal/front/3/0/309b204b-774a-47bc-aead-c78db90f3be2.jpg?1783935720",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "3",
+      "toughness": "2",
+      "manaCost": "{2}{G}",
+      "count": 3
+    },
+    {
+      "name": "Kinjalli's Sunwing",
+      "scryfallId": "04421508-b5ac-4466-9f77-dfef478d3cc2",
+      "imageUrl": "https://cards.scryfall.io/normal/front/0/4/04421508-b5ac-4466-9f77-dfef478d3cc2.jpg?1783913896",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "2",
+      "toughness": "3",
+      "manaCost": "{2}{W}",
+      "count": 3
+    },
+    {
+      "name": "Regisaur Alpha",
+      "scryfallId": "2a3c6780-8ac2-489c-a347-19dbe977df43",
+      "imageUrl": "https://cards.scryfall.io/normal/front/2/a/2a3c6780-8ac2-489c-a347-19dbe977df43.jpg?1783913845",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "4",
+      "toughness": "4",
+      "manaCost": "{3}{R}{G}",
+      "count": 3
+    },
+    {
+      "name": "Polyraptor",
+      "scryfallId": "f8965a3a-93fe-4021-a665-b6013bdc86f7",
+      "imageUrl": "https://cards.scryfall.io/normal/front/f/8/f8965a3a-93fe-4021-a665-b6013bdc86f7.jpg?1783935282",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "5",
+      "toughness": "5",
+      "manaCost": "{6}{G}{G}",
+      "count": 3
+    },
+    {
+      "name": "Wayward Swordtooth",
+      "scryfallId": "95a5d742-187a-4eba-82e4-7a4cc5c4e6f3",
+      "imageUrl": "https://cards.scryfall.io/normal/front/9/5/95a5d742-187a-4eba-82e4-7a4cc5c4e6f3.jpg?1783913852",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "5",
+      "toughness": "5",
+      "manaCost": "{2}{G}",
+      "count": 2
+    },
+    {
+      "name": "Belligerent Brontodon",
+      "scryfallId": "39bab75a-2c1f-4ff1-a26e-134e52f61d39",
+      "imageUrl": "https://cards.scryfall.io/normal/front/3/9/39bab75a-2c1f-4ff1-a26e-134e52f61d39.jpg?1783935714",
+      "typeLine": "Creature \u2014 Dinosaur",
+      "power": "4",
+      "toughness": "6",
+      "manaCost": "{5}{G}{W}",
+      "count": 2
+    }
+  ],
+  "bosses": [
+    {
+      "name": "Gishath, Sun's Avatar",
+      "scryfallId": "bc4a65de-23b5-48f0-b8b7-94608eaced3e",
+      "imageUrl": "https://cards.scryfall.io/normal/front/b/c/bc4a65de-23b5-48f0-b8b7-94608eaced3e.jpg?1783913733",
+      "typeLine": "Legendary Creature \u2014 Dinosaur Avatar",
+      "power": "7",
+      "toughness": "6",
+      "manaCost": "{5}{R}{G}{W}"
+    },
+    {
+      "name": "Ghalta, Primal Hunger",
+      "scryfallId": "6a9c39e4-a8cf-42dd-8d0e-45634b335546",
+      "imageUrl": "https://cards.scryfall.io/normal/front/6/a/6a9c39e4-a8cf-42dd-8d0e-45634b335546.jpg?1783909058",
+      "typeLine": "Legendary Creature \u2014 Elder Dinosaur",
+      "power": "12",
+      "toughness": "12",
+      "manaCost": "{10}{G}{G}"
+    },
+    {
+      "name": "Zetalpa, Primal Dawn",
+      "scryfallId": "78c71a23-8e73-406e-bbd0-4474c17c1d04",
+      "imageUrl": "https://cards.scryfall.io/normal/front/7/8/78c71a23-8e73-406e-bbd0-4474c17c1d04.jpg?1783907112",
+      "typeLine": "Legendary Creature \u2014 Elder Dinosaur",
+      "power": "4",
+      "toughness": "8",
+      "manaCost": "{6}{W}{W}"
+    }
+  ],
+  "lateGame": ["Regisaur Alpha", "Polyraptor", "Belligerent Brontodon"]
+}

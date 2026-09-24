@@ -1,0 +1,165 @@
+{
+  "id": "goblins",
+  "name": "Goblins",
+  "badge": "Horde",
+  "themeColors": ["R"],
+  "credit": "SpellControl",
+  "specialRule": "Activated abilities on Horde permanents (Siege-Gang Commander's sacrifice, Purphoros's pump, etc.) are never used since the Horde has no pilot to activate them; only their triggered and static abilities matter. When Mob Rule resolves, flip a coin to choose its mode.",
+  "tokens": [
+    {
+      "name": "Goblin",
+      "scryfallId": "0c7f299e-4774-4e8b-bb0e-db27d57d2621",
+      "imageUrl": "https://cards.scryfall.io/normal/front/0/c/0c7f299e-4774-4e8b-bb0e-db27d57d2621.jpg?1789737534",
+      "typeLine": "Token Creature \u2014 Goblin",
+      "power": "1",
+      "toughness": "1",
+      "count": 65
+    }
+  ],
+  "spells": [
+    {
+      "name": "Mogg War Marshal",
+      "scryfallId": "4ebce261-3a53-48f2-a173-0d98c68aff2c",
+      "imageUrl": "https://cards.scryfall.io/normal/front/4/e/4ebce261-3a53-48f2-a173-0d98c68aff2c.jpg?1783903460",
+      "typeLine": "Creature \u2014 Goblin Warrior",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{1}{R}",
+      "count": 5
+    },
+    {
+      "name": "Foundry Street Denizen",
+      "scryfallId": "a328c8d8-a404-43b5-8c79-2e79d639fb40",
+      "imageUrl": "https://cards.scryfall.io/normal/front/a/3/a328c8d8-a404-43b5-8c79-2e79d639fb40.jpg?1783935604",
+      "typeLine": "Creature \u2014 Goblin Warrior",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{R}",
+      "count": 4
+    },
+    {
+      "name": "Krenko's Command",
+      "scryfallId": "b07d96a1-87a0-45ff-ae6e-230deaf44dca",
+      "imageUrl": "https://cards.scryfall.io/normal/front/b/0/b07d96a1-87a0-45ff-ae6e-230deaf44dca.jpg?1783912539",
+      "typeLine": "Sorcery",
+      "manaCost": "{1}{R}",
+      "count": 5
+    },
+    {
+      "name": "Siege-Gang Commander",
+      "scryfallId": "7d67e614-03d2-4034-b82f-25962fc378d4",
+      "imageUrl": "https://cards.scryfall.io/normal/front/7/d/7d67e614-03d2-4034-b82f-25962fc378d4.jpg?1783903455",
+      "typeLine": "Creature \u2014 Goblin",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{3}{R}{R}",
+      "count": 3
+    },
+    {
+      "name": "Goblin Piledriver",
+      "scryfallId": "4b332e3d-dcf4-4f62-8130-124ec5d23b90",
+      "imageUrl": "https://cards.scryfall.io/normal/front/4/b/4b332e3d-dcf4-4f62-8130-124ec5d23b90.jpg?1783938329",
+      "typeLine": "Creature \u2014 Goblin Warrior",
+      "power": "1",
+      "toughness": "2",
+      "manaCost": "{1}{R}",
+      "count": 3
+    },
+    {
+      "name": "Goblin Chieftain",
+      "scryfallId": "89fcc35b-76fa-4408-8620-a1e11b2caf1f",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/9/89fcc35b-76fa-4408-8620-a1e11b2caf1f.jpg?1783930390",
+      "typeLine": "Creature \u2014 Goblin",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{1}{R}{R}",
+      "count": 3
+    },
+    {
+      "name": "Goblin King",
+      "scryfallId": "4b266935-25ea-49c5-a1da-57c22a4362fd",
+      "imageUrl": "https://cards.scryfall.io/normal/front/4/b/4b266935-25ea-49c5-a1da-57c22a4362fd.jpg?1783943019",
+      "typeLine": "Creature \u2014 Goblin",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{1}{R}{R}",
+      "count": 2
+    },
+    {
+      "name": "Goblin Warchief",
+      "scryfallId": "5bac033c-dc4e-40a0-b103-4892e4b50249",
+      "imageUrl": "https://cards.scryfall.io/normal/front/5/b/5bac033c-dc4e-40a0-b103-4892e4b50249.jpg?1783934992",
+      "typeLine": "Creature \u2014 Goblin Warrior",
+      "power": "2",
+      "toughness": "2",
+      "manaCost": "{1}{R}{R}",
+      "count": 3
+    },
+    {
+      "name": "Goblin Bushwhacker",
+      "scryfallId": "4085a5bf-a71b-4c73-9b39-0dcc328fe11b",
+      "imageUrl": "https://cards.scryfall.io/normal/front/4/0/4085a5bf-a71b-4c73-9b39-0dcc328fe11b.jpg?1783942145",
+      "typeLine": "Creature \u2014 Goblin Warrior",
+      "power": "1",
+      "toughness": "1",
+      "manaCost": "{R}",
+      "count": 1
+    },
+    {
+      "name": "Goblin Rally",
+      "scryfallId": "34d6a2d0-d855-4b87-9f4c-58dda0b81c82",
+      "imageUrl": "https://cards.scryfall.io/normal/front/3/4/34d6a2d0-d855-4b87-9f4c-58dda0b81c82.jpg?1783930390",
+      "typeLine": "Sorcery",
+      "manaCost": "{3}{R}{R}",
+      "count": 3
+    },
+    {
+      "name": "Mob Rule",
+      "scryfallId": "8b04c928-9ee5-4e39-962e-4686e25b5c33",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/b/8b04c928-9ee5-4e39-962e-4686e25b5c33.jpg?1783924947",
+      "typeLine": "Sorcery",
+      "manaCost": "{4}{R}{R}",
+      "count": 1
+    },
+    {
+      "name": "Goblin Chainwhirler",
+      "scryfallId": "8bdb2883-3cfd-4fb0-9f99-6a57277f7fe4",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/b/8bdb2883-3cfd-4fb0-9f99-6a57277f7fe4.jpg?1783934992",
+      "typeLine": "Creature \u2014 Goblin Warrior",
+      "power": "3",
+      "toughness": "3",
+      "manaCost": "{R}{R}{R}",
+      "count": 2
+    }
+  ],
+  "bosses": [
+    {
+      "name": "Krenko, Tin Street Kingpin",
+      "scryfallId": "2f5689e2-d8a2-442b-8027-f89686adcb67",
+      "imageUrl": "https://cards.scryfall.io/normal/front/2/f/2f5689e2-d8a2-442b-8027-f89686adcb67.jpg?1783917146",
+      "typeLine": "Legendary Creature \u2014 Goblin",
+      "power": "1",
+      "toughness": "2",
+      "manaCost": "{2}{R}"
+    },
+    {
+      "name": "Muxus, Goblin Grandee",
+      "scryfallId": "2c716d10-2130-43b7-a939-349d437e1091",
+      "imageUrl": "https://cards.scryfall.io/normal/front/2/c/2c716d10-2130-43b7-a939-349d437e1091.jpg?1783930502",
+      "typeLine": "Legendary Creature \u2014 Goblin Noble",
+      "power": "4",
+      "toughness": "4",
+      "manaCost": "{4}{R}{R}"
+    },
+    {
+      "name": "Purphoros, God of the Forge",
+      "scryfallId": "4736a2c4-c89c-48db-a104-6303e7e2eee8",
+      "imageUrl": "https://cards.scryfall.io/normal/front/4/7/4736a2c4-c89c-48db-a104-6303e7e2eee8.jpg?1783915646",
+      "typeLine": "Legendary Enchantment Creature \u2014 God",
+      "power": "6",
+      "toughness": "5",
+      "manaCost": "{3}{R}"
+    }
+  ],
+  "lateGame": ["Mob Rule", "Goblin Bushwhacker"]
+}

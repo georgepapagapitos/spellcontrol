@@ -1,0 +1,128 @@
+{
+  "id": "battle-the-horde",
+  "name": "Battle the Horde",
+  "badge": "Official",
+  "themeColors": ["R"],
+  "credit": "Wizards of the Coast, Born of the Gods (2014)",
+  "specialRule": "Each horde turn reveals the top two cards, plus one more for every artifact the horde controls, and each artifact's hero's reward can be claimed once the horde is defeated.",
+  "tokens": [],
+  "spells": [
+    {
+      "name": "Minotaur Goreseeker",
+      "scryfallId": "3d2f2bcc-0db9-4aa1-b63d-587c62468015",
+      "imageUrl": "https://cards.scryfall.io/normal/front/3/d/3d2f2bcc-0db9-4aa1-b63d-587c62468015.jpg?1783939505",
+      "typeLine": "Creature \u2014 Minotaur",
+      "power": "3",
+      "toughness": "2",
+      "count": 10
+    },
+    {
+      "name": "Minotaur Younghorn",
+      "scryfallId": "2c8e22f9-6b70-425c-a0a8-09b6101a286e",
+      "imageUrl": "https://cards.scryfall.io/normal/front/2/c/2c8e22f9-6b70-425c-a0a8-09b6101a286e.jpg?1783939505",
+      "typeLine": "Creature \u2014 Minotaur",
+      "power": "2",
+      "toughness": "2",
+      "count": 15
+    },
+    {
+      "name": "Mogis's Chosen",
+      "scryfallId": "553ae9d2-3807-4ca8-a575-7fa6667ee212",
+      "imageUrl": "https://cards.scryfall.io/normal/front/5/5/553ae9d2-3807-4ca8-a575-7fa6667ee212.jpg?1783939504",
+      "typeLine": "Creature \u2014 Minotaur",
+      "power": "5",
+      "toughness": "4",
+      "count": 4
+    },
+    {
+      "name": "Phoberos Reaver",
+      "scryfallId": "1eda2434-523d-4e9c-a8f1-acbee5c87aac",
+      "imageUrl": "https://cards.scryfall.io/normal/front/1/e/1eda2434-523d-4e9c-a8f1-acbee5c87aac.jpg?1783939505",
+      "typeLine": "Creature \u2014 Minotaur",
+      "power": "2",
+      "toughness": "3",
+      "count": 10
+    },
+    {
+      "name": "Reckless Minotaur",
+      "scryfallId": "938272b2-8e1c-4196-8557-c597735dd96e",
+      "imageUrl": "https://cards.scryfall.io/normal/front/9/3/938272b2-8e1c-4196-8557-c597735dd96e.jpg?1783939504",
+      "typeLine": "Creature \u2014 Minotaur",
+      "power": "4",
+      "toughness": "1",
+      "count": 4
+    },
+    {
+      "name": "Consuming Rage",
+      "scryfallId": "7e5d19fa-0f12-41cb-90a8-c027edbc893b",
+      "imageUrl": "https://cards.scryfall.io/normal/front/7/e/7e5d19fa-0f12-41cb-90a8-c027edbc893b.jpg?1783939505",
+      "typeLine": "Sorcery",
+      "count": 2
+    },
+    {
+      "name": "Descend on the Prey",
+      "scryfallId": "95e0a522-2395-438a-83bc-ea092e4286c3",
+      "imageUrl": "https://cards.scryfall.io/normal/front/9/5/95e0a522-2395-438a-83bc-ea092e4286c3.jpg?1783939503",
+      "typeLine": "Sorcery",
+      "count": 2
+    },
+    {
+      "name": "Intervention of Keranos",
+      "scryfallId": "661e8959-4c63-439b-8cbf-837f84ad3e57",
+      "imageUrl": "https://cards.scryfall.io/normal/front/6/6/661e8959-4c63-439b-8cbf-837f84ad3e57.jpg?1783939503",
+      "typeLine": "Sorcery",
+      "count": 2
+    },
+    {
+      "name": "Touch of the Horned God",
+      "scryfallId": "c58bacd4-e84b-4c73-802f-5f65e5c94a46",
+      "imageUrl": "https://cards.scryfall.io/normal/front/c/5/c58bacd4-e84b-4c73-802f-5f65e5c94a46.jpg?1783939502",
+      "typeLine": "Sorcery",
+      "count": 2
+    },
+    {
+      "name": "Unquenchable Fury",
+      "scryfallId": "d4d98fc6-da00-4d65-9469-9d2c5b111f2e",
+      "imageUrl": "https://cards.scryfall.io/normal/front/d/4/d4d98fc6-da00-4d65-9469-9d2c5b111f2e.jpg?1783939502",
+      "typeLine": "Sorcery",
+      "count": 2
+    },
+    {
+      "name": "Altar of Mogis",
+      "scryfallId": "f6882d51-1db2-4b08-8873-cb6f2d96b260",
+      "imageUrl": "https://cards.scryfall.io/normal/front/f/6/f6882d51-1db2-4b08-8873-cb6f2d96b260.jpg?1783939502",
+      "typeLine": "Artifact",
+      "count": 1
+    },
+    {
+      "name": "Massacre Totem",
+      "scryfallId": "a6e352e9-20ac-485b-bcaf-1d053c4ecb40",
+      "imageUrl": "https://cards.scryfall.io/normal/front/a/6/a6e352e9-20ac-485b-bcaf-1d053c4ecb40.jpg?1783939502",
+      "typeLine": "Artifact",
+      "count": 1
+    },
+    {
+      "name": "Plundered Statue",
+      "scryfallId": "8eea07ed-a321-4403-b3a9-ce5e69a175fd",
+      "imageUrl": "https://cards.scryfall.io/normal/front/8/e/8eea07ed-a321-4403-b3a9-ce5e69a175fd.jpg?1783939501",
+      "typeLine": "Artifact",
+      "count": 2
+    },
+    {
+      "name": "Refreshing Elixir",
+      "scryfallId": "b1d75296-e2a5-48f3-a98d-3633be9f6138",
+      "imageUrl": "https://cards.scryfall.io/normal/front/b/1/b1d75296-e2a5-48f3-a98d-3633be9f6138.jpg?1783939502",
+      "typeLine": "Artifact",
+      "count": 2
+    },
+    {
+      "name": "Vitality Salve",
+      "scryfallId": "6ede8ada-95c6-426b-83f6-17f25afc3c21",
+      "imageUrl": "https://cards.scryfall.io/normal/front/6/e/6ede8ada-95c6-426b-83f6-17f25afc3c21.jpg?1783939501",
+      "typeLine": "Artifact",
+      "count": 1
+    }
+  ],
+  "bosses": [],
+  "lateGame": []
+}
