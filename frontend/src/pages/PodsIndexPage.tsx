@@ -1,4 +1,5 @@
 import './PodsIndexPage.css';
+import { PageHeader } from '@/components/PageHeader';
 import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -160,11 +161,7 @@ function PodsIndexPageBody() {
   if (status === 'guest') {
     return (
       <div className="pods-index-page social-page-shell">
-        <header className="binder-hero">
-          <div className="settings-page-hero-text">
-            <h1 className="binder-hero-name">Pods</h1>
-          </div>
-        </header>
+        <PageHeader title="Pods" />
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to set up your pod</p>
           <p className="friends-signin-body">
@@ -186,12 +183,7 @@ function PodsIndexPageBody() {
 
   return (
     <div className="pods-index-page social-page-shell">
-      <header className="binder-hero">
-        <div className="settings-page-hero-text">
-          <h1 className="binder-hero-name">Pods</h1>
-          <p className="binder-hero-meta">Your regular tables: games and trades in one place.</p>
-        </div>
-      </header>
+      <PageHeader title="Pods" meta="Your regular tables: games and trades in one place." />
 
       {loadError && (
         <div className="friends-error" role="alert">

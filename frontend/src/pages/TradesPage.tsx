@@ -1,4 +1,5 @@
 import './TradesPage.css';
+import { PageHeader } from '@/components/PageHeader';
 import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -150,11 +151,7 @@ function TradesPageBody() {
   if (status === 'guest') {
     return (
       <div className="trades-page social-page-shell social-page-shell--wide">
-        <header className="binder-hero">
-          <div className="settings-page-hero-text">
-            <h1 className="binder-hero-name">Trades</h1>
-          </div>
-        </header>
+        <PageHeader title="Trades" />
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to see your trades</p>
           <p className="friends-signin-body">
@@ -214,14 +211,10 @@ function TradesPageBody() {
 
   return (
     <div className="trades-page social-page-shell social-page-shell--wide">
-      <header className="binder-hero">
-        <div className="settings-page-hero-text">
-          <h1 className="binder-hero-name">Trades</h1>
-          <p className="binder-hero-meta">
-            Every offer you're part of, either way. Accepting settles both collections.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title="Trades"
+        meta="Every offer you're part of, either way. Accepting settles both collections."
+      />
 
       {loadError && (
         <div className="friends-error" role="alert">

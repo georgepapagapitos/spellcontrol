@@ -33,6 +33,7 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { OverflowMenu } from '../components/OverflowMenu';
+import { PageHeader } from '../components/PageHeader';
 import { InfoTip } from '../components/InfoTip';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import {
@@ -263,35 +264,29 @@ export function BindersIndexPage() {
 
   return (
     <div className="binders-index-page">
-      <header className="binder-hero binders-index-hero">
-        <div className="binders-index-hero-text">
-          <h1 className="binder-hero-name">Binders</h1>
-          <p className="binder-hero-meta">
-            {binders.length.toLocaleString()} {binders.length === 1 ? 'binder' : 'binders'}
-          </p>
-        </div>
-        <div className="binders-index-actions">
-          {binders.length > 0 && (
-            <button
-              type="button"
-              className="pill-btn"
-              aria-haspopup="dialog"
-              onClick={() => setExportOpen(true)}
-            >
-              <Upload width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>Export</span>
-            </button>
-          )}
-          <button
-            type="button"
-            className="pill-btn pill-btn-primary"
-            onClick={() => setEditingBinder('new')}
-          >
-            <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span>New binder</span>
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        title="Binders"
+        meta={`${binders.length.toLocaleString()} ${binders.length === 1 ? 'binder' : 'binders'}`}
+        menuLabel="More binder actions"
+        actions={[
+          {
+            label: 'New binder',
+            icon: Plus,
+            primary: true,
+            onClick: () => setEditingBinder('new'),
+          },
+          ...(binders.length > 0
+            ? [
+                {
+                  label: 'Export',
+                  icon: Upload,
+                  opensDialog: true,
+                  onClick: () => setExportOpen(true),
+                },
+              ]
+            : []),
+        ]}
+      />
 
       {binders.length > 0 && (
         <div className="binders-index-search-row">

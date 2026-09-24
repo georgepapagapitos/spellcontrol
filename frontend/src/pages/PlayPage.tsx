@@ -37,6 +37,7 @@ import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu'
 import { GameResultEditDialog } from '../components/play/GameResultEditDialog';
 import { SelectMenu } from '../components/SelectMenu';
 import { Tabs } from '../components/Tabs';
+import { PageHeader } from '../components/PageHeader';
 import { StackedBar } from '../components/shared/MeterBar';
 import { FriendsLeaderboard } from '../components/play/FriendsLeaderboard';
 import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/play/GameNights';
@@ -245,55 +246,51 @@ export function PlayPage() {
 
   return (
     <div className="play-page">
-      <header className="binder-hero play-page-hero">
-        <div className="play-page-hero-text">
-          <h1 className="binder-hero-name">Play</h1>
-          <p className="play-page-hero-sub">
-            Track a table in person, or play across devices with a join code.
-          </p>
-        </div>
-        <Tabs<Tab>
-          ariaLabel="Play sections"
-          variant="underline"
-          value={tab}
-          onChange={setTab}
-          tabs={[
-            { id: 'home', label: 'Play' },
-            {
-              id: 'local',
-              label: (
-                <>
-                  Local
-                  {local && <span className="play-tab-dot" aria-hidden="true" />}
-                </>
-              ),
-              ariaLabel: local ? 'Local, game in progress' : undefined,
-            },
-            {
-              id: 'online',
-              label: (
-                <>
-                  Online
-                  {online && <span className="play-tab-dot" aria-hidden="true" />}
-                </>
-              ),
-              ariaLabel: online ? 'Online, game in progress' : undefined,
-            },
-            {
-              id: 'nights',
-              label: 'Game nights',
-              count: inviteCount > 0 ? inviteCount : null,
-              ariaLabel:
-                inviteCount > 0 ? `Game nights, ${inviteCount} awaiting your reply` : undefined,
-            },
-            {
-              id: 'history',
-              label: 'History',
-              count: history.length > 0 ? history.length : null,
-            },
-          ]}
-        />
-      </header>
+      <PageHeader
+        title="Play"
+        meta="Track a table in person, or play across devices with a join code."
+      />
+      <Tabs<Tab>
+        ariaLabel="Play sections"
+        variant="underline"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: 'home', label: 'Play' },
+          {
+            id: 'local',
+            label: (
+              <>
+                Local
+                {local && <span className="play-tab-dot" aria-hidden="true" />}
+              </>
+            ),
+            ariaLabel: local ? 'Local, game in progress' : undefined,
+          },
+          {
+            id: 'online',
+            label: (
+              <>
+                Online
+                {online && <span className="play-tab-dot" aria-hidden="true" />}
+              </>
+            ),
+            ariaLabel: online ? 'Online, game in progress' : undefined,
+          },
+          {
+            id: 'nights',
+            label: 'Game nights',
+            count: inviteCount > 0 ? inviteCount : null,
+            ariaLabel:
+              inviteCount > 0 ? `Game nights, ${inviteCount} awaiting your reply` : undefined,
+          },
+          {
+            id: 'history',
+            label: 'History',
+            count: history.length > 0 ? history.length : null,
+          },
+        ]}
+      />
 
       {tab === 'home' && (
         <PlayHome

@@ -26,6 +26,7 @@ import { useStoredView } from '../lib/use-stored-view';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
+import { PageHeader } from '../components/PageHeader';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
@@ -523,129 +524,52 @@ export function DecksIndexPage() {
     <>
       <DecksHubTabs />
       <div className="decks-index-page">
-        <header className="binder-hero decks-index-hero">
-          <div className="decks-index-hero-text">
-            <h1 className="binder-hero-name">Decks</h1>
-            <p className="binder-hero-meta">
-              {sorted.length.toLocaleString()} {sorted.length === 1 ? 'deck' : 'decks'}
-            </p>
-          </div>
-          <div className="decks-index-actions">
-            {/* Import + Add a product are secondary: full pills on desktop/tablet,
-              collapsed into the ⋮ kebab on phones so the primary "New deck"
-              CTA never gets crowded off the row. */}
-            <button
-              type="button"
-              className="pill-btn decks-index-action-secondary"
-              aria-haspopup="dialog"
-              onClick={() => setShowImport(true)}
-            >
-              <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>Import deck</span>
-            </button>
-            <button
-              type="button"
-              className="pill-btn decks-index-action-secondary"
-              aria-haspopup="dialog"
-              onClick={() => setShowProductSearch(true)}
-            >
-              <Package width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>Add a product</span>
-            </button>
-            {/* Play a list you have not saved. It sits with Import because it is
-                the same gesture minus the saving — the list is parsed by the
-                same endpoint and goldfished on the same board, then thrown
-                away. */}
-            <Link to="/decks/goldfish" className="pill-btn decks-index-action-secondary">
-              <Play width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>Goldfish a list</span>
-            </Link>
-            {/* A real precon on a board without building or owning anything.
-                It sits with the other two because it is the same gesture with
-                the list already written: the deck is resolved on the way to
-                the board and nothing is saved. */}
-            <button
-              type="button"
-              className="pill-btn decks-index-action-secondary"
-              aria-haspopup="dialog"
-              onClick={() => setShowStarters(true)}
-            >
-              <Swords width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>Play a starter deck</span>
-            </button>
-            {/* Page-level door to /decks/compare. The per-deck kebab's
-                "Compare" (pre-picks that deck as side A) stays, but a tool
-                reachable only from a row menu is a tool nobody finds; same
-                ≥2-decks gate — comparing needs two. */}
-            {decks.length >= 2 && (
-              <Link to="/decks/compare" className="pill-btn decks-index-action-secondary">
-                <GitCompareArrows width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Compare</span>
-              </Link>
-            )}
-            {/* Door to the new-deck picker's "From my binder" tab: every
-                owned commander ranked by how much of its deck you already
-                own. It replaced the Decks-index readiness strip, which only
-                scored a handful of legends. Same gate as the tab's own empty
-                state — below MIN_COLLECTION_SIZE the ranking has nothing to say. */}
-            {canBuildFromBinder && (
-              <Link
-                to="/decks/new"
-                state={{ commanderSource: 'binder' }}
-                className="pill-btn decks-index-action-secondary"
-              >
-                <BookOpen width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>From my binder</span>
-              </Link>
-            )}
-            <OverflowMenu
-              className="decks-index-actions-overflow"
-              triggerClassName="pill-btn decks-index-actions-kebab"
-              ariaLabel="More deck actions"
-              items={[
-                { label: 'Import deck', icon: Download, onClick: () => setShowImport(true) },
-                {
-                  label: 'Add a product',
-                  icon: Package,
-                  onClick: () => setShowProductSearch(true),
-                },
-                {
-                  label: 'Goldfish a list',
-                  icon: Play,
-                  onClick: () => navigate('/decks/goldfish'),
-                },
-                {
-                  label: 'Play a starter deck',
-                  icon: Swords,
-                  onClick: () => setShowStarters(true),
-                },
-                ...(decks.length >= 2
-                  ? [
-                      {
-                        label: 'Compare decks',
-                        icon: GitCompareArrows,
-                        onClick: () => navigate('/decks/compare'),
-                      },
-                    ]
-                  : []),
-                ...(canBuildFromBinder
-                  ? [
-                      {
-                        label: 'New deck from my binder',
-                        icon: BookOpen,
-                        onClick: () =>
-                          navigate('/decks/new', { state: { commanderSource: 'binder' } }),
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-            <Link to="/decks/new" className="pill-btn pill-btn-primary">
-              <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>New deck</span>
-            </Link>
-          </div>
-        </header>
+        <PageHeader
+          title="Decks"
+          meta={`${sorted.length.toLocaleString()} ${sorted.length === 1 ? 'deck' : 'decks'}`}
+          menuLabel="More ways to start a deck"
+          actions={[
+            { label: 'New deck', icon: Plus, primary: true, to: '/decks/new' },
+            {
+              label: 'Import deck',
+              icon: Download,
+              opensDialog: true,
+              onClick: () => setShowImport(true),
+            },
+            {
+              label: 'Add a product',
+              icon: Package,
+              opensDialog: true,
+              onClick: () => setShowProductSearch(true),
+            },
+            // Play a list you have not saved: the same gesture as Import minus
+            // the saving, parsed by the same endpoint and thrown away after.
+            { label: 'Goldfish a list', icon: Play, to: '/decks/goldfish' },
+            // A real precon on a board without building or owning anything.
+            {
+              label: 'Play a starter deck',
+              icon: Swords,
+              opensDialog: true,
+              onClick: () => setShowStarters(true),
+            },
+            // Page-level door to /decks/compare; comparing needs two decks.
+            ...(decks.length >= 2
+              ? [{ label: 'Compare decks', icon: GitCompareArrows, to: '/decks/compare' }]
+              : []),
+            // The new-deck picker's "From my binder" tab: every owned commander
+            // ranked by how much of its deck you already own. Same gate as the
+            // tab's own empty state.
+            ...(canBuildFromBinder
+              ? [
+                  {
+                    label: 'New deck from my binder',
+                    icon: BookOpen,
+                    onClick: () => navigate('/decks/new', { state: { commanderSource: 'binder' } }),
+                  },
+                ]
+              : []),
+          ]}
+        />
 
         {decks.length > 0 && (
           <div className="decks-index-search-row">

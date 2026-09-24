@@ -447,29 +447,6 @@
   font-size: var(--text-sm);
 }
 
-.decks-index-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-  min-width: 0;
-}
-
-/* The ⋮ overflow only appears on phones; desktop/tablet show the full pills. */
-.decks-index-actions-overflow {
-  display: none;
-}
-
-@media (max-width: 600px) {
-  .decks-index-action-secondary {
-    display: none;
-  }
-  .decks-index-actions-overflow {
-    display: inline-flex;
-    flex: 0 0 auto; /* stay compact; let the primary CTA take the rest of the row */
-  }
-}
-
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
 .import-deck-batch-remove:focus-visible {
   outline: 2px solid var(--accent);

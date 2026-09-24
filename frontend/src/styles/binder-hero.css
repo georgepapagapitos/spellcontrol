@@ -16,14 +16,11 @@
   }
 }
 
-/* Hero variants with right-aligned actions: text on the left, action
-   pill(s) on the right. Stack at narrow widths so actions get full
-   touch targets and don't crowd the title. */
-.collection-hero,
-.decks-index-hero,
-.binders-index-hero,
-.play-page-hero,
-.binder-hero--with-actions {
+/* PageHeader (components/PageHeader.tsx, STYLE_GUIDE § Layout system): text
+   on the left, actions on the right, stacked on phones so the primary gets a
+   full-width touch target. Which actions are visible is decided in the
+   component, not here, so no page re-implements the ⋮ fold. */
+.page-header {
   flex-direction: row;
   align-items: flex-end;
   justify-content: space-between;
@@ -31,40 +28,22 @@
   flex-wrap: wrap;
 }
 
-.collection-hero-text,
-.decks-index-hero-text,
-.binders-index-hero-text,
-.play-page-hero-text,
-.binder-hero-text {
+.page-header-text {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1 1 240px;
 }
 
-.collection-hero-actions {
+.page-header-actions {
   display: flex;
   gap: var(--space-2);
-  flex-wrap: wrap;
-  align-self: flex-end;
-}
-
-.collection-hero-action {
-  align-self: flex-end;
-}
-
-.binder-hero-actions {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
   align-self: flex-end;
 }
 
 @media (max-width: 600px) {
-  .collection-hero,
-  .decks-index-hero,
-  .binder-hero--with-actions {
+  .page-header {
     align-items: stretch;
     /* The row gap becomes a VERTICAL gap once these stack, and 16px of empty
        hero is 2% of a phone screen that was already spending 40%+ on chrome
@@ -72,48 +51,19 @@
     gap: var(--space-2);
   }
 
-  .collection-hero-actions,
-  .collection-hero-action,
-  .decks-index-actions,
-  .binder-hero-actions {
+  .page-header-actions {
     width: 100%;
   }
 
-  .collection-hero-actions > .pill-btn,
-  .collection-hero-action {
-    flex: 1 1 0;
-    justify-content: center;
-  }
-
-  .binder-hero-actions > .pill-btn {
+  .page-header-actions > .page-header-primary {
     flex: 1 1 0;
     justify-content: center;
   }
 }
 
-/* Collection hero ⋮ — the same phone collapse the binder and decks heroes do
-   (Export CSV + Share fold in, "Add cards" keeps the row). Scoped to the
-   `.collection-hero-actions` ancestor for the same reason the binder rule
-   below is: `.pill-btn`'s unconditional `display: inline-flex` is declared
-   later in this file and out-specifies a bare class at every viewport. */
-.collection-hero-actions .collection-hero-actions-overflow {
-  display: none;
-}
-
-@media (max-width: 600px) {
-  .collection-hero-actions .collection-hero-action-secondary {
-    display: none;
-  }
-
-  .collection-hero-actions .collection-hero-actions-overflow {
-    display: inline-flex;
-    flex: 0 0 auto; /* stay compact; the primary CTA takes the rest of the row */
-  }
-}
-
-/* Free-standing icon control — grows its own box rather than ghosting. */
+/* Free-standing icon control: grows its own box rather than ghosting. */
 @media (pointer: coarse) {
-  .collection-hero-actions-kebab {
+  .page-header-kebab {
     min-height: 44px;
     min-width: 44px;
   }
@@ -339,28 +289,6 @@
     background: var(--surface);
     color: var(--text-primary);
     outline: none;
-  }
-}
-
-/* Binder hero UX-305: secondary actions collapse into ⋮ at ≤600px.
-   Selectors are scoped to the .binder-hero-actions ancestor (not bare
-   classes) so they reliably out-specify .pill-btn's unconditional
-   `display: inline-flex` further down this file: two same-specificity
-   bare-class rules resolve by source order regardless of an @media guard,
-   and .pill-btn (declared later in this file) was silently winning at
-   every viewport — the secondary pills never hid and the kebab they were
-   meant to reveal showed unconditionally instead of only ≤600px. */
-.binder-hero-actions .binder-hero-actions-overflow {
-  display: none;
-}
-
-@media (max-width: 600px) {
-  .binder-hero-actions .binder-hero-action-secondary {
-    display: none;
-  }
-  .binder-hero-actions .binder-hero-actions-overflow {
-    display: inline-flex;
-    flex: 0 0 auto;
   }
 }
 
@@ -725,10 +653,5 @@
     width: 100%;
     height: 44px;
     transform: translate(-50%, -50%);
-  }
-
-  .binder-hero-actions-kebab {
-    min-height: 44px;
-    min-width: 44px;
   }
 }

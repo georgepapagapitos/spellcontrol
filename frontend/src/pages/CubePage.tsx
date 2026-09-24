@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import './CubePage.css';
 import { Tabs } from '../components/Tabs';
 import { DecksHubTabs } from '../components/DecksHubTabs';
+import { PageHeader } from '../components/PageHeader';
 import { BackLink } from '../components/BackLink';
 import { BuildCube } from './cube/BuildCube';
 import { CollabCube } from './cube/CollabCube';
@@ -24,13 +25,11 @@ export function CubePage() {
         <BackLink to="/decks" label="All decks" />
         {/* Hero band — joins the .binder-hero family every sibling hub page
           uses (Collection/Binders/Lists); the bare <h1> read as unfinished. */}
-        <header className="binder-hero">
-          <h1 className="binder-hero-name">Cube workshop</h1>
-          <p className="binder-hero-meta cube-page-sub">
-            Build a draftable singleton cube from your collection, or import one from CubeCobra to
-            see how much of it you own.
-          </p>
-        </header>
+        <PageHeader
+          title="Cube workshop"
+          metaClassName="cube-page-sub"
+          meta="Build a draftable singleton cube from your collection, or import one from CubeCobra to see how much of it you own."
+        />
         <Tabs
           ariaLabel="Cube tools"
           variant="underline"

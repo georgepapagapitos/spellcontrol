@@ -1,4 +1,5 @@
 import '../components/FriendsManagement.css';
+import { PageHeader } from '@/components/PageHeader';
 import { FriendsManagement } from '../components/FriendsManagement';
 import { SocialHubTabs } from '../components/SocialHubTabs';
 
@@ -15,13 +16,7 @@ export function FriendsPage() {
     <>
       <SocialHubTabs />
       <div className="friends-page social-page-shell">
-        <header className="binder-hero">
-          <div>
-            <h1 id="friends-page-heading-title" className="binder-hero-name">
-              Friends
-            </h1>
-          </div>
-        </header>
+        <PageHeader title="Friends" titleId="friends-page-heading-title" />
         <FriendsManagement />
       </div>
     </>

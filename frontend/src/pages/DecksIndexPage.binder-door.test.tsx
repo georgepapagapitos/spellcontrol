@@ -7,8 +7,8 @@
  * the ranking has nothing to say, so the door stays hidden.
  */
 import 'fake-indexeddb/auto';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MIN_COLLECTION_SIZE } from '../lib/commander-readiness';
 
@@ -43,28 +43,44 @@ function cards(n: number): unknown[] {
   return Array.from({ length: n }, (_, i) => ({ copyId: `c${i}`, name: `Card ${i}` }));
 }
 
+function NewDeckProbe() {
+  const { state } = useLocation();
+  return <p>new deck picker, source {(state as { commanderSource?: string })?.commanderSource}</p>;
+}
+
 function renderPage() {
   return render(
-    <MemoryRouter>
-      <DecksIndexPage />
+    <MemoryRouter initialEntries={['/decks']}>
+      <Routes>
+        <Route path="/decks" element={<DecksIndexPage />} />
+        <Route path="/decks/new" element={<NewDeckProbe />} />
+      </Routes>
     </MemoryRouter>
   );
 }
 
+function openDeckMenu() {
+  fireEvent.click(screen.getByRole('button', { name: 'More ways to start a deck' }));
+}
+
+// The door is one of the header's secondary actions, so it lives in the ⋮
+// menu (PageHeader keeps one secondary inline; that one is Import deck).
 describe('DecksIndexPage — "From my binder" door', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
 
-  it('links into the new-deck picker on the binder tab once the collection is big enough', () => {
+  it('opens the new-deck picker on the binder tab once the collection is big enough', () => {
     mockCards = cards(MIN_COLLECTION_SIZE);
     renderPage();
-    const link = screen.getByRole('link', { name: /From my binder/ });
-    expect(link.getAttribute('href')).toBe('/decks/new');
+    openDeckMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /New deck from my binder/ }));
+    expect(screen.getByText('new deck picker, source binder')).toBeTruthy();
   });
 
   it('stays hidden while the collection is too small for the ranking to say anything', () => {
     mockCards = cards(MIN_COLLECTION_SIZE - 1);
     renderPage();
-    expect(screen.queryByRole('link', { name: /From my binder/ })).toBeNull();
+    openDeckMenu();
+    expect(screen.queryByRole('menuitem', { name: /from my binder/i })).toBeNull();
   });
 });

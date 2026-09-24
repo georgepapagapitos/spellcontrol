@@ -335,8 +335,9 @@ describe('coarse-pointer touch floor', () => {
     ['styles/binder-grid-slots.css', '.page-num-link::after'],
     ['styles/deck-builder-commander.css', '.commander-color-pip::after'],
     ['styles/binder-hero.css', '.binder-summary-browse-pages::after'],
-    ['styles/binder-hero.css', '.binder-hero-actions-kebab'],
-    ['styles/deck-builder-decks-index.css', '.decks-index-actions-kebab'],
+    // PageHeader's ⋮ (every hub and detail header; replaced the per-page
+    // collection / binder / decks kebabs).
+    ['styles/binder-hero.css', '.page-header-kebab'],
     ['styles/play-setup.css', '.play-stepper-btn'],
     ['styles/play-setup.css', '.play-setup-seat-deck-add'],
     ['styles/collection.css', '.collection-hero-stats-link::after'],

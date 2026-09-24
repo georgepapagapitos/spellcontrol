@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { PageHeader } from '@/components/PageHeader';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
@@ -428,16 +429,15 @@ export function YouPage() {
           all say so, and the first tier is who you are. Settings is the part
           below Identity, not the page's name. The meta line names only what
           this reader will actually find: a guest has no Profile card. */}
-      <header className="binder-hero settings-page-hero">
-        <div className="settings-page-hero-text">
-          <h1 className="binder-hero-name">You</h1>
-          <p className="binder-hero-meta">
-            {username
-              ? 'Profile, account, appearance, and data tools.'
-              : 'Account, appearance, and data tools.'}
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title="You"
+        className="settings-page-hero"
+        meta={
+          username
+            ? 'Profile, account, appearance, and data tools.'
+            : 'Account, appearance, and data tools.'
+        }
+      />
 
       {/* ═══ Identity — who you are ══════════════════════════════════════ */}
       <h2 id="settings-identity-tier-title" className="settings-tier-header">

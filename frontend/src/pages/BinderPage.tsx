@@ -14,9 +14,9 @@ import { useAuth } from '../store/auth';
 import { getSyncState, hasSyncError, onSyncedChange } from '../lib/sync';
 import { useDocumentTitle } from '../lib/use-document-title';
 import { AddCardSheet } from '../components/AddCardSheet';
+import { PageHeader } from '../components/PageHeader';
 import { BackLink } from '../components/BackLink';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
-import { OverflowMenu } from '../components/OverflowMenu';
 
 const BinderCardEditor = lazy(() =>
   import('../components/BinderCardEditor').then((m) => ({ default: m.BinderCardEditor }))
@@ -300,124 +300,81 @@ export function BinderPage() {
       <BackLink to="/collection/binders" label="All binders" />
       <BinderTabs binders={materialized} />
       {active && (
-        <header
-          className="binder-hero binder-hero--with-actions"
+        <PageHeader
+          title={active.def.name}
           style={{ ['--binder-color' as string]: active.def.color }}
-        >
-          <div className="binder-hero-text">
-            <h1 className="binder-hero-name">{active.def.name}</h1>
-            <p className="binder-hero-meta">
-              {active.def.fixedCapacity != null ? (
-                <>
-                  {active.totalCards.toLocaleString()} / {active.def.fixedCapacity.toLocaleString()}{' '}
-                  cards · {active.totalPages.toLocaleString()} /{' '}
-                  {Math.ceil(
-                    active.def.fixedCapacity / active.effectivePocketSize
-                  ).toLocaleString()}{' '}
-                  pages
-                  {active.totalCards > active.def.fixedCapacity && (
-                    <span
-                      className="binder-summary-overcap"
-                      title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards`}
-                    >
-                      {' '}
-                      ⚠ over capacity
-                    </span>
-                  )}
-                </>
-              ) : (
-                <>
-                  {active.totalCards.toLocaleString()} {active.totalCards === 1 ? 'card' : 'cards'}{' '}
-                  · {active.totalPages.toLocaleString()}{' '}
-                  {active.totalPages === 1 ? 'page' : 'pages'}
-                </>
-              )}
-            </p>
-          </div>
-          <div className="binder-hero-actions">
-            {/* Secondary actions: full pills on desktop/tablet,
-                collapsed into the ⋮ kebab on phones so the primary
-                "Add card" CTA never gets crowded off the row. */}
-            <button
-              type="button"
-              className="pill-btn binder-hero-action-secondary"
-              aria-haspopup="dialog"
-              onClick={() => setCardEditorOpen(true)}
-              disabled={!activeId}
-            >
-              <ListChecks width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Manage cards</span>
-            </button>
-            <button
-              type="button"
-              className="pill-btn binder-hero-action-secondary"
-              aria-haspopup="dialog"
-              onClick={() => activeId && setEditingBinder(activeId)}
-              disabled={!activeId}
-            >
-              <Pencil width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Binder rules</span>
-            </button>
-            <button
-              type="button"
-              className="pill-btn binder-hero-action-secondary"
-              aria-haspopup="dialog"
-              onClick={() => setShareOpen(true)}
-              disabled={!activeId}
-            >
-              <Share2 width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Share</span>
-            </button>
-            <OverflowMenu
-              className="binder-hero-actions-overflow"
-              triggerClassName="pill-btn binder-hero-actions-kebab"
-              ariaLabel="More binder actions"
-              items={[
-                {
-                  label: 'Manage cards',
-                  icon: ListChecks,
-                  onClick: () => setCardEditorOpen(true),
-                },
-                {
-                  label: 'Binder rules',
-                  icon: Pencil,
-                  onClick: () => activeId && setEditingBinder(activeId),
-                },
-                {
-                  label: 'Share',
-                  icon: Share2,
-                  onClick: () => setShareOpen(true),
-                },
-                {
-                  label: 'Delete binder',
-                  icon: Trash2,
+          menuLabel="More binder actions"
+          actions={[
+            {
+              label: 'Add card',
+              icon: Plus,
+              primary: true,
+              opensDialog: true,
+              disabled: !activeId,
+              onClick: () => setAddCardSheetOpen(true),
+            },
+            {
+              label: 'Manage cards',
+              icon: ListChecks,
+              opensDialog: true,
+              disabled: !activeId,
+              onClick: () => setCardEditorOpen(true),
+            },
+            {
+              label: 'Binder rules',
+              icon: Pencil,
+              opensDialog: true,
+              disabled: !activeId,
+              onClick: () => activeId && setEditingBinder(activeId),
+            },
+            {
+              label: 'Share',
+              icon: Share2,
+              opensDialog: true,
+              disabled: !activeId,
+              onClick: () => setShareOpen(true),
+            },
+            {
+              label: 'Delete binder',
+              icon: Trash2,
+              danger: true,
+              menuOnly: true,
+              onClick: async () => {
+                const ok = await confirm({
+                  title: `Delete "${active.def.name}"?`,
+                  body: `Its cards route to your other binders. Anything that no longer matches falls back to the Collection view. This can't be undone.`,
+                  confirmLabel: 'Delete binder',
                   danger: true,
-                  onClick: async () => {
-                    if (!active) return;
-                    const ok = await confirm({
-                      title: `Delete "${active.def.name}"?`,
-                      body: `Its cards route to your other binders. Anything that no longer matches falls back to the Collection view. This can't be undone.`,
-                      confirmLabel: 'Delete binder',
-                      danger: true,
-                    });
-                    if (ok) deleteBinder(active.def.id);
-                  },
-                },
-              ]}
-            />
-            {/* Primary CTA — always visible */}
-            <button
-              type="button"
-              className="pill-btn pill-btn-primary"
-              aria-haspopup="dialog"
-              onClick={() => setAddCardSheetOpen(true)}
-              disabled={!activeId}
-            >
-              <Plus width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Add card</span>
-            </button>
-          </div>
-        </header>
+                });
+                if (ok) deleteBinder(active.def.id);
+              },
+            },
+          ]}
+          meta={
+            active.def.fixedCapacity != null ? (
+              <>
+                {active.totalCards.toLocaleString()} / {active.def.fixedCapacity.toLocaleString()}{' '}
+                cards · {active.totalPages.toLocaleString()} /{' '}
+                {Math.ceil(active.def.fixedCapacity / active.effectivePocketSize).toLocaleString()}{' '}
+                pages
+                {active.totalCards > active.def.fixedCapacity && (
+                  <span
+                    className="binder-summary-overcap"
+                    title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards`}
+                  >
+                    {' '}
+                    ⚠ over capacity
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                {active.totalCards.toLocaleString()} {active.totalCards === 1 ? 'card' : 'cards'} ·{' '}
+                {active.totalPages.toLocaleString()} {active.totalPages === 1 ? 'page' : 'pages'}
+              </>
+            )
+          }
+        />
       )}
       {shareOpen && activeId && active && (
         <ShareDialog

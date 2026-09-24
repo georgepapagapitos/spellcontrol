@@ -1,4 +1,5 @@
 import { useCallback, useId, useState } from 'react';
+import { PageHeader } from '@/components/PageHeader';
 import { useNavigate } from 'react-router-dom';
 import { importDeckText } from '@/lib/api';
 import { userMessage } from '@/lib/user-error';
@@ -94,12 +95,11 @@ export function GoldfishListPage() {
 
   return (
     <div className="goldfish-page">
-      <header className="goldfish-header">
-        <h1 className="binder-hero-name">Goldfish a list</h1>
-        <p className="binder-hero-meta">
-          Paste a decklist and play it. Nothing is saved, and it never touches your decks.
-        </p>
-      </header>
+      <PageHeader
+        title="Goldfish a list"
+        className="goldfish-header"
+        meta="Paste a decklist and play it. Nothing is saved, and it never touches your decks."
+      />
 
       <label className="goldfish-label" htmlFor={fieldId}>
         The list

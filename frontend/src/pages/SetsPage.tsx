@@ -1,4 +1,5 @@
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { PageHeader } from '@/components/PageHeader';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -354,15 +355,15 @@ function SetsIndex() {
 
   return (
     <div className="sets-page">
-      <header className="binder-hero">
-        <h1 className="binder-hero-name">Sets</h1>
-        <p className="binder-hero-meta sets-page-sub">
-          {progress.length === 0
+      <PageHeader
+        title="Sets"
+        meta={
+          progress.length === 0
             ? 'Track how much of each Magic set you own.'
             : `${progress.length} ${progress.length === 1 ? 'set' : 'sets'} in your collection` +
-              (completeCount > 0 ? ` · ${completeCount} complete` : '')}
-        </p>
-      </header>
+              (completeCount > 0 ? ` · ${completeCount} complete` : '')
+        }
+      />
 
       {progress.length === 0 ? (
         <div className="empty-state">
@@ -611,22 +612,29 @@ function SetDetail({ code }: { code: string }) {
       <Link to="/collection/sets" className="sets-back">
         <ArrowLeft width={15} height={15} aria-hidden /> All sets
       </Link>
-      <header className="binder-hero sets-detail-hero">
-        <h1 className="binder-hero-name sets-detail-name">
-          {meta?.iconSvgUri && (
-            <img src={meta.iconSvgUri} alt="" aria-hidden className="sets-detail-icon" />
-          )}
-          {displayName}
-        </h1>
-        <p className="binder-hero-meta sets-page-sub">
-          <span className="sets-row-code">{upper}</span>
-          {dropParam ? (
-            <span> · Secret Lair drop{dropReleasedAt ? ` · released ${dropReleasedAt}` : ''}</span>
-          ) : (
-            meta?.releasedAt && <span> · released {meta.releasedAt}</span>
-          )}
-        </p>
-      </header>
+      <PageHeader
+        title={
+          <span className="sets-detail-name">
+            {meta?.iconSvgUri && (
+              <img src={meta.iconSvgUri} alt="" aria-hidden className="sets-detail-icon" />
+            )}
+            {displayName}
+          </span>
+        }
+        meta={
+          <>
+            <span className="sets-row-code">{upper}</span>
+            {dropParam ? (
+              <span>
+                {' '}
+                · Secret Lair drop{dropReleasedAt ? ` · released ${dropReleasedAt}` : ''}
+              </span>
+            ) : (
+              meta?.releasedAt && <span> · released {meta.releasedAt}</span>
+            )}
+          </>
+        }
+      />
 
       {isSld && sldIndex && (
         <div className="sets-drop-picker">

@@ -43,6 +43,7 @@ primitives directory.
 
 | Reach for                                           | Instead of                        | Ruling                                                        |
 | --------------------------------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| `components/PageHeader`                             | a hand-built `.binder-hero`       | § Layout system                                               |
 | `.btn` / `.btn-primary` / `.btn-link` (CSS classes) | a new `*-btn` class               | § Shape language — corners                                    |
 | `components/SearchPill`                             | a bare `<input type="search">`    | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
 | `components/SelectMenu`                             | a restyled `<select>`             | § Toolbars & action rows                                      |
@@ -114,7 +115,13 @@ meanwhile.
   every tier.** One meta line under the title. At most two visible actions
   (primary + one secondary) plus a `⋮` for the rest. The tab bar sits directly
   under the header, never above the title and never beside it. With art, the
-  header follows § Page hero art.
+  header follows § Page hero art. **Built:** `components/PageHeader` owns the
+  action rule. A page passes its actions as a list (one `primary`, any
+  secondaries, `menuOnly` for destructive ones) and never decides visibility
+  itself: the primary is always shown, wider than a phone the first secondary
+  sits beside it, and the `⋮` holds exactly what isn't on screen. Every hub
+  and detail header uses it except the deck editor and the shared deck view,
+  whose art headers migrate separately.
 - **Toolbar: search grows, the order after it is fixed, and it never wraps.**
   What doesn't fit the width folds into one control (a sort/view pill on
   phone, a `⋯` pill wider up) instead of breaking onto a second row. A
