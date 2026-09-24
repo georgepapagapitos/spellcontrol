@@ -17,6 +17,7 @@
 // Pool queries always run against the LIVE Scryfall API (the generator sets the
 // force-live flag): the offline query parser can't evaluate otag:/arttag:/year.
 import { logger } from '@/lib/logger';
+import { isDeadInIdentity } from './deckFilters';
 import {
   getFrontFaceTypeLine,
   searchCards,
@@ -306,7 +307,10 @@ async function fetchPool(
         order: 'edhrec',
         page,
       });
-      out.push(...res.data);
+      // A cost reducer for colors the deck can't cast (Stormscape Familiar in
+      // mono-blue) passes the identity search, since its own identity fits,
+      // but does nothing here. The typed Scryfall fill already skips these.
+      out.push(...res.data.filter((card) => !isDeadInIdentity(card, colorIdentity)));
       if (!res.has_more || out.length >= take) break;
     } catch (err) {
       // A facet that matches nothing (e.g. counterspells off-color) 404s — fine,

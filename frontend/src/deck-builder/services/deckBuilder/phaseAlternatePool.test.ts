@@ -427,6 +427,28 @@ describe('buildAlternatePool — historical', () => {
     expect(result.relaxedNote).toBeUndefined();
     expect(result.detail).toBe('year<=2005');
   });
+
+  // LIVE (stress sweep 2026-09-24): a mono-blue Talrand "By era" deck shipped
+  // Stormscape Familiar. Its own identity is blue, so the identity search
+  // passes it, but its only effect discounts white and black spells.
+  it('leaves out cost reducers for colors outside the deck', async () => {
+    const familiar = sc({
+      name: 'Stormscape Familiar',
+      color_identity: ['U'],
+      oracle_text: 'Flying\nWhite spells and black spells you cast cost {1} less to cast.',
+    });
+    searchCards.mockResolvedValue(okResponse([familiar, ...makeCards(90, 'Creature', 1)]));
+
+    const result = await buildAlternatePool(
+      'historical',
+      cust({ generationMode: 'historical', historicalYear: 2005 }),
+      ['U']
+    );
+
+    const names = result.data.cardlists.allNonLand.map((c) => c.name);
+    expect(names).not.toContain('Stormscape Familiar');
+    expect(names).toContain('Creature Card 1');
+  });
 });
 
 // ── primaryType bucketing edge cases ─────────────────────────────────────────
