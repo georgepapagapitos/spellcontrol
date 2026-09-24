@@ -103,7 +103,7 @@ describe('DecksIndexPage — empty state three doors (UX-317)', () => {
 
   it('renders the educational hint paragraph', () => {
     renderEmpty();
-    expect(screen.getByText(/Build one from scratch/)).toBeTruthy();
+    expect(screen.getByText(/Build one, or bring in a list or precon/)).toBeTruthy();
   });
 
   it('has a "Build a deck" link pointing at /decks/new', () => {

@@ -1050,7 +1050,7 @@ export function CommanderSearch({
               ? [
                   {
                     id: 'binder' as const,
-                    label: 'From my binder',
+                    label: 'My collection',
                     controls: 'commander-search-panel',
                   },
                 ]
@@ -1129,8 +1129,7 @@ export function CommanderSearch({
           <div className="commander-playstyle-browse">
             <p className="commander-suggestions-hint">
               Which {colorFilter.size > 0 ? `${binderColorLabel} ` : ''}commander does your
-              collection build best? Coverage counts the cards you own on each commander's EDHREC
-              page against the {99 - landCount} spell slots a deck needs.
+              collection build best?
             </p>
             <ColorPips colorFilter={colorFilter} setColorFilter={setColorFilter} />
             {collectionCards.length < MIN_COLLECTION_SIZE ? (

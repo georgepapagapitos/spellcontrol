@@ -5,11 +5,6 @@ import { useCollapsedPref } from '../../lib/use-collapsed-pref';
 
 interface CommanderProfileCardProps {
   profile: CommanderProfile;
-  /**
-   * Where the theme picker lives relative to this card. 'below' = same
-   * page (one-shot builder); 'next-step' = the guided wizard's next step.
-   */
-  themesLocation?: 'below' | 'next-step';
 }
 
 /**
@@ -17,15 +12,8 @@ interface CommanderProfileCardProps {
  * and game plan so the player understands the synergies before building,
  * the same line-by-line breakdown the guided process teaches.
  */
-export function CommanderProfileCard({
-  profile,
-  themesLocation = 'below',
-}: CommanderProfileCardProps) {
+export function CommanderProfileCard({ profile }: CommanderProfileCardProps) {
   const { abilities, summary, primaryArchetype } = profile;
-  const themesNote =
-    themesLocation === 'next-step'
-      ? 'Suggested themes are preselected on the next step'
-      : 'Suggested themes are preselected below';
 
   // Default to expanded — the commander breakdown is a discovery feature.
   const [collapsed, setCollapsed] = useCollapsedPref('spellcontrol-game-plan-collapsed', false);
@@ -76,7 +64,6 @@ export function CommanderProfileCard({
         <p className="cmdr-profile-footer">
           Reads as: <strong>{ARCHETYPE_LABEL[primaryArchetype]}</strong>, from card text; refined at
           build time.
-          {profile.suggestedThemes.length > 0 && <> · {themesNote}</>}
         </p>
       </div>
     </section>

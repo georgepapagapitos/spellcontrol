@@ -36,7 +36,7 @@ const MODES: readonly ModeDef[] = [
     tag: 'Scryfall',
     icon: Wrench,
     blurb:
-      'Pure card function — ramp, removal, draw — ranked by playability. Works for any commander.',
+      'Cards chosen for what they do, ranked by how widely they are played. Works for any commander.',
     online: true,
   },
   {
@@ -44,7 +44,7 @@ const MODES: readonly ModeDef[] = [
     label: 'By art',
     tag: 'Scryfall',
     icon: Palette,
-    blurb: 'Every card depicts one motif. A deck that looks like a curated gallery.',
+    blurb: 'Every card shares one motif in its art.',
     online: true,
   },
   {
@@ -52,7 +52,7 @@ const MODES: readonly ModeDef[] = [
     label: 'By era',
     tag: 'Scryfall',
     icon: Hourglass,
-    blurb: "Only cards from a slice of Magic's past — an old-school build puzzle.",
+    blurb: 'Only cards printed up to a year you pick.',
     online: true,
   },
 ];

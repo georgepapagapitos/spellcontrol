@@ -37,4 +37,13 @@ describe('CommanderProfileCard', () => {
     expect(screen.getByText('Goodstuff')).toBeTruthy();
     expect(screen.queryByText('goodstuff')).toBeNull();
   });
+
+  // Themes are never auto-selected (use-deck-generation.ts), and the page
+  // right below said "No theme selected" while this card claimed otherwise.
+  it('never claims themes were preselected', () => {
+    const { container } = render(
+      <CommanderProfileCard profile={makeProfile({ suggestedThemes: ['Enchantress', 'Aura'] })} />
+    );
+    expect(container.textContent).not.toMatch(/preselected/i);
+  });
 });
