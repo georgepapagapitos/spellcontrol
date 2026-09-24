@@ -123,7 +123,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
   }, [spendReloadKey]);
 
   // Reports: null while the initial GET is in flight (mirrors
-  // SharedLinksSettings' shares===null loading sentinel).
+  // the shares===null loading-sentinel pattern).
   const [reports, setReports] = useState<AdminReportRow[] | null>(null);
   const [reportsError, setReportsError] = useState<string | null>(null);
   // Bumped by Retry so the reports effect re-runs.

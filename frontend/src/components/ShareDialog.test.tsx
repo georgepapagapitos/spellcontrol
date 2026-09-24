@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../store/auth';
+import type { ShareKind, ShareRow } from '../lib/shared-types';
 
 const {
   createShareMock,
@@ -11,22 +12,16 @@ const {
   getPublicationMock,
   publishDeckMock,
   unpublishDeckMock,
-  MockDisplayNameRequiredError,
-} = vi.hoisted(() => {
-  // A minimal but real Error subclass — doPublish()'s `instanceof
-  // DisplayNameRequiredError` check must see the same class the mocked
-  // publishDeck() throws.
-  class MockDisplayNameRequiredError extends Error {}
-  return {
-    createShareMock: vi.fn(),
-    listSharesMock: vi.fn(),
-    revokeShareMock: vi.fn(),
-    getPublicationMock: vi.fn(),
-    publishDeckMock: vi.fn(),
-    unpublishDeckMock: vi.fn(),
-    MockDisplayNameRequiredError,
-  };
-});
+  listFriendsMock,
+} = vi.hoisted(() => ({
+  createShareMock: vi.fn(),
+  listSharesMock: vi.fn(),
+  revokeShareMock: vi.fn(),
+  getPublicationMock: vi.fn(),
+  publishDeckMock: vi.fn(),
+  unpublishDeckMock: vi.fn(),
+  listFriendsMock: vi.fn(),
+}));
 
 vi.mock('../lib/share-client', () => ({
   createShare: (input: unknown) => createShareMock(input),
@@ -34,14 +29,13 @@ vi.mock('../lib/share-client', () => ({
   revokeShare: (token: string) => revokeShareMock(token),
   shareUrl: (token: string) => `https://spellcontrol.com/s/${token}`,
 }));
-
 vi.mock('../lib/publications-client', () => ({
   getPublication: (deckId: string) => getPublicationMock(deckId),
   publishDeck: (deckId: string) => publishDeckMock(deckId),
   unpublishDeck: (deckId: string) => unpublishDeckMock(deckId),
   publicationUrl: (slug: string) => `https://spellcontrol.com/d/${slug}`,
-  DisplayNameRequiredError: MockDisplayNameRequiredError,
 }));
+vi.mock('../lib/friends-client', () => ({ listFriends: () => listFriendsMock() }));
 
 const fireSealMock = vi.fn();
 vi.mock('./shared/SealMoment', () => ({
@@ -50,381 +44,210 @@ vi.mock('./shared/SealMoment', () => ({
 
 import { ShareDialog } from './ShareDialog';
 
-// ShareDialog renders <Link> (the confirmed-public "Your profile" row, the
-// no-friends "Friends page" link, and the guest sign-in prompt) — all need a
-// Router context, mirroring this codebase's established MemoryRouter wrap.
-function renderDialog(props: {
-  resourceId?: string;
-  resourceLabel: string;
-  colorIdentity?: string[];
-  onClose: () => void;
-}) {
+function renderDialog(kind: ShareKind = 'deck', resourceId: string | undefined = 'd1') {
   return render(
     <MemoryRouter>
-      <ShareDialog kind="deck" {...props} />
+      <ShareDialog
+        kind={kind}
+        resourceId={resourceId}
+        resourceLabel="Test Deck"
+        colorIdentity={['R']}
+        onClose={() => {}}
+      />
     </MemoryRouter>
   );
 }
 
-const PROFILE_WITH_NAME = {
-  displayName: 'Alice',
-  bio: null,
-  avatarCardId: null,
-  avatarCardName: null,
-  avatarImageUrl: null,
-};
-
-beforeEach(() => {
-  vi.restoreAllMocks();
-  // restoreAllMocks() does not clear call history on these vi.hoisted mocks,
-  // so counts bled between tests — a "never minted" assertion could be
-  // satisfied by an earlier test's call. Explicit, before the impls below.
-  vi.clearAllMocks();
-  createShareMock.mockResolvedValue({
-    token: 'tok-link',
+function row(audience: ShareRow['audience'], over: Partial<ShareRow> = {}): ShareRow {
+  return {
+    token: `tok-${audience}`,
     userId: 'u1',
     kind: 'deck',
     resourceId: 'd1',
-    audience: 'link',
+    audience,
     addresseeId: null,
     createdAt: 1,
     revokedAt: null,
-  });
+    ...over,
+  };
+}
+
+const LIVE = {
+  slug: 'test-deck',
+  url: 'https://spellcontrol.com/d/test-deck',
+  publishedAt: 1,
+  updatedAt: 1,
+  unpublishedAt: null,
+  viewCount: 3,
+  copyCount: 1,
+};
+
+const radio = (name: string) => screen.getByRole('radio', { name }) as HTMLInputElement;
+const loaded = () => screen.findByRole('radio', { name: 'Private' });
+
+beforeEach(() => {
+  vi.clearAllMocks();
   getPublicationMock.mockResolvedValue(null);
-  // Seeded here, not per-test: the dialog now reads existing shares on open
-  // (to show the resource's real current rung), so an unseeded listShares
-  // leaks the previous test's rows into the next one's initial state.
   listSharesMock.mockResolvedValue([]);
   revokeShareMock.mockResolvedValue(undefined);
-  fireSealMock.mockClear();
+  unpublishDeckMock.mockResolvedValue(undefined);
+  createShareMock.mockImplementation((input: { audience: ShareRow['audience'] }) =>
+    Promise.resolve(row(input.audience))
+  );
+  publishDeckMock.mockResolvedValue({ ...LIVE, isFirstPublish: true });
+  listFriendsMock.mockResolvedValue([{ id: 'f1', username: 'bob' }]);
   useAuth.setState({
     user: { id: 'u1', username: 'alice', role: 'user' },
     status: 'authed',
     error: null,
     autoLinkedAt: null,
-    profile: { ...PROFILE_WITH_NAME },
+    profile: null,
   });
 });
 
-describe('ShareDialog — Private revokes everything', () => {
-  it('revokes every live share row for the resource and unpublishes a live publication, only after which does it show "not shared"', async () => {
-    getPublicationMock.mockResolvedValue({
-      slug: 'test-deck',
-      url: 'https://spellcontrol.com/d/test-deck',
-      publishedAt: 1,
-      updatedAt: 1,
-      unpublishedAt: null,
-      viewCount: 2,
-      copyCount: 0,
-    });
-    listSharesMock.mockResolvedValue([
-      {
-        token: 'tok-link',
-        userId: 'u1',
-        kind: 'deck',
-        resourceId: 'd1',
-        audience: 'link',
-        addresseeId: null,
-        createdAt: 1,
-        revokedAt: null,
-      },
-      {
-        token: 'tok-friends',
-        userId: 'u1',
-        kind: 'deck',
-        resourceId: 'd1',
-        audience: 'friends',
-        addresseeId: null,
-        createdAt: 2,
-        revokedAt: null,
-      },
-      // A different resource's share — must NOT be revoked by this dialog.
-      {
-        token: 'tok-other-deck',
-        userId: 'u1',
-        kind: 'deck',
-        resourceId: 'd2',
-        audience: 'link',
-        addresseeId: null,
-        createdAt: 3,
-        revokedAt: null,
-      },
+describe('ShareDialog — a deck', () => {
+  it('offers exactly Public, Friends and Private: no link to manage', async () => {
+    renderDialog();
+    await loaded();
+    expect(screen.getAllByRole('radio').map((r) => r.closest('label')!.textContent)).toEqual([
+      'Public',
+      'Friends',
+      'Private',
     ]);
-    revokeShareMock.mockResolvedValue(undefined);
-    unpublishDeckMock.mockResolvedValue(undefined);
-
-    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
-
-    // Settle on the already-published state before acting on it.
-    await screen.findByRole('button', { name: 'Unpublish' });
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
-
-    // Must never optimistically claim success before the revoke+unpublish
-    // chain fully resolves.
-    expect(screen.queryByText('Not shared. Only you can see this.')).toBeNull();
-
-    await waitFor(() => expect(revokeShareMock).toHaveBeenCalledTimes(2));
-    expect(revokeShareMock).toHaveBeenCalledWith('tok-link');
-    expect(revokeShareMock).toHaveBeenCalledWith('tok-friends');
-    expect(revokeShareMock).not.toHaveBeenCalledWith('tok-other-deck');
-    expect(unpublishDeckMock).toHaveBeenCalledWith('d1');
-
-    await screen.findByText('Not shared. Only you can see this.');
-  });
-});
-
-describe('ShareDialog — going Public', () => {
-  it('with no display name set, still publishes directly: the page falls back to @username', async () => {
-    useAuth.setState({ profile: { ...PROFILE_WITH_NAME, displayName: null } });
-    publishDeckMock.mockResolvedValue({
-      slug: 'test-deck',
-      url: 'https://spellcontrol.com/d/test-deck',
-      publishedAt: 1,
-      updatedAt: 1,
-      unpublishedAt: null,
-      viewCount: 0,
-      copyCount: 0,
-    });
-
-    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Make it public' }));
-
-    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d1'));
-    expect(screen.queryByLabelText('Display name')).toBeNull();
   });
 
-  it('with a display name already set, confirming publishes directly with no sub-step', async () => {
-    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
-    publishDeckMock.mockResolvedValue({
-      slug: 'test-deck',
-      url: 'https://spellcontrol.com/d/test-deck',
-      publishedAt: 1,
-      updatedAt: 1,
-      unpublishedAt: null,
-      viewCount: 0,
-      copyCount: 0,
-    });
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Make it public' }));
-
-    expect(screen.queryByLabelText('Display name')).toBeNull();
-    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d1'));
-  });
-});
-
-describe('ShareDialog — first-publish seal (E150)', () => {
-  it('fires the seal with the deck colour identity on a genuine first publish', async () => {
-    publishDeckMock.mockResolvedValue({
-      slug: 'seal-deck',
-      url: 'https://spellcontrol.com/d/seal-deck',
-      publishedAt: 1,
-      updatedAt: 1,
-      unpublishedAt: null,
-      viewCount: 0,
-      copyCount: 0,
-      isFirstPublish: true,
-    });
-
-    renderDialog({
-      resourceId: 'd-seal-first',
-      resourceLabel: 'Test Deck',
-      colorIdentity: ['G', 'U'],
-      onClose: () => {},
-    });
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Make it public' }));
-
-    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d-seal-first'));
-    await waitFor(() => expect(fireSealMock).toHaveBeenCalledWith(['G', 'U']));
+  it('opens on the real state and mints nothing just by opening', async () => {
+    getPublicationMock.mockResolvedValue(LIVE);
+    renderDialog();
+    await waitFor(() => expect(radio('Public').checked).toBe(true));
+    expect(createShareMock).not.toHaveBeenCalled();
+    expect(publishDeckMock).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue('https://spellcontrol.com/d/test-deck')).toBeTruthy();
+    expect(screen.getByText(/3 views · 1 copy/)).toBeTruthy();
   });
 
-  it('never fires the seal on a republish (isFirstPublish: false)', async () => {
-    publishDeckMock.mockResolvedValue({
-      slug: 'seal-deck-2',
-      url: 'https://spellcontrol.com/d/seal-deck-2',
-      publishedAt: 1,
-      updatedAt: 1,
-      unpublishedAt: null,
-      viewCount: 3,
-      copyCount: 1,
-      isFirstPublish: false,
-    });
+  it('Public publishes at once, with no confirm step, and fires the first-publish seal', async () => {
+    renderDialog();
+    await loaded();
+    fireEvent.click(radio('Public'));
+    await waitFor(() => expect(radio('Public').checked).toBe(true));
+    expect(publishDeckMock).toHaveBeenCalledWith('d1');
+    expect(fireSealMock).toHaveBeenCalledWith(['R']);
+    expect(screen.getByDisplayValue('https://spellcontrol.com/d/test-deck')).toBeTruthy();
+  });
 
-    renderDialog({ resourceId: 'd-seal-republish', resourceLabel: 'Test Deck', onClose: () => {} });
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Make it public' }));
-
-    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d-seal-republish'));
+  it('never fires the seal on a republish', async () => {
+    publishDeckMock.mockResolvedValue({ ...LIVE, isFirstPublish: false });
+    renderDialog();
+    await loaded();
+    fireEvent.click(radio('Public'));
+    await waitFor(() => expect(radio('Public').checked).toBe(true));
     expect(fireSealMock).not.toHaveBeenCalled();
   });
-});
 
-describe('ShareDialog — opening the dialog mints nothing', () => {
-  it('opens an unshared deck on Private without minting a link share', async () => {
-    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
-
-    await screen.findByText('Not shared. Only you can see this.');
-    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).checked).toBe(true);
-    // The whole point: merely looking at the Share dialog used to leave a
-    // permanent /s/:token behind, which then piled up in Settings.
-    expect(createShareMock).not.toHaveBeenCalled();
-  });
-
-  it('adopts an existing link share instead of minting a second one', async () => {
-    listSharesMock.mockResolvedValue([
-      {
-        token: 'tok-existing',
-        userId: 'u1',
-        kind: 'deck',
-        resourceId: 'd1',
-        audience: 'link',
-        addresseeId: null,
-        createdAt: 1,
-        revokedAt: null,
-      },
-    ]);
-
-    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
-
-    const url = (await screen.findByLabelText('Share URL')) as HTMLInputElement;
-    expect(url.value).toBe('https://spellcontrol.com/s/tok-existing');
-    expect(
-      (screen.getByRole('radio', { name: 'Anyone with link' }) as HTMLInputElement).checked
-    ).toBe(true);
-    expect(createShareMock).not.toHaveBeenCalled();
-  });
-
-  it('mints only once the user actually picks the link rung', async () => {
-    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
-    await screen.findByText('Not shared. Only you can see this.');
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Anyone with link' }));
-
-    await waitFor(() => expect(createShareMock).toHaveBeenCalledTimes(1));
-    expect(createShareMock).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'deck', resourceId: 'd1', audience: 'link' })
-    );
-  });
-});
-
-describe('ShareDialog — Public supersedes the lesser rungs', () => {
-  it('stops showing the superseded /s/ link and shows the public URL instead', async () => {
-    // The revocation itself is the publish endpoint's job now (it has to be —
-    // three client call sites publish, and enforcing it in this one was how
-    // the invariant broke); routes/publications.test.ts covers that. What this
-    // dialog still owes is not presenting a token the server just killed.
-    listSharesMock.mockResolvedValue([
-      {
-        token: 'tok-link',
-        userId: 'u1',
-        kind: 'deck',
-        resourceId: 'd1',
-        audience: 'link',
-        addresseeId: null,
-        createdAt: 1,
-        revokedAt: null,
-      },
-    ]);
-    publishDeckMock.mockResolvedValue({
-      slug: 'test-deck',
-      url: 'https://spellcontrol.com/d/test-deck',
-      publishedAt: 1,
-      updatedAt: 1,
-      unpublishedAt: null,
-      viewCount: 0,
-      copyCount: 0,
-    });
-
-    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
-
-    // Settle on the adopted 'link' rung before switching up the ladder.
-    const before = (await screen.findByLabelText('Share URL')) as HTMLInputElement;
-    expect(before.value).toBe('https://spellcontrol.com/s/tok-link');
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Make it public' }));
-
-    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d1'));
-    // The published view swaps in its own field (a /d/ slug, not a /s/ token);
-    // the superseded share URL must be gone from the dialog entirely.
-    const after = (await screen.findByLabelText('Published deck URL')) as HTMLInputElement;
-    expect(after.value).toBe('https://spellcontrol.com/d/test-deck');
-    expect(screen.queryByLabelText('Share URL')).toBeNull();
-  });
-});
-
-describe('ShareDialog — stepping down from Public', () => {
-  // Playtest batch 11: picking "Anyone with link" on a published deck minted
-  // the link while the deck stayed public; picking Public again then merely
-  // "reviewed" the stale publication instead of republishing. The server now
-  // retires the publication on the mint (routes/shares.ts), and the dialog
-  // must not keep believing the deck is live.
-  it('after minting a link share, picking Public again goes through the confirm and republishes', async () => {
-    getPublicationMock.mockResolvedValue({
-      slug: 'test-deck',
-      url: 'https://spellcontrol.com/d/test-deck',
-      publishedAt: 1,
-      updatedAt: 1,
-      unpublishedAt: null,
-      viewCount: 5,
-      copyCount: 2,
-    });
-    createShareMock.mockResolvedValue({
-      token: 'tok-link',
-      userId: 'u1',
+  it('Friends mints a friends share and stops showing the public link', async () => {
+    getPublicationMock.mockResolvedValue(LIVE);
+    renderDialog();
+    await waitFor(() => expect(radio('Public').checked).toBe(true));
+    fireEvent.click(radio('Friends'));
+    await waitFor(() => expect(radio('Friends').checked).toBe(true));
+    expect(createShareMock).toHaveBeenCalledWith({
       kind: 'deck',
       resourceId: 'd1',
-      audience: 'link',
-      addresseeId: null,
-      createdAt: 1,
-      revokedAt: null,
+      audience: 'friends',
     });
-    publishDeckMock.mockResolvedValue({
-      slug: 'test-deck',
-      url: 'https://spellcontrol.com/d/test-deck',
-      publishedAt: 1,
-      updatedAt: 2,
-      unpublishedAt: null,
-      viewCount: 5,
-      copyCount: 2,
-    });
+    expect(screen.getByDisplayValue('https://spellcontrol.com/s/tok-friends')).toBeTruthy();
+    expect(screen.queryByDisplayValue('https://spellcontrol.com/d/test-deck')).toBeNull();
+  });
 
-    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
-    await screen.findByRole('button', { name: 'Unpublish' });
+  it('Private revokes every live row and unpublishes, and only then reads as private', async () => {
+    getPublicationMock.mockResolvedValue(LIVE);
+    listSharesMock.mockResolvedValue([row('direct', { token: 'tok-d', addresseeId: 'f1' })]);
+    let finishRevoke: () => void = () => {};
+    revokeShareMock.mockReturnValue(new Promise<void>((r) => (finishRevoke = r)));
+    renderDialog();
+    await waitFor(() => expect(radio('Public').checked).toBe(true));
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Anyone with link' }));
-    await waitFor(() => expect(createShareMock).toHaveBeenCalledTimes(1));
-    await screen.findByDisplayValue('https://spellcontrol.com/s/tok-link');
+    fireEvent.click(radio('Private'));
+    await waitFor(() => expect(revokeShareMock).toHaveBeenCalledWith('tok-d'));
+    expect(radio('Public').checked).toBe(true);
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Make it public' }));
-    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d1'));
+    finishRevoke();
+    await waitFor(() => expect(radio('Private').checked).toBe(true));
+    expect(unpublishDeckMock).toHaveBeenCalledWith('d1');
+    expect(screen.queryByRole('textbox', { name: 'Link' })).toBeNull();
+  });
+
+  it('a deck on the retired link rung shows no choice picked until the owner picks one', async () => {
+    listSharesMock.mockResolvedValue([row('link')]);
+    renderDialog();
+    await loaded();
+    expect(screen.getAllByRole('radio').some((r) => (r as HTMLInputElement).checked)).toBe(false);
+    expect(screen.getByText(/older link that anyone can open/)).toBeTruthy();
+
+    fireEvent.click(radio('Friends'));
+    await waitFor(() => expect(radio('Friends').checked).toBe(true));
+  });
+
+  it('a failed change says so and leaves the previous choice selected', async () => {
+    publishDeckMock.mockRejectedValue(new Error('A moderator took this deck down.'));
+    renderDialog();
+    await loaded();
+    fireEvent.click(radio('Public'));
+    expect((await screen.findByRole('alert')).textContent).toContain('moderator');
+    expect(radio('Private').checked).toBe(true);
   });
 });
 
-describe('ShareDialog — reopening an already-published deck', () => {
-  it('pre-selects Public with no extraneous createShare call', async () => {
-    getPublicationMock.mockResolvedValue({
-      slug: 'test-deck',
-      url: 'https://spellcontrol.com/d/test-deck',
-      publishedAt: 1,
-      updatedAt: 1,
-      unpublishedAt: null,
-      viewCount: 5,
-      copyCount: 2,
+describe('ShareDialog — other kinds', () => {
+  it('a binder keeps "Anyone with the link" until binders get a public page', async () => {
+    renderDialog('binder', 'b1');
+    await loaded();
+    expect(screen.getAllByRole('radio').map((r) => r.closest('label')!.textContent)).toEqual([
+      'Anyone with the link',
+      'Friends',
+      'Private',
+    ]);
+    fireEvent.click(radio('Anyone with the link'));
+    await waitFor(() => expect(radio('Anyone with the link').checked).toBe(true));
+    expect(createShareMock).toHaveBeenCalledWith({
+      kind: 'binder',
+      resourceId: 'b1',
+      audience: 'link',
     });
+    expect(getPublicationMock).not.toHaveBeenCalled();
+  });
+});
 
-    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
+describe('ShareDialog — send to a friend', () => {
+  it('sends a direct share without changing who can see it', async () => {
+    renderDialog();
+    await loaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Send to a friend' }));
+    const select = await screen.findByRole('combobox', { name: 'Choose a friend' });
+    fireEvent.change(select, { target: { value: 'f1' } });
+    expect((await screen.findByText(/Sent to @bob/)).textContent).toContain('inbox');
+    expect(createShareMock).toHaveBeenCalledWith({
+      kind: 'deck',
+      resourceId: 'd1',
+      audience: 'direct',
+      addresseeId: 'f1',
+    });
+    expect(radio('Private').checked).toBe(true);
+  });
+});
 
-    await screen.findByRole('button', { name: 'Unpublish' });
-
-    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).checked).toBe(true);
-    expect(createShareMock).not.toHaveBeenCalled();
+describe('ShareDialog — a guest', () => {
+  it('asks them to sign in and reads nothing', () => {
+    useAuth.setState({
+      user: null,
+      status: 'guest',
+      error: null,
+      autoLinkedAt: null,
+      profile: null,
+    });
+    renderDialog();
+    expect(screen.getByRole('link', { name: 'Sign in' })).toBeTruthy();
+    expect(listSharesMock).not.toHaveBeenCalled();
   });
 });

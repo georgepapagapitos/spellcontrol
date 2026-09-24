@@ -640,6 +640,39 @@ describe('friends-audience shares', () => {
     expect(friends.body.share.audience).toBe('friends');
   });
 
+  it('link and friends are one choice: minting either retires the other, never a direct share', async () => {
+    // A resource that was "anyone with the link" and is now "friends" must
+    // stop opening for strangers, not stay open underneath the new rung.
+    const ownerName = 'aud-exclusive';
+    const friendName = 'aud-exclusive-pal';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    await befriend(owner, ownerName, friend, friendName);
+    const friendId = (await request(app).get('/api/auth/me').set('Cookie', friend)).body.user
+      .id as string;
+    const mint = (body: Record<string, unknown>) =>
+      request(app)
+        .post('/api/shares')
+        .set('Cookie', owner)
+        .send({ kind: 'binder', resourceId: 'b1', ...body });
+
+    const link = (await mint({ audience: 'link' })).body.share.token as string;
+    const direct = (await mint({ audience: 'direct', addresseeId: friendId })).body.share
+      .token as string;
+    const friends = (await mint({ audience: 'friends' })).body.share.token as string;
+
+    const live = async () =>
+      (await request(app).get('/api/shares').set('Cookie', owner)).body.shares.map(
+        (r: { token: string }) => r.token
+      );
+    expect(await live()).toEqual(expect.arrayContaining([friends, direct]));
+    expect(await live()).not.toContain(link);
+
+    const link2 = (await mint({ audience: 'link' })).body.share.token as string;
+    expect(await live()).toEqual(expect.arrayContaining([link2, direct]));
+    expect(await live()).not.toContain(friends);
+  });
+
   it('a friends share 401s anonymous, 403s a stranger, 200s a friend', async () => {
     const ownerName = 'aud-owner';
     const friendName = 'aud-friend';

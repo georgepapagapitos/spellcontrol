@@ -112,12 +112,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     visibility,
     setVisibility,
     publishing,
-    needsDisplayName,
-    displayNameDraft,
-    setDisplayNameDraft,
     publishAfterCreate,
-    saveDisplayNameAndPublish,
-    cancelDisplayName,
   } = usePublishOnCreate(onPublishSettled);
 
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>(initialFormat);
@@ -604,55 +599,6 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
 
   const title =
     step === 'review' ? 'Review import' : step === 'batch' ? 'Review decks' : 'Import deck';
-
-  // The deck already exists at this point (only reachable after a create
-  // succeeded but the publish itself needs a display name) — replace the
-  // whole modal rather than layering this over now-stale step content,
-  // mirroring ShareDialog's own display_name_required fallback.
-  if (needsDisplayName) {
-    return (
-      <Modal
-        onClose={onClose}
-        labelledBy="import-deck-title"
-        className="modal import-deck-modal"
-        dismissable={!publishing}
-      >
-        <div className="modal-header">
-          <h2 id="import-deck-title">Set a display name</h2>
-        </div>
-        <div className="modal-body">
-          <p className="import-deck-hint">
-            Publishing shows your display name on the deck page. Set one to continue.
-          </p>
-          <div className="field">
-            <label htmlFor="import-deck-display-name">Display name</label>
-            <input
-              id="import-deck-display-name"
-              type="text"
-              className="name-input-field"
-              value={displayNameDraft}
-              maxLength={40}
-              disabled={publishing}
-              onChange={(e) => setDisplayNameDraft(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="modal-footer">
-          <button type="button" className="btn" onClick={cancelDisplayName} disabled={publishing}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => void saveDisplayNameAndPublish()}
-            disabled={publishing || !displayNameDraft.trim()}
-          >
-            {publishing ? 'Saving…' : 'Save & continue'}
-          </button>
-        </div>
-      </Modal>
-    );
-  }
 
   return (
     <Modal

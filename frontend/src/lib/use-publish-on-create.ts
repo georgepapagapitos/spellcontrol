@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../store/auth';
 import { isOnline, onSyncedChange } from './sync';
-import { updateProfile } from './auth-api';
 import {
   DeckNotSyncedYetError,
-  DisplayNameRequiredError,
   publicationUrl,
   publishDeck,
   type PublishResult,
@@ -53,9 +51,7 @@ async function publishWithSyncRetry(deckId: string): Promise<PublishResult> {
  * DeckNewPage's Private/Public fieldset (#1278) already used, now reused by
  * ImportDeckDialog's single-deck path (E150) so this network/error dance
  * doesn't fork into a second, slowly-drifting copy. Owns: guest/offline
- * gating for the fieldset, the `display_name_required` inline substep
- * (exactly one retry, mirroring ShareDialog's own fallback), and the success
- * toast.
+ * gating for the fieldset, and the success toast.
  *
  * Deliberately does NOT fire the first-publish seal moment itself — every
  * caller navigates away the instant a publish resolves (straight to the new
@@ -86,9 +82,6 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
   }
 
   const [publishing, setPublishing] = useState(false);
-  const [needsDisplayName, setNeedsDisplayName] = useState(false);
-  const [displayNameDraft, setDisplayNameDraft] = useState('');
-  const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
 
   const announcePublished = (slug: string) => {
     toast.show({
@@ -97,10 +90,8 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
     });
   };
 
-  /** Publish a just-created deck. On display_name_required, hold off calling
-   *  onSettled and show the inline set-name substep; any other failure just
-   *  toasts a warning — the deck already exists, so a failed publish never
-   *  blocks getting to it. */
+  /** Publish a just-created deck. A failure only toasts a warning: the deck
+   *  already exists, so a failed publish never blocks getting to it. */
   const publishAfterCreate = useCallback(
     async (deckId: string) => {
       setPublishing(true);
@@ -109,16 +100,11 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
         announcePublished(pub.slug);
         onSettled(deckId, { isFirstPublish: pub.isFirstPublish });
       } catch (err) {
-        if (err instanceof DisplayNameRequiredError) {
-          setPendingPublishId(deckId);
-          setNeedsDisplayName(true);
-        } else {
-          toast.show({
-            message: userMessage(err, "Couldn't publish the deck. Try again."),
-            tone: 'warn',
-          });
-          onSettled(deckId);
-        }
+        toast.show({
+          message: userMessage(err, "Couldn't publish the deck. Try again."),
+          tone: 'warn',
+        });
+        onSettled(deckId);
       } finally {
         setPublishing(false);
       }
@@ -126,47 +112,12 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
     [onSettled]
   );
 
-  const saveDisplayNameAndPublish = useCallback(async () => {
-    const trimmed = displayNameDraft.trim();
-    if (!trimmed || !pendingPublishId || publishing) return;
-    setPublishing(true);
-    try {
-      const updated = await updateProfile({ displayName: trimmed });
-      useAuth.setState((s) => (s.profile ? { profile: { ...s.profile, ...updated } } : s));
-      // The display-name substep's own one retry after saving a name — not
-      // to be confused with publishWithSyncRetry's inner sync-catch-up retry.
-      const pub = await publishWithSyncRetry(pendingPublishId);
-      announcePublished(pub.slug);
-      onSettled(pendingPublishId, { isFirstPublish: pub.isFirstPublish });
-    } catch (err) {
-      toast.show({
-        message: userMessage(err, "Couldn't publish the deck."),
-        tone: 'warn',
-      });
-      onSettled(pendingPublishId);
-    } finally {
-      setPublishing(false);
-      setNeedsDisplayName(false);
-    }
-  }, [displayNameDraft, pendingPublishId, publishing, onSettled]);
-
-  const cancelDisplayName = useCallback(() => {
-    // Deck stays created + private — never blocks creation.
-    setNeedsDisplayName(false);
-    if (pendingPublishId) onSettled(pendingPublishId);
-  }, [pendingPublishId, onSettled]);
-
   return {
     canPublish,
     publicDisabledReason,
     visibility,
     setVisibility,
     publishing,
-    needsDisplayName,
-    displayNameDraft,
-    setDisplayNameDraft,
     publishAfterCreate,
-    saveDisplayNameAndPublish,
-    cancelDisplayName,
   };
 }

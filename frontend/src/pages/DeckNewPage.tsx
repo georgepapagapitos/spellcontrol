@@ -125,12 +125,7 @@ export function DeckNewPage() {
     visibility,
     setVisibility,
     publishing,
-    needsDisplayName,
-    displayNameDraft,
-    setDisplayNameDraft,
     publishAfterCreate,
-    saveDisplayNameAndPublish,
-    cancelDisplayName,
   } = usePublishOnCreate(onPublishSettled);
 
   /**
@@ -358,43 +353,6 @@ export function DeckNewPage() {
     </section>
   );
 
-  // Inline set-name substep — same pattern ShareDialog falls back to on a
-  // display_name_required 400 (a minimal inline field + Cancel/Save, rather
-  // than extracting a shared component: the two flows differ enough — a
-  // whole page here vs. a modal sub-step there — that lifting one out isn't
-  // cheap). Replaces the action row until resolved; the deck is already
-  // created either way, so Cancel still lands on the (private) editor.
-  const displayNameSubstep = (
-    <section className="deck-builder-section deck-builder-actions">
-      <p className="deck-builder-actions-hint">
-        Publishing shows your display name on the deck page. Set one to continue.
-      </p>
-      <div className="field">
-        <label htmlFor="deck-new-display-name">Display name</label>
-        <input
-          id="deck-new-display-name"
-          type="text"
-          className="name-input-field"
-          value={displayNameDraft}
-          maxLength={40}
-          disabled={publishing}
-          onChange={(e) => setDisplayNameDraft(e.target.value)}
-        />
-      </div>
-      <button type="button" className="btn" onClick={cancelDisplayName} disabled={publishing}>
-        Cancel
-      </button>
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => void saveDisplayNameAndPublish()}
-        disabled={publishing || !displayNameDraft.trim()}
-      >
-        {publishing ? 'Saving…' : 'Save & continue'}
-      </button>
-    </section>
-  );
-
   // While generating, replace the page body with the shared takeover so the
   // build feels deliberate.
   if (isBuilding && progress) {
@@ -612,61 +570,52 @@ export function DeckNewPage() {
         commander && (
           <>
             {visibilityFieldset}
-            {needsDisplayName ? (
-              displayNameSubstep
-            ) : (
-              <section className="deck-builder-section deck-builder-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={build}
-                  disabled={isBuilding || publishing || !modeReady || !colorReady}
-                >
-                  {isBuilding ? 'Building…' : publishing ? 'Publishing…' : generateLabel}
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => void handleStartBlank()}
-                  disabled={isBuilding || publishing || !colorReady}
-                >
-                  {publishing ? 'Creating…' : 'Start blank'}
-                </button>
-                <p className="deck-builder-actions-hint">
-                  {colorChooser && !colorReady
-                    ? `Choose ${colorChooser.name.split(' // ')[0]}'s color above to build.`
-                    : `${generateHint} Start blank gives you just the commander so you can pick every card by hand.`}
-                </p>
-                {error && <div className="error-banner deck-builder-error">{error}</div>}
-              </section>
-            )}
+            <section className="deck-builder-section deck-builder-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={build}
+                disabled={isBuilding || publishing || !modeReady || !colorReady}
+              >
+                {isBuilding ? 'Building…' : publishing ? 'Publishing…' : generateLabel}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void handleStartBlank()}
+                disabled={isBuilding || publishing || !colorReady}
+              >
+                {publishing ? 'Creating…' : 'Start blank'}
+              </button>
+              <p className="deck-builder-actions-hint">
+                {colorChooser && !colorReady
+                  ? `Choose ${colorChooser.name.split(' // ')[0]}'s color above to build.`
+                  : `${generateHint} Start blank gives you just the commander so you can pick every card by hand.`}
+              </p>
+              {error && <div className="error-banner deck-builder-error">{error}</div>}
+            </section>
           </>
         )
       ) : (
         <>
           {visibilityFieldset}
-          {needsDisplayName ? (
-            displayNameSubstep
-          ) : (
-            <section className="deck-builder-section deck-builder-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => void handleStartBlank()}
-                disabled={publishing}
-              >
-                {publishing ? 'Creating…' : 'Create deck'}
-              </button>
-              <p className="deck-builder-actions-hint">
-                Create an empty {formatConfig.label} deck ({formatConfig.mainboardSize}-card
-                mainboard
-                {formatConfig.sideboardSize > 0
-                  ? ` with ${formatConfig.sideboardSize}-card sideboard`
-                  : ''}
-                ). Add cards manually in the editor.
-              </p>
-            </section>
-          )}
+          <section className="deck-builder-section deck-builder-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void handleStartBlank()}
+              disabled={publishing}
+            >
+              {publishing ? 'Creating…' : 'Create deck'}
+            </button>
+            <p className="deck-builder-actions-hint">
+              Create an empty {formatConfig.label} deck ({formatConfig.mainboardSize}-card mainboard
+              {formatConfig.sideboardSize > 0
+                ? ` with ${formatConfig.sideboardSize}-card sideboard`
+                : ''}
+              ). Add cards manually in the editor.
+            </p>
+          </section>
         </>
       )}
     </div>

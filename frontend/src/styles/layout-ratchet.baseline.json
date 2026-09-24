@@ -161,7 +161,7 @@
     "styles/playtest.css": 75,
     "styles/responsive-nav.css": 20,
     "styles/search-controls.css": 17,
-    "styles/settings-sync.css": 30,
+    "styles/settings-sync.css": 29,
     "styles/shared.css": 23,
     "styles/social-shared.css": 2,
     "styles/stats-breakdown.css": 7,
@@ -203,7 +203,7 @@
     "styles/playtest.css": 2,
     "styles/responsive-nav.css": 3,
     "styles/search-controls.css": 2,
-    "styles/settings-sync.css": 3,
+    "styles/settings-sync.css": 2,
     "styles/shared.css": 2,
     "styles/tabs.css": 1
   }

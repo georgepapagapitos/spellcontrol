@@ -671,8 +671,16 @@
   align-items: center;
 }
 
+/* The address gives way, never the buttons: an input's intrinsic width
+   (~20ch) otherwise refuses to shrink, and Copy + Share… ran off the sheet's
+   edge at 390px. */
+.share-dialog-link > .btn {
+  flex-shrink: 0;
+}
+
 .share-dialog-url {
   flex: 1;
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: max(16px, var(--text-sm));
 }
@@ -727,8 +735,11 @@
    stays the hit target while keyboard/AT semantics are native. */
 .share-audience-option {
   position: relative;
-  flex: 1 1 calc(50% - var(--space-1));
-  min-width: 6rem;
+  /* Sized by its label and sharing the row: three short choices (Public /
+     Friends / Private) sit on one line even at 320px; a long label like
+     "Anyone with the link" wraps the group rather than truncating. */
+  flex: 1 1 auto;
+  min-width: 4.5rem;
   border: none;
   border-radius: var(--radius);
   background: transparent;

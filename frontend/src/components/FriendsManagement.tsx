@@ -179,7 +179,7 @@ export function FriendsManagement() {
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
   // await-then-setState patterns even when wrapped in a separate function.
-  // Mirrors SharedLinksSettings — null initial state is the loading sentinel
+  // Null initial state is the loading sentinel
   // so we don't need synchronous setState before the promise.
   useEffect(() => {
     if (status !== 'authed') return;

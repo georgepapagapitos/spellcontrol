@@ -32,7 +32,6 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InfoTip } from '../components/InfoTip';
 import { SyncIndicator } from '../components/SyncIndicator';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
-import { SharedLinksSettings } from '../components/SharedLinksSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AiFeaturesSettings } from '../components/settings/AiFeaturesSettings';
 import { getPendingCount } from '../lib/sync';
@@ -49,7 +48,7 @@ import { useFriendRequests } from '../lib/use-friend-requests';
 import { userMessage } from '@/lib/user-error';
 // Deep link (`/you?section=…`) → the heading to scroll/focus. Values are the
 // linking door's own vocabulary (the header menu's "Profile" / "Settings" /
-// "Shared links", the sync pill's Account, the auto-link banner's sign-in
+// old "Shared links" item, the sync pill's Account, the auto-link banner's sign-in
 // methods), not the heading ids themselves, so a rename of one heading only
 // needs updating here. `settings` lands on the Preferences tier header — the
 // page is "You"; Settings is everything below Identity, and that tier header
@@ -64,7 +63,8 @@ const SECTION_HEADING_IDS: Record<string, string> = {
   appearance: 'settings-appearance-group-title',
   'collection-preferences': 'settings-collection-prefs-group-title',
   collection: 'settings-collection-title',
-  sharing: 'settings-sharing-group-title',
+  // The Sharing group is gone (board T136); old links land on Profile.
+  sharing: 'settings-profile-title',
   data: 'settings-data-group-title',
   ai: 'settings-ai-group-title',
   admin: 'settings-admin-group-title',
@@ -796,17 +796,6 @@ export function YouPage() {
           />
         </SettingsSection>
       </div>
-
-      {/* Sharing (authed only — SharedLinksSettings self-hides for guests, so
-          the whole group is suppressed when there's no username) */}
-      {username && (
-        <div role="group" aria-labelledby="settings-sharing-group-title">
-          <h2 id="settings-sharing-group-title" className="settings-section-header">
-            Sharing
-          </h2>
-          <SharedLinksSettings />
-        </div>
-      )}
 
       <div role="group" aria-labelledby="settings-data-group-title">
         <h2 id="settings-data-group-title" className="settings-section-header">

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { Modal } from './Modal';
@@ -6,7 +6,6 @@ import { ShareQrCode } from './shared/ShareQrCode';
 import { useSealMoment } from './shared/SealMoment';
 import { createShare, listShares, revokeShare, shareUrl } from '../lib/share-client';
 import {
-  DisplayNameRequiredError,
   getPublication,
   publicationUrl,
   publishDeck,
@@ -14,23 +13,33 @@ import {
   type Publication,
 } from '../lib/publications-client';
 import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
-import { updateProfile } from '../lib/auth-api';
 import { listFriends, type Friend } from '../lib/friends-client';
 import { canShare, openShareSheet } from '@/lib/web-share';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
-
 import { userMessage } from '@/lib/user-error';
-type DialogAudience = 'link' | 'friends' | 'direct';
 
 /**
- * The visibility ladder shown in the radiogroup. 'direct' (send-to-a-friend)
- * is deliberately not part of this type — it's recipient-targeted, not a
- * visibility level, so it renders as a secondary text link below the group
- * instead of a ladder rung (see the "Send to a friend" button below).
+ * Who can see a resource: one choice, applied the moment it's picked.
+ *
+ * - `public` (decks): a `deck_publications` row. Listed on the profile and in
+ *   Discover, at a frozen /d/:slug.
+ * - `link` (everything else, until each kind gets a public page of its own):
+ *   an unlisted /s/:token anyone with the address can open.
+ * - `friends`: a friends-audience /s/:token, gated on friendship.
+ * - `private`: nothing live.
+ *
+ * The rungs are exclusive, enforced where every write converges on the
+ * server: publishing retires link/friends shares, minting one retires a live
+ * publication and the other rung. 'direct' (send to one friend) is not a
+ * rung: it is recipient-targeted and sits below the choice.
  */
-type LadderValue = 'private' | 'link' | 'friends' | 'public';
+type Rung = 'public' | 'link' | 'friends' | 'private';
+
+/** A deck on the retired link rung (board T136): it still works, but it is
+ *  no longer an option, so nothing reads as selected until the owner picks. */
+type Current = Rung | 'legacy-link';
 
 interface Props {
   kind: ShareKind;
@@ -44,171 +53,104 @@ interface Props {
   onClose: () => void;
 }
 
+function rungsFor(kind: ShareKind): { value: Rung; label: string; hint: string }[] {
+  const friends = {
+    value: 'friends' as const,
+    label: 'Friends',
+    hint:
+      kind === 'deck'
+        ? 'Only your friends can open it. They find it on your page in their Friends list.'
+        : 'Only your friends can open it, signed in.',
+  };
+  const priv = { value: 'private' as const, label: 'Private', hint: 'Only you can see it.' };
+  if (kind === 'deck') {
+    return [
+      {
+        value: 'public',
+        label: 'Public',
+        hint: 'Anyone can find it on your profile and in Discover, and copy it.',
+      },
+      friends,
+      priv,
+    ];
+  }
+  return [
+    {
+      value: 'link',
+      label: 'Anyone with the link',
+      hint: 'Anyone with the link can view it. No account needed.',
+    },
+    friends,
+    priv,
+  ];
+}
+
+const LEGACY_LINK_HINT =
+  'It has an older link that anyone can open. Pick who can see it, and that link stops working.';
+
 /**
- * Modal that mints (or reuses) a public share link for a collection / deck /
- * list and lets the owner copy or revoke it. Mount-conditionally — the
- * caller renders <ShareDialog/> only when the dialog should be open, so each
- * open gets fresh state without re-running the fetch effect on prop changes.
- *
- * `kind === 'deck'` additionally exposes a fourth "Public" rung, backed by
- * `deck_publications` (`publications-client.ts`) rather than the `shares`
- * table — a separate, independent action layered on top of the existing
- * link/friends/direct shares, not a fourth `shares.audience` value (see
- * PLAN.md §A1). The two systems compose: a link, a friends, a direct-to-
- * Alice share, and a public listing of one resource can all coexist.
+ * The visibility control for a deck, collection, binder, list or cube. Opens
+ * on the resource's REAL current state (it reads, never mints, on open), and
+ * each pick applies at once: no confirm step, no link to manage.
+ * Mount-conditionally: the caller renders it only while open.
  */
 export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, onClose }: Props) {
-  // Share links are per-account (they stay tied to the owner and are
-  // revocable), so a guest can't mint one — prompt them to sign in instead.
   const isGuest = useAuth((s) => s.status === 'guest');
   const signInHref = useSignInPath();
   const username = useAuth((s) => s.user?.username);
-  const [audience, setAudience] = useState<DialogAudience>('link');
-  const [addresseeId, setAddresseeId] = useState('');
-  const [friends, setFriends] = useState<Friend[] | null>(null);
+  const rid = resourceId ?? ''; // the server's collection-kind normalization
+  const rungs = rungsFor(kind);
+
+  const [current, setCurrent] = useState<Current | null>(null);
+  const [publication, setPublication] = useState<Publication | null>(null);
   const [share, setShare] = useState<ShareRow | null>(null);
+  const [busy, setBusy] = useState<Rung | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Guests take the sign-in branch below and never reach the loading state.
-  const [loading, setLoading] = useState(!isGuest);
-  const [working, setWorking] = useState(false);
-  // Lives outside the `share &&` block on purpose: switching audience briefly
-  // nulls `share` while a new token mints, and this toggle should stay open
-  // (not reset) across that gap so the panel just reappears once resolved.
-  const [showQr, setShowQr] = useState(false);
-
-  // The ladder's own selection — independent of `audience` (see the mint
-  // effect below). Starts at 'private' and is corrected to the resource's
-  // REAL current rung by the init effect below; the dialog no longer opens
-  // pre-selected on 'link', because that silently minted a permanent
-  // /s/:token share for every resource whose Share dialog was ever opened —
-  // links the owner never asked for, which then piled up in Settings →
-  // Share links and outlived any later switch to Public.
-  const [ladder, setLadder] = useState<LadderValue>('private');
-  // Whether the user has actively picked a rung this session. The mint effect
-  // below is gated on it, so opening the dialog only ever *reads* state —
-  // minting is now strictly a consequence of choosing "Anyone with link" or
-  // "My friends".
-  const [rungChosen, setRungChosen] = useState(false);
-  // `undefined` (deck kind only) means "haven't checked publish status yet";
-  // distinct from `null` ("checked, not published"), which is what the
-  // Public rung's confirm-vs-review branch keys off.
-  const [publication, setPublication] = useState<Publication | null | undefined>(
-    kind === 'deck' ? undefined : null
-  );
-  const [pendingPublicConfirm, setPendingPublicConfirm] = useState(false);
-  const [needsDisplayName, setNeedsDisplayName] = useState(false);
-  const [displayNameDraft, setDisplayNameDraft] = useState('');
-  // Distinct from `working` (which still gates every button, unchanged) —
-  // this only decides whether the Private rung's own label reads
-  // "Revoking…", since going private can start from any other rung
-  // (including 'public'), so `working` alone can't tell which action is live.
-  const [privateBusy, setPrivateBusy] = useState(false);
-  // sr-only aria-live="polite" announcement for the confirm-block / display-
-  // name transitions (Folded blocking fix — Modal's own focus-trap only
-  // fires once, on mount; showing/hiding content inside it re-targets nothing).
   const [announcement, setAnnouncement] = useState('');
-
-  const previousLadderRef = useRef<LadderValue>('private');
-  const confirmBlockRef = useRef<HTMLDivElement>(null);
-  const displayNameId = useId();
-  // Radios group by shared `name` — scope it per mounted dialog.
-  const audienceGroup = useId();
-  // First-publish seal (E150): this dialog never navigates away on publish
-  // (it stays open showing the live link), so — unlike the creation-time
-  // fieldsets — it's safe to fire directly here rather than handing off to a
-  // landing page. Covers both entry surfaces that reuse this dialog as-is:
-  // the deck-editor visibility chip and the post-create DeckPublishNudge.
+  const [showQr, setShowQr] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [friends, setFriends] = useState<Friend[] | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const groupName = useId();
+  // First-publish seal (E150): the dialog stays open showing the live link,
+  // so it's safe to fire here rather than handing off to a landing page.
   const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
 
-  // A direct share can't mint until a recipient is chosen — hold off until then.
-  const awaitingRecipient = audience === 'direct' && !addresseeId;
-
-  // Mint (or reuse) the token for the selected audience (+ recipient, for
-  // direct). Each audience/recipient has its own idempotent token, so a
-  // 'link', a 'friends', and a direct-to-Alice share of one resource
-  // coexist. State resets on switch happen in the click handlers, keeping
-  // the effect setState-free.
-  //
-  // Gated on `rungChosen`: minting is a consequence of the user picking a
-  // rung, never of the dialog opening. Only fires for the classic
-  // link/friends rungs — 'private' and 'public' have nothing to mint
-  // (private means nothing lives; public is a deck_publications row, not a
-  // share).
-  useEffect(() => {
-    if (!rungChosen) return;
-    if (ladder !== 'link' && ladder !== 'friends') return;
-    if (isGuest || awaitingRecipient) return;
-    let cancelled = false;
-    createShare({ kind, resourceId, audience, addresseeId: addresseeId || undefined })
-      .then((row) => {
-        if (cancelled) return;
-        setShare(row);
-        // The ladder is exclusive both ways: minting a link/friends share for
-        // a deck retires its live publication on the server (routes/shares.ts),
-        // so a still-"live" publication here is stale — and picking Public
-        // again would have "reviewed" it instead of republishing.
-        if (kind === 'deck') {
-          setPublication((pub) =>
-            pub && pub.unpublishedAt === null ? { ...pub, unpublishedAt: Date.now() } : pub
-          );
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(userMessage(err, "Couldn't create the share link. Try again."));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [kind, resourceId, isGuest, audience, addresseeId, awaitingRecipient, ladder, rungChosen]);
-
-  // Open on the resource's REAL current visibility, reading both systems at
-  // once: `deck_publications` (deck kind only) and the existing `shares`
-  // rows. Precedence mirrors resolveDeckVisibility() in use-deck-visibility.ts
-  // exactly — a live publication outranks any share, 'friends' outranks
-  // 'link', and 'direct' shares are never a rung (they're recipient-targeted).
-  // An existing link/friends row is also adopted as `share`, so Copy works
-  // immediately without minting anything new.
+  // Read the current state from both systems at once. Precedence mirrors
+  // resolveDeckVisibility() in use-deck-visibility.ts.
   useEffect(() => {
     if (isGuest) return;
     let cancelled = false;
     Promise.all([
       kind === 'deck' && resourceId ? getPublication(resourceId).catch(() => null) : null,
       listShares().catch((): ShareRow[] => []),
-    ])
-      .then(([pub, all]) => {
-        if (cancelled) return;
-        setPublication(pub);
-        const mine = all.filter((s) => s.kind === kind && s.resourceId === (resourceId ?? ''));
-        if (pub && !pub.unpublishedAt) {
-          setLadder('public');
-          return;
-        }
-        const friendsShare = mine.find((s) => s.audience === 'friends');
-        const linkShare = mine.find((s) => s.audience === 'link');
-        if (friendsShare) {
-          setLadder('friends');
-          setAudience('friends');
-          setShare(friendsShare);
-        } else if (linkShare) {
-          setLadder('link');
-          setAudience('link');
-          setShare(linkShare);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    ]).then(([pub, all]) => {
+      if (cancelled) return;
+      setPublication(pub);
+      const mine = all.filter((s) => s.kind === kind && s.resourceId === rid);
+      const friendsShare = mine.find((s) => s.audience === 'friends');
+      const linkShare = mine.find((s) => s.audience === 'link');
+      if (pub && !pub.unpublishedAt) {
+        setCurrent('public');
+      } else if (friendsShare) {
+        setShare(friendsShare);
+        setCurrent('friends');
+      } else if (linkShare) {
+        setShare(linkShare);
+        setCurrent(kind === 'deck' ? 'legacy-link' : 'link');
+      } else {
+        setCurrent('private');
+      }
+    });
     return () => {
       cancelled = true;
     };
-  }, [isGuest, kind, resourceId]);
+  }, [isGuest, kind, resourceId, rid]);
 
-  // Lazy-load the friends list the first time the user picks "Send to a friend".
+  // The friends list loads the first time "Send to a friend" opens.
   useEffect(() => {
-    if (audience !== 'direct' || friends !== null) return;
+    if (!sendOpen || friends !== null) return;
     let cancelled = false;
     listFriends()
       .then((list) => {
@@ -220,250 +162,78 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     return () => {
       cancelled = true;
     };
-  }, [audience, friends]);
+  }, [sendOpen, friends]);
 
-  // Focus the confirm block or display-name sub-step the instant either
-  // becomes visible — Modal's own focus-trap only moves focus once, on
-  // mount, so it never re-targets when content changes inside it. The
-  // sr-only announcement is set separately, synchronously in the handlers
-  // that cause each transition (below) — setState directly inside an effect
-  // risks a cascading render (react-hooks/set-state-in-effect); this effect
-  // only performs the (non-state) imperative focus move.
-  useEffect(() => {
-    if (!pendingPublicConfirm) return;
-    const first = confirmBlockRef.current?.querySelector<HTMLElement>(
-      'button, input, select, textarea, a[href], [tabindex]'
-    );
-    first?.focus();
-  }, [pendingPublicConfirm, needsDisplayName]);
-
-  const selectAudience = (next: DialogAudience) => {
-    if (next === audience || working) return;
-    setShare(null);
-    setError(null);
-    setAddresseeId('');
-    // 'direct' shows the recipient picker first (no token yet); others mint now.
-    setLoading(next !== 'direct');
-    setRungChosen(true);
-    setAudience(next);
-  };
-
-  const selectRecipient = (id: string) => {
-    setAddresseeId(id);
-    setShare(null);
-    setError(null);
-    setLoading(!!id);
-  };
-
-  /**
-   * The complete Private fix (Folded blocking fix #1): revoke every live
-   * share row for this exact (kind, resourceId) — not just whichever one
-   * happens to be loaded in dialog state — and unpublish any live
-   * deck_publications row, awaiting all of it before claiming "not shared".
-   * On failure the prior state is preserved, not optimistically cleared.
-   */
-  const handleGoPrivate = async () => {
-    setWorking(true);
-    setPrivateBusy(true);
+  const choose = async (next: Rung) => {
+    if (busy || next === current) return;
+    setBusy(next);
     setError(null);
     try {
-      const all = await listShares();
-      const rid = resourceId ?? ''; // matches the server's collection-kind normalization
-      const mine = all.filter((s) => s.kind === kind && s.resourceId === rid);
-      await Promise.all(mine.map((s) => revokeShare(s.token)));
-      if (kind === 'deck' && resourceId && publication && !publication.unpublishedAt) {
-        await unpublishDeck(resourceId);
-      }
-      setShare(null);
-      setPublication(null);
-      setPendingPublicConfirm(false);
-      setNeedsDisplayName(false);
-      setLadder('private');
-    } catch (err) {
-      setError(userMessage(err, "Couldn't stop sharing. Try again."));
-    } finally {
-      setWorking(false);
-      setPrivateBusy(false);
-    }
-  };
-
-  const doPublish = async (): Promise<void> => {
-    if (!resourceId) return;
-    try {
-      const pub = await publishDeck(resourceId);
-      // The server retires this deck's link/friends shares as part of
-      // publishing (routes/publications.ts) — the ladder is exclusive at the
-      // one point every publish call site converges on, so there's nothing to
-      // sweep here. Just drop the now-dead token from dialog state.
-      setShare(null);
-      setPublication(pub);
-      setPendingPublicConfirm(false);
-      setNeedsDisplayName(false);
-      setAnnouncement('');
-      if (shouldCelebrateFirstPublish(resourceId, pub.isFirstPublish)) {
-        fireSealMoment(colorIdentity);
-      }
-    } catch (err) {
-      // Defense in depth: even if the client's cached displayName looked
-      // set, a display_name_required 400 re-shows the same sub-step rather
-      // than a generic error.
-      if (err instanceof DisplayNameRequiredError) {
-        setNeedsDisplayName(true);
-        setAnnouncement('Set a display name to continue publishing.');
+      if (next === 'private') {
+        // Every live row for this resource, not just the one in state, and
+        // the publication; only then does it read as private.
+        const all = await listShares();
+        const mine = all.filter((s) => s.kind === kind && s.resourceId === rid);
+        await Promise.all(mine.map((s) => revokeShare(s.token)));
+        if (kind === 'deck' && resourceId && publication && !publication.unpublishedAt) {
+          await unpublishDeck(resourceId);
+        }
+        setShare(null);
+        setPublication(null);
+      } else if (next === 'public') {
+        if (!resourceId) return;
+        const pub = await publishDeck(resourceId);
+        // The server retired this deck's link/friends shares as it published.
+        setShare(null);
+        setPublication(pub);
+        if (shouldCelebrateFirstPublish(resourceId, pub.isFirstPublish)) {
+          fireSealMoment(colorIdentity);
+        }
       } else {
-        setError(userMessage(err, "Couldn't publish the deck. Try again."));
+        const row = await createShare({ kind, resourceId, audience: next });
+        // Minting retired the other rung and any live publication server-side.
+        setShare(row);
+        setPublication((pub) =>
+          pub && !pub.unpublishedAt ? { ...pub, unpublishedAt: Date.now() } : pub
+        );
       }
-    }
-  };
-
-  const handleConfirmPublic = async () => {
-    if (working) return;
-    setError(null);
-    // No display name needed: a public page falls back to @username (T136).
-    setWorking(true);
-    try {
-      await doPublish();
-    } finally {
-      setWorking(false);
-    }
-  };
-
-  const handleSaveDisplayName = async () => {
-    const trimmed = displayNameDraft.trim();
-    if (!trimmed || working) return;
-    setWorking(true);
-    setError(null);
-    try {
-      const updated = await updateProfile({ displayName: trimmed });
-      useAuth.setState((s) => (s.profile ? { profile: { ...s.profile, ...updated } } : s));
-      await doPublish();
+      setCurrent(next);
+      const label = rungs.find((r) => r.value === next)?.label ?? next;
+      setAnnouncement(`Now ${label.toLowerCase()}.`);
     } catch (err) {
-      setError(userMessage(err, "Couldn't save your display name."));
+      setError(userMessage(err, "Couldn't change who can see it. Try again."));
     } finally {
-      setWorking(false);
+      setBusy(null);
     }
   };
 
-  const handleCancelPublic = () => {
-    setLadder(previousLadderRef.current);
-    setPendingPublicConfirm(false);
-    setNeedsDisplayName(false);
-    setDisplayNameDraft('');
-    setError(null);
-  };
-
-  const handleUnpublish = async () => {
-    if (!resourceId || working) return;
-    setWorking(true);
+  const sendTo = async (friend: Friend) => {
+    setSending(true);
     setError(null);
     try {
-      await unpublishDeck(resourceId);
-      setPublication(null);
-      // Land on Private, not 'link'. Publishing already retired this deck's
-      // link/friends shares server-side (retireLesserRungs in
-      // routes/publications.ts), so after unpublishing the deck genuinely
-      // isn't shared by any means — auto-minting a fresh link share here would
-      // put back exactly the unasked-for /s/:token this ladder now avoids.
-      setShare(null);
-      setLadder('private');
+      await createShare({ kind, resourceId, audience: 'direct', addresseeId: friend.id });
+      setSentTo(friend.username);
     } catch (err) {
-      setError(userMessage(err, "Couldn't unpublish the deck. Try again."));
+      setError(userMessage(err, "Couldn't send it. Try again."));
     } finally {
-      setWorking(false);
+      setSending(false);
     }
   };
 
-  const selectLadder = (next: LadderValue) => {
-    if (working) return;
-    setError(null);
-    if (next === 'private') {
-      if (ladder === 'private') return;
-      void handleGoPrivate();
-      return;
-    }
-    if (next === 'public') {
-      if (ladder === 'public') return;
-      if (publication && !publication.unpublishedAt) {
-        // Already live — just review it, no confirm needed to re-show it.
-        setLadder('public');
-        return;
-      }
-      previousLadderRef.current = ladder;
-      setPendingPublicConfirm(true);
-      setNeedsDisplayName(false);
-      setAnnouncement(`Confirm making ${resourceLabel} public.`);
-      setLadder('public');
-      return;
-    }
-    if (next === ladder) return;
-    // Choosing link/friends is the ONLY thing that mints — flag it before the
-    // ladder moves so the mint effect fires. Note `selectAudience` early-
-    // returns when the audience already matches (the dialog's default
-    // `audience` is 'link' even when the ladder opened on Private), so the
-    // reset it would have done is inlined here for that case.
-    setRungChosen(true);
-    setLadder(next);
-    if (next === audience) {
-      setShare(null);
-      setError(null);
-      setLoading(true);
-      return;
-    }
-    selectAudience(next);
-  };
-
-  const LADDER_OPTIONS: { value: LadderValue; label: string; hint: string }[] = [
-    { value: 'private', label: 'Private', hint: 'Not shared. Only you can see this.' },
-    {
-      value: 'link',
-      label: 'Anyone with link',
-      hint: 'Anyone with this link can view it. No account needed.',
-    },
-    {
-      value: 'friends',
-      label: 'My friends',
-      hint: "Only your accepted friends can open this. They'll need to be signed in.",
-    },
-    ...(kind === 'deck'
-      ? [
-          {
-            value: 'public' as const,
-            label: 'Public',
-            hint: 'Discoverable on your profile and in search. Anyone can view and copy it.',
-          },
-        ]
-      : []),
-  ];
-
-  const ladderHint = LADDER_OPTIONS.find((o) => o.value === ladder)?.hint ?? LADDER_OPTIONS[0].hint;
-
-  const recipientName = friends?.find((f) => f.id === addresseeId)?.username ?? '';
-
-  const isConfirmedPublic = ladder === 'public' && !!publication && !publication.unpublishedAt;
   const url =
-    isConfirmedPublic && publication
+    current === 'public' && publication
       ? publicationUrl(publication.slug)
-      : share
+      : (current === 'friends' || current === 'link' || current === 'legacy-link') && share
         ? shareUrl(share.token)
         : '';
 
   const handleCopy = async () => {
-    if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
       toast.show({ message: 'Link copied to clipboard.', tone: 'success' });
     } catch {
       toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
     }
-  };
-
-  const handleShare = async () => {
-    if (!url) return;
-    await openShareSheet({
-      title: `Share ${resourceLabel}`,
-      text: `${resourceLabel} on SpellControl`,
-      url,
-    });
   };
 
   if (isGuest) {
@@ -473,7 +243,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
           Share {resourceLabel}
         </h2>
         <p className="choice-dialog-body">
-          Public links need an account, so the link stays yours and you can revoke it later.
+          Sharing needs an account, so you stay in control of who sees it.
         </p>
         <div className="choice-dialog-actions">
           <button type="button" className="btn" onClick={onClose}>
@@ -487,104 +257,68 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     );
   }
 
+  const hint =
+    current === 'legacy-link'
+      ? LEGACY_LINK_HINT
+      : (rungs.find((r) => r.value === current)?.hint ?? '');
+
   return (
     <Modal
       onClose={onClose}
       labelledBy="share-dialog-title"
-      dismissable={!working}
+      dismissable={!busy}
       backdropClassName="modal-backdrop--sheet"
       className="choice-dialog share-dialog"
     >
       {sealMoment}
       <h2 id="share-dialog-title" className="choice-dialog-title">
-        Share {resourceLabel}
+        Who can see {resourceLabel}
       </h2>
 
-      {/* Native radios rather than `role="radio"` buttons: exclusivity,
-          arrow-key nav and one group tab stop come free. `disabled` moves to
-          the fieldset, which disables every control inside it. */}
-      <fieldset className="share-audience" aria-label="Who can view this" disabled={working}>
-        {LADDER_OPTIONS.map((opt) => (
-          <label
-            key={opt.value}
-            className={`share-audience-option${ladder === opt.value ? ' is-active' : ''}`}
+      {current === null ? (
+        <p className="choice-dialog-body" role="status">
+          Loading…
+        </p>
+      ) : (
+        <>
+          {/* Native radios: exclusivity, arrow keys and one tab stop for free. */}
+          <fieldset
+            className="share-audience"
+            aria-label="Who can see it"
+            disabled={!!busy}
+            aria-busy={!!busy || undefined}
           >
-            <input
-              type="radio"
-              name={audienceGroup}
-              value={opt.value}
-              checked={ladder === opt.value}
-              onChange={() => selectLadder(opt.value)}
-            />
-            <span>{opt.value === 'private' && privateBusy ? 'Revoking…' : opt.label}</span>
-          </label>
-        ))}
-      </fieldset>
-      {!pendingPublicConfirm && <p className="choice-dialog-body">{ladderHint}</p>}
+            {rungs.map((opt) => (
+              <label
+                key={opt.value}
+                className={`share-audience-option${current === opt.value ? ' is-active' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name={groupName}
+                  value={opt.value}
+                  checked={current === opt.value}
+                  onChange={() => void choose(opt.value)}
+                />
+                <span>{busy === opt.value ? 'Saving…' : opt.label}</span>
+              </label>
+            ))}
+          </fieldset>
+          <p className="choice-dialog-body">{hint}</p>
+        </>
+      )}
       <div className="sr-only" role="status" aria-live="polite">
         {announcement}
       </div>
 
-      {!pendingPublicConfirm && (
-        <>
-          <button
-            type="button"
-            className="btn-link"
-            style={{ alignSelf: 'flex-start' }}
-            onClick={() => selectAudience('direct')}
-            disabled={working || audience === 'direct'}
-          >
-            Send to a friend
-          </button>
-
-          {audience === 'direct' && (
-            <div className="share-recipient">
-              {friends === null ? (
-                <p className="choice-dialog-body">Loading friends…</p>
-              ) : friends.length === 0 ? (
-                <p className="choice-dialog-body">
-                  You have no friends yet. Add some on the{' '}
-                  <Link to="/friends" onClick={onClose}>
-                    Friends page
-                  </Link>
-                  .
-                </p>
-              ) : (
-                <select
-                  className="share-recipient-select"
-                  aria-label="Choose a friend"
-                  value={addresseeId}
-                  onChange={(e) => selectRecipient(e.target.value)}
-                  disabled={working}
-                >
-                  <option value="">Choose a friend…</option>
-                  {friends.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.username}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-        </>
-      )}
-
-      {loading && ladder !== 'public' && <p className="choice-dialog-body">Generating link…</p>}
       {error && (
         <p role="alert" className="share-dialog-error">
           {error}
         </p>
       )}
 
-      {ladder !== 'public' && share && (
+      {url && (
         <>
-          {audience === 'direct' && recipientName && (
-            <p className="share-dialog-sent" role="status">
-              Sent to @{recipientName}. They'll see it in their inbox. You can also copy the link
-              below.
-            </p>
-          )}
           <div className="share-dialog-link">
             <input
               type="text"
@@ -592,23 +326,27 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
               readOnly
               onFocus={(e) => e.currentTarget.select()}
               className="share-dialog-url"
-              aria-label="Share URL"
+              aria-label="Link"
             />
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleCopy}
-              disabled={working}
-            >
+            <button type="button" className="btn btn-primary" onClick={() => void handleCopy()}>
               Copy
             </button>
             {canShare() && (
-              <button type="button" className="btn" onClick={handleShare} disabled={working}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  void openShareSheet({
+                    title: `Share ${resourceLabel}`,
+                    text: `${resourceLabel} on SpellControl`,
+                    url,
+                  })
+                }
+              >
                 Share…
               </button>
             )}
           </div>
-
           <button
             type="button"
             className="btn-link"
@@ -625,132 +363,78 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
               <p className="share-qr-caption">Scan with a phone camera to open this link.</p>
             </div>
           )}
-
-          <div className="choice-dialog-actions">
-            <button type="button" className="btn" onClick={onClose} disabled={working}>
-              Done
-            </button>
-          </div>
         </>
       )}
 
-      {ladder === 'public' && pendingPublicConfirm && !needsDisplayName && (
-        <div className="share-public-confirm" ref={confirmBlockRef}>
-          <p className="choice-dialog-body">
-            Going public makes "{resourceLabel}" discoverable on your profile and in search results.
-            Anyone can view and copy it. You can unpublish anytime.
-          </p>
-          <div className="choice-dialog-actions share-dialog-actions">
-            <button type="button" className="btn" onClick={handleCancelPublic} disabled={working}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void handleConfirmPublic()}
-              disabled={working}
-            >
-              {working ? 'Publishing…' : 'Make it public'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {ladder === 'public' && pendingPublicConfirm && needsDisplayName && (
-        <div className="share-public-confirm" ref={confirmBlockRef}>
-          <p className="choice-dialog-body">
-            Publishing shows your display name on the deck page. Set one to continue.
-          </p>
-          <div className="field">
-            <label htmlFor={displayNameId}>Display name</label>
-            <input
-              id={displayNameId}
-              type="text"
-              className="name-input-field"
-              value={displayNameDraft}
-              maxLength={40}
-              disabled={working}
-              onChange={(e) => setDisplayNameDraft(e.target.value)}
-            />
-          </div>
-          <div className="choice-dialog-actions share-dialog-actions">
-            <button type="button" className="btn" onClick={handleCancelPublic} disabled={working}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void handleSaveDisplayName()}
-              disabled={working || !displayNameDraft.trim()}
-            >
-              {working ? 'Saving…' : 'Save & continue'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {isConfirmedPublic && publication && (
-        <>
-          <div className="share-dialog-link">
-            <input
-              type="text"
-              value={url}
-              readOnly
-              onFocus={(e) => e.currentTarget.select()}
-              className="share-dialog-url"
-              aria-label="Published deck URL"
-            />
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleCopy}
-              disabled={working}
-            >
-              Copy
-            </button>
-            {canShare() && (
-              <button type="button" className="btn" onClick={handleShare} disabled={working}>
-                Share…
-              </button>
-            )}
-          </div>
-          <p className="choice-dialog-body">
-            {publication.viewCount.toLocaleString()}{' '}
-            {publication.viewCount === 1 ? 'view' : 'views'} ·{' '}
-            {publication.copyCount.toLocaleString()}{' '}
-            {publication.copyCount === 1 ? 'copy' : 'copies'}
-          </p>
+      {current === 'public' && publication && (
+        <p className="choice-dialog-body">
+          {publication.viewCount.toLocaleString()} {publication.viewCount === 1 ? 'view' : 'views'}{' '}
+          · {publication.copyCount.toLocaleString()}{' '}
+          {publication.copyCount === 1 ? 'copy' : 'copies'}
           {username && (
-            <p className="choice-dialog-body">
-              Your profile:{' '}
+            <>
+              {' '}
+              ·{' '}
               <Link to={`/u/${username}`} onClick={onClose}>
-                spellcontrol.com/u/{username}
+                Your profile
               </Link>
-            </p>
+            </>
           )}
-          <div className="choice-dialog-actions share-dialog-actions">
-            <button
-              type="button"
-              className="btn btn-danger"
-              onClick={() => void handleUnpublish()}
-              disabled={working}
-            >
-              {working ? 'Unpublishing…' : 'Unpublish'}
-            </button>
-            <button type="button" className="btn" onClick={onClose} disabled={working}>
-              Done
-            </button>
-          </div>
-        </>
+        </p>
       )}
 
-      {ladder === 'private' && !working && (
-        <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onClose}>
-            Done
-          </button>
+      {current !== null && (
+        <div className="share-recipient">
+          {sentTo ? (
+            <p className="share-dialog-sent" role="status">
+              Sent to @{sentTo}. They&apos;ll see it in their inbox.
+            </p>
+          ) : !sendOpen ? (
+            <button
+              type="button"
+              className="btn-link"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => setSendOpen(true)}
+            >
+              Send to a friend
+            </button>
+          ) : friends === null ? (
+            <p className="choice-dialog-body">Loading friends…</p>
+          ) : friends.length === 0 ? (
+            <p className="choice-dialog-body">
+              You have no friends yet. Add some on the{' '}
+              <Link to="/friends" onClick={onClose}>
+                Friends page
+              </Link>
+              .
+            </p>
+          ) : (
+            <select
+              className="share-recipient-select"
+              aria-label="Choose a friend"
+              value=""
+              disabled={sending}
+              onChange={(e) => {
+                const f = friends.find((x) => x.id === e.target.value);
+                if (f) void sendTo(f);
+              }}
+            >
+              <option value="">{sending ? 'Sending…' : 'Choose a friend…'}</option>
+              {friends.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.username}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
+
+      <div className="choice-dialog-actions">
+        <button type="button" className="btn" onClick={onClose} disabled={!!busy}>
+          Done
+        </button>
+      </div>
     </Modal>
   );
 }
