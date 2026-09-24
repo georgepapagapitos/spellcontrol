@@ -6,7 +6,10 @@ import { toast } from '../store/toasts';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
-import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
+import {
+  fetchCommanderData,
+  fetchPartnerCommanderData,
+} from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { useCubeStore } from '../store/cube';
@@ -214,7 +217,9 @@ export function useDeckGeneration({
   );
 
   // Pre-fetch the EDHREC land suggestion when a commander is picked, so the
-  // customizer can show the "✓ suggested" land counts before generation.
+  // customizer can show the "✓ suggested" land counts before generation. A
+  // partner pair reads the pair's own page, the one the generator builds from;
+  // either commander's solo page gives a different count for the same pair.
   // Themes are intentionally NOT auto-selected: an oracle-derived guess was
   // often wrong (it steered off the commander's actual popular archetypes), so
   // a wrong default was worse than none. The picker (sorted by deck count) +
@@ -222,7 +227,10 @@ export function useDeckGeneration({
   useEffect(() => {
     if (!commander) return;
     let cancelled = false;
-    fetchCommanderData(commander.name)
+    (partnerCommander
+      ? fetchPartnerCommanderData(commander.name, partnerCommander.name)
+      : fetchCommanderData(commander.name)
+    )
       .then((data) => {
         if (cancelled || !data) return;
         const total = data.stats.landDistribution?.total ?? 37;
@@ -238,7 +246,7 @@ export function useDeckGeneration({
     return () => {
       cancelled = true;
     };
-  }, [commander, setEdhrecLandSuggestion, setEdhrecStats, updateCustomization]);
+  }, [commander, partnerCommander, setEdhrecLandSuggestion, setEdhrecStats, updateCustomization]);
 
   const build = useCallback(async () => {
     if (!commander) return;
@@ -248,7 +256,11 @@ export function useDeckGeneration({
     try {
       const bracket =
         customization.targetBracket !== 'all' ? customization.targetBracket : undefined;
-      const data = await fetchCommanderData(commander.name, undefined, bracket).catch(() => null);
+      const data = await (
+        partnerCommander
+          ? fetchPartnerCommanderData(commander.name, partnerCommander.name, undefined, bracket)
+          : fetchCommanderData(commander.name, undefined, bracket)
+      ).catch(() => null);
       if (data) {
         setEdhrecStats(data.stats);
         const total = data.stats.landDistribution?.total ?? 37;
