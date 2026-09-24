@@ -1,0 +1,148 @@
+/* FillDeckSheet: "Fill the rest" review sheet. Rides the house .card-picker-*
+   overlay (bottom sheet on phones, centered from 1024px); this file styles
+   the title block, the lean picker, the progress state and the review rows.
+   Row anatomy mirrors DeckSizePrompt's so the two sheets read as one family. */
+
+.fill-deck-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.fill-deck-subtitle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* ONE scroll region between header and footer (see STYLE_GUIDE § Overlays). */
+.fill-deck-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* Same side inset as the shell's header and footer. */
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A review list is something you work in: the dense-dialog width tier. */
+@media (min-width: 1024px) {
+  .card-picker-sheet.fill-deck-sheet {
+    width: min(40rem, calc(100vw - 4rem));
+    max-height: min(52rem, 85vh);
+  }
+}
+
+.fill-deck-lead,
+.fill-deck-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.fill-deck-note {
+  color: var(--text-muted);
+}
+
+/* Three stops, one row at every width. */
+.bracket-pill-row.fill-deck-lean {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fill-deck-lean .bracket-pill-sub {
+  text-align: center;
+}
+
+.fill-deck-owned {
+  font-size: var(--text-sm);
+}
+
+.fill-deck-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5) 0;
+}
+
+.fill-deck-progress-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.fill-deck-group-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.fill-deck-group-count {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.fill-deck-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fill-deck-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.fill-deck-thumb {
+  display: block;
+  width: 2.45rem;
+  height: 3.4rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+  flex: none;
+}
+
+.fill-deck-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.fill-deck-card {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fill-deck-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fill-deck-why {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

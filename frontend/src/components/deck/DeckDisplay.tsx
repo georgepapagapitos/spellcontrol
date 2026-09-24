@@ -402,6 +402,10 @@ export interface DeckDisplayProps {
   /** One-tap add on a Build Report suggestion row (synergyFills/packagePicks).
    *  Omitted → the rows stay read-only prose. */
   onAddSuggestedCard?: (cardName: string) => void;
+  /** Open slots in an under-size Commander deck, and the "Fill the rest"
+   *  sheet that fills them. Both set only when there's something to fill. */
+  openSlots?: number;
+  onFill?: () => void;
   /** Card names with an add in flight from a Build Report row (exact case,
    *  mirrors the Coach/NBM `busyNames` convention). */
   addingSuggestedCardNames?: ReadonlySet<string>;
@@ -531,6 +535,8 @@ export function DeckDisplay({
   onRetryAnalysis,
   scoreRevealKey,
   onAddSuggestedCard,
+  openSlots,
+  onFill,
   addingSuggestedCardNames,
   oneAwayCombos,
   ownedOracleIds,
@@ -1646,6 +1652,19 @@ export function DeckDisplay({
                     </span>
                   </span>
                 ))}
+              {onFill && !!openSlots && (
+                <button
+                  type="button"
+                  className="deck-stat deck-stat-btn"
+                  onClick={onFill}
+                  aria-label={`Fill the ${openSlots} open ${openSlots === 1 ? 'slot' : 'slots'} around your cards`}
+                >
+                  <span className="deck-stat-value">{openSlots}</span>
+                  <span className="deck-stat-label">
+                    open {openSlots === 1 ? 'slot' : 'slots'} · fill
+                  </span>
+                </button>
+              )}
               {arrivalRows.length > 0 && (
                 <button
                   type="button"

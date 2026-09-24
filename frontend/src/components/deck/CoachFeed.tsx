@@ -181,6 +181,8 @@ export interface CoachFeedProps {
   onNbmNavigate?: (view: DeckView, focus?: NextBestMoveFocus) => void;
   /** Add a card a Next-best-move names, directly from the hero. */
   onNbmApply?: (cardName: string) => void;
+  /** Open "Fill the rest" (under-size Commander deck). */
+  onNbmFill?: () => void;
   /** "Owned only" toggle — controlled by the parent so the Next-best-move hero
    *  (built upstream) respects the same filter as the feed. */
   ownedOnly: boolean;
@@ -237,6 +239,7 @@ export function CoachFeed({
   combosLoading,
   onNbmNavigate,
   onNbmApply,
+  onNbmFill,
   ownedOnly,
   onOwnedOnlyChange,
   aiAgrees,
@@ -696,6 +699,7 @@ export function CoachFeed({
             moves={nextBestMoves}
             onNavigate={onNbmNavigate}
             onApply={onNbmApply}
+            onFill={onNbmFill}
             busyNames={busy}
             combosLoading={combosLoading}
             currentView="tune"
@@ -730,6 +734,7 @@ export function CoachFeed({
           moves={nextBestMoves}
           onNavigate={onNbmNavigate}
           onApply={onNbmApply}
+          onFill={onNbmFill}
           busyNames={busy}
           combosLoading={combosLoading}
           currentView="tune"

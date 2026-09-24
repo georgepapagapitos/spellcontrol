@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import './NextBestMove.css';
-import { ArrowRight, Loader2, Plus, Sparkles } from 'lucide-react';
+import { ArrowRight, Loader2, Plus, Sparkles, WandSparkles } from 'lucide-react';
 import type { NextBestMove } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import type { DeckView } from './DeckDisplay';
 
@@ -23,6 +23,9 @@ export interface NextBestMoveProps {
   /** Cards mid-add (mirrors the Coach feed's busy set) — disables the matching
    *  "Add" button and shows a spinner while the add resolves. */
   busyNames?: Set<string>;
+  /** Open "Fill the rest" from the under-size move ("Add N cards"), which
+   *  otherwise only points back at the list. */
+  onFill?: () => void;
   /** Near-miss combos load async (server round-trip), so the "Complete a combo"
    *  move arrives a beat after the rest. While that's in flight, hold a slot
    *  with a placeholder so the suggestion doesn't pop in unannounced. */
@@ -43,6 +46,7 @@ export function NextBestMove({
   onNavigate,
   onApply,
   busyNames,
+  onFill,
   combosLoading,
   currentView,
 }: NextBestMoveProps): JSX.Element {
@@ -74,6 +78,7 @@ export function NextBestMove({
           // same handler as the Coach rows — including the replace-when-full
           // prompt on a maxed deck.
           const canApply = !!move.cardName && !!onApply;
+          const canFill = move.id === 'size-under' && !!onFill;
           const adding = !!move.cardName && (busyNames?.has(move.cardName) ?? false);
           const showNav = move.navigateTo && onNavigate && move.navigateTo !== currentView;
           return (
@@ -88,8 +93,14 @@ export function NextBestMove({
                 <p className="next-best-move-title">{move.title}</p>
                 <p className="next-best-move-detail">{move.detail}</p>
               </div>
-              {(canApply || showNav) && (
+              {(canApply || canFill || showNav) && (
                 <div className="next-best-move-actions">
+                  {canFill && (
+                    <button type="button" className="next-best-move-add" onClick={onFill}>
+                      <WandSparkles className="next-best-move-add-icon" aria-hidden="true" />
+                      Fill
+                    </button>
+                  )}
                   {canApply && (
                     <button
                       type="button"

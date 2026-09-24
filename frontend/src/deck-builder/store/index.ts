@@ -46,7 +46,7 @@ function loadArenaOnly(): boolean {
   }
 }
 
-const defaultCustomization: Customization = {
+export const defaultCustomization: Customization = {
   deckFormat: 99,
   landCount: 37,
   nonBasicLandCount: 15,

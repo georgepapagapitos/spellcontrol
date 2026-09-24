@@ -170,4 +170,22 @@ describe('NextBestMove', () => {
     fireEvent.click(btn);
     expect(onApply).not.toHaveBeenCalled();
   });
+
+  // "Add N cards" used to point back at the list and nothing more.
+  it('offers Fill on the under-size move, and only there', () => {
+    const onFill = vi.fn();
+    const under: Move = {
+      id: 'size-under',
+      tier: 1,
+      title: 'Add 12 cards',
+      detail: 'Your deck has 87 cards, 12 under the 99-card target.',
+      navigateTo: 'deck',
+    };
+    const { rerender } = render(<NextBestMove moves={[under]} onFill={onFill} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fill' }));
+    expect(onFill).toHaveBeenCalledOnce();
+
+    rerender(<NextBestMove moves={moves} onFill={onFill} />);
+    expect(screen.queryByRole('button', { name: 'Fill' })).toBeNull();
+  });
 });
