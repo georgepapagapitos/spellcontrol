@@ -1118,6 +1118,27 @@ describe('upshift — full-deck pairing (each add → a 1-for-1 swap)', () => {
     expect(swap?.name).toBe('Weak A');
   });
 
+  it('never cuts fast mana or a tutor to make room (keeps the power the adds build on)', () => {
+    // Lotus Petal is real fast mana (not a Game Changer) with the lowest
+    // inclusion; cutting it would lower the power the add is meant to raise.
+    const input = makeInput({
+      allCardNames: ['Cmdr', 'Lotus Petal', 'Weak A', 'Forest'],
+      commanderNames: ['Cmdr'],
+      targetPool: makePool([poolCard({ name: 'GC X', inclusion: 95, isGameChanger: true })]),
+      deckFull: true,
+      cardInclusionMap: { 'Lotus Petal': 1, 'Weak A': 50 },
+      cardCmcMap: {
+        Forest: { cmc: 0, isLand: true },
+        Cmdr: { cmc: 4, isLand: false },
+        'Lotus Petal': { cmc: 0, isLand: false },
+        'Weak A': { cmc: 2, isLand: false },
+      },
+    });
+    const plan = computeUpshiftPlan(input, 4);
+    expect(plan.moves.some((m) => m.name === 'Lotus Petal')).toBe(false);
+    expect(plan.moves.find((m) => m.type === 'swap')?.name).toBe('Weak A');
+  });
+
   it('degrades to pure adds when cut candidates run out', () => {
     const input = makeInput({
       allCardNames: ['Cmdr', 'Weak A', 'Forest'], // only one cuttable card
@@ -1421,5 +1442,30 @@ describe('robustness', () => {
     const plan = buildBracketFitPlan(3, input.estimation, input);
     expect(plan).not.toBeNull();
     expect(plan!.direction).toBe('too-weak');
+  });
+});
+
+describe('downshift — each replacement comes in once', () => {
+  beforeEach(() => resetTagger());
+
+  it('two cuts sharing a role are offered different replacements', () => {
+    // Two real Game Changers, both card draw, over a Bracket 2 limit of none.
+    ROLES.set('Rhystic Study', 'cardDraw');
+    ROLES.set('Necropotence', 'cardDraw');
+    ROLES.set('Phyrexian Arena', 'cardDraw');
+    ROLES.set('Sign in Blood', 'cardDraw');
+    const input = makeInput({
+      allCardNames: ['Rhystic Study', 'Necropotence', 'Forest'],
+      gameChangerNames: new Set(['Rhystic Study', 'Necropotence']),
+      targetPool: makePool([
+        poolCard({ name: 'Phyrexian Arena', inclusion: 90 }),
+        poolCard({ name: 'Sign in Blood', inclusion: 50 }),
+      ]),
+    });
+    expect(input.estimation.bracket).toBe(3);
+    const plan = computeDownshiftPlan(input, 2);
+    const incoming = plan.moves.map((m) => m.inName).filter(Boolean);
+    expect(incoming).toHaveLength(2);
+    expect(new Set(incoming).size).toBe(2);
   });
 });

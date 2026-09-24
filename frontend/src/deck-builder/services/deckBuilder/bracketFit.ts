@@ -467,6 +467,10 @@ function computeDownshiftPlanWithTarget(
     if (countsTowardComboFloor(comboMatchAsComplete(match))) oneAwayFloorPieces.add(missing[0]);
   }
 
+  // Never offered as a replacement: the floor pieces above, plus every card a
+  // previous cut in this plan already brings in.
+  const avoidReplacements = new Set(oneAwayFloorPieces);
+
   // Mutable working copy of the deck card list and the running cut set.
   let working = [...input.allCardNames];
   const cutMoves: BracketFitMove[] = [];
@@ -476,7 +480,11 @@ function computeDownshiftPlanWithTarget(
     if (cutSet.has(name)) return;
     cutSet.add(name);
     working = working.filter((n) => n !== name);
-    cutMoves.push(makeCutMove(name, reason, signal, input, deckNames, oneAwayFloorPieces));
+    const move = makeCutMove(name, reason, signal, input, deckNames, avoidReplacements);
+    // One card can only come in once: without this, two cuts sharing a role
+    // were both offered the pool's top card for it.
+    if (move.inName) avoidReplacements.add(move.inName);
+    cutMoves.push(move);
   };
 
   const stillAbove = () => reestimate(working, cutSet, input).bracket > target;
@@ -724,8 +732,9 @@ function buildPriorityLookup(
  * full deck needs room for a power-up add. Lowest priority first (via
  * {@link buildPriorityLookup} — synergy/theme-fit aware, not raw popularity, so
  * commander-specific tech with low generic inclusion isn't mistaken for
- * expendable filler). Never proposes a land, a Game Changer (keep the power you
- * have), a combo piece (cutting it would lower power — the opposite of the
+ * expendable filler). Never proposes a land, a power signal ({@link
+ * isPowerSignal}: a Game Changer, fast mana, a tutor and the rest; keep the
+ * power you have), a combo piece (cutting it would lower power — the opposite of the
  * goal), or a commander. When {@link BracketFitInput.roleTargets} is supplied,
  * candidates whose role is already at or below its target are deprioritized
  * (sorted after every role-safe candidate) rather than excluded — a floor-
@@ -744,7 +753,9 @@ function pickUpshiftCutCandidates(input: BracketFitInput): string[] {
 
   const candidates = input.allCardNames.filter((name) => {
     if (commanders.has(name)) return false;
-    if (input.gameChangerNames.has(name)) return false;
+    // Keep the power the deck already has: cutting a Game Changer, fast mana
+    // or a tutor to make room would undo the adds this plan verified.
+    if (isPowerSignal(name, input.gameChangerNames)) return false;
     if (comboPieces.has(name)) return false;
     if (cmcMap[name]?.isLand) return false;
     return true;
