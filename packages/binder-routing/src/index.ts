@@ -13,6 +13,7 @@ export * from './colors.js';
 export * from './card-types.js';
 export * from './commanders-core.js';
 export * from './normalize-search.js';
+export * from './printed-name.js';
 export * from './sections.js';
 export * from './sorting.js';
 export * from './rules.js';

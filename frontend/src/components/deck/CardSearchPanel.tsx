@@ -53,6 +53,8 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import type { CardPreviewAction } from '../CardPreview';
 
 import { userMessage } from '@/lib/user-error';
+import { printedName } from '@spellcontrol/binder-routing';
+import { CardName } from '@/components/shared/CardName';
 /**
  * Can this owned card go in the mainboard of a commander deck? The two rules
  * the mainboard enforces and the out-of-deck zones don't: the commander's
@@ -974,7 +976,7 @@ function CollectionResults({
       card,
       blocked,
       key: {
-        name: card.name,
+        name: printedName(card),
         nameHit,
         cmc: card.cmc,
         price: card.purchasePrice > 0 ? card.purchasePrice : undefined,
@@ -1183,7 +1185,9 @@ function CollectionResults({
                 image={c.imageNormal}
                 onPreview={() => carousel.open(previewEntries, c.name)}
               />
-              <span className="card-search-name">{c.name}</span>
+              <span className="card-search-name">
+                <CardName card={c} />
+              </span>
               {c.manaCost && <ManaCost cost={c.manaCost} className="card-search-mana" />}
               <span className="card-search-meta">
                 {offColor && (
@@ -1672,7 +1676,7 @@ function ScryfallResults({
     const keyed = results.map((c) => ({
       c,
       key: {
-        name: c.name,
+        name: printedName(c),
         cmc: c.cmc,
         price: c.prices?.usd ? parseFloat(c.prices.usd) : undefined,
         inclusion: gapByName.get(c.name.toLowerCase())?.inclusion,
@@ -1781,7 +1785,9 @@ function ScryfallResults({
                 image={imageFromCard(c, 'normal')}
                 onPreview={() => carousel.open(previewEntries, c.name)}
               />
-              <span className="card-search-name">{c.name}</span>
+              <span className="card-search-name">
+                <CardName card={c} />
+              </span>
               {c.mana_cost && <ManaCost cost={c.mana_cost} className="card-search-mana" />}
               <span className="card-search-meta">
                 {offColor && (

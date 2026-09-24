@@ -2,6 +2,7 @@ import type { EnrichedCard, SetMap, SortField } from './types.js';
 import { COLOR_INFO, COLOR_ORDER, getColorKey } from './colors.js';
 import { TYPE_ORDER, getCardType } from './card-types.js';
 import { releaseDateOf, setMeta } from './sorting.js';
+import { printedName } from './printed-name.js';
 
 export interface SectionContext {
   setMap?: SetMap;
@@ -117,7 +118,7 @@ export function getSectionMeta(
     case 'setName':
       return { ...setMeta(card), order: 0 };
     case 'name':
-      return nameBucket(card.name);
+      return nameBucket(printedName(card));
     case 'price':
       return priceBucket(card.purchasePrice);
     case 'edhrec':

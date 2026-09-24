@@ -6,6 +6,8 @@ import { formatIdentity } from '../../lib/display-name';
 import { SearchPill } from '../SearchPill';
 import { SortDirArrow } from '../SortDirArrow';
 import { SharedEmptyState } from './SharedEmptyState';
+import { nameMatchesNormalized, printedName } from '@spellcontrol/binder-routing';
+import { CardName } from '@/components/shared/CardName';
 
 interface Props {
   data: PublicList;
@@ -24,7 +26,7 @@ export function SharedListView({ data }: Props) {
     const nq = normalizeForSearch(search);
     if (!nq) return data.entries;
     return data.entries.filter(
-      (e) => normalizeForSearch(e.name).includes(nq) || (e.note ?? '').toLowerCase().includes(q)
+      (e) => nameMatchesNormalized(e, nq) || (e.note ?? '').toLowerCase().includes(q)
     );
   }, [data.entries, search]);
 
@@ -34,7 +36,7 @@ export function SharedListView({ data }: Props) {
       let diff = 0;
       switch (sort) {
         case 'name':
-          diff = a.name.localeCompare(b.name);
+          diff = printedName(a).localeCompare(printedName(b));
           break;
         case 'quantity':
           diff = a.quantity - b.quantity;
@@ -46,7 +48,7 @@ export function SharedListView({ data }: Props) {
           diff = a.setCode.localeCompare(b.setCode);
           break;
       }
-      if (diff === 0) diff = a.name.localeCompare(b.name);
+      if (diff === 0) diff = printedName(a).localeCompare(printedName(b));
       return diff * sign;
     });
   }, [filtered, sort, dir]);
@@ -162,7 +164,9 @@ function ListRow({ entry: e }: { entry: PublicListEntry }) {
   return (
     <tr>
       <td data-label="Qty">{e.quantity}</td>
-      <td data-label="Name">{e.name}</td>
+      <td data-label="Name">
+        <CardName card={e} />
+      </td>
       <td data-label="Set">
         {e.setCode.toUpperCase()} {e.collectorNumber}
       </td>

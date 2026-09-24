@@ -7,6 +7,8 @@ import { ProxyBadge } from './ProxyBadge';
 import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
 import { SetSymbol } from './SetSymbol';
+import { printedName } from '@spellcontrol/binder-routing';
+import { CardName } from '@/components/shared/CardName';
 
 /**
  * Grid captions — the detail lines under a grid tile, per-line toggleable from
@@ -186,7 +188,7 @@ export function CardGridCell({
             onActivate();
           }
         }}
-        aria-label={`${card.name}${hideQty ? '' : `, quantity ${qty}`}${card.foil ? ', foil' : ''}${
+        aria-label={`${printedName(card)}${hideQty ? '' : `, quantity ${qty}`}${card.foil ? ', foil' : ''}${
           card.proxy ? ', proxy' : ''
         }${card.priceOverride !== undefined ? ', manually priced' : ''}${
           caption && caption !== '—' ? `, ${caption}` : ''
@@ -200,9 +202,11 @@ export function CardGridCell({
           </span>
         )}
         {art ? (
-          <img src={art} alt={card.name} loading="lazy" className="collection-grid-img" />
+          <img src={art} alt={printedName(card)} loading="lazy" className="collection-grid-img" />
         ) : (
-          <div className="collection-grid-placeholder">{card.name}</div>
+          <div className="collection-grid-placeholder">
+            <CardName card={card} />
+          </div>
         )}
         {card.foil && (
           <>

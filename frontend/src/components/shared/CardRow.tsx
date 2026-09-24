@@ -22,6 +22,7 @@ import { getColorKey, COLOR_INFO } from '../../lib/colors';
 import { formatMoney } from '../../lib/format-money';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { CARD_TABLE_COLUMNS, type CardTableCol } from './CardTable';
+import { CardName } from '@/components/shared/CardName';
 
 /** 'damaged' abbreviates to DMG for the row chip; the rest are already short. */
 export function conditionShort(condition: Condition): string {
@@ -207,7 +208,7 @@ export function CardRow({
           <TypeIcon type={type} label={typeLabel} className="card-list-type" />
           <RarityBadge rarity={card.rarity} />
           <span className="collection-list-name">
-            {card.name}
+            <CardName card={card} />
             {card.foil && <FoilBadge card={card} />}
             <ProxyBadge card={card} />
             <DeckBadge allocations={allocations} />
@@ -315,7 +316,7 @@ export function CardRow({
       )}
       <div className="collection-list-main">
         <div className="collection-list-name">
-          {card.name}
+          <CardName card={card} />
           {card.foil && <FoilBadge card={card} />}
           <ProxyBadge card={card} />
           <DeckBadge allocations={allocations} />

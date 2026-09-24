@@ -1,6 +1,7 @@
 import type { EnrichedCard, SetMap, SortDir, SortEntry, SortField } from './types.js';
 import { COLOR_INFO, getColorKey, getColorPalette } from './colors.js';
 import { TYPE_ORDER, getCardType } from './card-types.js';
+import { printedName } from './printed-name.js';
 
 export interface SortContext {
   setMap?: SetMap;
@@ -396,7 +397,7 @@ export function cardSortValue(
     case 'cmc':
       return card.cmc ?? UNKNOWN_VALUE;
     case 'name':
-      return (card.name ?? '').toLowerCase();
+      return printedName(card).toLowerCase();
     case 'setReleaseDate':
       return releaseDateOf(card, ctx?.setMap) ?? UNKNOWN_VALUE;
     case 'setName':

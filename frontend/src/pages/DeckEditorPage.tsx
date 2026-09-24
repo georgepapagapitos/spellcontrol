@@ -179,6 +179,7 @@ import { getCardPrice, getCardByName, searchCards } from '../deck-builder/servic
 const fetchFixingLands = (identityKey: string): Promise<ScryfallCard[]> =>
   searchCards('t:land -t:basic', identityKey.split(''), { order: 'edhrec' }).then((r) => r.data);
 import { getSyncState, onSyncedChange } from '@/lib/sync';
+import { printedName } from '@spellcontrol/binder-routing';
 
 /** Functional role key → display label (the four roles the tagger classifies). */
 const ROLE_LABEL: Record<string, string> = {
@@ -2020,7 +2021,7 @@ export function DeckEditorPage() {
           );
           const anyRelated = ranked.some((r) => r.related);
           const all = [...deck.cards]
-            .sort((a, b) => a.card.name.localeCompare(b.card.name))
+            .sort((a, b) => printedName(a.card).localeCompare(printedName(b.card)))
             .map((c) => toOpt(c));
           return { suggested, all, anyRelated };
         })();
