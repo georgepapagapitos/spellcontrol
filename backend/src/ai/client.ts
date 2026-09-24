@@ -58,11 +58,24 @@ export interface AiGeneration extends AiTokenCounts {
 }
 
 /**
- * Give up rather than loop forever if the model keeps calling tools. Measured
- * at n=12: a typical review searches 3 times, but the long tail reaches 12
- * lookups across ~8 turns, and a cap of 6 cut three of those off mid-answer.
+ * Stop the model searching after this many turns. Measured at n=12: a typical
+ * review searches 3 times, but the long tail reaches 12 lookups across ~8
+ * turns, and a cap of 6 cut three of those off mid-answer.
+ *
+ * The LAST turn is sent with `tool_choice: none` plus FINAL_TURN_NOTE, so it
+ * has to answer with what it already found. Before that it could spend every
+ * turn searching and the user got "The model kept calling tools without
+ * answering" for a reading they had waited ten calls for (E388: a refine whose
+ * engine list came back empty, 2026-09-24). Measured live, `tool_choice: none`
+ * ALONE is not enough: the model wrote "Let me look for cards that…" and
+ * stopped, because nothing told it the search was over.
  */
 const MAX_TOOL_ITERATIONS = 10;
+
+/** Appended to the last tool results on the final turn (see above). Exported so
+ *  the live probe sends the same words. */
+export const FINAL_TURN_NOTE =
+  'You have used all your searches. Write your final answer now, in the format your instructions ask for, using only what you have already found.';
 
 /**
  * Per-TURN output cap.
@@ -149,6 +162,12 @@ export async function generateReview(
   const gate = marker ? createMarkerGate(marker, onDelta, options?.endMarker) : null;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+    const finalTurn = tools.length > 0 && i === MAX_TOOL_ITERATIONS - 1;
+    const last = messages.at(-1);
+    if (finalTurn && last && Array.isArray(last.content)) {
+      // Text after the tool_result blocks, in the same user message.
+      last.content.push({ type: 'text', text: FINAL_TURN_NOTE });
+    }
     const stream = client.messages.stream(
       {
         model: AI_MODEL,
@@ -158,6 +177,8 @@ export async function generateReview(
         ...(tools.length > 0
           ? {
               tools: tools.map((t) => t.definition),
+              // The last turn may not call a tool: answer from what was found.
+              ...(finalTurn ? { tool_choice: { type: 'none' as const } } : {}),
               // `tools` renders ahead of `system`, so the shared prefix is now
               // long enough to clear Haiku 4.5's 4096-token cache minimum —
               // which the system prompt alone never did. One breakpoint on the
@@ -214,7 +235,10 @@ export async function generateReview(
       // cards it fetched, and the prompt tells it to write no prose. Only treat
       // empty text as a failure when there is nothing to show for the call at
       // all. A no-tools writing pass has no `fetched`, so it still throws.
-      if (!generated && fetched.length === 0) {
+      // A GATED caller asked for an answer after a marker: no marker is no
+      // answer, whatever was fetched, so it fails instead of storing a blank
+      // reading against the user's quota (E388).
+      if (!generated && (gate !== null || fetched.length === 0)) {
         throw new Error('The model returned an empty review.');
       }
       return {
