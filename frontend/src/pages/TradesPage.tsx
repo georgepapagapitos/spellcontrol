@@ -88,7 +88,6 @@ function TradesSkeleton() {
 export function TradesPage() {
   return (
     <>
-      <SocialHubTabs />
       <TradesPageBody />
     </>
   );
@@ -152,6 +151,7 @@ function TradesPageBody() {
     return (
       <div className="trades-page social-page-shell social-page-shell--wide">
         <PageHeader title="Trades" />
+        <SocialHubTabs />
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to see your trades</p>
           <p className="friends-signin-body">
@@ -215,6 +215,7 @@ function TradesPageBody() {
         title="Trades"
         meta="Every offer you're part of, either way. Accepting settles both collections."
       />
+      <SocialHubTabs />
 
       {loadError && (
         <div className="friends-error" role="alert">

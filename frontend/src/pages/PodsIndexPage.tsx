@@ -53,7 +53,6 @@ function PodsSkeleton() {
 export function PodsIndexPage() {
   return (
     <>
-      <SocialHubTabs />
       <PodsIndexPageBody />
     </>
   );
@@ -162,6 +161,7 @@ function PodsIndexPageBody() {
     return (
       <div className="pods-index-page social-page-shell">
         <PageHeader title="Pods" />
+        <SocialHubTabs />
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to set up your pod</p>
           <p className="friends-signin-body">
@@ -184,6 +184,7 @@ function PodsIndexPageBody() {
   return (
     <div className="pods-index-page social-page-shell">
       <PageHeader title="Pods" meta="Your regular tables: games and trades in one place." />
+      <SocialHubTabs />
 
       {loadError && (
         <div className="friends-error" role="alert">

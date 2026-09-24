@@ -281,8 +281,16 @@ select {
    widen a route. (Card search is not here on purpose: its results grid sits
    on its own 1100px rail, SearchPage.css, so a wider shell would change
    nothing there.) */
-.app-shell:has(.collection-hub-tabs, .decks-index-page, .deck-editor-page) {
+.app-shell:has(.collection-hub, .decks-index-page, .deck-editor-page) {
   --page-max: var(--page-max-wide);
+}
+
+/* CollectionHubLayout's wrapper: a marker for the rule above on every
+   collection route (index and detail), with no box of its own. It keyed on
+   the hub tab strip until the strip moved under each index page's header and
+   left the detail pages (T135). */
+.collection-hub {
+  display: contents;
 }
 
 .site-header {

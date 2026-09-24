@@ -278,9 +278,9 @@ export function DiscoverDecksPage() {
 
   return (
     <>
-      <DecksHubTabs />
       <div className="decks-index-page">
         <PageHeader title="Discover" meta="Public decks from the SpellControl community." />
+        <DecksHubTabs />
 
         <TrendingRail
           enabled={true}

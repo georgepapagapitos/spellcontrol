@@ -7,7 +7,9 @@
   flex-direction: column;
   /* Match `.binders-index-page` so both index pages share the same
      vertical rhythm between hero / sort bar / list. */
-  gap: var(--space-4);
+  /* Also read by the hub tab strip (responsive-nav.css) to cancel it. */
+  --host-gap: var(--space-4);
+  gap: var(--host-gap);
 }
 
 .decks-index-subtitle {
@@ -31,7 +33,7 @@
        search row, the sort row and the insight strips all stack, so this gap
        is charged five times over before the first deck — measured, it put the
        first card at 73% of a 780px phone screen and 70% of a tablet's. */
-    gap: var(--space-2);
+    --host-gap: var(--space-2);
     min-height: calc(var(--vh-safe) - 8.5rem - var(--safe-top));
   }
   /* Empty state grows to fill the leftover space and centers its
@@ -78,12 +80,11 @@
 
 /* Below the My Decks / Discover hub-tabs strip (DecksHubTabs), the row pins
    beneath it, not at 0 — at `top: 0` it slides OVER the tab strip when
-   scrolled (same z tier, later in DOM). Mirrors
-   `.collection-hub-tabs ~ * .binders-index-search-row`, including the -1px
-   subpixel-seam overlap. DecksHubTabs is a sibling of `.decks-index-page`
-   (not a layout route), so this row is a descendant of that sibling, not a
-   direct sibling of the nav itself — same shape as the Collection hub. */
-.collection-hub-tabs ~ * .decks-index-search-row {
+   scrolled (same z tier, later in DOM). Keyed on
+   `.app-main:has(.collection-hub-tabs)`: the strip sits inside the page,
+   under its header (T135), so there is no sibling relationship to lean on.
+   Same -1px subpixel-seam overlap as the binders index. */
+.app-main:has(.collection-hub-tabs) .decks-index-search-row {
   top: calc(var(--hub-tabs-sticky-h) - 1px);
 }
 

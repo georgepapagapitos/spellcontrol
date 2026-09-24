@@ -16,7 +16,6 @@ export function CubePage() {
   const [mode, setMode] = useState<'build' | 'import' | 'collaborate'>('build');
   return (
     <>
-      <DecksHubTabs />
       <div className="cube-page">
         {/* Cube is a hub tab (DecksHubTabs above already reads "Decks"), but
           it's also the deepest, most tool-like surface in the family — a
@@ -30,6 +29,7 @@ export function CubePage() {
           metaClassName="cube-page-sub"
           meta="Build a draftable singleton cube from your collection, or import one from CubeCobra to see how much of it you own."
         />
+        <DecksHubTabs />
         <Tabs
           ariaLabel="Cube tools"
           variant="underline"

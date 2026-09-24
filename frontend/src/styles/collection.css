@@ -6,6 +6,13 @@
   margin-top: var(--space-4);
 }
 
+/* Directly under the hub tab strip, the strip's own clearance is the spacing
+   (responsive-nav.css, § header → tabs → content), so this margin would only
+   collapse over it and make Collection the one hub with a wider gap. */
+.collection-hub-tabs + .card-list {
+  margin-top: 0;
+}
+
 /* Type chip row above the toolbar */
 .collection-type-chips {
   display: flex;
@@ -89,7 +96,7 @@
    hub so a `.collection-toolbar-row` used elsewhere keeps `top: 0`. The
    -1px overlap covers the subpixel seam DPR rounding can open between
    stacked sticky bars (scrolled content peeked through it on device). */
-.collection-hub-tabs ~ * .collection-toolbar-row {
+.app-main:has(.collection-hub-tabs) .collection-toolbar-row {
   top: calc(var(--hub-tabs-sticky-h) - 1px);
 }
 
@@ -929,7 +936,7 @@
 /* Under the Collection hub tabs the sticky stack is deeper (search pins at
    hub-tabs − 1px, so this row pins at its bottom minus its own 1px seam
    overlap: hub-tabs + search − 2px). */
-.collection-hub-tabs ~ * .card-list-controls-sticky {
+.app-main:has(.collection-hub-tabs) .card-list-controls-sticky {
   top: calc(var(--hub-tabs-sticky-h) + var(--collection-search-sticky-h) - 2px);
 }
 
@@ -2359,7 +2366,7 @@ i.ss.set-symbol--mythic {
    same offset the search row and the index toolbars already use. A surface
    with a deeper sticky stack (Collection: tabs + search + controls) measures
    it and passes `top` inline, which wins over this. */
-.collection-hub-tabs ~ * .collection-table-head {
+.app-main:has(.collection-hub-tabs) .collection-table-head {
   top: calc(var(--hub-tabs-sticky-h) - 1px);
 }
 
@@ -2526,10 +2533,17 @@ i.ss.set-symbol--mythic {
    positioned) and floats a measured overlay instead. */
 .collection-table.is-framed .binder-table-section {
   position: sticky;
-  top: calc(var(--hub-tabs-sticky-h) - 1px + var(--ct-head-h));
+  /* The column header pins at the scrollport top on a page with no hub tabs
+     (a binder is a detail page, so it has none since T135 step 3); under hub
+     tabs both stack beneath the strip. */
+  top: var(--ct-head-h);
   /* Under the column header, over the rows. */
   z-index: calc(var(--z-dropdown) - 1);
   width: 100%;
+}
+
+.app-main:has(.collection-hub-tabs) .collection-table.is-framed .binder-table-section {
+  top: calc(var(--hub-tabs-sticky-h) - 1px + var(--ct-head-h));
 }
 
 /* Responsive tiers. A column declares its own tier in `CardTable.tsx`

@@ -1,4 +1,5 @@
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { CollectionHubTabs } from '@/components/CollectionHubTabs';
 import { PageHeader } from '@/components/PageHeader';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
@@ -364,6 +365,7 @@ function SetsIndex() {
               (completeCount > 0 ? ` · ${completeCount} complete` : '')
         }
       />
+      <CollectionHubTabs />
 
       {progress.length === 0 ? (
         <div className="empty-state">

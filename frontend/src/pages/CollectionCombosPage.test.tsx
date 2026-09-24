@@ -43,7 +43,7 @@ const cards = [
 ];
 vi.mock('../store/collection', () => ({
   useCollectionStore: (sel: (s: unknown) => unknown) =>
-    sel({ cards, binders: [], hydrating: false }),
+    sel({ cards, binders: [], lists: [], hydrating: false }),
 }));
 vi.mock('../store/auth', () => ({
   useAuth: (sel: (s: unknown) => unknown) => sel({ status: 'guest' }),

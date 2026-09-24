@@ -8,6 +8,7 @@ import {
   SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
+import { CollectionHubTabs } from '@/components/CollectionHubTabs';
 import { PageHeader } from '@/components/PageHeader';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -250,6 +251,7 @@ export function ListsPage() {
           { label: 'New dynamic list', icon: SlidersHorizontal, onClick: handleCreateDynamic },
         ]}
       />
+      <CollectionHubTabs />
 
       {lists.length > 0 && (
         <div className="binders-index-search-row">

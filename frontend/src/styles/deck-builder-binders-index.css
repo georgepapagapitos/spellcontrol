@@ -10,7 +10,9 @@
 .binders-index-page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  /* Also read by the hub tab strip (responsive-nav.css) to cancel it. */
+  --host-gap: var(--space-4);
+  gap: var(--host-gap);
 }
 
 /* Below 1024 the hero, the search row and the sort row all stack, so this gap
@@ -18,7 +20,7 @@
    the same reason, as `.decks-index-page` — the two pages share a shape. */
 @media (max-width: 1023px) {
   .binders-index-page {
-    gap: var(--space-2);
+    --host-gap: var(--space-2);
   }
 }
 
@@ -51,15 +53,15 @@
   padding: var(--space-3) var(--page-gutter, var(--space-4)) 0.65rem;
 }
 
-/* Under the Collection hub (Binders / Lists index pages) the row pins
-   beneath the sticky hub-tabs strip, not at 0 — at `top: 0` it slid OVER
-   the tab strip when scrolled (same z tier, later in DOM). Mirrors
-   `.collection-hub-tabs ~ * .collection-toolbar-row` (and, since
-   DecksHubTabs shipped, `.collection-hub-tabs ~ * .decks-index-search-row`
-   in deck-builder-decks-index.css), including the -1px subpixel-seam
-   overlap. */
-.collection-hub-tabs ~ * .binders-index-search-row,
-.collection-hub-tabs ~ * .combos-search-row {
+/* On a page that shows hub tabs (the Binders / Lists index pages) the row
+   pins beneath the sticky strip, not at 0 — at `top: 0` it slid OVER the
+   tab strip when scrolled (same z tier, later in DOM). Keyed on
+   `.app-main:has(.collection-hub-tabs)` since the strip moved inside the
+   page under its header (T135); the old `.collection-hub-tabs ~ *` sibling
+   form needed it to come before the page root. Same -1px subpixel-seam
+   overlap as the collection toolbar and the decks search row. */
+.app-main:has(.collection-hub-tabs) .binders-index-search-row,
+.app-main:has(.collection-hub-tabs) .combos-search-row {
   top: calc(var(--hub-tabs-sticky-h) - 1px);
 }
 

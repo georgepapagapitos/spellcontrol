@@ -95,7 +95,10 @@ describe('card table column tracks fit their own headers', () => {
 
 describe('the sticky column header clears the hub tab strip', () => {
   it('pins beneath the tabs on the surfaces nested under them', () => {
-    const rule = /\.collection-hub-tabs\s*~\s*\*\s*\.collection-table-head\s*\{([^}]*)\}/.exec(css);
+    // Keyed on the page showing hub tabs: the strip sits inside the page under
+    // its header (T135), so a `.collection-hub-tabs ~ *` sibling form can't see it.
+    const rule =
+      /\.app-main:has\(\.collection-hub-tabs\)\s*\.collection-table-head\s*\{([^}]*)\}/.exec(css);
     expect(rule, 'a table under the hub tabs pins at the scrollport top, behind them').toBeTruthy();
     expect((rule as RegExpExecArray)[1]).toMatch(/top:\s*calc\(var\(--hub-tabs-sticky-h\)/);
   });

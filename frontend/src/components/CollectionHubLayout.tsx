@@ -1,64 +1,19 @@
-import { Outlet, useLocation } from 'react-router-dom';
-import { useCollectionStore } from '../store/collection';
-import { HubTabsNav } from './HubTabsNav';
+import { Outlet } from 'react-router-dom';
 
 /**
- * Tab-bar shell for the Collection hub. Renders Cards / Binders / Lists /
- * Combos / Sets tabs above an <Outlet/> so the nested index, binder-detail and
- * list-detail routes all keep the tab bar visible. (Cube lives in the Decks
- * hub — it's a thing you build, not a thing you own; `/collection/cube`
- * redirects there.)
+ * Shell for the Collection hub's routes. The tab bar used to live here, above
+ * the <Outlet/>, so it sat ABOVE every page's title and repeated on the detail
+ * pages too; each index page now renders <CollectionHubTabs/> under its own
+ * header instead (STYLE_GUIDE § Layout system).
  *
- * Active tab is derived from the live pathname here (NOT a src/lib helper —
- * keeps the gated coverage scope clean). Cards is an exact match because every
- * other tab's path is a prefix of it; the rest are prefix matches so their
- * detail routes keep the parent tab lit.
+ * The `.collection-hub` wrapper is `display: contents`: it adds no box, and
+ * exists only as the marker the wide-page rule keys on (base-layout.css), so
+ * every collection route, index or detail, keeps the wider card-grid ceiling.
  */
 export function CollectionHubLayout() {
-  const { pathname } = useLocation();
-  const cardCount = useCollectionStore((s) => s.cards.length);
-  const binderCount = useCollectionStore((s) => s.binders.length);
-  const listCount = useCollectionStore((s) => s.lists.length);
-
   return (
-    <>
-      <HubTabsNav
-        ariaLabel="Collection sections"
-        tabs={[
-          {
-            to: '/collection',
-            label: 'Cards',
-            active: pathname === '/collection',
-            count: cardCount,
-            countNoun: 'cards',
-          },
-          {
-            to: '/collection/binders',
-            label: 'Binders',
-            active: pathname.startsWith('/collection/binders'),
-            count: binderCount,
-            countNoun: 'binders',
-          },
-          {
-            to: '/collection/lists',
-            label: 'Lists',
-            active: pathname.startsWith('/collection/lists'),
-            count: listCount,
-            countNoun: 'lists',
-          },
-          {
-            to: '/collection/combos',
-            label: 'Combos',
-            active: pathname.startsWith('/collection/combos'),
-          },
-          {
-            to: '/collection/sets',
-            label: 'Sets',
-            active: pathname.startsWith('/collection/sets'),
-          },
-        ]}
-      />
+    <div className="collection-hub">
       <Outlet />
-    </>
+    </div>
   );
 }
