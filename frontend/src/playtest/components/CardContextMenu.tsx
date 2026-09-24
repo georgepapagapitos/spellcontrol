@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { usePressRepeat } from '@/lib/use-press-repeat';
 import type { Zone } from '@/lib/playtest';
 import type { ShortcutId } from '../lib/shortcuts';
+import { nextGenericCounter } from '../lib/counter-kinds';
 import { createTokenEntries, moveToEntries, type MadeToken } from './menu-entries';
 import { SEPARATOR, TableContextMenu, type MenuEntry } from './TableContextMenu';
 
@@ -10,8 +11,8 @@ interface Props {
   y: number;
   cardName: string;
   stickers: string[];
-  /** Live counter tallies on this card — drives the value shown beside each
-   *  ± row, and surfaces custom counter kinds that aren't in COUNTER_KINDS. */
+  /** Live counter tallies on this card: what Add new counter numbers from,
+   *  and whether the bulk rows have anything to act on. */
   counters: Record<string, number>;
   /** Other battlefield permanents this card can be attached to. */
   attachTargets: Array<{ id: string; name: string }>;
@@ -32,9 +33,6 @@ interface Props {
    *  reminder flag, no rules enforcement. See `BattlefieldCard.phased`. */
   phased?: boolean;
   variant?: 'floating' | 'sheet';
-  /** A submenu to open on arrival. The counters key (J) opens the menu
-   *  straight onto Counters rather than making the player drill in by hand. */
-  initialPage?: CardMenuPage;
   /** The live binding for a shortcut, already formatted for display — every
    *  row that has one prints it, so the menu teaches the keyboard instead of
    *  competing with it. Omitted (tests, previews) simply prints no keys. */
@@ -45,7 +43,8 @@ interface Props {
   onPreview?(): void;
   onTap(): void;
   onAddCounter(kind: string): void;
-  onRemoveCounter(kind: string): void;
+  /** EDHPlay's Custom Counters: the dialog that sets every count at once. */
+  onOpenCustomCounters(): void;
   /** Bulk steps across every counter already on the card, and clearing them
    *  all. Omitted hides the rows; a card with no counters shows them off. */
   onAdjustAllCounters?(op: 'inc' | 'dec' | 'double' | 'clear'): void;
@@ -85,12 +84,6 @@ interface Props {
    *  honest maximum to offer without it. */
   libraryCount?: number;
 }
-
-/** The submenu the menu can open on. */
-export type CardMenuPage = 'counters';
-
-const COUNTER_KINDS = ['+1/+1', '-1/-1', 'loyalty', 'charge'];
-const MAX_COUNTER_NAME = 20;
 
 /** A ± counter step that repeats while held. Own component because the hook
  *  can't be called inside a `.map`. */
@@ -184,13 +177,12 @@ export function CardContextMenu({
   faceDown = false,
   phased = false,
   variant = 'floating',
-  initialPage,
   keyFor,
   onClose,
   onPreview,
   onTap,
   onAddCounter,
-  onRemoveCounter,
+  onOpenCustomCounters,
   onAdjustAllCounters,
   onAddSticker,
   onRemoveSticker,
@@ -210,7 +202,6 @@ export function CardContextMenu({
   libraryCount,
 }: Props) {
   const [stickerText, setStickerText] = useState('');
-  const [counterText, setCounterText] = useState('');
 
   const key = (id: ShortcutId) => keyFor?.(id);
 
@@ -221,82 +212,7 @@ export function CardContextMenu({
     setStickerText('');
   }
 
-  function submitCounter() {
-    const kind = counterText.trim().slice(0, MAX_COUNTER_NAME);
-    if (!kind) return;
-    onAddCounter(kind);
-    setCounterText('');
-    // Done: the counter is on the card, and Custom counters steps it from here.
-    onClose();
-  }
-
-  // The four presets plus whatever custom kinds are already on the card, so a
-  // counter added by name stays adjustable (and removable) afterwards rather
-  // than being visible only on the card face.
-  const counterKinds = [
-    ...COUNTER_KINDS,
-    ...Object.keys(counters).filter((k) => !COUNTER_KINDS.includes(k)),
-  ];
   const hasCounters = Object.keys(counters).length > 0;
-  /** The keys that add one of a kind, where the kind has one. */
-  const counterKey: Record<string, ShortcutId> = {
-    '+1/+1': 'counter-plus',
-    '-1/-1': 'counter-minus',
-  };
-
-  const countersPage = (
-    <>
-      {counterKinds.map((k) => {
-        const plusKey = k in counterKey ? key(counterKey[k]) : undefined;
-        return (
-          <div key={k} className="playtest-ctx-counter">
-            <span>{k}</span>
-            <span className="playtest-ctx-counter__value" aria-hidden>
-              {counters[k] ?? 0}
-            </span>
-            <CounterStep
-              label={`Remove ${k}, currently ${counters[k] ?? 0}`}
-              onAdjust={() => onRemoveCounter(k)}
-            >
-              −
-            </CounterStep>
-            <CounterStep
-              label={`Add ${k}, currently ${counters[k] ?? 0}${plusKey ? `, ${plusKey}` : ''}`}
-              onAdjust={() => onAddCounter(k)}
-            >
-              +
-            </CounterStep>
-          </div>
-        );
-      })}
-    </>
-  );
-
-  // EDHPlay's "Add New Counter". The reducer accepts any counter name, so
-  // saga chapters, ascend, fade and the rest need only this field.
-  const newCounterPage = (
-    <div className="playtest-ctx-counter-add">
-      <input
-        type="text"
-        value={counterText}
-        onChange={(e) => setCounterText(e.target.value)}
-        placeholder="New counter"
-        maxLength={MAX_COUNTER_NAME}
-        aria-label="Counter name"
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') submitCounter();
-        }}
-      />
-      <button
-        type="button"
-        disabled={!counterText.trim()}
-        onClick={submitCounter}
-        aria-label="Add counter"
-      >
-        Add
-      </button>
-    </div>
-  );
 
   const ptPage = (
     <>
@@ -433,17 +349,15 @@ export function CardContextMenu({
     {
       label: 'Counters',
       shortcut: key('counters'),
-      // EDHPlay's list: every row a verb, with the steppers and the name field
-      // one level further down, so the everyday +1/+1 is a single click.
+      // EDHPlay's list: every row a verb, so the everyday +1/+1 is a single
+      // click and anything finer is the Custom counters dialog.
       items: [
-        {
-          // J lands here, as it does on EDHPlay, rather than on the list.
-          id: 'counters',
-          label: 'Custom counters',
-          shortcut: key('counters'),
-          content: countersPage,
-        },
-        { label: 'Add new counter', content: newCounterPage },
+        // J opens the same dialog straight from the board, as on EDHPlay.
+        { label: 'Custom counters', shortcut: key('counters'), onClick: onOpenCustomCounters },
+        // A generic counter straight onto the card, as EDHPlay does: "Counter
+        // 1", "Counter 2"…, each its own colour. Named ones come from Custom
+        // counters.
+        { label: 'Add new counter', onClick: () => onAddCounter(nextGenericCounter(counters)) },
         {
           label: 'Add a +1/+1 counter',
           shortcut: key('counter-plus'),
@@ -578,7 +492,6 @@ export function CardContextMenu({
       variant={variant}
       title={selectionSize > 1 ? `${selectionSize} cards selected` : cardName}
       header={header}
-      openId={initialPage}
       items={items}
       onClose={onClose}
     />

@@ -1344,57 +1344,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   pointer-events: none;
 }
 
-/* Counters ride the top-right corner, stacked downward. Up there they sit
-   over the card's title bar rather than its rules text, they never fight
-   the P/T box at the opposite corner, and the eye finds them in the same
-   place on every card. */
-.playtest-card__counters {
-  position: absolute;
-  top: var(--space-1);
-  right: var(--space-1);
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  pointer-events: none;
-}
-
-/* A mark and a count, not a spelled-out kind: a badge wide enough for
-   "experience" would cover the art it sits on. The name is in the label
-   and the tooltip. */
-.playtest-card__counter {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  min-width: 1.5em;
-  padding: 1px 3px;
-  justify-content: center;
-  font-size: var(--text-xs);
-  font-weight: 800;
-  line-height: 1.25;
-  color: var(--mtg-counter-gold);
-  background: var(--art-scrim);
-  border: 1px solid color-mix(in srgb, var(--mtg-counter-gold) 60%, transparent);
-  border-radius: 999px;
-}
-
-/* The two that change a creature's size are the two worth colour-coding —
-   everything else is bookkeeping and stays neutral gold. */
-.playtest-card__counter.is-plus {
-  color: var(--success);
-  border-color: color-mix(in srgb, var(--success) 60%, transparent);
-}
-
-.playtest-card__counter.is-minus {
-  color: var(--err-text);
-  border-color: color-mix(in srgb, var(--err-text) 60%, transparent);
-}
-
-.playtest-card__counter-mark {
-  opacity: 0.85;
-}
-
 /* Stickers stack at the top so they never collide with counters (bottom).
  * pointer-events: none keeps the overlay from stealing card drags — removal
  * happens from the context menu, not the badge. */
@@ -2532,11 +2481,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   body:has(.playtest-page) {
     --pt-card-w: 72px;
     --pt-card-h: 100px;
-  }
-
-  .playtest-card__counter {
-    font-size: var(--text-xs);
-    padding: 1px 3px;
   }
 }
 

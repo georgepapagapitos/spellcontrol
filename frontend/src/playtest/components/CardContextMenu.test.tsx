@@ -28,7 +28,7 @@ function baseProps() {
     onClose: vi.fn(),
     onTap: vi.fn(),
     onAddCounter: vi.fn(),
-    onRemoveCounter: vi.fn(),
+    onOpenCustomCounters: vi.fn(),
     onAddSticker: vi.fn(),
     onRemoveSticker: vi.fn(),
     onFlip: vi.fn(),
@@ -53,6 +53,9 @@ const KEYS: Partial<Record<ShortcutId, string>> = {
   'counters-all-inc': 'Ctrl 1',
 };
 const keyFor = (id: ShortcutId) => KEYS[id];
+
+/** Opens the Counters flyout, the way a player gets to its rows. */
+const openCounters = () => fireEvent.click(screen.getByRole('menuitem', { name: /^Counters/ }));
 
 /** The root menu's rows and lines, top to bottom, as `row` / `—`. */
 function rootShape(): string[] {
@@ -183,9 +186,9 @@ describe('CardContextMenu — EDHPlay’s shape', () => {
         onAddCounter={onAddCounter}
         onClose={onClose}
         keyFor={(id) => ({ 'counter-plus': '+', 'counter-minus': '_' })[id as string]}
-        initialPage="counters"
       />
     );
+    openCounters();
     const plus = screen.getByRole('menuitem', { name: /^Add a \+1\/\+1 counter/ });
     expect(plus.querySelector('kbd')?.textContent).toBe('+');
     expect(
@@ -200,30 +203,45 @@ describe('CardContextMenu — EDHPlay’s shape', () => {
     expect(onAddCounter).toHaveBeenCalledWith('-1/-1');
   });
 
-  it('adds a counter by name from Add new counter, then closes', () => {
+  it('adds the next generic counter from Add new counter, as EDHPlay does', () => {
+    // EDHPlay puts "Counter 1" on the card at once, no name asked; a second
+    // is "Counter 2". The number skips any already on the card.
     const onAddCounter = vi.fn();
     const onClose = vi.fn();
-    render(<CardContextMenu {...baseProps()} onAddCounter={onAddCounter} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('menuitem', { name: /^Counters/ }));
+    render(
+      <CardContextMenu
+        {...baseProps()}
+        counters={{ 'Counter 1': 2 }}
+        onAddCounter={onAddCounter}
+        onClose={onClose}
+      />
+    );
+    openCounters();
     fireEvent.click(screen.getByRole('menuitem', { name: /^Add new counter/ }));
-    fireEvent.change(screen.getByLabelText('Counter name'), { target: { value: 'lore' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add counter' }));
-    expect(onAddCounter).toHaveBeenCalledWith('lore');
+    expect(onAddCounter).toHaveBeenCalledWith('Counter 2');
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('opens straight on Custom counters when the caller asks (the J key)', () => {
-    render(<CardContextMenu {...baseProps()} counters={{ lore: 2 }} initialPage="counters" />);
-    // The steppers, including a custom kind already on the card.
-    expect(screen.getByRole('button', { name: 'Add +1/+1, currently 0' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Remove lore, currently 2' })).toBeTruthy();
+  it('opens the Custom counters dialog from its row', () => {
+    const onOpenCustomCounters = vi.fn();
+    render(
+      <CardContextMenu
+        {...baseProps()}
+        onOpenCustomCounters={onOpenCustomCounters}
+        keyFor={keyFor}
+      />
+    );
+    openCounters();
+    const row = screen.getByRole('menuitem', { name: /^Custom counters/ });
+    expect(row.querySelector('kbd')?.textContent).toBe('J');
+    fireEvent.click(row);
+    expect(onOpenCustomCounters).toHaveBeenCalledOnce();
   });
 
   it('keeps the bulk counter rows in place, off on a card with none', () => {
     const props = baseProps();
-    const { unmount } = render(
-      <CardContextMenu {...props} onAdjustAllCounters={vi.fn()} initialPage="counters" />
-    );
+    const { unmount } = render(<CardContextMenu {...props} onAdjustAllCounters={vi.fn()} />);
+    openCounters();
     for (const name of [/^Add one to each/, /^Take one off each/, /^Double each/, /^Remove every/])
       expect((screen.getByRole('menuitem', { name }) as HTMLButtonElement).disabled).toBe(true);
     unmount();
@@ -235,9 +253,9 @@ describe('CardContextMenu — EDHPlay’s shape', () => {
         counters={{ '+1/+1': 2 }}
         onAdjustAllCounters={onAdjustAllCounters}
         keyFor={keyFor}
-        initialPage="counters"
       />
     );
+    openCounters();
     expect(screen.getByRole('menuitem', { name: /^Add one to each/ }).textContent).toContain(
       'Ctrl 1'
     );
@@ -252,9 +270,9 @@ describe('CardContextMenu — EDHPlay’s shape', () => {
         {...baseProps()}
         counters={{ charge: 3 }}
         onAdjustAllCounters={onAdjustAllCounters}
-        initialPage="counters"
       />
     );
+    openCounters();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove every counter' }));
     expect(onAdjustAllCounters).toHaveBeenCalledWith('clear');
   });

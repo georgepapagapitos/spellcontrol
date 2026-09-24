@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMediaQuery } from '@/lib/use-media-query';
+import { CardCounters } from './CardCounters';
 import './CardHoverPreview.css';
 
 const MARGIN = 12;
@@ -11,6 +12,8 @@ const FACE_GAP = 8;
 export interface PreviewFaces {
   src: string;
   back?: string;
+  /** A permanent's counters, drawn on the enlarged face as on the card. */
+  counters?: Record<string, number>;
 }
 
 interface Props {
@@ -133,6 +136,7 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
         {/* The same ribbon the card itself wears, on the same corner, at a
             size that suits the bigger face. */}
         {target.isToken && <span className="playtest-hover-preview__token">Token</span>}
+        {target.counters && <CardCounters counters={target.counters} placement="inset" />}
       </div>
       {target.back && (
         <div className="playtest-hover-preview__face">

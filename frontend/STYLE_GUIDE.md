@@ -2077,6 +2077,22 @@ Untap):
   hover ring sits outside the card, where the selection's is inset, and a
   selected card is left out of the hover rule entirely. Guarded by
   `styles/battlefield-hover-static.test.ts`.
+- **A counter on the felt is its own control, drawn the way EDHPlay draws it
+  (2026-09-24).** `CardCounters`: a counter a card prints (+1/+1, charge,
+  flying, ward…, the list is `playtest/lib/counter-kinds.ts`) is its mana-font
+  glyph on a black disc with the count in a red bubble, in a column just off
+  the card's top-right corner; a counter the player named is a coloured disc
+  with the count on it, stacked oldest-on-top up the card's bottom-left. Click
+  adds one, right-click or a long press takes one off, − / ↓ on a focused
+  counter does too, hovering names it ("Charge (4)"), and a "+1" floats up so
+  a click on a 22px disc visibly landed. Fixed ink, never theme colours: the
+  discs sit on art, the P/T plates' ruling. They are the card's SIBLING in its
+  slot, never inside it (a control can't nest in the card's `role="button"`),
+  so every way the card moves without its slot has a rule: hidden during the
+  drag, and on a tapped card the layer takes the turned card's box. A card
+  drawn with nothing around it (another seat's board, the drag copy, the hover
+  preview) draws them read-only and inset. Guarded by
+  `styles/card-counters.test.ts`.
 - **Hover / focus preview on fine pointers lands in ONE slot.** `CardHoverPreview`
   shows the full face for any card carrying `data-preview-id` (set by
   `PlaytestCardFace`; absent when face-down, the URL resolves from React state,

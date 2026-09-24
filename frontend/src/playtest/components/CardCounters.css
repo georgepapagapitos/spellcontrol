@@ -1,0 +1,244 @@
+/* A card's counters, laid over its box: the card's slot on the felt, or the
+   card itself when inset. The layer draws nothing and takes no pointer; only
+   the badges do, so the card under it still drags and taps. */
+.card-counters {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  /* One disc, sized off the CARD like the P/T plates, so the density setting
+     scales them together. A fifth of the card's width, set by eye against
+     EDHPlay; `--text-xs` keeps the count legible on the densest table. */
+  --cc-size: max(1.5rem, calc(var(--pt-card-w, 100px) * 0.2));
+}
+
+/* Inside a card drawn on its own (another seat's board, the drag copy),
+   there is no room beside it, so the discs come in and down a size. */
+.card-counters--inset {
+  --cc-size: max(1.15rem, calc(var(--pt-card-w, 100px) * 0.15));
+}
+
+/* Printed counters: a column of icons just off the top-right corner, where
+   they cover none of the card. Inset, they sit inside that corner. */
+.card-counters__marks {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 3px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* The count bubble overhangs its icon by a fifth; the card clips what
+   crosses its edge, so the column keeps that much in from the corner. */
+.card-counters--inset .card-counters__marks {
+  top: calc(var(--space-1) + var(--cc-size) * 0.22);
+  left: auto;
+  right: calc(var(--space-1) + var(--cc-size) * 0.22);
+  gap: calc(var(--cc-size) * 0.25);
+}
+
+/* Named counters: coloured discs on the card's left edge, anchored at the
+   bottom and clear of the P/T plates in the other corner. Oldest on top, so
+   a new one lands at the bottom and lifts the rest, as on EDHPlay. */
+.card-counters__discs {
+  position: absolute;
+  left: var(--space-1);
+  bottom: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* A tapped card turns 90° inside its portrait slot, so the layer takes the
+   turned card's box instead: out past the slot at the sides, in from it top
+   and bottom. The named discs follow the printed corner they sit in, which
+   the turn carries to the top-left, since the P/T plates now own the
+   bottom-left (see `.playtest-card-slot:has(> .playtest-card--tapped)`). */
+.playtest-card-slot:has(> .playtest-card--tapped) > .card-counters {
+  inset: calc((var(--pt-card-h) - var(--pt-card-w)) / 2)
+    calc((var(--pt-card-w) - var(--pt-card-h)) / 2);
+}
+
+.playtest-card-slot:has(> .playtest-card--tapped) > .card-counters .card-counters__discs {
+  top: var(--space-1);
+  bottom: auto;
+  flex-direction: column;
+}
+
+/* The badges leave with the card, as the P/T plates do. */
+.playtest-card-slot:has(> [data-dragging]) > .card-counters {
+  visibility: hidden;
+}
+
+.card-counter-slot {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  border-radius: 50%;
+}
+
+button.card-counter-slot {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+button.card-counter-slot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A finger needs more than a 22px disc. The hit area grows; the disc does
+   not, so the card it rides stays readable. */
+@media (pointer: coarse) {
+  button.card-counter-slot::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+}
+
+/* Fixed ink on fixed discs, never theme colours: a counter sits on card art,
+   the same ruling as the P/T plates. */
+.card-counter {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--cc-size);
+  height: var(--cc-size);
+  border-radius: 50%;
+  font-size: calc(var(--cc-size) * 0.55);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.card-counter--mark {
+  background: #0b0b0c;
+}
+
+.card-counter--mark .ms {
+  font-size: calc(var(--cc-size) * 0.62);
+}
+
+/* The count rides the icon's corner in a red bubble, EDHPlay's mark. */
+.card-counter--mark .card-counter__n {
+  position: absolute;
+  top: -22%;
+  right: -22%;
+  display: grid;
+  place-items: center;
+  min-width: 58%;
+  height: 58%;
+  padding: 0 2px;
+  border-radius: 999px;
+  font-size: calc(var(--cc-size) * 0.4);
+  background: #c81e1e;
+}
+
+.card-counter--disc {
+  background: var(--disc);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.card-counter-slot:hover .card-counter {
+    filter: brightness(1.2);
+  }
+}
+
+/* Its name on hover or focus: "Charge (4)". Beside a printed counter's icon,
+   below a named disc, where the card itself is not in the way. */
+button.card-counter-slot::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: calc(100% + 6px);
+  translate: 0 -50%;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: #f3f4f6;
+  background: rgb(17 17 20 / 94%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card-counters__discs button.card-counter-slot::after {
+  top: calc(100% + 6px);
+  left: 50%;
+  translate: -50% 0;
+}
+
+button.card-counter-slot:focus-visible::after {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.card-counter-slot:hover::after {
+    opacity: 1;
+  }
+}
+
+/* "+1" and the counter's disc, floating up off the card and fading, so a
+   click on a small disc visibly landed. */
+.card-counters__bursts {
+  position: absolute;
+  bottom: calc(100% + var(--space-1));
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.card-counters__burst {
+  --cc-size: 1.1rem;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 80%);
+  white-space: nowrap;
+  animation: card-counter-burst 900ms var(--ease-out-soft) forwards;
+}
+
+@keyframes card-counter-burst {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+
+  15% {
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  70% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-counters__burst {
+    animation: none;
+  }
+}

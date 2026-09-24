@@ -1,0 +1,210 @@
+/* The Custom counters dialog: a narrow form, not a reading surface, so it
+   takes the width of EDHPlay's rather than the 720px modal default. */
+.counters-dialog {
+  max-width: 28rem;
+}
+
+.counters-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.counters-dialog__card {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.counters-dialog__label {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.counters-dialog__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.counters-dialog__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.counters-dialog__input:focus-visible,
+.counters-dialog__count:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.counters-dialog__icon-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: var(--text-secondary);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.counters-dialog__icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .counters-dialog__icon-btn:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--surface-raised);
+  }
+}
+
+.counters-dialog__icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.counters-dialog__add {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--success) 35%, transparent);
+  border-color: color-mix(in srgb, var(--success) 55%, transparent);
+}
+
+@media (pointer: coarse) {
+  .counters-dialog__input,
+  .counters-dialog__count {
+    min-height: 44px;
+  }
+
+  .counters-dialog__icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* The list opens under the search field, over the sections below it. */
+.counters-dialog__combo {
+  position: relative;
+}
+
+.counters-dialog__list {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  max-height: 15rem;
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-modal);
+}
+
+.counters-dialog__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.counters-dialog__option.is-active {
+  background: var(--surface-raised);
+}
+
+.counters-dialog__option .ms {
+  width: 1.25em;
+  font-size: var(--text-lg);
+  text-align: center;
+}
+
+.counters-dialog__none,
+.counters-dialog__empty {
+  margin: 0;
+  padding: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.counters-dialog__active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.counters-dialog__counter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* The same disc the counter wears on the card, so the row and the badge
+   are recognisably one thing. */
+.counters-dialog__swatch {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.counters-dialog__swatch.is-mark {
+  background: #0b0b0c;
+}
+
+.counters-dialog__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.counters-dialog__count {
+  width: 4.5rem;
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.counters-dialog__actions {
+  padding: var(--space-4) var(--space-5);
+  border-top: 0.5px solid var(--border);
+}
