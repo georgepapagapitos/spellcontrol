@@ -149,6 +149,7 @@ import { CardInfoDialog } from './CardInfoDialog';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { CountPage } from './CountPage';
 import { OpeningHandSheet } from './OpeningHandSheet';
+import { RotatePrompt } from './RotatePrompt';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import { ScrySheet } from './ScrySheet';
 import { TokenCreator } from './TokenCreator';
@@ -3227,6 +3228,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           onClose={() => setShowLog(false)}
         />
       )}
+
+      <RotatePrompt fullscreen={isFullscreen} />
 
       {confirmDialog}
     </div>
