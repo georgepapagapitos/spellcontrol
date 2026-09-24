@@ -266,8 +266,8 @@ export function BracketBreakdown({
           <div className="bracket-breakdown-loops">
             <p className="bracket-breakdown-footnote">
               {loops.length === 1
-                ? 'This combo sets no floor: the brackets only limit two-card combos that end the game, and this one loops without ending it or needs more cards. It adds to the power signal as a combo engine.'
-                : `These ${loops.length} combos set no floor: the brackets only limit two-card combos that end the game, and these loop without ending it or need more cards. They add to the power signal as combo engines.`}
+                ? 'This combo sets no floor: Commander Spellbook rates it fine at Bracket 2, or it takes more than two cards. It adds to the power signal as a combo engine.'
+                : `These ${loops.length} combos set no floor: Commander Spellbook rates them fine at Bracket 2, or they take more than two cards. They add to the power signal as combo engines.`}
             </p>
             <ul className="bracket-breakdown-loop-list">
               {loops.map((cards) => (

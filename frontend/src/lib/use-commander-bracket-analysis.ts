@@ -97,8 +97,11 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        payoff) is no longer a win path, so the Gameplan hero and Win
  *        conditions stop saying "Wins via Infinite combo" beside a Bracket
  *        panel that says the same loops don't end the game (E380).
+ *   v12 — the combo floor's explanation quotes the RC's actual rule
+ *        (intentional infinite combos, not only ones that end the game);
+ *        it is stored in each hard floor's `detail` (E382).
  */
-const ANALYSIS_ENGINE_VERSION = 'v11-draw-loop-not-a-win';
+const ANALYSIS_ENGINE_VERSION = 'v12-combo-rule-copy';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)
