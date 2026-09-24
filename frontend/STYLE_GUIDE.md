@@ -658,8 +658,7 @@ a hero CTA.
   row equally and clips labels, so four labelled tabs with count badges read
   as "Bat… 3 / Gra… 1 / Co… 0" on a 360px sheet (the opponent board, E280).
   Below the sheet breakpoint such a strip wraps to a 2×2 grid
-  (`flex-wrap: wrap` + a ~50% basis on `.sc-tab`) — the same shape the share
-  audience ladder takes for its four rungs — keeping every label a whole word
+  (`flex-wrap: wrap` + a ~50% basis on `.sc-tab`) — keeping every label a whole word
   and the strip one tablist. Don't abbreviate labels or switch to `scrollable`
   to dodge the wrap; a whole word beats a hidden tab.
 - **`fitted` requires labels that are short AND equal**, never more than three
@@ -1406,7 +1405,7 @@ panel's existing light-on-dark contract — never theme tokens there.
   the **card-preview panel** and the **card menu** (`DeckCardMenuBody`,
   rendered by the list kebab, the tile kebab and right-click alike).
   Amended 2026-09-21, from "the preview panel only". The rule was written to
-  stop a second *inline* editor appearing on every row and tile, each
+  stop a second _inline_ editor appearing on every row and tile, each
   repeating the keyboard and focus work. A menu is not that: it is one
   shared, focus-managed body reached from three places, and its items come
   from a single action list (`deck-card-actions.ts`), so there is nothing to
@@ -3409,7 +3408,7 @@ preview) and Archidekt's static-card panel, these rulings now hold:
 
 ### Amendment: what a stack opening should look like (2026-09-21)
 
-Three passes at the slide read as the card *popping in* rather than the stack
+Three passes at the slide read as the card _popping in_ rather than the stack
 moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
 
 - **The stack moves; the card does not.** The open card stays exactly where it
@@ -3577,6 +3576,19 @@ dead end (the authRequired state's sign-in CTA is the reference). Other rulings:
 `.shared-table-scroll` (the shell clips `overflow-x`, so an unwrapped table is
 silently cut off at 320px); mana costs render via the `ManaCost` primitive (never
 raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
+
+### Visibility is one choice, not a link to manage (board T136)
+
+Who can see a thing is a single native radio group in `ShareDialog`, applied
+the moment it's picked: **Public / Friends / Private** for a deck, and
+**Anyone with the link / Friends / Private** for kinds that have no public
+page yet. There is no confirm step, no display-name gate and no list of links
+to revoke anywhere in Settings. The dialog opens on the real current state
+and never creates anything just by opening. The link it shows is the thing's
+own address, to copy; it is never something the owner manages. New decks
+start Public (the create form's first option); "Send to a friend" sits below
+the choice because it isn't one. The group sizes each option to its label
+(`flex: 1 1 auto`), so three short choices hold one line at 320px.
 
 ### Feedback view (suggestion-mode deck share)
 
@@ -4264,8 +4276,7 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 - **Legacy refinement widths** — **480** (tight phone), **640** (early tablet),
   **700** (Cost/Optimize/Substitution panels), **1101** (deck editor) — are
   existing debt, not a menu. The ratchet counts every viewport width that isn't
-  a tier boundary, so a new `@media` at 480 fails the gate the same as one at
-  517. Snap to 600 / 1024, or gate on the container (640 stays legitimate as a
+  a tier boundary, so a new `@media` at 480 fails the gate the same as one at 517. Snap to 600 / 1024, or gate on the container (640 stays legitimate as a
   **container** threshold for the bento; see below).
 - **Container queries ≠ viewport.** The deck bento (`.deck-bento`,
   `container-type: inline-size`) reflows on its **own** width at `640` / `1040`
@@ -5392,7 +5403,7 @@ first children are the account banners (`.recovery-banner`,
 root fills the rest (`.app-shell` is `flex: 1 1 auto; min-height: 0`); the
 self-scrolling pages above keep `height: 100dvh` and shrink to fit as flex
 items, which works because they are scroll containers. Never give a page root
-its own full viewport height *beside* the banners without that shrink, and
+its own full viewport height _beside_ the banners without that shrink, and
 never make a banner `position: sticky`: the page overflowed `#root` by the
 banner's height, so the phone tab bar sat below the screen, and every
 `scrollIntoView` scrolled that overflow and slid the banner over its target.

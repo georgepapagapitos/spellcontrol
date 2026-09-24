@@ -75,12 +75,7 @@ import {
   countFlaggedCards,
 } from '../lib/deck-validation';
 import { ShareDialog } from '../components/ShareDialog';
-import {
-  DisplayNameRequiredError,
-  listMyPublications,
-  publishDeck,
-  unpublishDeck,
-} from '../lib/publications-client';
+import { listMyPublications, publishDeck, unpublishDeck } from '../lib/publications-client';
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 
@@ -443,20 +438,10 @@ export function DecksIndexPage() {
         done.push(id);
       }
     } catch (err) {
-      if (err instanceof DisplayNameRequiredError) {
-        // ShareDialog owns the inline "set a display name" substep — hand off
-        // to it on the deck that tripped the requirement rather than
-        // dead-ending the user in a toast that names a setting they'd have to
-        // go find. Anything already published stays published.
-        const blocked = decks.find((d) => d.id === targets[done.length]);
-        if (blocked) setShareDeck(blocked);
-        toast.show({ message: 'Set a display name to publish.', tone: 'warn' });
-      } else {
-        toast.show({
-          message: userMessage(err, "Couldn't change deck visibility."),
-          tone: 'error',
-        });
-      }
+      toast.show({
+        message: userMessage(err, "Couldn't change deck visibility."),
+        tone: 'error',
+      });
     } finally {
       setVisibilityBusy(false);
     }

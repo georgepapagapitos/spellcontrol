@@ -87,9 +87,6 @@ vi.mock('../lib/reset-app-cache', () => ({ resetAppCacheAndReload: vi.fn() }));
 vi.mock('../components/OfflineModeSettings', () => ({
   OfflineModeSettings: () => null,
 }));
-vi.mock('../components/SharedLinksSettings', () => ({
-  SharedLinksSettings: () => null,
-}));
 vi.mock('../components/SyncIndicator', () => ({
   SyncIndicator: () => null,
 }));
@@ -245,7 +242,7 @@ describe('you-page — every door lands its promised heading', () => {
     ['profile', 'Profile'],
     ['account', 'Account'],
     ['settings', 'Preferences'],
-    ['sharing', 'Sharing'],
+    ['sharing', 'Profile'],
     ['danger', 'Danger zone'],
   ];
 
@@ -360,13 +357,12 @@ describe('w3-header-avatar-menu — ?section= deep link', () => {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
-  it('scrolls and focuses the Sharing heading for ?section=sharing', async () => {
+  it('an old ?section=sharing link lands on Profile, now the Sharing group is gone', async () => {
     authState.user = { username: 'alice', id: 'u1' };
     authState.status = 'authed';
     renderYouPage('/?section=sharing');
-    const heading = screen.getByRole('heading', { name: 'Sharing' });
+    const heading = screen.getByRole('heading', { name: 'Profile' });
     await waitFor(() => expect(document.activeElement).toBe(heading));
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
   it('is a no-op with no section param', () => {

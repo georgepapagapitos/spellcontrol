@@ -1,4 +1,4 @@
-import { BookOpen, Link2, LogOut, Search, Settings, UserRound } from 'lucide-react';
+import { BookOpen, Globe, LogOut, Search, Settings, UserRound } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useCollectionStore } from '../store/collection';
@@ -158,12 +158,11 @@ export function Header() {
               ariaLabel="Account menu"
               align="right"
               items={[
-                // Three doors into one page (/you): each is a `?section=`
-                // jump that lands its promised heading at the top of the
-                // viewport — Profile on the Profile card, Settings on the
-                // Preferences tier (where everything below Identity starts),
-                // Shared links on the Sharing group. See YouPage's
-                // SECTION_HEADING_IDS for the vocabulary.
+                // Profile and Settings are `?section=` jumps into /you that
+                // land their promised heading at the top of the viewport (see
+                // YouPage's SECTION_HEADING_IDS). Public profile is the page
+                // everyone else sees; the Share links list it replaced is gone
+                // (board T136), since visibility is set on each thing itself.
                 {
                   label: 'Profile',
                   icon: UserRound,
@@ -174,11 +173,15 @@ export function Header() {
                   icon: Settings,
                   onClick: () => navigate('/you?section=settings'),
                 },
-                {
-                  label: 'Shared links',
-                  icon: Link2,
-                  onClick: () => navigate('/you?section=sharing'),
-                },
+                ...(user?.username
+                  ? [
+                      {
+                        label: 'Public profile',
+                        icon: Globe,
+                        onClick: () => navigate(`/u/${user.username}`),
+                      },
+                    ]
+                  : []),
                 { label: 'Sign out', icon: LogOut, onClick: logout },
               ]}
             />

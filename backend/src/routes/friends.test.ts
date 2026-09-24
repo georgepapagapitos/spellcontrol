@@ -1326,8 +1326,9 @@ describe('GET /api/friends/:friendId/shares', () => {
 
     await createShare(owner.cookie, { kind: 'deck', resourceId: 'deck-1', audience: 'friends' });
     await createShare(owner.cookie, { kind: 'collection', audience: 'friends' });
-    // A public link share must NOT surface in the friend hub.
-    await createShare(owner.cookie, { kind: 'collection', audience: 'link' });
+    // A public link share must NOT surface in the friend hub. (On another
+    // resource: link and friends of the SAME resource are one choice now.)
+    await createShare(owner.cookie, { kind: 'binder', resourceId: 'binder-1', audience: 'link' });
 
     const res = await request(app)
       .get(`/api/friends/${owner.id}/shares`)

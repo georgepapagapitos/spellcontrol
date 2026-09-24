@@ -23,22 +23,16 @@ vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: authStatus }),
 }));
 
-const { listMyPublicationsMock, publishDeckMock, unpublishDeckMock, MockDisplayNameRequiredError } =
-  vi.hoisted(() => {
-    class MockDisplayNameRequiredError extends Error {}
-    return {
-      listMyPublicationsMock: vi.fn(),
-      publishDeckMock: vi.fn(),
-      unpublishDeckMock: vi.fn(),
-      MockDisplayNameRequiredError,
-    };
-  });
+const { listMyPublicationsMock, publishDeckMock, unpublishDeckMock } = vi.hoisted(() => ({
+  listMyPublicationsMock: vi.fn(),
+  publishDeckMock: vi.fn(),
+  unpublishDeckMock: vi.fn(),
+}));
 
 vi.mock('../lib/publications-client', () => ({
   listMyPublications: () => listMyPublicationsMock(),
   publishDeck: (id: string) => publishDeckMock(id),
   unpublishDeck: (id: string) => unpublishDeckMock(id),
-  DisplayNameRequiredError: MockDisplayNameRequiredError,
 }));
 
 const toastShowMock = vi.fn();
@@ -152,22 +146,6 @@ describe('DecksIndexPage — visibility actions', () => {
 
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledTimes(1));
     expect(publishDeckMock).toHaveBeenCalledWith('deck-b');
-  });
-
-  it('stops on a missing display name and hands off to the Share dialog instead of dead-ending', async () => {
-    publishDeckMock.mockRejectedValue(new MockDisplayNameRequiredError('display_name_required'));
-    renderPage();
-    await waitFor(() => expect(listMyPublicationsMock).toHaveBeenCalledTimes(1));
-
-    openRowMenu('Alpha Deck');
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Make public' }));
-
-    await waitFor(() =>
-      expect(toastShowMock).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'Set a display name to publish.' })
-      )
-    );
-    expect(screen.queryByLabelText('Public')).toBeNull();
   });
 
   it('shows no visibility action to a guest — publishing is account-scoped', async () => {

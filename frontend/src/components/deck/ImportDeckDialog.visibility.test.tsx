@@ -11,7 +11,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '../../store/auth';
-import { DisplayNameRequiredError, type PublishResult } from '../../lib/publications-client';
+import type { PublishResult } from '../../lib/publications-client';
 import type { DeckImportResponse } from '../../types';
 
 const navigateMock = vi.fn();
@@ -162,37 +162,6 @@ describe('ImportDeckDialog — creation-time visibility', () => {
     pasteAndImport();
 
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
-        state: { justPublished: true },
-      })
-    );
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('on display_name_required, swaps to the inline substep instead of navigating, then completes on save', async () => {
-    publishDeckMock.mockRejectedValueOnce(new DisplayNameRequiredError());
-    updateProfileMock.mockResolvedValue({
-      displayName: 'Bob',
-      bio: null,
-      avatarCardId: null,
-      avatarCardName: null,
-      avatarImageUrl: null,
-    });
-    const { onClose } = renderDialog();
-    selectStandardFormat();
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
-    pasteAndImport();
-
-    await screen.findByText('Set a display name');
-    expect(navigateMock).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
-
-    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Bob' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save & continue' }));
-
-    await waitFor(() => expect(updateProfileMock).toHaveBeenCalledWith({ displayName: 'Bob' }));
-    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledTimes(2));
     await waitFor(() =>
       expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
         state: { justPublished: true },

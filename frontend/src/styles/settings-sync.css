@@ -496,14 +496,6 @@
   color: var(--err-text);
 }
 
-.settings-share-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  flex-shrink: 0;
-  align-items: center;
-}
-
 .settings-share-kind {
   display: inline-block;
   padding: 0.05rem 0.45rem;
@@ -516,41 +508,6 @@
   font-weight: 600;
   margin-right: 0.4rem;
   vertical-align: middle;
-}
-
-.settings-share-name--deleted {
-  color: var(--text-muted);
-  text-decoration: line-through;
-}
-
-.settings-share-audience {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-weight: 500;
-}
-
-.settings-share-url {
-  color: var(--text-muted);
-  text-decoration: none;
-  word-break: break-all;
-}
-
-.settings-share-url:focus-visible {
-  color: var(--accent);
-  text-decoration: underline;
-}
-@media (hover: hover) and (pointer: fine) {
-  .settings-share-url:hover {
-    color: var(--accent);
-    text-decoration: underline;
-  }
-}
-
-@media (max-width: 520px) {
-  .settings-share-row .settings-share-actions {
-    align-self: stretch;
-    justify-content: flex-end;
-  }
 }
 
 .settings-toggle {

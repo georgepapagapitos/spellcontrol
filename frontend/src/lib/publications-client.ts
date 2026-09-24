@@ -25,16 +25,6 @@ async function readError(res: Response, fallback: string): Promise<string> {
   }
 }
 
-/** Thrown by publishDeck() when the server 400s with
- *  {error:'display_name_required'} — the caller needs to set a display name
- *  (the server's own defensive gate) before a deck can go public. */
-export class DisplayNameRequiredError extends Error {
-  constructor() {
-    super('Set a display name before publishing.');
-    this.name = 'DisplayNameRequiredError';
-  }
-}
-
 /** Thrown by publishDeck() when the server 404s with {error:'Deck not
  *  found.'} for a deckId the caller just created. The local persist that
  *  writes a new deck to the server is fire-and-forget from the store's
@@ -114,7 +104,6 @@ export async function publishDeck(deckId: string): Promise<PublishResult> {
   });
   if (!res.ok) {
     const message = await readError(res, "Couldn't publish the deck. Try again.");
-    if (message === 'display_name_required') throw new DisplayNameRequiredError();
     if (res.status === 404 && message === 'Deck not found.') throw new DeckNotSyncedYetError();
     throw new Error(message);
   }

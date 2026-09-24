@@ -173,7 +173,7 @@ describe('Header — authed avatar menu', () => {
     expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
   });
 
-  it('opens to exactly 4 items in order: Profile, Settings, Shared links, Sign out', () => {
+  it('opens to exactly 4 items in order: Profile, Settings, Public profile, Sign out', () => {
     signIn();
     renderHeader();
     fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
@@ -181,7 +181,7 @@ describe('Header — authed avatar menu', () => {
     expect(items.map((i) => i.textContent)).toEqual([
       'Profile',
       'Settings',
-      'Shared links',
+      'Public profile',
       'Sign out',
     ]);
   });
@@ -204,12 +204,12 @@ describe('Header — authed avatar menu', () => {
     expect(navigateMock).toHaveBeenCalledWith('/you?section=settings');
   });
 
-  it('Shared links navigates to /you?section=sharing', () => {
+  it('Public profile navigates to the page everyone else sees', () => {
     signIn();
     renderHeader();
     fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Shared links' }));
-    expect(navigateMock).toHaveBeenCalledWith('/you?section=sharing');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Public profile' }));
+    expect(navigateMock).toHaveBeenCalledWith(expect.stringMatching(/^\/u\//));
   });
 
   it('Sign out calls logout()', () => {

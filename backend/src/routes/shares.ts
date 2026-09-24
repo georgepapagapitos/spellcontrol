@@ -66,6 +66,10 @@ function isShareAudience(x: unknown): x is ShareAudience {
   return x === 'link' || x === 'friends' || x === 'direct';
 }
 
+/** The kinds whose link/friends shares are a visibility choice. Feedback and
+ *  game-result shares are one-off artifacts, not a resource's visibility. */
+const RUNG_KINDS: ReadonlySet<string> = new Set(['collection', 'binder', 'deck', 'list', 'cube']);
+
 function newToken(): string {
   // 24 bytes → 32 url-safe chars. Unguessable; collision-resistant.
   return crypto.randomBytes(24).toString('base64url');
@@ -91,6 +95,31 @@ async function retirePublication(userId: string, deckId: string): Promise<void> 
   );
   for (const row of result.rows) invalidateDeckPublicationCache(row.slug);
   if (result.rows.length > 0) await invalidatePublicUserCacheById(userId);
+}
+
+/**
+ * 'link' and 'friends' are rungs of one visibility control, so a resource is
+ * on at most one of them. Minting one retires the other for the same
+ * resource: a deck that was "anyone with the link" and is now "friends"
+ * stops opening for strangers, instead of quietly staying open underneath.
+ * Before this they coexisted and the dialog just showed the higher rung.
+ * 'direct' is not a rung and is spared, as everywhere else.
+ */
+async function retireOtherRung(
+  userId: string,
+  kind: string,
+  resourceId: string,
+  audience: 'link' | 'friends'
+): Promise<void> {
+  const other = audience === 'link' ? 'friends' : 'link';
+  const result = await getPool().query<{ token: string }>(
+    `UPDATE shares SET revoked_at = $5
+       WHERE user_id = $1 AND kind = $2 AND resource_id = $3 AND audience = $4
+         AND revoked_at IS NULL
+     RETURNING token`,
+    [userId, kind, resourceId, other, Date.now()]
+  );
+  for (const row of result.rows) invalidateShareContext(row.token);
 }
 
 /**
@@ -159,6 +188,9 @@ sharesRouter.post('/', requireAuth, writeLimiter, async (req: Request, res: Resp
 
   if (kind === 'deck' && audience !== 'direct') {
     await retirePublication(req.user!.id, resourceId);
+  }
+  if (audience !== 'direct' && RUNG_KINDS.has(kind)) {
+    await retireOtherRung(req.user!.id, kind, resourceId, audience);
   }
 
   const db = getDb();

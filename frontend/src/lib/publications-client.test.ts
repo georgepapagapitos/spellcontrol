@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   DeckNotSyncedYetError,
-  DisplayNameRequiredError,
   getPublication,
   listMyPublications,
   publicationUrl,
@@ -109,16 +108,6 @@ describe('publishDeck', () => {
     expect(out).toEqual({ ...PUB, isFirstPublish: false });
   });
 
-  it('throws DisplayNameRequiredError specifically on a display_name_required 400', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse(
-        { error: 'display_name_required', message: 'Set a display name before publishing.' },
-        { status: 400 }
-      )
-    );
-    await expect(publishDeck('d1')).rejects.toBeInstanceOf(DisplayNameRequiredError);
-  });
-
   it('throws DeckNotSyncedYetError specifically on a "Deck not found." 404 (fresh deck racing its own sync)', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ error: 'Deck not found.' }, { status: 404 })
@@ -135,12 +124,11 @@ describe('publishDeck', () => {
     expect(err).toBeInstanceOf(Error);
   });
 
-  it('throws a plain Error (not DisplayNameRequiredError) for any other failure', async () => {
+  it('throws a plain Error for any other failure', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ error: 'This deck needs a name before it can be published.' }, { status: 400 })
     );
     const err = await publishDeck('d1').catch((e: unknown) => e);
-    expect(err).not.toBeInstanceOf(DisplayNameRequiredError);
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).toMatch(/needs a name/);
   });

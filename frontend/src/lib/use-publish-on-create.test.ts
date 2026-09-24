@@ -31,7 +31,7 @@ vi.mock('./auth-api', () => ({
   updateProfile: (patch: { displayName: string }) => updateProfileMock(patch),
 }));
 
-import { DeckNotSyncedYetError, DisplayNameRequiredError } from './publications-client';
+import { DeckNotSyncedYetError } from './publications-client';
 import { usePublishOnCreate } from './use-publish-on-create';
 
 const PUB_FIRST: PublishResult = {
@@ -127,7 +127,6 @@ describe('usePublishOnCreate — publishAfterCreate', () => {
 
     expect(publishDeckMock).toHaveBeenCalledTimes(1);
     expect(onSettled).toHaveBeenCalledWith('deck-1', { isFirstPublish: true });
-    expect(result.current.needsDisplayName).toBe(false);
   });
 
   it('retries once and succeeds when the deck is still racing its own fire-and-forget sync (DeckNotSyncedYetError)', async () => {
@@ -163,19 +162,6 @@ describe('usePublishOnCreate — publishAfterCreate', () => {
     expect(useToastsStore.getState().toasts.some((t) => t.tone === 'warn')).toBe(true);
   });
 
-  it('on display_name_required, holds off onSettled and opens the inline substep', async () => {
-    publishDeckMock.mockRejectedValueOnce(new DisplayNameRequiredError());
-    const onSettled = vi.fn();
-    const { result } = renderHook(() => usePublishOnCreate(onSettled));
-
-    await act(async () => {
-      await result.current.publishAfterCreate('deck-2');
-    });
-
-    expect(result.current.needsDisplayName).toBe(true);
-    expect(onSettled).not.toHaveBeenCalled();
-  });
-
   it('on a generic failure, toasts a warning and still calls onSettled with no outcome', async () => {
     publishDeckMock.mockRejectedValueOnce(new Error('server exploded'));
     const onSettled = vi.fn();
@@ -186,69 +172,7 @@ describe('usePublishOnCreate — publishAfterCreate', () => {
     });
 
     expect(onSettled).toHaveBeenCalledWith('deck-3');
-    expect(result.current.needsDisplayName).toBe(false);
     expect(useToastsStore.getState().toasts.some((t) => t.tone === 'warn')).toBe(true);
-  });
-});
-
-describe('usePublishOnCreate — display-name substep', () => {
-  async function reachSubstep(onSettled = vi.fn()) {
-    publishDeckMock.mockRejectedValueOnce(new DisplayNameRequiredError());
-    const hook = renderHook(() => usePublishOnCreate(onSettled));
-    await act(async () => {
-      await hook.result.current.publishAfterCreate('deck-4');
-    });
-    return { ...hook, onSettled };
-  }
-
-  it('saveDisplayNameAndPublish updates the profile then retries publish exactly once, threading isFirstPublish', async () => {
-    updateProfileMock.mockResolvedValue({
-      displayName: 'Bob',
-      bio: null,
-      avatarCardId: null,
-      avatarCardName: null,
-      avatarImageUrl: null,
-    });
-    // reachSubstep() queues its own rejected-once first — do NOT queue a
-    // resolved-once ahead of it, that would jump the FIFO "once" queue and
-    // make the FIRST (expected-to-fail) publishDeck call resolve instead.
-    // The retry falls through to beforeEach's default mockResolvedValue.
-    const { result, onSettled } = await reachSubstep();
-
-    act(() => result.current.setDisplayNameDraft('Bob'));
-    await act(async () => {
-      await result.current.saveDisplayNameAndPublish();
-    });
-
-    expect(updateProfileMock).toHaveBeenCalledWith({ displayName: 'Bob' });
-    expect(publishDeckMock).toHaveBeenCalledTimes(2); // the original attempt + the one retry
-    expect(onSettled).toHaveBeenCalledWith('deck-4', { isFirstPublish: true });
-    expect(result.current.needsDisplayName).toBe(false);
-  });
-
-  it('a failed save toasts a warning and still calls onSettled with no outcome', async () => {
-    updateProfileMock.mockRejectedValue(new Error('name taken'));
-    const { result, onSettled } = await reachSubstep();
-
-    act(() => result.current.setDisplayNameDraft('Bob'));
-    await act(async () => {
-      await result.current.saveDisplayNameAndPublish();
-    });
-
-    expect(onSettled).toHaveBeenCalledWith('deck-4');
-    expect(result.current.needsDisplayName).toBe(false);
-    expect(useToastsStore.getState().toasts.some((t) => t.tone === 'warn')).toBe(true);
-  });
-
-  it('cancelDisplayName never calls publishDeck again, and still settles the deck as created', async () => {
-    const { result, onSettled } = await reachSubstep();
-    publishDeckMock.mockClear();
-
-    act(() => result.current.cancelDisplayName());
-
-    expect(publishDeckMock).not.toHaveBeenCalled();
-    expect(result.current.needsDisplayName).toBe(false);
-    expect(onSettled).toHaveBeenCalledWith('deck-4');
   });
 });
 
