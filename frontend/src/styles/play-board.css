@@ -9,10 +9,11 @@
   height: 100vh;
   height: 100dvh;
   z-index: var(--z-overlay);
-  /* Soft canvas behind the rounded panels — picks up the app's surface
-     tone (lighter in light themes, deep navy in dark themes) so the board
-     blends with the rest of the app instead of a flat-black slate. */
-  background: var(--bg, #0c0f17);
+  /* Black behind the panels in every theme. The board is an always-dark
+     surface (STYLE_GUIDE: white rings, near-black hub), and a light theme's
+     --bg framed the seats in a pale border that dulled their colour and
+     glared at a dim table. Black also leaves OLED pixels off. */
+  background: #000;
   color: #f4f6fa;
   display: flex;
   overflow: hidden;
@@ -122,6 +123,44 @@
   width: 100cqh;
   height: 100cqw;
   transform: translate(-50%, -50%) rotate(var(--pp-rot, 0deg));
+  --life-size: min(60cqw, 38cqh);
+}
+
+/* Ink. The numeral and everything that reads with it (±, name, subtitle,
+   the commander-damage captions) is black on a light seat and white on a
+   dark one, whichever has more contrast across the base and the spotlit
+   mid-tone. White on the W/amber seat was 1.8:1. Identity seats list their
+   letter here; seat-palette panels carry pp-ink-dark from seat-palette.ts.
+   The winner's gold and the dimmed eliminated panel are dark, so they keep
+   white. styles/play-numeral.test.ts recomputes every choice. */
+.player-panel {
+  --pp-ink: #fff;
+  /* On the panel, not only on the numeral: the life button resets itself to
+     `color: inherit` (play-effects.css), so this is what it inherits. */
+  color: var(--pp-ink);
+}
+
+.player-panel:is(.pp-color-w, .pp-color-g, .pp-color-m, .pp-ink-dark):not(
+    .is-winner,
+    .is-eliminated
+  ) {
+  --pp-ink: #000;
+}
+
+/* The dark drop-shadow that lifts white ink only muddies black ink. */
+.player-panel:is(.pp-color-w, .pp-color-g, .pp-color-m, .pp-ink-dark):not(
+    .is-winner,
+    .is-eliminated
+  )
+  :is(
+    .player-panel-life,
+    .player-panel-step-btn,
+    .player-panel-name,
+    .player-panel-subtitle,
+    .pp-cmd-caption,
+    .pp-cmd-hint
+  ) {
+  text-shadow: none;
 }
 
 .player-panel.is-eliminated {
@@ -225,6 +264,44 @@
  */
 .player-panel {
   --seam-keepout: 0.9rem;
+  /* The life numeral is sized from the panel's own box, not the viewport, so
+     it fills whatever cell a layout hands it — at any player count, on any
+     screen. The cell is the size container; a sideways panel reads it with
+     the axes swapped (see the [data-sideways] rule). 60% of the height is the
+     most the corner rails leave free; 38% of the width is what still fits the
+     numeral plus both hugging ± buttons in a 150px-wide cell. Measured on
+     every preset at 320-820px with a real browser, not read off this CSS. */
+  --life-size: min(60cqh, 38cqw);
+  --life-half: calc(var(--life-size) * 0.72);
+}
+
+/* Two seats are roomy and their ± sit at the panel ends, away from the
+   centred numeral, so it can take more of the height (2p-side on a phone
+   drew 133px before this sizing and must not shrink). */
+.game-board-2 .player-panel {
+  --life-size: min(72cqh, 38cqw);
+}
+
+.game-board-2 .player-panel[data-sideways] {
+  --life-size: min(72cqw, 38cqh);
+}
+
+/* A short panel: the corner rails are fixed-size 44px chips, so on a short
+   seat (a 148px sideways seat of 4p-sides / 3p-wide-top-sides, a 179px row
+   of 5p/6p, all at 320px) a 60% numeral ran into them. A sideways panel's
+   height is its cell's WIDTH, hence two queries (the same split as the life
+   keypad in play-effects.css). Two-seat boards are always wide enough that
+   the numeral clears the corners, so they keep their size. */
+@container (max-width: 10rem) {
+  .game-board:not(.game-board-2) .player-panel[data-sideways] {
+    --life-size: min(40cqw, 38cqh);
+  }
+}
+
+@container (max-height: 12rem) {
+  .game-board:not(.game-board-2) .player-panel:not([data-sideways]) {
+    --life-size: min(42cqh, 38cqw);
+  }
 }
 
 .player-panel-corner {
@@ -314,7 +391,7 @@
   text-align: left;
   font-size: var(--text-sm);
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.96);
+  color: var(--pp-ink);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   display: inline-flex;
   align-items: center;
@@ -355,7 +432,7 @@
 
 .player-panel-subtitle {
   font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.7);
+  color: color-mix(in srgb, var(--pp-ink) 72%, transparent);
   font-style: italic;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   max-width: 100%;
@@ -407,6 +484,16 @@
   z-index: 3;
 }
 
+/* A sideways seat's bottom-right corner can land on a seam gutter (the right
+   seat of 3p-wide-top-sides sits it right under the row seam, where the
+   clock pill covered it), so it takes the seam keep-out like the other
+   corner rails. Upright seats keep it tight: their corner is on the board
+   edge, and a narrow one needs the room for its counter chips. */
+.player-panel[data-sideways] .player-panel-menu-btn.is-corner-br {
+  bottom: calc(var(--space-1) + var(--seam-keepout));
+  right: calc(0.35rem + var(--seam-keepout));
+}
+
 /* 44px touch-target floor (UX-320 pattern) — the resting 2.5rem (40px)
    circle is 4px short on a coarse pointer. */
 @media (pointer: coarse) {
@@ -454,75 +541,33 @@
 .player-panel-life-wrap > .player-panel-step-btn {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
   pointer-events: auto;
 }
 
-.player-panel-life-wrap > .player-panel-step-btn:first-child {
-  left: 1.75rem;
-}
-
-.player-panel-life-wrap > .player-panel-step-btn:last-child {
-  right: 1.75rem;
-}
-
-@media (min-width: 600px) {
-  .player-panel-life-wrap > .player-panel-step-btn:first-child {
-    left: 2.5rem;
-  }
-  .player-panel-life-wrap > .player-panel-step-btn:last-child {
-    right: 2.5rem;
-  }
-}
-
-/* Multi-player panels: instead of pinning the − / + to the panel edges
-   (which leaves a big void next to a smaller numeral), anchor them to the
-   panel CENTRE and push them out by half the numeral's width (--life-half,
-   tracked to the per-count font clamp). They hug the number at any digit
-   count while it stays perfectly centred. */
-.game-board-3,
-.game-board-4 {
-  --life-half: 14vmin;
-}
-
-.game-board-5,
-.game-board-6 {
-  --life-half: 11vmin;
-}
-
-.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:first-child,
-.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:first-child,
-.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:first-child,
-.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:first-child {
+/* The − / + hug the numeral at every player count: anchored to the panel
+   centre and pushed out by half its width (--life-half, a fixed share of
+   --life-size), so they sit beside the number at any digit count and never
+   out at the panel ends, where a sideways seat keeps its corner controls
+   (2p-side pinned them there and ran them into ⋯ and the turn chip).
+   -of-type, not -child: in commander-damage focus a caption span leads the
+   row, and :first-child left the − unpositioned. */
+.player-panel-life-wrap > .player-panel-step-btn:first-of-type {
   left: 50%;
-  right: auto;
-  transform: translate(calc(-100% - var(--life-half, 11vmin)), -50%);
+  transform: translate(calc(-100% - var(--life-half)), -50%);
 }
 
-.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:last-child,
-.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:last-child,
-.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:last-child,
-.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:last-child {
+.player-panel-life-wrap > .player-panel-step-btn:last-of-type {
   right: 50%;
-  left: auto;
-  transform: translate(calc(100% + var(--life-half, 11vmin)), -50%);
+  transform: translate(calc(100% + var(--life-half)), -50%);
 }
 
-/* Keep the centre-anchored X offset on press (the generic :active rule
-   resets transform to translateY only, which would snap the button to
-   centre — re-assert the offset here with higher specificity). */
-.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled),
-.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled),
-.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled),
-.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled) {
-  transform: translate(calc(-100% - var(--life-half, 11vmin)), -50%) scale(0.92);
+/* Keep the offset on press (the generic :active rule resets transform). */
+.player-panel-life-wrap > .player-panel-step-btn:first-of-type:active:not(:disabled) {
+  transform: translate(calc(-100% - var(--life-half)), -50%) scale(0.92);
 }
 
-.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled),
-.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled),
-.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled),
-.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled) {
-  transform: translate(calc(100% + var(--life-half, 11vmin)), -50%) scale(0.92);
+.player-panel-life-wrap > .player-panel-step-btn:last-of-type:active:not(:disabled) {
+  transform: translate(calc(100% + var(--life-half)), -50%) scale(0.92);
 }
 
 @media (min-width: 600px) {
@@ -534,10 +579,10 @@
 .player-panel-life {
   /* Life numeral dominates the panel — sized to fill, with step buttons
      pushed to the outer edges so they read as accents, not equals. */
-  font-size: calc(clamp(7.5rem, 34vmin, 20rem) * var(--life-scale, 1));
+  font-size: calc(var(--life-size) * var(--life-scale, 1));
   font-weight: 900;
   line-height: 0.9;
-  color: #fff;
+  color: var(--pp-ink);
   text-shadow:
     0 2px 16px rgba(0, 0, 0, 0.55),
     0 0 48px rgba(0, 0, 0, 0.25);
@@ -547,36 +592,8 @@
   text-align: center;
 }
 
-/* Tighter life font when 4 panels share the screen — each panel is half by
-   half the viewport, so we want a number that doesn't crowd the ±5 buttons
-   on a small phone. */
-.game-board-4 .player-panel-life,
-.game-board-3 .player-panel-life {
-  font-size: calc(clamp(3.25rem, 16vmin, 13rem) * var(--life-scale, 1));
-}
-
-.game-board-5 .player-panel-life,
-.game-board-6 .player-panel-life {
-  font-size: calc(clamp(2.5rem, 12vmin, 9rem) * var(--life-scale, 1));
-}
-
-@media (min-width: 1600px) {
-  .game-board-2 .player-panel-life {
-    font-size: calc(clamp(7rem, 30vmin, 22rem) * var(--life-scale, 1));
-  }
-  .game-board-3 .player-panel-life,
-  .game-board-4 .player-panel-life {
-    font-size: calc(clamp(5rem, 22vmin, 15rem) * var(--life-scale, 1));
-  }
-  .game-board-5 .player-panel-life,
-  .game-board-6 .player-panel-life {
-    font-size: calc(clamp(4rem, 16vmin, 11rem) * var(--life-scale, 1));
-  }
-}
-
-/* Wide totals shrink so they stay clear of the ± buttons at the panel's
-   edges: a 320px panel fits two digits at full size, three at 72%. Set from
-   the digit count in GameBoard; every size rule above multiplies by it. */
+/* Wide totals shrink so they stay clear of the ± buttons: --life-size fits
+   two digits, three at 72%. Set from the digit count in GameBoard. */
 .player-panel-life[data-digits='3'] {
   --life-scale: 0.72;
 }
@@ -603,13 +620,13 @@
 .player-panel-step-btn {
   background: transparent;
   border: none;
-  color: #fff;
+  color: var(--pp-ink);
   text-shadow:
     0 2px 12px rgba(0, 0, 0, 0.55),
     0 0 28px rgba(0, 0, 0, 0.25);
   border-radius: var(--radius);
   padding: 0.1rem 0.6rem;
-  font-size: clamp(2.5rem, 10vmin, 6rem);
+  font-size: calc(var(--life-size) * 0.32);
   line-height: 0.9;
   font-weight: 900;
   font-family: var(--font-mono);
@@ -621,38 +638,9 @@
     transform 80ms ease;
 }
 
-/* Scale step buttons down alongside the life numeral in tighter layouts. */
-.game-board-4 .player-panel-step-btn,
-.game-board-3 .player-panel-step-btn {
-  font-size: clamp(1.5rem, 5vmin, 4rem);
-}
-
-.game-board-5 .player-panel-step-btn,
-.game-board-6 .player-panel-step-btn {
-  font-size: clamp(1.2rem, 4vmin, 2.8rem);
-}
-
-@media (min-width: 1600px) {
-  .game-board-2 .player-panel-step-btn {
-    font-size: clamp(3rem, 11vmin, 7.5rem);
-  }
-  .game-board-3 .player-panel-step-btn,
-  .game-board-4 .player-panel-step-btn {
-    font-size: clamp(2.25rem, 8.5vmin, 5.5rem);
-  }
-  .game-board-5 .player-panel-step-btn,
-  .game-board-6 .player-panel-step-btn {
-    font-size: clamp(1.75rem, 6vmin, 4rem);
-  }
-}
-
 .player-panel-step-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
-}
-
-.player-panel-step-btn:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.92);
 }
 
 /* 44px touch-target floor (UX-320 pattern): the visible ± glyph is

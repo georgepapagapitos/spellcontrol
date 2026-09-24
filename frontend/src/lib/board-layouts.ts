@@ -121,6 +121,18 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
   // column, or span the row as a Wide cell.
   3: [
     {
+      // Wide top + two sideways seats — how three people sit around a phone
+      // lying flat: one across the short edge, one on each long edge. The
+      // bottom pair face each other across the column split, so each reads
+      // along their cell's long axis and gets a far bigger numeral than an
+      // upright half-width cell allows. The hub stays on the row seam.
+      id: '3p-wide-top-sides',
+      cols: 2,
+      rows: 2,
+      seam: { row: 1 },
+      seats: [s(1, 1, 180, { c: 2 }), s(1, 2, 90), s(2, 2, 270)],
+    },
+    {
       // Wide top + 2 normal bottom. Lone player faces the pair.
       id: '3p-wide-top',
       cols: 2,

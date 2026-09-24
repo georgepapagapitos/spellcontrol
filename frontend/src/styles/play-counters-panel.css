@@ -192,6 +192,19 @@
   color: rgba(255, 255, 255, 0.72);
 }
 
+/* Commander damage at zero: the way into focus mode, not a count, so it takes
+   the add chip's quieter weight and its icon carries the chip alone. */
+.pp-counter-chip.is-idle {
+  background: rgba(0, 0, 0, 0.18);
+  color: rgba(255, 255, 255, 0.8);
+  justify-content: center;
+}
+
+.pp-counter-chip.is-idle .pp-counter-icon {
+  font-size: var(--text-base);
+  opacity: 1;
+}
+
 .pp-counters-empty {
   margin: 0;
   padding: 0.4rem 0.55rem;
@@ -326,14 +339,20 @@
 }
 
 /* "⚔ dealt to <name>" — sits above the numeral so the number is never bare.
-   Centred on the panel's own axis like the numeral itself. */
+   Centred on the panel's own axis like the numeral itself, and offset by the
+   numeral's own half-height (--life-size, play-board.css) so it clears the
+   digits at every panel size. */
+.player-panel {
+  --cmd-offset: calc(var(--life-size) * 0.45 + 0.75rem);
+}
+
 .pp-cmd-caption {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, calc(-50% - 3.2rem));
+  transform: translate(-50%, calc(-50% - var(--cmd-offset)));
   max-width: 92%;
-  color: rgba(255, 255, 255, 0.9);
+  color: color-mix(in srgb, var(--pp-ink) 90%, transparent);
   font-size: var(--text-sm);
   font-weight: 800;
   line-height: 1.2;
@@ -351,8 +370,8 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, calc(-50% + 3.2rem));
-  color: rgba(255, 255, 255, 0.8);
+  transform: translate(-50%, calc(-50% + var(--cmd-offset)));
+  color: color-mix(in srgb, var(--pp-ink) 80%, transparent);
   font-size: var(--text-sm);
   font-weight: 700;
   line-height: 1.2;
@@ -360,15 +379,6 @@
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   pointer-events: none;
-}
-
-@media (min-width: 600px) {
-  .pp-cmd-caption {
-    transform: translate(-50%, calc(-50% - 4.5rem));
-  }
-  .pp-cmd-hint {
-    transform: translate(-50%, calc(-50% + 4.5rem));
-  }
 }
 
 /* Lethal (21+ from one commander) — same red language as the counter chips. */
@@ -734,6 +744,11 @@
   .pp-counter-chip.is-add {
     min-width: 2.75rem;
     justify-content: center;
+  }
+
+  /* Same reason for commander damage at zero, which drops its number. */
+  .pp-counter-chip.is-idle {
+    min-width: 2.75rem;
   }
 
   /* Add-counter form: the field and its button are the only text entry on the

@@ -14,25 +14,28 @@ export interface SeatPalette {
   base: string;
   edge: string;
   accent: string;
+  /** Numeral/name ink: whichever of black or white reads better on this seat
+   *  (pinned by `styles/play-numeral.test.ts`, which recomputes the contrast). */
+  ink: 'light' | 'dark';
 }
 
 const PALETTE: SeatPalette[] = [
-  { base: '#c9a83a', edge: '#f0d970', accent: '#fff1bd' }, // amber
-  { base: '#c8332b', edge: '#e8615a', accent: '#ffaaa3' }, // coral red
-  { base: '#b8378a', edge: '#e25aac', accent: '#ffa8d4' }, // magenta
-  { base: '#6c4ad6', edge: '#9a7eff', accent: '#d4c4ff' }, // royal purple
-  { base: '#3047c8', edge: '#5a73f0', accent: '#a8bcff' }, // indigo
-  { base: '#1389d8', edge: '#4bb2ee', accent: '#a8dcf5' }, // sky blue
-  { base: '#0a8a86', edge: '#22b8b1', accent: '#9bdfdb' }, // teal
-  { base: '#1d9b5c', edge: '#3fc77f', accent: '#a8ebc4' }, // emerald
-  { base: '#7cae1f', edge: '#a8d048', accent: '#d8ec9c' }, // lime
-  { base: '#cf6712', edge: '#f08a3a', accent: '#ffc99c' }, // burnt orange
-  { base: '#a72237', edge: '#d44b62', accent: '#f5a3b0' }, // crimson rose
-  { base: '#5c378a', edge: '#8758b8', accent: '#c4a8e0' }, // plum
-  { base: '#4858a8', edge: '#7383c8', accent: '#b8c4e8' }, // slate blue
-  { base: '#1ba38a', edge: '#3fc7ad', accent: '#9beed5' }, // sea green
-  { base: '#d4763a', edge: '#e89858', accent: '#ffc8a3' }, // pumpkin
-  { base: '#9c4dc4', edge: '#bf7be0', accent: '#dcb8ee' }, // orchid
+  { base: '#c9a83a', edge: '#f0d970', accent: '#fff1bd', ink: 'dark' }, // amber
+  { base: '#c8332b', edge: '#e8615a', accent: '#ffaaa3', ink: 'light' }, // coral red
+  { base: '#b8378a', edge: '#e25aac', accent: '#ffa8d4', ink: 'light' }, // magenta
+  { base: '#6c4ad6', edge: '#9a7eff', accent: '#d4c4ff', ink: 'light' }, // royal purple
+  { base: '#3047c8', edge: '#5a73f0', accent: '#a8bcff', ink: 'light' }, // indigo
+  { base: '#1389d8', edge: '#4bb2ee', accent: '#a8dcf5', ink: 'dark' }, // sky blue
+  { base: '#0a8a86', edge: '#22b8b1', accent: '#9bdfdb', ink: 'dark' }, // teal
+  { base: '#1d9b5c', edge: '#3fc77f', accent: '#a8ebc4', ink: 'dark' }, // emerald
+  { base: '#7cae1f', edge: '#a8d048', accent: '#d8ec9c', ink: 'dark' }, // lime
+  { base: '#cf6712', edge: '#f08a3a', accent: '#ffc99c', ink: 'dark' }, // burnt orange
+  { base: '#a72237', edge: '#d44b62', accent: '#f5a3b0', ink: 'light' }, // crimson rose
+  { base: '#5c378a', edge: '#8758b8', accent: '#c4a8e0', ink: 'light' }, // plum
+  { base: '#4858a8', edge: '#7383c8', accent: '#b8c4e8', ink: 'light' }, // slate blue
+  { base: '#1ba38a', edge: '#3fc7ad', accent: '#9beed5', ink: 'dark' }, // sea green
+  { base: '#d4763a', edge: '#e89858', accent: '#ffc8a3', ink: 'dark' }, // pumpkin
+  { base: '#9c4dc4', edge: '#bf7be0', accent: '#dcb8ee', ink: 'dark' }, // orchid
 ];
 
 export const SEAT_PALETTE_COUNT = PALETTE.length;

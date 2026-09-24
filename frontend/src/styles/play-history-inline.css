@@ -248,8 +248,8 @@
 
 /* ── Color palettes per player ─────────────────────────────────────────── */
 
-/* Per-color playmat palettes. Hand-tuned so white text reads cleanly over
-   each --pp-base, the --pp-edge top spotlight feels like a soft glow, and
+/* Per-color playmat palettes. The --pp-edge top spotlight feels like a soft
+   glow; the ink over each (black or white) is picked in play-board.css; and
    the --pp-accent value is the saturated guild color used for the winner
    ring and the host star. */
 .pp-color-w {

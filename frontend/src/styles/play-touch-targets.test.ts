@@ -89,6 +89,9 @@ describe('play board touch targets', () => {
     expect(body).toMatch(/min-width:\s*2\.75rem/);
     // The shared chip rule supplies the height floor for every chip.
     expect(ruleBody(counters, '.pp-counter-chip')).toMatch(/min-height:\s*2\.75rem/);
+    // Commander damage at zero drops its number and becomes icon-only too.
+    const coarse = counters.slice(counters.lastIndexOf('@media (pointer: coarse)'));
+    expect(coarse).toMatch(/\.pp-counter-chip\.is-idle \{\s*min-width:\s*2\.75rem/);
   });
 
   it('the counter-chip floors live inside a coarse-pointer block', () => {

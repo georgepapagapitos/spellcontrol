@@ -4,6 +4,7 @@ import {
   encodeCustomLayout,
   homeSlotIndex,
   isCustomLayout,
+  layoutsForCount,
   resolveLayout,
   seamSatellite,
   undoButtonParams,
@@ -227,5 +228,27 @@ describe('homeSlotIndex', () => {
   it('works on decoded custom layouts', () => {
     const decoded = decodeCustomLayout(encodeCustomLayout(pod4), 4);
     expect(homeSlotIndex(decoded!)).toBe(2);
+  });
+});
+
+describe('3p default', () => {
+  // Three people round a phone lying flat sit one on the short edge and one on
+  // each long edge. The upright half-width cells of 3p-wide-top capped the
+  // bottom pair's numeral at a third of a phone's width; turning them to read
+  // along their cell's long axis is what makes the number table-legible.
+  it('seats the bottom pair sideways, facing each other across the column split', () => {
+    const def = layoutsForCount(3)[0];
+    expect(def.id).toBe('3p-wide-top-sides');
+    expect(def.seam).toEqual({ row: 1 });
+    expect(def.seats.map((s) => s.rot)).toEqual([180, 90, 270]);
+  });
+
+  it('every preset fills its grid exactly, with no overlap and no stray cell', () => {
+    for (const count of [2, 3, 4, 5, 6]) {
+      for (const l of layoutsForCount(count)) {
+        const encoded = encodeCustomLayout(l);
+        expect(decodeCustomLayout(encoded, count), l.id).not.toBeNull();
+      }
+    }
   });
 });
