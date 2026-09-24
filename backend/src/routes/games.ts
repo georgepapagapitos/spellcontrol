@@ -451,6 +451,8 @@ export const VALID_FORMATS: ReadonlyArray<GameFormat> = [
   'pauper',
   'brawl',
   'casual',
+  // Co-op, local-only for now; see local-result.ts's horde-specific parse rules.
+  'horde',
 ];
 
 /** 4-char codes — base32-style without easily-confused chars. ~1M possibilities. */

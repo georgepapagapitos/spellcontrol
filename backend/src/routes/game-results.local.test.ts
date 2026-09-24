@@ -56,6 +56,9 @@ function localGame(opts: {
   winnerSeat?: number | null;
   endedAt?: number;
   events?: unknown[];
+  format?: string;
+  coopOutcome?: 'won' | 'lost';
+  hordeId?: string;
 }) {
   // Every fixture gets a fresh id even when a caller pins endedAt — a reused
   // id is a 200 (same recorder) or a 409 (another's), never a second row.
@@ -67,7 +70,9 @@ function localGame(opts: {
     mode: 'local',
     status: 'finished',
     hostUserId: null,
-    format: 'commander',
+    format: opts.format ?? 'commander',
+    ...(opts.coopOutcome !== undefined ? { coopOutcome: opts.coopOutcome } : {}),
+    ...(opts.hordeId !== undefined ? { hordeId: opts.hordeId } : {}),
     startingLife: 40,
     commanderDamageEnabled: true,
     poisonEnabled: false,
@@ -287,6 +292,96 @@ describe('POST /api/game-results (local game)', () => {
   });
 });
 
+// ─── POST /api/game-results (horde / co-op) ──────────────────────────────────
+
+describe('POST /api/game-results (horde game)', () => {
+  it('records a 1-survivor horde game with a coopOutcome and no winning seat', async () => {
+    const ana = await makeUser('horde-solo');
+    const game = localGame({
+      seats: [{}],
+      format: 'horde',
+      winnerSeat: null,
+      coopOutcome: 'won',
+      hordeId: 'zombies',
+    });
+    const res = await request(app).post('/api/game-results').set('Cookie', ana).send({ game });
+    expect(res.status).toBe(201);
+    expect(res.body.result.format).toBe('horde');
+    expect(res.body.result.coopOutcome).toBe('won');
+    expect(res.body.result.hordeId).toBe('zombies');
+    expect(res.body.result.winnerSeat).toBeNull();
+    expect(res.body.result.winnerUserId).toBeNull();
+  });
+
+  it('accepts up to 4 survivors and rejects a 5th', async () => {
+    const ana = await makeUser('horde-4up');
+    const ok = await request(app)
+      .post('/api/game-results')
+      .set('Cookie', ana)
+      .send({
+        game: localGame({
+          seats: [{}, {}, {}, {}],
+          format: 'horde',
+          winnerSeat: null,
+          coopOutcome: 'lost',
+        }),
+      });
+    expect(ok.status).toBe(201);
+
+    const tooMany = await request(app)
+      .post('/api/game-results')
+      .set('Cookie', ana)
+      .send({
+        game: localGame({
+          seats: [{}, {}, {}, {}, {}],
+          format: 'horde',
+          winnerSeat: null,
+          coopOutcome: 'lost',
+        }),
+      });
+    expect(tooMany.status).toBe(400);
+  });
+
+  it('rejects a horde game with no coopOutcome', async () => {
+    const ana = await makeUser('horde-no-outcome');
+    const res = await request(app)
+      .post('/api/game-results')
+      .set('Cookie', ana)
+      .send({ game: localGame({ seats: [{}, {}], format: 'horde', winnerSeat: null }) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/won or lost/);
+  });
+
+  it('rejects a horde game carrying a winnerSeat', async () => {
+    const ana = await makeUser('horde-winner-seat');
+    const res = await request(app)
+      .post('/api/game-results')
+      .set('Cookie', ana)
+      .send({
+        game: localGame({ seats: [{}, {}], format: 'horde', winnerSeat: 0, coopOutcome: 'won' }),
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/no winning seat/);
+  });
+
+  it('leaves non-horde parsing unchanged: still 2-8 players, winnerSeat rules as today', async () => {
+    const ana = await makeUser('horde-non-horde-unchanged');
+    const oneSeat = await request(app)
+      .post('/api/game-results')
+      .set('Cookie', ana)
+      .send({ game: localGame({ seats: [{}] }) });
+    expect(oneSeat.status).toBe(400);
+
+    const ok = await request(app)
+      .post('/api/game-results')
+      .set('Cookie', ana)
+      .send({ game: localGame({ seats: [{}, {}], winnerSeat: 0 }) });
+    expect(ok.status).toBe(201);
+    expect(ok.body.result.coopOutcome).toBeNull();
+    expect(ok.body.result.hordeId).toBeNull();
+  });
+});
+
 // ─── GET /api/game-results/mine ──────────────────────────────────────────────
 
 describe('GET /api/game-results/mine', () => {
@@ -440,6 +535,36 @@ describe('leaderboard and h2h across modes', () => {
       .get(`/api/game-results/h2h/${bobId}?mode=online`)
       .set('Cookie', ana);
     expect(h2hOnline.body.summary.gamesPlayed).toBe(1);
+  });
+
+  it('never counts a horde (co-op) game in the leaderboard or head-to-head', async () => {
+    const ana = await makeUser('horde-stats-ana');
+    await makeUser('horde-stats-bob');
+    const anaId = await userId('horde-stats-ana');
+    const bobId = await userId('horde-stats-bob');
+    await makeFriends(anaId, bobId);
+
+    await request(app)
+      .post('/api/game-results')
+      .set('Cookie', ana)
+      .send({
+        game: localGame({
+          seats: [{ userId: anaId }, { userId: bobId }],
+          format: 'horde',
+          winnerSeat: null,
+          coopOutcome: 'won',
+        }),
+      });
+
+    const board = await request(app).get('/api/game-results/leaderboard').set('Cookie', ana);
+    expect(board.body.leaderboard).toHaveLength(0);
+
+    const h2h = await request(app).get(`/api/game-results/h2h/${bobId}`).set('Cookie', ana);
+    expect(h2h.body.summary.gamesPlayed).toBe(0);
+
+    // Still visible in personal history — only the PvP stats surfaces exclude it.
+    const mine = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    expect(mine.body.results.map((r: { format: string }) => r.format)).toContain('horde');
   });
 });
 

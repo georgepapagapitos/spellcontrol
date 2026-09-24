@@ -5,7 +5,42 @@ import {
   fetchMyResults,
   patchGameResult,
   setGameResultHidden,
+  resultToRecord,
+  type PublicGameResult,
 } from './game-results-client';
+
+function publicResult(over: Partial<PublicGameResult> = {}): PublicGameResult {
+  return {
+    sessionId: 'g1',
+    code: '',
+    mode: 'local',
+    recordedByUserId: 'u1',
+    hostUserId: null,
+    format: 'commander',
+    startingLife: 40,
+    winnerSeat: 0,
+    winnerUserId: 'u1',
+    startedAt: 1000,
+    endedAt: 2000,
+    durationMs: 1000,
+    participants: [
+      {
+        seat: 0,
+        userId: 'u1',
+        username: 'u1',
+        name: 'P1',
+        deckId: null,
+        deckName: null,
+        commander: null,
+        colorIdentity: [],
+        finalLife: 40,
+        eliminated: false,
+      },
+    ],
+    notableEvents: null,
+    ...over,
+  };
+}
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -17,6 +52,28 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+});
+
+describe('resultToRecord', () => {
+  it('carries coopOutcome and hordeId onto the record when the row has them', () => {
+    const rec = resultToRecord(
+      publicResult({
+        format: 'horde',
+        winnerSeat: null,
+        winnerUserId: null,
+        coopOutcome: 'won',
+        hordeId: 'zombies',
+      })
+    );
+    expect(rec.coopOutcome).toBe('won');
+    expect(rec.hordeId).toBe('zombies');
+  });
+
+  it('omits coopOutcome and hordeId for a non-co-op row', () => {
+    const rec = resultToRecord(publicResult());
+    expect(rec.coopOutcome).toBeUndefined();
+    expect(rec.hordeId).toBeUndefined();
+  });
 });
 
 describe('fetchLeaderboard', () => {

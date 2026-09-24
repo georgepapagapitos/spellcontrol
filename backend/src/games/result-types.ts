@@ -58,4 +58,10 @@ export interface PublicGameResult {
    *  written before this column existed; the rollups in games/rollup.ts
    *  exclude such games rather than scoring them as zeroes. */
   summary: GameSummary | null;
+  /** Co-op outcome (format = 'horde' only) — the whole table wins or loses
+   *  together, so there is no winnerSeat/winnerUserId on these rows. Null for
+   *  every other format. */
+  coopOutcome: 'won' | 'lost' | null;
+  /** Which horde deck a co-op game was fought against. Null otherwise. */
+  hordeId: string | null;
 }

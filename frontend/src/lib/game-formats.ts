@@ -30,8 +30,19 @@ export const FORMAT_OPTIONS: FormatOption[] = [
 export const MAX_LOCAL_PLAYERS = 6;
 export const MIN_LOCAL_PLAYERS = 2;
 
+/**
+ * Formats with a display label but no local-setup option — not offered when
+ * starting a game (each has its own dedicated flow), but a game already
+ * recorded in that format still needs a real label rather than the raw id.
+ */
+const OTHER_FORMAT_LABELS: Record<string, string> = {
+  horde: 'Horde',
+};
+
 /** Display label for a stored format id, or the raw value if it's unknown. */
 export function gameFormatLabel(format: string | null): string | null {
   if (!format) return null;
-  return FORMAT_OPTIONS.find((f) => f.value === format)?.label ?? format;
+  return (
+    FORMAT_OPTIONS.find((f) => f.value === format)?.label ?? OTHER_FORMAT_LABELS[format] ?? format
+  );
 }
