@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { pending } from '@/test/pending';
@@ -14,10 +14,9 @@ vi.mock('../components/AddCardsSheet', () => ({
   ),
 }));
 
-// All eight bento cards (3 social + 5 signal) fetch or read IndexedDB on
-// mount — stubbed so this suite stays hermetic and only exercises
-// HomePage's own composition, not each card's own branching (covered by
-// each card's own test file).
+// Every section fetches or reads IndexedDB on mount — stubbed so this suite
+// stays hermetic and exercises HomePage's composition and the hero, not each
+// section's own branching (covered by each section's own test file).
 vi.mock('../lib/use-activity', () => ({
   useActivity: () => ({ count: 0, actionRequired: [], recent: [], loading: false }),
 }));
@@ -39,6 +38,10 @@ vi.mock('../lib/friends-client', () => ({
 }));
 vi.mock('../lib/discover-client', () => ({
   listDiscoverDecks: () => Promise.resolve({ decks: [], page: 1, hasMore: false }),
+  likeDeck: vi.fn(),
+  unlikeDeck: vi.fn(),
+  bookmarkDeck: vi.fn(),
+  unbookmarkDeck: vi.fn(),
 }));
 vi.mock('../components/play/GameNights', () => ({
   useGameNights: () => ({ nights: [], loading: false, error: null, refresh: vi.fn() }),
@@ -76,11 +79,11 @@ vi.mock('../lib/card-thumbs', () => ({
 // The hero reads live sync state to distinguish "settled empty" from "still
 // settling" — pinned to idle here so the fallback branch is deterministic;
 // the settling branch flips this per-test.
-const mockSyncState = vi.hoisted(() => ({ state: 'idle' as string }));
+const mockSyncState = vi.hoisted(() => ({ state: 'ready' as string }));
 vi.mock('../lib/sync', () => ({
   getSyncState: () => mockSyncState.state,
   onSyncedChange: () => () => {},
-  // GetStartedCard and RecentDecksCard read `useAwaitingFirstPull`, which bails
+  // The hero, YourDecks and WaitingOnYou read `useAwaitingFirstPull`, which bails
   // on a failed pull so a broken sync falls back to the empty state instead of
   // spinning forever. Without this the whole file throws on mount.
   hasSyncError: () => false,
@@ -95,6 +98,7 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import type { BinderDef, EnrichedCard } from '../types';
 import type { Deck } from '../store/decks';
+import { dayKey } from '../lib/value-history';
 
 /** The thinnest rows the scale line's three counts can be taken from — the
  *  cards below still walk them (NewArrivalsCard reads deck.cards), so an
@@ -114,6 +118,12 @@ function makeDeckRow(id: string): Deck {
   } as unknown as Deck;
 }
 
+/** A collection with cards, so the hero shows the collection rather than
+ *  the setup checklist an empty one gets. */
+function withCollection() {
+  useCollectionStore.setState({ cards: [makeRow(), makeRow()] });
+}
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -128,7 +138,9 @@ beforeEach(() => {
   mockAuthState.profile = null;
   mockPickHeroCard.mockReturnValue(null);
   mockUseCardThumb.mockReturnValue(undefined);
-  mockSyncState.state = 'idle';
+  // 'ready' = the first pull has landed, so an empty collection is settled
+  // empty (useAwaitingFirstPull); tests that need it pending set their own.
+  mockSyncState.state = 'ready';
   mockGetValueHistory.mockImplementation(() => Promise.resolve([]));
   // The remembered /home shape is written from effects that can land after a
   // test's last await — cleared at the start, never the end.
@@ -136,58 +148,164 @@ beforeEach(() => {
   // The real store boots with hydrating: true (App flips it after the IDB
   // hydrate); settle it here so the fallback branch is reachable by default.
   useCollectionStore.setState({ hydrating: false, cards: [], binders: [] });
-  useDecksStore.setState({ decks: [] });
+  useDecksStore.setState({ decks: [], hydrated: true });
 });
 
 describe('HomePage', () => {
-  it('renders the hero greeting and all eight bento cards', () => {
+  it('reads top to bottom for a returning collector: hero, decks, table, discover', async () => {
+    withCollection();
+    useDecksStore.setState({ decks: [makeDeckRow('d1')], hydrated: true });
     renderPage();
     expect(screen.getByRole('heading', { level: 1, name: 'Good morning, georgep' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'Activity' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'New from friends' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'Discover' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'Recent decks' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'Game nights' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'Value movers' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'New arrivals' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'Binder review' })).toBeTruthy();
-    expect(screen.queryByTestId('add-cards-sheet')).toBeNull();
-  });
-
-  it('renders Quick Actions with the correct link targets', () => {
-    renderPage();
-    expect(screen.getByRole('link', { name: /New deck/i }).getAttribute('href')).toBe('/decks/new');
-    expect(screen.getByRole('link', { name: /Plan a game night/i }).getAttribute('href')).toBe(
-      '/play/nights'
+    // Sections with nothing to show (no price movers, no import, nobody at the
+    // table) render nothing once settled. Cards but no binder yet: that step
+    // is waiting on you.
+    await waitFor(() =>
+      expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+        'Waiting on you',
+        'Your decks',
+        'Discover',
+      ])
     );
-    expect(screen.getByRole('button', { name: /Import cards/i })).toBeTruthy();
-  });
-
-  it('search scope is a native radio pair (exclusive-value picker, not a tab strip) and switches the search placeholder', () => {
-    renderPage();
-    const mine = screen.getByRole('radio', { name: 'My decks' }) as HTMLInputElement;
-    const discover = screen.getByRole('radio', { name: 'Discover' }) as HTMLInputElement;
-    expect(mine.checked).toBe(true);
-    expect(discover.checked).toBe(false);
-    expect(screen.getByPlaceholderText('Search your decks')).toBeTruthy();
-
-    fireEvent.click(discover);
-    expect(discover.checked).toBe(true);
-    expect(mine.checked).toBe(false);
-    expect(screen.getByPlaceholderText('Search commanders')).toBeTruthy();
-  });
-
-  it('opens AddCardsSheet when "Import cards" is clicked', () => {
-    renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /Import cards/i }));
-    expect(screen.getByTestId('add-cards-sheet')).toBeTruthy();
-  });
-
-  it('closes AddCardsSheet via its onClose callback', () => {
-    renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /Import cards/i }));
-    fireEvent.click(screen.getByText('Close'));
+    expect(screen.getByRole('link', { name: 'Build your first binder' })).toBeTruthy();
+    // Nothing in the table: one quiet line, not three empty cards.
+    expect(screen.getByRole('region', { name: 'Around the table' })).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByText('No public decks from other players yet.')).toBeTruthy()
+    );
     expect(screen.queryByTestId('add-cards-sheet')).toBeNull();
+  });
+
+  // STYLE_GUIDE § Layout system: one filled primary, one outline secondary, a
+  // ⋮ for the rest. It was four equal outline buttons under a scoped search.
+  describe('hero actions', () => {
+    beforeEach(() => withCollection());
+
+    it('are Add cards, New deck, and a ⋮ holding the rest', () => {
+      renderPage();
+      const add = screen.getByRole('button', { name: 'Add cards' });
+      expect(add.className).toContain('btn-primary');
+      expect(screen.getByRole('link', { name: 'New deck' }).getAttribute('href')).toBe(
+        '/decks/new'
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+      expect(screen.getByRole('menuitem', { name: 'Plan a game night' })).toBeTruthy();
+      expect(screen.getByRole('menuitem', { name: 'Friends' })).toBeTruthy();
+    });
+
+    it('has no search box or scope toggle of its own — each list carries its own search', () => {
+      renderPage();
+      expect(screen.queryByRole('radio')).toBeNull();
+      expect(screen.queryByRole('search', { name: /scope/i })).toBeNull();
+    });
+
+    it('opens AddCardsSheet from Add cards, and closes it', () => {
+      renderPage();
+      fireEvent.click(screen.getByRole('button', { name: 'Add cards' }));
+      expect(screen.getByTestId('add-cards-sheet')).toBeTruthy();
+      fireEvent.click(screen.getByText('Close'));
+      expect(screen.queryByTestId('add-cards-sheet')).toBeNull();
+    });
+  });
+
+  // An empty collection's hero is the setup checklist (it was a separate Get
+  // started card beside eight empty rows).
+  describe('hero checklist', () => {
+    it('shows the three steps, the sample collection, and the guides for an empty collection', () => {
+      renderPage();
+      expect(screen.getByRole('heading', { level: 1, name: 'Start with your cards' })).toBeTruthy();
+      expect(screen.getByText('Good morning, georgep')).toBeTruthy();
+      expect(screen.getByRole('link', { name: /Add your collection/ }).getAttribute('href')).toBe(
+        '/collection?add=list'
+      );
+      expect(
+        screen.getByRole('link', { name: /Build your first binder/ }).getAttribute('href')
+      ).toBe('/collection/binders');
+      expect(screen.getByRole('link', { name: /Make a deck/ }).getAttribute('href')).toBe(
+        '/decks/new'
+      );
+      expect(screen.getByRole('button', { name: /Try the sample collection/ })).toBeTruthy();
+      expect(screen.getByRole('link', { name: /Read the guides/ }).getAttribute('href')).toBe(
+        '/guides/'
+      );
+      expect(screen.getByRole('button', { name: 'Add cards' })).toBeTruthy();
+    });
+
+    it('ticks a finished step instead of linking it', () => {
+      useDecksStore.setState({ decks: [makeDeckRow('d1')], hydrated: true });
+      renderPage();
+      expect(screen.queryByRole('link', { name: /Make a deck/ })).toBeNull();
+      expect(screen.getByText(/, done/)).toBeTruthy();
+    });
+
+    it('never shows while the collection is still hydrating', () => {
+      useCollectionStore.setState({ hydrating: true });
+      renderPage();
+      expect(screen.queryByText('Start with your cards')).toBeNull();
+    });
+
+    it('gives a guest the checklist with no personal greeting', () => {
+      mockAuthState.status = 'guest';
+      renderPage();
+      expect(screen.getByRole('heading', { level: 1, name: 'Start with your cards' })).toBeTruthy();
+      expect(screen.getByText('Welcome to SpellControl')).toBeTruthy();
+      expect(screen.queryByText(/Good morning/)).toBeNull();
+    });
+  });
+
+  // One fact, one place: the value and its trend live in the hero only.
+  describe('hero value and sparkline', () => {
+    beforeEach(() => withCollection());
+
+    it('draws the value, its delta and the sparkline from two points up', async () => {
+      mockGetValueHistory.mockImplementation(() =>
+        Promise.resolve([
+          { day: dayKey(Date.now() - 7 * 86400000), value: 100, at: Date.now() - 7 * 86400000 },
+          { day: dayKey(Date.now()), value: 130, at: Date.now() },
+        ])
+      );
+      const { container } = renderPage();
+      expect(await screen.findByText('$130')).toBeTruthy();
+      expect(screen.getByText('+$30 this week')).toBeTruthy();
+      await waitFor(() =>
+        expect(container.querySelector('.home-value-sparkline-line')).toBeTruthy()
+      );
+      const slider = screen.getByRole('slider');
+      const label = slider.getAttribute('aria-label') ?? '';
+      expect(label).toContain('$100');
+      expect(label).toContain('$130');
+      expect(label).toContain('+30%');
+      expect(screen.getByText('Today')).toBeTruthy();
+    });
+
+    it('steps the readout with the arrow keys and clears it with Escape', async () => {
+      mockGetValueHistory.mockImplementation(() =>
+        Promise.resolve([
+          { day: dayKey(Date.now() - 2 * 86400000), value: 100, at: Date.now() - 2 * 86400000 },
+          { day: dayKey(Date.now() - 86400000), value: 110, at: Date.now() - 86400000 },
+          { day: dayKey(Date.now()), value: 130, at: Date.now() },
+        ])
+      );
+      renderPage();
+      const slider = await screen.findByRole('slider');
+      expect(slider.getAttribute('aria-valuenow')).toBe('2');
+      fireEvent.keyDown(slider, { key: 'ArrowLeft' });
+      expect(slider.getAttribute('aria-valuenow')).toBe('1');
+      expect(within(slider).getByRole('status').textContent).toContain('$110');
+      fireEvent.keyDown(slider, { key: 'Home' });
+      expect(slider.getAttribute('aria-valuenow')).toBe('0');
+      fireEvent.keyDown(slider, { key: 'Escape' });
+      expect(slider.getAttribute('aria-valuenow')).toBe('2');
+    });
+
+    it('draws no sparkline from a single point', async () => {
+      mockGetValueHistory.mockImplementation(() =>
+        Promise.resolve([{ day: dayKey(Date.now()), value: 130, at: Date.now() }])
+      );
+      const { container } = renderPage();
+      expect(await screen.findByText('$130')).toBeTruthy();
+      expect(container.querySelector('.home-value-sparkline')).toBeNull();
+    });
   });
 
   describe('hero featured card', () => {
@@ -199,6 +317,7 @@ describe('HomePage', () => {
     });
 
     it('shows the card art + tape-label caption once a hero card resolves', () => {
+      withCollection();
       mockPickHeroCard.mockReturnValue({ name: 'Sol Ring', reason: 'top' });
       mockUseCardThumb.mockReturnValue('sol-ring.png');
       const { container } = renderPage();
@@ -211,6 +330,7 @@ describe('HomePage', () => {
     });
 
     it('renders the owned printing art directly, skipping name resolution', () => {
+      withCollection();
       mockPickHeroCard.mockReturnValue({
         name: 'Sol Ring',
         art: 'owned-printing.jpg',
@@ -238,6 +358,7 @@ describe('HomePage', () => {
 
     it('never shows personal art for a guest, even if a hero card would otherwise resolve', () => {
       mockAuthState.status = 'guest';
+      withCollection();
       mockPickHeroCard.mockReturnValue({ name: 'Sol Ring', reason: 'top' });
       mockUseCardThumb.mockReturnValue('sol-ring.png');
       const { container } = renderPage();

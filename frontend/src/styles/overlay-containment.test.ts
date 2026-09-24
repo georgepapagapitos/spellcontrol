@@ -181,6 +181,9 @@ describe('horizontal tab strips', () => {
     ['styles/playtest.css', '.playtest-mana-pool'],
     ['components/play/H2HSummary.css', '.h2h-detail'],
     ['styles/admin-scanner.css', '.admin-users-table-scroll'],
+    // Home's swipe rows: Waiting on you, and the deck / Discover tile rows.
+    ['components/home/WaitingOnYou.css', '.home-tasks'],
+    ['pages/HomePage.css', '.decks-index-list.is-grid.home-rail'],
   ];
 
   for (const [file, selector] of STRIPS) {
@@ -291,12 +294,20 @@ describe('coarse-pointer touch floor', () => {
     // is desktop-density (measured 31.6px); lifted page-scoped, because raising
     // the shared primitive is an app-wide sweep of its own.
     ['pages/TradesPage.css', '.trades-page .trades-search > input'],
-    // Home's Quick Actions, which now carry the phone's front door to the
-    // social cluster (the Friends pill). The floor was already applied here
-    // but nothing pinned it, so deleting the coarse block would have dropped
-    // the door below 44px silently — this allowlist is opt-in, so a control
-    // is unguarded until it is named. Measured 121.3×44 at 320-1440px.
-    ['components/home/QuickActionsRow.css', '.home-quick-action'],
+    // Home's hero actions (Add cards, the secondary, the ⋮). The ⋮ carries
+    // the phone's door to Plan a game night and Friends. This allowlist is
+    // opt-in, so a control is unguarded until it is named here.
+    ['components/home/HomeHero.css', '.home-hero-action'],
+    ['components/home/HomeHero.css', '.home-hero-more'],
+    // Home's section doors ("All 6", "Browse", "View trend"), the phone's
+    // section-search button, and the list rows under Recently added.
+    ['components/home/HomeCard.css', '.home-door'],
+    ['pages/HomePage.css', '.home-section-search-link'],
+    ['components/home/RecentlyAddedCard.css', '.home-added-fit'],
+    // The quiet line's doors and Around the table's RSVP: the RSVP changes
+    // state, so it takes the floor per the mutating-actions ruling.
+    ['pages/HomePage.css', '.home-quiet-actions .btn'],
+    ['components/home/AroundTheTable.css', '.home-table-rsvp .btn'],
     // ── The rule / sort / filter overlay family ──────────────────────────
     // The binder summary line's sort breadcrumb. Dense row (it shares a line
     // with Browse pages and Collapse all), so it takes the floor on a ghost.
@@ -441,7 +452,6 @@ describe('segmented-control options carry the coarse floor on the SPAN', () => {
     ['styles/binder-card-management.css', '.binder-mode-pill'],
     ['styles/binder-rules-editor.css', '.rule-segmented-pill'],
     ['playtest/components/ScrySheet.css', '.playtest-scry-mode'],
-    ['components/home/HomeHero.css', '.home-hero-scope-option'],
     ['styles/settings-sync.css', '.settings-currency-option'],
   ];
 

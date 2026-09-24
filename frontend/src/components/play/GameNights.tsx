@@ -35,6 +35,7 @@ import {
   type RsvpStatus,
   NIGHT_VENUES,
   type NightVenue,
+  STATUS_LABELS,
 } from '../../lib/game-nights-api';
 import { CalendarPlus, ChevronDown, ChevronRight } from 'lucide-react';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../../lib/calendar-links';
@@ -52,12 +53,6 @@ import { TonightTrades } from './TonightTrades';
 import './GameNights.css';
 
 import { userMessage } from '@/lib/user-error';
-const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
-  { status: 'going', label: 'Going' },
-  { status: 'maybe', label: 'Maybe' },
-  { status: 'declined', label: "Can't make it" },
-];
-
 /** Loading placeholder — two `.game-night-card` shells (real chrome, so the
  *  silhouette can't drift from the loaded card) with shimmering bars standing
  *  in for the title/pill, when, meta, tally, and action-row lines. Mirrors the

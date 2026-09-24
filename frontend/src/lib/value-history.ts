@@ -344,8 +344,8 @@ export interface ValueDeltaChip {
  * STYLE_GUIDE "Money deltas & value sparklines": "this week" only when the
  * latest point is fresh and the span is short, otherwise the honest
  * baseline date; a zero delta reads as "Steady", never "+$0". Shared by
- * every surface that repeats this same headline delta (ValueMoversCard's
- * hero figure, the Home hero's value chip) — see STYLE_GUIDE's "color every
+ * every surface that shows this headline delta (the Home hero's value chip,
+ * and any later restatement of it) — see STYLE_GUIDE's "color every
  * rendering of the same delta" — so they can't drift out of sync with each
  * other over independent edits.
  */

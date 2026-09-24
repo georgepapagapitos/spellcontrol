@@ -1,0 +1,92 @@
+/* ValueSparkline.css — the hero's collection-value sparkline */
+
+.home-value-sparkline-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* The box sets the chart's size and the SVG fills it (absolutely, so the SVG
+   never feeds its own height back into the measurement). 48px on a phone;
+   from 600px it also grows with the space the hero's grid row gives it. */
+.home-value-sparkline {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 48px;
+  border-radius: var(--radius);
+  /* Horizontal pointer scrubbing owns the x axis; keep vertical page
+     scrolling native on touch (STYLE_GUIDE Charts ruling). */
+  touch-action: pan-y;
+}
+
+.home-value-sparkline:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.home-value-sparkline svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: visible;
+}
+
+.home-value-sparkline-baseline {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.home-value-sparkline-area {
+  fill: var(--accent);
+  opacity: 0.1;
+}
+
+.home-value-sparkline-line {
+  stroke: var(--accent);
+}
+
+.home-value-sparkline-crosshair {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.home-value-sparkline-dot {
+  fill: var(--accent);
+  stroke: var(--surface-raised);
+  stroke-width: 2;
+}
+
+.home-value-sparkline-tooltip {
+  position: absolute;
+  top: calc(-1 * var(--space-2));
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 2px var(--space-2);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.home-value-sparkline-tooltip-value {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-value-sparkline-tooltip-day {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.home-value-sparkline-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

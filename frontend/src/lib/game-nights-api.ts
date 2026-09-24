@@ -9,6 +9,14 @@ import type { FriendCard } from './cube/pool';
 
 export type RsvpStatus = 'going' | 'maybe' | 'declined';
 
+/** The three answers, in order — shared by the Play page's night card and
+ *  Home's Around the table so both read the same. */
+export const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
+  { status: 'going', label: 'Going' },
+  { status: 'maybe', label: 'Maybe' },
+  { status: 'declined', label: "Can't make it" },
+];
+
 /** Where a night is played — see `GameNight.venue`. */
 export type NightVenue = 'table' | 'online';
 export const NIGHT_VENUES: ReadonlyArray<{ value: NightVenue; label: string; hint: string }> = [
