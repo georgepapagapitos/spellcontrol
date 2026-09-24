@@ -824,5 +824,13 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       next[action.designation] = action.held;
       return withHistory(state, next);
     }
+    case 'ADJUST_COMMANDER_TAX': {
+      const casts = state.commanderTax[action.cardId] ?? 0;
+      const to = Math.max(0, casts + action.delta);
+      if (to === casts) return state;
+      const next = snapshot(state);
+      next.commanderTax = { ...next.commanderTax, [action.cardId]: to };
+      return withHistory(state, next);
+    }
   }
 }

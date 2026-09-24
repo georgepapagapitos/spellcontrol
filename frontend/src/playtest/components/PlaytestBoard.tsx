@@ -166,7 +166,12 @@ import { DesignationsPicker } from './DesignationsPicker';
 import { RESISTANCE_LEVEL_ANNOUNCE, RESISTANCE_LEVEL_LABEL } from '../lib/resistance';
 import { PlaytestSessionSummary } from './PlaytestSessionSummary';
 import { resolveTokenArt } from '../lib/token-art';
-import { commanderTaxAmount, MOVE_DESTINATIONS, ZONE_VIEWER_LABEL } from '../lib/zones';
+import {
+  commanderTaxAmount,
+  MOVE_DESTINATIONS,
+  taxCommanders,
+  ZONE_VIEWER_LABEL,
+} from '../lib/zones';
 import { LifeStrip } from './LifeStrip';
 import { ManaPool } from './ManaPool';
 
@@ -265,6 +270,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // shared CardPreview component without changing reducer types. The keys
   // mirror what `deckToPlaytestInit` produces (slotId#copy for mainboard,
   // cmd-<scryfallId> for commanders, sb-<slotId> for the sideboard).
+  // The commanders the coins above the command zone track, gold then silver
+  // in the deck's own order (see `taxCommanders`).
+  const taxCards = useMemo(
+    () =>
+      taxCommanders(
+        state,
+        [deck?.commander?.id, deck?.partnerCommander?.id].flatMap((id) => (id ? [`cmd-${id}`] : []))
+      ),
+    [state, deck?.commander?.id, deck?.partnerCommander?.id]
+  );
+
   const cardLookup = useMemo(() => {
     if (!deck) return undefined;
     const map = new Map<string, ScryfallCard>();
@@ -2579,6 +2595,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             label="Command"
             cards={state.zones.command}
             commanderTax={state.commanderTax}
+            taxCards={taxCards}
+            onAdjustTax={(cardId, delta) =>
+              dispatch({ type: 'ADJUST_COMMANDER_TAX', cardId, delta })
+            }
             click={{
               label: 'View the command zone',
               onClick: () => setViewer({ zone: 'command' }),
@@ -2917,7 +2937,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             dispatch({ type: 'ATTACH', cardId: ctx.cardId, targetId });
             setCtx(null);
           }}
-          tax={commanderTaxAmount(state.commanderTax, ctxCard.card.id)}
           printedPt={
             ctxPower !== null && ctxToughness !== null
               ? { power: ctxPower, toughness: ctxToughness }

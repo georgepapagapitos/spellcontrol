@@ -68,6 +68,7 @@ const SAMPLE_ACTIONS: Record<PlaytestAction['type'], PlaytestAction> = {
   ADJUST_LIFE: { type: 'ADJUST_LIFE', delta: -1 },
   SET_PLAYER_COUNTER: { type: 'SET_PLAYER_COUNTER', counter: 'poison', delta: 1 },
   SET_DESIGNATION: { type: 'SET_DESIGNATION', designation: 'monarch', held: true },
+  ADJUST_COMMANDER_TAX: { type: 'ADJUST_COMMANDER_TAX', cardId: 'c1', delta: 1 },
 };
 
 const VERDICTS: readonly RewindVerdict[] = ['locked', 'consent', 'free'];

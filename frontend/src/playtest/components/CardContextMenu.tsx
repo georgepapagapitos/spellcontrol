@@ -20,8 +20,6 @@ interface Props {
   attachedToName?: string;
   /** `null` detaches. */
   onAttach(targetId: string | null): void;
-  /** Current commander tax (already ×2, e.g. 4 for "Tax: +4"); 0/undefined hides the line. */
-  tax?: number;
   /** Only true two-faced cards (transform/MDFC) offer Flip. */
   canTransform?: boolean;
   /** Current tapped / face-down state — the menu names the action that
@@ -171,7 +169,6 @@ export function CardContextMenu({
   attachTargets,
   attachedToName,
   onAttach,
-  tax,
   canTransform = false,
   tapped = false,
   faceDown = false,
@@ -476,13 +473,10 @@ export function CardContextMenu({
 
   // Opened on a card that is part of a selection, this menu acts on the whole
   // selection — the heading is what says so before anything is clicked.
-  const header = (selectionSize > 1 || Boolean(tax)) && (
-    <>
-      {selectionSize > 1 && (
-        <div className="playtest-ctx-selection">{selectionSize} cards selected</div>
-      )}
-      {Boolean(tax) && <div className="playtest-ctx-tax">Tax: +{tax}</div>}
-    </>
+  // Commander tax is not here: it lives on the coins above the command zone,
+  // where it can be read and changed while the commander is on the table.
+  const header = selectionSize > 1 && (
+    <div className="playtest-ctx-selection">{selectionSize} cards selected</div>
   );
 
   return (

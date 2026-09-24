@@ -6080,6 +6080,18 @@ a commander opens its card menu; it never casts.** Casting is that menu's
 Move to ▸ Battlefield, or a drag onto the felt, because a click that cast put
 the commander on the table every time someone only meant to look at it.
 
+**Commander tax is a coin above the command zone, never a line in a menu**
+(2026-09-24, EDHPlay's layout). One coin per commander (`taxCommanders`: the
+deck's commander gold, its partner silver, a card put in the zone by hand too,
+two at most) sits out of flow above the Command label, with the tax beside it.
+A click adds a cast (+2), a right-click, the Context Menu key or a long-press
+takes one off, floored at zero; each is an undoable, logged step. The coins
+stay while their commander is on the battlefield, because that is when the
+next cast's price matters, and the card's own menu no longer repeats it.
+Hovering or focusing a coin never opens the pile under it: the coins ride on
+the pile's top, and an opening pile would slide a coin out from under the
+pointer between one click and the next (the first build did exactly that).
+
 **Every key has a pointer twin.** A shortcut that exists only on the keyboard
 is not shipped: each one is also a card-menu item, a table-menu item, or a
 control on the surface it drives (the stack strip's own buttons). Menu items

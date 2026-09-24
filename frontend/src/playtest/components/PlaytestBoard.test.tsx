@@ -1961,8 +1961,8 @@ describe('PlaytestBoard — the command zone with partners', () => {
 
   it('shows both commanders, each reachable by name', () => {
     mount(withCommanders(['Halana, Kessig Ranger', 'Alena, Kessig Trapper']));
-    expect(screen.getByRole('button', { name: /^Halana, Kessig Ranger/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^Alena, Kessig Trapper/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Halana, Kessig Ranger' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Alena, Kessig Trapper' })).toBeTruthy();
     expect(document.querySelectorAll('.playtest-pile__commander').length).toBe(2);
   });
 
@@ -1971,27 +1971,14 @@ describe('PlaytestBoard — the command zone with partners', () => {
   // casting is the menu's Move to ▸ Battlefield, or a drag onto the felt.
   it('opens the clicked commander’s menu and plays nothing', () => {
     mount(withCommanders(['Halana', 'Alena']));
-    fireEvent.click(screen.getByRole('button', { name: /^Alena/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alena' }));
     expect(screen.getByRole('menu', { name: 'Alena' })).toBeTruthy();
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it('gives each commander its own tax, not one number for the zone', () => {
-    // cmd-0 cast twice (+4), cmd-1 never (+0) — the reducer stores casts, the
-    // badge doubles them (MTG 903.10).
-    mount(withCommanders(['Halana', 'Alena'], { 'cmd-0': 2 }));
-    const halana = screen.getByRole('button', { name: /^Halana/ });
-    const alena = screen.getByRole('button', { name: /^Alena/ });
-    expect(halana.getAttribute('aria-label')).toContain('tax +4');
-    expect(alena.getAttribute('aria-label')).not.toContain('tax');
-    // Both badges render, so the row cannot reflow when one goes from 0.
-    expect(document.querySelectorAll('.playtest-pile__tax--own').length).toBe(2);
-  });
-
   it('still works with a single commander', () => {
     mount(withCommanders(['Krenko, Mob Boss'], { 'cmd-0': 1 }));
-    const btn = screen.getByRole('button', { name: /^Krenko, Mob Boss/ });
-    expect(btn.getAttribute('aria-label')).toContain('tax +2');
+    const btn = screen.getByRole('button', { name: 'Krenko, Mob Boss' });
     fireEvent.click(btn);
     expect(dispatch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('menuitem', { name: /^Move to/ }));
@@ -2020,7 +2007,7 @@ describe('PlaytestBoard — the command zone with partners', () => {
   // Move to leads with the battlefield, which from here is casting it.
   it('gives each commander its own card menu', () => {
     mount(withCommanders(['Halana', 'Alena']));
-    fireEvent.contextMenu(screen.getByRole('button', { name: /^Alena/ }), {
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Alena' }), {
       clientX: 10,
       clientY: 10,
     });
@@ -2162,6 +2149,93 @@ describe('PlaytestBoard — ctrl + wheel sizes the cards', () => {
     const e = wheel(-100, false);
     expect(e.defaultPrevented).toBe(false);
     expect(zoom()).toBe('1');
+  });
+});
+
+/**
+ * Commander tax, EDHPlay's way (user, 2026-09-24): a coin per commander above
+ * the command zone, gold then silver, and never a line in the card's menu. A
+ * click adds a cast, a right-click takes one off, and the coin stays while
+ * its commander is on the battlefield, which is when the next cast's price
+ * matters.
+ */
+describe('PlaytestBoard — commander tax coins', () => {
+  const coins = () => [...document.querySelectorAll('.playtest-pile__coin')];
+
+  function withPartners(tax: Record<string, number> = {}) {
+    const base = seededState();
+    return {
+      ...base,
+      zones: {
+        ...base.zones,
+        command: [
+          { id: 'cmd-a', name: 'Halana', origin: 'command' as const },
+          { id: 'cmd-b', name: 'Alena', origin: 'command' as const },
+        ],
+      },
+      commanderTax: tax,
+    };
+  }
+
+  function mount(state: ReturnType<typeof seededState>) {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+  }
+
+  it('shows one coin per commander, the partner’s silver, each with its own tax', () => {
+    // Halana cast twice: the reducer stores casts, the coin doubles them.
+    mount(withPartners({ 'cmd-a': 2 }));
+    expect(coins().map((c) => c.getAttribute('aria-label'))).toEqual([
+      'Halana commander tax, 4',
+      'Alena commander tax, 0',
+    ]);
+    expect(coins()[1].classList.contains('playtest-pile__coin--partner')).toBe(true);
+  });
+
+  it('adds a cast on a click and takes one off on a right-click, opening nothing', () => {
+    mount(withPartners());
+    const [halana, alena] = coins();
+    fireEvent.click(halana);
+    fireEvent.contextMenu(alena);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'ADJUST_COMMANDER_TAX',
+      cardId: 'cmd-a',
+      delta: 1,
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'ADJUST_COMMANDER_TAX',
+      cardId: 'cmd-b',
+      delta: -1,
+    });
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('keeps the coin while the commander is on the battlefield, and its menu says no tax', () => {
+    const s = applyAction(withPartners({ 'cmd-a': 1 }), {
+      type: 'MOVE_TO_BATTLEFIELD',
+      cardId: 'cmd-a',
+      x: 0.4,
+      y: 0.4,
+    });
+    mount(s);
+    // Same coins, same order: Halana keeps the gold one off the zone.
+    expect(coins().map((c) => c.getAttribute('aria-label'))).toEqual([
+      'Halana commander tax, 4',
+      'Alena commander tax, 0',
+    ]);
+    fireEvent.contextMenu(
+      document.querySelector<HTMLElement>('.playtest-battlefield [data-card-id="cmd-a"]')!
+    );
+    expect(screen.getByRole('menu', { name: 'Halana' })).toBeTruthy();
+    expect(screen.queryByText(/Tax/)).toBeNull();
+  });
+
+  it('shows no coin for a list with no commander', () => {
+    mount(seededState());
+    expect(coins()).toHaveLength(0);
   });
 });
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { Coins } from 'lucide-react';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { useLongPress } from '@/lib/use-long-press';
 import { commanderTaxAmount } from '../lib/zones';
@@ -40,6 +41,15 @@ interface Props {
   /** Only meaningful for the command zone — omit elsewhere. */
   commanderTax?: Record<string, number>;
   /**
+   * The commanders whose tax rides above the command zone as coins, EDHPlay's
+   * way: gold for the commander, silver for a partner. A click adds a cast
+   * (+2), a right-click, the Context Menu key or a long-press takes one off.
+   * The coins stay while a commander is on the battlefield, which is when the
+   * tax matters. Command zone only (see `taxCommanders`).
+   */
+  taxCards?: PlaytestCard[];
+  onAdjustTax?(cardId: string, delta: 1 | -1): void;
+  /**
    * What a click on the tile does. The library draws, because that is the
    * action a player takes fifty times a game; every other pile opens its
    * viewer, because it has no one obvious action. `label` is a whole phrase
@@ -73,6 +83,8 @@ export function ZonePile({
   label,
   cards,
   commanderTax,
+  taxCards = [],
+  onAdjustTax,
   click,
   onMenu,
   revealTop = false,
@@ -85,11 +97,15 @@ export function ZonePile({
   // parked on top of a card is chrome the table does not have.
   const longPress = useLongPress({
     onLongPress: (x, y) => {
+      const under = document.elementFromPoint(x, y);
+      // A hold on a coin takes a cast off, as a right-click does.
+      const coinId = under?.closest('.playtest-pile__coin')?.getAttribute('data-tax-card-id');
+      if (coinId && onAdjustTax) {
+        onAdjustTax(coinId, -1);
+        return;
+      }
       // A hold on one commander is that card's menu, as a right-click is.
-      const id = document
-        .elementFromPoint(x, y)
-        ?.closest('.playtest-pile__commander')
-        ?.getAttribute('data-card-id');
+      const id = under?.closest('.playtest-pile__commander')?.getAttribute('data-card-id');
       const card = id ? cards.find((c) => c.id === id) : undefined;
       if (card && onCardMenu) onCardMenu(card, x, y);
       else onMenu(x, y);
@@ -111,7 +127,6 @@ export function ZonePile({
   // Tracks the id of a card whose image failed, so a new top card (the pile
   // shuffles/draws constantly) always gets a fresh chance to load.
   const [erroredId, setErroredId] = useState<string | null>(null);
-  const tax = zone === 'command' ? commanderTaxAmount(commanderTax ?? {}, top?.id) : 0;
   // The library is the only pile with something to hide, and only while it
   // is not being revealed. Everything else is a face-up pile by definition.
   const faceUp = Boolean(shown) && (zone !== 'library' || revealTop);
@@ -136,6 +151,38 @@ export function ZonePile({
       onTouchEnd={longPress.onTouchEnd}
       onTouchCancel={longPress.onTouchCancel}
     >
+      {zone === 'command' && taxCards.length > 0 && (
+        <div className="playtest-pile__coins">
+          {taxCards.map((c, i) => {
+            const amount = commanderTaxAmount(commanderTax ?? {}, c.id);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`playtest-pile__coin${i > 0 ? ' playtest-pile__coin--partner' : ''}`}
+                data-tax-card-id={c.id}
+                // Hovering a coin shows whose it is, which is the question
+                // two coins side by side raise.
+                data-preview-id={c.imageUrl ? c.id : undefined}
+                aria-label={`${c.name} commander tax, ${amount}`}
+                title={`${c.name}: click to add 2, right-click to take 2 off`}
+                onClick={() => {
+                  if (longPress.consumedClick()) return;
+                  onAdjustTax?.(c.id, 1);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onAdjustTax?.(c.id, -1);
+                }}
+              >
+                <Coins aria-hidden width={14} height={14} />
+                {amount}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {/* The command zone is a row of commanders, not a pile with a top card:
           partners put two there at once, each with its own tax, and either
           may be the one you are casting. Every other zone keeps the single
@@ -157,7 +204,6 @@ export function ZonePile({
               <CommanderTile
                 key={c.id}
                 card={c}
-                tax={commanderTaxAmount(commanderTax ?? {}, c.id)}
                 imageFailed={c.id === erroredId}
                 onImageError={() => setErroredId(c.id)}
                 onContextMenu={(e) => {
@@ -192,9 +238,7 @@ export function ZonePile({
           }}
           disabled={click.disabled}
           className="playtest-pile__open"
-          aria-label={`${click.label}. ${label}, ${cards.length} cards${
-            tax > 0 ? `, tax +${tax}` : ''
-          }`}
+          aria-label={`${click.label}. ${label}, ${cards.length} cards`}
         >
           {/* The count rides in the label, so each tile is one line of text over
             its art and four of them fit a bottom-right corner row. */}
@@ -219,11 +263,6 @@ export function ZonePile({
             ) : (
               <span className={`playtest-pile__back playtest-pile__back--${zone}`} />
             )}
-            {tax > 0 && (
-              <span className="playtest-pile__tax" aria-hidden>
-                Tax +{tax}
-              </span>
-            )}
           </span>
         </button>
       )}
@@ -237,14 +276,12 @@ export function ZonePile({
  *  is dropped, the battlefield included, where the reducer bumps its tax. */
 function CommanderTile({
   card,
-  tax,
   imageFailed,
   onImageError,
   onClick,
   onContextMenu,
 }: {
   card: PlaytestCard;
-  tax: number;
   imageFailed: boolean;
   onImageError(): void;
   onClick(e: React.MouseEvent<HTMLButtonElement>): void;
@@ -261,7 +298,7 @@ function CommanderTile({
       data-card-id={card.id}
       data-preview-id={card.imageUrl ? card.id : undefined}
       aria-haspopup="menu"
-      aria-label={`${card.name}${tax > 0 ? `, tax +${tax}` : ''}`}
+      aria-label={card.name}
       // Transparent, not removed, while it rides the pointer: the row keeps
       // its shape and dnd-kit keeps a node to measure.
       style={isDragging ? { opacity: 0 } : undefined}
@@ -269,14 +306,6 @@ function CommanderTile({
       onContextMenu={onContextMenu}
       onClick={onClick}
     >
-      {/* Above the art, as the coin counters are — the tax is a cost you read
-          before deciding, not a footnote. */}
-      <span
-        className={`playtest-pile__tax playtest-pile__tax--own${tax > 0 ? '' : ' is-zero'}`}
-        aria-hidden
-      >
-        +{tax}
-      </span>
       <span className="playtest-pile__stack">
         {card.imageUrl && !imageFailed ? (
           <img

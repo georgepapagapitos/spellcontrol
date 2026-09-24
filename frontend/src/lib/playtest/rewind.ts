@@ -364,6 +364,12 @@ export function classifyAction(
         'consent',
         "A table-wide designation (Monarch/Initiative/City's Blessing). Everyone sees who holds it."
       );
+
+    case 'ADJUST_COMMANDER_TAX':
+      return classification(
+        'free',
+        'A correction to a number, not a move. Nothing on the board changes and nothing hidden is shown.'
+      );
   }
 }
 
