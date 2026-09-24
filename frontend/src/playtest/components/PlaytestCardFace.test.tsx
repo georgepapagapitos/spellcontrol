@@ -41,12 +41,7 @@ describe('PlaytestCardFace — counters and the body', () => {
   it('keeps the counter badge beside it, so the size has a visible reason', () => {
     const c = card({ power: '2', toughness: '2' });
     render(<PlaytestCardFace card={c} bf={bf({ card: c, counters: { '+1/+1': 2 } })} />);
-    expect(screen.getByLabelText('2 +1/+1 counters')).toBeTruthy();
-  });
-
-  it('says "counter" singular for one', () => {
-    render(<PlaytestCardFace card={card()} bf={bf({ counters: { charge: 1 } })} />);
-    expect(screen.getByLabelText('1 charge counter')).toBeTruthy();
+    expect(screen.getByLabelText('+1/+1: 2')).toBeTruthy();
   });
 
   // A charge counter on a Sol Ring must not grow it a body it never had.
@@ -54,19 +49,23 @@ describe('PlaytestCardFace — counters and the body', () => {
     const { container } = render(
       <PlaytestCardFace card={card({ name: 'Sol Ring' })} bf={bf({ counters: { charge: 3 } })} />
     );
-    expect(screen.getByLabelText('3 charge counters')).toBeTruthy();
+    expect(screen.getByLabelText('Charge: 3')).toBeTruthy();
     expect(container.querySelector('.playtest-card__pt')).toBeNull();
   });
 
-  it('rolls extra counter kinds into one overflow badge', () => {
-    render(
-      <PlaytestCardFace
-        card={card()}
-        bf={bf({ counters: { '+1/+1': 1, charge: 2, loyalty: 3, stun: 4, shield: 5 } })}
-      />
+  it('draws a printed counter as its icon and a named one as a disc', () => {
+    const { container } = render(
+      <PlaytestCardFace card={card()} bf={bf({ counters: { charge: 2, 'Counter 1': 1 } })} />
     );
-    // Three shown, the rest rolled up and still named in the label.
-    expect(screen.getByLabelText(/stun/)).toBeTruthy();
+    expect(container.querySelector('.card-counter--mark .ms-counter-charge')).toBeTruthy();
+    expect(screen.getByLabelText('Counter 1: 1').querySelector('.card-counter--disc')).toBeTruthy();
+  });
+
+  it('leaves them off when the battlefield draws its own beside the card', () => {
+    const { container } = render(
+      <PlaytestCardFace card={card()} bf={bf({ counters: { charge: 2 } })} countersHidden />
+    );
+    expect(container.querySelector('.card-counters')).toBeNull();
   });
 
   // Face-down is face-down: a morph's counters would leak that something is
@@ -76,7 +75,7 @@ describe('PlaytestCardFace — counters and the body', () => {
     const { container } = render(
       <PlaytestCardFace card={c} bf={bf({ card: c, faceDown: true, counters: { '+1/+1': 2 } })} />
     );
-    expect(container.querySelector('.playtest-card__counters')).toBeNull();
+    expect(container.querySelector('.card-counters')).toBeNull();
     expect(container.querySelector('.playtest-card__pt')).toBeNull();
   });
 

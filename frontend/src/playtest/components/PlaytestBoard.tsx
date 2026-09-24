@@ -144,7 +144,8 @@ import { HoldBanner } from './HoldBanner';
 import { TableSignals } from './TableSignals';
 import { TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import { REACTION_EMOTES, REACTION_LABEL } from '../lib/table-signals';
-import { CardContextMenu, type CardMenuPage } from './CardContextMenu';
+import { CardContextMenu } from './CardContextMenu';
+import { CustomCountersDialog } from './CustomCountersDialog';
 import { printedBase } from '../lib/power-toughness';
 import { useDeckTokens } from '@/components/deck/use-deck-tokens';
 import type { MadeToken } from './menu-entries';
@@ -183,7 +184,7 @@ interface Props {
 }
 
 type ViewerMode = { zone: Zone } | null;
-type ContextState = { cardId: string; x: number; y: number; page?: CardMenuPage } | null;
+type ContextState = { cardId: string; x: number; y: number } | null;
 /** The hand-card menu, which also serves a commander in the command zone. */
 type HandMenuState = { cardId: string; x: number; y: number; zone?: 'hand' | 'command' } | null;
 
@@ -281,6 +282,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const battlefieldRef = useRef<HTMLDivElement | null>(null);
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
+  /** The card whose Custom counters dialog is open. */
+  const [countersFor, setCountersFor] = useState<string | null>(null);
   const [handMenu, setHandMenu] = useState<HandMenuState>(null);
   // "View information" on a battlefield permanent or a card in hand — one
   // card, read in a centered dialog (`CardInfoDialog`). Browsing a whole zone
@@ -944,12 +947,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     for (const b of state.battlefield) {
       if (b.faceDown || !b.card.imageUrl) continue;
       const back = b.card.backImageUrl;
-      m.set(
-        b.card.id,
-        back && b.showBackFace
+      m.set(b.card.id, {
+        ...(back && b.showBackFace
           ? { src: back, back: b.card.imageUrl }
-          : { src: b.card.imageUrl, ...(back && { back }) }
-      );
+          : { src: b.card.imageUrl, ...(back && { back }) }),
+        counters: b.counters,
+      });
     }
     for (const c of [...state.zones.hand, ...state.zones.command])
       if (c.imageUrl)
@@ -962,11 +965,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // cache and this reads the same cache back. Safe to read synchronously
   // because `resolve` runs at POINTER time, long after the card painted.
   const opponentPreviewNames = useMemo(() => {
-    const m = new Map<string, string>();
+    const m = new Map<string, { name: string; counters: Record<string, number> }>();
     for (const opp of opponents) {
       for (const bf of opp.board.battlefield) {
         if (bf.faceDown || !bf.card.name) continue;
-        m.set(opponentPreviewId(opp.board.seat, bf.card.id), bf.card.name);
+        m.set(opponentPreviewId(opp.board.seat, bf.card.id), {
+          name: bf.card.name,
+          counters: bf.counters,
+        });
       }
     }
     return m;
@@ -975,8 +981,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     (cardId: string) => {
       const opponentCard = opponentPreviewNames.get(cardId);
       if (opponentCard) {
-        const src = cachedCardThumb(opponentCard, 'normal');
-        return src ? { src } : null;
+        const src = cachedCardThumb(opponentCard.name, 'normal');
+        return src ? { src, counters: opponentCard.counters } : null;
       }
       return previewSrcs.get(cardId) ?? null;
     },
@@ -1037,6 +1043,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     ? state.battlefield.find((b) => b.card.id === ctxCard.attachedTo)?.card.name
     : undefined;
 
+  // Gone from the battlefield (moved, or taken back) closes the dialog with it.
+  const countersBf = countersFor
+    ? state.battlefield.find((b) => b.card.id === countersFor)
+    : undefined;
   const anySheetOpen =
     phase !== 'playing' ||
     viewer !== null ||
@@ -1059,6 +1069,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     showTableSettings ||
     showResistancePicker ||
     showDesignations ||
+    countersFor !== null ||
     showTakebackSettings ||
     lifePanelOpen ||
     Boolean(confirmDialog);
@@ -1424,18 +1435,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     [dispatch, state.battlefield]
   );
 
-  /** Open the counters UI for one card — the card menu's Counters page, which
-   *  is where counters already live, rather than a second panel that does the
-   *  same job. Anchored at the card itself, since a key has no cursor. */
+  /** Open the Custom counters dialog for one card: J, as on EDHPlay. */
   const openCounters = useCallback((cardId: string) => {
-    const el = document.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(cardId)}"]`);
-    const r = el?.getBoundingClientRect();
-    setCtx({
-      cardId,
-      x: r ? r.left + r.width / 2 : window.innerWidth / 2,
-      y: r ? r.top + r.height / 2 : window.innerHeight / 2,
-      page: 'counters',
-    });
+    setCountersFor(cardId);
     return true;
   }, []);
 
@@ -2714,6 +2716,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               onAdjustPT={(cardId, power, toughness) =>
                 dispatch({ type: 'ADJUST_PT', cardId, power, toughness })
               }
+              onStepCounter={(cardId, counter, delta) =>
+                dispatch({ type: 'SET_COUNTER', cardId, counter, delta })
+              }
             />
             {/* The four corner clusters, floating over the felt rather than
                 taking rows off the board's height — at EVERY width. A phone
@@ -2931,7 +2936,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           faceDown={ctxCard.faceDown}
           phased={ctxCard.phased ?? false}
           variant={isNarrow ? 'sheet' : 'floating'}
-          initialPage={ctx.page}
           keyFor={keyFor}
           onClose={() => setCtx(null)}
           // Every action here reads the selection the same way the copy does:
@@ -2988,9 +2992,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: 1 })
           }
           onAdjustAllCounters={(op) => adjustAllCounters([ctx.cardId], op)}
-          onRemoveCounter={(k) =>
-            dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: -1 })
-          }
+          onOpenCustomCounters={() => {
+            setCountersFor(ctx.cardId);
+            setCtx(null);
+          }}
           onAddSticker={(text) => dispatch({ type: 'ADD_STICKER', cardId: ctx.cardId, text })}
           onRemoveSticker={(index) =>
             dispatch({ type: 'REMOVE_STICKER', cardId: ctx.cardId, index })
@@ -3220,6 +3225,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           level={resistanceLevel}
           onSelect={setResistanceLevel}
           onClose={() => setShowResistancePicker(false)}
+        />
+      )}
+
+      {countersBf && (
+        <CustomCountersDialog
+          cardName={countersBf.card.name}
+          counters={countersBf.counters}
+          onApply={(deltas) => {
+            for (const [counter, delta] of Object.entries(deltas))
+              dispatch({ type: 'SET_COUNTER', cardId: countersBf.card.id, counter, delta });
+            setCountersFor(null);
+          }}
+          onClose={() => setCountersFor(null)}
         />
       )}
 

@@ -4,6 +4,7 @@ import type { BattlefieldCard } from '@/lib/playtest';
 import { useLongPress } from '@/lib/use-long-press';
 import { PlaytestCardView } from './PlaytestCardView';
 import { CardPtBadges } from './CardPtBadges';
+import { CardCounters } from './CardCounters';
 
 interface Props {
   cards: BattlefieldCard[];
@@ -32,6 +33,9 @@ interface Props {
   /** Steps one permanent's power/toughness modifier — what the editable
    *  badges on the card write. Omitted renders them read-only. */
   onAdjustPT?(cardId: string, power: number, toughness: number): void;
+  /** Adds (1) or takes off (-1) one counter of a kind — a click or a
+   *  right-click on the counter itself. Omitted draws them read-only. */
+  onStepCounter?(cardId: string, kind: string, delta: 1 | -1): void;
 }
 
 export function Battlefield({
@@ -46,6 +50,7 @@ export function Battlefield({
   onCardContextMenu,
   onCardLongPress,
   onAdjustPT,
+  onStepCounter,
 }: Props) {
   // No `isOver` here on purpose: the felt does not light up as a drop target.
   // It is the whole board, always the destination, and the card already
@@ -218,6 +223,7 @@ export function Battlefield({
             draggableId={`bf:${bf.card.id}`}
             positioned
             ptHidden={Boolean(onAdjustPT)}
+            countersHidden={Boolean(onStepCounter)}
             selected={selectedIds.has(bf.card.id)}
             onStack={stackIds.has(bf.card.id)}
             onClick={onCardClick}
@@ -229,6 +235,15 @@ export function Battlefield({
               card={bf.card}
               bf={bf}
               onAdjustPT={(power, toughness) => onAdjustPT(bf.card.id, power, toughness)}
+            />
+          )}
+          {/* Face-down hides the counters with everything else, as the face
+              itself does. */}
+          {onStepCounter && !bf.faceDown && (
+            <CardCounters
+              counters={bf.counters}
+              placement="edge"
+              onStep={(kind, delta) => onStepCounter(bf.card.id, kind, delta)}
             />
           )}
         </div>

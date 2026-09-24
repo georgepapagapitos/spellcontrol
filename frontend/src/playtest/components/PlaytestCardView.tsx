@@ -24,6 +24,8 @@ interface Props {
   /** Suppresses the card's own read-only power/toughness box — the caller is
    *  rendering the editable badges beside it instead. */
   ptHidden?: boolean;
+  /** Same for the counters: the caller draws clickable ones beside it. */
+  countersHidden?: boolean;
   /** In hand, with arranging on (E348): the card is also a drop target for
    *  its neighbours, so dragging one onto it puts that card in this place.
    *  Registered on the card's own node — the same shape as the battlefield's
@@ -48,6 +50,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   title,
   positioned = false,
   ptHidden = false,
+  countersHidden = false,
   handSlot = false,
   selected = false,
   size = 'md',
@@ -108,6 +111,7 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       bf={bf}
       size={size}
       ptHidden={ptHidden}
+      countersHidden={countersHidden}
       onStack={onStack}
       style={style}
       {...attributes}

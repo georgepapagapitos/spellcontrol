@@ -54,3 +54,9 @@
   color: #f3f4f6;
   background: rgba(31, 41, 55, 0.92);
 }
+
+/* The card's counters at the preview's scale: the enlarged face is ~2.5× a
+   table card, and discs sized off the table card would read as specks. */
+.playtest-hover-preview .card-counters {
+  --cc-size: 2.25rem;
+}

@@ -906,6 +906,68 @@ describe('PlaytestBoard — = and − read the context', () => {
   });
 });
 
+// EDHPlay's counters (2026-09-24): the counter on the felt is the control,
+// and J opens the Custom counters dialog rather than the card menu.
+describe('PlaytestBoard — counters on the felt', () => {
+  function withCharged() {
+    const base = seededState();
+    const cardId = base.zones.hand[0].id;
+    const s = applyAction(base, { type: 'MOVE_TO_BATTLEFIELD', cardId, x: 0, y: 0 });
+    return {
+      cardId,
+      state: applyAction(s, { type: 'SET_COUNTER', cardId, counter: 'charge', delta: 2 }),
+    };
+  }
+
+  it('steps a counter from the counter itself, without opening the card menu', () => {
+    const { cardId, state } = withCharged();
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+    dispatch.mockClear();
+    const charge = screen.getByRole('button', { name: /^Charge: 2/ });
+    fireEvent.click(charge);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_COUNTER',
+      cardId,
+      counter: 'charge',
+      delta: 1,
+    });
+    fireEvent.contextMenu(charge);
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: 'SET_COUNTER',
+      cardId,
+      counter: 'charge',
+      delta: -1,
+    });
+    expect(screen.queryByRole('menuitem', { name: /^Counters/ })).toBeNull();
+  });
+
+  it('opens Custom counters on J and applies each change as one step', () => {
+    const { cardId, state } = withCharged();
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={state} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: 'a', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'j' });
+    const dialog = screen.getByRole('dialog', { name: 'Custom counters' });
+    dispatch.mockClear();
+    fireEvent.change(within(dialog).getByLabelText('Charge count'), { target: { value: '5' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply changes' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_COUNTER',
+      cardId,
+      counter: 'charge',
+      delta: 3,
+    });
+    expect(screen.queryByRole('dialog', { name: 'Custom counters' })).toBeNull();
+  });
+});
+
 // Table settings holds only set-and-forget preferences. Designations change
 // hands mid-game when a card resolves, so they sit in the game menu (and the
 // felt menu) where you reach during play.

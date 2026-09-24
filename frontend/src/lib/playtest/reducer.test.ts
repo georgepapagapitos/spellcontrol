@@ -469,6 +469,20 @@ describe('SET_COUNTER', () => {
     return { s, id };
   }
 
+  // A card that leaves the battlefield is a new object when it comes back
+  // (rule 400.7): its counters stay behind, whichever zone it went to.
+  it.each(['hand', 'library', 'graveyard', 'exile', 'command'] as const)(
+    'drops every counter when the card goes to %s and comes back',
+    (to) => {
+      const { s, id } = withCard();
+      let next = applyAction(s, { type: 'SET_COUNTER', cardId: id, counter: 'charge', delta: 3 });
+      next = applyAction(next, { type: 'SET_COUNTER', cardId: id, counter: 'Counter 1', delta: 1 });
+      next = applyAction(next, { type: 'MOVE_TO_ZONE', cardId: id, to });
+      next = applyAction(next, { type: 'MOVE_TO_BATTLEFIELD', cardId: id, x: 0, y: 0 });
+      expect(next.battlefield.find((b) => b.card.id === id)?.counters).toEqual({});
+    }
+  );
+
   it('adds counters with positive delta', () => {
     const base = withCard();
     const { id } = base;
