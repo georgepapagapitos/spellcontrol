@@ -41,7 +41,10 @@ import { assembleBuildReport } from './buildReport';
 import { getCardByName, getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { getScryfallStats, resetScryfallStats, type ScryfallStats } from '@/lib/scryfall-fetch';
 import { validateCardRole, getCardTags } from '@/deck-builder/services/tagger/client';
-import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
+import {
+  fetchCommanderData,
+  fetchPartnerCommanderData,
+} from '@/deck-builder/services/edhrec/client';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = process.env.LIVE_GEN_OUTDIR ?? join(tmpdir(), 'spellcontrol-live-gen');
@@ -627,14 +630,18 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
         // those). This harness used to run at 37/15 and so measured a land
         // path users never get; a blind 15-deck review on 2026-09-24 then
         // preferred the app's EDHREC counts 13 to 2. Mirrors the effect
-        // exactly: primary commander's page only, and a row's own explicit
-        // land override wins. LIVE_GEN_APP_LANDS=0 restores the 37/15 path.
+        // exactly: a partner pair reads the pair's page (E389), and a row's own
+        // explicit land override wins. LIVE_GEN_APP_LANDS=0 restores the 37/15 path.
         if (
           process.env.LIVE_GEN_APP_LANDS !== '0' &&
           spec.overrides?.landCount === undefined &&
           spec.overrides?.nonBasicLandCount === undefined
         ) {
-          const data = await fetchCommanderData(commander.name).catch(() => null);
+          const data = await (
+            partnerCommander
+              ? fetchPartnerCommanderData(commander.name, partnerCommander.name)
+              : fetchCommanderData(commander.name)
+          ).catch(() => null);
           if (data) {
             custom.landCount = data.stats.landDistribution?.total ?? 37;
             custom.nonBasicLandCount = data.stats.landDistribution?.nonbasic ?? 15;

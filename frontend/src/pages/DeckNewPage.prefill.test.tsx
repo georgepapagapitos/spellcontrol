@@ -32,6 +32,7 @@ vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () =
 // this file is about the prefill ordering contract, not about EDHREC.
 vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchCommanderData: () => Promise.resolve(null),
+  fetchPartnerCommanderData: () => Promise.resolve(null),
 }));
 
 vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
