@@ -20,17 +20,33 @@ describe('BuildReportPanel', () => {
   it('renders the aimed vs estimated bracket line', () => {
     const { container } = render(<BuildReportPanel report={makeReport()} />);
     const line = container.querySelector('.build-report-bracket');
-    expect(line?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Aimed Bracket 3 → estimated 3');
+    expect(line?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Aimed for Bracket 3, estimated Bracket 3 · Upgraded'
+    );
   });
 
   it('humanizes the data source (base fallback)', () => {
     render(<BuildReportPanel report={makeReport({ dataSource: 'base' })} />);
-    expect(screen.getByText('used base EDHREC pool (bracket list unavailable)')).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Drawn from EDHREC's decks for this commander. EDHREC has no list for your bracket."
+      )
+    ).toBeTruthy();
+  });
+
+  // A default build asks for no bracket, so "(bracket list unavailable)" read
+  // like a failure on every one of them.
+  it('says nothing about a bracket list when no bracket was asked for', () => {
+    const { container } = render(
+      <BuildReportPanel report={makeReport({ targetBracket: 'all', dataSource: 'base' })} />
+    );
+    expect(container.textContent).not.toMatch(/bracket list|no list for your bracket/i);
+    expect(container.textContent).toContain('Estimated Bracket 3 · Upgraded');
   });
 
   it('humanizes the scryfall fallback', () => {
     render(<BuildReportPanel report={makeReport({ dataSource: 'scryfall' })} />);
-    expect(screen.getByText('used Scryfall search (no EDHREC data available)')).toBeTruthy();
+    expect(screen.getByText('Drawn from Scryfall by card function.')).toBeTruthy();
   });
 
   it('shows the owned-from-collection percentage', () => {
@@ -205,24 +221,20 @@ describe('BuildReportPanel', () => {
       const { container } = render(
         <BuildReportPanel report={makeReport({ protectionCount: 2 })} />
       );
-      expect(container.textContent).toContain('Protection/interaction:');
-      expect(container.textContent).toContain('2');
-      expect(container.textContent).toContain('pieces');
+      expect(container.textContent).toContain('2 protection or free-interaction cards');
     });
 
     it('renders 0, not nothing, when the report field is absent — always disclosed', () => {
       const { container } = render(<BuildReportPanel report={makeReport()} />);
-      expect(container.textContent).toContain('Protection/interaction:');
-      expect(container.textContent).toContain('0');
+      expect(container.textContent).toContain('0 protection or free-interaction cards');
     });
 
     it('uses singular phrasing for exactly one', () => {
       const { container } = render(
         <BuildReportPanel report={makeReport({ protectionCount: 1 })} />
       );
-      expect(container.textContent).toContain('1');
-      expect(container.textContent).toContain('piece');
-      expect(container.textContent).not.toContain('pieces');
+      expect(container.textContent).toContain('1 protection or free-interaction card');
+      expect(container.textContent).not.toContain('interaction cards');
     });
 
     it('renders the Voltron zero-protection disclosure note when present', () => {
@@ -441,7 +453,7 @@ describe('BuildReportPanel', () => {
   describe('coherence flags (generation-end audit)', () => {
     it('is absent when there are no findings', () => {
       const { container } = render(<BuildReportPanel report={makeReport()} />);
-      expect(container.textContent).not.toContain('coherence flag');
+      expect(container.textContent).not.toContain('this build may not support');
     });
 
     it('renders per-card findings with kind badges and deck-level notes without a card name', () => {
@@ -464,7 +476,7 @@ describe('BuildReportPanel', () => {
           })}
         />
       );
-      expect(container.textContent).toContain('2 coherence flags');
+      expect(container.textContent).toContain('2 cards this build may not support');
       expect(screen.getByText('Academy Manufactor')).toBeTruthy();
       expect(screen.getByText('Dead payoff')).toBeTruthy();
       expect(screen.getByText('Engine note')).toBeTruthy();
@@ -558,8 +570,8 @@ describe('BuildReportPanel', () => {
       const { container } = render(
         <BuildReportPanel report={makeReport({ coherenceRepairs: [repair] })} />
       );
-      expect(container.textContent).toContain('1 coherence swap auto-applied during generation');
-      expect(container.textContent).not.toContain('coherence flag');
+      expect(container.textContent).toContain('1 swapped for a better fit');
+      expect(container.textContent).not.toContain('this build may not support');
       expect(screen.getByText('Auto-fixed')).toBeTruthy();
       expect(screen.getByText('Vanilla Beast')).toBeTruthy();
       expect(screen.getByText('Sol Ring')).toBeTruthy();
@@ -579,8 +591,8 @@ describe('BuildReportPanel', () => {
           })}
         />
       );
-      expect(both.container.textContent).toContain('1 coherence flag');
-      expect(both.container.textContent).toContain('1 coherence swap auto-applied');
+      expect(both.container.textContent).toContain('1 card this build may not support');
+      expect(both.container.textContent).toContain('1 swapped for a better fit');
     });
   });
 
@@ -842,7 +854,9 @@ describe('BuildReportPanel — bracket-1 (Exhibition) expectations', () => {
       <BuildReportPanel report={makeReport({ targetBracket: 4, estimatedBracket: 4 })} />
     );
     const line = container.querySelector('.build-report-bracket');
-    expect(line?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Aimed Bracket 4 → estimated 4');
+    expect(line?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Aimed for Bracket 4, estimated Bracket 4 · Optimized'
+    );
   });
 
   it('explains Exhibition never reads below Core instead of just stating the mismatch', () => {

@@ -9,6 +9,7 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
+import { canRegenerate, regenerateState } from '../lib/regenerate-prefill';
 import {
   type ReactNode,
   useCallback,
@@ -3054,6 +3055,11 @@ export function DeckEditorPage() {
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onBuildReport={deck.buildReport ? () => setShowBuildReport(true) : undefined}
+            onRegenerate={
+              canRegenerate(deck)
+                ? () => navigate('/decks/new', { state: regenerateState(deck) })
+                : undefined
+            }
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
             onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
             onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
@@ -3086,6 +3092,11 @@ export function DeckEditorPage() {
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onBuildReport={deck.buildReport ? () => setShowBuildReport(true) : undefined}
+            onRegenerate={
+              canRegenerate(deck)
+                ? () => navigate('/decks/new', { state: regenerateState(deck) })
+                : undefined
+            }
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
             onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
@@ -3128,7 +3139,7 @@ export function DeckEditorPage() {
           {safeView === 'deck' &&
             !showAddPanel &&
             !resyncHintDismissed &&
-            shouldShowResyncHint(deck.cards.length > 0) && (
+            shouldShowResyncHint(deck.cards.length > 0, deck.source) && (
               <WedgeHintStrip
                 icon={<RefreshCw width={16} height={16} aria-hidden />}
                 headline="Keep this decklist in sync"
@@ -3926,6 +3937,7 @@ function DeckEditorOverflowMenu({
   onFeedback,
   onPrimer,
   onBuildReport,
+  onRegenerate,
   onPlaytest,
   onTokens,
   onPullList,
@@ -3957,6 +3969,10 @@ function DeckEditorOverflowMenu({
   /** Reopens the one-shot generation Build Report (B6-06). Present only when
    *  the deck has one — a hand-built deck never got one to reopen. */
   onBuildReport?: () => void;
+  /** Rebuild with this deck's own settings, landing on the compare diff.
+   *  Present only on a generated deck, the one kind with settings to replay;
+   *  it used to live only in the decks index's tile menu. */
+  onRegenerate?: () => void;
   onPlaytest?: () => void;
   /** Present only when the deck makes tokens. */
   onTokens?: () => void;
@@ -4046,6 +4062,7 @@ function DeckEditorOverflowMenu({
     onExport && { key: 'export', label: 'Export', onClick: onExport },
     { key: 'feedback', label: 'Get feedback', onClick: onFeedback },
     onBuildReport && { key: 'build-report', label: 'Build report', onClick: onBuildReport },
+    onRegenerate && { key: 'regenerate', label: 'Regenerate', onClick: onRegenerate },
   ].filter((r): r is Row => !!r);
 
   const renderRow = (row: Row) => (

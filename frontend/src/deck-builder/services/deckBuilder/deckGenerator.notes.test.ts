@@ -633,14 +633,14 @@ describe('buildPriceSanityNote (E80)', () => {
   it('names the count with plural phrasing', () => {
     const note = buildPriceSanityNote(3);
     expect(note).toBe(
-      'Preferred 3 cheaper near-equivalents over premium picks. Set budget preference to "expensive" to disable.'
+      'Picked 3 cheaper cards over near-identical pricier ones. Set Card pool to Expensive to keep the pricier picks.'
     );
   });
 
   it('uses singular phrasing for exactly one decided pick', () => {
     const note = buildPriceSanityNote(1);
     expect(note).toBe(
-      'Preferred 1 cheaper near-equivalent over premium picks. Set budget preference to "expensive" to disable.'
+      'Picked 1 cheaper card over near-identical pricier ones. Set Card pool to Expensive to keep the pricier picks.'
     );
   });
 });
@@ -877,25 +877,25 @@ describe('buildWipeAsymmetryNote (E109)', () => {
 
   it('names only the target shave when no one-sided wipe survived to the final deck', () => {
     expect(buildWipeAsymmetryNote(true, 0, 2)).toBe(
-      'This plan protects your own board: trimmed the board wipe target by one.'
+      'This deck builds a board, so it runs one fewer board wipe.'
     );
   });
 
   it('names only the surviving one-sided count (singular) when the target was not shaved', () => {
     expect(buildWipeAsymmetryNote(false, 1, 2)).toBe(
-      "This plan protects your own board: 1 of the deck's 2 wipes spares your own board."
+      'This deck builds a board, so 1 of its 2 wipes spares your own board.'
     );
   });
 
   it('names both, with plural wording, when the target was shaved and multiple wipes survive one-sided', () => {
     expect(buildWipeAsymmetryNote(true, 2, 3)).toBe(
-      "This plan protects your own board: trimmed the board wipe target by one and 2 of the deck's 3 wipes spare your own board."
+      'This deck builds a board, so it runs one fewer board wipe and 2 of its 3 wipes spare your own board.'
     );
   });
 
   it('uses singular "wipe" when the deck ran exactly one wipe total', () => {
     expect(buildWipeAsymmetryNote(false, 1, 1)).toBe(
-      "This plan protects your own board: 1 of the deck's 1 wipe spares your own board."
+      'This deck builds a board, so its wipe spares your own board.'
     );
   });
 });

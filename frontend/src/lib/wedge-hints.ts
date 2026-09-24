@@ -11,6 +11,7 @@
  * registry — this is two hints, so it's two pairs of functions, not a
  * config system.
  */
+import type { DeckSource } from '../store/decks';
 
 const BINDER_HINT_KEY = 'sc-hint-binder-location-v1';
 const RESYNC_HINT_KEY = 'sc-hint-deck-resync-v1';
@@ -49,8 +50,11 @@ export function dismissBinderHint(): void {
  * True for an existing deck with a real mainboard — a brand-new empty deck
  * has nothing to diff a pasted list against yet.
  */
-export function shouldShowResyncHint(deckHasCards: boolean): boolean {
-  return deckHasCards && !seen(RESYNC_HINT_KEY);
+/** Resync diffs a list pasted from Moxfield or Archidekt, so it only makes
+ *  sense on a deck that could have come from one. A generated deck never did:
+ *  the hint on a player's first generated deck pointed at nothing. */
+export function shouldShowResyncHint(deckHasCards: boolean, source?: DeckSource): boolean {
+  return deckHasCards && source !== 'generated' && !seen(RESYNC_HINT_KEY);
 }
 
 export function dismissResyncHint(): void {

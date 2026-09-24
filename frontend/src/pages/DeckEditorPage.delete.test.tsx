@@ -497,6 +497,28 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
     expect(screen.getByRole('menuitem', { name: 'Export' })).toBeTruthy();
   });
 
+  // Regenerate lived only in the decks index's tile menu, not here where the
+  // player reads the deck and its build report.
+  it('offers Regenerate on a generated deck, and only there', () => {
+    renderEditor();
+    const [trigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menuitem', { name: 'Regenerate' })).toBeTruthy();
+  });
+
+  it('leaves Regenerate out for a hand-built deck', () => {
+    const original = mockDeck.source;
+    (mockDeck as { source: string }).source = 'manual';
+    try {
+      renderEditor();
+      const [trigger] = screen.getAllByLabelText('Deck actions');
+      fireEvent.click(trigger);
+      expect(screen.queryByRole('menuitem', { name: 'Regenerate' })).toBeNull();
+    } finally {
+      (mockDeck as { source: string }).source = original;
+    }
+  });
+
   it('sections the menu into labelled clusters instead of one flat list', () => {
     renderEditor();
     const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');

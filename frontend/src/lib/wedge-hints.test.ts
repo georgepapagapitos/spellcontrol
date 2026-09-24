@@ -65,6 +65,13 @@ describe('shouldShowResyncHint', () => {
     expect(shouldShowResyncHint(true)).toBe(true);
   });
 
+  // Resync diffs a list pasted from Moxfield or Archidekt. A player's first
+  // generated deck was told to keep it in sync with a list it never came from.
+  it('never offers resync on a generated deck', () => {
+    expect(shouldShowResyncHint(true, 'generated')).toBe(false);
+    expect(shouldShowResyncHint(true, 'manual')).toBe(true);
+  });
+
   it('non-empty deck, already dismissed → false forever', () => {
     dismissResyncHint();
     expect(shouldShowResyncHint(true)).toBe(false);
