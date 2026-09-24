@@ -26,8 +26,7 @@ export function RecoveryBanner() {
   return (
     <div className="recovery-banner" role="status" aria-live="polite">
       <div className="recovery-banner-text">
-        <strong>Confirm your email.</strong> It is the only way back into your account if you forget
-        your password.
+        <strong>Confirm your email.</strong> It's the only way back in if you forget your password.
       </div>
       <button
         type="button"

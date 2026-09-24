@@ -619,6 +619,27 @@
   }
 }
 
+/* It stays until the email is confirmed, and it sits above the scroller, so
+   on a phone it is on every screen. Wrapped into three rows it took 245 of
+   844px there. One row instead: the text takes the width, the button sits
+   beside it. */
+@media (max-width: 599px) {
+  .recovery-banner {
+    flex-wrap: nowrap;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+  .recovery-banner-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    line-height: 1.35;
+  }
+  .recovery-banner .btn {
+    padding-inline: var(--space-3);
+  }
+}
+
 /* ── Account merge dialog (guest → populated-account collision) ─────────── */
 .account-merge-dialog {
   max-width: 540px;
