@@ -105,6 +105,55 @@ describe('estimateForNames', () => {
     expect(est.breakdown.interactionCount).toBeGreaterThan(0);
   });
 
+  // Defect B guards: role counts must mirror the deck page — mainboard
+  // non-lands only, gated on the card's own oracle text (checkRoleEvidence,
+  // shared via deck-metrics), commander(s) excluded from both role counts and
+  // the average CMC. Before this, `estimateForNames` counted a role over
+  // EVERY name (lands and commanders included) with no evidence gate at all.
+  it('does not count a land with a tagger role toward interaction — role counts exclude lands', async () => {
+    const wastelandCard = card({
+      id: 'i6',
+      name: 'Field of Ruin',
+      oracle_id: 'o6',
+      type_line: 'Land',
+      cmc: 0,
+      oracle_text: 'Destroy target nonbasic land an opponent controls.',
+    });
+    cache.setMany([wastelandCard]);
+    cache.setLookups([{ key: `ns:${wastelandCard.name.toLowerCase()}|tst`, scryfallId: 'i6' }]);
+    // Tagged removal (correctly, even — the oracle text really is removal) but
+    // it is still a land, and the page never counts a land toward roles.
+    const tags = createTagLookup({ removal: ['Field of Ruin'] });
+    const est = await estimateForNames(['Forest', 'Field of Ruin'], { ...inputs(), tags });
+    expect(est.breakdown.interactionCount).toBe(0);
+  });
+
+  it("does not count a tagged card whose oracle text lacks the role's evidence", async () => {
+    const mistagged = card({
+      id: 'i7',
+      name: 'Mistagged Bear',
+      oracle_id: 'o7',
+      type_line: 'Creature — Bear',
+      cmc: 2,
+      oracle_text: 'Vigilance.', // no destroy/exile/counter/etc — a bad removal tag
+    });
+    cache.setMany([mistagged]);
+    cache.setLookups([{ key: `ns:${mistagged.name.toLowerCase()}|tst`, scryfallId: 'i7' }]);
+    const tags = createTagLookup({ removal: ['Mistagged Bear'] });
+    const est = await estimateForNames(['Forest', 'Mistagged Bear'], { ...inputs(), tags });
+    expect(est.breakdown.interactionCount).toBe(0);
+  });
+
+  it("excludes the commander's CMC from the average, like the deck page does", async () => {
+    // Llanowar Elves (cmc 1) is the commander here — only Rhystic Study (cmc 3)
+    // should count toward the average.
+    const est = await estimateForNames(['Llanowar Elves', 'Rhystic Study'], {
+      ...inputs(),
+      commanderNames: ['Llanowar Elves'],
+    });
+    expect(est.breakdown.averageCmc).toBe(3);
+  });
+
   it('excludes lands from the average mana value', async () => {
     // Forest (cmc 0) must not drag the average down — only Llanowar Elves counts.
     const est = await estimateForNames(['Forest', 'Llanowar Elves'], inputs());
