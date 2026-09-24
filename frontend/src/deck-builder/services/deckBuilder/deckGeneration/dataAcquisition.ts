@@ -477,26 +477,37 @@ export async function acquireCardPoolPhase(
   // effectiveConstraint → scryfallQuery) stays inside the legal pool.
   if (!usingCache && (mode !== 'edhrec' || state.cfg.mtgFormat === 'paupercommander')) {
     altPool = await buildAlternatePool(mode, customization, colorIdentity, onProgress);
+    if (altPool.poolSize === 0 && (mode === 'art-theme' || mode === 'historical')) {
+      // Rebuild the pool by function, as the note below says. Keeping the
+      // empty pool's constraint (an art: tag no card matches) on every later
+      // fill made each of them come back empty too: LIVE, a mistyped motif
+      // shipped 97 lands and 2 spells under "Built by function instead".
+      logger.warn(`[DeckGen] Alternative pool (${mode}) returned no cards — building by function.`);
+      const byFunction = await buildAlternatePool(
+        'oracle-role',
+        { ...customization, permanentsOnly: false },
+        colorIdentity,
+        onProgress
+      );
+      altPool = {
+        ...byFunction,
+        relaxedNote:
+          mode === 'art-theme'
+            ? 'No cards matched that motif in your colors. Built by function instead.'
+            : 'No cards that old in your colors. Built by function instead.',
+      };
+    } else if (altPool.poolSize === 0) {
+      altPool = {
+        ...altPool,
+        relaxedNote: altPool.relaxedNote ?? 'That pool came up empty. Filled the deck with basics.',
+      };
+    }
     state.edhrecData = altPool.data;
     state.dataSource = altPool.dataSource;
     // Append the pool's EFFECTIVE constraint (e.g. the relaxed historical year)
     // so the strict printing upgrade + fallback fills match what was fetched.
     if (altPool.effectiveConstraint) {
       scryfallQuery = [scryfallQuery.trim(), altPool.effectiveConstraint].filter(Boolean).join(' ');
-    }
-    if (altPool.poolSize === 0) {
-      logger.warn(
-        `[DeckGen] Alternative pool (${mode}) returned no cards — falling back to Scryfall-only fill.`
-      );
-      // Surface it in the report rather than leaving the user with a basics pile.
-      altPool = {
-        ...altPool,
-        relaxedNote:
-          altPool.relaxedNote ??
-          (mode === 'art-theme'
-            ? 'No cards matched that motif in your colors. Built by function instead.'
-            : 'That pool came up empty. Filled the deck by function instead.'),
-      };
     }
   }
   // Try to fetch EDHREC data (works for all formats) — skip on cache hit

@@ -263,6 +263,35 @@ describe('acquireCardPoolPhase', () => {
     expect(state.edhrecData).not.toBeNull();
     expect(result.scryfallQuery).toBe('year<=2010');
   });
+
+  // LIVE (stress sweep 2026-09-24): a motif no card matched said "Built by
+  // function instead" but shipped 97 lands and 2 spells, because the dead
+  // art: constraint rode along on every later fill.
+  it('rebuilds an empty art pool by function and drops the dead motif constraint', async () => {
+    buildAlternatePoolMock
+      .mockResolvedValueOnce({
+        data: edhrecData(),
+        dataSource: 'art-theme',
+        poolSize: 0,
+        effectiveConstraint: 'art:zzzz-not-a-tag',
+      })
+      .mockResolvedValueOnce({
+        data: edhrecData(),
+        dataSource: 'oracle-role',
+        poolSize: 180,
+        effectiveConstraint: '',
+      });
+    const state = makeState();
+    (state.context.customization as unknown as { generationMode: string }).generationMode =
+      'art-theme';
+    const result = await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+
+    expect(buildAlternatePoolMock).toHaveBeenCalledTimes(2);
+    expect(buildAlternatePoolMock.mock.calls[1][0]).toBe('oracle-role');
+    expect(result.scryfallQuery).not.toContain('art:');
+    expect(state.dataSource).toBe('oracle-role');
+    expect(result.altPool?.relaxedNote).toMatch(/Built by function instead/);
+  });
 });
 
 describe('populateGenerationCachePhase', () => {
