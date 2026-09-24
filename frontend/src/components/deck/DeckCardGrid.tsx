@@ -9,10 +9,10 @@
 // same <li> tile as the grid — qty pip, allocation, legality, foil, badge
 // cluster — so the two can't drift; only the section/list classes and the
 // `--stack-w` width differ (see deck-builder-card-list.css § Stacks).
-import type { CSSProperties } from 'react';
+import { useCallback, type CSSProperties } from 'react';
 import { ChevronDown, Handshake, MoreVertical, Tag as TagIcon } from 'lucide-react';
 import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
-import { stackWidth, zoomBucket, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
+import { stackWidth, zoomBucket, zoomCols, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
 import { useElementWidth } from '@/lib/use-element-width';
 import type { LegalityIssue } from '../../lib/deck-validation';
 import { MeterBar } from '../shared/MeterBar';
@@ -23,6 +23,7 @@ import {
   foilTileClass,
   allocationSummary,
   packInOrder,
+  gridSectionSpan,
   type CurrencyCode,
   type Row,
   type TypedGroup,
@@ -91,6 +92,11 @@ export function stackLayout(viewportW: number, containerW: number, gridZoom: num
   return { phone, stackW, columns };
 }
 
+/** A group narrower than this many columns drops its price from the header:
+ *  there is no room for it beside the name, and the price is in the list
+ *  view and on every stack header. */
+const GRID_SUBTOTAL_MIN_SPAN = 3;
+
 export function DeckCardGrid({
   groups,
   onRowClick,
@@ -120,11 +126,11 @@ export function DeckCardGrid({
   layout?: 'grid' | 'stacks';
   legalityBySlot?: Map<string, LegalityIssue>;
   gridZoom: number;
-  /** Callback ref + measured width from `useElementWidth`, attached to every
-   *  section's grid (all equal width; the last to mount is observed). Omitted
-   *  by the out-zone stack: it is a different width from the decklist's grids,
-   *  and being the last to mount it would be the one measured. */
-  gridRef?: (el: HTMLUListElement | null) => void;
+  /** Callback ref + measured width from `useElementWidth`, attached to the
+   *  whole grid (every group sits on its shared columns, so it is the width a
+   *  zoom step's column count is decided against). Omitted by the out-zone
+   *  stack: it is a different width from the decklist's grid. */
+  gridRef?: (el: HTMLElement | null) => void;
   gridWidth: number;
   showRoles: boolean;
   /** Active role filter — tiles not filling it render dimmed. */
@@ -154,18 +160,33 @@ export function DeckCardGrid({
   hideHeaders?: boolean;
 }) {
   const stacks = layout === 'stacks';
-  const [stacksRef, stacksWidth] = useElementWidth<HTMLDivElement>();
+  const [containerRef, containerWidth] = useElementWidth<HTMLDivElement>();
+  const setContainer = useCallback(
+    (el: HTMLDivElement | null) => {
+      containerRef(el);
+      if (!stacks) gridRef?.(el);
+    },
+    [containerRef, gridRef, stacks]
+  );
   const { phone, stackW, columns } = stackLayout(
-    typeof window === 'undefined' ? stacksWidth : window.innerWidth,
-    stacksWidth,
+    typeof window === 'undefined' ? containerWidth : window.innerWidth,
+    containerWidth,
     gridZoom
   );
+  // Grid: the shared column count, the same floor-division the CSS auto-fill
+  // grid used per group. Unmeasured (0, and always in happy-dom) keeps the
+  // unpacked one-group-per-row layout.
+  const packed = !stacks && containerWidth > 0;
+  const gridCols = packed ? zoomCols(gridZoom, zoomTier(containerWidth), containerWidth) : 0;
   return (
     <div
-      ref={stacks ? stacksRef : undefined}
-      className={`deck-card-grid-sections${stacks ? ' deck-card-grid-sections--stacks' : ''}`}
+      ref={setContainer}
+      className={`deck-card-grid-sections${stacks ? ' deck-card-grid-sections--stacks' : ''}${
+        packed ? ' deck-card-grid-sections--packed' : ''
+      }`}
+      style={packed ? ({ '--grid-cols': gridCols } as CSSProperties) : undefined}
     >
-      {stacks && stacksWidth > 0
+      {stacks && containerWidth > 0
         ? packStacks(groups, columns, stackW).map((col) => (
             <div className="deck-stack-column" key={col[0].title}>
               {col.map(renderSection)}
@@ -194,6 +215,8 @@ export function DeckCardGrid({
     // a tag that collides with a type name), so the title is a safe id
     // seed. Non-word characters would otherwise produce an invalid id.
     const listId = `deck-grid-section-${g.title.replace(/\W+/g, '-').toLowerCase()}`;
+    const span = packed ? gridSectionSpan(g.rows.length, gridCols, collapsed) : 0;
+    const showSubtotal = showPrice && (!packed || span >= GRID_SUBTOTAL_MIN_SPAN);
     return (
       <section
         key={g.title}
@@ -210,7 +233,9 @@ export function DeckCardGrid({
                 '--stack-w-desktop': `${stackWidth(gridZoom, 'desktop')}px`,
                 '--stack-w-mobile': `${phone ? stackW : stackWidth(gridZoom, 'mobile')}px`,
               } as CSSProperties)
-            : undefined
+            : packed
+              ? ({ '--span': span } as CSSProperties)
+              : undefined
         }
       >
         {!hideHeaders && (
@@ -263,7 +288,7 @@ export function DeckCardGrid({
                 />
               )}
             </div>
-            {showPrice && (
+            {showSubtotal && (
               <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
             )}
             {g.icon === 'commander' && onEditPartner && (
@@ -274,7 +299,9 @@ export function DeckCardGrid({
         <ul
           id={listId}
           hidden={collapsed}
-          ref={gridRef}
+          // Stacks keep measuring a stack's own list for the zoom stepper, as
+          // before; the grid is measured whole, on the container (above).
+          ref={stacks ? gridRef : undefined}
           className={`deck-card-grid grid-${zoomBucket(gridZoom)}${
             stacks ? ' deck-card-stack' : ''
           }`}

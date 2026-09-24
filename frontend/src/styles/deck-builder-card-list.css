@@ -15,6 +15,47 @@
   padding: 0.6rem 0.85rem 0.85rem;
 }
 
+/* Grid view, packed (2026-09-24): one set of columns for the whole deck, each
+   group a subgrid spanning only its own cards (`gridSectionSpan`), so small
+   groups share a row in deck order instead of each stranding a row of empty
+   slots. Every group spans two rows (header, cards) and takes them as a row
+   subgrid, so a header that wraps onto a second line moves its whole row's
+   cards down together rather than misaligning them. Never
+   `grid-auto-flow: dense`: it fills holes by reordering, and the deck has one
+   order across every view and the carousel. Unmeasured grids keep the
+   unpacked column of framed sections above. */
+.deck-card-grid-sections--packed {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols), minmax(0, 1fr));
+  column-gap: var(--card-grid-gap);
+  row-gap: var(--space-4);
+}
+
+.deck-card-grid-sections--packed > .deck-grid-section {
+  grid-column: span var(--span);
+  grid-row: span 2;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  /* One frame per surface: on a shared grid the card tiles are the chrome. */
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.deck-card-grid-sections--packed > .deck-grid-section > .deck-section-header,
+.deck-card-grid-sections--packed > .deck-grid-section > .deck-card-grid {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.deck-card-grid-sections--packed > .deck-grid-section > .deck-card-grid {
+  grid-template-columns: subgrid;
+  align-content: start;
+}
+
 .deck-card-grid {
   list-style: none;
   margin: var(--space-2) 0 0;

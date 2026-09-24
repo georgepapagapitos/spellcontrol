@@ -752,6 +752,24 @@ export function packInOrder<T>(items: T[], cols: number, heightOf: (item: T) => 
 }
 
 /**
+ * Grid view: how many of the shared columns a group spans (2026-09-24).
+ *
+ * Every group used to start its own row, so a one-card Commander left a row of
+ * empty slots beside it, and so did a four-card Planeswalker group. The groups
+ * now sit on one column grid and each spans only its own cards, so small groups
+ * share a row, in order: reading left to right, then down, is still the deck
+ * order the list, the stacks and the carousel use. A group with more cards than
+ * columns takes the full width and wraps inside it. A collapsed or empty group
+ * (a category bucket that shows only its 0/N gauge) takes the full width too:
+ * it is a header with nothing under it, and a one-column header strip would
+ * leave a hole where its cards would have been.
+ */
+export function gridSectionSpan(rows: number, cols: number, collapsed: boolean): number {
+  if (collapsed || rows === 0) return cols;
+  return Math.min(rows, cols);
+}
+
+/**
  * Lay type sections into `cols` columns for the list view.
  *
  * Sections are unbreakable cards, and a Commander deck has one or two giants

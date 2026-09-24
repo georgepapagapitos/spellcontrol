@@ -680,9 +680,10 @@ export function DeckDisplay({
   }, []);
   const effectiveGridZoom = clampZoom(gridZoom, isNarrowGrid);
   // Measured width of a rendered card grid — the zoom stepper needs it to skip
-  // steps that wouldn't change the column count at this size. Measured on the
-  // `<ul>` itself, not its section wrapper, which adds horizontal padding.
-  const [gridRef, gridWidth] = useElementWidth<HTMLUListElement>();
+  // steps that wouldn't change the column count at this size. In the grid
+  // view that is the whole grid (every group sits on its shared columns); in
+  // stacks, a stack's own list. DeckCardGrid attaches it to the right element.
+  const [gridRef, gridWidth] = useElementWidth<HTMLElement>();
 
   const handleExportFormatChange = (f: ExportFormat) => {
     setExportFormat(f);
