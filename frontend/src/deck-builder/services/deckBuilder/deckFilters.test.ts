@@ -245,6 +245,24 @@ describe('violatesUserCaps', () => {
     expect(violatesUserCaps(card, { ...caps, ignoreOwnedRarity: true }, owned)).toBe(false);
   });
 
+  // LIVE (stress sweep 2026-09-24): bracket 5 + "No Game Changers" shipped
+  // Thassa's Oracle via the combo audit and Cyclonic Rift via the fixup.
+  it('flags a Game Changer once the deck is at its Game Changer limit', () => {
+    const oracle = makeCard({ name: "Thassa's Oracle" });
+    const plain = makeCard({ name: 'Brainstorm' });
+    const gcs = new Set(["Thassa's Oracle"]);
+    let atLimit = true;
+    const caps: UserCapsConfig = {
+      ...noCaps,
+      isGameChanger: (n) => gcs.has(n),
+      gameChangerLimitReached: () => atLimit,
+    };
+    expect(violatesUserCaps(oracle, caps)).toBe(true);
+    expect(violatesUserCaps(plain, caps)).toBe(false);
+    atLimit = false;
+    expect(violatesUserCaps(oracle, caps)).toBe(false);
+  });
+
   it('flags a card over the CMC cap', () => {
     const card = makeCard({ cmc: 4 });
     expect(violatesUserCaps(card, { ...noCaps, maxCmc: 3 })).toBe(true);

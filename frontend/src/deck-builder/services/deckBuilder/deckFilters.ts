@@ -150,6 +150,11 @@ export interface UserCapsConfig {
   mtgFormat?: string;
   ignoreOwnedRarity?: boolean;
   ignoreOwnedBudget?: boolean;
+  /** The Game Changer limit is a count, not a property of one card, so it
+   *  comes in as two lookups: is this card one, and is the deck already at
+   *  the limit. Absent = no limit check (callers outside generation). */
+  isGameChanger?: (name: string) => boolean;
+  gameChangerLimitReached?: () => boolean;
 }
 
 // Root-cause guard (E-arena-leak): every phase that introduces a card OUTSIDE
@@ -164,6 +169,10 @@ export function violatesUserCaps(
   collectionNames?: Set<string>
 ): boolean {
   if (notLegalForFormat(card, caps.mtgFormat)) return true;
+  // LIVE (stress sweep 2026-09-24): bracket 5 with "No Game Changers" shipped
+  // Thassa's Oracle (combo audit) and Cyclonic Rift (post-gen fixup). Every
+  // other cap was checked on those paths; this one wasn't.
+  if (caps.isGameChanger?.(card.name) && caps.gameChangerLimitReached?.()) return true;
   if (exceedsCmcCap(card, caps.maxCmc)) return true;
   if (notOnArena(card, caps.arenaOnly)) return true;
   if (
