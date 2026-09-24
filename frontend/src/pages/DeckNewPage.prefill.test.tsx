@@ -139,4 +139,41 @@ describe('DeckNewPage prefill', () => {
     expect(c.landCount).toBe(36);
     expect(c.collectionMode).toBe(true);
   });
+
+  it('replays every setting and the partner of the source deck on regenerate', () => {
+    const partner = {
+      id: 'tymna',
+      name: 'Tymna the Weaver',
+      color_identity: ['W', 'B'],
+      type_line: 'Legendary Creature — Human Cleric',
+    };
+    renderWithPrefill({
+      commander,
+      partnerCommander: partner,
+      customization: {
+        deckBudget: 75,
+        brewLevel: 1,
+        maxRarity: 'uncommon',
+        landCount: 34,
+        nonBasicLandCount: 9,
+        mustIncludeCards: ['Sol Ring'],
+      },
+      targetBracket: 3,
+      landCount: 34,
+    });
+
+    const s = useDeckBuilderStore.getState();
+    expect(s.partnerCommander?.name).toBe('Tymna the Weaver');
+    expect(s.customization).toMatchObject({
+      deckBudget: 75,
+      brewLevel: 1,
+      maxRarity: 'uncommon',
+      landCount: 34,
+      nonBasicLandCount: 9,
+      mustIncludeCards: ['Sol Ring'],
+      targetBracket: 3,
+    });
+    // The EDHREC land pre-fill must not overwrite a replayed land count.
+    expect(s.userEditedLands).toBe(true);
+  });
 });

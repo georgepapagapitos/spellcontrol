@@ -476,6 +476,8 @@ export function DecksIndexPage() {
           sourceDeckId: deck.id,
           format: deck.format,
           commander: deck.commander,
+          partnerCommander: deck.partnerCommander,
+          customization: deck.generationContext?.customization,
           themes: (deck.generationContext?.selectedThemes ?? []).map((t) => ({
             name: t.name,
             slug: t.slug ?? '',
