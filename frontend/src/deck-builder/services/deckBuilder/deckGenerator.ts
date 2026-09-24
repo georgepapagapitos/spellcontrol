@@ -269,7 +269,11 @@ function collectEarlyLiftSeeds(state: GenerationState): string[] {
   if (state.edhrecData) {
     const themeCards = state.edhrecData.cardlists.allNonLand
       .filter((c) => c.isThemeSynergyCard)
-      .sort((a, b) => calculateCardPriority(b, state.cfg.brewLevel) - calculateCardPriority(a, state.cfg.brewLevel));
+      .sort(
+        (a, b) =>
+          calculateCardPriority(b, state.cfg.brewLevel) -
+          calculateCardPriority(a, state.cfg.brewLevel)
+      );
     for (const c of themeCards) add(c.name);
   }
   for (const name of state.mustIncludeNames) add(name);
@@ -1068,7 +1072,8 @@ export function assembleCardProvenance(params: {
   const cardProvenance: Record<string, string> = {};
   for (const card of params.nonLandCards) {
     if (card.isMustInclude && card.mustIncludeSource === 'dial') {
-      cardProvenance[card.name] = params.seedReasons?.get(card.name) ?? 'Seated by the Staples/Synergy setting';
+      cardProvenance[card.name] =
+        params.seedReasons?.get(card.name) ?? 'Seated by the Staples/Synergy setting';
     } else if (card.isMustInclude) {
       cardProvenance[card.name] = 'You required this card';
     } else if (params.comboFloorAdd && params.comboFloorAdd.name === card.name) {

@@ -388,7 +388,10 @@ export function applyRoleSurplusRebalance(
   // flagship add, or anything a bracket-restricted pool omitted) would
   // otherwise be punished with.
   const deckAveragePriority =
-    pool.length > 0 ? pool.reduce((sum, c) => sum + calculateCardPriority(c, state.cfg.brewLevel), 0) / pool.length : 0;
+    pool.length > 0
+      ? pool.reduce((sum, c) => sum + calculateCardPriority(c, state.cfg.brewLevel), 0) /
+        pool.length
+      : 0;
 
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);
@@ -564,7 +567,9 @@ export function applyRoleSurplusRebalance(
     liftBoosts: Map<string, number>
   ): number => {
     const ec = poolByName.get(card.name);
-    const priority = ec ? calculateCardPriority(ec, state.cfg.brewLevel) : (roleAverageInclusion.get(role) ?? 0);
+    const priority = ec
+      ? calculateCardPriority(ec, state.cfg.brewLevel)
+      : (roleAverageInclusion.get(role) ?? 0);
     const quality =
       role === 'boardwipe'
         ? wipeQualityPenalty(card, isOneSidedWipe, getWipeScope, ctx.deckTypeTargets)
@@ -663,7 +668,11 @@ export function applyRoleSurplusRebalance(
         const ownedBoost = ownedBoostFor(ec.name, isHighSynergyCard(ec));
         return {
           ec,
-          score: calculateCardPriority(ec, state.cfg.brewLevel) + (liftBoosts.get(ec.name) ?? 0) - quality + ownedBoost,
+          score:
+            calculateCardPriority(ec, state.cfg.brewLevel) +
+            (liftBoosts.get(ec.name) ?? 0) -
+            quality +
+            ownedBoost,
         };
       })
       .sort((a, b) => b.score - a.score);
@@ -883,7 +892,9 @@ export function applyRoleSurplusRebalance(
       const ec = poolByName.get(card.name);
       const role = getCardRole(card.name);
       const roleFallback = role ? roleAverageInclusion.get(role) : undefined;
-      const priority = ec ? calculateCardPriority(ec, state.cfg.brewLevel) : (roleFallback ?? deckAveragePriority);
+      const priority = ec
+        ? calculateCardPriority(ec, state.cfg.brewLevel)
+        : (roleFallback ?? deckAveragePriority);
       const ownedBoost = ownedBoostFor(card.name, !!ec && isHighSynergyCard(ec));
       return priority + (liftBoosts.get(card.name) ?? 0) + ownedBoost;
     };

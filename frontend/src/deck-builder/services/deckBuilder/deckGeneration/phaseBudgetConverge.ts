@@ -452,7 +452,9 @@ export async function applyBudgetConvergence(
   // CHEAPEST of that shortlist. Real savings without settling for a
   // meaningfully worse card just to save an extra dime.
   const pickBestSavings = (pairs: { ec: EDHRECCard; sc: ScryfallCard }[]): ScryfallCard => {
-    const bestPriority = Math.max(...pairs.map((p) => calculateCardPriority(p.ec, state.cfg.brewLevel)));
+    const bestPriority = Math.max(
+      ...pairs.map((p) => calculateCardPriority(p.ec, state.cfg.brewLevel))
+    );
     const shortlist = pairs.filter(
       (p) => calculateCardPriority(p.ec, state.cfg.brewLevel) >= bestPriority * PRIORITY_BAND
     );
@@ -487,7 +489,11 @@ export async function applyBudgetConvergence(
           !ctx.isSaltBlocked?.(c.name) &&
           (!ownedOnly || !notInCollection(c.name, collectionNames))
       )
-      .sort((a, b) => calculateCardPriority(b, state.cfg.brewLevel) - calculateCardPriority(a, state.cfg.brewLevel));
+      .sort(
+        (a, b) =>
+          calculateCardPriority(b, state.cfg.brewLevel) -
+          calculateCardPriority(a, state.cfg.brewLevel)
+      );
 
     const gateOk = (card: ScryfallCard): boolean => {
       const price = parsePrice(getCardPrice(card, ctx.currency));

@@ -68,7 +68,7 @@ describe('calculateCardPriority', () => {
   });
 });
 
-describe('calculateCardPriority — Staples <-> Brew dial', () => {
+describe('calculateCardPriority — Staples <-> Synergy dial', () => {
   const theme = ec({ isThemeSynergyCard: true, synergy: 0.5, inclusion: 5 });
   const highSynergy = ec({ synergy: 0.6, inclusion: 10 });
   const plain = ec({ synergy: 0.1, inclusion: 20 });
@@ -79,19 +79,21 @@ describe('calculateCardPriority — Staples <-> Brew dial', () => {
     }
   });
 
-  it('Staples (0) amplifies inclusion and damps synergy relative to Balanced', () => {
-    // Theme card: inclusion term grows, synergy term shrinks.
-    expect(calculateCardPriority(theme, 0)).toBe(100 + 0.5 * 50 * 0.4 + 5 * 1.5);
-    // High-synergy card: synergy*100 term shrinks, inclusion term grows.
-    expect(calculateCardPriority(highSynergy, 0)).toBe(0.6 * 100 * 0.4 + 10 * 1.5);
-    // Plain inclusion-only card: pure inclusion amplified.
-    expect(calculateCardPriority(plain, 0)).toBe(20 * 1.5);
+  it('Staples (0) ranks by play rate alone: no synergy term, no theme-list floor', () => {
+    expect(calculateCardPriority(theme, 0)).toBe(5 * 2);
+    expect(calculateCardPriority(highSynergy, 0)).toBe(10 * 2);
+    expect(calculateCardPriority(plain, 0)).toBe(20 * 2);
   });
 
-  it('Brew (1) damps inclusion and amplifies synergy relative to Balanced', () => {
-    expect(calculateCardPriority(theme, 1)).toBe(100 + 0.5 * 50 * 1.6 + 5 * 0.5);
-    expect(calculateCardPriority(highSynergy, 1)).toBe(0.6 * 100 * 1.6 + 10 * 0.5);
-    expect(calculateCardPriority(plain, 1)).toBe(20 * 0.5);
+  it('Synergy (1) leads with synergy and keeps play rate as a small tie-breaker', () => {
+    expect(calculateCardPriority(theme, 1)).toBeCloseTo(100 + 0.5 * 50 * 2.2 + 5 * 0.25);
+    expect(calculateCardPriority(highSynergy, 1)).toBeCloseTo(0.6 * 100 * 2.2 + 10 * 0.25);
+    expect(calculateCardPriority(plain, 1)).toBeCloseTo(20 * 0.25);
+  });
+
+  it('halfway stops sit between Balanced and the ends', () => {
+    expect(calculateCardPriority(theme, 0.25)).toBeCloseTo(50 + 0.5 * 50 * 0.5 + 5 * 1.5);
+    expect(calculateCardPriority(highSynergy, 0.75)).toBeCloseTo(0.6 * 100 * 1.6 + 10 * 0.625);
   });
 
   it('is monotonic: a high-synergy card gains ground on a same-inclusion no-synergy card as brewLevel rises', () => {
@@ -155,8 +157,8 @@ describe('mergeWithAllNonLand', () => {
     // Balanced (default): the staple's raw inclusion (60) beats the deep
     // cut's synergy*100+inclusion (31+5=36).
     expect(mergeWithAllNonLand(pool, []).map((c) => c.name)).toEqual(['Staple', 'Deep cut']);
-    // Full Brew: damped inclusion (30) loses to amplified synergy+inclusion
-    // (49.6+2.5=52.1) — the dial actually reorders the pool.
+    // Full Synergy: damped inclusion (15) loses to amplified synergy+inclusion
+    // (68.2+1.25) — the dial actually reorders the pool.
     expect(mergeWithAllNonLand(pool, [], 1).map((c) => c.name)).toEqual(['Deep cut', 'Staple']);
   });
 });

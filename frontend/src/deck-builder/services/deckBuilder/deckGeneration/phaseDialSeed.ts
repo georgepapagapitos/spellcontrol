@@ -20,7 +20,11 @@
 import { logger } from '@/lib/logger';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchAverageDeckSpells } from '@/deck-builder/services/edhrec/client';
-import { getCardsByNames, getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import {
+  getCardsByNames,
+  getCardPrice,
+  getFrontFaceTypeLine,
+} from '@/deck-builder/services/scryfall/client';
 import { categorizeCards } from '../categorize';
 import {
   constrainsToCollection,
@@ -76,7 +80,9 @@ export async function dialSeedPhase(
   if (brew > 0.25 && brew < 0.75) return { reasons };
 
   const { commander, partnerCommander } = state.context;
-  const label = partnerCommander ? `${commander.name} and ${partnerCommander.name}` : commander.name;
+  const label = partnerCommander
+    ? `${commander.name} and ${partnerCommander.name}`
+    : commander.name;
   const pool = state.edhrecData?.cardlists.allNonLand ?? [];
   const inclusionOf = new Map(pool.map((c) => [c.name, c.inclusion]));
 
