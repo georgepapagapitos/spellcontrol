@@ -1443,6 +1443,73 @@ export function parseAverageDeckQuantities(data: unknown): Array<[string, number
   return null;
 }
 
+/** An EDHREC average deck's spells: what EDHREC calls the typical 99. */
+export interface AverageDeckSpells {
+  /** Nonland card names, in EDHREC's order. */
+  names: string[];
+  /** Which page they came from ('theme', 'bracket', 'budget' or 'base'). */
+  page: 'theme' | 'bracket' | 'budget' | 'base';
+  /** Decks behind the page, 0 when EDHREC didn't say. */
+  numDecks: number;
+}
+
+/**
+ * The spells of EDHREC's average deck for a commander (or a partner pair),
+ * from the most specific page that exists: the selected theme, then the
+ * target bracket, then the budget/expensive pool, then the plain page.
+ * EDHREC has no theme+bracket average decks (403), so they aren't tried.
+ * Null when offline or when no page answers with a real deck.
+ */
+export async function fetchAverageDeckSpells(
+  commanderNames: string[],
+  opts: { themeSlug?: string; targetBracket?: TargetBracket; budgetOption?: BudgetOption } = {}
+): Promise<AverageDeckSpells | null> {
+  if (offlineActive() || commanderNames.length === 0) return null;
+  const slugs =
+    commanderNames.length > 1
+      ? getPartnerSlugs(commanderNames[0], commanderNames[1])
+      : [formatCommanderNameForUrl(commanderNames[0])];
+  const rungs: Array<{ page: AverageDeckSpells['page']; suffix: string }> = [];
+  if (opts.themeSlug) rungs.push({ page: 'theme', suffix: `/${opts.themeSlug}` });
+  const bracketSuffix = getTargetBracketSuffix(opts.targetBracket);
+  if (bracketSuffix) rungs.push({ page: 'bracket', suffix: bracketSuffix });
+  const budgetSuffix = getBudgetSuffix(opts.budgetOption);
+  if (budgetSuffix) rungs.push({ page: 'budget', suffix: budgetSuffix });
+  rungs.push({ page: 'base', suffix: '' });
+
+  for (const rung of rungs) {
+    for (const slug of slugs) {
+      try {
+        const data = await edhrecFetch<unknown>(`/pages/average-decks/${slug}${rung.suffix}.json`);
+        const names = parseAverageDeckSpellNames(data);
+        // A page with a handful of cards is a stub, not a deck to build from.
+        if (names.length < 20) continue;
+        const numDecks =
+          (data as { container?: { json_dict?: { card?: { num_decks?: number } } } })?.container
+            ?.json_dict?.card?.num_decks ?? 0;
+        return { names, page: rung.page, numDecks };
+      } catch {
+        // Try the other slug order, then the next broader page.
+      }
+    }
+  }
+  return null;
+}
+
+/** Nonland names from an average-deck payload's grouped `deck.cards`. */
+export function parseAverageDeckSpellNames(data: unknown): string[] {
+  const grouped = (data as { deck?: { cards?: Record<string, unknown> } })?.deck?.cards;
+  if (!grouped || typeof grouped !== 'object' || Array.isArray(grouped)) return [];
+  const out: string[] = [];
+  for (const [group, rows] of Object.entries(grouped)) {
+    if (/land/i.test(group) || !Array.isArray(rows)) continue;
+    for (const row of rows) {
+      if (Array.isArray(row) && typeof row[0] === 'string') out.push(row[0].trim());
+    }
+  }
+  return out;
+}
+
 /**
  * Fetch all multi-copy card quantities from an EDHREC average deck.
  * Returns a Map of cardName → quantity for cards with >1 copy, or null if the fetch failed entirely.

@@ -161,6 +161,7 @@ export function assembleBuildReport(input: {
   if (generated.landSqueezeTrimNote) report.landSqueezeTrimNote = generated.landSqueezeTrimNote;
   if (generated.bracketPoolFallbackNote)
     report.bracketPoolFallbackNote = generated.bracketPoolFallbackNote;
+  if (generated.dialSeedNote) report.dialSeedNote = generated.dialSeedNote;
   if (generated.archetypeBlendNote) report.archetypeBlendNote = generated.archetypeBlendNote;
   if (generated.similarPoolNote) report.similarPoolNote = generated.similarPoolNote;
   if (generated.similarPoolNames && generated.similarPoolNames.length > 0)

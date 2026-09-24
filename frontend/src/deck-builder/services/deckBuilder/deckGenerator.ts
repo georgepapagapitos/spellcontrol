@@ -181,6 +181,7 @@ import { comboIntegrityAuditPhase } from './deckGeneration/phaseComboAudit';
 import { postGenFixupPhase } from './deckGeneration/phasePostGenFixup';
 import { smartTrimPhase, computeTrimResistance } from './deckGeneration/phaseSmartTrim';
 import { wildcardScanPhase } from './deckGeneration/phaseWildcardScan';
+import { dialSeedPhase } from './deckGeneration/phaseDialSeed';
 import {
   MUST_INCLUDE_BOOST,
   LAND_PROTECTION_BOOST,
@@ -1056,6 +1057,8 @@ export function assembleCardProvenance(params: {
    *  when no theme was selected (isThemeSynergyCard can still be true — it
    *  also flags EDHREC's own topcards/gamechangers lists). */
   themeNames: readonly string[];
+  /** Why each Staples/Synergy dial seed is here (phaseDialSeed.ts). */
+  seedReasons?: ReadonlyMap<string, string>;
 }): Record<string, string> {
   const themeProvenanceLabel =
     params.themeNames.length > 0
@@ -1064,7 +1067,9 @@ export function assembleCardProvenance(params: {
   const wildcardNames = new Set(params.wildcardsKept);
   const cardProvenance: Record<string, string> = {};
   for (const card of params.nonLandCards) {
-    if (card.isMustInclude) {
+    if (card.isMustInclude && card.mustIncludeSource === 'dial') {
+      cardProvenance[card.name] = params.seedReasons?.get(card.name) ?? 'Seated by the Staples/Synergy setting';
+    } else if (card.isMustInclude) {
       cardProvenance[card.name] = 'You required this card';
     } else if (params.comboFloorAdd && params.comboFloorAdd.name === card.name) {
       cardProvenance[card.name] = params.comboFloorAdd.reason;
@@ -2208,6 +2213,15 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
   // ---- End multi-copy pipeline ----
+
+  // Staples/Synergy dial ends: seat EDHREC's average deck (or its core) or the
+  // commander's high-synergy cards before the type passes. No-op at Balanced.
+  const dialSeed = await dialSeedPhase(state, {
+    colorIdentity,
+    budgetTracker,
+    bracketGuard,
+    isSaltBlocked,
+  });
 
   // Count non-land cards already added (must-includes + multi-copy) by card type
   // so we can reduce type targets and avoid overfilling the deck
@@ -4749,6 +4763,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     wildcardsKept: finalWildcardsKept,
     comboFloorAdd,
     themeNames: selectedThemesWithSlugs.map((t) => t.name),
+    seedReasons: dialSeed.reasons,
   });
   const thinPoolFillNote = ownedOnlyBuild
     ? buildThinPoolFillNote({ nonLandCards, cardProvenance, liftScoreOf })
@@ -4841,6 +4856,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     composition: targets,
     dataSource: state.dataSource,
     bracketPoolFallbackNote: state.bracketPoolFallbackNote,
+    dialSeedNote: dialSeed.note,
     archetypeBlendNote: archetypeBlendSeated.note,
     archetypeBlendNames: archetypeBlendSeated.names,
     similarPoolNote: similarPoolSeated.note,

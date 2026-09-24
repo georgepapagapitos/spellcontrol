@@ -88,7 +88,7 @@ export interface ScryfallCard {
   isGameChanger?: boolean;
   isThemeSynergyCard?: boolean; // true if from EDHREC highsynergycards/topcards/gamechangers
   isMustInclude?: boolean;
-  mustIncludeSource?: 'user' | 'deck' | 'combo'; // Where the must-include came from
+  mustIncludeSource?: 'user' | 'deck' | 'combo' | 'dial'; // Where the must-include came from ('dial' = Staples/Synergy seed)
   /** Force-included staple mana rock (Sol Ring / Arcane Signet, see
    *  phaseStapleManaRocks.ts) — provenance ONLY, protects it from Smart Trim's
    *  role-surplus penalty. Distinct from isMustInclude (a USER lock), which
@@ -627,6 +627,8 @@ export interface BuildReport {
    *  instead, and that the target bracket's card permissions were kept
    *  regardless. Undefined when no bracket was targeted, or the requested
    *  page had real data. */
+  /** What the Staples/Synergy dial seated up front (phaseDialSeed.ts). */
+  dialSeedNote?: string;
   bracketPoolFallbackNote?: string;
   /** Expensive combo pieces the price-sanity tie-break let win over a cheaper
    *  same-role staple for a live-but-still-incomplete combo. Undefined when
@@ -845,6 +847,7 @@ export interface GeneratedDeck {
   comboAuditBracketBlockNote?: string; // e.g. N combo-audit swaps skipped to stay within the target bracket (E104)
   landSqueezeTrimNote?: string; // e.g. N cards cut to reconcile an auto-tuned land count raise (E88)
   bracketPoolFallbackNote?: string; // e.g. bracket-narrowed EDHREC page was too thin — laddered down to a broader page (E93)
+  dialSeedNote?: string; // what the Staples/Synergy dial seated up front (phaseDialSeed.ts)
   archetypeBlendNote?: string; // e.g. N cards backfilled from the theme's EDHREC tag page because the commander's own page is thin (E221)
   archetypeBlendNames?: string[]; // the names that note refers to — threaded into the misfit pass so they aren't flagged for the absence that caused them (E221)
   similarPoolNote?: string; // E282: N owned cards came from similar commanders' decks (owned-only builds)
