@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import type { PlaytestCard } from '@/lib/playtest';
 import { ZonePile } from './ZonePile';
@@ -48,7 +48,7 @@ describe('ZonePile — the command zone', () => {
     const names = [...document.querySelectorAll('.playtest-pile__commander')].map((el) =>
       el.getAttribute('aria-label')
     );
-    expect(names).toEqual(['Cast Card c', 'Cast Card d']);
+    expect(names).toEqual(['Card c', 'Card d']);
   });
 });
 
@@ -150,5 +150,49 @@ describe('ZonePile — the library keeps its top card face down', () => {
     renderLibrary(true);
     expect(screen.getByAltText('Ulamog')).toBeTruthy();
     expect(document.querySelector('.playtest-pile__back--library')).toBeNull();
+  });
+});
+
+/**
+ * A pile's top card is a drag source (user, 2026-09-24: "i should be able to
+ * click and drag cards from my zones into other places"). The drag starts
+ * from the pointer only, and a drag is never also the tile's click.
+ */
+describe('ZonePile — lifting the top card', () => {
+  function renderPile(onDragStart: (id: string) => void, onClick = vi.fn()) {
+    render(
+      <DndContext onDragStart={(e) => onDragStart(String(e.active.id))}>
+        <ZonePile
+          zone="graveyard"
+          label="Graveyard"
+          cards={[card('a'), card('b')]}
+          click={{ label: 'View the graveyard', onClick }}
+          onMenu={vi.fn()}
+        />
+      </DndContext>
+    );
+    return screen.getByRole('button', { name: /^View the graveyard/ });
+  }
+
+  it('picks up the top card, the one put there last', () => {
+    const started = vi.fn();
+    const tile = renderPile(started);
+    fireEvent.pointerDown(tile, { isPrimary: true, button: 0, clientX: 0, clientY: 0 });
+    expect(started).toHaveBeenCalledWith('zone:b');
+  });
+
+  // dnd-kit swallows the click that ends a drag (a capture listener it drops
+  // 50ms later); the pile relies on that rather than guarding it again.
+  it('opens nothing when the drag is released back over the tile', async () => {
+    const onClick = vi.fn();
+    const tile = renderPile(vi.fn(), onClick);
+    fireEvent.pointerDown(tile, { isPrimary: true, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerUp(document, { isPrimary: true, button: 0 });
+    fireEvent.click(tile);
+    expect(onClick).not.toHaveBeenCalled();
+    // The next plain click is a click again.
+    await act(() => new Promise((r) => setTimeout(r, 60)));
+    fireEvent.click(tile);
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });

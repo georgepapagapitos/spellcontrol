@@ -5942,6 +5942,26 @@ means a counter, so the unambiguous route survives. A context-reading key
 must state both halves in its label — the shortcuts sheet is generated from
 those labels, so a key that behaves two ways and says one is a lie.
 
+**Ctrl + the wheel sizes the cards, never the page** (2026-09-24, from
+EDHPlay). On the wide tier a native, non-passive `wheel` listener takes every
+ctrl + wheel (a trackpad pinch arrives as the same event), stops the browser's
+own zoom, and steps the same card-size setting the slider and `=` / `-` drive:
+one step per mouse notch, a pinch's small deltas added up to one. The felt,
+its grid and every corner stay their size. The narrow tier has no card size to
+set, so it leaves the browser's zoom alone.
+
+**A pile's card is picked up the way a card on the felt is** (2026-09-24). The
+top of the library, graveyard and exile, and each commander in the command
+zone, drag onto the battlefield, into the hand, or onto another pile; a card
+dropped back on its own pile has gone nowhere and costs no takeback step. The
+pile shows the card underneath while its top card is in the air, and the
+library's top stays a card back on the way unless the top is being played
+revealed. The drag is pointer only: Enter and Space on a pile keep meaning its
+click, and the viewer and menus carry every move for the keyboard. **Clicking
+a commander opens its card menu; it never casts.** Casting is that menu's
+Move to ▸ Battlefield, or a drag onto the felt, because a click that cast put
+the commander on the table every time someone only meant to look at it.
+
 **Every key has a pointer twin.** A shortcut that exists only on the keyboard
 is not shipped: each one is also a card-menu item, a table-menu item, or a
 control on the surface it drives (the stack strip's own buttons). Menu items

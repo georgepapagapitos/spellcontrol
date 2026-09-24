@@ -207,11 +207,18 @@ const FALLBACK_DROP_POS = { x: 0.05, y: 0.05 };
 
 /** B6-16: the desktop keydown handler below is the actual implementation —
  *  this just makes those shortcuts discoverable via the app's `?` overlay. */
-/** The two keys the binding table doesn't own: they open menus, not actions. */
+/** What the binding table doesn't own: two keys that open menus, not actions,
+ *  and the wheel gesture that sizes the cards. */
 const FIXED_SHORTCUTS = [
   { keys: ['Shift+Enter'], description: 'Open the focused card’s menu' },
   { keys: ['Shift+F10'], description: 'Open the table menu' },
+  { keys: ['Ctrl+Scroll'], description: 'Bigger or smaller cards' },
 ];
+
+/** Which pile or hand a card that is off the battlefield sits in. */
+function zoneOfCard(zones: PlaytestState['zones'], cardId: string): Zone | undefined {
+  return (Object.keys(zones) as Zone[]).find((z) => zones[z].some((c) => c.id === cardId));
+}
 
 function parseDraggable(id: string): { source: 'bf' | 'hand' | 'zone'; cardId: string } | null {
   const m = /^(bf|hand|zone):(.+)$/.exec(id);
@@ -394,6 +401,34 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // one from a later game) re-shows.
   const [dismissedSessionRecordId, setDismissedSessionRecordId] = useState<string | null>(null);
   const isNarrow = useNarrowViewport();
+  // EDHPlay's gesture: ctrl and the wheel size the cards, and the page itself
+  // never zooms under the table (the felt, its grid and the chrome stay put).
+  // A trackpad pinch reaches the browser as the same ctrl + wheel, so it
+  // sizes the cards too. Native and non-passive, because React's onWheel is
+  // passive and cannot stop the browser's own zoom. Only on the wide tier,
+  // the one with a card size to set (see TableSettingsSheet); a narrow
+  // window keeps the browser's zoom.
+  useEffect(() => {
+    if (isNarrow) return;
+    // One step per mouse-wheel notch (~100px in Chromium, 3 lines in
+    // Firefox), and a pinch's many small deltas add up to the same.
+    let pending = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+      // A change of direction starts over, so reversing answers at once.
+      if (Math.sign(dy) !== Math.sign(pending)) pending = 0;
+      pending += dy;
+      while (Math.abs(pending) >= WHEEL_STEP_PX) {
+        const dir = pending < 0 ? 1 : -1;
+        stepZoom(dir);
+        pending += dir * WHEEL_STEP_PX;
+      }
+    };
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => window.removeEventListener('wheel', onWheel);
+  }, [isNarrow, stepZoom]);
   /* A phone, specifically. `isNarrow` is the tier boundary the CSS uses for
      sizing (≤1023px covers a tablet too); this one answers the narrower
      question of whether four card-width piles fit along the bottom beside
@@ -525,8 +560,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       const c = state.zones.hand.find((card) => card.id === parsed.cardId);
       return c ? { card: c, bf: undefined, size: 'sm' as const } : null;
     }
-    return null;
-  }, [activeId, state.battlefield, state.zones.hand]);
+    // Lifted off a pile. The library's top card stays a card back on the way
+    // unless the top is being played revealed: dragging it to the graveyard
+    // or the battlefield shows it when it lands, not while it is in the air.
+    const from = zoneOfCard(state.zones, parsed.cardId);
+    const c = from && state.zones[from].find((card) => card.id === parsed.cardId);
+    if (!c) return null;
+    const reveal = state.libraryReveal;
+    const hidden = from === 'library' && reveal !== 'top' && reveal !== 'top-me';
+    const bf = hidden
+      ? { card: c, tapped: false, counters: {}, stickers: [], x: 0, y: 0, faceDown: true }
+      : undefined;
+    return { card: c, bf, size: 'sm' as const };
+  }, [activeId, state.battlefield, state.zones, state.libraryReveal]);
 
   // A battlefield drag that carries more than the card under the pointer:
   // the cards it moves, and — `riding` — the ones the board has to translate
@@ -565,12 +611,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // so the collision function can tell an Aura from a creature.
   const collisionDetection = useMemo(
     () =>
-      makePlaytestCollision(
-        (id) =>
-          state.battlefield.find((b) => b.card.id === id)?.card ??
-          state.zones.hand.find((c) => c.id === id)
-      ),
-    [state.battlefield, state.zones.hand]
+      makePlaytestCollision((id) => {
+        const bf = state.battlefield.find((b) => b.card.id === id);
+        if (bf) return bf.card;
+        const from = zoneOfCard(state.zones, id);
+        return from ? state.zones[from].find((c) => c.id === id) : undefined;
+      }),
+    [state.battlefield, state.zones]
   );
 
   const sensors = useSensors(
@@ -629,9 +676,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     const hostId = hostFromDroppableId(overId);
     if (hostId) {
       // Drag-to-attach (Aura / Equipment / Fortification — see attach-drop.ts).
-      // From hand: cast it straight onto the creature — enter the battlefield,
-      // then attach; the reducer snaps it to the host.
-      if (parsed.source === 'hand') {
+      // From the hand or a pile: straight onto the creature — enter the
+      // battlefield, then attach; the reducer snaps it to the host.
+      if (parsed.source !== 'bf') {
         dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: parsed.cardId, ...FALLBACK_DROP_POS });
       }
       dispatch({ type: 'ATTACH', cardId: parsed.cardId, targetId: hostId });
@@ -674,6 +721,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         // other zone appends.
         dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to, toIndex: zoneDropIndex(to) });
       }
+      return;
+    }
+
+    // A pile's card dropped back on its own pile has gone nowhere. Without
+    // this it would still spend a takeback step, and the library would
+    // reshuffle nothing into the same place.
+    if (parsed.source === 'zone' && overId === `zone:${zoneOfCard(state.zones, parsed.cardId)}`) {
       return;
     }
 
@@ -2528,14 +2582,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               onClick: () => setViewer({ zone: 'command' }),
             }}
             onMenu={openPileMenu('command')}
-            // Clicking a commander casts it. It is the command zone's one
-            // obvious action (the viewer's primary is already "Cast"), and
-            // with partners the pile cannot guess which of the two you meant
-            // — so the choice IS the click. The reducer bumps that
-            // commander's own tax.
-            onCastCommander={castCommander}
-            // A right-click on one commander is that card's menu, as it is in
-            // EDHPlay; anywhere else on the tile is still the zone's.
+            // A click or right-click on one commander is that card's menu,
+            // as it is in EDHPlay, and its Move to ▸ Battlefield casts it: a
+            // click that cast straight away put a commander on the table
+            // every time someone only meant to look at it. Dragging it to
+            // the battlefield casts it too (the reducer bumps its tax).
+            // Anywhere else on the tile is still the zone's menu.
             onCardMenu={(card, x, y) => setHandMenu({ cardId: card.id, x, y, zone: 'command' })}
           />
         </>
@@ -3277,6 +3329,8 @@ const ZOOM_KEY = 'playtest-zoom-v1';
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.5;
 const ZOOM_STEP = 0.1;
+/** Wheel travel per card-size step on ctrl + wheel: one mouse notch. */
+const WHEEL_STEP_PX = 100;
 
 function readZoom(): number {
   try {
