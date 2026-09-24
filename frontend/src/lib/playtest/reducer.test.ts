@@ -1670,3 +1670,27 @@ describe('the hand menu', () => {
     expect(applyAction(s, { type: 'REVEAL_HAND' })).toBe(s);
   });
 });
+
+/** The coins above the command zone set a commander's tax by hand (user,
+ *  2026-09-24): one cast per click, never below zero, and undoable like any
+ *  other step. */
+describe('ADJUST_COMMANDER_TAX', () => {
+  it('adds and takes off one cast, floored at zero', () => {
+    let s = init(10);
+    s = applyAction(s, { type: 'ADJUST_COMMANDER_TAX', cardId: 'cmd', delta: 1 });
+    s = applyAction(s, { type: 'ADJUST_COMMANDER_TAX', cardId: 'cmd', delta: 1 });
+    expect(s.commanderTax.cmd).toBe(2);
+    s = applyAction(s, { type: 'ADJUST_COMMANDER_TAX', cardId: 'cmd', delta: -1 });
+    s = applyAction(s, { type: 'ADJUST_COMMANDER_TAX', cardId: 'cmd', delta: -1 });
+    const floor = applyAction(s, { type: 'ADJUST_COMMANDER_TAX', cardId: 'cmd', delta: -1 });
+    expect(floor.commanderTax.cmd).toBe(0);
+    // A no-op returns the same state, so it spends no takeback step.
+    expect(floor).toBe(s);
+  });
+
+  it('is undone like any other step', () => {
+    const s = init(10);
+    const up = applyAction(s, { type: 'ADJUST_COMMANDER_TAX', cardId: 'cmd', delta: 1 });
+    expect(applyAction(up, { type: 'UNDO' }).commanderTax.cmd).toBeUndefined();
+  });
+});

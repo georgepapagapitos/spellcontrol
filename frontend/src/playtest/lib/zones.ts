@@ -1,4 +1,4 @@
-import type { Zone } from '@/lib/playtest';
+import type { PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
 
 /**
  * Returns true if a typeLine string describes a land card.
@@ -98,6 +98,37 @@ export function commanderTaxAmount(
   cardId: string | undefined
 ): number {
   return cardId ? (commanderTax[cardId] ?? 0) * 2 : 0;
+}
+
+/** Coins above the command zone: a commander and a partner, never more. */
+const TAX_COINS_MAX = 2;
+
+/**
+ * The cards whose commander tax the coins above the command zone track, in a
+ * fixed order: the deck's commander first (the gold coin), its partner second
+ * (the silver one). `order` is those two ids; anything else sorts after them
+ * by id, so a coin never changes colour when its commander changes zone.
+ *
+ * A commander is tracked wherever it is (on the battlefield, in the
+ * graveyard), because that is exactly when the tax matters: it is the price of
+ * the NEXT cast. A card the player put in the command zone by hand gets a coin
+ * too while it sits there, so a list with no commander of its own can still
+ * keep a tax.
+ */
+export function taxCommanders(
+  state: Pick<PlaytestState, 'zones' | 'battlefield'>,
+  order: readonly string[] = []
+): PlaytestCard[] {
+  const all = [...state.battlefield.map((b) => b.card), ...Object.values(state.zones).flat()];
+  const tracked = all.filter((c) => c.origin === 'command');
+  for (const c of state.zones.command) if (!tracked.includes(c)) tracked.push(c);
+  const rank = (c: PlaytestCard) => {
+    const i = order.indexOf(c.id);
+    return i < 0 ? order.length : i;
+  };
+  return tracked
+    .sort((x, y) => rank(x) - rank(y) || x.id.localeCompare(y.id))
+    .slice(0, TAX_COINS_MAX);
 }
 
 /** Proper-case zone name for ZoneViewerModal's title/aria-label — a map, not

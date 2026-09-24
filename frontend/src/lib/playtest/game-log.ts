@@ -521,6 +521,20 @@ function buildRawLogEntries(
       ];
     }
 
+    case 'ADJUST_COMMANDER_TAX': {
+      if (next === current) return []; // no-op (floored at zero)
+      const name = locate(current, action.cardId)?.card.name ?? 'Commander';
+      const tax = (state: PlaytestState): number => (state.commanderTax[action.cardId] ?? 0) * 2;
+      return [
+        {
+          turn,
+          kind: 'counter',
+          text: `${name}: commander tax ${tax(current)} → ${tax(next)}`,
+          cardName: name,
+        },
+      ];
+    }
+
     case 'SET_PLAYER_COUNTER': {
       if (next === current) return []; // no-op (floored at zero)
       const read = (state: PlaytestState): number => state.playerCounters?.[action.counter] ?? 0;

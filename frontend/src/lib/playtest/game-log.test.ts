@@ -418,6 +418,25 @@ describe('buildLogEntries', () => {
     });
   });
 
+  describe('commander tax', () => {
+    it('names the commander and the tax before and after', () => {
+      const s = init(5, 1, 0);
+      const cardId = s.zones.library[0].id;
+      const name = s.zones.library[0].name;
+      const action = { type: 'ADJUST_COMMANDER_TAX', cardId, delta: 1 } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toMatchObject([
+        { turn: 1, kind: 'counter', text: `${name}: commander tax 0 → 2`, cardName: name },
+      ]);
+    });
+
+    it('logs nothing for a take-off at zero', () => {
+      const s = init(5, 1, 0);
+      const action = { type: 'ADJUST_COMMANDER_TAX', cardId: 'x', delta: -1 } as const;
+      expect(buildLogEntries(s, action, applyAction(s, action))).toEqual([]);
+    });
+  });
+
   describe('designation', () => {
     it('logs taking the Monarch', () => {
       const s = init(5, 1, 0);

@@ -122,9 +122,9 @@ export interface PlaytestState {
   rngSeed: number;
   turn: number;
   /** Casts-from-command count per commander card id (keyed by `PlaytestCard.id`).
-   *  Display tax is `count * 2` (MTG rule 903.10); incremented only when a card
-   *  moves command → battlefield, never decremented (undo restores it via the
-   *  normal snapshot mechanism). */
+   *  Display tax is `count * 2` (MTG rule 903.10). Incremented when a card
+   *  moves command → battlefield, and set by hand from the coins above the
+   *  command zone (`ADJUST_COMMANDER_TAX`), never below zero. */
   commanderTax: Record<string, number>;
   /** Your life total. Goldfishing tracks nobody else's: there are no virtual
    *  opponents, no commander damage dealt outward and no table to sweep. A
@@ -380,7 +380,12 @@ export type PlaytestAction =
   /** Claim/clear a table designation. City's Blessing is one-way in the UI
    *  (only ever dispatched with `held: true`) but the reducer itself doesn't
    *  enforce that — see `Designation`. */
-  | { type: 'SET_DESIGNATION'; designation: Designation; held: boolean };
+  | { type: 'SET_DESIGNATION'; designation: Designation; held: boolean }
+  /** One cast more or fewer on a commander's tax, from its coin above the
+   *  command zone: the fix for a cast that happened off this table (a
+   *  commander cast from hand, a tax the table agreed to reset). Floored at
+   *  zero. */
+  | { type: 'ADJUST_COMMANDER_TAX'; cardId: string; delta: 1 | -1 };
 
 export interface PlaytestInit {
   library: PlaytestCard[];

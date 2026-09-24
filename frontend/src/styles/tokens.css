@@ -373,6 +373,8 @@
   --role-ink-draw: #3a85cc;
   /* MTG-canonical counter gold (game-surface convention, do not retheme). */
   --mtg-counter-gold: #ffd460;
+  /* Its partner: the second commander's tax coin (EDHPlay's gold + silver). */
+  --mtg-counter-silver: #c9ced6;
 
   /* Cube identity color — a single fixed hue for every "in a cube" badge/link
      (cubes have no per-cube user color, unlike decks). A violet, deliberately
