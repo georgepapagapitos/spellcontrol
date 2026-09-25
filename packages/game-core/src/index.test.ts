@@ -1228,6 +1228,14 @@ describe('watching and voice', () => {
     expect(shut.visibility).toBe('private');
   });
 
+  it('accepts a friends-only visibility, distinct from public and private', () => {
+    const friends = applyAction(lobby(), {
+      type: 'settings',
+      patch: { visibility: 'friends' },
+    });
+    expect(friends.visibility).toBe('friends');
+  });
+
   it('tells the table when watching is opened, because the table has a right to know', () => {
     const before = lobby().events.length;
     const open = applyAction(lobby(), {

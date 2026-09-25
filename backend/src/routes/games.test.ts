@@ -3049,10 +3049,20 @@ describe('table name and visibility', () => {
     expect(res.status).toBe(400);
   });
 
-  it('refuses a visibility that is not public or private', async () => {
+  it('refuses a visibility that is not public, friends, or private', async () => {
     const { hostCookie, code, version } = await hostGame('visibility_bad');
     const res = await patchSettings(hostCookie, code, version, { visibility: 'unlisted' });
     expect(res.status).toBe(400);
+  });
+
+  it('accepts a friends visibility, at creation and through settings', async () => {
+    const created = await hostGame('visibility_friends_create', { visibility: 'friends' });
+    expect(created.game.visibility).toBe('friends');
+    const res = await patchSettings(created.hostCookie, created.code, created.version, {
+      visibility: 'friends',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.game.visibility).toBe('friends');
   });
 });
 
@@ -3076,6 +3086,7 @@ describe('GET /api/games (room browser, E367)', () => {
     seated: number;
     max: number;
     joinable: boolean;
+    visibility: 'public' | 'friends';
     bracket: { min: number; max: number } | null;
   }
 
@@ -3114,14 +3125,25 @@ describe('GET /api/games (room browser, E367)', () => {
       seated: 1,
       max: 8,
       joinable: true,
+      visibility: 'public',
       // No deck seated yet at hostGame time (no hostBracket in the body), so
       // no seat has a known bracket — never a guess.
       bracket: null,
     });
-    // Allowlist — nothing beyond these eight fields, in particular no
+    // Allowlist — nothing beyond these nine fields, in particular no
     // hostUserId/players/deck data from the underlying GameState.
     expect(Object.keys(row!).sort()).toEqual(
-      ['bracket', 'code', 'format', 'joinable', 'max', 'name', 'seated', 'status'].sort()
+      [
+        'bracket',
+        'code',
+        'format',
+        'joinable',
+        'max',
+        'name',
+        'seated',
+        'status',
+        'visibility',
+      ].sort()
     );
   });
 
@@ -3197,5 +3219,147 @@ describe('GET /api/games (room browser, E367)', () => {
     const rows = await listGames(viewer);
     const row = rows.find((g) => g.code === code);
     expect(row).toMatchObject({ status: 'active', joinable: false });
+  });
+});
+
+/**
+ * Board T139 (config surfaces), Lane E — games get a Friends visibility, the
+ * middle rung between `'public'` (anyone with the code) and `'private'`
+ * (seats only). Unlike `'private'`, which has always let anyone holding the
+ * code join (the code is the invite), `'friends'` gates JOINING too — only
+ * the host's own friends, not friends-of-a-seated-guest — so a stranger who
+ * finds or is handed the code still can't get a seat. Every denial mirrors
+ * the private/unknown-code stealth 404 (see `resolveGameAccess`'s doc).
+ */
+describe('friends visibility (games)', () => {
+  async function hostGame(tag: string, body: Record<string, unknown> = {}) {
+    const hostCookie = await registerAndGetCookie(tag);
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send(body);
+    return {
+      hostCookie,
+      code: created.body.game.code as string,
+      version: created.body.game.version as number,
+    };
+  }
+
+  /** Mutual friend request, same auto-accept path `friends.test.ts` uses. */
+  async function befriend(
+    cookieA: string,
+    usernameA: string,
+    cookieB: string,
+    usernameB: string
+  ): Promise<void> {
+    await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', cookieA)
+      .send({ username: usernameB });
+    const res = await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', cookieB)
+      .send({ username: usernameA });
+    expect(res.status).toBe(201);
+  }
+
+  it('lets a friend of the host view and join a friends-only game', async () => {
+    const hostUsername = 'fv_view_host';
+    const { hostCookie, code } = await hostGame(hostUsername, { visibility: 'friends' });
+    const friendUsername = 'fv_view_friend';
+    const friendCookie = await registerAndGetCookie(friendUsername);
+    await befriend(hostCookie, hostUsername, friendCookie, friendUsername);
+
+    const view = await request(app).get(`/api/games/${code}`).set('Cookie', friendCookie);
+    expect(view.status).toBe(200);
+
+    const join = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', friendCookie)
+      .send({});
+    expect(join.status).toBe(200);
+    expect(join.body.game.players.length).toBe(2);
+  });
+
+  it('gives a non-friend the identical private/unknown-code 404, for viewing and joining', async () => {
+    const hostUsername = 'fv_deny_host';
+    const { code } = await hostGame(hostUsername, { visibility: 'friends' });
+    const strangerCookie = await registerAndGetCookie('fv_deny_stranger');
+
+    const view = await request(app).get(`/api/games/${code}`).set('Cookie', strangerCookie);
+    const unknown = await request(app).get('/api/games/ZZZW').set('Cookie', strangerCookie);
+    expect(view.status).toBe(404);
+    expect(view.body).toEqual(unknown.body);
+
+    const join = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', strangerCookie)
+      .send({});
+    expect(join.status).toBe(404);
+  });
+
+  it('revokes access the moment the pair unfriends', async () => {
+    const hostUsername = 'fv_revoke_host';
+    const { hostCookie, code } = await hostGame(hostUsername, { visibility: 'friends' });
+    const friendUsername = 'fv_revoke_friend';
+    const friendCookie = await registerAndGetCookie(friendUsername);
+    await befriend(hostCookie, hostUsername, friendCookie, friendUsername);
+
+    const before = await request(app).get(`/api/games/${code}`).set('Cookie', friendCookie);
+    expect(before.status).toBe(200);
+
+    const hostRow = await pool.query<{ id: string }>('SELECT id FROM users WHERE username = $1', [
+      hostUsername,
+    ]);
+    const unfriend = await request(app)
+      .delete(`/api/friends/${hostRow.rows[0].id}`)
+      .set('Cookie', friendCookie);
+    expect(unfriend.status).toBe(204);
+
+    const after = await request(app).get(`/api/games/${code}`).set('Cookie', friendCookie);
+    expect(after.status).toBe(404);
+  });
+
+  it('lists a friends-only game to the host’s friend, marked friends, but not to a stranger', async () => {
+    const hostUsername = 'fv_browse_host';
+    const { hostCookie, code } = await hostGame(hostUsername, {
+      visibility: 'friends',
+      name: 'Friends game',
+    });
+    const friendUsername = 'fv_browse_friend';
+    const friendCookie = await registerAndGetCookie(friendUsername);
+    await befriend(hostCookie, hostUsername, friendCookie, friendUsername);
+    const strangerCookie = await registerAndGetCookie('fv_browse_stranger');
+
+    const friendRows = await request(app).get('/api/games').set('Cookie', friendCookie);
+    const friendRow = (friendRows.body.games as Array<{ code: string; visibility: string }>).find(
+      (g) => g.code === code
+    );
+    expect(friendRow).toMatchObject({ visibility: 'friends' });
+
+    const strangerRows = await request(app).get('/api/games').set('Cookie', strangerCookie);
+    expect(
+      (strangerRows.body.games as Array<{ code: string }>).find((g) => g.code === code)
+    ).toBeUndefined();
+  });
+
+  it('still keeps a private game off the browser and unaffected by friendship', async () => {
+    // Friends visibility must not accidentally loosen private: a host's own
+    // friend gets nothing extra from a private table.
+    const hostUsername = 'fv_private_host';
+    const { hostCookie, code } = await hostGame(hostUsername, { visibility: 'private' });
+    const friendUsername = 'fv_private_friend';
+    const friendCookie = await registerAndGetCookie(friendUsername);
+    await befriend(hostCookie, hostUsername, friendCookie, friendUsername);
+
+    // Private still lets anyone holding the code join (pre-existing, code is
+    // the invite) — the friendship changes nothing about that either way.
+    const join = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', friendCookie)
+      .send({});
+    expect(join.status).toBe(200);
+
+    const rows = await request(app).get('/api/games').set('Cookie', friendCookie);
+    expect(
+      (rows.body.games as Array<{ code: string }>).find((g) => g.code === code)
+    ).toBeUndefined();
   });
 });

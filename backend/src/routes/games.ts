@@ -2,10 +2,11 @@ import { logger } from '../logger';
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter, isTest } from '../route-utils';
-import { and, desc, eq, gt, inArray, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, lt, or, sql } from 'drizzle-orm';
 import { requireAuth, resolveDisplayLabel } from '../auth';
 import { getDb, getPool } from '../db';
 import { gameSessions } from '../db/schema';
+import { areFriends } from '../friends/relations';
 import { persistGameResult } from '../games/persist-result';
 import {
   applyAction,
@@ -62,6 +63,13 @@ const createLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
 interface Subscriber {
   /** Authenticated caller this subscriber was opened by — see `broadcastGameState`'s eviction check and `isSeatPresent` below. */
   userId: string;
+  /** Whether this caller was a friend of the host at subscribe time —
+   *  cached so `broadcastGameState`'s per-mutation eviction check
+   *  (`canReadCached`) never re-queries the friendship table. Only
+   *  meaningful (and only ever set true) for a non-participant subscribed to
+   *  a `'friends'`-visibility table; see `canReadCached`'s doc for the
+   *  staleness tradeoff this cache makes. */
+  isFriendOfHost?: boolean;
   /** True for an SSE stream (held open indefinitely), absent for a long-poll
    *  subscriber (resolves once). Only streams count against
    *  `MAX_STREAMS_PER_USER`. */
@@ -351,7 +359,7 @@ function broadcastGameState(code: string, state: GameState): void {
   const subs = subscribers.get(code);
   if (!subs || subs.size === 0) return;
   for (const sub of Array.from(subs)) {
-    if (!canRead(state, sub.userId)) {
+    if (!canReadCached(state, sub)) {
       subs.delete(sub);
       sub.onDeleted();
       continue;
@@ -695,15 +703,18 @@ function invalidPhaseError(action: GameAction): string | null {
 }
 
 /**
- * Reject a `visibility` patch that isn't exactly `'public'` or `'private'` —
- * the reducer stores it verbatim (see `packages/game-core`), so, like `phase`
- * and the voice link above, this route is the only place it is checked.
+ * Reject a `visibility` patch that isn't exactly `'public'`, `'friends'` or
+ * `'private'` — the reducer stores it verbatim (see `packages/game-core`),
+ * so, like `phase` and the voice link above, this route is the only place it
+ * is checked.
  */
 function invalidVisibilityError(action: GameAction): string | null {
   if (action.type !== 'settings') return null;
   const visibility = action.patch.visibility;
   if (visibility === undefined) return null;
-  return visibility === 'public' || visibility === 'private' ? null : 'Invalid visibility.';
+  return visibility === 'public' || visibility === 'friends' || visibility === 'private'
+    ? null
+    : 'Invalid visibility.';
 }
 
 /**
@@ -736,25 +747,73 @@ function isParticipant(state: GameState, userId: string): boolean {
 }
 
 /**
- * Who may READ this game. Participants always; anyone else only once the host
- * has opened the table to spectators.
+ * Whether `userId` is friends with this game's host. `null`/absent host
+ * (never true for an online game, only the type allows it) reads as no.
+ * The ONE friendship check every friends-gated route goes through — see
+ * `resolveGameAccess` and `canReadCached` below — so "friend of the host"
+ * can never mean something different in one route than another.
+ */
+async function isFriendOfHost(state: GameState, userId: string): Promise<boolean> {
+  return state.hostUserId != null && (await areFriends(userId, state.hostUserId));
+}
+
+/**
+ * Who may READ (or JOIN — see `POST /:code/join`) this game, resolved in one
+ * place so every route that gates on visibility agrees. Participants always;
+ * anyone else only once the host has opened the table — to every stranger
+ * (`'public'`) or to their own friends only (`'friends'`).
  *
  * That opt-in is the whole security model here. A join code is four
  * characters — about a million of them — which is why the read routes answer
  * a stranger with the same 404 an unknown code gets, and why simply holding a
  * code cannot be enough to watch: otherwise a code sweep would turn up every
  * live table in the app. With `visibility` at `'private'` (the default,
- * including for every game persisted before it existed) nothing changes at
- * all.
+ * including for every game persisted before `visibility` existed) nothing
+ * changes at all.
  *
- * Reading is all it grants. Every mutation still goes through
- * `isParticipant`, so a spectator can watch and do nothing else, and what
- * they see is what each seat chose to publish — hands and libraries are
- * already collapsed to counts by the client-side projection before a board
- * ever reaches the server.
+ * `isFriendOfHost` rides along on the result so a caller that's about to open
+ * a live subscriber (SSE/poll) can cache it on the `Subscriber` — see
+ * `canReadCached` — rather than re-querying the friendship table on every
+ * broadcast for the lifetime of the connection.
+ *
+ * Reading is all `'friends'`/`'public'` access grants. Every mutation still
+ * goes through `isParticipant` (`actionIsAllowed`), so a friend watching a
+ * `'friends'` table — like a `'public'` spectator — can watch and do nothing
+ * else, and what they see is what each seat chose to publish.
  */
-function canRead(state: GameState, userId: string): boolean {
-  return isParticipant(state, userId) || state.visibility === 'public';
+async function resolveGameAccess(
+  state: GameState,
+  userId: string
+): Promise<{ allowed: boolean; isFriendOfHost: boolean }> {
+  if (isParticipant(state, userId)) return { allowed: true, isFriendOfHost: false };
+  if (state.visibility === 'public') return { allowed: true, isFriendOfHost: false };
+  if (state.visibility === 'friends') {
+    const friend = await isFriendOfHost(state, userId);
+    return { allowed: friend, isFriendOfHost: friend };
+  }
+  return { allowed: false, isFriendOfHost: false };
+}
+
+/**
+ * Sync counterpart to `resolveGameAccess`, for the one caller that can't
+ * await a friendship query per check: `broadcastGameState` re-evaluates every
+ * open subscriber on every mutation. Trusts the subscriber's own cached
+ * `isFriendOfHost` (set once, when it subscribed — see `GET /:code/events`
+ * and `/:code/poll`) rather than re-querying live.
+ *
+ * ponytail: this means a host's friend who un-friends them mid-stream keeps
+ * watching until they reconnect (their next `/events`/`/poll` open re-checks
+ * live and would then 404 them) — a real but narrow staleness window, not a
+ * standing hole: `GET /:code` and `POST /:code/join` always check live, so
+ * the game is never joinable or re-openable by an ex-friend. Upgrade path if
+ * this ever matters: re-check `isFriendOfHost` on a timer instead of at
+ * subscribe time, same tradeoff `PRESENCE_TTL_MS` already makes elsewhere in
+ * this file.
+ */
+function canReadCached(state: GameState, sub: Subscriber): boolean {
+  if (isParticipant(state, sub.userId)) return true;
+  if (state.visibility === 'public') return true;
+  return state.visibility === 'friends' && sub.isFriendOfHost === true;
 }
 
 function nextOpenSeat(state: GameState, max: number): number {
@@ -818,6 +877,12 @@ export interface GameListing {
    *  frontend's Join action. Spectating is instead always available once
    *  `status` is 'active' (spectating never claims a seat). */
   joinable: boolean;
+  /** `'friends'` rows are visibly marked (only the caller's own friends'
+   *  friends-visibility tables are ever returned — see the query below), so
+   *  the browser can badge them the same way `FriendDeckSummary.visibility`
+   *  drives the "Friends only" deck-tile badge. Never `'private'`: those
+   *  rows are excluded before this projection ever runs. */
+  visibility: 'public' | 'friends';
   /**
    * Board E370: the COMPUTED bracket range across seated decks that have one
    * (each seat's `bracket` was estimated client-side from the actual deck via
@@ -841,8 +906,9 @@ function fallbackGameName(format: GameFormat): string {
 
 /** Project a `GameState` down to what the room browser is allowed to show.
  *  Only ever called on rows the query below already restricted to
- *  `visibility: 'public'` — this function does not itself re-check that, so
- *  it must never be handed a private session's state. */
+ *  `visibility: 'public'` or a `'friends'` row hosted by one of the caller's
+ *  own friends — this function does not itself re-check either, so it must
+ *  never be handed a `'private'` session's state. */
 export function projectGameListing(state: GameState): GameListing {
   const seated = state.players.length;
   const knownBrackets = state.players
@@ -856,6 +922,9 @@ export function projectGameListing(state: GameState): GameListing {
     seated,
     max: MAX_SEATS,
     joinable: state.status === 'lobby' && seated < MAX_SEATS,
+    // Only 'public'/'friends' rows ever reach this function (see the doc
+    // above), so a bare cast is safe rather than needing a fallback branch.
+    visibility: state.visibility as 'public' | 'friends',
     bracket:
       knownBrackets.length === 0
         ? null
@@ -867,26 +936,52 @@ export function projectGameListing(state: GameState): GameListing {
 }
 
 /**
- * GET /api/games — list public games for the room browser (board E367).
+ * GET /api/games — list public games, plus the caller's friends' friends-only
+ * games, for the room browser (board E367, extended for Friends visibility).
  *
  * Every other read route in this file (GET /:code, /events, /poll) requires
  * already knowing the 4-character code; this is the one surface that answers
- * "what tables exist" instead. Scoped hard to `visibility: 'public'` at the
- * query itself — a private game (the default) must never appear here, and
- * unlike GET /:code there's no per-code stealth-404 to fall back on, so the
- * filter has to be correct in the SQL, not just in what gets projected after.
- * Excludes `'finished'` tables and anything stale (see `STALE_LISTING_MS`),
- * newest-active first, capped at `LISTING_PAGE_SIZE`.
+ * "what tables exist" instead. Scoped hard at the query itself to
+ * `visibility: 'public'`, or `visibility: 'friends'` hosted by a user the
+ * caller is friends with — a private game (the default), or a friends game
+ * hosted by a stranger, must never appear here, and unlike GET /:code there's
+ * no per-code stealth-404 to fall back on, so the filter has to be correct in
+ * the SQL, not just in what gets projected after. Excludes `'finished'`
+ * tables and anything stale (see `STALE_LISTING_MS`), newest-active first,
+ * capped at `LISTING_PAGE_SIZE`.
+ *
+ * The friend-id list is one indexed lookup (`friendships`, same query shape
+ * `friends.ts` uses); matching it against `host_user_id` — a real column,
+ * not a JSONB path — reuses `game_sessions_host_idx` rather than adding a new
+ * index for this.
  */
-gamesRouter.get('/', readLimiter, requireAuth, async (_req: Request, res: Response) => {
+gamesRouter.get('/', readLimiter, requireAuth, async (req: Request, res: Response) => {
   const db = getDb();
   const cutoff = Date.now() - STALE_LISTING_MS;
+  const friendRows = await getPool().query<{ friend_id: string }>(
+    `SELECT CASE WHEN requester_id = $1 THEN addressee_id ELSE requester_id END AS friend_id
+       FROM friendships WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'`,
+    [req.user!.id]
+  );
+  const friendIds = friendRows.rows.map((r) => r.friend_id);
+
+  const visibilityFilter =
+    friendIds.length > 0
+      ? or(
+          sql`${gameSessions.state}->>'visibility' = 'public'`,
+          and(
+            sql`${gameSessions.state}->>'visibility' = 'friends'`,
+            inArray(gameSessions.hostUserId, friendIds)
+          )
+        )
+      : sql`${gameSessions.state}->>'visibility' = 'public'`;
+
   const rows = await db
     .select({ state: gameSessions.state })
     .from(gameSessions)
     .where(
       and(
-        sql`${gameSessions.state}->>'visibility' = 'public'`,
+        visibilityFilter,
         inArray(gameSessions.status, ['lobby', 'active']),
         gt(gameSessions.updatedAt, cutoff)
       )
@@ -935,7 +1030,8 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
       ? body.hostName.trim().slice(0, 40)
       : await resolveDisplayLabel(req.user!.id);
   const name = typeof body.name === 'string' ? body.name.trim().slice(0, MAX_GAME_NAME_LEN) : '';
-  const visibility = body.visibility === 'public' ? 'public' : 'private';
+  const visibility =
+    body.visibility === 'public' ? 'public' : body.visibility === 'friends' ? 'friends' : 'private';
 
   void sweepStale().catch((err) => logger.warn('[games] sweep failed', err));
 
@@ -1046,7 +1142,8 @@ gamesRouter.get('/:code', readLimiter, requireAuth, async (req: Request, res: Re
   const state = row.state as GameState;
   // Stealth 404 — identical to an unknown code, so the response carries no
   // signal about whether the guessed code exists.
-  if (!canRead(state, req.user!.id)) {
+  const { allowed } = await resolveGameAccess(state, req.user!.id);
+  if (!allowed) {
     return res.status(404).json({ error: 'Game not found.' });
   }
   res.json({ game: state });
@@ -1070,7 +1167,8 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Game not found.' });
   const state = row.state as GameState;
-  if (!canRead(state, req.user!.id)) {
+  const { allowed, isFriendOfHost: friendOfHost } = await resolveGameAccess(state, req.user!.id);
+  if (!allowed) {
     return res.status(404).json({ error: 'Game not found.' });
   }
   if (openStreamCount(req.user!.id) >= MAX_STREAMS_PER_USER) {
@@ -1118,6 +1216,7 @@ gamesRouter.get('/:code/events', readLimiter, requireAuth, async (req: Request, 
 
   const sub: Subscriber = {
     userId: req.user!.id,
+    isFriendOfHost: friendOfHost,
     stream: true,
     onState: (fresh) => res.write(`event: state\ndata: ${JSON.stringify(fresh)}\n\n`),
     onDeleted: () => res.end(),
@@ -1225,7 +1324,8 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Game not found.' });
   const state = row.state as GameState;
-  if (!canRead(state, req.user!.id)) {
+  const { allowed, isFriendOfHost: friendOfHost } = await resolveGameAccess(state, req.user!.id);
+  if (!allowed) {
     return res.status(404).json({ error: 'Game not found.' });
   }
 
@@ -1265,6 +1365,7 @@ gamesRouter.get('/:code/poll', readLimiter, requireAuth, async (req: Request, re
   );
   const sub: Subscriber = {
     userId: req.user!.id,
+    isFriendOfHost: friendOfHost,
     onState: (fresh) =>
       settle(() =>
         res.json({ game: fresh, boards: boardsSnapshot(code), requests: requestsSnapshot(code) })
@@ -1875,6 +1976,16 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Game not found.' });
   const current = row.state as GameState;
+  // Unlike `'private'` — where holding the 4-char code has always been
+  // enough to claim a seat, code-as-invite — `'friends'` means what it says:
+  // only the host's friends may join, same predicate as reading. A non-friend
+  // gets the identical stealth 404 a private/unknown code gives, checked
+  // before the lobby/active status below so a denial never leaks how far the
+  // table has gotten either.
+  if (current.visibility === 'friends') {
+    const { allowed } = await resolveGameAccess(current, req.user!.id);
+    if (!allowed) return res.status(404).json({ error: 'Game not found.' });
+  }
   if (current.status !== 'lobby') {
     return res.status(409).json({ error: 'Game has already started.' });
   }
