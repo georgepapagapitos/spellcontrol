@@ -3018,6 +3018,42 @@ to anything new that edits a predicate.
   picker's predicate (folded name, set code, collector number). The Order
   tab stays unfiltered: a drag-sortable list with hidden rows can't say where
   a drop lands.
+- **The collection Filters dialog sections by the same registry groups the
+  Add-condition picker uses, in the same order** (`lib/filter-fields.ts`:
+  Identity, Cost, Text, Printing, Value & play) — one `.form-section-heading`
+  per group, its fields inside as plain `Field` rows, not a second heading
+  each. The dialog derives the group LIST from `FILTER_FIELD_GROUPS` (minus
+  Advanced, which folds into Text — its one field, Scryfall query, has always
+  sat next to the other free-text rows) rather than retyping the five names;
+  a `dialogGroupVisible` switch is the only hand-kept fact per group ("does
+  this dialog show anything here"). `FilterFieldEditor` takes an optional
+  `group` prop (dialog variant only) so the dialog can call it once per group
+  and interleave its own bespoke rows (color, rarity, set, price, CMC) at the
+  right spot in registry order, instead of re-deciding "Format is Value &
+  play" as a second hand-kept fact next to the picker's copy. Fields with no
+  registry entry (Condition, Language, Binder membership — physical-copy or
+  membership concepts, not card facts) sit under their own "This copy"
+  heading after Value & play, alongside the Surplus/Proxy/Group-printings
+  switches.
+- **One set picker, not two.** `SetFilterPicker` takes a plain `options` list
+  (`{ code, label, iconSvgUri?, releasedAt? }[]`) so both the binder/list rule
+  editor (options = the sets you own) and the collection Filters dialog
+  (options = every Scryfall set, via `setMapToOptions`) share one control.
+  They used to be two components built from two different option shapes
+  (`SetMultiSelect`, folded into this one).
+- **The dynamic-list rule sheet is on the shared `Modal`**, exactly like
+  BinderEditor: header / one scroll body / result footer with the live count
+  and Save, bottom sheet on phone via `modal-backdrop--sheet`. It used to
+  hand-roll its own backdrop + sheet shell with a `document` Escape listener
+  that fired regardless of stacking, so a nested popover's Escape (the set
+  picker, a suggestion list) closed the whole sheet instead of just that
+  popover — Modal's own overlay-stack handling replaces it outright rather
+  than gating the old listener.
+- **"Save as a binder…"** sits in the collection Filters dialog's footer, next
+  to Clear, and seeds `BinderEditor` from the DRAFT (not yet applied) filters
+  via `editingBinderSeed` (`lib/collection-filters-to-binder.ts`). It shows
+  only once a structured filter is set — a search-only draft has nothing a
+  binder rule can express.
 
 ## Config surfaces (T139)
 
