@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bindCubeCopies } from './bind-cube-copies';
+import { bindCubeCopies, rebindCubePicks } from './bind-cube-copies';
 import type { EnrichedCard } from '../types';
 import type { Deck } from '../store/decks';
 import type { SavedCube } from '../store/cube';
@@ -100,5 +100,107 @@ describe('bindCubeCopies', () => {
     };
     const slots = bindCubeCopies([pick('Sol Ring')], collection, [], [other]);
     expect(slots[0].allocatedCopyId).toBeNull();
+  });
+});
+
+describe('rebindCubePicks', () => {
+  it('preserves the binding for a pick whose card is unchanged', () => {
+    const collection = [card({ copyId: 'a', name: 'Sol Ring' })];
+    const oldSlots = [
+      {
+        slotId: '0',
+        card: { name: 'Sol Ring', oracleId: 'Sol Ring' } as never,
+        allocatedCopyId: 'a',
+        printingFinishKey: 'sf-1:nonfoil',
+      },
+    ];
+    const result = rebindCubePicks([pick('Sol Ring')], oldSlots, collection, [], []);
+    expect(result[0].allocatedCopyId).toBe('a');
+    expect(result[0].printingFinishKey).toBe('sf-1:nonfoil');
+  });
+
+  it('releases a dropped card copy — a fresh pick can claim it', () => {
+    const collection = [card({ copyId: 'a', name: 'Sol Ring' })];
+    const oldSlots = [
+      {
+        slotId: '0',
+        card: { name: 'Sol Ring', oracleId: 'Sol Ring' } as never,
+        allocatedCopyId: 'a',
+        printingFinishKey: null,
+      },
+    ];
+    // The new pick list no longer holds "Sol Ring" — a different card now wants a copy.
+    const collection2 = [...collection, card({ copyId: 'b', name: 'Arcane Signet' })];
+    const result = rebindCubePicks([pick('Arcane Signet')], oldSlots, collection2, [], []);
+    expect(result[0].allocatedCopyId).toBe('b');
+  });
+
+  it('binds a fresh copy for a genuinely new pick', () => {
+    const collection = [
+      card({ copyId: 'a', name: 'Sol Ring' }),
+      card({ copyId: 'b', name: 'Arcane Signet' }),
+    ];
+    const oldSlots = [
+      {
+        slotId: '0',
+        card: { name: 'Sol Ring', oracleId: 'Sol Ring' } as never,
+        allocatedCopyId: 'a',
+        printingFinishKey: null,
+      },
+    ];
+    const result = rebindCubePicks(
+      [pick('Sol Ring'), pick('Arcane Signet')],
+      oldSlots,
+      collection,
+      [],
+      []
+    );
+    expect(result[0].allocatedCopyId).toBe('a'); // preserved
+    expect(result[1].allocatedCopyId).toBe('b'); // freshly bound
+  });
+
+  it('never double-claims a preserved binding for a coincidentally-matching new pick', () => {
+    const collection = [card({ copyId: 'a', name: 'Sol Ring' })];
+    const oldSlots = [
+      {
+        slotId: '0',
+        card: { name: 'Sol Ring', oracleId: 'Sol Ring' } as never,
+        allocatedCopyId: 'a',
+        printingFinishKey: null,
+      },
+    ];
+    // Two picks now want "Sol Ring" (shouldn't happen — singleton — but the
+    // allocator must still not double-claim the one copy).
+    const result = rebindCubePicks(
+      [pick('Sol Ring'), pick('Sol Ring')],
+      oldSlots,
+      collection,
+      [],
+      []
+    );
+    expect(result[0].allocatedCopyId).toBe('a');
+    expect(result[1].allocatedCopyId).toBeNull();
+  });
+
+  it('does not preserve a binding to a copy no longer in the live collection (sold)', () => {
+    const oldSlots = [
+      {
+        slotId: '0',
+        card: { name: 'Sol Ring', oracleId: 'Sol Ring' } as never,
+        allocatedCopyId: 'gone',
+        printingFinishKey: null,
+      },
+    ];
+    const result = rebindCubePicks([pick('Sol Ring')], oldSlots, [], [], []);
+    expect(result[0].allocatedCopyId).toBeNull();
+  });
+
+  it('skips copies already committed to a deck or another physical cube', () => {
+    const collection = [card({ copyId: 'a', name: 'Sol Ring' })];
+    const d = deck({
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'a' }],
+    });
+    const result = rebindCubePicks([pick('Sol Ring')], [], collection, [d], []);
+    expect(result[0].allocatedCopyId).toBeNull();
   });
 });

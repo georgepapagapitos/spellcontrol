@@ -3,8 +3,15 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { safeLocalStorage } from '@/lib/safe-local-storage';
 import { isApplyingServer } from '../lib/applying-server';
-import type { CubeCard, GeneratedCube } from '../lib/cube/generate';
-import type { CubeSize } from '../lib/cube/targets';
+import { bucketOf, type CubeCard, type GeneratedCube, type Pick } from '../lib/cube/generate';
+import type { ColorBucket, CubeSize } from '../lib/cube/targets';
+import type { PoolFilters } from '../lib/cube/pool-filters';
+import { rebindCubePicks } from '../lib/bind-cube-copies';
+// Type-only — erased at compile time, so this does NOT create the value-level
+// cycle collection.ts -> cube.ts -> collection.ts (see import-cycles.test.ts).
+// The store stays a dumb setter otherwise: no store-value cross-imports.
+import type { EnrichedCard } from '../types';
+import type { Deck } from './decks';
 
 /**
  * The physical binding for one cube pick: which collection copy stands in for
@@ -39,6 +46,17 @@ export interface SavedCube {
    */
   isPhysical: boolean;
   savedAt: number;
+  /** oracleIds locked against "Rebuild the rest" — stay in the cube across a
+   *  rebuild. Absent / [] on cubes saved before this shipped. */
+  locked?: string[];
+  /** oracleIds banned from this cube (and any rebuild of it) — never comes
+   *  back. Absent / [] on cubes saved before this shipped. */
+  banned?: string[];
+  /** The settings the cube was last built with, reused by "Rebuild the rest"
+   *  so it doesn't have to re-ask. Absent on cubes saved before this shipped,
+   *  or on a cube that was never (re)built through the settings-aware path —
+   *  the caller falls back to defaults. */
+  settings?: { synergyLevel: number; filters: PoolFilters };
 }
 
 interface CubeState {
@@ -61,8 +79,14 @@ interface CubeState {
   clear: () => void;
   /** Snapshot the current working cube into the saved list under `name`. When
    *  `isPhysical`, pass the bound `picks` (built by `bindCubeCopies` at the call
-   *  site, where the live collection/decks are in scope). */
-  saveCurrent: (name: string, isPhysical?: boolean, picks?: CubePickSlot[]) => void;
+   *  site, where the live collection/decks are in scope). `settings` records
+   *  what it was built with, for a later "Rebuild the rest". */
+  saveCurrent: (
+    name: string,
+    isPhysical?: boolean,
+    picks?: CubePickSlot[],
+    settings?: SavedCube['settings']
+  ) => void;
   /** Insert a cube into the saved list directly (e.g. copying a shared cube),
    *  WITHOUT touching the working `result` — so a copy never clobbers an
    *  in-progress generate. Returns the new id. */
@@ -71,7 +95,8 @@ interface CubeState {
     size: CubeSize,
     cube: GeneratedCube,
     isPhysical?: boolean,
-    picks?: CubePickSlot[]
+    picks?: CubePickSlot[],
+    settings?: SavedCube['settings']
   ) => string;
   /** Make a saved cube the current working result. */
   loadSaved: (id: string) => void;
@@ -87,8 +112,82 @@ interface CubeState {
   releaseCubePick: (cubeId: string, copyId: string) => void;
   /** Low-level patch of a saved cube (used by remap-on-reimport to rebind picks). */
   updateSaved: (id: string, patch: Partial<SavedCube>) => void;
+  /** Toggle a lock on `oracleId` — a locked card stays in the cube across
+   *  "Rebuild the rest" and the refiner never swaps it out. Doesn't touch the
+   *  picks; the cube itself only changes on the next (re)build. */
+  toggleLock: (id: string, oracleId: string) => void;
+  /** Ban `oracleId` from this cube: unlocks it (a banned card can't also be
+   *  locked), drops its pick if it's currently in the cube, and — for a
+   *  physical cube — releases the copy that pick held (a drop never needs a
+   *  new binding, so unlike swap/add this needs no live collection/decks).
+   *  Never re-added by a rebuild. */
+  banCard: (id: string, oracleId: string) => void;
+  /** Un-ban `oracleId`. Doesn't re-add the card — that's a fresh `addPick` or
+   *  a rebuild. */
+  unbanCard: (id: string, oracleId: string) => void;
+  /** Replace the pick at `pickIndex` with `card`. For a physical cube, pass
+   *  the live collection/decks (as `confirmPhysical` does) so the new card
+   *  can claim a free copy; the old card's copy is released. */
+  swapPick: (
+    id: string,
+    pickIndex: number,
+    card: CubeCard,
+    collection?: EnrichedCard[],
+    decks?: Deck[]
+  ) => void;
+  /** Drop the pick at `pickIndex`. For a physical cube its copy is released. */
+  removePick: (id: string, pickIndex: number) => void;
+  /** Append `card` as a new pick (e.g. "add from your collection"). A no-op if
+   *  the card is already in the cube or is banned. For a physical cube, pass
+   *  the live collection/decks so it can claim a free copy. */
+  addPick: (id: string, card: CubeCard, collection?: EnrichedCard[], decks?: Deck[]) => void;
+  /** Replace the whole generated cube (e.g. "Rebuild the rest"). `locked` /
+   *  `banned` / `settings` are untouched — only the generated result and, for
+   *  a physical cube, its bindings change (existing bindings are preserved
+   *  for every card that survives the rebuild; pass the live collection/decks
+   *  so a genuinely new pick can claim a copy). */
+  replaceCube: (
+    id: string,
+    cube: GeneratedCube,
+    collection?: EnrichedCard[],
+    decks?: Deck[]
+  ) => void;
   /** Full wipe (logout) — drops the working result AND every saved cube. */
   reset: () => void;
+}
+
+/** Recompute byBucket/shortfall from an edited pick list; drop the objective
+ *  score (it described the OLD picks and would otherwise keep lying about
+ *  the new ones — an absent score is a handled, honest UI state). Everything
+ *  else derived from the original build (gaps, targetByBucket) is left as-is:
+ *  recomputing gaps needs the owned pool, which a saved cube doesn't carry. */
+function withEditedPicks(cube: GeneratedCube, picks: Pick[]): GeneratedCube {
+  const byBucket = {} as Record<ColorBucket, number>;
+  for (const b of Object.keys(cube.byBucket) as ColorBucket[]) byBucket[b] = 0;
+  for (const p of picks) byBucket[p.bucket] = (byBucket[p.bucket] ?? 0) + 1;
+  return {
+    ...cube,
+    picks,
+    byBucket,
+    shortfall: Math.max(0, cube.size - picks.length),
+    score: undefined,
+  };
+}
+
+/** Reindex CubePickSlots for a released-only edit (ban / remove): every
+ *  surviving card keeps its existing binding; a dropped card's slot is simply
+ *  gone, which IS the release (nothing else references that copyId anymore). */
+function reindexReleased(newPicks: Pick[], oldSlots: CubePickSlot[]): CubePickSlot[] {
+  const oldByOracle = new Map(oldSlots.map((s) => [s.card.oracleId, s]));
+  return newPicks.map((p, i) => {
+    const old = oldByOracle.get(p.card.oracleId);
+    return {
+      slotId: `${i}`,
+      card: p.card,
+      allocatedCopyId: old?.allocatedCopyId ?? null,
+      printingFinishKey: old?.printingFinishKey ?? null,
+    };
+  });
 }
 
 export const useCubeStore = create<CubeState>()(
@@ -100,7 +199,7 @@ export const useCubeStore = create<CubeState>()(
       saved: [],
       setResult: (size, result) => set({ size, result, loadedId: null }),
       clear: () => set({ result: null, loadedId: null }),
-      saveCurrent: (name, isPhysical = false, picks = []) =>
+      saveCurrent: (name, isPhysical = false, picks = [], settings) =>
         set((s) => {
           if (!s.result) return s;
           const entry: SavedCube = {
@@ -111,10 +210,11 @@ export const useCubeStore = create<CubeState>()(
             picks: isPhysical ? picks : [],
             isPhysical,
             savedAt: Date.now(),
+            ...(settings ? { settings } : {}),
           };
           return { saved: [entry, ...s.saved], loadedId: entry.id };
         }),
-      saveDirectly: (name, size, cube, isPhysical = false, picks = []) => {
+      saveDirectly: (name, size, cube, isPhysical = false, picks = [], settings) => {
         const id = crypto.randomUUID();
         set((s) => ({
           saved: [
@@ -126,6 +226,7 @@ export const useCubeStore = create<CubeState>()(
               picks: isPhysical ? picks : [],
               isPhysical,
               savedAt: Date.now(),
+              ...(settings ? { settings } : {}),
             },
             ...s.saved,
           ],
@@ -173,6 +274,112 @@ export const useCubeStore = create<CubeState>()(
       updateSaved: (id, patch) =>
         set((s) => ({
           saved: s.saved.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        })),
+      toggleLock: (id, oracleId) =>
+        set((s) => ({
+          saved: s.saved.map((c) => {
+            if (c.id !== id) return c;
+            const locked = c.locked ?? [];
+            return {
+              ...c,
+              locked: locked.includes(oracleId)
+                ? locked.filter((x) => x !== oracleId)
+                : [...locked, oracleId],
+            };
+          }),
+        })),
+      banCard: (id, oracleId) =>
+        set((s) => ({
+          saved: s.saved.map((c) => {
+            if (c.id !== id) return c;
+            const banned = (c.banned ?? []).includes(oracleId)
+              ? (c.banned ?? [])
+              : [...(c.banned ?? []), oracleId];
+            const locked = (c.locked ?? []).filter((x) => x !== oracleId);
+            if (!c.cube.picks.some((p) => p.card.oracleId === oracleId)) {
+              return { ...c, banned, locked };
+            }
+            const newGenPicks = c.cube.picks.filter((p) => p.card.oracleId !== oracleId);
+            return {
+              ...c,
+              banned,
+              locked,
+              cube: withEditedPicks(c.cube, newGenPicks),
+              picks: c.isPhysical ? reindexReleased(newGenPicks, c.picks) : [],
+            };
+          }),
+        })),
+      unbanCard: (id, oracleId) =>
+        set((s) => ({
+          saved: s.saved.map((c) =>
+            c.id === id ? { ...c, banned: (c.banned ?? []).filter((x) => x !== oracleId) } : c
+          ),
+        })),
+      swapPick: (id, pickIndex, card, collection = [], decks = []) =>
+        set((s) => ({
+          saved: s.saved.map((c) => {
+            if (c.id !== id || pickIndex < 0 || pickIndex >= c.cube.picks.length) return c;
+            // Singleton: refuse a swap that would duplicate a card already elsewhere in the cube.
+            if (c.cube.picks.some((p, i) => i !== pickIndex && p.card.oracleId === card.oracleId))
+              return c;
+            const newGenPicks = c.cube.picks.slice();
+            newGenPicks[pickIndex] = { card, bucket: bucketOf(card), reason: 'Swapped in' };
+            const others = s.saved.filter((oc) => oc.isPhysical && oc.id !== id);
+            return {
+              ...c,
+              cube: withEditedPicks(c.cube, newGenPicks),
+              picks: c.isPhysical
+                ? rebindCubePicks(newGenPicks, c.picks, collection, decks, others)
+                : [],
+            };
+          }),
+        })),
+      removePick: (id, pickIndex) =>
+        set((s) => ({
+          saved: s.saved.map((c) => {
+            if (c.id !== id || pickIndex < 0 || pickIndex >= c.cube.picks.length) return c;
+            const newGenPicks = c.cube.picks.filter((_, i) => i !== pickIndex);
+            return {
+              ...c,
+              cube: withEditedPicks(c.cube, newGenPicks),
+              picks: c.isPhysical ? reindexReleased(newGenPicks, c.picks) : [],
+            };
+          }),
+        })),
+      addPick: (id, card, collection = [], decks = []) =>
+        set((s) => ({
+          saved: s.saved.map((c) => {
+            if (c.id !== id) return c;
+            if ((c.banned ?? []).includes(card.oracleId)) return c;
+            if (c.cube.picks.some((p) => p.card.oracleId === card.oracleId)) return c;
+            const newGenPicks = [
+              ...c.cube.picks,
+              { card, bucket: bucketOf(card), reason: 'Added from your collection' },
+            ];
+            const others = s.saved.filter((oc) => oc.isPhysical && oc.id !== id);
+            return {
+              ...c,
+              cube: withEditedPicks(c.cube, newGenPicks),
+              picks: c.isPhysical
+                ? rebindCubePicks(newGenPicks, c.picks, collection, decks, others)
+                : [],
+            };
+          }),
+        })),
+      replaceCube: (id, cube, collection = [], decks = []) =>
+        set((s) => ({
+          saved: s.saved.map((c) => {
+            if (c.id !== id) return c;
+            const others = s.saved.filter((oc) => oc.isPhysical && oc.id !== id);
+            return {
+              ...c,
+              cube,
+              size: cube.size,
+              picks: c.isPhysical
+                ? rebindCubePicks(cube.picks, c.picks, collection, decks, others)
+                : [],
+            };
+          }),
         })),
       reset: () => set({ result: null, loadedId: null, saved: [] }),
     }),
