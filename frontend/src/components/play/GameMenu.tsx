@@ -380,29 +380,39 @@ export function GameMenu({
                     },
                   ]}
                 />
-                <SwitchRow label="Haptic feedback" checked={hapticsEnabled} onChange={setHaptics} />
+                <SwitchRow
+                  label="Haptic feedback"
+                  hint="Vibrates for taps and undo, and for a lethal hit or an elimination."
+                  checked={hapticsEnabled}
+                  onChange={setHaptics}
+                />
                 <SwitchRow
                   label="Game timer"
+                  hint="Shows how long the game has run, on the clock strip."
                   checked={gameTimerEnabled}
                   onChange={setGameTimerEnabled}
                 />
                 <SwitchRow
                   label="Turn tracker"
+                  hint="Marks the active seat and who's next, and adds turn time to the clock strip."
                   checked={turnTrackerEnabled}
                   onChange={setTurnTrackerEnabled}
                 />
                 <SwitchRow
                   label="Low life warning"
+                  hint="Pulses a seat's panel from 1 to 9 life."
                   checked={lowLifeWarningEnabled}
                   onChange={setLowLifeWarningEnabled}
                 />
                 <SwitchRow
                   label="Underlined 6 and 9"
+                  hint="Underlines the 6 and the 9 so a number stays readable upside down across the table."
                   checked={underlineSixNine}
                   onChange={setUnderlineSixNine}
                 />
                 <SwitchRow
                   label="Minimalist mode"
+                  hint="Hides the plus and minus buttons beside the life numeral. The tap zones still work."
                   checked={minimalistMode}
                   onChange={setMinimalistMode}
                 />
@@ -429,6 +439,7 @@ export function GameMenu({
                     return (
                       <SwitchRow
                         label={`Default for ${count}-player games`}
+                        hint={`Every new ${count}-player local game opens in this layout.`}
                         checked={isDefault}
                         onChange={(next) => setPreferredLayout(count, next ? currentId : null)}
                       />

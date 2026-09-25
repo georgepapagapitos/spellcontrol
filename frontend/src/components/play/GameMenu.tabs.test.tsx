@@ -197,6 +197,27 @@ describe('Setup tab switches', () => {
     fireEvent.click(row);
     expect(mockPlayState.setPreferredLayout).toHaveBeenCalledWith(3, expect.any(String));
   });
+
+  // STYLE_GUIDE § Table settings / § Config surfaces: an on/off row states
+  // what On does in one line under the label, not just its own name.
+  it('describes what On does for every device pref switch', () => {
+    openMenu(activeGame());
+    fireEvent.click(tab('Setup'));
+    for (const name of [
+      'Haptic feedback',
+      'Game timer',
+      'Turn tracker',
+      'Low life warning',
+      'Underlined 6 and 9',
+      'Minimalist mode',
+      'Default for 3-player games',
+    ]) {
+      const row = screen.getByRole('switch', { name });
+      const describedBy = row.getAttribute('aria-describedby');
+      expect(describedBy).toBeTruthy();
+      expect(document.getElementById(describedBy!)?.textContent).toBeTruthy();
+    }
+  });
 });
 
 describe('game log filtering', () => {
