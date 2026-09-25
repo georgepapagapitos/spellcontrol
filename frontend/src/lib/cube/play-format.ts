@@ -20,20 +20,6 @@
 // with a `tagsOf` lookup so it stays pure and testable.
 
 export type CubeFormat = 'limited' | 'commander';
-export const CUBE_FORMATS: readonly CubeFormat[] = ['limited', 'commander'];
-
-export const FORMAT_INFO: Record<CubeFormat, { label: string; sub: string; note: string }> = {
-  limited: {
-    label: 'Draft',
-    sub: '40-card decks',
-    note: 'Drafts into 40-card decks. Cards that need a commander or the command zone are left out.',
-  },
-  commander: {
-    label: 'Commander',
-    sub: 'multiplayer',
-    note: 'A multiplayer Commander cube. Command-zone cards stay in, shaped like popular Commander cubes.',
-  },
-};
 
 /** Why a card is ineligible for the format, or null when it may go in. */
 export type FormatExclusion = 'commanderOnly' | 'politics';

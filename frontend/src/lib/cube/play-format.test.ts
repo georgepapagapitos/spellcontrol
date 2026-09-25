@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CUBE_FORMATS, FORMAT_INFO, formatExclusion } from './play-format';
+import { formatExclusion } from './play-format';
 
 describe('formatExclusion', () => {
   it('leaves Commander-only cards out of a limited cube (E288)', () => {
@@ -43,12 +43,5 @@ describe('formatExclusion', () => {
 
   it('excludes nothing in the commander format', () => {
     expect(formatExclusion('commander', ['commander-matters', 'group-hug'])).toBeNull();
-  });
-
-  it('describes every format', () => {
-    for (const f of CUBE_FORMATS) {
-      expect(FORMAT_INFO[f].label.length).toBeGreaterThan(0);
-      expect(FORMAT_INFO[f].note.length).toBeGreaterThan(0);
-    }
   });
 });

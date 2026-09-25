@@ -42,6 +42,9 @@ import { namesToCubePool } from '../../lib/cube/pool';
 import { userMessage } from '@/lib/user-error';
 const MAX_FRIENDS = 3;
 
+/** Every build is a draft cube (the Commander format left the UI, board T150). */
+const FORMAT: CubeFormat = 'limited';
+
 export function CollabCube() {
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
@@ -53,7 +56,6 @@ export function CollabCube() {
 
   const [size, setSize] = useState<CubeSize>(cubeStore.size);
   const [synergyLevel, setSynergyLevel] = useState(0);
-  const [format, setFormat] = useState<CubeFormat>('limited');
   // Names the play format left out of the last build (mine + friends').
   const [formatExcluded, setFormatExcluded] = useState(0);
   // Mirror Build mode: only my cards are filtered for availability (friends'
@@ -161,7 +163,7 @@ export function CollabCube() {
 
       // The play format decides eligibility before anything is ranked: in a
       // draft cube, Command Tower and friends are blanks (see play-format).
-      const eligible = (name: string) => formatExclusion(format, getCardTags(name)) === null;
+      const eligible = (name: string) => formatExclusion(FORMAT, getCardTags(name)) === null;
       const eligibleNames = myUniqueNames.filter(eligible);
       const eligibleFriendCollections = friendCollections.map(({ username, cards }) => ({
         username,
@@ -213,23 +215,14 @@ export function CollabCube() {
       const { pool, supplierMap: sm } = mergePools(myPool, myUsername, enrichedFriendCollections);
       setSupplierMap(sm);
 
-      const newCube = generateCube(pool, size, { synergyLevel, format });
+      const newCube = generateCube(pool, size, { synergyLevel, format: FORMAT });
       setCube(newCube);
       setStatus('done');
     } catch (e) {
       setError(userMessage(e, "Couldn't build the collaborative cube. Try again."));
       setStatus('error');
     }
-  }, [
-    selectedIds,
-    friends,
-    collectionCards,
-    myUniqueNames,
-    myUsername,
-    size,
-    synergyLevel,
-    format,
-  ]);
+  }, [selectedIds, friends, collectionCards, myUniqueNames, myUsername, size, synergyLevel]);
 
   const copyList = useCallback(async () => {
     if (!cube) return;
@@ -363,7 +356,7 @@ export function CollabCube() {
 
       {/* Size picker (mirrors BuildCube) */}
       <div className="cube-controls">
-        <CubeSizePicker size={size} onSize={setSize} format={format} onFormat={setFormat} />
+        <CubeSizePicker size={size} onSize={setSize} />
         <SynergySlider value={synergyLevel} onChange={setSynergyLevel} />
         <AvailableToggle
           checked={availableOnly}

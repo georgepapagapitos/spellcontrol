@@ -13,14 +13,7 @@ import type { CubeSize } from '../../lib/cube/targets';
  */
 describe('the cube workshop survives a size it does not offer', () => {
   it('renders the size picker for an out-of-range saved size', () => {
-    render(
-      <CubeSizePicker
-        size={12 as CubeSize}
-        onSize={() => {}}
-        format="limited"
-        onFormat={() => {}}
-      />
-    );
+    render(<CubeSizePicker size={12 as CubeSize} onSize={() => {}} />);
     // The note reads the size's fallback info, and the picker's own trigger
     // states the unfamiliar value instead of going blank.
     expect(screen.getAllByText('12 cards').length).toBeGreaterThan(0);
@@ -31,7 +24,7 @@ describe('the cube workshop survives a size it does not offer', () => {
   });
 
   it('still renders a known size the normal way', () => {
-    render(<CubeSizePicker size={360} onSize={() => {}} format="limited" onFormat={() => {}} />);
+    render(<CubeSizePicker size={360} onSize={() => {}} />);
     expect(screen.getByText(/An 8-player draft sees the whole cube/)).toBeTruthy();
   });
 });
