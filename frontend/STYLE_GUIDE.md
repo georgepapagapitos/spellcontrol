@@ -6818,6 +6818,9 @@ and every zone wears the panel vocabulary the other analysis tabs already use:
    "Show upgrades" / "Show gaps" button that opens that lane. A move with
    nothing to do ("Limited data") is a muted note under the steps, never a
    numbered step with an empty right edge.
+   The steps are hairline rows inside the hero, not boxes inside a box; the
+   first step leads by its filled, tier-coloured rank chip and a larger
+   title, not by a lifted card with a coloured edge.
 2. **"Suggestions" panel** — the feed (chips + strips + rows) sits inside the
    shared `.deck-stats-panel--wide` chrome with a `.deck-stats-panel-title`
    header. A bare chips-and-rows zone on the bento reads as an unstructured

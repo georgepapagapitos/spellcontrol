@@ -1,5 +1,6 @@
 /* NextBestMove — the Tune-tab VERDICT HERO: the single highest-leverage move as
-   the headline, ranks 2–3 as compact rows, each deep-linking by intent. Matches
+   the headline, ranks 2–3 below it, each with its action. The steps are
+   hairline rows inside the panel, not boxes inside a box (E415). Matches
    the Power/Stats hero chrome (full-width child of `.deck-bento`, the
    `container-name: bento` query container). Tier tint drives the rank chip
    (1 = structural/danger, 2 = quality/accent, 3 = polish/success).
@@ -39,7 +40,6 @@
 .next-best-move-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -50,11 +50,13 @@
 
   display: flex;
   align-items: flex-start;
-  gap: 0.65rem;
-  padding: 0.55rem 0.6rem;
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.next-best-move-row:last-child {
+  border-bottom: 0;
 }
 
 .next-best-move-row.is-tier-1 {
@@ -67,20 +69,15 @@
   --tier-color: var(--success, #2f7d4f);
 }
 
-/* The #1 move — the verdict-hero headline. Larger, lifted onto the base surface,
-   with a tier-tinted leading edge so the single most important action reads
-   first. (This reframe supersedes the earlier "no per-rank emphasis" list note:
-   in the hero, the top move IS the focal point.) */
-.next-best-move-row.is-primary {
-  gap: 0.8rem;
-  padding: var(--space-3) 0.8rem;
-  background: var(--surface);
-  border-left: 3px solid var(--tier-color);
-}
-
+/* The #1 move — the verdict-hero headline. Its rank chip fills with the tier
+   colour and its title is larger, so it reads first without a box of its own.
+   The chip's text is the surface colour: the tier colours are text colours,
+   legible on the surface, so the pair holds the same contrast reversed. */
 .next-best-move-row.is-primary .next-best-move-rank {
   width: 1.7rem;
   height: 1.7rem;
+  background: var(--tier-color);
+  color: var(--surface);
   font-size: var(--text-sm);
 }
 
