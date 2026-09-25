@@ -107,6 +107,41 @@ describe('OpeningHandSheet peek', () => {
   });
 });
 
+describe('OpeningHandSheet horde row (E387 PR 5)', () => {
+  it('is absent with no horde prop (an online table)', () => {
+    stubViewport();
+    renderSheet();
+    expect(screen.queryByText('Fight a horde')).toBeNull();
+  });
+
+  it('opens the setup sheet and reads off/armed labels', () => {
+    stubViewport();
+    const onOpen = vi.fn();
+    renderSheet({
+      horde: {
+        label: 'Fight a horde',
+        desc: 'A deck that plays itself attacks you every turn.',
+        onOpen,
+      },
+    });
+    const row = screen.getByRole('button', { name: /Fight a horde/ });
+    fireEvent.click(row);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('labels the row with the armed horde', () => {
+    stubViewport();
+    renderSheet({
+      horde: {
+        label: 'Horde: Zombies, Standard',
+        desc: 'Arrives after your turn 3.',
+        onOpen: vi.fn(),
+      },
+    });
+    expect(screen.getByRole('button', { name: /Horde: Zombies, Standard/ })).toBeTruthy();
+  });
+});
+
 describe('OpeningHandSheet online curtain', () => {
   it('waits on the seats still choosing, counts the table in, then lifts', () => {
     vi.useFakeTimers();

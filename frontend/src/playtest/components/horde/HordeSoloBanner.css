@@ -1,0 +1,8 @@
+/* HordeSoloBanner.css — the shared `.horde-attack-banner` floats
+   screen-centred on the paper table (horde-table.css); here it lives inside
+   `.playtest-banners`, YOUR half's own stack, so it must sit in flow. */
+.horde-solo-banner .horde-attack-banner {
+  position: static;
+  transform: none;
+  max-width: none;
+}

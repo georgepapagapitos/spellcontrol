@@ -11,6 +11,9 @@ interface Props {
   damageTaken: number;
   cardsMilledByDamage: number;
   bossesBeaten: number;
+  /** Solo (E387 PR 5): hides the "Record against this horde" line, which
+   *  reads `usePlayStore` — a solo playtest game never touches Play history. */
+  hideRecord?: boolean;
   onPlayAgain(): void;
   onDone(): void;
 }
@@ -27,13 +30,16 @@ export function HordeEndSheet({
   damageTaken,
   cardsMilledByDamage,
   bossesBeaten,
+  hideRecord = false,
   onPlayAgain,
   onDone,
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onDone);
   useLockBodyScroll();
   const history = usePlayStore((s) => s.history);
-  const record = aggregateHordeRecords(history).find((r) => r.hordeId === hordeId);
+  const record = hideRecord
+    ? undefined
+    : aggregateHordeRecords(history).find((r) => r.hordeId === hordeId);
 
   const headline = outcome === 'won' ? 'The horde is gone' : `Overrun on turn ${hordeTurns}`;
 
