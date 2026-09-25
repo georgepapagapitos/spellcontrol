@@ -191,6 +191,60 @@ describe('PlayPage rules door', () => {
   });
 });
 
+describe('Local setup — Horde (co-op)', () => {
+  // A prior describe block's "Start game" click leaves `local` set on the
+  // shared usePlayStore singleton; without this the form renders GameBoard
+  // instead of LocalSetup.
+  beforeEach(() => {
+    usePlayStore.setState({ local: null, boardVisible: true });
+  });
+  afterEach(() => {
+    usePlayStore.setState({ local: null });
+  });
+
+  function pickHorde() {
+    fireEvent.click(screen.getByRole('button', { name: /Format/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Horde (co-op)' }));
+  }
+
+  it('swaps the Game/Rules sections for the horde tiles, difficulty and Customise', () => {
+    renderPage('/play/local');
+    pickHorde();
+    expect(screen.getByText('Zombies')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /Standard/ })).toBeTruthy();
+    expect(screen.getByText('Customise')).toBeTruthy();
+    // The real-format Rules pills are gone once Horde is picked.
+    expect(screen.queryByText('Commander damage')).toBeNull();
+    expect(screen.queryByText('Poison counters')).toBeNull();
+  });
+
+  it("difficulty rows spell out that survivor count's numbers, and update live", () => {
+    renderPage('/play/local');
+    pickHorde();
+    // The form starts with 2 seats — resolveHordeSettings('standard', 2).
+    const standardRow = screen.getByRole('radio', { name: /Standard/ }).closest('label')!;
+    expect(within(standardRow).getByText(/60 shared life/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Add player/ }));
+    // A third seat re-resolves the preset at survivors = 3.
+    const updatedRow = screen.getByRole('radio', { name: /Standard/ }).closest('label')!;
+    expect(within(updatedRow).getByText(/80 shared life/)).toBeTruthy();
+  });
+
+  it("caps the roster at 1-4 survivors instead of the real game's 2-6", () => {
+    renderPage('/play/local');
+    pickHorde();
+    expect(screen.getAllByRole('textbox', { name: /Player \d name/ })).toHaveLength(2);
+    // 6 - 2 = 4 taps would overflow a real game's cap (6); Horde's cap (4)
+    // is reached after only 2.
+    const add = screen.getByRole('button', { name: /Add player/ });
+    fireEvent.click(add);
+    fireEvent.click(add);
+    expect(screen.getAllByRole('textbox', { name: /Player \d name/ })).toHaveLength(4);
+    expect(screen.queryByRole('button', { name: /Add player/ })).toBeNull();
+  });
+});
+
 describe('History — removing a game asks first', () => {
   // Playtest batch 7: the × on every history row removed the record on one
   // tap, with no confirmation and no undo, and it never came back.

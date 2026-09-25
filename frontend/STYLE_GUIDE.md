@@ -6274,6 +6274,67 @@ ribbon in half. The rule: ribbon on a card, chip in a list.
 
 ---
 
+## Horde table (Local Horde, 2026-09-24)
+
+The horde plays itself. There is no opposing player's board on screen — only
+the horde's own `Battlefield`/`ZonePile`/`LifeStrip`, built from the real
+playtest components, never a bespoke card grid.
+
+- **The attack ring is a third fixed colour, not a tap.** A creature the horde
+  declares as attacking wears a fixed red ring (`--pt-ring-attack`,
+  `.playtest-card--attacking`), alongside the existing cyan-hover /
+  gold-selected pair. It is never `tapped` — the horde has no tap step of its
+  own, so "attacking" and "tapped" stay two different facts, the way the ring
+  and the printed body already keep hover and selection apart.
+- **The damage-total banner is a proposal, not a fact.** It prefills the
+  numeric field with the horde's full power and lets the number go down (a
+  survivor blocked or removed some of it) — it never recomputes the total
+  itself. Taking 0 reads as "Skip", not "Take 0".
+- **Landscape-first, tablet-first.** The table's four-corner layout assumes
+  the ≥1024px table tier by construction; a phone or tablet held in portrait
+  gets a "turn it sideways" prompt (reusing playtest's `RotatePrompt` on a
+  phone) rather than a squeezed version of the corner chrome.
+- **No piles for the horde's own board.** Every horde permanent is its own
+  card on the felt, exactly like a real player's battlefield — the "no piles"
+  rule that governs the rest of the table applies here too, even though
+  nobody chose where each card landed.
+- **A horde permanent's death is recorded by hand.** This board never
+  simulates the survivors' side of combat, so nothing here ever removes a
+  horde creature on its own — a card menu (Destroyed / Exiled / Returned to
+  the library) is the one way a permanent, including a boss that entered on a
+  tick, leaves the battlefield. Copy is past tense, the same "you report a
+  physical act already done" grammar as the binder review queue. Opens on a
+  click, a touch tap, a long-press, right-click, or the Context Menu key — the
+  same four-path parity the main playtest board's card menu holds.
+- **The library/graveyard tiles read at full card height, not the tucked
+  peek.** `.horde-table-piles .playtest-pile__stack` overrides the main
+  board's 35%-sliver default (`height: var(--pt-card-h)`, scoped to this
+  table only) — a peek sized for a lap-held phone disappears from across a
+  real table, and there is no hand/drag gesture here to defer it for.
+- **The library meter carries the horde's own boss ticks.** A gold hairline
+  per `HordeSettings.bossTicks` fraction, dimmed once crossed, plus a "Next
+  boss in N" line under it — the meter is read as the horde's health bar
+  ("Horde library · N / N"), not a generic progress indicator.
+- **A boss banner's wording is derived from the crossed fraction, never
+  hard-coded to "Half".** Casual has no ticks; Standard crosses only 50% and
+  100%; Brutal (and any Customise override) can cross a quarter, three
+  quarters, or the library emptying outright — "A quarter of the horde is
+  gone." / "Half…" / "Three quarters…" / "The horde's library is empty.",
+  each still followed by which boss joined.
+- **The reveal sheet reads left to right, in reveal order.** A horizontal
+  row (scrolling if a wave overflows it), each card captioned "N · Name" —
+  or "N · ends the wave" on the card that closes it, which also wears the
+  gold selected-style ring. Widened past the phone default at ≥1024px (`min(48.75rem,
+  calc(100vw - 4rem))`, the dense-dialog pattern) so a normal wave reads as
+  one row instead of a single narrow column.
+- **A sheet built on the card-picker shell supplies its own body padding.**
+  `.card-picker-list` ships with none by design — every sheet's content
+  decides its own gutter. The end summary's stat list follows "Real tables
+  speak print" (label left, number right, `1px dotted var(--border)` row
+  rules, tabular figures), the same voice as `.play-records-table`.
+
+---
+
 ## Extending this guide
 
 When you and a reviewer settle a recurring visual question ("should X be a pill?",

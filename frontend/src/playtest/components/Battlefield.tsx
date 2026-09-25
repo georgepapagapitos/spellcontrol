@@ -36,6 +36,23 @@ interface Props {
   /** Adds (1) or takes off (-1) one counter of a kind — a click or a
    *  right-click on the counter itself. Omitted draws them read-only. */
   onStepCounter?(cardId: string, kind: string, delta: 1 | -1): void;
+  /** Ids currently attacking — wear a fixed red ring (`.playtest-card--attacking`,
+   *  alongside the hover/selected pair), independent of `tapped`: the horde
+   *  table declares an attack without tapping (see STYLE_GUIDE "Horde table").
+   *  Omitted/empty on every other board that renders this component. */
+  attackingIds?: ReadonlySet<string>;
+  /** `useDroppable` id for the felt itself. Defaults to `'battlefield'` (the
+   *  main playtest board's own drop target); a second `Battlefield` mounted
+   *  on the same page (the horde table, alongside the real one) needs a
+   *  distinct id so dnd-kit doesn't collide the two. */
+  dropId?: string;
+  /** False renders every card non-draggable (see `PlaytestCardView.draggable`
+   *  for why this matters beyond "cards don't move": with no
+   *  `activationConstraint` on the mounting `<DndContext>`'s sensors, a
+   *  draggable card swallows the click that should activate it). The horde
+   *  table (auto-placed, never repositioned) sets this false; every other
+   *  board defaults to true, unchanged. */
+  cardsDraggable?: boolean;
 }
 
 export function Battlefield({
@@ -51,13 +68,16 @@ export function Battlefield({
   onCardLongPress,
   onAdjustPT,
   onStepCounter,
+  attackingIds,
+  dropId = 'battlefield',
+  cardsDraggable = true,
 }: Props) {
   // No `isOver` here on purpose: the felt does not light up as a drop target.
   // It is the whole board, always the destination, and the card already
   // follows the pointer — a dashed ring drawn round the table every time a
   // card moves is chrome for something the player cannot get wrong. The one
   // border the felt wears is the turn ring (playtest.css `.is-my-turn`).
-  const { setNodeRef } = useDroppable({ id: 'battlefield' });
+  const { setNodeRef } = useDroppable({ id: dropId });
   // Drag a box across bare felt to select what it touches (EDHPlay's
   // gesture). Pointer state lives in a ref — only the drawn box is state, so
   // a drag re-renders the overlay and not every card on the board.
@@ -221,10 +241,12 @@ export function Battlefield({
             card={bf.card}
             bf={bf}
             draggableId={`bf:${bf.card.id}`}
+            draggable={cardsDraggable}
             positioned
             ptHidden={Boolean(onAdjustPT)}
             countersHidden={Boolean(onStepCounter)}
             selected={selectedIds.has(bf.card.id)}
+            attacking={attackingIds?.has(bf.card.id) ?? false}
             onStack={stackIds.has(bf.card.id)}
             onClick={onCardClick}
             onContextMenu={onCardContextMenu}

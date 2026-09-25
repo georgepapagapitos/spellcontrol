@@ -148,6 +148,27 @@ describe('hordeTurnActions', () => {
     });
     expect(new Set(positions).size).toBe(positions.length);
   });
+
+  it('honors a supplied battlefield rect instead of the fallback box (for the real table)', () => {
+    const revealed = [tok('t1')];
+    const narrow = hordeTurnActions(revealed, [], {
+      width: 200,
+      height: 200,
+      cardW: 90,
+      cardH: 126,
+    });
+    const wide = hordeTurnActions(revealed, [], {
+      width: 2000,
+      height: 2000,
+      cardW: 90,
+      cardH: 126,
+    });
+    const narrowX = (narrow.toBattlefield[0] as { x: number }).x;
+    const wideX = (wide.toBattlefield[0] as { x: number }).x;
+    // Same single card, same row — only the box changed, so its normalized
+    // position (a fraction of the box width) must differ between the two.
+    expect(narrowX).not.toBe(wideX);
+  });
 });
 
 describe('resolveActions', () => {
