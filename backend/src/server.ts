@@ -174,8 +174,11 @@ app.use(
           'https://apis.google.com',
           'https://accounts.google.com',
         ],
-        'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        'font-src': ["'self'", 'https://fonts.gstatic.com'],
+        // Every type set's faces are self-hosted (public/fonts), so no font
+        // origin is allowed: a third-party face couldn't carry the metric
+        // overrides that centre labels (frontend styles/font-metrics.test.ts).
+        'style-src': ["'self'", "'unsafe-inline'"],
+        'font-src': ["'self'"],
         'img-src': [
           "'self'",
           'data:',

@@ -58,6 +58,15 @@ describe('security headers', () => {
     expect(SERVER_TS).toContain(origin);
   });
 
+  it('allows fonts from this origin only', () => {
+    // Every type set is self-hosted, each face carrying metric overrides a
+    // third-party stylesheet can't; a Google Fonts origin here would let a
+    // face come back uncorrected.
+    const fontSrc = SERVER_TS.match(/'font-src':\s*\[([\s\S]*?)\]/)?.[1] ?? '';
+    expect(fontSrc.trim()).toBe(`"'self'"`);
+    expect(SERVER_TS).not.toContain('fonts.googleapis.com');
+  });
+
   it('lets the cube import show CubeCobra thumbnails', () => {
     // ImportCube renders `details.image_small` straight from the CubeCobra
     // payload, which lives on assets.cubecobra.com. Playtest batch 8 found all

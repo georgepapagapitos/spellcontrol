@@ -3,8 +3,17 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { TYPESETS, DEFAULT_TYPESET, isValidTypeSet, typeSetHref } from './typesets';
 
-const indexHtml = () =>
-  readFileSync(fileURLToPath(new URL('../../index.html', import.meta.url)), 'utf8');
+const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
+const indexHtml = () => read('../../index.html');
+
+/** The stylesheet that declares a set's faces: the bundled styles/fonts.css
+ *  for the default, public/fonts/typeset-<id>.css for every other set. */
+const faceSheet = (id: string) =>
+  id === DEFAULT_TYPESET ? read('../styles/fonts.css') : read(`../../public${typeSetHref(id)}`);
+/** Families a stylesheet declares an @font-face for. */
+const familiesOf = (css: string): string[] => [
+  ...new Set([...css.matchAll(/font-family: '([^']+)'/g)].map((m) => m[1])),
+];
 
 describe('typesets', () => {
   it('exposes a non-empty set list with unique ids', () => {
@@ -20,13 +29,40 @@ describe('typesets', () => {
     }
   });
 
-  it('every webfont href is a Google Fonts css2 URL', () => {
+  it('every non-default set has its own self-hosted stylesheet', () => {
     for (const t of TYPESETS) {
-      if (t.href === null) continue;
-      expect(t.href).toMatch(/^https:\/\/fonts\.googleapis\.com\/css2\?/);
-      // display=swap keeps text visible during the font load rather than
-      // blanking it; a set missing it would flash invisible text.
-      expect(t.href).toContain('display=swap');
+      if (t.id === DEFAULT_TYPESET) continue;
+      // Self-hosted so every face can carry metric overrides (see
+      // styles/font-metrics.test.ts); a third-party sheet can't.
+      expect(t.href, t.id).toBe(`/fonts/typeset-${t.id}.css`);
+      const css = faceSheet(t.id);
+      // swap keeps text visible during a webfont load rather than blanking it;
+      // a local()-only sheet (plain) downloads nothing and needs none.
+      for (const face of css.match(/@font-face \{[^}]*\}/g) ?? []) {
+        if (face.includes('url(')) expect(face, t.id).toContain('font-display: swap');
+      }
+    }
+  });
+
+  it("every face a set's tokens name first is declared by that set's stylesheet", () => {
+    const typesets = read('../styles/typesets.css');
+    for (const t of TYPESETS) {
+      const block = typesets.match(
+        new RegExp(String.raw`\[data-typeset='${t.id}'\] \{([^}]*)\}`)
+      )?.[1];
+      expect(block, `typesets.css has no block for '${t.id}'`).toBeTruthy();
+      const declared = familiesOf(faceSheet(t.id));
+      const firsts = [...block!.matchAll(/--font-\w+: '([^']+)'/g)].map((m) => m[1]);
+      // Non-vacuous: every set names at least its body face in quotes.
+      expect(firsts.length, t.id).toBeGreaterThan(0);
+      // The first family of each role is the face the set is designed around;
+      // an unquoted keyword (system-ui, ui-monospace) is the OS's own.
+      for (const first of firsts) {
+        expect(
+          declared,
+          `'${t.id}' names ${first} but its stylesheet has no face for it`
+        ).toContain(first);
+      }
     }
   });
 
@@ -34,9 +70,9 @@ describe('typesets', () => {
     expect(TYPESETS.some((t) => t.id === DEFAULT_TYPESET)).toBe(true);
   });
 
-  it('typeSetHref returns null for the default set (index.html already links it)', () => {
-    // Guards the double-download regression: the default set's faces are in a
-    // static <link>, so injecting them again would refetch the same families.
+  it('typeSetHref returns null for the default set (its faces are bundled)', () => {
+    // Guards the double-download regression: the default set's faces are in
+    // styles/fonts.css, so injecting them again would refetch the same files.
     expect(typeSetHref(DEFAULT_TYPESET)).toBeNull();
   });
 
@@ -46,8 +82,7 @@ describe('typesets', () => {
     expect(typeSetHref(other!.id)).toBe(other!.href);
   });
 
-  it('typeSetHref returns null for a set with no webfont, and for unknown ids', () => {
-    expect(typeSetHref('plain')).toBeNull();
+  it('typeSetHref returns null for unknown ids', () => {
     expect(typeSetHref('not-a-set')).toBeNull();
   });
 
@@ -80,23 +115,10 @@ describe('typesets ↔ index.html', () => {
     expect(indexHtml()).toContain(`var DEFAULT_TYPESET = '${DEFAULT_TYPESET}'`);
   });
 
-  it('styles/fonts.css self-hosts exactly the default set families, and index.html links no Google Fonts', () => {
-    const fontsCss = readFileSync(
-      fileURLToPath(new URL('../styles/fonts.css', import.meta.url)),
-      'utf8'
-    );
-    const defaultHref = TYPESETS.find((t) => t.id === DEFAULT_TYPESET)?.href;
-    // A default set with no webfont (e.g. `plain`) would need no faces at all.
-    if (!defaultHref) return;
-    for (const family of new URL(defaultHref).searchParams.getAll('family')) {
-      // "Vollkorn:wght@400;500" → "Vollkorn"; the URL form is "Archivo+Narrow".
-      const name = family.split(':')[0].replace(/\+/g, ' ');
-      expect(fontsCss, `styles/fonts.css has no @font-face for ${name}`).toContain(
-        `font-family: '${name}'`
-      );
-    }
+  it('index.html links no third-party font origin', () => {
     // The whole point of self-hosting: no third-party font origin on first paint.
     expect(indexHtml()).not.toContain('fonts.googleapis.com');
+    for (const t of TYPESETS) expect(t.href ?? '', t.id).not.toMatch(/^https?:/);
   });
 });
 
@@ -116,30 +138,24 @@ describe('typesets ↔ tokens.css fallbacks', () => {
     // Only the four --font-* declarations, not the whole stylesheet.
     return css.match(/--font-(?:serif|mono|label|display):[^;]*;/g)?.join('\n') ?? '';
   };
-  const familiesOf = (href: string): string[] =>
-    new URL(href).searchParams.getAll('family').map((f) => f.split(':')[0].replace(/\+/g, ' '));
-
-  const defaultHref = TYPESETS.find((t) => t.id === DEFAULT_TYPESET)?.href;
+  const defaultFamilies = familiesOf(faceSheet(DEFAULT_TYPESET));
 
   it('names every family of the default set', () => {
     const block = fontBlock();
     expect(block.length).toBeGreaterThan(0);
-    // `plain` ships no webfont — its fallbacks are the system stack.
-    if (!defaultHref) return;
-    for (const name of familiesOf(defaultHref)) {
+    for (const name of defaultFamilies) {
       expect(block, `tokens.css --font-* fallbacks are missing ${name}`).toContain(name);
     }
   });
 
   it('carries no leftover face that only a non-default set uses', () => {
     const block = fontBlock();
-    const defaultFamilies = new Set(defaultHref ? familiesOf(defaultHref) : []);
     for (const t of TYPESETS) {
-      if (t.id === DEFAULT_TYPESET || !t.href) continue;
-      for (const name of familiesOf(t.href)) {
+      if (t.id === DEFAULT_TYPESET) continue;
+      for (const name of familiesOf(faceSheet(t.id))) {
         // Sets share faces on purpose (Eczar, Archivo Narrow and Plex Mono are
         // in several), so only a face the default does NOT use is a leftover.
-        if (defaultFamilies.has(name)) continue;
+        if (defaultFamilies.includes(name)) continue;
         expect(block, `tokens.css still names ${name}, which only '${t.id}' uses`).not.toContain(
           name
         );

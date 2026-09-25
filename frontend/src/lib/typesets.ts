@@ -12,27 +12,36 @@
  * works with every theme, since a set touches only type tokens and a theme
  * touches only color tokens.
  *
- * `href` is the Google Fonts stylesheet for that set's faces. The store
- * injects it at runtime so only the ACTIVE set's fonts are ever downloaded;
- * the default set's link is static in index.html (so the parser starts those
- * downloads without waiting for JS) and is therefore never injected. `null`
- * means the set needs no webfont at all.
+ * `href` is the set's self-hosted stylesheet (public/fonts/typeset-<id>.css).
+ * The store injects it at runtime so only the ACTIVE set's fonts are ever
+ * downloaded. The default set has none: its faces are bundled in
+ * styles/fonts.css and preloaded from index.html, so the parser starts those
+ * downloads without waiting for JS.
+ *
+ * Every face is self-hosted, not linked from Google Fonts, so it can carry
+ * ascent/descent overrides that centre the capital height in the line box.
+ * Without them each face sat its labels a pixel or two off the optical centre
+ * of any box that flex-centres them, a different direction per set.
  */
 export interface TypeSetDef {
   id: string;
   name: string;
   /** One-line character sketch, shown under the name in the picker. */
   hint: string;
-  /** Google Fonts stylesheet for this set's faces; null = system stack. */
+  /** Self-hosted stylesheet for this set's faces; null for the default set,
+   *  whose faces are bundled. */
   href: string | null;
 }
 
 /**
- * The set whose fonts are hard-linked in index.html. Changing this constant
- * re-skins the app for everyone who has never opened the picker, so it travels
- * with THREE other edits — miss one and the first paint disagrees with the
- * rest of the app:
- *   1. the static <link> in index.html (which faces get preloaded),
+ * The set whose fonts are bundled (styles/fonts.css) and preloaded from
+ * index.html. Changing this constant re-skins the app for everyone who has
+ * never opened the picker, so it travels with THREE other edits — miss one and
+ * the first paint disagrees with the rest of the app:
+ *   1. its faces move from public/fonts/typeset-<id>.css into
+ *      styles/fonts.css (with their overrides), its href becomes null, and the
+ *      old default gets a typeset-<id>.css of its own; the index.html preloads
+ *      follow the new above-the-fold faces,
  *   2. the `--font-*` fallbacks in styles/tokens.css (what renders before any
  *      [data-typeset] rule matches),
  *   3. the DEFAULT_TYPESET literal in index.html's pre-paint script.
@@ -48,50 +57,48 @@ export interface TypeSetDef {
  */
 export const DEFAULT_TYPESET = 'codex';
 
-const GF = 'https://fonts.googleapis.com/css2?';
-
 export const TYPESETS: TypeSetDef[] = [
   {
     id: 'folio',
     name: 'Folio',
     hint: 'Vintage print. Quiet and bookish.',
-    href: `${GF}family=Archivo+Narrow:wght@500;600;700&family=Eczar:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Sorts+Mill+Goudy&display=swap`,
+    href: '/fonts/typeset-folio.css',
   },
   {
     id: 'codex',
     name: 'Codex',
     hint: 'Inscriptional. Carved, not printed.',
-    href: `${GF}family=Archivo+Narrow:wght@500;600;700&family=Eczar:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Marcellus&display=swap`,
+    href: null,
   },
   {
     id: 'grimoire',
     name: 'Grimoire',
     hint: 'Gothic and heavy. Loud on purpose.',
-    href: `${GF}family=Germania+One&family=Oswald:wght@400;500;600&family=Space+Mono:wght@400;700&family=Vollkorn:wght@400;500;600;700&display=swap`,
+    href: '/fonts/typeset-grimoire.css',
   },
   {
     id: 'almanac',
     name: 'Almanac',
     hint: 'Old press with typed labels.',
-    href: `${GF}family=Cutive+Mono&family=EB+Garamond:wght@400;500;600;700&family=IM+Fell+English&display=swap`,
+    href: '/fonts/typeset-almanac.css',
   },
   {
     id: 'workshop',
     name: 'Workshop',
     hint: 'Warm and characterful. Label-maker chrome.',
-    href: `${GF}family=Alegreya:wght@400;500;700&family=DM+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Oswald:wght@400;500;600&display=swap`,
+    href: '/fonts/typeset-workshop.css',
   },
   {
     id: 'broadsheet',
     name: 'Broadsheet',
     hint: 'Editorial. High contrast, sharp.',
-    href: `${GF}family=Bebas+Neue&family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=Lora:wght@400;500;600;700&display=swap`,
+    href: '/fonts/typeset-broadsheet.css',
   },
   {
     id: 'plain',
     name: 'Plain',
     hint: 'Your system fonts. No download, most legible.',
-    href: null,
+    href: '/fonts/typeset-plain.css',
   },
 ];
 
@@ -99,8 +106,7 @@ export function isValidTypeSet(id: string): boolean {
   return TYPESETS.some((t) => t.id === id);
 }
 
-/** Stylesheet URL for a set; null when it needs no webfont or is the default. */
+/** Stylesheet URL for a set; null for the default (bundled) and unknown ids. */
 export function typeSetHref(id: string): string | null {
-  if (id === DEFAULT_TYPESET) return null; // self-hosted in styles/fonts.css
   return TYPESETS.find((t) => t.id === id)?.href ?? null;
 }

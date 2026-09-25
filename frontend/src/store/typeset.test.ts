@@ -5,7 +5,7 @@ import { DEFAULT_TYPESET, TYPESETS } from '../lib/typesets';
 
 // Must NOT be DEFAULT_TYPESET: these cases assert that a non-default set
 // injects a font <link>, and the default deliberately injects none (its faces
-// are already in index.html). Asserted below so flipping the default can't
+// are bundled in styles/fonts.css). Asserted below so flipping the default can't
 // silently turn those into vacuous tests.
 const VALID = 'grimoire';
 const OTHER = 'broadsheet';
@@ -54,30 +54,24 @@ describe('typeset store', () => {
     const link = fontLink();
     expect(link).not.toBeNull();
     expect(link!.rel).toBe('stylesheet');
-    expect(link!.href).toBe(TYPESETS.find((t) => t.id === VALID)!.href);
+    expect(link!.getAttribute('href')).toBe(TYPESETS.find((t) => t.id === VALID)!.href);
   });
 
   it('reuses one link element across switches instead of stacking them', () => {
     useTypeSetStore.getState().setTypeSet(VALID);
     useTypeSetStore.getState().setTypeSet(OTHER);
     expect(document.querySelectorAll('#sc-typeset-fonts')).toHaveLength(1);
-    expect(fontLink()!.href).toBe(TYPESETS.find((t) => t.id === OTHER)!.href);
+    expect(fontLink()!.getAttribute('href')).toBe(TYPESETS.find((t) => t.id === OTHER)!.href);
   });
 
   it('removes the injected link when returning to the default set', () => {
-    // The default's faces are linked statically in index.html; leaving ours
-    // behind would keep a duplicate request for the same families alive.
+    // The default's faces are bundled (styles/fonts.css); leaving ours behind
+    // would keep a duplicate request for the same families alive.
     useTypeSetStore.getState().setTypeSet(VALID);
     expect(fontLink()).not.toBeNull();
     useTypeSetStore.getState().setTypeSet(DEFAULT_TYPESET);
     expect(fontLink()).toBeNull();
     expect(dataTypeSet()).toBe(DEFAULT_TYPESET);
-  });
-
-  it('injects no link for a set that needs no webfont', () => {
-    useTypeSetStore.getState().setTypeSet('plain');
-    expect(dataTypeSet()).toBe('plain');
-    expect(fontLink()).toBeNull();
   });
 });
 
