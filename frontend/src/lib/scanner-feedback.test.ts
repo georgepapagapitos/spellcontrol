@@ -17,8 +17,7 @@ import {
   FINISH_LABELS,
   availableFinishes,
   finishUnitPrice,
-  nextFinish,
-  nextCondition,
+  CONDITIONS,
   priceTier,
   pulseValueHaptic,
 } from './scanner-feedback';
@@ -72,18 +71,7 @@ describe('availableFinishes', () => {
   });
 });
 
-describe('nextFinish', () => {
-  it('cycles through the available finishes and wraps', () => {
-    const avail = ['nonfoil', 'foil', 'etched'] as const;
-    expect(nextFinish('nonfoil', [...avail])).toBe('foil');
-    expect(nextFinish('foil', [...avail])).toBe('etched');
-    expect(nextFinish('etched', [...avail])).toBe('nonfoil');
-  });
-
-  it('is a no-op when only one finish is available', () => {
-    expect(nextFinish('nonfoil', ['nonfoil'])).toBe('nonfoil');
-  });
-
+describe('FINISH_LABELS', () => {
   it('has a human label for every finish', () => {
     expect(FINISH_LABELS.nonfoil).toBe('Normal');
     expect(FINISH_LABELS.foil).toBe('Foil');
@@ -91,13 +79,9 @@ describe('nextFinish', () => {
   });
 });
 
-describe('nextCondition', () => {
-  it('cycles NM → LP → MP → HP → DMG and wraps back to NM', () => {
-    expect(nextCondition('nm')).toBe('lp');
-    expect(nextCondition('lp')).toBe('mp');
-    expect(nextCondition('mp')).toBe('hp');
-    expect(nextCondition('hp')).toBe('damaged');
-    expect(nextCondition('damaged')).toBe('nm');
+describe('CONDITIONS', () => {
+  it('lists every condition best to worst, the order the pickers show them', () => {
+    expect(CONDITIONS).toEqual(['nm', 'lp', 'mp', 'hp', 'damaged']);
   });
 });
 

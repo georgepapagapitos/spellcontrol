@@ -9,6 +9,9 @@ interface Props {
    *  (e.g. "Start fresh" alongside a "Resume" confirm). */
   cancelLabel?: string;
   danger?: boolean;
+  /** Backdrop class, e.g. `modal-backdrop--over-sheet` for a confirm raised
+   *  from inside the full-screen scanner, which sits above the modal tier. */
+  backdropClassName?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -19,11 +22,16 @@ export function ConfirmDialog({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   danger = false,
+  backdropClassName,
   onConfirm,
   onCancel,
 }: Props) {
   return (
-    <Modal onClose={onCancel} labelledBy="confirm-dialog-title">
+    <Modal
+      onClose={onCancel}
+      labelledBy="confirm-dialog-title"
+      backdropClassName={backdropClassName}
+    >
       <h2 id="confirm-dialog-title" className="choice-dialog-title">
         {title}
       </h2>

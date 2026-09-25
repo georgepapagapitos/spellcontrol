@@ -1,14 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
+import { ScannerQueueSheet } from './ScannerQueueSheet';
+import type { ScannedEntry } from '../lib/use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { Condition } from '../types';
-
-const fetchPrintingsMock = vi.fn();
-vi.mock('../lib/api', () => ({
-  fetchPrintings: (name: string, set?: string) => fetchPrintingsMock(name, set),
-}));
 
 const searchCardsMock = vi.fn();
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
@@ -30,9 +25,10 @@ function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
     collector_number: '161',
     prices: { usd: '1.50' },
     legalities: { commander: 'legal' },
+    finishes: ['nonfoil', 'foil'],
     image_uris: {
-      small: 'https://example.test/bolt-lea-small.jpg',
-      normal: '',
+      small: 'https://example.test/bolt-small.jpg',
+      normal: 'https://example.test/bolt-normal.jpg',
       large: '',
       png: '',
       art_crop: '',
@@ -42,519 +38,217 @@ function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   } as ScryfallCard;
 }
 
-function makeEntry(over: Partial<ScannedEntry> = {}): ScannedEntry {
-  return {
-    id: 'oracle-bolt',
-    card: makeCard(),
-    qty: 2,
-    finish: 'nonfoil',
-    rawText: 'Lightning Bolt',
-    ...over,
+const bolt: ScannedEntry = {
+  id: 'card-1::nonfoil',
+  card: makeCard(),
+  qty: 2,
+  finish: 'nonfoil',
+  rawText: 'Lightning Bolt',
+  addedAt: 1000,
+};
+const greaves: ScannedEntry = {
+  id: 'card-2::nonfoil',
+  card: makeCard({
+    id: 'card-2',
+    oracle_id: 'oracle-greaves',
+    name: 'Lightning Greaves',
+    set: 'soc',
+    set_name: 'Secrets of Strixhaven Commander',
+    collector_number: '350',
+    prices: { usd: '4.98' },
+  }),
+  qty: 1,
+  finish: 'nonfoil',
+  condition: 'lp',
+  rawText: 'Lightning Greaves',
+  addedAt: 2000,
+};
+
+function renderSheet(entries: ScannedEntry[] = [bolt, greaves]) {
+  const props = {
+    entries,
+    onClose: vi.fn(),
+    onEdit: vi.fn(),
+    onRemove: vi.fn(),
+    onClearAll: vi.fn(),
+    onChangeFinish: vi.fn(),
+    onChangeCondition: vi.fn(),
+    onAddCard: vi.fn(),
+    onConfirm: vi.fn(),
   };
+  render(<ScannerQueueSheet {...props} />);
+  return props;
 }
+
+const rowNames = () =>
+  [...document.querySelectorAll('.scan-row .scan-row-name')].map((n) =>
+    n.textContent?.replace(/\s+/g, ' ').trim()
+  );
 
 describe('ScannerQueueSheet', () => {
   beforeEach(() => {
-    fetchPrintingsMock.mockReset();
     searchCardsMock.mockReset();
     searchCardsMock.mockResolvedValue({ data: [], has_more: false });
   });
 
-  it('shows the empty state when the queue is empty', () => {
-    render(
-      <ScannerQueueSheet
-        entries={[]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    expect(screen.getByText(/Nothing scanned yet/)).toBeTruthy();
+  it('opens above the full-screen scanner, as a bottom sheet on a phone', () => {
+    renderSheet();
+    const backdrop = document.querySelector('.modal-backdrop');
+    // --over-sheet lifts it past the camera's --z-overlay; without it the sheet
+    // (and any confirm) would open behind the camera.
+    expect(backdrop?.classList.contains('modal-backdrop--over-sheet')).toBe(true);
+    expect(backdrop?.classList.contains('modal-backdrop--sheet')).toBe(true);
   });
 
-  it('renders a row per entry with name, set·CN, and quantity', () => {
-    render(
-      <ScannerQueueSheet
-        entries={[makeEntry()]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    expect(screen.getByText('Lightning Bolt')).toBeTruthy();
-    expect(screen.getByText(/LEA · 161/)).toBeTruthy();
-    expect(screen.getByText('2', { selector: '.scanner-qty-value' })).toBeTruthy();
+  it('shows an empty state, with adding to the collection off until something is scanned', () => {
+    renderSheet([]);
+    expect(screen.getByText('No cards scanned yet')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add cards' }).hasAttribute('disabled')).toBe(true);
   });
 
-  it('fires qty/remove callbacks', () => {
-    const onChangeQty = vi.fn();
-    const onRemove = vi.fn();
-    render(
-      <ScannerQueueSheet
-        entries={[makeEntry()]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={onChangeQty}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={onRemove}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    fireEvent.click(screen.getByLabelText(/Increase quantity of Lightning Bolt/));
-    expect(onChangeQty).toHaveBeenCalledWith('oracle-bolt', 1);
-    fireEvent.click(screen.getByLabelText(/Decrease quantity of Lightning Bolt/));
-    expect(onChangeQty).toHaveBeenCalledWith('oracle-bolt', -1);
-    fireEvent.click(screen.getByLabelText(/Remove Lightning Bolt/));
-    expect(onRemove).toHaveBeenCalledWith('oracle-bolt');
+  it('lists rows newest first with count, set, finish, condition and the row value', () => {
+    renderSheet();
+    expect(screen.getByRole('heading', { name: '3 cards scanned' })).toBeTruthy();
+    expect(screen.getByText('$7.98 total')).toBeTruthy();
+    expect(rowNames()).toEqual(['1× Lightning Greaves', '2× Lightning Bolt']);
+    const boltRow = screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ });
+    expect(within(boltRow).getByText('Limited Edition Alpha · #161')).toBeTruthy();
+    expect(within(boltRow).getByText('Normal')).toBeTruthy();
+    expect(within(boltRow).getByText('NM')).toBeTruthy();
+    // Two copies at $1.50: the row shows what the stack is worth.
+    expect(within(boltRow).getByText('$3.00')).toBeTruthy();
   });
 
-  it('disables decrement at qty 1', () => {
-    render(
-      <ScannerQueueSheet
-        entries={[makeEntry({ qty: 1 })]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    const dec = screen.getByLabelText(/Decrease quantity of Lightning Bolt/) as HTMLButtonElement;
-    expect(dec.disabled).toBe(true);
+  it('opens a row for editing and removes one with its own button', () => {
+    const props = renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ }));
+    expect(props.onEdit).toHaveBeenCalledWith('card-1::nonfoil');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Lightning Greaves' }));
+    expect(props.onRemove).toHaveBeenCalledWith(['card-2::nonfoil']);
   });
 
-  it('lazily fetches printings when the picker opens and swaps on select', async () => {
-    const altPrint = makeCard({
-      id: 'card-2',
-      set: '2ed',
-      set_name: 'Unlimited Edition',
-      collector_number: '174',
+  it('adds the whole list, or goes back to scanning', () => {
+    const props = renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Add 3 cards' }));
+    expect(props.onConfirm).toHaveBeenCalledWith();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep scanning' }));
+    expect(props.onClose).toHaveBeenCalled();
+  });
+
+  it('filters the list by card or set name', () => {
+    renderSheet();
+    fireEvent.change(screen.getByLabelText('Filter scanned cards'), {
+      target: { value: 'strixhaven' },
     });
-    fetchPrintingsMock.mockResolvedValue([makeCard(), altPrint]);
-    const onChangePrinting = vi.fn();
-    render(
-      <ScannerQueueSheet
-        entries={[makeEntry()]}
-        onClose={vi.fn()}
-        onChangePrinting={onChangePrinting}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    fireEvent.click(screen.getByLabelText(/Change printing of Lightning Bolt/));
-    // Printings are fetched scoped to the scanned card's set.
-    expect(fetchPrintingsMock).toHaveBeenCalledWith('Lightning Bolt', 'lea');
-    // The picker is an image grid — each cell shows the collector number.
-    await waitFor(() => expect(screen.getByText('#174')).toBeTruthy());
-    fireEvent.click(screen.getByText('#174'));
-    expect(onChangePrinting).toHaveBeenCalledWith('oracle-bolt', altPrint);
+    expect(rowNames()).toEqual(['1× Lightning Greaves']);
+    fireEvent.change(screen.getByLabelText('Filter scanned cards'), {
+      target: { value: 'zzz' },
+    });
+    expect(screen.getByText(/No scanned cards match/)).toBeTruthy();
   });
 
-  it('clear-all confirms before firing, and continue-scanning plays the exit then closes', async () => {
-    const onClearAll = vi.fn();
-    const onClose = vi.fn();
-    const { container } = render(
-      <ScannerQueueSheet
-        entries={[makeEntry()]}
-        onClose={onClose}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={onClearAll}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    // Clear all now opens a confirmation dialog rather than wiping immediately.
-    fireEvent.click(screen.getByText('Clear all'));
-    expect(onClearAll).not.toHaveBeenCalled();
-    const dialog = screen.getByRole('dialog', { name: 'Clear scanned cards?' });
-    fireEvent.click(within(dialog).getByText('Clear all'));
-    // handleClearAll awaits the confirm promise, so onClearAll fires a tick later.
-    await waitFor(() => expect(onClearAll).toHaveBeenCalled());
-    // Continue scanning routes through the symmetric exit: onClose only
-    // fires once the scanner-sheet-slide-out animation ends.
-    fireEvent.click(screen.getByText('Continue scanning'));
-    expect(onClose).not.toHaveBeenCalled();
-    const panel = container.querySelector('.scanner-sheet-panel') as HTMLElement;
-    expect(panel.className).toContain('is-closing');
-    fireEvent.animationEnd(panel, { animationName: 'scanner-sheet-slide-out' });
-    expect(onClose).toHaveBeenCalledTimes(1);
+  it('sorts by price from the ⋮ menu', () => {
+    renderSheet([greaves, { ...bolt, addedAt: 5000, card: makeCard({ prices: { usd: '0.10' } }) }]);
+    expect(rowNames()[0]).toBe('2× Lightning Bolt');
+    fireEvent.click(screen.getByRole('button', { name: 'More list actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sort by price' }));
+    expect(rowNames()[0]).toBe('1× Lightning Greaves');
   });
 
-  // Every dismiss path goes through the symmetric exit — it flips
-  // `is-closing` on panel + backdrop and fires onClose only when the
-  // `scanner-sheet-slide-out` animation ends (not synchronously).
-  const renderForDismiss = (onClose: () => void) =>
-    render(
-      <ScannerQueueSheet
-        entries={[makeEntry()]}
-        onClose={onClose}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-
-  it('dismisses via the ✕ button (exit class → animationend → onClose)', () => {
-    const onClose = vi.fn();
-    const { container } = renderForDismiss(onClose);
-    fireEvent.click(screen.getByLabelText('Close scanned cards'));
-    expect(onClose).not.toHaveBeenCalled(); // exit animation in flight
-    const panel = container.querySelector('.scanner-sheet-panel') as HTMLElement;
-    expect(panel.className).toContain('is-closing');
-    expect(container.querySelector('.scanner-sheet-backdrop')?.className).toContain('is-closing');
-    // The entry animation ending must NOT unmount the sheet.
-    fireEvent.animationEnd(panel, { animationName: 'scanner-sheet-slide' });
-    expect(onClose).not.toHaveBeenCalled();
-    fireEvent.animationEnd(panel, { animationName: 'scanner-sheet-slide-out' });
-    expect(onClose).toHaveBeenCalledTimes(1);
+  it('clears the list from the ⋮ menu only after a confirm that stacks above the scanner', async () => {
+    const props = renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'More list actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clear the list' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Clear 3 cards?' });
+    expect(props.onClearAll).not.toHaveBeenCalled();
+    // The confirm used to open on the plain modal tier, underneath the camera.
+    expect(
+      dialog.closest('.modal-backdrop')?.classList.contains('modal-backdrop--over-sheet')
+    ).toBe(true);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(props.onClearAll).toHaveBeenCalled());
   });
 
-  it('dismisses via the backdrop and via Escape through the same exit', () => {
-    const onClose = vi.fn();
-    const { container } = renderForDismiss(onClose);
-    fireEvent.click(container.querySelector('.scanner-sheet-backdrop') as Element);
-    fireEvent.keyDown(document, { key: 'Escape' }); // double-trigger guard
-    const panel = container.querySelector('.scanner-sheet-panel') as HTMLElement;
-    expect(panel.className).toContain('is-closing');
-    fireEvent.animationEnd(panel, { animationName: 'scanner-sheet-slide-out' });
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('reduced motion closes immediately without waiting on the exit animation', () => {
-    const spy = vi.spyOn(window, 'matchMedia').mockImplementation(
-      (query: string) =>
-        ({
-          matches: query.includes('reduce'),
-          media: query,
-          onchange: null,
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        }) as unknown as MediaQueryList
-    );
-    try {
-      const onClose = vi.fn();
-      renderForDismiss(onClose);
-      fireEvent.click(screen.getByLabelText('Close scanned cards'));
-      expect(onClose).toHaveBeenCalledTimes(1);
-    } finally {
-      spy.mockRestore();
+  describe('select mode', () => {
+    function enterSelect() {
+      fireEvent.click(screen.getByRole('button', { name: 'More list actions' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Select cards' }));
     }
-  });
 
-  it('shows an Add-N-cards CTA in the footer and fires onConfirm', () => {
-    const onConfirm = vi.fn();
-    render(
-      <ScannerQueueSheet
-        entries={[makeEntry({ qty: 3 })]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={onConfirm}
-        onAddCard={vi.fn()}
-      />
-    );
-    fireEvent.click(screen.getByText('Add 3 cards'));
-    expect(onConfirm).toHaveBeenCalled();
-  });
-
-  it('toggles finish when the printing has a foil variant', () => {
-    const onChangeFinish = vi.fn();
-    const foilable = makeEntry({
-      card: makeCard({
-        finishes: ['nonfoil', 'foil'],
-        prices: { usd: '1.50', usd_foil: '6.00' } as ScryfallCard['prices'],
-      }),
+    it('picks rows with checkboxes and adds only those', () => {
+      const props = renderSheet();
+      enterSelect();
+      const boxes = screen.getAllByRole('checkbox');
+      expect(boxes).toHaveLength(2);
+      fireEvent.click(boxes[1]); // the bolt row (newest first)
+      expect(screen.getByRole('heading', { name: '2 cards selected' })).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Add 2 cards' }));
+      expect(props.onConfirm).toHaveBeenCalledWith(['card-1::nonfoil']);
     });
-    render(
-      <ScannerQueueSheet
-        entries={[foilable]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={onChangeFinish}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    // nonfoil → shows the foil price fallback chain at nonfoil ($1.50).
-    expect(screen.getByText('$1.50')).toBeTruthy();
-    fireEvent.click(screen.getByLabelText(/Finish of Lightning Bolt: Normal/));
-    expect(onChangeFinish).toHaveBeenCalledWith('oracle-bolt', 'foil');
-  });
 
-  it('hides the finish toggle when the printing has no foil variant', () => {
-    render(
-      <ScannerQueueSheet
-        entries={[makeEntry({ card: makeCard({ finishes: ['nonfoil'] }) })]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    expect(screen.queryByLabelText(/Finish of Lightning Bolt/)).toBeNull();
-  });
-
-  describe('condition toggle (E87)', () => {
-    it('defaults to NM (unmarked) and cycles to LP on tap', () => {
-      const onChangeCondition = vi.fn();
-      render(
-        <ScannerQueueSheet
-          entries={[makeEntry()]}
-          onClose={vi.fn()}
-          onChangePrinting={vi.fn()}
-          onChangeQty={vi.fn()}
-          onChangeFinish={vi.fn()}
-          onChangeCondition={onChangeCondition}
-          onRemove={vi.fn()}
-          onClearAll={vi.fn()}
-          onConfirm={vi.fn()}
-          onAddCard={vi.fn()}
-        />
+    it('asks before removing the selection', async () => {
+      const props = renderSheet();
+      enterSelect();
+      screen.getAllByRole('checkbox').forEach((b) => fireEvent.click(b));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Remove 3 cards?' });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
+      await waitFor(() =>
+        expect(props.onRemove).toHaveBeenCalledWith(['card-1::nonfoil', 'card-2::nonfoil'])
       );
-      const toggle = screen.getByLabelText(/Condition of Lightning Bolt: Near Mint/);
-      expect(toggle.textContent).toBe('NM');
-      fireEvent.click(toggle);
-      expect(onChangeCondition).toHaveBeenCalledWith('oracle-bolt', 'lp');
     });
 
-    it('renders every row-controls state and cycles the full order', () => {
-      // Each state gets its own render so the toggle's visible text +
-      // aria-label are checked against every step of the NM→LP→MP→HP→DMG
-      // cycle, not just the default and one hop.
-      const cycle: Array<[Condition, string, RegExp, Condition]> = [
-        ['nm', 'NM', /Near Mint/, 'lp'],
-        ['lp', 'LP', /Lightly Played/, 'mp'],
-        ['mp', 'MP', /Moderately Played/, 'hp'],
-        ['hp', 'HP', /Heavily Played/, 'damaged'],
-        ['damaged', 'DMG', /Damaged/, 'nm'],
-      ];
-      for (const [condition, shortLabel, fullLabel, next] of cycle) {
-        const onChangeCondition = vi.fn();
-        const { unmount } = render(
-          <ScannerQueueSheet
-            entries={[makeEntry({ condition })]}
-            onClose={vi.fn()}
-            onChangePrinting={vi.fn()}
-            onChangeQty={vi.fn()}
-            onChangeFinish={vi.fn()}
-            onChangeCondition={onChangeCondition}
-            onRemove={vi.fn()}
-            onClearAll={vi.fn()}
-            onConfirm={vi.fn()}
-            onAddCard={vi.fn()}
-          />
-        );
-        const toggle = screen.getByLabelText(
-          new RegExp(`Condition of Lightning Bolt: ${fullLabel.source}`)
-        );
-        expect(toggle.textContent).toBe(shortLabel);
-        fireEvent.click(toggle);
-        expect(onChangeCondition).toHaveBeenCalledWith('oracle-bolt', next);
-        unmount();
-      }
-    });
-
-    it('shows the condition toggle even when the printing has no foil variant', () => {
-      // Unlike finish, condition has no availability gate — every physical
-      // card can be in any condition regardless of printing.
-      render(
-        <ScannerQueueSheet
-          entries={[makeEntry({ card: makeCard({ finishes: ['nonfoil'] }) })]}
-          onClose={vi.fn()}
-          onChangePrinting={vi.fn()}
-          onChangeQty={vi.fn()}
-          onChangeFinish={vi.fn()}
-          onChangeCondition={vi.fn()}
-          onRemove={vi.fn()}
-          onClearAll={vi.fn()}
-          onConfirm={vi.fn()}
-          onAddCard={vi.fn()}
-        />
+    it('edits the selection together', () => {
+      const props = renderSheet();
+      enterSelect();
+      screen.getAllByRole('checkbox').forEach((b) => fireEvent.click(b));
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      const dialog = screen.getByRole('dialog', { name: 'Edit 3 cards' });
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'Foil' }));
+      expect(props.onChangeFinish).toHaveBeenCalledWith(
+        ['card-1::nonfoil', 'card-2::nonfoil'],
+        'foil'
       );
-      expect(screen.getByLabelText(/Condition of Lightning Bolt/)).toBeTruthy();
     });
 
-    it('works across a multi-row queue — each row cycles its own condition independently', () => {
-      const onChangeCondition = vi.fn();
-      const counterspell = makeEntry({
-        id: 'oracle-cs',
-        card: makeCard({ id: 'card-cs', oracle_id: 'oracle-cs', name: 'Counterspell' }),
-        condition: 'mp',
+    it('turns the actions off until something is picked, and Done leaves the mode', () => {
+      renderSheet();
+      enterSelect();
+      expect(screen.getByRole('button', { name: 'Add 0 cards' }).hasAttribute('disabled')).toBe(
+        true
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+      expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    });
+  });
+
+  describe('adding a card by name', () => {
+    it('searches every card and adds a result to the list', async () => {
+      const counterspell = makeCard({ id: 'card-cs', name: 'Counterspell', set_name: 'Alpha' });
+      searchCardsMock.mockResolvedValue({ data: [counterspell], has_more: false });
+      const props = renderSheet();
+      fireEvent.click(screen.getByRole('button', { name: 'Add by name' }));
+
+      const input = screen.getByLabelText('Search all cards to add one');
+      fireEvent.change(input, { target: { value: 'c' } });
+      expect(searchCardsMock).not.toHaveBeenCalled();
+      fireEvent.change(input, { target: { value: 'counter' } });
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Add Counterspell, Alpha' }));
+      expect(props.onAddCard).toHaveBeenCalledWith(counterspell);
+      expect(screen.getByText('Added')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+      expect(screen.getByLabelText('Filter scanned cards')).toBeTruthy();
+    });
+
+    it('says so when nothing matches', async () => {
+      renderSheet([]);
+      fireEvent.click(screen.getByRole('button', { name: 'Add by name' }));
+      fireEvent.change(screen.getByLabelText('Search all cards to add one'), {
+        target: { value: 'zzzznotacard' },
       });
-      render(
-        <ScannerQueueSheet
-          entries={[makeEntry(), counterspell]}
-          onClose={vi.fn()}
-          onChangePrinting={vi.fn()}
-          onChangeQty={vi.fn()}
-          onChangeFinish={vi.fn()}
-          onChangeCondition={onChangeCondition}
-          onRemove={vi.fn()}
-          onClearAll={vi.fn()}
-          onConfirm={vi.fn()}
-          onAddCard={vi.fn()}
-        />
-      );
-      fireEvent.click(screen.getByLabelText(/Condition of Lightning Bolt: Near Mint/));
-      expect(onChangeCondition).toHaveBeenCalledWith('oracle-bolt', 'lp');
-      fireEvent.click(screen.getByLabelText(/Condition of Counterspell: Moderately Played/));
-      expect(onChangeCondition).toHaveBeenCalledWith('oracle-cs', 'hp');
-      expect(onChangeCondition).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(screen.getByText(/No cards match/)).toBeTruthy());
     });
-  });
-
-  it('shows the foil price once the row finish is foil', () => {
-    render(
-      <ScannerQueueSheet
-        entries={[
-          makeEntry({
-            finish: 'foil',
-            card: makeCard({
-              finishes: ['nonfoil', 'foil'],
-              prices: { usd: '1.50', usd_foil: '6.00' } as ScryfallCard['prices'],
-            }),
-          }),
-        ]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    expect(screen.getByText('$6.00')).toBeTruthy();
-  });
-
-  it('opens a row printing picker on mount when initialPickerFor is set', async () => {
-    fetchPrintingsMock.mockResolvedValue([makeCard()]);
-    render(
-      <ScannerQueueSheet
-        entries={[makeEntry()]}
-        initialPickerFor="oracle-bolt"
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    await waitFor(() => expect(fetchPrintingsMock).toHaveBeenCalledWith('Lightning Bolt', 'lea'));
-  });
-
-  it('searches Scryfall and adds a result to the queue', async () => {
-    const counterspell = makeCard({
-      id: 'card-cs',
-      oracle_id: 'oracle-cs',
-      name: 'Counterspell',
-      set: 'lea',
-      collector_number: '54',
-    });
-    searchCardsMock.mockResolvedValue({ data: [counterspell], has_more: false });
-    const onAddCard = vi.fn();
-    render(
-      <ScannerQueueSheet
-        entries={[]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={onAddCard}
-      />
-    );
-
-    // Typing fewer than two characters doesn't query.
-    fireEvent.change(screen.getByLabelText(/Search Scryfall to add a card/), {
-      target: { value: 'c' },
-    });
-    expect(searchCardsMock).not.toHaveBeenCalled();
-
-    fireEvent.change(screen.getByLabelText(/Search Scryfall to add a card/), {
-      target: { value: 'counter' },
-    });
-    const addBtn = await screen.findByLabelText('Add Counterspell');
-    fireEvent.click(addBtn);
-    expect(onAddCard).toHaveBeenCalledWith(counterspell);
-  });
-
-  it('surfaces a no-matches message when the search comes back empty', async () => {
-    render(
-      <ScannerQueueSheet
-        entries={[]}
-        onClose={vi.fn()}
-        onChangePrinting={vi.fn()}
-        onChangeQty={vi.fn()}
-        onChangeFinish={vi.fn()}
-        onChangeCondition={vi.fn()}
-        onRemove={vi.fn()}
-        onClearAll={vi.fn()}
-        onConfirm={vi.fn()}
-        onAddCard={vi.fn()}
-      />
-    );
-    fireEvent.change(screen.getByLabelText(/Search Scryfall to add a card/), {
-      target: { value: 'zzzznotacard' },
-    });
-    await waitFor(() => expect(screen.getByText('No matches.')).toBeTruthy());
   });
 });
