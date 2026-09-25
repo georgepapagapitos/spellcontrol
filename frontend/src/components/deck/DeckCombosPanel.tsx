@@ -93,6 +93,15 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 
   const cardIndex = useMemo(() => buildCardIndex(collection, deck), [collection, deck]);
 
+  // The deck's own Scryfall payloads — resolves a template combo's unnamed-card
+  // requirement (see ComboRow's `deckCards` prop) against what's actually here.
+  const deckCards = useMemo((): ScryfallCard[] => {
+    if (!deck) return [];
+    return [deck.commander, deck.partnerCommander, ...deck.cards.map((c) => c.card)].filter(
+      (c): c is ScryfallCard => c != null
+    );
+  }, [deck]);
+
   // ── Combo card preview state (shared with the collection combos view) ────
   const preview = useComboPreview(cardIndex);
 
@@ -421,6 +430,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                 sideboardCardNames={
                   tab === 'inDeck' ? sideboardNamesByComboId.get(match.combo.id) : undefined
                 }
+                deckCards={deckCards}
               />
             ))}
           </ul>

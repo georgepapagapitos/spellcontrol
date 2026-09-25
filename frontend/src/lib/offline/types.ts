@@ -90,5 +90,7 @@ export interface OfflineCombo {
   bracketTag?: string | null;
   /** Unnamed-card requirements (Spellbook templates). Same optionality. */
   templates?: string[] | null;
+  /** Each template's Scryfall query, aligned with `templates`. Same optionality. */
+  templateQueries?: (string | null)[] | null;
   cards: OfflineComboCard[];
 }

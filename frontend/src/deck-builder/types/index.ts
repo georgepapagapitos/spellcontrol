@@ -321,6 +321,10 @@ export interface DetectedCombo {
   bracket: number | null;
   bracketTag?: string | null;
   cardCount: number;
+  /** Does the deck satisfy every unnamed-card ("template") requirement this
+   *  combo carries (`resolveComboTemplates`, `@spellcontrol/deck-metrics`)?
+   *  Unset when there's nothing to resolve, or the resolution wasn't run. */
+  templatesSatisfied?: boolean;
 }
 
 /**

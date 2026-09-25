@@ -110,6 +110,7 @@ async function buildPayload(): Promise<CombosPayload> {
       // 2026-09-23, which left every combo untagged in the app.
       bracketTag: c.bracketTag ?? null,
       templates: c.templates ?? null,
+      templateQueries: c.templateQueries ?? null,
       cards,
     });
   }

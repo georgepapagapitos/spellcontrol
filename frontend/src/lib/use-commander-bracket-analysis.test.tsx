@@ -40,7 +40,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v14-mainboard-combos-edhrec-optional',
+    'v15-combo-templates-resolved',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards

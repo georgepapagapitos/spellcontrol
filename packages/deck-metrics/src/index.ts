@@ -48,6 +48,12 @@ export interface DetectedCombo {
   bracket: number | null;
   bracketTag?: string | null;
   cardCount: number;
+  /** Does the deck satisfy every unnamed-card ("template") requirement this
+   *  combo carries (see `resolveComboTemplates` in template-query.ts)? Unset
+   *  on combos with no `--` suffix (nothing to resolve) and on estimations
+   *  persisted before this field existed — both read as "unresolved" by
+   *  `needsUnnamedCard`, which is the conservative default. */
+  templatesSatisfied?: boolean;
 }
 
 export interface BracketEstimation {
@@ -682,13 +688,17 @@ const LOW_POWER_COMBO_TAGS = new Set(['E', 'C']);
 /**
  * Does this combo need a card we can't name? Spellbook variant ids are the named
  * card ids, then `--` and the ids of "template" requirements ("an instant or
- * sorcery that untaps a creature"). A template is a Scryfall query we can't run
- * against a card list, so a variant whose named cards are all present is still
- * unverified. Spellbook's own matcher left all ten of these out of the precons
- * it checked; counting them floored Quick Draw and Witherbloom Pestilence.
+ * sorcery that untaps a creature"). A template is a Scryfall query, resolved
+ * against the deck by `resolveComboTemplates` (template-query.ts) wherever the
+ * caller has the deck's cards to check it against — `templatesSatisfied` is
+ * that answer. Without it (deck generation's EDHREC-sourced combos, or an
+ * estimation persisted before the field existed) the requirement stays
+ * unverified, the same conservative default this had before resolution shipped.
  */
-export function needsUnnamedCard(combo: Pick<DetectedCombo, 'comboId'>): boolean {
-  return combo.comboId.includes('--');
+export function needsUnnamedCard(
+  combo: Pick<DetectedCombo, 'comboId' | 'templatesSatisfied'>
+): boolean {
+  return combo.comboId.includes('--') && combo.templatesSatisfied !== true;
 }
 
 /** Does this combo count toward the combo floor? One predicate for the
@@ -1045,3 +1055,13 @@ export function estimateBracket(
     },
   };
 }
+
+// ── Template query evaluator (combo `--` requirements) ──────────────────────
+export {
+  evaluateTemplate,
+  resolveComboTemplates,
+  EMPTY_ORACLE_TAGS,
+  type TemplateCard,
+  type OracleTagLookup,
+  type TemplateResolution,
+} from './template-query.js';

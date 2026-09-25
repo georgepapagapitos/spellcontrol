@@ -58,6 +58,10 @@ interface ParsedCombo {
   bracket: number | null;
   bracketTag: string | null;
   templates: string[] | null;
+  /** Each template's `scryfallQuery`, aligned index-for-index with `templates`
+   *  (null in a slot when that template has none). Absent (null) when
+   *  `templates` is. */
+  templateQueries: (string | null)[] | null;
   cards: Array<{ oracleId: string; cardName: string; quantity: number; position: number }>;
 }
 
@@ -298,6 +302,7 @@ export function parseVariant(raw: unknown): ParsedCombo | null {
     bracketTag: typeof v.bracketTag === 'string' ? v.bracketTag : null,
     bracket: bracketTagToNumber(v.bracketTag),
     templates: parseTemplates(v.requires),
+    templateQueries: parseTemplateQueries(v.requires),
     cards,
   };
 }
@@ -315,6 +320,26 @@ function parseTemplates(raw: unknown): string[] | null {
     if (typeof name === 'string' && name.length > 0) names.push(name);
   }
   return names.length > 0 ? names : null;
+}
+
+/**
+ * Each template's `scryfallQuery` (can be null on Spellbook's own data),
+ * aligned index-for-index with {@link parseTemplates} — same filter (a name
+ * must be present), so the two arrays always have the same length. Feeds
+ * `resolveComboTemplates` (deck-metrics), which checks the requirement
+ * against a deck's actual cards instead of leaving it permanently unverified.
+ */
+function parseTemplateQueries(raw: unknown): (string | null)[] | null {
+  if (!Array.isArray(raw)) return null;
+  const queries: (string | null)[] = [];
+  for (const entry of raw) {
+    const template = (entry as { template?: { name?: unknown; scryfallQuery?: unknown } } | null)
+      ?.template;
+    const name = template?.name;
+    if (typeof name !== 'string' || name.length === 0) continue;
+    queries.push(typeof template?.scryfallQuery === 'string' ? template.scryfallQuery : null);
+  }
+  return queries.length > 0 ? queries : null;
 }
 
 function parseLegalities(raw: unknown): Record<string, string> {
@@ -444,6 +469,7 @@ export async function ingestCombos(
             bracket: p.bracket,
             bracketTag: p.bracketTag ?? null,
             templates: p.templates,
+            templateQueries: p.templateQueries,
             updatedAt: startedAt,
           }))
         );

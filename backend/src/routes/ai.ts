@@ -17,6 +17,7 @@ import {
 } from '../ai/tools';
 import { getTagLookup } from '../ai/tags';
 import { estimateForNames, renderBracketCheck } from '../ai/bracket';
+import { backendOracleTagLookup } from '../ai/otag-lookup';
 import { loadRelevantCombos } from './combos';
 import {
   DECK_REVIEW_FEATURE,
@@ -637,6 +638,7 @@ function bracketTools(
     tags,
     loadCombos: loadRelevantCombos,
     commanderNames: commanders,
+    oracleTags: backendOracleTagLookup(),
   };
   return [
     checkBracketTool(deckNames, (names) => estimateForNames(names, inputs), renderBracketCheck),

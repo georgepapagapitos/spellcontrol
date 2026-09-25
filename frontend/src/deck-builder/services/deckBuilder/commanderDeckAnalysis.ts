@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import { bestEffortBudget } from '@/lib/best-effort';
-import { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
+import { HARDCODED_GAME_CHANGERS, resolveComboTemplates } from '@spellcontrol/deck-metrics';
+import { getCardTags, isKnownCardTag } from '@/lib/card-tags';
 import type {
   ScryfallCard,
   EDHRECCommanderData,
@@ -283,22 +284,43 @@ export function buildStrategyEngineInput(
  * `estimateBracket` expects. Only `inDeck` matters: estimateBracket counts
  * complete combos only, so partial (`oneAway`) combos are intentionally
  * dropped here.
+ *
+ * `deckCards` (the deck's full Scryfall payloads — `ScryfallCard` satisfies
+ * deck-metrics' `TemplateCard` structurally, no adapter needed) resolves any
+ * `--` unnamed-card ("template") requirement against what the deck actually
+ * runs, via `resolveComboTemplates`. `otag:` clauses read against whatever
+ * the `lib/card-tags` snapshot has loaded so far — best-effort: if it hasn't
+ * loaded yet, those clauses stay unresolved (never a wrong "satisfied") until
+ * the next recompute.
  */
 export function comboMatchesToDetected(
-  resp: ComboMatchResponse | null | undefined
+  resp: ComboMatchResponse | null | undefined,
+  deckCards: readonly ScryfallCard[] = []
 ): DetectedCombo[] {
   if (!resp) return [];
-  return resp.inDeck.map((m) => ({
-    comboId: m.combo.id,
-    cards: m.combo.cards.map((c) => c.cardName),
-    results: m.combo.produces,
-    isComplete: true,
-    missingCards: [],
-    deckCount: m.combo.popularity,
-    bracket: m.combo.bracket,
-    bracketTag: m.combo.bracketTag ?? null,
-    cardCount: m.combo.cardCount,
-  }));
+  return resp.inDeck.map((m) => {
+    const { satisfied } = resolveComboTemplates(
+      m.combo.templateQueries,
+      m.combo.cards.map((c) => c.cardName),
+      deckCards,
+      {
+        isKnownTag: isKnownCardTag,
+        hasTag: (name, tag) => getCardTags(name).includes(tag),
+      }
+    );
+    return {
+      comboId: m.combo.id,
+      cards: m.combo.cards.map((c) => c.cardName),
+      results: m.combo.produces,
+      isComplete: true,
+      missingCards: [],
+      deckCount: m.combo.popularity,
+      bracket: m.combo.bracket,
+      bracketTag: m.combo.bracketTag ?? null,
+      cardCount: m.combo.cardCount,
+      templatesSatisfied: satisfied,
+    };
+  });
 }
 
 // ── Grade + bracket (shared by generator and manual editor) ─────────────────

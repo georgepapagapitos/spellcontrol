@@ -324,6 +324,11 @@ export const combos = pgTable('combos', {
   /** Names of the unnamed-card requirements (Spellbook "templates"), e.g.
    *  "Instant or Sorcery that untaps a Creature". Null when there are none. */
   templates: jsonb('templates').$type<string[]>(),
+  /** Each template's Scryfall-flavoured `scryfallQuery`, aligned index-for-index
+   *  with `templates` (a template can have none — null in that slot). Lets
+   *  `resolveComboTemplates` (deck-metrics) check the requirement against a
+   *  deck's actual cards instead of leaving it permanently unverified. */
+  templateQueries: jsonb('template_queries').$type<(string | null)[]>(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 });
 

@@ -215,6 +215,7 @@ export async function loadRelevantCombos(oracleIds: string[]): Promise<ComboInpu
     bracket: row.bracket,
     bracketTag: row.bracketTag ?? null,
     templates: row.templates ?? null,
+    templateQueries: row.templateQueries ?? null,
     cards: cardsByCombo.get(row.id) ?? [],
   }));
 }
@@ -298,6 +299,7 @@ combosRouter.get('/:id', requireAuth, detailLimiter, async (req: Request, res: R
     bracket: comboRow.bracket,
     bracketTag: comboRow.bracketTag ?? null,
     templates: comboRow.templates ?? null,
+    templateQueries: comboRow.templateQueries ?? null,
     cards: cards.map((c) => ({
       oracleId: c.oracleId,
       cardName: c.cardName,

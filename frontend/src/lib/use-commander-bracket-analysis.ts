@@ -137,8 +137,12 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        unreachable EDHREC no longer blanks the whole analysis — the local
  *        bracket/win-conditions/bracket-fit are computed and persisted with
  *        `edhrecMissing: true` instead.
+ *   v15 — a combo's unnamed-card ("template", the `--` variant suffix) is
+ *        now RESOLVED against the deck's own cards instead of always
+ *        dropped: `templatesSatisfied` lets it count toward the combo floor
+ *        like any other complete combo once a deck card matches its query.
  */
-const ANALYSIS_ENGINE_VERSION = 'v14-mainboard-combos-edhrec-optional';
+const ANALYSIS_ENGINE_VERSION = 'v15-combo-templates-resolved';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for
@@ -287,7 +291,7 @@ export function useCommanderBracketAnalysis(args: Args): {
     const commander = deck.commander;
     const partnerCommander = deck.partnerCommander;
     const cards = deck.cards.map((c) => c.card);
-    const detectedCombos = comboMatchesToDetected(comboData);
+    const detectedCombos = comboMatchesToDetected(comboData, cards);
     // The user's target bracket + the live oneAway combos feed the Bracket Fit
     // plan (target-pool fetch + upshift combo-completion adds happen inside).
     const targetBracket = bracketOverride ?? undefined;

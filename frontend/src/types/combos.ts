@@ -34,6 +34,11 @@ export interface ComboSummary {
   /** Cards the combo needs but doesn't name (Spellbook templates), e.g.
    *  "Instant or Sorcery that untaps a Creature". Absent/null when none. */
   templates?: string[] | null;
+  /** Each template's Scryfall-flavoured query, aligned index-for-index with
+   *  `templates` (a slot is null when that template has none). Feeds
+   *  `resolveComboTemplates` (`@spellcontrol/deck-metrics`) so the deck panel
+   *  can show a template combo as complete when a deck card satisfies it. */
+  templateQueries?: (string | null)[] | null;
   cards: ComboCardRef[];
 }
 

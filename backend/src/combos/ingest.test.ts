@@ -234,6 +234,45 @@ describe('parseVariant', () => {
     expect(plain?.templates).toBeNull();
   });
 
+  it("reads each template's scryfallQuery aligned with `templates` (null slot when Spellbook has none)", () => {
+    const withQuery = parseVariant({
+      id: '5034--46',
+      uses: [{ card: { name: 'Hullbreaker Horror', oracleId: 'oh' } }],
+      requires: [
+        {
+          quantity: 1,
+          template: {
+            id: 46,
+            name: 'Permanent Castable for {C}',
+            scryfallQuery: 'mv<=1 (mana={0} or mana={1} or mana={C}) is:permanent',
+          },
+        },
+      ],
+    });
+    expect(withQuery?.templateQueries).toEqual([
+      'mv<=1 (mana={0} or mana={1} or mana={C}) is:permanent',
+    ]);
+
+    const nullQuery = parseVariant({
+      id: '1--199',
+      uses: [{ card: { name: 'Card', oracleId: 'oa' } }],
+      requires: [
+        {
+          quantity: 1,
+          template: {
+            id: 199,
+            name: 'Activated ability that untaps five lands',
+            scryfallQuery: null,
+          },
+        },
+      ],
+    });
+    expect(nullQuery?.templateQueries).toEqual([null]);
+
+    const plain = parseVariant({ id: 'y', uses: [{ card: { name: 'Card', oracleId: 'oa' } }] });
+    expect(plain?.templateQueries).toBeNull();
+  });
+
   it('variant with bracketTag B is excluded (returns null)', () => {
     expect(
       parseVariant({
@@ -308,6 +347,7 @@ describe('ingestCombos (db)', () => {
         bracket INTEGER,
         bracket_tag TEXT,
         templates JSONB,
+        template_queries JSONB,
         updated_at BIGINT NOT NULL
       );
       CREATE TABLE combo_cards (

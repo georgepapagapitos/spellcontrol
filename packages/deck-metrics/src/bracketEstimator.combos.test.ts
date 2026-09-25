@@ -100,6 +100,16 @@ describe('Spellbook-tagged combo relevance', () => {
     expect(r.bracket).toBe(2);
     expect(r.breakdown.twoCardComboCount).toBe(0);
   });
+
+  it('templatesSatisfied resolves the requirement — the combo then counts like any other', () => {
+    // Same variant as above, but the caller resolved its template against the
+    // deck's cards and found a match: the `--` suffix no longer means unverified.
+    const stella = { ...sb(['Stella Lee, Wild Card'], 'S'), comboId: '5534--28' };
+    expect(needsUnnamedCard({ ...stella, templatesSatisfied: true })).toBe(false);
+    expect(needsUnnamedCard({ ...stella, templatesSatisfied: false })).toBe(true);
+    const r = estimate([{ ...stella, templatesSatisfied: true }]);
+    expect(r.breakdown.twoCardComboCount).toBe(1);
+  });
 });
 
 describe('hub-aware combo redundancy', () => {

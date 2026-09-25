@@ -186,6 +186,7 @@ function toSummary(c: OfflineCombo): ComboSummary {
     bracket: c.bracket,
     bracketTag: c.bracketTag ?? null,
     templates: c.templates ?? null,
+    templateQueries: c.templateQueries ?? null,
     cards: c.cards.map((cc) => ({
       oracleId: cc.oracleId,
       cardName: cc.cardName,
