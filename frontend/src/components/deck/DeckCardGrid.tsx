@@ -14,6 +14,7 @@ import { ChevronDown, Handshake, MoreVertical, Tag as TagIcon } from 'lucide-rea
 import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
 import { stackWidth, zoomBucket, zoomCols, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
 import { useElementWidth } from '@/lib/use-element-width';
+import { prefersReducedMotion } from '@/lib/use-list-flip';
 import type { LegalityIssue } from '../../lib/deck-validation';
 import { countedRoleOf } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { MeterBar } from '../shared/MeterBar';
@@ -381,6 +382,15 @@ export function DeckCardGrid({
                     // to the carousel.
                     if (stacks && tap && openCell !== cellKey && i < g.rows.length - 1) {
                       setOpenCell(cellKey);
+                      // A strip low on the screen opens most of its card below
+                      // the fold. Scroll just enough to show it whole, never to
+                      // centre it: a card that already fits stays under the
+                      // finger. The cell is a full card tall at rest (the tail
+                      // only overlaps it), so its box is already the open card.
+                      e.currentTarget.parentElement?.scrollIntoView({
+                        block: 'nearest',
+                        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+                      });
                       return;
                     }
                     onRowClick(row.name);
