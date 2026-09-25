@@ -342,6 +342,324 @@
   margin-top: 0.1rem;
 }
 
+/* Compact-row-only triggers (Name/Partner/Panel color/Panel facing/Counter):
+   invisible on a tall seat, where the sections they open are always shown
+   inline instead. Shape matches `.seat-menu-action` (icon over label in
+   compact mode) so the whole row reads as one family of chips. */
+.seat-menu-row-trigger {
+  display: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .seat-menu-row-trigger:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* The way back from a swapped-in editor to the row of chips. Compact-row
+   only — a tall seat's sections are always inline, so there's nothing to
+   return from. */
+.seat-menu-editor-back {
+  display: none;
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .seat-menu-editor-back:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Compact drawer (Lotus's model, batch 2026-09-25): on a SHORT seat the
+   drawer's body becomes one horizontally scrolling row instead of the tall
+   seat's stacked sections. Same container-query thresholds the life keypad
+   already uses (`play-effects.css`) — a panel under ~300px on its own short
+   axis, told apart by orientation since a sideways panel's height is its
+   cell's WIDTH.
+
+   The trick is `display: contents` on the wrapping sections (`.seat-menu-
+   quick`, `.pp-counters`, `.pp-counters-inner`, `.pp-counters-body`): it
+   un-wraps them so their own children (actions, counter steppers, the add-
+   counter trigger) become direct items of the SAME scrolling row as the
+   Name/Partner/Panel color/Panel facing triggers, without moving any markup
+   or duplicating a single control's handlers. Tapping one of the four
+   triggers (or "+ Counter") sets `data-active-editor` on `.seat-menu-body`;
+   CSS below hides the row's chips and shows just that one editor, full
+   width, with the Back chip above it — the row is "replaced", not covered.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* A sideways seat (wide and short — every seat of 4p-sides/2p-side on a
+   phone) vs. an upright short seat (narrow and short — 5-10p cells): the same
+   rules either way, just told apart by orientation, same as the life keypad. */
+@container (max-width: 300px) {
+  .player-panel[data-sideways] .seat-menu-body {
+    flex-direction: row;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: var(--space-2);
+    scroll-snap-type: x proximity;
+  }
+
+  /* Un-wraps the actions row and the counters section so their OWN children
+     (action buttons, counter steppers, the add-counter trigger) become
+     direct items of the same scrolling row as the Name/Partner/Panel color/
+     Panel facing triggers below — no markup moves, no handler duplicates. */
+  .player-panel[data-sideways] .seat-menu-quick,
+  .player-panel[data-sideways] .pp-counters,
+  .player-panel[data-sideways] .pp-counters-inner,
+  .player-panel[data-sideways] .pp-counters-body {
+    display: contents;
+  }
+
+  .player-panel[data-sideways] .seat-menu-action,
+  .player-panel[data-sideways] .seat-menu-row-trigger,
+  .player-panel[data-sideways] .counter-row,
+  .player-panel[data-sideways] .pp-counters-add-trigger {
+    flex: 0 0 auto;
+  }
+
+  /* Actions + triggers: icon over label, a narrow chip rather than the tall
+     seat's wide wrapping row. */
+  .player-panel[data-sideways] .seat-menu-action,
+  .player-panel[data-sideways] .seat-menu-row-trigger {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    width: 3.6rem;
+    padding: var(--space-2) var(--space-1);
+    text-align: center;
+    white-space: normal;
+  }
+
+  .player-panel[data-sideways] .seat-menu-row-trigger {
+    display: inline-flex;
+  }
+
+  /* Counter rows: label on top, a vertical [+ / value / −] stepper below —
+     Lotus's own shape. `column-reverse` on the controls turns the DOM order
+     (−, value, +, remove) into +, value, −, remove reading top to bottom;
+     `order` isn't needed since the reversed direction alone gets the ± the
+     right way up without touching tab order (still −, value, +, remove). */
+  .player-panel[data-sideways] .counter-row {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    width: 3.4rem;
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+
+  .player-panel[data-sideways] .counter-row-label {
+    max-width: 3.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .player-panel[data-sideways] .counter-row-controls {
+    flex-direction: column-reverse;
+    gap: var(--space-1);
+  }
+
+  /* Dividers make sense between stacked tall-seat sections, not in a chip row. */
+  .player-panel[data-sideways] .seat-menu-divider {
+    display: none;
+  }
+
+  /* Editors: hidden by default in the compact row, shown full-width only
+     when `data-active-editor` on `.seat-menu-body` names that one — this is
+     what "swaps the row for that one editor" actually means. Switching the
+     row's own flex-direction to column at the same time stacks Back above
+     the editor rather than beside it. */
+  .player-panel[data-sideways] .seat-menu-editor {
+    display: none;
+  }
+
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] {
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .seat-menu-quick,
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .seat-menu-triggers,
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .pp-counters > .seat-menu-label,
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .pp-counters-body,
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .pp-counters-add-trigger {
+    display: none;
+  }
+
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .seat-menu-editor-back {
+    display: inline-flex;
+  }
+
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='name']
+    .seat-menu-editor[data-editor='name'],
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='partner']
+    .seat-menu-editor[data-editor='partner'],
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='color']
+    .seat-menu-editor[data-editor='color'],
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='facing']
+    .seat-menu-editor[data-editor='facing'],
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='counter']
+    .seat-menu-editor[data-editor='counter'] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    width: 100%;
+    flex: 1 1 auto;
+  }
+}
+
+@container (max-height: 300px) {
+  .player-panel:not([data-sideways]) .seat-menu-body {
+    flex-direction: row;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: var(--space-2);
+    scroll-snap-type: x proximity;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-quick,
+  .player-panel:not([data-sideways]) .pp-counters,
+  .player-panel:not([data-sideways]) .pp-counters-inner,
+  .player-panel:not([data-sideways]) .pp-counters-body {
+    display: contents;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-action,
+  .player-panel:not([data-sideways]) .seat-menu-row-trigger,
+  .player-panel:not([data-sideways]) .counter-row,
+  .player-panel:not([data-sideways]) .pp-counters-add-trigger {
+    flex: 0 0 auto;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-action,
+  .player-panel:not([data-sideways]) .seat-menu-row-trigger {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    width: 3.6rem;
+    padding: var(--space-2) var(--space-1);
+    text-align: center;
+    white-space: normal;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-row-trigger {
+    display: inline-flex;
+  }
+
+  .player-panel:not([data-sideways]) .counter-row {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    width: 3.4rem;
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+
+  .player-panel:not([data-sideways]) .counter-row-label {
+    max-width: 3.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .player-panel:not([data-sideways]) .counter-row-controls {
+    flex-direction: column-reverse;
+    gap: var(--space-1);
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-divider {
+    display: none;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-editor {
+    display: none;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] {
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .seat-menu-quick,
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .seat-menu-triggers,
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor]
+    .pp-counters
+    > .seat-menu-label,
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .pp-counters-body,
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .pp-counters-add-trigger {
+    display: none;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .seat-menu-editor-back {
+    display: inline-flex;
+  }
+
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='name']
+    .seat-menu-editor[data-editor='name'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='partner']
+    .seat-menu-editor[data-editor='partner'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='color']
+    .seat-menu-editor[data-editor='color'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='facing']
+    .seat-menu-editor[data-editor='facing'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='counter']
+    .seat-menu-editor[data-editor='counter'] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    width: 100%;
+    flex: 1 1 auto;
+  }
+}
+
+@media (pointer: coarse) {
+  /* `.seat-menu-action` had no coarse floor at all (pre-existing gap) — its
+     content-driven height cleared 44px by luck on a wide, wrapping tall-seat
+     row but not as a narrow icon-over-label chip in the compact row, where
+     it's the primary way to reach Commander damage / turn / designations. */
+  .seat-menu-action,
+  .seat-menu-row-trigger,
+  .seat-menu-editor-back {
+    min-height: 2.75rem;
+  }
+}
+
 /* ── Game menu button ─────────────────────────────────────────────────── */
 
 .game-board-menu-btn {
@@ -1059,6 +1377,11 @@
  * the counters popover and life keypad) always renders the dark --pp-base /
  * --pp-edge panel gradient regardless of app theme — white ring, not accent. */
 .seat-menu-action:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+.seat-menu-row-trigger:focus-visible,
+.seat-menu-editor-back:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }
