@@ -27,6 +27,13 @@
   z-index: var(--z-overlay);
   min-width: 12.5rem;
   max-width: calc(100vw - 1rem);
+  /* A phone on its side is ~384px tall, and a card menu of 44px touch rows
+     is taller than that: the menu scrolls rather than running off the
+     screen. Submenu panels are `.ctx-menu`s of their own, fixed-positioned,
+     so the root scrolling never clips them. */
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);

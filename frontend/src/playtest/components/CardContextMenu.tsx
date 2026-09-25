@@ -29,7 +29,6 @@ interface Props {
   /** Current phased-out state — purely a "doesn't interact right now"
    *  reminder flag, no rules enforcement. See `BattlefieldCard.phased`. */
   phased?: boolean;
-  variant?: 'floating' | 'sheet';
   /** The live binding for a shortcut, already formatted for display — every
    *  row that has one prints it, so the menu teaches the keyboard instead of
    *  competing with it. Omitted (tests, previews) simply prints no keys. */
@@ -153,7 +152,6 @@ export function CardContextMenu({
   tapped = false,
   faceDown = false,
   phased = false,
-  variant = 'floating',
   keyFor,
   onClose,
   onPreview,
@@ -435,7 +433,6 @@ export function CardContextMenu({
     <TableContextMenu
       x={x}
       y={y}
-      variant={variant}
       title={selectionSize > 1 ? `${selectionSize} cards selected` : cardName}
       header={header}
       items={items}
