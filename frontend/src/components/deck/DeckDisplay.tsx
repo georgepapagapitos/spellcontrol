@@ -19,7 +19,7 @@ import { useBanList } from '@/lib/use-ban-list';
 import { scrollToHeading } from '@/lib/scroll-to-heading';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
-  validateDeck as runValidation,
+  validateDeckZones,
   validateDeckSize,
   countFlaggedCards,
   effectiveDeckColors,
@@ -899,8 +899,13 @@ export function DeckDisplay({
 
   // Legality issues for the current format. The live ban list catches a card
   // banned after it was added, which its own stored legalities still call legal.
+  // `legalityIssues` is what the deck is judged on: in Commander that is the
+  // commander and the mainboard, never the sideboard, so an illegal card or a
+  // second copy parked there can't fail the checks, set the Power tab's
+  // "can't be played" note, inflate the flagged count or badge a mainboard
+  // row. Sideboard rows still get their own badge (`sideboardIssues`).
   const bannedNames = useBanList(formatConfig.legalityKey);
-  const legalityIssues = useMemo(() => {
+  const { deck: legalityIssues, sideboardOnly: sideboardIssues } = useMemo(() => {
     const mainDeckCards: DeckCard[] = cards.map((c) => ({
       slotId: c.slotId ?? '',
       card: c.card,
@@ -911,7 +916,7 @@ export function DeckDisplay({
       card: c.card,
       allocatedCopyId: c.allocatedCopyId ?? null,
     }));
-    return runValidation(mainDeckCards, sideDeckCards, formatConfig, {
+    return validateDeckZones(mainDeckCards, sideDeckCards, formatConfig, {
       commander,
       partnerCommander: partnerCommander ?? null,
       bannedNames: bannedNames ?? undefined,
@@ -927,7 +932,7 @@ export function DeckDisplay({
 
   const legalityBySlot = useMemo(() => {
     const map = new Map<string, LegalityIssue>();
-    for (const issue of legalityIssues) {
+    for (const issue of [...legalityIssues, ...sideboardIssues]) {
       // Prefer the more specific issue type if multiple apply to the same slot.
       // Color-identity and not-legal both signal "this card does not belong";
       // copy-limit is a separate flavor. Keep whichever we saw first since the
@@ -935,7 +940,7 @@ export function DeckDisplay({
       if (!map.has(issue.slotId)) map.set(issue.slotId, issue);
     }
     return map;
-  }, [legalityIssues]);
+  }, [legalityIssues, sideboardIssues]);
 
   const flaggedCardCount = useMemo(() => countFlaggedCards(legalityIssues), [legalityIssues]);
 

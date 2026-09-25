@@ -283,4 +283,28 @@ describe('computeNewArrivals', () => {
     );
     expect(result.Instant?.map((r) => r.name)).toEqual(['Close CMC', 'Far CMC']);
   });
+
+  // Fit is judged against the deck's own cards. A sideboard card isn't in the
+  // deck, so resembling it earns an arrival nothing: here the only Instant
+  // lives in the sideboard, so neither candidate has a same-bucket mate and
+  // the stable name order holds. Ranked against the sideboard, "Far CMC"
+  // (an exact CMC match for it) jumped ahead.
+  it('does not rank an arrival up for resembling a sideboard card', () => {
+    const result = computeNewArrivals(
+      baseInput({
+        cards: [{ card: card({ name: 'Deck Creature', type_line: 'Creature — Elf', cmc: 2 }) }],
+        sideboard: [{ card: card({ name: 'Side Instant', type_line: 'Instant', cmc: 6 }) }],
+        collectionCards: [
+          candidate({ name: 'Far CMC', typeLine: 'Instant', cmc: 6, updatedAt: BASE_TIME + 1000 }),
+          candidate({
+            name: 'Close CMC',
+            typeLine: 'Instant',
+            cmc: 2,
+            updatedAt: BASE_TIME + 1000,
+          }),
+        ],
+      })
+    );
+    expect(result.Instant?.map((r) => r.name)).toEqual(['Close CMC', 'Far CMC']);
+  });
 });

@@ -5,7 +5,7 @@ import {
   makeDeckAllocationInfo,
   type AllocationInfo,
 } from './allocations';
-import { validateDeck, type LegalityIssue } from './deck-validation';
+import { validateDeckZones, type LegalityIssue } from './deck-validation';
 import { newDeckCard, type Deck, type DeckCard } from '../store/decks';
 import { cardKey, type CardDelta, type CardListDiff } from './deck-diff';
 import type { EnrichedCard } from '../types';
@@ -400,10 +400,13 @@ export function buildBulkEditPlan(
     partnerCommanderAllocatedCopyId = partner.copyId;
   }
 
-  const legalityIssues = validateDeck(newMain, newSide, formatConfig, {
+  // Each row judged the way the deck page will judge it (a Commander
+  // sideboard is its own pile, not part of the deck's copy limit).
+  const zones = validateDeckZones(newMain, newSide, formatConfig, {
     commander,
     partnerCommander,
   });
+  const legalityIssues = [...zones.deck, ...zones.sideboardOnly];
 
   const slotIdSet = (list: DeckCard[]) => new Set(list.map((c) => c.slotId));
   const setsEqual = (a: Set<string>, b: Set<string>) =>

@@ -73,7 +73,7 @@ import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import {
   effectiveDeckColors,
   deckColorFrequency,
-  validateDeck,
+  validateDeckZones,
   countFlaggedCards,
 } from '../lib/deck-validation';
 import { ShareDialog } from '../components/ShareDialog';
@@ -782,11 +782,13 @@ export function DecksIndexPage() {
                 });
                 const themes = deck.generationContext?.selectedThemes ?? [];
                 const formatCfg = DECK_FORMAT_CONFIGS[deck.format];
+                // Judged on the deck's own zones, the same as the deck page:
+                // a Commander deck's sideboard is a holding pile, not the deck.
                 const issues = formatCfg
-                  ? validateDeck(deck.cards, deck.sideboard, formatCfg, {
+                  ? validateDeckZones(deck.cards, deck.sideboard, formatCfg, {
                       commander: deck.commander,
                       partnerCommander: deck.partnerCommander,
-                    })
+                    }).deck
                   : [];
                 const flaggedCount = countFlaggedCards(issues);
                 const pull = pullCounts?.get(deck.id);

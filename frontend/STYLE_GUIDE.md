@@ -3607,6 +3607,16 @@ three times on one screen, so these rulings now hold:
   overlapping density line, the frozen snapshot), and one Sram deck showed
   Removal as 11, 10 and 6. Never add a second tally beside it; if a card's
   other roles matter, they belong on that card (the inspector lists them).
+- **The deck is the commander and the mainboard (2026-09-25).** Every stat,
+  verdict, score and count on the deck page (the stats, Power, Coach) reads
+  the commander zone and the mainboard, never the sideboard or Considering.
+  In Commander that includes legality: a banned card or a second copy parked
+  in the sideboard doesn't fail the checks, print Power's "can't be played"
+  note, badge a mainboard row, inflate the flagged count or block the seal
+  (`validateDeckZones`; sideboard rows still get their own badge). In a
+  60-card format the sideboard is registered, so legality counts it there.
+  The Combos panel's counts and its one-away list read the 99 too. Other
+  piles only ever EXCLUDE: nothing already in one is re-offered.
 - **"Plays as" follows the deck's engine (2026-09-24).** On Auto the
   archetype is the owner's theme from generation if they chose one, else the
   deck's own engine when one clearly leads (`resolveAutoArchetype`), else the
