@@ -2,8 +2,13 @@ import type { JSX } from 'react';
 import './DeckAnalysisSkeleton.css';
 
 export interface DeckAnalysisSkeletonProps {
-  /** 'pending' shows the shimmer placeholder; 'error' shows a failure message + retry. */
-  status: 'pending' | 'error';
+  /**
+   * 'pending' shows the shimmer placeholder; 'error' shows a failure message +
+   * retry. 'edhrec-missing' shows the same failure shape for a PARTIAL
+   * analysis — the bracket already computed fine locally, but this lane is
+   * EDHREC-derived and EDHREC couldn't be reached.
+   */
+  status: 'pending' | 'error' | 'edhrec-missing';
   /** Retries the failed/stalled analysis. Omit to hide the retry affordance. */
   onRetry?: () => void;
 }
@@ -18,13 +23,16 @@ export interface DeckAnalysisSkeletonProps {
  * that anything had gone wrong and no way to try again.
  */
 export function DeckAnalysisSkeleton({ status, onRetry }: DeckAnalysisSkeletonProps): JSX.Element {
-  if (status === 'error') {
+  if (status === 'error' || status === 'edhrec-missing') {
     return (
       <div className="deck-analysis-skeleton is-error" role="status" aria-live="polite">
-        <p className="deck-analysis-skeleton-eyebrow">Analysis unavailable</p>
+        <p className="deck-analysis-skeleton-eyebrow">
+          {status === 'edhrec-missing' ? 'Some insight unavailable' : 'Analysis unavailable'}
+        </p>
         <p className="deck-analysis-skeleton-error-text">
-          Couldn't analyze this deck. EDHREC may be unreachable, or this commander isn't indexed
-          yet.
+          {status === 'edhrec-missing'
+            ? "Couldn't reach EDHREC for this. The bracket and win conditions are current; suggestions that need EDHREC aren't."
+            : "Couldn't analyze this deck. EDHREC may be unreachable, or this commander isn't indexed yet."}
           {onRetry && (
             <>
               {' '}

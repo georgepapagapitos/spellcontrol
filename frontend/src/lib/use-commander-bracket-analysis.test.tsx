@@ -40,7 +40,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v13-bracket-fit-verified',
+    'v14-mainboard-combos-edhrec-optional',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards
@@ -410,5 +410,121 @@ describe('useCommanderBracketAnalysis — a slow combo match on a first estimate
       useCommanderBracketAnalysis(args({ deck, comboData: none }))
     );
     expect(result.current.missesCombos).toBe(false);
+  });
+});
+
+// ── Defect 2: EDHREC unreachable no longer blanks the analysis ─────────────
+//
+// `analyzeCommanderDeck` now resolves to a real (partial) result — with
+// `edhrecMissing: true` — instead of null when only EDHREC couldn't be
+// reached. The hook must: persist it (so the Power tab shows a real bracket,
+// `status` stays 'ready'), mark it distinguishably so a later FULL result for
+// the exact same deck isn't mistaken for "already done", and retry EDHREC on
+// the next mount without looping within the current one.
+const EDHREC_MISSING_SUFFIX = '#edhrec-missing';
+const PARTIAL_RESULT = {
+  bracketEstimation: { bracket: 3 } as never,
+  winConditions: { primary: null, secondary: [], noClearWinCondition: true } as never,
+  bracketFit: null,
+  edhrecMissing: true,
+};
+
+describe('useCommanderBracketAnalysis — EDHREC-missing (partial) results', () => {
+  it('persists a suffixed signature and exposes edhrecMissing, with status ready', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(PARTIAL_RESULT as never);
+    const deck = makeDeck();
+    const a = args({ deck });
+    const { result, rerender } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(a.updateDeck).toHaveBeenCalledWith(
+      'd1',
+      expect.objectContaining({
+        bracketEstimation: PARTIAL_RESULT.bracketEstimation,
+        gradeBracketSignature: `${sig(deck)}${EDHREC_MISSING_SUFFIX}`,
+      }),
+      true
+    );
+
+    // Mirror what the real store does: stamp the signature back onto the deck.
+    (deck as Deck).gradeBracketSignature = `${sig(deck)}${EDHREC_MISSING_SUFFIX}`;
+    rerender();
+    expect(result.current.status).toBe('ready');
+    expect(result.current.edhrecMissing).toBe(true);
+  });
+
+  it('does not refetch again within the same mount once a partial result has landed', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(PARTIAL_RESULT as never);
+    const deck = makeDeck();
+    let a = args({ deck });
+    const { rerender } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+    (deck as Deck).gradeBracketSignature = `${sig(deck)}${EDHREC_MISSING_SUFFIX}`;
+
+    // An unrelated dependency changing (e.g. the combo match settling) must
+    // not re-fire EDHREC — the plain `signature` still doesn't equal the
+    // suffixed persisted one, so only the local "attempted this mount" guard
+    // stops a refetch loop.
+    a = { ...a, combosLoading: false };
+    rerender();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+  });
+
+  it('retry() re-attempts EDHREC within the same mount', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValueOnce(PARTIAL_RESULT as never);
+    const deck = makeDeck();
+    const a = args({ deck });
+    const { result, rerender } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+    (deck as Deck).gradeBracketSignature = `${sig(deck)}${EDHREC_MISSING_SUFFIX}`;
+    rerender();
+
+    vi.mocked(analyzeCommanderDeck).mockResolvedValueOnce(RESULT as never);
+    act(() => result.current.retry());
+    rerender();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(2);
+    // The retry succeeded fully this time — no suffix, no longer edhrecMissing.
+    expect(a.updateDeck).toHaveBeenLastCalledWith(
+      'd1',
+      expect.objectContaining({ gradeBracketSignature: sig(deck) }),
+      true
+    );
+  });
+
+  it('a fresh mount retries EDHREC even though the persisted signature already reflects a partial result', async () => {
+    const deck = makeDeck();
+    // Simulate a partial result persisted in an EARLIER session/mount.
+    (deck as Deck).gradeBracketSignature = `${sig(deck)}${EDHREC_MISSING_SUFFIX}`;
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+
+    const a = args({ deck });
+    renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    // A brand-new mount's `edhrecMissingAttempted` starts null, so the guard
+    // that blocked further attempts within the PREVIOUS mount doesn't apply
+    // here — EDHREC gets a genuine retry, and this time it succeeds.
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+    expect(a.updateDeck).toHaveBeenCalledWith(
+      'd1',
+      expect.objectContaining({ gradeBracketSignature: sig(deck) }),
+      true
+    );
   });
 });

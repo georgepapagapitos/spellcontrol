@@ -9,6 +9,7 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { useDeckCombos } from '../../lib/use-deck-combos';
+import { partitionCombosByZone } from '../../lib/combo-zone-partition';
 import { comboPayoffScore } from '../../lib/combo-payoff';
 import {
   comboNameKey,
@@ -33,6 +34,14 @@ interface Props {
    * by the parent so the panel doesn't have to know about deck shape.
    */
   deckOracleIds: string[];
+  /**
+   * Oracle ids of commander(s) + mainboard ONLY (never the sideboard) — used
+   * to mark an "in deck" combo that's only complete because of a sideboard
+   * card (see combo-zone-partition.ts). The list itself still shows the
+   * combo; it's just labeled, the same way the bracket/coach quietly exclude
+   * it. Omitted entirely (no mark) when the caller doesn't pass this.
+   */
+  mainboardOracleIds?: ReadonlySet<string>;
   /** Format used to filter combos by legality (e.g. "commander"). */
   format?: string;
   /** Deck color identity — hides one-away combos whose missing piece could
@@ -55,7 +64,15 @@ type Tab = 'inDeck' | 'oneAway';
 type OwnershipFilter = 'all' | 'owned' | 'notOwned';
 
 export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function DeckCombosPanel(
-  { deckId: _deckId, deckOracleIds, format, colorIdentity, onAdd, embedded = false },
+  {
+    deckId: _deckId,
+    deckOracleIds,
+    mainboardOracleIds,
+    format,
+    colorIdentity,
+    onAdd,
+    embedded = false,
+  },
   ref
 ) {
   const collection = useCollectionStore((s) => s.cards);
@@ -100,6 +117,15 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     // results and debounces requests, so the cost on idle deck-views is
     // small and the at-a-glance value is high.
   });
+
+  // Which in-deck combos are only complete because of a sideboard card —
+  // keyed by combo id so each row can look itself up. Empty when the caller
+  // doesn't pass `mainboardOracleIds` (e.g. no deck shape known).
+  const sideboardNamesByComboId = useMemo(() => {
+    if (!mainboardOracleIds) return new Map<string, string[]>();
+    const { sideboardComplete } = partitionCombosByZone(data, mainboardOracleIds);
+    return new Map(sideboardComplete.map((s) => [s.match.combo.id, s.sideboardCardNames]));
+  }, [data, mainboardOracleIds]);
 
   useImperativeHandle(ref, () => ({
     reveal: (revealTab) => {
@@ -392,6 +418,9 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                 ownedOracleIds={ownedOracleIdSet}
                 onAddMissing={onAdd ? () => void handleAddMissing(match) : undefined}
                 onCardTap={(tapped) => void preview.open(match.combo.cards, tapped)}
+                sideboardCardNames={
+                  tab === 'inDeck' ? sideboardNamesByComboId.get(match.combo.id) : undefined
+                }
               />
             ))}
           </ul>

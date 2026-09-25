@@ -558,6 +558,32 @@ describe('CoachFeed', () => {
       expect(screen.getByText('Cultivate')).toBeTruthy();
       expect(screen.queryByText(/Couldn.t analyze this deck/)).toBeNull();
     });
+
+    // ── Defect 2: a partial (EDHREC-missing) analysis ───────────────────────
+
+    it('shows a retryable EDHREC-missing notice when ready but every lane is EDHREC-derived and empty', () => {
+      const onRetryAnalysis = vi.fn();
+      render(
+        <CoachFeed
+          {...makeProps({
+            ...emptyProps,
+            analysisState: 'ready',
+            edhrecMissing: true,
+            onRetryAnalysis,
+          })}
+        />
+      );
+      expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
+      expect(screen.getByText(/Couldn.t reach EDHREC/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(onRetryAnalysis).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders the real feed instead of the EDHREC-missing notice once changes have landed', () => {
+      render(<CoachFeed {...makeProps({ analysisState: 'ready', edhrecMissing: true })} />);
+      expect(screen.getByText('Cultivate')).toBeTruthy();
+      expect(screen.queryByText(/Couldn.t reach EDHREC/)).toBeNull();
+    });
   });
 
   describe('bounded first page ("Show all")', () => {

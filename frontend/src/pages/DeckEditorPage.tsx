@@ -129,6 +129,7 @@ import { useTaggerReady } from '../lib/use-tagger-ready';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
+import { partitionCombosByZone, toMainboardComboData } from '../lib/combo-zone-partition';
 import { buildWinConditionSummary } from '../lib/win-condition-summary';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { useEscapeKey } from '../lib/use-escape-key';
@@ -665,6 +666,20 @@ export function DeckEditorPage() {
     return Array.from(ids);
   }, [deck]);
 
+  // Commander(s) + mainboard only — the sideboard is a swap pile, not part of
+  // the 99. Every bracket/coach/hero/badge signal reads combos against THIS
+  // set (via `mainboardComboData` below), never the wider `deckOracleIds` the
+  // combo match itself runs against — a combo completed only by a sideboard
+  // card must never set a bracket floor (see combo-zone-partition.ts).
+  const mainboardOracleIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!deck) return ids;
+    if (deck.commander?.oracle_id) ids.add(deck.commander.oracle_id);
+    if (deck.partnerCommander?.oracle_id) ids.add(deck.partnerCommander.oracle_id);
+    for (const c of deck.cards) if (c.card.oracle_id) ids.add(c.card.oracle_id);
+    return ids;
+  }, [deck]);
+
   // Tokens this deck can make — a pre-game prep checklist surfaced on demand from
   // the deck-action row (not Stats; it's prep, not analysis). The hook re-resolves
   // names to recover token data the slimmed persisted cards drop.
@@ -916,13 +931,28 @@ export function DeckEditorPage() {
   });
   const comboOverlay = useEdhrecComboOverlay(deck?.commander?.name ?? null);
 
-  // E216-scoped combo data (comboData, above) already buckets combos into
-  // in-deck / one-away for the Combos panel — reused here rather than a
-  // second match, keyed by oracle id so each deck row's inline "CB"/"CB2"
-  // badge can look itself up in O(1) and never disagree with the panel.
+  // Commander(s) + mainboard view of `comboData` — every analysis/coach/hero/
+  // badge consumer below reads THIS, never the raw response, so a combo
+  // completed only via a sideboard card never sets a bracket floor, never
+  // counts toward a total, and is never offered as "one card away" (see
+  // combo-zone-partition.ts). The Combos panel keeps the raw `comboData` for
+  // its own list (still shows the sideboard-completed combo, marked).
+  const partitionedCombos = useMemo(
+    () => partitionCombosByZone(comboData.data, mainboardOracleIds),
+    [comboData.data, mainboardOracleIds]
+  );
+  const mainboardComboData = useMemo(
+    () => toMainboardComboData(comboData.data, partitionedCombos),
+    [comboData.data, partitionedCombos]
+  );
+
+  // Mainboard-scoped combo data already buckets combos into in-deck / one-away
+  // — reused here rather than a second match, keyed by oracle id so each deck
+  // row's inline "CB"/"CB2" badge can look itself up in O(1) and never
+  // disagree with the panel's mainboard-complete list.
   const combosByOracle = useMemo(() => {
     const map = new Map<string, ComboMatch[]>();
-    const all = [...(comboData.data?.inDeck ?? []), ...(comboData.data?.oneAway ?? [])];
+    const all = [...(mainboardComboData?.inDeck ?? []), ...(mainboardComboData?.oneAway ?? [])];
     for (const match of all) {
       for (const c of match.combo.cards) {
         const list = map.get(c.oracleId);
@@ -931,18 +961,18 @@ export function DeckEditorPage() {
       }
     }
     return map;
-  }, [comboData.data]);
+  }, [mainboardComboData]);
 
   // Count one-away combos whose missing piece the user already owns.
   // Uses the `oneAway` bucket (not `almostInCollection`, which is empty for
   // decks with oracle IDs — see match.ts:112) filtered against the owned set.
   const comboOwnedMissingCount = useMemo(
     () =>
-      (comboData.data?.oneAway ?? []).filter((m) => {
+      (mainboardComboData?.oneAway ?? []).filter((m) => {
         const id = m.missingOracleIds[0];
         return id && ownedOracleIdSet.has(id);
       }).length,
-    [comboData.data?.oneAway, ownedOracleIdSet]
+    [mainboardComboData?.oneAway, ownedOracleIdSet]
   );
 
   // The Power hero's summary lines deep-link to their detail panels below.
@@ -965,7 +995,7 @@ export function DeckEditorPage() {
     () => scrollToPowerPanel('deck-power-wincon'),
     [scrollToPowerPanel]
   );
-  const comboInDeckCount = comboData.data?.inDeck.length ?? 0;
+  const comboInDeckCount = mainboardComboData?.inDeck.length ?? 0;
   const handleViewCombos = useCallback(() => {
     combosRef.current?.reveal(
       comboOwnedMissingCount > 0 || comboInDeckCount === 0 ? 'oneAway' : 'inDeck'
@@ -979,7 +1009,7 @@ export function DeckEditorPage() {
   // read as an endless skeleton — see analysisState below.
   const bracketAnalysis = useCommanderBracketAnalysis({
     deck,
-    comboData: comboData.data,
+    comboData: mainboardComboData,
     combosLoading: comboData.loading,
     mainboardSize: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
     hasCommander: deck ? DECK_FORMAT_CONFIGS[deck.format].hasCommander : false,
@@ -996,7 +1026,7 @@ export function DeckEditorPage() {
   const buildTimeNudge = useBuildTimeNudge({
     deckId: deck?.id,
     deck,
-    comboData: comboData.data,
+    comboData: mainboardComboData,
     mainboardTarget: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
   });
 
@@ -1038,14 +1068,14 @@ export function DeckEditorPage() {
       // live in their own fields, not in deck.cards.
       cardCount: deck.cards.length + (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0),
       deckTarget: DECK_FORMAT_CONFIGS[deck.format].deckSize,
-      oneAwayCombos: comboData.data?.oneAway,
+      oneAwayCombos: mainboardComboData?.oneAway,
       ownedNames,
       winConditions: deck.winConditions,
       bracketFitHasMoves: (deck.bracketFit?.moves.length ?? 0) > 0,
       ownedOnly,
       landAdvice,
     });
-  }, [deck, comboData.data, ownedNames, ownedOnly, landAdvice]);
+  }, [deck, mainboardComboData, ownedNames, ownedOnly, landAdvice]);
 
   // UX-310: whether the async commander-deck analysis is still in its first
   // run. `gradeBracketSignature` is only set after a successful analysis
@@ -1240,7 +1270,7 @@ export function DeckEditorPage() {
   const coachArrivals = useMemo<ArrivalsByType>(() => {
     const wanted = new Set<string>();
     for (const p of refinePool) wanted.add(p.name.toLowerCase());
-    for (const m of comboData.data?.oneAway ?? []) {
+    for (const m of mainboardComboData?.oneAway ?? []) {
       if (m.missingOracleIds.length !== 1) continue;
       const piece = m.combo.cards.find((c) => c.oracleId === m.missingOracleIds[0]);
       if (piece) wanted.add(piece.cardName.toLowerCase());
@@ -1251,7 +1281,7 @@ export function DeckEditorPage() {
       if (kept.length > 0) out[bucket as keyof ArrivalsByType] = kept;
     }
     return out;
-  }, [arrivalsByType, refinePool, comboData.data]);
+  }, [arrivalsByType, refinePool, mainboardComboData]);
   // Same-role re-roll index for the AI panel's swap rows — built from the engine
   // pool so a re-roll never needs another model call.
   //
@@ -1522,7 +1552,7 @@ export function DeckEditorPage() {
         onPreviewFit={(card) => setAuditionCard(card)}
         onClose={close}
         suggestions={deck.gapAnalysis}
-        oneAwayCombos={comboData.data?.oneAway}
+        oneAwayCombos={mainboardComboData?.oneAway}
         hiddenGems={deck.hiddenGems}
         ownershipFor={ownershipFor}
         enableSuggestions={!!formatConfig?.hasCommander}
@@ -2019,7 +2049,7 @@ export function DeckEditorPage() {
             addCard,
             deckCards: deck.cards,
             removals: deck.optimizeSwaps?.removals,
-            inDeckCombos: comboData.data?.inDeck,
+            inDeckCombos: mainboardComboData?.inDeck,
             comboOverlay,
           });
           const suggested = ranked.map((r) =>
@@ -2041,7 +2071,7 @@ export function DeckEditorPage() {
           addCard: auditionCard,
           deckCards: deck.cards,
           removals: deck.optimizeSwaps?.removals,
-          inDeckCombos: comboData.data?.inDeck,
+          inDeckCombos: mainboardComboData?.inDeck,
           comboOverlay,
           commanderColorIdentity,
         })
@@ -3238,7 +3268,7 @@ export function DeckEditorPage() {
                 onFill: () => setShowFill(true),
               })}
             addingSuggestedCardNames={addingEngineNames}
-            oneAwayCombos={comboData.data?.oneAway}
+            oneAwayCombos={mainboardComboData?.oneAway}
             ownedOracleIds={ownedOracleIdSet}
             landUpgradeCount={landUpgrades.length}
             arrivalsByType={coachArrivals}
@@ -3275,7 +3305,12 @@ export function DeckEditorPage() {
               // Tune lanes don't exist yet, so a deep-link would land on nothing.
               analysisState === 'ready' ? handleNavigateToTune : undefined
             }
-            onRetryAnalysis={analysisState === 'error' ? bracketAnalysis.retry : undefined}
+            onRetryAnalysis={
+              analysisState === 'error' || bracketAnalysis.edhrecMissing
+                ? bracketAnalysis.retry
+                : undefined
+            }
+            edhrecMissing={bracketAnalysis.edhrecMissing}
             renderSwapSuggestions={renderSwapSuggestions}
             renderSimilarCards={renderSimilarCards}
             powerHeroSlot={
@@ -3295,8 +3330,8 @@ export function DeckEditorPage() {
                   engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
                   enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
                   engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
-                  comboInDeck={comboData.data?.inDeck.length ?? 0}
-                  comboOneAway={comboData.data?.oneAway.length ?? 0}
+                  comboInDeck={mainboardComboData?.inDeck.length ?? 0}
+                  comboOneAway={mainboardComboData?.oneAway.length ?? 0}
                   comboOwnedMissing={comboOwnedMissingCount}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
                   bracketMissesCombos={bracketAnalysis.missesCombos}
@@ -3372,6 +3407,7 @@ export function DeckEditorPage() {
                   embedded
                   deckId={deck.id}
                   deckOracleIds={deckOracleIds}
+                  mainboardOracleIds={mainboardOracleIds}
                   format={deck.format}
                   colorIdentity={comboColorIdentity}
                   onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
@@ -3389,7 +3425,7 @@ export function DeckEditorPage() {
                   costPlan={effectiveCostPlan ?? undefined}
                   bracketFit={deck.bracketFit ?? undefined}
                   landUpgrades={landUpgrades}
-                  oneAwayCombos={comboData.data?.oneAway}
+                  oneAwayCombos={mainboardComboData?.oneAway}
                   planScore={deck.planScore}
                   roleCounts={deck.roleCounts ?? {}}
                   roleTargets={deck.roleTargets ?? {}}
@@ -3408,7 +3444,12 @@ export function DeckEditorPage() {
                   initialFilter={tuneFocusLane ?? undefined}
                   onFilterHandled={clearTuneFocus}
                   analysisState={analysisState}
-                  onRetryAnalysis={analysisState === 'error' ? bracketAnalysis.retry : undefined}
+                  onRetryAnalysis={
+                    analysisState === 'error' || bracketAnalysis.edhrecMissing
+                      ? bracketAnalysis.retry
+                      : undefined
+                  }
+                  edhrecMissing={bracketAnalysis.edhrecMissing}
                   commanderName={deck.commander?.name}
                   busyNames={
                     bracketFitSwapName
@@ -3868,7 +3909,7 @@ export function DeckEditorPage() {
             deck.commander?.card_faces?.[0]?.image_uris?.art_crop
           }
           report={deck.buildReport}
-          oneAwayCombos={comboData.data?.oneAway}
+          oneAwayCombos={mainboardComboData?.oneAway}
           ownedOracleIds={ownedOracleIdSet}
           comboSeedContext={comboSeedContext}
           onClose={() => setShowBuildReport(false)}
