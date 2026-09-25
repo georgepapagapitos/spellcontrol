@@ -3,6 +3,18 @@ import {
   sessionHeadline,
   type PlaytestSessionRecord,
 } from '@/lib/playtest/session-record';
+import { hordeLevelLabel } from '@/playtest/lib/horde-view';
+
+/** "Beat the Zombies horde (Standard)" / "Overrun by the Zombies horde
+ *  (Standard)" / "Fought the Zombies horde (Standard)" — the one line a
+ *  session tagged with a horde (E387 PR 5) adds under the usual recap. */
+function hordeSummaryLine(record: PlaytestSessionRecord): string | null {
+  const horde = record.horde;
+  if (!horde) return null;
+  const verb =
+    horde.outcome === 'won' ? 'Beat' : horde.outcome === 'lost' ? 'Overrun by' : 'Fought';
+  return `${verb} the ${horde.hordeName} horde (${hordeLevelLabel(horde.level)})`;
+}
 
 interface Props {
   record: PlaytestSessionRecord;
@@ -19,6 +31,7 @@ interface Props {
  * until manually dismissed.
  */
 export function PlaytestSessionSummary({ record, onDismiss }: Props) {
+  const hordeLine = hordeSummaryLine(record);
   return (
     <div className="playtest-session-summary" role="status">
       <div className="playtest-session-summary__header">
@@ -33,6 +46,7 @@ export function PlaytestSessionSummary({ record, onDismiss }: Props) {
         </button>
       </div>
       <p className="playtest-session-summary__line">{formatSessionSummaryLine(record)}</p>
+      {hordeLine && <p className="playtest-session-summary__line">{hordeLine}</p>}
     </div>
   );
 }

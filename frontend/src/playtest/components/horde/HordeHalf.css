@@ -1,0 +1,23 @@
+/* HordeHalf.css — the solo Horde board's desktop half (>=1024px). The
+   two-row grid split itself lives on `.playtest-main--horde` in
+   playtest.css (PlaytestBoard owns that class); this file only styles the
+   half's own surface and its loading/error state. Everything else reuses
+   horde-table.css's status/corner/action classes verbatim. */
+
+.horde-half {
+  /* Reads as a step back from your own board, the way the paper table's
+     "not your board" chrome never needs — there IS only one board there. */
+  filter: saturate(0.85) brightness(0.92);
+}
+
+.horde-half--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.horde-half-message {
+  margin: 0;
+  color: var(--felt-text, var(--text-secondary));
+  font-size: var(--text-sm);
+}

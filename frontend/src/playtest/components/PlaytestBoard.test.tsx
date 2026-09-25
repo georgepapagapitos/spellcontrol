@@ -7,6 +7,7 @@ import { applyAction, createPlaytestState } from '@/lib/playtest';
 import type { GameState } from '@/lib/game-state';
 import { usePlayStore } from '@/store/play';
 import { usePlaytestStore } from '../store';
+import { buildTestHorde } from '../lib/horde-solo.fixtures';
 import type { OnlineTable } from '../hooks/use-online-table';
 import type { OpponentSeat } from './OpponentRail';
 import { opponentPreviewId } from './OpponentQuadrant';
@@ -2436,5 +2437,163 @@ describe('PlaytestBoard — a finished table drops the opening-hand wait', () =>
     // The battlefield underneath is intact and visible — the state was never
     // wiped, only the curtain that was hiding it.
     expect(document.querySelector('.playtest-battlefield')).toBeTruthy();
+  });
+});
+
+/**
+ * Solo Horde on the playtest board (E387 PR 5). The turn chip, the
+ * next-turn shortcut and the table menu's "Next turn" row all route through
+ * one horde-aware function: due → `startHordeTurn`, not due → the normal
+ * `NEXT_TURN`. The store's horde actions are still stubs on this branch (see
+ * store.ts), so every action is asserted via a spy substituted with
+ * `usePlaytestStore.setState`.
+ */
+/** A horde whose turn is due the instant the game starts (turn 1) — no
+ *  setup turns to wait out. */
+function dueHorde() {
+  const horde = buildTestHorde({ armedAtTurn: 1 });
+  horde.config = { ...horde.config, settings: { ...horde.config.settings, setupTurns: 0 } };
+  return horde;
+}
+
+describe('PlaytestBoard — solo Horde', () => {
+  beforeEach(() => {
+    // Reduced motion true so a sheet's `useSheetExit` (the horde end sheet's
+    // "Done") closes synchronously — happy-dom never fires `animationend`.
+    // Overrides the file's own default (outer `beforeEach`) stub.
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes('prefers-reduced-motion'),
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList
+    );
+    usePlaytestStore.setState({
+      horde: null,
+      hordeLoad: { status: 'idle', error: null, pending: null },
+      startHordeTurn: vi.fn(),
+      confirmHordeReveal: vi.fn(),
+      disarmHorde: vi.fn(),
+      armHorde: vi.fn(async () => {}),
+      retryHordeLoad: vi.fn(),
+    });
+  });
+
+  it('calls startHordeTurn from the turn chip once the horde is due', () => {
+    usePlaytestStore.setState({ horde: dueHorde() });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    const chip = screen.getByRole('button', { name: /Next turn/ });
+    fireEvent.click(chip);
+    expect(usePlaytestStore.getState().startHordeTurn).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+  });
+
+  it('still takes the normal next turn while the horde is not yet due', () => {
+    // Default fixture: standard preset, 3 setup turns, armed on turn 1 — not
+    // due until turn 3.
+    usePlaytestStore.setState({ horde: buildTestHorde({ armedAtTurn: 1 }) });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Next turn/ }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+    expect(usePlaytestStore.getState().startHordeTurn).not.toHaveBeenCalled();
+  });
+
+  it('degrades the chip to a readout during the horde reveal/combat', () => {
+    usePlaytestStore.setState({ horde: buildTestHorde({ phase: 'reveal' }) });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByRole('button', { name: /Next turn/ })).toBeNull();
+    expect(screen.getByText("The horde's turn")).toBeTruthy();
+  });
+
+  it('routes Space through the same horde-aware function', () => {
+    usePlaytestStore.setState({ horde: dueHorde() });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: ' ' });
+    expect(usePlaytestStore.getState().startHordeTurn).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+  });
+
+  it('offers the Horde row in Table settings solo, and it is absent at an online table', () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Table settings' }));
+    let sheet = screen.getByRole('dialog', { name: 'Table settings' });
+    expect(within(sheet).getByRole('button', { name: /^Horde/ })).toBeTruthy();
+
+    onlineTable = seatedTable([opponent(1)]);
+    rerender(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    sheet = screen.getByRole('dialog', { name: 'Table settings' });
+    expect(within(sheet).queryByRole('button', { name: /^Horde/ })).toBeNull();
+  });
+
+  it('opens the horde setup sheet from the Horde row', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Table settings' }));
+    fireEvent.click(screen.getByRole('button', { name: /Horde/ }));
+    expect(screen.getByRole('dialog', { name: 'Fight a horde' })).toBeTruthy();
+  });
+
+  it('offers the opening-hand row solo, and it is absent at an online table', () => {
+    usePlaytestStore.setState({ phase: 'opening' });
+    const { rerender } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Fight a horde')).toBeTruthy();
+
+    onlineTable = seatedTable([opponent(1)]);
+    usePlaytestStore.setState({ phase: 'opening' });
+    rerender(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText('Fight a horde')).toBeNull();
+  });
+
+  it('ends the fight: Play again resets the game, Done disarms the horde', () => {
+    usePlaytestStore.setState({ horde: buildTestHorde({ phase: 'ended', outcome: 'won' }) });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText('Record against this horde')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Play again' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'RESET' });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(usePlaytestStore.getState().disarmHorde).toHaveBeenCalledTimes(1);
   });
 });

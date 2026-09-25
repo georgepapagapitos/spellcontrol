@@ -182,6 +182,21 @@
   }
 }
 
+/* Solo Horde (E387 PR 5): a third row that opens a sheet rather than a
+   checkbox, so it spans both columns of the grid above (and both of the
+   takeover's own auto-sized pair) and centres its own content instead of
+   sitting flush left like a checkbox label. */
+.horde-opening-row {
+  grid-column: 1 / -1;
+  justify-content: center;
+  width: 100%;
+  border: 0.5px solid var(--border);
+  background: var(--surface);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
 /* The hand fits BY CONSTRUCTION at every width: each card is sized as a
    fraction of this container (`--row-n` per row), never off `vw`. The old
    `clamp(72px, 12vw, 116px)` sizing was viewport-relative while the sheet is

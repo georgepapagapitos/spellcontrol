@@ -6387,6 +6387,46 @@ calc(100vw - 4rem))`, the dense-dialog pattern) so a normal wave reads as
   speak print" (label left, number right, `1px dotted var(--border)` row
   rules, tabular figures), the same voice as `.play-records-table`.
 
+### Solo Horde on the playtest board (E387 PR 5)
+
+Fighting a horde with your own deck reuses every class and sheet above —
+these are the rulings specific to sharing one board with a real, live game.
+
+- **The felt is fixed 50/50 at ≥1024px, even during setup.** `.playtest-main--horde`
+  turns `.playtest-main` into a two-row grid (horde top, yours below, 2px
+  gutter on `var(--border)`, same shape as `.playtest-main--grid`'s seat
+  split) and never resizes once the horde arrives — an empty-looking half
+  during setup is still exactly half the table, not a sliver that grows.
+  `--pt-card-w`/`--pt-card-h`/`--pt-edge` are redeclared together on BOTH
+  halves for the half-height row, same rule as the seat grid.
+- **The horde's half is desaturated, never relabelled.** `filter: saturate(0.85)
+brightness(0.92)` on `.horde-half` is the only visual difference from the
+  paper table — a glance tells you which half is "not yours" without adding
+  a badge or a border the paper table doesn't have.
+- **The phone band is one line until its turn, never a modal.** `.horde-band`
+  folds to a bar (`flex: 0 0 auto`) and opens to `flex: 0 0 48%` on its own
+  the moment `phase` becomes `reveal`/`combat`, folding back on `waiting` —
+  a real `<button aria-expanded>` lets the player override either way. The
+  open strip reuses the same `HordeFelt` (battlefield + card menu) the
+  desktop half does, at a smaller card density (`clamp(36px, (48vh - 60px) /
+1.6, 80px)`).
+- **In combat, the damage total moves INTO the band's bar — nothing ever
+  floats over either board on a phone.** The desktop equivalent
+  (`HordeAttackBanner`) sits in YOUR half's own `.playtest-banners` stack,
+  `position: static`, never centred over the screen the way the paper
+  table's copy floats — two boards share the screen, so a screen-centred
+  banner would sit on the seam between them.
+- **A (re-)load never leaves a blank half.** Whenever `hordeLoad.status` is
+  `loading` or `error` — the setup sheet's own submit, or a Reset re-arming
+  the same settings — the half/band shows a quiet "Loading the horde…" or an
+  error line with "Try again" in place of the board, never an empty gap.
+- **The turn chip degrades exactly like "somebody else's turn" online.**
+  While the horde is mid-turn (`reveal`/`combat`) the chip is not pressable
+  and reads "The horde's turn" — one function (`doNextTurnHordeAware`)
+  decides, on every call site (the chip, Space, the table menu's "Next
+  turn"), whether passing your turn is due to open the horde's turn instead
+  of advancing yours.
+
 ---
 
 ## Extending this guide
@@ -7357,7 +7397,7 @@ direction.
   (unaffected — it's a separate attribute, not derived from the digit
   spans' text content).
 - **Minimalist mode hides the ± glyphs, not the controls.** `.is-minimalist
-  .player-panel-life-wrap > .player-panel-step-btn` uses the standard
+.player-panel-life-wrap > .player-panel-step-btn` uses the standard
   clip-rect sr-only pattern (1px box, `overflow: hidden`, `clip: rect(0,0,0,0)`)
   instead of `display: none`, so the buttons stay in the DOM, focusable, and
   announced — only a pointer user loses the visible glyph, and the tap-zone

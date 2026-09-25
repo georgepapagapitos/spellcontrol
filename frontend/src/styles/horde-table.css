@@ -204,7 +204,13 @@
 }
 
 .horde-attack-banner-input input {
-  width: 5ch;
+  /* `border-box` (the app-wide default) counts the shared `input[type=number]`
+     rule's 6px/10px padding INSIDE this width, leaving too little content
+     room for two digits ("32" rendered as "3") — found reusing this banner
+     on the playtest board (E387 PR 5). `content-box` makes the `ch` figure
+     describe the digits alone, with the padding added around it. */
+  box-sizing: content-box;
+  width: 3ch;
   text-align: center;
 }
 
