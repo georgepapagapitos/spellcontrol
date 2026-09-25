@@ -41,6 +41,7 @@ import { useWakeLock } from '../../lib/use-wake-lock';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useBackgroundInert } from '../../lib/use-background-inert';
 import { useFullscreen } from '../../lib/use-fullscreen';
+import { useBoardKeepStill } from '../../lib/use-board-keep-still';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
@@ -182,6 +183,17 @@ export function GameBoard({
     fullscreen.enter();
   }, [fullscreen]);
 
+  // "Keep the board still": a phone lying flat that auto-rotates into
+  // landscape must not spin the seats. 0 outside that case (portrait, or a
+  // landscape window/tablet tall enough not to trigger it) — every panel's
+  // OWN visual rotation (slot.rot, below) is untouched either way, since it
+  // composes with this automatically through normal CSS transform nesting
+  // once `.game-board-rotator` carries the counter-rotation. Only code that
+  // reads raw screen-space pointer coordinates (tap zones, swipes, the hub
+  // ring's petal math) needs this value explicitly — see the STYLE_GUIDE
+  // ruling and `lib/use-board-keep-still.ts`.
+  const boardRotation = useBoardKeepStill();
+
   // Keep the screen awake while a game is in progress (real-table use: the
   // phone sits untouched between turns).
   useWakeLock(game.status !== 'finished');
@@ -299,8 +311,14 @@ export function GameBoard({
   // Seam satellite placement, at both size steps the CSS switches between.
   // The clock used to be the seam's other satellite; it's an edge strip now
   // (see the render below), so undo is the only satellite left.
-  const undoPlace = seamSatellite(board.seam, board.rows, -1, '3.4rem');
-  const undoPlaceLg = seamSatellite(board.seam, board.rows, -1, '4rem');
+  // `wideFirstRow`: derived from the layout's own data (never a preset id) —
+  // seamSatellite only shifts the column-seam quarter point off 25% for a
+  // board whose row 1 has no left/right split at all, and only when that
+  // shape's row count would otherwise land the flat quarter inside a cell
+  // rather than on its boundary. See that function's own doc comment.
+  const wideFirstRow = board.seats[0]?.colSpan === 2;
+  const undoPlace = seamSatellite(board.seam, board.rows, -1, '3.4rem', wideFirstRow);
+  const undoPlaceLg = seamSatellite(board.seam, board.rows, -1, '4rem', wideFirstRow);
   // Read-only "up next" marker: the seat `pass-turn` would move to right now.
   // Null (no marker anywhere) with the turn tracker off, before turn tracking
   // starts, or once only one seat survives — "next" means nothing when
@@ -382,55 +400,70 @@ export function GameBoard({
       // offer per board mount, not a nag on every tap.
       onPointerDownCapture={handleFirstGesture}
     >
-      <div
-        className="game-board-grid"
-        style={{
-          gridTemplateColumns: `repeat(${board.cols}, 1fr)`,
-          gridTemplateRows: `repeat(${board.rows}, 1fr)`,
-        }}
-      >
-        {game.players.map((p, i) => {
-          const slot = board.seats[i] ?? board.seats[board.seats.length - 1];
-          // Resolve legacy states: activeSeat / designations may be absent on
-          // old persisted games loaded before UX-324.
-          const activeSeat = game.activeSeat ?? null;
-          const designations = game.designations ?? { monarch: null, initiative: null };
-          return (
-            <PlayerPanel
-              key={p.id}
-              player={p}
-              game={game}
-              dispatch={dispatchTracked}
-              slot={slot}
-              // Seat rotation is FIXED: it never changes with board state,
-              // including commander-damage focus mode. Re-orienting the board
-              // under a mode reads as the seats moving, which is disorienting
-              // and looks broken — the panel stays where and how it sits.
-              rotation={isShared ? slot.rot : 0}
-              canEdit={canControlAll}
-              canLayout={canControlAll}
-              cmdFocus={cmdFocus}
-              cmdFocusCanEdit={cmdFocusCanEdit}
-              onCmdFocus={() => setCmdFocusSeat(p.seat)}
-              onCmdFocusExit={exitCmdFocus}
-              undoNonce={undoNonce}
-              onUndo={onUndo}
-              undoLabel={undoLabel}
-              isActiveTurn={activeSeat === p.seat}
-              isNextTurn={nextSeat === p.seat && activeSeat !== p.seat}
-              isMonarch={designations.monarch === p.seat}
-              isInitiative={designations.initiative === p.seat}
-              highRollRolls={highRollState ? (highRollState.rolls[p.seat] ?? null) : null}
-              isHighRollWinner={highRollState?.winnerSeat === p.seat}
-              highRollActive={highRollState != null}
-              onHighRollDismiss={dismissHighRoll}
-            />
-          );
-        })}
-        {(board.empty ?? []).map((cell, i) => (
-          <EmptyPanel key={`empty-${i}`} cell={cell} />
-        ))}
-        {/* Floating central hub at the layout's seam — the boundary
+      {/* Everything a table-mate reads gets counter-rotated together as one
+          rigid unit when a phone auto-rotates into landscape lying flat —
+          "keep the board still" (STYLE_GUIDE). `data-board-rot` is unset in
+          the common case (portrait, or a window tall enough not to trigger
+          it), so this is a plain passthrough wrapper then. ConfirmDialog is
+          the one overlay NOT inside it: it renders through the shared
+          `Modal` portal to `document.body`, outside this subtree entirely —
+          see the STYLE_GUIDE ruling on why that one dialog stays screen-
+          relative instead of threading rotation through app-wide Modal. */}
+      <div className="game-board-rotator" data-board-rot={boardRotation || undefined}>
+        <div
+          className="game-board-grid"
+          style={{
+            gridTemplateColumns: `repeat(${board.cols}, 1fr)`,
+            gridTemplateRows: `repeat(${board.rows}, 1fr)`,
+          }}
+        >
+          {game.players.map((p, i) => {
+            const slot = board.seats[i] ?? board.seats[board.seats.length - 1];
+            // Resolve legacy states: activeSeat / designations may be absent on
+            // old persisted games loaded before UX-324.
+            const activeSeat = game.activeSeat ?? null;
+            const designations = game.designations ?? { monarch: null, initiative: null };
+            return (
+              <PlayerPanel
+                key={p.id}
+                player={p}
+                game={game}
+                dispatch={dispatchTracked}
+                slot={slot}
+                // Seat rotation is FIXED: it never changes with board state,
+                // including commander-damage focus mode. Re-orienting the board
+                // under a mode reads as the seats moving, which is disorienting
+                // and looks broken — the panel stays where and how it sits.
+                rotation={isShared ? slot.rot : 0}
+                // Composed into gesture math only (tap zones, swipes) — never
+                // added to the panel's own CSS rotation above, which already
+                // picks this up for free by being nested inside the rotated
+                // `.game-board-rotator`.
+                boardRotation={boardRotation}
+                canEdit={canControlAll}
+                canLayout={canControlAll}
+                cmdFocus={cmdFocus}
+                cmdFocusCanEdit={cmdFocusCanEdit}
+                onCmdFocus={() => setCmdFocusSeat(p.seat)}
+                onCmdFocusExit={exitCmdFocus}
+                undoNonce={undoNonce}
+                onUndo={onUndo}
+                undoLabel={undoLabel}
+                isActiveTurn={activeSeat === p.seat}
+                isNextTurn={nextSeat === p.seat && activeSeat !== p.seat}
+                isMonarch={designations.monarch === p.seat}
+                isInitiative={designations.initiative === p.seat}
+                highRollRolls={highRollState ? (highRollState.rolls[p.seat] ?? null) : null}
+                isHighRollWinner={highRollState?.winnerSeat === p.seat}
+                highRollActive={highRollState != null}
+                onHighRollDismiss={dismissHighRoll}
+              />
+            );
+          })}
+          {(board.empty ?? []).map((cell, i) => (
+            <EmptyPanel key={`empty-${i}`} cell={cell} />
+          ))}
+          {/* Floating central hub at the layout's seam — the boundary
           between rotated (far-side) and upright (near-side) seats.
           --seam-top-pct / --seam-left-pct position it precisely;
           row-seam layouts pin top by row index, col-seam layouts pin
@@ -438,56 +471,57 @@ export function GameBoard({
           percentages resolve against the seat area, not the whole
           viewport — .game-board's safe-area padding would otherwise
           push the seam off the real row/column boundary. */}
-        <button
-          type="button"
-          ref={hubBtnRef}
-          className={`game-board-menu-btn${cmdFocus ? ' is-cmd' : ''}`}
-          style={{
-            ['--seam-top-pct' as never]:
-              'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
-            ['--seam-left-pct' as never]:
-              'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
-          }}
-          // In commander-damage mode the hub says so (Lotus's dagger) and is
-          // the way back out, from the middle of the table where anyone can
-          // reach it. Otherwise it opens/closes the radial petal ring — the
-          // menu itself is one of the ring's petals now, not a direct tap.
-          aria-label={cmdFocus ? 'Return to game' : hubOpen ? 'Close menu' : 'Game menu'}
-          aria-haspopup={cmdFocus ? undefined : 'menu'}
-          aria-expanded={cmdFocus ? undefined : hubOpen}
-          onPointerDown={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (cmdFocus) {
-              exitCmdFocus();
-              return;
-            }
-            // A synthesized click from Enter/Space carries detail 0; a real
-            // pointer click's is >=1 (see hubOpenedByKeyboard above).
-            if (!hubOpen) setHubOpenedByKeyboard(e.detail === 0);
-            setHubOpen((v) => !v);
-          }}
-        >
-          {cmdFocus ? (
-            <Swords width={22} height={22} strokeWidth={2.2} aria-hidden />
-          ) : hubOpen ? (
-            <X width={22} height={22} strokeWidth={2.2} aria-hidden />
-          ) : (
-            <Menu width={22} height={22} strokeWidth={2} aria-hidden />
+          <button
+            type="button"
+            ref={hubBtnRef}
+            className={`game-board-menu-btn${cmdFocus ? ' is-cmd' : ''}`}
+            style={{
+              ['--seam-top-pct' as never]:
+                'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
+              ['--seam-left-pct' as never]:
+                'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
+            }}
+            // In commander-damage mode the hub says so (Lotus's dagger) and is
+            // the way back out, from the middle of the table where anyone can
+            // reach it. Otherwise it opens/closes the radial petal ring — the
+            // menu itself is one of the ring's petals now, not a direct tap.
+            aria-label={cmdFocus ? 'Return to game' : hubOpen ? 'Close menu' : 'Game menu'}
+            aria-haspopup={cmdFocus ? undefined : 'menu'}
+            aria-expanded={cmdFocus ? undefined : hubOpen}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (cmdFocus) {
+                exitCmdFocus();
+                return;
+              }
+              // A synthesized click from Enter/Space carries detail 0; a real
+              // pointer click's is >=1 (see hubOpenedByKeyboard above).
+              if (!hubOpen) setHubOpenedByKeyboard(e.detail === 0);
+              setHubOpen((v) => !v);
+            }}
+          >
+            {cmdFocus ? (
+              <Swords width={22} height={22} strokeWidth={2.2} aria-hidden />
+            ) : hubOpen ? (
+              <X width={22} height={22} strokeWidth={2.2} aria-hidden />
+            ) : (
+              <Menu width={22} height={22} strokeWidth={2} aria-hidden />
+            )}
+          </button>
+
+          {hubOpen && (
+            <BoardHubMenu
+              hubRef={hubBtnRef}
+              onClose={() => setHubOpen(false)}
+              petals={hubPetals}
+              openedByKeyboard={hubOpenedByKeyboard}
+              boardRotation={boardRotation}
+            />
           )}
-        </button>
 
-        {hubOpen && (
-          <BoardHubMenu
-            hubRef={hubBtnRef}
-            onClose={() => setHubOpen(false)}
-            petals={hubPetals}
-            openedByKeyboard={hubOpenedByKeyboard}
-          />
-        )}
-
-        {/* Undo is the seam's one remaining satellite (the clock moved to the
+          {/* Undo is the seam's one remaining satellite (the clock moved to the
             edge strip below, see the ruling in STYLE_GUIDE). On a row seam it
             sits beside the hub, over the gutter; on a column seam the hub is a
             four-corner crossing, so it takes the middle of an adjacent panel's
@@ -495,89 +529,96 @@ export function GameBoard({
             open (the ring hides it rather than risk a petal landing on top of
             it) — the clock strip below is NOT hidden for this: it moved out
             of the seam entirely, so a petal can't reach it. */}
-        {undoLabel && !hubOpen && (
-          <button
-            type="button"
-            className="game-board-undo-btn"
-            style={{
-              ['--seam-top-pct' as never]: undoPlace.topPct,
-              ['--seam-left-pct' as never]:
-                'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
-              // seamSatellite drives the placement (row-seam = left of the hub,
-              // col-seam = a quarter down the seam); undoButtonParams still
-              // supplies the icon rotation (0° for row, 90° for col). Two size
-              // variants let the CSS media query pick the right offset at ≥600px
-              // without recalculating.
-              ['--undo-tx' as never]: undoPlace.tx,
-              ['--undo-ty' as never]: undoPlace.ty,
-              ['--undo-tx-lg' as never]: undoPlaceLg.tx,
-              ['--undo-ty-lg' as never]: undoPlaceLg.ty,
-              ['--undo-rot' as never]: `${undoButtonParams(board.seam).iconRot}deg`,
-            }}
-            aria-label={`Undo ${undoLabel}`}
-            title={`Undo ${undoLabel}`}
-            onPointerDown={(e) => e.stopPropagation()}
-            onPointerUp={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onUndo();
-            }}
-          >
-            <Undo2 width={18} height={18} strokeWidth={2.2} aria-hidden />
-          </button>
+          {undoLabel && !hubOpen && (
+            <button
+              type="button"
+              className="game-board-undo-btn"
+              style={{
+                ['--seam-top-pct' as never]: undoPlace.topPct,
+                ['--seam-left-pct' as never]:
+                  'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
+                // seamSatellite drives the placement (row-seam = left of the hub,
+                // col-seam = a quarter down the seam); undoButtonParams still
+                // supplies the icon rotation (0° for row, 90° for col). Two size
+                // variants let the CSS media query pick the right offset at ≥600px
+                // without recalculating.
+                ['--undo-tx' as never]: undoPlace.tx,
+                ['--undo-ty' as never]: undoPlace.ty,
+                ['--undo-tx-lg' as never]: undoPlaceLg.tx,
+                ['--undo-ty-lg' as never]: undoPlaceLg.ty,
+                ['--undo-rot' as never]: `${undoButtonParams(board.seam).iconRot}deg`,
+              }}
+              aria-label={`Undo ${undoLabel}`}
+              title={`Undo ${undoLabel}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUndo();
+              }}
+            >
+              <Undo2 width={18} height={18} strokeWidth={2.2} aria-hidden />
+            </button>
+          )}
+        </div>
+
+        {/* The table clock: a full-width edge strip along the board's bottom
+            (the device holder's edge), screen-relative to the BOARD (never
+            rotated to a seat) — but it rotates with the board's own
+            landscape counter-rotation, same as everything else in this
+            wrapper, so it stays at the device's physical bottom edge rather
+            than the current screen's. A flex sibling of the grid above, not
+            an overlay — the grid shrinks to make room for it, it never sits
+            on top of a seat. Hidden in commander-damage focus mode, same as
+            the old seam satellite: that mode strips the board down to the
+            damage question. */}
+        {showClockStrip && !cmdFocus && (
+          <GameClock
+            game={game}
+            dispatch={dispatchTracked}
+            canEdit={canControlAll}
+            showTotal={gameTimerEnabled}
+            showTurn={turnTrackerEnabled}
+          />
+        )}
+
+        {game.status === 'finished' && (
+          // Whole-table moment, not per-seat gameplay: never rotated to the
+          // WINNER's seat specifically (B7-01) — everyone at the table reads
+          // it the same way, the same as the confetti layer above it. Still
+          // rotates with the board's own landscape lock, like every other
+          // overlay in this wrapper.
+          <WinCelebration game={game} onDone={onLeave} onRematch={onRematch} />
+        )}
+
+        {menuOpen && (
+          <GameMenu
+            game={game}
+            canControlAll={canControlAll}
+            onClose={() => setMenuOpen(false)}
+            onMinimize={onMinimize}
+            onLeave={onLeave}
+            onEnd={onEnd}
+            onRematch={onRematch}
+            onUndo={onUndo}
+            undoLabel={undoLabel}
+            dispatch={dispatchTracked}
+            onShowGestures={() => setHintOpen(true)}
+            initialTab={menuInitialTab}
+            fullscreenSupported={fullscreen.supported}
+            isFullscreen={fullscreen.isFullscreen}
+            onToggleFullscreen={fullscreen.toggle}
+          />
+        )}
+
+        {hintOpen && (
+          <BoardGestureHint
+            vertical={(game.tapOrientation ?? 'horizontal') === 'vertical'}
+            showTurnTracker={turnTrackerEnabled}
+            onClose={() => setHintOpen(false)}
+          />
         )}
       </div>
-
-      {/* The table clock: a full-width edge strip along the board's bottom
-          (the device holder's edge), screen-relative and never rotated. A
-          flex sibling of the grid above, not an overlay — the grid shrinks to
-          make room for it, it never sits on top of a seat. Hidden in
-          commander-damage focus mode, same as the old seam satellite: that
-          mode strips the board down to the damage question. */}
-      {showClockStrip && !cmdFocus && (
-        <GameClock
-          game={game}
-          dispatch={dispatchTracked}
-          canEdit={canControlAll}
-          showTotal={gameTimerEnabled}
-          showTurn={turnTrackerEnabled}
-        />
-      )}
-
-      {game.status === 'finished' && (
-        // Whole-table moment, not per-seat gameplay: screen-relative, never
-        // rotated to the winner's seat (B7-01) — everyone at the table reads
-        // it the same way, the same as the confetti layer above it.
-        <WinCelebration game={game} onDone={onLeave} onRematch={onRematch} />
-      )}
-
-      {menuOpen && (
-        <GameMenu
-          game={game}
-          canControlAll={canControlAll}
-          onClose={() => setMenuOpen(false)}
-          onMinimize={onMinimize}
-          onLeave={onLeave}
-          onEnd={onEnd}
-          onRematch={onRematch}
-          onUndo={onUndo}
-          undoLabel={undoLabel}
-          dispatch={dispatchTracked}
-          onShowGestures={() => setHintOpen(true)}
-          initialTab={menuInitialTab}
-          fullscreenSupported={fullscreen.supported}
-          isFullscreen={fullscreen.isFullscreen}
-          onToggleFullscreen={fullscreen.toggle}
-        />
-      )}
-
-      {hintOpen && (
-        <BoardGestureHint
-          vertical={(game.tapOrientation ?? 'horizontal') === 'vertical'}
-          showTurnTracker={turnTrackerEnabled}
-          onClose={() => setHintOpen(false)}
-        />
-      )}
 
       {restartConfirmOpen && (
         // Board-level restart, reached from the hub ring: same confirm copy
@@ -631,6 +672,7 @@ function PlayerPanel({
   dispatch,
   slot,
   rotation,
+  boardRotation,
   canEdit,
   canLayout,
   cmdFocus,
@@ -654,6 +696,11 @@ function PlayerPanel({
   dispatch: (a: GameAction) => void;
   slot: SeatSlot;
   rotation: number;
+  /** The board's own landscape "keep it still" counter-rotation (0/90/-90).
+   *  Never applied to CSS — the panel's own transform already inherits it
+   *  by nesting — only composed into gesture math below, which reads raw
+   *  screen-space pointer coordinates that don't know about CSS transforms. */
+  boardRotation: 0 | 90 | -90;
   canEdit: boolean;
   /** Viewer may change board geometry (local, or online host). */
   canLayout: boolean;
@@ -683,6 +730,15 @@ function PlayerPanel({
   highRollActive: boolean;
   onHighRollDismiss: () => void;
 }) {
+  // Real pointer events (clientX/clientY, and the deltas tap-and-hold derives
+  // from them) always report true screen-space coordinates — CSS transforms
+  // never affect them. The panel's own visual rotation composes with the
+  // board's landscape counter-rotation automatically through DOM nesting, so
+  // anything reading raw pointer coordinates needs the SUM to correctly map
+  // screen-space back to "this seat's own up/down/left/right" — the panel's
+  // CSS rotation alone (`rotation`) is no longer the whole story once the
+  // board itself is rotated.
+  const gestureRotation = (((rotation + boardRotation) % 360) + 360) % 360;
   const lowLifeWarningEnabled = usePlayStore((st) => st.lowLifeWarningEnabled);
   const underlineSixNine = usePlayStore((st) => st.underlineSixNine);
   const minimalistMode = usePlayStore((st) => st.minimalistMode);
@@ -772,30 +828,33 @@ function PlayerPanel({
       if (!el) return;
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
-      // `rect` is the panel's axis-aligned screen box; CSS rotation isn't
-      // reflected in it. Map the hit (as a fraction of that box) back into the
-      // panel's own un-rotated coordinate space so the chip lands under the
-      // finger on every seat rotation (the default 4p layout uses 90°/270°
-      // side seats, not just the 180° top seat). Inverse of a center-origin
-      // clockwise CSS rotate. 90/270 swap the box dimensions, which the
-      // fraction math absorbs since we work in percentages.
+      // `rect` is the axis-aligned screen box — it reflects EVERY ancestor's
+      // CSS transform, including the board's own landscape counter-rotation,
+      // not just this panel's own. Map the hit (as a fraction of that box)
+      // back into the panel's own un-rotated coordinate space so the chip
+      // lands under the finger on every seat rotation (the default 4p layout
+      // uses 90°/270° side seats, not just the 180° top seat) AND under a
+      // board-level counter-rotation. Inverse of a center-origin clockwise
+      // CSS rotate, by the TOTAL (seat + board) rotation. 90/270 swap the box
+      // dimensions, which the fraction math absorbs since we work in
+      // percentages.
       const sx = ((clientX - rect.left) / rect.width) * 100;
       const sy = ((clientY - rect.top) / rect.height) * 100;
       let x = sx;
       let y = sy;
-      if (rotation === 90) {
+      if (gestureRotation === 90) {
         x = sy;
         y = 100 - sx;
-      } else if (rotation === 180) {
+      } else if (gestureRotation === 180) {
         x = 100 - sx;
         y = 100 - sy;
-      } else if (rotation === 270) {
+      } else if (gestureRotation === 270) {
         x = 100 - sy;
         y = sx;
       }
       lastPointerRef.current = { x, y };
     },
-    [rotation]
+    [gestureRotation]
   );
 
   // Detect "lethal" transitions and flash. Watches life, poison, and
@@ -874,7 +933,7 @@ function PlayerPanel({
     onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
     onSwipeUp: cmdFocus ? undefined : canFocusCmd ? onCmdFocus : undefined,
     onSwipeDown: cmdFocus ? onCmdFocusExit : canEdit ? () => setDrawerOpen(true) : undefined,
-    rotation,
+    rotation: gestureRotation,
     holdStep: HOLD_JUMP,
     disabled,
   });
@@ -887,7 +946,7 @@ function PlayerPanel({
     onPointerStart: (e) => recordPointer(e.clientX, e.clientY),
     onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
     onSwipeDown: cmdFocus ? onCmdFocusExit : undefined,
-    rotation,
+    rotation: gestureRotation,
     holdStep: HOLD_JUMP,
     disabled,
   });
@@ -1279,7 +1338,7 @@ function PlayerPanel({
             game={game}
             canEdit={canEdit}
             canLayout={canLayout}
-            rotation={rotation}
+            rotation={gestureRotation}
             dispatch={dispatch}
             onClose={() => setDrawerOpen(false)}
             onCommanderDamage={canFocusCmd ? onCmdFocus : undefined}

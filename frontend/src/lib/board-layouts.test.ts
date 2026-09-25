@@ -154,7 +154,10 @@ describe('seamSatellite', () => {
     // The hub is a four-corner crossing on a column seam, so anything offset a
     // few rem from it lands on a name — measured at 766px² on 4p-sides before
     // this rule. A quarter of the way along the seam is the middle of an
-    // adjacent panel's edge, which is clear by construction.
+    // adjacent panel's edge, which is clear by construction — for every board
+    // whose rows are a plain left/right pair, which is the default
+    // (`wideFirstRow` omitted / false). See the next test for the one shape
+    // that needs a different point instead.
     const before = seamSatellite({ col: 1 }, 2, -1, '3.4rem');
     const after = seamSatellite({ col: 1 }, 2, 1, '3.4rem');
     expect(before.topPct).toBe('25%');
@@ -163,6 +166,39 @@ describe('seamSatellite', () => {
     for (const p of [before, after]) {
       expect(p.tx).toBe('-50%');
       expect(p.ty).toBe('-50%');
+    }
+  });
+
+  it('column seam + Wide first row: the "before" point shifts to 32%, but only where 25% would land inside a cell', () => {
+    // 7p-ends/8p-ends/9p-sides/9p-ends/10p-ends all seat a Wide seat (no
+    // left/right split) in row 1, pushing seat 1 into row 2 — on their 5-6
+    // row boards a flat 25% lands inside that cell rather than on its
+    // boundary, close enough to seat 1's own "up next" chip corner that undo
+    // growing 42->44px (#2279) tipped it into a measured 10px² overlap.
+    // `wideFirstRow` is a caller-supplied boolean (GameBoard.tsx derives it
+    // from `seats[0].colSpan === 2`, never a preset id), and the shift only
+    // fires when the quarter ALSO doesn't already land on a row boundary
+    // (`0.25 * rows` not a whole number) — so a 4-row Wide-first-row board
+    // (`7p-sides`) is excluded exactly like a board with no Wide seat at all.
+    for (const rows of [5, 6]) {
+      const before = seamSatellite({ col: 1 }, rows, -1, '3.4rem', true);
+      expect(before.topPct, `rows=${rows}`).toBe('32%');
+      expect(before.tx).toBe('-50%');
+      expect(before.ty).toBe('-50%');
+    }
+    // 4 rows: the flat quarter already lands exactly on the row 1/row 2
+    // boundary (0.25 * 4 === 1), so no shift even with a Wide first row.
+    expect(seamSatellite({ col: 1 }, 4, -1, '3.4rem', true).topPct).toBe('25%');
+    // No Wide first row at all: never shifts, regardless of row count.
+    for (const rows of [4, 5, 6]) {
+      expect(seamSatellite({ col: 1 }, rows, -1, '3.4rem', false).topPct, `rows=${rows}`).toBe(
+        '25%'
+      );
+    }
+    // The "after" side never shifts — nothing renders a column-seam "after"
+    // satellite today, so there is nothing measured to fix there.
+    for (const rows of [4, 5, 6]) {
+      expect(seamSatellite({ col: 1 }, rows, 1, '3.4rem', true).topPct, `rows=${rows}`).toBe('75%');
     }
   });
 
@@ -229,6 +265,167 @@ describe('homeSlotIndex', () => {
   it('works on decoded custom layouts', () => {
     const decoded = decodeCustomLayout(encodeCustomLayout(pod4), 4);
     expect(homeSlotIndex(decoded!)).toBe(2);
+  });
+});
+
+describe('7-10p Lotus sides/ends layouts', () => {
+  // Lotus's own 7-10p arrangement seats everyone along the two long edges
+  // (4p-sides scaled up) rather than stacking rows facing the short edges —
+  // it is now the DEFAULT for these counts, with the existing wide-row
+  // presets still available and a new "ends" variant (a seat at each short
+  // end, the rest along the sides) alongside it.
+  it('the new "sides" preset is the default (index 0) for 7-10 players', () => {
+    for (const count of [7, 8, 9, 10]) {
+      expect(layoutsForCount(count)[0].id).toBe(`${count}p-sides`);
+    }
+  });
+
+  it('a matching "ends" preset exists for 7-10 players', () => {
+    for (const count of [7, 8, 9, 10]) {
+      const ids = layoutsForCount(count).map((l) => l.id);
+      expect(ids).toContain(`${count}p-ends`);
+    }
+  });
+
+  it('every existing preset is still in the picker alongside the new ones', () => {
+    const preExisting: Record<number, string[]> = {
+      7: ['7p-wide-top', '7p-wide-bottom'],
+      8: ['8p-4v4', '8p-2v6'],
+      9: ['9p-wide-top', '9p-wide-bottom'],
+      10: ['10p-6v4', '10p-4v6'],
+    };
+    for (const [count, ids] of Object.entries(preExisting)) {
+      const available = layoutsForCount(Number(count)).map((l) => l.id);
+      for (const id of ids) expect(available).toContain(id);
+    }
+  });
+
+  it('"sides" seats every seat along a long edge — even counts fully, odd counts via one Wide top end', () => {
+    // 8/10 (even) split cleanly into two columns, so every seat faces a
+    // long edge (rot 90/270). 7/9 (odd) can't split evenly, so — same move
+    // 3p-wide-top-sides makes for 3 — the extra seat takes a Wide top end
+    // (rot 180) and the rest (an even count) split between the columns.
+    for (const count of [8, 10]) {
+      const sides = layoutsForCount(count).find((l) => l.id === `${count}p-sides`)!;
+      for (const seat of sides.seats) expect([90, 270]).toContain(seat.rot);
+    }
+    for (const count of [7, 9]) {
+      const sides = layoutsForCount(count).find((l) => l.id === `${count}p-sides`)!;
+      const wide = sides.seats.filter((seat) => seat.colSpan === 2);
+      expect(wide).toHaveLength(1);
+      expect(wide[0].rot).toBe(180);
+      const rest = sides.seats.filter((seat) => seat.colSpan !== 2);
+      for (const seat of rest) expect([90, 270]).toContain(seat.rot);
+    }
+  });
+
+  it('"ends" seats a Wide seat at each short end (rot 180 top, rot 0 bottom) and the rest sideways', () => {
+    for (const count of [7, 8, 9, 10]) {
+      const ends = layoutsForCount(count).find((l) => l.id === `${count}p-ends`)!;
+      const wide = ends.seats.filter((seat) => seat.colSpan === 2);
+      expect(wide.map((seat) => seat.rot).sort()).toEqual([0, 180]);
+      const sideways = ends.seats.filter((seat) => seat.colSpan !== 2);
+      for (const seat of sideways) expect([90, 270]).toContain(seat.rot);
+    }
+  });
+
+  it('an even count splits its sides evenly; an odd count splits as evenly as possible', () => {
+    // 8/10 (even, after the wide ends on "ends") split N/2 either column;
+    // 7/9 (odd) can't split evenly once two wide seats are subtracted, so
+    // one column gets one more seat than the other and the shorter column
+    // leaves its far cell empty rather than shrinking the grid.
+    const countBySide = (l: ReturnType<typeof layoutsForCount>[number]) => {
+      const left = l.seats.filter((seat) => seat.col === 1 && seat.colSpan !== 2).length;
+      const right = l.seats.filter((seat) => seat.col === 2 && seat.colSpan !== 2).length;
+      return { left, right };
+    };
+    expect(countBySide(layoutsForCount(8).find((l) => l.id === '8p-sides')!)).toEqual({
+      left: 4,
+      right: 4,
+    });
+    expect(countBySide(layoutsForCount(10).find((l) => l.id === '10p-sides')!)).toEqual({
+      left: 5,
+      right: 5,
+    });
+    expect(countBySide(layoutsForCount(8).find((l) => l.id === '8p-ends')!)).toEqual({
+      left: 3,
+      right: 3,
+    });
+    expect(countBySide(layoutsForCount(10).find((l) => l.id === '10p-ends')!)).toEqual({
+      left: 4,
+      right: 4,
+    });
+    const ends7 = countBySide(layoutsForCount(7).find((l) => l.id === '7p-ends')!);
+    expect(ends7.left + ends7.right).toBe(5);
+    expect(Math.abs(ends7.left - ends7.right)).toBe(1);
+    const ends9 = countBySide(layoutsForCount(9).find((l) => l.id === '9p-ends')!);
+    expect(ends9.left + ends9.right).toBe(7);
+    expect(Math.abs(ends9.left - ends9.right)).toBe(1);
+  });
+
+  it('"ends" leaves exactly one empty cell for an odd count, none for an even one', () => {
+    expect(layoutsForCount(7).find((l) => l.id === '7p-ends')!.empty).toHaveLength(1);
+    expect(layoutsForCount(9).find((l) => l.id === '9p-ends')!.empty ?? []).toHaveLength(1);
+    expect(layoutsForCount(8).find((l) => l.id === '8p-ends')!.empty ?? []).toHaveLength(0);
+    expect(layoutsForCount(10).find((l) => l.id === '10p-ends')!.empty ?? []).toHaveLength(0);
+  });
+
+  it('seam satellites clear the hub for every new seam (row and col alike)', () => {
+    for (const count of [7, 8, 9, 10]) {
+      for (const id of [`${count}p-sides`, `${count}p-ends`]) {
+        const layout = layoutsForCount(count).find((l) => l.id === id)!;
+        const before = seamSatellite(layout.seam, layout.rows, -1, '3.4rem');
+        const after = seamSatellite(layout.seam, layout.rows, 1, '3.4rem');
+        // The seam row/col itself must sit strictly inside the grid (never
+        // on row 0 or past the last row), or the satellites would land off
+        // the board entirely.
+        if ('row' in layout.seam) {
+          expect(layout.seam.row).toBeGreaterThan(0);
+          expect(layout.seam.row).toBeLessThan(layout.rows);
+        } else {
+          expect(layout.seam.col).toBe(1);
+        }
+        for (const p of [before, after]) {
+          expect(p.topPct).toMatch(/^\d+(\.\d+)?%$/);
+          const pct = parseFloat(p.topPct);
+          expect(pct).toBeGreaterThanOrEqual(0);
+          expect(pct).toBeLessThanOrEqual(100);
+        }
+      }
+    }
+  });
+
+  it('pins the col-seam + Wide-seat-in-row-1 shape that GameBoard.tsx derives wideFirstRow from', () => {
+    // GameBoard.tsx computes seamSatellite's `wideFirstRow` argument as
+    // `board.seats[0]?.colSpan === 2` — 7p-ends, 8p-ends, 9p-sides, 9p-ends
+    // and 10p-ends all seat a Wide seat (colSpan 2) in row 1, which pushes
+    // seat 1 into row 2 rather than row 1 — close enough to the undo
+    // satellite's "before" quarter point that growing undo 42->44px (#2279)
+    // produced a measured 10px² overlap with seat 1's own "up next" chip
+    // corner (see the `seamSatellite` test above for the shifted-point
+    // assertion itself). `7p-sides`/`8p-sides`/`10p-sides` are the control
+    // group: `8p-sides`/`10p-sides` have no Wide seat at all, and
+    // `7p-sides` (4 rows, the same Wide-in-row-1 shape) never collided
+    // because its row count happens to put a flat quarter exactly on the
+    // row 1/row 2 boundary rather than inside row 2 — pinned here too, so a
+    // future preset that reproduces the Wide-seat-in-row-1 shape at 5+ rows
+    // is caught by this same structural check, not silently landing outside
+    // wideFirstRow's derivation and reintroducing the collision.
+    const wideSeatPushesSeatOneToRow2 = ['7p-ends', '8p-ends', '9p-sides', '9p-ends', '10p-ends'];
+    for (const id of wideSeatPushesSeatOneToRow2) {
+      const count = Number(id.match(/^\d+/)![0]);
+      const layout = layoutsForCount(count).find((l) => l.id === id)!;
+      expect(layout.seam, id).toEqual({ col: 1 });
+      expect(layout.seats[0].colSpan, `${id} seat 0`).toBe(2); // the Wide seat
+      expect(layout.seats[1].row, `${id} seat 1`).toBe(2);
+      expect(layout.seats[1].colSpan, `${id} seat 1`).toBeUndefined(); // not itself Wide
+    }
+    // Control group: same col-seam family, no collision, for contrast.
+    expect(layoutsForCount(8).find((l) => l.id === '8p-sides')!.seats[0].colSpan).toBeUndefined();
+    expect(layoutsForCount(10).find((l) => l.id === '10p-sides')!.seats[0].colSpan).toBeUndefined();
+    const sevenPSides = layoutsForCount(7).find((l) => l.id === '7p-sides')!;
+    expect(sevenPSides.rows).toBe(4);
+    expect(sevenPSides.seats[1].row).toBe(2);
   });
 });
 

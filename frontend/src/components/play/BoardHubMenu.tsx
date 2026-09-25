@@ -17,12 +17,49 @@ export interface HubPetal {
   onSelect: () => void;
 }
 
+/** `el`'s position relative to `ancestor`'s own (pre-transform) layout box,
+ *  via the offsetParent chain — unlike `getBoundingClientRect`, this is
+ *  unaffected by any CSS transform on `ancestor` or anything between them.
+ *  Used only for the board-rotated case below: `position: fixed` on a
+ *  descendant of a transformed ancestor resolves its `top`/`left` against
+ *  that ancestor's own local box, not real screen pixels, so the ring's
+ *  petal math needs the same local terms `getBoundingClientRect` can't give
+ *  it once the board is counter-rotated. */
+function localRectRelativeTo(
+  el: HTMLElement,
+  ancestor: HTMLElement
+): { x: number; y: number; width: number; height: number } {
+  let x = 0;
+  let y = 0;
+  let node: HTMLElement | null = el;
+  while (node && node !== ancestor) {
+    x += node.offsetLeft;
+    y += node.offsetTop;
+    node = node.offsetParent as HTMLElement | null;
+  }
+  return { x, y, width: el.offsetWidth, height: el.offsetHeight };
+}
+
 /**
  * The board hub's radial petal menu (Lotus's fan-out ring): tapping the hub
  * (outside commander-damage mode) mounts this instead of opening the game
- * menu directly. Screen-relative, like the hub itself — positions are
- * computed from the hub's on-screen rect, not from the board's rotated seat
- * space, so the ring reads upright for whoever is holding the device.
+ * menu directly.
+ *
+ * Screen-relative in the ordinary case — positions come from the hub's real
+ * on-screen rect, not from any individual seat's rotation, so the ring reads
+ * upright for whoever is holding the device regardless of which seat's
+ * rotation the hub happens to sit near. Under the board's own landscape
+ * "keep it still" counter-rotation (`boardRotation`), the ring rotates WITH
+ * the board instead — the whole point of that feature is to keep reading in
+ * the original portrait framing, and a screen-upright ring floating over a
+ * counter-rotated board would read as broken, not upright. `.game-board`'s
+ * `position: fixed` ring already achieves this for free once nested inside
+ * the transformed `.game-board-rotator` (a transformed ancestor becomes the
+ * fixed-position containing block, per the CSS spec) — the only thing that
+ * has to change is the JS measurement, from screen pixels
+ * (`getBoundingClientRect`) to the rotator's own local pre-transform terms
+ * (`localRectRelativeTo`), which is what that containing block actually
+ * resolves `top`/`left` against.
  *
  * `useMenuKeyboard` supplies the real WAI-ARIA menu behaviour for free: focus
  * moves into the first petal on open, Arrow/Home/End roam the ring, Escape
@@ -37,6 +74,7 @@ export function BoardHubMenu({
   onClose,
   petals,
   openedByKeyboard = true,
+  boardRotation = 0,
 }: {
   hubRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
@@ -50,6 +88,8 @@ export function BoardHubMenu({
    *  true so every other caller (there are none yet, but this is a shared
    *  primitive) keeps the WAI-ARIA-correct ring unless it opts out. */
   openedByKeyboard?: boolean;
+  /** The board's own landscape counter-rotation (0/90/-90) — see above. */
+  boardRotation?: 0 | 90 | -90;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [points, setPoints] = useState<Point[]>([]);
@@ -58,6 +98,29 @@ export function BoardHubMenu({
     const measure = () => {
       const btn = hubRef.current;
       if (!btn) return;
+
+      if (boardRotation !== 0) {
+        const rotator = btn.closest('.game-board-rotator') as HTMLElement | null;
+        const grid = btn.closest('.game-board-grid') as HTMLElement | null;
+        if (rotator && grid) {
+          const gridLocal = localRectRelativeTo(grid, rotator);
+          const hubLocal = localRectRelativeTo(btn, rotator);
+          const origin = { x: gridLocal.x, y: gridLocal.y };
+          const hub = {
+            x: hubLocal.x + hubLocal.width / 2 - origin.x,
+            y: hubLocal.y + hubLocal.height / 2 - origin.y,
+          };
+          const viewport = { width: gridLocal.width, height: gridLocal.height };
+          setPoints(
+            hubPetalPositions(hub, viewport, petals.length).map((p) => ({
+              x: p.x + origin.x,
+              y: p.y + origin.y,
+            }))
+          );
+          return;
+        }
+      }
+
       const rect = btn.getBoundingClientRect();
       // Bound the ring to the SEAT GRID, not the whole window: since the
       // table clock became a full-width edge strip below the grid, the
@@ -88,7 +151,7 @@ export function BoardHubMenu({
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [hubRef, petals.length]);
+  }, [hubRef, petals.length, boardRotation]);
 
   const { closeAndReturnFocus } = useMenuKeyboard({
     open: true,

@@ -47,7 +47,9 @@ export function SeatMenu({
   game: GameState;
   canEdit: boolean;
   canLayout: boolean;
-  /** Panel rotation, so dragging the strip back up is panel-local. */
+  /** Panel rotation composed with the board's own landscape counter-
+   *  rotation (if any), so dragging the strip back up is panel-local
+   *  regardless of how the device physically turned. */
   rotation: number;
   dispatch: (a: GameAction) => void;
   onClose: () => void;

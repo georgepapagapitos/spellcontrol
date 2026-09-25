@@ -177,6 +177,73 @@ describe('numeral size', () => {
     expect(tier).toMatch(/height:\s*1rem/);
   });
 
+  it('a sideways 7-10p seat (Xp-sides/Xp-ends) gets the same short-cell treatment as an upright one', () => {
+    // The 9.5rem tier above only ever shrank the sideways numeral (the
+    // width-keyed `max-width: 10rem` rule) — never the ±'s reach, the name,
+    // or the chip rail. Measured before this: the ± spilling 3-6px past a
+    // 74-115px-tall cell's short half-width, the name ellipsising to "Pla…"
+    // (10p-sides @320, no upright seat exists to fall back on there), and
+    // the "up next" chip grazing the name (335-478px²). This override is a
+    // SECOND `@container (max-height: 9.5rem)` block, placed after
+    // `.player-panel-corner`'s own rule rather than folded into the first
+    // (upright) block above — play-touch-targets.test.ts's search for the
+    // base corner rule needs to find that one first, not this override.
+    const firstEnd = board.indexOf('\n}\n', board.indexOf('@container (max-height: 9.5rem)'));
+    const tierStart = board.indexOf('@container (max-height: 9.5rem)', firstEnd);
+    expect(tierStart, 'second (sideways) 9.5rem tier is missing').toBeGreaterThan(-1);
+    const tier = board.slice(tierStart, board.indexOf('\n}\n', tierStart));
+    expect(tier).toContain('.game-board:not(.game-board-2) .player-panel[data-sideways] {');
+    expect(tier).toMatch(/--life-half:\s*calc\(var\(--life-size\)\s*\*\s*0\.48\)/);
+    expect(tier).toContain(
+      '.game-board:not(.game-board-2) .player-panel[data-sideways] .player-panel-name {'
+    );
+    expect(tier).toContain(
+      '.game-board:not(.game-board-2) .player-panel[data-sideways] .player-panel-corner {'
+    );
+    expect(tier).toContain(
+      '.game-board:not(.game-board-2) .player-panel[data-sideways] .player-panel-step-btn {'
+    );
+  });
+
+  it('the sideways chip rail shrinks in the same 9.5rem tier too', () => {
+    const tierStart = counters.indexOf('@container (max-height: 9.5rem)');
+    const tier = counters.slice(tierStart, counters.indexOf('\n}\n', tierStart));
+    expect(tier).toContain(
+      '.game-board:not(.game-board-2) .player-panel[data-sideways] .pp-designation-chip {'
+    );
+  });
+
+  it("9p-ends/10p-ends' 74px sideways cells (rows=6, the tallest row count) get one tier further", () => {
+    // Even at the 9.5rem tier's values, the shortest row count (6, only
+    // 9p-ends/10p-ends need it) still left a name/chip residual — a second,
+    // narrower container query, placed after the 9.5rem one so it wins
+    // where both match, and scoped to [data-sideways] so it never touches
+    // the 90-115px sideways cells (or anything upright) the 9.5rem tier
+    // already clears on its own.
+    const boardTier = board.slice(board.indexOf('@container (max-height: 6rem)'));
+    expect(boardTier.slice(0, boardTier.indexOf('\n}\n'))).toContain(
+      '.game-board:not(.game-board-2) .player-panel[data-sideways] .player-panel-name {'
+    );
+    const countersTierStart = counters.indexOf('@container (max-height: 6rem)');
+    expect(countersTierStart, '6rem tier is missing from play-counters-panel.css').toBeGreaterThan(
+      -1
+    );
+    const countersTier = counters.slice(
+      countersTierStart,
+      counters.indexOf('\n}\n', countersTierStart)
+    );
+    expect(countersTier).toContain(
+      '.game-board:not(.game-board-2) .player-panel[data-sideways] .pp-designation-chips {'
+    );
+    expect(countersTier).toContain(
+      '.game-board:not(.game-board-2) .player-panel[data-sideways] .pp-designation-chip {'
+    );
+    // The rail's own corner offset shrinks but keeps --seam-keepout intact —
+    // that term is what keeps this corner clear of the hub/undo satellites
+    // (E299/E310), unrelated to how short the cell is.
+    expect(countersTier).toMatch(/top:\s*calc\([\d.]+rem \+ var\(--seam-keepout, 0px\)\)/);
+  });
+
   it('the ± hug the numeral at every player count, never pinned to the panel ends', () => {
     // A sideways seat keeps its corner controls at the panel ends; 2p-side
     // pinned the ± there and ran them into ⋯ and the turn chip.

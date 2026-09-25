@@ -7518,12 +7518,39 @@ shows it?
      (`seamSatellite`), because the hub there is a four-panel crossing and
      anything hung a few rem from it lands on a name in either direction. The
      middle of a panel edge is clear by construction, which is why this holds
-     at every board size rather than only the one it was tuned at.
+     at every board size rather than only the one it was tuned at — for
+     every board whose rows are a plain left/right pair, which is every
+     col-seam board except the one shape rule 4 below carves out.
   3. A **wide** satellite is anchored by its near edge, never centred at an
      offset — half of a 133px pill swallowed the 44px hub button and hid the ⋯
      glyph entirely on every row-seam board. Cap its width against the board
      edge too, so a narrow phone or a long player name shrinks the pill instead
      of pushing it off-screen.
+  4. **Exception to rule 2: a Wide seat in row 1 shifts the "before" point to
+     32% (2026-09-25) — everything else still gets the literal quarter.** A
+     flat 25% holds only because a plain left/right row repeats identically
+     at every position, so _which_ row it lands in never matters. `7p-ends`,
+     `8p-ends`, `9p-sides`, `9p-ends` and `10p-ends` all seat a Wide seat (no
+     left/right split at all) in row 1, which pushes seat 1 — the seat a
+     table actually marks "up next" most of the time — into row 2 instead of
+     row 1. Their 5-6 rows put row 2 somewhere a flat quarter doesn't land on
+     its own boundary, so the point ends up _inside_ that cell instead, and
+     undo growing 42→44px (#2279) tipped that into a measured 10px² overlap
+     with seat 1's own "up next" chip corner. `seamSatellite`'s `wideFirstRow`
+     parameter — GameBoard.tsx derives it from `seats[0].colSpan === 2`,
+     never a preset id — opts a board into the 32% point **only** when a Wide
+     first row AND the row count would otherwise land the flat quarter inside
+     a cell (`0.25 * rows` not a whole number); `7p-sides` has the same
+     Wide-row-1 shape but only 4 rows, where a flat quarter already lands
+     exactly on the row 1/row 2 boundary, so it keeps rule 2's literal 25%
+     same as `8p-sides`/`10p-sides` (no Wide seat at all) and every other
+     col-seam board. 32% is itself measured, not a `rows`-driven formula — one
+     value clears both the 5-row and 6-row cases. The "after" (75%) side never
+     shifts: nothing renders a column-seam "after" satellite today, so a
+     symmetric Wide-last-row exception would be guessing ahead of a collision
+     nobody has measured. `board-layouts.test.ts` pins the literal-quarter
+     default, the shifted value under the exact condition, and the
+     Wide-seat-in-row-1 shape GameBoard.tsx derives `wideFirstRow` from.
 
   Verify with `.claude/tools/seam-geometry-scratch.mjs`, which drives all 16
   preset layouts through the menu's Setup tab and reports every satellite ∩
@@ -7692,6 +7719,67 @@ correctness bug the capacity work exposed.
   number, so nothing is lost, only where it's drawn. Counterclockwise seating
   is not supported; if it's ever wanted, it's a second `seats` ordering per
   preset, not a reducer change.
+
+**Sideways is now the DEFAULT for 7-10 (2026-09-25).** The Wide-row presets
+above were the whole story for one day; a look at real screenshots of Lotus's
+own 7-10p gallery showed people at a real 7-10 player table sit along the
+two long edges, the way 4p-sides already seats four — not stacked in rows
+facing the short edges. The 2-column model still holds; only the default
+changed, and everything the Wide-row presets already offer stays in the
+picker.
+
+- **`Xp-sides` (X = 7-10) is `layoutsForCount(X)[0]`, the new default.** 8p
+  and 10p (even) split cleanly, every seat rotated 90°/270° by COLUMN
+  (`8p-sides` 4+4, `10p-sides` 5+5) — the same col-seam construction as
+  `4p-sides`, just taller. 7p and 9p (odd) can't split evenly, so — the same
+  move `3p-wide-top-sides` makes for 3 — the extra seat takes a Wide top end
+  (rot 180) and the rest split evenly (`7p-sides` 3+3, `9p-sides` 4+4).
+- **`Xp-ends` is new too: a seat at each short end, the rest along the
+  sides.** Both ends are Wide (top rot 180, bottom rot 0); the remaining
+  seats split between the columns. 8/10 (even, minus the two wide ends
+  leaves an even remainder) split cleanly (`8p-ends` 1+3+3+1, `10p-ends`
+  1+4+4+1). 7/9 (odd, minus two wide ends leaves an odd remainder) can't —
+  one column gets one more seat than the other (`7p-ends` 1+3+2+1, `9p-ends`
+  1+4+3+1) and the shorter column's far cell is `empty` rather than
+  shrinking the grid to fit it.
+- **`Xp-sides` (7p/9p) uses a COL seam even though its top seat is Wide.**
+  `3p-wide-top-sides` gets away with a row seam because it has only ONE
+  sideways row below the wide top seat; `7p-sides`/`9p-sides` stack three
+  and four. A row seam's undo satellite offsets ±3.4rem horizontally from
+  centre — a margin measured against upright/180° panels — and at 4-5 rows
+  the sideways rows are short enough that their step buttons sit close
+  enough to the seam in absolute px to be inside that margin: measured
+  90-100px² of undo-vs-step overlap at 320px, on the sideways row on
+  _both_ sides of wherever the row seam landed (row 1 or a centred row 2 —
+  moving the row didn't fix it, since both neighbouring rows are sideways
+  either way). A COL seam sidesteps the whole problem: `seamSatellite`'s
+  col-seam quarter-point rule (E299/E310) already keeps satellites off
+  every panel's furniture regardless of row count, and the hub lands
+  dead-centre (`left/top: 50%`) — which reads fine even with a Wide seat
+  at row 1, per the screenshot taken while fixing this. `8p-sides` and
+  `10p-sides` were always col-seam (no Wide seat at all, so this never
+  came up for them).
+- **A mixed-rotation layout still needs one seam.** `Xp-ends` has no single
+  row where every seat above is one rotation and every seat below is
+  another (the side seats are 90°/270° regardless of row), so there's no
+  rotation boundary to place the hub at the way a pure Wide-row layout has.
+  It takes the row seam at `Math.floor(rows / 2)` — the vertical middle of
+  the grid, same convention `Xp-sides` now uses above and the existing
+  wide-middle presets already used for a seam that isn't a rotation
+  boundary — which keeps the hub centred rather than pulled toward
+  whichever end happens to be first.
+- **Every new preset passes the existing clockwise/fill-grid suites
+  unmodified** (`board-layouts.test.ts`'s `every preset fills its grid
+exactly` and `clockwise seat order` both iterate `layoutsForCount` for
+  every count, so the new ids were verified for free) plus a dedicated
+  `7-10p Lotus sides/ends layouts` suite for the default-per-count,
+  even/odd split and seam-sanity assertions specific to this change.
+- **Numeral sizing is unchanged by this ruling.** A sideways cell on these
+  boards gets the same container-query tiers every other sideways seat
+  already uses (`[data-sideways]`, keyed off the panel's own cqw/cqh, not
+  the preset id) — nothing here is preset-specific CSS. Re-measure once the
+  Bebas Neue numeral face and its tier re-tune land (a concurrent change);
+  this ruling only adds seat geometry.
 
 ## Play board: the hub ring and its table moments (2026-09-24)
 
@@ -8009,3 +8097,111 @@ direction.
     rematch from History starts clockwise regardless of the original table.
     A legacy profile (saved before this field existed) reads as clockwise,
     same as a legacy `GameState`.
+
+## Play board: landscape keeps the board still (2026-09-25)
+
+A phone lying flat on the table between players, bumped into landscape, must
+not spin every seat — the user's own ruling, and the opposite of the
+playtest table's `RotatePrompt`, which explicitly **wants** the phone turned
+sideways (to see more of the battlefield) and never locks orientation for
+that reason. Both rulings stand; they answer different questions. The life
+board isn't asking the player to turn the phone — it's refusing to let an
+accidental bump change what's rendered.
+
+- **The whole board counter-rotates as one rigid unit, not per-seat.**
+  `GameBoard.tsx` wraps the seat grid, the clock strip and every board-owned
+  overlay except `ConfirmDialog` in `.game-board-rotator`
+  (`play-board.css`). Under `(orientation: landscape) and (max-height:
+500px) and (pointer: coarse)` — the same "phone on its side" query
+  `RotatePrompt` uses — `data-board-rot` (set by `lib/use-board-keep-still.ts`'s
+  `useBoardKeepStill()`, reading `screen.orientation.type`) drives a CSS
+  `rotate(90deg)` / `rotate(-90deg)`, and the rotator's own local width/height
+  are swapped via `cqw`/`cqh` container-query units (`.game-board` becomes a
+  size container only inside that same media query) — the only way to say
+  "my width = my parent's height" in CSS without JS-measuring pixels. Outside
+  that condition `.game-board-rotator` is a transparent passthrough; nothing
+  about the ordinary (portrait, or a tall-enough landscape tablet) board
+  changed.
+- **A panel's own seat rotation (`slot.rot`) is never touched.** It composes
+  with the board's counter-rotation automatically through ordinary CSS
+  transform nesting — a panel rotated 90° inside a board rotated another 90°
+  simply paints at 180°, the same way any nested `transform` composes. The
+  ONE thing that does NOT get this for free is code that reads raw pointer
+  coordinates (`clientX`/`clientY`, and the deltas `useTapAndHold`'s
+  `toPanelSpace` derives from them) — those are always true screen-space,
+  unaffected by CSS transforms, so `PlayerPanel`'s `gestureRotation =
+(rotation + boardRotation) % 360` composes the two explicitly and feeds
+  that into `recordPointer`, both `useTapAndHold` calls (life + partner
+  half) and `SeatMenu`'s own close-swipe. Miss this and a swipe that used to
+  open a drawer in portrait silently stops registering once the board is
+  rotated (the axis-ratio gate in `tap-and-hold.ts` just never crosses
+  threshold) rather than opening the wrong thing — quiet, not loud, which is
+  why `GameBoard.board-rotation.test.tsx` pins it by checking the OLD screen
+  gesture stops working and the newly-composed one takes over, not just that
+  SOME gesture opens the drawer.
+- **The hub ring rotates WITH the board, reversing its usual "screen-relative"
+  rule.** `BoardHubMenu`'s petal math is ordinarily screen-relative — Lotus's
+  ring reads upright for whoever's holding the device regardless of which
+  seat's rotation the hub sits near (see the hub ring section above). Under
+  a board rotation that's wrong: the entire point of "keep it still" is
+  reading in the ORIGINAL portrait framing, and a screen-upright ring
+  floating over a counter-rotated board would look broken, not correct. It
+  gets this for free positioning-wise — `.board-hub-ring`'s `position: fixed`
+  automatically resolves against the ROTATED ancestor's own local box once
+  that ancestor has a `transform` (a CSS spec rule, not a hack) — but the
+  JS math has to switch from `getBoundingClientRect()` (real screen pixels,
+  the wrong coordinate system once a transform sits between the ring and the
+  true viewport) to `localRectRelativeTo()` (an `offsetParent`-chain walk,
+  transform-agnostic by construction) when `boardRotation !== 0`. The
+  ordinary (untransformed) path is completely unchanged.
+- **`GameMenu`, `BoardGestureHint`, `GameClock` and `WinCelebration` all
+  rotate with the board too** — they're plain nested JSX inside
+  `.game-board-rotator`, no portal, so this needs no extra code: the clock
+  strip staying at the device's physical bottom edge and the menu reading in
+  the same framing as the seats behind it are both direct consequences of
+  being rigidly rotated together with everything else.
+- **`ConfirmDialog` is the one exception, and stays screen-relative on
+  purpose.** It renders through the shared `Modal` portal straight to
+  `document.body`, outside `.game-board-rotator` entirely. `Modal` is used
+  everywhere in the app, not just the board; threading a board-specific
+  rotation value through it (or forking a second confirm component) isn't
+  worth it for a binary Cancel/Confirm dialog that's legible either way —
+  confirmed by driving the board's own Restart confirm under a landscape
+  rotation and checking it renders fully on-screen, unbroken, just not
+  counter-rotated like its surroundings.
+- **Fullscreen locks portrait while the board owns it, unlike `RotatePrompt`'s
+  "Go fullscreen" (which explicitly never locks orientation — see the
+  opening-hand section above).** The two are NOT the same feature reversed by
+  accident: `RotatePrompt` wants the player to freely choose to turn the
+  phone, so locking there would fight that choice the moment they did;
+  `useFullscreen`'s new portrait lock only ever runs for the caller that
+  opted into `{ exitOnUnmount: true }` (today, only the life board) and
+  exists so a table that's already committed to "keep it still" doesn't get
+  yanked into the browser's own auto-rotated layout for the brief window
+  before this board's own counter-rotation kicks in. `screen.orientation.lock
+('portrait')` fires the instant `fullscreenchange` confirms this hook's own
+  `enter()` caused it (never for a fullscreen entered some other way — same
+  ownership tracking `exitOnUnmount` already uses) and `unlock()` fires
+  symmetrically on the way out, wrapped and swallowed either direction
+  (unsupported entirely on iOS Safari, and a rejection is expected on any
+  device that disallows locking, e.g. a 2-in-1 laptop) — see
+  `use-fullscreen.test.ts`'s `portrait orientation lock` suite.
+- **The sign (which of landscape-primary/-secondary maps to +90 vs -90) is
+  verified in headless-Edge emulation, not on real hardware** — there's no
+  physical device in this environment to rotate. What IS verified: the
+  transform is a clean, unmirrored rigid rotation (checked by mapping all
+  four corners of a `4p-sides` board through the emulated rotation and
+  confirming they land exactly where a geometric 90°/−90° image rotation
+  predicts, no distortion), and primary/secondary produce opposite
+  handedness, which is the part every downstream consumer (gesture
+  composition, the hub ring, the CSS transform) actually depends on. If a
+  real device shows the board spinning the wrong way, the fix is the
+  one-line swap called out in `use-board-keep-still.ts`'s own `ponytail:`
+  comment — nothing else needs to change.
+- **Left for later:** the custom layout drag-and-drop editor
+  (`LayoutEditor.tsx`'s `dnd-kit` sensors) was not verified or adapted for
+  board rotation — dragging seats into place while the phone is held
+  sideways may not track the pointer correctly. Rare in practice (editing a
+  seating chart mid-game, sideways, is an edge case of an edge case) and out
+  of scope for this pass; a future session should drive it under
+  `Emulation.setDeviceMetricsOverride` before touching it.

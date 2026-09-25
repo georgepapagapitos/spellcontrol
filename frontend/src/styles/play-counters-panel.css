@@ -805,6 +805,49 @@
     height: 1rem;
     font-size: calc(var(--text-xs) * 0.85);
   }
+
+  /* Xp-sides/Xp-ends (7-10 players): the same fixed 28px chip rail, at the
+     same corner, on the same short cells sideways seats also produce (a
+     sideways seat's own short side is the cell's height, same as above) —
+     this tier never shrank it for [data-sideways] either. Measured landing
+     335-478px² onto the seat name at 320px (whichever seat the "up next"
+     marker happened to be on), 216px² at 390px on the shortest (Xp-ends)
+     cells. A smaller chip than the upright case (0.8rem, not 1rem): fixing
+     the name's own truncation (play-board.css's matching tier widens the
+     name corner's max-width from a 56px reservation that was the real cause
+     of "Pla…") gives the name more room to extend toward this same corner,
+     so the chip needs to give up more than the upright fix did to still
+     clear it — measured down to 0px this way on the worst (74px) cells. */
+  .game-board:not(.game-board-2) .player-panel[data-sideways] .pp-designation-chip {
+    width: 0.8rem;
+    height: 0.8rem;
+    font-size: calc(var(--text-xs) * 0.7);
+  }
+}
+
+/* 9p-ends/10p-ends' sideways seats (rows=6, the tallest row count any 7-10p
+   preset needs) measure 74px at 320px wide — short enough that the 9.5rem
+   tier above still left an 88px² residual between the condensed name
+   (play-board.css's matching tier) and this already-shrunk chip. Placed
+   after that tier so it wins where both match; the 90-115px sideways cells
+   above are untouched (this query doesn't match them), so their
+   already-zero collisions don't move. */
+@container (max-height: 6rem) {
+  /* The rail's own corner padding (--space-2, 8px, plus --seam-keepout on
+     top of it) is a bigger bite of a 74px cell than the chip's own size —
+     shrinking the chip alone plateaued at 35px². --seam-keepout stays: it's
+     what keeps this same corner clear of the hub/undo satellites (E299/
+     E310) and nothing here changes whether this corner sits near the seam. */
+  .game-board:not(.game-board-2) .player-panel[data-sideways] .pp-designation-chips {
+    top: calc(0.15rem + var(--seam-keepout, 0px));
+    right: calc(0.15rem + var(--seam-keepout, 0px));
+  }
+
+  .game-board:not(.game-board-2) .player-panel[data-sideways] .pp-designation-chip {
+    width: 0.5rem;
+    height: 0.5rem;
+    font-size: calc(var(--text-xs) * 0.45);
+  }
 }
 
 /* "Up next" (board-timer program): a quiet cue, not a claimed designation

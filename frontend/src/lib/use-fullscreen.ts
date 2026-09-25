@@ -59,8 +59,29 @@ export function useFullscreen(options: { exitOnUnmount?: boolean } = {}): {
     if (typeof document === 'undefined') return;
     const onChange = () => {
       const active = document.fullscreenElement != null;
+      const nowOwned = active && requestedRef.current;
       setIsFullscreen(active);
-      ownedRef.current = active && requestedRef.current;
+      // Portrait lock rides fullscreen ownership: the board asked for both
+      // with the same gesture, so it releases both together too. Every call
+      // is optional-chained and wrapped — `screen.orientation.lock` is
+      // unsupported on iOS Safari entirely and rejects outright on a
+      // desktop/2-in-1 that allows free rotation, and `unlock` can throw if
+      // nothing is locked; none of that should surface as a console error
+      // or unhandled rejection for what is a nice-to-have.
+      if (nowOwned) {
+        try {
+          void window.screen.orientation?.lock?.('portrait')?.catch(() => {});
+        } catch {
+          // ignored — unsupported or rejected, swallow
+        }
+      } else if (!active && ownedRef.current) {
+        try {
+          window.screen.orientation?.unlock?.();
+        } catch {
+          // ignored — nothing to unlock, or unsupported
+        }
+      }
+      ownedRef.current = nowOwned;
       requestedRef.current = false;
     };
     document.addEventListener('fullscreenchange', onChange);
@@ -90,6 +111,15 @@ export function useFullscreen(options: { exitOnUnmount?: boolean } = {}): {
     if (!exitOnUnmount) return undefined;
     return () => {
       if (ownedRef.current && document.fullscreenElement) {
+        // Unlock directly here, not just via the fullscreenchange listener
+        // above: that listener is torn down in this same unmount pass, so
+        // the async fullscreenchange event it's waiting for would fire
+        // after nothing is left to hear it.
+        try {
+          window.screen.orientation?.unlock?.();
+        } catch {
+          // ignored
+        }
         document.exitFullscreen().catch(() => {});
       }
     };
