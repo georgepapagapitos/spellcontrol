@@ -729,7 +729,7 @@ export function CubeResult({
             type="button"
             className="cube-sample-pack-toggle"
             aria-expanded={packOpen}
-            aria-controls="cube-sample-pack-body"
+            aria-controls={packOpen ? 'cube-sample-pack-body' : undefined}
             onClick={togglePack}
           >
             <ChevronDown className="cube-group-chevron" width={14} height={14} aria-hidden />

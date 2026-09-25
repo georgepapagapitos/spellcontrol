@@ -522,6 +522,8 @@
   text-align: left;
   font-family: var(--font-serif);
   font-size: var(--text-sm);
+  /* A <button> doesn't inherit its <h3>'s weight; match the sibling headings. */
+  font-weight: inherit;
   color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;

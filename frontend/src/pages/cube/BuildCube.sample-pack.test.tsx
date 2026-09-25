@@ -26,7 +26,7 @@ const ZERO_BUCKETS = Object.fromEntries(BUCKET_ORDER.map((b) => [b, 0])) as Reco
 >;
 
 const CUBE: GeneratedCube = {
-  size: 20,
+  size: 180,
   format: 'limited',
   picks: Array.from({ length: 20 }, (_, i) => pick(i)),
   byBucket: ZERO_BUCKETS,
