@@ -171,6 +171,7 @@ app.use(
         'script-src': [
           "'self'",
           "'unsafe-inline'",
+          "'unsafe-eval'",
           'https://apis.google.com',
           'https://accounts.google.com',
         ],
