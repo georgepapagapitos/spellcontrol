@@ -1,5 +1,4 @@
 import { useId, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { LayoutGrid, List as ListIcon, Plus, Scissors, Undo2 } from 'lucide-react';
 import type { PublicCard, PublicDeck } from '../../lib/shared-types';
 import { deckBucketFor, DECK_BUCKET_ORDER } from '../../lib/shared-grouping';
@@ -21,6 +20,7 @@ import { useSharedFilters } from './use-shared-filters';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface Props {
   data: PublicDeck;
   token: string;
@@ -278,9 +278,9 @@ export function DeckFeedbackView({ data, token }: Props) {
               : 'comment'}{' '}
             and can apply each one with a tap.
           </p>
-          <Link to="/" className="btn btn-primary shared-copy-btn">
+          <Button variant="primary" to="/" className="shared-copy-btn">
             Try SpellControl
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -522,9 +522,9 @@ export function DeckFeedbackView({ data, token }: Props) {
       {suggestionCount > 0 && (
         <div className="feedback-tally">
           <span className="feedback-tally-count">{tallyParts.join(' · ')}</span>
-          <button type="button" className="btn btn-primary" onClick={scrollToForm}>
+          <Button variant="primary" onClick={scrollToForm}>
             Review &amp; send
-          </button>
+          </Button>
         </div>
       )}
 
@@ -549,9 +549,9 @@ export function DeckFeedbackView({ data, token }: Props) {
                 here. A sixth "None" tile wrapped cEDH onto its own line on a
                 phone. */}
             {bracket !== null && (
-              <button type="button" className="btn-link" onClick={() => setBracket(null)}>
+              <Button variant="link" onClick={() => setBracket(null)}>
                 Clear
-              </button>
+              </Button>
             )}
           </span>
           {/* Native radios: exclusivity + arrow-key nav + one group tab stop. */}
@@ -588,18 +588,18 @@ export function DeckFeedbackView({ data, token }: Props) {
             {submitState.message}
           </p>
         )}
-        <button
-          type="button"
-          className="btn btn-primary feedback-submit"
+        <Button
+          variant="primary"
           onClick={handleSubmit}
           disabled={!canSubmit}
+          className="feedback-submit"
         >
           {submitState.status === 'sending'
             ? 'Sending…'
             : suggestionCount > 0
               ? `Send feedback (${suggestionCount} suggestion${suggestionCount === 1 ? '' : 's'})`
               : 'Send feedback'}
-        </button>
+        </Button>
       </section>
 
       {previewIndex !== null && previewCards[previewIndex] && (

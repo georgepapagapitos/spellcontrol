@@ -5,6 +5,7 @@ import { submitReport, type ReportKind } from '../../lib/report-client';
 import './ReportDialog.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const REASON_MAX = 500;
 
 interface Props {
@@ -85,12 +86,12 @@ export function ReportDialog({ kind, targetId, onClose }: Props) {
           </p>
         )}
         <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onClose} disabled={submitting}>
+          <Button onClick={onClose} disabled={submitting}>
             Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={!canSubmit}>
+          </Button>
+          <Button variant="primary" type="submit" disabled={!canSubmit}>
             {submitting ? 'Sending…' : 'Submit'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

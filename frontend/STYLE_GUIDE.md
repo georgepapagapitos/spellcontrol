@@ -41,23 +41,24 @@ primitives directory.
 
 ### Controls & chrome
 
-| Reach for                                           | Instead of                        | Ruling                                                        |
-| --------------------------------------------------- | --------------------------------- | ------------------------------------------------------------- |
-| `components/PageHeader`                             | a hand-built `.binder-hero`       | § Layout system                                               |
-| `.btn` / `.btn-primary` / `.btn-link` (CSS classes) | a new `*-btn` class               | § Shape language — corners                                    |
-| `components/SearchPill`                             | a bare `<input type="search">`    | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
-| `components/SelectMenu`                             | a restyled `<select>`             | § Toolbars & action rows                                      |
-| `components/OverflowMenu`                           | a hand-rolled `⋮` popover         | § Toolbars & action rows                                      |
-| `components/shared/ToolbarPopover`                  | a second portal-popover impl      | § Toolbars & action rows                                      |
-| `components/shared/ViewPopoverPanel`                | letting a phone toolbar wrap rows | § Toolbars & action rows                                      |
-| `components/Tabs`                                   | bespoke tab markup                | § Tabs / view switchers                                       |
-| `components/ViewModeToggle`                         | a bespoke layout switcher         | § View-mode toggle option order                               |
-| `components/shared/FilterChipsRow`                  | a bespoke active-filter row       | § Tag chips                                                   |
-| `components/shared/form` (`SwitchRow`)              | a checkbox for an on/off setting  | § Config surfaces                                             |
-| `components/shared/form` (`SegmentedControl`)       | a new segmented-pill CSS family   | § Config surfaces                                             |
-| `components/shared/form` (`ChoiceList`)             | a hint that rewrites per option   | § Config surfaces                                             |
-| `components/shared/form` (`Disclosure`)             | a hand-rolled collapsible group   | § Config surfaces                                             |
-| `components/shared/form` (`Field`)                  | an uppercase `.field label`       | § Config surfaces                                             |
+| Reach for                                     | Instead of                        | Ruling                                                        |
+| --------------------------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| `components/PageHeader`                       | a hand-built `.binder-hero`       | § Layout system                                               |
+| `components/shared/Button` (`Button`)         | a raw `className="btn …"`         | § Shape language — Buttons are a primitive                    |
+| `components/shared/Button` (`IconButton`)     | a `<button>` holding only a glyph | § Shape language — Buttons are a primitive                    |
+| `components/SearchPill`                       | a bare `<input type="search">`    | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
+| `components/SelectMenu`                       | a restyled `<select>`             | § Toolbars & action rows                                      |
+| `components/OverflowMenu`                     | a hand-rolled `⋮` popover         | § Toolbars & action rows                                      |
+| `components/shared/ToolbarPopover`            | a second portal-popover impl      | § Toolbars & action rows                                      |
+| `components/shared/ViewPopoverPanel`          | letting a phone toolbar wrap rows | § Toolbars & action rows                                      |
+| `components/Tabs`                             | bespoke tab markup                | § Tabs / view switchers                                       |
+| `components/ViewModeToggle`                   | a bespoke layout switcher         | § View-mode toggle option order                               |
+| `components/shared/FilterChipsRow`            | a bespoke active-filter row       | § Tag chips                                                   |
+| `components/shared/form` (`SwitchRow`)        | a checkbox for an on/off setting  | § Config surfaces                                             |
+| `components/shared/form` (`SegmentedControl`) | a new segmented-pill CSS family   | § Config surfaces                                             |
+| `components/shared/form` (`ChoiceList`)       | a hint that rewrites per option   | § Config surfaces                                             |
+| `components/shared/form` (`Disclosure`)       | a hand-rolled collapsible group   | § Config surfaces                                             |
+| `components/shared/form` (`Field`)            | an uppercase `.field label`       | § Config surfaces                                             |
 
 ### Overlays
 
@@ -467,6 +468,55 @@ this register elsewhere, and don't flatten it here.
 | **Cards / panels / sheets** | `var(--radius-lg)` (10px)          | Container surfaces.                                                                                                       |
 | **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                          |
 | **Tape labels**             | `2px` (`.site-nav-count`)          | The Dymo-tape material label tier (T53): fixed dark tape + pale caps on **navigation chrome only** (nav/hub counts).      |
+
+**Buttons are a primitive (E435, 2026-09-25).** Every action control renders
+`Button` or `IconButton` from `components/shared/Button`, not a raw class. This
+reverses the #1517 ruling that buttons stay CSS classes. The primitives
+render the same classes, so moving a call site onto them changes no pixels.
+They add what a class name can't enforce:
+
+- the label always sits in its own element (`.btn-label`), and an icon slot
+  (`icon`, `iconEnd`) is always `aria-hidden`, because the label or
+  `IconButton`'s required `label` carries the name;
+- a `<button>` defaults to `type="button"`, so one inside a form never submits
+  it by accident (pass `type="submit"` for the one that should);
+- `to` renders a router `<Link>` and `href` an `<a>`. A navigation is a link and
+  an action is a button, never a `<div onClick>`; the types refuse `disabled` on
+  a link.
+
+Two props choose the class. **`variant` is intent** (the fill-vs-outline tiers
+below): `secondary` (default), `primary`, `danger`, `link`. **`placement` is
+where the button lives**, which is what really separates the three families:
+they differ in hover, weight, icon gap and whether they shrink, not only in
+size.
+
+| `placement`        | Class                                  | Lives in                               | Differs by                                                                     |
+| ------------------ | -------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------ |
+| `inline` (default) | `.btn` (+ `-primary` / `-danger`)      | dialogs, panels, inline actions        | grey hover, no icon gap, may shrink                                            |
+| `row`              | `.pill-btn` (+ `-primary` / `-danger`) | page heroes, action rows, the bulk bar | accent-tinted hover and focus, `0.4rem` icon gap, `flex-shrink: 0`, weight 500 |
+| `toolbar`          | `.toolbar-pill`                        | toolbar control rows                   | the 999px toolbar-control pill (below); `secondary` only                       |
+
+`variant="link"` is `.btn-link` and exists only at `inline`. Combinations no
+stylesheet defines (`row` + `link`, `toolbar` + `primary`) don't compile.
+`.btn-sm`, `.btn-secondary` and `.btn-quiet` were never defined anywhere, so
+there is no `size` prop; a site that carried one painted as plain `.btn`.
+
+`IconButton` takes a `label` (the accessible name, and the hover tooltip unless
+`title` overrides it or `title={false}` turns it off). With no `variant` or
+`placement` it adds no shared class and the surface's own `className` carries
+the look: most icon-only buttons are one-off close, step and menu controls.
+
+A surface modifier goes in `className`, appended after the variant's classes,
+exactly as `btn btn-primary shared-copy-btn` was. A genuinely bespoke control
+(playtest board chrome, the life-counter HUD, chart and radar controls,
+card-art overlays) keeps its own `<button>`; there is deliberately no `bare`
+variant to launder one through. `SelectMenu`, `ToolbarPopover` and `Legend`
+render their own `.toolbar-pill` trigger and stay that way.
+
+Guard: `src/test/control-primitives-usage.test.ts` counts raw control classes
+and glyph-only `<button>`s per file. Its allowlist is the migration still to
+do (board T152) and only shrinks: a new file, or a listed file that grows,
+fails.
 
 **One frame per surface — never box a grid of self-framed tiles.** A
 container whose children already carry border + raised fill (result-grid

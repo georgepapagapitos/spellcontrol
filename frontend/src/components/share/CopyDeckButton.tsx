@@ -4,6 +4,7 @@ import { copySharedDeck } from '../../lib/copy-shared-deck';
 import { recordDeckCopy } from '../../lib/share-client';
 import { toast } from '../../store/toasts';
 import type { PublicDeck } from '../../lib/shared-types';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   data: PublicDeck;
@@ -39,14 +40,14 @@ export function CopyDeckButton({ data, variant = 'header', slug }: Props) {
   // Block: the full-width echo at the end of the deck content.
   if (variant === 'block') {
     return (
-      <button
-        type="button"
-        className="btn btn-primary shared-copy-btn shared-copy-btn--block"
+      <Button
+        variant="primary"
         onClick={handleCopy}
+        className="shared-copy-btn shared-copy-btn--block"
+        icon={<Copy width={16} height={16} strokeWidth={2} />}
       >
-        <Copy width={16} height={16} strokeWidth={2} aria-hidden />
         Copy this deck
-      </button>
+      </Button>
     );
   }
 
@@ -54,9 +55,12 @@ export function CopyDeckButton({ data, variant = 'header', slug }: Props) {
   // that row's sizing (.shared-view-actions .btn) and names its destination —
   // "Copy" alone made sense beside a brand bar, not beside a verb.
   return (
-    <button type="button" className="btn shared-copy-btn" onClick={handleCopy}>
-      <Copy width={15} height={15} strokeWidth={2} aria-hidden />
+    <Button
+      onClick={handleCopy}
+      className="shared-copy-btn"
+      icon={<Copy width={15} height={15} strokeWidth={2} />}
+    >
       Copy to my decks
-    </button>
+    </Button>
   );
 }

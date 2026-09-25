@@ -5,6 +5,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
+import { Button } from '@/components/shared/Button';
 
 const MENU_MARGIN = 8;
 
@@ -108,9 +109,7 @@ export function CtxMenuShell({
             {children}
           </div>
           <div className="card-picker-footer">
-            <button type="button" className="btn" onClick={() => beginClose()}>
-              Close
-            </button>
+            <Button onClick={() => beginClose()}>Close</Button>
           </div>
         </div>
       </div>

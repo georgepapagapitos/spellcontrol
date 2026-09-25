@@ -5,6 +5,7 @@ import { describeGameEvent, formatGameEventSentence } from '../../lib/game-event
 import { formatRelativeTime } from '../../lib/format-time';
 import { ReportDialog } from './ReportDialog';
 import './SharedGameSummaryView.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   data: PublicGameResultShare;
@@ -60,14 +61,14 @@ export function SharedGameSummaryView({ data, token }: Props) {
           {data.format} · {formatRelativeTime(data.endedAt, { verbose: true })}
         </p>
         <p className="shared-view-meta-row">
-          <button
-            type="button"
-            className="btn-link game-summary-report-btn"
+          <Button
+            variant="link"
             aria-label="Report this game"
             onClick={() => setReportOpen(true)}
+            className="game-summary-report-btn"
           >
             Report
-          </button>
+          </Button>
         </p>
       </header>
 

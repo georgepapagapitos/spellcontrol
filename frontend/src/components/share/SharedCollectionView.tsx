@@ -19,6 +19,7 @@ import { SortMenu, type SortMenuOption } from '../SortMenu';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { formatMoney } from '../../lib/format-money';
 import { formatIdentity } from '../../lib/display-name';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   data: PublicCollection;
@@ -201,13 +202,12 @@ export function SharedCollectionView({ data, embedded = false }: Props) {
             <SharedCardList items={shown} onPreview={setPreviewIndex} table={view === 'compact'} />
           )}
           {hasMore && (
-            <button
-              type="button"
-              className="btn shared-collection-more"
+            <Button
               onClick={() => setVisible((n) => n + PAGE_SIZE)}
+              className="shared-collection-more"
             >
               Show more ({sorted.length - visible} left)
-            </button>
+            </Button>
           )}
         </>
       )}
