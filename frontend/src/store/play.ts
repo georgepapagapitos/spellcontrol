@@ -554,7 +554,10 @@ function ingestTickerLines(seat: number, ticker: TickerEntry[] | undefined, set:
   const fresh = maxSeq < seen ? ticker : ticker.filter((e) => e.seq > seen);
   if (fresh.length === 0) return;
   tickerSeen.set(seat, maxSeq);
-  const items = fresh.map((entry): TickerItem => ({
+  // Typed on the variable, not the arrow's return: the root prettier (3.9)
+  // and frontend's (3.8, what CI checks) format a return-typed arrow here
+  // differently, so lint-staged and format:check fought over it.
+  const items: TickerItem[] = fresh.map((entry) => ({
     id: nextTickerItemId++,
     seat,
     kind: 'play',
