@@ -9,8 +9,17 @@ import {
   RefreshCw,
   RotateCw,
   Share2,
+  X,
 } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { toast } from '../store/toasts';
@@ -18,6 +27,7 @@ import type { EnrichedCard } from '../types';
 import { CardRulings } from './CardRulings';
 import { CardText, CardLegalities } from './CardDetails';
 import { useCardDetail } from '../lib/use-card-detail';
+import { cardFaces } from '../lib/card-details';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
 import { SLD_CODE, dropsForNumber, useSldDrops } from '../lib/sld-drops';
@@ -26,6 +36,7 @@ import { formatPricedDate } from '../lib/price-freshness';
 import { CardImageFrame } from './CardImageFrame';
 import { PriceOverrideBadge } from './shared/PriceOverrideBadge';
 import { CardShareDialog } from './CardShareDialog';
+import { OverflowMenu } from './OverflowMenu';
 import { foilFinishLabel } from '../lib/foil-style';
 import { LANGUAGE_OPTIONS } from './PrintingPicker';
 import { ManaCost } from './ManaCost';
@@ -33,12 +44,21 @@ import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SnapCarousel, type SnapCarouselHandle } from './SnapCarousel';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
+import { nextStop, useSheetStops, type SheetStop } from '../lib/use-sheet-stops';
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
 import { CardName } from '@/components/shared/CardName';
 
 /** Scryfall card UUID — gates the rulings fetch to real printings. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * When the preview is two columns (card beside a full-height inspector) rather
+ * than a card over a bottom sheet. Mirrors the media query in
+ * footer-card-preview.css — keep the two in step.
+ */
+export const PREVIEW_SPLIT_QUERY =
+  '(min-width: 1024px), (orientation: landscape) and (max-height: 600px)';
 
 /** Which surface opened the preview. Drives per-context panel content
  *  (exposed as `data-source` on the panel for context-specific styling). */
@@ -50,9 +70,8 @@ export type CardPreviewSource =
   | 'search'
   | 'playtest';
 
-/** One button in the preview's compact icon bar. Callers supply only
- *  the actions relevant to their view (collection: edit/delete; deck:
- *  edit/delete; etc.), so the bar is view-dependent by construction. */
+/** One button in the preview's action row. Callers supply only the actions
+ *  relevant to their view, so the row is view-dependent by construction. */
 export interface CardPreviewAction {
   key: string;
   icon: ReactNode;
@@ -62,6 +81,9 @@ export interface CardPreviewAction {
   shortLabel?: string;
   onClick: () => void;
   danger?: boolean;
+  /** Owner/management actions (Remove from deck, …) go in the row's ⋮ menu
+   *  instead of standing as a button — STYLE_GUIDE § Card action rows. */
+  overflow?: boolean;
 }
 
 interface Props {
@@ -102,15 +124,14 @@ interface Props {
   onIndexChange: (i: number) => void;
   onClose: () => void;
   /**
-   * When provided, an Edit button is rendered alongside Flip. The parent is
+   * When provided, an Edit button is rendered in the action row. The parent is
    * expected to dismiss the carousel and open its own CardEditDialog — we
    * avoid stacking two scroll-locking modals.
    */
   onEdit?: (card: EnrichedCard) => void;
   /**
-   * View-dependent icon bar. Returns the actions for the card at index
-   * `i` (looked up lazily like getStack*). Rendered as a compact icon
-   * row next to Flip/Edit; callers pass only what their surface needs.
+   * View-dependent actions for the card at index `i` (looked up lazily like
+   * getStack*). Rendered in the action row; `overflow` ones go in its ⋮ menu.
    */
   getActions?: (i: number) => CardPreviewAction[];
   /**
@@ -121,18 +142,16 @@ interface Props {
   showRole?: boolean;
   /**
    * Optional extra content injected into the detail panel for the card at
-   * index `i` (rendered below the external links, above the counter). The
-   * Scryfall search preview uses this to host its inline printing/finish
-   * picker; collection/binder/deck previews leave it unset. Clicks inside
-   * are already shielded from the sheet's tap-to-dismiss by the panel.
+   * index `i`. The Scryfall search preview hosts its printing/finish picker
+   * here (so it leads the panel for `source="search"`); the deck view hosts
+   * Swap / Similar cards (after the rules text).
    */
   renderPanelExtra?: (i: number) => ReactNode;
   /**
-   * Optional high-placed content for the card at index `i`, rendered near the
-   * top of the panel (just under the context line, above price/set/links) so
-   * it reads before the boilerplate. The deck view uses this to surface
-   * partner/role/synergy/inclusion context; other surfaces leave it unset.
-   * CardPreview stays context-agnostic — it only renders the slot.
+   * Optional high-placed content for the card at index `i`, rendered as the
+   * panel's lead section. The deck view uses this for role/synergy/inclusion
+   * context; the playtest inspector for the live board state. CardPreview stays
+   * context-agnostic — it only renders the slot.
    */
   renderPanelMeta?: (i: number) => ReactNode;
   /**
@@ -146,10 +165,8 @@ interface Props {
    */
   hidePrice?: boolean;
   /**
-   * Which surface opened the preview. Exposed as `data-source` on the panel so
-   * each view can tune its own panel presentation; also documents intent at the
-   * call site. The panel always shows its full content (it scrolls when tall),
-   * so this no longer gates section visibility.
+   * Which surface opened the preview. Exposed as `data-source` on the panel and
+   * picks the panel's lead section; also documents intent at the call site.
    */
   source?: CardPreviewSource;
 }
@@ -186,6 +203,17 @@ const TURN_CYCLE: Record<string, readonly number[]> = {
 // keeping the rich set small holds 120fps. The window follows the focus.
 const WINDOW_RADIUS = 12;
 
+/** Clicks on these are clicks on empty space — they close the preview. */
+function isEmptySpace(el: EventTarget): boolean {
+  return (
+    el instanceof HTMLElement &&
+    (el.classList.contains('card-preview-backdrop') ||
+      el.classList.contains('card-preview-stage') ||
+      el.classList.contains('card-preview-track') ||
+      el.classList.contains('card-preview-topbar'))
+  );
+}
+
 export function CardPreview({
   cards,
   index,
@@ -209,19 +237,22 @@ export function CardPreview({
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const panelInnerRef = useRef<HTMLDivElement>(null);
   const carousel = useRef<SnapCarouselHandle>(null);
+  const nameId = useId();
   const [selected, setSelected] = useState(index);
 
-  // The action row holds one line. When its labelled width won't fit, the
-  // buttons with universal glyphs (Share, Flip, Turn, Edit) drop their words,
-  // a caller action with a `shortLabel` swaps to it, and the row tightens.
-  // Details and the other caller actions keep their words: an ambiguous glyph
-  // never goes icon-only (STYLE_GUIDE § Toolbars & action rows). Re-measured
-  // every render: it is a handful of buttons, and which ones exist changes per
-  // card (Flip only on a double-faced one). A hidden full label is absolutely
-  // positioned, so it still reports the width it would take back — `need` is
-  // always the fully labelled width, whichever mode is showing.
+  // The action row holds one line (#2252). When its labelled width won't fit,
+  // the buttons with universal glyphs (Share, Edit) drop their words, a caller
+  // action with a `shortLabel` swaps to it, and the row tightens. Every other
+  // caller action keeps its words: an ambiguous glyph never goes icon-only
+  // (STYLE_GUIDE § Toolbars & action rows). Re-measured every render: it is a
+  // handful of buttons, and which ones exist changes per card. A hidden full
+  // label is absolutely positioned, so it still reports the width it would
+  // take back — `need` is always the fully labelled width, whichever mode is
+  // showing, so the row can't flip back and forth at the boundary.
   const actionRowRef = useRef<HTMLDivElement>(null);
   const labelledGap = useRef(0);
   const [actionsCompact, setActionsCompact] = useState(false);
@@ -242,8 +273,6 @@ export function CardPreview({
         ? full.offsetWidth - short.offsetWidth
         : full.offsetWidth + (parseFloat(getComputedStyle(b).columnGap) || 0);
     }
-    // `need` is always the labelled width and the padding doesn't change with
-    // the mode, so this can't flip back and forth at the boundary.
     const room = row.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     setActionsCompact(need > room);
   }, []);
@@ -255,16 +284,15 @@ export function CardPreview({
     ro.observe(row);
     return () => ro.disconnect();
   }, [fitActions]);
-  // Compact (image-hero) ↔ expanded (text-hero) panel. Expanded is a fixed
-  // taller height applied to every card, so swiping between cards stays
-  // height-stable — the card just shrinks via the track's container query.
+
   // The playtest/online inspector is opened mid-game to read a card, not to
   // look at its art: it leads with rules text and rulings, drops the
-  // collection bookkeeping (price, condition, binder/deck pills, the
-  // "card N of M" counter), and starts expanded so none of that needs a
-  // chevron hunt at the table.
+  // collection bookkeeping (price, condition, binder/deck pills, the position
+  // counter), and opens its sheet to the half stop so the rules are on screen.
   const isPlaytest = source === 'playtest';
-  const [expanded, setExpanded] = useState(isPlaytest);
+  // The stacked layout's info sheet: peek / half / full. Moved by transform,
+  // so the card never resizes; ignored by the two-column layout.
+  const [stop, setStop] = useState<SheetStop>(isPlaytest ? 'half' : 'peek');
   // Full Scryfall card for the focused slide — supplies flavor text, P/T, and
   // authoritative legalities that EnrichedCard doesn't carry. Offline-first,
   // cached; oracle text already renders instantly from the EnrichedCard.
@@ -389,6 +417,11 @@ export function CardPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
+  // A new card starts at the top of its details.
+  useEffect(() => {
+    if (panelInnerRef.current) panelInnerRef.current.scrollTop = 0;
+  }, [selected]);
+
   useLockBodyScroll();
   const sldIndex = useSldDrops();
 
@@ -399,30 +432,57 @@ export function CardPreview({
     sheetRef
   );
 
+  const current = cards[selected] as EnrichedCard | undefined;
+  const turnCycle = current?.layout ? TURN_CYCLE[current.layout] : undefined;
+  const turnAngle = turned[selected] ?? 0;
+  // indexOf(-1) + 1 === 0, so an unknown angle safely resets to the cycle start.
+  const nextTurn = turnCycle ? turnCycle[(turnCycle.indexOf(turnAngle) + 1) % turnCycle.length] : 0;
+  const canFlip = !!current?.imageNormalBack;
+  const flipOrTurn = useCallback(() => {
+    if (canFlip) setFlipped((prev) => ({ ...prev, [selected]: !prev[selected] }));
+    else if (turnCycle) setTurned((prev) => ({ ...prev, [selected]: nextTurn }));
+  }, [canFlip, turnCycle, nextTurn, selected]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // The share dialog is a layer above us and owns its own Escape.
+      // The share dialog is a layer above us and owns its own Escape; so does
+      // an open ⋮ menu in the action row.
       if (shareOpen) return;
+      if (sheetRef.current?.querySelector('[aria-haspopup="menu"][aria-expanded="true"]')) return;
+      const t = e.target;
+      const typing =
+        t instanceof HTMLElement &&
+        (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
       if (e.key === 'Escape') {
         // The preview is always the topmost overlay; capture + stop so a host
         // sheet's document-level Escape listener can't also fire and dismiss
         // both layers on one press. Arrow keys live in the carousel.
         e.stopPropagation();
         beginClose();
+      } else if ((e.key === 'f' || e.key === 'F') && !typing && !e.metaKey && !e.ctrlKey) {
+        flipOrTurn();
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [beginClose, shareOpen]);
+  }, [beginClose, shareOpen, flipOrTurn]);
 
+  // Swipe down on the card stage closes the preview (the info sheet has its own
+  // gesture, which stops propagation before this one sees it).
   const { isDragging, axisLockRef, touchHandlers } = useSwipeDownDismiss({
     onDismiss: beginClose,
     sheetRef,
     trackRef,
-    // Only let a downward swipe dismiss when the panel is scrolled to the top;
-    // otherwise the gesture scrolls the (taller, expanded) panel content. The
-    // panel's own `overflow-y` handles the scroll once we defer to native.
-    canStartDrag: () => (panelInnerRef.current?.scrollTop ?? 0) <= 0,
+  });
+
+  const sheetStops = useSheetStops({
+    panelRef,
+    innerRef: panelInnerRef,
+    stageRef,
+    stop,
+    onStop: setStop,
+    onDismiss: beginClose,
+    enabled: () => !window.matchMedia(PREVIEW_SPLIT_QUERY).matches,
   });
 
   // The drag offset is applied imperatively to the sheet by the hook. Once the
@@ -468,8 +528,7 @@ export function CardPreview({
     );
   };
 
-  if (!cards[selected]) return null;
-  const current = cards[selected];
+  if (!current) return null;
 
   // Highest-res art for the face on screen — what Share hands off.
   const faceSrc =
@@ -477,10 +536,9 @@ export function CardPreview({
       ? current.imageLargeBack || current.imageNormalBack
       : current.imageLarge || current.imageNormal;
 
-  // Share the image *bytes*, not a link. Native stages the jpg in the app cache
-  // dir — the one location the app's FileProvider exposes (res/xml/file_paths.xml)
-  // — and hands Share a file:// URI; mobile web hands a File to the Web Share
-  // API. Both land the user in the system sheet, recent conversations and all.
+  // Share the image *bytes*, not a link: mobile web hands a File to the Web
+  // Share API, which lands the user in the system sheet, recent conversations
+  // and all.
   const systemShare = async () => {
     setSharing(true);
     try {
@@ -489,8 +547,8 @@ export function CardPreview({
       const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
       await navigator.share({ files: [file], title: current.name });
     } catch (err) {
-      // Dismissing the system sheet rejects (AbortError on web, "Share canceled"
-      // on Android) — a cancel is a no-op, not a failure worth a toast.
+      // Dismissing the system sheet rejects (AbortError) — a cancel is a
+      // no-op, not a failure worth a toast.
       const e = err as { name?: string; message?: string };
       if (e?.name === 'AbortError' || e?.message?.toLowerCase().includes('cancel')) return;
       toast.show({ message: "Couldn't share this card image.", tone: 'warn' });
@@ -515,27 +573,21 @@ export function CardPreview({
           .join(' / ')
       : '';
 
-  // Oracle text + rulings. One definition, two homes: the playtest inspector
-  // puts it directly under the type line (it's what the card was opened for);
-  // every other surface keeps it below the collection facts.
-  const rulesBlock = (
-    <>
-      <CardText card={current} detail={detail} />
-      {/* Real Scryfall printings only — placeholder/synthetic ids would 400. */}
-      {UUID_RE.test(current.scryfallId) && (
-        <CardRulings
-          key={current.scryfallId}
-          scryfallId={current.scryfallId}
-          defaultOpen={isPlaytest}
-        />
-      )}
-    </>
-  );
+  // The header follows the face on screen: a flipped transform card reads as
+  // its back face (name, cost, type, stats), not the front's.
+  const faces = cardFaces(current, detail);
+  const face = canFlip && faces.length > 1 ? faces[flipped[selected] ? 1 : 0] : undefined;
+  const headManaCost = face ? face.manaCost : current.manaCost;
+  const headTypeLine = face?.typeLine ?? current.typeLine;
+  // Whole-card stat beside the type line as card identity.
+  const headStat = face
+    ? (face.pt ?? (face.loyalty ? `Loyalty ${face.loyalty}` : null))
+    : detail?.power != null && detail?.toughness != null
+      ? `${detail.power}/${detail.toughness}`
+      : detail?.loyalty != null
+        ? `Loyalty ${detail.loyalty}`
+        : null;
 
-  const turnCycle = current.layout ? TURN_CYCLE[current.layout] : undefined;
-  const turnAngle = turned[selected] ?? 0;
-  // indexOf(-1) + 1 === 0, so an unknown angle safely resets to the cycle start.
-  const nextTurn = turnCycle ? turnCycle[(turnCycle.indexOf(turnAngle) + 1) % turnCycle.length] : 0;
   const nextTurnLabel =
     nextTurn === 0
       ? 'Turn upright'
@@ -545,6 +597,262 @@ export function CardPreview({
           ? 'Turn right to read'
           : 'Turn left to read';
 
+  const artLabel = canFlip
+    ? flipped[selected]
+      ? 'Show front face'
+      : 'Show back face'
+    : nextTurnLabel;
+
+  const qty = isPlaytest ? 1 : (getStackQty?.(selected) ?? 1);
+  const finish = foilFinishLabel(current);
+  const languageOption = LANGUAGE_OPTIONS.find((o) => o.value === current.language)?.label;
+  const languageLabel =
+    current.language && current.language !== 'en'
+      ? typeof languageOption === 'string'
+        ? languageOption
+        : current.language.toUpperCase()
+      : '';
+  const flags = (['altered', 'proxy', 'misprint'] as const).filter((f) => current[f]);
+  const pricedAt = hidePrice || isPlaytest ? null : formatPricedDate(current.pricedAt);
+
+  const actions = getActions?.(selected) ?? [];
+  const standing = actions.filter((a) => !a.overflow);
+  const overflow = actions.filter((a) => a.overflow);
+
+  // Binder / deck / cube provenance — where this card lives. Aggregated
+  // across every copy in the stack so a grouped row surfaces every container
+  // it touches, not just whichever copy the row picked as its representative.
+  const contextLine = (() => {
+    const binderById = new Map<string, BinderInfo>();
+    for (const b of getStackBinders?.(selected) ?? []) binderById.set(b.id, b);
+    const deckById = new Map<string, AllocationInfo>();
+    const cubeById = new Map<string, AllocationInfo>();
+    for (const a of getStackAllocations?.(selected) ?? []) {
+      if (a.ownerKind === 'cube') cubeById.set(a.ownerId, a);
+      else if (a.deckId !== currentDeckId) deckById.set(a.deckId, a);
+    }
+    const words = [binderName, sectionLabels[selected] ?? ''].filter(Boolean).join(' · ');
+    const pills: ReactNode[] = [
+      ...[...binderById.values()].map((b) => (
+        <Link
+          key={`b-${b.id}`}
+          to={`/collection/binders/${b.id}`}
+          className="card-preview-context-pill card-preview-context-pill--binder"
+          style={{ '--pill-color': b.color || 'var(--accent)' } as React.CSSProperties}
+          onClick={onClose}
+          title={`Open binder ${b.name}`}
+        >
+          <Notebook width={11} height={11} strokeWidth={2.2} aria-hidden />
+          <span>{b.name}</span>
+        </Link>
+      )),
+      ...[...deckById.values()].map((d) => (
+        <Link
+          key={`d-${d.deckId}`}
+          to={`/decks/${d.ownerId}`}
+          className="card-preview-context-pill card-preview-context-pill--deck"
+          style={{ '--pill-color': d.deckColor || 'var(--accent)' } as React.CSSProperties}
+          onClick={onClose}
+          title={`In deck: ${d.deckName}`}
+          aria-label={`In deck: ${d.deckName}`}
+        >
+          <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
+          <span>{d.deckName}</span>
+        </Link>
+      )),
+      ...[...cubeById.values()].map((c) => (
+        <Link
+          key={`c-${c.ownerId}`}
+          to={`/decks/cube/${c.ownerId}`}
+          className="card-preview-context-pill card-preview-context-pill--cube"
+          style={{ '--pill-color': 'var(--cube-color)' } as React.CSSProperties}
+          onClick={onClose}
+          title={`In cube: ${c.ownerName}`}
+          aria-label={`In cube: ${c.ownerName}`}
+        >
+          <Boxes width={11} height={11} strokeWidth={2.2} aria-hidden />
+          <span>{c.ownerName}</span>
+        </Link>
+      )),
+    ];
+    if (!words && pills.length === 0 && qty <= 1) return null;
+    return (
+      <div className="card-preview-context">
+        {words && <span className="card-preview-context-words">{words}</span>}
+        {pills}
+        {qty > 1 && (
+          <span className="card-preview-qty" aria-label={`${qty} copies`}>
+            <span aria-hidden>×</span>
+            {qty}
+          </span>
+        )}
+      </div>
+    );
+  })();
+
+  // ── Panel sections ─────────────────────────────────────────────────────
+  // The lead section follows where the preview was opened from; the rest keep
+  // one order everywhere: Rules text, Printing, Rulings, Legality.
+  const metaSlot = renderPanelMeta?.(selected);
+  const extraSlot = renderPanelExtra?.(selected);
+
+  const copyRows: Array<{ k: string; v: string; label?: string }> = [];
+  if (!isPlaytest && current.condition)
+    copyRows.push({
+      k: 'Condition',
+      v: current.condition.toUpperCase(),
+      label: `Condition ${current.condition}`,
+    });
+  if (finish) copyRows.push({ k: 'Finish', v: finish });
+  if (!isPlaytest && languageLabel)
+    copyRows.push({ k: 'Language', v: languageLabel, label: `Language ${languageLabel}` });
+  if (!isPlaytest)
+    for (const f of flags) copyRows.push({ k: 'Marked', v: f.toUpperCase(), label: f });
+  if (pricedAt) copyRows.push({ k: 'Prices', v: `Updated ${pricedAt}` });
+  // A deck slot isn't necessarily a card you own; a collection or binder row is.
+  const owned = source === 'collection' || source === 'binder';
+  const copySection =
+    copyRows.length > 0 ? (
+      <section className="card-preview-sec">
+        <h3 className="card-preview-eyebrow">
+          {owned ? (hidePrice ? 'Their copy' : 'Your copy') : 'This copy'}
+        </h3>
+        <dl className="card-preview-kv">
+          {copyRows.map((r) => (
+            <div key={`${r.k}-${r.v}`} className="card-preview-kv-row">
+              <dt>{r.k}</dt>
+              <dd aria-label={r.label}>{r.v}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    ) : null;
+
+  const roleLine = (() => {
+    if (!showRole) return null;
+    // Role decodes from the card name via the bundled tagger, so the preview
+    // needs no extra data plumbing.
+    const badge = getRoleBadge({ name: current.name });
+    if (!badge) return null;
+    const roleText =
+      rolesForCard({ name: current.name }).length > 1
+        ? multiRoleTitle({ name: current.name })
+        : badge.title;
+    return (
+      <div className="card-preview-role">
+        <span className={`deck-row-role-badge deck-row-role-${badge.tone}`} aria-hidden>
+          {badge.label}
+        </span>
+        <span>{roleText}</span>
+      </div>
+    );
+  })();
+
+  const rulesSection = (
+    <section className="card-preview-sec">
+      <h3 className="card-preview-eyebrow">Rules text</h3>
+      {roleLine}
+      <CardText card={current} detail={detail} />
+    </section>
+  );
+
+  const printingSection = (
+    <section className="card-preview-sec card-preview-printing">
+      <h3 className="card-preview-eyebrow">Printing</h3>
+      <div className="card-preview-set">
+        {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (
+          <img
+            src={setMap[current.setCode.toUpperCase()].iconSvgUri}
+            alt=""
+            aria-hidden="true"
+            className="card-preview-set-icon"
+          />
+        ) : null}
+        {(current.setName || current.setCode) && (
+          <span>
+            {current.setName || current.setCode}
+            {current.setName && current.setCode ? (
+              <>
+                {' '}
+                <span className="card-preview-set-code">({current.setCode.toUpperCase()})</span>
+              </>
+            ) : null}
+            {current.collectorNumber ? (
+              // Collector number completes the printing identity — it's
+              // what disambiguates two otherwise-identical rows.
+              <span className="card-preview-set-code"> · #{current.collectorNumber}</span>
+            ) : null}
+            {sldDropLabel ? <span className="card-preview-set-code"> · {sldDropLabel}</span> : null}
+          </span>
+        )}
+      </div>
+      {current.rarity && (
+        <div className={`card-preview-rarity rarity-${current.rarity.toLowerCase()}`}>
+          {current.rarity}
+        </div>
+      )}
+      <div className="card-preview-links">
+        <a
+          href={`https://scryfall.com/card/${current.setCode.toLowerCase()}/${current.collectorNumber}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="card-preview-ext-link"
+        >
+          Scryfall
+          <ExternalLink
+            width={12}
+            height={12}
+            strokeWidth={2.4}
+            aria-hidden
+            className="card-preview-ext-link-icon"
+          />
+        </a>
+        {!isPlaytest && (
+          <a
+            href={`https://www.tcgplayer.com/search/magic/product?q=${encodeURIComponent(current.name)}&view=grid`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card-preview-ext-link"
+          >
+            TCGPlayer
+            <ExternalLink
+              width={12}
+              height={12}
+              strokeWidth={2.4}
+              aria-hidden
+              className="card-preview-ext-link-icon"
+            />
+          </a>
+        )}
+      </div>
+    </section>
+  );
+
+  // Real Scryfall printings only — placeholder/synthetic ids would 400.
+  const rulingsSection = UUID_RE.test(current.scryfallId) ? (
+    <section className="card-preview-sec card-preview-sec--disc">
+      <CardRulings key={current.scryfallId} scryfallId={current.scryfallId} defaultOpen />
+    </section>
+  ) : null;
+
+  const legalitySection = (
+    <section className="card-preview-sec card-preview-sec--disc">
+      <CardLegalities legalities={detail?.legalities ?? current.legalities} defaultOpen />
+    </section>
+  );
+
+  const slot = (node: ReactNode, cls = '') =>
+    node ? <section className={`card-preview-sec card-preview-slot${cls}`}>{node}</section> : null;
+  const leadsWithExtra = source === 'search';
+
+  // Position in the carousel. A playtest inspector always holds exactly one
+  // card, so it would only ever read "1 of 1".
+  const position = isPlaytest
+    ? null
+    : `${selected + 1} of ${cards.length}${
+        pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''
+      }`;
+
   // Portaled to <body>: this is a `position: fixed; inset: 0` full-screen modal.
   // When dropped inside an ancestor that establishes a containing block for
   // fixed descendants — e.g. `.deck-bento` (container-type: inline-size), which
@@ -553,9 +861,13 @@ export function CardPreview({
   return createPortal(
     <div
       className={`card-preview-backdrop${isClosing ? ' is-closing' : ''}`}
+      // Empty space closes: the backdrop, the stage around the card, the gaps
+      // between slides, the top bar. The card itself is inert (reading it,
+      // pinching it, touching it must never close it), a neighbour centers,
+      // and nothing inside the panel is empty space.
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
+        if (isEmptySpace(e.target)) beginClose();
       }}
       role="presentation"
     >
@@ -566,6 +878,7 @@ export function CardPreview({
         }`}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={nameId}
         style={exitStyle}
         onAnimationEnd={onAnimationEnd}
         {...touchHandlers}
@@ -579,457 +892,206 @@ export function CardPreview({
           }}
           aria-label="Close preview"
         >
-          ×
+          <X width={20} height={20} strokeWidth={2} aria-hidden />
         </button>
-        <div className="card-preview-grabber" aria-hidden="true" />
-        <SnapCarousel
-          ref={carousel}
-          trackRef={trackRef}
-          count={cards.length}
-          index={selected}
-          onIndexChange={handleIndexChange}
-          windowRadius={WINDOW_RADIUS}
-          keysEnabled={!shareOpen}
-          className="card-preview-track"
-          slideClassName="card-preview-slide"
-          renderSlide={renderSlide}
-          // Tap the active card to close — matches the natural "tap to
-          // dismiss" expectation on mobile and desktop alike.
-          onSlideClick={(_, isActive) => isActive && beginClose()}
-        />
 
-        {/* Always rendered so single-faced and transform cards reserve the
-            same vertical space — otherwise navigating between them would
-            shift the panel up/down. */}
+        <div className="card-preview-stage" ref={stageRef}>
+          <div className="card-preview-topbar">
+            {position && <span className="card-preview-pos">{position}</span>}
+          </div>
+          <SnapCarousel
+            ref={carousel}
+            trackRef={trackRef}
+            count={cards.length}
+            index={selected}
+            onIndexChange={handleIndexChange}
+            windowRadius={WINDOW_RADIUS}
+            keysEnabled={!shareOpen}
+            className="card-preview-track"
+            slideClassName="card-preview-slide"
+            renderSlide={renderSlide}
+            // The card is for reading. On a phone with the sheet raised over
+            // it, tapping the card lowers the sheet so the card shows again.
+            onSlideClick={(_, isActive) => {
+              if (isActive && stop !== 'peek') setStop('peek');
+            }}
+          />
+          {(canFlip || turnCycle) && (
+            // Flip/Turn act on the image, so they sit on the card's art — an
+            // overlay sized to the card, so single-faced cards reserve nothing.
+            <div className="card-preview-card-layer">
+              <div className="card-preview-card-box">
+                <button
+                  type="button"
+                  className="card-preview-art-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    flipOrTurn();
+                  }}
+                  aria-label={artLabel}
+                  aria-keyshortcuts="F"
+                  title={`${artLabel} (F)`}
+                >
+                  {canFlip ? (
+                    <RefreshCw width={16} height={16} strokeWidth={2} aria-hidden />
+                  ) : (
+                    <RotateCw width={16} height={16} strokeWidth={2} aria-hidden />
+                  )}
+                  <span>{canFlip ? (flipped[selected] ? 'Front' : 'Flip') : 'Turn'}</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div
-          ref={actionRowRef}
-          className={`card-preview-flip-row${actionsCompact ? ' is-compact' : ''}`}
+          ref={panelRef}
+          className="card-preview-panel"
+          data-source={source}
+          data-stop={stop}
+          {...sheetStops}
         >
           <button
             type="button"
-            className={`card-preview-flip-btn card-preview-details-btn${expanded ? ' is-on' : ''}`}
+            className="card-preview-handle"
             onClick={(e) => {
               e.stopPropagation();
-              setExpanded((v) => !v);
+              setStop(nextStop(stop));
             }}
-            aria-expanded={expanded}
+            aria-expanded={stop !== 'peek'}
             aria-controls="card-preview-panel-inner"
-            aria-label={expanded ? 'Collapse card details' : 'Expand card details'}
-            title={expanded ? 'Collapse details' : 'Expand details'}
+            aria-label={stop === 'full' ? 'Show less' : 'Show more details'}
           >
-            <ChevronUp
-              width={18}
-              height={18}
-              strokeWidth={2}
-              aria-hidden
-              className={`card-preview-details-chevron${expanded ? ' is-open' : ''}`}
-            />
-            <span>Details</span>
+            <span className="card-preview-handle-bar" aria-hidden />
+            <ChevronUp className="card-preview-handle-chevron" aria-hidden />
           </button>
-          {faceSrc && (
-            <button
-              type="button"
-              className="card-preview-flip-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                shareCard();
-              }}
-              data-compactable
-              aria-label="Share card image"
-              title="Share card image"
-              disabled={sharing}
-              aria-busy={sharing}
-            >
-              {sharing ? (
-                <Loader2 className="card-preview-share-spinner" aria-hidden />
-              ) : (
-                <Share2 width={18} height={18} strokeWidth={2} aria-hidden />
-              )}
-              <span>Share</span>
-            </button>
-          )}
-          {current.imageNormalBack && (
-            <button
-              type="button"
-              className="card-preview-flip-btn"
-              onClick={() =>
-                setFlipped((prev) => ({
-                  ...prev,
-                  [selected]: !prev[selected],
-                }))
-              }
-              data-compactable
-              aria-label={flipped[selected] ? 'Show front face' : 'Show back face'}
-              title={flipped[selected] ? 'Show front face' : 'Show back face'}
-            >
-              <RefreshCw width={20} height={20} strokeWidth={2} aria-hidden />
-              <span>Flip</span>
-            </button>
-          )}
-          {turnCycle && (
-            <button
-              type="button"
-              className="card-preview-flip-btn"
-              onClick={() => setTurned((prev) => ({ ...prev, [selected]: nextTurn }))}
-              data-compactable
-              aria-label={nextTurnLabel}
-              title={nextTurnLabel}
-            >
-              <RotateCw width={20} height={20} strokeWidth={2} aria-hidden />
-              <span>Turn</span>
-            </button>
-          )}
-          {onEdit && (
-            <button
-              type="button"
-              className="card-preview-flip-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(current);
-              }}
-              data-compactable
-              aria-label="Edit printing"
-              title="Edit printing"
-            >
-              <Pencil width={18} height={18} strokeWidth={2} aria-hidden />
-              <span>Edit</span>
-            </button>
-          )}
-          {getActions?.(selected).map((a) => (
-            <button
-              key={a.key}
-              type="button"
-              className={`card-preview-flip-btn${a.danger ? ' is-danger' : ''}`}
-              data-has-short={a.shortLabel ? '' : undefined}
-              onClick={(e) => {
-                e.stopPropagation();
-                a.onClick();
-              }}
-              aria-label={a.label}
-              title={a.label}
-            >
-              {a.icon}
-              <span>{a.label}</span>
-              {a.shortLabel && (
-                <span data-short aria-hidden>
-                  {a.shortLabel}
+
+          <div className="card-preview-head">
+            <div className="card-preview-name-row">
+              <h2 className="card-preview-name" id={nameId}>
+                {face?.name ?? <CardName card={current} />}
+              </h2>
+              {!hidePrice && !isPlaytest && (
+                <span className="card-preview-price">
+                  {formatMoney(current.purchasePrice)}
+                  <PriceOverrideBadge card={current} />
                 </span>
               )}
-            </button>
-          ))}
-        </div>
+            </div>
+            {(headTypeLine || headManaCost) && (
+              <div className="card-preview-typeline">
+                {headManaCost && <ManaCost cost={headManaCost} className="card-preview-mana" />}
+                {headTypeLine && <span className="card-preview-type">{headTypeLine}</span>}
+                {headStat && <span className="card-preview-pt">{headStat}</span>}
+              </div>
+            )}
+            {!isPlaytest && contextLine}
+            {(faceSrc || onEdit || actions.length > 0) && (
+              <div
+                ref={actionRowRef}
+                className={`card-preview-actions${actionsCompact ? ' is-compact' : ''}`}
+              >
+                {faceSrc && (
+                  <button
+                    type="button"
+                    className="card-preview-action"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      shareCard();
+                    }}
+                    data-compactable
+                    aria-label="Share card image"
+                    title="Share card image"
+                    disabled={sharing}
+                    aria-busy={sharing}
+                  >
+                    {sharing ? (
+                      <Loader2 className="card-preview-share-spinner" aria-hidden />
+                    ) : (
+                      <Share2 width={16} height={16} strokeWidth={2} aria-hidden />
+                    )}
+                    <span>Share</span>
+                  </button>
+                )}
+                {onEdit && (
+                  <button
+                    type="button"
+                    className="card-preview-action"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(current);
+                    }}
+                    data-compactable
+                    aria-label="Edit printing"
+                    title="Edit printing"
+                  >
+                    <Pencil width={16} height={16} strokeWidth={2} aria-hidden />
+                    <span>Edit</span>
+                  </button>
+                )}
+                {standing.map((a) => (
+                  <button
+                    key={a.key}
+                    type="button"
+                    className={`card-preview-action${a.danger ? ' is-danger' : ''}`}
+                    data-has-short={a.shortLabel ? '' : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      a.onClick();
+                    }}
+                    aria-label={a.label}
+                    title={a.label}
+                  >
+                    {a.icon}
+                    <span>{a.label}</span>
+                    {a.shortLabel && (
+                      <span data-short aria-hidden>
+                        {a.shortLabel}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                {overflow.length > 0 && (
+                  <OverflowMenu
+                    ariaLabel="More card actions"
+                    triggerClassName="card-preview-action card-preview-action--icon"
+                    panelClassName="card-preview-menu"
+                    items={overflow.map((a) => ({
+                      label: a.label,
+                      onClick: a.onClick,
+                      danger: a.danger,
+                    }))}
+                  />
+                )}
+              </div>
+            )}
+          </div>
 
-        <div className="card-preview-panel" data-source={source} data-expanded={expanded}>
           <div
             className="card-preview-panel-inner"
             id="card-preview-panel-inner"
             ref={panelInnerRef}
           >
-            <div className="card-preview-name-row">
-              <div className="card-preview-name">
-                <CardName card={current} stacked />
-              </div>
-            </div>
-            {(current.typeLine || current.manaCost) && (
-              <div className="card-preview-typeline">
-                {current.manaCost && (
-                  <ManaCost cost={current.manaCost} className="card-preview-mana" />
-                )}
-                {current.typeLine && <span className="card-preview-type">{current.typeLine}</span>}
-                {(() => {
-                  // Whole-card stat (single-face only) — pulled up beside the type
-                  // line as card identity; DFC per-face P/T stays in CardText.
-                  const stat =
-                    detail?.power != null && detail?.toughness != null
-                      ? `${detail.power}/${detail.toughness}`
-                      : detail?.loyalty != null
-                        ? `Loyalty ${detail.loyalty}`
-                        : null;
-                  return stat ? <span className="card-preview-pt">{stat}</span> : null;
-                })()}
-              </div>
-            )}
-            {/* Binder / deck / section provenance. Meaningless at a game table,
-                where every card is "Playtest · Battlefield". */}
-            {!isPlaytest && (
-              <div className="card-preview-context">
-                {binderName}
-                {(() => {
-                  // Aggregate binders and decks across every copy in the stack
-                  // so a grouped row can surface every container it touches —
-                  // not just whichever copy the row picked as its representative.
-                  const binders = getStackBinders?.(selected) ?? [];
-                  const binderById = new Map<string, BinderInfo>();
-                  for (const b of binders) binderById.set(b.id, b);
-                  const uniqueBinders = [...binderById.values()];
-
-                  const allocs = getStackAllocations?.(selected) ?? [];
-                  const deckById = new Map<string, AllocationInfo>();
-                  const cubeById = new Map<string, AllocationInfo>();
-                  for (const a of allocs) {
-                    if (a.ownerKind === 'cube') {
-                      cubeById.set(a.ownerId, a);
-                    } else {
-                      if (a.deckId === currentDeckId) continue;
-                      deckById.set(a.deckId, a);
-                    }
-                  }
-                  const uniqueDecks = [...deckById.values()];
-                  const uniqueCubes = [...cubeById.values()];
-                  const sectionLabel = sectionLabels[selected] ?? '';
-
-                  return (
-                    <>
-                      {sectionLabel && ` · ${sectionLabel}`}
-                      {uniqueBinders.length > 0 && ' · '}
-                      {uniqueBinders.map((b, i) => (
-                        <span key={`b-${b.id}`}>
-                          {i > 0 && ' · '}
-                          <Link
-                            to={`/collection/binders/${b.id}`}
-                            className="card-preview-context-pill card-preview-context-pill--binder"
-                            style={
-                              {
-                                '--pill-color': b.color || 'var(--accent)',
-                              } as React.CSSProperties
-                            }
-                            onClick={onClose}
-                            title={`Open binder ${b.name}`}
-                          >
-                            <Notebook width={11} height={11} strokeWidth={2.2} aria-hidden />
-                            <span>{b.name}</span>
-                          </Link>
-                        </span>
-                      ))}
-                      {uniqueDecks.length > 0 && ' · '}
-                      {uniqueDecks.map((d, i) => (
-                        <span key={`d-${d.deckId}`}>
-                          {i > 0 && ' · '}
-                          <Link
-                            to={`/decks/${d.ownerId}`}
-                            className="card-preview-context-pill card-preview-context-pill--deck"
-                            style={
-                              {
-                                '--pill-color': d.deckColor || 'var(--accent)',
-                              } as React.CSSProperties
-                            }
-                            onClick={onClose}
-                            title={`In deck: ${d.deckName}`}
-                            aria-label={`In deck: ${d.deckName}`}
-                          >
-                            <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
-                            <span>{d.deckName}</span>
-                          </Link>
-                        </span>
-                      ))}
-                      {uniqueCubes.length > 0 && ' · '}
-                      {uniqueCubes.map((c, i) => (
-                        <span key={`c-${c.ownerId}`}>
-                          {i > 0 && ' · '}
-                          <Link
-                            to={`/decks/cube/${c.ownerId}`}
-                            className="card-preview-context-pill card-preview-context-pill--cube"
-                            style={
-                              {
-                                '--pill-color': 'var(--cube-color)',
-                              } as React.CSSProperties
-                            }
-                            onClick={onClose}
-                            title={`In cube: ${c.ownerName}`}
-                            aria-label={`In cube: ${c.ownerName}`}
-                          >
-                            <Boxes width={11} height={11} strokeWidth={2.2} aria-hidden />
-                            <span>{c.ownerName}</span>
-                          </Link>
-                        </span>
-                      ))}
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-            {renderPanelMeta && (
-              <div className="card-preview-slot card-preview-slot--meta">
-                {renderPanelMeta(selected)}
-              </div>
-            )}
-            {isPlaytest && rulesBlock}
-            <div className="card-preview-meta">
-              <span
-                className={`card-preview-rarity rarity-${(current.rarity || '').toLowerCase()}`}
-              >
-                {current.rarity}
-              </span>
-              {(() => {
-                // One finish token, as specific as the data allows — "Etched",
-                // "Oil slick", … — falling back to plain "Foil". Labels come
-                // from the shared FoilBadge mapping so wording never drifts.
-                const finish = foilFinishLabel(current);
-                return finish ? <span className="card-preview-foil">{finish}</span> : null;
-              })()}
-              {!hidePrice && !isPlaytest && (
-                <>
-                  {' · '}
-                  {formatMoney(current.purchasePrice)}
-                  <PriceOverrideBadge card={current} />
-                </>
-              )}
-              {(() => {
-                const qty = isPlaytest ? 1 : (getStackQty?.(selected) ?? 1);
-                return qty > 1 ? (
-                  <span className="card-preview-qty" aria-label={`${qty} copies`}>
-                    {' · '}
-                    <span className="card-preview-qty-x" aria-hidden>
-                      ×
-                    </span>
-                    {qty}
-                  </span>
-                ) : null;
-              })()}
-              {!isPlaytest && current.condition && (
-                <span
-                  className="card-preview-condition"
-                  aria-label={`Condition ${current.condition}`}
-                >
-                  {' · '}
-                  {current.condition.toUpperCase()}
-                </span>
-              )}
-              {!isPlaytest &&
-                current.language &&
-                current.language !== 'en' &&
-                (() => {
-                  const label =
-                    LANGUAGE_OPTIONS.find((o) => o.value === current.language)?.label ??
-                    current.language.toUpperCase();
-                  return (
-                    <span className="card-preview-condition" aria-label={`Language ${label}`}>
-                      {' · '}
-                      {label}
-                    </span>
-                  );
-                })()}
-              {(['altered', 'proxy', 'misprint'] as const)
-                .filter((flag) => !isPlaytest && current[flag])
-                .map((flag) => (
-                  <span key={flag} className="card-preview-condition" aria-label={flag}>
-                    {' · '}
-                    {flag.toUpperCase()}
-                  </span>
-                ))}
-            </div>
-            {(() => {
-              // Price freshness on demand — the always-on collection "Prices as
-              // of" line was retired; the card inspector is one of its homes.
-              const updated = hidePrice || isPlaytest ? null : formatPricedDate(current.pricedAt);
-              return updated ? (
-                <div className="card-preview-priced-at">Prices updated {updated}</div>
-              ) : null;
-            })()}
-            {showRole &&
-              (() => {
-                // Role decodes from the card name via the bundled tagger,
-                // so the preview needs no extra data plumbing.
-                const badge = getRoleBadge({ name: current.name });
-                if (!badge) return null;
-                const roleText =
-                  rolesForCard({ name: current.name }).length > 1
-                    ? multiRoleTitle({ name: current.name })
-                    : badge.title;
-                return (
-                  <div className="card-preview-role">
-                    <span className={`deck-row-role-badge deck-row-role-${badge.tone}`} aria-hidden>
-                      {badge.label}
-                    </span>
-                    <span>{roleText}</span>
-                  </div>
-                );
-              })()}
-            <div className="card-preview-set">
-              {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (
-                <img
-                  src={setMap[current.setCode.toUpperCase()].iconSvgUri}
-                  alt=""
-                  aria-hidden="true"
-                  className="card-preview-set-icon"
-                />
-              ) : null}
-              {(current.setName || current.setCode) && (
-                <span>
-                  {current.setName || current.setCode}
-                  {current.setName && current.setCode ? (
-                    <span className="card-preview-set-code">
-                      {' '}
-                      ({current.setCode.toUpperCase()})
-                    </span>
-                  ) : null}
-                  {current.collectorNumber ? (
-                    // Collector number completes the printing identity — it's
-                    // what disambiguates two otherwise-identical rows.
-                    <span className="card-preview-set-code"> · #{current.collectorNumber}</span>
-                  ) : null}
-                  {sldDropLabel ? (
-                    <span className="card-preview-set-code"> · {sldDropLabel}</span>
-                  ) : null}
-                </span>
-              )}
-            </div>
-            <div className="card-preview-links">
-              <a
-                href={`https://scryfall.com/card/${current.setCode.toLowerCase()}/${current.collectorNumber}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="card-preview-ext-link"
-              >
-                Scryfall
-                <ExternalLink
-                  width={12}
-                  height={12}
-                  strokeWidth={2.4}
-                  aria-hidden
-                  className="card-preview-ext-link-icon"
-                />
-              </a>
-              {!isPlaytest && (
-                <a
-                  href={`https://www.tcgplayer.com/search/magic/product?q=${encodeURIComponent(current.name)}&view=grid`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card-preview-ext-link"
-                >
-                  TCGPlayer
-                  <ExternalLink
-                    width={12}
-                    height={12}
-                    strokeWidth={2.4}
-                    aria-hidden
-                    className="card-preview-ext-link-icon"
-                  />
-                </a>
-              )}
-            </div>
-            {/* Rules-reference depth, below the collection facts — revealed when
-                the panel expands (compact height shows the facts first). */}
-            {!isPlaytest && rulesBlock}
-            <CardLegalities legalities={detail?.legalities ?? current.legalities} />
-            {renderPanelExtra && (
-              <div className="card-preview-slot">{renderPanelExtra(selected)}</div>
-            )}
-            {/* Carousel position. A playtest inspector always holds exactly one
-                card, so the counter would only ever read "Card 1 of 1". */}
-            {!isPlaytest && (
-              <div className="card-preview-counter">
-                Card {selected + 1} of {cards.length}
-                {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
-              </div>
-            )}
+            {slot(metaSlot, ' card-preview-slot--meta')}
+            {leadsWithExtra && slot(extraSlot)}
+            {copySection}
+            {rulesSection}
+            {!leadsWithExtra && slot(extraSlot)}
+            {printingSection}
+            {rulingsSection}
+            {legalitySection}
           </div>
+        </div>
+
+        {/* Paging is announced; the counter in the top bar is visual. */}
+        <div className="sr-only" aria-live="polite">
+          {position ? `Card ${position}, ${current.name}` : current.name}
         </div>
       </div>
       {/* Portaled out of the backdrop's DOM subtree. React still bubbles the
           portal's clicks through the *component* tree to the backdrop above,
-          but its handler only dismisses on `e.target === e.currentTarget`,
-          which a click anywhere in this dialog never satisfies. */}
+          but its handler only dismisses on empty space, which a click anywhere
+          in this dialog never is. */}
       {shareOpen &&
         faceSrc &&
         createPortal(

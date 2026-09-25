@@ -83,8 +83,15 @@ function StatusIcon({ status }: { status: LegalityStatus }) {
   return <Minus {...props} />;
 }
 
-export function CardLegalities({ legalities }: { legalities: Record<string, string> | undefined }) {
-  const [open, setOpen] = useState(false);
+export function CardLegalities({
+  legalities,
+  defaultOpen = false,
+}: {
+  legalities: Record<string, string> | undefined;
+  /** Start expanded — the card preview shows everything it has room for. */
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   const rows = legalityRows(legalities);
   if (rows.length === 0) return null;
 
@@ -115,7 +122,8 @@ export function CardLegalities({ legalities }: { legalities: Record<string, stri
             >
               <StatusIcon status={r.status} />
               <span className="card-legality-fmt">{r.label}</span>
-              <span className="sr-only">{r.statusLabel}</span>
+              {/* The word, not just the icon's colour: status is never colour-only. */}
+              <span className="card-legality-status">{r.statusLabel}</span>
             </div>
           ))}
         </div>

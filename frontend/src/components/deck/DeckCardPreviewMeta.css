@@ -1,31 +1,15 @@
-/* Deck-context block in the card preview panel (CardPreview renderPanelMeta
-   slot).
+/* Deck-context block — the card preview's lead section when it is opened from
+   a deck (CardPreview renderPanelMeta slot). The panel is a fixed dark surface
+   in every theme and remaps the theme tokens to white-alpha, but this block
+   keeps its own literal light-on-dark values too (belt and braces).
 
-   The preview panel is a FIXED dark surface regardless of the app theme
-   (.card-preview-panel hardcodes background rgba(15,15,18,.92) + #fff text and
-   styles its own text with literal rgba(255,255,255,…), not theme tokens). So
-   this block is styled light-on-dark with explicit values too — using theme
-   tokens like --text-primary/--surface here would render dark-on-dark in light mode.
-
-   The block stays compact (a one-line summary + warnings + synergy reasons);
-   the panel is a fixed-height, always-scrollable surface, so this block never
-   needs its own height management — it just flows and the panel scrolls.
-
-   Layout is fluid (flex, wrapping, rem units, no fixed widths) so it reflows
-   from desktop down to ~320px with no horizontal overflow, web and native
-   WebView alike. */
+   Flat, like every other section of the panel: the section is the frame, so
+   the block carries no plate of its own (one frame per surface). Layout is
+   fluid (flex, wrapping, no fixed widths) so it reflows down to 320px. */
 .deck-card-preview-meta {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin: 0.35rem 0;
-  padding: var(--space-2) 0.65rem;
-  border: 0.5px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius);
-  /* Near-opaque dark plate (stacks with the panel's 0.92) so the block's
-     dense text stays legible over bright card art bleeding through the
-     slightly-transparent panel. */
-  background: rgba(12, 12, 15, 0.72);
+  gap: var(--space-2);
   font-size: var(--text-sm);
   color: rgba(255, 255, 255, 0.92);
 }
@@ -36,8 +20,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
+  gap: var(--space-2);
   min-width: 0;
   line-height: 1.4;
 }

@@ -77,10 +77,10 @@ describe('preview sheets never take native pinch-zoom away', () => {
 });
 
 describe('blanket rules do not clobber existing transitions', () => {
-  it('keeps the panel height animation (Details expand/collapse)', () => {
+  it('keeps the info sheet stop animation (peek / half / full slide by transform)', () => {
     const declared = declarationsFor('.card-preview-panel', 'transition');
     expect(declared.length).toBeGreaterThan(0);
-    expect(declared.some((t) => t.includes('height'))).toBe(true);
+    expect(declared.some((t) => t.includes('transform'))).toBe(true);
     expect(declared.every((t) => t !== 'opacity 0.2s var(--ease-out-soft)')).toBe(true);
   });
 

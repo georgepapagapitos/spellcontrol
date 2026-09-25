@@ -73,8 +73,16 @@ describe('binder page viewer surface', () => {
     expect(bg).not.toMatch(/rgba|\/\s*\d|transparent/);
   });
 
-  it('neighbouring pages recede like the card preview', () => {
-    expect(blocks(css, '.binder-pages-slide')[0]).toMatch(/opacity:\s*0\.45/);
-    expect(blocks(css, '.binder-pages-slide.is-active')[0]).toMatch(/opacity:\s*1/);
+  it('neighbouring pages recede like the card preview — under a wash, never see-through', () => {
+    // An opacity fade let the binder grid behind read through the neighbours.
+    for (const sel of ['.binder-pages-slide', '.card-preview-slide']) {
+      for (const b of blocks(css, sel)) expect(b, sel).not.toMatch(/(^|;|\s)opacity:/);
+    }
+    const wash = blocks(css, '.binder-pages-slide::after');
+    expect(wash.some((b) => /background:/.test(b))).toBe(true);
+    expect(blocks(css, '.card-preview-slide::after')).toEqual(
+      expect.arrayContaining([expect.stringMatching(/background:/)])
+    );
+    expect(blocks(css, '.binder-pages-slide.is-active::after')[0]).toMatch(/opacity:\s*0/);
   });
 });
