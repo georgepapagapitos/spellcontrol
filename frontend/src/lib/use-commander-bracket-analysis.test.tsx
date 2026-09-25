@@ -10,7 +10,10 @@ vi.mock('@/deck-builder/services/deckBuilder/commanderDeckAnalysis', () => ({
   detectCombosForAnalysis: vi.fn(async () => []),
 }));
 
-import { analyzeCommanderDeck } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
+import {
+  analyzeCommanderDeck,
+  detectCombosForAnalysis,
+} from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useCommanderBracketAnalysis } from './use-commander-bracket-analysis';
 
 const RESULT = {
@@ -170,6 +173,24 @@ describe('useCommanderBracketAnalysis — active', () => {
       expect.objectContaining({ gradeBracketSignature: sig(deck, combo) }),
       true // silent: derived analysis must not bump updatedAt
     );
+  });
+
+  it('resolves combo templates against the commanders as well as the 99', async () => {
+    // A template the commander meets is met: the Combos panel counts the
+    // command zone, so the bracket has to as well.
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+    const combo = {
+      inDeck: [{ combo: { id: 'cx' } }],
+      oneAway: [],
+      almostInCollection: [],
+    } as unknown as ComboMatchResponse;
+    const deck = makeDeck({ partnerCommander: { name: 'Tymna' } as never });
+    renderHook(() => useCommanderBracketAnalysis(args({ deck, comboData: combo })));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    const names = vi.mocked(detectCombosForAnalysis).mock.calls[0][1].map((c) => c.name);
+    expect(names).toEqual(['Krenko, Mob Boss', 'Tymna', 'Sol Ring', 'Goblin Matron']);
   });
 
   it('does not persist (and will not retry on its own) when analysis returns null', async () => {

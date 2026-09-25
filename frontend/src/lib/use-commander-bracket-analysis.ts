@@ -304,7 +304,13 @@ export function useCommanderBracketAnalysis(args: Args): {
     const myReqId = ++reqIdRef.current;
     const timer = window.setTimeout(() => {
       withStallTimeout(
-        detectCombosForAnalysis(comboData, cards).then((detectedCombos) =>
+        // Commanders count as deck cards for a template requirement, as they
+        // do in the Combos panel (a template the commander meets is met).
+        detectCombosForAnalysis(comboData, [
+          commander,
+          ...(partnerCommander ? [partnerCommander] : []),
+          ...cards,
+        ]).then((detectedCombos) =>
           analyzeCommanderDeck({
             commander,
             partnerCommander,
