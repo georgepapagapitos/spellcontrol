@@ -298,6 +298,12 @@
   display: none;
 }
 
+/* The value stays in compact (it is what a Value sort is read by), but the
+   detail it would continue is hidden, so it drops its leading "·". */
+.decks-index-list.is-compact .decks-index-card-value::before {
+  content: none;
+}
+
 /* Reserve space on the right so the absolutely-positioned 3-dot
    menu doesn't sit on top of the meta text. */
 .decks-index-list.is-compact .decks-index-card-link {
@@ -418,6 +424,26 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* Detail + value as one flex item. The detail shrinks (ellipsis) and the
+   value never does, so a long partner pair truncates the commander names
+   while the value stays pinned to the end of the run. */
+.decks-index-card-facts {
+  display: flex;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* The deck's value: the next item of the detail's " · " run, spaced exactly
+   like the separators inside the detail text. */
+.decks-index-card-value {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.decks-index-card-detail + .decks-index-card-value::before {
+  content: '\00a0·\00a0';
 }
 
 .decks-index-card-pips {

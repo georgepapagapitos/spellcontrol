@@ -68,6 +68,8 @@ import {
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { materializeBinders } from '../lib/materialize';
 import { formatMoney } from '../lib/format-money';
+import { deckValue } from '../lib/deck-value';
+import { useCurrency } from '../lib/currency';
 import { buildCommanderKey } from '../lib/commander-key';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
@@ -184,7 +186,6 @@ import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpg
 import { useSearchCards } from '@/lib/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
-  getCardPrice,
   getCardByName,
   getOwnedPrinting,
   searchCards,
@@ -236,6 +237,7 @@ export function DeckEditorPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const deck = useDecksStore((s) => s.decks.find((d) => d.id === id) ?? null);
+  const currency = useCurrency();
   // Names the browser print job / tab title — the print stylesheet has no
   // other way to label a printed checklist with the deck's name.
   useDocumentTitle(deck?.name);
@@ -1400,24 +1402,13 @@ export function DeckEditorPage() {
   // early return so the hook order stays stable across renders.
   const heroTotals = useMemo(() => {
     if (!deck) return { count: 0, value: 0, sideboard: 0, considering: 0 };
-    const sumPrice = (cards: ScryfallCard[]) =>
-      cards.reduce((sum, c) => {
-        const raw = getCardPrice(c, 'USD');
-        const n = raw ? Number(raw) : NaN;
-        return sum + (Number.isFinite(n) ? n : 0);
-      }, 0);
-    const commanders: ScryfallCard[] = [];
-    if (deck.commander) commanders.push(deck.commander);
-    if (deck.partnerCommander) commanders.push(deck.partnerCommander);
-    const mainCards = deck.cards.map((c) => c.card);
-    const main = [...commanders, ...mainCards];
     return {
-      count: main.length,
-      value: sumPrice(main),
+      count: (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length,
+      value: deckValue(deck, currency),
       sideboard: deck.sideboard.length,
       considering: (deck.considering ?? []).length,
     };
-  }, [deck]);
+  }, [deck, currency]);
 
   // Commander presence for the hero — same art_crop resolution + offline-URL
   // healing as the Decks index cards (see DecksIndexPage). Undefined for
