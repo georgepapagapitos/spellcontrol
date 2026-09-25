@@ -33,6 +33,17 @@ function installFullscreenElement(el: Element | null) {
   Object.defineProperty(document, 'fullscreenElement', { configurable: true, value: el });
 }
 
+/** Install a mock `screen.orientation` with spy-able lock/unlock, or remove
+ *  it entirely (`undefined`) to simulate an unsupported browser (iOS Safari). */
+function installOrientation(
+  impl: { lock?: ReturnType<typeof vi.fn>; unlock?: ReturnType<typeof vi.fn> } | undefined
+) {
+  Object.defineProperty(window.screen, 'orientation', {
+    configurable: true,
+    value: impl,
+  });
+}
+
 /** Simulate the browser confirming a fullscreen transition. */
 function fireFullscreenChange() {
   document.dispatchEvent(new Event('fullscreenchange'));
@@ -178,6 +189,136 @@ describe('useFullscreen', () => {
 
       unmount();
       expect(document.exitFullscreen).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('portrait orientation lock', () => {
+    // The lock rides fullscreen ownership — same gesture asks for both, same
+    // release gives both back — so it uses the same ownership tracking
+    // exitOnUnmount already relies on (confirmed by fullscreenchange, never
+    // assumed the instant enter() is called).
+    it('locks to portrait once this hook’s own enter() is confirmed by fullscreenchange', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      const lock = vi.fn().mockResolvedValue(undefined);
+      installOrientation({ lock });
+      document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+      const { result } = renderHook(() => useFullscreen());
+
+      act(() => result.current.enter());
+      expect(lock).not.toHaveBeenCalled(); // not yet — enter() is async, unconfirmed
+
+      act(() => {
+        installFullscreenElement(document.documentElement);
+        fireFullscreenChange();
+      });
+      expect(lock).toHaveBeenCalledTimes(1);
+      expect(lock).toHaveBeenCalledWith('portrait');
+    });
+
+    it('does not lock orientation for a fullscreen entered some other way', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      const lock = vi.fn().mockResolvedValue(undefined);
+      installOrientation({ lock });
+      const { result: _unused } = renderHook(() => useFullscreen());
+      void _unused;
+
+      act(() => {
+        installFullscreenElement(document.documentElement);
+        fireFullscreenChange();
+      });
+      expect(lock).not.toHaveBeenCalled();
+    });
+
+    it('unlocks on a manual exit this hook owned, once fullscreenchange confirms it left', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      const unlock = vi.fn();
+      installOrientation({ lock: vi.fn().mockResolvedValue(undefined), unlock });
+      document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+      document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
+      const { result } = renderHook(() => useFullscreen());
+
+      act(() => result.current.enter());
+      act(() => {
+        installFullscreenElement(document.documentElement);
+        fireFullscreenChange();
+      });
+      act(() => result.current.exit());
+      act(() => {
+        installFullscreenElement(null);
+        fireFullscreenChange();
+      });
+      expect(unlock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not unlock a fullscreen this hook never owned when it ends', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      const unlock = vi.fn();
+      installOrientation({ lock: vi.fn().mockResolvedValue(undefined), unlock });
+      renderHook(() => useFullscreen());
+
+      act(() => {
+        installFullscreenElement(document.documentElement);
+        fireFullscreenChange();
+      });
+      act(() => {
+        installFullscreenElement(null);
+        fireFullscreenChange();
+      });
+      expect(unlock).not.toHaveBeenCalled();
+    });
+
+    it('unlocks directly on unmount (exitOnUnmount) rather than waiting for fullscreenchange', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      const unlock = vi.fn();
+      installOrientation({ lock: vi.fn().mockResolvedValue(undefined), unlock });
+      document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+      document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
+      const { result, unmount } = renderHook(() => useFullscreen({ exitOnUnmount: true }));
+
+      act(() => result.current.enter());
+      act(() => {
+        installFullscreenElement(document.documentElement);
+        fireFullscreenChange();
+      });
+      unmount();
+      expect(unlock).toHaveBeenCalledTimes(1);
+    });
+
+    it('never throws when screen.orientation is unsupported (iOS Safari)', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      installOrientation(undefined);
+      document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+      const { result } = renderHook(() => useFullscreen());
+
+      act(() => result.current.enter());
+      expect(() =>
+        act(() => {
+          installFullscreenElement(document.documentElement);
+          fireFullscreenChange();
+        })
+      ).not.toThrow();
+    });
+
+    it('never throws when lock() rejects', () => {
+      installFullscreenEnabled(true);
+      installMatchMedia(true);
+      installOrientation({ lock: vi.fn().mockRejectedValue(new Error('nope')) });
+      document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+      const { result } = renderHook(() => useFullscreen());
+
+      act(() => result.current.enter());
+      expect(() =>
+        act(() => {
+          installFullscreenElement(document.documentElement);
+          fireFullscreenChange();
+        })
+      ).not.toThrow();
     });
   });
 });

@@ -63,6 +63,59 @@
   }
 }
 
+/* ── "Keep the board still" (landscape) ──────────────────────────────────
+   A phone lying flat on the table that auto-rotates into landscape must not
+   spin every seat — see STYLE_GUIDE "Play board: landscape keeps the board
+   still". `.game-board-rotator` wraps the seat grid, the clock strip and
+   every board-owned overlay except ConfirmDialog (portalled to
+   document.body, outside this subtree). Ordinarily it's a transparent
+   passthrough (same flex-column layout `.game-board` always had); the media
+   query below only fires on a coarse-pointer phone held sideways
+   (`use-board-keep-still.ts`'s `KEEP_STILL_QUERY` — keep the two textually
+   identical), and only when `GameBoard.tsx` has set `data-board-rot` (it
+   reads `screen.orientation.type` to pick the sign, so CSS alone can't
+   drive this — the media query can only detect "landscape and short", never
+   which way the device actually turned).
+
+   The transform swaps the rotator's OWN local width/height via `cqw`/`cqh`
+   container query units (`.game-board` becomes a size container only inside
+   this same media query, so nothing outside it is affected) — a plain CSS
+   width/height swap has no way to say "my width = my parent's height", and
+   cqh/cqw do exactly that. Rotating a `(viewport height) × (viewport width)`
+   box 90°/-90° yields a visual footprint of exactly `(viewport width) ×
+   (viewport height)` — the real screen, filled edge to edge either way. */
+.game-board-rotator {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .game-board {
+    container-type: size;
+  }
+
+  .game-board-rotator[data-board-rot] {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100cqh;
+    height: 100cqw;
+    transform-origin: center;
+  }
+
+  .game-board-rotator[data-board-rot='90'] {
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+
+  .game-board-rotator[data-board-rot='-90'] {
+    transform: translate(-50%, -50%) rotate(-90deg);
+  }
+}
+
 /* ── Player panel ─────────────────────────────────────────────────────── */
 
 /* Cell wrapper around each panel. Establishes a container-query context
