@@ -1527,6 +1527,28 @@ describe('POST /api/games/:code/join + PATCH /:code', () => {
     expect(lifed.body.game.players[1].life).toBe(35);
   });
 
+  it('seats up to 10 and rejects an 11th join with 409', async () => {
+    const hostCookie = await registerAndGetCookie('games_seatcap_host');
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+
+    let last;
+    for (let i = 0; i < 9; i++) {
+      const joinerCookie = await registerAndGetCookie(`games_seatcap_joiner_${i}`);
+      last = await request(app)
+        .post(`/api/games/${code}/join`)
+        .set('Cookie', joinerCookie)
+        .send({});
+      expect(last.status).toBe(200);
+    }
+    expect(last!.body.game.players).toHaveLength(10);
+
+    const eleventh = await registerAndGetCookie('games_seatcap_joiner_10');
+    const res = await request(app).post(`/api/games/${code}/join`).set('Cookie', eleventh).send({});
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Game is full.');
+  });
+
   it('defaults a joiner’s name to their display name (falls back to username) when no name is sent', async () => {
     const hostCookie = await registerAndGetCookie('games_joinname_host');
     const joinerCookie = await registerAndGetCookie('games_joinname_joiner');
@@ -3128,7 +3150,7 @@ describe('GET /api/games (room browser, E367)', () => {
       format: 'commander',
       status: 'lobby',
       seated: 1,
-      max: 8,
+      max: 10,
       joinable: true,
       visibility: 'public',
       // No deck seated yet at hostGame time (no hostBracket in the body), so
@@ -3196,7 +3218,7 @@ describe('GET /api/games (room browser, E367)', () => {
       name: 'Packed table',
       visibility: 'public',
     });
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 9; i++) {
       const joinerCookie = await registerAndGetCookie(`browser_full_joiner_${i}`);
       const joinRes = await request(app)
         .post(`/api/games/${code}/join`)
@@ -3207,7 +3229,7 @@ describe('GET /api/games (room browser, E367)', () => {
     const viewer = await registerAndGetCookie('browser_full_viewer');
     const rows = await listGames(viewer);
     const row = rows.find((g) => g.code === code);
-    expect(row).toMatchObject({ seated: 8, max: 8, joinable: false, status: 'lobby' });
+    expect(row).toMatchObject({ seated: 10, max: 10, joinable: false, status: 'lobby' });
   });
 
   it('lists an active public game as spectatable (not joinable)', async () => {

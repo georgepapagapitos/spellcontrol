@@ -713,6 +713,15 @@ export const MAX_COUNTER_NAME_LENGTH = 24;
 export const MAX_COUNTERS_PER_SCOPE = 12;
 
 /**
+ * Seat cap for every ONLINE table. Shared by the join route (rejects an
+ * 11th seat) and the room browser's `max` field on the backend, and by the
+ * lobby's rendered seat grid on the frontend — one constant so the two
+ * never drift apart again (they were two hand-matched `8`s before). Local
+ * pass-and-play seats up to 10 already (Lotus); this brings online in line.
+ */
+export const MAX_ONLINE_SEATS = 10;
+
+/**
  * Canonical form of a user-supplied counter name, and the trust boundary for
  * this field: the name is persisted, synced to every other device in an online
  * game, and rendered. Collapses internal whitespace (so "Rad  counters" can't
