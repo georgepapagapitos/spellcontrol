@@ -1329,7 +1329,9 @@ export function getCachedCard(name: string, arenaOnly = false): ScryfallCard | u
  * (its card cache stores a trimmed field set with no `game_changer` flag). Two
  * hand-maintained copies would drift, and this list drives a HARD bracket floor
  * — the two apps would end up disagreeing about a deck's bracket. This module
- * still owns the LIVE `is:gamechanger` query that unions on top of it.
+ * still owns the LIVE `is:gamechanger` query, which is authoritative on a
+ * complete fetch (see `liveGetGameChangerNames`) and falls back to this list
+ * only when the live fetch fails or breaks mid-page.
  */
 const HARDCODED_GAME_CHANGERS = SHARED_GAME_CHANGERS;
 
@@ -1340,6 +1342,14 @@ const GC_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Live fetch of all `is:gamechanger` card names from Scryfall, paginated.
+ *
+ * A COMPLETE live fetch is authoritative on its own, not unioned with the
+ * hardcoded list — the RC removes cards from the GC list too (ten in Oct
+ * 2025), and unioning would keep flooring a removed card until someone edits
+ * the hardcoded copy. The hardcoded list is only ever a fallback: whole (page
+ * 1 fails, so there's nothing live to trust) or partial-floor (pagination
+ * breaks after page 1, so the live set so far is unioned rather than risking
+ * an undercount from a page that never arrived).
  */
 async function liveGetGameChangerNames(): Promise<Set<string>> {
   if (gameChangerNamesCache && Date.now() - gameChangerCacheTimestamp < GC_CACHE_TTL) {
@@ -1349,6 +1359,7 @@ async function liveGetGameChangerNames(): Promise<Set<string>> {
   const names = new Set<string>();
   let page = 1;
   let hasMore = true;
+  let completedFully = true;
 
   while (hasMore) {
     try {
@@ -1365,6 +1376,7 @@ async function liveGetGameChangerNames(): Promise<Set<string>> {
       hasMore = response.has_more;
       page++;
     } catch {
+      completedFully = false;
       break;
     }
   }
@@ -1374,9 +1386,20 @@ async function liveGetGameChangerNames(): Promise<Set<string>> {
     // also degrades gracefully rather than zeroing the GC floor.
     logger.debug('[Scryfall] GC live fetch returned empty; using hardcoded fallback');
     gameChangerNamesCache = new Set(HARDCODED_GAME_CHANGERS);
+  } else if (completedFully) {
+    // Every page landed — the live list is the current RC list, full stop.
+    // Log drift (a hardcoded name the live list lacks) rather than silently
+    // floor it, so a stale hardcoded copy shows up before someone hits it.
+    const stale = [...HARDCODED_GAME_CHANGERS].filter((n) => !names.has(n));
+    if (stale.length > 0) {
+      logger.debug(
+        `[Scryfall] hardcoded GC list has ${stale.length} card(s) the live list no longer does (drift): ${stale.join(', ')}`
+      );
+    }
+    gameChangerNamesCache = names;
   } else {
-    // Union: hardcoded list as a floor so mid-TTL RC additions aren't silently lost.
-    // Live Scryfall wins on any overlap (same card name = same value anyway).
+    // Partial live set (pagination broke mid-way) — union with the hardcoded
+    // floor so a page that never arrived can't undercount the GC set.
     gameChangerNamesCache = new Set([...HARDCODED_GAME_CHANGERS, ...names]);
   }
   gameChangerCacheTimestamp = Date.now();

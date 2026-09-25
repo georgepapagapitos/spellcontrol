@@ -1,3 +1,5 @@
+export { checkRoleEvidence } from './roleEvidence';
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 /**

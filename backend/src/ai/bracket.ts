@@ -1,6 +1,7 @@
 import {
   estimateBracket,
   bracketLabel,
+  checkRoleEvidence,
   HARDCODED_GAME_CHANGERS,
   type BracketEstimation,
   type DetectedCombo,
@@ -21,10 +22,13 @@ import { matchCombos, type ComboInput, type ComboMatch } from '../combos/match';
  * sides are computed the same way, so the DELTA is trustworthy even where the
  * absolute number drifts from the client's.
  *
- * ⚠️ It can drift. The frontend unions a live `is:gamechanger` Scryfall query on
- * top of the shared list, so a very new game changer counts there and not here.
- * The estimate this returns is a check on a proposed change, NOT the number the
- * UI shows — the UI's stays client-side.
+ * ⚠️ It can drift. The frontend's live `is:gamechanger` Scryfall query is
+ * authoritative on a complete fetch and only falls back to (or unions with)
+ * this hardcoded list when that fetch fails or breaks mid-page — so a very new
+ * game changer can count there and not here, and a card the RC has REMOVED
+ * from the list can count here and not there. The estimate this returns is a
+ * check on a proposed change, NOT the number the UI shows — the UI's stays
+ * client-side.
  */
 
 const ORACLE_MAX_AGE_MS = Number.MAX_SAFE_INTEGER;
@@ -64,6 +68,15 @@ export interface BracketInputs {
  * cache the estimator itself reads, rather than taken from the request. Passing
  * the client's numbers would mean the "before" estimate used one source and the
  * "after" estimate another, which is the one way to make a delta lie.
+ *
+ * Both mirror the deck page (`computeRoleCounts` / `analyzeCommanderDeck` in
+ * `commanderDeckAnalysis.ts`), which is what this tool is trying not to drift
+ * from: mainboard non-lands only, commander(s) excluded from both the role
+ * counts and the CMC average, and each role gated against the card's own
+ * oracle text (front face for a multi-face card) via the shared
+ * `checkRoleEvidence` — the same evidence check `validateCardRole`/
+ * `reportRoleOf` run on the page, so a mistagged or mismatched cache record
+ * can't inflate the count here either.
  */
 export async function estimateForNames(
   names: string[],
@@ -72,6 +85,8 @@ export async function estimateForNames(
   const oracleIds: string[] = [];
   let cmcTotal = 0;
   let nonLandCount = 0;
+  const roleCounts: Record<string, number> = {};
+  const commanders = new Set(commanderNames ?? []);
 
   for (const name of names) {
     const card = cache.getCheapestByName(name, ORACLE_MAX_AGE_MS);
@@ -80,16 +95,24 @@ export async function estimateForNames(
     // The FRONT face decides: an MDFC's combined type line reads "Sorcery // Land",
     // and every frontend call site counts that card as a spell.
     const frontType = card.card_faces?.[0]?.type_line ?? card.type_line ?? '';
-    if (!/\bLand\b/.test(frontType)) {
-      cmcTotal += card.cmc ?? 0;
-      nonLandCount++;
-    }
-  }
+    if (/\bLand\b/.test(frontType)) continue;
+    // The commander(s) count toward the deck for combo/game-changer purposes
+    // (their oracle id already went into `oracleIds` above) but not toward the
+    // average CMC or role counts — the page excludes them from both.
+    if (commanders.has(name)) continue;
 
-  const roleCounts: Record<string, number> = {};
-  for (const name of names) {
+    cmcTotal += card.cmc ?? 0;
+    nonLandCount++;
+
     const role = tags.getCardRole(name);
-    if (role) roleCounts[role] = (roleCounts[role] ?? 0) + 1;
+    if (!role) continue;
+    const oracleText =
+      (card.card_faces?.length ?? 0) >= 2
+        ? (card.card_faces?.[0]?.oracle_text ?? '')
+        : (card.oracle_text ?? '');
+    if (checkRoleEvidence(role, oracleText)) {
+      roleCounts[role] = (roleCounts[role] ?? 0) + 1;
+    }
   }
 
   // Combos are re-matched against the hypothetical list, which is the whole
