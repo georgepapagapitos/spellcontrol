@@ -70,9 +70,7 @@ function isShareAudience(x: unknown): x is ShareAudience {
  *  game-result shares are one-off artifacts, not a resource's visibility. */
 const RUNG_KINDS: ReadonlySet<string> = new Set(['collection', 'binder', 'deck', 'list', 'cube']);
 
-/** Also used by publications/sync-hook.ts, which mints a deck's first-sight
- *  friends share the same way this route does. */
-export function newToken(): string {
+function newToken(): string {
   // 24 bytes → 32 url-safe chars. Unguessable; collision-resistant.
   return crypto.randomBytes(24).toString('base64url');
 }

@@ -391,31 +391,17 @@ describe('refreshDeckPublications — public by default for new decks', () => {
     expect(await liveState(userId, 'd5')).toBe('none');
   });
 
-  it('a deck created as friends stays unpublished and mints a friends share, once', async () => {
+  it('a deck created as friends stays unpublished and mints no share of its own', async () => {
     const userId = 'u-default-friends';
     await seedUser(userId, 'default-friends');
     await upsertDeck(userId, 'd6', baseDeckData({ initialVisibility: 'friends' }), 1);
     await push(userId, 'd6', 1);
-    // Not listed or on the profile — bookkept exactly like private.
+    // Not listed or on the profile, booked exactly like private.
     expect(await liveState(userId, 'd6')).toBe('private');
-    const shareRows = await pool.query<{ audience: string; resource_id: string }>(
-      `SELECT audience, resource_id FROM shares WHERE user_id = $1 AND kind = 'deck'`,
-      [userId]
-    );
-    expect(shareRows.rows).toEqual([{ audience: 'friends', resource_id: 'd6' }]);
-
-    // A second push (an edit) refreshes the same publication row; it doesn't
-    // mint a second friends share.
-    await upsertDeck(
-      userId,
-      'd6',
-      baseDeckData({ initialVisibility: 'friends', name: 'Renamed' }),
-      2
-    );
-    await push(userId, 'd6', 2);
-    const again = await pool.query(`SELECT 1 FROM shares WHERE user_id = $1 AND kind = 'deck'`, [
-      userId,
-    ]);
-    expect(again.rows).toHaveLength(1);
+    // The friends share comes from the client's POST /api/shares, which
+    // dedupes. A second mint here raced it and left two shares, so Private
+    // revoked one and the deck stayed visible to friends through the other.
+    const shares = await pool.query(`SELECT 1 FROM shares WHERE user_id = $1`, [userId]);
+    expect(shares.rows).toHaveLength(0);
   });
 });

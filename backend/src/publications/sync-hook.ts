@@ -4,7 +4,6 @@ import { extractListingFields, type ListingFields } from './listing-fields';
 import { invalidateDeckPublicationCache, invalidatePublicUserCache } from './cache';
 import { insertPublication } from './insert';
 import { invalidatePublicUserCacheById } from './purge';
-import { newToken } from '../routes/shares';
 import type { AppliedRow } from '../routes/sync';
 
 /**
@@ -108,15 +107,12 @@ export async function refreshDeckPublications(
  * when a row already exists (the ON CONFLICT in insertPublication), and for a
  * public deck on an account a moderator hid.
  *
- * 'friends' is bookkept exactly like 'private' at the deck_publications layer
- * (unpublished — not listed, not on the profile) so the same `exists` guard
- * makes this a one-time action, and additionally mints a friends-audience
- * share the same way ShareDialog's Friends choice does (`POST /api/shares`,
- * routes/shares.ts) — the one path that grants friends access, reused rather
- * than duplicated. No ON CONFLICT on that insert: `shares` carries no unique
- * constraint over (user, kind, resource, audience), the same tolerated,
- * vanishingly-unlikely race `insertPublication`'s own doc comment already
- * accepts for this hook.
+ * 'friends' is booked exactly like 'private' here (unpublished: not listed,
+ * not on the profile). The friends share itself is minted by the client
+ * through `POST /api/shares`, the same call ShareDialog's Friends choice
+ * makes, which dedupes and retires the other rung. Minting it here as well
+ * raced that call and could leave two friends shares, so switching the deck
+ * to Private revoked one and left it visible to friends through the other.
  */
 async function publishByDefault(
   userId: string,
@@ -145,13 +141,5 @@ async function publishByDefault(
   const inserted = await insertPublication(userId, deckId, fields, rev, Date.now(), {
     unpublished: intent !== 'public',
   });
-  if (!inserted) return;
-  if (intent === 'public') await invalidatePublicUserCacheById(userId);
-  if (intent === 'friends') {
-    await pool.query(
-      `INSERT INTO shares (token, user_id, kind, resource_id, audience, addressee_id, created_at, revoked_at)
-       VALUES ($1, $2, 'deck', $3, 'friends', NULL, $4, NULL)`,
-      [newToken(), userId, deckId, Date.now()]
-    );
-  }
+  if (inserted && intent === 'public') await invalidatePublicUserCacheById(userId);
 }
