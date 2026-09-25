@@ -838,6 +838,59 @@ async function main() {
       ].filter(Boolean);
       for (const r of routes) {
         const rec = await visit(r);
+        if (r === binderHref) {
+          // The binder page viewer opens on a page you can see (2026-09-25).
+          // A Secret Lair binder's long section line grew the viewer's auto
+          // grid column to 1208px on a 384px phone and every page centered
+          // off-screen, so it opened blank. The sample binders' labels are
+          // short, so the long line is injected: whatever the text, the
+          // layout must stay the viewport's width and the page on screen.
+          await assertPage(rec, 'binder page viewer geometry', async () => {
+            await clickText(page, /^Browse pages$/);
+            await page.waitForSelector('.binder-pages-slide.is-active .binder-pages-page', {
+              timeout: 15_000,
+            });
+            await sleep(1200);
+            const measure = () =>
+              page.evaluate(() => {
+                const pg = document
+                  .querySelector('.binder-pages-slide.is-active .binder-pages-page')
+                  ?.getBoundingClientRect();
+                const track = document
+                  .querySelector('.binder-pages-track')
+                  ?.getBoundingClientRect();
+                return {
+                  trackW: Math.round(track?.width ?? 0),
+                  vw: innerWidth,
+                  onScreen:
+                    !!pg && pg.left >= 0 && pg.right <= innerWidth && pg.bottom <= innerHeight,
+                  centerOff: pg
+                    ? Math.round(Math.abs(pg.left + pg.width / 2 - innerWidth / 2))
+                    : -1,
+                };
+              });
+            const opened = await measure();
+            await page.evaluate(() => {
+              const line = document.querySelector('.binder-pages-context');
+              if (line)
+                line.textContent =
+                  'Artist Series Mark Poole · Extra Life 2021 · Secret Lair x Arcane Lands · The Tokyo Lands · More Borderless Planeswalkers · Buggin Out';
+            });
+            await sleep(500);
+            const longLine = await measure();
+            await page.keyboard.press('Escape');
+            await sleep(900);
+            const ok = [opened, longLine].every(
+              (m) => m.trackW === m.vw && m.onScreen && m.centerOff <= 2
+            );
+            return {
+              ok,
+              expected:
+                'page centered and on screen, layout as wide as the viewport, long line or not',
+              observed: { opened, longLine },
+            };
+          });
+        }
         if (r === '/collection') {
           // The card preview's layout contract (E421): nothing sits on the
           // card, the card is the hero of its stage, and paging to the next
