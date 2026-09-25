@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aggregateHordeRecords } from './horde-records';
+import { aggregateHordeRecords, coopResultLabel } from './horde-records';
 import type { GameRecord } from '@/lib/game-state';
 
 function hordeGame(
@@ -70,5 +70,26 @@ describe('aggregateHordeRecords', () => {
       { ...hordeGame('g2', 'won', 'zombies'), format: 'commander' },
     ]);
     expect(rows).toEqual([]);
+  });
+});
+
+describe('coopResultLabel (the Play-history line for a co-op Horde game)', () => {
+  it('names the horde and the result, won or lost', () => {
+    expect(coopResultLabel(hordeGame('a', 'won', 'zombies'))).toBe(
+      'Survivors beat the Zombies horde'
+    );
+    expect(coopResultLabel(hordeGame('b', 'lost', 'slivers'))).toBe('Overrun by the Slivers horde');
+  });
+
+  it('falls back to "the horde" when the horde id is unknown or missing', () => {
+    expect(coopResultLabel(hordeGame('c', 'won', undefined))).toBe('Survivors beat the horde');
+    expect(coopResultLabel(hordeGame('d', 'lost', 'retired-deck'))).toBe('Overrun by the horde');
+  });
+
+  it('is null for a PvP game or a Horde game with no recorded outcome', () => {
+    expect(
+      coopResultLabel({ ...hordeGame('e', 'won', 'zombies'), format: 'commander' })
+    ).toBeNull();
+    expect(coopResultLabel(hordeGame('f', undefined, 'zombies'))).toBeNull();
   });
 });

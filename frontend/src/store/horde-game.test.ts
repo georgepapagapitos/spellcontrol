@@ -406,3 +406,42 @@ describe('persistence (a long game once overflowed localStorage)', () => {
     expect(useHordeGameStore.getState().lastDamageResult).toBeNull();
   });
 });
+
+describe('rematch from a Play-history record', () => {
+  it('restarts the same horde at the same difficulty with the same survivors and decks', async () => {
+    await start({ setupTurns: 0 });
+    useHordeGameStore.getState().concede();
+    const posted = usePlayStore.getState().history[0];
+    const finished = useHordeGameStore.getState().finished[0];
+    expect(finished.id).toBe(posted.id);
+    // The posted record's own id links it back to this device's finished list.
+    useHordeGameStore.setState({ finished: [{ ...finished, level: 'brutal' }] });
+    const withDeck = {
+      ...posted,
+      players: posted.players.map((p, i) =>
+        i === 0
+          ? { ...p, deckId: 'deck-1', deckName: 'Endless Punishment', commander: 'Valgavoth' }
+          : p
+      ),
+    };
+    await useHordeGameStore.getState().rematch(withDeck);
+    const s = useHordeGameStore.getState();
+    expect(s.config?.hordeId).toBe('zombies');
+    expect(s.config?.level).toBe('brutal');
+    expect(s.config?.survivors.map((x) => x.name)).toEqual(['Alice', 'Bo']);
+    expect(s.config?.survivors[0]).toMatchObject({
+      deckName: 'Endless Punishment',
+      commander: 'Valgavoth',
+    });
+    expect(s.outcome).toBeNull();
+  });
+
+  it('plays a record this device never saw at Standard', async () => {
+    await start({ setupTurns: 0 });
+    useHordeGameStore.getState().concede();
+    const posted = usePlayStore.getState().history[0];
+    useHordeGameStore.setState({ finished: [] });
+    await useHordeGameStore.getState().rematch(posted);
+    expect(useHordeGameStore.getState().config?.level).toBe('standard');
+  });
+});

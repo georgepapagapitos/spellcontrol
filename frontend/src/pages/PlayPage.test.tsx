@@ -8,6 +8,7 @@ import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
 import { HORDE_BAN_LIST } from '../lib/horde/ban-list';
 import type { GameRecord } from '../lib/game-state';
+import { useHordeGameStore } from '../store/horde-game';
 
 // Signed in, the History tab reads the server record and the leaderboard;
 // neither is under test here, and an offline read must leave the persisted
@@ -1007,5 +1008,92 @@ describe('PlayPage — ?new=1 deep link', () => {
     renderPage('/play');
     expect(screen.getByRole('button', { name: /Track a table/ })).toBeTruthy();
     expect(usePlayStore.getState().local).toBeNull();
+  });
+});
+
+describe('History — a co-op Horde game', () => {
+  const hordeRec = (coopOutcome: 'won' | 'lost'): GameRecord =>
+    ({
+      id: 'horde-1',
+      code: '',
+      format: 'horde',
+      startingLife: 60,
+      players: [
+        {
+          seat: 0,
+          userId: null,
+          name: 'Ana',
+          deckId: null,
+          deckName: null,
+          commander: null,
+          finalLife: 12,
+          eliminated: false,
+        },
+        {
+          seat: 1,
+          userId: null,
+          name: 'Ben',
+          deckId: null,
+          deckName: 'Endless Punishment',
+          commander: 'Valgavoth, Harrower of Souls',
+          finalLife: 12,
+          eliminated: false,
+        },
+      ],
+      winnerSeat: null,
+      coopOutcome,
+      hordeId: 'zombies',
+      startedAt: 1_000,
+      endedAt: 61_000,
+      durationMs: 60_000,
+      mode: 'local',
+    }) as GameRecord;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    useHordeGameStore.setState({ config: null, phase: 'setup', board: null, outcome: null });
+  });
+
+  it('names the result instead of "No winner recorded"', () => {
+    usePlayStore.setState({ history: [hordeRec('won')] });
+    const { unmount } = renderPage('/play/history');
+    expect(screen.getByText('Survivors beat the Zombies horde')).toBeTruthy();
+    expect(screen.queryByText('No winner recorded')).toBeNull();
+    unmount();
+    usePlayStore.setState({ history: [hordeRec('lost')] });
+    renderPage('/play/history');
+    expect(screen.getByText('Overrun by the Zombies horde')).toBeTruthy();
+  });
+
+  it('Rematch starts a Horde fight, not a plain life counter', () => {
+    usePlayStore.setState({ local: null, history: [hordeRec('won')] });
+    const rematch = vi.fn(async () => {});
+    useHordeGameStore.setState({ config: null, rematch });
+    renderPage('/play/history');
+    fireEvent.click(screen.getByRole('button', { name: /^Rematch/ }));
+    expect(rematch).toHaveBeenCalledWith(expect.objectContaining({ id: 'horde-1' }));
+    expect(usePlayStore.getState().local).toBeNull();
+  });
+
+  it('asks before a Horde rematch replaces a fight still in progress', () => {
+    usePlayStore.setState({ local: null, history: [hordeRec('won')] });
+    const rematch = vi.fn(async () => {});
+    useHordeGameStore.setState({
+      config: {
+        hordeId: 'zombies',
+        hordeName: 'Zombies',
+        level: 'standard',
+        settings: {} as never,
+        survivors: [],
+      },
+      phase: 'live',
+      rematch,
+    });
+    renderPage('/play/history');
+    fireEvent.click(screen.getByRole('button', { name: /^Rematch/ }));
+    expect(rematch).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Start a new Horde fight?' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Start the rematch' }));
+    expect(rematch).toHaveBeenCalledTimes(1);
   });
 });

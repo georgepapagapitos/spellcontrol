@@ -4458,7 +4458,15 @@ non-negotiables that follow from that:
   `--z-menu`). Precedents that get it right: the deck editor's
   `.deck-editor-view-tabs` (`--z-popover`) + `.deck-editor-overflow-panel`
   (`--z-menu`); the decks/binders `…-index-search-row` (`--z-popover`) +
-  `.overflow-menu-popover` (`--z-menu`).
+  `.overflow-menu-popover`.
+- **Anything portaled to `<body>` stacks against body children, not its
+  trigger's surface.** The shared ⋮ panel (`.overflow-menu-popover`) is
+  therefore on `--z-portal-popover` (1200): it can be opened from inside a
+  full-screen surface fixed at `--z-overlay` (the paper Horde table, the
+  playtest board, the card preview), and at `--z-menu` it painted under that
+  surface, unclickable (the Horde table's Undo / End game / Leave the table,
+  2026-09). Never give one instance a lower override;
+  `OverflowMenu.stacking.test.ts` enforces it.
 - **Rule of thumb:** if A must paint over B, A's token must be strictly greater
   than B's — and B is whatever A physically overlaps, _not_ what's near it in the
   DOM. A sticky element creates its own stacking context, so its token wins

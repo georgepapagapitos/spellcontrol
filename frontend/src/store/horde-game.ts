@@ -27,7 +27,13 @@ import {
   type HordeSettings,
 } from '@/lib/horde';
 import { genId } from '@/lib/id';
-import { createGameState, gameToRecord, makePlayer, type GameState } from '@/lib/game-state';
+import {
+  createGameState,
+  gameToRecord,
+  makePlayer,
+  type GameRecord,
+  type GameState,
+} from '@/lib/game-state';
 import { usePlayStore } from '@/store/play';
 
 export interface HordeSurvivor {
@@ -154,6 +160,12 @@ interface HordeStore extends HordeData {
     survivors: HordeSurvivor[]
   ): Promise<void>;
   retryLoad(): void;
+  /** Rematch a finished Horde game from Play history: the same horde, the
+   *  same difficulty (from this device's own `finished` list when it has the
+   *  game, Standard otherwise; Customise values aren't recorded) and the same
+   *  survivors with their decks. Replaces any game in progress, so the page
+   *  asks first. */
+  rematch(rec: GameRecord): Promise<void>;
   /** Advances the survivor-turn counter without a horde turn — the only way
    *  to move through the setup turns before the horde can act. */
   endSurvivorTurn(): void;
@@ -338,6 +350,17 @@ export const useHordeGameStore = create<HordeStore>()(
             loadError: err instanceof Error ? err.message : "Couldn't load that horde.",
           });
         }
+      },
+
+      rematch(rec) {
+        const level = get().finished.find((f) => f.id === rec.id)?.level ?? 'standard';
+        const survivors: HordeSurvivor[] = rec.players.map((p) => ({
+          name: p.name,
+          deckId: p.deckId,
+          deckName: p.deckName,
+          commander: p.commander,
+        }));
+        return get().startHorde(rec.hordeId ?? 'zombies', level, undefined, survivors);
       },
 
       retryLoad() {

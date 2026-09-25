@@ -354,6 +354,9 @@ export function HordeTable() {
           outcome={outcome}
           hordeId={config.hordeId}
           hordeTurns={hordeTurn}
+          // The survivors' turn, not the horde's: conceding during the setup
+          // turns read "Overrun on turn 0".
+          endedOnTurn={survivorTurn}
           damageTaken={damageTaken}
           cardsMilledByDamage={cardsMilledByDamage}
           bossesBeaten={bossesBeaten}

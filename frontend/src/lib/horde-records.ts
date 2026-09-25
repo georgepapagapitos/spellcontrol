@@ -1,4 +1,5 @@
 import type { GameRecord } from '@/lib/game-state';
+import { HORDE_CATALOG } from '@/lib/horde/catalog';
 
 /** Per-horde co-op tally: how a player's table has fared against one horde
  *  deck across every recorded game (local device or synced from the server). */
@@ -43,4 +44,19 @@ export function aggregateHordeRecords(history: GameRecord[]): HordeRecordRow[] {
   for (const r of rows) r.winRate = r.played > 0 ? r.won / r.played : 0;
   rows.sort((a, b) => b.played - a.played || b.winRate - a.winRate);
   return rows;
+}
+
+/**
+ * The result line a co-op Horde game shows in Play history, where a PvP game
+ * shows "Winner: …". A co-op game has no winning seat, so without this every
+ * Horde result read "No winner recorded", won or lost. Null for any record
+ * that isn't a finished Horde game.
+ */
+export function coopResultLabel(
+  rec: Pick<GameRecord, 'format' | 'coopOutcome' | 'hordeId'>
+): string | null {
+  if (rec.format !== 'horde' || !rec.coopOutcome) return null;
+  const name = HORDE_CATALOG.find((h) => h.id === rec.hordeId)?.name;
+  const horde = name ? `the ${name} horde` : 'the horde';
+  return rec.coopOutcome === 'won' ? `Survivors beat ${horde}` : `Overrun by ${horde}`;
 }

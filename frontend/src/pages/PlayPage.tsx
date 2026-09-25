@@ -63,6 +63,7 @@ import { findBannedCards } from '../lib/horde/ban-list';
 import { useStarterDeckCardNames } from '../lib/horde/starter-deck-cards';
 import { HORDE_CATALOG, type HordeLevel, type HordeSettings } from '@/lib/horde';
 import { useHordeGameStore, type HordeSurvivor } from '../store/horde-game';
+import { coopResultLabel } from '../lib/horde-records';
 type Tab = 'home' | 'local' | 'online' | 'nights' | 'history';
 const TABS: ReadonlySet<string> = new Set(['home', 'local', 'online', 'nights', 'history']);
 
@@ -235,6 +236,9 @@ export function PlayPage() {
 
   const [pendingEnd, setPendingEnd] = useState<'local' | 'online' | null>(null);
   const [pendingDiscard, setPendingDiscard] = useState(false);
+  // A Horde rematch from History while another Horde fight is still going:
+  // starting it would discard that fight, so it asks first.
+  const [pendingHordeRematch, setPendingHordeRematch] = useState<GameRecord | null>(null);
   // Starting a new local game while one is active overwrites it; hold the setup
   // here and confirm first instead of silently discarding the in-progress game.
   const [pendingStart, setPendingStart] = useState<LocalGameSetup | null>(null);
@@ -511,6 +515,18 @@ export function PlayPage() {
           history={history}
           userId={user?.id ?? null}
           onRematch={(rec) => {
+            if (rec.format === 'horde') {
+              // A Horde record rematches as a Horde fight, not a plain life
+              // counter. Only an unfinished fight is worth asking about.
+              const horde = useHordeGameStore.getState();
+              if (horde.config && horde.phase !== 'ended') {
+                setPendingHordeRematch(rec);
+                return;
+              }
+              void horde.rematch(rec);
+              setTab('local');
+              return;
+            }
             rematchLocal(recordToRematch(rec));
             setTab('local');
           }}
@@ -526,6 +542,21 @@ export function PlayPage() {
             setPendingEnd(null);
           }}
           onCancel={() => setPendingEnd(null)}
+        />
+      )}
+
+      {pendingHordeRematch && (
+        <ConfirmDialog
+          title="Start a new Horde fight?"
+          body="The Horde fight in progress will be removed without saving to history."
+          confirmLabel="Start the rematch"
+          danger
+          onConfirm={() => {
+            void useHordeGameStore.getState().rematch(pendingHordeRematch);
+            setPendingHordeRematch(null);
+            setTab('local');
+          }}
+          onCancel={() => setPendingHordeRematch(null)}
         />
       )}
 
@@ -2116,7 +2147,8 @@ function HistoryTab({
                   )}
                 </div>
                 <div className="play-history-winner">
-                  {winner ? `Winner: ${winner.name}` : 'No winner recorded'}
+                  {coopResultLabel(rec) ??
+                    (winner ? `Winner: ${winner.name}` : 'No winner recorded')}
                   {rec.durationMs > 0 && (
                     <span className="play-history-duration">
                       {' '}
