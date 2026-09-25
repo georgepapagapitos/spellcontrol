@@ -13,10 +13,10 @@
   justify-content: center;
   gap: var(--space-1);
   color: #fff;
-  /* Opaque enough that the seat's own life numeral (already a bold dark
-     glyph on a saturated fill) doesn't ghost through behind the roll and
-     read as a second, conflicting number. */
-  background: rgba(6, 7, 10, 0.92);
+  /* Fully opaque: the roll must read alone. A translucent fill (even at 92%)
+     let the seat's own life numeral, ± hints, badges, name and burst chip
+     ghost through behind it. */
+  background: #06070a;
   text-align: center;
 }
 
@@ -46,8 +46,8 @@
 .pp-highroll.is-winner {
   background: radial-gradient(
     circle at 50% 40%,
-    color-mix(in srgb, var(--brand-seal-gold) 65%, rgba(6, 7, 10, 0.92) 35%) 0%,
-    rgba(6, 7, 10, 0.92) 70%
+    color-mix(in srgb, var(--brand-seal-gold) 65%, #06070a 35%) 0%,
+    #06070a 70%
   );
 }
 
