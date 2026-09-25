@@ -253,6 +253,96 @@ export interface GameDesignations {
 
 export type DesignationKind = keyof GameDesignations;
 
+/**
+ * Horde mode: 1-4 survivors share one life total against a self-running horde
+ * deck (no hand, no lands, no decisions — the app does bookkeeping). The
+ * horde itself is never a seat anyone drives; game-core stores its resolved
+ * settings, a seed, and an append-only LOG of horde steps, and every device
+ * rebuilds the same horde board by replaying that log through the frontend's
+ * horde engine. game-core never sees cards — a step names a card only by its
+ * opaque id (`HordeStep`'s `move.cardId`).
+ */
+
+/** Horde mode difficulty presets (see docs/board.json E-horde / PR series). */
+export type HordeLevel = 'casual' | 'standard' | 'brutal';
+
+export type HordeRevealMode =
+  /** Reveal until the first nontoken card, inclusive — one wave. */
+  | { kind: 'until-nontoken' }
+  /** That same wave, repeated `perTurn` times each horde turn. */
+  | { kind: 'waves'; perTurn: number }
+  /** Waves per horde turn, cycling through `pattern` by horde-turn index. */
+  | { kind: 'waves-pattern'; pattern: number[] }
+  /** Battle the Horde style: a flat count, +1 per horde artifact if set. */
+  | { kind: 'fixed'; count: number; plusPerArtifact?: boolean };
+
+export type HordeSafeZone = 'full' | 'reduced' | 'off';
+
+export interface HordeSettings {
+  /** 1..4. */
+  survivors: number;
+  /** Survivors' shared starting life. */
+  life: number;
+  /** Cards in this game's library — bosses are held out separately. */
+  librarySize: number;
+  /** Survivor turns before the horde's first turn. */
+  setupTurns: number;
+  reveal: HordeRevealMode;
+  /** Fractions of the library gone at which a boss enters (1 = library empty). */
+  bossTicks: number[];
+  safeZone: HordeSafeZone;
+}
+
+/**
+ * One step in the horde's replayable log. game-core only records WHAT
+ * happened at the table-bookkeeping level — the frontend's horde engine (a
+ * later lane) is what actually plans a reveal or resolves which cards a
+ * `damage` step mills, using the seeded RNG + `deckRev`'d card list every
+ * device already has.
+ */
+export type HordeStep =
+  /** Start the horde's turn; the replay plans the reveal. */
+  | { k: 'reveal' }
+  /** The reveal goes onto the battlefield / spells to the graveyard. */
+  | { k: 'confirm' }
+  /** The attack resolved; lowers shared life. */
+  | { k: 'take'; dealt: number }
+  /** Survivors hit the horde; the replay mills and deals bosses. */
+  | { k: 'damage'; n: number }
+  | { k: 'move'; cardId: string; to: 'graveyard' | 'exile' | 'library' };
+
+/** A logged `HordeStep`, stamped with who dispatched it and when. */
+export type HordeLogEntry = HordeStep & { seat: number; ts: number };
+
+export type HordePhase = 'survivors' | 'reveal' | 'combat';
+
+export interface HordeTable {
+  hordeId: string;
+  level: HordeLevel;
+  /** Resolved by the host's device at Start. */
+  settings: HordeSettings;
+  /** Rolled on the host's device at Start. */
+  seed: number;
+  /** Hash of the horde deck's data; a device with another rev must not
+   *  replay this log against its own copy of the deck. */
+  deckRev: string;
+  phase: HordePhase;
+  /** Team turns, 1-based. */
+  survivorTurn: number;
+  /** Horde turns taken, 0 before the first. */
+  hordeTurn: number;
+  /** Seats that have ended the current team turn. */
+  done: number[];
+  steps: HordeLogEntry[];
+}
+
+/** Bound on `HordeTable.steps` — same storage-bound reasoning as
+ *  `MAX_COUNTERS_PER_SCOPE`: an online game's whole state is one JSONB row. */
+export const MAX_HORDE_STEPS = 2000;
+
+/** Seat cap for a horde table — 1-4 survivors, never more. */
+export const HORDE_MAX_SEATS = 4;
+
 export interface GameState {
   id: string;
   /** Short join code (online). Empty string for local games. */
@@ -370,6 +460,15 @@ export interface GameState {
    * every non-co-op format.
    */
   hordeId?: string;
+  /**
+   * Online co-op horde table: resolved settings, seed, and the replayable
+   * step log. Present only for `format === 'horde'` games that have run
+   * `horde-setup` (i.e. every horde game past the lobby); OPTIONAL by design
+   * like the other fields added after initial ship, and absent means "not a
+   * horde table" — the frontend must never synthesize one when this is
+   * missing.
+   */
+  horde?: HordeTable;
   createdAt: number;
   updatedAt: number;
   startedAt: number | null;
@@ -379,7 +478,13 @@ export interface GameState {
 
 export type GameAction =
   | { type: 'start'; ts?: number }
-  | { type: 'end'; winnerSeat: number | null; ts?: number }
+  /**
+   * `coopOutcome` is meaningful only for `format === 'horde'`: when given, it
+   * sets `GameState.coopOutcome` and forces `winnerSeat` to null regardless of
+   * what was passed. Every other format ignores it and keeps today's
+   * behaviour.
+   */
+  | { type: 'end'; winnerSeat: number | null; coopOutcome?: 'won' | 'lost'; ts?: number }
   | { type: 'reset'; ts?: number }
   | { type: 'add-player'; player: GamePlayer; ts?: number }
   | { type: 'remove-player'; seat: number; ts?: number }
@@ -564,7 +669,49 @@ export type GameAction =
       name: string;
       actorSeat: number | null;
       ts?: number;
-    };
+    }
+  /**
+   * Set up the horde table for a lobby about to start a `'horde'` game.
+   * Lobby + format-gated: a no-op (`return prev`) unless `status === 'lobby'`
+   * and `format === 'horde'`. The host's device resolves `settings`/`seed`
+   * once, before `start`, so every device that later replays the step log
+   * lands on the identical horde.
+   */
+  | {
+      type: 'horde-setup';
+      hordeId: string;
+      level: HordeLevel;
+      settings: HordeSettings;
+      seed: number;
+      deckRev: string;
+      ts?: number;
+    }
+  /**
+   * Mark (or un-mark) a survivor's team turn as done. Once every ACTIVE
+   * survivor (not eliminated, connected) is done: advances the setup-turn
+   * counter, or — once setup is over — appends the log's next `reveal` step
+   * and starts the horde's turn.
+   *
+   * `force` is "Start without them": a survivor who is done ends the team
+   * turn without waiting for the rest (a teammate who is connected but away).
+   * Only meaningful with `done: true`; it is the one way to move a setup turn
+   * on without everyone, since `horde-step reveal` is for the horde's turn.
+   */
+  | { type: 'horde-done'; actorSeat: number; done: boolean; force?: boolean; ts?: number }
+  /**
+   * Append one step to the horde's replayable log. `at` is the index this
+   * step expects to land at (`horde.steps.length` when it was dispatched) —
+   * a mismatch means another device already moved the horde, and the action
+   * is a silent no-op (`return prev` UNCHANGED) rather than an error, since
+   * two devices racing the same tap is the expected case, not a bug.
+   */
+  | { type: 'horde-step'; step: HordeStep; at: number; actorSeat: number; ts?: number }
+  /**
+   * Undo the horde's last logged step, reversing its table effect. Only
+   * valid when `at` matches the current log length (the same staleness guard
+   * as `horde-step`).
+   */
+  | { type: 'horde-undo'; at: number; actorSeat: number; ts?: number };
 
 const MAX_EVENTS = 500;
 
@@ -629,6 +776,11 @@ function updatePlayer(
   patch: (p: GamePlayer) => GamePlayer
 ): GamePlayer[] {
   return state.players.map((p) => (p.seat === seat ? patch(p) : p));
+}
+
+/** Horde mode shares one life total: set every seat to the same value. */
+function mirrorLife(players: GamePlayer[], life: number): GamePlayer[] {
+  return players.map((p) => ({ ...p, life }));
 }
 
 /**
@@ -809,6 +961,21 @@ function maybeAutoEliminate(state: GameState): { state: GameState; auto: number[
 function maybeAutoWin(state: GameState): GameState {
   if (state.status !== 'active') return state;
   const alive = state.players.filter((p) => !p.eliminated);
+  // Co-op: there is no winning seat, and a solo survivor left standing while
+  // teammates are down is not a win — the team keeps playing on shared life.
+  // Only everyone down together ends it, as a loss.
+  if (state.format === 'horde') {
+    if (alive.length === 0 && state.players.length > 0) {
+      return {
+        ...state,
+        status: 'finished',
+        winnerSeat: null,
+        coopOutcome: 'lost',
+        endedAt: state.endedAt ?? Date.now(),
+      };
+    }
+    return state;
+  }
   if (alive.length === 1 && state.players.length > 1) {
     return {
       ...state,
@@ -964,19 +1131,24 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     }
     case 'end': {
       if (prev.status === 'finished') return prev;
+      // Co-op has no winning seat — a coopOutcome always forces null,
+      // regardless of what the caller passed.
+      const isCoop = prev.format === 'horde' && action.coopOutcome !== undefined;
       // A player who is eliminated (or a seat that doesn't exist) can never be
       // the winner — coerce any such client-supplied winnerSeat to null rather
       // than trusting it, so a losing participant can't forge a self-win into
       // the permanent game_results stats.
-      const winnerSeat =
-        action.winnerSeat != null &&
-        prev.players.some((p) => p.seat === action.winnerSeat && !p.eliminated)
+      const winnerSeat = isCoop
+        ? null
+        : action.winnerSeat != null &&
+            prev.players.some((p) => p.seat === action.winnerSeat && !p.eliminated)
           ? action.winnerSeat
           : null;
       next = {
         ...next,
         status: 'finished',
         winnerSeat,
+        ...(isCoop ? { coopOutcome: action.coopOutcome } : {}),
         endedAt: ts,
         events: pushEvent(next, {
           kind: 'end',
@@ -1001,6 +1173,9 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
         startingSeat: null,
         designations: { monarch: null, initiative: null },
         tableCounters: {},
+        // A rematch sets up a new seed/log, not a replay of last game's.
+        coopOutcome: undefined,
+        horde: undefined,
         players: prev.players.map((p) => ({
           ...p,
           life: prev.startingLife,
@@ -1088,10 +1263,16 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'life': {
-      requireSeat(prev.players, action.seat);
+      const target = requireSeat(prev.players, action.seat);
+      // Horde: one shared life total — the delta lands on the acted-on seat,
+      // then mirrors to the whole team.
+      const newLife = target.life + action.delta;
       next = {
         ...next,
-        players: updatePlayer(next, action.seat, (p) => ({ ...p, life: p.life + action.delta })),
+        players:
+          prev.format === 'horde'
+            ? mirrorLife(next.players, newLife)
+            : updatePlayer(next, action.seat, (p) => ({ ...p, life: newLife })),
         events: pushEvent(next, {
           kind: 'life',
           actorSeat: action.actorSeat,
@@ -1106,7 +1287,10 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       requireSeat(prev.players, action.seat);
       next = {
         ...next,
-        players: updatePlayer(next, action.seat, (p) => ({ ...p, life: action.value })),
+        players:
+          prev.format === 'horde'
+            ? mirrorLife(next.players, action.value)
+            : updatePlayer(next, action.seat, (p) => ({ ...p, life: action.value })),
         events: pushEvent(next, {
           kind: 'set-life',
           actorSeat: action.actorSeat,
@@ -1364,6 +1548,205 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           ts,
         }),
       };
+      break;
+    }
+    case 'horde-setup': {
+      if (prev.status !== 'lobby' || prev.format !== 'horde') return prev;
+      const horde: HordeTable = {
+        hordeId: action.hordeId,
+        level: action.level,
+        settings: action.settings,
+        seed: action.seed,
+        deckRev: action.deckRev,
+        phase: 'survivors',
+        survivorTurn: 1,
+        hordeTurn: 0,
+        done: [],
+        steps: [],
+      };
+      next = {
+        ...next,
+        horde,
+        hordeId: action.hordeId,
+        startingLife: action.settings.life,
+        commanderDamageEnabled: false,
+        poisonEnabled: false,
+        players: prev.players.map((p) => ({ ...p, life: action.settings.life })),
+        events: pushEvent(next, { kind: 'settings', actorSeat: null, targetSeat: null, ts }),
+      };
+      break;
+    }
+    case 'horde-done': {
+      if (prev.status !== 'active' || !prev.horde || prev.horde.phase !== 'survivors') return prev;
+      const horde = prev.horde;
+      const doneSet = new Set(horde.done);
+      if (action.done) doneSet.add(action.actorSeat);
+      else doneSet.delete(action.actorSeat);
+
+      const activeSurvivors = prev.players.filter((p) => !p.eliminated && p.connected);
+      const allDone =
+        action.done &&
+        (action.force === true ||
+          (activeSurvivors.length > 0 && activeSurvivors.every((p) => doneSet.has(p.seat))));
+
+      if (allDone && horde.survivorTurn < horde.settings.setupTurns) {
+        // Setup turn over — just advance; the horde hasn't taken a turn yet.
+        next = { ...next, horde: { ...horde, survivorTurn: horde.survivorTurn + 1, done: [] } };
+      } else if (allDone) {
+        // Setup is over: the horde's turn is due.
+        const entry: HordeLogEntry = { k: 'reveal', seat: action.actorSeat, ts };
+        next = {
+          ...next,
+          horde: {
+            ...horde,
+            hordeTurn: horde.hordeTurn + 1,
+            phase: 'reveal',
+            done: [],
+            steps: [...horde.steps, entry],
+          },
+        };
+      } else {
+        next = { ...next, horde: { ...horde, done: [...doneSet].sort((a, b) => a - b) } };
+      }
+      break;
+    }
+    case 'horde-step': {
+      if (prev.status !== 'active' || !prev.horde) return prev;
+      const horde = prev.horde;
+      // Stale view: another device already moved the horde since this client
+      // last saw the log.
+      if (action.at !== horde.steps.length) return prev;
+      if (horde.steps.length >= MAX_HORDE_STEPS) {
+        throw new Error(`Horde log is at its ${MAX_HORDE_STEPS}-step limit.`);
+      }
+      const step = action.step;
+      const entry: HordeLogEntry = { ...step, seat: action.actorSeat, ts };
+
+      switch (step.k) {
+        case 'reveal': {
+          // The "start without them" path: skip past a stuck team-done wait.
+          if (horde.phase !== 'survivors') return prev;
+          next = {
+            ...next,
+            horde: {
+              ...horde,
+              hordeTurn: horde.hordeTurn + 1,
+              phase: 'reveal',
+              done: [],
+              steps: [...horde.steps, entry],
+            },
+          };
+          break;
+        }
+        case 'confirm': {
+          if (horde.phase !== 'reveal') return prev;
+          next = { ...next, horde: { ...horde, phase: 'combat', steps: [...horde.steps, entry] } };
+          break;
+        }
+        case 'take': {
+          if (horde.phase !== 'combat') return prev;
+          if (!Number.isInteger(step.dealt) || step.dealt < 0 || step.dealt > 999) {
+            throw new Error('A horde attack must deal 0-999 damage.');
+          }
+          const sharedLife = prev.players.length > 0 ? prev.players[0].life : 0;
+          next = {
+            ...next,
+            players: mirrorLife(next.players, Math.max(0, sharedLife - step.dealt)),
+            horde: {
+              ...horde,
+              phase: 'survivors',
+              survivorTurn: horde.survivorTurn + 1,
+              done: [],
+              steps: [...horde.steps, entry],
+            },
+            // A 'life' event with a real targetSeat feeds the derived
+            // per-seat summary stats (damageTaken, biggestHit, firstBlood);
+            // a shared team hit has no single target, and summary.ts skips
+            // a 'life' event whose targetSeat is null — so this uses 'note'
+            // instead of quietly dropping the game's main damage source from
+            // every horde game's summary.
+            events: pushEvent(next, {
+              kind: 'note',
+              actorSeat: action.actorSeat,
+              targetSeat: null,
+              message: `Horde attack: ${step.dealt}`,
+              ts,
+            }),
+          };
+          break;
+        }
+        case 'damage': {
+          if (!Number.isInteger(step.n) || step.n < 0 || step.n > 999) {
+            throw new Error('Horde damage must be 0-999.');
+          }
+          next = { ...next, horde: { ...horde, steps: [...horde.steps, entry] } };
+          break;
+        }
+        case 'move': {
+          if (!step.cardId || step.cardId.length > 80) {
+            throw new Error('A horde card move needs a card id of at most 80 characters.');
+          }
+          if (step.to !== 'graveyard' && step.to !== 'exile' && step.to !== 'library') {
+            throw new Error(`Unknown horde move destination "${step.to}".`);
+          }
+          next = { ...next, horde: { ...horde, steps: [...horde.steps, entry] } };
+          break;
+        }
+      }
+      break;
+    }
+    case 'horde-undo': {
+      if (prev.status !== 'active' || !prev.horde || prev.horde.steps.length === 0) return prev;
+      const horde = prev.horde;
+      if (action.at !== horde.steps.length) return prev;
+      const last = horde.steps[horde.steps.length - 1];
+      const steps = horde.steps.slice(0, -1);
+
+      switch (last.k) {
+        case 'take': {
+          // An active game never has a clamped take (hitting 0 ends the game,
+          // and horde-undo requires 'active'), so adding `dealt` back is exact.
+          const sharedLife = prev.players.length > 0 ? prev.players[0].life : 0;
+          next = {
+            ...next,
+            players: mirrorLife(next.players, sharedLife + last.dealt),
+            horde: {
+              ...horde,
+              phase: 'combat',
+              survivorTurn: horde.survivorTurn - 1,
+              done: [],
+              steps,
+            },
+          };
+          break;
+        }
+        case 'confirm': {
+          next = { ...next, horde: { ...horde, phase: 'reveal', steps } };
+          break;
+        }
+        case 'reveal': {
+          // Every active survivor had to be done to get here — restore that.
+          const activeSurvivors = prev.players
+            .filter((p) => !p.eliminated && p.connected)
+            .map((p) => p.seat);
+          next = {
+            ...next,
+            horde: {
+              ...horde,
+              phase: 'survivors',
+              hordeTurn: horde.hordeTurn - 1,
+              done: activeSurvivors,
+              steps,
+            },
+          };
+          break;
+        }
+        case 'damage':
+        case 'move': {
+          next = { ...next, horde: { ...horde, steps } };
+          break;
+        }
+      }
       break;
     }
   }
