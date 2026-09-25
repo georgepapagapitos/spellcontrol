@@ -45,6 +45,7 @@ export function DeckAnalysisView({
   bracketMissesCombos,
   onSetBracketOverride,
   clockLibrary,
+  bracketTableSlot,
   archetypeOverride,
   onSetArchetypeOverride,
   roleCounts,
@@ -98,6 +99,8 @@ export function DeckAnalysisView({
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   /** Mainboard, one entry per copy: lets the Bracket judgment quote the combo clock. */
   clockLibrary?: readonly ClockCard[];
+  /** The Bracket panel's "At the table" read (owner only). */
+  bracketTableSlot?: React.ReactNode;
   archetypeOverride?: Archetype | null;
   onSetArchetypeOverride?: (archetype: Archetype | null) => void;
   roleCounts?: Record<string, number>;
@@ -376,6 +379,7 @@ export function DeckAnalysisView({
                       bracketOverride={bracketOverride ?? null}
                       onSetBracketOverride={onSetBracketOverride}
                       clockLibrary={clockLibrary}
+                      tableSlot={bracketTableSlot}
                     />
                   )}
                 </div>
