@@ -619,6 +619,14 @@ export async function ensureSchema(): Promise<void> {
     -- clockwise wherever this is consumed (GameState.turnOrder's own
     -- convention) — so a legacy row needs no backfill.
     ALTER TABLE game_results ADD COLUMN IF NOT EXISTS turn_order TEXT;
+    -- The two rule toggles the table played with. App-level validation only
+    -- (booleans, same trust boundary as the rest of parseLocalResult), no
+    -- CHECK. Null only for a row recorded before these columns existed —
+    -- every row written since always carries a real boolean, because
+    -- GameState.commanderDamageEnabled/poisonEnabled are required fields, not
+    -- optional, on every live game.
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS commander_damage_enabled BOOLEAN;
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS poison_enabled BOOLEAN;
     -- Per-account hide list for ONLINE rows. An online game is the table's
     -- shared record, so one seat may not retract it — but they can drop it out
     -- of their own history list (a test table, a game they would rather not

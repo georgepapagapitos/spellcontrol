@@ -12,6 +12,7 @@ function participant(seat: number, userId: string | null): GameResultParticipant
     deckId: null,
     deckName: null,
     commander: null,
+    partner: null,
     colorIdentity: [],
     finalLife: 0,
     eliminated: false,

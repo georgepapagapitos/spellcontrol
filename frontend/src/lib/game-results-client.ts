@@ -20,6 +20,9 @@ export interface GameResultParticipant {
   deckId: string | null;
   deckName: string | null;
   commander: string | null;
+  /** Second commander for a Partner pair. Null for the common
+   *  single-commander seat. */
+  partner: string | null;
   colorIdentity: string[];
   finalLife: number;
   eliminated: boolean;
@@ -63,6 +66,11 @@ export interface PublicGameResult {
    *  clockwise table — both read as clockwise. Carried into
    *  `GameRecord.turnOrder` by resultToRecord. */
   turnOrder?: 'clockwise' | 'counterclockwise' | null;
+  /** The two rule toggles the table played with. Null only for a row
+   *  recorded before these columns existed. Carried into
+   *  `GameRecord.commanderDamageEnabled`/`poisonEnabled` by resultToRecord. */
+  commanderDamageEnabled?: boolean | null;
+  poisonEnabled?: boolean | null;
 }
 
 export type GameResultMode = PublicGameResult['mode'];
@@ -281,6 +289,8 @@ export function resultToRecord(r: PublicGameResult): GameRecord {
       deckId: p.deckId,
       deckName: p.deckName,
       commander: p.commander,
+      partner: p.partner,
+      colorIdentity: p.colorIdentity,
       finalLife: p.finalLife,
       eliminated: p.eliminated,
     })),
@@ -295,5 +305,11 @@ export function resultToRecord(r: PublicGameResult): GameRecord {
     ...(r.coopOutcome ? { coopOutcome: r.coopOutcome } : {}),
     ...(r.hordeId ? { hordeId: r.hordeId } : {}),
     ...(r.turnOrder ? { turnOrder: r.turnOrder } : {}),
+    // A legacy row's toggle is `null`/absent — "unknown", not "off" — so it
+    // must stay absent on the record too, for recordToRematch to infer.
+    ...(r.commanderDamageEnabled != null
+      ? { commanderDamageEnabled: r.commanderDamageEnabled }
+      : {}),
+    ...(r.poisonEnabled != null ? { poisonEnabled: r.poisonEnabled } : {}),
   };
 }

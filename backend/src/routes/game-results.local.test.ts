@@ -312,6 +312,48 @@ describe('POST /api/game-results (local game)', () => {
     expect(res2.body.result.turnOrder).toBeNull();
   });
 
+  it('persists the rule toggles, partner and colorIdentity, and returns them on read', async () => {
+    const ana = await makeUser('lr-toggles');
+    const base = localGame({ seats: [{ name: 'A' }, { name: 'B' }] });
+    const game = {
+      ...base,
+      commanderDamageEnabled: false,
+      poisonEnabled: true,
+      players: base.players.map((p, i) =>
+        i === 0 ? { ...p, partner: 'Silas Renn', colorIdentity: ['u', 'b'] } : p
+      ),
+    };
+    const res = await request(app).post('/api/game-results').set('Cookie', ana).send({ game });
+    expect(res.status).toBe(201);
+    expect(res.body.result.commanderDamageEnabled).toBe(false);
+    expect(res.body.result.poisonEnabled).toBe(true);
+    expect(res.body.result.participants[0].partner).toBe('Silas Renn');
+    expect(res.body.result.participants[0].colorIdentity).toEqual(['U', 'B']);
+    expect(res.body.result.participants[1].partner).toBeNull();
+
+    const mine = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    const row = mine.body.results.find((r: { sessionId: string }) => r.sessionId === game.id);
+    expect(row.commanderDamageEnabled).toBe(false);
+    expect(row.poisonEnabled).toBe(true);
+    expect(row.participants[0].partner).toBe('Silas Renn');
+  });
+
+  it('a pre-migration row (columns absent) reads the toggles back as null', async () => {
+    const ana = await makeUser('lr-toggles-legacy');
+    const anaId = await userId('lr-toggles-legacy');
+    await insertOnlineRow({
+      sessionId: 'lr-toggles-legacy-1',
+      winnerUserId: anaId,
+      participants: [{ userId: anaId }, { userId: null }],
+    });
+    const mine = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    const row = mine.body.results.find(
+      (r: { sessionId: string }) => r.sessionId === 'lr-toggles-legacy-1'
+    );
+    expect(row.commanderDamageEnabled).toBeNull();
+    expect(row.poisonEnabled).toBeNull();
+  });
+
   it('rejects a bad turnOrder value on POST', async () => {
     const ana = await makeUser('lr-turnorder-bad');
     const bad = { ...localGame({ seats: [{}, {}] }), turnOrder: 'sideways' };

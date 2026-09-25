@@ -46,7 +46,7 @@ const MIN_ON_THE_PLAY = 3;
  * through to every pod member. Do not reintroduce the spread. The sibling
  * `projectGameResult` in shares/projections.ts is the same pattern.
  */
-type PodParticipant = Omit<GameResultParticipant, 'userId' | 'username'> & {
+type PodParticipant = Omit<GameResultParticipant, 'userId' | 'username' | 'partner'> & {
   userId: null;
   username: null;
 };
@@ -68,7 +68,11 @@ type PodParticipant = Omit<GameResultParticipant, 'userId' | 'username'> & {
  *  - `turnOrder` — not identity, but not declared by the client's
  *    `PodGameResult` or read by the hub either; the pod page is a
  *    history/leaderboard table, not a board, so there is nothing here that
- *    resolves a past table's layout. Add it back if that changes. */
+ *    resolves a past table's layout. Add it back if that changes.
+ *  - `commanderDamageEnabled` / `poisonEnabled` / (participant) `partner` —
+ *    same reasoning as `turnOrder`: rematch inputs, not history/leaderboard
+ *    facts, and the pod hub declares none of them. Add back if a pod-scoped
+ *    rematch ever reads this endpoint instead of `/api/game-results/mine`. */
 type PodGameResult = Omit<
   PublicGameResult,
   | 'code'
@@ -81,6 +85,8 @@ type PodGameResult = Omit<
   | 'coopOutcome'
   | 'hordeId'
   | 'turnOrder'
+  | 'commanderDamageEnabled'
+  | 'poisonEnabled'
 > & { participants: PodParticipant[] };
 
 function toPublicForPod(r: ResultRow): PodGameResult {
