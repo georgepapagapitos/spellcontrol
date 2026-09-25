@@ -7415,12 +7415,20 @@ Set against Lotus, the counter people at a real table reach for. The job is
 reading a life total from across the table, and every ruling below serves it.
 
 - **The numeral is sized from its own panel, never the viewport.**
-  `--life-size` is `min(60cqh, 38cqw)` of the panel's cell (axes swapped on a
+  `--life-size` is `min(60cqh, 44cqw)` of the panel's cell (axes swapped on a
   sideways seat), and the ± and their spacing derive from it. A per-player-count
   `vmin` clamp drew a 62px number in a 410px seat. Two-seat boards take 72% of
   the height; a short panel (under 10rem across a sideways seat, 12rem tall
   upright) drops to ~40%, because the 44px corner chips are fixed-size and a
   percentage alone runs the digits into them.
+  ⛔ **The 12rem-tall-upright short tier stayed at `38cqw` (gestures audit,
+  2026-09-25):** the base ceiling above moved 38 → 44 once Bebas Neue (below)
+  made the width axis cheap — 4p-pod and 5p/6p's non-wide seats read 56px
+  (38%) at every width, and 44 clears them to 65-89px (320-430px) with zero
+  new numeral/name/±/chip overlap (`life-board-probe.mjs`, every 2-10p preset
+  at 320/390/430). The 12rem tier (5p/6p's own 155px-tall cell at 320px) had
+  no headroom to match it — even 39 there put the "up next" designation chip
+  into the numeral — so it's the one tier still tuned for the old face.
 - **Every board numeral is Bebas Neue, tabular, self-hosted (E416).** The
   life total, the ± step glyphs, the burst count, the commander-damage split
   values and the High Roll value all read the same face via one token
