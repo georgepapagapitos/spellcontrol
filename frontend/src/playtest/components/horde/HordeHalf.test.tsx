@@ -95,4 +95,37 @@ describe('HordeHalf', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(usePlaytestStore.getState().retryHordeLoad).toHaveBeenCalledTimes(1);
   });
+
+  it("overrides the status line with statusText, an online table's own wording", () => {
+    renderHalf({ statusText: "Survivors' team turn 3 · Watching" });
+    expect(screen.getByText(/Survivors' team turn 3 · Watching/)).toBeTruthy();
+  });
+
+  it('replaces the felt with a message and an action button when blocked', () => {
+    const onAction = vi.fn();
+    renderHalf({
+      blocked: { message: 'This table is from a newer build.', actionLabel: 'Reload', onAction },
+    });
+    expect(screen.getByText('This table is from a newer build.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Damage the horde' })).toBeNull();
+  });
+
+  it('hides the damage action and ignores card taps when readOnly', () => {
+    const horde = buildTestHorde();
+    const card = horde.board.zones.library[0];
+    horde.board = {
+      ...horde.board,
+      battlefield: [
+        { card, tapped: false, counters: {}, stickers: [], x: 0.5, y: 0.5, faceDown: false },
+      ],
+    };
+    const onCardMenu = vi.fn();
+    renderHalf({ horde, onCardMenu, readOnly: true });
+    expect(screen.queryByRole('button', { name: 'Damage the horde' })).toBeNull();
+    const cardEl = document.querySelector(`[data-card-id="${card.id}"]`) as HTMLElement;
+    realPointerActivate(cardEl);
+    expect(onCardMenu).not.toHaveBeenCalled();
+  });
 });

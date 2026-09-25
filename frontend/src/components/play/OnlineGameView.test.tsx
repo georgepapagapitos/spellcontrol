@@ -7,11 +7,12 @@
  * since this component reads `usePlayStore`/`useAuth` directly rather than
  * taking them as props.
  */
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameAction, GamePhase, GamePlayer, GameState } from '../../lib/game-state';
 import { createGameState, makePlayer } from '../../lib/game-state';
 import type { GameRequest } from '../../lib/games-api';
+import { loadHordeDeck, resolveHordeSettings } from '../../lib/horde';
 
 const dispatchOnline = vi.fn(async () => {});
 const raiseGameRequest = vi.fn();
@@ -563,5 +564,73 @@ describe('Hold (T101)', () => {
     });
 
     expect(screen.queryByText(/has the table on hold/)).toBeNull();
+  });
+});
+
+describe('Spectator horde', () => {
+  let hordeRev: string;
+
+  beforeAll(async () => {
+    hordeRev = (await loadHordeDeck('zombies')).rev;
+  });
+
+  function makeHordeGame(players: GamePlayer[], deckRev = hordeRev): GameState {
+    const game = makeTestGame(players);
+    return {
+      ...game,
+      format: 'horde',
+      horde: {
+        hordeId: 'zombies',
+        level: 'standard',
+        settings: resolveHordeSettings('standard', 2),
+        seed: 42,
+        deckRev,
+        phase: 'survivors',
+        survivorTurn: 4,
+        hordeTurn: 0,
+        done: [],
+        steps: [],
+      },
+    };
+  }
+
+  it('shows the horde read-only, above the tiles, to an unseated watcher', async () => {
+    mockAuthUserId.current = 'watcher';
+    const game = makeHordeGame([
+      makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+      makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
+    ]);
+    render(<OnlineGameView game={game} />);
+    expect(screen.getByRole('region', { name: 'The horde' })).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Survivors' team turn 4 · Watching/)).toBeTruthy());
+  });
+
+  it('does not show the horde section to a seated survivor', () => {
+    mockAuthUserId.current = 'user_1';
+    const game = makeHordeGame([
+      makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+      makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
+    ]);
+    render(<OnlineGameView game={game} />);
+    expect(screen.queryByRole('region', { name: 'The horde' })).toBeNull();
+  });
+
+  it('does not show the horde section for a non-horde game, even unseated', () => {
+    mockAuthUserId.current = 'watcher';
+    const game = makeTestGame([
+      makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+    ]);
+    render(<OnlineGameView game={game} />);
+    expect(screen.queryByRole('region', { name: 'The horde' })).toBeNull();
+  });
+
+  it('shows the skew message and a Reload button once loaded, when the deck rev does not match', async () => {
+    mockAuthUserId.current = 'watcher';
+    const game = makeHordeGame(
+      [makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' })],
+      'some-other-build-rev'
+    );
+    render(<OnlineGameView game={game} />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reload' })).toBeTruthy());
   });
 });

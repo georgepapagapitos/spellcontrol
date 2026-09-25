@@ -16,6 +16,7 @@ import {
   type GamePlayer,
   type GameRecord,
   type GameState,
+  type HordeStep,
 } from '../lib/game-state';
 import {
   createGame as apiCreateGame,
@@ -769,6 +770,27 @@ async function recoverFromServerState(
 }
 
 /**
+ * A dropped `reveal`/`confirm`/`take` horde-step (or a dropped `horde-done`)
+ * lost a 409 race to another seat's own move — this names what that seat
+ * already did, read off the fresh log's own last step (not the dropped
+ * action: `horde-done` never appends its own step, so the log's last entry
+ * is the only source). `null` for a step kind that lost the race but has no
+ * "already did X" phrasing (damage/move commute instead of landing here).
+ */
+function hordeStepAlreadyMessage(kind: HordeStep['k'], name: string): string | null {
+  switch (kind) {
+    case 'take':
+      return `${name} already took the hit.`;
+    case 'confirm':
+      return `${name} already confirmed the reveal.`;
+    case 'reveal':
+      return `${name} already started the horde's turn.`;
+    default:
+      return null;
+  }
+}
+
+/**
  * Shared teardown for leaveOnline / clearOnline: stop polling, drain the
  * pending-action queue, reset module-level server identity, and clear the
  * online slice of store state. Does NOT call apiLeaveGame — that's the
@@ -1153,6 +1175,52 @@ export const usePlayStore = create<PlayState>()(
                     null, // 409: silently ignore !fresh / fetch errors (poll will catch up)
                     set
                   );
+
+                  // A rejected horde-step batch: `damage`/`move` commute (they
+                  // don't depend on which phase/turn the log was in when sent),
+                  // so re-send each once against the log length the refetch
+                  // just adopted. `reveal`/`confirm`/`take` and `horde-done`
+                  // don't — they raced another seat's own move on the same
+                  // team turn — so those are dropped, and the log's own last
+                  // step (not the dropped action) says what already happened.
+                  const hordeSteps = batch.filter(
+                    (a): a is Extract<GameAction, { type: 'horde-step' }> => a.type === 'horde-step'
+                  );
+                  if (hordeSteps.length > 0 || batch.some((a) => a.type === 'horde-done')) {
+                    const commutable = hordeSteps.filter(
+                      (a) => a.step.k === 'damage' || a.step.k === 'move'
+                    );
+                    const droppedHorde =
+                      hordeSteps.some((a) => a.step.k !== 'damage' && a.step.k !== 'move') ||
+                      batch.some((a) => a.type === 'horde-done');
+
+                    for (const a of commutable) {
+                      const fresh = get().online;
+                      if (!fresh?.horde) break;
+                      try {
+                        const result = await apiPatchGame(code, serverVersion, [
+                          { ...a, at: fresh.horde.steps.length },
+                        ]);
+                        serverVersion = result.game.version;
+                        set({ online: result.game, onlineError: null });
+                      } catch {
+                        /* give up silently — the next poll/patch catches the table up */
+                      }
+                    }
+
+                    if (droppedHorde) {
+                      const fresh = get().online;
+                      const lastEntry = fresh?.horde?.steps[fresh.horde.steps.length - 1];
+                      const actorName = lastEntry
+                        ? (fresh?.players.find((p) => p.seat === lastEntry.seat)?.name ?? null)
+                        : null;
+                      const already =
+                        lastEntry && actorName
+                          ? hordeStepAlreadyMessage(lastEntry.k, actorName)
+                          : null;
+                      if (already) set({ onlineError: already });
+                    }
+                  }
                 } else if (e.status === 403) {
                   await recoverFromServerState(
                     code,

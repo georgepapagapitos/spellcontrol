@@ -1,7 +1,7 @@
 import '@/styles/horde-table.css';
 import { HordeAttackBanner } from '@/components/play/horde/HordeAttackBanner';
-import { usePlaytestStore } from '@/playtest/store';
 import type { SoloHordeState } from '@/playtest/lib/horde-solo';
+import { useHordeActions } from './horde-actions';
 import './HordeSoloBanner.css';
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
  * into the band's bar instead.
  */
 export function HordeSoloBanner({ horde }: Props) {
-  const resolveHordeAttack = usePlaytestStore((s) => s.resolveHordeAttack);
+  const { take } = useHordeActions();
   if (horde.phase !== 'combat' || !horde.pendingAttack) return null;
   return (
     <div className="horde-solo-banner">
@@ -23,7 +23,7 @@ export function HordeSoloBanner({ horde }: Props) {
         attackers={horde.pendingAttack.attackers}
         power={horde.pendingAttack.power}
         groups={horde.pendingAttack.groups}
-        onTake={resolveHordeAttack}
+        onTake={take}
       />
     </div>
   );
