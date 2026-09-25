@@ -5,7 +5,12 @@
    unicode-range Google Fonts serves, font-display: swap), but scoped to
    this stylesheet, which only the play-board chunk loads (PlayPage.tsx), so
    a visitor who never opens a game never fetches it. Files + OFL notice
-   live in public/fonts/. */
+   live in public/fonts/.
+   The overrides centre the digits (Bebas's figures are cap height) in their
+   line box like every other face (styles/font-metrics.test.ts): natively
+   they sat 0.05em high, ~7px on a two-seat life total. The numeral's box
+   keeps its size on Mac and shrinks 0.1em on Windows, which had been reading
+   the taller OS/2 win metrics, so nothing it could overlap grows (E434). */
 
 @font-face {
   font-family: 'Bebas Neue';
@@ -16,4 +21,6 @@
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  ascent-override: 95%;
+  descent-override: 25%;
 }

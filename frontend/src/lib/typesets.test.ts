@@ -66,6 +66,22 @@ describe('typesets', () => {
     }
   });
 
+  it('a font-size-adjust reaches form controls, not just body', () => {
+    // The UA stylesheet sets the `font` shorthand on form controls, which
+    // resets font-size-adjust to none instead of inheriting it. A rule on body
+    // alone left every <button> label ~12% smaller than an <a> with the same
+    // classes beside it (Almanac, E433).
+    const rules = [...read('../styles/typesets.css').matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(
+      ([, , body]) => body.includes('font-size-adjust')
+    );
+    expect(rules.length).toBeGreaterThan(0);
+    for (const [, selector] of rules) {
+      for (const el of ['button', 'input', 'select', 'textarea']) {
+        expect(selector, `font-size-adjust rule misses <${el}>`).toMatch(new RegExp(`\\b${el}\\b`));
+      }
+    }
+  });
+
   it('DEFAULT_TYPESET is in the registry', () => {
     expect(TYPESETS.some((t) => t.id === DEFAULT_TYPESET)).toBe(true);
   });

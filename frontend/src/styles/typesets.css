@@ -91,7 +91,11 @@
 /* EB Garamond and Cutive Mono run small for their point size, which makes
    Almanac's body text read a step below every other set. `font-size-adjust`
    is the native fix — it scales the face to a target x-height ratio instead
-   of us hand-tuning --text-* per set (which would break the shared scale). */
-[data-typeset='almanac'] body {
+   of us hand-tuning --text-* per set (which would break the shared scale).
+   Form controls are listed with body because the UA stylesheet sets the
+   `font` shorthand on them, which resets font-size-adjust to none instead of
+   inheriting it: every <button> label read ~12% smaller than an <a> styled
+   as the same .btn right beside it. */
+[data-typeset='almanac'] :is(body, button, input, select, textarea) {
   font-size-adjust: ex-height 0.46;
 }

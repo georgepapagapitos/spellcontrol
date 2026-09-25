@@ -914,7 +914,12 @@ Rulings:
   sanctioned exception is an optical correction where a body face's x-height
   makes the shared scale read a step small — use native `font-size-adjust`
   (as `almanac` does), never a per-set `--text-*` override, which would fork
-  the scale.
+  the scale. Put it on `body` **and** the form controls
+  (`:is(body, button, input, select, textarea)`): the UA stylesheet sets the
+  `font` shorthand on controls, which resets `font-size-adjust` instead of
+  inheriting it, so a rule on `body` alone left every `<button>` label ~12%
+  smaller than an `<a>` with the same `.btn` classes beside it (E433,
+  guarded in `lib/typesets.test.ts`).
 - **Every stack ends in the same generic families as the `tokens.css`
   defaults**, so a set whose webfont fails to load degrades to the same system
   serif/sans/mono rather than to an unrelated face.
