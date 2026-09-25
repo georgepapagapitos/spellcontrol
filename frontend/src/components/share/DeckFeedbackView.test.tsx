@@ -124,7 +124,7 @@ describe('DeckFeedbackView', () => {
     fireEvent.change(screen.getByPlaceholderText(/So the owner knows/), {
       target: { value: 'Reviewer' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /3\s*Upgraded/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Upgraded/ }));
     fireEvent.change(screen.getByPlaceholderText(/Overall thoughts/), {
       target: { value: 'Solid list.' },
     });
@@ -145,6 +145,29 @@ describe('DeckFeedbackView', () => {
         },
       ],
     });
+  });
+
+  it('picks the power bracket as a native radio group of the five brackets', () => {
+    renderView();
+    const radios = screen.getAllByRole('radio') as HTMLInputElement[];
+    expect(radios).toHaveLength(5);
+    expect(radios.some((r) => r.checked)).toBe(false);
+    fireEvent.click(screen.getByRole('radio', { name: /Upgraded/ }));
+    expect((screen.getByRole('radio', { name: /Upgraded/ }) as HTMLInputElement).checked).toBe(
+      true
+    );
+  });
+
+  it('clears the optional read with Clear, shown only once a bracket is picked', () => {
+    // A radio group can't be un-picked; a sixth "None" tile wrapped cEDH onto
+    // its own line on a phone, so the read clears from the label instead.
+    renderView();
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: /Upgraded/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    const radios = screen.getAllByRole('radio') as HTMLInputElement[];
+    expect(radios.some((r) => r.checked)).toBe(false);
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
   });
 
   it('surfaces a submit failure without losing the form', async () => {

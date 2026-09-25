@@ -568,7 +568,21 @@
   gap: 0.55rem;
 }
 
+/* A <fieldset>: strip its default chrome and keep its radio labels as
+   direct grid items (same technique as .settings-currency-toggle), so the
+   sibling Custom button sits in the same grid alongside the presets. */
+.layout-picker-fieldset {
+  display: contents;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+/* A <label> wrapping a visually-hidden radio, so the whole tile stays the
+   hit target while keyboard/AT semantics are native. */
 .layout-option {
+  position: relative;
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -582,6 +596,14 @@
     background var(--motion-fast) ease,
     box-shadow var(--motion-fast) ease,
     transform var(--motion-fast) ease;
+}
+
+.layout-option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -704,8 +726,11 @@
   }
 }
 
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
-.layout-option:focus-visible {
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
+   The Custom button (a real <button>) still matches :focus-visible directly;
+   the preset tiles (a <label> around a hidden radio) match via :has(). */
+.layout-option:focus-visible,
+.layout-option:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

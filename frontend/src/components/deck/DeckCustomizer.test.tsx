@@ -550,6 +550,33 @@ describe('DeckCustomizer — Mana philosophy (E234)', () => {
   });
 });
 
+describe('DeckCustomizer — Salt level (native radios)', () => {
+  function openSalt() {
+    fireEvent.click(screen.getByText('Salt'));
+  }
+
+  it('renders the four salt levels as a native radio group with visible descriptions', () => {
+    const { container } = render(
+      <DeckCustomizer customization={baseCustomization({ saltTolerance: 2 })} update={vi.fn()} />
+    );
+    openSalt();
+    const radios = container.querySelectorAll('.choice-list input[type="radio"]');
+    expect(radios).toHaveLength(4);
+    expect((radios[2] as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText(/No salt filtering/)).toBeTruthy();
+  });
+
+  it('patches saltTolerance when a level is picked', () => {
+    const update = vi.fn();
+    render(
+      <DeckCustomizer customization={baseCustomization({ saltTolerance: 2 })} update={update} />
+    );
+    openSalt();
+    fireEvent.click(screen.getByText('Extra'));
+    expect(update).toHaveBeenCalledWith({ saltTolerance: 3 });
+  });
+});
+
 describe('DeckCustomizer — Target Bracket (Exhibition expectations)', () => {
   it('shows no bracket-1 helper text for any other bracket', () => {
     render(

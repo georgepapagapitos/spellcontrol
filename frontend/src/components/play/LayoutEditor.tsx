@@ -8,7 +8,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import type { GameLayout, GameState } from '../../lib/game-state';
 import type { BoardLayout, TurnOrder } from '../../lib/board-layouts';
 import {
@@ -51,21 +51,34 @@ export function LayoutPicker({
 }) {
   const options = layoutsForCount(total, turnOrder);
   const customActive = isCustomLayout(current);
+  // Radios group by shared `name` — scope it per mounted picker.
+  const layoutGroup = useId();
   return (
-    <div className="layout-picker" role="group" aria-label="Board layout">
+    <div className="layout-picker">
       <div className="layout-picker-grid">
-        {options.map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            className={`layout-option ${current === opt.id ? 'is-selected' : ''}`}
-            aria-label={`Layout ${opt.id}`}
-            aria-pressed={current === opt.id}
-            onClick={() => onPick(opt.id)}
-          >
-            <LayoutPreview layout={opt} shared={shared} />
-          </button>
-        ))}
+        {/* A <fieldset> with display: contents so its radio labels stay
+            direct grid items alongside the sibling Custom button (which
+            opens an editor rather than picking a value, so it stays a
+            plain action outside the group). Native radios: exclusivity,
+            arrow-key nav and one group tab stop come free. */}
+        <fieldset className="layout-picker-fieldset" aria-label="Board layout">
+          {options.map((opt) => (
+            <label
+              key={opt.id}
+              className={`layout-option ${current === opt.id ? 'is-selected' : ''}`}
+            >
+              <input
+                type="radio"
+                name={layoutGroup}
+                value={opt.id}
+                checked={current === opt.id}
+                aria-label={`Layout ${opt.id}`}
+                onChange={() => onPick(opt.id)}
+              />
+              <LayoutPreview layout={opt} shared={shared} />
+            </label>
+          ))}
+        </fieldset>
         <button
           type="button"
           className={`layout-option layout-option-custom ${customActive ? 'is-selected' : ''}`}
