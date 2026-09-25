@@ -418,19 +418,12 @@
   scroll-snap-stop: always;
   /* The slide is the perspective container; the frame inside is what tilts. */
   perspective: 1400px;
-  /* Neighbours recede by a dark wash and a step back, never by opacity: a
-     see-through neighbour let the page behind read through it. They shrink
-     toward the card being read so a phone's narrow peek survives. */
-  transform-origin: right center;
-  transition: transform 200ms ease;
-}
-
-.card-preview-slide.is-active ~ .card-preview-slide {
-  transform-origin: left center;
-}
-
-.card-preview-slide:not(.is-active) {
-  transform: scale(0.94);
+  /* Neighbours recede under the dark wash below, never by opacity (a
+     see-through neighbour let the page behind read through it) and never by
+     a transform: a slide is a snap target, and scrollIntoView and the snap
+     both centre its TRANSFORMED box. A 94% neighbour shrunk toward the card
+     being read left every arrow-key / neighbour-click page turn 3% of a card
+     width (17.5px at 1440) off centre once it grew back. */
 }
 
 .card-preview-slide::after,
@@ -685,7 +678,6 @@
     animation: none;
   }
   .card-preview-panel,
-  .card-preview-slide,
   .card-preview-handle-chevron {
     transition: none;
   }

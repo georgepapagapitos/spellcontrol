@@ -931,12 +931,23 @@ async function main() {
                     card && stage ? (card.width * card.height) / (stage.width * stage.height) : 0,
                   cardW: Math.round(card?.width ?? 0),
                   headH: Math.round(head?.height ?? 0),
+                  // Paging must land the card dead centre on its stage: a
+                  // transformed neighbour once left it 17.5px off (#2259).
+                  centerOff:
+                    card && stage
+                      ? Math.round(
+                          Math.abs(card.left + card.width / 2 - (stage.left + stage.width / 2))
+                        )
+                      : -1,
                 };
               });
             const first = await measure();
             await page.keyboard.press('ArrowRight');
             await sleep(1200);
             const next = await measure();
+            await page.keyboard.press('ArrowRight');
+            await sleep(1200);
+            const next2 = await measure();
             await page.keyboard.press('Escape');
             await sleep(900);
             const closed = await page.evaluate(
@@ -947,12 +958,14 @@ async function main() {
                 first.overlap === 0 &&
                 first.cardShare >= 0.4 &&
                 next.cardW === first.cardW &&
+                [first, next, next2].every((m) => m.centerOff <= 2) &&
                 // The stacked header is fixed-height by construction; the
                 // desktop column may wrap a long name, so only phones pin it.
                 (tierName !== 'phone' || next.headH === first.headH) &&
                 closed,
-              expected: 'no overlap, card ≥40% of its stage, stable across cards, Escape closes',
-              observed: { first, next, closed },
+              expected:
+                'no overlap, card ≥40% of its stage, centred and stable across cards, Escape closes',
+              observed: { first, next, next2, closed },
             };
           });
         }
