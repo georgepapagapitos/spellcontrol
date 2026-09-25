@@ -13,6 +13,7 @@ import { ViewModeToggle } from '../ViewModeToggle';
 import { Tabs } from '../Tabs';
 import { CustomLayoutEditor, LayoutPicker } from './LayoutEditor';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { SwitchRow } from '../shared/form';
 
 // ── Center game menu (actions / log + stats / board setup) ─────────────────
 
@@ -379,78 +380,42 @@ export function GameMenu({
                     },
                   ]}
                 />
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={hapticsEnabled}
-                  className={`game-menu-setting ${hapticsEnabled ? 'is-on' : ''}`}
-                  onClick={() => setHaptics(!hapticsEnabled)}
-                >
-                  <span className="game-menu-setting-label">Haptic feedback</span>
-                  <span className="game-menu-setting-state" aria-hidden="true">
-                    {hapticsEnabled ? 'On' : 'Off'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={gameTimerEnabled}
-                  className={`game-menu-setting ${gameTimerEnabled ? 'is-on' : ''}`}
-                  onClick={() => setGameTimerEnabled(!gameTimerEnabled)}
-                >
-                  <span className="game-menu-setting-label">Game timer</span>
-                  <span className="game-menu-setting-state" aria-hidden="true">
-                    {gameTimerEnabled ? 'On' : 'Off'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={turnTrackerEnabled}
-                  className={`game-menu-setting ${turnTrackerEnabled ? 'is-on' : ''}`}
-                  onClick={() => setTurnTrackerEnabled(!turnTrackerEnabled)}
-                >
-                  <span className="game-menu-setting-label">Turn tracker</span>
-                  <span className="game-menu-setting-state" aria-hidden="true">
-                    {turnTrackerEnabled ? 'On' : 'Off'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={lowLifeWarningEnabled}
-                  className={`game-menu-setting ${lowLifeWarningEnabled ? 'is-on' : ''}`}
-                  onClick={() => setLowLifeWarningEnabled(!lowLifeWarningEnabled)}
-                >
-                  <span className="game-menu-setting-label">Low life warning</span>
-                  <span className="game-menu-setting-state" aria-hidden="true">
-                    {lowLifeWarningEnabled ? 'On' : 'Off'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={underlineSixNine}
-                  className={`game-menu-setting ${underlineSixNine ? 'is-on' : ''}`}
-                  onClick={() => setUnderlineSixNine(!underlineSixNine)}
-                >
-                  <span className="game-menu-setting-label">Underlined 6 and 9</span>
-                  <span className="game-menu-setting-state" aria-hidden="true">
-                    {underlineSixNine ? 'On' : 'Off'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={minimalistMode}
-                  className={`game-menu-setting ${minimalistMode ? 'is-on' : ''}`}
-                  onClick={() => setMinimalistMode(!minimalistMode)}
-                >
-                  <span className="game-menu-setting-label">Minimalist mode</span>
-                  <span className="game-menu-setting-state" aria-hidden="true">
-                    {minimalistMode ? 'On' : 'Off'}
-                  </span>
-                </button>
+                <SwitchRow
+                  label="Haptic feedback"
+                  hint="Vibrates for taps and undo, and for a lethal hit or an elimination."
+                  checked={hapticsEnabled}
+                  onChange={setHaptics}
+                />
+                <SwitchRow
+                  label="Game timer"
+                  hint="Shows how long the game has run, on the clock strip."
+                  checked={gameTimerEnabled}
+                  onChange={setGameTimerEnabled}
+                />
+                <SwitchRow
+                  label="Turn tracker"
+                  hint="Marks the active seat and who's next, and adds turn time to the clock strip."
+                  checked={turnTrackerEnabled}
+                  onChange={setTurnTrackerEnabled}
+                />
+                <SwitchRow
+                  label="Low life warning"
+                  hint="Pulses a seat's panel from 1 to 9 life."
+                  checked={lowLifeWarningEnabled}
+                  onChange={setLowLifeWarningEnabled}
+                />
+                <SwitchRow
+                  label="Underlined 6 and 9"
+                  hint="Underlines the 6 and the 9 so a number stays readable upside down across the table."
+                  checked={underlineSixNine}
+                  onChange={setUnderlineSixNine}
+                />
+                <SwitchRow
+                  label="Minimalist mode"
+                  hint="Hides the plus and minus buttons beside the life numeral. The tap zones still work."
+                  checked={minimalistMode}
+                  onChange={setMinimalistMode}
+                />
               </section>
 
               <section className="game-menu-section">
@@ -472,20 +437,12 @@ export function GameMenu({
                     const currentId = resolveLayout(count, game.layout, turnOrderOf(game)).id;
                     const isDefault = preferredLayouts[count] === currentId;
                     return (
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={isDefault}
-                        className={`game-menu-setting ${isDefault ? 'is-on' : ''}`}
-                        onClick={() => setPreferredLayout(count, isDefault ? null : currentId)}
-                      >
-                        <span className="game-menu-setting-label">
-                          Default for {count}-player games
-                        </span>
-                        <span className="game-menu-setting-state" aria-hidden="true">
-                          {isDefault ? 'On' : 'Off'}
-                        </span>
-                      </button>
+                      <SwitchRow
+                        label={`Default for ${count}-player games`}
+                        hint={`Every new ${count}-player local game opens in this layout.`}
+                        checked={isDefault}
+                        onChange={(next) => setPreferredLayout(count, next ? currentId : null)}
+                      />
                     );
                   })()}
               </section>

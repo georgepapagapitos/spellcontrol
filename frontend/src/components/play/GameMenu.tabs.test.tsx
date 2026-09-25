@@ -15,15 +15,27 @@ import { describe, expect, it, vi } from 'vitest';
 import type { GameAction, GameState } from '../../lib/game-state';
 import { applyAction, createGameState, makePlayer } from '../../lib/game-state';
 
+const mockPlayState = {
+  hapticsEnabled: false,
+  setHaptics: vi.fn(),
+  preferredLayouts: {} as Record<number, string>,
+  setPreferredLayout: vi.fn(),
+  gameTimerEnabled: false,
+  setGameTimerEnabled: vi.fn(),
+  turnTrackerEnabled: false,
+  setTurnTrackerEnabled: vi.fn(),
+  lowLifeWarningEnabled: true,
+  setLowLifeWarningEnabled: vi.fn(),
+  underlineSixNine: false,
+  setUnderlineSixNine: vi.fn(),
+  minimalistMode: false,
+  setMinimalistMode: vi.fn(),
+};
+
 vi.mock('../../store/play', () => {
   const getState = vi.fn(() => ({ stopPolling: vi.fn(), startPolling: vi.fn() }));
   const usePlayStore = (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      hapticsEnabled: false,
-      setHaptics: vi.fn(),
-      preferredLayouts: {},
-      setPreferredLayout: vi.fn(),
-    });
+    selector(mockPlayState as unknown as Record<string, unknown>);
   usePlayStore.getState = getState;
   return { usePlayStore };
 });
@@ -145,6 +157,66 @@ describe('game menu tabs', () => {
     const game = { ...activeGame(), status: 'finished' as const, winnerSeat: 0 };
     openMenu(game);
     expect(screen.queryByRole('tab', { name: 'Setup' })).toBeNull();
+  });
+});
+
+// The Setup tab's device prefs moved onto the shared `SwitchRow` (board
+// T139) — this pins the round trip: each row still reports its real
+// aria-checked state and still calls the right store setter with the
+// flipped value, not just that a `role="switch"` element exists.
+describe('Setup tab switches', () => {
+  it('reads its checked state from the store and flips it on click', () => {
+    openMenu(activeGame());
+    fireEvent.click(tab('Setup'));
+    const haptics = screen.getByRole('switch', { name: 'Haptic feedback' });
+    expect(haptics.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(haptics);
+    expect(mockPlayState.setHaptics).toHaveBeenCalledWith(true);
+  });
+
+  it('flips every device pref switch to its own setter', () => {
+    openMenu(activeGame());
+    fireEvent.click(tab('Setup'));
+    fireEvent.click(screen.getByRole('switch', { name: 'Game timer' }));
+    expect(mockPlayState.setGameTimerEnabled).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole('switch', { name: 'Turn tracker' }));
+    expect(mockPlayState.setTurnTrackerEnabled).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole('switch', { name: 'Low life warning' }));
+    expect(mockPlayState.setLowLifeWarningEnabled).toHaveBeenCalledWith(false);
+    fireEvent.click(screen.getByRole('switch', { name: 'Underlined 6 and 9' }));
+    expect(mockPlayState.setUnderlineSixNine).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole('switch', { name: 'Minimalist mode' }));
+    expect(mockPlayState.setMinimalistMode).toHaveBeenCalledWith(true);
+  });
+
+  it('sets the current layout as the default for this player count, and can clear it', () => {
+    openMenu(activeGame());
+    fireEvent.click(tab('Setup'));
+    const row = screen.getByRole('switch', { name: 'Default for 3-player games' });
+    expect(row.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(row);
+    expect(mockPlayState.setPreferredLayout).toHaveBeenCalledWith(3, expect.any(String));
+  });
+
+  // STYLE_GUIDE § Table settings / § Config surfaces: an on/off row states
+  // what On does in one line under the label, not just its own name.
+  it('describes what On does for every device pref switch', () => {
+    openMenu(activeGame());
+    fireEvent.click(tab('Setup'));
+    for (const name of [
+      'Haptic feedback',
+      'Game timer',
+      'Turn tracker',
+      'Low life warning',
+      'Underlined 6 and 9',
+      'Minimalist mode',
+      'Default for 3-player games',
+    ]) {
+      const row = screen.getByRole('switch', { name });
+      const describedBy = row.getAttribute('aria-describedby');
+      expect(describedBy).toBeTruthy();
+      expect(document.getElementById(describedBy!)?.textContent).toBeTruthy();
+    }
   });
 });
 
