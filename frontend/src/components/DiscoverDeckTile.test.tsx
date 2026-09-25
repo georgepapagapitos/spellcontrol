@@ -35,6 +35,7 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     ownerAvatarUrl: null,
     format: 'commander',
     commanderName: "Atraxa, Praetors' Voice",
+    commanderImageNormal: null,
     colorIdentity: ['W', 'U', 'B', 'G'],
     bracket: 3,
     estimatedBracket: null,
@@ -67,6 +68,17 @@ function renderTile(
 }
 
 describe('DiscoverDeckTile — grid art banner', () => {
+  it("shows the deck's own commander printing and skips the by-name lookup", () => {
+    useCardThumbMock.mockReturnValue('https://cdn.example/default-printing.jpg');
+    const { container } = renderTile({
+      commanderImageNormal: 'https://cards.scryfall.io/normal/sld.jpg',
+    });
+
+    const img = container.querySelector('.discover-tile-banner .decks-index-card-art');
+    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/normal/sld.jpg');
+    expect(useCardThumbMock).toHaveBeenLastCalledWith(undefined, 'normal');
+  });
+
   it('renders the commander art as a lazy-loaded banner image when a thumb resolves', () => {
     useCardThumbMock.mockReturnValue('https://cdn.example/atraxa.jpg');
     const { container } = renderTile();

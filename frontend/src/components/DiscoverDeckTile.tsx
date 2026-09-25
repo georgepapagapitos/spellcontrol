@@ -110,7 +110,11 @@ interface Props {
  * actions (Open + relocated Like/Bookmark) are grid + hover-capable only.
  */
 export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsaved }: Props) {
-  const thumb = useCardThumb(deck.commanderName ?? undefined, 'normal');
+  // The deck's own printing first; the by-name lookup lands on Scryfall's
+  // default printing, which is the wrong art for a Secret Lair commander.
+  const direct = deck.commanderImageNormal ?? undefined;
+  const resolved = useCardThumb(direct ? undefined : (deck.commanderName ?? undefined), 'normal');
+  const thumb = direct ?? resolved;
   const social = socialLine(deck);
   const isGrid = view === 'grid';
   const ownerName = formatIdentity({

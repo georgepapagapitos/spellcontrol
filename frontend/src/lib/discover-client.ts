@@ -20,6 +20,9 @@ export interface DiscoverDeck {
   ownerAvatarUrl: string | null;
   format: string;
   commanderName: string | null;
+  /** The owner's chosen commander printing (Scryfall `normal`), null when the
+   *  deck has none or was published before it was stored. */
+  commanderImageNormal: string | null;
   colorIdentity: string[];
   bracket: number | null;
   /** The auto-estimate, independent of `bracket` — null on a row published

@@ -29,6 +29,10 @@ export interface PublicationListingRow {
   ownerAvatarUrl: string | null;
   format: string;
   commanderName: string | null;
+  /** The deck's own commander printing (`deck_publications.commander_image_normal`,
+   *  refreshed on every sync), so a tile shows the art the owner chose rather
+   *  than whatever printing a by-name lookup lands on. */
+  commanderImageNormal: string | null;
   colorIdentity: string[];
   bracket: number | null;
   /** The auto-estimate, independent of `bracket` — null on a row published
@@ -48,6 +52,7 @@ export interface DiscoverDeckSummary {
   ownerAvatarUrl: string | null;
   format: string;
   commanderName: string | null;
+  commanderImageNormal: string | null;
   colorIdentity: string[];
   bracket: number | null;
   estimatedBracket: number | null;
@@ -191,6 +196,7 @@ export async function hydratePublicationRows(
       ownerAvatarUrl: row.ownerAvatarUrl,
       format: row.format,
       commanderName: row.commanderName,
+      commanderImageNormal: row.commanderImageNormal,
       colorIdentity: row.colorIdentity,
       bracket: row.bracket,
       estimatedBracket: row.estimatedBracket,

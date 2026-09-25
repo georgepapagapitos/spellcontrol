@@ -61,6 +61,7 @@ function listingRow(overrides: Partial<PublicationListingRow>): PublicationListi
     ownerAvatarUrl: null,
     format: 'commander',
     commanderName: 'Test Commander',
+    commanderImageNormal: null,
     colorIdentity: ['U'],
     bracket: 3,
     estimatedBracket: null,

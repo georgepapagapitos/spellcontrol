@@ -56,6 +56,7 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     ownerAvatarUrl: null,
     format: 'commander',
     commanderName: "Atraxa, Praetors' Voice",
+    commanderImageNormal: null,
     colorIdentity: ['W', 'U', 'B', 'G'],
     bracket: 3,
     estimatedBracket: null,
@@ -129,6 +130,16 @@ describe('DiscoverDecksPage', () => {
 
     await waitFor(() => expect(screen.getByText('Atraxa Superfriends')).toBeTruthy());
     expect(screen.getByRole('link', { name: /by alice/i }).getAttribute('href')).toBe('/u/alice');
+  });
+
+  it('docks the filters button inside the commander search pill, like every other SearchPill surface', async () => {
+    mockListDiscoverDecks.mockResolvedValue({ decks: [], page: 1, hasMore: false });
+    renderPage();
+
+    const trigger = await screen.findByRole('button', { name: /^filters/i });
+    expect(trigger.closest('.search-pill')).toBe(
+      screen.getByRole('combobox', { name: 'Filter by commander' }).closest('.search-pill')
+    );
   });
 
   it('renders the empty state on an empty resolved list with no filters active', async () => {
