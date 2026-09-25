@@ -13,7 +13,7 @@ import type { GameLogEntry } from './game-log';
 import type { PlaytestState } from './types';
 import { isPlaytestLand } from '@/playtest/lib/zones';
 import type { Deck } from '@/store/decks';
-import type { SoloHordeRecord } from '@/playtest/lib/horde-solo';
+import type { SoloHordeRecord, SoloHordeState } from '@/playtest/lib/horde-solo';
 
 export interface PlaytestSessionRecord {
   id: string;
@@ -179,6 +179,10 @@ export interface DeriveSessionRecordInput {
   /** Original deck size, for the `cardsDrawn` count. Null when unknown. */
   deckSize: number | null;
   isLandName: (cardName: string) => boolean;
+  /** Set when a solo Horde was armed at any point during the session
+   *  (E387 PR 5), regardless of its outcome (still live counts too, with a
+   *  null outcome). */
+  horde?: SoloHordeState | null;
 }
 
 export function deriveSessionRecord(input: DeriveSessionRecordInput): PlaytestSessionRecord {
@@ -212,6 +216,14 @@ export function deriveSessionRecord(input: DeriveSessionRecordInput): PlaytestSe
     landDropsMissed: landDrops.missed,
     landDropTurnsChecked: landDrops.turnsChecked,
     cardsDrawn,
+    ...(input.horde && {
+      horde: {
+        hordeId: input.horde.config.hordeId,
+        hordeName: input.horde.config.hordeName,
+        level: input.horde.config.level,
+        outcome: input.horde.outcome,
+      },
+    }),
   };
 }
 

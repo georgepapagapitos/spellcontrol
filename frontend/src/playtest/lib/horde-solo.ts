@@ -10,7 +10,7 @@
  * one (memory `project_playtest_and_real_game_stay_separate`), and its
  * results stay in the playtest session record, never Play history.
  */
-import type { PlaytestState } from '@/lib/playtest';
+import type { PlaytestCard, PlaytestState } from '@/lib/playtest';
 import type {
   HordeDamageResult,
   HordeLevel,
@@ -83,4 +83,14 @@ export function isHordeTurnDue(
   playerTurn: number
 ): boolean {
   return horde.phase === 'waiting' && playerTurn >= hordeArrivesAfterTurn(horde);
+}
+
+function isHordeCreature(card: PlaytestCard): boolean {
+  return (card.typeLine ?? '').toLowerCase().includes('creature');
+}
+
+/** Ids of every creature the horde currently controls — the red-ring
+ *  attacker set. Mirrors the paper table's own `creatureIds`. */
+export function hordeCreatureIds(board: PlaytestState): string[] {
+  return board.battlefield.filter((b) => isHordeCreature(b.card)).map((b) => b.card.id);
 }

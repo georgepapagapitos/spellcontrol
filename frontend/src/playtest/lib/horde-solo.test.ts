@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { resolveHordeSettings } from '@/lib/horde';
-import { hordeArrivesAfterTurn, isHordeTurnDue, type SoloHordeState } from './horde-solo';
+import { createPlaytestState } from '@/lib/playtest';
+import {
+  hordeArrivesAfterTurn,
+  hordeCreatureIds,
+  isHordeTurnDue,
+  type SoloHordeState,
+} from './horde-solo';
 
 function horde(
   setupTurns: number,
@@ -47,5 +53,46 @@ describe('isHordeTurnDue', () => {
     expect(isHordeTurnDue(horde(0, 1, 'reveal'), 5)).toBe(false);
     expect(isHordeTurnDue(horde(0, 1, 'combat'), 5)).toBe(false);
     expect(isHordeTurnDue(horde(0, 1, 'ended'), 5)).toBe(false);
+  });
+});
+
+describe('hordeCreatureIds', () => {
+  it('returns only the creatures currently on the battlefield', () => {
+    const board = createPlaytestState({
+      library: [
+        { id: 'zombie-1', name: 'Zombie', typeLine: 'Creature — Zombie' },
+        { id: 'sword-1', name: 'Sword of Fire and Ice', typeLine: 'Artifact — Equipment' },
+      ],
+      openingHandSize: 0,
+    });
+    const withPermanents = {
+      ...board,
+      battlefield: [
+        {
+          card: board.zones.library[0],
+          tapped: false,
+          counters: {},
+          stickers: [],
+          x: 0,
+          y: 0,
+          faceDown: false,
+        },
+        {
+          card: board.zones.library[1],
+          tapped: false,
+          counters: {},
+          stickers: [],
+          x: 0,
+          y: 0,
+          faceDown: false,
+        },
+      ],
+    };
+    expect(hordeCreatureIds(withPermanents)).toEqual(['zombie-1']);
+  });
+
+  it('is empty for a board with no creatures', () => {
+    const board = createPlaytestState({ library: [], openingHandSize: 0 });
+    expect(hordeCreatureIds(board)).toEqual([]);
   });
 });

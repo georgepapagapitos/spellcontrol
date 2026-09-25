@@ -13,6 +13,7 @@ import {
 } from './session-record';
 import type { GameLogEntry } from './game-log';
 import type { PlaytestState } from './types';
+import type { SoloHordeState } from '@/playtest/lib/horde-solo';
 
 function baseState(
   overrides: Partial<Omit<PlaytestState, 'past'>> = {}
@@ -226,6 +227,47 @@ describe('deriveSessionRecord', () => {
     for (const gone of ['killTurn', 'opponentCount', 'opponentsDefeated']) {
       expect(record).not.toHaveProperty(gone);
     }
+  });
+
+  it('carries the horde outcome when a solo Horde was armed (E387 PR 5)', () => {
+    const horde = {
+      config: {
+        hordeId: 'zombies',
+        hordeName: 'Zombies',
+        level: 'standard' as const,
+        overrides: {},
+      },
+      outcome: 'won' as const,
+    } as never as SoloHordeState;
+    const record = deriveSessionRecord({
+      deckId: 'deck-horde',
+      log: [],
+      state: baseState({ turn: 5 }),
+      mulliganCount: 0,
+      resistance: false,
+      deckSize: null,
+      isLandName: () => false,
+      horde,
+    });
+    expect(record.horde).toEqual({
+      hordeId: 'zombies',
+      hordeName: 'Zombies',
+      level: 'standard',
+      outcome: 'won',
+    });
+  });
+
+  it('has no horde field at all when no Horde was armed', () => {
+    const record = deriveSessionRecord({
+      deckId: 'deck-no-horde',
+      log: [],
+      state: baseState({ turn: 5 }),
+      mulliganCount: 0,
+      resistance: false,
+      deckSize: null,
+      isLandName: () => false,
+    });
+    expect(record).not.toHaveProperty('horde');
   });
 
   it('only counts resistance/land-drop evidence from the segment since the last reset', () => {

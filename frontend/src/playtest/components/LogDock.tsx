@@ -74,6 +74,8 @@ const CHIP_FOR: Record<LogEntryKind, Filter | null> = {
   mana: 'cards',
   resistance: null,
   designation: null,
+  // Solo horde bookkeeping spans cards/turns/life at once; no single chip fits.
+  horde: null,
 };
 
 /** These read as the app narrating, not as something you did. */

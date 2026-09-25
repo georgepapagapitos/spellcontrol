@@ -9,8 +9,10 @@ import type { PlaytestCard, PlaytestState } from '@/lib/playtest';
 import { usePlaytestStore, flushPendingPlaytestSnapshot } from './store';
 import { createResistanceState, resistanceRespond, RESISTANCE_PRESETS } from './lib/resistance';
 import { useDecksStore, type Deck } from '@/store/decks';
-import { loadPlaytestSnapshot } from '@/lib/playtest/session-snapshot';
+import { fingerprintDeck, loadPlaytestSnapshot } from '@/lib/playtest/session-snapshot';
 import { loadSessionHistory } from '@/lib/playtest/session-history';
+import { ZOMBIE_HORDE_FIXTURE } from '@/lib/horde/deck.fixtures';
+import type { HordeSettings } from '@/lib/horde';
 
 const STANDARD = RESISTANCE_PRESETS.standard;
 
@@ -20,6 +22,21 @@ const STANDARD = RESISTANCE_PRESETS.standard;
 vi.mock('@/lib/sync', () => ({
   persistDecksState: vi.fn().mockResolvedValue(undefined),
 }));
+
+// The horde suite drives a tiny, fully-controlled fixture deck instead of one
+// of the six shipped ones — `loadHordeDeck('zombies')` swaps to it so every
+// other engine function (settings, library building, turn planning) still
+// runs for real. `id !== 'zombies'` falls through to the real loader, which
+// is what the bad-load test below exercises.
+vi.mock('@/lib/horde', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/horde')>();
+  return {
+    ...actual,
+    loadHordeDeck: vi.fn((id: string) =>
+      id === 'zombies' ? Promise.resolve(ZOMBIE_HORDE_FIXTURE) : actual.loadHordeDeck(id)
+    ),
+  };
+});
 
 function makeDeck(overrides: Partial<Deck> = {}): Deck {
   return {
@@ -843,5 +860,315 @@ describe('playtest store — printed-body backfill', () => {
       expect.objectContaining({ id: 'sb-1', power: '3', toughness: '3' }),
     ]);
     for (const entry of s.past) expect(entry.zones.sideboard).toHaveLength(1);
+  });
+});
+
+describe('playtest store — solo horde (E387 PR 5)', () => {
+  // `until-nontoken` (the standard preset) stops a wave at the first
+  // nontoken card, which makes the exact reveal depend on shuffle order.
+  // `fixed` with count === librarySize reveals the WHOLE (tiny) library in
+  // one wave regardless of order, so every assertion below can rely on
+  // exact counts without needing to predict a shuffle. The fixture's first
+  // two tokens plus its first spell are all creatures (2/2 Zombies, a 2/2
+  // Geralf's Messenger), so the reveal is always 3 attackers, 6 power.
+  const FIXED_REVEAL: Partial<HordeSettings> = {
+    librarySize: 3,
+    safeZone: 'off',
+    setupTurns: 0,
+    bossTicks: [],
+    reveal: { kind: 'fixed', count: 3 },
+  };
+
+  function initPlayer() {
+    store().init('deck-1', { library: threatLibrary(), seed: 1 });
+  }
+
+  it('arms the horde: sets life as one undoable entry, and undo disarms', async () => {
+    initPlayer();
+    expect(store().state!.life).toBe(20);
+
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    expect(store().horde).not.toBeNull();
+    expect(store().horde!.config.hordeName).toBe('The Undying Horde');
+    expect(store().horde!.phase).toBe('waiting');
+    // Standard, 1 survivor.
+    expect(store().state!.life).toBe(40);
+    expect(store().state!.past).toHaveLength(1);
+    expect(store().hordePast).toEqual([null]);
+
+    store().dispatch({ type: 'UNDO' });
+    expect(store().horde).toBeNull();
+    expect(store().state!.life).toBe(20);
+    expect(store().hordePast).toEqual([]);
+  });
+
+  it('still pushes one entry when the preset life equals the current life', async () => {
+    initPlayer();
+    usePlaytestStore.setState({ state: { ...store().state!, life: 40 } });
+
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    expect(store().state!.life).toBe(40);
+    expect(store().state!.past).toHaveLength(1); // forced push, not a no-op
+
+    store().dispatch({ type: 'UNDO' });
+    expect(store().horde).toBeNull();
+  });
+
+  it('a bad horde id sets a retryable error and leaves no horde armed', async () => {
+    initPlayer();
+    await store().armHorde('not-a-real-horde', 'standard');
+    expect(store().horde).toBeNull();
+    expect(store().hordeLoad.status).toBe('error');
+    expect(store().hordeLoad.error).toMatch(/Unknown horde deck/);
+
+    store().retryHordeLoad();
+    await vi.waitFor(() => expect(store().hordeLoad.status).toBe('error'));
+    expect(store().hordeLoad.pending).toEqual({
+      hordeId: 'not-a-real-horde',
+      level: 'standard',
+      overrides: {},
+    });
+  });
+
+  it('startHordeTurn is a no-op until the setup turns pass', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', { ...FIXED_REVEAL, setupTurns: 3 });
+    const before = store().horde;
+    const pastBefore = store().state!.past.length;
+
+    store().startHordeTurn();
+    expect(store().horde).toBe(before);
+    expect(store().state!.past).toHaveLength(pastBefore);
+  });
+
+  it('runs a full horde turn — reveal, confirm, combat, resolve — one entry each', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+
+    store().startHordeTurn();
+    expect(store().horde!.phase).toBe('reveal');
+    expect(store().horde!.pendingReveal!.revealed).toHaveLength(3);
+    expect(store().state!.past).toHaveLength(2);
+    expect(store().gameLog.at(-1)?.text).toBe('The horde reveals 3 cards');
+
+    store().confirmHordeReveal();
+    expect(store().horde!.phase).toBe('combat');
+    expect(store().horde!.attackingIds).toHaveLength(3);
+    expect(store().horde!.pendingAttack).toMatchObject({ attackers: 3, power: 6 });
+    expect(store().state!.past).toHaveLength(3);
+
+    const turnBefore = store().state!.turn;
+    store().resolveHordeAttack(10);
+    expect(store().state!.life).toBe(30);
+    expect(store().state!.turn).toBe(turnBefore + 1);
+    expect(store().horde!.phase).toBe('waiting');
+    expect(store().horde!.damageTaken).toBe(10);
+    expect(store().horde!.attackingIds).toHaveLength(0);
+    // ONE entry for the whole "resolve damage + pass the turn" step.
+    expect(store().state!.past).toHaveLength(4);
+    expect(store().gameLog.some((e) => e.text.includes('You took 10'))).toBe(true);
+    expect(store().gameLog.at(-1)?.text).toBe(`Turn ${turnBefore + 1} begins`);
+  });
+
+  it('resolving with 0 damage is legal and still passes the turn', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    store().startHordeTurn();
+    store().confirmHordeReveal();
+    const pastBefore = store().state!.past.length;
+
+    store().resolveHordeAttack(0);
+    expect(store().state!.life).toBe(40);
+    expect(store().state!.past).toHaveLength(pastBefore + 1);
+    expect(store().horde!.phase).toBe('waiting');
+  });
+
+  it('undo after resolve returns to combat with the same attackers', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    store().startHordeTurn();
+    store().confirmHordeReveal();
+    const attackersBefore = store().horde!.attackingIds;
+    const pendingAttackBefore = store().horde!.pendingAttack;
+    store().resolveHordeAttack(10);
+
+    store().dispatch({ type: 'UNDO' });
+    expect(store().state!.life).toBe(40);
+    expect(store().state!.turn).toBe(1);
+    expect(store().horde!.phase).toBe('combat');
+    expect(store().horde!.attackingIds).toEqual(attackersBefore);
+    expect(store().horde!.pendingAttack).toEqual(pendingAttackBefore);
+  });
+
+  it('undo after confirm returns to the reveal', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    store().startHordeTurn();
+    const revealBefore = store().horde!.pendingReveal;
+    store().confirmHordeReveal();
+
+    store().dispatch({ type: 'UNDO' });
+    expect(store().horde!.phase).toBe('reveal');
+    expect(store().horde!.pendingReveal).toEqual(revealBefore);
+  });
+
+  it('your own action between horde steps keeps hordePast aligned through two undos', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    const handBefore = store().state!.zones.hand.length;
+
+    store().dispatch({ type: 'DRAW', n: 1 });
+    expect(store().horde!.phase).toBe('waiting'); // untouched by an ordinary draw
+
+    store().startHordeTurn();
+    expect(store().horde!.phase).toBe('reveal');
+
+    store().dispatch({ type: 'UNDO' }); // undoes startHordeTurn
+    expect(store().horde!.phase).toBe('waiting');
+    expect(store().state!.zones.hand).toHaveLength(handBefore + 1);
+
+    store().dispatch({ type: 'UNDO' }); // undoes the draw
+    expect(store().horde!.phase).toBe('waiting');
+    expect(store().state!.zones.hand).toHaveLength(handBefore);
+
+    store().dispatch({ type: 'UNDO' }); // undoes the arm
+    expect(store().horde).toBeNull();
+  });
+
+  it('damageHorde mills the library and crosses a boss tick', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', {
+      librarySize: 4,
+      safeZone: 'off',
+      setupTurns: 0,
+      bossTicks: [0.5],
+    });
+    expect(store().horde!.board.zones.library).toHaveLength(4);
+
+    store().damageHorde(2);
+    const horde = store().horde!;
+    expect(horde.board.zones.library).toHaveLength(2);
+    expect(horde.cardsMilledByDamage).toBe(2);
+    expect(horde.bossTicksCrossed).toEqual([0]);
+    expect(horde.lastDamageResult).toMatchObject({ amount: 2, before: 4, after: 2 });
+    expect(horde.lastDamageResult!.bossesEntered).toEqual([{ name: 'Gisa and Geralf', tick: 0.5 }]);
+    expect(horde.board.battlefield.some((b) => b.card.name === 'Gisa and Geralf')).toBe(true);
+    expect(store().gameLog.some((e) => e.text === 'Gisa and Geralf joins the horde')).toBe(true);
+    expect(store().gameLog.some((e) => e.text === 'The horde took 2 damage. Milled 2')).toBe(true);
+
+    store().clearHordeDamageResult();
+    expect(store().horde!.lastDamageResult).toBeNull();
+  });
+
+  it('moveHordeCard drops the card and, in combat, recomputes the attack', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    store().startHordeTurn();
+    store().confirmHordeReveal();
+    const [firstId] = store().horde!.attackingIds;
+    const firstName = store().horde!.board.battlefield.find((b) => b.card.id === firstId)!.card
+      .name;
+
+    store().moveHordeCard(firstId, 'graveyard');
+    expect(store().horde!.attackingIds).not.toContain(firstId);
+    expect(store().horde!.pendingAttack!.attackers).toBe(2);
+    expect(store().gameLog.at(-1)?.text).toBe(`${firstName} destroyed`);
+  });
+
+  it('wins once the last creature is destroyed with the library already empty', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    store().startHordeTurn();
+    store().confirmHordeReveal();
+    expect(store().horde!.board.zones.library).toHaveLength(0);
+
+    for (const id of [...store().horde!.attackingIds]) {
+      store().moveHordeCard(id, 'graveyard');
+    }
+    expect(store().horde!.outcome).toBe('won');
+    expect(store().horde!.phase).toBe('ended');
+  });
+
+  it('loses when an ordinary life change drops you to zero', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    store().dispatch({ type: 'ADJUST_LIFE', delta: -40 });
+    expect(store().horde!.outcome).toBe('lost');
+    expect(store().horde!.phase).toBe('ended');
+  });
+
+  it('Reset re-arms the same horde fresh', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    store().startHordeTurn();
+    store().confirmHordeReveal();
+    store().resolveHordeAttack(10);
+    expect(store().state!.life).toBe(30);
+
+    store().dispatch({ type: 'RESET' });
+    await vi.waitFor(() => expect(store().horde).not.toBeNull());
+    expect(store().state!.life).toBe(40); // fresh game, fresh arm
+    expect(store().horde!.phase).toBe('waiting');
+    expect(store().horde!.config.hordeId).toBe('zombies');
+    expect(store().horde!.config.level).toBe('standard');
+  });
+
+  it('arming Resistance disarms an active horde as one undoable entry', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    const pastBefore = store().state!.past.length;
+
+    store().setResistanceLevel('standard');
+    expect(store().horde).toBeNull();
+    expect(store().resistanceLevel).toBe('standard');
+    expect(store().state!.past).toHaveLength(pastBefore + 1);
+
+    store().dispatch({ type: 'UNDO' });
+    expect(store().horde).not.toBeNull();
+  });
+
+  it('arming a horde while Resistance is on turns Resistance off', async () => {
+    initPlayer();
+    store().setResistanceLevel('standard');
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    expect(store().resistanceLevel).toBe('off');
+    expect(store().resistanceState).toBeNull();
+    expect(store().horde).not.toBeNull();
+  });
+
+  it('a saved snapshot with an armed horde resumes it', async () => {
+    const deck = makeDeck({ id: 'deck-1' });
+    useDecksStore.setState({ decks: [deck] });
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    store().startHordeTurn();
+    const armedHorde = store().horde;
+
+    flushPendingPlaytestSnapshot();
+    const snapshot = loadPlaytestSnapshot('deck-1', fingerprintDeck(deck));
+    expect(snapshot?.horde).toEqual(armedHorde);
+
+    store().teardown();
+    store().hydrate('deck-1', snapshot!);
+    expect(store().horde).toEqual(armedHorde);
+    expect(store().hordePast).toEqual([]);
+  });
+
+  it('the session record carries the horde on Reset', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    store().startHordeTurn();
+    store().confirmHordeReveal();
+    store().resolveHordeAttack(5); // also advances the turn, so the session is meaningful
+
+    store().dispatch({ type: 'RESET' });
+    expect(store().lastSessionRecord?.horde).toEqual({
+      hordeId: 'zombies',
+      hordeName: 'The Undying Horde',
+      level: 'standard',
+      outcome: null,
+    });
+    // Let the fire-and-forget re-arm settle so it doesn't spill into the next test.
+    await vi.waitFor(() => expect(store().horde).not.toBeNull());
   });
 });
