@@ -1,5 +1,5 @@
 import { createGameState, makePlayer } from './state';
-import type { GameEvent, GameFormat, GamePlayer, GameState } from './state';
+import type { GameEvent, GameFormat, GamePlayer, GameState, TurnOrder } from './state';
 import { VALID_FORMATS } from '../routes/games';
 
 /**
@@ -91,6 +91,17 @@ export function parseLocalResult(body: unknown): LocalResultParse {
   const startedAt =
     isInt(g.startedAt) && g.startedAt > 0 && g.startedAt <= g.endedAt ? g.startedAt : null;
   const startingSeat = isInt(g.startingSeat) ? g.startingSeat : null;
+  // Which way the table sat. Absent means clockwise (see GameState.turnOrder's
+  // own convention) — anything present that isn't exactly one of the two
+  // values is rejected, same as the online settings-action guard in
+  // routes/games.ts (invalidTurnOrderError).
+  let turnOrder: TurnOrder | undefined;
+  if (g.turnOrder !== undefined) {
+    if (g.turnOrder !== 'clockwise' && g.turnOrder !== 'counterclockwise') {
+      return { ok: false, error: 'Invalid turn order.' };
+    }
+    turnOrder = g.turnOrder;
+  }
 
   const minPlayers = isHorde ? HORDE_MIN_PLAYERS : MIN_PLAYERS;
   const maxPlayers = isHorde ? HORDE_MAX_PLAYERS : MAX_PLAYERS;
@@ -205,6 +216,7 @@ export function parseLocalResult(body: unknown): LocalResultParse {
     startingLife: g.startingLife,
     commanderDamageEnabled: g.commanderDamageEnabled !== false,
     poisonEnabled: g.poisonEnabled === true,
+    turnOrder,
     players,
     ts: startedAt ?? g.endedAt,
   });

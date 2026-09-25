@@ -59,6 +59,10 @@ export interface PublicGameResult {
   coopOutcome?: 'won' | 'lost' | null;
   /** Which horde deck a co-op game was fought against. Null otherwise. */
   hordeId?: string | null;
+  /** Which way the table sat. Null for a legacy row and for an explicitly
+   *  clockwise table — both read as clockwise. Carried into
+   *  `GameRecord.turnOrder` by resultToRecord. */
+  turnOrder?: 'clockwise' | 'counterclockwise' | null;
 }
 
 export type GameResultMode = PublicGameResult['mode'];
@@ -290,5 +294,6 @@ export function resultToRecord(r: PublicGameResult): GameRecord {
     ...(r.summary ? { summary: r.summary } : {}),
     ...(r.coopOutcome ? { coopOutcome: r.coopOutcome } : {}),
     ...(r.hordeId ? { hordeId: r.hordeId } : {}),
+    ...(r.turnOrder ? { turnOrder: r.turnOrder } : {}),
   };
 }
