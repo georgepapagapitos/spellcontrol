@@ -249,7 +249,9 @@ describe('SharedDeckSurface', () => {
     expect(hero!.querySelector('.deck-editor-hero-art')).toBeTruthy();
     const meta = hero!.querySelector('.binder-hero-meta')!.textContent ?? '';
     expect(meta).toContain('Commander');
-    expect(meta).toContain('Atraxa');
+    // The commander is the art and the command zone's first row, so the meta
+    // line doesn't say it a third time (§ Layout system: one fact, one place).
+    expect(meta).not.toContain('Atraxa');
     // 2 cards + the commander.
     expect(meta).toContain('3');
     // The byline stays, inside the hero rather than shouted above the title.

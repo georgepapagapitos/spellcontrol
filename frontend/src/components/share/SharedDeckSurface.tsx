@@ -32,6 +32,7 @@ import { EnginePanel } from '../deck/EnginePanel';
 import { PowerHero } from '../deck/PowerHero';
 import { WinConditionPanel } from '../deck/WinConditionPanel';
 import { ForkedFromBadge } from '../deck/ForkedFromBadge';
+import { DeckHero } from '../deck/DeckHero';
 import { Tabs } from '../Tabs';
 import { ReportDialog } from './ReportDialog';
 import { CopyDeckButton } from './CopyDeckButton';
@@ -288,32 +289,16 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
   return (
     <div className="shared-view shared-deck-surface">
       {lead}
-      <header className="deck-editor-header shared-deck-header">
-        <div
-          className={`deck-editor-hero${heroArt ? ' deck-editor-hero--art' : ''}`}
-          style={{ borderLeftColor: deck.color }}
-        >
-          {heroArt && (
-            <span className="deck-editor-hero-artwrap" aria-hidden="true">
-              <img className="deck-editor-hero-art" src={heroArt} alt="" loading="lazy" />
-              <span className="deck-editor-hero-art-fade" />
-            </span>
-          )}
-          <h1 className="binder-hero-name">{data.name}</h1>
-          {/* \u00A0 glues each label to its value and each · to the segment
-              before it, so the line only wraps between segments — the same
-              treatment (and the same classes) as the owner's hero. */}
-          <p className="binder-hero-meta">
-            {formatConfig && <span className="deck-format-badge">{formatConfig.label}</span>}
-            {deck.commander && (
-              <>
-                {formatConfig ? '\u00A0· ' : ''}
-                {deck.commander.name}
-                {deck.partnerCommander && ` +\u00A0${deck.partnerCommander.name}`}
-              </>
-            )}
+      <DeckHero
+        className="shared-deck-header"
+        art={heroArt}
+        color={deck.color}
+        title={<h1 className="binder-hero-name">{data.name}</h1>}
+        meta={
+          <>
+            {formatConfig?.label}
             <span className="deck-hero-totals">
-              {'\u00A0· '}
+              {formatConfig ? '\u00A0· ' : ''}
               {mainboardCount.toLocaleString()}
               {'\u00A0'}
               {mainboardCount === 1 ? 'card' : 'cards'}
@@ -323,64 +308,67 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
             {bracketHeroText && (
               <span className="deck-hero-bracket">{`\u00A0· ${bracketHeroText}`}</span>
             )}
-          </p>
-          {/* Byline, not a banner: whose deck this is belongs under the name,
-              the way every other app credits an author — and the public page's
-              counts and Report ride the same line rather than stacking two more
-              rows of small print under it. */}
-          <p className="shared-view-owner">
-            {publicMeta ? (
-              <Link
-                to={`/u/${data.ownerUsername}`}
-                className="shared-view-owner-link"
-                aria-label={`Shared by @${data.ownerUsername}: view profile`}
-              >
-                {ownerLine}
+          </>
+        }
+        actions={
+          <>
+            {mainboardCount > 0 && (
+              <Link className="btn btn-primary" to={`${basePath}/playtest`}>
+                <Swords width={15} height={15} strokeWidth={2} aria-hidden />
+                Playtest this deck
               </Link>
-            ) : (
-              ownerLine
             )}
-            {publicMeta && (
-              <>
-                {countsText && ` · ${countsText}`}
-                {' · '}
-                <button
-                  type="button"
-                  className="btn-link"
-                  aria-label="Report this deck"
-                  onClick={() => setReportOpen(true)}
-                >
-                  Report
-                </button>
-              </>
+            {/* You can't edit someone else's deck, but you can take it: the copy
+                lands in your own decks, editable, like any deck you made. */}
+            {!isOwnDeck && (mainboardCount > 0 || data.sideboard.length > 0) && (
+              <CopyDeckButton data={data} variant="header" slug={publicMeta?.slug} />
             )}
-          </p>
-          {data.forkedFrom && <ForkedFromBadge forkedFrom={data.forkedFrom} />}
-        </div>
-        <div className="shared-view-actions">
-          {mainboardCount > 0 && (
-            <Link className="btn btn-primary" to={`${basePath}/playtest`}>
-              <Swords width={15} height={15} strokeWidth={2} aria-hidden />
-              Playtest this deck
+            {/* Viewing your OWN published deck. You get the visitor's view on
+                purpose — it's the only way to see what you're actually
+                publishing — but without this there is no route back to
+                editing it, which strands the owner on a read-only page. */}
+            {isOwnDeck && (
+              <Link className="btn" to={`/decks/${data.id}`}>
+                <Pencil width={15} height={15} strokeWidth={2} aria-hidden />
+                Edit this deck
+              </Link>
+            )}
+          </>
+        }
+      >
+        {/* Byline, not a banner: whose deck this is belongs under the name,
+            the way every other app credits an author — and the public page's
+            counts and Report ride the same line rather than stacking two more
+            rows of small print under it. */}
+        <p className="shared-view-owner">
+          {publicMeta ? (
+            <Link
+              to={`/u/${data.ownerUsername}`}
+              className="shared-view-owner-link"
+              aria-label={`Shared by @${data.ownerUsername}: view profile`}
+            >
+              {ownerLine}
             </Link>
+          ) : (
+            ownerLine
           )}
-          {/* You can't edit someone else's deck, but you can take it: the copy
-              lands in your own decks, editable, like any deck you made. */}
-          {!isOwnDeck && (mainboardCount > 0 || data.sideboard.length > 0) && (
-            <CopyDeckButton data={data} variant="header" slug={publicMeta?.slug} />
+          {publicMeta && (
+            <>
+              {countsText && ` · ${countsText}`}
+              {' · '}
+              <button
+                type="button"
+                className="btn-link"
+                aria-label="Report this deck"
+                onClick={() => setReportOpen(true)}
+              >
+                Report
+              </button>
+            </>
           )}
-          {/* Viewing your OWN published deck. You get the visitor's view on
-              purpose — it's the only way to see what you're actually
-              publishing — but without this there is no route back to
-              editing it, which strands the owner on a read-only page. */}
-          {isOwnDeck && (
-            <Link className="btn" to={`/decks/${data.id}`}>
-              <Pencil width={15} height={15} strokeWidth={2} aria-hidden />
-              Edit this deck
-            </Link>
-          )}
-        </div>
-      </header>
+        </p>
+        {data.forkedFrom && <ForkedFromBadge forkedFrom={data.forkedFrom} />}
+      </DeckHero>
       {data.primer && (
         // renderMarkdownLite is escape-then-transform (see lib/markdown-lite.ts):
         // the whole string is HTML-entity-escaped before any tag is generated,

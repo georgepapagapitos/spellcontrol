@@ -273,15 +273,14 @@
   margin-bottom: var(--space-5);
 }
 
-/* In the deck hero the actions are the header row's second column (they wrap
-   below the hero once they no longer fit beside it), so the top margin that
-   separates them from a stacked title block would only push them out of
-   alignment with it. */
-.shared-deck-header .shared-view-actions {
-  margin: 0;
+/* A visitor's two actions (Playtest, Copy) are both labelled, so on a narrow
+   phone they wrap rather than squeeze. */
+.shared-deck-header .deck-editor-actions {
+  flex-wrap: wrap;
 }
 
-.shared-view-actions .btn {
+.shared-view-actions .btn,
+.shared-deck-header .deck-editor-actions .btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);

@@ -1,14 +1,4 @@
-import {
-  Coins,
-  Copy,
-  ListChecks,
-  MoreVertical,
-  Plus,
-  Redo2,
-  RefreshCw,
-  Undo2,
-  X,
-} from 'lucide-react';
+import { MoreVertical, Play, Plus, Redo2, RefreshCw, Undo2, X } from 'lucide-react';
 import { canRegenerate, regenerateState } from '../lib/regenerate-prefill';
 import {
   type ReactNode,
@@ -31,6 +21,7 @@ import '@/styles/deck-builder-import-dialog.css';
 import '@/styles/deck-builder-analysis-panel.css';
 import { useMenuKeyboard } from '../lib/use-menu-keyboard';
 import { useDocumentTitle } from '../lib/use-document-title';
+import { useMediaQuery } from '../lib/use-media-query';
 import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
 import { haptics } from '../lib/haptics';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
@@ -93,6 +84,7 @@ import { AppendDeckDialog } from '../components/deck/AppendDeckDialog';
 import { BulkEditDeckDialog } from '../components/deck/BulkEditDeckDialog';
 import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
 import { DeckVisibilityChip } from '../components/deck/DeckVisibilityChip';
+import { DeckHero } from '../components/deck/DeckHero';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
 import { useSealMoment } from '../components/shared/SealMoment';
 import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
@@ -296,6 +288,11 @@ export function DeckEditorPage() {
   const canRedoEdit = useDeckHistoryStore((s) => (id ? s.canRedo(id) : false));
   const undoEditLabel = useDeckHistoryStore((s) => (id ? s.undoLabel(id) : null));
   const redoEditLabel = useDeckHistoryStore((s) => (id ? s.redoLabel(id) : null));
+  // The header's action tiers (STYLE_GUIDE § Layout system): a phone shows
+  // Add cards + ⋮, a tablet adds Playtest, a desktop adds undo/redo. The ⋮
+  // holds exactly what isn't on screen at that width.
+  const isPhone = useMediaQuery('(max-width: 599px)');
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   // Keyboard undo/redo for the editor: Cmd/Ctrl+Z undo, Shift+Z or Ctrl+Y redo.
   // The hook owns the key contract and the text-field skip; we just wire the
@@ -2990,112 +2987,92 @@ export function DeckEditorPage() {
   return (
     <div className="deck-editor-page">
       {sealMoment}
-      <BackLink to="/decks" label="All decks" />
       {showPublishNudge && <DeckPublishNudge deckId={deck.id} />}
-      <header className="deck-editor-header">
-        {/* `--art` gates the phone-only full-bleed treatment (min-height +
-            bottom-anchored text) — without a commander there's no art to give
-            the hero height, and an empty 8.5rem slab would be worse than the
-            plain one. */}
-        <div
-          className={`deck-editor-hero${heroArt ? ' deck-editor-hero--art' : ''}`}
-          style={{ borderLeftColor: deck.color }}
-        >
-          {/* Commander art rides behind the title as a right-anchored backdrop
-              (≥600px; phones keep the plain hero — art behind full-width text
-              costs legibility there). Decorative only. */}
-          {heroArt && (
-            <span className="deck-editor-hero-artwrap" aria-hidden="true">
-              <img className="deck-editor-hero-art" src={heroArt} alt="" loading="lazy" />
-              <span className="deck-editor-hero-art-fade" />
-            </span>
-          )}
-          {renaming ? (
-            <div
-              className="deck-editor-hero-edit"
-              // Not an interactive element itself — the handlers below only
-              // orchestrate focus/commit for the real controls nested inside
-              // (the name input, the color radios). role="presentation"
-              // reflects that the div has no meaning of its own.
-              role="presentation"
-              // Clicking a color swatch must not blur-commit: the visible
-              // swatch span isn't focusable, so mousedown moves focus to
-              // <body> (relatedTarget null) and the commit unmounts this UI
-              // before the radio's click ever fires — the color never changed.
-              // Keeping focus put (except for text inputs, which need it)
-              // fixes that in every browser, Safari's no-focus buttons included.
-              onMouseDown={(e) => {
-                const t = e.target as HTMLElement;
-                if (!t.matches('input:not([type="radio"])')) e.preventDefault();
-              }}
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                  handleCommitRename();
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') handleCancelRename();
-              }}
-            >
-              <input
-                autoFocus
-                type="text"
-                className="deck-editor-name-input"
-                value={draftName}
-                maxLength={DECK_NAME_MAX}
-                onChange={(e) => setDraftName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCommitRename();
+      <DeckHero
+        art={heroArt}
+        color={deck.color}
+        back={<BackLink to="/decks" label="All decks" />}
+        title={
+          <>
+            {renaming ? (
+              <div
+                className="deck-editor-hero-edit"
+                // Not an interactive element itself — the handlers below only
+                // orchestrate focus/commit for the real controls nested inside
+                // (the name input, the color radios). role="presentation"
+                // reflects that the div has no meaning of its own.
+                role="presentation"
+                // Clicking a color swatch must not blur-commit: the visible
+                // swatch span isn't focusable, so mousedown moves focus to
+                // <body> (relatedTarget null) and the commit unmounts this UI
+                // before the radio's click ever fires — the color never changed.
+                // Keeping focus put (except for text inputs, which need it)
+                // fixes that in every browser, Safari's no-focus buttons included.
+                onMouseDown={(e) => {
+                  const t = e.target as HTMLElement;
+                  if (!t.matches('input:not([type="radio"])')) e.preventDefault();
                 }}
-                aria-label="Deck name"
-              />
-              <div className="deck-editor-hero-edit-color">
-                <span className="deck-editor-hero-edit-label">Color</span>
-                <ColorPicker
-                  value={deck.color}
-                  onChange={(hex) => updateDeck(deck.id, { color: hex })}
-                  ariaLabel="Deck color"
-                />
-              </div>
-              <button
-                type="button"
-                className="btn btn-primary deck-editor-hero-edit-done"
-                onClick={handleCommitRename}
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                    handleCommitRename();
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') handleCancelRename();
+                }}
               >
-                Done
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="deck-editor-name binder-hero-name"
-              onClick={handleStartRename}
-              title="Edit deck name & color"
-            >
-              {deck.name}
-            </button>
-          )}
-          {/* \u00A0 glues each label to its value ("Bracket 2", "100 cards") and
-              each · to the segment before it, so the line only wraps between
-              segments — never leaving an orphaned "2" or a line-leading "·". */}
-          <p className="binder-hero-meta">
-            {formatConfig && <span className="deck-format-badge">{formatConfig.label}</span>}
-            {deck.commander && (
-              <>
-                {formatConfig ? '\u00A0· ' : ''}
-                {deck.commander.name}
-                {/* Read-only pairing summary; add/change/remove lives in the
-                    deck grid's Commander section (see onEditPartner). */}
-                {deck.partnerCommander && ` +\u00A0${deck.partnerCommander.name}`}
-              </>
+                <input
+                  autoFocus
+                  type="text"
+                  className="deck-editor-name-input"
+                  value={draftName}
+                  maxLength={DECK_NAME_MAX}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCommitRename();
+                  }}
+                  aria-label="Deck name"
+                />
+                <div className="deck-editor-hero-edit-color">
+                  <span className="deck-editor-hero-edit-label">Color</span>
+                  <ColorPicker
+                    value={deck.color}
+                    onChange={(hex) => updateDeck(deck.id, { color: hex })}
+                    ariaLabel="Deck color"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary deck-editor-hero-edit-done"
+                  onClick={handleCommitRename}
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <h1 className="deck-editor-title">
+                <button
+                  type="button"
+                  className="deck-editor-name binder-hero-name"
+                  onClick={handleStartRename}
+                  title="Edit deck name & color"
+                >
+                  {deck.name}
+                </button>
+              </h1>
             )}
+          </>
+        }
+        meta={
+          <>
+            {formatConfig?.label}
             {/* The deck's totals. The sideboard and considering counts are
-                also the way INTO those zones: each links to the out-zone at
-                the foot of the deck body, which is why the toolbar no longer
-                carries a separate "Not in deck" jump. One fact in one place,
-                with the affordance on the fact rather than beside it. */}
+                    also the way INTO those zones: each links to the out-zone at
+                    the foot of the deck body, which is why the toolbar no longer
+                    carries a separate "Not in deck" jump. One fact in one place,
+                    with the affordance on the fact rather than beside it. */}
             <span className="deck-hero-totals">
-              {'\u00A0· '}
+              {formatConfig ? '\u00A0· ' : ''}
               {heroTotals.count}
               {'\u00A0'}
               {heroTotals.count === 1 ? 'card' : 'cards'}
@@ -3127,158 +3104,109 @@ export function DeckEditorPage() {
               )}
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip).
-                The hero is the one place the Deck tab states it, so a stated
-                bracket the Estimate disagrees with carries the Estimate here
-                ("Bracket 2 · est. 4", § Bracket: the owner's word); the deck
-                stats under the list no longer repeat either. */}
+                    The hero is the one place the Deck tab states it, so a stated
+                    bracket the Estimate disagrees with carries the Estimate here
+                    ("Bracket 2 · est. 4", § Bracket: the owner's word); the deck
+                    stats under the list no longer repeat either. */}
             {bracketValue != null && (
               <span className="deck-hero-bracket" aria-label={heroBracket?.aria}>
                 {`\u00A0· ${heroBracket?.text.replace(/ /g, '\u00A0')}`}
               </span>
             )}
-          </p>
-          <DeckVisibilityChip
-            deckId={deck.id}
-            deckName={deck.name}
-            colorIdentity={commanderColorIdentity}
-          />
-          {deck.forkedFrom && <ForkedFromBadge forkedFrom={deck.forkedFrom} />}
-        </div>
-        <div className="deck-editor-actions">
-          <button
-            type="button"
-            className="btn deck-editor-action-btn deck-editor-icon-btn"
-            onClick={() => undoEdit(deck.id)}
-            disabled={!canUndoEdit}
-            title={canUndoEdit ? `Undo: ${undoEditLabel} (Ctrl/Cmd+Z)` : 'Nothing to undo'}
-            aria-label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
-          >
-            <Undo2 width={14} height={14} strokeWidth={2} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="btn deck-editor-action-btn deck-editor-icon-btn"
-            onClick={() => redoEdit(deck.id)}
-            disabled={!canRedoEdit}
-            title={canRedoEdit ? `Redo: ${redoEditLabel} (Ctrl/Cmd+Shift+Z)` : 'Nothing to redo'}
-            aria-label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
-          >
-            <Redo2 width={14} height={14} strokeWidth={2} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="btn deck-editor-action-btn"
-            onClick={handleToggleAddPanel}
-            aria-expanded={showAddPanel}
-            title="Add cards (press / to focus search)"
-          >
-            {showAddPanel ? (
-              <X width={14} height={14} strokeWidth={2} aria-hidden />
-            ) : (
-              <Plus width={14} height={14} strokeWidth={2} aria-hidden />
+            {/* Sharing is a fact about the deck, so it is the meta line's last
+                segment; the status itself opens ShareDialog. */}
+            {'\u00A0· '}
+            <DeckVisibilityChip
+              deckId={deck.id}
+              deckName={deck.name}
+              colorIdentity={commanderColorIdentity}
+            />
+          </>
+        }
+        actions={
+          <>
+            {isDesktop && (
+              <>
+                <button
+                  type="button"
+                  className="btn deck-editor-action-btn deck-editor-icon-btn"
+                  onClick={() => undoEdit(deck.id)}
+                  disabled={!canUndoEdit}
+                  title={canUndoEdit ? `Undo: ${undoEditLabel} (Ctrl/Cmd+Z)` : 'Nothing to undo'}
+                  aria-label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
+                >
+                  <Undo2 width={14} height={14} strokeWidth={2} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="btn deck-editor-action-btn deck-editor-icon-btn"
+                  onClick={() => redoEdit(deck.id)}
+                  disabled={!canRedoEdit}
+                  title={
+                    canRedoEdit ? `Redo: ${redoEditLabel} (Ctrl/Cmd+Shift+Z)` : 'Nothing to redo'
+                  }
+                  aria-label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
+                >
+                  <Redo2 width={14} height={14} strokeWidth={2} aria-hidden />
+                </button>
+              </>
             )}
-            {showAddPanel ? 'Hide cards panel' : 'Add cards'}
-          </button>
-          <button
-            type="button"
-            className="btn deck-editor-action-btn"
-            onClick={() => navigate(`/decks/${deck.id}/playtest`)}
-          >
-            Playtest
-          </button>
-          {deckTokens.length > 0 && (
+            {!isPhone && (
+              <button
+                type="button"
+                className="btn deck-editor-action-btn"
+                onClick={() => navigate(`/decks/${deck.id}/playtest`)}
+              >
+                <Play width={14} height={14} strokeWidth={2} aria-hidden />
+                Playtest
+              </button>
+            )}
             <button
               type="button"
-              className="btn deck-editor-action-btn"
-              onClick={() => setTokensOpen(true)}
-              title="Prep this deck's tokens before you play."
+              className="btn btn-primary deck-editor-action-btn deck-editor-add-btn"
+              onClick={handleToggleAddPanel}
+              aria-expanded={showAddPanel}
+              title="Add cards (press / to focus search)"
             >
-              <Coins width={14} height={14} strokeWidth={2} aria-hidden />
-              Tokens
-              <span className="deck-editor-action-badge">{deckTokens.length}</span>
+              {showAddPanel ? (
+                <X width={14} height={14} strokeWidth={2} aria-hidden />
+              ) : (
+                <Plus width={14} height={14} strokeWidth={2} aria-hidden />
+              )}
+              {showAddPanel ? 'Hide cards panel' : 'Add cards'}
             </button>
-          )}
-          {hasPullSlots && (
-            <button
-              type="button"
-              className="btn deck-editor-action-btn"
-              onClick={() => setPullListOpen(true)}
-              title="Pull this deck's cards from your binders."
-            >
-              <ListChecks width={14} height={14} strokeWidth={2} aria-hidden />
-              Pull list
-            </button>
-          )}
-          <button type="button" className="btn deck-editor-action-btn" onClick={handleDuplicate}>
-            <Copy width={14} height={14} strokeWidth={2} aria-hidden />
-            Duplicate
-          </button>
-          {/* Delete lives in the ⋮ overflow on ALL sizes (desktop included),
-              per the STYLE_GUIDE ruling that destructive actions belong in
-              the page kebab — not inline. UX-316. */}
-          <DeckEditorOverflowMenu
-            onDuplicate={handleDuplicate}
-            onDelete={() => setConfirmDelete(true)}
-            // No onExport here — the toolbar's .deck-toolbar-export button
-            // (visible ≥1024px) is the single desktop entry point (E181).
-            onImport={() => setAppendOpen(true)}
-            onBulkEdit={() => setBulkEditOpen(true)}
-            onResync={() => setResyncOpen(true)}
-            onFeedback={() => setFeedbackOpen(true)}
-            onPrimer={() => setPrimerOpen(true)}
-            onBuildReport={deck.buildReport ? () => setShowBuildReport(true) : undefined}
-            onRegenerate={
-              canRegenerate(deck)
-                ? () => navigate('/decks/new', { state: regenerateState(deck) })
-                : undefined
-            }
-            onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
-            onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
-            onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
-            onRedo={canRedoEdit ? () => redoEdit(deck.id) : undefined}
-            undoLabel={undoEditLabel}
-            redoLabel={redoEditLabel}
-          />
-        </div>
-        <div className="deck-editor-mobile-actions">
-          {/* Undo/redo aren't pills here — a bare icon gives no hint of *what*
-              it'd undo. Quick undo is the contextual edit toast ("Removed X ·
-              Undo"); multi-step undo/redo live in the ⋮ menu, labelled. */}
-          <button
-            type="button"
-            className="pill-btn deck-editor-add-pill"
-            onClick={handleToggleAddPanel}
-            aria-expanded={showAddPanel}
-            title="Add cards (press / to focus search)"
-          >
-            <Plus width={15} height={15} strokeWidth={2} aria-hidden />
-            <span>Add cards</span>
-          </button>
-          <DeckEditorOverflowMenu
-            onDuplicate={handleDuplicate}
-            onDelete={() => setConfirmDelete(true)}
-            onExport={() => setExportOpen(true)}
-            onImport={() => setAppendOpen(true)}
-            onBulkEdit={() => setBulkEditOpen(true)}
-            onResync={() => setResyncOpen(true)}
-            onFeedback={() => setFeedbackOpen(true)}
-            onPrimer={() => setPrimerOpen(true)}
-            onBuildReport={deck.buildReport ? () => setShowBuildReport(true) : undefined}
-            onRegenerate={
-              canRegenerate(deck)
-                ? () => navigate('/decks/new', { state: regenerateState(deck) })
-                : undefined
-            }
-            onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
-            onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
-            onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
-            onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
-            onRedo={canRedoEdit ? () => redoEdit(deck.id) : undefined}
-            undoLabel={undoEditLabel}
-            redoLabel={redoEditLabel}
-          />
-        </div>
-      </header>
+            {/* Tokens, Pull list, Duplicate and Delete (UX-316: destructive
+                actions live here, never inline) are all in the ⋮. */}
+            <DeckEditorOverflowMenu
+              onDuplicate={handleDuplicate}
+              onDelete={() => setConfirmDelete(true)}
+              // Export leaves the ⋮ only on a desktop, where the deck
+              // toolbar's own Export button (.deck-toolbar-export) shows.
+              onExport={isDesktop ? undefined : () => setExportOpen(true)}
+              onImport={() => setAppendOpen(true)}
+              onBulkEdit={() => setBulkEditOpen(true)}
+              onResync={() => setResyncOpen(true)}
+              onFeedback={() => setFeedbackOpen(true)}
+              onPrimer={() => setPrimerOpen(true)}
+              onBuildReport={deck.buildReport ? () => setShowBuildReport(true) : undefined}
+              onRegenerate={
+                canRegenerate(deck)
+                  ? () => navigate('/decks/new', { state: regenerateState(deck) })
+                  : undefined
+              }
+              onPlaytest={isPhone ? () => navigate(`/decks/${deck.id}/playtest`) : undefined}
+              onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
+              onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
+              onUndo={!isDesktop && canUndoEdit ? () => undoEdit(deck.id) : undefined}
+              onRedo={!isDesktop && canRedoEdit ? () => redoEdit(deck.id) : undefined}
+              undoLabel={undoEditLabel}
+              redoLabel={redoEditLabel}
+            />
+          </>
+        }
+      >
+        {deck.forkedFrom && <ForkedFromBadge forkedFrom={deck.forkedFrom} />}
+      </DeckHero>
 
       {/* Page-top distinct-view tabs (Deck · Power · Coach; Power/Coach appear
           only with analysis extras), mirroring the Collection hub. Sticky so it

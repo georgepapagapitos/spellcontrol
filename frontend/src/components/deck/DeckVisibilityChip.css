@@ -1,48 +1,50 @@
-/* Visibility chip (deck-editor header) — a clickable status control, so per
-   STYLE_GUIDE "Shape language — corners" it's a rect (var(--radius)), never a
-   999px label pill: role decides the shape, and this one mutates state
-   (opens ShareDialog). Sits in the hero next to the deck name/meta, matching
-   this page's own header-action rects (.deck-editor-action-btn) rather than
-   inventing a new pill language. */
+/* Visibility status (deck header). The last segment of the hero's meta line
+   (STYLE_GUIDE § Layout system: one meta line, nothing boxed under the
+   title), so it wears the line's voice and marks itself as the one tappable
+   segment with the accent on its state. "Sharing:" stays on the face: a bare
+   "Private" never told a first-time user that this is where sharing lives. */
 .deck-visibility-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  margin-top: var(--space-1);
-  padding: 0.3rem 0.6rem;
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  font-weight: 600;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  vertical-align: bottom;
   cursor: pointer;
-  transition:
-    border-color var(--motion-fast) ease,
-    color var(--motion-fast) ease;
 }
 
-/* The verb sits quieter than the state so "Private"/"Public" still reads
-   first at a glance. */
-.deck-visibility-chip-prefix {
-  font-weight: 500;
-  color: var(--text-muted);
+/* The state reads first; the verb sits in the meta line's own colour. */
+.deck-visibility-chip-state {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .deck-visibility-chip:hover {
-    border-color: var(--accent);
-    color: var(--text-primary);
+  .deck-visibility-chip:hover .deck-visibility-chip-state {
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 }
 
 .deck-visibility-chip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+  border-radius: var(--radius);
 }
 
+/* An inline segment can't grow to 44px without breaking the line, so the
+   touch target grows invisibly around it instead. */
 @media (pointer: coarse) {
   .deck-visibility-chip {
-    min-height: 44px;
+    position: relative;
+  }
+
+  .deck-visibility-chip::after {
+    content: '';
+    position: absolute;
+    inset: -12px -4px;
   }
 }

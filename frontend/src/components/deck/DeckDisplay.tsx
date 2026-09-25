@@ -1630,6 +1630,9 @@ export function DeckDisplay({
           'aria-labelledby': `sc-tab-${activeView}`,
         })}
       >
+        {/* The level between the page's h1 (the deck name) and the h3
+            sections under it: the tab shows this name visually. */}
+        <h2 className="sr-only">{VIEW_HEADINGS[activeView]}</h2>
         {/* Root-level so the deck-complete moment plays from any view (a
             Coach apply on the Tune view can complete the deck too). */}
         {sealMoment}
@@ -2580,6 +2583,13 @@ function BulkTagPopoverBody({
 /** The page-top analysis view ids. (Test hand is a separate standalone panel,
  *  not a view — goldfishing is a distinct activity.) */
 export type AnalysisTabId = 'stats' | 'power' | 'tune';
+
+const VIEW_HEADINGS: Record<DeckView, string> = {
+  deck: 'Deck',
+  stats: 'Deck stats',
+  power: 'Power',
+  tune: 'Coach',
+};
 
 /** The "Deck stats" heading under the list; 'stats' is a place on the Deck
  *  tab now, not a tab of its own. */
