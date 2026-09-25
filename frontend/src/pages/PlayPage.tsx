@@ -1412,7 +1412,9 @@ function OnlineSetup({
   // lobby afterwards, so they are derived here rather than held as state.
   const cfg = FORMAT_OPTIONS.find((f) => f.value === format) ?? FORMAT_OPTIONS[0];
   const startingLife = cfg.defaultLife;
-  const commanderDamageEnabled = cfg.cmdDmg;
+  // A team turn has no commander damage; the lobby seeds the actual horde
+  // pick once the table exists (OnlineLobby's Format select does the same).
+  const commanderDamageEnabled = format === 'horde' ? false : cfg.cmdDmg;
   const poisonEnabled = false;
 
   function applyFormat(next: GameFormat) {
@@ -1497,7 +1499,10 @@ function OnlineSetup({
                 ariaLabel="Format"
                 value={format}
                 onChange={applyFormat}
-                options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
+                options={[
+                  ...FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label })),
+                  { value: 'horde' as const, label: 'Horde (co-op)' },
+                ]}
               />
             </div>
             <label className="play-field play-field-inline">

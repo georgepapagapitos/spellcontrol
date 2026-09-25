@@ -6,7 +6,7 @@ import { SelectMenu } from '../SelectMenu';
 import { VisibilityChoice } from '../VisibilityChoice';
 import { DeckPicker, SeatPips, Stepper } from './SetupControls';
 import type { PickedDeck } from './DeckPickerDialog';
-import { deckBoardPath } from '../../lib/starter-decks';
+import { deckBoardPath, starterFileName } from '../../lib/starter-decks';
 import { FORMAT_OPTIONS } from '../../lib/game-formats';
 import { pickFirstPlayer } from '../../lib/game-tools';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -18,9 +18,21 @@ import type {
   GameFormat,
   GamePlayer,
   GameState,
+  HordeTable as HordeTableState,
   MulliganType,
 } from '../../lib/game-state';
-import { makePlayer, MAX_ONLINE_SEATS } from '../../lib/game-state';
+import { makePlayer, MAX_ONLINE_SEATS, HORDE_MAX_SEATS } from '../../lib/game-state';
+import { ColorPip } from '../shared/ManaSymbol';
+import { HordeSetupFields, levelSummary } from './horde/HordeSetupFields';
+import {
+  HORDE_CATALOG,
+  loadHordeDeck,
+  resolveHordeSettings,
+  type HordeLevel,
+  type HordeSettings,
+} from '@/lib/horde';
+import { findBannedCards, type HordeBanWarning } from '@/lib/horde/ban-list';
+import { useStarterDeckCardNames } from '@/lib/horde/starter-deck-cards';
 import './OnlineLobby.css';
 
 /** Same cap as the create/join paths and the local setup's seat names. */
@@ -53,8 +65,55 @@ interface Props {
   userId: string | null;
   mySeat: GamePlayer;
   errorMessage?: string | null;
-  dispatch: (action: GameAction) => void;
+  // Horde's Start sends `horde-setup` and `start` in one batch (design point
+  // 6), so the array form has to reach the store's own batching dispatch.
+  dispatch: (action: GameAction | GameAction[]) => void;
   onLeave: () => void;
+}
+
+type HordeDeckLoad =
+  | { id: string; status: 'loading' }
+  | { id: string; status: 'loaded'; rev: string }
+  | { id: string; status: 'error' };
+
+/** Lazily loads a horde's deck for its `rev` (design point 2/6), re-fetched
+ *  on `retry()` after a failure. Never touches the offline
+ *  `useHordeGameStore`: that store drives a Local Horde fight, and an online
+ *  table's horde lives in `GameState` instead.
+ *
+ *  "Loading" is derived, never set: the effect only calls `setState` from its
+ *  async callbacks (the settled result), so a fresh `hordeId` or `retry()`
+ *  reads as loading purely because the settled record no longer matches the
+ *  current id/token — no synchronous setState in the effect body itself. */
+function useHordeDeckLoad(hordeId: string): HordeDeckLoad & { retry(): void } {
+  const [retryToken, setRetryToken] = useState(0);
+  const [settled, setSettled] = useState<
+    | ({ id: string; token: number } & ({ status: 'loaded'; rev: string } | { status: 'error' }))
+    | null
+  >(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadHordeDeck(hordeId)
+      .then((def) => {
+        if (!cancelled)
+          setSettled({ id: hordeId, token: retryToken, status: 'loaded', rev: def.rev });
+      })
+      .catch(() => {
+        if (!cancelled) setSettled({ id: hordeId, token: retryToken, status: 'error' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hordeId, retryToken]);
+
+  const retry = () => setRetryToken((n) => n + 1);
+  if (!settled || settled.id !== hordeId || settled.token !== retryToken) {
+    return { id: hordeId, status: 'loading', retry };
+  }
+  if (settled.status === 'loaded')
+    return { id: hordeId, status: 'loaded', rev: settled.rev, retry };
+  return { id: hordeId, status: 'error', retry };
 }
 
 /**
@@ -81,17 +140,88 @@ export function OnlineLobby({
 }: Props) {
   const isHost = game.hostUserId != null && game.hostUserId === userId;
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const isHordeFormat = game.format === 'horde';
 
   const seats: Array<GamePlayer | null> = useMemo(() => {
-    const count = Math.min(MAX_ONLINE_SEATS, Math.max(MIN_SEATS, game.players.length));
+    const cap = isHordeFormat ? HORDE_MAX_SEATS : MAX_ONLINE_SEATS;
+    const count = Math.min(cap, Math.max(MIN_SEATS, game.players.length));
     return Array.from({ length: count }, (_, i) => game.players.find((p) => p.seat === i) ?? null);
-  }, [game.players]);
+  }, [game.players, isHordeFormat]);
 
   // A guest seat has no device to press "I'm ready" on; the host who seated
   // them vouches for it, so it never holds the count up.
   const readyCount = game.players.filter((p) => p.ready === true || p.userId === null).length;
   const allReady = readyCount === game.players.length;
   const myDeck = mySeat.deckId ? (decks.find((d) => d.id === mySeat.deckId) ?? null) : null;
+
+  // ── Horde: the host's pick, synced as table state (design point 2) ────────
+  const seatedCount = game.players.length;
+  const [hordeId, setHordeId] = useState<string>(HORDE_CATALOG[0].id);
+  const [hordeLevel, setHordeLevel] = useState<HordeLevel>('standard');
+  const [hordeCustomiseOpen, setHordeCustomiseOpen] = useState(false);
+  // Customise overrides never travel with the table — a host reload falls
+  // back to the preset, which is fine (see design point 2).
+  const [hordeOverrides, setHordeOverrides] = useState<Partial<HordeSettings>>({});
+  const hordeDeck = useHordeDeckLoad(hordeId);
+
+  // Own seat only (design point 5) — reused for both the host's
+  // HordeSetupFields and the joiner's read-only strip below.
+  const myStarterFile =
+    isHordeFormat && mySeat.deckId && !myDeck ? starterFileName(mySeat.deckId) : null;
+  const myStarterNames = useStarterDeckCardNames(myStarterFile ? [myStarterFile] : []);
+  const hordeOwnWarnings = useMemo<HordeBanWarning[]>(() => {
+    if (!isHordeFormat) return [];
+    const cardNames = myDeck
+      ? [
+          myDeck.commander?.name,
+          myDeck.partnerCommander?.name,
+          ...myDeck.cards.map((c) => c.card.name),
+        ].filter((n): n is string => Boolean(n))
+      : ((myStarterFile ? myStarterNames.get(myStarterFile) : undefined) ?? []);
+    return findBannedCards([{ name: mySeat.name, cardNames }]);
+  }, [isHordeFormat, myDeck, myStarterFile, myStarterNames, mySeat.name]);
+
+  // Dispatch on the latest handler without making it an effect dependency —
+  // the prop is a fresh closure every render (see PlayPage's `dispatch={...}`),
+  // and putting it in the array below would reset the debounce on every
+  // unrelated re-render instead of only on a real pick change.
+  const dispatchRef = useRef(dispatch);
+  useEffect(() => {
+    dispatchRef.current = dispatch;
+  });
+
+  // The host's device publishes the pick to the table whenever it changes,
+  // or whenever the seated count changes (the numbers follow the survivors),
+  // debounced so a Stepper drag doesn't spam the table with settings.
+  const hordeDeckRev = hordeDeck.status === 'loaded' ? hordeDeck.rev : undefined;
+  useEffect(() => {
+    if (!isHost || !isHordeFormat) return;
+    if (hordeDeck.status !== 'loaded' || hordeDeck.id !== hordeId || hordeDeckRev == null) return;
+    const settings = resolveHordeSettings(hordeLevel, seatedCount, hordeOverrides);
+    const rev = hordeDeckRev;
+    const timer = window.setTimeout(() => {
+      dispatchRef.current({
+        type: 'horde-setup',
+        hordeId,
+        level: hordeLevel,
+        settings,
+        // Any value here — Start re-rolls it for the actual game.
+        seed: 0,
+        deckRev: rev,
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [
+    isHost,
+    isHordeFormat,
+    hordeId,
+    hordeLevel,
+    hordeOverrides,
+    seatedCount,
+    hordeDeck.status,
+    hordeDeck.id,
+    hordeDeckRev,
+  ]);
 
   const pickDeck = (picked: PickedDeck | null) =>
     dispatch({
@@ -122,6 +252,40 @@ export function OnlineLobby({
           <h2 className="lobby-title">
             {game.name ? game.name : `${formatLabel(game.format)} table`}
           </h2>
+
+          {isHordeFormat && (
+            <section className="lobby-horde" aria-labelledby="lobby-horde-label">
+              <h3 className="lobby-section-label" id="lobby-horde-label">
+                The horde
+              </h3>
+              {isHost ? (
+                <>
+                  <HordeSetupFields
+                    hordeId={hordeId}
+                    onHordeChange={setHordeId}
+                    level={hordeLevel}
+                    onLevelChange={setHordeLevel}
+                    survivorCount={seatedCount}
+                    customiseOpen={hordeCustomiseOpen}
+                    onToggleCustomise={() => setHordeCustomiseOpen((v) => !v)}
+                    overrides={hordeOverrides}
+                    onOverridesChange={setHordeOverrides}
+                    warnings={hordeOwnWarnings}
+                  />
+                  {hordeDeck.status === 'error' && (
+                    <p className="lobby-horde-error" role="alert">
+                      <span>Couldn't load that horde.</span>
+                      <button type="button" className="btn" onClick={hordeDeck.retry}>
+                        Try again
+                      </button>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <HordeReadOnly horde={game.horde} warnings={hordeOwnWarnings} />
+              )}
+            </section>
+          )}
 
           <ul className="lobby-seats" role="list" aria-label="Seats">
             {seats.map((player, i) =>
@@ -229,7 +393,27 @@ export function OnlineLobby({
               <button
                 type="button"
                 className="btn btn-primary lobby-bar-btn"
+                disabled={isHordeFormat && (hordeDeck.status !== 'loaded' || seatedCount < 1)}
                 onClick={() => {
+                  if (isHordeFormat) {
+                    if (hordeDeck.status !== 'loaded') return;
+                    // The final settings, a fresh seed (rolled here, same
+                    // split as the first-player roll below) and the loaded
+                    // deck's rev, batched with `start` so every device lands
+                    // on the identical horde the instant the game goes live.
+                    dispatch([
+                      {
+                        type: 'horde-setup',
+                        hordeId,
+                        level: hordeLevel,
+                        settings: resolveHordeSettings(hordeLevel, seatedCount, hordeOverrides),
+                        seed: Math.floor(Math.random() * 0xffffffff) >>> 0,
+                        deckRev: hordeDeck.rev,
+                      },
+                      { type: 'start' },
+                    ]);
+                    return;
+                  }
                   // "Random" is a promise to roll at the last moment, not a
                   // seat — so the roll happens here, on the host's device,
                   // and the result is dispatched as an ordinary settings
@@ -249,7 +433,9 @@ export function OnlineLobby({
                   dispatch({ type: 'start' });
                 }}
               >
-                Start game
+                {isHordeFormat && hordeDeck.status === 'loading'
+                  ? 'Loading the horde…'
+                  : 'Start game'}
               </button>
             </>
           ) : (
@@ -290,11 +476,68 @@ export function OnlineLobby({
 }
 
 function formatLabel(format: GameFormat): string {
+  if (format === 'horde') return 'Horde (co-op)';
   return FORMAT_OPTIONS.find((f) => f.value === format)?.label ?? 'Casual';
 }
 
 function hostName(game: GameState): string {
   return game.players.find((p) => p.userId === game.hostUserId)?.name ?? 'the host';
+}
+
+// ── Horde: the joiner's read-only view ──────────────────────────────────────
+
+/**
+ * A non-host seat never picks the horde — it reads what the host already
+ * published to `game.horde` (design point 2/3). Deliberately its own small
+ * view rather than `HordeSetupFields` in a disabled `<fieldset>`: a
+ * non-interactive control still reads as a control, and this table's numbers
+ * (not the host's live-editing draft) are the only thing a joiner needs.
+ */
+function HordeReadOnly({
+  horde,
+  warnings,
+}: {
+  horde: HordeTableState | undefined;
+  warnings: HordeBanWarning[];
+}) {
+  if (!horde) {
+    return <p className="lobby-horde-note">Setting up the horde…</p>;
+  }
+  const catalogEntry = HORDE_CATALOG.find((h) => h.id === horde.hordeId);
+  return (
+    <>
+      <p className="lobby-horde-note">The host picks the horde.</p>
+      {catalogEntry && (
+        <div className="horde-tile lobby-horde-readonly is-selected">
+          <span className="horde-tile-banner">
+            <img src={catalogEntry.tileArt} alt="" aria-hidden="true" loading="lazy" />
+          </span>
+          <span className="horde-tile-body">
+            <span className="horde-tile-name">{catalogEntry.name}</span>
+            <span className="horde-tile-meta">
+              <span className="horde-tile-pips" aria-hidden="true">
+                {catalogEntry.themeColors.map((c) => (
+                  <ColorPip key={c} color={c} />
+                ))}
+              </span>
+              <span className="deck-format-badge">{catalogEntry.badge}</span>
+            </span>
+          </span>
+        </div>
+      )}
+      {catalogEntry && <p className="horde-special-rule">{catalogEntry.specialRule}</p>}
+      <p className="lobby-horde-summary">{levelSummary(horde.settings)}</p>
+      {warnings.length > 0 && (
+        <div className="horde-ban-warning" role="status">
+          {warnings.map((w) => (
+            <span key={`${w.seatName}-${w.cardName}`}>
+              {w.seatName}: {w.cardName} is on the Horde ban list.
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
 }
 
 // ── Seat card ───────────────────────────────────────────────────────────────
@@ -519,6 +762,8 @@ function LobbyRail({
     }
   };
 
+  const isHordeFormat = game.format === 'horde';
+
   const startingPlayer =
     game.startingSeat != null
       ? (game.players.find((p) => p.seat === game.startingSeat)?.name ?? 'Unknown')
@@ -574,6 +819,16 @@ function LobbyRail({
               ariaLabel="Format"
               value={game.format}
               onChange={(next) => {
+                if (next === 'horde') {
+                  // A team turn has no commander damage or poison; the horde
+                  // pick itself is seeded by the host's device separately
+                  // (design point 2), once the horde section below mounts.
+                  dispatch({
+                    type: 'settings',
+                    patch: { format: 'horde', commanderDamageEnabled: false, poisonEnabled: false },
+                  });
+                  return;
+                }
                 const cfg = FORMAT_OPTIONS.find((f) => f.value === next) ?? FORMAT_OPTIONS[0];
                 dispatch({
                   type: 'settings',
@@ -584,28 +839,40 @@ function LobbyRail({
                   },
                 });
               }}
-              options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
+              options={[
+                ...FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label })),
+                { value: 'horde' as const, label: 'Horde (co-op)' },
+              ]}
             />
           ) : (
             <span className="lobby-setting-value">{formatLabel(game.format)}</span>
           )}
         </div>
 
-        <div className="lobby-setting">
-          <span id="lobby-life-label">Starting life</span>
-          {isHost ? (
-            <Stepper
-              value={game.startingLife}
-              min={1}
-              max={200}
-              step={5}
-              ariaLabelledBy="lobby-life-label"
-              onChange={(startingLife) => dispatch({ type: 'settings', patch: { startingLife } })}
-            />
-          ) : (
+        {isHordeFormat ? (
+          // A team shares one life pool, resolved by `resolveHordeSettings`
+          // from the seated count — nobody steps it by hand (design point 3).
+          <div className="lobby-setting">
+            <span>Shared life</span>
             <span className="lobby-setting-value">{game.startingLife}</span>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="lobby-setting">
+            <span id="lobby-life-label">Starting life</span>
+            {isHost ? (
+              <Stepper
+                value={game.startingLife}
+                min={1}
+                max={200}
+                step={5}
+                ariaLabelledBy="lobby-life-label"
+                onChange={(startingLife) => dispatch({ type: 'settings', patch: { startingLife } })}
+              />
+            ) : (
+              <span className="lobby-setting-value">{game.startingLife}</span>
+            )}
+          </div>
+        )}
 
         <div className="lobby-setting">
           <span id="lobby-mulligan-label">Mulligan</span>
@@ -623,30 +890,33 @@ function LobbyRail({
           )}
         </div>
 
-        <div className="lobby-setting">
-          <span>Starting player</span>
-          {isHost ? (
-            // "Random" is the absence of a pick, rolled when the game starts —
-            // so the table can see it is undecided rather than reading a name
-            // that was really chosen minutes ago.
-            <SelectMenu<string>
-              ariaLabel="Starting player"
-              value={game.startingSeat == null ? RANDOM_SEAT : String(game.startingSeat)}
-              onChange={(next) =>
-                dispatch({
-                  type: 'settings',
-                  patch: { startingSeat: next === RANDOM_SEAT ? null : Number(next) },
-                })
-              }
-              options={[
-                { value: RANDOM_SEAT, label: 'Random' },
-                ...game.players.map((p) => ({ value: String(p.seat), label: p.name })),
-              ]}
-            />
-          ) : (
-            <span className="lobby-setting-value">{startingPlayer}</span>
-          )}
-        </div>
+        {!isHordeFormat && (
+          // A team turn has no first player: everyone acts together.
+          <div className="lobby-setting">
+            <span>Starting player</span>
+            {isHost ? (
+              // "Random" is the absence of a pick, rolled when the game starts
+              // — so the table can see it is undecided rather than reading a
+              // name that was really chosen minutes ago.
+              <SelectMenu<string>
+                ariaLabel="Starting player"
+                value={game.startingSeat == null ? RANDOM_SEAT : String(game.startingSeat)}
+                onChange={(next) =>
+                  dispatch({
+                    type: 'settings',
+                    patch: { startingSeat: next === RANDOM_SEAT ? null : Number(next) },
+                  })
+                }
+                options={[
+                  { value: RANDOM_SEAT, label: 'Random' },
+                  ...game.players.map((p) => ({ value: String(p.seat), label: p.name })),
+                ]}
+              />
+            ) : (
+              <span className="lobby-setting-value">{startingPlayer}</span>
+            )}
+          </div>
+        )}
 
         {isHost && game.players.length > 1 && (
           <div className="lobby-setting">
@@ -660,22 +930,28 @@ function LobbyRail({
 
         {isHost ? (
           <>
-            <RuleToggle
-              labelId="lobby-cmddmg-label"
-              label="Commander damage"
-              hint="Lose at 21 combat damage from a single commander."
-              on={game.commanderDamageEnabled}
-              onChange={(commanderDamageEnabled) =>
-                dispatch({ type: 'settings', patch: { commanderDamageEnabled } })
-              }
-            />
-            <RuleToggle
-              labelId="lobby-poison-label"
-              label="Poison counters"
-              hint="Lose at 10 poison counters."
-              on={game.poisonEnabled}
-              onChange={(poisonEnabled) => dispatch({ type: 'settings', patch: { poisonEnabled } })}
-            />
+            {!isHordeFormat && (
+              <>
+                <RuleToggle
+                  labelId="lobby-cmddmg-label"
+                  label="Commander damage"
+                  hint="Lose at 21 combat damage from a single commander."
+                  on={game.commanderDamageEnabled}
+                  onChange={(commanderDamageEnabled) =>
+                    dispatch({ type: 'settings', patch: { commanderDamageEnabled } })
+                  }
+                />
+                <RuleToggle
+                  labelId="lobby-poison-label"
+                  label="Poison counters"
+                  hint="Lose at 10 poison counters."
+                  on={game.poisonEnabled}
+                  onChange={(poisonEnabled) =>
+                    dispatch({ type: 'settings', patch: { poisonEnabled } })
+                  }
+                />
+              </>
+            )}
             <RuleToggle
               labelId="lobby-turntimer-label"
               label="Turn timer"
@@ -712,16 +988,20 @@ function LobbyRail({
           </>
         ) : (
           <>
-            <div className="lobby-setting">
-              <span>Commander damage</span>
-              <span className="lobby-setting-value">
-                {game.commanderDamageEnabled ? 'On' : 'Off'}
-              </span>
-            </div>
-            <div className="lobby-setting">
-              <span>Poison counters</span>
-              <span className="lobby-setting-value">{game.poisonEnabled ? 'On' : 'Off'}</span>
-            </div>
+            {!isHordeFormat && (
+              <>
+                <div className="lobby-setting">
+                  <span>Commander damage</span>
+                  <span className="lobby-setting-value">
+                    {game.commanderDamageEnabled ? 'On' : 'Off'}
+                  </span>
+                </div>
+                <div className="lobby-setting">
+                  <span>Poison counters</span>
+                  <span className="lobby-setting-value">{game.poisonEnabled ? 'On' : 'Off'}</span>
+                </div>
+              </>
+            )}
             <div className="lobby-setting">
               <span>Turn timer</span>
               <span className="lobby-setting-value">{game.turnTimerEnabled ? 'On' : 'Off'}</span>
