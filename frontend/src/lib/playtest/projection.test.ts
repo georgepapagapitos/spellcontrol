@@ -419,6 +419,83 @@ describe('toProjectedCard', () => {
     expect(projected).not.toHaveProperty('imageUrl');
     expect(projected).not.toHaveProperty('backImageUrl');
   });
+
+  it('carries printed power/toughness through — a permanent body is public', () => {
+    const projected = toProjectedCard(card('c2', { power: '2', toughness: '2' }));
+    expect(projected.power).toBe('2');
+    expect(projected.toughness).toBe('2');
+  });
+});
+
+describe('toPublicBoard — power/toughness', () => {
+  it('projects printed power/toughness and the pt modifier for a face-up permanent', () => {
+    const s = baseState({
+      battlefield: [
+        {
+          card: card('body1', { name: 'Grizzly Bears', power: '2', toughness: '2' }),
+          tapped: false,
+          counters: { '+1/+1': 1 },
+          stickers: [],
+          x: 0.1,
+          y: 0.1,
+          faceDown: false,
+          pt: { power: 1, toughness: 0 },
+        },
+      ],
+    });
+    const bf = toPublicBoard(s, 0).battlefield[0];
+    expect(bf.card.power).toBe('2');
+    expect(bf.card.toughness).toBe('2');
+    expect(bf.pt).toEqual({ power: 1, toughness: 0 });
+  });
+
+  it('never projects power/toughness or the pt modifier for a face-down permanent', () => {
+    const s = baseState({
+      battlefield: [
+        {
+          card: card('morph2', { name: 'Willbender', power: '2', toughness: '2' }),
+          tapped: false,
+          counters: {},
+          stickers: [],
+          x: 0.1,
+          y: 0.1,
+          faceDown: true,
+          pt: { power: 3, toughness: 3 },
+        },
+      ],
+    });
+    const bf = toPublicBoard(s, 0).battlefield[0];
+    expect(bf.card).not.toHaveProperty('power');
+    expect(bf.card).not.toHaveProperty('toughness');
+    expect(bf.pt).toBeUndefined();
+    expect(JSON.stringify(bf)).not.toContain('"pt"');
+  });
+
+  it('renders a board from before these fields existed exactly as before — no power/toughness, no pt, no crash', () => {
+    // An older client's projection is missing `power`/`toughness`/`pt`
+    // entirely (not merely undefined) — this is that shape, hand-built
+    // rather than through `card()`/`toProjectedCard`.
+    const oldBoard = toPublicBoard(
+      baseState({
+        battlefield: [
+          {
+            card: { id: 'old1', name: 'Grizzly Bears' },
+            tapped: false,
+            counters: {},
+            stickers: [],
+            x: 0.1,
+            y: 0.1,
+            faceDown: false,
+          },
+        ],
+      }),
+      0
+    );
+    const bf = oldBoard.battlefield[0];
+    expect(bf.card.power).toBeUndefined();
+    expect(bf.card.toughness).toBeUndefined();
+    expect(bf.pt).toBeUndefined();
+  });
 });
 
 /**

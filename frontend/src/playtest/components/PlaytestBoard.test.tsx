@@ -796,6 +796,48 @@ describe('PlaytestBoard', () => {
       vi.useRealTimers();
     }
   });
+
+  it('shows an opponent permanent’s live P/T in the hover preview, counters and the pt modifier folded in', () => {
+    onlineTable = seatedTable([
+      {
+        name: 'Player 1',
+        board: {
+          ...opponent(1).board,
+          battlefield: [
+            {
+              card: { id: 'bear', name: 'Grizzly Bears', power: '2', toughness: '2' },
+              tapped: false,
+              counters: { '+1/+1': 1 },
+              stickers: [],
+              x: 0.2,
+              y: 0.3,
+              faceDown: false,
+              pt: { power: 0, toughness: 1 },
+            },
+          ],
+        },
+      },
+    ]);
+    stubWidth(1920, true);
+    vi.useFakeTimers();
+    try {
+      const { container } = render(
+        <MemoryRouter>
+          <PlaytestBoard state={seededState()} />
+        </MemoryRouter>
+      );
+      const id = opponentPreviewId(1, 'bear');
+      const card = container.querySelector(`[data-preview-id="${id}"]`);
+      fireEvent.pointerOver(card!);
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      const plate = document.querySelector('.playtest-hover-preview .playtest-card__pt');
+      expect(plate?.getAttribute('aria-label')).toBe('3 by 4');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 // Rebindable shortcuts (lib/shortcuts): the board's one handler resolves keys
