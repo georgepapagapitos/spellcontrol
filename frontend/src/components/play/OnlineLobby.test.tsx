@@ -660,11 +660,7 @@ describe('Horde (co-op) lobby — the pick, synced from table state', () => {
     const dispatch = renderLobby(hordeTable(2), 'u0');
     // The button reads "Loading the horde…" and stays disabled until the
     // deck has actually resolved.
-    const startBtn = await screen.findByRole(
-      'button',
-      { name: 'Start game' },
-      { timeout: 2000 }
-    );
+    const startBtn = await screen.findByRole('button', { name: 'Start game' }, { timeout: 2000 });
     dispatch.mockClear();
 
     fireEvent.click(startBtn);
@@ -690,8 +686,14 @@ describe('Horde (co-op) lobby — own-seat-only ban warning', () => {
     game.players[0] = seat(0, { deckId: 'deck-mine' });
     game.players[1] = seat(1, { deckId: 'deck-theirs' });
     renderLobby(game, 'u0', vi.fn(), [
-      deck({ id: 'deck-mine', cards: [{ card: { name: bannedName } }] }),
-      deck({ id: 'deck-theirs', cards: [{ card: { name: bannedName } }] }),
+      deck({
+        id: 'deck-mine',
+        cards: [{ card: { name: bannedName } }] as unknown as Deck['cards'],
+      }),
+      deck({
+        id: 'deck-theirs',
+        cards: [{ card: { name: bannedName } }] as unknown as Deck['cards'],
+      }),
     ]);
     const status = screen.getByRole('status');
     expect(status.textContent).toContain(`P0: ${bannedName} is on the Horde ban list.`);
