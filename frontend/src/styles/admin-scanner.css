@@ -264,13 +264,11 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  /* Honest preview: show the entire camera feed at its true aspect ratio.
-     The viewfinder is positioned in JS to live *inside* the visible
-     video band, so the cover-cropping we used to do (which magnified
-     the feed and hid most of the sensor) is no longer useful. The
-     letterbox space outside the video is plain black — explicitly not
-     a UI element. */
-  object-fit: contain;
+  /* Full-bleed camera, the way the native preview looked. The stream
+     arrives portrait on a portrait phone (see startCamera's constraints),
+     so cover trims only a sliver of the sides. `contain` letterboxed it
+     into a thin band. CardScanner's computeDisplayRect assumes cover. */
+  object-fit: cover;
   background: #000;
 }
 
