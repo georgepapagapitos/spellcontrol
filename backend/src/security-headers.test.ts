@@ -66,4 +66,17 @@ describe('security headers', () => {
     const imgSrc = SERVER_TS.match(/'img-src':\s*\[([\s\S]*?)\]/)?.[1] ?? '';
     expect(imgSrc).toContain("'https://assets.cubecobra.com'");
   });
+
+  it('lets the card scanner start OpenCV', () => {
+    // OpenCV ships as WASM plus embind glue that builds every bound method
+    // with `new Function`. Without 'unsafe-eval' in script-src, `cv.Mat` never
+    // appears and every capture ends in "Scan failed". Measured in headless
+    // Edge: 'wasm-unsafe-eval' alone still timed out on an eval violation;
+    // 'unsafe-eval' was ready in 134ms. The native app loaded its assets with
+    // no CSP, so this stayed hidden until the web scanner became the only one.
+    // Dropping it belongs with a nonce-based CSP that also drops
+    // 'unsafe-inline' and moves OpenCV into a worker with its own policy.
+    const scriptSrc = SERVER_TS.match(/'script-src':\s*\[([\s\S]*?)\]/)?.[1] ?? '';
+    expect(scriptSrc).toContain(`"'unsafe-eval'"`);
+  });
 });
