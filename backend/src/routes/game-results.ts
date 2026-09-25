@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { requireAuth } from '../auth';
 import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
-import { areFriends } from '../friends/relations';
+import { areFriends, listFriendIds } from '../friends/relations';
 import type {
   GameResultMode,
   GameResultParticipant,
@@ -87,15 +87,11 @@ export const RESULT_COLUMNS = `session_id, code, mode, recorded_by_user_id, host
             winner_seat, winner_user_id, started_at, ended_at, duration_ms, participants,
             notable_events, summary, coop_outcome, horde_id`;
 
-/** Accepted-friend ids of `userId`, both directions. */
+/** Accepted-friend ids of `userId`, both directions, as a `Set` for the
+ *  membership checks this file's callers want (`listFriendIds` itself
+ *  returns the plain array — see its doc for why). */
 async function friendIdsOf(userId: string): Promise<Set<string>> {
-  const r = await getPool().query<{ friend_id: string }>(
-    `SELECT CASE WHEN requester_id = $1 THEN addressee_id ELSE requester_id END AS friend_id
-       FROM friendships
-      WHERE status = 'accepted' AND (requester_id = $1 OR addressee_id = $1)`,
-    [userId]
-  );
-  return new Set(r.rows.map((x) => x.friend_id));
+  return new Set(await listFriendIds(userId));
 }
 
 // ────────────────────────────────────────────────

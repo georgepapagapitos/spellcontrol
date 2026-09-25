@@ -4,7 +4,7 @@ import { getDb, getPool } from '../db';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
-import { areFriends } from '../friends/relations';
+import { areFriends, listFriendIds } from '../friends/relations';
 import { summarizeCardUse } from '../friends/card-use';
 import { parseCollectionVisibility } from '../collections/visibility';
 import { resolveShareLabels } from '../shares/labels';
@@ -181,13 +181,7 @@ friendsRouter.get(
     const callerId = req.user!.id;
     const pool = getPool();
 
-    const friendRows = await pool.query<{ friend_id: string }>(
-      `SELECT CASE WHEN requester_id = $1 THEN addressee_id ELSE requester_id END AS friend_id
-         FROM friendships
-        WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'`,
-      [callerId]
-    );
-    const friendIds = friendRows.rows.map((r) => r.friend_id);
+    const friendIds = await listFriendIds(callerId);
     if (friendIds.length === 0) {
       return res.json({ items: [] });
     }

@@ -2415,7 +2415,12 @@ describe('POST /api/games/:code/leave', () => {
     expect(res.status).toBe(404);
   });
 
-  it('leave by a non-participant is a no-op (200, state unchanged)', async () => {
+  // fix: this used to hand the caller the full `GameState` (200, `game:
+  // current`) for ANY authenticated non-participant, regardless of
+  // visibility — the one route in this file that skipped the stealth-404
+  // model, so a code sweep via /leave could read a private game's whole
+  // state. Now it answers exactly like GET /:code does for a non-participant.
+  it('gives a signed-in non-participant the same 404 GET /:code gives, not the game state', async () => {
     const host = await registerAndGetCookie('games_leave_h4');
     const stranger = await registerAndGetCookie('games_leave_s4');
     const created = await request(app).post('/api/games').set('Cookie', host).send({});
@@ -2424,9 +2429,9 @@ describe('POST /api/games/:code/leave', () => {
       .post(`/api/games/${code}/leave`)
       .set('Cookie', stranger)
       .send({});
-    expect(res.status).toBe(200);
-    expect(res.body.game).toBeDefined();
-    expect(res.body.game.players).toHaveLength(1);
+    expect(res.status).toBe(404);
+    expect(res.body.game).toBeUndefined();
+    expect(res.body).toEqual({ error: 'Game not found.' });
   });
 
   /**
@@ -3225,11 +3230,15 @@ describe('GET /api/games (room browser, E367)', () => {
 /**
  * Board T139 (config surfaces), Lane E — games get a Friends visibility, the
  * middle rung between `'public'` (anyone with the code) and `'private'`
- * (seats only). Unlike `'private'`, which has always let anyone holding the
- * code join (the code is the invite), `'friends'` gates JOINING too — only
- * the host's own friends, not friends-of-a-seated-guest — so a stranger who
- * finds or is handed the code still can't get a seat. Every denial mirrors
- * the private/unknown-code stealth 404 (see `resolveGameAccess`'s doc).
+ * (seats only). Visibility is monotone — Public ⊇ Friends ⊇ Private — and
+ * the join code is a separate, orthogonal grant that exists at every rung
+ * equally: a host who picks `'friends'` can still hand the code to a
+ * stranger to seat them, exactly like `'private'` always could. `'friends'`
+ * only ADDS what a friend gets without the code (discovery in the room
+ * browser, spectating via GET /:code without ever having joined) — it never
+ * subtracts what holding the code already grants. Every denial that DOES
+ * happen (reading without the code, without being a friend) mirrors the
+ * private/unknown-code stealth 404 (see `resolveGameAccess`'s doc).
  */
 describe('friends visibility (games)', () => {
   async function hostGame(tag: string, body: Record<string, unknown> = {}) {
@@ -3278,7 +3287,7 @@ describe('friends visibility (games)', () => {
     expect(join.body.game.players.length).toBe(2);
   });
 
-  it('gives a non-friend the identical private/unknown-code 404, for viewing and joining', async () => {
+  it('gives a non-friend the identical private/unknown-code 404 for READING without the code', async () => {
     const hostUsername = 'fv_deny_host';
     const { code } = await hostGame(hostUsername, { visibility: 'friends' });
     const strangerCookie = await registerAndGetCookie('fv_deny_stranger');
@@ -3287,12 +3296,23 @@ describe('friends visibility (games)', () => {
     const unknown = await request(app).get('/api/games/ZZZW').set('Cookie', strangerCookie);
     expect(view.status).toBe(404);
     expect(view.body).toEqual(unknown.body);
+  });
+
+  // Monotone visibility: 'friends' only ADDS readers on top of 'private', it
+  // never subtracts what holding the code already grants. A stranger with
+  // the code joins a Friends lobby exactly as they always could a Private
+  // one — the host who picked Friends can still hand the code out.
+  it('still lets a non-friend holding the code join a Friends lobby, same as Private', async () => {
+    const hostUsername = 'fv_join_stranger_host';
+    const { code } = await hostGame(hostUsername, { visibility: 'friends' });
+    const strangerCookie = await registerAndGetCookie('fv_join_stranger');
 
     const join = await request(app)
       .post(`/api/games/${code}/join`)
       .set('Cookie', strangerCookie)
       .send({});
-    expect(join.status).toBe(404);
+    expect(join.status).toBe(200);
+    expect(join.body.game.players.length).toBe(2);
   });
 
   it('revokes access the moment the pair unfriends', async () => {

@@ -6,7 +6,7 @@ import { and, desc, eq, gt, inArray, lt, or, sql } from 'drizzle-orm';
 import { requireAuth, resolveDisplayLabel } from '../auth';
 import { getDb, getPool } from '../db';
 import { gameSessions } from '../db/schema';
-import { areFriends } from '../friends/relations';
+import { areFriends, listFriendIds } from '../friends/relations';
 import { persistGameResult } from '../games/persist-result';
 import {
   applyAction,
@@ -758,18 +758,25 @@ async function isFriendOfHost(state: GameState, userId: string): Promise<boolean
 }
 
 /**
- * Who may READ (or JOIN — see `POST /:code/join`) this game, resolved in one
- * place so every route that gates on visibility agrees. Participants always;
- * anyone else only once the host has opened the table — to every stranger
- * (`'public'`) or to their own friends only (`'friends'`).
+ * Who may READ this game WITHOUT the code — GET /:code, /events, /poll, and
+ * the room browser — resolved in one place so those routes can't drift
+ * apart. `visibility` is monotone: **Public ⊇ Friends ⊇ Private**. Each rung
+ * only ever ADDS readers on top of the one below it; it never takes away
+ * what a lower rung already grants:
  *
- * That opt-in is the whole security model here. A join code is four
- * characters — about a million of them — which is why the read routes answer
- * a stranger with the same 404 an unknown code gets, and why simply holding a
- * code cannot be enough to watch: otherwise a code sweep would turn up every
- * live table in the app. With `visibility` at `'private'` (the default,
- * including for every game persisted before `visibility` existed) nothing
- * changes at all.
+ *   - `'private'`: participants only, no code-free discovery at all.
+ *   - `'friends'`: participants, plus the host's own friends.
+ *   - `'public'`: participants, plus anyone.
+ *
+ * Holding the 4-char join code is a SEPARATE, orthogonal grant that exists at
+ * every rung equally — see `POST /:code/join`, which never calls this
+ * function and never gates on visibility at all. A friends-only host can
+ * still hand the code to a stranger to seat them; visibility only decides who
+ * can find or watch the table without ever being given it. That is also why
+ * this predicate matters: a join code is four characters, about a million of
+ * them, which is why a denial here is the same 404 an unknown code gets
+ * rather than anything that would let a sweep distinguish "exists but is
+ * private" from "no such code".
  *
  * `isFriendOfHost` rides along on the result so a caller that's about to open
  * a live subscriber (SSE/poll) can cache it on the `Subscriber` — see
@@ -950,20 +957,16 @@ export function projectGameListing(state: GameState): GameListing {
  * tables and anything stale (see `STALE_LISTING_MS`), newest-active first,
  * capped at `LISTING_PAGE_SIZE`.
  *
- * The friend-id list is one indexed lookup (`friendships`, same query shape
- * `friends.ts` uses); matching it against `host_user_id` — a real column,
- * not a JSONB path — reuses `game_sessions_host_idx` rather than adding a new
- * index for this.
+ * The friend-id list is `listFriendIds` (one indexed lookup, shared with
+ * `friends.ts` and `game-results.ts` rather than a fourth copy of the same
+ * query); matching it against `host_user_id` — a real column, not a JSONB
+ * path — reuses `game_sessions_host_idx` rather than adding a new index for
+ * this.
  */
 gamesRouter.get('/', readLimiter, requireAuth, async (req: Request, res: Response) => {
   const db = getDb();
   const cutoff = Date.now() - STALE_LISTING_MS;
-  const friendRows = await getPool().query<{ friend_id: string }>(
-    `SELECT CASE WHEN requester_id = $1 THEN addressee_id ELSE requester_id END AS friend_id
-       FROM friendships WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'`,
-    [req.user!.id]
-  );
-  const friendIds = friendRows.rows.map((r) => r.friend_id);
+  const friendIds = await listFriendIds(req.user!.id);
 
   const visibilityFilter =
     friendIds.length > 0
@@ -1976,16 +1979,11 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Game not found.' });
   const current = row.state as GameState;
-  // Unlike `'private'` — where holding the 4-char code has always been
-  // enough to claim a seat, code-as-invite — `'friends'` means what it says:
-  // only the host's friends may join, same predicate as reading. A non-friend
-  // gets the identical stealth 404 a private/unknown code gives, checked
-  // before the lobby/active status below so a denial never leaks how far the
-  // table has gotten either.
-  if (current.visibility === 'friends') {
-    const { allowed } = await resolveGameAccess(current, req.user!.id);
-    if (!allowed) return res.status(404).json({ error: 'Game not found.' });
-  }
+  // The code is the invite at every visibility, `'friends'` included — see
+  // `resolveGameAccess`'s doc on the monotone Public ⊇ Friends ⊇ Private
+  // rule. `'friends'` only ADDS what a friend gets without the code
+  // (discovery in the room browser, spectating via GET); it never subtracts
+  // what holding the code already grants a stranger under `'private'`.
   if (current.status !== 'lobby') {
     return res.status(409).json({ error: 'Game has already started.' });
   }
@@ -2203,7 +2201,18 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
   res.json({ game: next });
 });
 
-/** POST /api/games/:code/leave — leave the game (lobby-only for non-hosts). */
+/**
+ * POST /api/games/:code/leave — leave the game (lobby-only for non-hosts).
+ *
+ * fix: a non-participant used to get the current `GameState` back verbatim —
+ * `if (!me) return res.json({ game: current })` — regardless of visibility,
+ * which meant any authenticated caller who merely knew (or swept) a code
+ * could read a `'private'` game's full state, deck names and all, through
+ * this one route. Every other route in this file answers a non-participant
+ * with the same 404 an unknown code gets (see `resolveGameAccess`'s doc on
+ * why that stealth matters); this route now matches them — there is nothing
+ * to leave for a caller who never held a seat, so 404 is also just correct.
+ */
 gamesRouter.post('/:code/leave', writeLimiter, requireAuth, async (req: Request, res: Response) => {
   const code = String(req.params.code).toUpperCase();
   const db = getDb();
@@ -2212,7 +2221,7 @@ gamesRouter.post('/:code/leave', writeLimiter, requireAuth, async (req: Request,
   if (!row) return res.status(404).json({ error: 'Game not found.' });
   const current = row.state as GameState;
   const me = current.players.find((p) => p.userId === req.user!.id);
-  if (!me) return res.json({ game: current });
+  if (!me) return res.status(404).json({ error: 'Game not found.' });
   if (me.isHost) {
     // Host leave = end + delete.
     await db.delete(gameSessions).where(eq(gameSessions.code, code));
