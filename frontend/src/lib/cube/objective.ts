@@ -42,7 +42,7 @@ export const KEYWORD_GATED_AXES: ReadonlySet<AxisKey> = new Set<AxisKey>([
  * term's job, and battle is ~0 in every real cube (mined p75 stays 0 at every
  * band), so scoring it adds noise, not signal.
  */
-const TYPE_SLOTS = [
+export const TYPE_SLOTS = [
   'creature',
   'instant',
   'sorcery',
@@ -52,7 +52,7 @@ const TYPE_SLOTS = [
 ] as const;
 const TYPE_CLASSIFY_ORDER = [...TYPE_SLOTS, 'land', 'battle'] as const;
 
-function typeOf(c: CubeCard): string | null {
+export function typeOf(c: CubeCard): string | null {
   const t = c.typeLine.toLowerCase();
   return TYPE_CLASSIFY_ORDER.find((x) => t.includes(x)) ?? null;
 }
@@ -75,7 +75,7 @@ const W = {
  * toward "Best cards" makes the refiner care about curve/interaction/balance
  * instead of theme depth, rather than meaning nothing at all. Always sums to 1.
  */
-function weightsFor(synergyLevel: number): Record<keyof typeof W, number> {
+export function weightsFor(synergyLevel: number): Record<keyof typeof W, number> {
   const archetype = W.archetype * synergyLevel;
   const k = (1 - archetype) / (1 - W.archetype);
   return {
@@ -136,7 +136,7 @@ export interface CubeScore {
 }
 
 /** Drafters per pod for a cube of this size (8-player pods cap the big cubes). */
-function podSize(size: number): number {
+export function podSize(size: number): number {
   return Math.min(8, Math.max(4, Math.round(size / 45)));
 }
 
@@ -144,7 +144,7 @@ function podSize(size: number): number {
  * How many enabler+payoff pieces an archetype needs before it counts as "deep".
  * A floor of 12 keeps small cubes from rewarding 2-card "archetypes".
  */
-function minDepth(size: number): number {
+export function minDepth(size: number): number {
   return Math.max(12, 2 * podSize(size));
 }
 
@@ -229,6 +229,54 @@ function contributes(c: CubeCard, ax: AxisKey): boolean {
   return (c.synergyProducers ?? []).includes(ax) || (c.synergyPayoffs ?? []).includes(ax);
 }
 
+/** Per-axis enabler/payoff/bucket tally, as accumulated in `scoreCube` and (incrementally) in ./scorer-state. */
+export interface AxisAgg {
+  e: number;
+  y: number;
+  buckets: Partial<Record<ColorBucket, number>>;
+}
+
+/**
+ * One archetype axis's 0..1 support score from its tallied enabler/payoff/bucket
+ * counts — M1 (symmetric balance), M2 (keyword-gated enabler cap), M3 (color
+ * concentration). Pulled out of `scoreCube` so ./scorer-state can recompute just
+ * the touched axes on a swap instead of re-tallying the whole cube.
+ */
+export function axisScoreOf(ax: AxisKey, d: AxisAgg, minDepthVal: number): number {
+  const e = KEYWORD_GATED_AXES.has(ax) ? Math.min(d.e, 1.5 * minDepthVal) : d.e;
+  const y = d.y;
+  const total = e + y;
+  const balance = e > 0 && y > 0 ? (2 * Math.min(e, y)) / (e + y) : 0;
+  const bucketCounts = Object.values(d.buckets);
+  const contribCount = bucketCounts.reduce((a, b) => a + b, 0);
+  const top2 = [...bucketCounts]
+    .sort((a, b) => b - a)
+    .slice(0, 2)
+    .reduce((a, b) => a + b, 0);
+  const concentration = contribCount > 0 ? top2 / contribCount : 0;
+  const depth = Math.min(total, minDepthVal) / minDepthVal;
+  return depth * balance * (0.5 + 0.5 * concentration);
+}
+
+/** Term B (glue/overlap) for one card. M7 — spellslinger excluded so every instant/sorcery doesn't inflate it. */
+export function glueScoreOf(c: CubeCard): number {
+  const p = (c.synergyProducers ?? []).filter((ax) => ax !== 'spellslinger').length;
+  const y = (c.synergyPayoffs ?? []).length;
+  return Math.min(p + y, 6) / 6;
+}
+
+/**
+ * Term F (power consistency) over a set of cards — M8, penalize a weak bottom
+ * decile rather than high variance. Pulled out of `scoreCube` so ./scorer-state
+ * can recompute it (the one term left as an O(size) re-sort by design — see
+ * that module's header) without duplicating the formula.
+ */
+export function powerTerm(cards: CubeCard[], basis: PowerBasis): number {
+  const powers = cards.map((c) => rawPower(c, basis)).sort((a, b) => a - b);
+  const p10 = powers.length ? powers[Math.floor((powers.length - 1) * 0.1)] : 1;
+  return Math.max(0, 1 - 0.5 * Math.max(0, 0.35 - p10));
+}
+
 /**
  * Axes the owned pool can actually make draftable — it has BOTH an enabler and a
  * payoff somewhere. These are the baseline the archetype term scores against: a
@@ -301,30 +349,6 @@ export function scoreCube(
     }
   }
 
-  const axisScoreOf = (
-    ax: AxisKey,
-    d: { e: number; y: number; buckets: Record<ColorBucket, number> }
-  ) => {
-    // M2 — cap blanket-gated enabler counts.
-    const e = KEYWORD_GATED_AXES.has(ax) ? Math.min(d.e, 1.5 * MIN_DEPTH) : d.e;
-    const y = d.y;
-    const total = e + y;
-    // M1 — symmetric balance: a payoff-only or enabler-only axis scores 0.
-    // (Inside the ternary e>0 && y>0, so e + y ≥ 2 — no zero-divide guard needed.)
-    const balance = e > 0 && y > 0 ? (2 * Math.min(e, y)) / (e + y) : 0;
-    // M3 — concentration: reward an archetype packed into ≤2 colors over one
-    // smeared across all five (which no single drafter can assemble).
-    const bucketCounts = Object.values(d.buckets);
-    const contribCount = bucketCounts.reduce((a, b) => a + b, 0);
-    const top2 = [...bucketCounts]
-      .sort((a, b) => b - a)
-      .slice(0, 2)
-      .reduce((a, b) => a + b, 0);
-    const concentration = contribCount > 0 ? top2 / contribCount : 0;
-    const depth = Math.min(total, MIN_DEPTH) / MIN_DEPTH;
-    return depth * balance * (0.5 + 0.5 * concentration);
-  };
-
   // Archetype term: how well the cube drafts the archetypes its COLLECTION can
   // support. Absent-but-draftable axes score 0 (the cube failed to build them);
   // a tag-less pool has no draftable axes → 1.0 (M4, nothing to penalize).
@@ -339,7 +363,7 @@ export function scoreCube(
   const axisScores = draftable
     .map((ax) => {
       const d = axisData.get(ax);
-      return d ? axisScoreOf(ax, d) : 0;
+      return d ? axisScoreOf(ax, d, MIN_DEPTH) : 0;
     })
     .sort((a, b) => b - a);
   const k = Math.min(axisScores.length, targetArchetypeCount(size));
@@ -354,18 +378,13 @@ export function scoreCube(
       label: AXIS_LABEL.get(ax) ?? ax,
       enablers: d.e,
       payoffs: d.y,
-      score: axisScoreOf(ax, d),
+      score: axisScoreOf(ax, d, MIN_DEPTH),
     });
   }
 
   // ── Term B: glue / overlap ──────────────────────────────────────────────
   // M7 — exclude spellslinger so every instant/sorcery doesn't inflate glue.
-  const glueScore = (c: CubeCard) => {
-    const p = (c.synergyProducers ?? []).filter((ax) => ax !== 'spellslinger').length;
-    const y = (c.synergyPayoffs ?? []).length;
-    return Math.min(p + y, 6) / 6;
-  };
-  const glue = cards.length ? cards.reduce((s, c) => s + glueScore(c), 0) / cards.length : 0;
+  const glue = cards.length ? cards.reduce((s, c) => s + glueScoreOf(c), 0) / cards.length : 0;
 
   // ── Term C: color balance ───────────────────────────────────────────────
   // Share of ACTUAL picks (not target size) so an undersized cube that's
@@ -429,9 +448,7 @@ export function scoreCube(
   // ── Term F: power consistency ───────────────────────────────────────────
   // M8 — penalize a weak bottom decile, not high variance (so a few legit
   // high-CMC bombs that widen the band aren't ejected).
-  const powers = cards.map((c) => rawPower(c, basis)).sort((a, b) => a - b);
-  const p10 = powers.length ? powers[Math.floor((powers.length - 1) * 0.1)] : 1;
-  const power = Math.max(0, 1 - 0.5 * Math.max(0, 0.35 - p10));
+  const power = powerTerm(cards, basis);
 
   // M6 — fixing adequacy is a hard cap, not a 0.028-gradient term that rounds
   // to noise. A catastrophically fixing-starved cube is capped at 75%.

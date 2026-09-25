@@ -102,15 +102,19 @@ describe('refineCube', () => {
     expect(tokenCount(r.picks)).toBeGreaterThan(tokenCount(seed.picks));
   });
 
-  it('is deterministic — identical output across runs', () => {
-    const a = tokensScenario();
-    const b = tokensScenario();
-    // rebuild with the SAME card identities so the two pools are equal
-    const r1 = refineCube(a.seed, a.pool, band360, 360);
-    const r2 = refineCube(a.seed, a.pool, band360, 360);
+  it('is deterministic — identical output across runs, and pool order never matters', () => {
+    const { seed, pool } = tokensScenario();
+    const r1 = refineCube(seed, pool, band360, 360);
+    const r2 = refineCube(seed, pool, band360, 360);
     expect(r1.picks.map((p) => p.card.oracleId)).toEqual(r2.picks.map((p) => p.card.oracleId));
-    // and a structurally-identical independent scenario climbs the same way
-    expect(r1.swapLog.length).toBe(refineCube(b.seed, b.pool, band360, 360).swapLog.length);
+    expect(r1.swapLog.length).toBe(r2.swapLog.length);
+
+    // The refiner's PRNG is seeded from a hash of the pool's SORTED oracleIds,
+    // so shuffling the pool's input order must not change the result — the
+    // same invariant the live harness checks on generateCube.
+    const shuffledPool = [...pool].reverse();
+    const r3 = refineCube(seed, shuffledPool, band360, 360);
+    expect(r3.picks.map((p) => p.card.oracleId)).toEqual(r1.picks.map((p) => p.card.oracleId));
   });
 
   it('terminates within the iteration cap', () => {
