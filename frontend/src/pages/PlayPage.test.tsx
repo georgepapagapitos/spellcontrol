@@ -342,6 +342,62 @@ describe('Local setup — turn order', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
     expect(usePlayStore.getState().local!.turnOrder).toBe('counterclockwise');
   });
+
+  it('a table profile round-trips counterclockwise seating', () => {
+    renderPage('/play/local');
+    fireEvent.click(screen.getByRole('switch', { name: /Counterclockwise seating/ }));
+    fireEvent.change(screen.getByPlaceholderText('Thursday pod'), {
+      target: { value: 'Thursday' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const saved = usePlayStore.getState().tableProfiles.find((p) => p.name === 'Thursday');
+    expect(saved!.setup.turnOrder).toBe('counterclockwise');
+
+    // Flip it back to clockwise on the live form, then reload the saved
+    // profile — it should win, restoring counterclockwise.
+    fireEvent.click(screen.getByRole('switch', { name: /Counterclockwise seating/ }));
+    expect(
+      screen.getByRole('switch', { name: /Counterclockwise seating/ }).getAttribute('aria-checked')
+    ).toBe('false');
+    fireEvent.click(screen.getByText('Thursday').closest('button')!);
+    expect(
+      screen.getByRole('switch', { name: /Counterclockwise seating/ }).getAttribute('aria-checked')
+    ).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(usePlayStore.getState().local!.turnOrder).toBe('counterclockwise');
+  });
+
+  it('a legacy table profile (saved before turnOrder existed) loads as clockwise', () => {
+    usePlayStore.setState({
+      tableProfiles: [
+        {
+          id: 'legacy-1',
+          name: 'Old table',
+          savedAt: 1,
+          setup: {
+            format: 'commander',
+            startingLife: 40,
+            commanderDamageEnabled: true,
+            poisonEnabled: false,
+            players: [
+              { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+              { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+            ],
+            // No `turnOrder` key at all — the shape a profile saved before
+            // this field existed actually has.
+          },
+        },
+      ],
+    });
+    renderPage('/play/local');
+    fireEvent.click(screen.getByRole('switch', { name: /Counterclockwise seating/ }));
+    fireEvent.click(screen.getByText('Old table').closest('button')!);
+    expect(
+      screen.getByRole('switch', { name: /Counterclockwise seating/ }).getAttribute('aria-checked')
+    ).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(usePlayStore.getState().local!.turnOrder).toBe('clockwise');
+  });
 });
 
 describe('History — removing a game asks first', () => {

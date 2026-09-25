@@ -321,6 +321,26 @@ describe('usePlayStore — local game flow', () => {
     expect(fresh.players.map((p) => p.name)).toEqual(['A', 'B']);
   });
 
+  it('rematchLocal keeps a counterclockwise table counterclockwise', () => {
+    const s = usePlayStore.getState();
+    s.startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: false,
+      poisonEnabled: false,
+      turnOrder: 'counterclockwise',
+      players: [
+        { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+      ],
+    });
+    usePlayStore.getState().endLocal(0);
+    const template = gameToRematch(usePlayStore.getState().local!);
+    expect(template.turnOrder).toBe('counterclockwise');
+    usePlayStore.getState().rematchLocal(template);
+    expect(usePlayStore.getState().local!.turnOrder).toBe('counterclockwise');
+  });
+
   it('discardLocal clears the active local game', () => {
     const s = usePlayStore.getState();
     s.startLocal({
@@ -1712,6 +1732,40 @@ describe('gameToRematch / recordToRematch', () => {
     expect(t.format).toBe('commander');
     expect(t.commanderDamageEnabled).toBe(true);
     expect(t.players.map((p) => p.name)).toEqual(['Host', 'Guest']);
+  });
+
+  it('gameToRematch carries turnOrder, including a counterclockwise table', () => {
+    const cw = makeOnlineGame(1);
+    expect(gameToRematch(cw).turnOrder).toBeUndefined();
+    const ccw = { ...cw, turnOrder: 'counterclockwise' as const };
+    expect(gameToRematch(ccw).turnOrder).toBe('counterclockwise');
+  });
+
+  it('recordToRematch has no source for turnOrder and reads as clockwise', () => {
+    const rec: GameRecord = {
+      id: 'g',
+      code: '',
+      format: 'commander',
+      startingLife: 40,
+      mode: 'local',
+      startedAt: 1,
+      endedAt: 2,
+      durationMs: 1,
+      winnerSeat: 0,
+      players: [
+        {
+          seat: 0,
+          userId: null,
+          name: 'A',
+          deckId: 'd1',
+          deckName: 'D1',
+          commander: 'Cmd',
+          finalLife: 1,
+          eliminated: false,
+        },
+      ],
+    };
+    expect(recordToRematch(rec).turnOrder).toBeUndefined();
   });
 
   it('recordToRematch infers commander damage from a commander record', () => {

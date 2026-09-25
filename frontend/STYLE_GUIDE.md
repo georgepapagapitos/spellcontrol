@@ -7301,27 +7301,44 @@ tracker (already shipped, see above): low life warning, underlined 6/9,
 minimalist mode, a per-bracket starting life, and a table-level turn
 direction.
 
-- **Low life warning fires below 10, gated by a device pref (default on).**
-  `isLowLife` (`GameBoard.tsx`) widened from 1-5 to 1-9 to match Lotus's own
-  "below 10" wording, and now reads `lowLifeWarningEnabled` from the play
-  store before applying at all. The ring-plus-pulse treatment it already had
-  (`is-low-life`, `play-enhancements.css`) needed no change: a ring that only
-  exists in the danger state is a structural cue, not a color-only one, and
-  `prefers-reduced-motion` already swapped the pulse for a steady ring rather
-  than dropping the signal outright — both were correct before this lane and
-  stayed that way.
-- **Underlined 6 and 9 is a shared digit renderer, not a per-surface hack.**
+- **Low life warning fires below 10, gated by a device pref (default on), and
+  is a wash, not just a ring.** `isLowLife` (`GameBoard.tsx`) widened from 1-5
+  to 1-9 to match Lotus's own "below 10" wording, and now reads
+  `lowLifeWarningEnabled` from the play store before applying at all. The
+  first pass kept the pre-existing thin ring unchanged; a design pass over
+  screenshots found that read as barely-there next to Lotus's own "blinking
+  red alert" from across a table. `is-low-life::before` (`play-enhancements.css`)
+  now pulses a translucent red `background` wash across the WHOLE panel
+  together with the ring/glow (1.4s, peaking at 0.24 alpha so the numeral
+  stays legible) — still not colour-only (the wash+ring only exist in the
+  danger state, a structural cue) and still steady-red (no blink) under
+  `prefers-reduced-motion`, at the wash's peak intensity rather than its
+  resting one so reduced-motion doesn't read as a quieter warning. It
+  composes with every other state ring by construction: `is-active-turn` /
+  `is-lethal-flash` paint on `::after`, `is-winner`'s box-shadow sits on the
+  real element, and none of them share `::before` — verified by starting a
+  seat's turn while it's also below 10 life and confirming both the white
+  ring and the red wash render at once.
+- **Underlined 6 and 9 is a shared digit renderer, not a per-surface hack —
+  and each mark is its own short bar, not one continuous underline.**
   `numeralDigits(value, underline)` in `GameBoard.tsx` wraps only the `6`/`9`
   characters of a number in `.pp-digit-underline` spans when the device pref
   is on; off, it returns the plain number so the DOM is byte-identical to
   before the pref existed. One function feeds all three numerals that can sit
   upside down across a table — the life/commander-damage numeral, a Partner
   seat's split-half numeral, and the High Roll die value — so a fourth numeral
-  can never quietly skip it. The underline is `em`-sized
-  (`text-decoration-thickness`/`text-underline-offset`), so it holds at every
-  `--life-size` tier without a media query. The aria-label on the life button
-  still reads the plain number (unaffected — it's a separate attribute, not
-  derived from the digit spans' text content).
+  can never quietly skip it. The mark itself is a per-digit `::after`, not
+  `text-decoration: underline`: two adjacent underlined characters ("69",
+  "66") drew as one unbroken bar with `text-decoration` (no gap between
+  characters), which read as a stray extra digit rather than two marked
+  ones. `::after` sized to a percentage of the DIGIT'S OWN inline-block box
+  (18% inset each side) keeps every mark short, rounded and separate
+  regardless of how many underlined digits sit side by side, holding at
+  every `--life-size` tier including the smallest (a 6-player board at
+  390px) — verified on both an upright and a sideways seat with "69", "96"
+  and "66". The aria-label on the life button still reads the plain number
+  (unaffected — it's a separate attribute, not derived from the digit
+  spans' text content).
 - **Minimalist mode hides the ± glyphs, not the controls.** `.is-minimalist
   .player-panel-life-wrap > .player-panel-step-btn` uses the standard
   clip-rect sr-only pattern (1px box, `overflow: hidden`, `clip: rect(0,0,0,0)`)
@@ -7392,3 +7409,15 @@ direction.
     assertion (angles run the other way around the grid centre, excluding
     the one seat0→seat1 edge that wraps through the anchor) plus a seat-0-
     stays-put check and a legacy-state-reads-clockwise check.
+  - **It survives every flow that re-seats the same table.** Turn order is a
+    fact about how the people at the table are sitting, so `RematchTemplate`
+    (`gameToRematch`) and table profiles (`LocalGameSetup.turnOrder`, already
+    part of `buildSetup`/`applySetup`) both carry it — a counterclockwise
+    table stays counterclockwise through Rematch or a saved/reloaded profile.
+    `recordToRematch` is the one gap, and it's a real one, not an oversight:
+    `GameRecord` (persisted history) never stored `turnOrder` — it's
+    presentation, not a rule the history table tracks, same reasoning as the
+    partner-less/poison-off gaps that function already documents — so a
+    rematch from History starts clockwise regardless of the original table.
+    A legacy profile (saved before this field existed) reads as clockwise,
+    same as a legacy `GameState`.

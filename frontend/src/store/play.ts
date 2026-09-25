@@ -132,6 +132,12 @@ export interface RematchTemplate {
   startingLife: number;
   commanderDamageEnabled: boolean;
   poisonEnabled: boolean;
+  /** Which way this table seats. Turn order is a fact about how the people
+   *  at the table are sitting, not the device, so Rematch carries it forward
+   *  the same as format/startingLife — a counterclockwise table stays
+   *  counterclockwise. Optional: `recordToRematch` (below) has no source for
+   *  it and leaves it unset, which reads as clockwise. */
+  turnOrder?: 'clockwise' | 'counterclockwise';
   players: LocalGameSetup['players'];
 }
 
@@ -142,6 +148,7 @@ export function gameToRematch(game: GameState): RematchTemplate {
     startingLife: game.startingLife,
     commanderDamageEnabled: game.commanderDamageEnabled,
     poisonEnabled: game.poisonEnabled,
+    turnOrder: game.turnOrder,
     players: game.players.map((p) => ({
       name: p.name,
       userId: p.userId,
@@ -163,6 +170,10 @@ export function recordToRematch(rec: GameRecord): RematchTemplate {
     // leave poison off (the host can flip it in the game menu if needed).
     commanderDamageEnabled: rec.format === 'commander',
     poisonEnabled: false,
+    // GameRecord doesn't persist turnOrder either (it's presentation, not a
+    // rule the history table tracks) — a rematch from history starts
+    // clockwise; the host can flip it again in a fresh setup if needed.
+    turnOrder: undefined,
     players: rec.players.map((p) => ({
       name: p.name,
       userId: p.userId,
@@ -964,6 +975,7 @@ export const usePlayStore = create<PlayState>()(
           startingLife: template.startingLife,
           commanderDamageEnabled: template.commanderDamageEnabled,
           poisonEnabled: template.poisonEnabled,
+          turnOrder: template.turnOrder,
           players: template.players,
         });
       },

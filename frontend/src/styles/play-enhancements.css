@@ -251,26 +251,40 @@
   }
 }
 
-/* ── Low-life ambient pulse — alive but in topdeck range ── */
+/* ── Low-life warning — alive but below 10, Lotus's "blinking red alert" ──
+   A thin ring alone read as barely-there next to Lotus's own effect. This
+   layers a translucent red WASH across the whole panel (`background`, not
+   just a border) with the ring, both pulsing together — visible from across
+   a table, not just up close — while staying legible: the wash tops out
+   around 0.24 alpha and the ring/glow live on their own `::before` layer, so
+   the numeral (later in paint order, no z-index of its own to fight) always
+   reads on top. Composes with every other state ring: `is-active-turn` /
+   `is-lethal-flash` paint on `::after`, `is-winner`'s box-shadow sits on the
+   real element — none of them share this `::before`, so a seat can show low
+   life AND active-turn (etc.) at once, each on its own layer. */
 .player-panel.is-low-life::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.55);
-  animation: pp-low-life 1.5s ease-in-out infinite;
+  border-radius: inherit;
+  animation: pp-low-life 1.4s ease-in-out infinite;
 }
 
 @keyframes pp-low-life {
   0%,
   100% {
-    box-shadow: inset 0 0 0 2px rgba(220, 38, 38, 0.35);
+    background: rgba(220, 38, 38, 0.08);
+    box-shadow:
+      inset 0 0 0 3px rgba(220, 38, 38, 0.45),
+      inset 0 0 36px rgba(220, 38, 38, 0.28);
   }
   50% {
+    background: rgba(220, 38, 38, 0.24);
     box-shadow:
-      inset 0 0 0 3px rgba(220, 38, 38, 0.7),
-      inset 0 0 26px rgba(220, 38, 38, 0.35);
+      inset 0 0 0 4px rgba(220, 38, 38, 0.85),
+      inset 0 0 70px rgba(220, 38, 38, 0.6);
   }
 }
 
@@ -682,7 +696,10 @@
   }
   .player-panel.is-low-life::before {
     animation: none;
-    box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.6);
+    background: rgba(220, 38, 38, 0.2);
+    box-shadow:
+      inset 0 0 0 4px rgba(220, 38, 38, 0.75),
+      inset 0 0 60px rgba(220, 38, 38, 0.5);
   }
   .win-confetti-piece {
     display: none;
