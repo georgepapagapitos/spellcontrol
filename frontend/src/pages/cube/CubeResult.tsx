@@ -394,7 +394,11 @@ export function CubeResult({
                                     Locked
                                   </span>
                                 )}
-                                <OwnRowBadge own={own} />
+                                {/* A cube is built from cards you own, so "Owned" on
+                                    every row is noise that truncates the name on a
+                                    phone; the row speaks only for the exceptions
+                                    (in a deck, in another cube). */}
+                                {own !== 'owned' && <OwnRowBadge own={own} />}
                               </span>
                               {p.reason && <span className="cube-row-reason">{p.reason}</span>}
                             </div>
