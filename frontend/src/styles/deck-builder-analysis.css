@@ -851,14 +851,9 @@
   color: var(--text-primary);
 }
 
-.deck-stats-bracket-note {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
 /* The source line ("Set by what's in the list.", "Raised by the power
-   signal.", "Nothing in the list pushes it past Core."). Same weight as the
-   hard-floor note beside it. */
+   signal.", "Nothing in the list pushes it past Core."), quiet under the
+   panel title; the floor rows below carry the specifics. */
 .deck-stats-bracket-source {
   margin: 0;
   font-size: var(--text-xs);

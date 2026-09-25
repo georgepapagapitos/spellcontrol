@@ -114,7 +114,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   // ── Combo card preview state (shared with the collection combos view) ────
   const preview = useComboPreview(cardIndex);
 
-  const [tab, setTab] = useState<Tab>('inDeck');
+  // The owner's pick, once they make one; until then `tab` is derived below.
+  const [pickedTab, setTab] = useState<Tab | null>(null);
   // Default to collapsed: the panel is opt-in discovery — most deck-page loads
   // don't need the full combo list, and the always-visible header summary
   // already shows the at-a-glance counts.
@@ -179,6 +180,10 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     ? partitioned.mainboardComplete.length
     : (data?.inDeck.length ?? 0);
   const oneAwayCount = oneAwayMatches.length;
+  // Open on the tab that has something in it: a deck with no complete combo
+  // but seven one card away used to open on "No complete combos in this deck"
+  // with the seven one tap further.
+  const tab: Tab = pickedTab ?? (inDeckCount === 0 && oneAwayCount > 0 ? 'oneAway' : 'inDeck');
 
   // Split one-away combos by ownership for filter counts + filtering.
   const oneAwayOwned = useMemo(
@@ -419,7 +424,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
               ) : (
                 <>
                   <p>No complete combos in this deck.</p>
-                  {deckEntered && oneAwayCount > 0 && (
+                  {oneAwayCount > 0 && (
                     <p className="deck-combos-empty-secondary">
                       {oneAwayCount === 1
                         ? '1 combo is one card away. Check the next tab.'

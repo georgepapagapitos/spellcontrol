@@ -319,3 +319,46 @@ describe('UX-313 — PowerHero Bracket control', () => {
     expect(onSetBracketOverride).toHaveBeenCalledWith(null);
   });
 });
+
+// ── E415: the verdict strip only compares a stated bracket ─────────────────
+// On Auto the Power hero's headline IS the estimate; the strip read "Bracket
+// Auto · Estimate B4 · Auto · No bracket set", stating one number twice.
+
+describe('E415: stated-vs-estimate strip on the Power tab', () => {
+  function renderPower(bracketOverride: 3 | null) {
+    return render(
+      <MemoryRouter>
+        <DeckDisplay
+          title="Test deck"
+          commander={COMMANDER}
+          cards={cards}
+          deckId="deck-1"
+          format="commander"
+          activeView="power"
+          analysisState="ready"
+          bracketEstimation={makeEstimation({ bracket: 4, label: 'Optimized' })}
+          bracketOverride={bracketOverride}
+        />
+      </MemoryRouter>
+    );
+  }
+
+  it('is absent on Auto', () => {
+    const { container } = renderPower(null);
+    expect(container.querySelector('.bracket-verdict-strip')).toBeNull();
+  });
+
+  it('states the floor reason once in the Bracket panel, on its floor row', () => {
+    const { container } = renderPower(null);
+    const panel = container.querySelector('.deck-stats-bracket');
+    expect(panel?.textContent?.split('2 Game Changer cards').length).toBe(2);
+    expect(panel?.querySelector('.bracket-breakdown-floor-reason')?.textContent).toBe(
+      '2 Game Changer cards'
+    );
+  });
+
+  it('shows once a bracket is stated', () => {
+    const { container } = renderPower(3);
+    expect(container.querySelector('.bracket-verdict-strip')).toBeTruthy();
+  });
+});
