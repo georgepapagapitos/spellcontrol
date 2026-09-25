@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { applyAction, createPlaytestState } from '@/lib/playtest';
+import type { GameState } from '@/lib/game-state';
 import { usePlayStore } from '@/store/play';
 import { usePlaytestStore } from '../store';
 import type { OnlineTable } from '../hooks/use-online-table';
@@ -2379,5 +2380,61 @@ describe('PlaytestBoard — turn alert', () => {
       </MemoryRouter>
     );
     expect(document.title).toBe('● Your turn · Table · SpellControl');
+  });
+});
+
+// A minimal online GameState fake — only the fields this suite's mounted
+// online chrome actually reads (TableMoments' win ceremony and
+// TableFinishedBanner both read `players`/`winnerSeat` unconditionally off
+// the store the instant `status` is 'finished', so both must be present or
+// the transition itself throws).
+function fakeOnline(status: GameState['status']): GameState {
+  return { status, players: [], winnerSeat: null } as unknown as GameState;
+}
+
+describe('PlaytestBoard — a finished table drops the opening-hand wait', () => {
+  afterEach(() => {
+    usePlayStore.setState({ online: null });
+  });
+
+  it('waits behind the curtain for an opponent who has not kept, while the table is live', () => {
+    usePlayStore.setState({ online: fakeOnline('active') });
+    onlineTable = seatedTable([opponent(1)]); // opponent(1).board.keptHand is unset — still choosing
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Waiting for Player 1')).toBeTruthy();
+    expect(document.querySelector('.playtest-opening-sheet')).toBeTruthy();
+  });
+
+  it('drops the wait the moment the table finishes, handing the board back', () => {
+    // Same seat as above — this opponent never kept, so without the fix the
+    // curtain would wait on them forever; a finished table can never resolve
+    // that wait (E351 follow-up).
+    usePlayStore.setState({ online: fakeOnline('active') });
+    onlineTable = seatedTable([opponent(1)]);
+    const { rerender } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Waiting for Player 1')).toBeTruthy();
+
+    act(() => {
+      usePlayStore.setState({ online: fakeOnline('finished') });
+    });
+    rerender(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByText('Waiting for Player 1')).toBeNull();
+    expect(document.querySelector('.playtest-opening-sheet')).toBeNull();
+    // The battlefield underneath is intact and visible — the state was never
+    // wiped, only the curtain that was hiding it.
+    expect(document.querySelector('.playtest-battlefield')).toBeTruthy();
   });
 });

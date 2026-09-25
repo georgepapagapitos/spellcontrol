@@ -93,6 +93,7 @@ import {
 } from './OpponentQuadrant';
 import { OpponentBoardModal } from './OpponentBoardModal';
 import { TableMoments } from './TableMoments';
+import { TableFinishedBanner } from './TableFinishedBanner';
 import { TriggerReminder, type TriggerCard } from './TriggerReminder';
 import { matchTriggers } from '../lib/triggers';
 import { TableTicker, TableTickerDock, tickerSeatName } from './TableTicker';
@@ -470,6 +471,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // one hook call, and null here means the rail below never renders.
   const onlineTable = useOnlineTable(state);
   useTurnAlert(onlineTable !== null && onlineTable.activeSeat === onlineTable.mySeat, turnAlert);
+  // A finished table can never resolve a wait that depends on the rest of
+  // the table doing something (E351 follow-up) — see `openingOnline` below,
+  // the one place that wait lives.
+  const tableFinished = usePlayStore((s) => s.online?.status === 'finished');
   // The card a per-card shortcut acts on when nothing is selected — see
   // hooks/use-hover-target. A ref, not state: it changes on every card the
   // pointer crosses and is only ever read inside a keydown.
@@ -1816,16 +1821,21 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // board, or one whose board predates `keptHand`, reads as still choosing.
   // `every()` on an empty list is true, so the count must be checked: seated
   // alone, the table waits for someone to join rather than counting itself in.
-  const openingOnline = onlineTable
-    ? {
-        waitingOn: onlineTable.opponents
-          .filter((o) => o.board.keptHand !== true)
-          .map((o) => o.name),
-        allKept:
-          onlineTable.opponents.length > 0 &&
-          onlineTable.opponents.every((o) => o.board.keptHand === true),
-      }
-    : undefined;
+  // `tableFinished` short-circuits this to `undefined`: a wait for the rest
+  // of the table can never resolve once the table has ended (E351 follow-up)
+  // — the curtain must drop and hand the board back, not strand the player
+  // behind "Waiting for X" forever.
+  const openingOnline =
+    onlineTable && !tableFinished
+      ? {
+          waitingOn: onlineTable.opponents
+            .filter((o) => o.board.keptHand !== true)
+            .map((o) => o.name),
+          allKept:
+            onlineTable.opponents.length > 0 &&
+            onlineTable.opponents.every((o) => o.board.keptHand === true),
+        }
+      : undefined;
 
   // ── Table-tier chrome (≥1024px) ─────────────────────────────────────────
   // Everything the deleted rows used to offer, regrouped into the four
@@ -2638,6 +2648,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           here only decides conditional gating, not layout. */}
       {onlineTable && <TakebackConsentPrompt onlineTable={onlineTable} />}
       {onlineTable && <TableMoments onlineTable={onlineTable} />}
+      {onlineTable && <TableFinishedBanner />}
       <TriggerReminder
         cards={triggerCards}
         beat={onlineTable?.phase ?? null}
