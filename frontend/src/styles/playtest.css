@@ -1693,6 +1693,28 @@ button.playtest-card-pt__value--editable:focus-visible {
   }
 }
 
+/* E366's in-tile "Library X from top" prompt: Cancel sits AFTER the shared
+   .playtest-ctx-count (CountPage), which insets its own stepper/confirm by
+   its own 0.65rem padding — a value this rule must not touch (the card
+   context menu's flyout uses the same class), and itself off the --space-*
+   scale (layout-ratchet.test.ts's grandfathered debt), so matching it with
+   the same literal would add a NEW off-scale declaration and fail that
+   ratchet. --space-3 (0.75rem) is the nearest token — 1.6px off a literal
+   match, invisible at this size, and it keeps this rule on-scale.
+   A <button>'s `width: auto` shrink-wraps its content — form controls keep
+   that intrinsic sizing even overridden to `display: block` (unlike a plain
+   <div>) — so matching the confirm button's width needs an explicit calc,
+   not auto-fill. `text-align` replaces the `justify-content` centering that
+   dropping `.btn`'s inline-flex costs. `.btn.` doubles the class for
+   specificity over tabs.css's own `.btn`, so this doesn't depend on
+   stylesheet load order. */
+.btn.playtest-zone-card__count-cancel {
+  display: block;
+  width: calc(100% - 2 * var(--space-3));
+  margin: var(--space-2) var(--space-3) 0;
+  text-align: center;
+}
+
 .playtest-zone-empty {
   flex: 1;
   margin: 0;

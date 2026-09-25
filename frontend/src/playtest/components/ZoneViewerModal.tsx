@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
@@ -11,6 +11,7 @@ import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { MOVE_DESTINATIONS, ZONE_VIEWER_LABEL, commanderTaxAmount } from '../lib/zones';
+import { CountPage } from './CountPage';
 
 interface Props {
   zone: Zone;
@@ -28,6 +29,10 @@ interface Props {
   /** Ids in this zone the rest of the table cannot see — exile's face-down
    *  cards. Only ever populated for exile; see `PlaytestState.faceDownExile`. */
   hiddenIds?: Set<string>;
+  /** Cards currently in the library — caps "Library X from top" and hides it
+   *  when the library is empty. Omitted (tests, previews) hides the row,
+   *  same contract as CardContextMenu/HandCardMenu's own `libraryCount`. */
+  libraryCount?: number;
   /** Lookup for the full ScryfallCard behind each PlaytestCard — powers the
    *  tap-to-preview wiring (B6-07), same lookup `PlaytestBoard` already
    *  builds for `OpeningHandSheet`. */
@@ -94,6 +99,7 @@ export function ZoneViewerModal({
   onShuffleAfter,
   onShuffleIntoLibrary,
   hiddenIds,
+  libraryCount,
   cardLookup,
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
@@ -210,6 +216,7 @@ export function ZoneViewerModal({
                 tax={zone === 'command' ? commanderTaxAmount(commanderTax, c.id) : 0}
                 primary={primary}
                 overflow={overflow}
+                libraryCount={zone === 'library' ? undefined : libraryCount}
                 onMove={onMove}
                 onPreview={cardLookup?.has(c.id) ? openPreview : undefined}
               />
@@ -266,6 +273,10 @@ interface ZoneCardProps {
   tax: number;
   primary: ViewerDestination;
   overflow: ViewerDestination[];
+  /** Cards in the library right now. Undefined for a card already in the
+   *  library (E366's "already there" rule) or when the caller has no count
+   *  to offer — either way "Library X from top" stays off the menu. */
+  libraryCount?: number;
   onMove(cardId: string, to: Zone | 'battlefield', toIndex?: number): void;
   /** B6-07: tap the card face to open `CardPreview`. Omitted (no button,
    *  plain image) when this card has no resolvable ScryfallCard. */
@@ -287,10 +298,21 @@ function ZoneCard({
   tax,
   primary,
   overflow,
+  libraryCount,
   onMove,
   onPreview,
 }: ZoneCardProps) {
   const [imgError, setImgError] = useState(false);
+  // E366: "Library X from top" swaps the actions row for the shared
+  // CountPage stepper in place, rather than opening a second overlay inside
+  // this one (the sheet's own Escape would also fire on a nested dialog's —
+  // see CardPreview's comment on the same hazard — and a floating popover
+  // would need to track this tile's position as the grid scrolls).
+  const [counting, setCounting] = useState(false);
+  const countRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (counting) countRef.current?.querySelector<HTMLElement>('input, button')?.focus();
+  }, [counting]);
   const face =
     c.imageUrl && !imgError ? (
       <img
@@ -329,24 +351,53 @@ function ZoneCard({
       )}
       <div className="playtest-zone-card__name">{c.name}</div>
       {zone === 'command' && tax > 0 && <div className="playtest-zone-card__tax">Tax +{tax}</div>}
-      <div className="playtest-zone-card__actions">
-        <button
-          type="button"
-          className="playtest-zone-card__primary"
-          onClick={() => onMove(c.id, primary.key, primary.toIndex)}
-        >
-          {primaryLabel}
-        </button>
-        <OverflowMenu
-          items={overflow.map((d) => ({
-            label: d.label,
-            onClick: () => onMove(c.id, d.key, d.toIndex),
-          }))}
-          ariaLabel={`Move ${c.name}`}
-          triggerClassName="playtest-zone-card__overflow"
-          panelClassName="playtest-zone-menu-popover"
-        />
-      </div>
+      {counting ? (
+        <div ref={countRef}>
+          <CountPage
+            max={libraryCount ?? 0}
+            // 1 is the first position the two "Library top"/"Library bottom"
+            // overflow rows don't already cover — same convention as the
+            // battlefield/hand menus' own "Library X from top" (menu-entries.tsx).
+            initial={1}
+            label={(n) => `Put it under ${n} card${n === 1 ? '' : 's'}`}
+            onConfirm={(n) => {
+              onMove(c.id, 'library', n);
+              setCounting(false);
+            }}
+          />
+          <button
+            type="button"
+            className="btn playtest-zone-card__count-cancel"
+            onClick={() => setCounting(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="playtest-zone-card__actions">
+          <button
+            type="button"
+            className="playtest-zone-card__primary"
+            onClick={() => onMove(c.id, primary.key, primary.toIndex)}
+          >
+            {primaryLabel}
+          </button>
+          <OverflowMenu
+            items={[
+              ...overflow.map((d) => ({
+                label: d.label,
+                onClick: () => onMove(c.id, d.key, d.toIndex),
+              })),
+              ...(libraryCount
+                ? [{ label: 'Library X from top', onClick: () => setCounting(true) }]
+                : []),
+            ]}
+            ariaLabel={`Move ${c.name}`}
+            triggerClassName="playtest-zone-card__overflow"
+            panelClassName="playtest-zone-menu-popover"
+          />
+        </div>
+      )}
     </li>
   );
 }
