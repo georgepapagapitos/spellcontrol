@@ -3,9 +3,9 @@ import { useMediaQuery } from '@/lib/use-media-query';
 import type { PtDisplay } from '../lib/power-toughness';
 import { CardCounters } from './CardCounters';
 import { CardPtBox } from './PlaytestCardFace';
+import { previewSlot } from '../lib/preview-slot';
 import './CardHoverPreview.css';
 
-const MARGIN = 12;
 const SELECTOR = '[data-preview-id]';
 /** A tap on another hand card swaps the preview rather than dismissing it,
  *  so the hand can be read card by card with no blink between them. */
@@ -129,38 +129,34 @@ export function CardHoverPreview({ suspended, resolve, pinned = null, onUnpin }:
   const target = (finePointer ? hovered : null) ?? (pinnedEl ? read(pinnedEl, resolve) : null);
   if (suspended || !target) return null;
 
-  // One fixed slot: vertically centred at the table's right edge, matching
-  // the stylesheet's `min(22rem, 24vw)`. It flips to the left edge only when
-  // the hovered card itself would sit under the slot (a permanent parked at
-  // the far right, a zone pile), so the face never covers what it describes.
+  // One fixed slot at the table's right edge, `min(22rem, 24vw)` as the
+  // stylesheet says, placed clear of the card and the table's chrome (see
+  // `previewSlot`). Read at render like the pinned card: the chrome moves
+  // with the layout, not with React state.
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const width = Math.min(352, vw * 0.24);
-  const height = width * 1.4;
   // A two-faced card shows both faces side by side, so the slot is two wide.
   const paneWidth = target.back ? width * 2 + FACE_GAP : width;
-  const rightSlot = vw - MARGIN * 2 - paneWidth;
-  const r = target.rect;
-  const centred = Math.max(MARGIN, (vh - height) / 2);
-  const underRightSlot =
-    r.right > rightSlot - MARGIN &&
-    r.top < centred + height + MARGIN &&
-    r.bottom > centred - MARGIN;
-  const left = underRightSlot ? MARGIN * 2 : rightSlot;
-  // The corner clusters (life panel top-left, turn/menu stack top-right) own
-  // the top of the table; the pane starts below whichever one it would
-  // otherwise cover, so the numeral and the turn button stay readable.
-  let top = centred;
-  for (const el of document.querySelectorAll('.playtest-corner')) {
-    const c = el.getBoundingClientRect();
-    if (c.right > left && c.left < left + paneWidth && c.bottom + MARGIN > top) {
-      top = c.bottom + MARGIN;
-    }
-  }
-  top = Math.min(top, Math.max(MARGIN, vh - height - MARGIN));
+  const rects = (selector: string) =>
+    [...document.querySelectorAll(selector)].map((el) => el.getBoundingClientRect());
+  const { left, top, scale } = previewSlot({
+    vw,
+    vh,
+    paneWidth,
+    height: width * 1.4,
+    card: target.rect,
+    corners: rects('.playtest-corner'),
+    edges: rects('.playtest-zones-tab'),
+    floor: rects('.playtest-piles, .playtest-hand--fan .playtest-hand__cards'),
+  });
 
   return (
-    <div className="playtest-hover-preview" style={{ left, top, width: paneWidth }} aria-hidden>
+    <div
+      className="playtest-hover-preview"
+      style={{ left, top, width: paneWidth * scale }}
+      aria-hidden
+    >
       <div className="playtest-hover-preview__face">
         <img src={target.src} alt="" draggable={false} decoding="async" />
         {/* The same ribbon the card itself wears, on the same corner, at a
