@@ -1,3 +1,4 @@
+import { BookOpen } from 'lucide-react';
 import { memo, useContext } from 'react';
 import type { Page, PocketSize } from '../types';
 import { CardSlot } from './CardSlot';
@@ -49,15 +50,19 @@ export const PageGrid = memo(function PageGrid({
 
 function PageNum({ pageNum, pageIndex }: { pageNum: number; pageIndex: number }) {
   const ctx = useContext(CardPreviewContext);
-  if (!ctx) return <div className="page-num">page {pageNum}</div>;
+  if (!ctx) return <div className="page-num">Page {pageNum}</div>;
+  // The page's own header opens it in the page viewer; the glyph is the one
+  // "Browse pages" carries, so the same destination reads the same everywhere.
   return (
     <button
       type="button"
       className="page-num page-num-link"
       onClick={() => ctx.openPages(pageIndex)}
-      aria-label={`Browse pages from page ${pageNum}`}
+      aria-label={`Open page ${pageNum}`}
+      title={`Open page ${pageNum}`}
     >
-      page {pageNum}
+      <span>Page {pageNum}</span>
+      <BookOpen width={14} height={14} strokeWidth={2} aria-hidden />
     </button>
   );
 }

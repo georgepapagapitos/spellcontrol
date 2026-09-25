@@ -56,12 +56,15 @@ export function usePullToRefresh(
 
     const onStart = (e: TouchEvent) => {
       if (statusRef.current === 'refreshing') return;
-      // Dialogs render inline inside this scroll region rather than in a
-      // portal, so a drag starting inside an open modal reaches this listener
-      // and is treated as a page pull-to-refresh — the dialog's own content
-      // stops scrolling and the page tries to refresh underneath it. An
-      // overlay owns its gestures; the page behind it does not.
-      if (e.target instanceof Element && e.target.closest('.modal-backdrop')) {
+      // Overlays render inline inside this scroll region rather than in a
+      // portal, so a drag starting inside one reaches this listener and is
+      // treated as a page pull-to-refresh: the overlay's own content stops
+      // scrolling and the page refreshes underneath it. An overlay owns its
+      // gestures; the page behind it does not. Matching `.modal-backdrop`
+      // alone missed the card preview and the binder page viewer, where a
+      // downward drag froze the page scrubber and a swipe-down dismiss also
+      // fired a refresh. Every overlay declares aria-modal, so key off that.
+      if (e.target instanceof Element && e.target.closest('.modal-backdrop, [aria-modal="true"]')) {
         engaged.current = false;
         return;
       }

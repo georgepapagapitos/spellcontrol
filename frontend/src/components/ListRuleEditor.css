@@ -1,25 +1,31 @@
-/* Rule editor for dynamic lists — card-picker sheet shell with a wider
-   desktop panel (filter-group rows breathe better than at the picker's
-   480px) and a footer that seats the live match count left of the actions. */
-
-@media (min-width: 1024px) {
-  .list-rule-editor-sheet {
-    width: min(640px, 92vw);
-  }
-}
+/* Rule editor for dynamic lists — on the shared Modal (config-surface kit,
+   board T139). Only the footer's count/error slot needs its own rule: it
+   grows to push Cancel/Save to the right, mirroring BinderEditor's
+   `.binder-editor-result`. */
 
 .list-rule-editor-footer {
   align-items: center;
-  gap: var(--space-2);
 }
 
-.list-rule-editor-count {
-  margin-right: auto;
-}
-
-/* Takes the match count's slot — a range error means the count is meaningless
-   anyway, and it puts the reason Save is disabled right next to Save. */
+.list-rule-editor-count,
 .list-rule-editor-error {
+  flex: 1 1 auto;
   margin-right: auto;
+}
+
+.list-rule-editor-error {
   color: var(--err-text);
+}
+
+/* Amber at zero (STYLE_GUIDE § Rule & filter editors). */
+.list-rule-editor-count.is-zero strong {
+  color: var(--warn-text);
+}
+
+/* Cancel leaves the phone footer, as in the binder editor: the ×, the
+   backdrop and the back gesture all dismiss, and the row needs its width. */
+@media (max-width: 600px) {
+  .list-rule-editor-cancel {
+    display: none;
+  }
 }

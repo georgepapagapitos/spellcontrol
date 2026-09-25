@@ -291,11 +291,24 @@ describe('UploadPanel background save progress', () => {
 });
 
 describe('UploadPanel "mark all as proxies" toggle', () => {
+  it('is a switch row with a visible hint, not a checkbox with a nested InfoTip', () => {
+    render(<UploadPanel />);
+    const row = screen.getByRole('switch', { name: 'Mark all as proxies' });
+    expect(row.getAttribute('aria-checked')).toBe('false');
+    // The explainer is always-visible text (Field/SwitchRow contract), not an
+    // InfoTip nested inside a <label> — the InfoTip pattern muddles the
+    // label's accessible name and steals its click.
+    expect(
+      screen.getByText(/Proxy copies count as owned in your collection and binders/)
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /marking an import as proxies/i })).toBeNull();
+  });
+
   it('threads proxy:true to importText when checked before a paste import', async () => {
     importTextMock.mockResolvedValue(mkResponse([card(1)]));
 
     render(<UploadPanel />);
-    fireEvent.click(screen.getByRole('checkbox', { name: /mark all as proxies/i }));
+    fireEvent.click(screen.getByRole('switch', { name: /mark all as proxies/i }));
     await paste();
     fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
 

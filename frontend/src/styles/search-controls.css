@@ -350,8 +350,10 @@
 /* In-view sort control on the binder summary line — a breadcrumb chip
    that opens the shared SortEditor in a popover. */
 .sort-popover {
-  /* position:relative removed — panel is portaled to <body>, not in-flow */
-  flex-shrink: 0;
+  /* position:relative removed — panel is portaled to <body>, not in-flow.
+     The one control on the binder row that gives way: it ellipsizes rather
+     than pushing the row onto a second line. */
+  min-width: 0;
   /* Hug the button exactly — as a block wrapper the inline-flex button
      gains line-box descender space, pushing it ~2px off the row center. */
   display: flex;
@@ -361,7 +363,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  max-width: min(60vw, 22rem);
+  min-width: 0;
+  max-width: min(100%, 22rem);
   padding: 2px var(--space-2);
   border-radius: 999px;
   border: 0.5px solid var(--border);
@@ -383,11 +386,8 @@
   transform: scale(0.97);
 }
 
-/* The binder summary line is a DENSE row — "Browse pages · sort: … · Collapse
-   all" all sit on one line at toolbar density. Growing this pill's real box to
-   44px would set the row's height and push the card grid down on every phone,
-   so it takes the floor on a centred ghost instead (STYLE_GUIDE § Responsive,
-   the dense-row pattern). Measured 31.6px tall before this. */
+/* Ghosted floor, kept for any host row shorter than the binder's (which
+   grows the chip itself — binder-hero.css). */
 @media (pointer: coarse) {
   .sort-popover-btn {
     position: relative;

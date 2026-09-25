@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, within } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckDisplay, type DeckDisplayCard, type DeckDisplayProps } from './DeckDisplay';
@@ -108,15 +108,15 @@ describe('DeckDisplay role counts: one number per role', () => {
 
   it('the checks read the same live count, not the stored snapshot', () => {
     const { container } = renderDeck();
-    const issues = container.querySelector('[aria-label="Issues to address"]');
-    expect(issues).not.toBeNull();
-    const text = within(issues as HTMLElement)
-      .getAllByRole('listitem')
-      .map((li) => li.textContent);
-    // The list names up to three shortfalls; ramp and removal are both short.
-    expect(text.join(' | ')).toContain('Ramp count 1 / 2');
-    expect(text.join(' | ')).toContain('Removal count 1 / 2');
-    expect(text.join(' | ')).not.toContain('9 /');
+    const checks = Array.from(container.querySelectorAll('.deck-identity-card-check')).map((li) =>
+      Array.from(li.children)
+        .map((c) => (c.textContent ?? '').trim())
+        .filter(Boolean)
+        .join(' ')
+    );
+    expect(checks).toContain('▾ Ramp count 1 / 2');
+    expect(checks).toContain('▾ Removal count 1 / 2');
+    expect(checks.join(' | ')).not.toContain('9 /');
   });
 
   it("the Power tab's Roles panel shows the chips' numbers", () => {

@@ -195,7 +195,15 @@ export function PlaystyleRadar({ cards }: { cards: ScryfallCard[] }): JSX.Elemen
                 onClick={() => openAxis(axis)}
                 aria-label={labelStr}
               >
-                <span className="playstyle-radar-vertex-label">{axis.label}</span>
+                {/* One line per name ("Tokens /" over "go-wide"): a label only
+                    breaks at its slash, never inside a word or after a hyphen. */}
+                <span className="playstyle-radar-vertex-label">
+                  {axis.label.split(' / ').map((part, i, parts) => (
+                    <span key={part} className="playstyle-radar-vertex-label-part">
+                      {i < parts.length - 1 ? `${part} /` : part}
+                    </span>
+                  ))}
+                </span>
                 <span className="playstyle-radar-vertex-count">{axis.total}</span>
               </button>
             );

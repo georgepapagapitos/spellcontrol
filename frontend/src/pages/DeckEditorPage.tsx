@@ -13,6 +13,7 @@ import { canRegenerate, regenerateState } from '../lib/regenerate-prefill';
 import {
   type ReactNode,
   useCallback,
+  useDeferredValue,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -46,6 +47,7 @@ import {
   useDecksStore,
   effectiveBracket,
   withAllocationHealDeferred,
+  type Deck,
   type DeckZone,
 } from '../store/decks';
 import { useCubeStore } from '../store/cube';
@@ -131,6 +133,7 @@ import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
 import { classifyCandidate, analyzeDeck } from '../lib/deck-analysis';
 import { useTaggerReady } from '../lib/use-tagger-ready';
+import { heroBracketReadout } from '../lib/format-bracket-label';
 import { findCrossDeckMoves, type CrossDeckMove } from '../lib/cross-deck-moves';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
@@ -218,6 +221,8 @@ const DECK_EDITOR_SHORTCUTS = [
 // "Owned only" Coach toggle — persisted here (the page owns the state) so both
 // the feed and the Next-best-move hero, which is built upstream, share it.
 const OWNED_ONLY_KEY = 'spellcontrol-improve-owned-only';
+/** Stable initial value for the deferred cross-deck scan (a fresh [] would re-render). */
+const NO_DECKS: Deck[] = [];
 function readOwnedOnly(): boolean {
   try {
     return window.localStorage.getItem(OWNED_ONLY_KEY) === '1';
@@ -1052,13 +1057,21 @@ export function DeckEditorPage() {
   // feed an engine here, each paired with an owned patch for the deck it
   // leaves. taggerReady is a recompute trigger (the replacement search reads
   // the tagger's roles), not read directly.
+  // The scan classifies every card of every deck (1.1 s at 4x CPU on 33 decks)
+  // and none of it is on screen at first paint, so it reads a deferred copy of
+  // the deck list: the first render scans nothing, the real scan runs in a
+  // background render after the page commits, and a deck edit's own render
+  // never waits on it (E412).
+  const crossDeckDecks = useDeferredValue(decks, NO_DECKS);
   const crossDeckMoves = useMemo(
     () =>
       deck && DECK_FORMAT_CONFIGS[deck.format].hasCommander
-        ? findCrossDeckMoves(decks, collectionCards, printingAllocationMap, { toDeckId: deck.id })
+        ? findCrossDeckMoves(crossDeckDecks, collectionCards, printingAllocationMap, {
+            toDeckId: deck.id,
+          })
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps -- taggerReady is a recompute trigger, not read directly
-    [deck, decks, collectionCards, printingAllocationMap, taggerReady]
+    [deck, crossDeckDecks, collectionCards, printingAllocationMap, taggerReady]
   );
 
   // Curve-derived land-count advice for the hero — the lands RoleHealth from
@@ -2933,6 +2946,15 @@ export function DeckEditorPage() {
   const bracketValue = effectiveBracket(deck);
   // An estimate made before the combo match answered is a floor (combos only
   // raise a bracket); the glanceable readouts say "2+" like the hero's "At least".
+  const heroBracket =
+    bracketValue === undefined
+      ? undefined
+      : heroBracketReadout({
+          bracket: bracketValue,
+          stated: deck.bracketOverride,
+          estimate: deck.bracketEstimation?.bracket,
+          missesCombos: bracketAnalysis.missesCombos,
+        });
   const bracketText =
     bracketValue === undefined
       ? undefined
@@ -3113,9 +3135,15 @@ export function DeckEditorPage() {
                 </>
               )}
             </span>
-            {/* Bracket — glanceable on every view (it left the feature strip). */}
+            {/* Bracket — glanceable on every view (it left the feature strip).
+                The hero is the one place the Deck tab states it, so a stated
+                bracket the Estimate disagrees with carries the Estimate here
+                ("Bracket 2 · est. 4", § Bracket: the owner's word); the deck
+                stats under the list no longer repeat either. */}
             {bracketValue != null && (
-              <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketText}`}</span>
+              <span className="deck-hero-bracket" aria-label={heroBracket?.aria}>
+                {`\u00A0· ${heroBracket?.text.replace(/ /g, '\u00A0')}`}
+              </span>
             )}
           </p>
           <DeckVisibilityChip

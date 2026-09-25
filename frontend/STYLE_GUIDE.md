@@ -735,13 +735,20 @@ a hero CTA.
   raised chip, never an accent fill.** The track is a padded, bordered
   container (`--surface`, `var(--radius-lg)` or `999px`, `var(--space-1)`
   padding + gap); the selected segment lifts onto `--surface-raised` with
-  `box-shadow: 0 1px 2px rgb(0 0 0 / 0.08)` and `--text-primary` text, while
-  the rest stay `--text-secondary` on transparent. **`--accent` stays reserved
+  `box-shadow: inset 0 0 0 1px var(--border-strong), 0 1px 2px rgb(0 0 0 / 0.08)`
+  and `--text-primary` text at weight 600, while the rest stay
+  `--text-secondary` on transparent. **The ring and the weight are part of the
+  chip (revised 2026-09-24, E410).** The chip alone read faint on the light
+  themes, where `--surface-raised` sits a few shades off `--surface` (Public
+  on the new-deck Visibility control looked unselected). The ring is inset so
+  it takes no layout and never overlaps a neighbour. Guard:
+  `styles/segmented-selected-chip.test.ts`. **`--accent` stays reserved
   for primary actions** — filling a passive setting with the same colour as
   the Save button makes the two compete, which read worst on the home hero,
   where a scope toggle sits directly beneath the primary CTA. On a track that
   is already `--surface-raised`, invert it: the chip lifts to `--surface`
-  (`.deck-curve-phases-toggle`, `.card-group-layout-toggle`).
+  (`.deck-curve-phases-toggle`, `.card-group-layout-toggle`), keeping the ring
+  and the weight.
   Reference: `.share-audience` in `styles/shared.css`.
   This applies **only to controls in a track**. A standalone row of chips or
   option cards with no container behind them (`.format-pill-row`,
@@ -3018,6 +3025,42 @@ to anything new that edits a predicate.
   picker's predicate (folded name, set code, collector number). The Order
   tab stays unfiltered: a drag-sortable list with hidden rows can't say where
   a drop lands.
+- **The collection Filters dialog sections by the same registry groups the
+  Add-condition picker uses, in the same order** (`lib/filter-fields.ts`:
+  Identity, Cost, Text, Printing, Value & play) — one `.form-section-heading`
+  per group, its fields inside as plain `Field` rows, not a second heading
+  each. The dialog derives the group LIST from `FILTER_FIELD_GROUPS` (minus
+  Advanced, which folds into Text — its one field, Scryfall query, has always
+  sat next to the other free-text rows) rather than retyping the five names;
+  a `dialogGroupVisible` switch is the only hand-kept fact per group ("does
+  this dialog show anything here"). `FilterFieldEditor` takes an optional
+  `group` prop (dialog variant only) so the dialog can call it once per group
+  and interleave its own bespoke rows (color, rarity, set, price, CMC) at the
+  right spot in registry order, instead of re-deciding "Format is Value &
+  play" as a second hand-kept fact next to the picker's copy. Fields with no
+  registry entry (Condition, Language, Binder membership — physical-copy or
+  membership concepts, not card facts) sit under their own "This copy"
+  heading after Value & play, alongside the Surplus/Proxy/Group-printings
+  switches.
+- **One set picker, not two.** `SetFilterPicker` takes a plain `options` list
+  (`{ code, label, iconSvgUri?, releasedAt? }[]`) so both the binder/list rule
+  editor (options = the sets you own) and the collection Filters dialog
+  (options = every Scryfall set, via `setMapToOptions`) share one control.
+  They used to be two components built from two different option shapes
+  (`SetMultiSelect`, folded into this one).
+- **The dynamic-list rule sheet is on the shared `Modal`**, exactly like
+  BinderEditor: header / one scroll body / result footer with the live count
+  and Save, bottom sheet on phone via `modal-backdrop--sheet`. It used to
+  hand-roll its own backdrop + sheet shell with a `document` Escape listener
+  that fired regardless of stacking, so a nested popover's Escape (the set
+  picker, a suggestion list) closed the whole sheet instead of just that
+  popover — Modal's own overlay-stack handling replaces it outright rather
+  than gating the old listener.
+- **"Save as a binder…"** sits in the collection Filters dialog's footer, next
+  to Clear, and seeds `BinderEditor` from the DRAFT (not yet applied) filters
+  via `editingBinderSeed` (`lib/collection-filters-to-binder.ts`). It shows
+  only once a structured filter is set — a search-only draft has nothing a
+  binder rule can express.
 
 ## Config surfaces (T139)
 
@@ -3089,6 +3132,37 @@ never shows the chooser.
 - **A whole-library destructive action has one home: the index, below the
   list, as a danger link.** "Delete all binders" used to sit in every binder
   page's tab strip as a peer of "+ New binder" and "Export".
+- **A page is shown at a size you can read.** The page grid is a fluid grid
+  whose track floor is 5rem per pocket column (`.page-row--p4/--p9/--p12`:
+  10 / 15 / 20rem), so a pocket is the same size whatever the pocket count: a
+  phone gets one full-width 9- or 12-pocket page per row (~110px pockets) and
+  a desktop gets as many ~270px 9-pocket pages as fit. Pages used to be
+  fixed 112/150/200px thumbnails: 42px pockets on a 1440 screen, and on a
+  phone a lone page in one half of the row with the other half empty. Text-only
+  pockets scale their name with the pocket (`cqw`), for the same reason.
+- **A page's header is its door into the page viewer.** "Page 3" on the left,
+  the book glyph "Browse pages" uses on the right, the whole row one button.
+  It replaced an underlined mono "page 3" link floating centred above the page.
+- **One control row for all three views** (`BinderSummaryBar`): Browse pages,
+  the sort chip, then Collapse, layout, Key and View options at the end.
+  Display preferences (layout, card images, Group printings, the symbol key)
+  are the View popover's on a phone (≤640px), where the row holds one line and
+  the sort chip is the one control that ellipsizes. It used to be two copies of
+  the same markup that wrapped to three rows at 390px around a stray "·", with
+  two of the display toggles hidden behind an eye inside the search box.
+
+### Binder page viewer (flipbook)
+
+- **The open page is the only thing at full strength.** Opaque page, neighbours
+  at 45% like the card preview's, and an 85% scrim: at the shared 60% the same
+  binder grid behind read as a second page under the open one.
+- **The panel says each fact once**: binder name, then "White · Page 3 of 14".
+  During a search only matching pages remain, so it reads "Page 12 · 3 of 5
+  shown", the one case where the physical page and the position differ.
+- **More than two pages get a scrubber** (a native range under the context
+  line). A 60-page binder is 59 swipes end to end; the scrubber jumps. Its
+  touches stop at the input so a sideways drag can't start the sheet's
+  swipe-down dismiss.
 
 ### Sort chains
 
@@ -3105,10 +3179,12 @@ never shows the chooser.
   own pair beside its option list; it does not fall back to asc/desc.
 - **The field picker hides fields another row already uses.** A second pass on
   the same field has no ties left to break.
-- **The compact breadcrumb pill ("sort: release date ↑ › set") keeps its glyph,
+- **The compact breadcrumb pill ("⇅ release date ↑ › set") keeps its glyph,
   but its `title` / accessible name spell every level out by effect** ("Sorted
   by Release date, oldest first › Set, A → Z"). The glyph is the only thing that
-  fits the pill; the words are what it means.
+  fits the pill; the words are what it means. The ⇅ already says "sort", so the
+  label carries no "sort:" prefix: on a 320px phone the prefix was all the pill
+  had room to show.
 - **Same-day sets under a Release-date sort read A → Z** (or follow the chain's
   own Set direction when it has one) — never the date's direction. "Newest
   first" used to flip three same-day Secret Lair drops into Z → A headers while
@@ -3580,8 +3656,24 @@ what it did to the curve meant switching tabs every time.
   `Layout`'s scroll reset on navigation cancels the scroll. In-app jumps go
   through `scrollToDeckStats` (built on `lib/scroll-to-heading.ts`).
 - **The identity card repeats nothing the hero says.** It has no art band,
-  commander or deck name, format, or curve sparkline (the Mana curve panel
-  sits right below it). It opens on the identity line.
+  commander or deck name, format, bracket, brand mark, or curve sparkline
+  (the Mana curve panel sits right below it).
+- **The stats open on a glance band that shows the working (2026-09-24,
+  E415).** The card answers "what is this deck?" before any panel: a "Plays
+  as" headline (the archetype in the display face, the pacing beside it, the
+  archetype picker as an "Auto" / "Your pick" chip), one sentence on the
+  engine built from the same read the radar draws (so every number in it is
+  on the radar), and the playstyle radar itself, always mounted at full size.
+  It was collapsed behind a "Playstyle" expander and drew ~180px wide in a
+  1,100px box, which is what made the section read as lazy. Below that sit
+  the workings of the two verdicts: **every** deck check as a hairline row
+  (glyph, label, number; a failing tunable one carries "Fix in Coach"), and
+  build health as four sub-score meters with the 70 line ticked. The verdict
+  WORDS are not here: "All clear" / "N to tune" belong to the strip, the
+  bracket to the hero. The band and the sentence under the meters are built
+  from the stored score (`bandFor` / `headlineFor(overall)`), never from the
+  stored headline, so they can't disagree; a "Needs work" over "Your deck is
+  solid" came from exactly that.
 - **Under the list the board spans the list's width** (`--analysis-max: none`
   inside `.deck-stats-below`). The 1320px cap centred a board on its own tab;
   beside a full-width list it read as a ragged inset.
@@ -5033,7 +5125,9 @@ Every horizontal proportional bar goes through the shared
 
 - **`MeterBar`** — single fill: `value`/`max`, optional `color`,
   `size` (`sm` 6px meter / `md` 12px progress), `minPct` visual floor,
-  `indeterminate` sweep.
+  `indeterminate` sweep, and `tick` (a target or threshold on the same
+  scale, drawn as a 2px notch: the Dialed-in line on build health, a role's
+  want). A target is a tick on the one bar, never a second bar beside it.
 - **`StackedBar`** — multi-segment: `segments` (`key`/`value`/`color`/`title`),
   optional `max` for partial-width stacks (the stack spans `sum/max` of the
   track). Segments carry an inset hairline divider as a non-color boundary cue.
@@ -5234,7 +5328,9 @@ Rules (all mandatory):
   InfoTip explaining that vertices are normalized to the busiest axis.
 - **Every vertex carries its word + value** — label + count, no unlabeled
   vertices, ever. (The "charts say what they mean" obligation extends to polar
-  geometry.)
+  geometry.) A two-part label breaks only at its slash, one name per line
+  ("Tokens /" over "go-wide"); a width cap that broke inside a word or after
+  a hyphen ("go- / wide") read as a rendering bug.
 - **Vertices that drill down are real `<button>`s** with ≥44px coarse-pointer
   hit areas (padding/`min-height: 44px`). Each carries a full `aria-label`
   ("Axis — N cards: M producers, K payoffs. Show cards.").
@@ -5758,7 +5854,7 @@ They are two different facts and the copy never blurs them into one:
     not by dropping content).
   - **Text-line form** (`bracketTextWithEstimate`) — for a surface that
     already spells out "Bracket N" as running text: "Bracket 2 · est. 4"
-    (the deck identity line, a public deck header, a lobby seat, the deck
+    (the owner's deck hero, a public deck header, a lobby seat, the deck
     picker).
   - **Accessible name** (`bracketAriaWithEstimate`) — spells both out in
     plain words for the element's aria-label/aria description: "Bracket 2

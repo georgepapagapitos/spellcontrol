@@ -62,4 +62,24 @@ describe('usePullToRefresh', () => {
     act(() => el.dispatchEvent(touch('touchend', 200)));
     expect(onRefresh).not.toHaveBeenCalled();
   });
+
+  it('leaves a drag inside an open overlay alone (card preview, page viewer)', () => {
+    const el = makeScrollEl(0);
+    const sheet = document.createElement('div');
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-modal', 'true');
+    const scrubber = document.createElement('input');
+    sheet.appendChild(scrubber);
+    el.appendChild(sheet);
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => usePullToRefresh(el, onRefresh));
+
+    act(() => scrubber.dispatchEvent(touch('touchstart', 0)));
+    const move = touch('touchmove', 200);
+    act(() => scrubber.dispatchEvent(move));
+    expect(move.defaultPrevented).toBe(false);
+    expect(result.current.status).toBe('idle');
+    act(() => scrubber.dispatchEvent(touch('touchend', 200)));
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
 });

@@ -1,8 +1,18 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { SetMap } from '../lib/api';
 
+/** One candidate in the picker's list — a Scryfall set (collection Filters,
+ *  via `setMapToOptions`) or an owned set code (binder/list rule editor). */
+export interface SetPickerOption {
+  code: string;
+  label: string;
+  iconSvgUri?: string;
+  releasedAt?: string;
+}
+
 interface Props {
-  setMap: SetMap | undefined;
+  /** The full candidate list to search — newest-first for a `SetMap`. */
+  options: SetPickerOption[];
   /** Uppercase set codes currently selected. */
   value: Set<string>;
   onChange: (next: Set<string>) => void;
@@ -10,13 +20,29 @@ interface Props {
 
 const MAX_RESULTS = 40;
 
+/** Every set in `setMap` as picker options, newest first — feeds the
+ *  collection Filters dialog, where any Scryfall set is a candidate. */
+export function setMapToOptions(setMap: SetMap | undefined): SetPickerOption[] {
+  if (!setMap) return [];
+  return Object.values(setMap)
+    .sort((a, b) => (b.releasedAt || '').localeCompare(a.releasedAt || ''))
+    .map((s) => ({
+      code: s.code,
+      label: s.name,
+      iconSvgUri: s.iconSvgUri,
+      releasedAt: s.releasedAt,
+    }));
+}
+
 /**
- * Multi-select set picker — type to search Scryfall sets, click to add as a
- * chip, X to remove. Matches the existing chip filter pattern (rarity/binder
- * selects) but adds free-text search since the full Scryfall set list is too
- * long for a flat dropdown.
+ * Multi-select set picker — type to search, click to add as a chip, X to
+ * remove. Shared by the binder/list rule editor (options = the sets the
+ * user owns) and the collection Filters dialog (options = every Scryfall
+ * set, via `setMapToOptions`) — these were two separate components
+ * (`SetFilterPicker` here, `FilterGroupEditor`'s `SetMultiSelect`) drawing
+ * the same control from two different option shapes.
  */
-export function SetFilterPicker({ setMap, value, onChange }: Props) {
+export function SetFilterPicker({ options, value, onChange }: Props) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -35,22 +61,15 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [open]);
 
-  const allSets = useMemo(() => {
-    if (!setMap) return [];
-    return Object.values(setMap).sort((a, b) =>
-      (b.releasedAt || '').localeCompare(a.releasedAt || '')
-    );
-  }, [setMap]);
-
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = allSets.filter((s) => {
+    const filtered = options.filter((s) => {
       if (value.has(s.code.toUpperCase())) return false;
       if (!q) return true;
-      return s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q);
+      return s.label.toLowerCase().includes(q) || s.code.toLowerCase().includes(q);
     });
     return filtered.slice(0, MAX_RESULTS);
-  }, [allSets, query, value]);
+  }, [options, query, value]);
 
   const addSet = (code: string) => {
     const next = new Set(value);
@@ -93,13 +112,16 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
   };
 
   const selectedSummaries = useMemo(() => {
-    if (!setMap) return [];
     // Preserve insertion order — chips stay where the user put them so newly
     // added ones append to the end rather than jumping alphabetically.
     return [...value].map(
-      (code) => setMap[code] ?? { code, name: code, iconSvgUri: '', releasedAt: '' }
+      (code) =>
+        options.find((o) => o.code.toUpperCase() === code.toUpperCase()) ?? {
+          code,
+          label: code,
+        }
     );
-  }, [setMap, value]);
+  }, [options, value]);
 
   return (
     <div className="set-filter-picker" ref={wrapperRef}>
@@ -113,7 +135,7 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
             {s.iconSvgUri && (
               <img src={s.iconSvgUri} alt="" aria-hidden className="set-filter-chip-icon" />
             )}
-            <span className="set-filter-chip-label" title={s.name}>
+            <span className="set-filter-chip-label" title={s.label}>
               {s.code.toUpperCase()}
             </span>
             <button
@@ -123,8 +145,8 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
                 e.stopPropagation();
                 removeSet(s.code);
               }}
-              aria-label={`Remove ${s.name}`}
-              title={`Remove ${s.name}`}
+              aria-label={`Remove ${s.label}`}
+              title={`Remove ${s.label}`}
             >
               ×
             </button>
@@ -197,7 +219,7 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
                 {s.iconSvgUri && (
                   <img src={s.iconSvgUri} alt="" aria-hidden className="set-filter-result-icon" />
                 )}
-                <span className="set-filter-result-name">{s.name}</span>
+                <span className="set-filter-result-name">{s.label}</span>
                 <span className="set-filter-result-meta">
                   {s.code.toUpperCase()}
                   {year ? ` · ${year}` : ''}

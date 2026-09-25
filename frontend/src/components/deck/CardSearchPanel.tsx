@@ -33,6 +33,7 @@ import {
   substringMatchesExpression,
 } from '../../lib/rules';
 import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
+import type { FilterableRow } from '../../lib/collection-filter';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SearchPill } from '../SearchPill';
 import { Tabs, type TabItem } from '../Tabs';
@@ -401,6 +402,14 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   // Same subtype-suggestion fetch the collection page does — Scryfall
   // catalog minus known supertypes/types, deduped case-insensitively.
   const collection = useCollectionStore((s) => s.cards);
+  // Feeds the Filters dialog's live match count (survey 2026-09-24: this
+  // panel's search never showed one, unlike the collection page). No binder
+  // concept here, so every row reports no binder — the dialog's own Binder
+  // section is omitted (no binderExpr prop), so nothing reads this field.
+  const filterableRows = useMemo<FilterableRow[]>(
+    () => collection.map((card) => ({ card, binderName: null })),
+    [collection]
+  );
   useEffect(() => {
     const supertypeSet = new Set<string>(SUPERTYPES);
     const typeSet = new Set<string>(TYPES);
@@ -661,6 +670,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               setSetFilter={setSetFilter}
               setMap={setMap}
               activeCount={activeFilterCount}
+              rows={filterableRows}
+              searchTerm={query}
             />
           ) : undefined
         }

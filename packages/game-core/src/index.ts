@@ -276,16 +276,17 @@ export interface GameState {
   name: string;
   /**
    * Whether this table is listed and watchable, or reachable by code only.
-   * `'public'` means anyone holding the join code may watch without taking a
-   * seat; `'private'` (the default) restricts the table to its seats. The
-   * default is load-bearing: a code is four characters, so the read routes
-   * answer a non-participant with the same 404 an unknown code gets, and
-   * opening that up is the host's decision to make rather than ours. Legacy
-   * states carried this as the `spectatorsAllowed` boolean; they resolve to
-   * `'public'` when that was `true`, else `'private'` — the same behaviour
-   * they already had.
+   * `'public'` means anyone holding the join code may watch or join without
+   * restriction; `'friends'` restricts both to the host's friends (plus
+   * seated participants, always); `'private'` (the default) restricts the
+   * table to its seats. The default is load-bearing: a code is four
+   * characters, so the read routes answer a non-participant with the same
+   * 404 an unknown code gets, and opening that up is the host's decision to
+   * make rather than ours. Legacy states carried this as the
+   * `spectatorsAllowed` boolean; they resolve to `'public'` when that was
+   * `true`, else `'private'` — the same behaviour they already had.
    */
-  visibility: 'public' | 'private';
+  visibility: 'public' | 'friends' | 'private';
   /**
    * Where this table is talking, if it is: a Discord invite, a Meet room, any
    * https link the host pastes. Display only — nothing here dials anything,
@@ -833,7 +834,7 @@ export function createGameState(input: {
   tapOrientation?: TapOrientation;
   turnOrder?: TurnOrder;
   name?: string;
-  visibility?: 'public' | 'private';
+  visibility?: 'public' | 'friends' | 'private';
   players: GamePlayer[];
   ts?: number;
 }): GameState {

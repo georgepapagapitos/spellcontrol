@@ -9,6 +9,7 @@ import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from './PrintingPicker';
+import { Field, SegmentedControl, SwitchRow } from './shared/form';
 
 import { userMessage } from '@/lib/user-error';
 /** True when a printing's availability means the user owns at least one copy. */
@@ -63,10 +64,14 @@ export interface CardDetails {
 
 type CardFlag = 'altered' | 'proxy' | 'misprint';
 
-const FLAG_OPTIONS: { key: CardFlag; label: string }[] = [
-  { key: 'altered', label: 'Altered' },
-  { key: 'proxy', label: 'Proxy' },
-  { key: 'misprint', label: 'Misprint' },
+const FLAG_OPTIONS: { key: CardFlag; label: string; hint: string }[] = [
+  {
+    key: 'altered',
+    label: 'Altered',
+    hint: 'Custom or altered artwork, not the printed original.',
+  },
+  { key: 'proxy', label: 'Proxy', hint: "Doesn't count toward your collection's market value." },
+  { key: 'misprint', label: 'Misprint', hint: 'An off-center, wrong color, or other print flaw.' },
 ];
 
 export interface PrintingSelection {
@@ -556,27 +561,27 @@ export function CardEditDialog({
               )}
 
               {offeredFinishes.length > 1 && (
-                <div className="card-edit-finishes" role="group" aria-label="Finish">
-                  {offeredFinishes.map((f) => {
+                <SegmentedControl
+                  ariaLabel="Finish"
+                  value={selectedFinish}
+                  onChange={setSelectedFinish}
+                  options={offeredFinishes.map((f) => {
                     const label = f === 'nonfoil' ? 'Non-foil' : f === 'foil' ? 'Foil' : 'Etched';
                     const owned = ownedFinishes.includes(f);
-                    return (
-                      <button
-                        key={f}
-                        type="button"
-                        className={`card-edit-finish-btn${selectedFinish === f ? ' is-active' : ''}${owned ? ' is-owned' : ''}`}
-                        onClick={() => setSelectedFinish(f)}
-                        aria-pressed={selectedFinish === f}
-                        aria-label={owned ? `${label} · You own this finish` : label}
-                      >
-                        {label}
-                        {owned && (
-                          <span className="card-edit-finish-owned-dot" aria-hidden="true" />
-                        )}
-                      </button>
-                    );
+                    return {
+                      value: f,
+                      label: (
+                        <>
+                          {label}
+                          {owned && (
+                            <span className="card-edit-finish-owned-dot" aria-hidden="true" />
+                          )}
+                        </>
+                      ),
+                      ariaLabel: owned ? `${label} · You own this finish` : label,
+                    };
                   })}
-                </div>
+                />
               )}
 
               {details !== undefined && (
@@ -597,29 +602,26 @@ export function CardEditDialog({
                     className="card-edit-details-select"
                     placeholder={languageMixed ? `Mixed (${mixedDetails?.language})` : undefined}
                   />
-                  <div className="card-edit-paid card-edit-notes">
-                    <label className="card-edit-paid-label" htmlFor="card-edit-notes-input">
-                      Notes
-                    </label>
+                  <Field
+                    label="Notes"
+                    htmlFor="card-edit-notes-input"
+                    hint="Anything about this copy: signed, for trade, which box it lives in. Blank to clear."
+                  >
                     <input
                       id="card-edit-notes-input"
                       type="text"
-                      className="card-edit-paid-input"
+                      className="card-edit-paid-input card-edit-notes-input"
                       value={notesText}
                       maxLength={500}
                       placeholder={notesMixed ? `Mixed (${mixedDetails?.notes})` : '—'}
                       onChange={(e) => setNotesText(e.target.value)}
-                      aria-describedby="card-edit-notes-hint"
                     />
-                    <span id="card-edit-notes-hint" className="card-edit-paid-hint">
-                      Anything about this copy: signed, for trade, which box it lives in. Blank to
-                      clear.
-                    </span>
-                  </div>
-                  <div className="card-edit-paid">
-                    <label className="card-edit-paid-label" htmlFor="card-edit-paid-input">
-                      Paid ({currencySymbol(currency)})
-                    </label>
+                  </Field>
+                  <Field
+                    label={`Paid (${currencySymbol(currency)})`}
+                    htmlFor="card-edit-paid-input"
+                    hint={`What you paid per copy, in ${currency}. Blank if you'd rather not track it.`}
+                  >
                     <input
                       id="card-edit-paid-input"
                       type="text"
@@ -638,16 +640,13 @@ export function CardEditDialog({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') e.currentTarget.blur();
                       }}
-                      aria-describedby="card-edit-paid-hint"
                     />
-                    <span id="card-edit-paid-hint" className="card-edit-paid-hint">
-                      What you paid per copy, in {currency}. Blank if you'd rather not track it.
-                    </span>
-                  </div>
-                  <div className="card-edit-paid">
-                    <label className="card-edit-paid-label" htmlFor="card-edit-override-input">
-                      Market override ({currencySymbol(currency)})
-                    </label>
+                  </Field>
+                  <Field
+                    label={`Market override (${currencySymbol(currency)})`}
+                    htmlFor="card-edit-override-input"
+                    hint="Use this when Scryfall has no price, or the wrong one. It overrides the market price everywhere it's used. Leave blank to use Scryfall's price."
+                  >
                     <input
                       id="card-edit-override-input"
                       type="text"
@@ -666,24 +665,17 @@ export function CardEditDialog({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') e.currentTarget.blur();
                       }}
-                      aria-describedby="card-edit-override-hint"
                     />
-                    <span id="card-edit-override-hint" className="card-edit-paid-hint">
-                      Use this when Scryfall has no price, or the wrong one. It overrides the market
-                      price everywhere it's used. Leave blank to use Scryfall's price.
-                    </span>
-                  </div>
-                  <div className="card-edit-finishes" role="group" aria-label="Card flags">
-                    {FLAG_OPTIONS.map(({ key, label }) => (
-                      <button
+                  </Field>
+                  <div className="card-edit-flags">
+                    {FLAG_OPTIONS.map(({ key, label, hint }) => (
+                      <SwitchRow
                         key={key}
-                        type="button"
-                        className={`card-edit-finish-btn${flags[key] ? ' is-active' : ''}`}
-                        onClick={() => setFlags((f) => ({ ...f, [key]: !f[key] }))}
-                        aria-pressed={flags[key]}
-                      >
-                        {label}
-                      </button>
+                        label={label}
+                        hint={hint}
+                        checked={flags[key]}
+                        onChange={(next) => setFlags((f) => ({ ...f, [key]: next }))}
+                      />
                     ))}
                   </div>
                 </div>

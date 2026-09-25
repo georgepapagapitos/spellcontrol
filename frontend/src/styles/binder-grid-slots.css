@@ -127,18 +127,33 @@
   flex-shrink: 0;
 }
 
-/* Pages */
+/* Pages. The row is a fluid grid whose track floor is 5rem per pocket column
+   (2/3/4 columns → 10/15/20rem), so a pocket is the same size whatever the
+   pocket count: one full-width 9- or 12-pocket page per row on a phone, as
+   many as fit on a desktop. Pages used to be fixed 112/150/200px thumbnails
+   (42px pockets on a 1440 screen) and a phone showed a lone page in one half of
+   the row with the other half empty. `min(100%, …)` keeps a floor wider than
+   the row from overflowing it at 320px. */
 .page-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  --page-min: 15rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--page-min)), 1fr));
+  gap: var(--space-4) var(--space-3);
+}
+
+.page-row--p4 {
+  --page-min: 10rem;
+}
+
+.page-row--p12 {
+  --page-min: 20rem;
 }
 
 .page-wrap {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: var(--space-1);
+  min-width: 0;
 }
 
 .page-num {
@@ -152,13 +167,13 @@
    lines and given that height unconditionally, so a page naming three drops and
    a page naming one still start their grids on the same baseline; a ragged row
    of page tops was the thing that read as broken. Full text is in `title`, and
-   the spread view (which the page number opens) repeats it untruncated. */
+   the page viewer (which the page header opens) repeats it untruncated. */
 .page-label {
   font-family: var(--font-serif);
   font-size: var(--text-xs);
   line-height: 1.3;
   color: var(--text-secondary);
-  text-align: center;
+  padding-inline: var(--space-1);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -173,34 +188,30 @@
   min-width: 100%;
 }
 
+/* A page's header is its door into the page viewer: the whole row is the
+   button, the book glyph matches "Browse pages". */
 .page-num-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   background: none;
   border: none;
   padding: 2px var(--space-1);
   margin: 0;
   cursor: pointer;
-  /* Underline at rest signals "this opens something" without hover —
-     touch users see the affordance too. Hover lifts the underline so
-     the cue feels responsive. */
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  transition:
-    color var(--motion-fast),
-    text-decoration-color var(--motion-fast);
+  border-radius: var(--radius);
+  transition: color var(--motion-fast);
 }
 
 .page-num-link:focus-visible {
-  color: var(--accent-hover, var(--accent));
-  text-decoration-color: transparent;
+  color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .page-num-link:hover {
-    color: var(--accent-hover, var(--accent));
-    text-decoration-color: transparent;
-    outline: none;
+    color: var(--accent);
   }
 }
 
@@ -215,21 +226,18 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-1);
-  width: 150px;
 }
 
 .grid-4 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 5px;
-  width: 112px;
+  gap: var(--space-1);
 }
 
 .grid-12 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-1);
-  width: 200px;
 }
 
 /* Slots — MTG rarity colors. Tokens defined in :root → "Magic colors". */
@@ -239,9 +247,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Card-name micro-thumbnail: needs sub-token precision to fit the slot. */
-  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-  font-size: 7.5px;
   text-align: center;
   overflow: hidden;
   padding: 3px;
@@ -262,7 +267,13 @@
   border-radius: 2px;
 }
 
+/* Text-only pockets scale with the pocket (the slot is the size container) —
+   a fixed 7.5px was sized for the old thumbnails and stayed tiny on a
+   full-width phone page. */
 .slot-name {
+  /* The floor is a card name in a 45px pocket: below every token. */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: clamp(7.5px, 10cqw, var(--text-sm));
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -352,8 +363,9 @@
   pointer-events: none;
 }
 
-/* Coarse-pointer floor: the "page N" opener is a 19px text button with a
-   whole binder page of room around it, so it ghosts a full 44px target. */
+/* Coarse-pointer floor: the page header is a full-width row ~20px tall with
+   the section gap above it, so it ghosts to 44px rather than growing every
+   page on a phone. */
 @media (pointer: coarse) {
   .page-num-link {
     position: relative;
@@ -363,9 +375,9 @@
     content: '';
     position: absolute;
     top: 50%;
-    left: 50%;
-    width: 44px;
+    left: 0;
+    right: 0;
     height: 44px;
-    transform: translate(-50%, -50%);
+    transform: translateY(-50%);
   }
 }

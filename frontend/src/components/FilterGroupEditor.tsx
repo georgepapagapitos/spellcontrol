@@ -10,6 +10,7 @@ import { SegmentedControl, type Option } from './shared/form';
 import { BinderRow as RuleRow, FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
 import { RuleFieldContext } from './RuleFieldContext';
 import { RuleFieldPicker } from './RuleFieldPicker';
+import { SetFilterPicker } from './SetFilterPicker';
 import { filterFieldSpec, setFilterFields, type FilterFieldId } from '../lib/filter-fields';
 import type {
   BinderFilter,
@@ -502,10 +503,10 @@ function FilterGroupFields({
 
       {/* Sets */}
       <RuleRow fieldId="setCodes" label="Sets" rowRef={setsRowRef}>
-        <SetMultiSelect
-          options={ownedSets}
-          selected={filter.setCodes || []}
-          onChange={(next) => patch({ setCodes: next })}
+        <SetFilterPicker
+          options={ownedSets.map((o) => ({ code: o.code, label: o.label }))}
+          value={new Set(filter.setCodes ?? [])}
+          onChange={(next) => patch({ setCodes: [...next] })}
         />
       </RuleRow>
 
@@ -689,87 +690,6 @@ export function cloneChips(f: BinderFilter): Partial<BinderFilter> {
 }
 
 /* ─────────────────────────── small components ─────────────────────────── */
-
-/** Multi-select dropdown for set codes. Selected sets render as removable chips. */
-function SetMultiSelect({
-  options,
-  selected,
-  onChange,
-}: {
-  options: { code: string; label: string }[];
-  selected: string[];
-  onChange: (next: string[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-
-  const selectedSet = new Set(selected.map((s) => s.toUpperCase()));
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return options.filter(
-      (o) => !q || o.code.toLowerCase().includes(q) || o.label.toLowerCase().includes(q)
-    );
-  }, [options, query]);
-
-  const addCode = (code: string) => {
-    if (!selectedSet.has(code)) onChange([...selected, code]);
-  };
-
-  return (
-    <div className="chip-builder-wrap">
-      {selected.map((code) => {
-        const opt = options.find((o) => o.code.toUpperCase() === code.toUpperCase());
-        return (
-          <span key={code} className="chip-builder-chip is" title={opt?.label || code}>
-            <span className="chip-builder-value">{code.toUpperCase()}</span>
-            <button
-              type="button"
-              className="chip-builder-remove"
-              aria-label="Remove"
-              onClick={() =>
-                onChange(selected.filter((s) => s.toUpperCase() !== code.toUpperCase()))
-              }
-            >
-              ×
-            </button>
-          </span>
-        );
-      })}
-      <div style={{ position: 'relative' }}>
-        <input
-          type="text"
-          value={query}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          placeholder={options.length === 0 ? 'no cards loaded' : 'Add set…'}
-          disabled={options.length === 0}
-        />
-        {open && filtered.length > 0 && (
-          <div className="set-dropdown">
-            {filtered.slice(0, 30).map((o) => (
-              <button
-                key={o.code}
-                type="button"
-                className={`set-dropdown-item ${selectedSet.has(o.code) ? 'selected' : ''}`}
-                onClick={() => {
-                  addCode(o.code);
-                  setQuery('');
-                }}
-              >
-                <span className="set-code">{o.code}</span>
-                <span className="set-name">{o.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export function validateRanges(f: BinderFilter): string | null {
   // NaN first, and before anything else. `parseFloat('')` / `parseInt('e')` in

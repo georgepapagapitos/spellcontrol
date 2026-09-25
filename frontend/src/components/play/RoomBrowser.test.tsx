@@ -21,6 +21,7 @@ function row(overrides: Partial<GameListing> = {}): GameListing {
     seated: 2,
     max: 8,
     joinable: true,
+    visibility: 'public',
     bracket: null,
     ...overrides,
   };
@@ -108,5 +109,20 @@ describe('RoomBrowser', () => {
     );
     await screen.findByText('Bracket 3 chill');
     expect(container.querySelector('.room-browser-bracket')).toBeNull();
+  });
+
+  it('marks a friends-visibility row "Friends only"', async () => {
+    mockListGames.mockResolvedValue([row({ visibility: 'friends' })]);
+    render(<RoomBrowser onJoin={vi.fn()} onWatch={vi.fn()} onHostInstead={vi.fn()} />);
+    expect(await screen.findByText('Friends only')).toBeTruthy();
+  });
+
+  it('shows no Friends-only badge on a public row', async () => {
+    mockListGames.mockResolvedValue([row({ visibility: 'public' })]);
+    const { container } = render(
+      <RoomBrowser onJoin={vi.fn()} onWatch={vi.fn()} onHostInstead={vi.fn()} />
+    );
+    await screen.findByText('Bracket 3 chill');
+    expect(container.querySelector('.room-browser-friends')).toBeNull();
   });
 });

@@ -59,6 +59,10 @@ export interface MeterBarProps {
   title?: string;
   /** Layout-only hook (margins/flex in the site's CSS) — never re-style the track. */
   className?: string;
+  /** A mark on the track at this value (same unit as `max`): a target, a
+   *  threshold, the line a score has to clear. Decorative like the fill; the
+   *  call site states the number in words. */
+  tick?: number;
 }
 
 /** Single-fill horizontal bar: `value` out of `max`. */
@@ -73,6 +77,7 @@ export function MeterBar({
   label,
   title,
   className,
+  tick,
 }: MeterBarProps): JSX.Element {
   const pct = Math.max(meterPct(value, max), Math.min(100, Math.max(0, minPct)));
   const fillStyle: CSSProperties | undefined = indeterminate
@@ -101,6 +106,9 @@ export function MeterBar({
         className={joinClasses('meterbar-fill', indeterminate && 'meterbar-fill--indeterminate')}
         style={fillStyle}
       />
+      {tick !== undefined && (
+        <span className="meterbar-tick" style={{ left: `${meterPct(tick, max)}%` }} />
+      )}
     </div>
   );
 }

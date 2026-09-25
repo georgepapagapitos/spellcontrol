@@ -338,6 +338,12 @@ export interface GameListing {
    *  separate affordance (available once `status` is 'active') and doesn't
    *  depend on this flag. */
   joinable: boolean;
+  /** `'friends'` rows are only ever the caller's own friends' tables (the
+   *  server filters everyone else's out before this ever reaches the wire —
+   *  see `projectGameListing`), so the row can badge them "Friends only",
+   *  same language as `FriendDeckSummary`'s deck-tile badge. Never
+   *  `'private'`. */
+  visibility: 'public' | 'friends';
   /**
    * Board E370: the computed Commander bracket range across seated decks
    * that have one — `min === max` for a single known bracket, null when

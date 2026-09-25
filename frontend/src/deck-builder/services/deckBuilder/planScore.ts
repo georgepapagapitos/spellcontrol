@@ -38,11 +38,15 @@ export function bandFor(score: number): string {
   return score >= 70 ? 'Dialed in' : 'Needs work';
 }
 
+// The headline refines the band; it never argues with it. Its tiers break at
+// the band's own line (70), so "Needs work" can't sit over "Your deck is
+// solid" (a 60-69 deck got exactly that pair). The deck page renders this
+// from the stored `overall`, not the stored `headline`, so decks analyzed
+// before this change read correctly without a re-analysis.
 export function headlineFor(score: number): string {
   if (score >= 90) return "Your deck's dialed in.";
-  if (score >= 75) return 'Your deck plays well, with a little room to grow.';
-  if (score >= 60) return 'Your deck is solid, with clear room for improvement.';
-  if (score >= 40) return 'Your deck has the foundation. It needs some tuning.';
+  if (score >= 70) return 'Your deck plays well, with a little room to grow.';
+  if (score >= 50) return 'Your deck has the foundation. It needs some tuning.';
   return 'Your deck is missing key pieces of its plan.';
 }
 
