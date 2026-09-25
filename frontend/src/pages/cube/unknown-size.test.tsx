@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { CubeSizePicker } from './shared';
 import type { CubeSize } from '../../lib/cube/targets';
 
@@ -21,10 +21,13 @@ describe('the cube workshop survives a size it does not offer', () => {
         onFormat={() => {}}
       />
     );
-    expect(screen.getByText('12 cards')).toBeTruthy();
-    // The six sizes we do offer still read from the table.
-    expect(screen.getByRole('group', { name: 'Cube size' })).toBeTruthy();
-    expect(screen.getAllByText('8 players').length).toBeGreaterThan(0);
+    // The note reads the size's fallback info, and the picker's own trigger
+    // states the unfamiliar value instead of going blank.
+    expect(screen.getAllByText('12 cards').length).toBeGreaterThan(0);
+    // The six sizes we do offer still read from the table, once opened.
+    const trigger = screen.getByRole('button', { name: /Cube size/ });
+    fireEvent.click(trigger);
+    expect(screen.getAllByText(/8 players/).length).toBeGreaterThan(0);
   });
 
   it('still renders a known size the normal way', () => {

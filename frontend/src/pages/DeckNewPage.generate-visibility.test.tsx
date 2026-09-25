@@ -111,6 +111,12 @@ function renderPage() {
   fireEvent.click(screen.getByRole('radio', { name: 'Standard' }));
 }
 
+// The visibility ChoiceList radio's accessible name is its label plus its
+// (always-visible) hint text glued together — match just the label, at the
+// start.
+const byLabel = (name: string) => new RegExp(`^${name}`);
+const visibilityRadio = (name: string) => screen.getByRole('radio', { name: byLabel(name) });
+
 describe('DeckNewPage — generated decks obey the visibility fieldset', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -126,7 +132,7 @@ describe('DeckNewPage — generated decks obey the visibility fieldset', () => {
 
   it('publishes the generated deck and takes over navigation when Public is selected', async () => {
     renderPage();
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(visibilityRadio('Public'));
 
     const tookOverNavigation = await capturedOnCreated!('gen-id', '/decks/gen-id', {
       justGenerated: true,
@@ -145,7 +151,7 @@ describe('DeckNewPage — generated decks obey the visibility fieldset', () => {
 
   it('preserves a regenerate compare-diff landing rather than dumping the user on the editor', async () => {
     renderPage();
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(visibilityRadio('Public'));
 
     await capturedOnCreated!('gen-id', '/decks/compare?a=src&b=gen-id', undefined);
 
@@ -165,7 +171,7 @@ describe('DeckNewPage — generated decks obey the visibility fieldset', () => {
     // The stamp is what keeps it private: the server would otherwise publish
     // a new deck by default on its first sync.
     renderPage();
-    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
+    fireEvent.click(visibilityRadio('Private'));
     expect(capturedVisibility).toBe('private');
 
     const tookOverNavigation = await capturedOnCreated!('gen-id', '/decks/gen-id', {

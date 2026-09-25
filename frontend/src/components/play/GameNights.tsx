@@ -50,6 +50,8 @@ import { OverflowMenu } from '../OverflowMenu';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { NightPoll, formatSlot } from '../NightPoll';
 import { TonightTrades } from './TonightTrades';
+import { Field, SwitchRow, SegmentedControl, ChoiceList } from '../shared/form';
+import { SelectMenu } from '../SelectMenu';
 import './GameNights.css';
 
 import { userMessage } from '@/lib/user-error';
@@ -1294,49 +1296,31 @@ function NightDialog({
             {night ? 'Edit game night' : 'Plan a game night'}
           </h2>
 
-          <label className="game-night-dialog-field">
-            <span>Title</span>
+          <Field label="Title" htmlFor="game-night-title">
             <input
+              id="game-night-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={80}
               placeholder="Friday commander"
               autoFocus
             />
-          </label>
+          </Field>
 
           {night === null && (
             <>
-              <fieldset className="game-night-dialog-datemode">
-                <legend>Date</legend>
-                <label className="game-night-dialog-option-toggle">
-                  <input
-                    type="radio"
-                    name="game-night-date-mode"
-                    checked={dateMode === 'fixed'}
-                    onChange={() => setDateMode('fixed')}
-                  />
-                  <span>Fixed date</span>
-                </label>
-                <label className="game-night-dialog-option-toggle">
-                  <input
-                    type="radio"
-                    name="game-night-date-mode"
-                    checked={dateMode === 'poll'}
-                    onChange={() => setDateMode('poll')}
-                  />
-                  <span>Vote on a date</span>
-                </label>
-                <label className="game-night-dialog-option-toggle">
-                  <input
-                    type="radio"
-                    name="game-night-date-mode"
-                    checked={dateMode === 'weekly'}
-                    onChange={() => setDateMode('weekly')}
-                  />
-                  <span>Repeat weekly</span>
-                </label>
-              </fieldset>
+              <Field label="Date">
+                <SegmentedControl
+                  ariaLabel="Date"
+                  value={dateMode}
+                  options={[
+                    { value: 'fixed', label: 'Fixed date' },
+                    { value: 'poll', label: 'Vote on a date' },
+                    { value: 'weekly', label: 'Repeat weekly' },
+                  ]}
+                  onChange={setDateMode}
+                />
+              </Field>
               {repeatWeekly && (
                 <p className="game-night-dialog-hint">
                   Same time every week, on one link that always opens the next night.
@@ -1390,47 +1374,36 @@ function NightDialog({
               )}
             </fieldset>
           ) : (
-            <label className="game-night-dialog-field">
-              <span>When</span>
+            <Field label="When" htmlFor="game-night-when">
               <input
+                id="game-night-when"
                 type="datetime-local"
                 value={whenInput}
                 onChange={(e) => setWhenInput(e.target.value)}
               />
-            </label>
+            </Field>
           )}
 
           {/* Where it's played decides what "Start game" does: one device
               tracking the table, or an online session everyone joins. */}
-          <fieldset className="game-night-dialog-field game-night-venue">
-            <legend>Where it's played</legend>
-            <div className="game-night-dialog-options">
-              {NIGHT_VENUES.map((v) => (
-                <label key={v.value} className="game-night-dialog-option-toggle">
-                  <input
-                    type="radio"
-                    name="game-night-venue"
-                    checked={venue === v.value}
-                    onChange={() => setVenue(v.value)}
-                  />
-                  <span>{v.label}</span>
-                  <span className="game-night-venue-hint">{v.hint}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <Field label="Where it's played">
+            <ChoiceList
+              ariaLabel="Where it's played"
+              value={venue}
+              options={NIGHT_VENUES.map((v) => ({ value: v.value, label: v.label, hint: v.hint }))}
+              onChange={setVenue}
+            />
+          </Field>
 
-          <label className="game-night-dialog-field">
-            <span>Format (optional)</span>
-            <select value={format} onChange={(e) => setFormat(e.target.value)}>
-              <option value="">Undecided</option>
-              {FORMAT_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Format (optional)">
+            <SelectMenu
+              ariaLabel="Format"
+              value={format}
+              placeholder="Undecided"
+              options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
+              onChange={setFormat}
+            />
+          </Field>
 
           {/* Combobox (SetFilterPicker pattern): typed text ALWAYS stands as-is;
             suggestions are real places from the geocoder, shown exactly as
@@ -1484,31 +1457,27 @@ function NightDialog({
             )}
           </label>
 
-          <label className="game-night-dialog-field">
-            <span>Notes (optional)</span>
+          <Field label="Notes (optional)" htmlFor="game-night-notes">
             <textarea
+              id="game-night-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
               rows={3}
               placeholder="Bracket 2 decks"
             />
-          </label>
+          </Field>
 
-          <label className="game-night-dialog-option-toggle">
-            <input
-              type="checkbox"
-              checked={inviteOnly}
-              onChange={(e) => setInviteOnly(e.target.checked)}
-            />
-            <span>Invite only</span>
-          </label>
-          {inviteOnly && (
-            <p className="game-night-dialog-hint">
-              Anyone with the link can see the night, but only people you invite, or who already
-              replied, can RSVP.
-            </p>
-          )}
+          <SwitchRow
+            label="Invite only"
+            hint={
+              inviteOnly
+                ? 'Anyone with the link can see the night, but only people you invite, or who already replied, can RSVP.'
+                : undefined
+            }
+            checked={inviteOnly}
+            onChange={setInviteOnly}
+          />
 
           {night !== null && (people.length > 0 || awaitingLeft.length > 0) && (
             <fieldset className="game-night-dialog-people">

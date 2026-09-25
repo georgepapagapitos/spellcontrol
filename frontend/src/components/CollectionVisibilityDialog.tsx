@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from './Modal';
+import { VisibilityChoice } from './VisibilityChoice';
 import { useAuth } from '../store/auth';
 import { useSignInPath } from '../lib/sign-in-path';
 import {
@@ -53,7 +54,6 @@ export function CollectionVisibilityDialog({
   const isGuest = useAuth((s) => s.status === 'guest');
   const username = useAuth((s) => s.user?.username);
   const signInHref = useSignInPath();
-  const groupName = useId();
   // undefined = loading; null = never chose.
   const [current, setCurrent] = useState<CollectionVisibility | null | undefined>(undefined);
   const [busy, setBusy] = useState<CollectionVisibility | null>(null);
@@ -116,12 +116,6 @@ export function CollectionVisibilityDialog({
     username && (current === 'public' || current === 'friends')
       ? profileCollectionUrl(username)
       : '';
-  const hint =
-    current === undefined
-      ? ''
-      : current === null
-        ? NEVER_CHOSE_HINT
-        : (OPTIONS.find((o) => o.value === current)?.hint ?? '');
 
   const copy = async () => {
     try {
@@ -149,31 +143,15 @@ export function CollectionVisibilityDialog({
         </p>
       ) : (
         <>
-          <fieldset
-            className="share-audience"
-            aria-label="Who can see your collection"
+          {current === null && <p className="choice-dialog-body">{NEVER_CHOSE_HINT}</p>}
+          <VisibilityChoice
+            ariaLabel="Who can see your collection"
+            value={(current ?? '__never_chose__') as CollectionVisibility}
+            options={OPTIONS}
+            busyValue={busy}
             disabled={!!busy}
-            aria-busy={!!busy || undefined}
-          >
-            {OPTIONS.map((opt) => (
-              <label
-                key={opt.value}
-                className={`share-audience-option${current === opt.value ? ' is-active' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name={groupName}
-                  value={opt.value}
-                  checked={current === opt.value}
-                  onChange={() => void choose(opt.value)}
-                />
-                <span>{busy === opt.value ? 'Saving…' : opt.label}</span>
-              </label>
-            ))}
-          </fieldset>
-          <p className="choice-dialog-body" aria-live="polite">
-            {hint}
-          </p>
+            onChange={(next) => void choose(next)}
+          />
         </>
       )}
       {error && (

@@ -7,10 +7,11 @@ import {
   publishDeck,
   type PublishResult,
 } from './publications-client';
+import { createShare } from './share-client';
 import { toast } from '../store/toasts';
 
 import { userMessage } from '@/lib/user-error';
-export type CreateVisibility = 'private' | 'public';
+export type CreateVisibility = 'private' | 'public' | 'friends';
 
 /** Handed to `onSettled` only when a publish attempt actually succeeded. */
 export interface PublishOutcome {
@@ -65,6 +66,8 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
   const [, forceOnlineTick] = useState(0);
   useEffect(() => onSyncedChange(() => forceOnlineTick((n) => n + 1)), []);
   const online = isOnline();
+  // Same gate for Public and Friends — both write to the server, so both need
+  // an account and a connection.
   const canPublish = !isGuest && online;
   const publicDisabledReason = isGuest
     ? 'Sign in to publish.'
@@ -73,11 +76,11 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
       : null;
 
   const [visibility, setVisibility] = useState<CreateVisibility>('public');
-  // Never leave Public selected-but-disabled (e.g. connectivity drops after
-  // it was chosen) — snap back to Private during render, mirroring
+  // Never leave Public/Friends selected-but-disabled (e.g. connectivity drops
+  // after one was chosen) — snap back to Private during render, mirroring
   // DeckNewPage's identical guarded render-time setState (terminating, so
   // react-hooks/set-state-in-effect doesn't apply — there's no effect here).
-  if (!canPublish && visibility === 'public') {
+  if (!canPublish && visibility !== 'private') {
     setVisibility('private');
   }
 
@@ -112,6 +115,30 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
     [onSettled]
   );
 
+  /** Friends' counterpart to `publishAfterCreate`: the exact same share
+   *  ShareDialog's Friends choice mints (`createShare` with audience
+   *  'friends'), reused rather than duplicated. No first-publish outcome —
+   *  that celebration is for going public. */
+  const shareWithFriendsAfterCreate = useCallback(
+    async (deckId: string) => {
+      setPublishing(true);
+      try {
+        await createShare({ kind: 'deck', resourceId: deckId, audience: 'friends' });
+        toast.show({ message: 'Shared with your friends.', tone: 'success' });
+        onSettled(deckId);
+      } catch (err) {
+        toast.show({
+          message: userMessage(err, "Couldn't share it. Try again."),
+          tone: 'warn',
+        });
+        onSettled(deckId);
+      } finally {
+        setPublishing(false);
+      }
+    },
+    [onSettled]
+  );
+
   return {
     canPublish,
     publicDisabledReason,
@@ -119,5 +146,6 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
     setVisibility,
     publishing,
     publishAfterCreate,
+    shareWithFriendsAfterCreate,
   };
 }

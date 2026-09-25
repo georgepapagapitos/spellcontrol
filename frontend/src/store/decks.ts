@@ -325,7 +325,7 @@ export interface Deck {
    * decks made before public-by-default and on a guest's decks, which the
    * server leaves alone. Never change it after create: it would do nothing.
    */
-  initialVisibility?: 'public' | 'private';
+  initialVisibility?: 'public' | 'private' | 'friends';
   /**
    * Paste-and-diff resync bookkeeping (E173). Stamped only by `resyncDeck`,
    * which only ever targets an EXISTING deck — unlike `sourceProduct`/

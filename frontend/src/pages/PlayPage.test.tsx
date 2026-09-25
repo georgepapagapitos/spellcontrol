@@ -180,6 +180,48 @@ describe('PlayPage tabs', () => {
   });
 });
 
+// T139: the host form's visibility control is the shared VisibilityChoice
+// component (components/shared/form ChoiceList underneath). Games Friends
+// (#2238) is live server-side, so Public/Friends/Private all show here.
+describe('Online setup — table visibility (T139)', () => {
+  beforeEach(() => {
+    useAuth.setState({
+      user: { id: 'me', username: 'georg', role: 'user' },
+      status: 'authed',
+      profile: null,
+    });
+  });
+  afterEach(() => {
+    useAuth.setState({ user: null, status: 'guest', profile: null });
+  });
+
+  it('offers Public, Friends and Private in that order, defaulting to Private', () => {
+    renderPage('/play/online');
+    const radios = screen.getAllByRole('radio', { name: /^(Public|Friends|Private)/ });
+    expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'friends', 'private']);
+    expect((screen.getByRole('radio', { name: /^Private/ }) as HTMLInputElement).checked).toBe(
+      true
+    );
+  });
+
+  it('names what each choice does', () => {
+    renderPage('/play/online');
+    expect(screen.getByText('Only people with the code.')).toBeTruthy();
+    expect(screen.getByText('Listed for your friends. They can watch.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: /^Public/ }));
+    expect((screen.getByRole('radio', { name: /^Public/ }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText('Listed in the room browser. Anyone can watch.')).toBeTruthy();
+  });
+
+  it('picks a friends-visibility table when Friends is selected', () => {
+    renderPage('/play/online');
+    fireEvent.click(screen.getByRole('radio', { name: /^Friends/ }));
+    expect((screen.getByRole('radio', { name: /^Friends/ }) as HTMLInputElement).checked).toBe(
+      true
+    );
+  });
+});
+
 describe('Local setup — seat name field (B7-05)', () => {
   it('seeds the name field empty, not a live "Player N" value', () => {
     renderPage('/play/local');

@@ -44,6 +44,11 @@ vi.mock('../lib/publications-client', async (importOriginal) => {
   };
 });
 
+const createShareMock = vi.fn();
+vi.mock('../lib/share-client', () => ({
+  createShare: (input: unknown) => createShareMock(input),
+}));
+
 // ── Heavy commander-generation UI, irrelevant to the non-commander 'standard'
 // format path this suite exercises ─────────────────────────────────────────
 vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
@@ -73,6 +78,13 @@ function selectStandardFormat() {
   fireEvent.click(screen.getByRole('radio', { name: 'Standard' }));
 }
 
+// The visibility ChoiceList radio's accessible name is its label plus its
+// (always-visible) hint text glued together — match just the label, at the
+// start.
+const byLabel = (name: string) => new RegExp(`^${name}`);
+const visibilityRadio = (name: string) =>
+  screen.getByRole('radio', { name: byLabel(name) }) as HTMLInputElement;
+
 const PUB: PublishResult = {
   slug: 'my-new-deck',
   url: 'https://spellcontrol.com/d/my-new-deck',
@@ -90,6 +102,7 @@ describe('DeckNewPage — creation-time visibility', () => {
     authStatus = 'authed';
     createDeckMock.mockClear();
     publishDeckMock.mockReset().mockResolvedValue(PUB);
+    createShareMock.mockReset().mockResolvedValue({ token: 'tok', audience: 'friends' });
   });
   afterEach(() => localStorage.clear());
 
@@ -97,20 +110,18 @@ describe('DeckNewPage — creation-time visibility', () => {
     renderPage();
     selectStandardFormat();
     // Native <input type="radio"> now — `checked`/`disabled`, not aria-*.
-    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).disabled).toBe(
-      false
-    );
+    expect(visibilityRadio('Public').checked).toBe(true);
+    expect(visibilityRadio('Private').disabled).toBe(false);
   });
 
-  it('disables the Public radio for a guest, with a sign-in hint, and never blocks creation', () => {
+  it('disables Public and Friends for a guest, with a sign-in reason as the hint, and never blocks creation', () => {
     authStatus = 'guest';
     renderPage();
     selectStandardFormat();
 
-    const publicRadio = screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement;
-    expect(publicRadio.disabled).toBe(true);
-    expect(screen.getByText(/Sign in to publish/)).toBeTruthy();
+    expect(visibilityRadio('Public').disabled).toBe(true);
+    expect(visibilityRadio('Friends').disabled).toBe(true);
+    expect(screen.getAllByText('Sign in to publish.')).toHaveLength(2);
 
     // The Create deck button itself must still be enabled for a guest.
     const createButton = screen.getByRole('button', { name: 'Create deck' }) as HTMLButtonElement;
@@ -121,7 +132,7 @@ describe('DeckNewPage — creation-time visibility', () => {
     renderPage();
     selectStandardFormat();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(visibilityRadio('Public'));
     fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
 
     await waitFor(() => expect(createDeckMock).toHaveBeenCalledTimes(1));
@@ -141,7 +152,7 @@ describe('DeckNewPage — creation-time visibility', () => {
     renderPage();
     selectStandardFormat();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(visibilityRadio('Public'));
     fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
 
     await waitFor(() =>
@@ -156,7 +167,7 @@ describe('DeckNewPage — creation-time visibility', () => {
     // a new deck by default on its first sync.
     renderPage();
     selectStandardFormat();
-    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
+    fireEvent.click(visibilityRadio('Private'));
     fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
 
     await waitFor(() => expect(createDeckMock).toHaveBeenCalledTimes(1));
@@ -165,5 +176,30 @@ describe('DeckNewPage — creation-time visibility', () => {
     );
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id'));
     expect(publishDeckMock).not.toHaveBeenCalled();
+  });
+
+  it('creates the deck as friends-visible via the same share ShareDialog mints, in Public/Friends/Private order', async () => {
+    renderPage();
+    selectStandardFormat();
+
+    const radios = screen.getAllByRole('radio', { name: /^(Public|Friends|Private)/ });
+    expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'friends', 'private']);
+
+    fireEvent.click(visibilityRadio('Friends'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
+
+    await waitFor(() => expect(createDeckMock).toHaveBeenCalledTimes(1));
+    expect(createDeckMock).toHaveBeenCalledWith(
+      expect.objectContaining({ initialVisibility: 'friends' })
+    );
+    await waitFor(() =>
+      expect(createShareMock).toHaveBeenCalledWith({
+        kind: 'deck',
+        resourceId: 'new-deck-id',
+        audience: 'friends',
+      })
+    );
+    expect(publishDeckMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', undefined));
   });
 });

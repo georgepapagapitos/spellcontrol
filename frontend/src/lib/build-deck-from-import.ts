@@ -31,7 +31,8 @@ export interface BuildDeckOptions {
   sourceProduct?: SourceProduct;
   /** Deck source; defaults to 'manual'. */
   source?: DeckSource;
-  /** The dialog's Public/Private choice; otherwise the signed-in default. */
+  /** The dialog's Public/Friends/Private choice; otherwise the signed-in
+   *  default (public). */
   initialVisibility?: NewDeckVisibility;
 }
 

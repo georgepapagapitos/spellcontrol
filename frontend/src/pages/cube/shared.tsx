@@ -4,6 +4,8 @@ import { MeterBar } from '../../components/shared/MeterBar';
 import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
 import { VerdictBadge } from '../../components/deck/VerdictBadge';
 import { InfoTip } from '../../components/InfoTip';
+import { SegmentedControl } from '../../components/shared/form';
+import { SelectMenu } from '../../components/SelectMenu';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
@@ -326,35 +328,25 @@ export function CubeSizePicker({
 }) {
   return (
     <div className="cube-size">
-      <div className="cube-size-picker" role="group" aria-label="Play format">
-        {CUBE_FORMATS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={`cube-size-opt cube-format-opt${f === format ? ' active' : ''}`}
-            aria-pressed={f === format}
-            onClick={() => onFormat(f)}
-          >
-            <span className="cube-size-n">{FORMAT_INFO[f].label}</span>
-            <span className="cube-size-sub">{FORMAT_INFO[f].sub}</span>
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        ariaLabel="Play format"
+        value={format}
+        options={CUBE_FORMATS.map((f) => ({ value: f, label: FORMAT_INFO[f].label }))}
+        onChange={onFormat}
+      />
       <p className="cube-size-note">{FORMAT_INFO[format].note}</p>
-      <div className="cube-size-picker" role="group" aria-label="Cube size">
-        {CUBE_SIZES.map((s) => (
-          <button
-            key={s}
-            type="button"
-            className={`cube-size-opt${s === size ? ' active' : ''}`}
-            aria-pressed={s === size}
-            onClick={() => onSize(s)}
-          >
-            <span className="cube-size-n">{s}</span>
-            <span className="cube-size-sub">{sizeInfo(s).players} players</span>
-          </button>
-        ))}
-      </div>
+      <SelectMenu<CubeSize>
+        label="Cube size"
+        ariaLabel="Cube size"
+        value={size}
+        placeholder={`${size} cards`}
+        options={CUBE_SIZES.map((s) => ({
+          value: s,
+          label: `${s} · ${sizeInfo(s).players} players`,
+          triggerLabel: `${s} cards`,
+        }))}
+        onChange={onSize}
+      />
       <p className="cube-size-note">{sizeInfo(size).note}</p>
     </div>
   );

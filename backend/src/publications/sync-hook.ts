@@ -106,6 +106,13 @@ export async function refreshDeckPublications(
  * deck carries no intent (created before public-by-default, or by a guest),
  * when a row already exists (the ON CONFLICT in insertPublication), and for a
  * public deck on an account a moderator hid.
+ *
+ * 'friends' is booked exactly like 'private' here (unpublished: not listed,
+ * not on the profile). The friends share itself is minted by the client
+ * through `POST /api/shares`, the same call ShareDialog's Friends choice
+ * makes, which dedupes and retires the other rung. Minting it here as well
+ * raced that call and could leave two friends shares, so switching the deck
+ * to Private revoked one and left it visible to friends through the other.
  */
 async function publishByDefault(
   userId: string,
@@ -115,7 +122,7 @@ async function publishByDefault(
   fields: ListingFields
 ): Promise<void> {
   const intent = (data as { initialVisibility?: unknown } | null)?.initialVisibility;
-  if (intent !== 'public' && intent !== 'private') return;
+  if (intent !== 'public' && intent !== 'private' && intent !== 'friends') return;
 
   const pool = getPool();
   const exists = await pool.query(
@@ -132,7 +139,7 @@ async function publishByDefault(
   }
 
   const inserted = await insertPublication(userId, deckId, fields, rev, Date.now(), {
-    unpublished: intent === 'private',
+    unpublished: intent !== 'public',
   });
   if (inserted && intent === 'public') await invalidatePublicUserCacheById(userId);
 }
