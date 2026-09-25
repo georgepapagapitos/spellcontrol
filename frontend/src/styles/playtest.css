@@ -1126,8 +1126,8 @@ body[data-felt='slate'] {
    card at full zoom on a 2x display; the source PNG is 1.1MB and this is 71KB.
    `cover` on a 5:7 box matches the art's own ratio, so nothing is cropped. */
 .playtest-card__back,
-.playtest-pile__back--library,
-.playtest-pile__back--card {
+.playtest-pile__back--card,
+.playtest-pile__back--library {
   width: 100%;
   height: 100%;
   background-color: #1e130b;
