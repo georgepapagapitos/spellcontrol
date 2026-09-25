@@ -14,6 +14,12 @@ export interface ProjectedCard {
   manaValue?: number;
   typeLine?: string;
   isToken?: boolean;
+  /** Printed power/toughness, verbatim from Scryfall — same contract as
+   *  `PlaytestCard.power`/`toughness`. Public: a permanent's body is
+   *  table-visible. Redacted to nothing along with the rest of `card` when
+   *  the permanent is face-down (see `toPublicBattlefieldCard`). */
+  power?: string;
+  toughness?: string;
 }
 
 /** A battlefield permanent as an opponent would see it. `card` is redacted to
@@ -29,6 +35,10 @@ export interface PublicBattlefieldCard {
   showBackFace?: boolean;
   attachedTo?: string;
   phased?: boolean;
+  /** Power/toughness MODIFIER — same contract as `BattlefieldCard.pt`.
+   *  Omitted (not just absent-from-source) while face-down, so a masked
+   *  permanent carries no more of its body than its redacted `card` does. */
+  pt?: { power: number; toughness: number };
 }
 
 /** One public-safe game-log line, ready to project to the table — see
@@ -188,8 +198,8 @@ function projectRevealedLibrary(state: PlaytestState): ProjectedCard[] | undefin
  *  drops image fields, so every zone that projects cards (battlefield,
  *  graveyard, exile, command) does it the same way. */
 export function toProjectedCard(card: PlaytestCard): ProjectedCard {
-  const { id, name, oracleId, scryfallId, manaValue, typeLine, isToken } = card;
-  return { id, name, oracleId, scryfallId, manaValue, typeLine, isToken };
+  const { id, name, oracleId, scryfallId, manaValue, typeLine, isToken, power, toughness } = card;
+  return { id, name, oracleId, scryfallId, manaValue, typeLine, isToken, power, toughness };
 }
 
 /** Per-load secret for `maskId` below. Module-level so a masked id is stable
@@ -246,6 +256,7 @@ function toPublicBattlefieldCard(bf: BattlefieldCard, hidden: Set<string>): Publ
     showBackFace: bf.showBackFace,
     attachedTo: bf.attachedTo && hidden.has(bf.attachedTo) ? maskId(bf.attachedTo) : bf.attachedTo,
     phased: bf.phased,
+    pt: bf.faceDown ? undefined : bf.pt,
   };
 }
 

@@ -295,6 +295,8 @@ function QuadrantCard({
     isToken: bf.card.isToken,
     oracleId: bf.card.oracleId,
     scryfallId: bf.card.scryfallId,
+    power: bf.card.power,
+    toughness: bf.card.toughness,
   };
   const adapted: BattlefieldCard = {
     card,
@@ -307,6 +309,7 @@ function QuadrantCard({
     showBackFace: bf.showBackFace,
     attachedTo: bf.attachedTo,
     phased: bf.phased,
+    pt: bf.pt,
   };
   const face = (
     <PlaytestCardFace

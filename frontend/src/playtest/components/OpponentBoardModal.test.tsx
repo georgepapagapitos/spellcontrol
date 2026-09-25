@@ -275,6 +275,53 @@ describe('OpponentBoardModal', () => {
     });
   });
 
+  it('shows a live P/T plate on a battlefield permanent, counters and the pt modifier folded in', () => {
+    resolveAll([]);
+    render(
+      <OpponentBoardModal
+        opp={opp(
+          {},
+          {
+            battlefield: [
+              bfCard('bear', 'Grizzly Bears', {
+                card: { id: 'bear', name: 'Grizzly Bears', power: '2', toughness: '2' },
+                counters: { '+1/+1': 1 },
+                pt: { power: 0, toughness: 1 },
+              }),
+            ],
+          }
+        )}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    const plate = document.body.querySelector('.playtest-card__pt');
+    expect(plate).toBeTruthy();
+    expect(plate!.getAttribute('aria-label')).toBe('3 by 4');
+  });
+
+  it('never shows a plate for a face-down permanent, even one carrying a body', () => {
+    resolveAll([]);
+    render(
+      <OpponentBoardModal
+        opp={opp(
+          {},
+          {
+            battlefield: [
+              bfCard('morph', 'Morph', {
+                card: { id: 'morph', power: '2', toughness: '2' },
+                faceDown: true,
+              }),
+            ],
+          }
+        )}
+        active={false}
+        onClose={() => {}}
+      />
+    );
+    expect(document.body.querySelector('.playtest-card__pt')).toBeNull();
+  });
+
   it('opens the shared CardPreview on a battlefield card, resolved via Scryfall id', async () => {
     resolveAll([scryCard('sf-1', 'Sol Ring')]);
     render(

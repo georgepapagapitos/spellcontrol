@@ -47,13 +47,16 @@ function signed(n: number): string {
 /** The ±1/±1 counters on a permanent, as a single signed step. Only these
  *  two kinds change a body — a charge or a loyalty counter does not, and
  *  folding one in would print a size the card does not have. */
-export function counterStep(bf: BattlefieldCard | undefined): number {
+export function counterStep(bf: Pick<BattlefieldCard, 'counters'> | undefined): number {
   const plus = bf?.counters?.['+1/+1'] ?? 0;
   const minus = bf?.counters?.['-1/-1'] ?? 0;
   return plus - minus;
 }
 
-export function displayPT(card: PlaytestCard, bf: BattlefieldCard | undefined): PtDisplay | null {
+export function displayPT(
+  card: Pick<PlaytestCard, 'power' | 'toughness'>,
+  bf: Pick<BattlefieldCard, 'counters' | 'pt'> | undefined
+): PtDisplay | null {
   const step = counterStep(bf);
   const dp = (bf?.pt?.power ?? 0) + step;
   const dt = (bf?.pt?.toughness ?? 0) + step;

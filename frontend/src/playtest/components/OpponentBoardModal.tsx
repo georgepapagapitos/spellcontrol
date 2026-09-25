@@ -370,6 +370,8 @@ function BattlefieldTile({
     isToken: bf.card.isToken,
     oracleId: bf.card.oracleId,
     scryfallId: bf.card.scryfallId,
+    power: bf.card.power,
+    toughness: bf.card.toughness,
   };
   const adaptedBf: BattlefieldCard = {
     card,
@@ -382,6 +384,7 @@ function BattlefieldTile({
     showBackFace: bf.showBackFace,
     attachedTo: bf.attachedTo,
     phased: bf.phased,
+    pt: bf.pt,
   };
   const interactive = !bf.faceDown;
   // A face-down permanent can still be POINTED at — "the morph", "that one" is

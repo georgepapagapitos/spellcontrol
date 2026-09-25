@@ -149,4 +149,47 @@ describe('OpponentQuadrant', () => {
     expect(screen.queryByRole('region')).toBeNull();
     expect(document.querySelector('.opponent-quadrant--open')?.textContent).toBe('Open seat');
   });
+
+  it('shows a live P/T plate on a permanent, counters and the pt modifier folded in', () => {
+    const { container } = render(
+      <OpponentQuadrant
+        {...props}
+        opp={seat(1, {
+          battlefield: [
+            bfCard('bear', {
+              card: { id: 'bear', name: 'Grizzly Bears', power: '2', toughness: '2' },
+              counters: { '+1/+1': 1 },
+              pt: { power: 0, toughness: 1 },
+            }),
+          ],
+        })}
+      />
+    );
+    const plate = container.querySelector('.playtest-card__pt');
+    expect(plate).toBeTruthy();
+    // printed 2/2 + one +1/+1 counter (+1/+1 to both) + a pt modifier of 0/+1.
+    expect(plate!.getAttribute('aria-label')).toBe('3 by 4');
+  });
+
+  it('never draws a plate for a permanent with no printed body', () => {
+    const { container } = render(<OpponentQuadrant {...props} opp={seat(1)} />);
+    expect(container.querySelector('.playtest-card__pt')).toBeNull();
+  });
+
+  it('never draws a plate for a face-down permanent, even one carrying a body', () => {
+    const { container } = render(
+      <OpponentQuadrant
+        {...props}
+        opp={seat(1, {
+          battlefield: [
+            bfCard('morph', {
+              card: { id: 'morph', power: '2', toughness: '2' },
+              faceDown: true,
+            }),
+          ],
+        })}
+      />
+    );
+    expect(container.querySelector('.playtest-card__pt')).toBeNull();
+  });
 });

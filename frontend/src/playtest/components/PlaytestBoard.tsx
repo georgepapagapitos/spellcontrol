@@ -982,13 +982,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // cache and this reads the same cache back. Safe to read synchronously
   // because `resolve` runs at POINTER time, long after the card painted.
   const opponentPreviewNames = useMemo(() => {
-    const m = new Map<string, { name: string; counters: Record<string, number> }>();
+    const m = new Map<
+      string,
+      { name: string; counters: Record<string, number>; pt?: ReturnType<typeof displayPT> }
+    >();
     for (const opp of opponents) {
       for (const bf of opp.board.battlefield) {
         if (bf.faceDown || !bf.card.name) continue;
         m.set(opponentPreviewId(opp.board.seat, bf.card.id), {
           name: bf.card.name,
           counters: bf.counters,
+          pt: displayPT(bf.card, bf),
         });
       }
     }
@@ -999,7 +1003,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       const opponentCard = opponentPreviewNames.get(cardId);
       if (opponentCard) {
         const src = cachedCardThumb(opponentCard.name, 'normal');
-        return src ? { src, counters: opponentCard.counters } : null;
+        return src
+          ? { src, counters: opponentCard.counters, pt: opponentCard.pt ?? undefined }
+          : null;
       }
       return previewSrcs.get(cardId) ?? null;
     },
