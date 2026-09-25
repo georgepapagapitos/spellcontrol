@@ -165,7 +165,6 @@
   "breakpoints": {
     "components/CardDetails.css": 1,
     "components/deck/DeckAiReview.css": 1,
-    "components/deck/DeckCardInspector.css": 1,
     "components/deck/DeckCurvePhases.css": 1,
     "components/deck/GenerationModePicker.css": 1,
     "components/trade/TradeComposer.css": 2,

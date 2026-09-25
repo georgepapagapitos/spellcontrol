@@ -141,12 +141,14 @@ import { CardName } from '@/components/shared/CardName';
 const celebratedDeckComplete = new Set<string>();
 
 const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
-// The card inspector (DeckCardInspector) is a hover surface that needs room
-// beside the deck body: wide desktop AND a fine pointer. 1440 rather than the
-// rail's 1280 — a 300px inspector plus three 320px list columns needs the
-// room. Below/without that, the floating hover-peek and the touch long-press
-// peek carry on unchanged, in every view mode.
-const INSPECTOR_QUERY = '(min-width: 1440px) and (hover: hover) and (pointer: fine)';
+// The card inspector (DeckCardInspector) is the desktop card preview: any
+// window ≥1024px with a fine pointer. It used to wait for 1440px, and between
+// 1024 and 1439 a floating hover-peek stood in. That band has no gutter (the
+// list spans the page), so the peek clamped to the viewport's left edge, right
+// over the card names it was previewing. The list measures its own width, so
+// beside the panel it drops to fewer columns. Below 1024 (or on a coarse
+// pointer) the row thumbnail, click→carousel and touch long-press peek carry it.
+const INSPECTOR_QUERY = '(min-width: 1024px) and (hover: hover) and (pointer: fine)';
 
 // ── Props ─────────────────────────────────────────────────────────────────
 export interface DeckDisplayCard {
@@ -1321,13 +1323,9 @@ export function DeckDisplay({
   }, [visibleGroups, visibleSideboardGroups, visibleConsideringGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  // Hover-peek for the list view — ROW-anchored (parks the card beside the row,
-  // centered, stable) rather than cursor-anchored, so it never tracks the mouse
-  // or floats over the row's ⋮ kebab. Gated to ≥1024px: the list is a dense CSS
-  // multi-column flow, so only wide desktop has room beside it for a legible
-  // (~200px) card without overlapping the columns. Tablet/phone (<1024px) skip
-  // the peek and use the row's own thumbnail + click→carousel. No-op on
-  // touch/native regardless.
+  // Hover tracking for the card inspector: which row the pointer (or keyboard
+  // focus) is on. Nothing floats; the width gate matches INSPECTOR_QUERY, so the
+  // hook only answers where the inspector is mounted to show it.
   const hoverPeek = useDeckHoverPeek({ anchor: 'row', minViewport: 1024 });
   // Touch parity (E129): long-press a row for the same glance, at any
   // viewport width (there's no gutter-width gate — a phone has no gutter at
@@ -2261,30 +2259,10 @@ export function DeckDisplay({
           renderAnalysis(activeView)
         )}
 
-        {/* Desktop-only floating hover-peek: a transient card-art preview in the
-            gutter beside the list while hovering a row. No-op on touch/native. */}
-        {hoverPeek.peek &&
-          !inspectorActive &&
-          (() => {
-            // A printing sub-row carries its own art (data-peek-img); use it so
-            // each expanded printing peeks its real card. Otherwise resolve the
-            // hovered card's hero art by name from the same flat list the
-            // carousel uses, so the peek matches the owned printing.
-            const i = flat.indexByName.get(hoverPeek.peek.name);
-            const card = i !== undefined ? flat.cards[i] : undefined;
-            return (
-              <DeckHoverPeek
-                imageUrl={hoverPeek.peek.img || card?.imageLarge || card?.imageNormal}
-                left={hoverPeek.peek.left}
-                top={hoverPeek.peek.top}
-                width={hoverPeek.peek.width}
-              />
-            );
-          })()}
-
-        {/* Touch long-press peek (E129) — same art resolution as the hover
-            peek above; portaled to <body> so it can't get trapped by a
-            `container-type`/transform ancestor. */}
+        {/* Touch long-press peek (E129) — a printing sub-row's own art
+            (data-peek-img), else the card's hero art by name; portaled to
+            <body> so it can't get trapped by a `container-type`/transform
+            ancestor. */}
         {touchPeek.peek &&
           (() => {
             const i = flat.indexByName.get(touchPeek.peek.name);

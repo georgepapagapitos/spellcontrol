@@ -3767,16 +3767,15 @@ preview) and Archidekt's static-card panel, these rulings now hold:
 - **Wide + fine pointer gets a card inspector, and it earns its width.**
   Superseded the day-old pinned rail (see the amendment below). `DeckCardInspector`
   (co-located CSS) is a sticky LEFT column beside the deck body at
-  `(min-width: 1440px) and (hover: hover) and (pointer: fine)`, mounted by the
+  `(min-width: 1024px) and (hover: hover) and (pointer: fine)`, mounted by the
   shared `.deck-body-layout` wrapper in **every view mode** — list, grid and
   stacks — showing the last card the pointer rested on, the commander until
   then. It carries art, name, mana, type line, **oracle text**, the ownership
   sentence (`allocationSummary` + `BinderBadge`), role and synergy chips, price,
   and three row actions; clicking the art opens the preview. A pin toggle freezes
-  the panel so the pointer crossing another row can't interrupt a read. The
-  floating hover-peek (`DeckHoverPeek`) is suppressed while the inspector shows
-  and unchanged elsewhere, including below 1440 in list view; the touch
-  long-press peek is untouched. The inspector never owns hover state — it
+  the panel so the pointer crossing another row can't interrupt a read. The deck
+  page has **no floating hover-peek**; the touch long-press peek is untouched
+  (see the 2026-09-25 amendment). The inspector never owns hover state — it
   remembers `useDeckHoverPeek`'s last non-null answer, so it doesn't blink back
   to the commander between rows.
 - **The group lens is a labelled dropdown.** "Group · Type ▾" (`SelectMenu`,
@@ -3905,6 +3904,22 @@ The rulings that came out of it:
   insets and the page keeps its gutter alignment (Moxfield's arrangement). A
   panel that appeared and disappeared would have to sit on the right: mounting
   it on the left would shove every row sideways mid-read.
+
+### Amendment: the inspector from 1024px (2026-09-25)
+
+The inspector first mounted at 1440px, and between 1024 and 1439 the floating
+hover-peek stood in. In that band the deck list spans the page, so the peek had
+no gutter on either side: its placement clamped it to the viewport's left edge,
+straight over the card names, including the one under the pointer. The ruling:
+
+- **A hover preview never covers what it previews.** If there is no empty space
+  for a floating card, don't float one. Make room for a panel instead.
+- **The inspector owns desktop preview from 1024px.** The list measures its own
+  width, so beside the 300px panel it just drops to fewer columns. Below 1024 (or
+  on a coarse pointer) the row thumbnail, click→carousel and touch long-press peek
+  carry it. `deck-inspector-gate.test.ts` pins the JS query, the CSS hide rule
+  and the hover hook's gate to one breakpoint, and fails if a floating hover
+  peek comes back to the deck page.
 - **Don't ship a layout picker.** Archidekt's four-layout carousel is a
   confession that no default was chosen. Choose the default.
 
@@ -4692,7 +4707,7 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 | -------------- | -------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Mobile**     | `≤ 600`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                                                                                                                                                                                                             |
 | **Tablet**     | `601 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                                                                                                                                                                                                                        |
-| **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, hover-peek (`≥1024`). 1101 = deck-editor layout shift.                                                                                                                                                                                                                                                                                      |
+| **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, deck card inspector (`≥1024`). 1101 = deck-editor layout shift.                                                                                                                                                                                                                                                                             |
 | **XL desktop** | `≥ 1400`       | 1440 · 1920                     | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), pages at `--page-max` (1400), and the card-grid routes (collection hub, decks index, deck editor) at `--page-max-wide` (1920) via the `.app-shell:has(…)` opt-in in base-layout.css. Test for balanced gutters / no dead space, not a reflow; the wide routes also at 1920 · 2560. |
 
 - **The two real breakpoints:** `max-width: 600px` (mobile) and `min-width: 1024px`
@@ -5783,7 +5798,7 @@ public profile) is the reference. Rulings:
   deck hero shows and the Value sort orders by). It sits in
   `.decks-index-card-facts`, one flex item holding the detail and the value:
   the detail shrinks, the value never does, and a CSS `::before` supplies the
-  ` · ` so it reads as the tail's last item. Never put it inside the detail
+  `·` separator (a space either side) so it reads as the tail's last item. Never put it inside the detail
   text (a partner pair truncates it away) or as a loose sibling of the detail
   (on a phone it wraps onto a line that starts with `·`). It stays in Compact,
   where it is what a Value sort is read by, and it is omitted for a deck with

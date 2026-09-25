@@ -6,7 +6,7 @@
    one inspector serves all three view modes. The toolbar and filter-chip bands
    stay full width above it, which is why a LEFT column doesn't break the page's
    alignment line: only the deck body insets. The inspector is mounted by
-   DeckDisplay only when the gate below passes (≥1440px AND a fine pointer — it
+   DeckDisplay only when the gate below passes (≥1024px AND a fine pointer — it
    is a hover surface; a wide touch tablet keeps the long-press peek). The width
    is one token so the list's measured width, which drives its column count, and
    the inspector agree. */
@@ -272,11 +272,12 @@
   padding: var(--space-3);
 }
 
-/* Belt-and-suspenders with the JS gate: the inspector is a hover surface, so it
-   never renders on a coarse pointer or below the width that has room for it.
-   Below the gate the floating hover-peek carries the same job, as it did before
-   the 2026-09-19 rail took it away at 1280px. */
-@media (max-width: 1439px), (hover: none), (pointer: coarse) {
+/* Belt-and-suspenders with the JS gate (INSPECTOR_QUERY in DeckDisplay.tsx —
+   the two must agree, see deck-inspector-gate.test.ts): the inspector is a
+   hover surface, so it never renders on a coarse pointer or below the width
+   that has room for it. There is no floating peek on the deck page any more: in
+   the band where it stood in, it had no gutter and covered the card names. */
+@media (max-width: 1023px), (hover: none), (pointer: coarse) {
   .deck-card-inspector {
     display: none;
   }
