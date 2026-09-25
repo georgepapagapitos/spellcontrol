@@ -78,240 +78,176 @@
   }
 }
 
-/* ── Table clock — the seam hub's other satellite ──
-   Mirrors .game-board-undo-btn exactly, offset to the OPPOSITE side of the
-   hub (seamOffset(seam, …, +1) in GameBoard.tsx): right of a row seam, below
-   a col seam. Screen-relative and never rotated — how long the table has been
-   playing is a fact about the table, not about a seat (same ruling as the win
-   celebration). The chip itself stays pass-through — taps fall to the panels
-   beneath it — with one exception: `.game-clock-start`, the cold-start control
-   for turn tracking, opts back into pointer events. See GameClock.tsx for why
-   that reverses the older "readout, never a control" note. */
-.game-board-clock {
-  position: absolute;
-  top: var(--seam-top-pct, 50%);
-  left: var(--seam-left-pct, 50%);
-  transform: translate(var(--clock-tx, calc(-50% + 3.4rem)), var(--clock-ty, -50%));
-  z-index: 10;
-  display: inline-flex;
+/* ── Table clock — an edge strip along the board's bottom (2026-09-24 ruling)
+   Replaces the old seam-satellite pill: this is a normal flex sibling of
+   `.game-board-grid` (set in GameBoard.tsx / `.game-board`'s
+   flex-direction: column), full width, taking its height from the board so
+   the seat grid shrinks to fit rather than being overlaid. Screen-relative
+   and never rotated — how long the table has been playing is a fact about
+   the table, not about a seat (same ruling as the win celebration). Unlike
+   the old satellite, nothing here needs pointer-events choreography: the
+   strip occupies its own space below the grid, never on top of a seat, so
+   every control is a plain button. See STYLE_GUIDE "Play board: the table
+   clock is an edge strip". */
+.game-clock-strip {
+  flex: 0 0 auto;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  /* Mobile-first tight: at 320px the strip carries a full sentence AND two
+     buttons on one line, so every gap/pad here is deliberately small and
+     widens at 600px (below) rather than starting roomy and shrinking, the
+     same convention the rest of the board uses. */
   gap: var(--space-2);
-  padding: 0.3rem 0.6rem;
-  border-radius: 999px;
-  background: rgba(14, 17, 24, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: rgba(10, 12, 17, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: #fff;
-  box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.45),
-    0 0 0 4px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  pointer-events: none;
-  white-space: nowrap;
-  animation: pp-fade-in 160ms ease-out;
-}
-
-/* Anchored by its near edge (see `seamSatellite`), so the room it has is
-   whatever is left between the seam and the board edge. Cap it there and let
-   the name ellipsis absorb the difference — at 320px the pill would otherwise
-   run 5px off-screen, and a long player name would push it further. */
-.game-board-clock.is-row-seam {
-  max-width: calc(50% - 2.5rem);
-}
-
-.game-clock {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  /* min-width:0 down the chain, or the nowrap children refuse to shrink and
-     the cap above does nothing. */
-  min-width: 0;
-  overflow: hidden;
   /* Tabular figures so the digits don't jitter sideways once a second. */
   font-variant-numeric: tabular-nums;
 }
 
-.game-clock-total {
-  font-size: var(--text-base);
-  font-weight: 650;
-  letter-spacing: 0.01em;
+.game-clock-strip.is-paused {
+  border-style: dashed;
 }
 
-.game-clock-turn {
-  display: inline-flex;
+.game-clock-strip-text {
+  display: flex;
   align-items: baseline;
-  gap: 0.3rem;
-  min-width: 0;
-  font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.72);
-  padding-left: var(--space-2);
-  border-left: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-/* Once a seat holds the turn, the segment is the pass-turn control. The
-   reset keeps it looking like the readout it also is; the pass glyph is the
-   tell. Seats carry no turn button any more (see GameClock.tsx). */
-button.game-clock-turn {
-  font: inherit;
-  font-size: var(--text-xs);
-  align-items: center;
-  margin: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  padding-right: 0;
-  background: none;
-  border: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.72);
-  cursor: pointer;
-  pointer-events: auto;
-  position: relative;
-}
-
-button.game-clock-turn:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-  outline-offset: 3px;
-}
-
-.game-clock-pass {
-  flex: 0 0 auto;
-  opacity: 0.8;
-}
-
-/* The segment is ~20px tall inside a pill that must not grow, so the 44px
-   floor is a ghost (the UX-320 pattern), full width, centred on it. */
-@media (pointer: coarse) {
-  button.game-clock-turn::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 2.75rem;
-    transform: translateY(-50%);
-  }
-}
-
-.game-clock-turn-name {
-  max-width: 6ch;
+  gap: 0.3em;
+  /* min-width:0 down the chain, or the nowrap children refuse to shrink and
+     the name ellipsis below does nothing. */
   min-width: 0;
   overflow: hidden;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  font-weight: 650;
+}
+
+/* "Game 12:04", the dot and "'s turn 1:12" never shrink or wrap — only the
+   name between them gives up room. Flex's default shrink is proportional to
+   flex-basis, which would otherwise happily shrink these unconstrained-width
+   text runs toward zero (a `white-space: nowrap` span can't shrink its own
+   content, so the box just gets clipped) before it ever touched the name's
+   smaller, explicitly-capped box. */
+.game-clock-strip-fixed,
+.game-clock-strip-dot {
+  flex: 0 0 auto;
+}
+
+.game-clock-strip-turn {
+  display: inline-flex;
+  align-items: baseline;
+  /* No gap: the name and "'s turn 1:12" read as one continuous run
+     ("Priyanka's turn 1:12"), not two chips with a space between them —
+     see `.game-clock-strip-name`. */
+  gap: 0;
+  /* The one shrinkable segment: letting IT shrink (rather than the fixed
+     parts above) is what gives the name below any room to give up. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The name is the only thing that truncates, and only when it genuinely
+   doesn't fit — no fixed ch cap, so "Player 1" renders in full the moment
+   there's room for it (390px+ has room even for most long names) instead of
+   always clipping to a fixed width regardless of how much space is free. A
+   min-width floor keeps at least a couple of characters plus the ellipsis
+   rather than letting flex shrink it all the way to nothing (which is what a
+   bare `flex: 0 1 auto` with no floor did — the name vanished entirely,
+   leaving a bare "'s turn 0:00"). `flex-grow: 0` keeps it from ballooning
+   past its own text and opening a gap before "'s turn" when the row has
+   slack; growing to fill space is `.game-clock-strip-turn`'s job, not this
+   span's. No `gap` above plus no margin here is what keeps "…" and "'s turn"
+   touching when it does truncate ("Priyanka…'s turn 1:12").
+   `text-align: right`: the min-width floor is in `ch` (the width of "0"),
+   which is WIDER than a short name's actual glyphs ("Jo" measured ~11px in a
+   ~14px-wide box) — left-aligned, that slack sits after the name and reads
+   as a stray gap before "'s turn"; right-aligned, the name hugs the
+   possessive with zero gap and the slack goes where it's invisible, before
+   the name (next to the dot separator). */
+.game-clock-strip-name {
+  min-width: 2ch;
+  flex: 0 1 auto;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  display: inline-block;
 }
 
-/* ── Clock orientation follows the seam ──
-   The seam is the only gutter on the board, and it runs along one axis: a
-   ROW seam is a horizontal gutter (a wide pill fits), a COL seam is a
-   vertical one (a wide pill does not — it spills sideways onto the panels
-   either side and lands on their name labels). So the pill stacks and
-   narrows on a col seam, giving it roughly the hub button's footprint
-   instead of three times its width. */
-.game-board-clock.is-col-seam {
-  max-width: 5rem;
-  padding-inline: 0.4rem;
+.game-clock-strip-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
 }
 
-.game-board-clock.is-col-seam .game-clock {
-  flex-direction: column;
+.game-clock-strip-actions {
+  flex: 0 0 auto;
+  display: flex;
   align-items: center;
-  gap: 0;
+  gap: var(--space-1);
 }
 
-.game-board-clock.is-col-seam .game-clock-turn {
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  max-width: 100%;
-  /* The divider rotates with the stack: a left border would now cut the
-     pill in half the wrong way. */
-  border-left: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-  padding-left: 0;
-  padding-top: 0.15rem;
-  margin-top: 0.15rem;
-}
-
-.game-board-clock.is-col-seam .game-clock-turn-name {
-  max-width: 100%;
-}
-
-/* Cold start for turn tracking. Icon-only and narrow: it only ever renders
-   while the turn segment is absent, so the chip's widest state is unchanged
-   and a column seam gains no width from it. */
-.game-clock-start {
+.game-clock-strip-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  padding: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  border: none;
-  color: #12151c;
+  gap: 0.25em;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
   cursor: pointer;
-  pointer-events: auto;
-  transition: transform var(--motion-base) var(--ease-out-soft);
 }
 
-.game-clock-start:active {
-  transform: scale(0.92);
+.game-clock-strip-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .game-clock-start:hover {
-    background: #fff;
+  .game-clock-strip-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
   }
 }
 
-.game-clock-start:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-  outline-offset: 3px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .game-clock-start {
-    transition: none;
-  }
-}
-
-/* Touch floor via a centred invisible ghost (the UX-320 pattern): the chip
-   stays visually compact while the hit box meets 44px. The button is already
-   a positioning context for it. */
+/* Real 44px buttons, not a ghost: unlike the old floating pill, the strip
+   has genuine room, so the coarse-pointer floor is the actual box — width
+   is left to the content plus its (tight, mobile-first) padding above. */
 @media (pointer: coarse) {
-  .game-clock-start {
-    position: relative;
-  }
-
-  .game-clock-start::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 2.75rem;
-    height: 2.75rem;
-    transform: translate(-50%, -50%);
+  .game-clock-strip-btn {
+    min-height: 2.75rem;
   }
 }
 
+/* ≥600px: the strip has room to breathe, so it widens back out instead of
+   staying phone-tight. */
 @media (min-width: 600px) {
-  .game-board-clock {
-    transform: translate(
-      var(--clock-tx-lg, var(--clock-tx, calc(-50% + 4rem))),
-      var(--clock-ty-lg, var(--clock-ty, -50%))
-    );
+  .game-clock-strip {
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
   }
 
-  .game-clock-total {
-    font-size: var(--text-md);
-  }
-
-  .game-clock-turn {
+  .game-clock-strip-text {
+    gap: 0.4em;
     font-size: var(--text-sm);
   }
 
-  .game-clock-turn-name {
-    max-width: 10ch;
+  .game-clock-strip-actions {
+    gap: var(--space-2);
+  }
+
+  .game-clock-strip-btn {
+    gap: 0.3em;
+    font-size: var(--text-xs);
+    padding: var(--space-2) var(--space-3);
   }
 }
 

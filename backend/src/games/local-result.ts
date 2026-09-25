@@ -46,6 +46,7 @@ const EVENT_KINDS: ReadonlySet<string> = new Set<GameEvent['kind']>([
   'designation',
   'phase',
   'counter',
+  'clock',
 ]);
 
 type Rec = Record<string, unknown>;
@@ -190,6 +191,7 @@ export function parseLocalResult(body: unknown): LocalResultParse {
     if (raw.fromPartner === true) e.fromPartner = true;
     if (raw.undo === true) e.undo = true;
     if (raw.undone === true) e.undone = true;
+    if (typeof raw.paused === 'boolean') e.paused = raw.paused;
     if (typeof raw.message === 'string') e.message = raw.message.slice(0, MAX_NOTE_LEN);
     events.push(e);
   }

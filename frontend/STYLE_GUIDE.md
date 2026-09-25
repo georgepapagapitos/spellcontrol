@@ -7170,3 +7170,89 @@ tapping it now opens a fan of labelled petals first, Lotus's radial menu.
   `fullscreenchange`, never assumed the instant `enter()` is called — the
   request is async and can be silently rejected — so a fullscreen the user
   entered some other way is never yanked out from under them on the way out.
+
+## Play board: the table clock is pausable and optional at setup (2026-09-24)
+
+Two independent device preferences replace the single `showClock` flag: **Game
+timer** (the total, and lets it be paused) and **Turn tracker** (the active
+seat's turn time and the pass-turn control). Either can be off; the strip
+itself disappears only when both are (see the edge-strip ruling below for the
+control's own shape).
+
+- **Pausing is a logged EVENT, never a stored field.** `{ type: 'clock',
+  paused, actorSeat }` pushes one `clock` event per tap; `isClockPaused` folds
+  the log for "is it paused right now", the same design as `activeSeat` being
+  a fold over `turn` events. A state with no `clock` events reads as "never
+  paused" by construction, so a persisted row from before this shipped needs
+  no migration.
+- **Every derived reading subtracts paused time**, including a pause that
+  spans a turn change (each interval's own subtraction only counts the
+  overlap that falls inside it, so the paused stretch splits correctly
+  between the outgoing and incoming seat) and a game that ends mid-pause
+  (the interval's own end caps it, so the clock freezes exactly where it
+  was). Read `clockView(game, now)` rather than re-deriving any of this by
+  hand — it bundles total, paused, active seat, turn and per-seat totals in
+  one call.
+- **Tapping the total pauses/resumes it.** A real button (`aria-label`
+  "Pause the game clock, 12:04" / "Resume…"), and a paused state that pairs a
+  pause glyph with the word "paused" in the visible text — never colour alone.
+- **Not undoable.** Pausing is a table decision, not a misclick to
+  compensate; it is deliberately excluded from `isUndoable`'s five kinds.
+- **Passing the turn stays reachable with the tracker off**, from the seat
+  drawer's "Start turn here" — the clock strip's Pass button is one route to
+  it, not the only one.
+- **Turn time belongs to the tracker, not the timer.** It shows whenever
+  Turn tracker is on, with or without the Game timer — a table that only
+  wants to know whose turn it is still gets to see how long that turn has
+  run, since that's the tracker's own job, not the timer's.
+- **Defaults both on.** The board has shown the clock since it shipped, so an
+  upgrading device keeps exactly what it already showed (its old `showClock`
+  value carries into both new flags); a fresh install also starts both on,
+  since the app isn't asking someone to opt into a feature they already had
+  by another name.
+
+## Play board: the table clock is an edge strip, not a seam satellite (2026-09-24)
+
+Four interactive prototypes were built and tried (a seam pill, a "Done"
+button on the active seat, a hub ring, an edge strip); the edge strip won.
+`GameClock.tsx` now renders a single full-width strip along the board's
+**bottom edge** — the device holder's own edge — as a normal flex child of
+`.game-board` (which is `flex-direction: column`), stacked *below*
+`.game-board-grid`. The old floating seam pill (`.game-board-clock`, offset
+from the hub via `seamSatellite`) is gone; the seam now carries only the hub
+and undo.
+
+- **A sibling, never an overlay.** The grid has `flex: 1`, the strip has
+  `flex: 0 0 auto` — the grid shrinks to make room for the strip, rather than
+  the strip floating on top of a seat. This is also why the strip needs none
+  of the old pill's pointer-events choreography (`pointer-events: none` on
+  the wrapper, `auto` per control): it occupies its own space, so every
+  control is a plain button.
+- **Screen-relative, safe-area for free.** Never rotated to a seat, same
+  ruling as the win celebration. `.game-board` already pads every side for
+  `env(safe-area-inset-*)`; the strip being an ordinary child of that padded
+  box is what keeps its buttons clear of a home indicator — it carries no
+  safe-area CSS of its own.
+- **One line, always.** At 320px there is a full sentence ("Game 12:04 ·
+  Max's turn 1:12") plus two buttons to fit on one row. Only the active
+  player's **name** is allowed to shrink (`.game-clock-strip-name`,
+  `max-width: 6ch` mobile-first, a `min-width: 2ch` floor so it never
+  vanishes to nothing) — every other segment (`Game 12:04`, the separator
+  dot, `'s turn 1:12`) is `flex: 0 0 auto` and never wraps or clips instead.
+  Text and button sizing themselves are mobile-first tight (`--text-xs`,
+  tight gaps) and widen at `min-width: 600px`, the same convention the rest
+  of the board uses, rather than starting roomy and trying to shrink.
+- **Real 44px buttons, not a ghost.** The old pill was too small to carry its
+  own touch floor, hence the invisible `::after` ghost pattern. The strip has
+  genuine room, so Start/Pause/Pass are simply `min-height: 2.75rem` on
+  coarse pointers — no ghost needed.
+- **The "up next" marker is quiet, and reuses the designation rail.** A seat
+  about to take the turn gets a faint, icon-only chip (`ChevronRight`,
+  `.pp-designation-chip.is-next`) in the same `.pp-designation-chips` rail as
+  Monarch/Initiative — not a new corner, not a new collision to test. It's
+  read-only (`pointer-events: none` via the rail), dimmer than a claimed
+  designation so it never reads as a third one, and never marks the active
+  seat itself (there's nothing to be "next" relative to a lone survivor).
+  `nextActiveSeat` (game-core, now exported) computes it — the same
+  alive/sort/wrap logic `pass-turn` already uses, so the marker can never
+  disagree with where a tap would actually go.

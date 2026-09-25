@@ -183,6 +183,22 @@ describe('POST /api/game-results (local game)', () => {
     expect(row.rows[0]).toEqual({ mode: 'local', recorded_by_user_id: anaId });
   });
 
+  it('accepts a finished game whose log includes clock pause/resume events (board timer)', async () => {
+    const ana = await makeUser('lr-clock');
+    const game = localGame({
+      seats: [{}, {}],
+      events: [
+        { id: 'e1', ts: 1000, kind: 'start', actorSeat: null, targetSeat: null },
+        { id: 'e2', ts: 1500, kind: 'clock', actorSeat: null, targetSeat: null, paused: true },
+        { id: 'e3', ts: 2500, kind: 'clock', actorSeat: null, targetSeat: null, paused: false },
+        { id: 'e4', ts: 3000, kind: 'end', actorSeat: null, targetSeat: 0 },
+      ],
+    });
+    const res = await request(app).post('/api/game-results').set('Cookie', ana).send({ game });
+    expect(res.status).toBe(201);
+    expect(res.body.result.summary).not.toBeNull();
+  });
+
   it('rejects a game that is not local, not finished, or malformed', async () => {
     const ana = await makeUser('lr-shape');
     const post = (game: unknown) =>

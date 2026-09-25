@@ -4,6 +4,7 @@ import {
   cmdDamageKey,
   createGameState,
   gameToRecord,
+  isClockPaused,
   makePlayer,
   cardsToBottom,
   normalizeCounterName,
@@ -622,6 +623,51 @@ describe('phase', () => {
     expect(s.phase).toBeUndefined();
     s = applyAction(s, { type: 'pass-turn', actorSeat: null });
     expect(s.phase).toBeUndefined();
+  });
+});
+
+describe('clock', () => {
+  it('is never paused before any clock event, including legacy states', () => {
+    const s = applyAction(lobby(2), { type: 'start' });
+    expect(isClockPaused(s)).toBe(false);
+    // A row with no `events` field at all reads through the same fold.
+    expect(isClockPaused({ ...s, events: [] })).toBe(false);
+  });
+
+  it('pauses and resumes, pushing one event per tap', () => {
+    let s = applyAction(lobby(2), { type: 'start' });
+    s = applyAction(s, { type: 'clock', paused: true, actorSeat: null, ts: 2000 });
+    expect(isClockPaused(s)).toBe(true);
+    expect(s.events.at(-1)).toMatchObject({
+      kind: 'clock',
+      paused: true,
+      actorSeat: null,
+      targetSeat: null,
+    });
+    s = applyAction(s, { type: 'clock', paused: false, actorSeat: null, ts: 3000 });
+    expect(isClockPaused(s)).toBe(false);
+    expect(s.events.at(-1)).toMatchObject({ kind: 'clock', paused: false });
+  });
+
+  it('is a no-op when the requested state already holds — no duplicate event, no version bump', () => {
+    let s = applyAction(lobby(2), { type: 'start' });
+    s = applyAction(s, { type: 'clock', paused: true, actorSeat: null });
+    const beforeVersion = s.version;
+    const beforeEvents = s.events.length;
+    const same = applyAction(s, { type: 'clock', paused: true, actorSeat: null });
+    expect(same).toBe(s);
+    expect(same.version).toBe(beforeVersion);
+    expect(same.events.length).toBe(beforeEvents);
+  });
+
+  it('is a no-op in the lobby and once the game has finished', () => {
+    const lobbyState = lobby(2);
+    expect(applyAction(lobbyState, { type: 'clock', paused: true, actorSeat: null })).toBe(
+      lobbyState
+    );
+    let s = applyAction(lobbyState, { type: 'start' });
+    s = applyAction(s, { type: 'end', winnerSeat: null });
+    expect(applyAction(s, { type: 'clock', paused: true, actorSeat: null })).toBe(s);
   });
 });
 

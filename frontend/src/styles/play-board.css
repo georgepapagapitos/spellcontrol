@@ -16,6 +16,12 @@
   background: #000;
   color: #f4f6fa;
   display: flex;
+  /* Column, not the historical default row: the clock is now an edge strip
+     stacked BELOW the seat grid (`.game-clock-strip`, a flex sibling here),
+     not an overlay floating on top of it. This padding already reserves the
+     safe-area insets on all four sides, so the strip's bottom edge sits
+     above `--safe-bottom` for free — nothing further to add for it. */
+  flex-direction: column;
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;

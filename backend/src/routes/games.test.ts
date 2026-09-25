@@ -1826,6 +1826,85 @@ describe('phase action (T101 advisory clock)', () => {
   });
 });
 
+describe('clock action (board-timer pause/resume)', () => {
+  it('the host can pause, pushing one clock event', async () => {
+    const { code, host } = await setupTable('games_clock_host', []);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'start' }, { type: 'clock', paused: true, actorSeat: null }],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.game.events.at(-1)).toMatchObject({
+      kind: 'clock',
+      paused: true,
+      actorSeat: null,
+    });
+  });
+
+  it('any participant, not just the host, may pause or resume it', async () => {
+    const { code, host, joiners } = await setupTable('games_clock_participant', [
+      'games_clock_participant_j',
+    ]);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const started = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({ baseVersion: current.body.game.version, actions: [{ type: 'start' }] });
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiners[0])
+      .send({
+        baseVersion: started.body.game.version,
+        actions: [{ type: 'clock', paused: true, actorSeat: 1 }],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.game.events.at(-1)).toMatchObject({ kind: 'clock', paused: true });
+  });
+
+  it('coerces a non-boolean paused value to false rather than storing it verbatim', async () => {
+    const { code, host } = await setupTable('games_clock_coerce', []);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    // Start, then pause for real, so the coercion below is observable as a
+    // state transition (resume) rather than a same-value no-op.
+    const paused = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'start' }, { type: 'clock', paused: true, actorSeat: null }],
+      });
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: paused.body.game.version,
+        // A truthy-looking string is not `=== true`, so it coerces to
+        // `false` — the reducer must never store a non-boolean verbatim.
+        actions: [{ type: 'clock', paused: 'yes', actorSeat: null }],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.game.events.at(-1)).toMatchObject({ kind: 'clock', paused: false });
+  });
+
+  it('is a no-op while the game is still in the lobby — same authority rule as the reducer', async () => {
+    const { code, host } = await setupTable('games_clock_lobby', []);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'clock', paused: true, actorSeat: null }],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.game.version).toBe(current.body.game.version);
+  });
+});
+
 describe('miscellaneous', () => {
   it('GET unknown code returns 404', async () => {
     const cookie = await registerAndGetCookie('games_misc1');

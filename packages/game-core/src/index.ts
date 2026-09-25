@@ -178,7 +178,8 @@ export interface GameEvent {
     | 'turn'
     | 'designation'
     | 'phase'
-    | 'counter';
+    | 'counter'
+    | 'clock';
   actorSeat: number | null;
   targetSeat: number | null;
   delta?: number;
@@ -186,6 +187,15 @@ export interface GameEvent {
   /** cmd-dmg only: the damage came from that seat's partner, not its primary. */
   fromPartner?: boolean;
   message?: string;
+  /**
+   * `clock` only: `true` for a pause, `false` for a resume. The table clock
+   * has no field of its own on `GameState` — "is it paused right now" is a
+   * fold over these events (see `isClockPaused`), the same design as
+   * `activeSeat`'s turn history being a fold over `turn` events. A persisted
+   * state with no `clock` events at all folds to "never paused" by
+   * construction, so old rows need no migration.
+   */
+  paused?: boolean;
   /**
    * Set on a compensating event dispatched by Undo (see `GameAction.undoOf`).
    * The life/poison/damage it pins are real state; the *event* is bookkeeping
@@ -474,6 +484,24 @@ export type GameAction =
    */
   | { type: 'phase'; phase: GamePhase; actorSeat: number | null; ts?: number }
   /**
+   * Pause or resume the derived table clock (`lib/game-clock.ts`'s
+   * `gameElapsed`/`turnElapsed`/`seatTurnTotals` all subtract paused
+   * stretches). Recorded as an ordinary log EVENT, never a `GameState`
+   * field — `isClockPaused` folds the log for "is it paused right now",
+   * exactly like `activeSeat`'s history is a fold over `turn` events, so a
+   * pause survives resume/reconnect the same way the rest of the log does
+   * with no separate field to keep in sync.
+   *
+   * A no-op (state unchanged, no event, no version bump) when the game isn't
+   * `active` — nothing runs before a start or after a finish to pause — or
+   * when `paused` already matches the current state (a double-tap, or two
+   * devices racing the same toggle). Deliberately NOT one of the five
+   * undoable kinds: pausing is a table decision a player makes on purpose,
+   * not a value a misclick corrupts, so Undo does not reach it (see
+   * `isUndoable` in the frontend's `undo-stack.ts`).
+   */
+  | { type: 'clock'; paused: boolean; actorSeat: number | null; ts?: number }
+  /**
    * Adjust a free-form counter. `seat` is the owning seat, or `null` for a
    * table-level counter. A counter springs into existence on its first
    * `counter` action (delta 0 creates it at zero), so there is no separate
@@ -570,8 +598,12 @@ function updatePlayer(
  * Find the next non-eliminated seat after `currentSeat` in sorted seat order,
  * wrapping. Returns `null` if no eligible seat exists (everyone is eliminated).
  * When `currentSeat` is null, returns the first non-eliminated seat.
+ *
+ * Exported (not just an internal `pass-turn` helper) so the board can render
+ * a read-only "up next" marker on the seat this would move to, without
+ * duplicating the alive/sort/wrap logic — see `GameBoard.tsx`.
  */
-function nextActiveSeat(players: GamePlayer[], currentSeat: number | null): number | null {
+export function nextActiveSeat(players: GamePlayer[], currentSeat: number | null): number | null {
   const alive = players.filter((p) => !p.eliminated).sort((a, b) => a.seat - b.seat);
   if (alive.length === 0) return null;
   if (currentSeat === null) return alive[0].seat;
@@ -600,6 +632,20 @@ function requireSeat(players: GamePlayer[], seat: number): GamePlayer {
   const p = players.find((p) => p.seat === seat);
   if (!p) throw new Error(`No player at seat ${seat}.`);
   return p;
+}
+
+/**
+ * Whether the table clock is paused right now: the `paused` flag of the most
+ * recent `clock` event, walking backward, or `false` when the log has none.
+ * A state written before pause/resume existed has no `clock` events and so
+ * reads as "never paused" through this same code path — no migration.
+ */
+export function isClockPaused(state: GameState): boolean {
+  for (let i = state.events.length - 1; i >= 0; i--) {
+    const ev = state.events[i];
+    if (ev.kind === 'clock' && typeof ev.paused === 'boolean') return ev.paused;
+  }
+  return false;
 }
 
 /**
@@ -1251,6 +1297,20 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           actorSeat: action.actorSeat,
           targetSeat: null,
           message: action.phase,
+          ts,
+        }),
+      };
+      break;
+    }
+    case 'clock': {
+      if (prev.status !== 'active' || isClockPaused(prev) === action.paused) return prev;
+      next = {
+        ...next,
+        events: pushEvent(next, {
+          kind: 'clock',
+          actorSeat: action.actorSeat,
+          targetSeat: null,
+          paused: action.paused,
           ts,
         }),
       };

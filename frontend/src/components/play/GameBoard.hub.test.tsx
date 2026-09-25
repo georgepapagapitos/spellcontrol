@@ -39,8 +39,10 @@ vi.mock('../../store/play', () => {
       setHaptics: vi.fn(),
       preferredLayouts: {},
       setPreferredLayout: vi.fn(),
-      showClock: true,
-      setShowClock: vi.fn(),
+      gameTimerEnabled: true,
+      turnTrackerEnabled: true,
+      setGameTimerEnabled: vi.fn(),
+      setTurnTrackerEnabled: vi.fn(),
     });
   usePlayStore.getState = getState;
   return { usePlayStore };
@@ -124,11 +126,11 @@ describe('the hub ring', () => {
     expect(screen.queryByRole('menu', { name: 'Board menu' })).toBeNull();
   });
 
-  it('hides the clock and undo satellites while open', () => {
+  it('keeps the clock strip visible while open — it moved out of the seam, so a petal can never reach it', () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
-    expect(document.querySelector('.game-board-clock')).toBeTruthy();
+    expect(document.querySelector('.game-clock-strip')).toBeTruthy();
     openRing();
-    expect(document.querySelector('.game-board-clock')).toBeNull();
+    expect(document.querySelector('.game-clock-strip')).toBeTruthy();
   });
 });
 

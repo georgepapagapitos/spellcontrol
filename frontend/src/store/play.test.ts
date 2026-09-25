@@ -96,7 +96,8 @@ function resetStore() {
     boardVisible: true,
     hapticsEnabled: true,
     preferredLayouts: {},
-    showClock: true,
+    gameTimerEnabled: true,
+    turnTrackerEnabled: true,
     tableProfiles: [],
     hydrated: true,
   });
@@ -377,11 +378,56 @@ describe('usePlayStore — board / haptics / layout', () => {
     expect(usePlayStore.getState().preferredLayouts[3]).toBeUndefined();
   });
 
-  it('setShowClock updates the persisted flag', () => {
-    usePlayStore.getState().setShowClock(false);
-    expect(usePlayStore.getState().showClock).toBe(false);
-    usePlayStore.getState().setShowClock(true);
-    expect(usePlayStore.getState().showClock).toBe(true);
+  it('setGameTimerEnabled and setTurnTrackerEnabled update their own persisted flag', () => {
+    usePlayStore.getState().setGameTimerEnabled(false);
+    expect(usePlayStore.getState().gameTimerEnabled).toBe(false);
+    expect(usePlayStore.getState().turnTrackerEnabled).toBe(true);
+    usePlayStore.getState().setTurnTrackerEnabled(false);
+    expect(usePlayStore.getState().turnTrackerEnabled).toBe(false);
+    usePlayStore.getState().setGameTimerEnabled(true);
+    usePlayStore.getState().setTurnTrackerEnabled(true);
+    expect(usePlayStore.getState().gameTimerEnabled).toBe(true);
+    expect(usePlayStore.getState().turnTrackerEnabled).toBe(true);
+  });
+});
+
+describe('usePlayStore — persisted store migration (v1 → v2)', () => {
+  // The store's `persist` config isn't exported, so this exercises `migrate`
+  // as a plain function the way zustand's persist middleware calls it: with
+  // the raw JSON-parsed object it read from storage and the version stamped
+  // on it, before anything is merged onto the live store.
+  function migrate(state: Record<string, unknown>, fromVersion: number) {
+    const options = (
+      usePlayStore as unknown as {
+        persist: { getOptions: () => { migrate: (s: unknown, v: number) => unknown } };
+      }
+    ).persist.getOptions();
+    return options.migrate(state, fromVersion) as Record<string, unknown>;
+  }
+
+  it('splits a legacy showClock: true into both new flags, and drops the old key', () => {
+    const migrated = migrate({ showClock: true }, 1);
+    expect(migrated.gameTimerEnabled).toBe(true);
+    expect(migrated.turnTrackerEnabled).toBe(true);
+    expect(migrated.showClock).toBeUndefined();
+  });
+
+  it('splits a legacy showClock: false the same way', () => {
+    const migrated = migrate({ showClock: false }, 1);
+    expect(migrated.gameTimerEnabled).toBe(false);
+    expect(migrated.turnTrackerEnabled).toBe(false);
+  });
+
+  it('a pre-preference row with no showClock at all defaults both to on', () => {
+    const migrated = migrate({}, 0);
+    expect(migrated.gameTimerEnabled).toBe(true);
+    expect(migrated.turnTrackerEnabled).toBe(true);
+  });
+
+  it('leaves an already-current row alone', () => {
+    const migrated = migrate({ gameTimerEnabled: false, turnTrackerEnabled: true }, 2);
+    expect(migrated.gameTimerEnabled).toBe(false);
+    expect(migrated.turnTrackerEnabled).toBe(true);
   });
 });
 

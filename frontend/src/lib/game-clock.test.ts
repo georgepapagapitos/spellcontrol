@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  clockView,
   describeClock,
   formatClock,
   gameElapsed,
@@ -14,6 +15,11 @@ const M = 60 * S;
 
 function ev(kind: GameEvent['kind'], ts: number, targetSeat: number | null = null): GameEvent {
   return { id: `e${ts}`, ts, kind, actorSeat: null, targetSeat };
+}
+
+/** A clock pause (paused: true) or resume (paused: false) event. */
+function clockEv(paused: boolean, ts: number): GameEvent {
+  return { id: `c${ts}`, ts, kind: 'clock', actorSeat: null, targetSeat: null, paused };
 }
 
 /** Minimal state — only the fields the clock actually reads. */
@@ -140,5 +146,96 @@ describe('seatTurnTotals', () => {
 
   it('is empty for a game that never started', () => {
     expect(seatTurnTotals(game({ startedAt: null }), 5 * M)).toEqual({});
+  });
+});
+
+describe('pause / resume', () => {
+  it('gameElapsed subtracts a closed pause', () => {
+    const g = game({
+      startedAt: 0,
+      events: [clockEv(true, 2 * M), clockEv(false, 3 * M)],
+    });
+    expect(gameElapsed(g, 10 * M)).toBe(9 * M);
+  });
+
+  it('gameElapsed freezes while a pause is still open, no matter how far `now` moves', () => {
+    const g = game({ startedAt: 0, events: [clockEv(true, 2 * M)] });
+    expect(gameElapsed(g, 5 * M)).toBe(2 * M);
+    expect(gameElapsed(g, 10 * M)).toBe(2 * M);
+  });
+
+  it('a game that ends while paused freezes at the moment it was paused', () => {
+    const g = game({ startedAt: 0, endedAt: 5 * M, events: [clockEv(true, 2 * M)] });
+    expect(gameElapsed(g, 99 * M)).toBe(2 * M);
+  });
+
+  it('turnElapsed subtracts a pause that falls inside the current turn', () => {
+    const g = game({
+      startedAt: 0,
+      events: [ev('turn', 5 * M, 1), clockEv(true, 6 * M), clockEv(false, 7 * M)],
+    });
+    expect(turnElapsed(g, 9 * M)).toBe(3 * M);
+  });
+
+  it('is a no-op — read-back — when the log has no clock events, including a legacy row', () => {
+    const g = game({ startedAt: 1 * M });
+    expect(gameElapsed(g, 6 * M)).toBe(5 * M);
+  });
+
+  it('splits a pause that spans a turn change between the outgoing and incoming seat', () => {
+    // Paused from 4' to 8'; the turn passes from seat 1 to seat 2 at 6', mid-pause.
+    const g = game({
+      startedAt: 0,
+      startingSeat: 0,
+      events: [
+        ev('turn', 2 * M, 1),
+        clockEv(true, 4 * M),
+        ev('turn', 6 * M, 2),
+        clockEv(false, 8 * M),
+      ],
+    });
+    const totals = seatTurnTotals(g, 10 * M);
+    // Seat 1 held the turn 2'-6' (4' of wall time), 2' of it paused: 2' left.
+    expect(totals[1]).toBe(2 * M);
+    // Seat 2 has held it 6'-10' (4' of wall time) so far, 2' of it paused (the
+    // other half of the same pause): 2' left.
+    expect(totals[2]).toBe(2 * M);
+    // Nothing invented or double-counted: the totals plus the paused stretch
+    // account for the entire game exactly once.
+    expect(Object.values(totals).reduce((a, b) => a + b, 0)).toBe(gameElapsed(g, 10 * M));
+  });
+});
+
+describe('clockView', () => {
+  it('bundles total, paused, active seat, turn and seat totals in one call', () => {
+    const g = game({
+      startedAt: 0,
+      startingSeat: 0,
+      activeSeat: 2,
+      events: [
+        ev('turn', 2 * M, 1),
+        clockEv(true, 4 * M),
+        ev('turn', 6 * M, 2),
+        clockEv(false, 8 * M),
+      ],
+    });
+    const view = clockView(g, 10 * M);
+    expect(view.total).toBe(6 * M);
+    expect(view.paused).toBe(false);
+    expect(view.activeSeat).toBe(2);
+    // The active seat's turn reading agrees with its own running total —
+    // it hasn't passed yet, so they're the same stretch.
+    expect(view.turn).toBe(2 * M);
+    expect(view.seatTotals[2]).toBe(2 * M);
+  });
+
+  it('reports paused: true while a pause is still open', () => {
+    const g = game({ startedAt: 0, events: [clockEv(true, 2 * M)] });
+    expect(clockView(g, 5 * M).paused).toBe(true);
+  });
+
+  it('reads a game with no clock events at all as never paused', () => {
+    const g = game({ startedAt: 0, events: [ev('turn', 1 * M, 0)] });
+    expect(clockView(g, 5 * M).paused).toBe(false);
   });
 });

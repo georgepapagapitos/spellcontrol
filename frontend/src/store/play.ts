@@ -283,8 +283,16 @@ interface PlayState {
   boardVisible: boolean;
   /** Vibration feedback on taps / lethal hits. Persisted; default on. */
   hapticsEnabled: boolean;
-  /** Show the table clock on the board. Persisted; default on. */
-  showClock: boolean;
+  /**
+   * Show the total game time on the board, and let it be paused/resumed.
+   * Persisted; default on (see the store's `migrate` — this and
+   * `turnTrackerEnabled` replace the single `showClock` flag as of version 2,
+   * split like Lotus's own "Enable game timer" / "Enable turn tracker").
+   */
+  gameTimerEnabled: boolean;
+  /** Show the active seat's turn time and let the clock pass the turn.
+   *  Persisted; default on, same split as `gameTimerEnabled`. */
+  turnTrackerEnabled: boolean;
   /**
    * Saved table setups — a pod that plays the same four people every week
    * shouldn't retype the roster each session. Persisted locally only: this is
@@ -310,7 +318,8 @@ interface PlayState {
   hideBoard(): void;
   showBoard(): void;
   setHaptics(enabled: boolean): void;
-  setShowClock(enabled: boolean): void;
+  setGameTimerEnabled(enabled: boolean): void;
+  setTurnTrackerEnabled(enabled: boolean): void;
   /** Save (or overwrite, by name) a setup as a reusable table profile. */
   saveTableProfile(name: string, setup: LocalGameSetup): void;
   deleteTableProfile(id: string): void;
@@ -791,7 +800,8 @@ export const usePlayStore = create<PlayState>()(
       onlinePolling: false,
       boardVisible: true,
       hapticsEnabled: true,
-      showClock: true,
+      gameTimerEnabled: true,
+      turnTrackerEnabled: true,
       tableProfiles: [],
       preferredLayouts: {},
       gameNightSeed: null,
@@ -802,7 +812,8 @@ export const usePlayStore = create<PlayState>()(
         setHapticsEnabled(enabled);
         set({ hapticsEnabled: enabled });
       },
-      setShowClock: (enabled) => set({ showClock: enabled }),
+      setGameTimerEnabled: (enabled) => set({ gameTimerEnabled: enabled }),
+      setTurnTrackerEnabled: (enabled) => set({ turnTrackerEnabled: enabled }),
       saveTableProfile: (name, setup) => {
         const trimmed = name.replace(/\s+/g, ' ').trim().slice(0, MAX_PROFILE_NAME_LENGTH);
         if (!trimmed) return;
@@ -1442,7 +1453,27 @@ export const usePlayStore = create<PlayState>()(
     }),
     {
       name: 'mtg-play',
-      version: 1,
+      version: 2,
+      /**
+       * v1 → v2: `showClock` gated the total game time and the turn segment
+       * together; split into `gameTimerEnabled` + `turnTrackerEnabled` so
+       * either can be turned off at setup on its own (Lotus's "Enable game
+       * timer" / "Enable turn tracker"). A reader's existing choice carries
+       * over unchanged to BOTH new flags — `showClock: true` (or absent, the
+       * pre-preference default) already showed both readings, and `false`
+       * hid both, so this is not a behavior change for anyone upgrading.
+       */
+      migrate: (persistedState, fromVersion) => {
+        const state = persistedState as Record<string, unknown> | undefined;
+        if (!state) return state as never;
+        if (fromVersion < 2) {
+          const legacy = typeof state.showClock === 'boolean' ? state.showClock : true;
+          state.gameTimerEnabled = legacy;
+          state.turnTrackerEnabled = legacy;
+          delete state.showClock;
+        }
+        return state;
+      },
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
@@ -1481,7 +1512,8 @@ export const usePlayStore = create<PlayState>()(
         pendingResults: s.pendingResults,
         boardVisible: s.boardVisible,
         hapticsEnabled: s.hapticsEnabled,
-        showClock: s.showClock,
+        gameTimerEnabled: s.gameTimerEnabled,
+        turnTrackerEnabled: s.turnTrackerEnabled,
         tableProfiles: s.tableProfiles,
         preferredLayouts: s.preferredLayouts,
       }),

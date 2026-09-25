@@ -42,12 +42,30 @@ export function BoardHubMenu({
       const btn = hubRef.current;
       if (!btn) return;
       const rect = btn.getBoundingClientRect();
+      // Bound the ring to the SEAT GRID, not the whole window: since the
+      // table clock became a full-width edge strip below the grid, the
+      // window includes that strip, and a petal clamped only to the window
+      // could land on it. `hubPetalPositions` works in whatever coordinate
+      // origin `hub` and `viewport` share, so both are expressed relative to
+      // the grid's own top-left here and the results shifted back to
+      // viewport-absolute pixels for the fixed-position ring's CSS. Falls
+      // back to the window if the grid can't be found (defensive only — the
+      // hub always renders inside `.game-board-grid`).
+      const grid = btn.closest('.game-board-grid');
+      const gridRect = grid?.getBoundingClientRect();
+      const origin = gridRect ? { x: gridRect.left, y: gridRect.top } : { x: 0, y: 0 };
+      const viewport = gridRect
+        ? { width: gridRect.width, height: gridRect.height }
+        : { width: window.innerWidth, height: window.innerHeight };
+      const hub = {
+        x: rect.left + rect.width / 2 - origin.x,
+        y: rect.top + rect.height / 2 - origin.y,
+      };
       setPoints(
-        hubPetalPositions(
-          { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
-          { width: window.innerWidth, height: window.innerHeight },
-          petals.length
-        )
+        hubPetalPositions(hub, viewport, petals.length).map((p) => ({
+          x: p.x + origin.x,
+          y: p.y + origin.y,
+        }))
       );
     };
     measure();

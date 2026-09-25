@@ -598,6 +598,14 @@ function LocalSetup({
   const minSeats = isHorde ? 1 : MIN_LOCAL_PLAYERS;
   const maxSeats = isHorde ? 4 : MAX_LOCAL_PLAYERS;
 
+  // The board clock is a device preference (persisted in the play store), not
+  // a game rule saved with the table's setup — it applies to whichever game
+  // this device shows next, local or online, so it's read/written straight
+  // from the store rather than through buildSetup/applySetup.
+  const gameTimerEnabled = usePlayStore((s) => s.gameTimerEnabled);
+  const setGameTimerEnabled = usePlayStore((s) => s.setGameTimerEnabled);
+  const turnTrackerEnabled = usePlayStore((s) => s.turnTrackerEnabled);
+  const setTurnTrackerEnabled = usePlayStore((s) => s.setTurnTrackerEnabled);
   const [count, setCount] = useState<number>(() =>
     seed && seed.players.length > 0
       ? Math.max(MIN_LOCAL_PLAYERS, Math.min(seed.players.length, MAX_LOCAL_PLAYERS))
@@ -893,6 +901,18 @@ function LocalSetup({
               onChange={setCmdDmg}
               label="Commander damage"
               hint="Lose at 21 combat damage from a single commander."
+            />
+            <RulePill
+              on={gameTimerEnabled}
+              onChange={setGameTimerEnabled}
+              label="Game timer"
+              hint="Show how long the game has run, with a pause."
+            />
+            <RulePill
+              on={turnTrackerEnabled}
+              onChange={setTurnTrackerEnabled}
+              label="Turn tracker"
+              hint="Show whose turn it is and how long, and pass it from the clock."
             />
             <RulePill
               on={poisonEnabled}
