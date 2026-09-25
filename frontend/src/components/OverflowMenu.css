@@ -41,10 +41,15 @@
 
 /* Portaled `position:fixed` overflow menu panel. transform-origin is set inline
    by OverflowMenu.tsx based on computed placement (top/bottom × left/right). */
+/* --z-portal-popover, not --z-menu: the panel portals to <body>, so it only
+   stacks against other body children. A ⋮ opened inside a full-screen surface
+   fixed at --z-overlay (the paper Horde table, the playtest board, the card
+   preview) painted UNDER that surface at --z-menu (120) and could not be
+   clicked: the Horde table's Undo / End game / Leave the table were
+   unreachable. Instances used to lift themselves one at a time; this is the
+   one place every caller routes through. OverflowMenu.stacking.test.ts. */
 .overflow-menu-popover {
-  /* z-index lifted above sticky chrome (--z-dropdown is the deck-row-menu base;
-     hero / dialog ⋮ opens over sticky search rows capped at --z-popover). */
-  z-index: var(--z-menu);
+  z-index: var(--z-portal-popover);
 }
 
 /* a11y (UX-cohesion sweep): keyboard focus-visible ring — parity with :hover. */

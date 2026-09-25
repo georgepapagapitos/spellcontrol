@@ -148,6 +148,14 @@ describe('HordeTable', () => {
     }
   });
 
+  it('a loss during the setup turns names the survivors turn, never turn 0', () => {
+    seed({ setupTurns: 3 });
+    useHordeGameStore.setState({ phase: 'setup', survivorTurn: 2, hordeTurn: 0, outcome: 'lost' });
+    render(<HordeTable />);
+    expect(screen.getByText('Overrun on turn 2')).toBeTruthy();
+    expect(screen.queryByText('Overrun on turn 0')).toBeNull();
+  });
+
   function seedBattlefieldCard() {
     seed();
     // A card already on the battlefield gets its own id, distinct from any

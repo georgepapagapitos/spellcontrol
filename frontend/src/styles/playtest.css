@@ -2448,13 +2448,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   font-size: var(--text-xs);
 }
 
-/* The zone kebab uses the shared <OverflowMenu>, which portals its panel to
-   <body> at the tokenized `--z-menu` (80). The playtest board runs its own
-   ad-hoc z-index stack (900–1100), so lift this instance above it. */
-.overflow-menu-popover.playtest-zone-menu-popover {
-  z-index: calc(var(--z-overlay) + 1);
-}
-
 /* ── Narrow viewport overrides ───────────────────────────────────────── */
 
 @media (max-width: 1023px) {
