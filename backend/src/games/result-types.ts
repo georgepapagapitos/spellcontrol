@@ -64,4 +64,8 @@ export interface PublicGameResult {
   coopOutcome: 'won' | 'lost' | null;
   /** Which horde deck a co-op game was fought against. Null otherwise. */
   hordeId: string | null;
+  /** Which way the table sat. Null for a legacy row (recorded before this
+   *  column existed) and for an explicitly clockwise table — both read as
+   *  clockwise, matching `GameState.turnOrder`'s own convention. */
+  turnOrder: 'clockwise' | 'counterclockwise' | null;
 }

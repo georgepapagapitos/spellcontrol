@@ -74,6 +74,16 @@ describe('resultToRecord', () => {
     expect(rec.coopOutcome).toBeUndefined();
     expect(rec.hordeId).toBeUndefined();
   });
+
+  it('carries turnOrder onto the record when the row has it', () => {
+    const rec = resultToRecord(publicResult({ turnOrder: 'counterclockwise' }));
+    expect(rec.turnOrder).toBe('counterclockwise');
+  });
+
+  it('omits turnOrder for a legacy row (null)', () => {
+    const rec = resultToRecord(publicResult({ turnOrder: null }));
+    expect(rec.turnOrder).toBeUndefined();
+  });
 });
 
 describe('fetchLeaderboard', () => {

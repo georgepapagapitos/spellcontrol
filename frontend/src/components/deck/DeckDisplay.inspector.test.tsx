@@ -41,7 +41,7 @@ function slots(names: string[]): DeckDisplayCard[] {
 }
 
 /** DeckDisplay reads its breakpoints through matchMedia. `wideHover` answers
- *  the inspector's own query (≥1440px + fine pointer) and the hover-peek hook's
+ *  the inspector's own query (≥1024px + fine pointer) and the hover-peek hook's
  *  capability query; the narrow breakpoints always say no. */
 function setViewport(wideHover: boolean) {
   window.matchMedia = ((query: string) =>
@@ -160,10 +160,12 @@ describe('card inspector', () => {
     expect(main.querySelector('.deck-outzone')).not.toBeNull();
   });
 
-  it('is absent below the wide/hover gate, where the floating peek takes over', () => {
+  it('is absent below the wide/hover gate, and nothing floats in its place', () => {
     const { container } = renderDeck({ wideHover: false });
     expect(container.querySelector('.deck-card-inspector')).toBeNull();
     expect(container.querySelector('.deck-body-layout')).toBeNull();
+    hoverCard(container, 'Goblin Lackey');
+    expect(container.querySelector('.deck-card-hover-peek')).toBeNull();
   });
 
   it('with no commander, invites a hover instead of showing nothing', () => {

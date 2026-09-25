@@ -82,8 +82,12 @@ const LIVE = {
   copyCount: 1,
 };
 
-const radio = (name: string) => screen.getByRole('radio', { name }) as HTMLInputElement;
-const loaded = () => screen.findByRole('radio', { name: 'Private' });
+// The ChoiceList radio's accessible name is its label plus its (always-
+// visible) hint text glued together — match just the label, at the start.
+const byLabel = (name: string) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+const radio = (name: string) =>
+  screen.getByRole('radio', { name: byLabel(name) }) as HTMLInputElement;
+const loaded = () => screen.findByRole('radio', { name: byLabel('Private') });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -109,11 +113,11 @@ describe('ShareDialog — a deck', () => {
   it('offers exactly Public, Friends and Private: no link to manage', async () => {
     renderDialog();
     await loaded();
-    expect(screen.getAllByRole('radio').map((r) => r.closest('label')!.textContent)).toEqual([
-      'Public',
-      'Friends',
-      'Private',
-    ]);
+    expect(
+      screen
+        .getAllByRole('radio')
+        .map((r) => r.closest('label')!.querySelector('.choice-option-label')!.textContent)
+    ).toEqual(['Public', 'Friends', 'Private']);
   });
 
   it('opens on the real state and mints nothing just by opening', async () => {
@@ -203,11 +207,11 @@ describe('ShareDialog — other kinds', () => {
   it('a binder keeps "Anyone with the link" until binders get a public page', async () => {
     renderDialog('binder', 'b1');
     await loaded();
-    expect(screen.getAllByRole('radio').map((r) => r.closest('label')!.textContent)).toEqual([
-      'Anyone with the link',
-      'Friends',
-      'Private',
-    ]);
+    expect(
+      screen
+        .getAllByRole('radio')
+        .map((r) => r.closest('label')!.querySelector('.choice-option-label')!.textContent)
+    ).toEqual(['Anyone with the link', 'Friends', 'Private']);
     fireEvent.click(radio('Anyone with the link'));
     await waitFor(() => expect(radio('Anyone with the link').checked).toBe(true));
     expect(createShareMock).toHaveBeenCalledWith({

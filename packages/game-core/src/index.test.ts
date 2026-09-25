@@ -159,6 +159,13 @@ describe('applyAction', () => {
     expect(plain.hordeId).toBeUndefined();
   });
 
+  it('gameToRecord carries turnOrder when the state sets it, and omits it otherwise', () => {
+    const s = applyAction(lobby(), { type: 'end', winnerSeat: null });
+    const ccw = { ...s, turnOrder: 'counterclockwise' as const };
+    expect(gameToRecord(ccw, 9999).turnOrder).toBe('counterclockwise');
+    expect(gameToRecord(s, 9999).turnOrder).toBeUndefined();
+  });
+
   it('end is a no-op when already finished', () => {
     let s = applyAction(lobby(), { type: 'start' });
     s = applyAction(s, { type: 'end', winnerSeat: 0 });

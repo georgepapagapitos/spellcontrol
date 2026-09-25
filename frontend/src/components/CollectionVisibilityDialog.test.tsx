@@ -13,7 +13,11 @@ vi.mock('../lib/auth-api', async (importOriginal) => ({
 
 import { CollectionVisibilityDialog } from './CollectionVisibilityDialog';
 
-const radio = (name: string) => screen.getByRole('radio', { name }) as HTMLInputElement;
+// The ChoiceList radio's accessible name is its label plus its (always-
+// visible) hint text glued together — match just the label, at the start.
+const byLabel = (name: string) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+const radio = (name: string) =>
+  screen.getByRole('radio', { name: byLabel(name) }) as HTMLInputElement;
 
 function renderDialog(onChanged = vi.fn()) {
   render(
@@ -42,7 +46,9 @@ describe('CollectionVisibilityDialog', () => {
     fetchMock.mockResolvedValue('public');
     renderDialog();
     await waitFor(() => expect(radio('Public').checked).toBe(true));
-    expect(screen.getByText(/with quantities and prices/)).toBeTruthy();
+    expect(
+      screen.getByText('Anyone can see it on your profile, with quantities and prices.')
+    ).toBeTruthy();
     expect((screen.getByRole('textbox', { name: 'Link' }) as HTMLInputElement).value).toMatch(
       /\/u\/alice\?tab=collection$/
     );
@@ -52,7 +58,7 @@ describe('CollectionVisibilityDialog', () => {
   it('an account that never chose sees nothing picked, and what friends see today', async () => {
     fetchMock.mockResolvedValue(null);
     renderDialog();
-    await screen.findByRole('radio', { name: 'Private' });
+    await screen.findByRole('radio', { name: byLabel('Private') });
     expect(screen.getAllByRole('radio').some((r) => (r as HTMLInputElement).checked)).toBe(false);
     expect(screen.getByText(/not how many or what they're worth/)).toBeTruthy();
   });

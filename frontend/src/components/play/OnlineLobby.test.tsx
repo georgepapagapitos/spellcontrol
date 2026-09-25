@@ -387,19 +387,49 @@ describe('the deck picker', () => {
 });
 
 describe('watchers and the voice link', () => {
+  // The ChoiceList radio's accessible name is its label plus its hint glued
+  // together — match just the label, at the start.
+  const byLabel = (name: string) => new RegExp(`^${name}`);
+
+  it('offers Public, Friends and Private, in that order, with accurate hints', () => {
+    renderLobby(table(2), 'u0');
+    const radios = screen.getAllByRole('radio', { name: /^(Public|Friends|Private)/ });
+    expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'friends', 'private']);
+    expect(screen.getByText('Listed in the room browser. Anyone can watch.')).toBeTruthy();
+    expect(screen.getByText('Listed for your friends. They can watch.')).toBeTruthy();
+    expect(screen.getByText('Only people with the code.')).toBeTruthy();
+  });
+
   it('lets the host open the table to watchers', () => {
     const dispatch = renderLobby(table(2), 'u0');
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(screen.getByRole('radio', { name: byLabel('Public') }));
     expect(dispatch).toHaveBeenCalledWith({
       type: 'settings',
       patch: { visibility: 'public' },
     });
   });
 
+  it('lets the host open the table to friends', () => {
+    const dispatch = renderLobby(table(2), 'u0');
+    fireEvent.click(screen.getByRole('radio', { name: byLabel('Friends') }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'settings',
+      patch: { visibility: 'friends' },
+    });
+  });
+
   it('tells everyone else where the table stands without letting them change it', () => {
     renderLobby(table(2), 'u1');
-    expect(screen.queryByRole('radio', { name: 'Public' })).toBe(null);
+    expect(screen.queryByRole('radio', { name: byLabel('Public') })).toBe(null);
     expect(screen.getByText('Private')).toBeTruthy();
+  });
+
+  it('reads a friends-visibility table as Friends, not Private', () => {
+    const game = table(2);
+    game.visibility = 'friends';
+    renderLobby(game, 'u1');
+    expect(screen.getByText('Friends')).toBeTruthy();
+    expect(screen.queryByText('Private')).toBeNull();
   });
 
   it('saves a voice link on Enter', () => {

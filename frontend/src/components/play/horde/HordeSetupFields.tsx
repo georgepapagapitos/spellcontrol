@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react';
 import { SelectMenu } from '../../SelectMenu';
-import { RulePill, Stepper } from '../SetupControls';
+import { Stepper } from '../SetupControls';
+import { SwitchRow } from '../../shared/form';
 import { HordeTile } from './HordeTile';
 import {
   DEFAULT_WAVE_PATTERN,
@@ -196,23 +197,23 @@ export function HordeSetupFields({
                 options={REVEAL_OPTIONS}
               />
             </div>
-            <RulePill
-              on={effective.bossTicks.length > 0}
+            <SwitchRow
+              label="Bosses"
+              hint="A held-back boss joins the battlefield when the library crosses a tick."
+              checked={effective.bossTicks.length > 0}
               onChange={(on) =>
                 patch({ bossTicks: on ? resolveHordeSettings(level, survivorCount).bossTicks : [] })
               }
-              label="Bosses"
-              hint="A held-back boss joins the battlefield when the library crosses a tick."
             />
-            <RulePill
-              on={effective.safeZone !== 'off'}
+            <SwitchRow
+              label="Safe zone"
+              hint="The horde's first cards skip its late-game threats."
+              checked={effective.safeZone !== 'off'}
               onChange={(on) =>
                 patch({
                   safeZone: on ? resolveHordeSettings(level, survivorCount).safeZone : 'off',
                 })
               }
-              label="Safe zone"
-              hint="The horde's first cards skip its late-game threats."
             />
           </div>
         )}

@@ -7,7 +7,7 @@ import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
 import { classifyCardCategory } from '@/deck-builder/services/deckBuilder/categorize';
 import { cardTagsOf, isTagsEdited } from '@/lib/deck-tags';
 import { classifyType, type TypeGroup } from '@/lib/build-mana-data';
-import { getCardPrice } from '@/deck-builder/services/scryfall/client';
+import { priceOf } from '@/lib/deck-value';
 import { typeIcon } from '../../lib/card-types';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
@@ -117,11 +117,8 @@ export const CATEGORY_TITLES: Record<DeckCategory, string> = {
 // ── Helpers ───────────────────────────────────────────────────────────────
 export type CurrencyCode = 'USD' | 'EUR';
 
-export function priceOf(card: ScryfallCard, currency: CurrencyCode): number {
-  const raw = getCardPrice(card, currency);
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) ? n : 0;
-}
+// One card's price now lives beside the deck total in lib/deck-value.
+export { priceOf };
 
 // Role-badge data + decoding (ROLE_BADGE_BY_TONE, getRoleBadge,
 // multiRoleTitle, …) lives in lib/role-badges so the deck list, grid

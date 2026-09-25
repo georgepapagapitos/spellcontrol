@@ -45,7 +45,6 @@ const RING = /box-shadow:[^;]*inset 0 0 0 1px var\(--border-strong\)/;
 const WEIGHT = /font-weight:\s*600/;
 
 const TRACKS: { file: string; selected: string; weightOn?: string }[] = [
-  { file: 'styles/shared.css', selected: '.share-audience-option.is-active' },
   { file: 'styles/settings-sync.css', selected: '.settings-currency-option:has(input:checked)' },
   { file: 'styles/deck-builder-display.css', selected: '.toolbar-viewmode-btn.active' },
   { file: 'playtest/components/ScrySheet.css', selected: '.playtest-scry-mode.is-active' },

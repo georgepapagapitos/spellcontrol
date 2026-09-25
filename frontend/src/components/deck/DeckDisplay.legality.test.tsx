@@ -57,13 +57,14 @@ const ESTIMATION: BracketEstimation = {
   },
 };
 
-function renderPower(cards: ScryfallCard[]) {
+function renderPower(cards: ScryfallCard[], sideboard: ScryfallCard[] = []) {
   return render(
     <MemoryRouter>
       <DeckDisplay
         title="Test deck"
         commander={mkCard({ name: 'Sevinne, the Chronoclasm', type_line: 'Legendary Creature' })}
         cards={cards.map((card): DeckDisplayCard => ({ slotId: `slot-${card.id}`, card }))}
+        sideboard={sideboard.map((card): DeckDisplayCard => ({ slotId: `side-${card.id}`, card }))}
         deckId="deck-1"
         format="commander"
         activeView="power"
@@ -88,5 +89,15 @@ describe('Bracket panel legality note', () => {
   it('says nothing when every card is legal', () => {
     renderPower([mkCard(), mkCard()]);
     expect(screen.queryByText(/legal in Commander/)).toBeNull();
+  });
+
+  // A Commander deck is the commander and the 99; its sideboard is a holding
+  // pile. A banned card parked there used to print this note too.
+  it('says nothing about a banned card in the sideboard', () => {
+    renderPower(
+      [mkCard(), mkCard()],
+      [mkCard({ name: 'Dockside Extortionist', legalities: { commander: 'banned' } })]
+    );
+    expect(screen.queryByRole('note')).toBeNull();
   });
 });

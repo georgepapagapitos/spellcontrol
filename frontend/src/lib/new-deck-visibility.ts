@@ -1,7 +1,8 @@
 import { useAuth } from '../store/auth';
 
-/** What a new deck is created as: public or private (board T136). */
-export type NewDeckVisibility = 'public' | 'private';
+/** What a new deck is created as (board T136 / T139). Friends is an explicit
+ *  choice a create form offers — never a default. */
+export type NewDeckVisibility = 'public' | 'private' | 'friends';
 
 /**
  * The creation-time visibility stamped on a new deck when its flow offers no

@@ -10,7 +10,7 @@ import '@/styles/play-layout-editor.css';
 import '@/styles/play-counters-panel.css';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { Check, Copy, Eye, Swords, X } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
@@ -36,6 +36,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
 import { GameResultEditDialog } from '../components/play/GameResultEditDialog';
 import { SelectMenu } from '../components/SelectMenu';
+import { VisibilityChoice } from '../components/VisibilityChoice';
 import { Tabs } from '../components/Tabs';
 import { PageHeader } from '../components/PageHeader';
 import { StackedBar } from '../components/shared/MeterBar';
@@ -44,7 +45,8 @@ import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/
 import { aggregateMatchupRecords } from '../lib/matchup-records';
 import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/game-formats';
 import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '../lib/game-state';
-import { DeckPicker, RulePill, SeatPips, Stepper } from '../components/play/SetupControls';
+import { DeckPicker, SeatPips, Stepper } from '../components/play/SetupControls';
+import { SwitchRow } from '../components/shared/form';
 import type { PickedDeck } from '../components/play/DeckPickerDialog';
 import { deckBoardPath, starterFileName } from '../lib/starter-decks';
 import { TableProfiles } from '../components/play/TableProfiles';
@@ -980,38 +982,38 @@ function LocalSetup({
             warnings={hordeBanWarnings}
           />
         ) : (
-          <>
-            <RulePill
-              on={commanderDamageEnabled}
-              onChange={setCmdDmg}
+          <div className="play-setup-switches">
+            <SwitchRow
               label="Commander damage"
               hint="Lose at 21 combat damage from a single commander."
+              checked={commanderDamageEnabled}
+              onChange={setCmdDmg}
             />
-            <RulePill
-              on={gameTimerEnabled}
-              onChange={setGameTimerEnabled}
+            <SwitchRow
               label="Game timer"
               hint="Show how long the game has run, with a pause."
+              checked={gameTimerEnabled}
+              onChange={setGameTimerEnabled}
             />
-            <RulePill
-              on={turnTrackerEnabled}
-              onChange={setTurnTrackerEnabled}
+            <SwitchRow
               label="Turn tracker"
               hint="Show whose turn it is and how long, and pass it from the clock."
+              checked={turnTrackerEnabled}
+              onChange={setTurnTrackerEnabled}
             />
-            <RulePill
-              on={turnOrder === 'counterclockwise'}
-              onChange={(on) => setTurnOrder(on ? 'counterclockwise' : 'clockwise')}
+            <SwitchRow
               label="Counterclockwise seating"
               hint="Seats run the other way around the table."
+              checked={turnOrder === 'counterclockwise'}
+              onChange={(on) => setTurnOrder(on ? 'counterclockwise' : 'clockwise')}
             />
-            <RulePill
-              on={poisonEnabled}
-              onChange={setPoison}
+            <SwitchRow
               label="Poison counters"
               hint="Lose at 10 poison counters."
+              checked={poisonEnabled}
+              onChange={setPoison}
             />
-          </>
+          </div>
         )}
 
         {/* Free-form counters every seat starts with. Nothing here is a rule:
@@ -1373,7 +1375,6 @@ function OnlineSetup({
   // unlike every rules field below which is left for the lobby to argue over.
   const [tableName, setTableName] = useState('');
   const [visibility, setVisibility] = useState<GameState['visibility']>('private');
-  const visibilityGroup = useId();
 
   // The format decides the table's opening rules; the host tunes them in the
   // lobby afterwards, so they are derived here rather than held as state.
@@ -1479,33 +1480,24 @@ function OnlineSetup({
           </section>
 
           <section className="play-setup-row">
-            <fieldset className="share-audience" aria-label="Table visibility">
-              {(
-                [
-                  { value: 'private' as const, label: 'Private' },
-                  { value: 'public' as const, label: 'Public' },
-                ] as const
-              ).map((opt) => (
-                <label
-                  key={opt.value}
-                  className={`share-audience-option${visibility === opt.value ? ' is-active' : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name={visibilityGroup}
-                    value={opt.value}
-                    checked={visibility === opt.value}
-                    onChange={() => setVisibility(opt.value)}
-                  />
-                  <span>{opt.label}</span>
-                </label>
-              ))}
-            </fieldset>
-            <p className="play-setup-help">
-              {visibility === 'public'
-                ? 'Anyone with the code can watch without a seat.'
-                : 'Reachable by code only. Nobody can watch without a seat.'}
-            </p>
+            <VisibilityChoice
+              ariaLabel="Table visibility"
+              value={visibility}
+              options={[
+                {
+                  value: 'public',
+                  label: 'Public',
+                  hint: 'Listed in the room browser. Anyone can watch.',
+                },
+                {
+                  value: 'friends',
+                  label: 'Friends',
+                  hint: 'Listed for your friends. They can watch.',
+                },
+                { value: 'private', label: 'Private', hint: 'Only people with the code.' },
+              ]}
+              onChange={setVisibility}
+            />
           </section>
 
           <section className="play-setup-roster" aria-label="You">

@@ -177,8 +177,11 @@ export function computeNewArrivals(input: NewArrivalsInput): ArrivalsByType {
 
   const identity = deckIdentity(input.commander, input.partnerCommander, mainboard, sideboard);
 
+  // Fit is judged against the deck's own cards: a sideboard card is not in
+  // the deck, so a new arrival that only resembles it isn't a better fit.
+  // (It still EXCLUDES names above; nothing already in a pile is re-offered.)
   const deckByBucket = new Map<TypeGroup, ScryfallCard[]>();
-  for (const c of [...mainboard, ...sideboard]) {
+  for (const c of mainboard) {
     const bucket = classifyType(c);
     const mates = deckByBucket.get(bucket);
     if (mates) mates.push(c);

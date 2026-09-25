@@ -82,8 +82,9 @@
   }
 }
 
-/* Floor on the span (it owns the padding and centers) — see
-   .share-audience-option span. */
+/* Floor on the span, not the label: it owns the padding and centers its
+   text, so a floor on the label wrapper leaves the text sitting at the top
+   of a 44px pill. */
 @media (pointer: coarse) {
   .playtest-scry-mode span {
     min-height: 44px;

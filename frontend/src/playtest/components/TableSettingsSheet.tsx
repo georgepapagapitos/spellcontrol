@@ -1,5 +1,6 @@
 import { useId, type CSSProperties } from 'react';
 import { Modal } from '@/components/Modal';
+import { SwitchRow } from '@/components/shared/form';
 import { FELTS, type SkinOption } from '../lib/table-skin';
 
 /** One preference that owns its own picker: this row states where it stands
@@ -97,7 +98,6 @@ interface Props {
  * game menu instead.
  */
 export function TableSettingsSheet({ zoom, skin, toggles = [], links, onClose }: Props) {
-  const toggleId = useId();
   const pct = zoom ? Math.round(zoom.value * 100) : 0;
   const progress = zoom
     ? `${Math.round(((zoom.value - zoom.min) / (zoom.max - zoom.min)) * 100)}%`
@@ -155,33 +155,17 @@ export function TableSettingsSheet({ zoom, skin, toggles = [], links, onClose }:
           </>
         )}
         {toggles.length > 0 && (
-          <ul className="playtest-settings__links" role="list">
-            {toggles.map((t, i) => (
-              <li key={t.label}>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={t.on}
-                  aria-labelledby={`${toggleId}-${i}`}
-                  aria-describedby={`${toggleId}-${i}-hint`}
-                  className={`playtest-settings__link playtest-settings__toggle${t.on ? ' is-on' : ''}`}
-                  onClick={() => t.onChange(!t.on)}
-                >
-                  <span className="playtest-settings__toggle-text">
-                    <span id={`${toggleId}-${i}`} className="playtest-settings__link-label">
-                      {t.label}
-                    </span>
-                    <span id={`${toggleId}-${i}-hint`} className="playtest-settings__toggle-hint">
-                      {t.hint}
-                    </span>
-                  </span>
-                  <span className="playtest-settings__link-value" aria-hidden="true">
-                    {t.on ? 'On' : 'Off'}
-                  </span>
-                </button>
-              </li>
+          <div className="playtest-settings__switches">
+            {toggles.map((t) => (
+              <SwitchRow
+                key={t.label}
+                label={t.label}
+                hint={t.hint}
+                checked={t.on}
+                onChange={t.onChange}
+              />
             ))}
-          </ul>
+          </div>
         )}
         <ul className="playtest-settings__links" role="list">
           {links.map((l) => (

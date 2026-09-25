@@ -64,7 +64,11 @@ type PodParticipant = Omit<GameResultParticipant, 'userId' | 'username'> & {
  *    and should not learn who hosted.
  *  - `coopOutcome` / `hordeId` — `fetchPodGames` already excludes
  *    `format = 'horde'` rows (co-op has no winning seat and is never a PvP
- *    result), so every row reaching this projection has both null. */
+ *    result), so every row reaching this projection has both null.
+ *  - `turnOrder` — not identity, but not declared by the client's
+ *    `PodGameResult` or read by the hub either; the pod page is a
+ *    history/leaderboard table, not a board, so there is nothing here that
+ *    resolves a past table's layout. Add it back if that changes. */
 type PodGameResult = Omit<
   PublicGameResult,
   | 'code'
@@ -76,6 +80,7 @@ type PodGameResult = Omit<
   | 'summary'
   | 'coopOutcome'
   | 'hordeId'
+  | 'turnOrder'
 > & { participants: PodParticipant[] };
 
 function toPublicForPod(r: ResultRow): PodGameResult {

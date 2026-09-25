@@ -386,8 +386,22 @@ describe('refreshDeckPublications — public by default for new decks', () => {
   it('ignores an intent value it does not know', async () => {
     const userId = 'u-junk';
     await seedUser(userId, 'junk');
-    await upsertDeck(userId, 'd5', baseDeckData({ initialVisibility: 'friends' }), 1);
+    await upsertDeck(userId, 'd5', baseDeckData({ initialVisibility: 'unknown-value' }), 1);
     await push(userId, 'd5', 1);
     expect(await liveState(userId, 'd5')).toBe('none');
+  });
+
+  it('a deck created as friends stays unpublished and mints no share of its own', async () => {
+    const userId = 'u-default-friends';
+    await seedUser(userId, 'default-friends');
+    await upsertDeck(userId, 'd6', baseDeckData({ initialVisibility: 'friends' }), 1);
+    await push(userId, 'd6', 1);
+    // Not listed or on the profile, booked exactly like private.
+    expect(await liveState(userId, 'd6')).toBe('private');
+    // The friends share comes from the client's POST /api/shares, which
+    // dedupes. A second mint here raced it and left two shares, so Private
+    // revoked one and the deck stayed visible to friends through the other.
+    const shares = await pool.query(`SELECT 1 FROM shares WHERE user_id = $1`, [userId]);
+    expect(shares.rows).toHaveLength(0);
   });
 });

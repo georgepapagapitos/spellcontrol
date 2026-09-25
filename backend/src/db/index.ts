@@ -612,6 +612,13 @@ export async function ensureSchema(): Promise<void> {
     -- host's choice) — what the client's per-horde W/L tally groups by. Null
     -- for every non-co-op row.
     ALTER TABLE game_results ADD COLUMN IF NOT EXISTS horde_id TEXT;
+    -- Which way the table sat: 'clockwise' | 'counterclockwise'. App-level
+    -- validation only (parseLocalResult / the settings-action guard), no
+    -- CHECK, matching coop_outcome above. Null for every row recorded before
+    -- this column existed AND for a clockwise table, both of which read as
+    -- clockwise wherever this is consumed (GameState.turnOrder's own
+    -- convention) — so a legacy row needs no backfill.
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS turn_order TEXT;
     -- Per-account hide list for ONLINE rows. An online game is the table's
     -- shared record, so one seat may not retract it — but they can drop it out
     -- of their own history list (a test table, a game they would rather not

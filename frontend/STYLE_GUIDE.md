@@ -564,10 +564,9 @@ corpus the build is shaped toward. Options wrap on phones exactly as the size
 row already does.
 
 **Segmented options carry the 44px coarse floor on the SPAN, not the label.**
-The label-wrapping-a-hidden-radio pattern (`.share-audience-option`,
-`.binder-mode-pill`, `.rule-segmented-pill`, `.playtest-scry-mode`,
-`.settings-currency-option`) puts padding and text
-in an inner `<span>`. A `min-height: 44px` on the label wrapper grows the pill
+The label-wrapping-a-hidden-radio pattern (`.binder-mode-pill`,
+`.rule-segmented-pill`, `.playtest-scry-mode`, `.settings-currency-option`)
+puts padding and text in an inner `<span>`. A `min-height: 44px` on the label wrapper grows the pill
 but leaves the span text-height and top-aligned inside it — the Private /
 Public toggle shipped that way on phones. The span is a centering flex box
 (`align-items: center`) and the coarse floor sits on it; the
@@ -749,7 +748,7 @@ a hero CTA.
   is already `--surface-raised`, invert it: the chip lifts to `--surface`
   (`.deck-curve-phases-toggle`, `.card-group-layout-toggle`), keeping the ring
   and the weight.
-  Reference: `.share-audience` in `styles/shared.css`.
+  Reference: `.segmented-option.is-selected` in `components/shared/form.css`.
   This applies **only to controls in a track**. A standalone row of chips or
   option cards with no container behind them (`.format-pill-row`,
   `.bracket-pill-row`, `.option-grid`, `.gen-mode-grid`, the Discover filter
@@ -2007,13 +2006,14 @@ the live board with a Start button in its header. Two regions at >=1024px
   Keep its help text to one short clause; it does not need to spell out the
   whole join flow.
 - **A rule toggle (commander damage, poison, turn timer) is a
-  `.lobby-setting` row, not a bordered card.** `RulePill` (`SetupControls`)
-  is the two-line card with a permanent hint sentence used by the local
-  setup form, and that shape stays there; the lobby's own `RuleToggle`
-  matches the plain settings rows above it and puts the hint sentence on
-  the control's `title` instead, since three permanent hint lines next to
-  four hint-less rows read as three heavier cards, not part of the same
-  list.
+  `.lobby-setting` row, not a `SwitchRow`.** The local setup form's own rule
+  toggles (`PlayPage`'s Rules section, `HordeSetupFields`' Bosses/Safe zone)
+  are `SwitchRow`s with their hint visible, same as every other config
+  surface on the kit. The lobby is the one place that shape doesn't fit: its
+  own `RuleToggle` matches the plain settings rows above it (Format, Starting
+  life, ...) and puts the hint sentence on the control's `title` instead,
+  since a full-width row per rule would read as heavier cards next to the
+  hint-less rows beside them, not part of the same list.
 - **Start puts you at the table.** The board is the online surface; this tab
   is the lobby before a game and the record after one. On the first render
   after a game goes active, a seat that has a deck is sent to
@@ -3078,6 +3078,12 @@ Every dialog that creates or edits a thing (a binder, a list rule, filters, a
 card, a game night) is built from one kit in `components/shared/form`. The
 binder editor was the first surface on it; the rest move one PR at a time.
 
+**A page section with several closed `Disclosure` rows can scope its own
+density tier**, instead of the kit's flat 44px — a bottom-sheet dialog and a
+stacked page section don't read the same. `DeckCustomizer` scopes
+`.disclosure-toggle` under `.deck-customizer-more-body` to 36/40/44px (guard:
+`styles/deck-customizer-rows.test.ts`).
+
 **A config dialog answers its questions in order of how often they change.**
 The binder editor is the reference:
 
@@ -3607,6 +3613,16 @@ three times on one screen, so these rulings now hold:
   overlapping density line, the frozen snapshot), and one Sram deck showed
   Removal as 11, 10 and 6. Never add a second tally beside it; if a card's
   other roles matter, they belong on that card (the inspector lists them).
+- **The deck is the commander and the mainboard (2026-09-25).** Every stat,
+  verdict, score and count on the deck page (the stats, Power, Coach) reads
+  the commander zone and the mainboard, never the sideboard or Considering.
+  In Commander that includes legality: a banned card or a second copy parked
+  in the sideboard doesn't fail the checks, print Power's "can't be played"
+  note, badge a mainboard row, inflate the flagged count or block the seal
+  (`validateDeckZones`; sideboard rows still get their own badge). In a
+  60-card format the sideboard is registered, so legality counts it there.
+  The Combos panel's counts and its one-away list read the 99 too. Other
+  piles only ever EXCLUDE: nothing already in one is re-offered.
 - **"Plays as" follows the deck's engine (2026-09-24).** On Auto the
   archetype is the owner's theme from generation if they chose one, else the
   deck's own engine when one clearly leads (`resolveAutoArchetype`), else the
@@ -3767,16 +3783,15 @@ preview) and Archidekt's static-card panel, these rulings now hold:
 - **Wide + fine pointer gets a card inspector, and it earns its width.**
   Superseded the day-old pinned rail (see the amendment below). `DeckCardInspector`
   (co-located CSS) is a sticky LEFT column beside the deck body at
-  `(min-width: 1440px) and (hover: hover) and (pointer: fine)`, mounted by the
+  `(min-width: 1024px) and (hover: hover) and (pointer: fine)`, mounted by the
   shared `.deck-body-layout` wrapper in **every view mode** — list, grid and
   stacks — showing the last card the pointer rested on, the commander until
   then. It carries art, name, mana, type line, **oracle text**, the ownership
   sentence (`allocationSummary` + `BinderBadge`), role and synergy chips, price,
   and three row actions; clicking the art opens the preview. A pin toggle freezes
-  the panel so the pointer crossing another row can't interrupt a read. The
-  floating hover-peek (`DeckHoverPeek`) is suppressed while the inspector shows
-  and unchanged elsewhere, including below 1440 in list view; the touch
-  long-press peek is untouched. The inspector never owns hover state — it
+  the panel so the pointer crossing another row can't interrupt a read. The deck
+  page has **no floating hover-peek**; the touch long-press peek is untouched
+  (see the 2026-09-25 amendment). The inspector never owns hover state — it
   remembers `useDeckHoverPeek`'s last non-null answer, so it doesn't blink back
   to the commander between rows.
 - **The group lens is a labelled dropdown.** "Group · Type ▾" (`SelectMenu`,
@@ -3905,6 +3920,22 @@ The rulings that came out of it:
   insets and the page keeps its gutter alignment (Moxfield's arrangement). A
   panel that appeared and disappeared would have to sit on the right: mounting
   it on the left would shove every row sideways mid-read.
+
+### Amendment: the inspector from 1024px (2026-09-25)
+
+The inspector first mounted at 1440px, and between 1024 and 1439 the floating
+hover-peek stood in. In that band the deck list spans the page, so the peek had
+no gutter on either side: its placement clamped it to the viewport's left edge,
+straight over the card names, including the one under the pointer. The ruling:
+
+- **A hover preview never covers what it previews.** If there is no empty space
+  for a floating card, don't float one. Make room for a panel instead.
+- **The inspector owns desktop preview from 1024px.** The list measures its own
+  width, so beside the 300px panel it just drops to fewer columns. Below 1024 (or
+  on a coarse pointer) the row thumbnail, click→carousel and touch long-press peek
+  carry it. `deck-inspector-gate.test.ts` pins the JS query, the CSS hide rule
+  and the hover hook's gate to one breakpoint, and fails if a floating hover
+  peek comes back to the deck page.
 - **Don't ship a layout picker.** Archidekt's four-layout carousel is a
   confession that no default was chosen. Choose the default.
 
@@ -4001,19 +4032,30 @@ raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
 
 ### Visibility is one choice, not a link to manage (board T136)
 
-Who can see a thing is a single native radio group in `ShareDialog`, applied
-the moment it's picked: **Public / Friends / Private** for a deck, and
-**Anyone with the link / Friends / Private** for kinds that have no public
-page yet. There is no confirm step, no display-name gate and no list of links
-to revoke anywhere in Settings. The dialog opens on the real current state
-and never creates anything just by opening. The link it shows is the thing's
-own address, to copy; it is never something the owner manages. New decks
-start Public (the create form's first option); "Send to a friend" sits below
-the choice because it isn't one. The collection has the same three choices in
-`CollectionVisibilityDialog`, stored on the account, and a public or
-friends-only collection lives on the owner's profile (`/u/:name?tab=collection`),
-not at a link of its own. The group sizes each option to its label
-(`flex: 1 1 auto`), so three short choices hold one line at 320px.
+Who can see a thing is one control, `components/VisibilityChoice.tsx` (a
+`ChoiceList` under the hood), applied the moment it's picked: **Public /
+Friends / Private**, or **Anyone with the link / Friends / Private** for a
+kind with no public page of its own. Every option's hint stays visible, not
+just the picked one's, and an option that isn't available right now (Public
+while signed out or offline) stays in the group, disabled, with the reason as
+its hint — never hidden, never a bare greyed-out label with no explanation.
+There is no confirm step, no display-name gate and no list of links to revoke
+anywhere in Settings. The control opens on the real current state and never
+creates anything just by opening. The link it shows is the thing's own
+address, to copy; it is never something the owner manages. New decks start
+Public (the create form's first option); "Send to a friend" sits below the
+choice because it isn't one. `ShareDialog`, `CollectionVisibilityDialog`,
+`DeckNewPage` and `ImportDeckDialog`'s creation-time fieldset, the online host
+form, and the online lobby's in-game setting all render through it. A public
+or friends-only collection lives on the owner's profile
+(`/u/:name?tab=collection`), not at a link of its own.
+
+**A deck can be created as Friends, end to end.** Picking Friends mints the
+same share `ShareDialog`'s own Friends choice does
+(`createShare({kind:'deck', audience:'friends'})`); the deck's first sync
+carries `initialVisibility: 'friends'` the same way `'public'`/`'private'`
+already did (`publications/sync-hook.ts`), which books it unpublished and
+mints the friends share in the same pass, so a repeat sync never re-mints it.
 
 ### Feedback view (suggestion-mode deck share)
 
@@ -4692,7 +4734,7 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 | -------------- | -------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Mobile**     | `≤ 600`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                                                                                                                                                                                                             |
 | **Tablet**     | `601 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                                                                                                                                                                                                                        |
-| **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, hover-peek (`≥1024`). 1101 = deck-editor layout shift.                                                                                                                                                                                                                                                                                      |
+| **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, deck card inspector (`≥1024`). 1101 = deck-editor layout shift.                                                                                                                                                                                                                                                                             |
 | **XL desktop** | `≥ 1400`       | 1440 · 1920                     | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), pages at `--page-max` (1400), and the card-grid routes (collection hub, decks index, deck editor) at `--page-max-wide` (1920) via the `.app-shell:has(…)` opt-in in base-layout.css. Test for balanced gutters / no dead space, not a reflow; the wide routes also at 1920 · 2560. |
 
 - **The two real breakpoints:** `max-width: 600px` (mobile) and `min-width: 1024px`
@@ -5778,6 +5820,16 @@ public profile) is the reference. Rulings:
   (`.decks-index-card-detail`) is the single ellipsis target. Target it by
   **class, never `> span:last-child`** — that selector silently retargets the
   moment anything is appended to the row.
+- **The deck value is pinned to the end of the tail (2026-09-25).** The
+  index prints each deck's value (`lib/deck-value.ts`, the same number the
+  deck hero shows and the Value sort orders by). It sits in
+  `.decks-index-card-facts`, one flex item holding the detail and the value:
+  the detail shrinks, the value never does, and a CSS `::before` supplies the
+  `·` separator (a space either side) so it reads as the tail's last item. Never put it inside the detail
+  text (a partner pair truncates it away) or as a loose sibling of the detail
+  (on a phone it wraps onto a line that starts with `·`). It stays in Compact,
+  where it is what a Value sort is read by, and it is omitted for a deck with
+  nothing priced rather than printed as `$0`.
 - **Badges on `--surface-raised` need a hairline.** The format badge's own
   `--surface-raised` fill vanishes against a raised card and it degrades into
   bare uppercase text; on card meta rows it takes
@@ -7603,7 +7655,7 @@ direction.
   presentation, not a rule, so it earns no log row and the backend validates
   it the same way it validates `visibility` (`invalidTurnOrderError`,
   `routes/games.ts`). It is picked once on the **local setup form**, next to
-  Game timer / Turn tracker (a `RulePill`, "Counterclockwise seating") — a
+  Game timer / Turn tracker (a `SwitchRow`, "Counterclockwise seating") — a
   fact decided before the game starts, unlike the device-level board display
   prefs above (which live in the game menu's Setup tab instead).
   - **The reducer's own turn order never changes.** Seat index + 1 is still

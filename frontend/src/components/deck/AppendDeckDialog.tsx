@@ -11,7 +11,7 @@ import {
   appendPartnerCandidatesFor,
   type AppendPlan,
 } from '../../lib/append-deck-import';
-import { validateDeck, type LegalityIssue } from '../../lib/deck-validation';
+import { validateDeckZones, type LegalityIssue } from '../../lib/deck-validation';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { DeckImportResponse } from '../../types';
@@ -102,10 +102,15 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
       ...plan.addedSideboard.map((c) => c.slotId),
     ]);
     if (addedSlotIds.size === 0) return [];
-    return validateDeck(plan.cards, plan.sideboard, formatConfig, {
+    // Each row judged the way the deck page will judge it (a Commander
+    // sideboard is its own pile, not part of the deck's copy limit).
+    const zones = validateDeckZones(plan.cards, plan.sideboard, formatConfig, {
       commander: plan.commander,
       partnerCommander: plan.partnerCommander,
-    }).filter((issue) => addedSlotIds.has(issue.slotId));
+    });
+    return [...zones.deck, ...zones.sideboardOnly].filter((issue) =>
+      addedSlotIds.has(issue.slotId)
+    );
   }, [plan, formatConfig]);
 
   const partnerCandidates = useMemo(

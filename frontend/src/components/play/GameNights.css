@@ -179,19 +179,6 @@
   line-height: 1.6;
 }
 
-/* Where it's played — the second line under each venue radio. */
-.game-night-venue legend {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  padding: 0;
-  margin-bottom: var(--space-1);
-}
-
-.game-night-venue-hint {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-}
-
 .game-night-card-when {
   margin: 0;
   font-weight: 600;
@@ -498,37 +485,6 @@
 }
 
 /* ── Date-poll create mode (E124) ─────────────────────────────────────── */
-
-.game-night-dialog-datemode {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3) var(--space-3);
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.game-night-dialog-datemode legend {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  padding: 0 var(--space-1);
-}
-
-.game-night-dialog-option-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  cursor: pointer;
-}
-
-.game-night-dialog-option-toggle input {
-  width: 20px;
-  height: 20px;
-  flex: none;
-  accent-color: var(--accent);
-}
 
 .game-night-dialog-options {
   border: 1px solid var(--border);

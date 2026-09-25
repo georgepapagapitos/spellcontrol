@@ -444,15 +444,14 @@ describe('coarse-pointer touch floor', () => {
 });
 
 describe('segmented-control options carry the coarse floor on the SPAN', () => {
-  // Label-wrapping-a-hidden-radio segmented controls (share ladder, binder
-  // mode toggle, rule editor pills, scry mode): the inner <span> owns the
-  // padding and text. A 44px floor on the LABEL wrapper grows the pill but
+  // Label-wrapping-a-hidden-radio segmented controls (the config-surface kit,
+  // binder mode toggle, rule editor pills, scry mode): the inner <span> owns
+  // the padding and text. A 44px floor on the LABEL wrapper grows the pill but
   // leaves the span text-height and top-aligned inside it — the Private /
   // Public toggle shipped that way on phones (2026-09-10). The floor lives on
   // the span, and the span centers (same placement as .home-hero-scope-option
   // and .settings-currency-option).
   const OPTIONS: Array<[string, string]> = [
-    ['styles/shared.css', '.share-audience-option'],
     ['components/shared/form.css', '.segmented-option'],
     ['playtest/components/ScrySheet.css', '.playtest-scry-mode'],
     ['styles/settings-sync.css', '.settings-currency-option'],

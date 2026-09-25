@@ -629,42 +629,6 @@
   flex: 0 0 auto;
 }
 
-/* ── Game-menu inline setting toggle (haptics) ── */
-.game-menu-setting {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  border-radius: var(--radius);
-  padding: 0.7rem 0.9rem;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    border-color var(--motion-fast) ease,
-    background var(--motion-fast) ease;
-}
-
-.game-menu-setting.is-on {
-  border-color: var(--accent);
-}
-
-.game-menu-setting-state {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs, 0.72rem);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-secondary);
-}
-
-.game-menu-setting.is-on .game-menu-setting-state {
-  color: var(--accent);
-}
-
 /* ── History "Rematch" affordance ── */
 .play-history-rematch {
   background: var(--accent-light);

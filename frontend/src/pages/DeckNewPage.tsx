@@ -24,6 +24,7 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
 import { usePublishOnCreate, type PublishOutcome } from '../lib/use-publish-on-create';
+import { VisibilityChoice } from '../components/VisibilityChoice';
 import type { ScryfallCard, DeckFormat, EDHRECTheme, Customization } from '@/deck-builder/types';
 import type { ComboSeedContext } from '../types/combos';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -133,6 +134,7 @@ export function DeckNewPage() {
     setVisibility,
     publishing,
     publishAfterCreate,
+    shareWithFriendsAfterCreate,
   } = usePublishOnCreate(onPublishSettled);
 
   /**
@@ -144,12 +146,16 @@ export function DeckNewPage() {
    */
   const publishGeneratedDeck = useCallback(
     async (id: string, destination: string, navState?: Record<string, unknown>) => {
-      if (visibility !== 'public' || !canPublish) return false;
+      if (visibility === 'private' || !canPublish) return false;
       pendingDestination.current = { path: destination, state: navState };
-      await publishAfterCreate(id);
+      if (visibility === 'friends') {
+        await shareWithFriendsAfterCreate(id);
+      } else {
+        await publishAfterCreate(id);
+      }
       return true;
     },
-    [visibility, canPublish, publishAfterCreate]
+    [visibility, canPublish, publishAfterCreate, shareWithFriendsAfterCreate]
   );
 
   const {
@@ -189,7 +195,6 @@ export function DeckNewPage() {
   // active pill + a disclosure so Commander search fits in the first screen.
   const [formatExpanded, setFormatExpanded] = useState(false);
   // Radios group by shared `name` — scope each group to this page instance.
-  const visibilityGroup = useId();
   const formatGroup = useId();
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
   const isPdh = selectedFormat === 'paupercommander';
@@ -283,8 +288,12 @@ export function DeckNewPage() {
       partnerCommanderAllocatedCopyId: partnerAlloc,
       initialVisibility: visibility,
     });
-    if (visibility === 'public' && canPublish) {
-      await publishAfterCreate(id);
+    if (visibility !== 'private' && canPublish) {
+      if (visibility === 'friends') {
+        await shareWithFriendsAfterCreate(id);
+      } else {
+        await publishAfterCreate(id);
+      }
       return;
     }
     navigate(`/decks/${id}`);
@@ -300,6 +309,7 @@ export function DeckNewPage() {
     visibility,
     canPublish,
     publishAfterCreate,
+    shareWithFriendsAfterCreate,
     colorReady,
   ]);
 
@@ -329,43 +339,36 @@ export function DeckNewPage() {
   const commanderCardUrl = commander ? imageFromCard(commander, 'normal') : undefined;
   const partnerCardUrl = partnerCommander ? imageFromCard(partnerCommander, 'normal') : undefined;
 
-  // ── Visibility fieldset — shared by both manual-create action sections
-  // below (commander formats' "Start blank" and non-commander formats'
-  // "Create deck") so the same choice + ladder styling isn't duplicated.
-  // Reuses ShareDialog's own ladder classes (share-audience/-option) per the
-  // established visibility-ladder pattern, rather than inventing a new one.
+  // ── Visibility — shared by both manual-create action sections below
+  // (commander formats' "Start blank" and non-commander formats' "Create
+  // deck") so the same choice isn't duplicated.
   const visibilityFieldset = (
     <section className="deck-builder-section">
       <h2 className="deck-builder-section-title">Visibility</h2>
-      <fieldset className="share-audience" aria-label="Deck visibility">
-        {(
-          [
-            { value: 'public', label: 'Public', disabled: !canPublish },
-            { value: 'private', label: 'Private', disabled: false },
-          ] as const
-        ).map((opt) => (
-          <label
-            key={opt.value}
-            className={`share-audience-option${visibility === opt.value ? ' is-active' : ''}`}
-          >
-            <input
-              type="radio"
-              name={visibilityGroup}
-              value={opt.value}
-              checked={visibility === opt.value}
-              disabled={opt.disabled}
-              onChange={() => setVisibility(opt.value)}
-            />
-            <span>{opt.label}</span>
-          </label>
-        ))}
-      </fieldset>
-      <p className="format-pill-hint">
-        {visibility === 'public'
-          ? 'Anyone can find it at a stable link and on your profile.'
-          : 'Only you can see this deck.'}
-        {!canPublish && ` ${publicDisabledReason}`}
-      </p>
+      <VisibilityChoice
+        ariaLabel="Deck visibility"
+        value={visibility}
+        options={[
+          {
+            value: 'public',
+            label: 'Public',
+            hint: canPublish
+              ? 'Anyone can find it at a stable link and on your profile.'
+              : publicDisabledReason!,
+            disabled: !canPublish,
+          },
+          {
+            value: 'friends',
+            label: 'Friends',
+            hint: canPublish
+              ? 'Only your friends can find it, on your page in their Friends list.'
+              : publicDisabledReason!,
+            disabled: !canPublish,
+          },
+          { value: 'private', label: 'Private', hint: 'Only you can see this deck.' },
+        ]}
+        onChange={setVisibility}
+      />
     </section>
   );
 

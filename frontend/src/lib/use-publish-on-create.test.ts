@@ -26,6 +26,11 @@ vi.mock('./publications-client', async (importOriginal) => {
   };
 });
 
+const createShareMock = vi.fn();
+vi.mock('./share-client', () => ({
+  createShare: (input: unknown) => createShareMock(input),
+}));
+
 const updateProfileMock = vi.fn();
 vi.mock('./auth-api', () => ({
   updateProfile: (patch: { displayName: string }) => updateProfileMock(patch),
@@ -65,6 +70,7 @@ beforeEach(() => {
   online = true;
   setAuthed();
   publishDeckMock.mockReset().mockResolvedValue(PUB_FIRST);
+  createShareMock.mockReset().mockResolvedValue({ token: 'tok', audience: 'friends' });
   updateProfileMock.mockReset();
   useToastsStore.setState({ toasts: [] });
 });
@@ -113,6 +119,55 @@ describe('usePublishOnCreate — gating', () => {
     });
     rerender();
     expect(result.current.visibility).toBe('private');
+  });
+
+  it('snaps a selected Friends back to Private the same way', () => {
+    const { result, rerender } = renderHook(() => usePublishOnCreate(vi.fn()));
+    act(() => result.current.setVisibility('friends'));
+    expect(result.current.visibility).toBe('friends');
+
+    act(() => {
+      useAuth.setState({
+        user: null,
+        status: 'guest',
+        error: null,
+        autoLinkedAt: null,
+        profile: null,
+      });
+    });
+    rerender();
+    expect(result.current.visibility).toBe('private');
+  });
+});
+
+describe('usePublishOnCreate — shareWithFriendsAfterCreate', () => {
+  it('mints the same friends share ShareDialog does, and settles with no outcome', async () => {
+    const onSettled = vi.fn();
+    const { result } = renderHook(() => usePublishOnCreate(onSettled));
+
+    await act(async () => {
+      await result.current.shareWithFriendsAfterCreate('deck-1');
+    });
+
+    expect(createShareMock).toHaveBeenCalledWith({
+      kind: 'deck',
+      resourceId: 'deck-1',
+      audience: 'friends',
+    });
+    expect(onSettled).toHaveBeenCalledWith('deck-1');
+  });
+
+  it('on failure, toasts a warning and still calls onSettled', async () => {
+    createShareMock.mockRejectedValueOnce(new Error('server exploded'));
+    const onSettled = vi.fn();
+    const { result } = renderHook(() => usePublishOnCreate(onSettled));
+
+    await act(async () => {
+      await result.current.shareWithFriendsAfterCreate('deck-1');
+    });
+
+    expect(onSettled).toHaveBeenCalledWith('deck-1');
+    expect(useToastsStore.getState().toasts.some((t) => t.tone === 'warn')).toBe(true);
   });
 });
 

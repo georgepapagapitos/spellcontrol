@@ -1445,6 +1445,9 @@ export interface GameRecord {
   coopOutcome?: 'won' | 'lost';
   /** See `GameState.hordeId`. Absent for every non-co-op format. */
   hordeId?: string;
+  /** See `GameState.turnOrder`. Absent reads as `'clockwise'` wherever this
+   *  is consumed — same as on `GameState` itself. */
+  turnOrder?: TurnOrder;
 }
 
 export function gameToRecord(state: GameState, endedAt: number = Date.now()): GameRecord {
@@ -1472,6 +1475,7 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
     summary: summarizeGame(state, endedAt),
     ...(state.coopOutcome !== undefined ? { coopOutcome: state.coopOutcome } : {}),
     ...(state.hordeId !== undefined ? { hordeId: state.hordeId } : {}),
+    ...(state.turnOrder !== undefined ? { turnOrder: state.turnOrder } : {}),
   };
 }
 

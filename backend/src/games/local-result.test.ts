@@ -35,3 +35,34 @@ describe('parseLocalResult player count', () => {
     expect(r).toEqual({ ok: false, error: 'A game has 2 to 10 players.' });
   });
 });
+
+describe('parseLocalResult turnOrder', () => {
+  it('accepts clockwise', () => {
+    const body = game(2);
+    (body.game as Record<string, unknown>).turnOrder = 'clockwise';
+    const r = parseLocalResult(body);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.turnOrder).toBe('clockwise');
+  });
+
+  it('accepts counterclockwise', () => {
+    const body = game(2);
+    (body.game as Record<string, unknown>).turnOrder = 'counterclockwise';
+    const r = parseLocalResult(body);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.turnOrder).toBe('counterclockwise');
+  });
+
+  it('rejects a bad value', () => {
+    const body = game(2);
+    (body.game as Record<string, unknown>).turnOrder = 'sideways';
+    const r = parseLocalResult(body);
+    expect(r).toEqual({ ok: false, error: 'Invalid turn order.' });
+  });
+
+  it('leaves it undefined (clockwise) when absent', () => {
+    const r = parseLocalResult(game(2));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.turnOrder).toBeUndefined();
+  });
+});
