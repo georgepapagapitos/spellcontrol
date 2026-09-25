@@ -3497,7 +3497,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           revealed={horde.pendingReveal.revealed}
           toResolveIds={new Set(horde.pendingReveal.toResolve.map((c) => c.id))}
           waveEndId={horde.pendingReveal.waveEndId}
-          onConfirm={confirmHordeReveal}
+          onConfirm={() =>
+            confirmHordeReveal(hordeFeltRef.current ? measureHordeRect(hordeFeltRef.current) : null)
+          }
         />
       )}
 

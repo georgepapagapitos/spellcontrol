@@ -12,7 +12,7 @@ import { useDecksStore, type Deck } from '@/store/decks';
 import { fingerprintDeck, loadPlaytestSnapshot } from '@/lib/playtest/session-snapshot';
 import { loadSessionHistory } from '@/lib/playtest/session-history';
 import { ZOMBIE_HORDE_FIXTURE } from '@/lib/horde/deck.fixtures';
-import type { HordeSettings } from '@/lib/horde';
+import { buildHordeLibrary, resolveHordeSettings, type HordeSettings } from '@/lib/horde';
 
 const STANDARD = RESISTANCE_PRESETS.standard;
 
@@ -1058,6 +1058,48 @@ describe('playtest store — solo horde (E387 PR 5)', () => {
 
     store().clearHordeDamageResult();
     expect(store().horde!.lastDamageResult).toBeNull();
+  });
+
+  it('deals a boss on confirm when the reveal alone crosses the tick, not just damage (E436)', async () => {
+    initPlayer();
+    await store().armHorde('zombies', 'standard', {
+      librarySize: 10,
+      safeZone: 'off',
+      setupTurns: 0,
+      bossTicks: [0.5],
+      reveal: { kind: 'fixed', count: 6 },
+    });
+    expect(store().horde!.board.zones.library).toHaveLength(10);
+
+    store().startHordeTurn();
+    expect(store().horde!.pendingReveal!.revealed).toHaveLength(6);
+
+    store().confirmHordeReveal();
+    const horde = store().horde!;
+    expect(horde.bossTicksCrossed).toEqual([0]);
+    const bossOnBoard = horde.board.battlefield.find((b) => b.card.name === 'Gisa and Geralf');
+    expect(bossOnBoard).toBeDefined();
+    // Inside the same turn's attack, not skipped — and still one undo entry.
+    expect(horde.phase).toBe('combat');
+    expect(horde.attackingIds).toContain(bossOnBoard!.card.id);
+    expect(
+      store().gameLog.some(
+        (e) => e.text === 'Half the horde is gone. Gisa and Geralf joins the battlefield.'
+      )
+    ).toBe(true);
+
+    // Damaging further never re-deals the same tick.
+    store().damageHorde(1);
+    expect(store().horde!.bossTicksCrossed).toEqual([0]);
+  });
+
+  it('keeps the library in its dealt order when armed, not a fresh shuffle (E432)', async () => {
+    initPlayer();
+    const rngSeed = store().state!.rngSeed;
+    const settings = resolveHordeSettings('standard', 1, FIXED_REVEAL);
+    await store().armHorde('zombies', 'standard', FIXED_REVEAL);
+    const { library } = buildHordeLibrary(ZOMBIE_HORDE_FIXTURE, settings, rngSeed);
+    expect(store().horde!.board.zones.library.map((c) => c.id)).toEqual(library.map((c) => c.id));
   });
 
   it('moveHordeCard drops the card and, in combat, recomputes the attack', async () => {
