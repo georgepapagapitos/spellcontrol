@@ -10,6 +10,7 @@ export {
   COLOR_INFO,
   COLOR_ORDER,
 } from '@spellcontrol/binder-routing';
+import { COLOR_INFO } from '@spellcontrol/binder-routing';
 
 /**
  * How a color pip selection combines: `'any'` (OR — a card matches if it shows
@@ -60,4 +61,16 @@ export function colorSelectionMatches(
   if (mode === 'any') return picks.some(has);
   const cardColors = key === 'C' ? ['C'] : colorIdentity.length > 0 ? colorIdentity : [key];
   return picks.every(has) && cardColors.every((c) => selected.has(c));
+}
+
+/** "Mono-white", "White and blue", "White, blue and black", "Colorless". */
+export function colorIdentityWords(colors: string[]): string {
+  const names = colors.map((k) => (COLOR_INFO[k]?.label ?? k).toLowerCase());
+  if (names.length === 0) return 'Colorless';
+  if (names.length === 1) return `Mono-${names[0]}`;
+  const list =
+    names.length === 2
+      ? `${names[0]} and ${names[1]}`
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return list.charAt(0).toUpperCase() + list.slice(1);
 }

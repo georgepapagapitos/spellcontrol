@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { colorSelectionMatches } from './colors';
+import { colorIdentityWords, colorSelectionMatches } from './colors';
 
 describe('colorSelectionMatches', () => {
   const boros = { key: 'M', ci: ['R', 'W'] };
@@ -50,5 +50,25 @@ describe('colorSelectionMatches', () => {
   it('falls back to the grouping key when colorIdentity is missing (basic-land name fallback)', () => {
     expect(colorSelectionMatches('G', [], new Set(['G']))).toBe(true);
     expect(colorSelectionMatches('G', [], new Set(['G']), 'all')).toBe(true);
+  });
+});
+
+// Guild and shard names (Esper, Boros) mean nothing to a newer player, so the
+// deck's colors read as plain words beside the pips.
+describe('colorIdentityWords', () => {
+  it('names one color as mono', () => {
+    expect(colorIdentityWords(['W'])).toBe('Mono-white');
+  });
+
+  it('joins two colors with "and"', () => {
+    expect(colorIdentityWords(['W', 'U'])).toBe('White and blue');
+  });
+
+  it('lists three or more with a final "and"', () => {
+    expect(colorIdentityWords(['W', 'U', 'B'])).toBe('White, blue and black');
+  });
+
+  it('reads an empty identity as colorless', () => {
+    expect(colorIdentityWords([])).toBe('Colorless');
   });
 });

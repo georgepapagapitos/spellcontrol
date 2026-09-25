@@ -1,17 +1,7 @@
 .deck-color-balance {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-}
-
-.deck-color-balance-heading {
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  gap: var(--space-3);
 }
 
 .deck-color-balance-empty {
@@ -20,87 +10,40 @@
   color: var(--text-muted);
 }
 
+/* One hairline row per color: name · the two bars · the two counts. The panel
+   is the frame; rows inside it are never boxes of their own (§ Layout
+   system, one frame). */
 .deck-color-balance-rows {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
 }
 
 .deck-color-balance-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: var(--space-2) 0.6rem;
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 0.5px solid var(--border);
 }
 
-/* Colors with no pip demand read quietly — they're informational only. */
+.deck-color-balance-row:last-child {
+  border-bottom: 0;
+}
+
+/* Colors with no card demand read quietly: informational only. */
 .deck-color-balance-row-neutral {
   opacity: 0.6;
-}
-
-/* A row is a button when its source list is known — tap to open a carousel of
-   that color's mana sources. Resets to look like the static row; the chevron +
-   hover underline signal it's tappable. */
-.deck-color-balance-row-btn {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  background: none;
-  border: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  border-radius: var(--radius);
-}
-
-.deck-color-balance-row-btn:focus-visible .deck-color-balance-row-name {
-  text-decoration: underline;
-}
-@media (hover: hover) and (pointer: fine) {
-  .deck-color-balance-row-btn:hover .deck-color-balance-row-name {
-    text-decoration: underline;
-  }
-}
-
-.deck-color-balance-row-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.deck-color-balance-row-tags {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.deck-color-balance-chevron {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: 1;
-}
-
-.deck-color-balance-row-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  flex-wrap: wrap;
 }
 
 .deck-color-balance-row-name {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
   min-width: 0;
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -140,45 +83,113 @@
   background: var(--mtg-colorless);
 }
 
+/* The shortfall in words (glyph + "short"), never tone alone. */
 .deck-color-balance-flag {
   font-size: var(--text-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--warn-text);
-  background: var(--warn-bg);
-  border: 0.5px solid var(--warn-border);
-  border-radius: 999px;
-  padding: 0.05rem 0.45rem;
 }
 
-.deck-color-balance-meter {
+/* Cards (muted) over sources (accent), on one scale shared by every row. */
+.deck-color-balance-bars {
   display: grid;
-  grid-template-columns: 3.5rem 1fr 1.6rem;
-  align-items: center;
-  gap: 0.45rem;
-  /* Containment: cap the meter so the 1fr track reads as a compact magnitude
-     bar, not a ~1900px edge-to-edge rule on a wide board. The value label
-     stays adjacent (it's the trailing fixed column). */
-  max-width: 30rem;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
-.deck-color-balance-meter-label {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-/* The demand/sources tracks are the shared <MeterBar> primitive
-   (components/shared/MeterBar.tsx); fill colors are passed per meter. */
-
-.deck-color-balance-meter-value {
-  font-family: var(--font-mono);
+.deck-color-balance-values {
+  display: grid;
+  justify-items: end;
   font-size: var(--text-xs);
   color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.deck-color-balance-value.is-warn {
+  color: var(--warn-text);
+}
+
+.deck-color-balance-count {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  color: var(--text-primary);
+}
+
+.deck-color-balance-value.is-warn .deck-color-balance-count {
+  color: inherit;
+}
+
+/* A count that opens its list: a quiet link, not a chrome button. */
+.deck-color-balance-value-btn {
+  position: relative;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-color-balance-value-btn:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+}
+
+.deck-color-balance-value-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 44px tap target via a centered ghost; the two counts stack, so the ghost
+   is taller than the line and wider than the words, never the layout. */
+@media (pointer: coarse) {
+  .deck-color-balance-value-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  .deck-color-balance-values {
+    row-gap: var(--space-2);
+  }
+}
+
+.deck-color-balance-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.deck-color-balance-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.deck-color-balance-legend-swatch {
+  width: 0.75rem;
+  height: 0.375rem;
+  border-radius: 999px;
+}
+
+.deck-color-balance-legend-cards {
+  background: var(--text-muted);
+}
+
+.deck-color-balance-legend-sources {
+  background: var(--accent);
 }
 
 /* "Re-analyze lands" call-to-action — surfaced only when the merit-based engine
@@ -229,26 +240,12 @@
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
-/* Narrow boxes: tighten the row padding and the meter's fixed label/value
-   columns so the demand/sources bars keep usable width down to the ~288px
-   pair-cell floor. Container-gated, not viewport-gated: this panel renders
-   at half-width in the Stats bento pair and in the compare page's 2-up
-   columns, where the viewport is wide but the box is narrow (E61). The
-   nearest query container is the pair cell / compare column. */
+/* Narrow boxes (a phone, or the panel in a narrow row): the name rail tightens
+   so the bars keep usable width. Container-gated: the panel's width, not the
+   viewport's, decides. */
 @container (max-width: 26rem) {
-  .deck-color-balance-rows {
-    gap: 0.45rem;
-  }
-
   .deck-color-balance-row {
-    padding: 0.45rem var(--space-2);
-  }
-
-  /* "Demand"/"Sources" labels abbreviate poorly, so trim the rail to 3rem
-     and the value rail to 1.4rem; the 1fr track absorbs the reclaimed space
-     and stays legible at 320px. */
-  .deck-color-balance-meter {
-    grid-template-columns: 3rem 1fr 1.4rem;
-    gap: 0.35rem;
+    grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+    column-gap: var(--space-2);
   }
 }

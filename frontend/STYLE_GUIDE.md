@@ -3699,6 +3699,14 @@ what it did to the curve meant switching tabs every time.
   bars' own 8-column grid, not three boxed tiles. Off target is a caution
   tone (the tip says it can be what the deck wants), never error red. The
   average is two decimals, the strip's figure.
+- **Color answers "can I cast my spells?", not "what share is blue?"**
+  (2026-09-25, E415). The panel opens on the deck's colors in words beside
+  the pips ("Mono-white", "White, blue and black"; guild names mean nothing
+  to a newer player) with the non-land count, then one hairline row per
+  color: its cards against its sources on one shared scale, a thin color
+  flagged "▾ short" in words, and each count opening the list it counts. The
+  share-of-deck donut (an unlabelled 67 in the middle, "57% white" beside it)
+  and the boxed Demand/Sources cards inside the panel are gone.
 - **Types files the command zone as its own row**, "Commander" first, the way
   the list does, so the Creature count here is the list's Creature section.
   Count only: on a 100-card deck a percentage beside it just repeated it.
