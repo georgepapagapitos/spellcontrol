@@ -50,9 +50,7 @@ type LeaderboardFetch =
  *  deck shares (never fetched at all for a non-friend, per the spec's "zero
  *  new backend calls beyond one getFriendShares per mutual friend" rule). */
 type MemberDecks =
-  | { kind: 'not-friend' }
-  | { kind: 'loading' }
-  | { kind: 'ready'; shares: FriendShareRow[] };
+  { kind: 'not-friend' } | { kind: 'loading' } | { kind: 'ready'; shares: FriendShareRow[] };
 
 /* Its own component (not inlined in the .map()) so the legacy
    useAnimatedNumber calls below stay one-hook-per-instance. Only the played/

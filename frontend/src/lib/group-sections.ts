@@ -116,8 +116,7 @@ export function buildGridLayout(
  * card rows below it.
  */
 export type ListLayoutRow =
-  | { kind: 'header'; meta: SectionHeader['meta']; count: number }
-  | { kind: 'card'; index: number };
+  { kind: 'header'; meta: SectionHeader['meta']; count: number } | { kind: 'card'; index: number };
 
 /**
  * Flatten `rowCount` grouped cards into the list/compact virtualizer's row list:

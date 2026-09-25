@@ -84,9 +84,8 @@ vi.mock('../lib/friends-client', async () => {
 
 // The trade thread. Defaults to empty so the existing tests see what they
 // always saw (a real fetch that failed → no offers).
-const listTrades = vi.fn(
-  (_opts?: unknown): Promise<{ offers: TradeOffer[]; truncated: boolean }> =>
-    Promise.resolve({ offers: [], truncated: false })
+const listTrades = vi.fn((_opts?: unknown): Promise<{ offers: TradeOffer[]; truncated: boolean }> =>
+  Promise.resolve({ offers: [], truncated: false })
 );
 vi.mock('../lib/trades-client', async () => {
   const actual =

@@ -9,8 +9,7 @@
  * glitched"), always the calm "Off-meta" treatment.
  */
 export type InclusionLabel =
-  | { kind: 'pct'; pct: number; label: string }
-  | { kind: 'offmeta'; label: string };
+  { kind: 'pct'; pct: number; label: string } | { kind: 'offmeta'; label: string };
 
 /** Reason-less surfaces (no why-pipeline) attach this as the Off-meta chip's
  *  tooltip/title so the "off-meta" verdict never reads as an unexplained gap. */

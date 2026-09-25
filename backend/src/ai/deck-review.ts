@@ -651,7 +651,7 @@ export function unverifiedCitations(
     // "Cut Wooded Foothills", then "Cut Wooded", and never reaches the card.
     // Longest window at each position wins, then skip past it so one sentence
     // can yield both names.
-    for (let start = 0; start < words.length; ) {
+    for (let start = 0; start < words.length;) {
       let matched = 0;
       for (let len = words.length - start; len >= 2; len--) {
         const candidate = words.slice(start, start + len).join(' ');
