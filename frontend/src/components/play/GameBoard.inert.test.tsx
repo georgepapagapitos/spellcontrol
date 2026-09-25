@@ -76,6 +76,14 @@ import { GameBoard } from './GameBoard';
 
 const pair = () => [seat(0, 'Alice'), seat(1, 'Bob')];
 
+/** The nearest ancestor (or self) with `inert` set, read as the property the
+ *  hook sets, so the check can't pass just because an attribute isn't
+ *  reflected. */
+function inertAncestor(el: Element | null): Element | null {
+  for (let n = el as HTMLElement | null; n; n = n.parentElement) if (n.inert) return n;
+  return null;
+}
+
 beforeEach(() => {
   localStorage.setItem('sc-board-gestures-seen', '1');
   sessionStorage.clear();
@@ -108,14 +116,21 @@ describe('the app shell is inert while the board is mounted', () => {
     expect(screen.getByTestId('toasts').inert).toBe(false);
   });
 
-  it("doesn't inert the board's own dialogs (the game menu still opens)", () => {
+  it("doesn't inert the board's own dialogs (game menu, restart confirm)", () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
-    expect(screen.getByText('How the board works') || true).toBeTruthy();
-    // The menu itself rendered and is reachable — it lives inside the
-    // board's own subtree, which this hook never touches.
-    expect(document.querySelector('.game-menu')).toBeTruthy();
+    // Rendered is not enough: a dialog inside an inert ancestor renders fine
+    // and still can't be focused or clicked.
+    const menu = document.querySelector('.game-menu');
+    expect(menu).toBeTruthy();
+    expect(inertAncestor(menu)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Restart' }));
+    const confirm = screen.getByRole('button', { name: 'Restart' });
+    expect(inertAncestor(confirm)).toBeNull();
   });
 });
 
