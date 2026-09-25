@@ -36,6 +36,12 @@ export function TableProfiles({
 
   const existing = profiles.find((p) => p.name.toLowerCase() === name.trim().toLowerCase());
 
+  const save = () => {
+    if (!name.trim()) return;
+    saveTableProfile(name, current());
+    setName('');
+  };
+
   return (
     <section className="table-profiles" aria-labelledby="table-profiles-label">
       <h3 id="table-profiles-label" className="play-setup-section-title">
@@ -104,20 +110,24 @@ export function TableProfiles({
             className="table-profiles-save-input"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            // This section sits inside the setup <form>; an unhandled Enter
+            // here submits that form and starts a game instead of saving (it
+            // is not type="submit" for the same reason). Enter saves/updates
+            // the profile instead, same as the button.
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              save();
+            }}
             maxLength={MAX_PROFILE_NAME_LENGTH}
             placeholder="Thursday pod"
           />
         </label>
-        {/* Not type="submit": this section sits inside the setup <form>, and a
-            submit button here would start a game instead of saving. */}
         <button
           type="button"
           className="btn btn-secondary table-profiles-save-btn"
           disabled={!name.trim()}
-          onClick={() => {
-            saveTableProfile(name, current());
-            setName('');
-          }}
+          onClick={save}
         >
           {existing ? 'Update' : 'Save'}
         </button>
