@@ -6,6 +6,14 @@ import { expandByQuantity, MAX_QTY_PER_ROW } from './import-limits';
 
 export interface DeckSections {
   commander: ScryfallCard | null;
+  /**
+   * The second card under the Commander header: a partner, a Background, a
+   * Friends forever pair. It is ALSO in `cards`, as is every Commander-section
+   * card past the first, so a client that ignores this field still keeps the
+   * card; this only says which one the list named. Whether the two actually
+   * pair is the client's call (it owns the pairing rules).
+   */
+  partner: ScryfallCard | null;
   companion: ScryfallCard | null;
   cards: ScryfallCard[];
   /** Format sideboard rows ("Sideboard" header) — distinct from `considering`. */
@@ -128,7 +136,14 @@ export function sliceResolvedDeckImport(
     }
     return out;
   };
-  const cards = collect(companionEnd, deckEnd);
+  // Every Commander-section copy past the first used to be dropped here: a
+  // partner listed the way Moxfield and most exports list it ("Commander /
+  // 1 Pako / 1 Haldan") vanished from every import. They go into the main
+  // list now, so nothing the list names is ever lost, and the first of them is
+  // reported as the named partner.
+  const commanderExtras = collect(1, commanderEnd);
+  const partner = commanderExtras.find((c) => c.name !== commander?.name) ?? null;
+  const cards = [...commanderExtras, ...collect(companionEnd, deckEnd)];
   const sideboard = collect(deckEnd, sideboardEnd);
   const considering = collect(sideboardEnd, resolved.length);
 
@@ -154,5 +169,14 @@ export function sliceResolvedDeckImport(
   walk(sideboardRows);
   walk(consideringRows);
 
-  return { commander, companion, cards, sideboard, considering, unresolvedNames, fetchErrorNames };
+  return {
+    commander,
+    partner,
+    companion,
+    cards,
+    sideboard,
+    considering,
+    unresolvedNames,
+    fetchErrorNames,
+  };
 }

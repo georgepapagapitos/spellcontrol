@@ -22,6 +22,7 @@ import { ManaCost } from './ManaCost';
 import { SearchPill } from './SearchPill';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
+import { namedPartner } from '@/deck-builder/lib/partnerUtils';
 import type { DeckFormat } from '@/deck-builder/types';
 import type { ProductPhysicalCard, ProductResolveResponse, ProductSummary } from '../types';
 import './ProductSearchPanel.css';
@@ -242,6 +243,9 @@ export function ProductSearchPanel({ onClose }: Props) {
       resp.product.name,
       deckFormatOf(resp),
       {
+        // A precon with two commanders (a partner pair, a Background) keeps
+        // both in the command zone.
+        partner: namedPartner(resp.deck.commander, resp.deck.partner),
         sourceProduct: {
           code: resp.product.code,
           fileName: resp.product.fileName,

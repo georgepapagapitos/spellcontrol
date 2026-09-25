@@ -68,3 +68,38 @@ describe('importToDeck', () => {
     expect(new Set(deck.cards.map((c) => c.slotId)).size).toBe(2);
   });
 });
+
+/** A partner the list named under Commander starts in the command zone at the
+ *  goldfish table, where it gets its own tax coin (user, 2026-09-24). */
+describe('importToDeck — a named partner', () => {
+  const partnerCard = (name: string, oracle: string): ScryfallCard =>
+    ({
+      id: name,
+      name,
+      type_line: 'Legendary Creature',
+      keywords: ['Partner with', 'Partner'],
+      oracle_text: oracle,
+    }) as ScryfallCard;
+  const pako = partnerCard('Pako, Arcane Retriever', 'Partner with Haldan, Avid Arcanist\nHaste');
+  const haldan = partnerCard('Haldan, Avid Arcanist', 'Partner with Pako, Arcane Retriever');
+
+  it('moves the named partner out of the 99 and into the command zone', () => {
+    const deck = importToDeck(
+      result({ commander: pako, partner: haldan, cards: [haldan, card('Sol Ring')] }),
+      pastedDeckLocalId('p'),
+      'Pasted list'
+    );
+    expect(deck.partnerCommander?.name).toBe('Haldan, Avid Arcanist');
+    expect(deck.cards.map((c) => c.card.name)).toEqual(['Sol Ring']);
+  });
+
+  it('leaves a named card that does not pair in the 99', () => {
+    const deck = importToDeck(
+      result({ commander: pako, partner: card('Sol Ring'), cards: [card('Sol Ring')] }),
+      pastedDeckLocalId('p'),
+      'Pasted list'
+    );
+    expect(deck.partnerCommander).toBeNull();
+    expect(deck.cards.map((c) => c.card.name)).toEqual(['Sol Ring']);
+  });
+});

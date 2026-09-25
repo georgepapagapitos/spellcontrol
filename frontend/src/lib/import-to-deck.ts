@@ -1,6 +1,7 @@
 import type { Deck, DeckCard } from '@/store/decks';
 import type { DeckFormat, ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
+import { namedPartner } from '@/deck-builder/lib/partnerUtils';
 import { pickRandomPresetColor } from './preset-colors';
 import type { DeckImportResponse } from '../types';
 
@@ -67,19 +68,22 @@ function toFormat(format: string | undefined): DeckFormat {
  */
 export function importToDeck(result: DeckImportResponse, localId: string, name: string): Deck {
   const now = Date.now();
+  // A partner the list named under Commander starts in the command zone, with
+  // its own tax coin, as it does at a table. The server also lists it among
+  // the cards, so one copy of it comes out of the 99.
+  const partner = namedPartner(result.commander, result.partner);
+  const partnerAt = partner ? result.cards.findIndex((c) => c.name === partner.name) : -1;
+  const cards = result.cards.filter((_, i) => i !== partnerAt);
   return {
     id: localId,
     name,
     format: toFormat(result.detectedFormat),
     source: 'manual',
     commander: result.commander,
-    // The parser resolves a companion, never a partner pair, so a pasted list
-    // leads with one commander. A partner deck goldfishes with its second
-    // commander in the 99, which is wrong at a table and immaterial here.
-    partnerCommander: null,
+    partnerCommander: partner,
     commanderAllocatedCopyId: null,
     partnerCommanderAllocatedCopyId: null,
-    cards: toDeckCards(result.cards, 'main'),
+    cards: toDeckCards(cards, 'main'),
     sideboard: toDeckCards(result.sideboard ?? [], 'side'),
     considering: [],
     generationContext: null,

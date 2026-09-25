@@ -128,6 +128,9 @@ export type { EnrichedCard };
 
 export interface DeckImportResponse {
   commander: ScryfallCard | null;
+  /** The second card under the Commander header, also present in `cards`
+   *  (see `DeckSections.partner`). */
+  partner: ScryfallCard | null;
   companion: ScryfallCard | null;
   cards: ScryfallCard[];
   /** Format sideboard rows ("Sideboard" header). Absent/empty for products and inputs with none. */

@@ -178,3 +178,47 @@ describe('sliceResolvedDeckImport', () => {
     expect(out.unresolvedNames).toEqual(['Nonexistent Card']);
   });
 });
+
+/**
+ * A partner listed the way Moxfield and most exports list it ("Commander /
+ * 1 Pako / 1 Haldan") used to vanish: only the first Commander-section card
+ * was kept, and the rest were in neither `commander` nor `cards`.
+ */
+describe('sliceResolvedDeckImport — the Commander section', () => {
+  const pako = card('pako', 'Pako, Arcane Retriever', 'C20');
+  const haldan = card('haldan', 'Haldan, Avid Arcanist', 'C20');
+  const sol = card('sol', 'Sol Ring', 'C20');
+
+  function slice(commanderNames: string[], deckNames: string[] = ['Sol Ring']) {
+    const byName = new Map([pako, haldan, sol].map((c) => [c.name, c]));
+    const commanderRows = commanderNames.map((name) => row({ name, scryfallId: undefined }));
+    const deckRows = deckNames.map((name) => row({ name, scryfallId: undefined }));
+    const resolved = expandResolved([...commanderRows, ...deckRows], (r) => byName.get(r.name));
+    return sliceResolvedDeckImport(commanderRows, [], deckRows, resolved);
+  }
+
+  it('reports the second card as the partner and keeps it among the cards', () => {
+    const out = slice(['Pako, Arcane Retriever', 'Haldan, Avid Arcanist']);
+    expect(out.commander?.name).toBe('Pako, Arcane Retriever');
+    expect(out.partner?.name).toBe('Haldan, Avid Arcanist');
+    expect(out.cards.map((c) => c.name)).toEqual(['Haldan, Avid Arcanist', 'Sol Ring']);
+  });
+
+  it('has no partner for a single commander, and the cards are unchanged', () => {
+    const out = slice(['Pako, Arcane Retriever']);
+    expect(out.partner).toBeNull();
+    expect(out.cards.map((c) => c.name)).toEqual(['Sol Ring']);
+  });
+
+  it('never names the commander itself as its partner, but still keeps the copy', () => {
+    const out = slice(['Pako, Arcane Retriever', 'Pako, Arcane Retriever']);
+    expect(out.partner).toBeNull();
+    expect(out.cards.map((c) => c.name)).toEqual(['Pako, Arcane Retriever', 'Sol Ring']);
+  });
+
+  it('drops nothing from a Commander section longer than two', () => {
+    const out = slice(['Pako, Arcane Retriever', 'Haldan, Avid Arcanist', 'Sol Ring'], []);
+    expect(out.partner?.name).toBe('Haldan, Avid Arcanist');
+    expect(out.cards.map((c) => c.name)).toEqual(['Haldan, Avid Arcanist', 'Sol Ring']);
+  });
+});
