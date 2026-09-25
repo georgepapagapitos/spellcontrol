@@ -224,11 +224,18 @@ export function PowerHero({
   // above it — so they show whether or not the deck has a stated bracket, with
   // wording that says which one they're about.
   const showReasons = bracketReasons.length > 0;
-  const bracketIsFloor = !!bracketMissesCombos && !bracketOverridden && bracket != null;
-  // The estimate gets its own line only when it differs from the stated
-  // bracket above it — on Auto, `bracket` already IS the estimate.
+  // An estimate made before the combo match answered is a floor. On Auto it
+  // is the headline; with a stated bracket it is the Estimate line.
+  const estimateIsFloor =
+    !!bracketMissesCombos && (bracketOverridden ? bracketEstimate != null : bracket != null);
+  const bracketIsFloor = estimateIsFloor && !bracketOverridden;
+  // The estimate gets its own line when it differs from the stated bracket
+  // above it (on Auto, `bracket` already IS the estimate), or when it is a
+  // floor: "matches" off a floor could still rise past the stated bracket.
   const showEstimateLine =
-    bracketOverridden && bracketEstimate != null && bracketEstimate !== bracket;
+    bracketOverridden &&
+    bracketEstimate != null &&
+    (bracketEstimate !== bracket || estimateIsFloor);
   const borderlineOnHeadline = !bracketOverridden && bracketBorderline != null && bracket != null;
   const borderlineOnEstimate = showEstimateLine && bracketBorderline != null;
 
@@ -270,7 +277,8 @@ export function PowerHero({
           )}
           {showEstimateLine && (
             <p className="power-hero-estimate">
-              Estimate: Bracket {bracketEstimate} · {bracketLabel(bracketEstimate!)}
+              Estimate: {estimateIsFloor ? 'at least Bracket' : 'Bracket'} {bracketEstimate} ·{' '}
+              {bracketLabel(bracketEstimate!)}
               {borderlineOnEstimate && (
                 <BorderlineMarker current={bracketEstimate!} neighbour={bracketBorderline!} />
               )}
@@ -279,7 +287,7 @@ export function PowerHero({
           {showReasons && (
             <p className="power-hero-because">because: {bracketReasons.slice(0, 3).join(', ')}</p>
           )}
-          {bracketIsFloor && (
+          {estimateIsFloor && (
             <p className="power-hero-because">
               {combosError
                 ? "Combos weren't checked, so it may be higher."

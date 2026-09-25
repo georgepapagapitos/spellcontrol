@@ -3284,6 +3284,7 @@ export function DeckEditorPage() {
             bracketEstimation={deck.bracketEstimation}
             deckCardsByName={deckCardsByName}
             bracketOverride={deck.bracketOverride}
+            bracketMissesCombos={bracketAnalysis.missesCombos}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
             archetypeOverride={deck.archetypeOverride}
             onSetArchetypeOverride={(a) => updateDeck(deck.id, { archetypeOverride: a })}
@@ -3352,8 +3353,13 @@ export function DeckEditorPage() {
                       : undefined
                   }
                   onViewCombos={handleViewCombos}
-                  winConditionSummary={buildWinConditionSummary(deck.winConditions)}
-                  winConditionWarn={deck.winConditions?.noClearWinCondition}
+                  winConditionSummary={buildWinConditionSummary(
+                    deck.winConditions,
+                    bracketAnalysis.missesCombos
+                  )}
+                  winConditionWarn={
+                    deck.winConditions?.noClearWinCondition && !bracketAnalysis.missesCombos
+                  }
                   onViewWinConditions={deck.winConditions ? handleViewWinConditions : undefined}
                   // UX-313: target bracket control in the PowerHero
                   bracketOverride={deck.bracketOverride}
@@ -3410,6 +3416,7 @@ export function DeckEditorPage() {
                   mainboardOracleIds={mainboardOracleIds}
                   format={deck.format}
                   colorIdentity={comboColorIdentity}
+                  combos={comboData}
                   onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
                 />
               ) : undefined
@@ -3502,6 +3509,7 @@ export function DeckEditorPage() {
                 <WinConditionPanel
                   analysis={deck.winConditions}
                   library={deckLibrary}
+                  combosUncounted={bracketAnalysis.missesCombos}
                   winConTags={deck.winConTags}
                   onToggleWinConTag={(name) =>
                     updateDeck(deck.id, { winConTags: toggleWinConTag(deck.winConTags, name) })

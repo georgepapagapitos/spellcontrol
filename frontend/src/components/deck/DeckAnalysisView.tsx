@@ -41,6 +41,7 @@ export function DeckAnalysisView({
   illegalCardNames = [],
   formatLabel = 'Commander',
   bracketOverride,
+  bracketMissesCombos,
   onSetBracketOverride,
   archetypeOverride,
   onSetArchetypeOverride,
@@ -90,6 +91,9 @@ export function DeckAnalysisView({
   /** The format's display name, for that note ("Commander"). */
   formatLabel?: string;
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  /** The estimate was made before the combo match answered, so it is a floor
+   *  (combos only raise a bracket). See useCommanderBracketAnalysis. */
+  bracketMissesCombos?: boolean;
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   archetypeOverride?: Archetype | null;
   onSetArchetypeOverride?: (archetype: Archetype | null) => void;
@@ -314,11 +318,15 @@ export function DeckAnalysisView({
                   <BracketVerdictStrip
                     bracket={bracketOverride}
                     estimate={bracketEstimation?.bracket}
+                    estimateIsFloor={bracketMissesCombos}
                   />
                   {/* One sentence naming where the ESTIMATE comes from (a hard
                       floor, the power signal, or neither), whether or not the
                       owner has stated a bracket above it. */}
-                  {bracketEstimation && (
+                  {/* Held while combos aren't counted: "nothing pushes it past
+                      Core" is exactly what an uncounted combo can disprove, and
+                      the strip above already says the estimate may rise. */}
+                  {bracketEstimation && !bracketMissesCombos && (
                     <p className="deck-stats-bracket-source">
                       {bracketSourceSentence(bracketSource(bracketEstimation))}
                     </p>
@@ -355,6 +363,7 @@ export function DeckAnalysisView({
                     <BracketBreakdown
                       estimation={bracketEstimation}
                       deckCardsByName={deckCardsByName}
+                      combosUncounted={bracketMissesCombos}
                     />
                   )}
                 </div>

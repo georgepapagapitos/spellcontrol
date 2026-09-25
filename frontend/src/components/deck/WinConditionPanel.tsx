@@ -14,6 +14,12 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 export interface WinConditionPanelProps {
   analysis: WinConditionAnalysis;
   /**
+   * The analysis ran before the combo match answered. "No clear win condition
+   * — add a combo" would then be advice to a deck whose win may be a combo, so
+   * the panel says the answer is waiting instead.
+   */
+  combosUncounted?: boolean;
+  /**
    * Mainboard cards (one entry per physical copy, commanders excluded) — feeds
    * the assembly clock on the primary path, which needs each card's mana value
    * and land/ramp classification, not just its name. Omit to hide the clock.
@@ -183,6 +189,7 @@ function WinConRow({
  */
 export function WinConditionPanel({
   analysis,
+  combosUncounted = false,
   library,
   winConTags,
   onToggleWinConTag,
@@ -237,6 +244,19 @@ export function WinConditionPanel({
       </ul>
     </div>
   );
+
+  if (analysis.noClearWinCondition && combosUncounted) {
+    return (
+      <section className="win-con-panel" aria-label="Win condition analysis">
+        <p className="win-con-headline">Win condition unclear until combos are counted</p>
+        <p className="win-con-empty">
+          A combo may be how this deck wins, so this waits for the combo check.
+        </p>
+        {taggedSection}
+        {carousel.preview}
+      </section>
+    );
+  }
 
   if (analysis.noClearWinCondition) {
     // Complete combos that don't end the game (E380): say they need a payoff,

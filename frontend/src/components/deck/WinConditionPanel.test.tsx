@@ -191,3 +191,19 @@ describe('WinConditionPanel — combos that do not end the game', () => {
     expect(screen.getByText(/Add a combo, a damage plan/)).toBeTruthy();
   });
 });
+
+// Before the combo match answers, "No clear win condition. Add a combo" was
+// advice to a deck whose win may be the very combo that hadn't been counted.
+describe('WinConditionPanel before combos are counted', () => {
+  it('says the answer waits for the combo check instead of warning', () => {
+    render(<WinConditionPanel analysis={analysis()} combosUncounted />);
+    expect(screen.getByText('Win condition unclear until combos are counted')).toBeTruthy();
+    expect(screen.queryByText('No clear win condition detected')).toBeNull();
+    expect(screen.queryByText(/Add a combo/)).toBeNull();
+  });
+
+  it('keeps the warning once combos are counted', () => {
+    render(<WinConditionPanel analysis={analysis()} />);
+    expect(screen.getByText('No clear win condition detected')).toBeTruthy();
+  });
+});
