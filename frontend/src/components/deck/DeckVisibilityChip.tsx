@@ -46,7 +46,7 @@ export function DeckVisibilityChip({ deckId, deckName, colorIdentity }: Props) {
         {/* "Sharing:" on the face, not only in the aria-label: a chip that
             just said "Private" was the page's only share door and nothing
             told a first-time user that tapping the state changes it. */}
-        <span className="deck-visibility-chip-prefix">Sharing:</span> {label}
+        <span>Sharing:</span> <span className="deck-visibility-chip-state">{label}</span>
       </button>
       {open && (
         <ShareDialog

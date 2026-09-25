@@ -125,8 +125,15 @@ meanwhile.
   secondaries, `menuOnly` for destructive ones) and never decides visibility
   itself: the primary is always shown, wider than a phone the first secondary
   sits beside it, and the `⋮` holds exactly what isn't on screen. Every hub
-  and detail header uses it except the deck editor and the shared deck view,
-  whose art headers migrate separately. **Hub tabs, built:** each hub index
+  and detail header uses it except the deck page, whose art header is
+  `components/deck/DeckHero` (owner's editor and shared deck both): back
+  link, title, one meta line, actions, in one block. Its actions follow the
+  same rule by tier: a phone shows Add cards (the primary) and `⋮`, a tablet
+  adds Playtest, a desktop adds undo/redo. Tokens, Pull list, Duplicate and
+  Delete live in the `⋮` at every width. The meta line reads format · count
+  · value · bracket · sharing; the commander is the art and the command
+  zone's first row, so the meta line doesn't name it again, and sharing is
+  its last segment ("Sharing: Public"), not a boxed chip under the title. **Hub tabs, built:** each hub index
   page renders its strip (`CollectionHubTabs`, `DecksHubTabs`,
   `SocialHubTabs`) directly after its `PageHeader`; the pair owns its spacing
   (8px header → tabs on every hub; hosts with a flex gap declare it as
@@ -1675,8 +1682,17 @@ different from desktop; it is not _absent_.
 - **≤599px** — art goes **full-bleed across the hero**, the hero takes a real
   `min-height`, and the title/meta/status chips bottom-anchor into a vertical
   scrim (`justify-content: flex-end`). The scrim, not the absence of art, is
-  what buys legibility: near-opaque `var(--bg)` under the text, clearing to art
-  at the top.
+  what buys legibility. **The phone scrim is dark in every theme** (black
+  under the text, a lighter band at the top for the back link, white text):
+  a scrim that faded to a light theme's `var(--bg)` was a pale wash the art
+  showed straight through, which is what made the old deck header hard to
+  read (2026-09-24 mockup, shipped 2026-09-25). The back link rides the art's
+  top edge rather than costing a row above it.
+- **≥600px, deck header** — the art is a bounded panel on the right
+  (`min(58%, 440px)`, the header's full height, ~2:1) that fades in from its
+  left edge with a `mask-image`, and the text column sits on the page in the
+  theme's colours. The header is 188px tall on a tablet and 216px on a
+  desktop, so the panel keeps the commander's face in frame.
 
 The rule exists because the deck hero originally did the opposite — it hid the
 commander art below 600px on the reasoning that "art behind full-width text

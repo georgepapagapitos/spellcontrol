@@ -411,6 +411,26 @@ function renderEditor({ justGenerated = false }: { justGenerated?: boolean } = {
   );
 }
 
+/** Render at a viewport width: the header picks its action tier with
+ *  matchMedia (min-/max-width queries), so answer those against `px`. */
+function atWidth(px: number) {
+  vi.stubGlobal('matchMedia', (query: string) => {
+    const min = /min-width:\s*(\d+)px/.exec(query);
+    const max = /max-width:\s*(\d+)px/.exec(query);
+    const matches = (!min || px >= Number(min[1])) && (!max || px <= Number(max[1]));
+    return {
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    };
+  });
+}
+
 let mockSyncState: 'idle' | 'syncing' | 'ready' = 'idle';
 vi.mock('../lib/sync', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/sync')>()),
@@ -478,12 +498,13 @@ describe('DeckEditorPage — Delete in ⋮ overflow (UX-316)', () => {
     expect(screen.queryByRole('menuitem', { name: 'Playtest' })).toBeNull();
   });
 
-  it('keeps Playtest in the mobile ⋮ menu where there is no inline Playtest button', () => {
+  it('keeps Playtest in the phone ⋮ menu where there is no inline Playtest button', () => {
+    atWidth(390);
     renderEditor();
-    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
-    fireEvent.click(mobileTrigger);
+    fireEvent.click(screen.getByLabelText('Deck actions'));
 
     expect(screen.getByRole('menuitem', { name: 'Playtest' })).toBeTruthy();
+    vi.unstubAllGlobals();
   });
 });
 
@@ -499,12 +520,13 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
     expect(screen.queryByRole('menuitem', { name: 'Export' })).toBeNull();
   });
 
-  it('keeps Export in the mobile ⋮ menu, where the toolbar button is hidden below 1024px', () => {
+  it('keeps Export in the ⋮ menu below 1024px, where the toolbar button is hidden', () => {
+    atWidth(768);
     renderEditor();
-    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
-    fireEvent.click(mobileTrigger);
+    fireEvent.click(screen.getByLabelText('Deck actions'));
 
     expect(screen.getByRole('menuitem', { name: 'Export' })).toBeTruthy();
+    vi.unstubAllGlobals();
   });
 
   // Regenerate lived only in the decks index's tile menu, not here where the
@@ -531,8 +553,7 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
 
   it('sections the menu into labelled clusters instead of one flat list', () => {
     renderEditor();
-    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
-    fireEvent.click(mobileTrigger);
+    fireEvent.click(screen.getByLabelText('Deck actions'));
 
     expect(screen.getByText('Text tools')).toBeTruthy();
     expect(screen.getByText('Deck actions')).toBeTruthy();
@@ -550,8 +571,7 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
 
   it('every menu row clears the 44px coarse-pointer floor, not just Bulk edit', () => {
     renderEditor();
-    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
-    fireEvent.click(mobileTrigger);
+    fireEvent.click(screen.getByLabelText('Deck actions'));
 
     const rows = screen.getAllByRole('menuitem');
     expect(rows.length).toBeGreaterThan(1);
@@ -587,13 +607,13 @@ describe('DeckEditorPage — one-shot BuildReportSheet (UX-316)', () => {
   });
 });
 
-describe('DeckEditorPage — header action cluster on phones (≤1023px collapse)', () => {
+describe('DeckEditorPage — header actions by tier (STYLE_GUIDE § Layout system)', () => {
   beforeEach(() => {
     localStorage.clear();
-    mockCanUndo = false;
-    mockCanRedo = false;
-    mockUndoLabel = null;
-    mockRedoLabel = null;
+    mockCanUndo = true;
+    mockCanRedo = true;
+    mockUndoLabel = 'remove Sol Ring';
+    mockRedoLabel = 'add Sol Ring';
   });
   afterEach(() => {
     localStorage.clear();
@@ -601,63 +621,69 @@ describe('DeckEditorPage — header action cluster on phones (≤1023px collapse
     mockCanRedo = false;
     mockUndoLabel = null;
     mockRedoLabel = null;
+    vi.unstubAllGlobals();
   });
 
-  // Both .deck-editor-actions (desktop) and .deck-editor-mobile-actions
-  // (<=1023px) render unconditionally — the breakpoint switch is pure CSS
-  // (display: none), not a JS branch — so getAllByLabelText('Deck actions')
-  // always returns [desktop trigger, mobile trigger] in DOM order.
+  const inlineLabels = () =>
+    Array.from(document.querySelectorAll('.deck-editor-actions button')).map(
+      (b) => b.getAttribute('aria-label') ?? b.textContent?.trim()
+    );
+  const menuLabels = () => {
+    fireEvent.click(screen.getByLabelText('Deck actions'));
+    return screen.getAllByRole('menuitem').map((r) => r.textContent);
+  };
 
-  it('shows only the Add-cards pill + ⋮ trigger in the mobile action cluster — no standing icon buttons', () => {
-    mockCanUndo = true;
-    mockCanRedo = true;
-    mockUndoLabel = 'remove Sol Ring';
-    mockRedoLabel = 'add Sol Ring';
+  it('keeps the header actions and the ⋮ in the header, after the title', () => {
     renderEditor();
-
-    const mobileCluster = document.querySelector('.deck-editor-mobile-actions');
-    expect(mobileCluster).toBeTruthy();
-    // Exactly two controls: the Add-cards pill and the ⋮ trigger.
-    expect(mobileCluster!.querySelectorAll(':scope > button, :scope > div')).toHaveLength(2);
-    expect(mobileCluster!.querySelector('.deck-editor-add-pill')).toBeTruthy();
-    // No standalone Undo/Redo icon button sits inline next to it — that
-    // pair only exists in the desktop (>=1024px) action row.
-    expect(mobileCluster!.querySelector('.deck-editor-icon-btn')).toBeNull();
+    const hero = document.querySelector('header.deck-editor-hero')!;
+    expect(hero.querySelector('h1 .deck-editor-name')).toBeTruthy();
+    expect(hero.querySelector('.deck-editor-actions [aria-label="Deck actions"]')).toBeTruthy();
+    expect(screen.getAllByLabelText('Deck actions')).toHaveLength(1);
   });
 
-  it('keeps the desktop-only inline Undo/Redo icon pair confined to .deck-editor-actions', () => {
-    mockCanUndo = true;
-    mockCanRedo = true;
+  it('shows Add cards (the one primary) and the ⋮ on a phone', () => {
+    atWidth(390);
     renderEditor();
-
-    const desktopActions = document.querySelector('.deck-editor-actions');
-    const iconButtons = desktopActions!.querySelectorAll('.deck-editor-icon-btn');
-    expect(iconButtons).toHaveLength(2); // Undo + Redo
+    expect(inlineLabels()).toEqual(['Add cards', 'Deck actions']);
+    expect(document.querySelector('.deck-editor-actions .btn-primary')?.textContent).toContain(
+      'Add cards'
+    );
+    // Undo/redo lead the menu, above its first labelled section.
+    const items = menuLabels();
+    expect(items.slice(0, 2)).toEqual(['Undo remove Sol Ring', 'Redo add Sol Ring']);
+    expect(items).toContain('Playtest');
   });
 
-  it('puts Undo/Redo as the first two, unlabelled-section menu items in the mobile ⋮ (E181 top-of-menu convention)', () => {
-    mockCanUndo = true;
-    mockCanRedo = true;
-    mockUndoLabel = 'remove Sol Ring';
-    mockRedoLabel = 'add Sol Ring';
+  it('adds Playtest beside Add cards on a tablet, and takes it out of the ⋮', () => {
+    atWidth(768);
     renderEditor();
-
-    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
-    fireEvent.click(mobileTrigger);
-
-    const rows = screen.getAllByRole('menuitem');
-    expect(rows[0].textContent).toBe('Undo remove Sol Ring');
-    expect(rows[1].textContent).toBe('Redo add Sol Ring');
-    // They sit above the first labelled section, not inside one.
-    expect(rows[0].closest('.deck-editor-overflow-section')).toBeNull();
-    expect(rows[1].closest('.deck-editor-overflow-section')).toBeNull();
+    expect(inlineLabels()).toEqual(['Playtest', 'Add cards', 'Deck actions']);
+    const items = menuLabels();
+    expect(items).not.toContain('Playtest');
+    expect(items[0]).toBe('Undo remove Sol Ring');
   });
 
-  it('omits Undo/Redo rows entirely when there is nothing to undo/redo', () => {
-    renderEditor(); // mockCanUndo/mockCanRedo default false
-    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
-    fireEvent.click(mobileTrigger);
+  it('adds undo/redo on a desktop, and the ⋮ holds neither', () => {
+    atWidth(1280);
+    renderEditor();
+    expect(inlineLabels()).toEqual([
+      'Undo remove Sol Ring',
+      'Redo add Sol Ring',
+      'Playtest',
+      'Add cards',
+      'Deck actions',
+    ]);
+    const items = menuLabels();
+    expect(items.some((t) => t?.startsWith('Undo') || t?.startsWith('Redo'))).toBe(false);
+    expect(items).not.toContain('Playtest');
+  });
 
+  it('omits undo/redo from the ⋮ when there is nothing to undo or redo', () => {
+    mockCanUndo = false;
+    mockCanRedo = false;
+    atWidth(390);
+    renderEditor();
+    fireEvent.click(screen.getByLabelText('Deck actions'));
     expect(screen.queryByRole('menuitem', { name: /^Undo/ })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /^Redo/ })).toBeNull();
   });
