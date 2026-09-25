@@ -356,13 +356,13 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
     }
   }
 
-  // ── Tier 3: polish — bracket-fit (target set, moves exist) ──────────────
+  // ── Tier 3: polish — bracket-fit (bracket stated, moves exist) ───────────
   if (input.bracketFitHasMoves && !moves.some((m) => m.focus === 'bracket-fit')) {
     moves.push({
       id: 'bracket-fit',
       tier: 3,
       title: 'Fit your power bracket',
-      detail: 'Bracket Fit has card moves ready to close the gap to your target bracket.',
+      detail: 'Bracket Fit has card moves ready to close the gap to the bracket you set.',
       navigateTo: 'tune',
       focus: 'bracket-fit',
     });

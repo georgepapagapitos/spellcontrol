@@ -230,10 +230,10 @@ describe('UX-313 — Bracket Fit lane renders on Tune tab', () => {
   });
 });
 
-// ── UX-313: PowerHero Target control ────────────────────────────────────────
+// ── UX-313: PowerHero Bracket control ───────────────────────────────────────
 
-describe('UX-313 — PowerHero Target bracket control', () => {
-  it('renders a "Target" SelectMenu when onSetBracketOverride is provided', () => {
+describe('UX-313 — PowerHero Bracket control', () => {
+  it('renders a "Bracket" SelectMenu when onSetBracketOverride is provided', () => {
     const onSetBracketOverride = vi.fn();
     render(
       <PowerHero
@@ -248,11 +248,11 @@ describe('UX-313 — PowerHero Target bracket control', () => {
         onSetBracketOverride={onSetBracketOverride}
       />
     );
-    // The "Target" label should appear in the control
-    expect(screen.getByText('Target')).toBeTruthy();
+    // The "Bracket" label should appear in the control
+    expect(screen.getByText('Bracket')).toBeTruthy();
   });
 
-  it('does not render the Target control when onSetBracketOverride is omitted', () => {
+  it('does not render the Bracket control when onSetBracketOverride is omitted', () => {
     render(
       <PowerHero
         bracket={3}
@@ -264,10 +264,10 @@ describe('UX-313 — PowerHero Target bracket control', () => {
         combosLoading={false}
       />
     );
-    expect(screen.queryByText('Target')).toBeNull();
+    expect(document.querySelector('.power-hero-target')).toBeNull();
   });
 
-  it('calls onSetBracketOverride with the selected bracket when a Target option is chosen', () => {
+  it('calls onSetBracketOverride with the selected bracket when a bracket option is chosen', () => {
     const onSetBracketOverride = vi.fn();
     render(
       <PowerHero

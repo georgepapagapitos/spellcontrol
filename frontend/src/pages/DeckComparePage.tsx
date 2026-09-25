@@ -714,11 +714,11 @@ function CompareBody({
                     5 is cutthroat (cEDH).
                   </li>
                   <li>
-                    <strong>Detected</strong> is the deck&apos;s auto-estimated level.
+                    <strong>Bracket</strong> is what the owner states the deck plays at;{' '}
+                    <strong>Auto</strong> means none is stated.
                   </li>
                   <li>
-                    <strong>Target</strong> is the bracket you&apos;re aiming for;{' '}
-                    <strong>Auto</strong> means none is set.
+                    <strong>Estimate</strong> is the deck&apos;s auto-estimated level.
                   </li>
                 </ul>
               </>
@@ -736,8 +736,8 @@ function CompareBody({
                 <>
                   <p className="deck-compare-bracket-num">Bracket {read.bracket}</p>
                   <BracketVerdictStrip
-                    target={deck.bracketOverride ?? undefined}
-                    detected={read.bracket}
+                    bracket={deck.bracketOverride ?? undefined}
+                    estimate={read.bracket}
                   />
                 </>
               ) : (

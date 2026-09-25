@@ -5665,6 +5665,52 @@ The app's analysis surfaces speak **one vocabulary** so users learn it once:
 - A third grading scale (letter grades) appearing next to band words and bracket numbers
 - "Soft score" being confused with Build health's subscore bands
 
+## Bracket: the owner's word, the Estimate is computed (2026-09-24 ruling)
+
+A deck's **Bracket** is what its owner states it plays at — what they'd say
+at the table. The **Estimate** is the app's computed read on the same deck.
+They are two different facts and the copy never blurs them into one:
+
+- The stated bracket is never called "target" or "manual" anywhere in the
+  UI. "Target" implied a goal the deck was aiming for and hadn't reached;
+  it's the opposite — it's the owner's own claim about what the deck already
+  is. "Manual" read as a caveat on the number, as if the computed one were
+  more legitimate. Both readings are wrong: a stated bracket is the primary
+  fact, the Estimate is supporting evidence.
+- Show both only when they differ. On Auto (no stated bracket), the
+  headline **is** the Estimate — there's nothing to disambiguate, so no
+  second line. Once a bracket is stated, the headline reads "Bracket 3 ·
+  Upgraded" (the STATED value, formatted per the "Bracket: A number but also
+  a named tier" rule above) and, only when the Estimate disagrees, a second
+  line reads "Estimate: Bracket 4 · Optimized" beneath it.
+- The estimate's hard-floor reasons ("because: …") always show, whether or
+  not a bracket is stated — they explain the Estimate, not the headline.
+  They sit directly under whichever line shows the Estimate, so a plain
+  "because: …" reads as belonging to it; don't prefix "estimate" (the line
+  above already says it, and "Estimate … estimate because" stutters).
+- **Bracket 1 (Exhibition) is never "above target."** The estimator never
+  returns 1 — Exhibition is a theme-first build intent the estimator can't
+  confirm from card content, so it floors at Core (2) (`CORE_BASELINE` in
+  `@spellcontrol/deck-metrics`). A deck stated at Bracket 1 whose Estimate
+  reads Core reads as "Exhibition" (neutral tone, `EXHIBITION_BRACKET_NOTE`)
+  — not "plays above" — because there is no lower floor to trim toward. Only
+  once the Estimate clears Core (3+) does the verdict read "Plays above,"
+  and even then the coaching language says cuts bring it to the Core floor,
+  never to Bracket 1 itself.
+- **Source + borderline.** `bracketSource(est)` (`@spellcontrol/deck-metrics`)
+  names where the Estimate comes from — `'contents'` (a hard floor set it),
+  `'power'` (the power signal lifted it past its floor, bump or cEDH alike),
+  or `'baseline'` (neither fired; it sits at Core by default) — and the
+  Bracket panel says so in one plain sentence next to the verdict strip. The
+  sentence always names the Estimate ("The estimate comes from what's in the
+  list."): under a strip that shows a stated B2, "Set by what's in the list"
+  read as if the list had set the owner's number.
+  `bracketBorderline(est)` flags when the power signal sits within
+  `SOFT_SCORE.borderlineWithin` of the threshold that could move the deck;
+  render it as a compact neutral "Borderline N/M" pill (the Tag chips plate:
+  `--surface-raised` / `--text-secondary` / `--border`, never `--accent` —
+  it's a hint, not a verdict) next to whichever line shows the Estimate.
+
 ## Full-viewport centered pages (scroll, don't clip)
 
 **Load-bearing rule — any full-viewport centered card page (auth, the `/`

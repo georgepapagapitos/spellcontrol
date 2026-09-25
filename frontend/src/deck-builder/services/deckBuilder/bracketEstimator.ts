@@ -39,6 +39,8 @@ export {
   floorsAtFourAlone,
   floorOf,
   bracketReasons,
+  bracketSource,
+  bracketBorderline,
   softScorePoints,
   SOFT_SCORE,
   type BracketEstimation,

@@ -43,10 +43,36 @@ describe('PowerHero', () => {
     expect(hasText(/^because:.*\bd\b/)).toBe(false);
   });
 
-  it('shows "manual" and suppresses the "because" line when overridden', () => {
+  it('drops the "manual" tag and still shows the reasons, labeled as the estimate', () => {
     renderHero({ bracketOverridden: true });
-    expect(screen.getByText('manual')).toBeTruthy();
-    expect(hasText(/^because:/)).toBe(false);
+    expect(screen.queryByText('manual')).toBeNull();
+    expect(hasText(/^because: 2 game changers, 1 combo, 8 tutors$/)).toBe(true);
+  });
+
+  it('shows an Estimate line only when it differs from the stated bracket', () => {
+    renderHero({ bracketOverridden: true, bracketEstimate: 4 });
+    expect(hasText(/^Estimate: Bracket 4 · Optimized$/)).toBe(true);
+  });
+
+  it('omits the Estimate line when the stated bracket matches the estimate', () => {
+    renderHero({ bracketOverridden: true, bracketEstimate: 3 });
+    expect(hasText(/^Estimate: /)).toBe(false);
+  });
+
+  it('renders a borderline marker next to the estimate on Auto', () => {
+    renderHero({ bracketBorderline: 4 });
+    expect(screen.getByLabelText('Borderline between Bracket 3 and Bracket 4')).toBeTruthy();
+    expect(hasText(/Borderline 3\/4/)).toBe(true);
+  });
+
+  it('renders a borderline marker next to the Estimate line when overridden and differing', () => {
+    renderHero({ bracketOverridden: true, bracketEstimate: 4, bracketBorderline: 5 });
+    expect(screen.getByLabelText('Borderline between Bracket 4 and Bracket 5')).toBeTruthy();
+  });
+
+  it('renders no borderline marker when bracketBorderline is absent', () => {
+    renderHero();
+    expect(screen.queryByText(/Borderline/)).toBeNull();
   });
 
   it('shows "Bracket —" when bracket is null', () => {

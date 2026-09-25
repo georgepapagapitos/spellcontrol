@@ -10,12 +10,15 @@ import { describe, it, expect } from 'vitest';
 import type { BracketEstimation, DetectedCombo, TagLookup } from './index';
 import {
   bracketReasons,
+  bracketBorderline,
+  bracketSource,
   countsTowardComboFloor,
   floorsAtFourAlone,
   needsUnnamedCard,
   estimateBracket,
   floorOf,
   softScorePoints,
+  SOFT_SCORE,
 } from './index';
 
 const noTags: TagLookup = {
@@ -228,6 +231,90 @@ describe('explainability helpers', () => {
       engines: 0,
     });
     expect(r.softScore).toBe(31);
+  });
+});
+
+/** Minimal BracketEstimation fixture — only the fields these two pure
+ *  functions read (hardFloors, softScore, breakdown.gameChangerCount). */
+function makeEst(overrides: {
+  hardFloors?: BracketEstimation['hardFloors'];
+  softScore: number;
+  gameChangerCount?: number;
+}): BracketEstimation {
+  return {
+    bracket: 2,
+    label: 'Core',
+    hardFloors: overrides.hardFloors ?? [],
+    softScore: overrides.softScore,
+    breakdown: { gameChangerCount: overrides.gameChangerCount ?? 0 },
+  } as unknown as BracketEstimation;
+}
+
+describe('bracketSource', () => {
+  it('reads "baseline" when no floors fired and the power signal did not lift it', () => {
+    expect(bracketSource(makeEst({ softScore: 10 }))).toBe('baseline');
+  });
+
+  it('reads "contents" when a hard floor set the bracket', () => {
+    const est = makeEst({
+      softScore: 20,
+      hardFloors: [{ bracket: 3, reason: '1 Game Changer card' }],
+    });
+    expect(bracketSource(est)).toBe('contents');
+  });
+
+  it('reads "power" when the soft score bumped the deck above its floor', () => {
+    const est = makeEst({ softScore: 70, hardFloors: [{ bracket: 2, reason: '' }] });
+    // The estimator itself would report bracket 3 here (floor 2 + bump); this
+    // fixture only needs hardFloors + softScore, which bracketSource reads.
+    expect(bracketSource({ ...est, bracket: 3 } as BracketEstimation)).toBe('power');
+  });
+
+  it('reads "power" for a cEDH read (floor 4, power signal lifts to 5)', () => {
+    const est = makeEst({ softScore: 85, hardFloors: [{ bracket: 4, reason: '' }] });
+    expect(bracketSource({ ...est, bracket: 5 } as BracketEstimation)).toBe('power');
+  });
+});
+
+describe('bracketBorderline', () => {
+  it('is null when the power signal is nowhere near the bump threshold', () => {
+    expect(bracketBorderline(makeEst({ softScore: 30 }))).toBeNull();
+  });
+
+  it('flags the bump target just below the threshold (floor < 4, not yet bumped)', () => {
+    // bumpAt 66, borderlineWithin 6 → [60, 72] reads borderline.
+    expect(bracketBorderline(makeEst({ softScore: 60 }))).toBe(3);
+  });
+
+  it('flags the floor as the neighbour just above the threshold (already bumped)', () => {
+    expect(bracketBorderline(makeEst({ softScore: 70 }))).toBe(2);
+  });
+
+  it('is inclusive exactly at the threshold', () => {
+    expect(bracketBorderline(makeEst({ softScore: SOFT_SCORE.bumpAt }))).toBe(2);
+  });
+
+  it('caps the bump target at 4 when the floor is already 3', () => {
+    const est = makeEst({ softScore: 60, hardFloors: [{ bracket: 3, reason: '' }] });
+    expect(bracketBorderline(est)).toBe(4);
+  });
+
+  it('is null at floor 4 without enough Game Changers for a cEDH read', () => {
+    const est = makeEst({
+      softScore: SOFT_SCORE.cedhAt,
+      hardFloors: [{ bracket: 4, reason: '' }],
+      gameChangerCount: 1,
+    });
+    expect(bracketBorderline(est)).toBeNull();
+  });
+
+  it('flags the cEDH neighbour at floor 4 with enough Game Changers', () => {
+    const est = makeEst({
+      softScore: 75,
+      hardFloors: [{ bracket: 4, reason: '' }],
+      gameChangerCount: SOFT_SCORE.cedhMinGameChangers,
+    });
+    expect(bracketBorderline(est)).toBe(5);
   });
 });
 
