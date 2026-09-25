@@ -102,7 +102,7 @@ export function BinderPagePreview({
     if (!card) return;
     const targetPage = cardToPageIndex.get(card);
     if (targetPage === undefined || targetPage === selected) return;
-    carousel.current?.scrollTo(targetPage, 'instant' as ScrollBehavior);
+    carousel.current?.scrollTo(targetPage, 'instant');
   }, [innerCard, cardToPageIndex, selected]);
 
   useLockBodyScroll();
@@ -152,9 +152,16 @@ export function BinderPagePreview({
   // sizing var (--page-w-ratio drives --slide-size).
   const backdropStyle = { ['--page-w-ratio' as string]: pageAspectRatio } as React.CSSProperties;
 
+  // One line of context: what's on this page and where it sits. A search
+  // leaves only matching pages, so the physical page number and the position
+  // in this run diverge; say both only then.
+  const current = pages[selected];
+  const unfiltered = pages[pages.length - 1]?.pageNum === pages.length;
+  const where = unfiltered
+    ? `Page ${current?.pageNum} of ${pages.length}`
+    : `Page ${current?.pageNum} · ${selected + 1} of ${pages.length} shown`;
   const currentLabel = pageLabels[selected] ?? '';
-  const contextLine = `${currentLabel ? `${currentLabel} · ` : ''}page ${pages[selected]?.pageNum}`;
-  const counterLine = `Page ${selected + 1} of ${pages.length}`;
+  const contextLine = currentLabel ? `${currentLabel} · ${where}` : where;
 
   return (
     <>
@@ -217,7 +224,21 @@ export function BinderPagePreview({
           <div className="binder-pages-panel">
             <div className="binder-pages-name">{binderName}</div>
             <div className="binder-pages-context">{contextLine}</div>
-            <div className="binder-pages-counter">{counterLine}</div>
+            {pages.length > 2 && (
+              // Jump anywhere in a long binder without swiping page by page.
+              // Its own touches never reach the sheet's swipe-down dismiss.
+              <input
+                type="range"
+                className="binder-pages-scrubber"
+                min={0}
+                max={pages.length - 1}
+                value={selected}
+                aria-label="Page"
+                aria-valuetext={where}
+                onChange={(e) => carousel.current?.scrollTo(Number(e.target.value), 'instant')}
+                onTouchStart={(e) => e.stopPropagation()}
+              />
+            )}
           </div>
         </div>
       </div>

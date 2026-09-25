@@ -54,6 +54,7 @@ vi.mock('./CardPreview', () => ({
 import { DeckDisplay, type DeckDisplayCard } from './deck/DeckDisplay';
 import { CardListTable } from './CardListTable';
 import { ListDetailView } from './ListDetailView';
+import { BinderSummaryBar } from './BinderSummaryBar';
 import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
 import type { ListDef } from '../types';
 
@@ -232,5 +233,54 @@ describe('control-row budget — list detail toolbar (ListDetailView)', () => {
       4,
       'List detail toolbar (.card-list-summary-actions)'
     );
+  });
+});
+
+describe('control-row budget — binder toolbar (BinderSummaryBar)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    stubNarrowViewport(true);
+  });
+
+  it('the ≤640px row keeps browse, sort, collapse and View options only', () => {
+    const { container } = render(
+      <BinderSummaryBar
+        binderName="Commanders"
+        onBrowsePages={() => {}}
+        sort={{
+          sorts: [{ field: 'color', dir: 'asc' }],
+          valueOrders: {},
+          onSortsChange: () => {},
+          onValueOrdersChange: () => {},
+        }}
+        collapse={{ allCollapsed: false, onToggle: () => {} }}
+        controls={{
+          view: 'pages',
+          onViewChange: () => {},
+          toggles: [
+            {
+              key: 'show-images',
+              label: 'Show card images',
+              value: true,
+              defaultValue: true,
+              onChange: () => {},
+            },
+          ],
+        }}
+      />
+    );
+    // The row nests its trailing cluster, so count controls rather than direct
+    // children. At 390px this row used to wrap to three lines around a stray
+    // "·" (browse · sort / collapse · layout · key).
+    const row = container.querySelector('.binder-summary');
+    if (!row) throw new Error('binder toolbar row was not found in the DOM');
+    const count = row.querySelectorAll('button').length;
+    expect(
+      count,
+      `Binder toolbar rendered ${count} controls at the ≤640px breakpoint (budget: 4). ` +
+        STYLE_GUIDE_POINTER
+    ).toBeLessThanOrEqual(4);
+    expect(screen.getByRole('button', { name: 'View options' })).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'Binder view mode' })).toBeNull();
   });
 });

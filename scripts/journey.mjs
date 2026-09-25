@@ -224,6 +224,9 @@ const NO_WRAP_AT_PHONE = [
   '.decks-index-actions',
   '.card-list-summary-actions',
   '.collection-hero-actions',
+  // The binder page's control row (BinderSummaryBar): wrapped to three lines
+  // at 390px before its display controls folded into the View popover.
+  '.binder-summary',
 ];
 
 /**

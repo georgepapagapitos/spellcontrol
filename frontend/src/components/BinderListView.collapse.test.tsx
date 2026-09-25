@@ -90,7 +90,10 @@ describe('BinderListView collapses identical adjacent copies', () => {
   it('shows one ×3 row for three copies of a printing and counts every copy in the header', () => {
     render(
       <MemoryRouter>
-        <BinderListView binder={binder} />
+        <BinderListView
+          binder={binder}
+          controls={{ view: 'list', onViewChange: () => {}, toggles: [] }}
+        />
       </MemoryRouter>
     );
     expect(screen.getAllByText('Mountain')).toHaveLength(1);
