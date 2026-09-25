@@ -250,6 +250,9 @@ export function CoachFeed({
   aiAgrees,
 }: CoachFeedProps): JSX.Element {
   const busy = busyNames ?? new Set<string>();
+  // "In 71% of Sram decks": the rows read the commander by its short name, so
+  // the played-in line holds one line in the table's column.
+  const commanderShort = commanderName?.split(',')[0].trim();
   const carousel = useCardCarousel('Coach');
   // Cursor-anchored hover-peek — floats card art beside the pointer on
   // hover-capable viewports. Touch devices keep the tap→carousel flow.
@@ -941,6 +944,15 @@ export function CoachFeed({
             )}
 
             {/* Feed rows — first page only until "Show all" is pressed. */}
+            {/* Column names for the table layout (CoachFeed.css shows them
+                from a 48rem feed); the list itself stays a list. */}
+            {filteredRows.length > 0 && (
+              <div className="coach-feed-rows-head" aria-hidden>
+                <span>Card</span>
+                <span>Why</span>
+                <span>Played in</span>
+              </div>
+            )}
             {filteredRows.length > 0 && (
               <ul className="coach-feed-rows" aria-label="Deck suggestions">
                 {(showAllRows ? filteredRows : filteredRows.slice(0, ROW_CAP)).map(({ change }) => {
@@ -960,8 +972,9 @@ export function CoachFeed({
                       <DeckCardRow
                         as="div"
                         change={aiWhy ? { ...change, aiWhy } : change}
-                        commanderName={commanderName}
+                        commanderName={commanderShort}
                         peekName={change.name}
+                        artThumb
                         onPreview={() => carousel.open(previewEntries, change.name)}
                         onPreviewOut={(c) =>
                           // The card being cut opens as a two-card trade: cut → incoming,
@@ -989,7 +1002,7 @@ export function CoachFeed({
                       {change.alternatives && change.alternatives.length > 0 && (
                         <SubstituteOptions
                           alternatives={change.alternatives}
-                          commanderName={commanderName}
+                          commanderName={commanderShort}
                           onPreview={(name) => carousel.open(previewEntries, name)}
                           onAct={(c) => handleApplyWithLeave(c)}
                           acting={(name) => busy.has(name)}

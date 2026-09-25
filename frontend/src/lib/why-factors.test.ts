@@ -28,8 +28,19 @@ describe('buildSwapAlternativeFactors', () => {
     expect(
       buildSwapAlternativeFactors({ owned: true, synergy: 0 }).some((f) => /synergy/.test(f.text))
     ).toBe(false);
-    const f = buildSwapAlternativeFactors({ owned: true, synergy: 12, commanderName: 'Atraxa' });
+    const f = buildSwapAlternativeFactors({ owned: true, synergy: 0.12, commanderName: 'Atraxa' });
     expect(f.some((x) => /synergy with Atraxa/.test(x.text))).toBe(true);
+  });
+
+  // EDHREC's synergy is a -1..1 fraction (client.ts passes it through), so a
+  // real 0.12 must read "+12%". Rounding it bare printed "+0%" on every card.
+  it('reads synergy as a fraction: 0.12 is +12%, and a sliver never prints +0%', () => {
+    const f = buildSwapAlternativeFactors({ owned: true, synergy: 0.12 });
+    expect(f.find((x) => /synergy/.test(x.text))?.text).toContain('(+12%)');
+    const gap = buildGapAddFactors({ inclusion: 40, synergy: 0.31, owned: false });
+    expect(gap.find((x) => /Overperforms/.test(x.text))?.text).toContain('+31% vs baseline');
+    const sliver = buildSwapAlternativeFactors({ owned: true, synergy: 0.004 });
+    expect(sliver.some((x) => /\+0%/.test(x.text))).toBe(false);
   });
 });
 
@@ -78,7 +89,7 @@ describe('buildGapAddFactors', () => {
   });
 
   it('only emits synergy when positive and owned as a bonus', () => {
-    const f = buildGapAddFactors({ inclusion: 10, synergy: -3, owned: true });
+    const f = buildGapAddFactors({ inclusion: 10, synergy: -0.03, owned: true });
     expect(f.some((x) => /Overperforms/.test(x.text))).toBe(false);
     expect(f.some((x) => /Already in your collection/.test(x.text) && x.tone === 'pro')).toBe(true);
     expect(f.some((x) => /fringe/.test(x.text))).toBe(true);

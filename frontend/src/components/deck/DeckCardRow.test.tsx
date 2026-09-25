@@ -35,6 +35,32 @@ describe('DeckCardRow', () => {
     expect(container.querySelector('.deck-card-row-incl-pct')?.textContent).toBe('87%');
   });
 
+  // E415: EDHREC's synergy is a -1..1 fraction. The row printed
+  // `+${Math.round(synergy)}% synergy`, so every card read "+0% synergy".
+  it('shows synergy as a chip with the real percent, and never "+0%"', () => {
+    const { container, unmount } = render(<DeckCardRow change={add({ synergy: 0.34 })} />);
+    expect(screen.getByText('Synergy +34%')).toBeTruthy();
+    expect(container.textContent).not.toMatch(/\+0%/);
+    unmount();
+    const sliver = render(<DeckCardRow change={add({ synergy: 0.003 })} />);
+    expect(sliver.container.textContent).not.toMatch(/synergy|\+0%/i);
+    sliver.unmount();
+    render(<DeckCardRow change={add({ synergy: -0.2, isThemeSynergy: true })} />);
+    expect(screen.getByText('Synergy')).toBeTruthy();
+  });
+
+  it('shows the art crop when asked, for the Coach table', () => {
+    const { container } = render(
+      <DeckCardRow
+        artThumb
+        change={add({ imageUrl: 'https://cards.scryfall.io/normal/front/a/b/sol.jpg' })}
+      />
+    );
+    expect(container.querySelector('.deck-card-row-art--crop img')?.getAttribute('src')).toBe(
+      'https://cards.scryfall.io/art_crop/front/a/b/sol.jpg'
+    );
+  });
+
   it('renders "Off-meta" when inclusion is undefined', () => {
     render(<DeckCardRow change={add({ inclusion: undefined })} />);
     expect(screen.getByText('Off-meta')).toBeTruthy();

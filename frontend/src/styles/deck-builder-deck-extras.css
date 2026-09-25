@@ -111,11 +111,45 @@
 /* One chip per top-level role (+ count), above the card list. A single
    active role acts as a lens: matching rows stay bright, the rest dim in
    place (see .is-role-dimmed in deck-builder-card-list.css). */
+/* One line at every width (§ Chip rows are one line): past the width the
+   chips scroll and the edge with more behind it fades (`data-overflow`, set by
+   useOverflowEdges). The padding keeps the focus ring inside the clip. */
 .deck-role-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding: var(--space-1);
+  margin: calc(var(--space-1) * -1);
+}
+
+.deck-role-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.deck-role-bar[data-overflow='end'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--space-6)), transparent 100%);
+}
+
+.deck-role-bar[data-overflow='start'] {
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--space-6));
+}
+
+.deck-role-bar[data-overflow='both'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--space-6),
+    #000 calc(100% - var(--space-6)),
+    transparent 100%
+  );
+}
+
+.deck-role-bar > * {
+  flex: none;
 }
 
 /* Rounded-rects, not 999px pills: these chips are actionable filters

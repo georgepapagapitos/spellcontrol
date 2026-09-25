@@ -127,6 +127,19 @@
   object-position: center top;
 }
 
+/* The art-crop thumb (Coach feed): the art at its own ratio, wide enough to
+   read, instead of a whole card shrunk to 42px. */
+.deck-card-row-art--crop {
+  width: 52px;
+  align-self: flex-start;
+}
+
+.deck-card-row-art--crop img,
+.deck-card-row-art--crop .deck-card-row-art-ph {
+  aspect-ratio: 4 / 3;
+  object-position: center;
+}
+
 /* Skeleton shown in the art box while a name-only row resolves its CDN image —
    keeps the row's layout stable (no shift) and reads as "loading" not "broken". */
 .deck-card-row-art-ph {
@@ -196,6 +209,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The inclusion meter belongs to the Coach table's own column (CoachFeed.css);
+   everywhere else the tinted number carries it. */
+.deck-card-row-incl-meter {
+  display: none;
+}
+
+.deck-card-row-why {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
 .deck-card-row-incl.is-offmeta {
   color: var(--text-muted);
   font-style: italic;
@@ -207,11 +233,6 @@
    it never collides with red = remove. */
 .deck-card-row-incl-pct {
   font-weight: 600;
-}
-
-.deck-card-row-syn {
-  color: var(--success, #2f7d4f);
-  font-variant-numeric: tabular-nums;
 }
 
 .deck-card-row-price {

@@ -1,5 +1,6 @@
 import { CircleAlert, Layers, Pencil, Search, Tag as TagIcon, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useOverflowEdges } from '@/lib/use-overflow-edges';
 import { useCurrency } from '@/lib/currency';
 import { createPortal } from 'react-dom';
 import type {
@@ -1398,6 +1399,12 @@ export function DeckDisplay({
   // instead of dimming the whole list.
   const activeRoleFilter =
     roleFilter && roleFilterEntries.some(([key]) => key === roleFilter) ? roleFilter : null;
+  // The role chips and the glance strip are one line each; past the width
+  // they scroll, and the edge with more behind it fades.
+  const roleBarRef = useRef<HTMLDivElement>(null);
+  useOverflowEdges(roleBarRef, roleFilterEntries.length > 0, roleFilterEntries.length);
+  const statStripRef = useRef<HTMLDivElement>(null);
+  useOverflowEdges(statStripRef, activeView === 'deck');
 
   // "Not in the deck" zone (E176): whether the format has a real sideboard
   // at all (every DECK_FORMAT_CONFIGS entry does today, but the format
@@ -1646,7 +1653,7 @@ export function DeckDisplay({
                 page hero does NOT already say — card count, value and bracket
                 ride the hero on every tab and every width, so repeating them
                 here was the same number twice on one screen. */}
-            <div className="deck-stat-strip" aria-label="Deck at a glance">
+            <div ref={statStripRef} className="deck-stat-strip" aria-label="Deck at a glance">
               {/* The checks verdict leads, the way a deck site's header says
                   "Legal" first. It is also the phone's way down to the stats
                   under a long one-column list. */}
@@ -1661,12 +1668,18 @@ export function DeckDisplay({
               </button>
               <span className="deck-stat">
                 <span className="deck-stat-value">{manaData.averageCmc.toFixed(2)}</span>
-                <span className="deck-stat-label">avg mana value</span>
+                {/* A phone fits the strip on one line with the short label. */}
+                <span className="deck-stat-label">
+                  <span className="deck-stat-label-long">avg mana value</span>
+                  <span className="deck-stat-label-short" aria-hidden>
+                    avg MV
+                  </span>
+                </span>
               </span>
               {identity && (
                 <span className="deck-stat">
                   <span className="deck-stat-value">{identity.archetypeLabel}</span>
-                  <span className="deck-stat-label">archetype</span>
+                  <span className="deck-stat-label">plays as</span>
                 </span>
               )}
               {missing.count > 0 &&
@@ -1679,14 +1692,22 @@ export function DeckDisplay({
                   >
                     <span className="deck-stat-value">{missing.count}</span>
                     <span className="deck-stat-label">
-                      missing ({formatMoney(missing.price, { currency })})
+                      missing
+                      <span className="deck-stat-label-long">
+                        {' '}
+                        ({formatMoney(missing.price, { currency })})
+                      </span>
                     </span>
                   </button>
                 ) : (
                   <span className="deck-stat deck-stat-missing">
                     <span className="deck-stat-value">{missing.count}</span>
                     <span className="deck-stat-label">
-                      missing ({formatMoney(missing.price, { currency })})
+                      missing
+                      <span className="deck-stat-label-long">
+                        {' '}
+                        ({formatMoney(missing.price, { currency })})
+                      </span>
                     </span>
                   </span>
                 ))}
@@ -1876,7 +1897,12 @@ export function DeckDisplay({
                 lens: an active role keeps every row in place but dims the rest,
                 so matching cards pop without the layout reshuffling. */}
             {roleFilterEntries.length > 0 && (
-              <div className="deck-role-bar" role="toolbar" aria-label="Role filter">
+              <div
+                ref={roleBarRef}
+                className="deck-role-bar"
+                role="toolbar"
+                aria-label="Role filter"
+              >
                 {roleFilterEntries.map(([key, count]) => (
                   <button
                     key={key}

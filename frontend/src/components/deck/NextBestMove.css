@@ -132,6 +132,20 @@
   line-height: 1.45;
 }
 
+/* A move with nothing to do (e.g. "Limited data") reads as a note under the
+   numbered steps: every numbered step has an action (E415). */
+.next-best-move-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.next-best-move-note-title {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
 /* Action group: a direct "Add" (card-naming moves) and/or the deep-link nav,
    right-aligned beside the body on desktop, full-width below the text on mobile. */
 .next-best-move-actions {
