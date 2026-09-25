@@ -173,6 +173,7 @@ describe('games-api', () => {
         seated: 2,
         max: 8,
         joinable: true,
+        visibility: 'public',
         bracket: { min: 3, max: 3 },
       },
     ];

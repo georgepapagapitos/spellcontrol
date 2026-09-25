@@ -100,6 +100,14 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
                     : `${g.bracket.min}-${g.bracket.max}`}
                 </span>
               )}
+              {/* Same "Friends only" wording as the friend-hub deck badge
+                  (DeckLibrary) and the friends-share gate — this browser only
+                  ever lists a friends-visibility row hosted by one of the
+                  caller's own friends, so the badge is purely informational,
+                  never a gate of its own. */}
+              {g.visibility === 'friends' && (
+                <span className="room-browser-friends">Friends only</span>
+              )}
               {g.status === 'active' && <span className="room-browser-live">Game started</span>}
             </span>
           </div>
