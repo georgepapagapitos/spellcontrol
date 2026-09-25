@@ -1,5 +1,5 @@
 import { type JSX, useState } from 'react';
-import { COLOR_INFO } from '../../lib/colors';
+import { COLOR_INFO, colorIdentityWords } from '../../lib/colors';
 import { ColorPip } from '../shared/ManaSymbol';
 import { DeckColorBalance } from './DeckColorBalance';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
@@ -7,127 +7,17 @@ import { CardGroupSheet } from './CardGroupSheet';
 import './DeckColorPanel.css';
 
 /**
- * The deck's "color story" in two compact readouts:
- *   (a) Distribution — an SVG donut of colored-card counts per WUBRG+C.
- *   (b) Mana base     — <DeckColorBalance>: colored-mana demand vs. the sources
- *                       producing each color (+ a colorless row). This folds in
- *                       what used to be a separate "Production" list — the
- *                       Sources side of each row is the same per-color source
- *                       count, now tappable to that color's sources.
+ * The deck's colors in one readout: an identity line (the pips and the colors
+ * in words, "Mono-white" or "White, blue and black", with the non-land count),
+ * then the mana base, where each color's cards stand against the sources that
+ * make it (<DeckColorBalance>). Each count opens the list it counts.
  *
- * Distribution legend entries and Mana base rows are tappable → a carousel of
- * the cards behind that color, when the per-color card lists are supplied.
+ * The share-of-deck donut that used to lead here answered "what share of the
+ * deck is blue?", which nobody asks; "can I cast my spells?" is the question,
+ * and the mana base rows answer it with the same per-color counts.
  */
 
-const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G', 'C'];
-
-function DistributionDonut({
-  counts,
-  total,
-  onShowColor,
-  cardsByColor,
-}: {
-  counts: Record<string, number>;
-  total: number;
-  onShowColor?: (k: string) => void;
-  cardsByColor?: Record<string, CardTally[]>;
-}) {
-  if (total === 0) return <div className="deck-color-empty">No data</div>;
-
-  const radius = 36;
-  const stroke = 14;
-  const circ = 2 * Math.PI * radius;
-
-  // Precompute each colored segment's arc length + cumulative start offset so
-  // the JSX map is pure (no reassigning a running total mid-render — the React
-  // Compiler flags that). reduce threads the running offset functionally.
-  const segments = COLOR_ORDER.filter((k) => (counts[k] ?? 0) > 0).reduce<
-    Array<{ k: string; len: number; offset: number }>
-  >((acc, k) => {
-    const len = ((counts[k] ?? 0) / total) * circ;
-    const offset = acc.length > 0 ? acc[acc.length - 1].offset + acc[acc.length - 1].len : 0;
-    acc.push({ k, len, offset });
-    return acc;
-  }, []);
-
-  // Identity row: colors present in distribution, excluding colorless (C).
-  const identityColors = COLOR_ORDER.filter((k) => k !== 'C' && (counts[k] ?? 0) > 0);
-  const identityLabel = identityColors.map((k) => COLOR_INFO[k]?.label ?? k).join(', ');
-
-  return (
-    <div className="deck-color-donut">
-      <div className="deck-color-donut-wrap">
-        <svg viewBox="-50 -50 100 100" width={112} height={112} aria-label="Color distribution">
-          <circle r={radius} fill="none" stroke="var(--border)" strokeWidth={stroke} />
-          {segments.map(({ k, len, offset }) => (
-            <circle
-              key={k}
-              r={radius}
-              fill="none"
-              stroke={COLOR_INFO[k]?.pip ?? 'var(--accent)'}
-              strokeWidth={stroke}
-              strokeDasharray={`${len} ${circ - len}`}
-              strokeDashoffset={-offset}
-              transform="rotate(-90)"
-            />
-          ))}
-        </svg>
-        <div
-          className="deck-color-donut-center"
-          aria-label={`${total} cards total${identityLabel ? `, ${identityLabel}` : ''}`}
-        >
-          <span className="deck-color-donut-center-count">{total}</span>
-          {identityColors.length > 0 && (
-            <span className="deck-color-donut-center-pips" aria-hidden="true">
-              {identityColors.map((k) => (
-                <ColorPip key={k} color={k} />
-              ))}
-            </span>
-          )}
-        </div>
-      </div>
-      <ul className="deck-color-donut-legend">
-        {COLOR_ORDER.filter((k) => (counts[k] ?? 0) > 0).map((k) => {
-          const v = counts[k];
-          const pct = Math.round((v / total) * 100);
-          const label = COLOR_INFO[k]?.label ?? k;
-          const interactive = !!onShowColor && (cardsByColor?.[k]?.length ?? 0) > 0;
-          const inner = (
-            <>
-              <span
-                className="deck-color-donut-swatch"
-                style={{ background: COLOR_INFO[k]?.pip }}
-              />
-              <span className="deck-color-donut-name">{label}</span>
-              <span className="deck-color-donut-pct">{pct}%</span>
-              {interactive && (
-                <span className="deck-color-donut-chevron" aria-hidden="true">
-                  ›
-                </span>
-              )}
-            </>
-          );
-          return (
-            <li key={k}>
-              {interactive ? (
-                <button
-                  type="button"
-                  className="deck-color-donut-legend-row"
-                  onClick={() => onShowColor(k)}
-                  aria-label={`Show the ${v} ${label} cards`}
-                >
-                  {inner}
-                </button>
-              ) : (
-                <div className="deck-color-donut-legend-row">{inner}</div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
+const WUBRG = ['W', 'U', 'B', 'R', 'G'];
 
 export function DeckColorPanel({
   colorDist,
@@ -183,26 +73,36 @@ export function DeckColorPanel({
   };
 
   const colorLabel = (k: string) => COLOR_INFO[k]?.label ?? k;
+  // The deck's colors: every WUBRG color some non-land card needs.
+  const identity = WUBRG.filter((k) => (colorDist.counts[k] ?? 0) > 0);
 
   return (
     <div className="deck-color-panel">
-      <section className="deck-color-section" aria-label="Color distribution section">
-        <h5 className="deck-color-subheading">Distribution</h5>
-        <DistributionDonut
-          counts={colorDist.counts}
-          total={colorDist.total}
-          cardsByColor={cardsByColor}
-          onShowColor={(k) => openGroup(colorsCarousel, cardsByColor?.[k], colorLabel(k))}
-        />
-      </section>
+      {colorDist.total > 0 && (
+        <p className="deck-color-identity">
+          {identity.length > 0 && (
+            <span className="deck-color-identity-pips" aria-hidden="true">
+              {identity.map((k) => (
+                <ColorPip key={k} color={k} />
+              ))}
+            </span>
+          )}
+          <strong className="deck-color-identity-words">{colorIdentityWords(identity)}</strong>
+          <span className="deck-color-identity-count">
+            {colorDist.total} non-land {colorDist.total === 1 ? 'card' : 'cards'}
+          </span>
+        </p>
+      )}
 
       <DeckColorBalance
         colorRequirements={colorDist.counts}
         colorProduction={manaProduction.counts}
         sourcesByColor={manaProduction.sourcesByColor}
+        cardsByColor={cardsByColor}
         onShowSources={(k) =>
           openGroup(sourcesCarousel, manaProduction.sourcesByColor?.[k], `${colorLabel(k)} sources`)
         }
+        onShowCards={(k) => openGroup(colorsCarousel, cardsByColor?.[k], `${colorLabel(k)} cards`)}
         manaCurve={manaCurve}
         landUpgradeCount={landUpgradeCount}
         onReanalyzeLands={onReanalyzeLands}

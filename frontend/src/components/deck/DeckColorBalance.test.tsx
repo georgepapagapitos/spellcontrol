@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { DeckColorBalance } from './DeckColorBalance';
 
+/** The shortfall flag: the ▾ glyph plus "short" in words. */
+const flag = () => document.querySelector('.deck-color-balance-flag');
+
 describe('DeckColorBalance', () => {
   it('renders a row for each color that has demand or production', () => {
     const { container } = render(
@@ -21,33 +24,33 @@ describe('DeckColorBalance', () => {
     expect(screen.queryByText('Blue')).toBeNull();
   });
 
-  it('shows demand and source values per color', () => {
+  it('shows cards and sources per color, in words', () => {
     const { container } = render(
       <DeckColorBalance colorRequirements={{ W: 20 }} colorProduction={{ W: 18 }} />
     );
-    const values = Array.from(container.querySelectorAll('.deck-color-balance-meter-value')).map(
+    const values = Array.from(container.querySelectorAll('.deck-color-balance-value')).map(
       (n) => n.textContent
     );
-    expect(values).toEqual(['20', '18']);
+    expect(values).toEqual(['20 cards', '18 sources']);
   });
 
   it('flags a shortfall when production is well below demand', () => {
     // B: demand 15, production 4 → 4 < 15 * 0.6 (9) → short.
     render(<DeckColorBalance colorRequirements={{ B: 15 }} colorProduction={{ B: 4 }} />);
-    expect(screen.getByText('Sources short')).toBeTruthy();
+    expect(flag()).not.toBeNull();
   });
 
   it('does not flag a color whose sources comfortably meet demand', () => {
     // R: demand 8, production 9 → no flag.
     render(<DeckColorBalance colorRequirements={{ R: 8 }} colorProduction={{ R: 9 }} />);
-    expect(screen.queryByText('Sources short')).toBeNull();
+    expect(flag()).toBeNull();
   });
 
   it('does not flag a tiny splash even when sources are below the ratio', () => {
     // R: demand 2, production 1 → 1 < 2 * 0.6 (1.2) but demand < MIN_FLAG_DEMAND (3)
     // and production > 0 → small-splash forgiveness, no flag.
     render(<DeckColorBalance colorRequirements={{ R: 2 }} colorProduction={{ R: 1 }} />);
-    expect(screen.queryByText('Sources short')).toBeNull();
+    expect(flag()).toBeNull();
   });
 
   it('flags a tiny splash that balanced forgives when the deck curve reads aggressive', () => {
@@ -62,20 +65,20 @@ describe('DeckColorBalance', () => {
         manaCurve={aggroCurve}
       />
     );
-    expect(screen.getByText('Sources short')).toBeTruthy();
+    expect(flag()).not.toBeNull();
   });
 
   it('flags a color with demand but zero sources even when demand is small', () => {
     // B: demand 2, production 0 → you can't produce a color you need → always flag.
     render(<DeckColorBalance colorRequirements={{ B: 2 }} colorProduction={{ B: 0 }} />);
-    expect(screen.getByText('Sources short')).toBeTruthy();
+    expect(flag()).not.toBeNull();
   });
 
   it('never flags a color with zero demand and renders it neutral', () => {
     const { container } = render(
       <DeckColorBalance colorRequirements={{ G: 0 }} colorProduction={{ G: 5 }} />
     );
-    expect(screen.queryByText('Sources short')).toBeNull();
+    expect(flag()).toBeNull();
     const row = container.querySelector('.deck-color-balance-row');
     expect(row?.classList.contains('deck-color-balance-row-neutral')).toBe(true);
   });
@@ -85,7 +88,7 @@ describe('DeckColorBalance', () => {
     expect(screen.getByText('No colored mana to balance.')).toBeTruthy();
   });
 
-  it('makes rows tappable and adds a colorless row when sources are provided', () => {
+  it('links the sources count and adds a colorless row when sources are provided', () => {
     render(
       <DeckColorBalance
         colorRequirements={{ W: 10 }}
@@ -98,11 +101,11 @@ describe('DeckColorBalance', () => {
       />
     );
 
-    // White has a source list → its row is a button labeled with the unique count.
-    expect(screen.getByRole('button', { name: /Show the 1 White mana sources/ })).toBeTruthy();
-    // Colorless production surfaces its own tappable row.
+    // White has a source list → its sources count opens it.
+    expect(screen.getByRole('button', { name: 'Show the 8 white mana sources' })).toBeTruthy();
+    // Colorless production surfaces its own row, with its sources count linked.
     expect(screen.getByText('Colorless')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Show the 1 colorless mana sources/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show the 3 colorless mana sources' })).toBeTruthy();
   });
 
   it('shows a colorless row even when there is no colored demand', () => {

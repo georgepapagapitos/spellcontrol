@@ -109,7 +109,7 @@ export function buildValidationChecklist(input: ValidationInput): ValidationResu
       status: offColor.length === 0 ? 'pass' : 'fail',
       detail:
         offColor.length === 0
-          ? 'all in identity'
+          ? 'all on-color'
           : `${offColor.length} off-color card${offColor.length === 1 ? '' : 's'}`,
     });
   }

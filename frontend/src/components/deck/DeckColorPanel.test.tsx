@@ -3,126 +3,94 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { DeckColorPanel } from './DeckColorPanel';
 
+// The panel led with a share-of-deck donut ("57% white", an unlabelled "67"
+// in the middle) that answered a question nobody asks. It now leads with the
+// deck's colors in words and goes straight to the mana base: each color's
+// cards against the sources that make it, every count opening its list.
+
 describe('DeckColorPanel', () => {
-  it('renders the distribution donut and the merged mana-base readout', () => {
-    render(
+  it('names the deck colors in words with the non-land count, and no donut', () => {
+    const { container } = render(
       <DeckColorPanel
         colorDist={{ counts: { W: 10, U: 6, B: 0, R: 0, G: 0, C: 4 }, total: 20 }}
         manaProduction={{ counts: { W: 8, U: 5, B: 0, R: 0, G: 0, C: 2 }, total: 15 }}
       />
     );
-
-    // Distribution donut renders its SVG under its sub-heading.
-    expect(screen.getByText('Distribution')).toBeTruthy();
-    expect(screen.getByLabelText('Color distribution').tagName.toLowerCase()).toBe('svg');
-
-    // Mana base (merged Production + Balance): demand meters + a colorless row.
-    expect(screen.getByText('Mana base')).toBeTruthy();
-    expect(screen.getAllByText('Demand').length).toBeGreaterThan(0);
-    expect(screen.getByText('Colorless')).toBeTruthy();
-
-    // The old standalone Production / Balance sub-headings are gone.
-    expect(screen.queryByText('Production')).toBeNull();
-    expect(screen.queryByText('Balance')).toBeNull();
+    expect(screen.getByText('White and blue')).toBeTruthy();
+    expect(screen.getByText('20 non-land cards')).toBeTruthy();
+    expect(container.querySelector('svg')).toBeNull();
+    expect(screen.queryByText('Distribution')).toBeNull();
   });
 
-  it('makes a mana-base row tappable when its sources are known', () => {
+  it('reads a one-color deck as mono', () => {
     render(
       <DeckColorPanel
-        colorDist={{ counts: { W: 10, U: 6, B: 0, R: 0, G: 0, C: 4 }, total: 20 }}
+        colorDist={{ counts: { W: 38, C: 29 }, total: 67 }}
+        manaProduction={{ counts: { W: 34, C: 5 }, total: 39 }}
+      />
+    );
+    expect(screen.getByText('Mono-white')).toBeTruthy();
+  });
+
+  it('shows each color as cards against sources, colorless included', () => {
+    const { container } = render(
+      <DeckColorPanel
+        colorDist={{ counts: { W: 38, C: 29 }, total: 67 }}
+        manaProduction={{ counts: { W: 34, C: 5 }, total: 39 }}
+      />
+    );
+    const rows = Array.from(container.querySelectorAll('.deck-color-balance-row')).map((row) =>
+      [
+        row.querySelector('.deck-color-balance-row-name')?.textContent,
+        ...Array.from(row.querySelectorAll('.deck-color-balance-value')).map((v) => v.textContent),
+      ].join(' | ')
+    );
+    expect(rows).toEqual(['White | 38 cards | 34 sources', 'Colorless | 29 cards | 5 sources']);
+  });
+
+  it('opens the sources or the cards behind each count when the lists are known', () => {
+    render(
+      <DeckColorPanel
+        colorDist={{ counts: { W: 10, U: 6, C: 4 }, total: 20 }}
         manaProduction={{
-          counts: { W: 8, U: 5, B: 0, R: 0, G: 0, C: 2 },
+          counts: { W: 8, U: 5, C: 2 },
           total: 15,
           sourcesByColor: {
             W: [
               { name: 'Plains', count: 6 },
               { name: 'Hallowed Fountain', count: 1 },
             ],
-            U: [{ name: 'Island', count: 5 }],
             C: [{ name: 'Wastes', count: 2 }],
           },
         }}
-      />
-    );
-
-    // White has 2 unique sources → its row is a button labeled with that count.
-    expect(screen.getByRole('button', { name: /Show the 2 White mana sources/ })).toBeTruthy();
-    // The colorless row is tappable too.
-    expect(screen.getByRole('button', { name: /Show the 1 colorless mana sources/ })).toBeTruthy();
-  });
-
-  it('makes a distribution color tappable when its cards are known', () => {
-    render(
-      <DeckColorPanel
-        colorDist={{ counts: { W: 10, U: 6, B: 0, R: 0, G: 0, C: 4 }, total: 20 }}
-        manaProduction={{ counts: {}, total: 0 }}
         cardsByColor={{ W: [{ name: 'Wrath of God', count: 1 }] }}
       />
     );
-    // Only White has a card list → its donut legend entry is tappable.
-    expect(screen.getByRole('button', { name: /Show the 10 White cards/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show the 8 white mana sources' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show the 2 colorless mana sources' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show the 10 white cards' })).toBeTruthy();
+    // Blue has neither list, so its counts stay plain text.
+    expect(screen.queryByRole('button', { name: /blue/ })).toBeNull();
   });
 
-  it('keeps the panel static when no card lists are provided', () => {
+  it('keeps the panel static when no lists are provided', () => {
     render(
       <DeckColorPanel
-        colorDist={{ counts: { W: 10, U: 6, B: 0, R: 0, G: 0, C: 4 }, total: 20 }}
-        manaProduction={{ counts: { W: 8, U: 5, B: 0, R: 0, G: 0, C: 2 }, total: 15 }}
+        colorDist={{ counts: { W: 10, U: 6, C: 4 }, total: 20 }}
+        manaProduction={{ counts: { W: 8, U: 5, C: 2 }, total: 15 }}
       />
     );
-
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('renders empty states when totals are 0', () => {
-    render(
+  it('shows the empty state and no identity line when there is nothing to read', () => {
+    const { container } = render(
       <DeckColorPanel
         colorDist={{ counts: {}, total: 0 }}
         manaProduction={{ counts: {}, total: 0 }}
       />
     );
-
-    expect(screen.getByText('No data')).toBeTruthy();
-    // Merged mana-base empty state.
     expect(screen.getByText('No colored mana to balance.')).toBeTruthy();
-    // No donut SVG when there's no data.
-    expect(screen.queryByLabelText('Color distribution')).toBeNull();
-  });
-
-  it('donut center shows total card count', () => {
-    render(
-      <DeckColorPanel
-        colorDist={{ counts: { W: 10, U: 6, C: 4 }, total: 20 }}
-        manaProduction={{ counts: {}, total: 0 }}
-      />
-    );
-    // The center label aria-label includes the total count.
-    expect(screen.getByLabelText(/20 cards total/)).toBeTruthy();
-    // The visible count text is also present.
-    expect(screen.getByText('20')).toBeTruthy();
-  });
-
-  it('donut center aria-label includes color identity (excluding colorless)', () => {
-    render(
-      <DeckColorPanel
-        colorDist={{ counts: { W: 10, U: 6, C: 4 }, total: 20 }}
-        manaProduction={{ counts: {}, total: 0 }}
-      />
-    );
-    // W and U are identity colors; C (colorless) is excluded from identity.
-    const centerEl = screen.getByLabelText(/20 cards total, White, Blue/);
-    expect(centerEl).toBeTruthy();
-  });
-
-  it('donut center aria-label omits color identity when only colorless is present', () => {
-    render(
-      <DeckColorPanel
-        colorDist={{ counts: { C: 10 }, total: 10 }}
-        manaProduction={{ counts: {}, total: 0 }}
-      />
-    );
-    // Only colorless — no identity label.
-    const centerEl = screen.getByLabelText('10 cards total');
-    expect(centerEl).toBeTruthy();
+    expect(container.querySelector('.deck-color-identity')).toBeNull();
   });
 });
