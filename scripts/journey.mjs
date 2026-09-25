@@ -838,6 +838,71 @@ async function main() {
       ].filter(Boolean);
       for (const r of routes) {
         const rec = await visit(r);
+        if (r === '/collection') {
+          // The card preview's layout contract (E421): nothing sits on the
+          // card, the card is the hero of its stage, and paging to the next
+          // card moves neither the header nor the card (the #636 stable-frame
+          // rule). Before the redesign the close button covered the mana cost
+          // on phones and a landscape phone got a 100 × 139 card.
+          await assertPage(rec, 'card preview geometry', async () => {
+            await page.evaluate(() =>
+              [...document.querySelectorAll('.app-main [role=button]')]
+                .find((e) => e.querySelector('img'))
+                ?.click()
+            );
+            await page.waitForSelector('.card-preview-slide.is-active .card-preview-image-frame', {
+              timeout: 15_000,
+            });
+            await sleep(1200);
+            const measure = () =>
+              page.evaluate(() => {
+                const r = (s) => document.querySelector(s)?.getBoundingClientRect() ?? null;
+                const card = r('.card-preview-slide.is-active .card-preview-image-frame');
+                const close = r('.card-preview-close');
+                const stage = r('.card-preview-stage');
+                const head = r('.card-preview-head');
+                const overlap =
+                  card && close
+                    ? Math.max(
+                        0,
+                        Math.min(card.right, close.right) - Math.max(card.left, close.left)
+                      ) *
+                      Math.max(
+                        0,
+                        Math.min(card.bottom, close.bottom) - Math.max(card.top, close.top)
+                      )
+                    : -1;
+                return {
+                  overlap: Math.round(overlap),
+                  cardShare:
+                    card && stage ? (card.width * card.height) / (stage.width * stage.height) : 0,
+                  cardW: Math.round(card?.width ?? 0),
+                  headH: Math.round(head?.height ?? 0),
+                };
+              });
+            const first = await measure();
+            await page.keyboard.press('ArrowRight');
+            await sleep(1200);
+            const next = await measure();
+            await page.keyboard.press('Escape');
+            await sleep(900);
+            const closed = await page.evaluate(
+              () => !document.querySelector('.card-preview-sheet')
+            );
+            return {
+              ok:
+                first.overlap === 0 &&
+                first.cardShare >= 0.4 &&
+                next.cardW === first.cardW &&
+                // The stacked header is fixed-height by construction; the
+                // desktop column may wrap a long name, so only phones pin it.
+                (tierName !== 'phone' || next.headH === first.headH) &&
+                closed,
+              expected: 'no overlap, card ≥40% of its stage, stable across cards, Escape closes',
+              observed: { first, next, closed },
+            };
+          });
+        }
         if (r === '/admin') {
           // Non-admins are redirected to /collection, which would pass the
           // generic checks and hide a broken admin page. Pin the heading.

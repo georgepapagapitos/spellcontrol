@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 
 /**
  * The card-preview panel is an always-dark surface in BOTH app themes, so
- * `.card-preview-panel-inner` remaps the theme colour tokens to white-alpha
+ * `.card-preview-panel` remaps the theme colour tokens to white-alpha
  * for everything inside it. Any colour token a *shared* rule reaches for
  * inside that panel must therefore appear in the remap block — otherwise it
  * silently resolves to the light app theme's value.
@@ -59,7 +59,7 @@ describe('always-dark preview panel token remap', () => {
   const previewCss = readFileSync(join(srcRoot, 'styles/footer-card-preview.css'), 'utf8');
   const formsCss = readFileSync(join(srcRoot, 'styles/forms-banners.css'), 'utf8');
 
-  const remapped = definedTokens(ruleBody(previewCss, /\.card-preview-panel-inner\s*\{([^}]*)\}/));
+  const remapped = definedTokens(ruleBody(previewCss, /\.card-preview-panel\s*\{([^}]*)\}/));
 
   it('remaps every colour token the shared form-control rule reads', () => {
     // The `select, input[type='number'], input[type='text'], …` block.
@@ -74,7 +74,7 @@ describe('always-dark preview panel token remap', () => {
     expect(
       missing,
       `Shared form controls read ${missing.join(', ')} inside the always-dark ` +
-        `card-preview panel, but .card-preview-panel-inner does not remap ${
+        `card-preview panel, but .card-preview-panel does not remap ${
           missing.length === 1 ? 'it' : 'them'
         }. In a light app theme ${
           missing.length === 1 ? 'it resolves' : 'they resolve'

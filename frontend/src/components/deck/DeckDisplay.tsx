@@ -2392,8 +2392,9 @@ export function DeckDisplay({
               if (onRemoveCard && r.slotIds.length > 0) {
                 acts.push({
                   key: 'delete',
-                  label: 'Delete',
+                  label: 'Remove from deck',
                   danger: true,
+                  overflow: true,
                   icon: <Trash2 width={18} height={18} strokeWidth={2} aria-hidden />,
                   onClick: () => {
                     setPreviewIndex(null);

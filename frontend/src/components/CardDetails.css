@@ -7,10 +7,8 @@
 /* ── Card text ─────────────────────────────────────────────────────────── */
 .card-text {
   width: 100%;
-  /* Constrain to a readable measure and center the block under the (centered)
-     name/type lines — rules text stays left-aligned inside it for legibility. */
-  max-width: 38ch;
-  margin: 0.1rem auto 0;
+  /* Left-aligned with the panel's other sections; the panel's own width (a
+     phone sheet or a 30rem column) is the reading measure. */
   text-align: left;
   display: flex;
   flex-direction: column;
@@ -62,7 +60,8 @@
 
 .card-text-line {
   margin: 0;
-  font-size: var(--text-sm);
+  /* Body size: the rules text is what the panel is read for. */
+  font-size: var(--text-base);
   line-height: 1.5;
   color: var(--text-primary);
 }
@@ -160,7 +159,7 @@
 .card-legalities-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-1) var(--space-5);
   padding: 0.2rem 0 0.4rem;
 }
 
@@ -180,6 +179,15 @@
 
 .card-legality svg {
   flex-shrink: 0;
+}
+
+/* The status as a word beside the icon — colour is never the only signal. */
+.card-legality-status {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .card-legality--legal {

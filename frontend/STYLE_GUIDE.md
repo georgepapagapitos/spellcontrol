@@ -1760,7 +1760,11 @@ color: inherit; text-align: inherit;` to the element's OWN rule only if the
   `components/shared/CardRow.tsx`. Never an `eslint-disable`.
 - **Backdrops.** The dim layer is `role="presentation"` and dismisses only on
   a hit on itself: `onClick={(e) => { e.stopPropagation(); if (e.target ===
-e.currentTarget) close(); }}`. The dialog panel inside carries NO click
+e.currentTarget) close(); }}`. A full-screen viewer whose backdrop is covered by its
+  own stage (the card preview) names its empty-space elements instead and
+  checks the target against that list (`isEmptySpace` in `CardPreview`). That
+  is the same rule: only empty space closes, and nothing interactive is ever
+  in the list. The dialog panel inside carries NO click
   handler — the old `onClick={(e) => e.stopPropagation()}` on the panel was
   never an interaction. The backdrop keeps the propagation stop because
   overlays are portaled and React bubbles a click inside them to the tile
@@ -1818,29 +1822,62 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   scry 720 · token creator 640 · stats 600; its three short pickers
   (designations, life adjust, takeback mode) stay on the 480px default
   deliberately — that width IS right for a brief exclusive choice.
-- **`CardPreview` ≥1024px is two panes, not a scaled-up phone sheet.** The
-  bottom-band panel scaled to desktop left centered text floating in a
-  full-width dark strip, and "expanding" it crushed the hero card to a
-  thumbnail (user rejection, 2026-08-18). On desktop the info panel is a
-  full-height right column (`grid-column: 2`, `clamp(24rem, 30vw, 30rem)`
-  wide) beside the carousel: every detail always visible, the card never
-  shrinks, and the Details toggle is hidden (`.card-preview-details-btn`) —
-  there is nothing left for it to toggle. The #636 stable-frame ruling (ONE
-  fixed frame + inner scroll, never per-card content-driven height) is
-  upheld: the column is the same fixed frame for every card. <1024px keeps
-  the stacked sheet and its Details toggle unchanged. Flanking carousel
-  slides render at `opacity: 0.45` at every width — the centered card is the
-  one being read.
-- **`CardPreview`'s action row holds one line.** Callers add their own buttons
-  (binder "Set cover", deck Edit + Delete, search Add + Printings), so on a
-  phone the labelled row wrapped to two lines and took height from the card.
-  `CardPreview` measures the fully labelled width; when it won't fit it sets
-  `.is-compact`: the universal-glyph buttons (Share, Flip, Turn, Edit, marked
-  `data-compactable`) drop their word, a caller action with a `shortLabel`
-  ("Cover") swaps to it, and the gap tightens. Details and every other caller
-  action keep their words, since an ambiguous glyph never goes icon-only. The
-  full label stays the button's `aria-label` and `title`. Wrapping is the
-  safety net only.
+- **`CardPreview` is one layout function with two shapes (E421, 2026-09-25).**
+  It replaced the 2026-08-18 ruling ("≥1024px is two panes"), which it keeps
+  and extends. Every length comes from the viewport (the backdrop is the one
+  `container-type: size` box), never from content, so no card can move
+  another. This is the #636 stable-frame rule, now structural.
+  - **Stacked** (phones, tablet portrait). A top bar holds the position
+    ("3 of 50") and the 44px close rect, so nothing sits on the card. The card
+    takes the width it needs (capped at 620px), and the **info sheet takes
+    whatever height is left, never less than ~188px**. The sheet has three
+    stops, peek / half / full. It moves by `transform` over the card (no
+    height animation, no track resize) and replaced the Details toggle. Drag
+    its handle or tap it to step through the stops; dragging down from peek
+    closes. At peek and half a touch drag moves the sheet. At full the content
+    scrolls. Tablet portrait is stacked too: the user ruled against two
+    columns there because it shrinks a 768px iPad's card to phone size.
+  - **Split** (`≥1024px`, or any short landscape screen:
+    `(orientation: landscape) and (max-height: 600px)`). The card sits on a
+    stage beside a full-height inspector column **on the right**: card, then
+    details, the same order as the phone's top-to-bottom, and the convention
+    of Scryfall, Moxfield and Archidekt. The header may wrap here because the
+    card no longer depends on the panel's height. A short landscape phone gets
+    the split too (stacked, it rendered a 100 × 139 card).
+  - **One panel, same sections everywhere.** A header (name + price, then mana
+    cost, type and P/T; one line each when stacked), the where-it-lives
+    context line, and the action row. Below it the sections. The **lead
+    section follows the source**: deck → In this deck (`renderPanelMeta`),
+    search → the printing picker (`renderPanelExtra`), collection/binder →
+    Your copy, playtest → Rules text with Rulings open. After the lead the
+    order is fixed: Rules text, Printing, Rulings, Legalities. **Rules text
+    stays in the panel on purpose.** It is how a screen reader reads the card,
+    and it carries current Oracle wording. It just doesn't lead. Rulings and
+    Legalities open by default, and rulings wait for the card to settle before
+    fetching.
+  - **Actions are labelled rects on the panel**, never pills floating over the
+    scrim. Owner/management actions (`overflow: true`, e.g. Remove from deck)
+    go in the row's ⋮. Flip / Turn act on the image, so they sit **on the
+    card's art**, which reserves no space on a single-faced card.
+  - **The card is inert.** Tapping it never closes the preview: that is the
+    gesture a reader makes most, and pinch-zoom starts with it. Empty space
+    closes (the backdrop, the stage, the gaps between slides, the top bar), a
+    neighbour centers, and on touch a tap on the card lowers a raised sheet.
+  - **Neighbours recede under a dark wash and `scale(.94)`, never opacity.**
+    A see-through neighbour let the page behind read through it. The binder
+    page viewer uses the same wash. The backdrop is 90% (the old 60% left a
+    field of cards competing with the one being read). In the split the stage
+    fades into both edges, so the inspector never slices a neighbour.
+- **`CardPreview`'s action row holds one line** (#2252, carried into the
+  E421 header row). Callers add their own buttons (binder "Set cover", search
+  Add + Printings, a feedback view's Suggest cut), so on a 360px phone the
+  labelled row can outgrow the sheet. `CardPreview` measures the fully
+  labelled width; when it won't fit it sets `.is-compact`: the universal-glyph
+  buttons (Share, Edit, marked `data-compactable`) drop their word, a caller
+  action with a `shortLabel` ("Cover") swaps to it, and the gap tightens. Every
+  other caller action keeps its words, since an ambiguous glyph never goes
+  icon-only. The full label stays the button's `aria-label` and `title`.
+  Wrapping is the safety net only.
 - **The deck editor's workbench rail is RETIRED (2026-08-19) — don't
   re-add it.** The ≥1280px `.deck-add-rail` docked "Add cards" beside the
   decklist as a 400px sticky column; the user ruled the narrow column made

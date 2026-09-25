@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { fetchCardRulings, type Ruling } from '../lib/card-rulings';
 import './CardRulings.css';
 
+/** How long a default-open disclosure waits before fetching (see below). */
+const RULINGS_SETTLE_MS = 350;
+
 /**
  * Collapsible "Rulings" disclosure for the card preview panel. Rulings are
  * fetched lazily on first expand (not per card swipe) and the date is shown
@@ -42,18 +45,23 @@ export function CardRulings({
   useEffect(() => {
     if (!defaultOpen) return;
     let alive = true;
-    fetchCardRulings(scryfallId).then(
-      (r) => {
-        if (!alive) return;
-        setRulings(r);
-        setState('done');
-      },
-      () => {
-        if (alive) setState('error');
-      }
-    );
+    // Wait for the card to settle: the preview mounts this per focused card, so
+    // swiping past twenty cards must not fire twenty requests.
+    const t = window.setTimeout(() => {
+      fetchCardRulings(scryfallId).then(
+        (r) => {
+          if (!alive) return;
+          setRulings(r);
+          setState('done');
+        },
+        () => {
+          if (alive) setState('error');
+        }
+      );
+    }, RULINGS_SETTLE_MS);
     return () => {
       alive = false;
+      window.clearTimeout(t);
     };
   }, [defaultOpen, scryfallId]);
 

@@ -359,7 +359,11 @@ describe('coarse-pointer touch floor', () => {
     ['components/home/HomeCard.css', '.home-card-retry'],
     ['styles/deck-builder-analysis.css', '.deck-stat-btn'],
     ['styles/deck-builder-toast.css', '.toast-close'],
-    ['styles/footer-card-preview.css', '.card-preview-details-btn'],
+    // Card preview: the action row, the Flip/Turn button on the art, and the
+    // sheet handle (which replaced the Details toggle).
+    ['styles/footer-card-preview.css', '.card-preview-action'],
+    ['styles/footer-card-preview.css', '.card-preview-art-btn'],
+    ['styles/footer-card-preview.css', '.card-preview-handle'],
     ['components/CardRulings.css', '.card-rulings-toggle'],
     ['components/CardDetails.css', '.card-disc-toggle'],
     ['styles/binder-card-management.css', '.add-to-binder-btn'],

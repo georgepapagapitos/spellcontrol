@@ -114,15 +114,17 @@ describe('CardPreview hidePrice (friend-surface value contract)', () => {
   it('shows the price by default', () => {
     renderPreview(mk({ purchasePrice: 12.5, pricedAt: Date.now() }));
     expect(document.body.textContent).toContain('$12.50');
+    // The freshness stamp rides along in the copy section.
+    expect(screen.getByText('Prices')).toBeTruthy();
   });
 
   it('renders NO money at all with hidePrice — not even the unknown-price dash', () => {
     // A friend's collection endpoint withholds price by contract, and
     // `formatMoney(undefined)` renders `—`, which is the placeholder that
     // ruling refuses. The whole monetary run has to go: amount, override
-    // badge and the "Prices updated" stamp.
+    // badge and the "Prices · Updated …" stamp.
     renderPreview(mk({ purchasePrice: 12.5, pricedAt: Date.now() }), { hidePrice: true });
-    expect(document.body.textContent).not.toMatch(/\$|—|Prices updated/);
+    expect(document.body.textContent).not.toMatch(/\$|—|Prices/);
     // The rest of the meta line survives — this hides value, not identity.
     expect(screen.getByText('rare')).toBeTruthy();
   });
@@ -361,11 +363,16 @@ describe('CardPreview playtest inspector (rules first, no shop talk)', () => {
     expect(text.indexOf('Flying')).toBeLessThan(text.indexOf('Test Set'));
   });
 
-  it('keeps rulings collapsed on every other surface', () => {
+  it('opens rulings on every surface, fetched once the card settles', async () => {
+    rulingsMock.mockClear();
     renderPreview(mk({ scryfallId: UUID, oracleText: 'Flying' }));
     expect(screen.getByRole('button', { name: /Rulings/ }).getAttribute('aria-expanded')).toBe(
-      'false'
+      'true'
     );
+    // Not on mount: swiping past a card must not fire its request.
+    expect(rulingsMock).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Dash does not change/)).toBeTruthy();
+    expect(rulingsMock).toHaveBeenCalledTimes(1);
   });
 
   it('drops price, copy condition and the carousel counter at a game table', () => {
@@ -380,7 +387,7 @@ describe('CardPreview playtest inspector (rules first, no shop talk)', () => {
       { source: 'playtest' }
     );
     const text = document.body.textContent ?? '';
-    expect(text).not.toMatch(/\$12\.50|Prices updated|TCGPlayer|Card 1 of 1/);
+    expect(text).not.toMatch(/\$12\.50|Prices|TCGPlayer|1 of 1/);
     expect(screen.queryByLabelText(/^Condition/)).toBeNull();
     // Printing identity survives as the footer: it answers "which printing".
     expect(screen.getByText('(TST)')).toBeTruthy();
@@ -430,10 +437,13 @@ describe('CardPreview action row (one line on a phone)', () => {
     const compactable = (name: string) =>
       screen.getByRole('button', { name }).hasAttribute('data-compactable');
     expect(compactable('Share card image')).toBe(true);
-    expect(compactable('Show back face')).toBe(true);
     expect(compactable('Edit printing')).toBe(true);
-    expect(compactable('Expand card details')).toBe(false);
     expect(compactable('Set cover')).toBe(false);
+    // Flip sits on the card's art (E421), always labelled, and never joins the
+    // row it would crowd; the sheet handle isn't in the row either.
+    const row = document.querySelector('.card-preview-actions')!;
+    expect(row.contains(screen.getByRole('button', { name: 'Show back face' }))).toBe(false);
+    expect(row.contains(screen.getByRole('button', { name: 'Show more details' }))).toBe(false);
     expect(compactable('Suggest cut')).toBe(false);
 
     // A short label is extra text for the compact row only; the full label
