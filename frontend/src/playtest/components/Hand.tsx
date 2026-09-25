@@ -93,20 +93,28 @@ export function Hand({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerW = useContainerWidth(rootRef);
   const [cardW, setCardW] = useState(FALLBACK_CARD_W);
+  const [piles, setPiles] = useState<number | undefined>(undefined);
 
   // `--pt-card-w` is a registered `@property`, so this reads back a resolved px
   // length rather than the `clamp()` text (the same contract PlaytestBoard's
   // drop math relies on). Re-read on resize: the density is viewport-derived.
+  // It is the HAND's card size, which a phone sets larger than the table's.
+  // `--pt-pile-span` (registered too) is the pile row's width wherever the
+  // stylesheet lays that row out itself; 0 at the desk, where the fan
+  // derives it.
   useLayoutEffect(() => {
     if (!fan) return;
     const el = rootRef.current;
     if (!el) return;
-    const w = parseFloat(getComputedStyle(el).getPropertyValue('--pt-card-w'));
+    const cs = getComputedStyle(el);
+    const w = parseFloat(cs.getPropertyValue('--pt-card-w'));
     if (w > 0) setCardW(w);
+    const span = parseFloat(cs.getPropertyValue('--pt-pile-span'));
+    setPiles(span > 0 ? span : undefined);
   }, [fan, containerW]);
 
-  const handW = fanCardWidth(cards.length, cardW, containerW);
-  const overlap = fanOverlap(cards.length, cardW, containerW, handW);
+  const handW = fanCardWidth(cards.length, cardW, containerW, piles);
+  const overlap = fanOverlap(cards.length, cardW, containerW, handW, piles);
   // A big hand draws its cards smaller (see `fanCardWidth`). Both sizes are
   // set because each is a registered, inherited length: overriding the width
   // alone would leave every card the full table height.

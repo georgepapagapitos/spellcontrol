@@ -94,6 +94,19 @@ describe('fanCardWidth', () => {
     expect(fanCardWidth(7, 56, 390)).toBe(56);
   });
 
+  // A phone on its side (832px wide, a 810px felt): the hand is 84px while
+  // the table is 56, and the row beside the fan is two 56px piles and the
+  // Hand button, 232px as the stylesheet sizes it. Measured against the desk
+  // row at the hand's size instead, seven cards overlapped 60%.
+  it('fans a phone hand over the pile row the stylesheet states', () => {
+    const [cardW, wrapW, piles] = [84, 810, 232];
+    expect(fanCardWidth(7, cardW, wrapW, piles)).toBe(cardW);
+    const overlap = fanOverlap(7, cardW, wrapW, cardW, piles);
+    expect(overlap).toBeLessThan(0.35);
+    expect(overlap).toBeLessThan(fanOverlap(7, cardW, wrapW));
+    expect(cardW * (1 + 6 * (1 - overlap))).toBeLessThanOrEqual(wrapW - piles);
+  });
+
   it('never shrinks a card below half the table size', () => {
     expect(fanCardWidth(60, 116, 1024)).toBeCloseTo(116 * 0.5);
   });

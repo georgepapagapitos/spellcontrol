@@ -973,9 +973,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     // At the table tier the hand fan and the zone piles float OVER the board's
     // bottom edge, so auto-placement has to keep that band clear or a freshly
     // played land lands under the fan. One card height plus the fan's own
-    // chrome ≈ 1.3 card heights; narrow keeps its rows beside the board and
-    // reserves nothing.
-    const reservedBottom = Math.min(0.5, (cardH * 1.3) / height);
+    // chrome ≈ 1.3 card heights, or the fan's measured top where its cards
+    // are bigger than the table's (a phone's hand has a size of its own).
+    const el = battlefieldRef.current;
+    const fan = el?.querySelector('.playtest-hand--fan .playtest-hand__cards');
+    const fanBand =
+      el && fan ? el.getBoundingClientRect().bottom - fan.getBoundingClientRect().top : 0;
+    const reservedBottom = Math.min(0.5, Math.max(cardH * 1.3, fanBand) / height);
     // And the life panel floats over the top-left: the first permanent used
     // to land straight under it. Its box is ~1.1 card heights tall.
     const reservedTop = Math.min(0.3, (cardH * 1.1) / height);

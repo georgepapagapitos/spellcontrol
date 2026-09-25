@@ -35,9 +35,12 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
-/** The width the fan may spread across: what the pile row leaves, capped. */
-function fanRoom(cardW: number, containerW: number): number {
-  const band = containerW - pilesWidth(cardW) - 2 * PILES_INSET;
+/** The width the fan may spread across: what the pile row leaves, capped.
+ *  `piles` is the row's width when the stylesheet states it
+ *  (`--pt-pile-span`, below 1024px, where the row is two or four tiles at
+ *  the table's card size, not the hand's); otherwise the desk row's sum. */
+function fanRoom(cardW: number, containerW: number, piles = pilesWidth(cardW)): number {
+  const band = containerW - piles - 2 * PILES_INSET;
   return Math.min(containerW * MAX_FAN_VW, Math.max(cardW, band));
 }
 
@@ -53,10 +56,11 @@ export function fanOverlap(
   count: number,
   cardW: number,
   containerW: number,
-  handW = cardW
+  handW = cardW,
+  piles?: number
 ): number {
   if (count < 2 || handW <= 0) return MIN_FAN_OVERLAP;
-  const room = fanRoom(cardW, containerW);
+  const room = fanRoom(cardW, containerW, piles);
   return clamp(1 - (room - handW) / (handW * (count - 1)), MIN_FAN_OVERLAP, MAX_FAN_OVERLAP);
 }
 
@@ -69,13 +73,17 @@ const MIN_HAND_CARD_SCALE = 0.5;
  * does, as EDHPlay draws a big hand smaller rather than letting it run off
  * the screen (a 22-card hand ran 56px off the left edge at full size).
  */
-export function fanCardWidth(count: number, cardW: number, containerW: number): number {
-  // No band left of the pile row means this width lays the row out some
-  // other way (a phone stacks the Hand button above two piles), so there is
-  // no room figure to shrink to, and a normal phone hand must not shrink.
-  const band = containerW - pilesWidth(cardW) - 2 * PILES_INSET;
+export function fanCardWidth(
+  count: number,
+  cardW: number,
+  containerW: number,
+  piles = pilesWidth(cardW)
+): number {
+  // No band left of the pile row means there is no room figure to shrink
+  // to, and a normal hand must not shrink to nothing.
+  const band = containerW - piles - 2 * PILES_INSET;
   if (count < 2 || band <= cardW) return cardW;
-  const fits = fanRoom(cardW, containerW) / (1 + (count - 1) * (1 - MAX_FAN_OVERLAP));
+  const fits = fanRoom(cardW, containerW, piles) / (1 + (count - 1) * (1 - MAX_FAN_OVERLAP));
   return Math.max(cardW * MIN_HAND_CARD_SCALE, Math.min(cardW, fits));
 }
 
