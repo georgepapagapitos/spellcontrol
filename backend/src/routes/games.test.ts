@@ -260,10 +260,7 @@ describe('POST /api/games', () => {
 
   it('carries a valid hostBracket and drops an out-of-range one (E370)', async () => {
     const cookie = await registerAndGetCookie('games_hostbracket_ok');
-    const ok = await request(app)
-      .post('/api/games')
-      .set('Cookie', cookie)
-      .send({ hostBracket: 4 });
+    const ok = await request(app).post('/api/games').set('Cookie', cookie).send({ hostBracket: 4 });
     expect(ok.body.game.players[0].bracket).toBe(4);
 
     const cookie2 = await registerAndGetCookie('games_hostbracket_bad');
