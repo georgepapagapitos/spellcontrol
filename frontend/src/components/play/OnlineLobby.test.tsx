@@ -4,16 +4,19 @@
  * OnlineGameView, which reads the stores itself), so the only mocks here are
  * the art resolver — a network path — and the router, for the board link.
  */
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type { GamePlayer, GameState } from '../../lib/game-state';
 import type { Deck } from '../../store/decks';
 import { applyAction, createGameState, makePlayer } from '../../lib/game-state';
+import { resolveHordeSettings, HORDE_CATALOG } from '@/lib/horde';
+import { HORDE_BAN_LIST } from '@/lib/horde/ban-list';
 
 vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 import { OnlineLobby } from './OnlineLobby';
+import { levelSummary } from './horde/HordeSetupFields';
 
 function seat(i: number, overrides: Partial<GamePlayer> = {}): GamePlayer {
   return {
@@ -38,6 +41,21 @@ function table(count = 2): GameState {
     format: 'commander',
     startingLife: 40,
     commanderDamageEnabled: true,
+    poisonEnabled: false,
+    players: Array.from({ length: count }, (_, i) => seat(i)),
+    ts: 1000,
+  });
+}
+
+function hordeTable(count = 2): GameState {
+  return createGameState({
+    id: 'g1',
+    code: 'ABCD',
+    mode: 'online',
+    hostUserId: 'u0',
+    format: 'horde',
+    startingLife: 40,
+    commanderDamageEnabled: false,
     poisonEnabled: false,
     players: Array.from({ length: count }, (_, i) => seat(i)),
     ts: 1000,
@@ -466,5 +484,226 @@ describe('watchers and the voice link', () => {
     const link = screen.getByRole('link', { name: 'Join the call' });
     expect(link.getAttribute('href')).toBe('https://meet.example.com/abc');
     expect(link.getAttribute('rel')).toContain('noopener');
+  });
+});
+
+describe('Horde (co-op) — format pick', () => {
+  it('offers Horde (co-op) among the format options', () => {
+    renderLobby(table());
+    fireEvent.click(screen.getByRole('button', { name: /Format/ }));
+    expect(screen.getByRole('option', { name: 'Horde (co-op)' })).toBeTruthy();
+  });
+
+  it('picking Horde turns commander damage and poison off, as one settings patch', () => {
+    const dispatch = renderLobby(table());
+    fireEvent.click(screen.getByRole('button', { name: /Format/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Horde (co-op)' }));
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'settings',
+      patch: { format: 'horde', commanderDamageEnabled: false, poisonEnabled: false },
+    });
+  });
+});
+
+describe('Horde (co-op) lobby — the rail', () => {
+  it('replaces Starting life with Shared life, and drops Commander damage / Poison / Starting player, for the host', () => {
+    renderLobby(hordeTable(2), 'u0');
+    expect(screen.getByText('Shared life')).toBeTruthy();
+    expect(screen.queryByText('Starting life')).toBeNull();
+    expect(screen.queryByText('Commander damage')).toBeNull();
+    expect(screen.queryByText('Poison counters')).toBeNull();
+    expect(screen.queryByText('Starting player')).toBeNull();
+    // Mulligan, Turn timer, Visibility and Voice link all stay.
+    expect(screen.getByText('Mulligan')).toBeTruthy();
+    expect(screen.getByRole('switch', { name: /Turn timer/ })).toBeTruthy();
+    expect(screen.getByText('Visibility')).toBeTruthy();
+    expect(screen.getByLabelText('Voice link')).toBeTruthy();
+  });
+
+  it('same rows for a non-host viewer', () => {
+    renderLobby(hordeTable(2), 'u1');
+    expect(screen.getByText('Shared life')).toBeTruthy();
+    expect(screen.queryByText('Commander damage')).toBeNull();
+    expect(screen.queryByText('Poison counters')).toBeNull();
+    expect(screen.queryByText('Starting player')).toBeNull();
+    expect(screen.getByText('Turn timer')).toBeTruthy();
+  });
+});
+
+describe('Horde (co-op) lobby — seats capped at 4', () => {
+  it('never shows a 5th slot, even padded out from fewer seated', () => {
+    renderLobby(hordeTable(2), 'u0');
+    const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');
+    expect(seats).toHaveLength(4);
+  });
+
+  it('never shows a 5th slot even if the table somehow carries a 5th seat', () => {
+    const game = hordeTable(2);
+    game.players.push(seat(2), seat(3), seat(4));
+    renderLobby(game, 'u0');
+    const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');
+    expect(seats).toHaveLength(4);
+    expect(screen.queryByText('P4')).toBeNull();
+  });
+});
+
+describe('Horde (co-op) lobby — the pick, synced from table state', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('the host sees the real horde picker, not a read-only view', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderLobby(hordeTable(2), 'u0');
+    await vi.advanceTimersByTimeAsync(50);
+    expect(screen.getByText(HORDE_CATALOG[0].name)).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /Standard/ })).toBeTruthy();
+    expect(screen.getByText('Customise')).toBeTruthy();
+  });
+
+  // Real timers throughout: the deck is a genuine dynamic `import()` (no
+  // mock), so mixing it with fake timers is unreliable — these wait on the
+  // real 300ms debounce and the real (near-instant) import settling.
+  it('debounces a pick change, then publishes it as horde-setup', async () => {
+    const dispatch = renderLobby(hordeTable(2), 'u0');
+    // Let the initial deck load (and its own first publish) settle.
+    await waitFor(() => expect(dispatch).toHaveBeenCalled(), { timeout: 2000 });
+    dispatch.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${HORDE_CATALOG[1].name}`) }));
+    // Not yet — the publish is debounced.
+    expect(dispatch).not.toHaveBeenCalled();
+
+    await waitFor(
+      () =>
+        expect(dispatch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'horde-setup',
+            hordeId: HORDE_CATALOG[1].id,
+            level: 'standard',
+            settings: resolveHordeSettings('standard', 2, {}),
+          })
+        ),
+      { timeout: 2000 }
+    );
+  });
+
+  it('re-publishes when the seated count changes', async () => {
+    const dispatch = vi.fn();
+    const game = hordeTable(2);
+    const { rerender } = render(
+      <MemoryRouter>
+        <OnlineLobby
+          game={game}
+          decks={[]}
+          userId="u0"
+          mySeat={game.players[0]}
+          dispatch={dispatch}
+          onLeave={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(dispatch).toHaveBeenCalled(), { timeout: 2000 });
+    dispatch.mockClear();
+
+    const grown = { ...game, players: [...game.players, seat(2)] };
+    rerender(
+      <MemoryRouter>
+        <OnlineLobby
+          game={grown}
+          decks={[]}
+          userId="u0"
+          mySeat={grown.players[0]}
+          dispatch={dispatch}
+          onLeave={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+    await waitFor(
+      () =>
+        expect(dispatch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'horde-setup',
+            settings: resolveHordeSettings('standard', 3, {}),
+          })
+        ),
+      { timeout: 2000 }
+    );
+  });
+
+  it("a joiner reads the host's published pick and the table's real numbers, not a form of their own", () => {
+    const settings = resolveHordeSettings('standard', 2);
+    const game = applyAction(hordeTable(2), {
+      type: 'horde-setup',
+      hordeId: HORDE_CATALOG[0].id,
+      level: 'standard',
+      settings,
+      seed: 1,
+      deckRev: 'rev-1',
+    });
+    renderLobby(game, 'u1');
+    expect(screen.getByText('The host picks the horde.')).toBeTruthy();
+    expect(screen.getByText(HORDE_CATALOG[0].name)).toBeTruthy();
+    expect(screen.getByText(levelSummary(settings))).toBeTruthy();
+    expect(screen.queryByText('Customise')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: new RegExp(`^${HORDE_CATALOG[0].name}`) })
+    ).toBeNull();
+  });
+
+  it('a joiner sees a loading note before the host has published anything', () => {
+    renderLobby(hordeTable(2), 'u1');
+    expect(screen.getByText('Setting up the horde…')).toBeTruthy();
+  });
+
+  it('Start batches horde-setup (with the seated-count settings and a deckRev) before start', async () => {
+    const dispatch = renderLobby(hordeTable(2), 'u0');
+    // The button reads "Loading the horde…" and stays disabled until the
+    // deck has actually resolved.
+    const startBtn = await screen.findByRole('button', { name: 'Start game' }, { timeout: 2000 });
+    dispatch.mockClear();
+
+    fireEvent.click(startBtn);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    const [batch] = dispatch.mock.calls[0];
+    expect(Array.isArray(batch)).toBe(true);
+    expect(batch[0]).toMatchObject({
+      type: 'horde-setup',
+      hordeId: HORDE_CATALOG[0].id,
+      level: 'standard',
+      settings: resolveHordeSettings('standard', 2, {}),
+    });
+    expect(typeof batch[0].deckRev).toBe('string');
+    expect(batch[0].deckRev.length).toBeGreaterThan(0);
+    expect(batch[1]).toEqual({ type: 'start' });
+  });
+});
+
+describe('Horde (co-op) lobby — own-seat-only ban warning', () => {
+  it('warns about a banned card in the viewer’s own seat, and never doubles up for another seat', () => {
+    const bannedName = HORDE_BAN_LIST[0];
+    const game = hordeTable(2);
+    game.players[0] = seat(0, { deckId: 'deck-mine' });
+    game.players[1] = seat(1, { deckId: 'deck-theirs' });
+    renderLobby(game, 'u0', vi.fn(), [
+      deck({
+        id: 'deck-mine',
+        cards: [{ card: { name: bannedName } }] as unknown as Deck['cards'],
+      }),
+      deck({
+        id: 'deck-theirs',
+        cards: [{ card: { name: bannedName } }] as unknown as Deck['cards'],
+      }),
+    ]);
+    const status = screen.getByRole('status');
+    expect(status.textContent).toContain(`P0: ${bannedName} is on the Horde ban list.`);
+    expect(status.textContent).not.toContain('P1:');
+  });
+
+  it('shows nothing when the viewer’s own deck is clean', () => {
+    const game = hordeTable(2);
+    game.players[0] = seat(0, { deckId: 'deck-mine' });
+    renderLobby(game, 'u0', vi.fn(), [deck({ id: 'deck-mine', cards: [] })]);
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

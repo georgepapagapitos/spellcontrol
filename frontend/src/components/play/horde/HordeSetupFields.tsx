@@ -23,7 +23,9 @@ const LEVEL_LABEL: Record<HordeLevel, string> = {
   brutal: 'Brutal',
 };
 
-function levelSummary(s: HordeSettings): string {
+/** Exported so the online lobby's read-only view (a joiner never sees this
+ *  form) can render the exact same numbers line from `game.horde.settings`. */
+export function levelSummary(s: HordeSettings): string {
   const bosses =
     s.bossTicks.length > 0
       ? `${s.bossTicks.length} boss${s.bossTicks.length === 1 ? '' : 'es'}`

@@ -246,6 +246,51 @@
   }
 }
 
+/* ── Horde: the table's synced pick (design point 2/3) ───────────────────── */
+
+.lobby-horde {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lobby-horde-note,
+.lobby-horde-summary {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.lobby-horde-note {
+  color: var(--text-muted);
+}
+
+/* A joiner's tile is display only — same visual vocabulary as the host's
+   picker (`.horde-tile.is-selected`), minus the pointer/hover affordances a
+   `<button>` would carry. */
+.lobby-horde-readonly {
+  cursor: default;
+}
+
+.lobby-horde-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--err-text);
+}
+
+/* The picker grid defaults to 3 columns (`horde-setup.css`, shared with the
+   Local setup form); in the lobby's wider main column that read too big, so
+   >=1024px packs all six hordes into one row. The form's own <=600px 2-column
+   rule stays untouched for phones. */
+@media (min-width: 1024px) {
+  .lobby-horde .horde-tile-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
 .lobby-seats {
   display: grid;
   gap: var(--space-3);

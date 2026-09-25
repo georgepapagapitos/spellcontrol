@@ -221,6 +221,15 @@ describe('Online setup — table visibility (T139)', () => {
       true
     );
   });
+
+  // The host picks Horde before the table exists too — the real setup
+  // (tiles, difficulty) lives in the lobby once the table is created and
+  // synced (OnlineLobby.test.tsx), so this just proves the option is here.
+  it('offers Horde (co-op) among the format options', () => {
+    renderPage('/play/online');
+    fireEvent.click(screen.getByRole('button', { name: /Format/ }));
+    expect(screen.getByRole('option', { name: 'Horde (co-op)' })).toBeTruthy();
+  });
 });
 
 describe('Local setup — seat name field (B7-05)', () => {
