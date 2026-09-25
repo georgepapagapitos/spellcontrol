@@ -13,9 +13,11 @@ import {
   tableCounters,
   MAX_COUNTERS_PER_SCOPE,
   MAX_COUNTER_NAME_LENGTH,
+  MAX_HORDE_STEPS,
   type GameEvent,
   type GamePlayer,
   type GameState,
+  type HordeSettings,
 } from './index';
 
 function lobby(players = 2, opts: Partial<Parameters<typeof createGameState>[0]> = {}) {
@@ -1307,5 +1309,442 @@ describe('table name', () => {
     });
     expect(renamed.name).toBe('Table Two');
     expect(renamed.events.length).toBe(before);
+  });
+});
+
+function hordeSettings(overrides: Partial<HordeSettings> = {}): HordeSettings {
+  return {
+    survivors: 2,
+    life: 50,
+    librarySize: 65,
+    setupTurns: 3,
+    reveal: { kind: 'until-nontoken' },
+    bossTicks: [0.5, 1],
+    safeZone: 'reduced',
+    ...overrides,
+  };
+}
+
+function hordeLobby(players = 2) {
+  return lobby(players, { format: 'horde' });
+}
+
+/** A horde game past the lobby: `horde-setup` then `start`. */
+function startedHorde(players = 2, settingsOverrides: Partial<HordeSettings> = {}): GameState {
+  const s0 = hordeLobby(players);
+  const s1 = applyAction(s0, {
+    type: 'horde-setup',
+    hordeId: 'h1',
+    level: 'standard',
+    settings: hordeSettings(settingsOverrides),
+    seed: 42,
+    deckRev: 'rev1',
+    ts: 1500,
+  });
+  return applyAction(s1, { type: 'start', ts: 2000 });
+}
+
+describe('horde mode', () => {
+  it('horde-setup only applies in a horde-format lobby', () => {
+    const nonHorde = lobby(); // format: commander
+    const untouched = applyAction(nonHorde, {
+      type: 'horde-setup',
+      hordeId: 'h1',
+      level: 'standard',
+      settings: hordeSettings(),
+      seed: 1,
+      deckRev: 'rev1',
+    });
+    expect(untouched).toBe(nonHorde);
+
+    const activeHorde = applyAction(hordeLobby(), { type: 'start' });
+    const stillNoOp = applyAction(activeHorde, {
+      type: 'horde-setup',
+      hordeId: 'h1',
+      level: 'standard',
+      settings: hordeSettings(),
+      seed: 1,
+      deckRev: 'rev1',
+    });
+    expect(stillNoOp).toBe(activeHorde);
+  });
+
+  it('horde-setup sets life, toggles, and the horde table', () => {
+    const s0 = lobby(2, {
+      format: 'horde',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: true,
+    });
+    const s1 = applyAction(s0, {
+      type: 'horde-setup',
+      hordeId: 'h1',
+      level: 'brutal',
+      settings: hordeSettings({ life: 60 }),
+      seed: 7,
+      deckRev: 'rev1',
+      ts: 1500,
+    });
+    expect(s1.startingLife).toBe(60);
+    expect(s1.commanderDamageEnabled).toBe(false);
+    expect(s1.poisonEnabled).toBe(false);
+    expect(s1.hordeId).toBe('h1');
+    expect(s1.players.every((p) => p.life === 60)).toBe(true);
+    expect(s1.horde).toMatchObject({
+      hordeId: 'h1',
+      level: 'brutal',
+      seed: 7,
+      deckRev: 'rev1',
+      phase: 'survivors',
+      survivorTurn: 1,
+      hordeTurn: 0,
+      done: [],
+      steps: [],
+    });
+    expect(s1.events.at(-1)?.kind).toBe('settings');
+  });
+
+  it('mirrors a life delta across the whole team', () => {
+    const s0 = startedHorde(3, { life: 50 });
+    const s1 = applyAction(s0, { type: 'life', seat: 1, delta: -12, actorSeat: 1 });
+    expect(s1.players.map((p) => p.life)).toEqual([38, 38, 38]);
+  });
+
+  it('mirrors set-life across the whole team', () => {
+    const s0 = startedHorde(2, { life: 50 });
+    const s1 = applyAction(s0, { type: 'set-life', seat: 0, value: 20, actorSeat: 0 });
+    expect(s1.players.map((p) => p.life)).toEqual([20, 20]);
+  });
+
+  it('horde-done advances setup turns before starting the horde (setupTurns 3)', () => {
+    let s = startedHorde(2, { setupTurns: 3 });
+
+    s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+    s = applyAction(s, { type: 'horde-done', actorSeat: 1, done: true });
+    expect(s.horde!.survivorTurn).toBe(2);
+    expect(s.horde!.hordeTurn).toBe(0);
+    expect(s.horde!.done).toEqual([]);
+
+    s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+    s = applyAction(s, { type: 'horde-done', actorSeat: 1, done: true });
+    expect(s.horde!.survivorTurn).toBe(3);
+    expect(s.horde!.hordeTurn).toBe(0);
+
+    // The team-turn-3 done is the one that starts the horde.
+    s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+    s = applyAction(s, { type: 'horde-done', actorSeat: 1, done: true });
+    expect(s.horde!.survivorTurn).toBe(3);
+    expect(s.horde!.hordeTurn).toBe(1);
+    expect(s.horde!.phase).toBe('reveal');
+    expect(s.horde!.steps).toHaveLength(1);
+    expect(s.horde!.steps[0]).toMatchObject({ k: 'reveal', seat: 1 });
+  });
+
+  it('horde-done starts the horde immediately with setupTurns 0', () => {
+    let s = startedHorde(2, { setupTurns: 0 });
+    s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+    s = applyAction(s, { type: 'horde-done', actorSeat: 1, done: true });
+    expect(s.horde!.hordeTurn).toBe(1);
+    expect(s.horde!.phase).toBe('reveal');
+  });
+
+  it('a disconnected seat never blocks horde-done', () => {
+    let s = startedHorde(2, { setupTurns: 0 });
+    s = applyAction(s, { type: 'update-player', seat: 1, patch: { connected: false } });
+    s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+    expect(s.horde!.phase).toBe('reveal');
+  });
+
+  it('un-marking done removes the seat from done', () => {
+    let s = startedHorde(2);
+    s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+    expect(s.horde!.done).toEqual([0]);
+    s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: false });
+    expect(s.horde!.done).toEqual([]);
+  });
+
+  it('horde-step reveal starts the horde turn from phase survivors', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    const s1 = applyAction(s, { type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+    expect(s1.horde!.phase).toBe('reveal');
+    expect(s1.horde!.hordeTurn).toBe(1);
+    expect(s1.horde!.steps).toHaveLength(1);
+  });
+
+  it('horde-step reveal no-ops outside phase survivors', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    const s1 = applyAction(s, { type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+    const after = applyAction(s1, {
+      type: 'horde-step',
+      step: { k: 'reveal' },
+      at: 1,
+      actorSeat: 0,
+    });
+    expect(after).toBe(s1);
+  });
+
+  it('horde-step confirm moves reveal to combat, and no-ops elsewhere', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    const s1 = applyAction(s, { type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+    const s2 = applyAction(s1, { type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 0 });
+    expect(s2.horde!.phase).toBe('combat');
+
+    const noop = applyAction(s2, {
+      type: 'horde-step',
+      step: { k: 'confirm' },
+      at: 2,
+      actorSeat: 0,
+    });
+    expect(noop).toBe(s2);
+  });
+
+  it('horde-step take lowers shared life, advances the team turn, and no-ops outside combat', () => {
+    const s = startedHorde(2, { setupTurns: 0, life: 50 });
+    const s1 = applyAction(s, { type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+    const noop = applyAction(s1, {
+      type: 'horde-step',
+      step: { k: 'take', dealt: 5 },
+      at: 1,
+      actorSeat: 0,
+    });
+    expect(noop).toBe(s1);
+
+    const s2 = applyAction(s1, { type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 0 });
+    const s3 = applyAction(s2, {
+      type: 'horde-step',
+      step: { k: 'take', dealt: 9 },
+      at: 2,
+      actorSeat: 0,
+    });
+    expect(s3.players.map((p) => p.life)).toEqual([41, 41]);
+    expect(s3.horde!.phase).toBe('survivors');
+    expect(s3.horde!.survivorTurn).toBe(2);
+    expect(s3.horde!.done).toEqual([]);
+    expect(s3.events.at(-1)).toMatchObject({ kind: 'note', message: 'Horde attack: 9' });
+  });
+
+  it('take validates dealt as an integer 0-999', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    const s1 = applyAction(s, { type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+    const s2 = applyAction(s1, { type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 0 });
+    expect(() =>
+      applyAction(s2, { type: 'horde-step', step: { k: 'take', dealt: -1 }, at: 2, actorSeat: 0 })
+    ).toThrow();
+    expect(() =>
+      applyAction(s2, { type: 'horde-step', step: { k: 'take', dealt: 1000 }, at: 2, actorSeat: 0 })
+    ).toThrow();
+    expect(() =>
+      applyAction(s2, { type: 'horde-step', step: { k: 'take', dealt: 1.5 }, at: 2, actorSeat: 0 })
+    ).toThrow();
+  });
+
+  it('take to 0 finishes the game as a co-op loss, never a winner', () => {
+    const s = startedHorde(2, { setupTurns: 0, life: 10 });
+    const s1 = applyAction(s, { type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+    const s2 = applyAction(s1, { type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 0 });
+    const s3 = applyAction(s2, {
+      type: 'horde-step',
+      step: { k: 'take', dealt: 10 },
+      at: 2,
+      actorSeat: 0,
+    });
+    expect(s3.players.every((p) => p.life === 0)).toBe(true);
+    expect(s3.players.every((p) => p.eliminated)).toBe(true);
+    expect(s3.status).toBe('finished');
+    expect(s3.coopOutcome).toBe('lost');
+    expect(s3.winnerSeat).toBe(null);
+  });
+
+  it('one seat eliminated in a 2-seat horde game does not end it', () => {
+    const s = startedHorde(2, { life: 50 });
+    const s1 = applyAction(s, { type: 'eliminate', seat: 0, eliminated: true });
+    expect(s1.status).toBe('active');
+    expect(s1.players[0].eliminated).toBe(true);
+    expect(s1.players[1].eliminated).toBe(false);
+  });
+
+  it('horde-step damage and move accept any phase and validate their fields', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    const s1 = applyAction(s, {
+      type: 'horde-step',
+      step: { k: 'damage', n: 3 },
+      at: 0,
+      actorSeat: 0,
+    });
+    expect(s1.horde!.steps).toHaveLength(1);
+    const s2 = applyAction(s1, {
+      type: 'horde-step',
+      step: { k: 'move', cardId: 'card-1', to: 'graveyard' },
+      at: 1,
+      actorSeat: 0,
+    });
+    expect(s2.horde!.steps).toHaveLength(2);
+    expect(s2.horde!.steps[1]).toMatchObject({ k: 'move', cardId: 'card-1', to: 'graveyard' });
+
+    expect(() =>
+      applyAction(s2, { type: 'horde-step', step: { k: 'damage', n: -1 }, at: 2, actorSeat: 0 })
+    ).toThrow();
+    expect(() =>
+      applyAction(s2, {
+        type: 'horde-step',
+        step: { k: 'move', cardId: '', to: 'graveyard' },
+        at: 2,
+        actorSeat: 0,
+      })
+    ).toThrow();
+    expect(() =>
+      applyAction(s2, {
+        type: 'horde-step',
+        step: { k: 'move', cardId: 'x'.repeat(81), to: 'graveyard' },
+        at: 2,
+        actorSeat: 0,
+      })
+    ).toThrow();
+    expect(() =>
+      applyAction(s2, {
+        type: 'horde-step',
+        step: { k: 'move', cardId: 'card-1', to: 'hand' } as unknown as {
+          k: 'move';
+          cardId: string;
+          to: 'graveyard' | 'exile' | 'library';
+        },
+        at: 2,
+        actorSeat: 0,
+      })
+    ).toThrow();
+  });
+
+  it('a stale `at` is a no-op that returns the identical state', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    const after = applyAction(s, {
+      type: 'horde-step',
+      step: { k: 'damage', n: 1 },
+      at: 5,
+      actorSeat: 0,
+    });
+    expect(after).toBe(s);
+  });
+
+  it('throws once the horde log hits MAX_HORDE_STEPS', () => {
+    let s = startedHorde(2, { setupTurns: 0 });
+    for (let i = 0; i < MAX_HORDE_STEPS; i++) {
+      s = applyAction(s, { type: 'horde-step', step: { k: 'damage', n: 0 }, at: i, actorSeat: 0 });
+    }
+    expect(s.horde!.steps).toHaveLength(MAX_HORDE_STEPS);
+    expect(() =>
+      applyAction(s, {
+        type: 'horde-step',
+        step: { k: 'damage', n: 0 },
+        at: MAX_HORDE_STEPS,
+        actorSeat: 0,
+      })
+    ).toThrow();
+  });
+
+  it('horde-undo reverses take: restores life, phase, and survivorTurn', () => {
+    const s = startedHorde(2, { setupTurns: 0, life: 50 });
+    const s1 = applyAction(s, { type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+    const s2 = applyAction(s1, { type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 0 });
+    const s3 = applyAction(s2, {
+      type: 'horde-step',
+      step: { k: 'take', dealt: 9 },
+      at: 2,
+      actorSeat: 0,
+    });
+    expect(s3.players.map((p) => p.life)).toEqual([41, 41]);
+    const s4 = applyAction(s3, { type: 'horde-undo', at: 3, actorSeat: 0 });
+    expect(s4.players.map((p) => p.life)).toEqual([50, 50]);
+    expect(s4.horde!.phase).toBe('combat');
+    expect(s4.horde!.survivorTurn).toBe(1);
+    expect(s4.horde!.steps).toHaveLength(2);
+  });
+
+  it('horde-undo reverses confirm back to reveal', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    const s1 = applyAction(s, { type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+    const s2 = applyAction(s1, { type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 0 });
+    expect(s2.horde!.phase).toBe('combat');
+    const s3 = applyAction(s2, { type: 'horde-undo', at: 2, actorSeat: 0 });
+    expect(s3.horde!.phase).toBe('reveal');
+    expect(s3.horde!.steps).toHaveLength(1);
+  });
+
+  it('horde-undo reverses reveal back to survivors, restoring done + hordeTurn', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    const s1 = applyAction(s, { type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+    expect(s1.horde!.hordeTurn).toBe(1);
+    const s2 = applyAction(s1, { type: 'horde-undo', at: 1, actorSeat: 0 });
+    expect(s2.horde!.phase).toBe('survivors');
+    expect(s2.horde!.hordeTurn).toBe(0);
+    expect([...s2.horde!.done].sort()).toEqual([0, 1]);
+    expect(s2.horde!.steps).toHaveLength(0);
+  });
+
+  it('horde-undo of damage/move just pops the step', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    const s1 = applyAction(s, {
+      type: 'horde-step',
+      step: { k: 'damage', n: 4 },
+      at: 0,
+      actorSeat: 0,
+    });
+    const s2 = applyAction(s1, { type: 'horde-undo', at: 1, actorSeat: 0 });
+    expect(s2.horde!.steps).toHaveLength(0);
+  });
+
+  it('horde-undo no-ops with an empty log or a stale `at`', () => {
+    const s = startedHorde(2, { setupTurns: 0 });
+    expect(applyAction(s, { type: 'horde-undo', at: 0, actorSeat: 0 })).toBe(s);
+    const s1 = applyAction(s, {
+      type: 'horde-step',
+      step: { k: 'damage', n: 1 },
+      at: 0,
+      actorSeat: 0,
+    });
+    expect(applyAction(s1, { type: 'horde-undo', at: 0, actorSeat: 0 })).toBe(s1);
+  });
+
+  it('end with a coopOutcome forces winnerSeat null in horde format', () => {
+    const s0 = startedHorde(2);
+    const s1 = applyAction(s0, { type: 'end', winnerSeat: 1, coopOutcome: 'won' });
+    expect(s1.status).toBe('finished');
+    expect(s1.winnerSeat).toBe(null);
+    expect(s1.coopOutcome).toBe('won');
+  });
+
+  it('end without a coopOutcome behaves as before, even in horde format', () => {
+    const s0 = startedHorde(2);
+    const s1 = applyAction(s0, { type: 'end', winnerSeat: null });
+    expect(s1.coopOutcome).toBeUndefined();
+    expect(s1.winnerSeat).toBe(null);
+  });
+
+  it('reset clears the horde table and coopOutcome', () => {
+    const s0 = startedHorde(2);
+    const s1 = applyAction(s0, { type: 'end', winnerSeat: null, coopOutcome: 'lost' });
+    expect(s1.horde).toBeDefined();
+    const s2 = applyAction(s1, { type: 'reset' });
+    expect(s2.horde).toBeUndefined();
+    expect(s2.coopOutcome).toBeUndefined();
+    expect(s2.status).toBe('lobby');
+  });
+
+  it('a legacy state without `horde` is untouched by ordinary actions', () => {
+    const s0 = applyAction(lobby(), { type: 'start' });
+    expect(s0.horde).toBeUndefined();
+    const s1 = applyAction(s0, { type: 'life', seat: 0, delta: -3, actorSeat: 0 });
+    expect(s1.horde).toBeUndefined();
+    const s2 = applyAction(s1, { type: 'set-life', seat: 1, value: 10, actorSeat: 1 });
+    expect(s2.horde).toBeUndefined();
+    const s3 = applyAction(s2, { type: 'pass-turn', actorSeat: null });
+    expect(s3.horde).toBeUndefined();
+  });
+
+  it('gameToRecord carries coopOutcome and hordeId', () => {
+    const s0 = startedHorde(2);
+    const finished = applyAction(s0, { type: 'end', winnerSeat: null, coopOutcome: 'won' });
+    const record = gameToRecord(finished);
+    expect(record.coopOutcome).toBe('won');
+    expect(record.hordeId).toBe('h1');
   });
 });

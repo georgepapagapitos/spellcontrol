@@ -6,36 +6,17 @@
  * turns, how fast the horde reveals cards, when bosses show up, how gentle
  * the opening draws are) for a given survivor count; `overrides` is the
  * "Customise" panel layered on top.
+ *
+ * The settings TYPES themselves live in `@spellcontrol/game-core` (the
+ * online co-op table stores a resolved `HordeSettings` in `GameState.horde`)
+ * and are re-exported here under their original names so nothing else in the
+ * frontend needs to change. Only the functions below are local.
  */
 
-export type HordeLevel = 'casual' | 'standard' | 'brutal';
-
-export type RevealMode =
-  /** Reveal until the first nontoken card, inclusive — one wave. */
-  | { kind: 'until-nontoken' }
-  /** That same wave, repeated `perTurn` times each horde turn. */
-  | { kind: 'waves'; perTurn: number }
-  /** Waves per horde turn, cycling through `pattern` by horde-turn index. */
-  | { kind: 'waves-pattern'; pattern: number[] }
-  /** Battle the Horde style: a flat count, +1 per horde artifact if set. */
-  | { kind: 'fixed'; count: number; plusPerArtifact?: boolean };
-
-export type SafeZone = 'full' | 'reduced' | 'off';
-
-export interface HordeSettings {
-  /** 1..4. */
-  survivors: number;
-  /** Survivors' shared starting life. */
-  life: number;
-  /** Cards in this game's library — bosses are held out separately. */
-  librarySize: number;
-  /** Survivor turns before the horde's first turn. */
-  setupTurns: number;
-  reveal: RevealMode;
-  /** Fractions of the library gone at which a boss enters (1 = library empty). */
-  bossTicks: number[];
-  safeZone: SafeZone;
-}
+export type { HordeLevel, HordeSettings } from '@/lib/game-state';
+import type { HordeRevealMode, HordeSafeZone, HordeLevel, HordeSettings } from '@/lib/game-state';
+export type RevealMode = HordeRevealMode;
+export type SafeZone = HordeSafeZone;
 
 /** Library size by survivor count (index 0 = 1 survivor). */
 const BASE_LIBRARY_SIZE = [50, 65, 80, 100];
