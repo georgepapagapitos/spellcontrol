@@ -6,6 +6,8 @@
  * (a nested popover's Escape used to also close the whole sheet). Also
  * covers the result footer (live count, Save) surviving the move.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { EnrichedCard, ListDef } from '../types';
@@ -71,6 +73,19 @@ describe('ListRuleEditor', () => {
     render(<ListRuleEditor list={makeList()} onClose={vi.fn()} />);
     expect(screen.getByText(/Matches/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Save rule' })).toBeTruthy();
+  });
+
+  it('turns the count amber at zero and drops Cancel from the phone footer', () => {
+    useCollectionStore.setState({ cards: [card('Sol Ring')] });
+    render(<ListRuleEditor list={makeList()} onClose={vi.fn()} />);
+    // A fresh rule has no conditions, and an empty rule matches nothing here.
+    expect(document.querySelector('.list-rule-editor-count.is-zero')).not.toBeNull();
+    // § Config surfaces: the ×, backdrop and back gesture dismiss on a phone,
+    // so Cancel gives its width to the answer (same rule as the binder editor).
+    const css = readFileSync(resolve(__dirname, 'ListRuleEditor.css'), 'utf8');
+    expect(css).toMatch(
+      /@media \(max-width: 600px\)\s*\{\s*\.list-rule-editor-cancel\s*\{\s*display: none;/
+    );
   });
 
   it('dismisses on Escape when it is the topmost overlay', () => {

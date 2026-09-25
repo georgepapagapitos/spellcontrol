@@ -169,12 +169,15 @@ export function ListRuleEditor({ list, onClose }: Props) {
             {rangeError}
           </span>
         ) : (
-          <span className="list-rule-editor-count" aria-live="polite">
+          <span
+            className={`list-rule-editor-count${matchCount === 0 ? ' is-zero' : ''}`}
+            aria-live="polite"
+          >
             Matches <strong>{matchCount.toLocaleString()}</strong>{' '}
             {matchCount === 1 ? 'card' : 'cards'} in your collection
           </span>
         )}
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn list-rule-editor-cancel" onClick={onClose}>
           Cancel
         </button>
         <button type="button" className="btn btn-primary" disabled={!canSave} onClick={save}>

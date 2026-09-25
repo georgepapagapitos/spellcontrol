@@ -16,3 +16,16 @@
 .list-rule-editor-error {
   color: var(--err-text);
 }
+
+/* Amber at zero (STYLE_GUIDE § Rule & filter editors). */
+.list-rule-editor-count.is-zero strong {
+  color: var(--warn-text);
+}
+
+/* Cancel leaves the phone footer, as in the binder editor: the ×, the
+   backdrop and the back gesture all dismiss, and the row needs its width. */
+@media (max-width: 600px) {
+  .list-rule-editor-cancel {
+    display: none;
+  }
+}
