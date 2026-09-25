@@ -315,6 +315,53 @@ describe('posting the result (T118: same durable path as a real local game)', ()
     expect(game?.status).toBe('finished');
     expect(game?.mode).toBe('local');
   });
+
+  it("carries each survivor's commander, partner and colour identity", async () => {
+    await useHordeGameStore.getState().startHorde('zombies', 'standard', undefined, [
+      {
+        name: 'Alice',
+        deckId: 'deck-1',
+        deckName: 'Atraxa',
+        commander: 'Atraxa, Praetors’ Voice',
+        partner: null,
+        colorIdentity: ['W', 'U', 'B', 'G'],
+      },
+      {
+        name: 'Bo',
+        deckId: 'deck-2',
+        deckName: 'Tymna Thrasios',
+        commander: 'Tymna the Weaver',
+        partner: 'Thrasios, Triton Hero',
+        colorIdentity: ['W', 'U', 'B', 'G'],
+      },
+    ]);
+    useHordeGameStore.getState().concede();
+    const finishedId = useHordeGameStore.getState().finished[0]?.id;
+    const game = usePlayStore.getState().pendingResults.find((g) => g.id === finishedId);
+    expect(game?.players[0]).toMatchObject({
+      commander: 'Atraxa, Praetors’ Voice',
+      partner: null,
+      colorIdentity: ['W', 'U', 'B', 'G'],
+    });
+    expect(game?.players[1]).toMatchObject({
+      commander: 'Tymna the Weaver',
+      partner: 'Thrasios, Triton Hero',
+      colorIdentity: ['W', 'U', 'B', 'G'],
+    });
+  });
+
+  it('still posts nulls/[] for a survivor persisted before these fields existed', async () => {
+    // SURVIVORS has no commander/partner/colorIdentity keys at all — exactly
+    // the shape a game saved to localStorage before this change would resume
+    // with, since `HordeSurvivor` only ever gained these as optional fields.
+    await start();
+    useHordeGameStore.getState().concede();
+    const finishedId = useHordeGameStore.getState().finished[0]?.id;
+    const game = usePlayStore.getState().pendingResults.find((g) => g.id === finishedId);
+    expect(game?.players.every((p) => p.commander === null)).toBe(true);
+    expect(game?.players.every((p) => p.partner === null)).toBe(true);
+    expect(game?.players.every((p) => p.colorIdentity.length === 0)).toBe(true);
+  });
 });
 
 describe('persistence', () => {
