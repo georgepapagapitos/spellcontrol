@@ -25,7 +25,9 @@ export function TableFinishedBanner() {
   const leaveOnline = usePlayStore((s) => s.leaveOnline);
   const navigate = useNavigate();
 
-  if (!online || online.status !== 'finished') return null;
+  // A horde game's end is announced by the Horde end sheet instead (its own
+  // "Leave table" button covers this banner's one job) — never both at once.
+  if (!online || online.status !== 'finished' || online.format === 'horde') return null;
 
   const winner =
     online.winnerSeat == null

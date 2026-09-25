@@ -3560,6 +3560,21 @@ button.playtest-card-pt__value--editable:focus-visible {
   color: var(--text-muted);
 }
 
+/* The team-turn chip at a horde table (STYLE_GUIDE "Horde at an online
+   table") — the "Waiting for …" chip and the desktop-only "Start without …"
+   button stack in one column, in the turn chip's own corner slot. */
+.playtest-team-turn {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.playtest-team-turn__go {
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
 .playtest-corner-btn {
   position: relative;
   display: inline-flex;
@@ -3979,12 +3994,12 @@ button.playtest-card-pt__value--editable:focus-visible {
   --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
 }
 
-/* Solo Horde (E387 PR 5): the felt splits into two fixed halves, horde on
-   top, yours below — a lightweight sibling of `.playtest-main--grid` above
-   (same "redeclare the derived trio together" contract). Never active
-   alongside an online table, so it never combines with the grid classes:
-   `gridMode` requires `onlineTable.opponents`, and a horde only ever exists
-   solo. */
+/* The felt splits into two fixed halves, horde on top, yours below — a
+   lightweight sibling of `.playtest-main--grid` above (same "redeclare the
+   derived trio together" contract). Solo (E387 PR 5) or online (E387 online
+   co-op, `.playtest-main--horde-rail` below adds the rail column) — never
+   both, and never alongside the seat grid: `gridMode` is forced off at a
+   horde table (see `gridFits` in PlaytestBoard.tsx). */
 .playtest-main--horde {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -4008,6 +4023,28 @@ button.playtest-card-pt__value--editable:focus-visible {
   --pt-card-w: clamp(56px, min(5vw, (50vh - 40px) / 7.6), 120px);
   --pt-card-h: calc(var(--pt-card-w) * 1.4);
   --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
+}
+
+/* A horde at an online table (STYLE_GUIDE "Horde at an online table"):
+   teammates sit in the existing side rail rather than the seat grid — a
+   horde is the one "opponent" this table has, and the grid has no cell for
+   it. Adds a 15rem rail column, spanning both the horde-half and your-board
+   rows, to `.playtest-main--horde`'s two-row grid above. */
+.playtest-main--horde.playtest-main--horde-rail {
+  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.playtest-main--horde-rail > .opponent-rail {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: auto;
+  background: var(--bg);
+}
+
+.playtest-main--horde-rail > .horde-half,
+.playtest-main--horde-rail > .playtest-battlefield-wrap {
+  grid-column: 2;
 }
 
 /* Your fan is centred on your quadrant, and your quadrant is half a table: at
