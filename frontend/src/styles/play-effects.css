@@ -156,6 +156,55 @@
   letter-spacing: -0.03em;
 }
 
+/* Underlined 6 and 9 (device pref, default off): the two board-numeral
+   digits that read the same upside down. A per-digit mark, not
+   `text-decoration: underline` — two adjacent underlined characters (a "69",
+   a "66") draw as one continuous bar with no gap between them, which reads
+   as a stray extra digit rather than two marked ones. `::after` sized to a
+   percentage of the DIGIT'S OWN box (18% inset each side, so ~64% of its
+   advance width) keeps every mark short and separate regardless of how many
+   underlined digits sit next to each other, and `em`/`%` units mean it holds
+   at every `--life-size` down to the smallest tier. `inline-block` gives the
+   span a real box for that percentage (and the `position: relative`
+   containing block) to resolve against. */
+.pp-digit-underline {
+  display: inline-block;
+  position: relative;
+}
+
+.pp-digit-underline::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: -0.1em;
+  height: 0.09em;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* Minimalist mode (device pref, default off): hide the ± glyphs beside the
+   life numeral without removing the buttons from the DOM — the tap-zone
+   gestures (the whole panel half) keep working regardless, and a screen
+   reader / keyboard user keeps the explicit ±1 control. The burst-count
+   badge ("-3") is chrome for the same button, so it's dropped along with it
+   rather than finding a second home. Scoped to the life numeral's own step
+   buttons — the commander-damage split-half steps sit in a flex row keyed to
+   their own visible width, and hiding them the same way would re-center the
+   split value oddly for a pairing (minimalist + Partner focus) rare enough
+   not to be worth that risk. */
+.is-minimalist .player-panel-life-wrap > .player-panel-step-btn {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .floating-delta.is-positive {
   color: var(--pp-accent);
 }

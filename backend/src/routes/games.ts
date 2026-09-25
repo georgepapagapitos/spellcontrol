@@ -690,6 +690,20 @@ function invalidVisibilityError(action: GameAction): string | null {
   return visibility === 'public' || visibility === 'private' ? null : 'Invalid visibility.';
 }
 
+/**
+ * Reject a `turnOrder` patch that isn't exactly `'clockwise'` or
+ * `'counterclockwise'` — the reducer stores it verbatim (see
+ * `packages/game-core`), same division of labour as `visibility` above.
+ */
+function invalidTurnOrderError(action: GameAction): string | null {
+  if (action.type !== 'settings') return null;
+  const turnOrder = action.patch.turnOrder;
+  if (turnOrder === undefined) return null;
+  return turnOrder === 'clockwise' || turnOrder === 'counterclockwise'
+    ? null
+    : 'Invalid turn order.';
+}
+
 /** Longest a table name may be — a lobby heading, not a paragraph. */
 const MAX_GAME_NAME_LEN = 60;
 
@@ -1994,6 +2008,8 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
     if (voiceErr) return res.status(400).json({ error: voiceErr });
     const visibilityErr = invalidVisibilityError(raw);
     if (visibilityErr) return res.status(400).json({ error: visibilityErr });
+    const turnOrderErr = invalidTurnOrderError(raw);
+    if (turnOrderErr) return res.status(400).json({ error: turnOrderErr });
     const nameErr = invalidNameError(raw);
     if (nameErr) return res.status(400).json({ error: nameErr });
     const action = sanitizeAction(raw);

@@ -1,7 +1,7 @@
 import { Compass, Crown, FastForward, Play, Skull, Swords } from 'lucide-react';
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
-import { encodeCustomLayout, resolveLayout } from '../../lib/board-layouts';
+import { encodeCustomLayout, resolveLayout, turnOrderOf } from '../../lib/board-layouts';
 import { paletteForSeat } from '../../lib/seat-palette';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 import { useTapAndHold } from '../../lib/tap-and-hold';
@@ -62,7 +62,7 @@ export function SeatMenu({
   // Rotation is only meaningful in shared (local) play — online each device
   // is already in front of its owner. Changing it converts the current
   // layout into a custom one (persisted in the opaque layout id).
-  const current = resolveLayout(game.players.length, game.layout);
+  const current = resolveLayout(game.players.length, game.layout, turnOrderOf(game));
   const currentRot = current.seats[player.seat]?.rot ?? 0;
   // Radios group by shared `name` — one drawer is open at a time, but scope
   // per instance anyway so a second never silently joins this group.

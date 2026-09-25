@@ -10,7 +10,7 @@ import '@/styles/play-layout-editor.css';
 import '@/styles/play-counters-panel.css';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { Check, Copy, Eye, Swords, X } from 'lucide-react';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
@@ -578,9 +578,37 @@ function LocalSetup({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Computed once, ahead of both `count` and `startingLife` below, so the
+  // starting-life bracket memory (see those state hooks) can pick the right
+  // bracket for the form's very first render without duplicating this in two
+  // places or fighting hook declaration order.
+  const initialCount =
+    seed && seed.players.length > 0
+      ? Math.max(MIN_LOCAL_PLAYERS, Math.min(seed.players.length, MAX_LOCAL_PLAYERS))
+      : MIN_LOCAL_PLAYERS;
+
   const [format, setFormat] = useState<GameFormat>(seed?.format ?? 'commander');
   const formatCfg = FORMAT_OPTIONS.find((f) => f.value === format) ?? FORMAT_OPTIONS[0];
-  const [startingLife, setStartingLife] = useState<number>(formatCfg.defaultLife);
+  // Starting life remembers the last value chosen for a 2-player table and
+  // for a 3+ player table SEPARATELY (Lotus splits these the same way) —
+  // see `bracketOf` / the count-crossing effect below for the full
+  // precedence. `null` means "no override for this bracket yet", so a fresh
+  // device (or a bracket nobody has touched) falls back to the picked
+  // format's own default, exactly as before this existed.
+  const startingLifeTwoPlayer = usePlayStore((s) => s.startingLifeTwoPlayer);
+  const startingLifeMultiplayer = usePlayStore((s) => s.startingLifeMultiplayer);
+  const setStartingLifeForBracket = usePlayStore((s) => s.setStartingLifeForBracket);
+  const bracketOf = (n: number): 'two' | 'multi' => (n === 2 ? 'two' : 'multi');
+  const rememberedStartingLife = (bracket: 'two' | 'multi'): number | null =>
+    bracket === 'two' ? startingLifeTwoPlayer : startingLifeMultiplayer;
+  const [startingLife, setStartingLife] = useState<number>(
+    () => rememberedStartingLife(bracketOf(initialCount)) ?? formatCfg.defaultLife
+  );
+  // Turn order is a fact about the TABLE this game plays at, not this
+  // device — it travels with the game (GameState.turnOrder, set once at
+  // start), unlike the device-level board display prefs in the game menu's
+  // Setup tab. Clockwise is the MTG default and needs no override.
+  const [turnOrder, setTurnOrder] = useState<'clockwise' | 'counterclockwise'>('clockwise');
   const [commanderDamageEnabled, setCmdDmg] = useState<boolean>(formatCfg.cmdDmg);
   const [poisonEnabled, setPoison] = useState<boolean>(false);
 
@@ -606,11 +634,39 @@ function LocalSetup({
   const setGameTimerEnabled = usePlayStore((s) => s.setGameTimerEnabled);
   const turnTrackerEnabled = usePlayStore((s) => s.turnTrackerEnabled);
   const setTurnTrackerEnabled = usePlayStore((s) => s.setTurnTrackerEnabled);
-  const [count, setCount] = useState<number>(() =>
-    seed && seed.players.length > 0
-      ? Math.max(MIN_LOCAL_PLAYERS, Math.min(seed.players.length, MAX_LOCAL_PLAYERS))
-      : MIN_LOCAL_PLAYERS
-  );
+  const [count, setCount] = useState<number>(initialCount);
+  // Tracks which starting-life bracket `count` was in last, so the effect
+  // below only fires on an actual 2↔3+ crossing (not every add/remove-player
+  // click within the same bracket). `suppressBracketSaveRef` skips the
+  // save-on-change effect for exactly one `startingLife` update: the one
+  // that effect itself makes when a crossing applies the OTHER bracket's
+  // remembered (or default) value, and the one a loaded table profile makes
+  // (profiles are a full reset — see `applySetup` — and aren't remembered
+  // here as if the user had dialed the stepper to that number).
+  const prevBracketRef = useRef<'two' | 'multi'>(bracketOf(initialCount));
+  const suppressBracketSaveRef = useRef(false);
+  useEffect(() => {
+    if (isHorde) return;
+    const bracket = bracketOf(count);
+    if (bracket === prevBracketRef.current) return;
+    prevBracketRef.current = bracket;
+    suppressBracketSaveRef.current = true;
+    setStartingLife(rememberedStartingLife(bracket) ?? formatCfg.defaultLife);
+    // Only `count` should trigger a bracket switch; re-running this because
+    // `formatCfg`/`rememberedStartingLife` changed identity would re-apply
+    // the bracket's remembered life over a starting-life edit the user just
+    // made in place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, isHorde]);
+  useEffect(() => {
+    if (isHorde) return;
+    if (suppressBracketSaveRef.current) {
+      suppressBracketSaveRef.current = false;
+      return;
+    }
+    setStartingLifeForBracket(bracketOf(count), startingLife);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startingLife]);
   // Empty, not a live "Player N" value — the placeholder already shows that
   // suggestion, and a real seeded value (only `name` matters is used
   // instead) means typing over it can't concatenate into "Player 1Alice"
@@ -721,6 +777,7 @@ function LocalSetup({
       startingLife,
       commanderDamageEnabled,
       poisonEnabled,
+      turnOrder,
       counters,
       players: players
         .slice(0, count)
@@ -765,12 +822,18 @@ function LocalSetup({
     // in-progress Horde pick returns the form to the normal Format/Rules.
     setIsHorde(false);
     setFormat(setup.format);
+    // A profile's starting life wins outright — it's an explicit reset, not
+    // a bracket-memory candidate (see the two effects above `count`), so
+    // both refs are primed to make them no-ops for this update.
+    suppressBracketSaveRef.current = true;
     setStartingLife(setup.startingLife);
     setCmdDmg(setup.commanderDamageEnabled);
     setPoison(setup.poisonEnabled);
+    setTurnOrder(setup.turnOrder ?? 'clockwise');
     setCounters(setup.counters ?? []);
     setCounterDraft('');
     const next = Math.max(MIN_LOCAL_PLAYERS, Math.min(setup.players.length, MAX_LOCAL_PLAYERS));
+    prevBracketRef.current = bracketOf(next);
     setCount(next);
     setPlayers(
       Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) => setup.players[i] ?? blankPlayer(''))
@@ -913,6 +976,12 @@ function LocalSetup({
               onChange={setTurnTrackerEnabled}
               label="Turn tracker"
               hint="Show whose turn it is and how long, and pass it from the clock."
+            />
+            <RulePill
+              on={turnOrder === 'counterclockwise'}
+              onChange={(on) => setTurnOrder(on ? 'counterclockwise' : 'clockwise')}
+              label="Counterclockwise seating"
+              hint="Seats run the other way around the table."
             />
             <RulePill
               on={poisonEnabled}

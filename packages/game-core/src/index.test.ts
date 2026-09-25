@@ -1110,6 +1110,25 @@ describe('undoOf — the log knows what an Undo took back', () => {
   });
 });
 
+describe('turn order', () => {
+  it('is unset by default (reads as clockwise wherever consumed) and is settable, with no rules-log row', () => {
+    const before = lobby();
+    expect(before.turnOrder).toBeUndefined();
+    const after = applyAction(before, {
+      type: 'settings',
+      patch: { turnOrder: 'counterclockwise' },
+    });
+    expect(after.turnOrder).toBe('counterclockwise');
+    // Presentation, like layout/tapOrientation — not a rules change.
+    expect(after.events.filter((e) => e.kind === 'settings')).toHaveLength(0);
+  });
+
+  it('a legacy state with no turnOrder field keeps working through the reducer', () => {
+    const legacy = { ...lobby(), turnOrder: undefined } as unknown as GameState;
+    expect(() => applyAction(legacy, { type: 'start' })).not.toThrow();
+  });
+});
+
 describe('mulligan type', () => {
   it('defaults to commander, the variant legacy tables already played', () => {
     expect(lobby().mulliganType).toBe('commander');

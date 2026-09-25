@@ -1826,6 +1826,36 @@ describe('phase action (T101 advisory clock)', () => {
   });
 });
 
+describe('turnOrder settings (T-boardsettings)', () => {
+  it('accepts clockwise and counterclockwise', async () => {
+    const { code, host } = await setupTable('games_turnorder_ok', []);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'settings', patch: { turnOrder: 'counterclockwise' } }],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.game.turnOrder).toBe('counterclockwise');
+  });
+
+  it('rejects a value outside clockwise/counterclockwise', async () => {
+    const { code, host } = await setupTable('games_turnorder_bad', []);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'settings', patch: { turnOrder: 'sideways' } }],
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid turn order.');
+  });
+});
+
 describe('clock action (board-timer pause/resume)', () => {
   it('the host can pause, pushing one clock event', async () => {
     const { code, host } = await setupTable('games_clock_host', []);

@@ -186,6 +186,34 @@ describe('usePlayStore — local game flow', () => {
     expect(usePlayStore.getState().local!.layout).toBe('custom-2up');
   });
 
+  it('carries turnOrder from the setup into the created game, defaulting to unset (clockwise)', () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      turnOrder: 'counterclockwise',
+      players: [
+        { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+      ],
+    });
+    expect(usePlayStore.getState().local!.turnOrder).toBe('counterclockwise');
+
+    resetStore();
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [
+        { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+      ],
+    });
+    expect(usePlayStore.getState().local!.turnOrder).toBeUndefined();
+  });
+
   it('dispatches life delta and updates state', () => {
     const s = usePlayStore.getState();
     s.startLocal({
@@ -291,6 +319,26 @@ describe('usePlayStore — local game flow', () => {
     expect(fresh.id).not.toBe(firstId);
     expect(fresh.status).toBe('active');
     expect(fresh.players.map((p) => p.name)).toEqual(['A', 'B']);
+  });
+
+  it('rematchLocal keeps a counterclockwise table counterclockwise', () => {
+    const s = usePlayStore.getState();
+    s.startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: false,
+      poisonEnabled: false,
+      turnOrder: 'counterclockwise',
+      players: [
+        { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+      ],
+    });
+    usePlayStore.getState().endLocal(0);
+    const template = gameToRematch(usePlayStore.getState().local!);
+    expect(template.turnOrder).toBe('counterclockwise');
+    usePlayStore.getState().rematchLocal(template);
+    expect(usePlayStore.getState().local!.turnOrder).toBe('counterclockwise');
   });
 
   it('discardLocal clears the active local game', () => {
@@ -428,6 +476,44 @@ describe('usePlayStore — persisted store migration (v1 → v2)', () => {
     const migrated = migrate({ gameTimerEnabled: false, turnTrackerEnabled: true }, 2);
     expect(migrated.gameTimerEnabled).toBe(false);
     expect(migrated.turnTrackerEnabled).toBe(true);
+  });
+});
+
+describe('usePlayStore — persisted store migration (v2 → v3)', () => {
+  function migrate(state: Record<string, unknown>, fromVersion: number) {
+    const options = (
+      usePlayStore as unknown as {
+        persist: { getOptions: () => { migrate: (s: unknown, v: number) => unknown } };
+      }
+    ).persist.getOptions();
+    return options.migrate(state, fromVersion) as Record<string, unknown>;
+  }
+
+  it('a v2 row with none of the new fields gets the documented defaults', () => {
+    const migrated = migrate({ gameTimerEnabled: true, turnTrackerEnabled: true }, 2);
+    expect(migrated.lowLifeWarningEnabled).toBe(true);
+    expect(migrated.underlineSixNine).toBe(false);
+    expect(migrated.minimalistMode).toBe(false);
+    expect(migrated.startingLifeTwoPlayer).toBeNull();
+    expect(migrated.startingLifeMultiplayer).toBeNull();
+  });
+
+  it('leaves an already-current row alone', () => {
+    const migrated = migrate(
+      {
+        lowLifeWarningEnabled: false,
+        underlineSixNine: true,
+        minimalistMode: true,
+        startingLifeTwoPlayer: 30,
+        startingLifeMultiplayer: 40,
+      },
+      3
+    );
+    expect(migrated.lowLifeWarningEnabled).toBe(false);
+    expect(migrated.underlineSixNine).toBe(true);
+    expect(migrated.minimalistMode).toBe(true);
+    expect(migrated.startingLifeTwoPlayer).toBe(30);
+    expect(migrated.startingLifeMultiplayer).toBe(40);
   });
 });
 
@@ -1646,6 +1732,40 @@ describe('gameToRematch / recordToRematch', () => {
     expect(t.format).toBe('commander');
     expect(t.commanderDamageEnabled).toBe(true);
     expect(t.players.map((p) => p.name)).toEqual(['Host', 'Guest']);
+  });
+
+  it('gameToRematch carries turnOrder, including a counterclockwise table', () => {
+    const cw = makeOnlineGame(1);
+    expect(gameToRematch(cw).turnOrder).toBeUndefined();
+    const ccw = { ...cw, turnOrder: 'counterclockwise' as const };
+    expect(gameToRematch(ccw).turnOrder).toBe('counterclockwise');
+  });
+
+  it('recordToRematch has no source for turnOrder and reads as clockwise', () => {
+    const rec: GameRecord = {
+      id: 'g',
+      code: '',
+      format: 'commander',
+      startingLife: 40,
+      mode: 'local',
+      startedAt: 1,
+      endedAt: 2,
+      durationMs: 1,
+      winnerSeat: 0,
+      players: [
+        {
+          seat: 0,
+          userId: null,
+          name: 'A',
+          deckId: 'd1',
+          deckName: 'D1',
+          commander: 'Cmd',
+          finalLife: 1,
+          eliminated: false,
+        },
+      ],
+    };
+    expect(recordToRematch(rec).turnOrder).toBeUndefined();
   });
 
   it('recordToRematch infers commander damage from a commander record', () => {

@@ -2,7 +2,7 @@ import { BookOpen, Hand, Maximize, Minimize } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import type { GameAction, GameState } from '../../lib/game-state';
 import { makePlayer } from '../../lib/game-state';
-import { resolveLayout } from '../../lib/board-layouts';
+import { resolveLayout, turnOrderOf } from '../../lib/board-layouts';
 import { usePlayStore } from '../../store/play';
 import { useRulesReferenceStore } from '../../store/rules-reference';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
@@ -66,6 +66,12 @@ export function GameMenu({
   const setGameTimerEnabled = usePlayStore((s) => s.setGameTimerEnabled);
   const turnTrackerEnabled = usePlayStore((s) => s.turnTrackerEnabled);
   const setTurnTrackerEnabled = usePlayStore((s) => s.setTurnTrackerEnabled);
+  const lowLifeWarningEnabled = usePlayStore((s) => s.lowLifeWarningEnabled);
+  const setLowLifeWarningEnabled = usePlayStore((s) => s.setLowLifeWarningEnabled);
+  const underlineSixNine = usePlayStore((s) => s.underlineSixNine);
+  const setUnderlineSixNine = usePlayStore((s) => s.setUnderlineSixNine);
+  const minimalistMode = usePlayStore((s) => s.minimalistMode);
+  const setMinimalistMode = usePlayStore((s) => s.setMinimalistMode);
   const setPreferredLayout = usePlayStore((s) => s.setPreferredLayout);
   const openRules = useRulesReferenceStore((s) => s.open);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -409,6 +415,42 @@ export function GameMenu({
                     {turnTrackerEnabled ? 'On' : 'Off'}
                   </span>
                 </button>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={lowLifeWarningEnabled}
+                  className={`game-menu-setting ${lowLifeWarningEnabled ? 'is-on' : ''}`}
+                  onClick={() => setLowLifeWarningEnabled(!lowLifeWarningEnabled)}
+                >
+                  <span className="game-menu-setting-label">Low life warning</span>
+                  <span className="game-menu-setting-state" aria-hidden="true">
+                    {lowLifeWarningEnabled ? 'On' : 'Off'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={underlineSixNine}
+                  className={`game-menu-setting ${underlineSixNine ? 'is-on' : ''}`}
+                  onClick={() => setUnderlineSixNine(!underlineSixNine)}
+                >
+                  <span className="game-menu-setting-label">Underlined 6 and 9</span>
+                  <span className="game-menu-setting-state" aria-hidden="true">
+                    {underlineSixNine ? 'On' : 'Off'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={minimalistMode}
+                  className={`game-menu-setting ${minimalistMode ? 'is-on' : ''}`}
+                  onClick={() => setMinimalistMode(!minimalistMode)}
+                >
+                  <span className="game-menu-setting-label">Minimalist mode</span>
+                  <span className="game-menu-setting-state" aria-hidden="true">
+                    {minimalistMode ? 'On' : 'Off'}
+                  </span>
+                </button>
               </section>
 
               <section className="game-menu-section">
@@ -418,7 +460,8 @@ export function GameMenu({
               <section className="game-menu-section">
                 <LayoutPicker
                   total={game.players.length}
-                  current={resolveLayout(game.players.length, game.layout).id}
+                  current={resolveLayout(game.players.length, game.layout, turnOrderOf(game)).id}
+                  turnOrder={turnOrderOf(game)}
                   shared={game.mode === 'local'}
                   onPick={(layout) => dispatch({ type: 'settings', patch: { layout } })}
                   onCustomize={() => setEditorOpen(true)}
@@ -426,7 +469,7 @@ export function GameMenu({
                 {game.mode === 'local' &&
                   (() => {
                     const count = game.players.length;
-                    const currentId = resolveLayout(count, game.layout).id;
+                    const currentId = resolveLayout(count, game.layout, turnOrderOf(game)).id;
                     const isDefault = preferredLayouts[count] === currentId;
                     return (
                       <button

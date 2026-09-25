@@ -10,12 +10,13 @@ import {
 } from '@dnd-kit/core';
 import { useMemo, useRef, useState } from 'react';
 import type { GameLayout, GameState } from '../../lib/game-state';
-import type { BoardLayout } from '../../lib/board-layouts';
+import type { BoardLayout, TurnOrder } from '../../lib/board-layouts';
 import {
   encodeCustomLayout,
   isCustomLayout,
   layoutsForCount,
   resolveLayout,
+  turnOrderOf,
 } from '../../lib/board-layouts';
 import {
   applyPlacement,
@@ -34,17 +35,21 @@ import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 export function LayoutPicker({
   total,
   current,
+  turnOrder = 'clockwise',
   shared,
   onPick,
   onCustomize,
 }: {
   total: number;
   current: GameLayout;
+  /** Which way the presets' previews seat, so a picker shown for a
+   *  counterclockwise table matches the board it's actually picking for. */
+  turnOrder?: TurnOrder;
   shared: boolean;
   onPick: (layout: GameLayout) => void;
   onCustomize: () => void;
 }) {
-  const options = layoutsForCount(total);
+  const options = layoutsForCount(total, turnOrder);
   const customActive = isCustomLayout(current);
   return (
     <div className="layout-picker" role="group" aria-label="Board layout">
@@ -68,7 +73,7 @@ export function LayoutPicker({
           onClick={onCustomize}
         >
           {customActive ? (
-            <LayoutPreview layout={resolveLayout(total, current)} shared={shared} />
+            <LayoutPreview layout={resolveLayout(total, current, turnOrder)} shared={shared} />
           ) : (
             <span className="layout-option-custom-glyph" aria-hidden="true">
               ⊞
@@ -165,7 +170,10 @@ export function CustomLayoutEditor({
   onClose: () => void;
 }) {
   const count = game.players.length;
-  const seed = useMemo(() => resolveLayout(count, game.layout), [count, game.layout]);
+  const seed = useMemo(
+    () => resolveLayout(count, game.layout, turnOrderOf({ turnOrder: game.turnOrder })),
+    [count, game.layout, game.turnOrder]
+  );
   const [rows, setRows] = useState<number>(Math.max(1, Math.min(seed.rows, MAX_EDITOR_ROWS)));
   const [placements, setPlacements] = useState<(Placement | null)[]>(() => {
     const r0 = Math.max(1, Math.min(seed.rows, MAX_EDITOR_ROWS));
