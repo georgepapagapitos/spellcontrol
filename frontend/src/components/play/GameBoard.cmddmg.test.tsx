@@ -263,9 +263,11 @@ describe('logging damage in focus mode', () => {
     expect(bobPanel.querySelector('.pp-life-chip')?.textContent).toBe('40 life');
     const hint = screen.getByText('12 to lethal');
     expect(hint.getAttribute('aria-hidden')).toBe('true');
-    // ...and the caption names who the damage is going to, so a bare "9"
-    // can't be misread as Bob's life total.
-    expect(bobPanel.querySelector('.pp-cmd-caption')?.textContent).toContain('dealt to Alice');
+    // No visible "⚔ dealt to Alice" caption — it used to print over the
+    // panel's name on a short seat (300-900px², measured). The panel's own
+    // aria-label carries the same meaning instead (asserted via
+    // getByLabelText above), so nothing sighted lost the information.
+    expect(bobPanel.querySelector('.pp-cmd-caption')).toBeNull();
   });
 
   it('marks a source lethal at 21 from that one commander', () => {
@@ -372,9 +374,7 @@ describe('leaving focus mode', () => {
     renderPod();
     drag(tapZone(0), ALICE_UP);
 
-    fireEvent.click(
-      within(focusBar() as HTMLElement).getByRole('button', { name: 'Return to game' })
-    );
+    fireEvent.click(within(focusBar() as HTMLElement).getByRole('button', { name: 'Return' }));
 
     expect(focusBar()).toBeNull();
     expect(screen.getByLabelText('Bob: 40 life')).toBeTruthy();

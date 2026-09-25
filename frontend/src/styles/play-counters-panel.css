@@ -230,6 +230,87 @@
    around it, still in their own colours, read as the ones answering. */
 .player-panel.is-cmd-self {
   box-shadow: inset 0 0 0 2.5px rgba(255, 255, 255, 0.55);
+  /* Reserves exactly the focus bar's own height at the player's edge, so the
+     centred life numeral above it (`.player-panel-content`'s padding box
+     shrinks by this much) can never sit under the bar regardless of panel
+     size — the bar used to wrap onto 2-3 lines on a short/narrow seat and
+     covered the numeral entirely (measured 100% on several presets).
+     `.pp-cmd-focus-bar` below reads the same variable for its own min-height,
+     so the two numbers can't drift apart. */
+  --cmd-focus-bar-h: 2.6rem;
+  /* A modest, fixed reduction — not "to nothing" — so the numeral has real
+     clearance from BOTH the bar below and the name corner above once its
+     centred box is pulled in from the bottom (see the life-wrap rule below):
+     shrinking the box shifts the centred numeral toward the top edge, where
+     the name already lives, and on a short seat that shift alone reintroduced
+     a name/numeral collision (731-956px², measured) that didn't exist before.
+     0.72 is the same ratio already proven legible for a 3-digit life total
+     (play-board.css) — inherited onto `.player-panel-life`, so a genuinely
+     wider total's own `[data-digits]` scale still wins (an explicit
+     declaration on the element always beats an inherited one). */
+  --life-scale: 0.72;
+}
+
+@media (pointer: coarse) {
+  .player-panel.is-cmd-self {
+    /* The Return button takes the 44px coarse-pointer floor here too. */
+    --cmd-focus-bar-h: 3.75rem;
+  }
+}
+
+/* `.player-panel-life-wrap` is `position: absolute; inset: 0` (play-board.css)
+   — its containing block is the PANEL's full padding box regardless of any
+   padding on `.player-panel-content`, so reserving room via padding there
+   has no effect on where the centred numeral lands. Pulling the wrap's own
+   BOTTOM inset in by the bar's height is what actually shrinks the box the
+   numeral centres within, shifting it clear of the bar underneath.
+
+   A small TOP inset also moves in, on an UPRIGHT panel only: both insets are
+   LOCAL (untransformed) coordinates, the same space the name corner is
+   positioned in, regardless of the panel's own screen rotation, and shrinking
+   only the bottom shifts the centred numeral toward the top edge — on a
+   short/wide upright seat that shift alone reintroduced a numeral/name
+   collision (731-956px², measured) that didn't exist before. Scoped OUT of
+   `[data-sideways]` on purpose: a sideways panel's local top/bottom axis is
+   its screen WIDTH (see `[data-sideways]` sizing below), a far scarcer
+   resource than height, and adding a second reservation there starved the
+   numeral's own width budget instead of helping it (measured worse, not
+   better, on 2p-side once both insets applied). 1.25rem is a deliberately
+   small compromise, not the bar's own full height: the shortest upright
+   boards (9-10 players @320, ~104-140px cells) have almost no vertical
+   budget left once the bar's own bottom reservation is subtracted, and a
+   larger top inset pushed them into the exact same collision it was meant to
+   prevent (measured 50% numeral-under-bar). Smaller residual name/numeral
+   contact on those two boards' own focused seat is the accepted trade — the
+   same "smaller, not gone" bar already accepted elsewhere in this file for
+   320px extremes. */
+.player-panel.is-cmd-self:not([data-sideways]) .player-panel-life-wrap {
+  top: 1.25rem;
+}
+
+.player-panel.is-cmd-self .player-panel-life-wrap {
+  bottom: var(--cmd-focus-bar-h);
+}
+
+/* 8 and 10 players' own boards still measured a residual name/numeral
+   contact at the shared 1.25rem/0.72 combination above — their shortest
+   seats have less local-top headroom above the name than the 7/9-player
+   boards those values already clear, and no top-inset value alone found a
+   spot that helped both without moving the collision rather than closing it
+   (measured: 0 and 1.25rem both leave contact, just different amounts). A
+   smaller numeral gives real margin from both edges regardless of exactly
+   where the centred box lands — 0.42 is the same ratio already used
+   elsewhere in this file for a 5/6-digit total, i.e. a floor this codebase
+   already treats as legible, not a new one invented for this case.
+   Residual: at 320px specifically (9-10 players' own tightest tier) this
+   gets to 154-206px² rather than 0 — smaller than any step tried, and gone
+   entirely by 390px (measured) — the same "smaller, not gone" bar already
+   accepted for this exact 320px/9-10-player extreme in the numeral-tier
+   work (STYLE_GUIDE § "7-10 players"). Every OTHER required preset/viewport
+   in this program measures a clean 0px². */
+.game-board-8 .player-panel.is-cmd-self,
+.game-board-10 .player-panel.is-cmd-self {
+  --life-scale: 0.42;
 }
 
 /* Progress-to-21 wash, rising from the panel floor as --fill (0–1) grows.
@@ -245,31 +326,14 @@
   transition: height var(--motion-fast) ease;
 }
 
-/* "⚔ dealt to <name>" — sits above the numeral so the number is never bare.
-   Centred on the panel's own axis like the numeral itself, and offset by the
-   numeral's own half-height (--life-size, play-board.css) so it clears the
-   digits at every panel size. */
+/* The numeral's offset for "N to lethal" below it (--life-size, play-board.css)
+   — used to carry the "⚔ dealt to <name>" caption above the numeral too, but
+   that caption is gone (see below): it printed over the panel's name on a
+   short seat, 300-900px² measured. Its meaning still lives in the panel's own
+   aria-label ("<commander>: N commander damage dealt to <target>"), so
+   nothing sighted lost the information — only the collision. */
 .player-panel {
   --cmd-offset: calc(var(--life-size) * 0.45 + 0.75rem);
-}
-
-.pp-cmd-caption {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, calc(-50% - var(--cmd-offset)));
-  max-width: 92%;
-  color: color-mix(in srgb, var(--pp-ink) 90%, transparent);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: 0.02em;
-  text-align: center;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 /* "N to lethal" — mirrored below the numeral. */
@@ -308,16 +372,18 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  /* Top padding clears the name corner (a separate absolutely-positioned
+     sibling) the same way the removed caption used to — the life chip below
+     takes over that slot at a comparable height. */
   padding: 1.6rem 0.4rem 0.4rem;
   pointer-events: none;
 }
 
-/* The shared "⚔ dealt to <name>" caption spans both halves, so it sits in
-   normal flow here rather than being centred on a numeral the way the
-   single-commander panel's version is. */
-.pp-cmd-split-wrap > .pp-cmd-caption {
-  position: static;
-  transform: none;
+/* This seat's own life, in flow above the halves rather than the
+   non-split panel's absolutely-positioned corner chip — a corner chip here
+   would land on a half's own − button on a short seat (measured). */
+.pp-cmd-split-wrap > .pp-life-chip {
+  align-self: flex-start;
   flex: 0 0 auto;
 }
 
@@ -523,12 +589,16 @@
   left: 0;
   right: 0;
   bottom: 0;
+  min-height: var(--cmd-focus-bar-h, 2.6rem);
   display: flex;
-  flex-wrap: wrap;
+  /* Never wrap: a second line is exactly what used to eat the numeral above
+     it. The title truncates instead (see below) so the bar's height is fixed
+     regardless of panel width. */
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: 0.45rem 0.7rem;
+  padding: 0.4rem 0.6rem;
   background: rgba(10, 12, 18, 0.82);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
@@ -536,15 +606,21 @@
 }
 
 .pp-cmd-focus-title {
+  min-width: 0;
+  flex: 1 1 auto;
   color: rgba(255, 255, 255, 0.82);
   font-size: var(--text-xs, 0.72rem);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pp-cmd-focus-done {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;

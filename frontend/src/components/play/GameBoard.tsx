@@ -7,21 +7,11 @@ import {
   Menu,
   RotateCcw,
   Swords,
-  Trash2,
   Undo2,
   Users,
   X,
 } from 'lucide-react';
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey, nextActiveSeat } from '../../lib/game-state';
 import type { EmptyCell, SeatSlot } from '../../lib/board-layouts';
@@ -47,12 +37,7 @@ import { useCardThumb } from '../../lib/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
 import { cmdDamageFillRatio, cmdDamageToLethal } from '../../lib/cmd-damage';
 import { highRoll as rollHighRoll, type HighRollResult } from '../../lib/game-tools';
-import {
-  MAX_COUNTERS_PER_SCOPE,
-  MAX_COUNTER_NAME_LENGTH,
-  normalizeCounterName,
-  seatCounters,
-} from '../../lib/game-state';
+import { seatCounters } from '../../lib/game-state';
 import { usePlayStore } from '../../store/play';
 import { HOLD_JUMP } from '../../lib/hold-ramp';
 import { useTapAndHold } from '../../lib/tap-and-hold';
@@ -142,6 +127,19 @@ export function GameBoard({
   // Focus is only enterable from a panel the viewer may edit.
   const cmdFocusCanEdit = cmdFocus != null && canControlAll;
   const exitCmdFocus = useCallback(() => setCmdFocusSeat(null), []);
+
+  // The life keypad is a board-level overlay (Lotus's model), not a per-panel
+  // cover — held here for the same reason cmdFocus is: it needs to dim and
+  // sit above the WHOLE board, not just the seat that opened it. Resolving
+  // against live state (like cmdFocus) means a seat that leaves mid-edit
+  // just closes the keypad instead of stranding it on a gone player.
+  const [keypadSeat, setKeypadSeat] = useState<number | null>(null);
+  const keypadIndex = game.players.findIndex((p) => p.seat === keypadSeat);
+  const keypadPlayer = keypadIndex >= 0 ? game.players[keypadIndex] : null;
+  const keypadSlot =
+    keypadIndex >= 0 ? (board.seats[keypadIndex] ?? board.seats[board.seats.length - 1]) : null;
+  const keypadRotation = isShared ? (keypadSlot?.rot ?? 0) : 0;
+  const closeKeypad = useCallback(() => setKeypadSeat(null), []);
 
   // The hub's radial petal ring (Lotus's fan-out): open outside commander-
   // damage mode, closed by the hub itself (now an ✕), Escape, or an outside
@@ -408,7 +406,9 @@ export function GameBoard({
           the one overlay NOT inside it: it renders through the shared
           `Modal` portal to `document.body`, outside this subtree entirely —
           see the STYLE_GUIDE ruling on why that one dialog stays screen-
-          relative instead of threading rotation through app-wide Modal. */}
+          relative instead of threading rotation through app-wide Modal.
+          The board-level life keypad IS inside it (below, alongside the
+          other overlays) so it rotates with the board in landscape too. */}
       <div className="game-board-rotator" data-board-rot={boardRotation || undefined}>
         <div
           className="game-board-grid"
@@ -457,6 +457,8 @@ export function GameBoard({
                 isHighRollWinner={highRollState?.winnerSeat === p.seat}
                 highRollActive={highRollState != null}
                 onHighRollDismiss={dismissHighRoll}
+                keypadOpen={keypadSeat === p.seat}
+                onOpenKeypad={() => setKeypadSeat(p.seat)}
               />
             );
           })}
@@ -591,6 +593,29 @@ export function GameBoard({
           <WinCelebration game={game} onDone={onLeave} onRematch={onRematch} />
         )}
 
+        {/* Board-level keypad (Lotus's model): dims and covers the whole
+            board, rotated to face the seat it's for — never constrained by
+            one seat's cell size the way the old in-panel cover was. Inside
+            the rotator like every other overlay here, so it rotates with
+            the board's own landscape lock too. */}
+        {keypadPlayer && (
+          <LifeKeypad
+            playerName={keypadPlayer.name}
+            currentLife={keypadPlayer.life}
+            rotation={keypadRotation}
+            onConfirm={(value) => {
+              dispatchTracked({
+                type: 'set-life',
+                seat: keypadPlayer.seat,
+                value,
+                actorSeat: keypadPlayer.seat,
+              });
+              closeKeypad();
+            }}
+            onClose={closeKeypad}
+          />
+        )}
+
         {menuOpen && (
           <GameMenu
             game={game}
@@ -690,6 +715,8 @@ function PlayerPanel({
   isHighRollWinner,
   highRollActive,
   onHighRollDismiss,
+  keypadOpen,
+  onOpenKeypad,
 }: {
   player: GamePlayer;
   game: GameState;
@@ -729,6 +756,10 @@ function PlayerPanel({
   /** A High Roll is showing on SOME seat — every panel freezes its taps. */
   highRollActive: boolean;
   onHighRollDismiss: () => void;
+  /** Whether the board-level keypad (owned by `GameBoard`) is open for THIS
+   *  seat — used only to gate this panel's own life taps while it's up. */
+  keypadOpen: boolean;
+  onOpenKeypad: () => void;
 }) {
   // Real pointer events (clientX/clientY, and the deltas tap-and-hold derives
   // from them) always report true screen-space coordinates — CSS transforms
@@ -743,7 +774,6 @@ function PlayerPanel({
   const underlineSixNine = usePlayStore((st) => st.underlineSixNine);
   const minimalistMode = usePlayStore((st) => st.minimalistMode);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [keypadOpen, setKeypadOpen] = useState(false);
   const [lethalFlash, setLethalFlash] = useState(false);
   const [elimBeat, setElimBeat] = useState(false);
   // Initialize to the player's current eliminated state so a restored/resumed
@@ -794,10 +824,6 @@ function PlayerPanel({
       drawerOpen ||
       keypadOpen ||
       highRollActive;
-  // The drawer's OWN counter +/- controls must stay live while it's open,
-  // so they use this narrower gate (no overlay flags).
-  const countersDisabled = !canEdit || player.eliminated || game.status === 'finished';
-
   // Three-tier color resolution:
   //   explicit override → MTG color identity → seat-palette fallback.
   // The seat palette is derived deterministically from the game id so each
@@ -1086,9 +1112,13 @@ function PlayerPanel({
 
           {isCmdSplit ? (
             <div className="pp-cmd-split-wrap">
-              <span className="pp-cmd-caption">
-                <span aria-hidden="true">⚔</span> dealt to {cmdTarget!.name}
-              </span>
+              {/* The panel's aria-label already carries "dealt to <name>" — a
+                  visible caption here used to print over the seat name on
+                  short panels (dropped, see the commander-damage fixes). This
+                  panel's own life is a small in-flow readout instead of the
+                  absolutely-positioned chip the non-split panel uses, so it
+                  can never land on a half's own − button. */}
+              <span className="pp-life-chip">{player.life} life</span>
               <div className="pp-cmd-split-halves">
                 <CmdSplitHalf
                   name={cmdSourceLabel}
@@ -1112,11 +1142,6 @@ function PlayerPanel({
             </div>
           ) : (
             <div className="player-panel-life-wrap">
-              {cmdTarget && (
-                <span className="pp-cmd-caption">
-                  <span aria-hidden="true">⚔</span> dealt to {cmdTarget.name}
-                </span>
-              )}
               <button
                 type="button"
                 className="player-panel-step-btn"
@@ -1152,7 +1177,7 @@ function PlayerPanel({
                 onClick={(e) => {
                   e.stopPropagation();
                   if (cmdTarget || !canEdit || game.status === 'finished') return;
-                  setKeypadOpen(true);
+                  onOpenKeypad();
                 }}
               >
                 <span key={popKey} className="player-panel-life-num is-pop">
@@ -1187,8 +1212,11 @@ function PlayerPanel({
 
           {/* Focus mode: this panel's own life is no longer the headline, so
               keep it as a small readout — you shouldn't lose the board state
-              just because you're logging damage. */}
-          {cmdTarget && (
+              just because you're logging damage. The split (Partner) case
+              renders its own chip in flow above, inside .pp-cmd-split-wrap —
+              this absolutely-positioned corner chip would otherwise land on
+              that half's own − button on a short panel. */}
+          {cmdTarget && !isCmdSplit && (
             <div className="player-panel-counters">
               <span className="pp-life-chip">{player.life} life</span>
             </div>
@@ -1313,11 +1341,16 @@ function PlayerPanel({
         )}
 
         {/* The focused player's own panel carries the mode's title and the
-            explicit way out — it's already rotated to face them, and it's
-            where they're looking while their life ticks down. */}
+            explicit way out, at the player's own edge — it's already rotated
+            to face them, and it's where they're looking while their life
+            ticks down. A single compact line (never wrapping) so it reserves
+            a fixed, small strip rather than eating the numeral above it —
+            `.player-panel.is-cmd-self` pads the content box by the same
+            height this bar takes, so the two can never overlap regardless of
+            panel size. */}
         {isCmdSelf && (
           <div className="pp-cmd-focus-bar">
-            <span className="pp-cmd-focus-title">Commander damage you've received</span>
+            <span className="pp-cmd-focus-title">Damage received</span>
             <button
               type="button"
               className="pp-cmd-focus-done"
@@ -1327,7 +1360,7 @@ function PlayerPanel({
                 onCmdFocusExit();
               }}
             >
-              Return to game
+              Return
             </button>
           </div>
         )}
@@ -1345,36 +1378,12 @@ function PlayerPanel({
             isActiveTurn={isActiveTurn}
             isMonarch={isMonarch}
             isInitiative={isInitiative}
-          >
-            <SeatCounters
-              player={player}
-              game={game}
-              disabled={countersDisabled}
-              dispatch={dispatch}
-            />
-          </SeatMenu>
+          />
         )}
 
         {game.winnerSeat === player.seat && <div className="player-panel-winner-tag">Winner</div>}
         {player.eliminated && game.winnerSeat !== player.seat && (
           <div className="player-panel-eliminated-tag">Out</div>
-        )}
-
-        {keypadOpen && (
-          <LifeKeypad
-            playerName={player.name}
-            currentLife={player.life}
-            onConfirm={(value) => {
-              dispatch({
-                type: 'set-life',
-                seat: player.seat,
-                value,
-                actorSeat: player.seat,
-              });
-              setKeypadOpen(false);
-            }}
-            onClose={() => setKeypadOpen(false)}
-          />
         )}
       </section>
     </div>
@@ -1415,151 +1424,6 @@ const CommanderArt = memo(function CommanderArt({ name }: { name: string | null 
     />
   );
 });
-
-// ── Seat counters (inside the seat drawer) ─────────────────────────────────
-
-/**
- * The seat's counters: poison, plus whatever this table tracks by name. A
- * section of the seat drawer (see `SeatMenu`), which is why it has no cover,
- * heading bar or close of its own.
- *
- * Commander damage is NOT here — it's the board-level focus mode (see
- * `PlayerPanel`), which puts each opponent's damage on that opponent's own
- * seat instead of in a list.
- */
-function SeatCounters({
-  player,
-  game,
-  disabled,
-  dispatch,
-}: {
-  player: GamePlayer;
-  game: GameState;
-  disabled: boolean;
-  dispatch: (a: GameAction) => void;
-}) {
-  const [draft, setDraft] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const errorId = useId();
-  const headingId = useId();
-  const counters = Object.entries(seatCounters(player));
-  const atCap = counters.length >= MAX_COUNTERS_PER_SCOPE;
-  return (
-    <section className="pp-counters" aria-labelledby={headingId}>
-      <span id={headingId} className="seat-menu-label">
-        Counters
-      </span>
-      <div className="pp-counters-inner">
-        <div className="pp-counters-body">
-          {game.poisonEnabled && (
-            <CounterRow
-              label="☠ Poison"
-              value={player.poison}
-              disabled={disabled}
-              lethal={player.poison >= 10}
-              onChange={(d) =>
-                dispatch({ type: 'poison', seat: player.seat, delta: d, actorSeat: player.seat })
-              }
-            />
-          )}
-          {counters.map(([name, value]) => (
-            <CounterRow
-              key={name}
-              label={name}
-              value={value}
-              disabled={disabled}
-              lethal={false}
-              onChange={(d) =>
-                dispatch({
-                  type: 'counter',
-                  seat: player.seat,
-                  name,
-                  delta: d,
-                  actorSeat: player.seat,
-                })
-              }
-              onRemove={
-                disabled
-                  ? undefined
-                  : () =>
-                      dispatch({
-                        type: 'counter-remove',
-                        seat: player.seat,
-                        name,
-                        actorSeat: player.seat,
-                      })
-              }
-            />
-          ))}
-          {!game.poisonEnabled && counters.length === 0 && (
-            <p className="pp-counters-empty">
-              Nothing tracked yet. Add whatever this table counts.
-            </p>
-          )}
-        </div>
-        {!disabled &&
-          (atCap ? (
-            <p className="pp-counters-cap" role="status">
-              {MAX_COUNTERS_PER_SCOPE} counters is the limit. Remove one to add another.
-            </p>
-          ) : (
-            <form
-              className="pp-counters-add"
-              onSubmit={(e) => {
-                e.preventDefault();
-                let name: string;
-                try {
-                  name = normalizeCounterName(draft);
-                } catch {
-                  setError('Give the counter a name.');
-                  return;
-                }
-                if (name in seatCounters(player)) {
-                  setError(`${name} is already here.`);
-                  return;
-                }
-                // Delta 0 creates it at zero — the reducer has no separate
-                // "add" action precisely so this stays one dispatch.
-                dispatch({
-                  type: 'counter',
-                  seat: player.seat,
-                  name,
-                  delta: 0,
-                  actorSeat: player.seat,
-                });
-                setDraft('');
-                setError(null);
-              }}
-            >
-              <label className="pp-counters-add-field">
-                <span className="visually-hidden">New counter name</span>
-                <input
-                  className="pp-counters-add-input"
-                  value={draft}
-                  onChange={(e) => {
-                    setDraft(e.target.value);
-                    setError(null);
-                  }}
-                  maxLength={MAX_COUNTER_NAME_LENGTH}
-                  placeholder="Energy"
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? errorId : undefined}
-                />
-              </label>
-              <button type="submit" className="pp-counters-add-btn">
-                Add
-              </button>
-            </form>
-          ))}
-        {error && (
-          <p id={errorId} className="pp-counters-error" role="alert">
-            {error}
-          </p>
-        )}
-      </div>
-    </section>
-  );
-}
 
 /**
  * One commander's damage counter inside a split (Partner) panel. Each half is
@@ -1640,67 +1504,6 @@ function CmdSplitHalf({
     </div>
   );
 }
-
-function CounterRow({
-  label,
-  value,
-  disabled,
-  lethal,
-  onChange,
-  onRemove,
-}: {
-  label: string;
-  value: number;
-  disabled: boolean;
-  lethal: boolean;
-  onChange: (delta: number) => void;
-  /** Free-form counters can be deleted; poison is a rule and cannot. */
-  onRemove?: () => void;
-}) {
-  const tapHandlers = useTapAndHold({
-    onTap: onChange,
-    onHoldTick: (delta) => onChange(delta),
-    disabled,
-  });
-  return (
-    <div className={`counter-row ${lethal ? 'is-lethal' : ''}`}>
-      <span className="counter-row-label">{label}</span>
-      <div className="counter-row-controls">
-        <button
-          type="button"
-          className="counter-row-btn"
-          aria-label={`-1 ${label}`}
-          disabled={disabled}
-          {...tapHandlers(-1)}
-        >
-          −
-        </button>
-        <span className="counter-row-value">{value}</span>
-        <button
-          type="button"
-          className="counter-row-btn"
-          aria-label={`+1 ${label}`}
-          disabled={disabled}
-          {...tapHandlers(1)}
-        >
-          +
-        </button>
-        {onRemove && (
-          <button
-            type="button"
-            className="counter-row-remove"
-            aria-label={`Remove ${label}`}
-            onClick={onRemove}
-          >
-            <Trash2 width={14} height={14} aria-hidden />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Facing arrow (shared by SeatMenu + LayoutEditor) ───────────────────────
 
 // ── Color identity → CSS modifier ───────────────────────────────────────────
 

@@ -240,38 +240,116 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* ── Life keypad modal ── */
+/* ── Life keypad modal ──
+   A board-level dialog (Lotus's model): dims and covers the WHOLE board, not
+   one seat's panel, and rotates to face the seat it's for. This replaced the
+   old in-panel cover, which fit its ~160px of fixed chrome plus a digit grid
+   into whatever cell a seat happened to have — under ~300px tall or wide
+   (every seat of 4p-sides, the default four-player board, among others) that
+   collapsed to 2-16px keys. A board-level dialog is sized off the viewport
+   instead of any one seat's cell, so it's never that constrained. */
 
-.life-keypad {
-  /* In-panel cover (same model as counters / seat menu): fills the rotated
-     panel and expands from the centre where the life number sits, so it's
-     oriented to that seat on every layout. */
+.life-keypad-backdrop {
   position: absolute;
   inset: 0;
-  z-index: 6;
+  z-index: 20;
+  background: rgba(6, 8, 13, 0.74);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: pp-fade-in var(--motion-base) var(--ease-out-soft);
+}
+
+/* Centred via its own absolute position + transform, NOT flexbox centring —
+   layout (sizing, flex-shrink) happens in the UNROTATED local box model
+   before the `rotate()` in the transform is applied, so a flex parent read
+   a 90°/270° dialog's "local width" (deliberately the LARGER, viewport-
+   height-derived value, so it becomes the tall screen dimension after
+   rotating) against its own available WIDTH and shrank it to fit — measured
+   14px-wide digit keys, the exact crushing this dialog exists to fix.
+   Absolute positioning sizes purely from this element's own width/
+   max-height, with nothing to shrink it before the rotation swaps the axes
+   back to what actually fits the screen. */
+.life-keypad {
+  --keypad-w: min(94vw, 26rem);
+  --keypad-h: min(78vh, 32rem);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--keypad-w);
+  /* `height`, not only `max-height`: a flex column with no explicit height
+     sizes to its CONTENT (the sum of the head/display/grid/confirm rows'
+     own natural heights), so the digit grid's `1fr` row never actually grew
+     to use the room this box was given — measured 39-41px keys, just under
+     the 44px floor, even once the sizing-vs-parent-shrink bug above was
+     fixed. `height` makes the box the size this token actually names;
+     `max-height` stays as the same ceiling for a viewport too small to fit it. */
+  height: var(--keypad-h);
+  max-height: var(--keypad-h);
+  transform: translate(-50%, -50%) rotate(var(--keypad-rot, 0deg));
   color: #fff;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: 0.6rem 0.7rem;
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, var(--pp-edge, #4a5566) 70%, black 30%) 0%,
-    color-mix(in srgb, var(--pp-base, #2a3340) 92%, black 8%) 100%
-  );
-  clip-path: circle(150% at 50% 50%);
-  animation: pp-keypad-open var(--motion-base) var(--ease-out-soft);
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(150deg, #3f4a5c 0%, #1b1f28 100%);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  animation: pp-scale-in var(--motion-base) var(--ease-out-soft);
 }
 
-@keyframes pp-keypad-open {
-  from {
-    clip-path: circle(0% at 50% 50%);
-    opacity: 0.4;
-  }
-  to {
-    clip-path: circle(150% at 50% 50%);
-    opacity: 1;
-  }
+/* 90°/270°: the box is laid out in the swapped axes BEFORE rotating (its
+   width becomes the rotated height and vice versa), the same trick
+   `.player-panel[data-sideways]` uses, so it reads upright and un-clipped
+   for a player sitting at that side of the table. A row layout (display +
+   Set beside the digit grid) keeps every key well above the 44px floor even
+   at the narrowest supported viewport — a plain swapped column would leave
+   under 90px of height for four stacked digit rows. */
+.life-keypad[data-rot='90'],
+.life-keypad[data-rot='270'] {
+  width: var(--keypad-h);
+  height: var(--keypad-w);
+  max-height: var(--keypad-w);
+  display: grid;
+  /* The digit grid is 6 LOCAL columns (not rows — 12 keys / 6 columns = 2
+     rows), and after a 90°/270° rotation local columns become the SCREEN
+     height axis: each key's on-screen height is this outer grid's column-2
+     LOCAL WIDTH ÷ 6. `2fr` (a 1:2 split with the head/display/confirm
+     column) measured 36-41px — just under the 44px floor — so column 2
+     gets the bulk of the split instead. */
+  grid-template-columns: minmax(4.5rem, 1fr) 4fr;
+  grid-template-rows: auto 1fr auto;
+  /* The digit grid spans ALL THREE rows (not just display+confirm): with
+     head also sharing column 2, the grid's local WIDTH share was smaller
+     still. Giving it the full column measures comfortably over the floor. */
+  grid-template-areas:
+    'head grid'
+    'display grid'
+    'confirm grid';
+  column-gap: var(--space-3);
+}
+
+.life-keypad[data-rot='90'] .life-keypad-head,
+.life-keypad[data-rot='270'] .life-keypad-head {
+  grid-area: head;
+}
+
+.life-keypad[data-rot='90'] .life-keypad-display,
+.life-keypad[data-rot='270'] .life-keypad-display {
+  grid-area: display;
+  align-self: end;
+}
+
+.life-keypad[data-rot='90'] .life-keypad-grid,
+.life-keypad[data-rot='270'] .life-keypad-grid {
+  grid-area: grid;
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.life-keypad[data-rot='90'] .life-keypad-confirm,
+.life-keypad[data-rot='270'] .life-keypad-confirm,
+.life-keypad[data-rot='90'] .life-keypad-delta-row,
+.life-keypad[data-rot='270'] .life-keypad-delta-row {
+  grid-area: confirm;
 }
 
 @keyframes pp-fade-in {
@@ -361,74 +439,10 @@
 .life-keypad-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: 1fr;
-  gap: 0.4rem;
+  grid-auto-rows: minmax(44px, 1fr);
+  gap: var(--space-1);
   flex: 1 1 auto;
   min-height: 0;
-}
-
-/* Short panels. The column keypad's own chrome (head, display, Set, gaps,
-   padding) is ~160px, so on a panel under ~300px the 1fr digit rows collapsed
-   to 2px/16px and a tap on "5" landed on "Set life" (playtest batch 7 —
-   measured on every preset with .claude/tools/b7-keypad-layouts.mjs). The
-   cell is the size container, and a sideways panel's HEIGHT is the cell's
-   WIDTH (see .player-panel[data-sideways]), so the two shapes a short panel
-   comes in get two different layouts:
-
-   1. A sideways seat (every seat of 4p-sides and 2p-side on a phone) is a
-      410×183 panel — wide and short. The keypad becomes a row: display + Set
-      stacked on the left, a 6×2 digit grid on the right; measured 44×53 keys
-      on 4p-sides at 390px.
-   2. An upright 5p/6p cell (and 4p-wide-middle) is 183×271 — narrow AND
-      short, no room for a side column. The chrome tightens and the twelve keys
-      go 4 across × 3 down; measured 35×36 keys, the same density ruling the
-      36px dense rows carry. */
-@container (max-width: 300px) {
-  .player-panel[data-sideways] .life-keypad {
-    display: grid;
-    grid-template-columns: minmax(5rem, 1fr) 6fr;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'head head'
-      'display grid'
-      'confirm grid';
-    column-gap: var(--space-3);
-  }
-  .player-panel[data-sideways] .life-keypad-head {
-    grid-area: head;
-  }
-  .player-panel[data-sideways] .life-keypad-display {
-    grid-area: display;
-    align-self: end;
-    font-size: var(--text-2xl);
-  }
-  .player-panel[data-sideways] .life-keypad-grid {
-    grid-area: grid;
-    grid-template-columns: repeat(6, 1fr);
-    grid-auto-rows: minmax(40px, 1fr);
-  }
-  .player-panel[data-sideways] .life-keypad-confirm,
-  .player-panel[data-sideways] .life-keypad-delta-row {
-    grid-area: confirm;
-  }
-}
-
-@container (max-height: 300px) {
-  .player-panel:not([data-sideways]) .life-keypad {
-    gap: var(--space-1);
-    padding: var(--space-2) 0.7rem;
-  }
-  .player-panel:not([data-sideways]) .life-keypad-display {
-    font-size: var(--text-xl);
-    padding: 0;
-  }
-  .player-panel:not([data-sideways]) .life-keypad-grid {
-    grid-template-columns: repeat(4, 1fr);
-    grid-auto-rows: minmax(32px, 1fr);
-  }
-  .player-panel:not([data-sideways]) .life-keypad-confirm {
-    padding: 0.45rem 0;
-  }
 }
 
 .life-keypad-btn {
@@ -708,9 +722,9 @@
   .player-panel-life-num.is-pop,
   .player-panel.is-winner,
   .floating-delta,
+  .life-keypad-backdrop,
   .life-keypad {
     animation: none !important;
-    clip-path: none;
   }
   .player-panel {
     transition: none;
