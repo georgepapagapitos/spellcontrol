@@ -12,6 +12,7 @@ function seat(over: Partial<GameResultParticipant> & { seat: number }): GameResu
     deckId: null,
     deckName: null,
     commander: null,
+    partner: null,
     colorIdentity: [],
     finalLife: 40,
     eliminated: false,

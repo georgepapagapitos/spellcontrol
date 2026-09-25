@@ -1420,6 +1420,11 @@ export interface GameRecord {
     deckId: string | null;
     deckName: string | null;
     commander: string | null;
+    /** Second commander for a Partner pair. Optional: absent on a record
+     *  read back from a legacy row, which means "unknown", not "none". */
+    partner?: string | null;
+    /** Optional for the same reason as `partner` — absent on a legacy row. */
+    colorIdentity?: string[];
     finalLife: number;
     eliminated: boolean;
   }[];
@@ -1457,6 +1462,13 @@ export interface GameRecord {
   /** See `GameState.turnOrder`. Absent reads as `'clockwise'` wherever this
    *  is consumed — same as on `GameState` itself. */
   turnOrder?: TurnOrder;
+  /**
+   * The two rule toggles. Optional: absent on a record read back from a
+   * legacy row, which a rematch must infer (cmdr damage from format, poison
+   * off) rather than treat as "off" — an absent toggle is not a false one.
+   */
+  commanderDamageEnabled?: boolean;
+  poisonEnabled?: boolean;
 }
 
 export function gameToRecord(state: GameState, endedAt: number = Date.now()): GameRecord {
@@ -1472,6 +1484,8 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
       deckId: p.deckId,
       deckName: p.deckName,
       commander: p.commander,
+      partner: p.partner,
+      colorIdentity: p.colorIdentity,
       finalLife: p.life,
       eliminated: p.eliminated,
     })),
@@ -1480,6 +1494,8 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
     endedAt,
     durationMs: state.startedAt ? endedAt - state.startedAt : 0,
     mode: state.mode,
+    commanderDamageEnabled: state.commanderDamageEnabled,
+    poisonEnabled: state.poisonEnabled,
     ...(state.hostUserId !== null ? { hostUserId: state.hostUserId } : {}),
     summary: summarizeGame(state, endedAt),
     ...(state.coopOutcome !== undefined ? { coopOutcome: state.coopOutcome } : {}),

@@ -1734,6 +1734,20 @@ describe('gameToRematch / recordToRematch', () => {
     expect(t.players.map((p) => p.name)).toEqual(['Host', 'Guest']);
   });
 
+  it('gameToRematch carries partner and colorIdentity per seat', () => {
+    const game = makeOnlineGame(1);
+    const withPartner = applyAction(game, {
+      type: 'update-player',
+      seat: 1,
+      patch: { partner: 'Silas Renn', colorIdentity: ['U', 'B'] },
+    });
+    const t = gameToRematch(withPartner);
+    expect(t.players[0].partner).toBeNull();
+    expect(t.players[0].colorIdentity).toEqual([]);
+    expect(t.players[1].partner).toBe('Silas Renn');
+    expect(t.players[1].colorIdentity).toEqual(['U', 'B']);
+  });
+
   it('gameToRematch carries turnOrder, including a counterclockwise table', () => {
     const cw = makeOnlineGame(1);
     expect(gameToRematch(cw).turnOrder).toBeUndefined();
@@ -1824,6 +1838,42 @@ describe('gameToRematch / recordToRematch', () => {
     expect(t.commanderDamageEnabled).toBe(true);
     expect(t.poisonEnabled).toBe(false);
     expect(t.players[0].colorIdentity).toEqual([]);
+    expect(t.players[0].partner).toBeNull();
+  });
+
+  it('recordToRematch carries the rule toggles, partner and colorIdentity forward when the record has them', () => {
+    const rec: GameRecord = {
+      id: 'g',
+      code: '',
+      format: 'commander',
+      startingLife: 40,
+      mode: 'local',
+      startedAt: 1,
+      endedAt: 2,
+      durationMs: 1,
+      winnerSeat: 0,
+      commanderDamageEnabled: false,
+      poisonEnabled: true,
+      players: [
+        {
+          seat: 0,
+          userId: null,
+          name: 'A',
+          deckId: 'd1',
+          deckName: 'D1',
+          commander: 'Cmd',
+          partner: 'Silas Renn',
+          colorIdentity: ['U', 'B'],
+          finalLife: 1,
+          eliminated: false,
+        },
+      ],
+    };
+    const t = recordToRematch(rec);
+    expect(t.commanderDamageEnabled).toBe(false);
+    expect(t.poisonEnabled).toBe(true);
+    expect(t.players[0].partner).toBe('Silas Renn');
+    expect(t.players[0].colorIdentity).toEqual(['U', 'B']);
   });
 
   it('recordToRematch leaves commander damage off for non-commander formats', () => {

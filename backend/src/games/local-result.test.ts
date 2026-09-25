@@ -66,3 +66,31 @@ describe('parseLocalResult turnOrder', () => {
     if (r.ok) expect(r.state.turnOrder).toBeUndefined();
   });
 });
+
+describe('parseLocalResult rule toggles + partner', () => {
+  it('carries commanderDamageEnabled/poisonEnabled and a seat’s partner + colorIdentity into state', () => {
+    const body = game(2);
+    (body.game as Record<string, unknown>).commanderDamageEnabled = false;
+    (body.game as Record<string, unknown>).poisonEnabled = true;
+    (body.game.players[0] as Record<string, unknown>).partner = 'Silas Renn';
+    (body.game.players[0] as Record<string, unknown>).colorIdentity = ['u', 'b'];
+    const r = parseLocalResult(body);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.commanderDamageEnabled).toBe(false);
+    expect(r.state.poisonEnabled).toBe(true);
+    expect(r.state.players[0].partner).toBe('Silas Renn');
+    expect(r.state.players[0].colorIdentity).toEqual(['U', 'B']);
+    expect(r.state.players[1].partner).toBeNull();
+  });
+
+  it('defaults the toggles to on/off and partner to null when absent', () => {
+    const r = parseLocalResult(game(2));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.commanderDamageEnabled).toBe(true);
+    expect(r.state.poisonEnabled).toBe(false);
+    expect(r.state.players[0].partner).toBeNull();
+    expect(r.state.players[0].colorIdentity).toEqual([]);
+  });
+});

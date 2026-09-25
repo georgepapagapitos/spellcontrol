@@ -115,6 +115,7 @@ function serverCopy(game: GameState, recordedBy = 'me'): PublicGameResult {
       deckId: p.deckId,
       deckName: p.deckName,
       commander: p.commander,
+      partner: p.partner,
       colorIdentity: p.colorIdentity,
       finalLife: p.life,
       eliminated: p.eliminated,

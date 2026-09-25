@@ -169,4 +169,39 @@ describe('persistGameResult — notable_events', () => {
     ]);
     expect(Number(count.rows[0].n)).toBe(1);
   });
+
+  it('persists the rule toggles and each seat’s partner + colorIdentity from an ONLINE game', async () => {
+    await makeUser('pr-toggles-a');
+    await makeUser('pr-toggles-b');
+    const aId = await userId('pr-toggles-a');
+    const bId = await userId('pr-toggles-b');
+    let state = finishedState({
+      id: 'pr-toggles-session',
+      events: [],
+      winnerSeat: 0,
+      playerUserIds: [aId, bId],
+    });
+    state = {
+      ...state,
+      commanderDamageEnabled: false,
+      poisonEnabled: true,
+      players: state.players.map((p, i) =>
+        i === 1 ? { ...p, partner: 'Silas Renn', colorIdentity: ['U', 'B'] } : p
+      ),
+    };
+
+    await persistGameResult(state, pool);
+
+    const row = (
+      await pool.query(
+        `SELECT commander_damage_enabled, poison_enabled, participants FROM game_results WHERE session_id = $1`,
+        ['pr-toggles-session']
+      )
+    ).rows[0];
+    expect(row.commander_damage_enabled).toBe(false);
+    expect(row.poison_enabled).toBe(true);
+    expect(row.participants[0].partner).toBeNull();
+    expect(row.participants[1].partner).toBe('Silas Renn');
+    expect(row.participants[1].colorIdentity).toEqual(['U', 'B']);
+  });
 });

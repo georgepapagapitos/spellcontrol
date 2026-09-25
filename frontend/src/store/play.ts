@@ -168,10 +168,11 @@ export function recordToRematch(rec: GameRecord): RematchTemplate {
   return {
     format: rec.format,
     startingLife: rec.startingLife,
-    // Records don't store the rule toggles; infer cmdr damage from format and
-    // leave poison off (the host can flip it in the game menu if needed).
-    commanderDamageEnabled: rec.format === 'commander',
-    poisonEnabled: false,
+    // A record written before the toggles were persisted has nothing to
+    // carry (undefined) — fall back to inferring cmdr damage from format and
+    // leaving poison off, exactly the old behaviour.
+    commanderDamageEnabled: rec.commanderDamageEnabled ?? rec.format === 'commander',
+    poisonEnabled: rec.poisonEnabled ?? false,
     // A record written before turnOrder was persisted (or an explicitly
     // clockwise table) carries it as undefined — a rematch from that history
     // starts clockwise; the host can flip it again in a fresh setup.
@@ -182,10 +183,11 @@ export function recordToRematch(rec: GameRecord): RematchTemplate {
       deckId: p.deckId,
       deckName: p.deckName,
       commander: p.commander,
-      // GameRecord doesn't persist the second commander, so a rematch from
-      // history starts partner-less; picking the deck again restores it.
-      partner: null,
-      colorIdentity: [],
+      // A record written before partner was persisted carries it as
+      // undefined — a rematch from that history starts partner-less;
+      // picking the deck again restores it.
+      partner: p.partner ?? null,
+      colorIdentity: p.colorIdentity ?? [],
     })),
   };
 }

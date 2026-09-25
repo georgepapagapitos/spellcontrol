@@ -887,6 +887,15 @@ export const gameResults = pgTable(
      * consumed, matching `GameState.turnOrder`'s own convention.
      */
     turnOrder: text('turn_order').$type<'clockwise' | 'counterclockwise' | null>(),
+    /**
+     * The two rule toggles the table played with, straight off
+     * `GameState.commanderDamageEnabled`/`poisonEnabled`. Null only for a row
+     * recorded before these columns existed — every row written since always
+     * carries a real boolean, since those `GameState` fields are required,
+     * never absent on a live game.
+     */
+    commanderDamageEnabled: boolean('commander_damage_enabled'),
+    poisonEnabled: boolean('poison_enabled'),
   },
   (t) => ({
     endedIdx: index('game_results_ended_idx').on(t.endedAt),

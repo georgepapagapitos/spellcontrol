@@ -27,6 +27,10 @@ export interface GameResultRow {
   hordeId: string | null;
   /** Which way the table sat. Null when the state never set it (clockwise). */
   turnOrder: 'clockwise' | 'counterclockwise' | null;
+  /** The two rule toggles, straight off `GameState` (always a real boolean —
+   *  see `GameResultParticipant`'s doc for why this is never null on write). */
+  commanderDamageEnabled: boolean | null;
+  poisonEnabled: boolean | null;
 }
 
 /**
@@ -64,6 +68,7 @@ export async function buildGameResultRow(
     deckId: p.deckId,
     deckName: p.deckName,
     commander: p.commander,
+    partner: p.partner ?? null,
     colorIdentity: p.colorIdentity ?? [],
     finalLife: p.life,
     eliminated: p.eliminated,
@@ -103,6 +108,8 @@ export async function buildGameResultRow(
     coopOutcome: state.coopOutcome ?? null,
     hordeId: state.hordeId ?? null,
     turnOrder: state.turnOrder ?? null,
+    commanderDamageEnabled: state.commanderDamageEnabled,
+    poisonEnabled: state.poisonEnabled,
   };
 }
 
@@ -117,8 +124,9 @@ export async function insertGameResult(row: GameResultRow, pool: Pool): Promise<
     `INSERT INTO game_results
        (session_id, code, format, starting_life, winner_seat, winner_user_id,
         started_at, ended_at, duration_ms, participants, notable_events, summary, created_at,
-        mode, recorded_by_user_id, host_user_id, coop_outcome, horde_id, turn_order)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+        mode, recorded_by_user_id, host_user_id, coop_outcome, horde_id, turn_order,
+        commander_damage_enabled, poison_enabled)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
      ON CONFLICT (session_id) DO NOTHING`,
     [
       row.sessionId,
@@ -140,6 +148,8 @@ export async function insertGameResult(row: GameResultRow, pool: Pool): Promise<
       row.coopOutcome,
       row.hordeId,
       row.turnOrder,
+      row.commanderDamageEnabled,
+      row.poisonEnabled,
     ]
   );
   return (res.rowCount ?? 0) > 0;
