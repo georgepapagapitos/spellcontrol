@@ -270,6 +270,15 @@
  */
 .player-panel {
   --seam-keepout: 0.9rem;
+  /* E416: every board numeral (life, ± glyphs, burst count, commander-damage
+     values, High Roll) reads Bebas Neue — condensed, single weight 400,
+     tabular figures — self-hosted in play-fonts.css, loaded only by this
+     chunk. One token so the family lives in one place; --life-size above is
+     the other half of the same contract (tuned together, not twice). Falls
+     back to the app's own mono face. Weight 400 everywhere it's used: it's
+     the only weight this face has, and a heavier request would synthesize a
+     smeared faux-bold. */
+  --font-numeral: 'Bebas Neue', var(--font-mono);
   /* The life numeral is sized from the panel's own box, not the viewport, so
      it fills whatever cell a layout hands it — at any player count, on any
      screen. The cell is the size container; a sideways panel reads it with
@@ -324,18 +333,23 @@
    left room for a fixed ~23px-tall label at this cell height. Condensing the
    name here — smaller, tighter line, a shorter host-icon gap — clears every
    seat of every 7-10p preset at 320x568, 390x844 and 430x932 (every clock
-   state) while raising the numeral a touch on the worst cells (30 -> 32cqh,
-   27px -> 29px at 90px, clearing the ~28px 2-digit legibility floor).
-   Measured with `.claude/tools/life-board-probe.mjs`. */
+   state).
+   Bebas Neue swap: condensed digits free up the width axis (38cqh, 55cqw —
+   only this tier's ceiling moved; the other tiers stayed at 38, since
+   growing them further wasn't needed and did cost 5p/6p a new overlap when
+   tried), so height is now the binding limit everywhere in this tier. The
+   worst 90px cell rose 29 -> 34px (was 27px pre-E416); the name shrank
+   further (0.7 -> 0.6 * --text-xs, gap 0.1 -> 0.05rem) to hold zero overlap
+   at the bigger numeral. Measured with `.claude/tools/life-board-probe.mjs`. */
 @container (max-height: 9.5rem) {
   .game-board:not(.game-board-2) .player-panel:not([data-sideways]) {
-    --life-size: min(32cqh, 38cqw);
+    --life-size: min(38cqh, 55cqw);
   }
 
   .game-board:not(.game-board-2) .player-panel:not([data-sideways]) .player-panel-name {
-    font-size: calc(var(--text-xs) * 0.7);
+    font-size: calc(var(--text-xs) * 0.6);
     line-height: 1;
-    gap: 0.1rem;
+    gap: 0.05rem;
   }
 }
 
@@ -558,8 +572,10 @@
 .player-panel-life {
   /* Life numeral dominates the panel — sized to fill, with step buttons
      pushed to the outer edges so they read as accents, not equals. */
+  font-family: var(--font-numeral);
   font-size: calc(var(--life-size) * var(--life-scale, 1));
-  font-weight: 900;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
   line-height: 0.9;
   color: var(--pp-ink);
   text-shadow:
@@ -607,8 +623,9 @@
   padding: 0.1rem 0.6rem;
   font-size: calc(var(--life-size) * 0.32);
   line-height: 0.9;
-  font-weight: 900;
-  font-family: var(--font-mono);
+  font-weight: 400;
+  font-family: var(--font-numeral);
+  font-variant-numeric: tabular-nums;
   letter-spacing: -0.04em;
   flex: 0 0 auto;
   transition:

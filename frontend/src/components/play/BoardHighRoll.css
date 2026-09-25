@@ -30,9 +30,13 @@
   /* Reads like a life total, because it's sized off the same custom property
      the seat's own life numeral uses (`.player-panel`'s `--life-size`,
      play-board.css) — the overlay lives inside that panel, so it inherits
-     the same per-player-count, short-panel-tier-aware value for free. */
+     the same per-player-count, short-panel-tier-aware value for free.
+     `--font-numeral` (also `.player-panel`, E416) is the same inherited-token
+     trick, so the rolled number matches every other board numeral. */
+  font-family: var(--font-numeral);
   font-size: var(--life-size);
-  font-weight: 700;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 

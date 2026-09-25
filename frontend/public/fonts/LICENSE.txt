@@ -6,3 +6,4 @@ by Google Fonts.
   Marcellus       Copyright 2012 Astigmatic (AOETI). Reserved Font Name "Marcellus".
   Archivo Narrow  Copyright 2012 Omnibus-Type. Reserved Font Name "Archivo Narrow".
   IBM Plex Mono   Copyright 2017 IBM Corp. Reserved Font Name "Plex".
+  Bebas Neue      Copyright 2010 by Dharma Type.

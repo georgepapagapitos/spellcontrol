@@ -7390,6 +7390,31 @@ reading a life total from across the table, and every ruling below serves it.
   the height; a short panel (under 10rem across a sideways seat, 12rem tall
   upright) drops to ~40%, because the 44px corner chips are fixed-size and a
   percentage alone runs the digits into them.
+- **Every board numeral is Bebas Neue, tabular, self-hosted (E416).** The
+  life total, the ± step glyphs, the burst count, the commander-damage split
+  values and the High Roll value all read the same face via one token
+  (`--font-numeral` on `.player-panel`) — never set the family per element.
+  Condensed on purpose: it's the Lotus-like look (tall, narrow digits) that
+  fits a big total into a short 7-10p seat, the same job `--life-size`'s
+  short-cell tiers already do — an earlier pick (Rubik, wide) fought that
+  goal instead of serving it. Single weight 400 (Bebas Neue's only weight —
+  requesting heavier would synthesize a smeared faux-bold) and
+  `font-variant-numeric: tabular-nums` so a total doesn't shift its siblings
+  as it changes (verified: without it, digit advance ranges 33.7-45.4px at a
+  fixed size; with it, every digit is 40px). Self-hosted (OFL,
+  `public/fonts/bebas-neue-400-latin.woff2`) and loaded only by the
+  play-board chunk's own stylesheet (`play-fonts.css`, imported by
+  `PlayPage.tsx`), so a visitor who never opens a game never fetches it.
+  Because the face is condensed, the width axis is cheap: the 7-10p
+  short-cell tier's width ceiling loosened (38 → 55cqw) and its height share
+  grew (32 → 38cqh) so height, not width, is what actually caps the numeral
+  there now — the worst 320px cell (10p) rose 27px (pre-E416) → 29px (Rubik)
+  → 34px. The other tiers (default, 2p, the two sideways-short ones) kept
+  their original 38 ceiling: raising them the same way grew 5p/6p's numeral
+  enough to newly collide with their (un-condensed) name, for no growth this
+  font swap actually needed — measured, not assumed. `play-numeral-font.test.ts`
+  pins the family, the weight and `font-variant-numeric: tabular-nums` on
+  every one of those five selectors.
 - **The ± hug the numeral at every count.** Pinned to the panel ends they sat
   on a sideways seat's corner controls.
 - **Ink is black or white per seat, whichever reads better.** White everywhere

@@ -14,8 +14,11 @@
   margin: 0;
   cursor: pointer;
   color: inherit;
-  font-family: inherit;
-  font-weight: inherit;
+  /* E416: NOT font-family: inherit — that beat `.player-panel-life`'s own
+     font-family (same element, both classes, later file wins the cascade
+     tie) and silently kept the numeral on the mono fallback instead of
+     Bebas Neue. `.player-panel-life` already owns this element's
+     font-family directly; nothing here needs to reset it. */
   letter-spacing: inherit;
   line-height: 1;
   pointer-events: auto;
@@ -155,11 +158,12 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  font-family: var(--font-mono);
+  font-family: var(--font-numeral);
+  font-variant-numeric: tabular-nums;
   /* Sits at ~85% of the button glyph — same family/weight, just slightly
      smaller so the +/− still reads as the primary character. */
   font-size: calc(0.85em);
-  font-weight: 900;
+  font-weight: 400;
   line-height: 1;
   letter-spacing: -0.03em;
   white-space: nowrap;

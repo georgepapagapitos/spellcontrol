@@ -130,7 +130,7 @@ describe('numeral size', () => {
     // which silently left it in the 12rem tier with no name-condensing
     // (E416) — see the CSS comment for the measured overlap this closed.
     expect(board).toMatch(
-      /@container \(max-height: 9\.5rem\) \{\s*\.game-board:not\(\.game-board-2\) \.player-panel:not\(\[data-sideways\]\) \{\s*--life-size: min\(32cqh, 38cqw\);/
+      /@container \(max-height: 9\.5rem\) \{\s*\.game-board:not\(\.game-board-2\) \.player-panel:not\(\[data-sideways\]\) \{\s*--life-size: min\(38cqh, 55cqw\);/
     );
   });
 
@@ -148,7 +148,7 @@ describe('numeral size', () => {
     expect(tier).toContain(
       '.game-board:not(.game-board-2) .player-panel:not([data-sideways]) .player-panel-name {'
     );
-    expect(tier).toMatch(/font-size:\s*calc\(var\(--text-xs\) \* 0\.7\)/);
+    expect(tier).toMatch(/font-size:\s*calc\(var\(--text-xs\) \* 0\.6\)/);
   });
 
   it('the same short-cell tier also shrinks the designation chip rail (Monarch/Initiative/Up next)', () => {
