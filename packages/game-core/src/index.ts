@@ -691,8 +691,13 @@ export type GameAction =
    * survivor (not eliminated, connected) is done: advances the setup-turn
    * counter, or — once setup is over — appends the log's next `reveal` step
    * and starts the horde's turn.
+   *
+   * `force` is "Start without them": a survivor who is done ends the team
+   * turn without waiting for the rest (a teammate who is connected but away).
+   * Only meaningful with `done: true`; it is the one way to move a setup turn
+   * on without everyone, since `horde-step reveal` is for the horde's turn.
    */
-  | { type: 'horde-done'; actorSeat: number; done: boolean; ts?: number }
+  | { type: 'horde-done'; actorSeat: number; done: boolean; force?: boolean; ts?: number }
   /**
    * Append one step to the horde's replayable log. `at` is the index this
    * step expects to land at (`horde.steps.length` when it was dispatched) —
@@ -1581,8 +1586,8 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       const activeSurvivors = prev.players.filter((p) => !p.eliminated && p.connected);
       const allDone =
         action.done &&
-        activeSurvivors.length > 0 &&
-        activeSurvivors.every((p) => doneSet.has(p.seat));
+        (action.force === true ||
+          (activeSurvivors.length > 0 && activeSurvivors.every((p) => doneSet.has(p.seat))));
 
       if (allDone && horde.survivorTurn < horde.settings.setupTurns) {
         // Setup turn over — just advance; the horde hasn't taken a turn yet.

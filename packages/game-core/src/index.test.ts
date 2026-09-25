@@ -1455,6 +1455,24 @@ describe('horde mode', () => {
     expect(s.horde!.phase).toBe('reveal');
   });
 
+  it('horde-done with force ends the team turn without waiting (setup and horde turn)', () => {
+    let s = startedHorde(2, { setupTurns: 2 });
+    s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true, force: true });
+    expect(s.horde!.survivorTurn).toBe(2);
+    expect(s.horde!.hordeTurn).toBe(0);
+    s = applyAction(s, { type: 'horde-done', actorSeat: 1, done: true, force: true });
+    expect(s.horde!.phase).toBe('reveal');
+    expect(s.horde!.hordeTurn).toBe(1);
+    expect(s.horde!.steps[0]).toMatchObject({ k: 'reveal', seat: 1 });
+  });
+
+  it('force on an un-mark is ignored', () => {
+    let s = startedHorde(2, { setupTurns: 0 });
+    s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: false, force: true });
+    expect(s.horde!.phase).toBe('survivors');
+    expect(s.horde!.done).toEqual([]);
+  });
+
   it('un-marking done removes the seat from done', () => {
     let s = startedHorde(2);
     s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
