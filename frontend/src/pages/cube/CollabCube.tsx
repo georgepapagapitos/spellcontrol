@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StackedBar } from '../../components/shared/MeterBar';
 import { CardPreview } from '../../components/CardPreview';
 import { useCollectionStore } from '../../store/collection';
@@ -16,7 +16,8 @@ import { ensureCardTags, getCardTags } from '../../lib/card-tags';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { CubeSize } from '../../lib/cube/targets';
-import { generateCube, GeneratedCube } from '../../lib/cube/generate';
+import { GeneratedCube } from '../../lib/cube/generate';
+import { generateCubeAsync, type CubeProgress } from '../../lib/cube/generate-async';
 import { synergyTags } from '../../lib/cube/synergy-tags';
 import { toCubeCobraList } from '../../lib/cube/format';
 import { listFriends, Friend } from '../../lib/friends-client';
@@ -76,6 +77,11 @@ export function CollabCube() {
     null
   );
   const [cube, setCube] = useState<GeneratedCube | null>(null);
+  // Determinate progress for the refiner's hill-climb phase; null until it
+  // actually starts (mirrors BuildCube — see generate-async.ts).
+  const [refineProgress, setRefineProgress] = useState<CubeProgress | null>(null);
+  const genAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => genAbort.current?.abort(), []);
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
   const [supplierMap, setSupplierMap] = useState<Map<string, string[]>>(new Map());
 
@@ -125,9 +131,13 @@ export function CollabCube() {
 
   const generate = useCallback(async () => {
     if (selectedIds.size === 0) return;
+    genAbort.current?.abort();
+    const controller = new AbortController();
+    genAbort.current = controller;
     setStatus('working');
     setError('');
     setFetchProgress(null);
+    setRefineProgress(null);
     setFailedFriends([]);
     setCube(null);
     // Drop the previous run's preview art so the picks effect refires for the
@@ -215,10 +225,21 @@ export function CollabCube() {
       const { pool, supplierMap: sm } = mergePools(myPool, myUsername, enrichedFriendCollections);
       setSupplierMap(sm);
 
-      const newCube = generateCube(pool, size, { synergyLevel, format: FORMAT });
+      const newCube = await generateCubeAsync(
+        pool,
+        size,
+        { synergyLevel, format: FORMAT },
+        {
+          onProgress: setRefineProgress,
+          signal: controller.signal,
+        }
+      );
       setCube(newCube);
       setStatus('done');
     } catch (e) {
+      // Superseded by a newer build (or the page unmounted) — that run owns
+      // status now, so this one leaves it alone rather than surfacing an error.
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       setError(userMessage(e, "Couldn't build the collaborative cube. Try again."));
       setStatus('error');
     }
@@ -399,6 +420,7 @@ export function CollabCube() {
         {status === 'working' && (
           <CubeLoadingBlock
             fetchProgress={fetchProgress}
+            refineProgress={refineProgress}
             lookupLabel="Looking up cards"
             finalizingLabel="Pooling collections and balancing the cube…"
           />

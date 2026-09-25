@@ -15,6 +15,7 @@ import type { GeneratedCube } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
+import type { CubeProgress } from '../../lib/cube/generate-async';
 
 // Bucket display order, names, and segment colors for the balance bars.
 export const BUCKET_ORDER: ColorBucket[] = [
@@ -364,44 +365,62 @@ export function AvailableToggle({
 }
 
 /**
- * The cube generation progress block: a determinate Scryfall-lookup bar while
- * `fetchProgress` is set, otherwise an indeterminate skeleton + finalizing line.
- * `lookupLabel` names the determinate phase (omit for modes with no per-card
+ * The cube generation progress block, three phases in order: a determinate
+ * Scryfall-lookup bar (`fetchProgress`), a determinate "Balancing the cube"
+ * bar while the refiner runs (`refineProgress` — only set when the synergy
+ * slider engaged it), else an indeterminate skeleton + finalizing line.
+ * `lookupLabel` names the lookup phase (omit for modes with no per-card
  * progress, e.g. import).
  */
 export function CubeLoadingBlock({
   fetchProgress,
+  refineProgress,
   lookupLabel = 'Looking up cards',
   finalizingLabel,
 }: {
   fetchProgress: { fetched: number; total: number } | null;
+  refineProgress?: CubeProgress | null;
   lookupLabel?: string;
   finalizingLabel: string;
 }) {
+  const phase = fetchProgress !== null ? 'lookup' : refineProgress ? 'refine' : 'finalizing';
   return (
     <div className="cube-loading" role="status" aria-busy="true">
-      {fetchProgress !== null ? (
+      {phase === 'lookup' && (
         <div className="cube-progress">
           <MeterBar
-            value={fetchProgress.fetched}
-            max={fetchProgress.total}
+            value={fetchProgress!.fetched}
+            max={fetchProgress!.total}
             size="md"
             role="progressbar"
             label={lookupLabel}
           />
           <p className="cube-loading-text">
-            {lookupLabel}… {fetchProgress.fetched.toLocaleString()} /{' '}
-            {fetchProgress.total.toLocaleString()}
+            {lookupLabel}… {fetchProgress!.fetched.toLocaleString()} /{' '}
+            {fetchProgress!.total.toLocaleString()}
           </p>
         </div>
-      ) : (
+      )}
+      {phase === 'refine' && (
+        <div className="cube-progress">
+          <MeterBar
+            value={refineProgress!.pass}
+            max={refineProgress!.maxIter}
+            size="md"
+            role="progressbar"
+            label="Balancing the cube"
+          />
+          <p className="cube-loading-text">Balancing the cube…</p>
+        </div>
+      )}
+      {phase === 'finalizing' && (
         <div className="cube-skeleton">
           <div className="deck-analysis-skeleton-bar is-headline" />
           <div className="deck-analysis-skeleton-bar is-body" />
           <div className="deck-analysis-skeleton-bar is-body is-short" />
         </div>
       )}
-      {fetchProgress === null && <p className="cube-loading-text">{finalizingLabel}</p>}
+      {phase === 'finalizing' && <p className="cube-loading-text">{finalizingLabel}</p>}
     </div>
   );
 }

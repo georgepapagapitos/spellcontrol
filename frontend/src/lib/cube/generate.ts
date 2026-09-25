@@ -71,6 +71,11 @@ export interface CubeGenOptions {
    * (filterPool leaves the ineligible cards out before they get here).
    */
   format?: CubeFormat;
+  /**
+   * Per-pass progress from the refiner (only fires when `synergyLevel > 0`).
+   * A side channel for the loading UI — never affects the generated cube.
+   */
+  onProgress?: (pass: number, maxIter: number) => void;
 }
 
 const BUCKETS: ColorBucket[] = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
@@ -439,7 +444,8 @@ export function generateCube(
       band,
       size,
       synergyLevel,
-      totals
+      totals,
+      options?.onProgress
     );
     finalPicks = refined.picks;
     finalByBucket = refined.byBucket;

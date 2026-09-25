@@ -32,7 +32,8 @@ import { ensureCardTags, getCardTags, useCardTagsReady } from '../../lib/card-ta
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { CubeSize, sizeInfo, ColorBucket, provenance } from '../../lib/cube/targets';
-import { generateCube, GeneratedCube } from '../../lib/cube/generate';
+import { GeneratedCube } from '../../lib/cube/generate';
+import { generateCubeAsync, type CubeProgress } from '../../lib/cube/generate-async';
 import { toCubeCobraList } from '../../lib/cube/format';
 import { Ownership } from '../../lib/cube/import';
 import {
@@ -78,6 +79,15 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   const [fetchProgress, setFetchProgress] = useState<{ fetched: number; total: number } | null>(
     null
   );
+  // Determinate progress for the refiner's hill-climb phase (relayed from the
+  // generation worker); null until the refiner actually starts (synergyLevel 0
+  // never runs it, so this stays null and the loading block falls back to the
+  // skeleton).
+  const [refineProgress, setRefineProgress] = useState<CubeProgress | null>(null);
+  // Cancels a superseded build (a second click, or leaving the page) so its
+  // eventual result can't land after a newer one already has.
+  const genAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => genAbort.current?.abort(), []);
   const cube = cubeStore.result;
   const saved = cubeStore.saved;
   // The saved cube the working result IS (null = a fresh, unsaved build).
@@ -113,9 +123,13 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   );
 
   const generate = useCallback(async () => {
+    genAbort.current?.abort();
+    const controller = new AbortController();
+    genAbort.current = controller;
     setStatus('working');
     setError('');
     setFetchProgress(null);
+    setRefineProgress(null);
     // Drop the previous run's preview art so the picks effect refires for the
     // NEW picks — it's gated on an empty map.
     setEnrichedMap(new Map());
@@ -136,10 +150,18 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
       // Fetch phase complete — clear progress so we show the "finalizing" skeleton.
       setFetchProgress(null);
       const pool = namesToCubePool(names, collectionCards, enriched);
-      const newCube = generateCube(pool, size, { synergyLevel, format: filters.format });
+      const newCube = await generateCubeAsync(
+        pool,
+        size,
+        { synergyLevel, format: filters.format },
+        { onProgress: setRefineProgress, signal: controller.signal }
+      );
       cubeStore.setResult(size, newCube);
       setStatus('done');
     } catch (e) {
+      // Superseded by a newer build (or the page unmounted) — that run owns
+      // status now, so this one leaves it alone rather than surfacing an error.
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       setError(userMessage(e, "Couldn't build the cube. Try again."));
       setStatus('error');
     }
@@ -386,6 +408,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
         {status === 'working' && (
           <CubeLoadingBlock
             fetchProgress={fetchProgress}
+            refineProgress={refineProgress}
             lookupLabel="Looking up your cards"
             finalizingLabel="Selecting your best cards and balancing the cube…"
           />

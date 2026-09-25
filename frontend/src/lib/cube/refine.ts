@@ -159,7 +159,12 @@ export function refineCube(
   /** "Best cards ↔ Synergy" — how much of the objective sits on archetype depth. */
   synergyLevel = 1,
   /** Cube-level role ceilings (the corpus-median quotas); a role at its cap admits no swap-in. */
-  roleCap: Partial<Record<Role, number>> = {}
+  roleCap: Partial<Record<Role, number>> = {},
+  /**
+   * Optional per-pass progress hook (worker relay for the loading UI). A pure
+   * side effect — never read back, so it can't change the climb's output.
+   */
+  onProgress?: (pass: number, maxIter: number) => void
 ): RefineResult {
   const basis = computePowerBasis(pool);
   const power = (c: CubeCard) => rawPower(c, basis);
@@ -184,6 +189,7 @@ export function refineCube(
 
   const MAX_ITER = Math.min(2 * size, 720);
   for (let iter = 0; iter < MAX_ITER; iter++) {
+    onProgress?.(iter, MAX_ITER);
     scored = scoreCube(picks, pool, band, size, basis, synergyLevel);
     const axisScore = new Map(scored.axes.map((a) => [a.axis, a.score]));
     // Weakest-supported draftable axis first (absent from the cube = 0);
