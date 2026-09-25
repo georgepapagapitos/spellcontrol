@@ -1,10 +1,11 @@
 import { Archetype } from '@/deck-builder/types';
-import type { ScryfallCard, ThemeResult } from '@/deck-builder/types';
+import type { ArchetypeProvenance, ScryfallCard, ThemeResult } from '@/deck-builder/types';
+import type { DeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import type { CommanderProfile } from './commanderProfile';
 import type { CurveSlot } from './deckAnalyzer';
 import { inferArchetype } from './roleTargets';
 import { detectPacing, type Pacing } from './pacingDetector';
-import { ARCHETYPE_LABEL } from './strategyVocabulary';
+import { ARCHETYPE_LABEL, THEME_TO_ARCHETYPE } from './strategyVocabulary';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 
 /**
@@ -75,6 +76,45 @@ function pickArchetype(profile: CommanderProfile, selectedThemes: ThemeResult[])
   return inferArchetype(selectedThemes, profile.primaryArchetype);
 }
 
+/**
+ * The archetype a decisive engine implies, or undefined when none clearly
+ * leads. Decisive means the busiest axis is a real engine (invested: enough
+ * cards, producers and payoffs both present) and at least twice the size of
+ * the next one. An engine whose axis only maps to Goodstuff or Midrange says
+ * nothing sharper than the fallback, so it doesn't count either.
+ */
+export function engineArchetype(synergy: DeckSynergy): Archetype | undefined {
+  const [top, next] = synergy.axes;
+  if (!top || !synergy.invested.includes(top.axis)) return undefined;
+  // ponytail: a flat 2x lead; tune against real decks if a mixed build flips.
+  if (next && next.total * 2 > top.total) return undefined;
+  const archetype = THEME_TO_ARCHETYPE[top.axis];
+  return archetype && archetype !== Archetype.GOODSTUFF && archetype !== Archetype.MIDRANGE
+    ? archetype
+    : undefined;
+}
+
+/**
+ * The archetype a deck shows on Auto. Precedence: the owner's pick; a theme
+ * the owner chose at generation; the deck's own decisive engine; the
+ * generator's EDHREC read; and, for a deck with none of those, the commander
+ * guess inside `deriveDeckIdentity`. The engine outranks the generator's read
+ * because it counts the cards actually in the list: a Sram deck whose EDHREC
+ * themes split three ways (Equipment, Voltron, Auras) was generated as
+ * "balanced Goodstuff" while 30 of its cards built one equipment engine. The
+ * generator's read stays in the build report as a record of the build.
+ */
+export function resolveAutoArchetype(input: {
+  override?: Archetype | null;
+  build?: { archetype?: Archetype; archetypeProvenance?: ArchetypeProvenance };
+  engine: DeckSynergy;
+}): Archetype | undefined {
+  if (input.override) return input.override;
+  const built = input.build?.archetype;
+  if (built && input.build?.archetypeProvenance === 'user-theme') return built;
+  return engineArchetype(input.engine) ?? built;
+}
+
 export function deriveDeckIdentity(input: {
   profile: CommanderProfile;
   /** The deck's selected themes (generated decks); empty for manual/imported. */
@@ -82,14 +122,9 @@ export function deriveDeckIdentity(input: {
   /** Full mainboard (commanders optional); lands are filtered out internally. */
   cards: ScryfallCard[];
   /**
-   * The archetype generation actually used (persisted `BuildReport.archetype`)
-   * — when present, this is the single source of truth for the headline
-   * label so it can never disagree with what generation built (role targets,
-   * auto land count, type floor). Generation consults EDHREC theme data that
-   * this function has no access to, so its own `pickArchetype` fallback below
-   * is a strictly worse guess whenever a persisted value exists. Undefined
-   * for manual/imported decks (no generation ever ran), which keeps today's
-   * oracle-text-driven fallback.
+   * The archetype already settled for this deck (`resolveAutoArchetype`: the
+   * owner's pick, a chosen theme, the deck's engine, or the generator's read).
+   * Undefined when none applies, which keeps the commander-text fallback.
    */
   persistedArchetype?: Archetype;
 }): DeckIdentity {

@@ -6,7 +6,7 @@ import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { formatMoney } from '../../lib/format-money';
 import { ROLE_TITLES } from '../../lib/role-badges';
 import type { CurrencyCode, Row } from './deck-display-rows';
-import { allocationSummary, cardFilterRoles, frontFaceMana } from './deck-display-rows';
+import { allocationSummary, cardAllRoles, frontFaceMana } from './deck-display-rows';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 
 export interface DeckCardInspectorCard {
@@ -67,7 +67,7 @@ export function DeckCardInspector({
   actions?: DeckCardInspectorActions;
 }) {
   const roles = useMemo(
-    () => (card ? cardFilterRoles(card.row.card).map((r) => ROLE_TITLES[r]) : []),
+    () => (card ? cardAllRoles(card.row.card).map((r) => ROLE_TITLES[r]) : []),
     [card]
   );
 

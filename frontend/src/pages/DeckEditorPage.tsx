@@ -1080,13 +1080,24 @@ export function DeckEditorPage() {
       : undefined;
   }, [deck, taggerReady]);
 
+  // The deck's live role counts: the same count DeckDisplay shows in the
+  // role chips, the Roles panel and the checks (mainboard, one role per card).
+  // A generated deck's stored `roleCounts` is a generation-time snapshot that
+  // never moves after an edit, and a manual deck has none (the coach used to
+  // see every role at 0 there), so it only stands in until the tagger loads.
+  const liveRoleCounts = useMemo(
+    () =>
+      deck && taggerReady
+        ? computeRoleCounts(deck.cards.map((c) => c.card)).roleCounts
+        : deck?.roleCounts,
+    [deck, taggerReady]
+  );
+
   // "Next best move" — the single highest-leverage change, derived from the
-  // live PlanScore + role gaps + near-miss combos. Manual decks don't carry
-  // roleCounts (set only at generation), so derive them from the tagger.
+  // live PlanScore + role gaps + near-miss combos.
   const nextBestMoves = useMemo(() => {
     if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return [];
-    const roleCounts =
-      deck.roleCounts ?? computeRoleCounts(deck.cards.map((c) => c.card)).roleCounts;
+    const roleCounts = liveRoleCounts ?? {};
     return buildNextBestMoves({
       planScore: deck.planScore,
       roleCounts,
@@ -1104,7 +1115,7 @@ export function DeckEditorPage() {
       ownedOnly,
       landAdvice,
     });
-  }, [deck, mainboardComboData, ownedNames, ownedOnly, landAdvice]);
+  }, [deck, liveRoleCounts, mainboardComboData, ownedNames, ownedOnly, landAdvice]);
 
   // UX-310: whether the async commander-deck analysis is still in its first
   // run. `gradeBracketSignature` is only set after a successful analysis
@@ -3534,7 +3545,7 @@ export function DeckEditorPage() {
                   oneAwayCombos={mainboardComboData?.oneAway}
                   crossDeckMoves={crossDeckMoves}
                   planScore={deck.planScore}
-                  roleCounts={deck.roleCounts ?? {}}
+                  roleCounts={liveRoleCounts ?? {}}
                   roleTargets={deck.roleTargets ?? {}}
                   deckSize={
                     deck.cards.length + (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0)
