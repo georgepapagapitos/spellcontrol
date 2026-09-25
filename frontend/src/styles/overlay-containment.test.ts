@@ -73,7 +73,6 @@ describe('overlay scroll containment', () => {
     // The table feed's one scroller since its separate panel was folded into
     // the log dock's Table view.
     ['playtest/components/LogDock.css', '.playtest-log-dock__body'],
-    ['components/deck/BetweenYourDecks.css', '.between-decks-sheet-body'],
     ['components/deck/DeckPrimerSheet.css', '.deck-primer-sheet-body'],
     ['components/deck/DeckTokensSheet.css', '.deck-tokens-sheet-body'],
     ['styles/deck-builder-card-search.css', '.deck-test-hand-sheet-body'],

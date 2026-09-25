@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useDecksStore, getLocalMutationToken, type Deck, type DeckCard } from './decks';
+import {
+  useDecksStore,
+  getLocalMutationToken,
+  withAllocationHealDeferred,
+  type Deck,
+  type DeckCard,
+} from './decks';
 import { buildAllocationMap } from '../lib/allocations';
 import { setApplyingServer } from '../lib/applying-server';
 import type { EnrichedCard } from '../types';
@@ -1441,5 +1447,62 @@ describe('bulk zone primitives (E172)', () => {
     expect(cards[2].sortIndex).toBeUndefined();
     expect(getLocalMutationToken('d-bulk-5')).toBe(before + 1);
     expect(persistDecksState).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * A copy move is two writes (recipient claims, donor releases). Healed
+ * between them, the double-claim loses whichever side is LATER in deck order,
+ * so with the donor first in the array the moved copy landed unowned, and an
+ * Undo gave the donor its card back unbound. Both found by driving the
+ * Coach "Your decks" move in a real browser.
+ */
+describe('withAllocationHealDeferred (cross-deck copy moves)', () => {
+  const decks = () =>
+    Object.fromEntries(
+      useDecksStore.getState().decks.map((d) => [d.name, d.cards.map((c) => c.allocatedCopyId)])
+    );
+
+  beforeEach(() => {
+    // Donor FIRST in array order: the heal would keep its claim, not the move's.
+    useDecksStore.setState({
+      decks: [
+        baseDeck({ id: 'donor', name: 'Donor', cards: [slot('Sol Ring', 'c1', 'sf-1')] }),
+        baseDeck({ id: 'target', name: 'Target', cards: [] }),
+      ],
+    });
+  });
+
+  const move = () => {
+    const s = useDecksStore.getState();
+    const donorSlot = s.decks[0].cards[0];
+    s.addCard('target', donorSlot.card, 'c1');
+    s.setCardAllocation('donor', donorSlot.slotId, null);
+  };
+
+  it('without it, the half-state heal strips the moved copy (the hazard)', () => {
+    move();
+    expect(decks()).toEqual({ Donor: [null], Target: [null] });
+  });
+
+  it('with it, the moved copy keeps its claim, and an Undo restores the donor bound', () => {
+    const before = useDecksStore.getState().decks;
+    withAllocationHealDeferred(move);
+    expect(decks()).toEqual({ Donor: [null], Target: ['c1'] });
+
+    // Undo replays both snapshots, donor first: same half-state, same fix.
+    withAllocationHealDeferred(() => {
+      useDecksStore.getState().replaceDeck('donor', before[0]);
+      useDecksStore.getState().replaceDeck('target', before[1]);
+    });
+    expect(decks()).toEqual({ Donor: ['c1'], Target: [] });
+  });
+
+  it('still heals a genuine double-claim left at the end of the batch', () => {
+    withAllocationHealDeferred(() => {
+      const s = useDecksStore.getState();
+      s.addCard('target', s.decks[0].cards[0].card, 'c1');
+    });
+    expect(decks()).toEqual({ Donor: ['c1'], Target: [null] });
   });
 });

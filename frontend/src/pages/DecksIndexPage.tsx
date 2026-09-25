@@ -32,7 +32,6 @@ import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
-import { BetweenYourDecks } from '../components/deck/BetweenYourDecks';
 import { ProductSearchDialog } from '../components/ProductSearchDialog';
 import { DeckPickerDialog } from '../components/play/DeckPickerDialog';
 import { deckBoardPath } from '../lib/starter-decks';
@@ -606,14 +605,6 @@ export function DecksIndexPage() {
             )}
           </div>
         )}
-
-        {/* Insight strips share one slot so a phone shows ONE at a time (the
-            CSS rule lives with `.decks-index-insights`). A strip renders null
-            when it has nothing to say or has been dismissed. One lane today;
-            the slot stays so a second one lands in the same rhythm. */}
-        <div className="decks-index-insights">
-          <BetweenYourDecks />
-        </div>
 
         {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
         {showProductSearch && <ProductSearchDialog onClose={() => setShowProductSearch(false)} />}

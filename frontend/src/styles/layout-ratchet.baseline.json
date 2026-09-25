@@ -10,7 +10,6 @@
     "components/ConflictPanel.css": 1,
     "components/deck/AiSourcesControl.css": 4,
     "components/deck/AppendDeckDialog.css": 3,
-    "components/deck/BetweenYourDecks.css": 4,
     "components/deck/BinderRanking.css": 4,
     "components/deck/BracketBreakdown.css": 24,
     "components/deck/BracketVerdictStrip.css": 2,
