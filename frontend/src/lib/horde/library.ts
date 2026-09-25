@@ -15,6 +15,12 @@ export interface HordeDeckDef {
   bosses: PlaytestCard[];
   /** Card NAMES (from `spells`) never dealt into the safe zone. */
   lateGame: string[];
+  /**
+   * A hash of the deck's source data. An online table stores the host's
+   * `rev` at Start; a device whose deck differs (another app version) would
+   * rebuild a different horde from the same seed, so it must not replay.
+   */
+  rev: string;
 }
 
 /** Fraction of the library that is safe-zone (no late game, tokens spread

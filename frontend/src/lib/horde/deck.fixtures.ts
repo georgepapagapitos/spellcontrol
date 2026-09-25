@@ -68,4 +68,5 @@ export const ZOMBIE_HORDE_FIXTURE: HordeDeckDef = {
     }),
   ],
   lateGame: ["Liliana's Mastery"],
+  rev: 'fixture',
 };

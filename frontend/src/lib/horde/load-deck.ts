@@ -94,6 +94,21 @@ function expandBosses(entries: RawBossEntry[], deckId: string): PlaytestCard[] {
   }));
 }
 
+/** cyrb53: a small, fast, non-cryptographic string hash, enough to tell two
+ *  builds' copies of a deck apart. */
+export function hashDeckSource(text: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36);
+}
+
 /** Load one horde's deck definition, expanding authored copy counts into one
  *  `PlaytestCard` per physical copy with a unique id. */
 export async function loadHordeDeck(id: string): Promise<HordeDeckDef> {
@@ -106,5 +121,6 @@ export async function loadHordeDeck(id: string): Promise<HordeDeckDef> {
     spells: expandCopies(raw.spells, raw.id, 'spell', false),
     bosses: expandBosses(raw.bosses, raw.id),
     lateGame: raw.lateGame,
+    rev: hashDeckSource(JSON.stringify(raw)),
   };
 }
