@@ -5778,6 +5778,16 @@ public profile) is the reference. Rulings:
   (`.decks-index-card-detail`) is the single ellipsis target. Target it by
   **class, never `> span:last-child`** — that selector silently retargets the
   moment anything is appended to the row.
+- **The deck value is pinned to the end of the tail (2026-09-25).** The
+  index prints each deck's value (`lib/deck-value.ts`, the same number the
+  deck hero shows and the Value sort orders by). It sits in
+  `.decks-index-card-facts`, one flex item holding the detail and the value:
+  the detail shrinks, the value never does, and a CSS `::before` supplies the
+  ` · ` so it reads as the tail's last item. Never put it inside the detail
+  text (a partner pair truncates it away) or as a loose sibling of the detail
+  (on a phone it wraps onto a line that starts with `·`). It stays in Compact,
+  where it is what a Value sort is read by, and it is omitted for a deck with
+  nothing priced rather than printed as `$0`.
 - **Badges on `--surface-raised` need a hairline.** The format badge's own
   `--surface-raised` fill vanishes against a raised card and it degrades into
   bare uppercase text; on card meta rows it takes

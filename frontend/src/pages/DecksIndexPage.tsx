@@ -64,9 +64,11 @@ import { useAllocations } from '../lib/allocations';
 import { useSetMap } from '../lib/api';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { buildBinderPlacement, buildPullList, isPullableKind } from '../lib/pull-list';
-import { getCardPrice } from '../deck-builder/services/scryfall/client';
+import { deckValue } from '../lib/deck-value';
+import { useCurrency } from '../lib/currency';
+import { formatMoney } from '../lib/format-money';
 import type { Deck, DeckSource } from '../store/decks';
-import type { DeckFormat, ScryfallCard } from '../deck-builder/types';
+import type { DeckFormat } from '../deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import {
   effectiveDeckColors,
@@ -108,20 +110,6 @@ const DECK_SORT_DEFAULT_DIR: Record<DeckSortField, SortDir> = {
   cards: 'desc',
   value: 'desc',
 };
-
-function cardPrice(card: ScryfallCard): number {
-  const raw = getCardPrice(card, 'USD');
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) ? n : 0;
-}
-
-function deckValue(deck: Deck): number {
-  let total = 0;
-  if (deck.commander) total += cardPrice(deck.commander);
-  if (deck.partnerCommander) total += cardPrice(deck.partnerCommander);
-  for (const dc of deck.cards) total += cardPrice(dc.card);
-  return total;
-}
 
 const FILTERS_KEY = 'decks-index-filters';
 
@@ -175,7 +163,11 @@ function persistFilters(
 
 type DecksViewMode = 'grid' | 'list' | 'compact';
 
-function deckSortValue(deck: Deck, field: DeckSortField): number | string {
+function deckSortValue(
+  deck: Deck,
+  field: DeckSortField,
+  values: ReadonlyMap<string, number>
+): number | string {
   switch (field) {
     case 'edited':
       return deck.updatedAt;
@@ -188,7 +180,7 @@ function deckSortValue(deck: Deck, field: DeckSortField): number | string {
     case 'cards':
       return (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
     case 'value':
-      return deckValue(deck);
+      return values.get(deck.id) ?? 0;
   }
 }
 
@@ -206,6 +198,13 @@ export function DecksIndexPage() {
   const collectionCards = useCardsWithTags(rawCollectionCards, bindersUseTags(binderDefs));
   const allocations = useAllocations();
   const setMap = useSetMap();
+  // Each deck's value, once per render of the list: the Value sort orders by
+  // it and every row prints it, so the two can never disagree.
+  const currency = useCurrency();
+  const deckValues = useMemo(
+    () => new Map(decks.map((d) => [d.id, deckValue(d, currency)])),
+    [decks, currency]
+  );
   // Gate for the "From my binder" door — mirrors the tab's own empty state.
   const canBuildFromBinder = rawCollectionCards.length >= MIN_COLLECTION_SIZE;
 
@@ -351,8 +350,8 @@ export function DecksIndexPage() {
       return true;
     });
     return [...filtered].sort((a, b) => {
-      const va = deckSortValue(a, sortField);
-      const vb = deckSortValue(b, sortField);
+      const va = deckSortValue(a, sortField, deckValues);
+      const vb = deckSortValue(b, sortField, deckValues);
       if (va < vb) return sortDir === 'desc' ? 1 : -1;
       if (va > vb) return sortDir === 'desc' ? -1 : 1;
       return 0;
@@ -366,6 +365,7 @@ export function DecksIndexPage() {
     sourceFilter,
     colorFilter,
     colorMode,
+    deckValues,
   ]);
 
   // One-shot entrance cascade for the deck cards — same primitive (and
@@ -790,6 +790,7 @@ export function DecksIndexPage() {
                   : [];
                 const flaggedCount = countFlaggedCards(issues);
                 const pull = pullCounts?.get(deck.id);
+                const value = deckValues.get(deck.id) ?? 0;
                 const selected = sel.selected.has(deck.id);
                 return (
                   <li
@@ -904,14 +905,25 @@ export function DecksIndexPage() {
                               <Globe width={14} height={14} strokeWidth={2} aria-hidden />
                             </span>
                           )}
-                          <span className="decks-index-card-detail">
-                            {deck.commander
-                              ? `${deck.commander.name}${
-                                  deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
-                                } · `
-                              : ''}
-                            {totalCards} cards ·{' '}
-                            {deck.source === 'generated' ? 'Generated' : 'Manual'}
+                          {/* Detail + value travel as one group: the detail is
+                              the piece that truncates, so the value stays
+                              pinned to its end instead of being cut off or
+                              wrapping onto a line of its own. */}
+                          <span className="decks-index-card-facts">
+                            <span className="decks-index-card-detail">
+                              {deck.commander
+                                ? `${deck.commander.name}${
+                                    deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
+                                  } · `
+                                : ''}
+                              {totalCards} cards ·{' '}
+                              {deck.source === 'generated' ? 'Generated' : 'Manual'}
+                            </span>
+                            {value > 0 && (
+                              <span className="decks-index-card-value">
+                                {formatMoney(value, { wholeDollars: value >= 10 })}
+                              </span>
+                            )}
                           </span>
                           {/* Timestamp rides the meta row (not its own third
                               line): one flex row keeps the row two lines tall

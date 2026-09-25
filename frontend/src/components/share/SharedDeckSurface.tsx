@@ -21,7 +21,7 @@ import { toClockCard } from '../../lib/hand-classify';
 import { formatMoney } from '../../lib/format-money';
 import { useCurrency } from '../../lib/currency';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
-import { priceOf } from '../deck/deck-display-rows';
+import { deckValue } from '../../lib/deck-value';
 import { effectiveBracket } from '../../store/decks';
 import { bracketTextWithEstimate } from '../../lib/format-bracket-label';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -249,10 +249,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
   const rawHeroArt =
     deck.commander?.image_uris?.art_crop ?? deck.commander?.card_faces?.[0]?.image_uris?.art_crop;
   const heroArt = rawHeroArt ? scryfallArtCrop(rawHeroArt) : undefined;
-  const heroValue = useMemo(
-    () => deckCards.reduce((sum, c) => sum + priceOf(c, currency), 0),
-    [deckCards, currency]
-  );
+  const heroValue = useMemo(() => deckValue(deck, currency), [deck, currency]);
   const bracketValue = effectiveBracket(deck);
   // A stated bracket that differs from the estimate carries the estimate
   // alongside it — the same "shown to other people, so it can't hide the
