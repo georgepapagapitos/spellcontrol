@@ -78,10 +78,6 @@ const ALLOWED: Record<Pattern, Record<string, { count: number; why: string }>> =
     },
     'components/play/LifeKeypad.tsx': { count: 1, why: 'one on/off button, not a choice' },
     'components/play/OnlineLobby.tsx': { count: 1, why: 'the Ready button: one on/off' },
-    'components/deck/DeckCustomizer.tsx': { count: 1, why: `${DEBT} (salt level)` },
-    'components/deck/GenerationModePicker.tsx': { count: 2, why: `${DEBT} (art theme, year)` },
-    'components/play/LayoutEditor.tsx': { count: 1, why: `${DEBT} (board layout)` },
-    'components/share/DeckFeedbackView.tsx': { count: 1, why: `${DEBT} (bracket)` },
   },
   nativeSelect: {
     'playtest/components/CardContextMenu.tsx': {

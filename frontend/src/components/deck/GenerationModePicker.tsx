@@ -245,6 +245,8 @@ function ArtConfig({
 }: Pick<Props, 'customization' | 'update' | 'colorIdentity' | 'commanderName'>) {
   const tag = customization.artThemeTag;
   const slug = slugifyTag(tag);
+  // Radios group by shared `name` — scope it per mounted picker.
+  const motifGroup = useId();
 
   return (
     <>
@@ -252,19 +254,22 @@ function ArtConfig({
         Pick a motif. Every nonland card <strong>depicts it</strong>, in the printing whose art
         matches. The finished list reads like a gallery.
       </p>
-      <div className="gen-mode-chips" role="group" aria-label="Art motifs">
+      {/* Native radios: exclusivity, arrow-key nav and one group tab stop
+          come free. A free-typed motif below leaves every chip unchecked. */}
+      <fieldset className="gen-mode-chips" aria-label="Art motifs">
         {ART_THEME_PRESETS.map((p) => (
-          <button
-            key={p.tag}
-            type="button"
-            className={`gen-mode-chip${slug === p.tag ? ' is-active' : ''}`}
-            aria-pressed={slug === p.tag}
-            onClick={() => update({ artThemeTag: p.tag })}
-          >
+          <label key={p.tag} className={`gen-mode-chip${slug === p.tag ? ' is-active' : ''}`}>
+            <input
+              type="radio"
+              name={motifGroup}
+              value={p.tag}
+              checked={slug === p.tag}
+              onChange={() => update({ artThemeTag: p.tag })}
+            />
             {p.label}
-          </button>
+          </label>
         ))}
-      </div>
+      </fieldset>
       <label className="gen-mode-field">
         <span className="gen-mode-field-label">Or type any motif</span>
         <input
@@ -297,27 +302,36 @@ function HistoricalConfig({
   colorIdentity,
 }: Pick<Props, 'customization' | 'update' | 'colorIdentity'>) {
   const year = customization.historicalYear;
+  // Radios group by shared `name` — scope it per mounted picker.
+  const eraGroup = useId();
   return (
     <>
       <p className="gen-mode-explain">
         Build with only cards printed <strong>on or before {year}</strong>. Niche colors may reach
         forward a few years to find enough cards.
       </p>
-      <div className="gen-mode-chips" role="group" aria-label="Eras">
+      {/* Native radios: exclusivity, arrow-key nav and one group tab stop
+          come free. The slider below can land on a year with no preset,
+          leaving every chip unchecked. */}
+      <fieldset className="gen-mode-chips" aria-label="Eras">
         {HISTORICAL_PRESETS.map((p) => (
-          <button
+          <label
             key={p.year}
-            type="button"
             className={`gen-mode-chip${year === p.year ? ' is-active' : ''}`}
-            aria-pressed={year === p.year}
             title={p.blurb}
-            onClick={() => update({ historicalYear: p.year })}
           >
+            <input
+              type="radio"
+              name={eraGroup}
+              value={p.year}
+              checked={year === p.year}
+              onChange={() => update({ historicalYear: p.year })}
+            />
             {p.label}
             <span className="gen-mode-chip-sub">≤{p.year}</span>
-          </button>
+          </label>
         ))}
-      </div>
+      </fieldset>
       <label className="gen-mode-field">
         <span className="gen-mode-field-label">
           Fine-tune the cutoff: <strong className="gen-mode-year">{year}</strong>

@@ -375,68 +375,34 @@ function manaPhilosophySummary(c: Customization): string {
   return `${ranked[0][0]}-leaning`;
 }
 
+const SALT_DESCRIPTIONS: Record<number, string> = {
+  0: 'Excludes EDHREC salt above 0.75 (pillow-fort friendly).',
+  1: 'Excludes EDHREC salt above 2.0 (no Armageddon, no Cyclonic Rift).',
+  2: 'No salt filtering.',
+  3: 'No filter. Boosts high-salt staples in the priority order.',
+};
+
 function SaltGroup({ customization, update }: DeckCustomizerProps) {
-  const value = (customization.saltTolerance ?? 2) as number;
-  const SALT_DESCRIPTIONS: Record<number, string> = {
-    0: 'Strict filter — exclude EDHREC salt > 0.75 (pillow-fort friendly)',
-    1: 'Moderate filter — exclude EDHREC salt > 2.0 (no Armageddon, no Cyclonic Rift)',
-    2: 'No salt filtering (default)',
-    3: 'No filter — boost high-salt staples in the priority order',
-  };
+  const value = (customization.saltTolerance ?? 2) as 0 | 1 | 2 | 3;
   return (
-    <div className="deck-customizer-slider">
-      <p
-        className="deck-customizer-slider-hint"
-        style={{
-          margin: '0 0 0.75rem',
-          fontSize: '0.85em',
-          lineHeight: 1.4,
-          opacity: 0.75,
-        }}
-      >
-        <a
-          href="https://edhrec.com/top/salt"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: 'inherit', textDecoration: 'underline' }}
-        >
+    <>
+      <p className="deck-customizer-hint">
+        <a href="https://edhrec.com/top/salt" target="_blank" rel="noopener noreferrer">
           EDHREC&apos;s salt scores
         </a>{' '}
-        tally votes for the most-hated cards in the format: Stax, Armageddon, Cyclonic Rift. Slide
-        left to leave them out, right to lean into them.
+        tally votes for the most-hated cards in the format: Stax, Armageddon, Cyclonic Rift.
       </p>
-      <input
-        type="range"
-        className="deck-customizer-range"
-        min={0}
-        max={3}
-        step={1}
+      <ChoiceList<0 | 1 | 2 | 3>
+        ariaLabel="Salt level"
         value={value}
-        aria-label="Salt level"
-        title={SALT_DESCRIPTIONS[value]}
-        onChange={(e) => update({ saltTolerance: Number(e.target.value) as 0 | 1 | 2 | 3 })}
-        style={{
-          ['--range-progress' as string]: `${(value / 3) * 100}%`,
-        }}
+        options={SALT_LABELS.map((label, i) => ({
+          value: i as 0 | 1 | 2 | 3,
+          label,
+          hint: SALT_DESCRIPTIONS[i],
+        }))}
+        onChange={(v) => update({ saltTolerance: v })}
       />
-      <div className="deck-customizer-slider-anchors">
-        {SALT_LABELS.map((label, i) => (
-          <button
-            key={label}
-            type="button"
-            className="deck-customizer-slider-anchor"
-            data-align={i === 0 ? 'start' : i === SALT_LABELS.length - 1 ? 'end' : 'center'}
-            aria-label={`Set salt level to ${label}`}
-            aria-pressed={value === i}
-            title={SALT_DESCRIPTIONS[i]}
-            onClick={() => update({ saltTolerance: i as 0 | 1 | 2 | 3 })}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-          >
-            <span className="deck-customizer-slider-anchor-label">{label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
+    </>
   );
 }
 

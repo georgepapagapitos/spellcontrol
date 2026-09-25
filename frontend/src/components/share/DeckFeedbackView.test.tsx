@@ -124,7 +124,7 @@ describe('DeckFeedbackView', () => {
     fireEvent.change(screen.getByPlaceholderText(/So the owner knows/), {
       target: { value: 'Reviewer' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /3\s*Upgraded/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Upgraded/ }));
     fireEvent.change(screen.getByPlaceholderText(/Overall thoughts/), {
       target: { value: 'Solid list.' },
     });
@@ -145,6 +145,23 @@ describe('DeckFeedbackView', () => {
         },
       ],
     });
+  });
+
+  it('picks the power bracket as a native radio group, None checked by default', () => {
+    renderView();
+    expect((screen.getByRole('radio', { name: /None/ }) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByRole('radio', { name: /Upgraded/ }));
+    expect((screen.getByRole('radio', { name: /Upgraded/ }) as HTMLInputElement).checked).toBe(
+      true
+    );
+    expect((screen.getByRole('radio', { name: /None/ }) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('goes back to no read via the explicit None option — a radio group cannot be un-picked', () => {
+    renderView();
+    fireEvent.click(screen.getByRole('radio', { name: /Upgraded/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /None/ }));
+    expect((screen.getByRole('radio', { name: /None/ }) as HTMLInputElement).checked).toBe(true);
   });
 
   it('surfaces a submit failure without losing the form', async () => {

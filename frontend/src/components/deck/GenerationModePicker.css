@@ -194,13 +194,22 @@
 }
 
 /* ── Chips (motifs / eras) ────────────────────────────────────────────── */
+/* A <fieldset>: strip its default chrome and take it out of the special
+   fieldset rendering box, same technique as .settings-currency-toggle. */
 .gen-mode-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
+/* Each chip is a <label> wrapping a visually-hidden radio, so the whole
+   chip stays the hit target while keyboard/AT semantics are native. */
 .gen-mode-chip {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
   gap: 0.3rem;
@@ -210,13 +219,21 @@
   color: var(--text-secondary);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
-  /* aria-pressed preset button = rect (role decides shape). */
+  /* A control, not a label: rect (role decides shape). */
   border-radius: var(--radius);
   cursor: pointer;
   transition:
     border-color var(--motion-fast),
     background var(--motion-fast),
     color var(--motion-fast);
+}
+
+.gen-mode-chip input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -226,7 +243,7 @@
   }
 }
 
-.gen-mode-chip:focus-visible {
+.gen-mode-chip:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

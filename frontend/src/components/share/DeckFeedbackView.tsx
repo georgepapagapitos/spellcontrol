@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LayoutGrid, List as ListIcon, Plus, Scissors, Undo2 } from 'lucide-react';
 import type { PublicCard, PublicDeck } from '../../lib/shared-types';
@@ -55,6 +55,12 @@ const BRACKET_LABELS: Record<number, string> = {
   4: 'Optimized',
   5: 'cEDH',
 };
+// A radio group can't be un-picked, so "no read" is its own option rather
+// than a click-to-deselect gesture on the active bracket.
+const BRACKET_OPTIONS: { value: number | null; label: string; sub: string }[] = [
+  { value: null, label: 'None', sub: 'No read' },
+  ...BRACKETS.map((b) => ({ value: b as number | null, label: String(b), sub: BRACKET_LABELS[b] })),
+];
 
 function itemFromPc(pc: PublicCard): ReviewItem {
   return { key: pc.oracleId ?? pc.name, pc, quantity: 1 };
@@ -89,6 +95,7 @@ export function DeckFeedbackView({ data, token }: Props) {
   const [authorName, setAuthorName] = useState('');
   const [comment, setComment] = useState('');
   const [bracket, setBracket] = useState<number | null>(null);
+  const bracketGroup = useId();
   const formRef = useRef<HTMLElement | null>(null);
   const [submitState, setSubmitState] = useState<
     | { status: 'idle' }
@@ -543,20 +550,27 @@ export function DeckFeedbackView({ data, token }: Props) {
         )}
         <div className="feedback-field">
           <span id="feedback-bracket-label">Power bracket read (optional)</span>
-          <div className="feedback-brackets" role="group" aria-labelledby="feedback-bracket-label">
-            {BRACKETS.map((b) => (
-              <button
-                key={b}
-                type="button"
-                className={`feedback-bracket${bracket === b ? ' is-active' : ''}`}
-                aria-pressed={bracket === b}
-                onClick={() => setBracket(bracket === b ? null : b)}
-              >
-                {b}
-                <small>{BRACKET_LABELS[b]}</small>
-              </button>
-            ))}
-          </div>
+          {/* Native radios: exclusivity + arrow-key nav + one group tab stop. */}
+          <fieldset className="feedback-brackets" aria-labelledby="feedback-bracket-label">
+            {BRACKET_OPTIONS.map((b) => {
+              const active = bracket === b.value;
+              return (
+                <label
+                  key={String(b.value)}
+                  className={`feedback-bracket${active ? ' is-active' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name={bracketGroup}
+                    checked={active}
+                    onChange={() => setBracket(b.value)}
+                  />
+                  {b.label}
+                  <small>{b.sub}</small>
+                </label>
+              );
+            })}
+          </fieldset>
         </div>
         <label className="feedback-field">
           <span>Comments</span>
