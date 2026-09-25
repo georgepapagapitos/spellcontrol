@@ -79,7 +79,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   const [fetchProgress, setFetchProgress] = useState<{ fetched: number; total: number } | null>(
     null
   );
-  // Determinate progress for the refiner's hill-climb phase (relayed from the
+  // Running swap count for the refiner's hill-climb phase (relayed from the
   // generation worker); null until the refiner actually starts (synergyLevel 0
   // never runs it, so this stays null and the loading block falls back to the
   // skeleton).

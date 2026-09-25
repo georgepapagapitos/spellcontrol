@@ -77,7 +77,7 @@ export function CollabCube() {
     null
   );
   const [cube, setCube] = useState<GeneratedCube | null>(null);
-  // Determinate progress for the refiner's hill-climb phase; null until it
+  // Running swap count for the refiner's hill-climb phase; null until it
   // actually starts (mirrors BuildCube — see generate-async.ts).
   const [refineProgress, setRefineProgress] = useState<CubeProgress | null>(null);
   const genAbort = useRef<AbortController | null>(null);

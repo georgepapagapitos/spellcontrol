@@ -366,9 +366,12 @@ export function AvailableToggle({
 
 /**
  * The cube generation progress block, three phases in order: a determinate
- * Scryfall-lookup bar (`fetchProgress`), a determinate "Balancing the cube"
- * bar while the refiner runs (`refineProgress` — only set when the synergy
- * slider engaged it), else an indeterminate skeleton + finalizing line.
+ * Scryfall-lookup bar (`fetchProgress`), then the indeterminate skeleton with
+ * a running swap count while the refiner runs (`refineProgress`, only set when
+ * the synergy slider engaged it), else the skeleton + finalizing line. The
+ * refiner stops at a local optimum long before its pass cap (57–169 swaps
+ * against a 360–720 cap in the stress harness), so a pass/cap bar would crawl
+ * to a quarter and jump: the count is the honest signal.
  * `lookupLabel` names the lookup phase (omit for modes with no per-card
  * progress, e.g. import).
  */
@@ -401,24 +404,23 @@ export function CubeLoadingBlock({
           </p>
         </div>
       )}
-      {phase === 'refine' && (
-        <div className="cube-progress">
-          <MeterBar
-            value={refineProgress!.pass}
-            max={refineProgress!.maxIter}
-            size="md"
-            role="progressbar"
-            label="Balancing the cube"
-          />
-          <p className="cube-loading-text">Balancing the cube…</p>
-        </div>
-      )}
-      {phase === 'finalizing' && (
+      {phase !== 'lookup' && (
         <div className="cube-skeleton">
           <div className="deck-analysis-skeleton-bar is-headline" />
           <div className="deck-analysis-skeleton-bar is-body" />
           <div className="deck-analysis-skeleton-bar is-body is-short" />
         </div>
+      )}
+      {phase === 'refine' && (
+        <p className="cube-loading-text">
+          Balancing the cube…{' '}
+          {/* Visual only: this sits in the page's polite live region, and a count
+              ticking ten times a second would flood a screen reader. */}
+          <span aria-hidden="true">
+            {refineProgress!.pass.toLocaleString()} swap{refineProgress!.pass === 1 ? '' : 's'} so
+            far
+          </span>
+        </p>
       )}
       {phase === 'finalizing' && <p className="cube-loading-text">{finalizingLabel}</p>}
     </div>
