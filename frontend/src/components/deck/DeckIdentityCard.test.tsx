@@ -303,6 +303,10 @@ describe('DeckIdentityCard', () => {
   const identity = { archetypeLabel: 'Voltron', pacingShort: 'Late game', themes: [] };
 
   it('leads with what the deck plays as, and mounts the radar without an expander', async () => {
+    // Load the lazy radar's module before rendering. Waiting for it with the
+    // default 1s findBy timed out under the full suite with coverage, where
+    // transforming the chunk alone can take longer.
+    await import('./PlaystyleRadar');
     const { container } = renderCard({ identity });
     expect(screen.getByRole('heading', { level: 4, name: 'Voltron' })).toBeTruthy();
     expect(hasText(/^Late game$/)).toBe(true);

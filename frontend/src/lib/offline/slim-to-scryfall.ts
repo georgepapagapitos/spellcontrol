@@ -5,10 +5,12 @@ import type { SlimCard, SlimCardFace } from './types';
  * Derive a Scryfall art-crop URL from a full-card image URL. The slim bundle
  * only carries the `normal` image, but Scryfall CDN URLs differ solely by the
  * size segment (`.../normal/...` vs `.../art_crop/...`), so the crop is a pure
- * string swap. Non-Scryfall URLs (no `/normal/` segment) pass through unchanged.
+ * string swap. Any of the JPEG card sizes swaps: a Coach row can carry the
+ * `small` image, and swapping only `/normal/` squeezed that whole card into
+ * an art-crop box (E415). URLs with no such segment pass through unchanged.
  */
 export function scryfallArtCrop(imageNormal: string): string {
-  return imageNormal.replace('/normal/', '/art_crop/');
+  return imageNormal.replace(/\/(small|normal|large)\//, '/art_crop/');
 }
 
 /**

@@ -91,3 +91,18 @@ describe('Coach suggestions', () => {
     );
   });
 });
+
+describe('Next best move', () => {
+  const css = read('../components/deck/NextBestMove.css');
+
+  it('lists its steps as hairline rows, not boxes inside the panel', () => {
+    const row = rule(css, '.next-best-move-row');
+    expect(row).toMatch(/border-bottom:\s*0\.5px solid var\(--border\)/);
+    expect(row).not.toMatch(/(^|[^-])border:|background:|border-radius:/);
+    const primary = rule(css, '.next-best-move-row.is-primary');
+    expect(primary).toBe('');
+    expect(rule(css, '.next-best-move-row.is-primary .next-best-move-rank')).toMatch(
+      /background:\s*var\(--tier-color\)/
+    );
+  });
+});

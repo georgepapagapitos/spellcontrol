@@ -92,7 +92,14 @@ describe('slimToScryfall', () => {
     );
   });
 
-  it('scryfallArtCrop is a no-op for URLs without a /normal/ segment', () => {
+  it('scryfallArtCrop swaps any JPEG card size, so a small image never fills an art box', () => {
+    const at = (size: string) => `https://cards.scryfall.io/${size}/front/d/8/d8f8.jpg?1`;
+    for (const size of ['small', 'normal', 'large']) {
+      expect(scryfallArtCrop(at(size))).toBe(at('art_crop'));
+    }
+  });
+
+  it('scryfallArtCrop is a no-op for URLs without a card-size segment', () => {
     expect(scryfallArtCrop('https://example/art_crop/x.jpg')).toBe(
       'https://example/art_crop/x.jpg'
     );
