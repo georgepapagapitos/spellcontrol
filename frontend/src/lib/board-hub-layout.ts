@@ -105,6 +105,17 @@ function clampPoint(p: Point, b: Bounds): Point {
  * against the hub positions this app's own presets actually reach, not
  * against that synthetic worst case.
  *
+ * The fallback fan's own floor is always the STRICTER of the two (it packs
+ * the same petal count into `FALLBACK_SPREAD`, a narrower arc than a full
+ * circle's 2π, so its petals sit closer together per radius and need more
+ * of it to stay apart). When the hub sits high on a short board (e.g. a row
+ * seam near the top on a short phone), the full circle can miss its own
+ * floor by only a few px while the fallback — needing MORE radius, not less
+ * — misses its own by far more. Falling all the way back to the worse-
+ * packed fan in that case traded a near-miss for a real one, so a third
+ * step retries the full circle at whatever room is actually there
+ * (`fullRoom`) before resorting to the fan.
+ *
  * Every point is then clamped inside the viewport as a final safety net, so
  * a petal never renders off-screen even where neither placement fits
  * cleanly.
@@ -147,6 +158,18 @@ export function hubPetalPositions(
   const fanRoom = Math.min(...fanAngles.map((a) => angleRadiusBound(a, hub, b)));
   const halfGap = count > 1 ? FALLBACK_SPREAD / (2 * (count - 1)) : 0;
   const minSafeHalf = halfGap > 0 ? boundingRadius / Math.sin(halfGap) : 0;
+
+  // The fan's own floor is stricter than the full circle's (see the header
+  // comment) — if the fan can't clear ITS floor either, the full circle at
+  // whatever room is there is the closer-to-safe arrangement, not a fan
+  // packed even tighter than the one that already didn't fit.
+  if (minSafeHalf > fanRoom && fullRoom > 0) {
+    const radius = Math.min(Math.max(desiredRadius, minSafeFull), fullRoom);
+    return fullAngles.map((angle) =>
+      clampPoint({ x: hub.x + Math.cos(angle) * radius, y: hub.y + Math.sin(angle) * radius }, b)
+    );
+  }
+
   const radius = Math.min(Math.max(desiredRadius, minSafeHalf), Math.max(fanRoom, 0));
   return fanAngles.map((angle) =>
     clampPoint({ x: hub.x + Math.cos(angle) * radius, y: hub.y + Math.sin(angle) * radius }, b)

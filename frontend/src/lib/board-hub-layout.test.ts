@@ -146,5 +146,19 @@ describe('hubPetalPositions', () => {
         expectNoOverlap(hubPetalPositions(hub, viewport, 5));
       });
     }
+
+    // F8: 8p-2v6 @ 320x568 measured 1,264px² of pair overlap before this fix
+    // (`.claude/tools/life-board-probe.mjs … HUB=1`). The hub sits at row 1
+    // of 4 — the same FRACTION as the "row 1 of 4" case above — but the real
+    // `.game-board-grid` at this viewport is only 304x482 (the clock strip
+    // and safe-area padding eat the rest of the 320x568 window), not the
+    // full viewport the fraction-based cases above assume. Coordinates
+    // measured directly from the DOM against a real headless-Edge render of
+    // this exact layout/viewport, not derived from the fraction.
+    it('hub high on a short board (8p-2v6 @ 320x568, the real measured position)', () => {
+      const hub = { x: 152, y: 120.5 };
+      const viewport = { width: 304, height: 482 };
+      expectNoOverlap(hubPetalPositions(hub, viewport, 5));
+    });
   });
 });
