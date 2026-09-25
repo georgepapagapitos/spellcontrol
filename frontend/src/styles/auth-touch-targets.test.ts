@@ -55,12 +55,15 @@ function coarseBlocks(sheet: string): string {
 }
 
 /**
- * One entry per interactive element (`<button>`, `<a>`, `<Link>`) on the auth
- * pages, holding the `auth-*` classes it carries. Per ELEMENT, not per class:
+ * One entry per interactive element (`<button>`, `<a>`, `<Link>`, and the
+ * `Button`/`IconButton` primitives that render them) on the auth pages,
+ * holding the `auth-*` classes it carries. Per ELEMENT, not per class:
  * a control styled `auth-submit auth-submit-link` is floored by `.auth-submit`,
  * so demanding a floor on every individual token fails a control that is
  * already fine. Literal `className="..."` only — a computed/template className
- * would be missed, so keep auth markup literal.
+ * would be missed, so keep auth markup literal. Attribute values in braces
+ * (`icon={<Mail width={14} />}`) are skipped over, so a `>` inside one does not
+ * end the tag early.
  */
 function interactiveAuthElements(): { where: string; classes: string[] }[] {
   const out: { where: string; classes: string[] }[] = [];
@@ -72,7 +75,9 @@ function interactiveAuthElements(): { where: string; classes: string[] }[] {
     } catch {
       continue; // page renamed or removed — not this guard's business
     }
-    for (const m of src.matchAll(/<(?:button|a|Link)\b[^>]*className="([^"]+)"/g)) {
+    const tag =
+      /<(?:button|a|Link|Button|IconButton)\b(?:\{(?:[^{}]|\{[^{}]*\})*\}|[^>{])*?className="([^"]+)"/g;
+    for (const m of src.matchAll(tag)) {
       const classes = m[1].split(/\s+/).filter((c) => c.startsWith('auth-'));
       if (!classes.length) continue;
       const key = classes.join(' ');

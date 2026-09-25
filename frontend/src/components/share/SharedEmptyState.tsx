@@ -1,4 +1,5 @@
 import { EmptyStateMark } from '../shared/EmptyStateMark';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   /** True for "nothing here at all" (a genuinely empty binder/collection/
@@ -55,13 +56,9 @@ export function SharedEmptyState({
         // the box has text, i.e. in every case this button can also show;
         // two on-page buttons sharing one name is a real a11y/cohesion smell
         // (caught by this component's own test), not just a naming nit.
-        <button
-          type="button"
-          className="btn empty-state-action shared-empty-clear-btn"
-          onClick={onClearSearch}
-        >
+        <Button onClick={onClearSearch} className="empty-state-action shared-empty-clear-btn">
           Reset search
-        </button>
+        </Button>
       )}
     </div>
   );

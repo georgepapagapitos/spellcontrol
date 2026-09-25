@@ -43,6 +43,7 @@ import { partitionCombosByZone } from '../../lib/combo-zone-partition';
 import type { ChangeOwnership } from '../../lib/deck-change';
 import type { CardOwnership } from './SharedCardTile';
 import { bracketReasons, bracketBorderline } from '@spellcontrol/deck-metrics';
+import { Button } from '@/components/shared/Button';
 
 // Below this, a platform count (views/copies) reads as more "ghost town" than
 // informative, so each is hidden entirely rather than shown as a tiny number
@@ -313,10 +314,13 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
         actions={
           <>
             {mainboardCount > 0 && (
-              <Link className="btn btn-primary" to={`${basePath}/playtest`}>
-                <Swords width={15} height={15} strokeWidth={2} aria-hidden />
+              <Button
+                variant="primary"
+                to={`${basePath}/playtest`}
+                icon={<Swords width={15} height={15} strokeWidth={2} />}
+              >
                 Playtest this deck
-              </Link>
+              </Button>
             )}
             {/* You can't edit someone else's deck, but you can take it: the copy
                 lands in your own decks, editable, like any deck you made. */}
@@ -328,10 +332,12 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
                 publishing — but without this there is no route back to
                 editing it, which strands the owner on a read-only page. */}
             {isOwnDeck && (
-              <Link className="btn" to={`/decks/${data.id}`}>
-                <Pencil width={15} height={15} strokeWidth={2} aria-hidden />
+              <Button
+                to={`/decks/${data.id}`}
+                icon={<Pencil width={15} height={15} strokeWidth={2} />}
+              >
                 Edit this deck
-              </Link>
+              </Button>
             )}
           </>
         }
@@ -356,14 +362,13 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
             <>
               {countsText && ` · ${countsText}`}
               {' · '}
-              <button
-                type="button"
-                className="btn-link"
+              <Button
+                variant="link"
                 aria-label="Report this deck"
                 onClick={() => setReportOpen(true)}
               >
                 Report
-              </button>
+              </Button>
             </>
           )}
         </p>

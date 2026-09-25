@@ -4,6 +4,7 @@ import { canShare, openShareSheet } from '@/lib/web-share';
 import { Modal } from '../Modal';
 import { SelectMenu } from '../SelectMenu';
 import type { ExportFormat } from '@/lib/deck-export';
+import { Button } from '@/components/shared/Button';
 
 const EXPORT_FORMAT_LABEL: Record<ExportFormat, string> = {
   mtga: 'MTGA',
@@ -100,43 +101,36 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
             {lineCount} {lineCount === 1 ? 'line' : 'lines'}
           </span>
           <div className="export-dialog-actions">
-            <button
-              type="button"
-              className="btn"
+            <Button
               onClick={handleDownload}
               aria-label="Download as text file"
+              icon={<Download width={14} height={14} strokeWidth={2} />}
             >
-              <Download width={14} height={14} strokeWidth={2} aria-hidden />
-              <span>Download</span>
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
+              Download
+            </Button>
+            <Button
+              variant="primary"
               onClick={handleCopyClick}
               aria-label="Copy to clipboard"
+              icon={
+                copied ? (
+                  <Check width={14} height={14} strokeWidth={2.5} />
+                ) : (
+                  <Clipboard width={14} height={14} strokeWidth={2} />
+                )
+              }
             >
-              {copied ? (
-                <Check width={14} height={14} strokeWidth={2.5} aria-hidden />
-              ) : (
-                <Clipboard width={14} height={14} strokeWidth={2} aria-hidden />
-              )}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
-            {canShare() && (
-              <button type="button" className="btn" onClick={handleShare}>
-                Share…
-              </button>
-            )}
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+            {canShare() && <Button onClick={handleShare}>Share…</Button>}
             {!canShare() && (
-              <button
-                type="button"
-                className="btn"
+              <Button
                 onClick={handlePrint}
                 aria-label="Print this decklist as a checklist"
+                icon={<Printer width={14} height={14} strokeWidth={2} />}
               >
-                <Printer width={14} height={14} strokeWidth={2} aria-hidden />
-                <span>Print list</span>
-              </button>
+                Print list
+              </Button>
             )}
           </div>
         </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { copySharedCube } from '../../lib/copy-shared-cube';
 import { toast } from '../../store/toasts';
 import type { PublicCube } from '../../lib/shared-types';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   data: PublicCube;
@@ -22,9 +23,13 @@ export function CopyCubeButton({ data }: Props) {
   }
 
   return (
-    <button type="button" className="btn btn-primary shared-copy-btn" onClick={handleCopy}>
-      <Copy width={14} height={14} strokeWidth={2} aria-hidden />
+    <Button
+      variant="primary"
+      onClick={handleCopy}
+      className="shared-copy-btn"
+      icon={<Copy width={14} height={14} strokeWidth={2} />}
+    >
       Copy cube
-    </button>
+    </Button>
   );
 }

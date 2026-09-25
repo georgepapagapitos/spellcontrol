@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useDocumentTitle } from '../../lib/use-document-title';
 import { BrandMark } from '../shared/BrandMark';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   children: ReactNode;
@@ -76,9 +77,9 @@ export function NotFoundView({
     <div className="shared-view shared-view--missing">
       <h1>{title}</h1>
       <p>{message}</p>
-      <Link to="/" className="btn btn-primary shared-copy-btn">
+      <Button variant="primary" to="/" className="shared-copy-btn">
         Go to SpellControl
-      </Link>
+      </Button>
     </div>
   );
 }
@@ -95,9 +96,9 @@ export function ErrorView({ message }: ErrorViewProps) {
     <div className="shared-view shared-view--error">
       <h1>Something went wrong</h1>
       <p>{message}</p>
-      <Link to="/" className="btn btn-primary shared-copy-btn">
+      <Button variant="primary" to="/" className="shared-copy-btn">
         Go to SpellControl
-      </Link>
+      </Button>
     </div>
   );
 }
