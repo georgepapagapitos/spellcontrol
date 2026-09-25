@@ -39,6 +39,7 @@ import { haptics } from '../../lib/haptics';
 import { suppressNativeContextMenu } from '../../lib/suppress-context-menu';
 import { useWakeLock } from '../../lib/use-wake-lock';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
+import { useBackgroundInert } from '../../lib/use-background-inert';
 import { useFullscreen } from '../../lib/use-fullscreen';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -146,6 +147,13 @@ export function GameBoard({
   // tap. `hubBtnRef` anchors the ring's fan math and is where focus returns.
   const hubBtnRef = useRef<HTMLButtonElement>(null);
   const [hubOpen, setHubOpen] = useState(false);
+  // How the ring's current open was triggered — a real pointer click's
+  // synthesized `MouseEvent.detail` is >=1, a keyboard (Enter/Space)
+  // activation's is 0. Keyboard opening should focus the first petal with a
+  // visible ring (WAI-ARIA menu behaviour); a pointer open shouldn't draw one
+  // (a tap on the hub is not "selecting" Restart) — see BoardHubMenu. State,
+  // not a ref: BoardHubMenu reads this during render.
+  const [hubOpenedByKeyboard, setHubOpenedByKeyboard] = useState(true);
   const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
   const [menuInitialTab, setMenuInitialTab] = useState<'now' | 'setup'>('now');
   // The board-level "High Roll" table moment — a d20 per living seat at once.
@@ -279,6 +287,12 @@ export function GameBoard({
   // Lock body scroll while the board is mounted — it's a fullscreen overlay.
   useLockBodyScroll();
 
+  // F10: hold focus like a modal. The board covers the screen but isn't
+  // portaled, so without this Tab walks past its last control into the
+  // Header's nav links and the Play page's own tabs underneath it.
+  const boardRootRef = useRef<HTMLDivElement>(null);
+  useBackgroundInert(true, boardRootRef);
+
   // Seam satellite placement, at both size steps the CSS switches between.
   // The clock used to be the seam's other satellite; it's an edge strip now
   // (see the render below), so undo is the only satellite left.
@@ -351,6 +365,7 @@ export function GameBoard({
 
   return (
     <div
+      ref={boardRootRef}
       className={`game-board game-board-${Math.min(total, 10)} layout-${
         isCustomLayout(board.id) ? 'custom' : board.id
       } mode-${game.mode}${cmdFocus ? ' is-cmd-focus' : ''}`}
@@ -441,8 +456,14 @@ export function GameBoard({
           onPointerUp={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
-            if (cmdFocus) exitCmdFocus();
-            else setHubOpen((v) => !v);
+            if (cmdFocus) {
+              exitCmdFocus();
+              return;
+            }
+            // A synthesized click from Enter/Space carries detail 0; a real
+            // pointer click's is >=1 (see hubOpenedByKeyboard above).
+            if (!hubOpen) setHubOpenedByKeyboard(e.detail === 0);
+            setHubOpen((v) => !v);
           }}
         >
           {cmdFocus ? (
@@ -455,7 +476,12 @@ export function GameBoard({
         </button>
 
         {hubOpen && (
-          <BoardHubMenu hubRef={hubBtnRef} onClose={() => setHubOpen(false)} petals={hubPetals} />
+          <BoardHubMenu
+            hubRef={hubBtnRef}
+            onClose={() => setHubOpen(false)}
+            petals={hubPetals}
+            openedByKeyboard={hubOpenedByKeyboard}
+          />
         )}
 
         {/* Undo is the seam's one remaining satellite (the clock moved to the
@@ -1702,9 +1728,20 @@ function WinCelebration({
 
   // A non-draw game with no matching player is a data-integrity edge case
   // (e.g. the winning seat left) — same as before, just skip the overlay.
-  if (dismissed || (!isDraw && !winner)) return null;
+  const visible = !dismissed && (isDraw || !!winner);
+  // F10: while showing, the seat buttons and hub behind the celebration are
+  // still in the tab order without this — the celebration renders INSIDE the
+  // board's own DOM (not a portal), so `aria-modal` on its card alone traps
+  // nothing.
+  const celebrationRootRef = useRef<HTMLDivElement>(null);
+  // Bounded to the board itself: GameBoard's own useBackgroundInert call
+  // already owns everything OUTSIDE `.game-board` (see there for why a
+  // ref-based boundary can't be used here instead).
+  useBackgroundInert(visible, celebrationRootRef, '.game-board');
+  if (!visible) return null;
   return (
     <div
+      ref={celebrationRootRef}
       className="win-celebration"
       role="presentation"
       onClick={(e) => {

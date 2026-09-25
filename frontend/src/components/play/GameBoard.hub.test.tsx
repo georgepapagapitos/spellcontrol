@@ -132,6 +132,23 @@ describe('the hub ring', () => {
     openRing();
     expect(document.querySelector('.game-clock-strip')).toBeTruthy();
   });
+
+  // F12a: the hub button reads the triggering click's `detail` (0 for a
+  // keyboard-synthesized click, >=1 for a real pointer click) and passes it
+  // through as BoardHubMenu's `openedByKeyboard`.
+  it("suppresses the first petal's ring on a pointer-triggered open, not on a keyboard one", () => {
+    render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }), { detail: 1 });
+    expect(
+      document.querySelector('.board-hub-ring')?.classList.contains('board-hub-ring-pointer-opened')
+    ).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Close menu' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }), { detail: 0 });
+    expect(
+      document.querySelector('.board-hub-ring')?.classList.contains('board-hub-ring-pointer-opened')
+    ).toBe(false);
+  });
 });
 
 describe('Restart, reached from the ring', () => {

@@ -55,6 +55,15 @@
   outline-offset: 3px;
 }
 
+/* F12a: a pointer-triggered open still moves focus into the first petal
+   (Restart), but that focus shouldn't read as "selected" — Chromium can
+   still match :focus-visible on a script-driven .focus() shortly after a
+   real click. Scoped to the panel and cleared on the first real keydown
+   (BoardHubMenu.tsx), so keyboard nav after a pointer-open still rings. */
+.board-hub-ring-pointer-opened .board-hub-petal:focus-visible {
+  outline: none;
+}
+
 @media (pointer: coarse) {
   .board-hub-petal {
     min-height: 44px;
