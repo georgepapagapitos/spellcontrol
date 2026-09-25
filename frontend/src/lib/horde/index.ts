@@ -4,3 +4,4 @@ export * from './turn';
 export * from './board';
 export * from './catalog';
 export * from './load-deck';
+export * from './replay';
