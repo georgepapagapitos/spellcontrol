@@ -126,7 +126,10 @@ describe('CardScanner', () => {
     // frames to the screen. Asking for 1080×1920 made Chrome on Android hand
     // a portrait phone a narrow, zoomed landscape band, reported from a real
     // phone after the web scanner became the only one.
-    function liveCamera(settings: { width: number; height: number }) {
+    function liveCamera(
+      frames: { width: number; height: number },
+      settings: { width: number; height: number } = frames
+    ) {
       const track = {
         getCapabilities: () => ({}),
         getSettings: () => settings,
@@ -142,37 +145,63 @@ describe('CardScanner', () => {
         writable: true,
         value: null,
       });
+      // happy-dom has no media dimensions at all; stand in for the frames.
+      Object.defineProperty(HTMLVideoElement.prototype, 'videoWidth', {
+        configurable: true,
+        get: () => frames.width,
+      });
+      Object.defineProperty(HTMLVideoElement.prototype, 'videoHeight', {
+        configurable: true,
+        get: () => frames.height,
+      });
       return { getUserMedia, track };
     }
+
+    const reoriented = (track: { applyConstraints: ReturnType<typeof vi.fn> }) =>
+      track.applyConstraints.mock.calls.some(([c]) => c && 'width' in c);
 
     beforeEach(() => {
       vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(390);
       vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(844);
     });
-    afterEach(() => vi.restoreAllMocks());
+    afterEach(() => {
+      vi.restoreAllMocks();
+      const proto = HTMLVideoElement.prototype as unknown as Record<string, unknown>;
+      delete proto.videoWidth;
+      delete proto.videoHeight;
+    });
 
-    it('asks for the sensor-landscape size and leaves a portrait stream alone', async () => {
-      const { getUserMedia, track } = liveCamera({ width: 1080, height: 1920 });
+    it('asks for the full 4:3 sensor and leaves a portrait stream alone', async () => {
+      const { getUserMedia, track } = liveCamera({ width: 1440, height: 1920 });
       render(<CardScanner onClose={vi.fn()} onConfirm={vi.fn()} />);
 
       await screen.findByRole('button', { name: 'Close scanner' });
       const video = getUserMedia.mock.calls[0][0].video;
       expect(video.width).toEqual({ ideal: 1920 });
-      expect(video.height).toEqual({ ideal: 1080 });
-      expect(track.applyConstraints).not.toHaveBeenCalledWith(
-        expect.objectContaining({ width: expect.anything() })
-      );
+      expect(video.height).toEqual({ ideal: 1440 });
+      expect(reoriented(track)).toBe(false);
     });
 
-    it('swaps once when the browser still returns a landscape stream', async () => {
-      const { track } = liveCamera({ width: 1920, height: 1080 });
+    it('swaps once when the frames on screen are still landscape', async () => {
+      const { track } = liveCamera({ width: 1920, height: 1440 });
       render(<CardScanner onClose={vi.fn()} onConfirm={vi.fn()} />);
 
       await screen.findByRole('button', { name: 'Close scanner' });
       expect(track.applyConstraints).toHaveBeenCalledWith({
-        width: { ideal: 1080 },
+        width: { ideal: 1440 },
         height: { ideal: 1920 },
       });
+    });
+
+    it('trusts the frames, not settings that report the size unrotated', async () => {
+      // Some Android Chrome builds report getSettings() in sensor terms while
+      // delivering rotated portrait frames. Swapping on that turned a correct
+      // stream into the cropped, zoomed-in one.
+      const { track } = liveCamera({ width: 1440, height: 1920 }, { width: 1920, height: 1440 });
+      render(<CardScanner onClose={vi.fn()} onConfirm={vi.fn()} />);
+
+      await screen.findByRole('button', { name: 'Close scanner' });
+      expect(reoriented(track)).toBe(false);
     });
   });
 });

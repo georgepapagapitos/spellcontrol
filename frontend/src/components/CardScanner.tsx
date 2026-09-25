@@ -39,10 +39,10 @@ import { entryKey, useScanQueue } from '../lib/use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 /**
- * Compute the on-screen rectangle of the `object-fit: cover` video. It fills
- * the container and may extend past it (dispX/dispY can be negative). Capture
- * and detection map viewport rects through this so the cropped pixels stay
- * aligned with what the user actually sees.
+ * Compute the on-screen rectangle of the `object-fit: contain` video: the
+ * whole camera frame, letterboxed inside the container (black bars above and
+ * below on a phone). Capture and detection map viewport rects through this so
+ * the cropped pixels stay aligned with what the user actually sees.
  */
 function computeDisplayRect(
   vW: number,
@@ -52,7 +52,7 @@ function computeDisplayRect(
 ): { dispX: number; dispY: number; dispW: number; dispH: number } {
   const videoAspect = vW / vH;
   const containerAspect = cW / cH;
-  if (videoAspect < containerAspect) {
+  if (videoAspect > containerAspect) {
     const dispW = cW;
     const dispH = cW / videoAspect;
     return { dispX: 0, dispY: (cH - dispH) / 2, dispW, dispH };
@@ -252,17 +252,19 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Camera isn't available in this browser.");
       }
-      // Ask in the sensor's own landscape terms. Mobile browsers match
-      // width/height against the camera's native (landscape) modes and then
-      // rotate frames to the screen, so 1920×1080 arrives as 1080×1920 on a
-      // portrait phone. The old portrait request (1080×1920) made Chrome on
-      // Android crop a tall slice out of the sensor and rotate *that*, which
-      // came back as a narrow, zoomed landscape band on a portrait screen.
+      // Ask for the full 4:3 sensor, in its own landscape terms. Mobile
+      // browsers match width/height against the camera's native (landscape)
+      // modes and then rotate frames to the screen, so 1920×1440 arrives as
+      // 1440×1920 on a portrait phone. 4:3 is the whole sensor, the same view
+      // as the phone's camera app; a 16:9 mode crops the sides off it.
+      // Asking for a portrait size (1080×1920) made Chrome on Android crop a
+      // tall slice out of the sensor and rotate that, which came back as a
+      // narrow, zoomed landscape band on a portrait screen.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
           width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          height: { ideal: 1440 },
           // Hint that we want close-up focus. Browsers that support these
           // advanced constraints (Chromium on Android primarily) will pick
           // continuous autofocus; iOS Safari ignores them silently and we
@@ -286,17 +288,15 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       // focus distance picked at stream-start time.
       const track = stream.getVideoTracks()[0];
       // A browser that reads the constraints the other way round still hands
-      // a portrait screen a landscape feed. Swap once for that case. This runs
-      // before the tuning below, since applyConstraints replaces the set.
-      const first = track?.getSettings?.() ?? {};
-      if (
-        window.innerHeight > window.innerWidth &&
-        first.width &&
-        first.height &&
-        first.width > first.height
-      ) {
+      // a portrait screen a landscape feed. Swap once for that case. Judge by
+      // the frames the <video> actually shows, not track.getSettings(), which
+      // some Android Chrome builds report unrotated; trusting it swapped a
+      // correct stream into the zoomed one. This runs before the tuning
+      // below, since applyConstraints replaces the set.
+      const shown = videoRef.current;
+      if (window.innerHeight > window.innerWidth && shown && shown.videoWidth > shown.videoHeight) {
         await track
-          .applyConstraints({ width: { ideal: 1080 }, height: { ideal: 1920 } })
+          .applyConstraints({ width: { ideal: 1440 }, height: { ideal: 1920 } })
           .catch((e) => logger.warn('[scanner] could not re-orient camera:', e));
       }
       const caps = (track?.getCapabilities?.() ?? {}) as MediaTrackCapabilities & {
@@ -407,10 +407,12 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   }, [onClose, isTopmost]);
 
   /**
-   * Keep the viewfinder and search region in viewport coordinates. The
-   * preview is `object-fit: cover`, so the camera fills the whole screen
-   * the way the native app's preview did, and the visible band IS the
-   * container. A 5:7 portrait box sits centred inside it at ~78% of the
+   * Keep the viewfinder and search region in viewport coordinates, inside
+   * the visible camera band. The preview is `object-fit: contain`: the whole
+   * 4:3 frame, full width, with black bars above and below that hold the
+   * corner controls and the last-scan panel, like a phone's camera app.
+   * (Filling the screen instead cropped a third of the width off and read as
+   * zoomed in.) A 5:7 portrait box sits centred in the band at ~78% of the
    * smaller axis. Capture and detection map these rects back into video
    * pixels through `computeDisplayRect`.
    */
@@ -423,39 +425,40 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       const cW = root.clientWidth;
       const cH = root.clientHeight;
       if (!cW || !cH) return;
-      // Wait for real frames: the capture math needs the stream's size.
+      // Wait for real frames: the band depends on the stream's size.
       if (!video?.videoWidth || !video.videoHeight) return;
+      const band = computeDisplayRect(video.videoWidth, video.videoHeight, cW, cH);
 
       // Default viewfinder: a 5:7 portrait box at ~78% of the smaller
       // axis. The user sees this when nothing has been detected yet.
       const FILL = 0.78;
       let vfW: number;
       let vfH: number;
-      if (cW / cH > CARD_ASPECT) {
-        vfH = cH * FILL;
+      if (band.dispW / band.dispH > CARD_ASPECT) {
+        vfH = band.dispH * FILL;
         vfW = vfH * CARD_ASPECT;
       } else {
-        vfW = cW * FILL;
+        vfW = band.dispW * FILL;
         vfH = vfW / CARD_ASPECT;
       }
       const nextDefault: Rect = {
-        left: (cW - vfW) / 2,
-        top: (cH - vfH) / 2,
+        left: band.dispX + (band.dispW - vfW) / 2,
+        top: band.dispY + (band.dispH - vfH) / 2,
         width: vfW,
         height: vfH,
       };
       setDefaultViewfinderRect(nextDefault);
 
-      // Search region: almost the full screen (leave a 4% margin so
-      // chrome / safe-area insets don't bleed in). The detector looks
-      // for a card anywhere inside this rectangle — that's how the user
-      // can hover closer or further and still get a hit.
+      // Search region: almost the whole camera band (a 4% margin keeps the
+      // frame edge out). The detector looks for a card anywhere inside this
+      // rectangle, which is how the user can hover closer or further and
+      // still get a hit.
       const INSET = 0.04;
       const nextSearch: Rect = {
-        left: cW * INSET,
-        top: cH * INSET,
-        width: cW * (1 - 2 * INSET),
-        height: cH * (1 - 2 * INSET),
+        left: band.dispX + band.dispW * INSET,
+        top: band.dispY + band.dispH * INSET,
+        width: band.dispW * (1 - 2 * INSET),
+        height: band.dispH * (1 - 2 * INSET),
       };
       setSearchRect(nextSearch);
 
