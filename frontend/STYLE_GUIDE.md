@@ -730,6 +730,15 @@ a hero CTA.
   fails, use `variant="scrollable"` (tabs size to content, the strip scrolls).
   Four or more tabs always use `scrollable`. "In deck" vs "One card away (N)" and
   "Battlefield" both fail the test.
+- **A boxed track hugs its content; only `fitted` fills the row.** The
+  `scrollable` strip and the `SegmentedControl` track carry
+  `width: fit-content; max-width: 100%` on the primitive, so the box ends where
+  the last option ends and still scrolls or wraps when the options outrun the
+  row. A track stretched across the panel with its options huddled at the left
+  reads as an empty field. It shipped that way on the currency toggle, the cube
+  size toggle and both Combos strips, each time patched in the consumer.
+  Fix it on the primitive and never add a per-consumer `width` for it.
+  `styles/settings-card-body-stretch.test.ts` guards both primitives.
 - **Pass `variant="underline"` explicitly on every page/section-level switcher.**
   `Tabs` defaults to `variant="fitted"` (equal-width segments, each label clipped
   with `text-overflow: ellipsis`). `fitted` is **only** for 2–3 short, equal-length
