@@ -433,6 +433,36 @@ describe('BracketBreakdown judgment call', () => {
     ).toBeTruthy();
   });
 
+  it('quotes how often the combo is assembled early, from the seeded clock', () => {
+    const clockLibrary = [
+      { name: 'Card A', cmc: 2, isLand: false, role: null, colors: [] },
+      { name: 'Card B', cmc: 2, isLand: false, role: null, colors: [] },
+      ...Array.from({ length: 37 }, (_, i) => ({
+        name: `Land ${i}`,
+        cmc: 0,
+        isLand: true,
+        role: null,
+        colors: [],
+      })),
+      ...Array.from({ length: 60 }, (_, i) => ({
+        name: `Filler ${i}`,
+        cmc: 3,
+        isLand: false,
+        role: null,
+        colors: [],
+      })),
+    ];
+    const { container } = render(
+      <BracketBreakdown estimation={ratingOnly()} clockLibrary={clockLibrary} />
+    );
+    const side = [...container.querySelectorAll('.bracket-call-side')].find((el) =>
+      el.textContent?.includes('Reads as 3')
+    );
+    expect(side?.textContent).toMatch(
+      /In 1,000 goldfish games it's assembled by turn 6 in (under 1%|\d+%|none of them)( of them)?\./
+    );
+  });
+
   it('has no judgment when the rules settle the bracket', () => {
     render(<BracketBreakdown estimation={makeEstimation()} />);
     expect(screen.queryByText('Judgment')).toBeNull();

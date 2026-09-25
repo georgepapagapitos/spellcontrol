@@ -50,7 +50,7 @@
     "components/deck/SubScoreTile.css": 4,
     "components/deck/SwapThisCard.css": 4,
     "components/deck/VerdictBadge.css": 2,
-    "components/deck/WinConditionPanel.css": 12,
+    "components/deck/WinConditionPanel.css": 11,
     "components/decks/DeckLibrary.css": 4,
     "components/DiscoverDeckTile.css": 13,
     "components/DiscoverFiltersPopover.css": 4,

@@ -280,6 +280,60 @@ export interface AssemblyClockResult {
   typicalTurn: number;
   /** 90th-percentile turn — 90% of simulated games were online by this turn. */
   p90Turn: number;
+  /**
+   * Share of games (0–1) online by turn t, indexed by turn up to
+   * `CLOCK_SHARE_TURNS`. The early turns are the bracket question ("does the
+   * combo come together early?"), which a median alone can't answer.
+   */
+  assembledBy: number[];
+}
+
+/** The turn the clock sentence leads with: whether a combo comes together
+ *  early is the bracket question, and a median alone can't answer it. */
+export const CLOCK_EARLY_TURN = 6;
+
+/** "34%", with the ends said in words: "under 1%" and "every" read truer than
+ *  a rounded 0% or 100% out of 1,000 games. */
+export function clockShare(share: number): string {
+  if (share > 0 && share < 0.005) return 'under 1%';
+  if (share < 1 && share > 0.995) return 'over 99%';
+  return `${Math.round(share * 100)}%`;
+}
+
+/**
+ * The clock in one sentence, early turn first: "The combo is assembled by
+ * turn 6 in 4% of games, and in half of them by turn 35." It says assembled,
+ * not "kills": an infinite-turns lock is assembled long before anyone is dead.
+ */
+export function assemblyClockSentence(
+  clock: AssemblyClockResult,
+  /** The path's `WinConCategory`: an alt-win card is cast, a combo assembled. */
+  category: string
+): string {
+  const what = category === 'alt-win' ? 'The win card is cast' : 'The combo is assembled';
+  const early = clock.assembledBy[CLOCK_EARLY_TURN] ?? 0;
+  const byEarly =
+    early === 0
+      ? `in none of ${clock.iterations.toLocaleString()} games`
+      : early === 1
+        ? 'in every game'
+        : `in ${clockShare(early)} of games`;
+  return `${what} by turn ${CLOCK_EARLY_TURN} ${byEarly}, and in half of them by turn ${clock.typicalTurn}.`;
+}
+
+/** How many turns `AssemblyClockResult.assembledBy` covers. */
+export const CLOCK_SHARE_TURNS = 20;
+
+/**
+ * A seed derived from the list itself, so the same 99 always gets the same
+ * clock: two panels quoting it can't disagree, and a re-render can't move it.
+ */
+export function librarySeed(library: readonly { name: string }[]): number {
+  let h = 2166136261;
+  for (const name of library.map((c) => c.name).sort()) {
+    for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619);
+  }
+  return h >>> 0;
 }
 
 /**
@@ -327,7 +381,12 @@ export function simulateAssemblyClock(
   // A zero-need option (e.g. a commander + partner combo — every piece starts
   // in the command zone) is online before the first draw.
   if (viable.some((o) => o.need <= 0)) {
-    return { iterations, typicalTurn: 1, p90Turn: 1 };
+    return {
+      iterations,
+      typicalTurn: 1,
+      p90Turn: 1,
+      assembledBy: [0, ...new Array<number>(CLOCK_SHARE_TURNS).fill(1)],
+    };
   }
 
   const pieceNames = new Set(viable.flatMap((o) => o.names));
@@ -466,5 +525,10 @@ export function simulateAssemblyClock(
 
   turns.sort((a, b) => a - b);
   const at = (q: number) => turns[Math.min(turns.length - 1, Math.floor(turns.length * q))];
-  return { iterations, typicalTurn: at(0.5), p90Turn: at(0.9) };
+  const assembledBy = [0];
+  for (let t = 1, i = 0; t <= CLOCK_SHARE_TURNS; t++) {
+    while (i < turns.length && turns[i] <= t) i++;
+    assembledBy.push(i / turns.length);
+  }
+  return { iterations, typicalTurn: at(0.5), p90Turn: at(0.9), assembledBy };
 }

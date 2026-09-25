@@ -48,7 +48,9 @@ import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
 import { COLOR_INFO } from '../../lib/colors';
 import {
+  assemblyClockSentence,
   isKeepableHand,
+  librarySeed,
   simulateAssemblyClock,
   simulateOpeningHands,
   type SimResult,
@@ -205,9 +207,11 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       // turn tracks its evidence-pool size, not the deck's speed.
       if (!primaryWinCon || !isKillClock(primaryWinCon.category)) return null;
       if (!primaryWinCon.assembly?.length || library.length === 0) return null;
-      return simulateAssemblyClock(library.map(toClockCard), primaryWinCon.assembly, {
+      const clockCards = library.map(toClockCard);
+      return simulateAssemblyClock(clockCards, primaryWinCon.assembly, {
         iterations: 1000,
         wildcards: winConTutors,
+        seed: librarySeed(clockCards),
       });
       // taggerReady: ramp classification decides how fast the sim's mana grows.
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -574,13 +578,9 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     {assemblyClock && primaryWinCon && (
                       <p className="deck-test-hand-assembly">
                         <Hourglass width={12} height={12} aria-hidden />
-                        <span>
-                          {primaryWinCon.label} typically kills by turn{' '}
-                          <strong>{assemblyClock.typicalTurn}</strong> · 90% of games by turn{' '}
-                          {assemblyClock.p90Turn}
-                        </span>
+                        <span>{assemblyClockSentence(assemblyClock, primaryWinCon.category)}</span>
                         <InfoTip
-                          label="the kill-turn estimate"
+                          label="the assembly estimate"
                           className="deck-test-hand-assembly-tip"
                           text={assemblyClockTip()}
                         />
@@ -598,7 +598,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                       `${Math.round(sim.keepableWithinMulligansRate * 100)} percent after a mulligan. ` +
                       `Average ${sim.avgLands.toFixed(1)} lands.` +
                       (assemblyClock && primaryWinCon
-                        ? ` ${primaryWinCon.label} typically kills by turn ${assemblyClock.typicalTurn}, 90 percent of games by turn ${assemblyClock.p90Turn}.`
+                        ? ` ${assemblyClockSentence(assemblyClock, primaryWinCon.category)}`
                         : '')
                     : ''}
                 </p>

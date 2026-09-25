@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CLOCK_SHARE_TURNS,
+  assemblyClockSentence,
+  clockShare,
   isKeepableHand,
+  librarySeed,
   simulateAssemblyClock,
   simulateLandDropCurve,
   simulateOpeningHands,
@@ -237,6 +241,23 @@ describe('simulateAssemblyClock', () => {
     return cards.slice(0, size);
   }
 
+  it('reports the share of games assembled by each turn, rising to the median', () => {
+    const r = simulateAssemblyClock(namedLibrary(['A', 'B']), [{ names: ['A', 'B'], need: 2 }], {
+      iterations: 400,
+      seed: 3,
+    })!;
+    expect(r.assembledBy).toHaveLength(CLOCK_SHARE_TURNS + 1);
+    expect(r.assembledBy[0]).toBe(0);
+    for (let t = 1; t <= CLOCK_SHARE_TURNS; t++) {
+      expect(r.assembledBy[t]).toBeGreaterThanOrEqual(r.assembledBy[t - 1]);
+    }
+    // Half the games are online by the median, and not before it.
+    if (r.typicalTurn <= CLOCK_SHARE_TURNS) {
+      expect(r.assembledBy[r.typicalTurn]).toBeGreaterThanOrEqual(0.5);
+      expect(r.assembledBy[r.typicalTurn - 1]).toBeLessThan(0.5);
+    }
+  });
+
   it('is deterministic for a fixed seed', () => {
     const lib = namedLibrary(['A', 'B']);
     const spec = [{ names: ['A', 'B'], need: 2 }];
@@ -254,7 +275,8 @@ describe('simulateAssemblyClock', () => {
       iterations: 100,
       seed: 1,
     });
-    expect(r).toEqual({ iterations: 100, typicalTurn: 1, p90Turn: 1 });
+    expect(r).toMatchObject({ iterations: 100, typicalTurn: 1, p90Turn: 1 });
+    expect(r!.assembledBy.slice(1).every((v) => v === 1)).toBe(true);
   });
 
   /** 8 copies each of A and B, so the pieces arrive early and MANA is what
@@ -314,7 +336,9 @@ describe('simulateAssemblyClock', () => {
       iterations: 50,
       seed: 1,
     });
-    expect(r).toEqual({ iterations: 50, typicalTurn: 1, p90Turn: 1 });
+    expect(r).toMatchObject({ iterations: 50, typicalTurn: 1, p90Turn: 1 });
+    expect(r!.assembledBy).toHaveLength(CLOCK_SHARE_TURNS + 1);
+    expect(r!.assembledBy.slice(1).every((v) => v === 1)).toBe(true);
   });
 
   it('returns null when no option is viable', () => {
@@ -446,5 +470,47 @@ describe('simulateAssemblyClock', () => {
     });
     expect(r!.typicalTurn).toBe(1);
     expect(r!.p90Turn).toBe(1);
+  });
+});
+
+describe('librarySeed', () => {
+  it('is the same for the same list in any order, and differs for another list', () => {
+    const a = [{ name: 'Sol Ring' }, { name: 'Island' }, { name: 'Counterspell' }];
+    expect(librarySeed(a)).toBe(librarySeed([...a].reverse()));
+    expect(librarySeed(a)).not.toBe(librarySeed([...a, { name: 'Forest' }]));
+  });
+});
+
+describe('clockShare', () => {
+  it('rounds, and says the ends in words rather than 0% or 100%', () => {
+    expect(clockShare(0.137)).toBe('14%');
+    expect(clockShare(0)).toBe('0%');
+    expect(clockShare(0.002)).toBe('under 1%');
+    expect(clockShare(0.998)).toBe('over 99%');
+    expect(clockShare(1)).toBe('100%');
+  });
+});
+
+describe('assemblyClockSentence', () => {
+  const clock = (early: number, typicalTurn: number) => ({
+    iterations: 1000,
+    typicalTurn,
+    p90Turn: typicalTurn + 10,
+    assembledBy: Array.from({ length: 21 }, (_, t) => (t === 0 ? 0 : t < 6 ? early / 2 : early)),
+  });
+
+  it('leads with turn 6, then the median, and says assembled for a combo', () => {
+    expect(assemblyClockSentence(clock(0.04, 35), 'infinite-combo')).toBe(
+      'The combo is assembled by turn 6 in 4% of games, and in half of them by turn 35.'
+    );
+  });
+
+  it('says none and every in words', () => {
+    expect(assemblyClockSentence(clock(0, 40), 'infinite-combo')).toMatch(
+      /by turn 6 in none of 1,000 games,/
+    );
+    expect(assemblyClockSentence(clock(1, 3), 'alt-win')).toBe(
+      'The win card is cast by turn 6 in every game, and in half of them by turn 3.'
+    );
   });
 });

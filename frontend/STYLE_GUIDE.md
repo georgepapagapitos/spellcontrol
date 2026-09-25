@@ -6178,6 +6178,27 @@ the rest, so the panel labels which is which:
   disagrees with. Copy confirms with the app's toast; Share only where
   `canShare()`.
 
+### The combo clock says what it measures (2026-09-25)
+
+"Typically kills by turn 35" was right for the model and read as a bug, and
+"kills" was wrong for an infinite-turns lock. The clock now:
+
+- **Says assembled, never kills**, and leads with the early turn:
+  "The combo is assembled by turn 6 in 4% of games, and in half of them by
+  turn 35" (`assemblyClockSentence`, shared by Win conditions and the
+  practice-hand panel). The bracket question is whether a combo is early,
+  which a median alone can't answer.
+- **Shows the shares as a fixed strip** (turns 4, 6, 8, 10, 12, 15), so two
+  decks compare column for column; the strip is a labelled `role="img"`, the
+  sentence carries the reading.
+- **Names its scope**: drawing, tutoring and casting the pieces over 1,000
+  goldfish games; combat and poison damage aren't simulated.
+- **Is seeded from the list** (`librarySeed`), so the same 99 always reads the
+  same, and the Bracket Judgment's "Reads as 3" quotes the same figure for the
+  deciding combo. Two panels quoting one number must not disagree.
+- Ends in words, not rounding: "under 1%", "over 99%", "in none of 1,000
+  games", "in every game".
+
 ## Full-viewport centered pages (scroll, don't clip)
 
 **Load-bearing rule — any full-viewport centered card page (auth, the `/`
