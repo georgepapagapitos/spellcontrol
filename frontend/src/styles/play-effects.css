@@ -14,8 +14,11 @@
   margin: 0;
   cursor: pointer;
   color: inherit;
-  font-family: inherit;
-  font-weight: inherit;
+  /* E416: NOT font-family: inherit — that beat `.player-panel-life`'s own
+     font-family (same element, both classes, later file wins the cascade
+     tie) and silently kept the numeral on the mono fallback instead of
+     Bebas Neue. `.player-panel-life` already owns this element's
+     font-family directly; nothing here needs to reset it. */
   letter-spacing: inherit;
   line-height: 1;
   pointer-events: auto;
@@ -139,21 +142,41 @@
 .player-panel-step-btn {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.04em;
 }
 
 .player-panel-step-glyph {
   display: inline-block;
 }
 
+/* Absolutely positioned so a wide count (double digits from a −10 burst)
+   never widens the button's own box: the button is already `position:
+   absolute` (play-board.css) and offset from the panel centre by a
+   transform proportional to its own width — a count that grew that box in
+   normal flow pushed the whole button further out and spilled it past the
+   panel edge. Anchored toward the numeral (inward), the side with room. */
 .player-panel-step-count {
-  font-family: var(--font-mono);
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-numeral);
+  font-variant-numeric: tabular-nums;
   /* Sits at ~85% of the button glyph — same family/weight, just slightly
      smaller so the +/− still reads as the primary character. */
   font-size: calc(0.85em);
-  font-weight: 900;
+  font-weight: 400;
   line-height: 1;
   letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.player-panel-step-btn:first-of-type .player-panel-step-count {
+  left: 100%;
+  margin-left: 0.15em;
+}
+
+.player-panel-step-btn:last-of-type .player-panel-step-count {
+  right: 100%;
+  margin-right: 0.15em;
 }
 
 /* Underlined 6 and 9 (device pref, default off): the two board-numeral

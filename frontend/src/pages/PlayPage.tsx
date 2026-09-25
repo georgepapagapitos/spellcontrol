@@ -1,5 +1,6 @@
 // The play table's stylesheets ship with this chunk, not the boot payload
 // (E265) — same relative order as the former main.tsx block.
+import '@/styles/play-fonts.css';
 import '@/styles/play-setup.css';
 import '@/styles/play-board.css';
 import '@/styles/play-panel-menus.css';

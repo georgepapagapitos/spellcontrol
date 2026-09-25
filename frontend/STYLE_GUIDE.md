@@ -7409,6 +7409,31 @@ reading a life total from across the table, and every ruling below serves it.
   the height; a short panel (under 10rem across a sideways seat, 12rem tall
   upright) drops to ~40%, because the 44px corner chips are fixed-size and a
   percentage alone runs the digits into them.
+- **Every board numeral is Bebas Neue, tabular, self-hosted (E416).** The
+  life total, the ± step glyphs, the burst count, the commander-damage split
+  values and the High Roll value all read the same face via one token
+  (`--font-numeral` on `.player-panel`) — never set the family per element.
+  Condensed on purpose: it's the Lotus-like look (tall, narrow digits) that
+  fits a big total into a short 7-10p seat, the same job `--life-size`'s
+  short-cell tiers already do — an earlier pick (Rubik, wide) fought that
+  goal instead of serving it. Single weight 400 (Bebas Neue's only weight —
+  requesting heavier would synthesize a smeared faux-bold) and
+  `font-variant-numeric: tabular-nums` so a total doesn't shift its siblings
+  as it changes (verified: without it, digit advance ranges 33.7-45.4px at a
+  fixed size; with it, every digit is 40px). Self-hosted (OFL,
+  `public/fonts/bebas-neue-400-latin.woff2`) and loaded only by the
+  play-board chunk's own stylesheet (`play-fonts.css`, imported by
+  `PlayPage.tsx`), so a visitor who never opens a game never fetches it.
+  Because the face is condensed, the width axis is cheap: the 7-10p
+  short-cell tier's width ceiling loosened (38 → 55cqw) and its height share
+  grew (32 → 38cqh) so height, not width, is what actually caps the numeral
+  there now — the worst 320px cell (10p) rose 27px (pre-E416) → 29px (Rubik)
+  → 34px. The other tiers (default, 2p, the two sideways-short ones) kept
+  their original 38 ceiling: raising them the same way grew 5p/6p's numeral
+  enough to newly collide with their (un-condensed) name, for no growth this
+  font swap actually needed — measured, not assumed. `play-numeral-font.test.ts`
+  pins the family, the weight and `font-variant-numeric: tabular-nums` on
+  every one of those five selectors.
 - **The ± hug the numeral at every count.** Pinned to the panel ends they sat
   on a sideways seat's corner controls.
 - **Ink is black or white per seat, whichever reads better.** White everywhere
@@ -7485,18 +7510,26 @@ correctness bug the capacity work exposed.
   one JSONB row; 8→10 measured as a 1-2KB row-size increase, well inside the
   existing MAX_EVENTS-bounded log's headroom.
 - **A very short panel needs a third numeral tier.** 9p/10p at 320px produce
-  ~104px-tall cells, and 7p/8p ~132px ones — shorter than the 5p/6p cells
-  (~179px) the existing `@container (max-height: 12rem)` tier was tuned for.
-  A further `@container (max-height: 9rem)` step (`--life-size: min(30cqh,
-38cqw)`) cuts the 320px numeral/name overlap from ~440px² to ~190px² on
-  9p/10p's shortest cells, and eliminates it entirely on 7p/8p's — measured
-  with the board probe, not read off the CSS. The fixed seam-keepout corner
-  offset alone costs ~45px of a 104px cell regardless of numeral size, so a
-  small residual overlap remains at that one extreme (320px, 9-10 players);
-  it is smaller than what shipped before this fix, the same "smaller, not
-  gone" bar already accepted for 320px boards generally, and disappears by
-  390px. Every count is collision-free against the hub/clock/undo satellites
-  at every width tested (320/390/820) — that part scales for free, since
+  ~90-104px-tall cells (90px with the clock strip on, the default; 104px with
+  both clock switches off), and 7p/8p ~115-132px ones — shorter than the
+  5p/6p cells (~179px) the existing `@container (max-height: 12rem)` tier was
+  tuned for. A further `@container (max-height: 9.5rem)` step
+  (`--life-size: min(32cqh, 38cqw)`) targets these cells — measured with the
+  board probe, not read off the CSS.
+  ⛔ **Superseded by E416 (2026-09-25):** the numeral-only shrink above used
+  to leave a residual numeral/name overlap at 320px (9-10 players) and,
+  unnoticed until the board probe was run at 390px too, at 390px as well (a
+  145px 9p/10p cell missed the old `9rem` cut by 1px and fell back to the
+  12rem tier with no protection at all). The name's own font never shrank
+  with the panel — the fixed seam-keepout corner offset costs ~45px of room
+  regardless of numeral size, so no amount of numeral shrinking alone could
+  clear a fixed ~23px-tall label off a 90-145px cell. The same tier now also
+  condenses the name (smaller, tighter line) and the designation-chip rail
+  (Monarch/Initiative/Up next — its fixed 28px chip reached into the ± step
+  buttons on these cells too), clearing every seat of every 7-10p preset at
+  320x568, 390x844 and 430x932, both clock states, with the numeral still
+  ≥29px. Every count is collision-free against the hub/clock/undo satellites
+  at every width tested (320/390/430/820) — that part scales for free, since
   `seamSatellite` already keys off row/col count, not player count.
 - **Seat order is clockwise from above, seat 0 first (fixed for 2-10).** Turn
   order is seat index + 1 (`packages/game-core`), and MTG passes the turn to
