@@ -3978,6 +3978,17 @@ moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
   the reflow-per-frame mistake above — that one animated `margin-top` on a
   CARD, moving the cards themselves by layout; here the cards are on transforms
   throughout and only their container animates.
+- **A tap opens the card in the stack; a second tap opens the carousel**
+  (2026-09-25). Touch has no hover, so a tap used to go straight to the
+  carousel and the phone stack could only be read one modal at a time. Now the
+  first touch tap sets `.is-open`, which slides the tail exactly as hover does.
+  A tap on the open card, or on a card that already shows whole (the last card
+  of a stack, a one-card stack), opens the carousel. A tap outside the cards
+  closes it; a scroll does not, since a stack runs taller than the screen and
+  you may be scrolling to read the card you opened. Only a touch pays the extra
+  step: the mouse opens by hover and the keyboard by focus, and both go straight
+  to the carousel on activation. Stacks never open on load; the strips are the
+  index.
 - **Stacks pack, they do not wrap.** `packStacks` balances the columns, so
   a 28-card Creature stack never holds a screen-high hole beside a 1-card
   Commander. On a phone there is exactly ONE stack, as wide as the screen: a

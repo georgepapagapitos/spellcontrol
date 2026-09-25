@@ -31,7 +31,8 @@ const css = readFileSync(join(here, 'deck-builder-card-list.css'), 'utf8');
  *
  * What survives: a static overlap, and `transform: translateY(--stack-open)` on
  * every following sibling (`~`) so the whole tail travels as one stack, for
- * both ways a card opens (pointer and keyboard).
+ * all three ways a card opens (hover, keyboard, and a tap, which sets
+ * `.is-open` because a touch has no hover).
  */
 
 type Rule = { selector: string; body: string };
@@ -74,12 +75,14 @@ const stack = all.filter((r) => r.selector.includes('.deck-card-stack'));
  * Keyed on the selector ENDING at a cell: the column's own reservation rule
  * also names a following sibling, but it targets the list, not the cards.
  */
-function tailRules(state: 'hover' | 'focus'): Rule[] {
+const STATE_MARK = { hover: ':hover', focus: 'focus', tap: '.is-open' } as const;
+
+function tailRules(state: keyof typeof STATE_MARK): Rule[] {
   return stack.filter(
     (r) =>
       r.selector.includes('~') &&
       r.selector.trim().endsWith('.deck-card-grid-cell') &&
-      (state === 'hover' ? r.selector.includes(':hover') : r.selector.includes('focus'))
+      r.selector.includes(STATE_MARK[state])
   );
 }
 
@@ -105,7 +108,7 @@ describe('stacks view keeps buried cards reachable', () => {
   });
 
   it('slides the whole tail below the open card, not just the next one', () => {
-    for (const state of ['hover', 'focus'] as const) {
+    for (const state of ['hover', 'focus', 'tap'] as const) {
       const tail = tailRules(state);
       expect(
         tail.map((r) => r.selector),
@@ -132,6 +135,17 @@ describe('stacks view keeps buried cards reachable', () => {
       // cursor long gone and nothing visibly focused.
       expect(r.selector).toContain(':focus-visible');
     }
+  });
+
+  it('reserves the room for a tapped card too', () => {
+    // A phone has no hover, so a tap is its only way to open a card; without
+    // the reservation the tail slides out of the column's surface.
+    expect(
+      stack.some(
+        (r) =>
+          r.selector.includes('.is-open ~') && /padding-bottom:\s*var\(--stack-open\)/.test(r.body)
+      )
+    ).toBe(true);
   });
 
   it('travels on a transform the cards can be composited on', () => {

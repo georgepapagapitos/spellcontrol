@@ -172,11 +172,11 @@
    It is taken only when a card that HAS a tail is open — `:has(:hover ~ *)`,
    not `:hover` on the column. A one-card stack, and the last card of any stack,
    move nothing and so need no room. */
-@media (hover: hover) and (pointer: fine) {
-  .deck-card-stack {
-    transition: padding-bottom var(--motion-gentle) var(--ease-drawer);
-  }
+.deck-card-stack {
+  transition: padding-bottom var(--motion-gentle) var(--ease-drawer);
+}
 
+@media (hover: hover) and (pointer: fine) {
   .deck-grid-section--stack:has(.deck-card-grid-cell:hover ~ .deck-card-grid-cell)
     .deck-card-stack {
     padding-bottom: var(--stack-open);
@@ -184,6 +184,11 @@
 }
 
 .deck-grid-section--stack:has(.deck-card-grid-cell:has(:focus-visible) ~ .deck-card-grid-cell)
+  .deck-card-stack {
+  padding-bottom: var(--stack-open);
+}
+
+.deck-grid-section--stack:has(.deck-card-grid-cell.is-open ~ .deck-card-grid-cell)
   .deck-card-stack {
   padding-bottom: var(--stack-open);
 }
@@ -244,6 +249,13 @@
    :focus-visible (not plain :focus) keeps a click from leaving the column
    parted after the pointer has gone. */
 .deck-card-stack .deck-card-grid-cell:has(:focus-visible) ~ .deck-card-grid-cell {
+  transform: translateY(var(--stack-open));
+}
+
+/* Touch parity. A touch has no hover, so the first tap opens the card
+   (`.is-open`, set by DeckCardGrid) and a second tap on it opens the carousel.
+   Outside the hover query on purpose: a touch laptop taps too. */
+.deck-card-stack .deck-card-grid-cell.is-open ~ .deck-card-grid-cell {
   transform: translateY(var(--stack-open));
 }
 
