@@ -59,6 +59,29 @@ describe('SegmentedControl and ChoiceList', () => {
     fireEvent.click(screen.getByRole('radio', { name: /No gaps/ }));
     expect(onFill).toHaveBeenCalledWith('continuous');
   });
+
+  it('show a disabled option without letting it be picked', () => {
+    const onSeg = vi.fn();
+    const onList = vi.fn();
+    const opts = [
+      { value: 'public', label: 'Public', hint: 'Sign in to publish.', disabled: true },
+      { value: 'private', label: 'Private' },
+    ];
+    render(
+      <>
+        <SegmentedControl ariaLabel="Seg" value="private" options={opts} onChange={onSeg} />
+        <ChoiceList ariaLabel="List" value="private" options={opts} onChange={onList} />
+      </>
+    );
+    const [seg, list] = screen.getAllByRole('radio', { name: /^Public/ });
+    for (const radio of [seg, list]) {
+      expect(radio).toHaveProperty('disabled', true);
+      expect(radio.closest('label')?.classList.contains('is-disabled')).toBe(true);
+      fireEvent.click(radio);
+    }
+    expect(onSeg).not.toHaveBeenCalled();
+    expect(onList).not.toHaveBeenCalled();
+  });
 });
 
 describe('Disclosure', () => {

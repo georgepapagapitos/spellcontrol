@@ -90,6 +90,9 @@ export interface Option<T> {
   hint?: ReactNode;
   /** Accessible name when `label` is not plain text. */
   ariaLabel?: string;
+  /** Shown but not pickable (e.g. Public while signed out). Say why in a hint
+   *  or beside the group; a greyed option with no reason is a dead end. */
+  disabled?: boolean;
 }
 
 /** Two or three short options: native radios in a track. */
@@ -110,13 +113,14 @@ export function SegmentedControl<T extends string | number | boolean>({
       {options.map((o) => (
         <label
           key={String(o.value)}
-          className={`segmented-option${o.value === value ? ' is-selected' : ''}`}
+          className={`segmented-option${o.value === value ? ' is-selected' : ''}${o.disabled ? ' is-disabled' : ''}`}
         >
           <input
             type="radio"
             name={name}
             value={String(o.value)}
             checked={o.value === value}
+            disabled={o.disabled}
             aria-label={o.ariaLabel}
             onChange={() => onChange(o.value)}
           />
@@ -145,13 +149,14 @@ export function ChoiceList<T extends string | number | boolean>({
       {options.map((o) => (
         <label
           key={String(o.value)}
-          className={`choice-option${o.value === value ? ' is-selected' : ''}`}
+          className={`choice-option${o.value === value ? ' is-selected' : ''}${o.disabled ? ' is-disabled' : ''}`}
         >
           <input
             type="radio"
             name={name}
             value={String(o.value)}
             checked={o.value === value}
+            disabled={o.disabled}
             onChange={() => onChange(o.value)}
           />
           <span className="choice-option-label">{o.label}</span>
