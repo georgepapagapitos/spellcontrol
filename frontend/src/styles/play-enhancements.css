@@ -23,8 +23,10 @@
   background: rgba(14, 17, 24, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: #fff;
-  width: 2.6rem;
-  height: 2.6rem;
+  /* F11: 44px floor on both axes (was 2.6rem/41.6px, measured 42x42 on a
+     phone) — no ghost here, this circle IS the hit box. */
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
   box-shadow:
     0 4px 14px rgba(0, 0, 0, 0.45),
@@ -220,10 +222,17 @@
 
 /* Real 44px buttons, not a ghost: unlike the old floating pill, the strip
    has genuine room, so the coarse-pointer floor is the actual box — width
-   is left to the content plus its (tight, mobile-first) padding above. */
+   is left to the content plus its (tight, mobile-first) padding above for
+   Start/Pass (each carries a text label, so its own padding already clears
+   44px). Pause is icon-only (it swaps its glyph rather than relabeling
+   itself "Resume"), and measured 31x44 on a phone, 39x44 on a tablet — an
+   icon alone never reaches the width floor on its own padding, so this
+   floor is min-width too, not just min-height. */
 @media (pointer: coarse) {
   .game-clock-strip-btn {
     min-height: 2.75rem;
+    min-width: 2.75rem;
+    justify-content: center;
   }
 }
 

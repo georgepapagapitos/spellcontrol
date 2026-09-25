@@ -95,10 +95,10 @@ describe('highRoll', () => {
       ],
       seq([d20(11), d20(20), d20(5)])
     );
-    expect(result).toEqual({ rolls: { 0: 11, 1: 20, 2: 5 }, winnerSeat: 1 });
+    expect(result).toEqual({ rolls: { 0: [11], 1: [20], 2: [5] }, winnerSeat: 1 });
   });
 
-  it('re-rolls only the tied seats, overwriting their earlier roll', () => {
+  it('re-rolls only the tied seats, keeping their earlier roll alongside the re-roll', () => {
     const result = highRoll(
       [
         { seat: 0, eliminated: false },
@@ -109,7 +109,41 @@ describe('highRoll', () => {
       // Round 2 (seats 0 and 1 only): seat 0 rolls 10, seat 1 rolls 15.
       seq([d20(20), d20(20), d20(5), d20(10), d20(15)])
     );
-    expect(result).toEqual({ rolls: { 0: 10, 1: 15, 2: 5 }, winnerSeat: 1 });
+    expect(result).toEqual({ rolls: { 0: [20, 10], 1: [20, 15], 2: [5] }, winnerSeat: 1 });
+  });
+
+  it('a three-way tie keeps every re-roll for every tied seat', () => {
+    const result = highRoll(
+      [
+        { seat: 0, eliminated: false },
+        { seat: 1, eliminated: false },
+        { seat: 2, eliminated: false },
+      ],
+      // Round 1: all three tie at 20. Round 2: seat 0 wins outright at 18.
+      seq([d20(20), d20(20), d20(20), d20(18), d20(12), d20(9)])
+    );
+    expect(result).toEqual({
+      rolls: { 0: [20, 18], 1: [20, 12], 2: [20, 9] },
+      winnerSeat: 0,
+    });
+  });
+
+  it('a second tie appends a third roll for the seats still tied', () => {
+    const result = highRoll(
+      [
+        { seat: 0, eliminated: false },
+        { seat: 1, eliminated: false },
+        { seat: 2, eliminated: false },
+      ],
+      // Round 1: seat 0/1 tie at 20, seat 2 rolls 3 (out).
+      // Round 2: seat 0/1 tie again at 15.
+      // Round 3: seat 1 wins at 12 over seat 0's 8.
+      seq([d20(20), d20(20), d20(3), d20(15), d20(15), d20(8), d20(12)])
+    );
+    expect(result).toEqual({
+      rolls: { 0: [20, 15, 8], 1: [20, 15, 12], 2: [3] },
+      winnerSeat: 1,
+    });
   });
 
   it('skips eliminated seats, same fallback as pickFirstPlayer', () => {
@@ -120,7 +154,7 @@ describe('highRoll', () => {
       ],
       seq([d20(3)])
     );
-    expect(result).toEqual({ rolls: { 1: 3 }, winnerSeat: 1 });
+    expect(result).toEqual({ rolls: { 1: [3] }, winnerSeat: 1 });
   });
 
   it('falls back to the full roster when every seat is eliminated', () => {
@@ -131,12 +165,12 @@ describe('highRoll', () => {
       ],
       seq([d20(9), d20(14)])
     );
-    expect(result).toEqual({ rolls: { 0: 9, 1: 14 }, winnerSeat: 1 });
+    expect(result).toEqual({ rolls: { 0: [9], 1: [14] }, winnerSeat: 1 });
   });
 
   it('a single living seat wins with no roll needed to break a tie', () => {
     const result = highRoll([{ seat: 4, eliminated: false }], seq([d20(1)]));
-    expect(result).toEqual({ rolls: { 4: 1 }, winnerSeat: 4 });
+    expect(result).toEqual({ rolls: { 4: [1] }, winnerSeat: 4 });
   });
 
   it('returns null for an empty roster', () => {

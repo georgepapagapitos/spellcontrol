@@ -104,7 +104,12 @@ describe('seat ink', () => {
  */
 describe('numeral size', () => {
   it('the numeral, its ± and their spacing all derive from --life-size', () => {
-    expect(board).toContain('--life-size: min(60cqh, 38cqw);');
+    // 44, not 38 (gestures audit, 2026-09-25): Bebas Neue's condensed digits
+    // made the width axis cheap, the same reasoning E416 used to raise the
+    // 7-10p tier below. 4p-pod / 5p / 6p's non-wide seats went 56px -> 65px
+    // (320px) / 70px -> 81px (390px) / 77px -> 89px (430px) with zero new
+    // overlap on any 2-10p preset (life-board-probe.mjs).
+    expect(board).toContain('--life-size: min(60cqh, 44cqw);');
     expect(board).toContain('--life-size: min(60cqw, 38cqh);');
     expect(board).toContain('font-size: calc(var(--life-size) * var(--life-scale, 1));');
     expect(board).toContain('font-size: calc(var(--life-size) * 0.32);');
@@ -117,6 +122,10 @@ describe('numeral size', () => {
     expect(board).toMatch(
       /@container \(max-width: 10rem\) \{\s*\.game-board:not\(\.game-board-2\) \.player-panel\[data-sideways\] \{\s*--life-size: min\(40cqw, 38cqh\);/
     );
+    // Stayed at 38, unlike the base rule above: 5p/6p's 155px-tall cell at
+    // 320px lands in THIS tier, and even 39 here put the "up next"
+    // designation chip into the numeral (measured) — no headroom to match
+    // the base rule's 44 without also condensing the chip rail.
     expect(board).toMatch(
       /@container \(max-height: 12rem\) \{\s*\.game-board:not\(\.game-board-2\) \.player-panel:not\(\[data-sideways\]\) \{\s*--life-size: min\(42cqh, 38cqw\);/
     );

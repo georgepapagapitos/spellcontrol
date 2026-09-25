@@ -155,6 +155,12 @@
      both ends with no scroll tell (B7-02). */
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* F1: this body must keep scrolling by touch even though the panel it
+     sits over gates the LIFE half's gesture surfaces to touch-action: none
+     (`.player-panel-tapzone`, play-board.css) — the drawer is a sibling of
+     those zones, not their descendant, so it was never narrowed by that
+     change, but pin the intent explicitly here too. */
+  touch-action: pan-y;
 }
 
 /* Scroll-edge fade — same convention as Tabs.tsx's horizontal `data-overflow`
@@ -766,6 +772,9 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  /* F1: unaffected by the board's tap-zone touch-action: none (the menu sheet
+     isn't nested inside a panel's gesture surface), stated explicitly anyway. */
+  touch-action: pan-y;
 }
 
 @media (min-width: 600px) {

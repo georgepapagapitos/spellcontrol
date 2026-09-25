@@ -78,10 +78,14 @@ export function describeRoll(r: DiceRoll): string {
 }
 
 export interface HighRollResult {
-  /** Every rolling seat's own last d20 roll — a tied seat's earlier roll is
-   *  overwritten by its re-roll, so this is always the value that decided
-   *  the game, never a stale tie. */
-  rolls: Record<number, number>;
+  /** Every rolling seat's full roll history: index 0 is its first roll, and
+   *  any further entries are re-rolls from a tiebreak round it took part in,
+   *  in order — so the seat's decisive value is always the LAST entry. A
+   *  seat that never tied has a single-element array. Keeping the whole
+   *  history (not just the final value) is what lets the UI show a tied
+   *  seat's first roll alongside its tiebreak(s), so a winner who re-rolled
+   *  low never reads as lower than a loser's single high roll. */
+  rolls: Record<number, number[]>;
   winnerSeat: number;
 }
 
@@ -98,12 +102,13 @@ export function highRoll(
   const living = players.filter((p) => !p.eliminated);
   const pool = living.length > 0 ? living : players;
   if (pool.length === 0) return null;
-  const rolls: Record<number, number> = {};
+  const rolls: Record<number, number[]> = {};
+  for (const p of pool) rolls[p.seat] = [];
   let contenders = pool.map((p) => p.seat);
   for (;;) {
-    for (const seat of contenders) rolls[seat] = randInt(1, 20, rand);
-    const max = Math.max(...contenders.map((s) => rolls[s]));
-    const tied = contenders.filter((s) => rolls[s] === max);
+    for (const seat of contenders) rolls[seat].push(randInt(1, 20, rand));
+    const max = Math.max(...contenders.map((s) => rolls[s][rolls[s].length - 1]));
+    const tied = contenders.filter((s) => rolls[s][rolls[s].length - 1] === max);
     if (tied.length === 1) return { rolls, winnerSeat: tied[0] };
     contenders = tied;
   }

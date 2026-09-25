@@ -283,10 +283,21 @@
      it fills whatever cell a layout hands it — at any player count, on any
      screen. The cell is the size container; a sideways panel reads it with
      the axes swapped (see the [data-sideways] rule). 60% of the height is the
-     most the corner rails leave free; 38% of the width is what still fits the
+     most the corner rails leave free; 44% of the width is what still fits the
      numeral plus both hugging ± buttons in a 150px-wide cell. Measured on
-     every preset at 320-820px with a real browser, not read off this CSS. */
-  --life-size: min(60cqh, 38cqw);
+     every preset at 320-820px with a real browser, not read off this CSS.
+     44, not 38: raised post-Bebas-Neue (E416 condensed the 7-10p tier's own
+     ceiling the same way, 38 -> 55, for the same reason — a narrow face
+     leaves the width axis cheap). This is the tier 4p-pod's seats and 5p/6p's
+     seats bind at once their cell clears the 12rem short-height cut (390px+ —
+     see that tier below for the shorter, still-38 case): a 4p-pod seat read
+     56px, 38% of a 148px cell, at 320x568 — 44 clears it to 65px (+16%) with
+     zero new numeral/name/±/chip overlap at 320x568, 390x844 and 430x932
+     (life-board-probe.mjs, every 2-6p preset). The 12rem tier below couldn't
+     take the same raise — even 39 there put the "up next" chip into the
+     numeral on 5p/6p at 320x568 — so it's untouched; a shared token would
+     have forced 44 down to that tier's ceiling for every player count. */
+  --life-size: min(60cqh, 44cqw);
   --life-half: calc(var(--life-size) * 0.72);
 }
 
@@ -313,6 +324,12 @@
   }
 }
 
+/* Left at 38, unlike the base rule above (gestures audit, 2026-09-25): 5p/6p's
+   148x155 cell at 320px lands in this tier, and raising this ceiling even to
+   39 put the "up next" designation chip into the numeral (2px²,
+   life-board-probe.mjs) — the same collision E416 hit trying to raise 5p/6p's
+   ceiling for the font swap. No headroom here without also condensing the
+   chip rail, which is out of scope for this pass. */
 @container (max-height: 12rem) {
   .game-board:not(.game-board-2) .player-panel:not([data-sideways]) {
     --life-size: min(42cqh, 38cqw);
@@ -384,6 +401,18 @@
   position: absolute;
   z-index: 1;
   cursor: pointer;
+  /* F1: on a touch screen, `.game-board`'s touch-action: manipulation still
+     lets the browser treat a drag past the touch slop as a native pan —
+     that pan wins the gesture and the pointer stream ends in pointercancel
+     before useTapAndHold's 40px swipe threshold is ever reached (measured:
+     0/4 fast swipes opened anything). `none` here stops the browser from
+     ever taking the gesture, so the full down/move/up stream reaches our
+     handlers. Scoped to the tap zones only, NOT `.player-panel` or any
+     ancestor — touch-action only narrows down an ancestor chain, never
+     re-opens on a descendant, and the seat drawer (`.seat-menu`, a SIBLING
+     of this zone inside the same panel) needs its own body to keep
+     scrolling by touch. */
+  touch-action: none;
 }
 
 /* Horizontal orientation: left half = −1, right half = +1. */
@@ -535,6 +564,22 @@
   position: absolute;
   top: 50%;
   pointer-events: auto;
+}
+
+/* F2: on a coarse pointer the ± are Lotus's model — hints, not their own hit
+   targets. Each sits at the exact centre of its tap-zone half, so as a real
+   button it swallowed pointerdown before useTapAndHold ever saw it: a long
+   press on the visible "+" gave +1 instead of the zone's +10, and a swipe
+   starting on one did nothing. Removing it from touch hit-testing lets the
+   tap through to the `.player-panel-tapzone` half underneath, so taps, long
+   press and swipes all go through one surface. Keyboard and screen-reader
+   users are unaffected (pointer-events doesn't remove a focusable element
+   from the accessibility tree or tab order), and on a fine pointer — where
+   clicking the glyph is the natural gesture — the button stays fully live. */
+@media (pointer: coarse) {
+  .player-panel-life-wrap > .player-panel-step-btn {
+    pointer-events: none;
+  }
 }
 
 /* The − / + hug the numeral at every player count: anchored to the panel

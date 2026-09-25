@@ -173,7 +173,7 @@ describe('Restart, reached from the ring', () => {
 
 describe('High Roll, reached from the ring', () => {
   it('shows each seat its own d20 and marks the winner', () => {
-    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: 11, 1: 20 }, winnerSeat: 1 });
+    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: [11], 1: [20] }, winnerSeat: 1 });
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
     openRing();
     fireEvent.click(screen.getByRole('menuitem', { name: 'High roll' }));
@@ -187,7 +187,7 @@ describe('High Roll, reached from the ring', () => {
   });
 
   it('records the winner exactly like the quiet first-player tool', () => {
-    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: 11, 1: 20 }, winnerSeat: 1 });
+    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: [11], 1: [20] }, winnerSeat: 1 });
     const dispatch = vi.fn();
     render(<GameBoard game={makeTestState(pair())} dispatch={dispatch} canControlAll />);
     openRing();
@@ -199,7 +199,7 @@ describe('High Roll, reached from the ring', () => {
   });
 
   it('freezes every panel’s life taps while showing', () => {
-    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: 11, 1: 20 }, winnerSeat: 1 });
+    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: [11], 1: [20] }, winnerSeat: 1 });
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
     openRing();
     fireEvent.click(screen.getByRole('menuitem', { name: 'High roll' }));
@@ -210,7 +210,7 @@ describe('High Roll, reached from the ring', () => {
   });
 
   it('dismisses on a tap without leaking into a life change', () => {
-    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: 11, 1: 20 }, winnerSeat: 1 });
+    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: [11], 1: [20] }, winnerSeat: 1 });
     const dispatch = vi.fn();
     render(<GameBoard game={makeTestState(pair())} dispatch={dispatch} canControlAll />);
     openRing();
@@ -224,7 +224,7 @@ describe('High Roll, reached from the ring', () => {
 
   it('dismisses itself after a few seconds', () => {
     vi.useFakeTimers();
-    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: 11, 1: 20 }, winnerSeat: 1 });
+    vi.mocked(highRoll).mockReturnValue({ rolls: { 0: [11], 1: [20] }, winnerSeat: 1 });
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
     openRing();
     fireEvent.click(screen.getByRole('menuitem', { name: 'High roll' }));
@@ -234,5 +234,40 @@ describe('High Roll, reached from the ring', () => {
       vi.advanceTimersByTime(4001);
     });
     expect(document.querySelectorAll('.pp-highroll')).toHaveLength(0);
+  });
+
+  it('shows a tied seat’s first roll with its tiebreak(s) beneath it, so the winner reads highest', () => {
+    // Rolls 20/20/18: both 20s tied and re-rolled 7 and 15. The winner (seat
+    // 1, final 15) must not read lower than the loser's single 18.
+    vi.mocked(highRoll).mockReturnValue({
+      rolls: { 0: [20, 7], 1: [20, 15], 2: [18] },
+      winnerSeat: 1,
+    });
+    const dispatch = vi.fn();
+    render(
+      <GameBoard
+        game={makeTestState([seat(0, 'Alice'), seat(1, 'Bob'), seat(2, 'Cara')])}
+        dispatch={dispatch}
+        canControlAll
+      />
+    );
+    openRing();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'High roll' }));
+
+    const overlays = document.querySelectorAll('.pp-highroll');
+    expect(overlays).toHaveLength(3);
+    // The two tied seats show their first roll AND their tiebreak; the
+    // untied seat shows only its single roll.
+    expect(overlays[0].textContent).toContain('20');
+    expect(overlays[0].textContent).toContain('then 7');
+    expect(overlays[1].textContent).toContain('20');
+    expect(overlays[1].textContent).toContain('then 15');
+    expect(overlays[1].classList.contains('is-winner')).toBe(true);
+    expect(overlays[2].textContent).toContain('18');
+    expect(overlays[2].textContent).not.toContain('then');
+
+    const sent = dispatch.mock.calls.map(([a]) => a as GameAction);
+    const note = sent.find((a) => a.type === 'note') as Extract<GameAction, { type: 'note' }>;
+    expect(note.message).toBe('High roll: Bob goes first (rolled 20, then 15)');
   });
 });
