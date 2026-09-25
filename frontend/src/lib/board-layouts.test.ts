@@ -150,15 +150,20 @@ describe('seamSatellite', () => {
     expect(seamSatellite({ row: 1 }, 4, -1, '3.4rem').topPct).toBe('25%');
   });
 
-  it('column seam: satellites take the quarter points instead of hugging the hub', () => {
+  it('column seam: satellites take the near-third points instead of hugging the hub', () => {
     // The hub is a four-corner crossing on a column seam, so anything offset a
     // few rem from it lands on a name — measured at 766px² on 4p-sides before
-    // this rule. A quarter of the way along the seam is the middle of an
-    // adjacent panel's edge, which is clear by construction.
+    // this rule. 32%/68% (not a literal quarter — see the function's own doc
+    // comment): a flat 25%/75% cleared the four col-seam boards it was first
+    // tuned against (every row a plain left/right pair), but 7p-ends/8p-ends/
+    // 9p-sides/9p-ends/10p-ends seat a Wide seat in row 1, which pushes seat 1
+    // into row 2 instead of row 1 on a 5-6 row board — close enough to that
+    // row's own "up next" chip corner that undo growing 42->44px (#2279)
+    // tipped a flat quarter into a 10px² overlap there.
     const before = seamSatellite({ col: 1 }, 2, -1, '3.4rem');
     const after = seamSatellite({ col: 1 }, 2, 1, '3.4rem');
-    expect(before.topPct).toBe('25%');
-    expect(after.topPct).toBe('75%');
+    expect(before.topPct).toBe('32%');
+    expect(after.topPct).toBe('68%');
     // Centred on that point — no hub-relative offset left to apply.
     for (const p of [before, after]) {
       expect(p.tx).toBe('-50%');
@@ -357,6 +362,37 @@ describe('7-10p Lotus sides/ends layouts', () => {
         }
       }
     }
+  });
+
+  it('pins the col-seam + Wide-seat-in-row-1 shape that put seat 1 next to the undo satellite', () => {
+    // The 2026-09-25 fix (seamSatellite's 25%->32% move): 7p-ends, 8p-ends,
+    // 9p-sides, 9p-ends and 10p-ends all seat a Wide seat (colSpan 2) in
+    // row 1, which pushes seat 1 into row 2 rather than row 1 — close enough
+    // to the undo satellite's "before" quarter point that growing undo
+    // 42->44px (#2279) produced a measured 10px² overlap with seat 1's own
+    // "up next" chip corner. `7p-sides`/`8p-sides`/`10p-sides` are the
+    // control group: `8p-sides`/`10p-sides` have no Wide seat at all, and
+    // `7p-sides` (4 rows, the same Wide-in-row-1 shape) never collided
+    // because its row count happens to put a flat quarter exactly on the
+    // row 1/row 2 boundary rather than inside row 2 — pinned here too, so a
+    // future preset that reproduces the Wide-seat-in-row-1 shape at 5+ rows
+    // is caught by the same seam-satellite value check above, not silently
+    // reintroducing a collision no test would see.
+    const wideSeatPushesSeatOneToRow2 = ['7p-ends', '8p-ends', '9p-sides', '9p-ends', '10p-ends'];
+    for (const id of wideSeatPushesSeatOneToRow2) {
+      const count = Number(id.match(/^\d+/)![0]);
+      const layout = layoutsForCount(count).find((l) => l.id === id)!;
+      expect(layout.seam, id).toEqual({ col: 1 });
+      expect(layout.seats[0].colSpan, `${id} seat 0`).toBe(2); // the Wide seat
+      expect(layout.seats[1].row, `${id} seat 1`).toBe(2);
+      expect(layout.seats[1].colSpan, `${id} seat 1`).toBeUndefined(); // not itself Wide
+    }
+    // Control group: same col-seam family, no collision, for contrast.
+    expect(layoutsForCount(8).find((l) => l.id === '8p-sides')!.seats[0].colSpan).toBeUndefined();
+    expect(layoutsForCount(10).find((l) => l.id === '10p-sides')!.seats[0].colSpan).toBeUndefined();
+    const sevenPSides = layoutsForCount(7).find((l) => l.id === '7p-sides')!;
+    expect(sevenPSides.rows).toBe(4);
+    expect(sevenPSides.seats[1].row).toBe(2);
   });
 });
 
