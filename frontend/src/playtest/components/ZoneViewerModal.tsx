@@ -365,7 +365,11 @@ function ZoneCard({
               setCounting(false);
             }}
           />
-          <button type="button" className="btn" onClick={() => setCounting(false)}>
+          <button
+            type="button"
+            className="btn playtest-zone-card__count-cancel"
+            onClick={() => setCounting(false)}
+          >
             Cancel
           </button>
         </div>
