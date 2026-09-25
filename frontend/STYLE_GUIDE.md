@@ -3501,6 +3501,23 @@ three times on one screen, so these rulings now hold:
   arithmetic sit behind one `<details>` whose `<summary>` keeps the
   `.bracket-breakdown-heading` signature and shows the score while closed
   (the collapsed-group-shows-its-value ruling above).
+- **A role has one number on the page (2026-09-24).** The role chips above
+  the list, the Power tab's Roles panel, the deck checks, the Coach and Next
+  best move all read one live count: the mainboard, each card once under its
+  main role (`countedRoleOf`), lands and the commander excluded, the same
+  count the generator and the AI's `check_bracket` use. A chip lights exactly
+  the rows it counts, and it leaves "Not in the deck" alone. A generation-time
+  `roleCounts` snapshot only stands in until the tagger loads. There used to
+  be three counts (overlapping chips over the sideboard and lands, an
+  overlapping density line, the frozen snapshot), and one Sram deck showed
+  Removal as 11, 10 and 6. Never add a second tally beside it; if a card's
+  other roles matter, they belong on that card (the inspector lists them).
+- **"Plays as" follows the deck's engine (2026-09-24).** On Auto the
+  archetype is the owner's theme from generation if they chose one, else the
+  deck's own engine when one clearly leads (`resolveAutoArchetype`), else the
+  generator's EDHREC read. The strip and the stats can no longer say
+  Goodstuff while Power says Equipment / Voltron. The generator's read stays
+  in the build report, as a record of how the deck was built.
 - **Wedge hint strips are scoped to the tab they act on.** The resync strip
   acts on the list, so it renders on the Deck tab only — a strip above
   Power/Coach that cannot act on what is below it is noise.
@@ -6362,7 +6379,7 @@ playtest components, never a bespoke card grid.
   row (scrolling if a wave overflows it), each card captioned "N · Name" —
   or "N · ends the wave" on the card that closes it, which also wears the
   gold selected-style ring. Widened past the phone default at ≥1024px (`min(48.75rem,
-  calc(100vw - 4rem))`, the dense-dialog pattern) so a normal wave reads as
+calc(100vw - 4rem))`, the dense-dialog pattern) so a normal wave reads as
   one row instead of a single narrow column.
 - **A sheet built on the card-picker shell supplies its own body padding.**
   `.card-picker-list` ships with none by design — every sheet's content
@@ -7176,7 +7193,7 @@ tapping it now opens a fan of labelled petals first, Lotus's radial menu.
   glyph stays small and the "goes first" caption stays caption-sized so
   neither competes with the number for the read. The overlay covers the
   whole panel (`role="presentation"`, dismiss only on `e.target ===
-  e.currentTarget`, mirrors the win celebration's backdrop) so a
+e.currentTarget`, mirrors the win celebration's backdrop) so a
   dismiss-tap can't fall through to a life change, and every panel's life
   taps disable for the moment's duration regardless of whose seat is
   showing the roll. It dismisses on a tap, on Escape, or after four seconds.
@@ -7217,7 +7234,7 @@ itself disappears only when both are (see the edge-strip ruling below for the
 control's own shape).
 
 - **Pausing is a logged EVENT, never a stored field.** `{ type: 'clock',
-  paused, actorSeat }` pushes one `clock` event per tap; `isClockPaused` folds
+paused, actorSeat }` pushes one `clock` event per tap; `isClockPaused` folds
   the log for "is it paused right now", the same design as `activeSeat` being
   a fold over `turn` events. A state with no `clock` events reads as "never
   paused" by construction, so a persisted row from before this shipped needs
@@ -7254,7 +7271,7 @@ Four interactive prototypes were built and tried (a seam pill, a "Done"
 button on the active seat, a hub ring, an edge strip); the edge strip won.
 `GameClock.tsx` now renders a single full-width strip along the board's
 **bottom edge** — the device holder's own edge — as a normal flex child of
-`.game-board` (which is `flex-direction: column`), stacked *below*
+`.game-board` (which is `flex-direction: column`), stacked _below_
 `.game-board-grid`. The old floating seam pill (`.game-board-clock`, offset
 from the hub via `seamSatellite`) is gone; the seam now carries only the hub
 and undo.

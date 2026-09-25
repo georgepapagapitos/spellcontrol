@@ -120,9 +120,21 @@ function reportRoleOf(card: RoleCard): ReturnType<typeof validateCardRole> {
 }
 
 /**
- * Tag each non-land card by functional role + subtype. Mirrors the enricher's
- * rule of not counting lands toward role totals. Shared by the deck-stats
- * `derivedRoles` memo and the manual-deck analysis path so the two never drift.
+ * The one role a card is counted under: its main role, checked against its
+ * own oracle text, and none for a land. The deck page's role chips, their
+ * spotlight, the Roles panel and the deck checks all read this, so a count
+ * and the rows it lights up can never disagree.
+ */
+export function countedRoleOf(card: RoleCard): ReturnType<typeof validateCardRole> {
+  if (frontTypeLine(card).toLowerCase().includes('land')) return null;
+  return reportRoleOf(card);
+}
+
+/**
+ * Tag each non-land card by functional role + subtype, one role per card
+ * (`countedRoleOf`). Pass the mainboard: the generator, the analysis, the
+ * deck page and the AI's `check_bracket` all count the 99 without the
+ * commander, so their numbers line up.
  */
 export function computeRoleCounts(cards: RoleCard[]): RoleCountResult {
   const roleCounts: Record<string, number> = {
@@ -137,8 +149,7 @@ export function computeRoleCounts(cards: RoleCard[]): RoleCountResult {
   const cardDrawSubtypeCounts: Record<string, number> = {};
 
   for (const c of cards) {
-    if (frontTypeLine(c).toLowerCase().includes('land')) continue;
-    const role = reportRoleOf(c);
+    const role = countedRoleOf(c);
     if (!role) continue;
     roleCounts[role] = (roleCounts[role] || 0) + 1;
     switch (role) {

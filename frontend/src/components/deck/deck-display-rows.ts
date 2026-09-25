@@ -57,12 +57,13 @@ export function resolveInclusionPct(
 }
 
 /**
- * Top-level roles for the role-filter lens: the tagger's read plus the
- * generator's enriched `deckRole` (manual decks have no `deckRole`; on
- * generated decks it can cover a card the tagger misses — include it so the
- * lens never dims a row whose visible badge matches the active pill).
+ * Every top-level role a card fills, for the card inspector's role chips: the
+ * tagger's read plus the generator's enriched `deckRole` (manual decks have no
+ * `deckRole`; on generated decks it can cover a card the tagger misses). The
+ * role counts and the role-chip spotlight use `countedRoleOf` instead, one
+ * role per card, so their numbers add up.
  */
-export function cardFilterRoles(card: ScryfallCard): RoleKey[] {
+export function cardAllRoles(card: ScryfallCard): RoleKey[] {
   const roles = rolesForCard(card);
   const enriched = card.deckRole as RoleKey | undefined;
   return enriched && enriched in ROLE_TITLES && !roles.includes(enriched)

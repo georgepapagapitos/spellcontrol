@@ -1020,10 +1020,8 @@
   }
 }
 
-/* Caption above a category-grouped list: names the counting rule, so the
-   headings here can be reconciled with the Stats tab's Roles panel, which
-   counts every role a card serves rather than filing each card once.
-   Matches `.deck-roles-density-note`'s muted-xs treatment. */
+/* Caption above a category-grouped list: names the counting rule (each card
+   filed once). Matches `.deck-roles-note`'s muted-xs treatment. */
 .deck-group-caption {
   margin: 0 0 var(--space-2);
   font-size: var(--text-xs);

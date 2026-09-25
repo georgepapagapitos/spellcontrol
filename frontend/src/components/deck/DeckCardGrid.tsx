@@ -15,11 +15,11 @@ import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
 import { stackWidth, zoomBucket, zoomCols, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
 import { useElementWidth } from '@/lib/use-element-width';
 import type { LegalityIssue } from '../../lib/deck-validation';
+import { countedRoleOf } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { MeterBar } from '../shared/MeterBar';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { formatMoney } from '../../lib/format-money';
 import {
-  cardFilterRoles,
   foilTileClass,
   allocationSummary,
   packInOrder,
@@ -333,7 +333,7 @@ export function DeckCardGrid({
                 }
               }
             }
-            const roleDimmed = !!roleFilter && !cardFilterRoles(row.card).includes(roleFilter);
+            const roleDimmed = !!roleFilter && countedRoleOf(row.card) !== roleFilter;
             return (
               // `data-peek-name` on the tile feeds the card inspector through
               // the same delegated hover handlers the list rows use.

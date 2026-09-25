@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { deriveDeckIdentity } from './deckIdentity';
+import { deriveDeckIdentity, engineArchetype, resolveAutoArchetype } from './deckIdentity';
+import { analyzeDeckSynergy, type DeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
+import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import { buildCommanderProfile } from './commanderProfile';
 import { Archetype, type ScryfallCard, type ThemeResult } from '@/deck-builder/types';
 
@@ -114,5 +116,86 @@ describe('deriveDeckIdentity', () => {
     });
     expect(id.themes).toHaveLength(5);
     expect(id.themes).not.toContain('unselected');
+  });
+});
+
+// The strip and the stats said "Goodstuff" while the Power tab said
+// "Equipment / Voltron, 28 enablers" on the same Sram deck: the label only
+// ever echoed the generator's EDHREC read. On Auto it now follows the deck's
+// own engine when one clearly leads.
+describe("resolveAutoArchetype: the deck's engine decides Auto", () => {
+  const engine = (...axes: Array<[AxisKey, number]>): DeckSynergy => ({
+    axes: axes.map(([axis, total]) => ({
+      axis,
+      label: axis,
+      producers: Array.from({ length: total - 1 }, (_, i) => ({ name: `p${i}`, reason: '' })),
+      payoffs: [{ name: 'payoff', reason: '' }],
+      total,
+    })),
+    invested: axes.filter(([, total]) => total >= 5).map(([axis]) => axis),
+    warnings: [],
+    headline: '',
+  });
+  const neutralBuild = { archetype: Archetype.GOODSTUFF, archetypeProvenance: 'neutral' as const };
+
+  it("a decisive equipment engine reads as Voltron over the generator's Goodstuff", () => {
+    expect(
+      resolveAutoArchetype({
+        build: neutralBuild,
+        engine: engine(['equipment', 30], ['auras', 13]),
+      })
+    ).toBe(Archetype.VOLTRON);
+  });
+
+  it('works from the real card text: equipment plus a cast-equipment payoff', () => {
+    const equipment = Array.from({ length: 6 }, (_, i) =>
+      makeCard({ name: `Blade ${i}`, type_line: 'Artifact — Equipment', oracle_text: 'Equip {2}' })
+    );
+    const sram = makeCard({
+      name: 'Sram',
+      type_line: 'Legendary Creature — Dwarf Advisor',
+      oracle_text: 'Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.',
+    });
+    expect(engineArchetype(analyzeDeckSynergy([sram, ...equipment]))).toBe(Archetype.VOLTRON);
+  });
+
+  it("keeps the generator's read when two engines run close", () => {
+    expect(
+      resolveAutoArchetype({
+        build: neutralBuild,
+        engine: engine(['equipment', 12], ['tokens', 9]),
+      })
+    ).toBe(Archetype.GOODSTUFF);
+  });
+
+  it('ignores an axis that is not a real engine yet', () => {
+    expect(engineArchetype(engine(['equipment', 4]))).toBeUndefined();
+  });
+
+  it('never trades a named archetype for Midrange', () => {
+    expect(engineArchetype(engine(['counters', 20]))).toBeUndefined();
+  });
+
+  it('a theme the owner chose at generation outranks the engine', () => {
+    expect(
+      resolveAutoArchetype({
+        build: { archetype: Archetype.TOKENS, archetypeProvenance: 'user-theme' },
+        engine: engine(['equipment', 30]),
+      })
+    ).toBe(Archetype.TOKENS);
+  });
+
+  it("the owner's pick outranks everything", () => {
+    expect(
+      resolveAutoArchetype({
+        override: Archetype.ARISTOCRATS,
+        build: neutralBuild,
+        engine: engine(['equipment', 30]),
+      })
+    ).toBe(Archetype.ARISTOCRATS);
+  });
+
+  it('a hand-built deck with no engine leaves the commander guess in charge', () => {
+    expect(resolveAutoArchetype({ engine: engine() })).toBeUndefined();
   });
 });

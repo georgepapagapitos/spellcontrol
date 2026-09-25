@@ -139,9 +139,9 @@ export interface Deck {
   /**
    * Optional generator-derived stats. Only present on freshly generated decks
    * (and only when the tagger data file was reachable at build time). These
-   * are snapshotted at generation and never recomputed — manual edits will
-   * leave them slightly stale, but the toolbar still surfaces totals from
-   * the live card list.
+   * are snapshotted at generation and never recomputed. The deck page shows
+   * a live count instead (DeckDisplay's `liveRoles`) and only falls back to
+   * these until the tagger loads.
    *
    * NOTE: `bracketEstimation`/`deckGrade` below are the exception — they are
    * kept *live* for any commander deck by useCommanderBracketAnalysis (see
@@ -259,9 +259,10 @@ export interface Deck {
   aiScope?: AiScope | null;
   /**
    * User-pinned archetype for the identity headline. When set it wins over
-   * both the persisted generation archetype (`buildReport.archetype`) and the
-   * live oracle-text derivation — the escape hatch for a misread commander
-   * (e.g. a typal deck labeled Voltron). `null`/absent means "use auto".
+   * everything Auto would pick (`resolveAutoArchetype`: a theme chosen at
+   * generation, the deck's own engine, the generator's EDHREC read, the
+   * commander guess). The escape hatch for a misread deck (e.g. a typal deck
+   * labeled Voltron). `null`/absent means "use auto".
    */
   archetypeOverride?: Archetype | null;
   /**

@@ -13,8 +13,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { bracketSourceSentence } from '@/lib/format-bracket-label';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
-import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
-import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
+import { ROLE_TITLES } from '@/lib/role-badges';
 import type { ValidationResult } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { BuildReport } from '@/deck-builder/types';
 import { MeterBar } from '../shared/MeterBar';
@@ -77,7 +76,6 @@ export function DeckAnalysisView({
   oneAwayCombos,
   ownedOracleIds,
   landUpgradeCount,
-  derivedRoles,
   validation,
 }: {
   view: AnalysisTabId;
@@ -151,15 +149,9 @@ export function DeckAnalysisView({
   oneAwayCombos?: ComboMatch[];
   /** Owned oracle ids — ranks owned-missing-piece combos first. */
   ownedOracleIds?: ReadonlySet<string>;
-  /** Tagger-derived role counts for manual decks; null when the deck passed its own. */
-  derivedRoles: ReturnType<typeof computeRoleCounts> | null;
   /** Deck-health checklist — computed once in DeckDisplay so the tab badge can't drift. */
   validation: ValidationResult;
 }) {
-  // Overlapping multi-role counts (a card counts toward every role it fills),
-  // always derived from the live card list — complements the primary-role bars.
-  const roleDensity = useMemo(() => computeRoleDensity(allCards), [allCards]);
-
   // Lower-cased in-deck names for the Build Report's "+ Add" gate (never
   // re-propose a card already in the deck — mirrors DeckEditorPage's
   // deckCardNames memo used by the Coach feed).
@@ -168,12 +160,7 @@ export function DeckAnalysisView({
     [allCards]
   );
 
-  const effectiveRoleCounts = roleCounts ?? derivedRoles?.roleCounts;
-  const effectiveRampSub = rampSubtypeCounts ?? derivedRoles?.rampSubtypeCounts;
-  const effectiveRemovalSub = removalSubtypeCounts ?? derivedRoles?.removalSubtypeCounts;
-  const effectiveBoardwipeSub = boardwipeSubtypeCounts ?? derivedRoles?.boardwipeSubtypeCounts;
-  const effectiveDrawSub = cardDrawSubtypeCounts ?? derivedRoles?.cardDrawSubtypeCounts;
-  const showRoles = effectiveRoleCounts !== undefined;
+  const showRoles = roleCounts !== undefined;
 
   const effectiveBracketValue = bracketOverride ?? bracketEstimation?.bracket;
   const bracketOverridden = bracketOverride != null;
@@ -373,13 +360,12 @@ export function DeckAnalysisView({
             {showRoles && (
               <Panel title="Roles">
                 <RolesPanel
-                  roleCounts={effectiveRoleCounts}
+                  roleCounts={roleCounts}
                   roleTargets={roleTargets}
-                  density={roleDensity}
-                  rampSubtypeCounts={effectiveRampSub}
-                  removalSubtypeCounts={effectiveRemovalSub}
-                  boardwipeSubtypeCounts={effectiveBoardwipeSub}
-                  cardDrawSubtypeCounts={effectiveDrawSub}
+                  rampSubtypeCounts={rampSubtypeCounts}
+                  removalSubtypeCounts={removalSubtypeCounts}
+                  boardwipeSubtypeCounts={boardwipeSubtypeCounts}
+                  cardDrawSubtypeCounts={cardDrawSubtypeCounts}
                 />
               </Panel>
             )}
@@ -457,7 +443,6 @@ function Panel({
 function RolesPanel({
   roleCounts,
   roleTargets,
-  density,
   rampSubtypeCounts,
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
@@ -465,8 +450,6 @@ function RolesPanel({
 }: {
   roleCounts?: Record<string, number>;
   roleTargets?: Record<string, number>;
-  /** Overlapping multi-role counts (a card counts in every role it fills). */
-  density?: Record<string, number>;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
@@ -489,44 +472,30 @@ function RolesPanel({
     return entries.map(([k, v]) => `${v} ${k}`).join(' · ');
   };
 
-  // Density one-liner: how many cards fill each role counting overlaps, busiest
-  // first. Totals exceed the deck size because a card can do several jobs.
-  const densityLabels: Record<string, string> = {
-    cardDraw: 'Draw',
-    ramp: 'Ramp',
-    removal: 'Removal',
-    boardwipe: 'Wipes',
-  };
-  const densityEntries = density
-    ? Object.entries(density)
-        .filter(([, v]) => v > 0)
-        .sort((a, b) => b[1] - a[1])
-    : [];
-
   const items = [
     {
-      label: 'Ramp',
+      label: ROLE_TITLES.ramp,
       value: ramp,
       want: rampWant,
       sub: subSummary(rampSubtypeCounts),
       color: 'var(--accent)',
     },
     {
-      label: 'Removal',
+      label: ROLE_TITLES.removal,
       value: removal,
       want: removalWant,
       sub: subSummary(removalSubtypeCounts),
       color: '#d8442a',
     },
     {
-      label: 'Board wipes',
+      label: ROLE_TITLES.boardwipe,
       value: wipes,
       want: wipesWant,
       sub: subSummary(boardwipeSubtypeCounts),
       color: '#d4a838',
     },
     {
-      label: 'Card draw',
+      label: ROLE_TITLES.cardDraw,
       value: draw,
       want: drawWant,
       sub: subSummary(cardDrawSubtypeCounts),
@@ -538,22 +507,12 @@ function RolesPanel({
 
   return (
     <>
-      {/* The note is UNCONDITIONAL, not tied to the density line: these counts
-          tally every role a card serves, so they overlap and do not sum to the
-          deck. The Group-by-category layout answers a different question — each
-          card filed once, summing to the deck — and reports smaller numbers for
-          the same words (Ramp 14 here vs RAMP 10 there). Both are right; saying
-          which is which is the whole fix (playtest batch 6, E330). */}
-      <div className="deck-roles-density">
-        {densityEntries.length > 0 && (
-          <span className="deck-roles-density-line">
-            {densityEntries.map(([k, v]) => `${v} ${densityLabels[k] ?? k}`).join(' · ')}
-          </span>
-        )}
-        <span className="deck-roles-density-note">
-          counts every role a card fills, so these overlap
-        </span>
-      </div>
+      {/* These are the deck's one role count, the same numbers as the role
+          chips above the list and the deck checks: each mainboard card once,
+          under its main role. They used to sit under an overlapping tally
+          (every role a card fills) that disagreed with the chips and the
+          bars; one count replaced the note explaining three. */}
+      <p className="deck-roles-note">Each card counted once, under its main role.</p>
       <ul className="deck-roles">
         {items.map((it) => {
           const hasTarget = typeof it.want === 'number';

@@ -76,7 +76,11 @@ import {
   buildCommanderProfile,
   whyCardMatches,
 } from '@/deck-builder/services/deckBuilder/commanderProfile';
-import { deriveDeckIdentity } from '@/deck-builder/services/deckBuilder/deckIdentity';
+import {
+  deriveDeckIdentity,
+  resolveAutoArchetype,
+} from '@/deck-builder/services/deckBuilder/deckIdentity';
+import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { ROLE_TITLES, type RoleKey } from '../../lib/role-badges';
 import { Tabs } from '../Tabs';
 import { clampZoom, readStoredZoom } from '@/lib/grid-zoom';
@@ -88,7 +92,6 @@ import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
 import {
   resolveInclusionPct,
-  cardFilterRoles,
   priceOf,
   readStoredViewMode,
   readStoredCollapsedSections,
@@ -1041,12 +1044,13 @@ export function DeckDisplay({
   );
 
   // Live-computed deck identity (archetype + pacing + themes), derived from the
-  // current card list so it stays honest as the deck is edited. The archetype
-  // label single-sources from the persisted build report when this is a
-  // generated deck (buildReport.archetype — what generation actually used for
-  // role targets/land count/type floor), so the headline never disagrees with
-  // the build; manual/imported decks (no buildReport) keep the oracle-text
-  // fallback pickArchetype already computed from the commander alone.
+  // current card list so it stays honest as the deck is edited. On Auto the
+  // archetype follows the deck's own engine when one clearly leads, the same
+  // engine the Power tab and the playstyle radar read (`resolveAutoArchetype`
+  // has the precedence), so the strip can't say Goodstuff while Power says
+  // Voltron. The engine is pure oracle-text work over the list, so it is
+  // ready on first paint with no flash from one label to another.
+  const deckEngine = useMemo(() => analyzeDeckSynergy(allCards), [allCards]);
   const identity = useMemo(
     () =>
       commanderProfile
@@ -1054,10 +1058,14 @@ export function DeckDisplay({
             profile: commanderProfile,
             selectedThemes,
             cards: allCards,
-            persistedArchetype: archetypeOverride ?? buildReport?.archetype,
+            persistedArchetype: resolveAutoArchetype({
+              override: archetypeOverride,
+              build: buildReport,
+              engine: deckEngine,
+            }),
           })
         : null,
-    [commanderProfile, selectedThemes, allCards, buildReport?.archetype, archetypeOverride]
+    [commanderProfile, selectedThemes, allCards, buildReport, archetypeOverride, deckEngine]
   );
 
   // "Why this card" synergy reasons, keyed by card name. Computed from the
@@ -1152,12 +1160,24 @@ export function DeckDisplay({
     [manaCards, commander, partnerCommander]
   );
 
-  // Generated decks pass roleCounts in; manual decks don't — derive them on
-  // the fly from the tagger so the Roles panel works for either flow.
-  const derivedRoles = useMemo(() => {
-    if (roleCounts !== undefined) return null;
-    return computeRoleCounts(allCards);
-  }, [allCards, roleCounts]);
+  // One count per role for everything on this page that shows one: the role
+  // chips, the Roles panel and the deck checks. Live from the mainboard, each
+  // card under its one counted role (`countedRoleOf`), commander excluded, the
+  // same count the generator, the analysis and the AI's check_bracket use. A
+  // generated deck's stored `roleCounts` is a snapshot from generation time;
+  // it only stands in until the tagger loads, then the live count takes over,
+  // so an edit moves every number together.
+  const liveRoles = useMemo(
+    () => (taggerReady ? computeRoleCounts(cards.map((dc) => dc.card)) : null),
+    [cards, taggerReady]
+  );
+  const shownRoles = liveRoles ?? {
+    roleCounts,
+    rampSubtypeCounts,
+    removalSubtypeCounts,
+    boardwipeSubtypeCounts,
+    cardDrawSubtypeCounts,
+  };
 
   // Pass/fail deck-health checklist for the Stats board — legality gates plus the
   // soft role/curve targets, derived from the live list + role analysis. Lives
@@ -1168,7 +1188,7 @@ export function DeckDisplay({
       buildValidationChecklist({
         cards: allCards,
         commanderIdentity,
-        roleCounts: roleCounts ?? derivedRoles?.roleCounts,
+        roleCounts: shownRoles.roleCounts,
         roleTargets,
         averageCmc: manaData.averageCmc,
         format: formatConfig,
@@ -1177,8 +1197,7 @@ export function DeckDisplay({
     [
       allCards,
       commanderIdentity,
-      roleCounts,
-      derivedRoles,
+      shownRoles.roleCounts,
       roleTargets,
       manaData.averageCmc,
       formatConfig,
@@ -1357,23 +1376,21 @@ export function DeckDisplay({
   }, [statCarouselOpen]);
 
   // ── Role filter (pill bar) ──────────────────────────────────────────────
-  // View-local transient lens over the automatic role classification (the
-  // same source as the row badges). An active role keeps every row in place
-  // but dims the rest, so matching cards pop without the layout reshuffling.
+  // View-local transient lens over each card's counted role. An active role
+  // keeps every row in place but dims the rest, so matching cards pop without
+  // the layout reshuffling. The chip counts ARE the live role counts, and a
+  // row lights up under exactly the role it is counted under (countedRoleOf),
+  // so a chip's number is the number of mainboard rows it lights.
   const [roleFilter, setRoleFilter] = useState<RoleKey | null>(null);
-  // Slots per top-level role across mainboard + sideboard — mirrors what the
-  // lens dims. Multi-role cards count toward each role they fill.
-  const roleFilterEntries = useMemo(() => {
-    const counts: Record<RoleKey, number> = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
-    if (taggerReady) {
-      for (const dc of [...cards, ...sideboard]) {
-        for (const role of cardFilterRoles(dc.card)) counts[role] += 1;
-      }
-    }
-    return (Object.keys(ROLE_TITLES) as RoleKey[])
-      .map((key) => [key, counts[key]] as const)
-      .filter(([, count]) => count > 0);
-  }, [cards, sideboard, taggerReady]);
+  const roleFilterEntries = useMemo(
+    () =>
+      liveRoles
+        ? (Object.keys(ROLE_TITLES) as RoleKey[])
+            .map((key) => [key, liveRoles.roleCounts[key] ?? 0] as const)
+            .filter(([, count]) => count > 0)
+        : [],
+    [liveRoles]
+  );
   // Self-healing: if the active role's last card leaves the deck, deactivate
   // instead of dimming the whole list.
   const activeRoleFilter =
@@ -1564,13 +1581,13 @@ export function DeckDisplay({
       onSetBracketOverride={onSetBracketOverride}
       archetypeOverride={archetypeOverride}
       onSetArchetypeOverride={onSetArchetypeOverride}
-      roleCounts={roleCounts}
+      roleCounts={shownRoles.roleCounts}
       roleTargets={roleTargets}
       buildReport={buildReport}
-      rampSubtypeCounts={rampSubtypeCounts}
-      removalSubtypeCounts={removalSubtypeCounts}
-      boardwipeSubtypeCounts={boardwipeSubtypeCounts}
-      cardDrawSubtypeCounts={cardDrawSubtypeCounts}
+      rampSubtypeCounts={shownRoles.rampSubtypeCounts}
+      removalSubtypeCounts={shownRoles.removalSubtypeCounts}
+      boardwipeSubtypeCounts={shownRoles.boardwipeSubtypeCounts}
+      cardDrawSubtypeCounts={shownRoles.cardDrawSubtypeCounts}
       averageSalt={averageSalt}
       saltiestCards={saltiestCards}
       planScore={planScore}
@@ -1582,7 +1599,6 @@ export function DeckDisplay({
       powerHeroSlot={powerHeroSlot}
       tableRecordSlot={tableRecordSlot}
       aiReviewSlot={aiReviewSlot}
-      derivedRoles={derivedRoles}
       validation={validation}
       analysisState={analysisState}
       onNavigateToTune={onNavigateToTune}
@@ -1882,8 +1898,8 @@ export function DeckDisplay({
                   label="role filter"
                   text={
                     <p className="info-tip-lead">
-                      Matches the role badges on each row. Tap a chip to spotlight cards with that
-                      role, tap again to clear.
+                      Each card counts once, under its main role, the same count as the Roles panel
+                      on Power. Tap a chip to spotlight those cards, tap again to clear.
                     </p>
                   }
                 />
@@ -1935,12 +1951,12 @@ export function DeckDisplay({
                     </button>
                   </div>
                 )}
-                {/* The Roles lens is a strict PARTITION — `classifyCardCategory`
+                {/* The Roles lens is a strict PARTITION: `classifyCardCategory`
                     files each card under exactly one heading, type first, so the
-                    buckets sum to the deck. The Stats tab's Roles panel counts
-                    every role a card serves, so it reports larger numbers for the
-                    same words. Both are right; this line is what lets a reader
-                    reconcile them (playtest batch 6, E330). */}
+                    buckets sum to the deck. Type first means a removal creature
+                    sits under Creatures here while the role chips count it as
+                    Removal; this line names the rule so the headings read right
+                    (playtest batch 6, E330). */}
                 {groupBy === 'category' && visibleGroups.length > 0 && (
                   <p className="deck-group-caption">Each card is filed under one role.</p>
                 )}
@@ -2130,7 +2146,6 @@ export function DeckDisplay({
                             gridZoom={effectiveGridZoom}
                             gridWidth={gridWidth}
                             showRoles={showPrefs.roles}
-                            roleFilter={activeRoleFilter}
                             synergyByName={synergyByName}
                             binderByCopyId={binderByCopyId}
                           />
@@ -2154,7 +2169,6 @@ export function DeckDisplay({
                                 onReorder={onReorderForZone('sideboard')}
                                 isSingleton={formatConfig.isSingleton}
                                 onEditCard={onEditCard}
-                                roleFilter={activeRoleFilter}
                                 legalityBySlot={legalityBySlot}
                                 onMoveToMainboard={onMoveToMainboard}
                                 onMakeCommander={onMakeCommander}
@@ -2194,7 +2208,6 @@ export function DeckDisplay({
                               // format singleton rules — never the artificial 1-copy
                               // cap `isSingleton ?? true` would otherwise fall back to.
                               isSingleton={false}
-                              roleFilter={activeRoleFilter}
                               onMoveToMainboard={onMoveFromConsidering}
                               synergyByName={synergyByName}
                               cardInclusionMap={cardInclusionMap}

@@ -45,13 +45,13 @@ import { formatMoney } from '../../lib/format-money';
 import { MeterBar } from '../shared/MeterBar';
 import { SetSymbol } from '../shared/SetSymbol';
 import { ManaCost } from '../ManaCost';
+import { countedRoleOf } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { FoilBadge } from '../FoilBadge';
 import { InfoTip } from '../InfoTip';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
 import { ComboBadge } from './ComboBadge';
 import {
   resolveInclusionPct,
-  cardFilterRoles,
   frontFaceMana,
   allocationAriaLabel,
   allocationTitle,
@@ -540,7 +540,7 @@ function DeckCardRow({
 
   // Role-filter lens: non-matching rows dim in place (layout preserved) so the
   // matching cards pop and the eye can jump between them.
-  const roleDimmed = !!roleFilter && !cardFilterRoles(row.card).includes(roleFilter);
+  const roleDimmed = !!roleFilter && countedRoleOf(row.card) !== roleFilter;
 
   const rowClass =
     `deck-row` +
