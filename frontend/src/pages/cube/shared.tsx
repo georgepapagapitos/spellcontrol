@@ -5,6 +5,7 @@ import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
 import { VerdictBadge } from '../../components/deck/VerdictBadge';
 import { InfoTip } from '../../components/InfoTip';
 import { SelectMenu } from '../../components/SelectMenu';
+import { SegmentedControl } from '../../components/shared/form';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
@@ -312,13 +313,20 @@ export function CubeEmptyState({
 /** The cube-size picker plus its note on who the size is for. Every build is a
  *  draft cube: the Commander format was taken out of the UI (board T150) because
  *  it only swapped the corpus targets and knew nothing about commanders, so it
- *  promised a Commander cube it could not build. */
+ *  promised a Commander cube it could not build.
+ *
+ *  Six sizes is "five or more options" (STYLE_GUIDE § Config surfaces kit
+ *  table) — `SelectMenu`, never the mockup's tile grid; each option states how
+ *  short the currently filtered pool falls of that size via `shortfallFor`. */
 export function CubeSizePicker({
   size,
   onSize,
+  shortfallFor,
 }: {
   size: CubeSize;
   onSize: (s: CubeSize) => void;
+  /** Returns how many cards short the filtered pool is of a given size (0 = fits). */
+  shortfallFor?: (s: CubeSize) => number;
 }) {
   return (
     <div className="cube-size">
@@ -327,14 +335,52 @@ export function CubeSizePicker({
         ariaLabel="Cube size"
         value={size}
         placeholder={`${size} cards`}
-        options={CUBE_SIZES.map((s) => ({
-          value: s,
-          label: `${s} · ${sizeInfo(s).players} players`,
-          triggerLabel: `${s} cards`,
-        }))}
+        options={CUBE_SIZES.map((s) => {
+          const short = shortfallFor?.(s) ?? 0;
+          return {
+            value: s,
+            label: `${s} · ${sizeInfo(s).players} players${short > 0 ? ` · ${short.toLocaleString()} short` : ''}`,
+            triggerLabel: `${s} cards`,
+          };
+        })}
         onChange={onSize}
       />
       <p className="cube-size-note">{sizeInfo(size).note}</p>
+    </div>
+  );
+}
+
+/** Card priority: Power (best cards, synergyLevel 0) / Balanced (0.5) / Themed
+ *  (1) — the 3-stop replacement for the raw 0–1 slider on the build page. The
+ *  corners and the midpoint already cover what the live stress harness
+ *  measured (goodstuff at 0, archetype-leaning at ~0.5–1). */
+export type CardPriority = 0 | 0.5 | 1;
+const PRIORITY_NOTES: Record<CardPriority, string> = {
+  0: "Today's best cards by cube signal, no archetype shaping. Fastest build.",
+  0.5: 'A mix: strong cards first, with a lean toward the archetypes your collection supports.',
+  1: 'Leans hard into the archetypes your collection can actually support, at some cost in raw power.',
+};
+export function CardPrioritySegmented({
+  value,
+  onChange,
+}: {
+  value: CardPriority;
+  onChange: (v: CardPriority) => void;
+}) {
+  return (
+    <div className="cube-priority">
+      <span className="form-field-label">Card priority</span>
+      <SegmentedControl<CardPriority>
+        ariaLabel="Card priority"
+        value={value}
+        onChange={onChange}
+        options={[
+          { value: 0, label: 'Power' },
+          { value: 0.5, label: 'Balanced' },
+          { value: 1, label: 'Themed' },
+        ]}
+      />
+      <p className="cube-priority-note">{PRIORITY_NOTES[value]}</p>
     </div>
   );
 }

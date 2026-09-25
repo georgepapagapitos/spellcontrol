@@ -395,7 +395,7 @@
 .cube-legend li {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
 }
 .cube-legend-target {
   color: var(--text-muted);
@@ -427,7 +427,7 @@
 .cube-draftability {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-1);
   flex: none;
 }
 .cube-draftability strong {
@@ -709,7 +709,7 @@
 .cube-group-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   width: 100%;
   padding: var(--space-1) 0;
   border: 0;
@@ -777,7 +777,7 @@
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  padding: 6px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border: 0;
   background: none;
   font: inherit;
@@ -1006,7 +1006,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 3px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: 999px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
@@ -1057,19 +1057,187 @@
   gap: var(--space-1);
 }
 
-/* "Draw from" — the pool filters (BuildCube). Title + three toolbar pickers on
-   one wrapping line; the pickers are the shared SelectMenu pill family. */
+/* "Draw from" — the pool filters, inside the build page's Disclosure. Three
+   toolbar pickers on one wrapping line; the pickers are the shared SelectMenu
+   pill family. */
 .cube-pool-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
-.cube-pool-filters-title {
-  display: inline-flex;
+
+/* ---- cube index (list) ---- */
+.cube-index-section {
+  margin-top: var(--space-2);
+}
+.section-head-rule {
+  display: flex;
   align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-sm);
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--border-strong);
+  padding: var(--space-2) 0;
+  margin-bottom: var(--space-1);
+}
+.section-head-rule h4 {
+  font-family: var(--font-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+.cube-index-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cube-index-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-bottom: 0.5px solid var(--border);
+}
+.cube-index-row:last-child {
+  border-bottom: none;
+}
+.cube-index-row-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-2) 0.1rem;
+  text-decoration: none;
+  color: inherit;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cube-index-row-link:hover .cube-index-row-name {
+    color: var(--accent);
+  }
+}
+.cube-index-row-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.cube-index-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.cube-index-row-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.cube-index-row-name {
+  font-size: var(--text-base);
   font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cube-index-row-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- new-cube chooser ---- */
+.cube-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+@media (min-width: 1024px) {
+  .cube-chooser {
+    flex-direction: row;
+  }
+}
+.cube-chooser-tile {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-4);
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cube-chooser-tile:hover {
+    border-color: var(--accent);
+  }
+}
+.cube-chooser-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cube-chooser-icon {
+  color: var(--accent);
+}
+.cube-chooser-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.cube-chooser-desc {
+  margin: 0;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
+}
+.cube-chooser-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cube-chooser-note strong {
+  color: var(--text-primary);
+}
+
+/* ---- build page: card priority + footer answer ---- */
+.cube-priority {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 24rem;
+}
+.cube-priority-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  max-width: 22rem;
+}
+.cube-pool-filters-hint {
+  margin: 0 0 var(--space-2);
+}
+.cube-footer-answer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0 var(--space-4);
+}
+
+/* Cube-result rendered inside a page that already has its own header (the
+   cube's own page) — the title/sub line is hidden, so the actions row (just
+   "Copy cube list") sits at the trailing edge instead of splitting with an
+   empty title column. */
+.cube-result-head--actions-only {
+  justify-content: flex-end;
 }

@@ -118,7 +118,7 @@ const componentsDir = dirname(fileURLToPath(import.meta.url));
 const read = (f: string) => readFileSync(join(componentsDir, '..', f), 'utf8');
 
 describe('guard: every card grid renders the shared tile', () => {
-  it.each([['CardListTable.tsx'], ['ListDetailView.tsx'], ['../pages/cube/BuildCube.tsx']])(
+  it.each([['CardListTable.tsx'], ['ListDetailView.tsx'], ['../pages/cube/CubeResult.tsx']])(
     '%s uses CardGridCell',
     (file) => {
       expect(
