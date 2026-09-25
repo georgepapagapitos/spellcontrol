@@ -144,6 +144,14 @@ meanwhile.
   What doesn't fit the width folds into one control (a sort/view pill on
   phone, a `⋯` pill wider up) instead of breaking onto a second row. A
   primary (filled) button never sits in a toolbar; it belongs to the header.
+  **Built for the deck list** (`DeckToolbar`): above a phone the row is
+  search · sort · group · card size · layout · Select · `⋯`, and
+  `DeckToolbar` measures the row, so where the whole row doesn't fit (under
+  ~760px in list view, ~880px otherwise) Group by and card size fold into the
+  `⋯` and Select becomes its "Select cards" action. The `⋯` opens on the list
+  actions (Select cards, Test hand, Export) and then the row details and the
+  symbol key; a panel taller than the space under the row scrolls, so the
+  actions lead. Export lives only here: the header `⋮` doesn't repeat it.
 - **Chip rows are one line.** Past the width they scroll horizontally with an
   edge fade; they never wrap into a second row with one chip left over.
   Explanatory text for a chip row goes in an `InfoTip`, not a sentence under it.
@@ -154,6 +162,10 @@ meanwhile.
 - **Surfaces: one frame.** Tiles are sleeves (`--surface-raised` +
   `--shadow-card`, no outline). A list is hairline rows under a section header,
   never a bordered card holding bordered rows. Outlines belong to controls.
+  **Built for the deck list:** a section is its header (a 1px
+  `--border-strong` rule) over rows split by 0.5px `--border` hairlines, on the
+  page itself at every width. The per-section cards on a wide screen and the
+  single bordered panel below 1100px are gone (`styles/deck-tab-density.test.ts`).
 - **One fact, one place, on every screen.** A number or a list appears once
   per screen, in the place that owns it; everything else links to it. First
   settled for the deck view (§ Deck view — one fact, one place), then found

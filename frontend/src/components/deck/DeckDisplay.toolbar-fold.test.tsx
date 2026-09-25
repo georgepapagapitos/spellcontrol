@@ -5,7 +5,7 @@
 // 360×780 instead of sitting under three rows of wrapped chrome.
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
@@ -90,12 +90,47 @@ describe('deck toolbar — narrow-viewport fold', () => {
     expect(queryByRole('button', { name: /^Export$/ })).toBeNull();
   });
 
-  it('>640px: the controls stay expanded inline (desktop is unchanged)', () => {
-    const { getByRole, queryByRole } = renderDeck({ narrow: false });
+  // STYLE_GUIDE § Layout system: the row never wraps. Search, sort, group,
+  // layout and Select sit inline; the row details, the symbol key and the
+  // list actions (Test hand, Export) are in its trailing ⋯, and nothing
+  // filled sits in the toolbar.
+  it('>640px: one row, with the key and the list actions in its ⋯', () => {
+    const { container, getByRole, queryByRole, getByText } = renderDeck({ narrow: false });
 
-    expect(getByRole('button', { name: /^Export$/ })).toBeTruthy();
-    expect(getByRole('button', { name: /Show symbol key/ })).toBeTruthy();
-    expect(queryByRole('button', { name: /Deck list actions/ })).toBeNull();
+    expect(container.querySelector('.deck-toolbar-controls--row')).toBeTruthy();
+    expect(getByRole('group', { name: /Deck view mode/ })).toBeTruthy();
+    expect(getByRole('button', { name: /^Group/ })).toBeTruthy();
+    expect(queryByRole('button', { name: /^Export$/ })).toBeNull();
+    expect(queryByRole('button', { name: /Test hand/ })).toBeNull();
+    expect(queryByRole('button', { name: /Show symbol key/ })).toBeNull();
+    expect(container.querySelector('.deck-toolbar .btn-primary')).toBeNull();
+
+    fireEvent.click(getByRole('button', { name: 'More list options' }));
+    expect(getByRole('button', { name: /Export/ })).toBeTruthy();
+    expect(getByText('Symbol key')).toBeTruthy();
+    // Group by is on the row, so the ⋯ doesn't repeat it.
+    expect(queryByRole('button', { name: 'Group cards by' })).toBeNull();
+  });
+
+  it('>640px but too narrow for the full row: Group by folds into the ⋯', () => {
+    const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get() {
+        return (this as HTMLElement).classList.contains('deck-toolbar') ? 640 : 0;
+      },
+    });
+    try {
+      const { getByRole, queryByRole } = renderDeck({ narrow: false });
+      expect(queryByRole('button', { name: /^Group/ })).toBeNull();
+      expect(getByRole('group', { name: /Deck view mode/ })).toBeTruthy();
+
+      fireEvent.click(getByRole('button', { name: 'More list options' }));
+      expect(getByRole('button', { name: 'Group cards by' })).toBeTruthy();
+      expect(getByRole('button', { name: /Export/ })).toBeTruthy();
+    } finally {
+      if (width) Object.defineProperty(HTMLElement.prototype, 'clientWidth', width);
+    }
   });
 
   it('carries controls and nothing else, at any out-zone count', () => {

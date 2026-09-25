@@ -3180,9 +3180,6 @@ export function DeckEditorPage() {
             <DeckEditorOverflowMenu
               onDuplicate={handleDuplicate}
               onDelete={() => setConfirmDelete(true)}
-              // Export leaves the ⋮ only on a desktop, where the deck
-              // toolbar's own Export button (.deck-toolbar-export) shows.
-              onExport={isDesktop ? undefined : () => setExportOpen(true)}
               onImport={() => setAppendOpen(true)}
               onBulkEdit={() => setBulkEditOpen(true)}
               onResync={() => setResyncOpen(true)}
@@ -4060,7 +4057,6 @@ function DeckEditorCardPickerSheet({
 function DeckEditorOverflowMenu({
   onDuplicate,
   onDelete,
-  onExport,
   onImport,
   onBulkEdit,
   onResync,
@@ -4078,19 +4074,16 @@ function DeckEditorOverflowMenu({
 }: {
   onDuplicate: () => void;
   onDelete: () => void;
-  /** Absent on desktop (≥1024px): the deck toolbar's own Export button
-   *  (`.deck-toolbar-export`) is the single desktop entry point (E181) — the
-   *  kebab still carries it on mobile/tablet, where that button is hidden. */
-  onExport?: () => void;
-  /** Opens the paste-into-this-deck dialog (E168 slice 2) — mirrors onExport:
-   *  kebab-only at every breakpoint, no separate toolbar button. */
+  /** Opens the paste-into-this-deck dialog (E168 slice 2): kebab-only at
+   *  every breakpoint, no separate toolbar button. Export is the deck
+   *  toolbar's (its ⋯ on a wide row, its kebab on a phone). */
   onImport: () => void;
   /** Opens the text/bulk-edit dialog (E168 slice 4) — same kebab-only,
-   *  every-breakpoint placement as onImport/onExport. */
+   *  every-breakpoint placement as onImport. */
   onBulkEdit: () => void;
   /** Opens the same dialog in resync mode (E173) — paste-and-diff against an
    *  external list-of-record (Moxfield, Archidekt, …), kebab-only like
-   *  onBulkEdit/onImport/onExport. */
+   *  onBulkEdit/onImport. */
   onResync: () => void;
   /** Opens the Feedback Tool sheet (mint link + review responses). */
   onFeedback: () => void;
@@ -4189,7 +4182,6 @@ function DeckEditorOverflowMenu({
   const deckActions: Row[] = [
     { key: 'duplicate', label: 'Duplicate', onClick: onDuplicate },
     { key: 'primer', label: 'Primer', onClick: onPrimer },
-    onExport && { key: 'export', label: 'Export', onClick: onExport },
     { key: 'feedback', label: 'Get feedback', onClick: onFeedback },
     onBuildReport && { key: 'build-report', label: 'Build report', onClick: onBuildReport },
     onRegenerate && { key: 'regenerate', label: 'Regenerate', onClick: onRegenerate },

@@ -106,3 +106,40 @@ describe('Next best move', () => {
     );
   });
 });
+
+// T135 step 4 (layout mockup): the deck list was a bordered card per section
+// on a wide screen and one bordered panel of them below 1100px. A list is
+// hairline rows under a section header, never a card holding rows.
+describe('Deck list sections', () => {
+  const css = read('deck-builder-card-list.css');
+
+  it('are not cards: no frame, fill or padding on a section', () => {
+    const section = rule(css, '.deck-section');
+    expect(section).not.toMatch(/border|background|padding/);
+  });
+
+  it('separate rows with hairlines under a strong section rule', () => {
+    expect(rule(css, '.deck-section-header')).toMatch(
+      /border-bottom:\s*1px solid var\(--border-strong\)/
+    );
+    expect(rule(css, '.deck-section-rows > .deck-row')).toMatch(
+      /border-bottom:\s*0\.5px solid var\(--border\)/
+    );
+  });
+
+  it('are not wrapped in one panel below 1100px either', () => {
+    const tablet = lastBlock(read('deck-builder-responsive.css'), /@media \(max-width: 1100px\)/);
+    expect(rule(tablet.replace(/^\s+/gm, ''), '.deck-card-list')).toBe('');
+  });
+});
+
+// The wide toolbar is one row: search takes the slack and nothing wraps.
+describe('Deck toolbar row', () => {
+  it('never wraps above a phone', () => {
+    const css = read('deck-builder-display.css');
+    expect(rule(css, '.deck-toolbar-controls--row')).toMatch(/flex-wrap:\s*nowrap/);
+    expect(rule(css, '.deck-toolbar-controls--row > .deck-toolbar-search')).toMatch(
+      /flex:\s*1 1 auto/
+    );
+  });
+});

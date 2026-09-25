@@ -510,22 +510,6 @@
   container: bento-host / inline-size;
 }
 
-/* Test hand action in the Deck-view toolbar (goldfishing acts on this list) —
-   reveals the standalone Test hand panel below the card list. */
-.deck-toolbar-test-hand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-/* The deck toolbar's Export shows on a desktop only; below it Export is in
-   the header's ⋮, so the page has one entry point at each width. */
-@media (max-width: 1023px) {
-  .deck-toolbar-export {
-    display: none;
-  }
-}
-
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
 .deck-editor-overflow-btn:focus-visible {
   outline: 2px solid var(--accent);
