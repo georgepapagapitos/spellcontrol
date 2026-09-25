@@ -173,7 +173,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .segmented-option:not(.is-selected):hover {
+  .segmented-option:not(.is-selected, .is-disabled):hover {
     color: var(--text-primary);
   }
 }
@@ -249,7 +249,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .choice-option:not(.is-selected):hover {
+  .choice-option:not(.is-selected, .is-disabled):hover {
     border-color: var(--border-strong);
   }
 }
@@ -257,6 +257,19 @@
 .choice-option:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* A one-of option that is shown but not pickable. */
+.segmented-option.is-disabled,
+.choice-option.is-disabled,
+.segmented-option.is-disabled input,
+.choice-option.is-disabled input {
+  cursor: not-allowed;
+}
+
+.segmented-option.is-disabled,
+.choice-option.is-disabled {
+  opacity: 0.55;
 }
 
 /* ── Disclosure row: a collapsed group that states its value ───────────── */

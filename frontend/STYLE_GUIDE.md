@@ -3117,6 +3117,11 @@ never shows the chooser.
   (`backdropClassName="modal-backdrop--sheet"`). Its footer keeps the answer
   and the primary action; Cancel leaves the phone footer because ×, the
   backdrop and the back gesture all dismiss.
+- **An option that can't be picked right now stays in the group, disabled,
+  with the reason in view** (`Option.disabled`, on `SegmentedControl` and
+  `ChoiceList`). Hiding it teaches that the choice doesn't exist; greying it
+  with no reason is a dead end. Public on the new-deck form while signed out
+  is the case that needed it.
 
 ### Binder views
 
