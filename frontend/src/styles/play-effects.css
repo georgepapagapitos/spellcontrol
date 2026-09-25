@@ -139,14 +139,22 @@
 .player-panel-step-btn {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.04em;
 }
 
 .player-panel-step-glyph {
   display: inline-block;
 }
 
+/* Absolutely positioned so a wide count (double digits from a −10 burst)
+   never widens the button's own box: the button is already `position:
+   absolute` (play-board.css) and offset from the panel centre by a
+   transform proportional to its own width — a count that grew that box in
+   normal flow pushed the whole button further out and spilled it past the
+   panel edge. Anchored toward the numeral (inward), the side with room. */
 .player-panel-step-count {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   font-family: var(--font-mono);
   /* Sits at ~85% of the button glyph — same family/weight, just slightly
      smaller so the +/− still reads as the primary character. */
@@ -154,6 +162,17 @@
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.player-panel-step-btn:first-of-type .player-panel-step-count {
+  left: 100%;
+  margin-left: 0.15em;
+}
+
+.player-panel-step-btn:last-of-type .player-panel-step-count {
+  right: 100%;
+  margin-right: 0.15em;
 }
 
 /* Underlined 6 and 9 (device pref, default off): the two board-numeral
