@@ -127,3 +127,28 @@ export function computeCubeHealth(
 export function corpusWord(size: CubeSize, bandIsSizeSpecific: boolean): string {
   return bandIsSizeSpecific ? `real ${size}s` : 'real cubes';
 }
+
+/** The always-visible one-line verdict: everything in range, or which
+ *  measures aren't, named the way a cube builder would say them ("1-drops",
+ *  not "1 CMC"). */
+export interface CubeHealthSummary {
+  allOk: boolean;
+  /** Off-target measures, curve first then types/roles/fixing, in display order. */
+  offLabels: string[];
+}
+
+/** "1-drops" / "7-drops" — the informal count-of-cards-at-this-cost term,
+ *  distinct from a row's own "1 CMC" / "7+ CMC" label. */
+function curveSummaryLabel(slot: string): string {
+  return `${slot}-drops`;
+}
+
+export function summarizeCubeHealth(health: CubeHealth): CubeHealthSummary {
+  const offLabels: string[] = [];
+  for (const row of health.curve)
+    if (row.status !== 'ok') offLabels.push(curveSummaryLabel(row.key));
+  for (const row of health.types) if (row.status !== 'ok') offLabels.push(row.label.toLowerCase());
+  for (const row of health.roles) if (row.status !== 'ok') offLabels.push(row.label.toLowerCase());
+  if (health.fixingLands.status !== 'ok') offLabels.push(health.fixingLands.label.toLowerCase());
+  return { allOk: offLabels.length === 0, offLabels };
+}

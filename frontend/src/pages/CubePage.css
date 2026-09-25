@@ -506,27 +506,85 @@
 /* ---- cube health ---- */
 /* Every measure the generator shapes toward (curve, types, roles, fixing),
    read back against the same corpus band shown in "Where your collection
-   lands". Auto-fit grids reflow to one column on phone with no extra
-   breakpoint; rows carry no interactive controls, so no touch-target rule
-   applies. */
+   lands". Collapsed by default behind the same disclosure idiom as the
+   sample pack below it (STYLE_GUIDE "index-page insight strips": never
+   displace the page's primary content) — the always-visible part is one
+   summary line, not the full breakdown. Auto-fit grids reflow to one
+   column on phone with no extra breakpoint; rows carry no interactive
+   controls, so no touch-target rule applies (the disclosure toggle does,
+   below). */
 .cube-health {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
-.cube-health h3 {
+.cube-health-head {
   margin: 0;
+}
+.cube-health-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
   font-family: var(--font-serif);
   font-size: var(--text-sm);
+  font-weight: inherit;
   color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.cube-health-sub {
-  margin: var(--space-1) 0 0;
+@media (pointer: coarse) {
+  .cube-health-toggle {
+    min-height: 44px;
+  }
+}
+.cube-health-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+.cube-health-toggle[aria-expanded='false'] .cube-group-chevron {
+  transform: rotate(-90deg);
+}
+.cube-health-summary {
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
   line-height: 1.4;
+}
+.cube-health-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+.cube-health-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+/* The reused DeckCurvePhases chart sizes its bars in `cqi` against its own
+   nearest query container (its host panel there is already one); this page
+   has no such ancestor, so give it one directly rather than adding a fixed
+   height override that would fight the chart's own responsive sizing. */
+.cube-health-curve-group {
+  container-type: inline-size;
+}
+.cube-health-curve-caption {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cube-health-curve-flag {
+  color: var(--warn-text);
+  margin-left: var(--space-1);
+  vertical-align: middle;
 }
 .cube-health-group h4 {
   margin: 0 0 var(--space-2);

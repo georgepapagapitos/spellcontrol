@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeCubeHealth, corpusWord } from './cube-health';
+import { computeCubeHealth, corpusWord, summarizeCubeHealth } from './cube-health';
 import { targetsForSize } from './targets';
 import type { CubeCard } from './core';
 import type { Pick } from './generate';
@@ -117,5 +117,59 @@ describe('corpusWord', () => {
 
   it('falls back to a generic word for a reused/scaled band', () => {
     expect(corpusWord(180, false)).toBe('real cubes');
+  });
+});
+
+describe('summarizeCubeHealth', () => {
+  it('names curve slots as "N-drops", not the row label', () => {
+    const picks: Pick[] = [];
+    for (let i = 0; i < 300; i++) picks.push(pick({ typeLine: 'Creature', cmc: 3 }));
+    for (let i = 0; i < 60; i++) picks.push(pick({ typeLine: 'Land', cmc: 0 }));
+    const health = computeCubeHealth(picks, 360, 'limited');
+    const summary = summarizeCubeHealth(health);
+    expect(summary.allOk).toBe(false);
+    // Every card is 3 CMC, so every other curve slot reads low.
+    expect(summary.offLabels).toContain('1-drops');
+    expect(summary.offLabels).not.toContain('1 CMC');
+  });
+
+  it('names type/role/fixing measures lowercase, matching their row label', () => {
+    const picks: Pick[] = [];
+    for (let i = 0; i < 300; i++) picks.push(pick({ typeLine: 'Creature', cmc: 3 }));
+    for (let i = 0; i < 60; i++) picks.push(pick({ typeLine: 'Land', cmc: 0 }));
+    const health = computeCubeHealth(picks, 360, 'limited');
+    const summary = summarizeCubeHealth(health);
+    // No removal/boardwipe/ramp/cardDraw at all, and no sorceries/instants/etc.
+    expect(summary.offLabels).toContain('removal');
+    expect(summary.offLabels).toContain('instants');
+  });
+
+  it('reports allOk with no off-target measures when nothing is flagged', () => {
+    // An empty pool reads every share as 0, which is only "ok" when the
+    // corpus range itself includes 0 — pick the one row guaranteed to: an
+    // isolated check against a hand-built health object instead of trying
+    // to shape a whole pool onto every target at once.
+    const health = computeCubeHealth([], 360, 'limited');
+    const allOkHealth = {
+      ...health,
+      curve: health.curve.map((r) => ({ ...r, status: 'ok' as const })),
+      types: health.types.map((r) => ({ ...r, status: 'ok' as const })),
+      roles: health.roles.map((r) => ({ ...r, status: 'ok' as const })),
+      fixingLands: { ...health.fixingLands, status: 'ok' as const },
+    };
+    const summary = summarizeCubeHealth(allOkHealth);
+    expect(summary).toEqual({ allOk: true, offLabels: [] });
+  });
+
+  it('orders off-target measures curve, then types, then roles, then fixing', () => {
+    const picks: Pick[] = [];
+    for (let i = 0; i < 300; i++) picks.push(pick({ typeLine: 'Creature', cmc: 3 }));
+    for (let i = 0; i < 5; i++) picks.push(pick({ typeLine: 'Land', cmc: 0 }));
+    const health = computeCubeHealth(picks, 360, 'limited');
+    const summary = summarizeCubeHealth(health);
+    const firstDropIdx = summary.offLabels.findIndex((l) => l.endsWith('-drops'));
+    const fixingIdx = summary.offLabels.indexOf('fixing lands');
+    expect(firstDropIdx).toBeGreaterThanOrEqual(0);
+    expect(fixingIdx).toBeGreaterThan(firstDropIdx);
   });
 });
