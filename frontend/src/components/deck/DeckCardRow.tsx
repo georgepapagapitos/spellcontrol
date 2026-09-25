@@ -5,7 +5,7 @@ import { OwnershipBadge } from './OwnershipBadge';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
 import { WhyBreakdown } from './WhyBreakdown';
 import { AiMarker } from './AiMarker';
-import type { Change } from '@/lib/deck-change';
+import { isOffMetaChange, type Change } from '@/lib/deck-change';
 
 /** Budget-swap confidence tier → badge tone + word (STYLE_GUIDE: success/info/warn).
  *  How close the cheaper suggestion is to the card it replaces. */
@@ -53,6 +53,12 @@ export function inclusionColor(pct: number): string {
  *  STYLE_GUIDE action-button anatomy). An explicit `actLabel` still wins. */
 const ACT_ICON = { add: Plus, cut: Minus, swap: ArrowLeftRight } as const;
 const ACT_VERB: Record<Change['type'], string> = { add: 'Add', cut: 'Cut', swap: 'Swap' };
+/** The in-flight aria verb. Spelled out: `${verb}ing` gives "Cuting" and "Swaping". */
+const ACT_BUSY: Record<Change['type'], string> = {
+  add: 'Adding',
+  cut: 'Cutting',
+  swap: 'Swapping',
+};
 
 export interface DeckCardRowProps {
   change: Change;
@@ -142,8 +148,9 @@ export function DeckCardRow({
   // so the "how-staple" signal lives in the number instead of a separate
   // unlabeled bar.
   //
-  // Combos-lane rows never have an inclusion %, so suppress the "Off-meta"
-  // label for them — a proven combo completion is not off-meta by definition.
+  // Lanes with no play-rate to be missing (combo completions, Your-decks
+  // moves) show no "Off-meta" label: `isOffMetaChange` is the one rule, shared
+  // with the feed's Off-meta count so the chip and the count never disagree.
   const inclusionInfo = classifyInclusion(inclusion);
   const inclusionNode =
     inclusionInfo.kind === 'pct' ? (
@@ -157,9 +164,9 @@ export function DeckCardRow({
         </span>{' '}
         of {commanderName ? `${commanderName} ` : ''}decks
       </span>
-    ) : change.lane === 'combos' ? null : (
+    ) : isOffMetaChange(change) ? (
       <span className="deck-card-row-incl is-offmeta">Off-meta</span>
-    );
+    ) : null;
 
   return (
     <Root className="deck-card-row">
@@ -282,7 +289,13 @@ export function DeckCardRow({
           className={`deck-card-row-act${change.type === 'cut' ? ' is-cut' : ''}`}
           onClick={() => onAct(change)}
           disabled={acting}
-          aria-label={acting ? `${label}ing ${name}` : `${label} ${name}`}
+          aria-label={
+            acting
+              ? actLabel
+                ? `${actLabel} ${name}, in progress`
+                : `${ACT_BUSY[change.type]} ${name}`
+              : `${label} ${name}`
+          }
         >
           {acting ? (
             <Loader2 className="deck-card-row-spinner" aria-hidden />

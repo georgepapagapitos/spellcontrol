@@ -114,6 +114,22 @@ describe('DeckCardRow', () => {
     expect(actBtn.disabled).toBe(true);
   });
 
+  it('names the in-flight action in real words, never verb + "ing"', () => {
+    const cases: Array<[Partial<Change>, string | undefined, string]> = [
+      [{}, undefined, 'Adding Sol Ring'],
+      [{ type: 'cut' }, undefined, 'Cutting Sol Ring'],
+      [{ type: 'swap', inName: 'Mind Stone' }, undefined, 'Swapping Sol Ring'],
+      [{}, 'Move in', 'Move in Sol Ring, in progress'],
+    ];
+    for (const [over, actLabel, name] of cases) {
+      const { unmount } = render(
+        <DeckCardRow change={add(over)} onAct={vi.fn()} actLabel={actLabel} acting />
+      );
+      expect(screen.getByRole('button', { name })).toBeTruthy();
+      unmount();
+    }
+  });
+
   it('fires onPreview only from the thumbnail (not the row body)', () => {
     const onPreview = vi.fn();
     const { container } = render(

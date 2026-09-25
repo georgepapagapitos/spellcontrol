@@ -5,6 +5,7 @@ import { CoachFeed, type CoachFeedProps } from './CoachFeed';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
+import type { CrossDeckMove } from '@/lib/cross-deck-moves';
 
 vi.mock('@/lib/card-thumbs', () => ({
   useCardThumb: () => undefined,
@@ -623,6 +624,84 @@ describe('CoachFeed', () => {
     it('shows no expander when the feed fits one page', () => {
       render(<CoachFeed {...makeProps()} />);
       expect(screen.queryByRole('button', { name: /Show all/ })).toBeNull();
+    });
+  });
+
+  describe('Your decks lane (E90 cross-deck moves)', () => {
+    // Cultivate is ALSO the gap row's card: the move must replace that plain
+    // add, which would list the card unowned instead of bringing the copy over.
+    const move: CrossDeckMove = {
+      id: 'ramp-pile:Cultivate:this-deck',
+      cardName: 'Cultivate',
+      fromDeckId: 'ramp-pile',
+      fromDeckName: 'Ramp Pile',
+      fromDeckColor: '#7a8a70',
+      slotId: 'slot-cultivate',
+      cardCopyId: 'copy-cultivate',
+      toDeckId: 'this-deck',
+      toDeckName: 'This Deck',
+      toDeckColor: '#8a707a',
+      fitGain: 1,
+      replacementName: 'Rampant Growth',
+      replacementCopyId: 'copy-rampant',
+      whyMove: [{ text: "Feeds This Deck's Landfall engine", tone: 'pro' }],
+      whyReplacement: [],
+    };
+
+    it('shows the move once, in place of the plain add, with where it comes from', () => {
+      render(<CoachFeed {...makeProps({ crossDeckMoves: [move] })} />);
+      expect(screen.getAllByText('Cultivate')).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'Move in Cultivate' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Add Cultivate' })).toBeNull();
+      expect(
+        screen.getByText('Sitting in Ramp Pile. Rampant Growth takes its place there.')
+      ).toBeTruthy();
+      const chips = screen.getByRole('group', { name: 'Filter suggestions' });
+      expect(chips.textContent).toContain('Your decks');
+      // A card you own moving over has no play-rate to be missing: never "Off-meta",
+      // on the row or in the feed's Off-meta count.
+      const row = screen
+        .getByRole('button', { name: 'Move in Cultivate' })
+        .closest('.deck-card-row')!;
+      expect(row.textContent).not.toContain('Off-meta');
+      expect(chips.textContent).not.toContain('Off-meta');
+    });
+
+    it('has no Fit & cut (that audition adds without patching the other deck)', () => {
+      render(<CoachFeed {...makeProps({ crossDeckMoves: [move], onPreviewFit: vi.fn() })} />);
+      expect(
+        screen.queryByRole('button', {
+          name: 'Will Cultivate fit this deck, and what would it replace?',
+        })
+      ).toBeNull();
+    });
+
+    it('the Your decks chip narrows to moves, and Move in hands the page the move row', () => {
+      const onApplyMove = vi.fn();
+      const { container } = render(
+        <CoachFeed {...makeProps({ crossDeckMoves: [move], onApplyMove })} />
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Your decks/ }));
+      expect(screen.queryByText('Esper Sentinel')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Move in Cultivate' }));
+      fireEvent.animationEnd(container.querySelector('.coach-feed-row-leaving')!, {
+        animationName: 'coach-row-leave',
+      });
+      expect(onApplyMove).toHaveBeenCalledWith(
+        expect.objectContaining({ lane: 'decks', type: 'add', name: 'Cultivate' })
+      );
+    });
+
+    it('drops the move once the card is in this deck', () => {
+      render(
+        <CoachFeed
+          {...makeProps({
+            crossDeckMoves: [move],
+            deckNames: new Set(['smothering tithe', 'cultivate']),
+          })}
+        />
+      );
+      expect(screen.queryByRole('button', { name: 'Move in Cultivate' })).toBeNull();
     });
   });
 });

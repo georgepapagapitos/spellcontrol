@@ -1500,6 +1500,31 @@ export function selectDeck(id: string | undefined): (state: DecksState) => Deck 
   return (s) => s.decks.find((d) => d.id === id) ?? null;
 }
 
+/** Depth of {@link withAllocationHealDeferred}; while > 0 the heal waits. */
+let healDeferred = 0;
+
+/**
+ * Run a multi-deck copy move as ONE unit for the double-claim heal below. A
+ * move is two writes (the recipient claims the copy, the donor lets it go),
+ * and between them one copy is claimed twice. Healing that transient state
+ * strips whichever claim sits LATER in deck order, which is the one being
+ * moved half the time: the moved copy lands unowned, or an Undo gives the
+ * donor its card back unbound. So the heal skips the writes inside `fn` and
+ * runs once on the end state, where the claim is single again. `fn` must be
+ * synchronous; the sync push below still sees every write.
+ */
+export function withAllocationHealDeferred(fn: () => void): void {
+  healDeferred++;
+  try {
+    fn();
+  } finally {
+    healDeferred--;
+  }
+  if (healDeferred > 0) return;
+  const { decks, changed } = dedupeDeckAllocations(useDecksStore.getState().decks);
+  if (changed) useDecksStore.setState({ decks });
+}
+
 /**
  * Centralized allocation self-heal + sync subscriber (E133). EVERY write to
  * the decks array — a manual mutation, `remapAllocations`, deck-history
@@ -1511,7 +1536,9 @@ export function selectDeck(id: string | undefined): (state: DecksState) => Deck 
  * claimed by two deck slots" by construction, instead of every call site
  * running `dedupeDeckAllocations` for itself. It's pure and reference-stable
  * (returns the SAME `decks` array when nothing was contested), so re-running
- * it after its own heal is a no-op and this cannot loop.
+ * it after its own heal is a no-op and this cannot loop. A multi-deck copy
+ * move (and its Undo) runs under `withAllocationHealDeferred` above, so the
+ * heal judges the move's end state, never its half-written middle.
  *
  * applyingServer reasoning: a heal is a genuine LOCAL correction (not
  * server-sourced data we're just mirroring), so unlike a normal server-applied
@@ -1529,7 +1556,8 @@ export function selectDeck(id: string | undefined): (state: DecksState) => Deck 
 useDecksStore.subscribe((state, prev) => {
   if (state.decks === prev.decks) return;
 
-  const { decks: healed, changed } = dedupeDeckAllocations(state.decks);
+  const { decks: healed, changed } =
+    healDeferred > 0 ? { decks: state.decks, changed: false } : dedupeDeckAllocations(state.decks);
   if (changed) {
     if (isApplyingServer()) {
       queueMicrotask(() => {

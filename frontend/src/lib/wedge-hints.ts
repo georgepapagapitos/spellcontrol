@@ -6,7 +6,7 @@
  * among a dozen in the ⋮ overflow menu. Bare localStorage flag per hint:
  * device-local (never synced, same
  * precedent as every other once-only tip in this codebase — see
- * `build-report-seen.ts`/`between-decks-dismissed.ts`), fail-safe to HIDDEN
+ * `build-report-seen.ts`), fail-safe to HIDDEN
  * on a storage error (an unwanted popup is worse than a missed one). No
  * registry — this is two hints, so it's two pairs of functions, not a
  * config system.

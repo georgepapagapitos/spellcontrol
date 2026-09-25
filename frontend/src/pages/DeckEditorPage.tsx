@@ -42,7 +42,12 @@ import {
   Link,
   Navigate,
 } from 'react-router-dom';
-import { useDecksStore, effectiveBracket, type DeckZone } from '../store/decks';
+import {
+  useDecksStore,
+  effectiveBracket,
+  withAllocationHealDeferred,
+  type DeckZone,
+} from '../store/decks';
 import { useCubeStore } from '../store/cube';
 import { useDeckHistoryStore } from '../store/deck-history';
 import { useCollectionStore } from '../store/collection';
@@ -126,6 +131,7 @@ import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
 import { classifyCandidate, analyzeDeck } from '../lib/deck-analysis';
 import { useTaggerReady } from '../lib/use-tagger-ready';
+import { findCrossDeckMoves, type CrossDeckMove } from '../lib/cross-deck-moves';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
@@ -174,7 +180,12 @@ import type { Finish } from '../types';
 import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { useSearchCards } from '@/lib/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import { getCardPrice, getCardByName, searchCards } from '../deck-builder/services/scryfall/client';
+import {
+  getCardPrice,
+  getCardByName,
+  getOwnedPrinting,
+  searchCards,
+} from '../deck-builder/services/scryfall/client';
 
 // Fetch strong on-color fixing lands for the "Re-analyze lands" tool's acquire
 // rows (duals the user may not own yet). The deck's identity letters are passed
@@ -492,6 +503,11 @@ export function DeckEditorPage() {
   // Deck-size guard prompts: a pending full-deck add awaiting a replace choice,
   // and a post-cut refill nudge (the card just cut + its role).
   const [pendingAdd, setPendingAdd] = useState<string | null>(null);
+  // Set alongside `pendingAdd` when the full-deck prompt opened for a Coach
+  // "Your decks" row, so its choices commit the move (the copy comes from the
+  // sibling deck, which gets its patch) instead of a plain add.
+  const [pendingMove, setPendingMove] = useState<CrossDeckMove | null>(null);
+  const pendingMoveFor = pendingMove && pendingMove.cardName === pendingAdd ? pendingMove : null;
   // "Fill the rest" sheet (under-size Commander deck).
   const [showFill, setShowFill] = useState(false);
   // Resolved ScryfallCard for `pendingAdd`, so the replace-when-full ranker can
@@ -1032,6 +1048,19 @@ export function DeckEditorPage() {
 
   const taggerReady = useTaggerReady();
 
+  // E90 "Your decks" Coach rows: owned copies idle in a sibling deck that would
+  // feed an engine here, each paired with an owned patch for the deck it
+  // leaves. taggerReady is a recompute trigger (the replacement search reads
+  // the tagger's roles), not read directly.
+  const crossDeckMoves = useMemo(
+    () =>
+      deck && DECK_FORMAT_CONFIGS[deck.format].hasCommander
+        ? findCrossDeckMoves(decks, collectionCards, printingAllocationMap, { toDeckId: deck.id })
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- taggerReady is a recompute trigger, not read directly
+    [deck, decks, collectionCards, printingAllocationMap, taggerReady]
+  );
+
   // Curve-derived land-count advice for the hero — the lands RoleHealth from
   // the same analyzeDeck the Analysis panel renders, so badge and hero agree
   // on both the number and when it applies (Karsten gate lives in there).
@@ -1540,6 +1569,7 @@ export function DeckEditorPage() {
             // The sheet gets out of the way so DeckSizePrompt isn't stacked
             // on top of it.
             setShowAddPanel(false);
+            setPendingMove(null);
             setPendingAdd(card.name);
             return;
           }
@@ -1729,21 +1759,27 @@ export function DeckEditorPage() {
     // never double-claimed. The deck→deck path keeps recipient-first because its
     // `replace` donor outcome must pick a free copy AFTER the moved copy is still
     // claimed (reversing it would let the replacement grab the copy being moved).
-    if (opts.donorCubeId) {
-      opts.donorApply();
-      opts.recipientApply();
-    } else {
-      opts.recipientApply();
-      opts.donorApply();
-    }
+    // Deferred heal: between the two deck writes the moved copy is claimed
+    // twice, and healing that half-state strips one claim by deck order.
+    withAllocationHealDeferred(() => {
+      if (opts.donorCubeId) {
+        opts.donorApply();
+        opts.recipientApply();
+      } else {
+        opts.recipientApply();
+        opts.donorApply();
+      }
+    });
     haptics.tap();
     pushToast({
       message: opts.label,
       tone: 'success',
       actionLabel: 'Undo',
       onAction: () => {
-        if (snapDonor) replaceDeck(opts.donorDeckId, snapDonor);
-        if (snapRecipient) replaceDeck(opts.recipientDeckId, snapRecipient);
+        withAllocationHealDeferred(() => {
+          if (snapDonor) replaceDeck(opts.donorDeckId, snapDonor);
+          if (snapRecipient) replaceDeck(opts.recipientDeckId, snapRecipient);
+        });
         // Restore the cube's pre-release picks (re-binds the freed copy).
         if (snapCube) useCubeStore.getState().updateSaved(snapCube.id, { picks: snapCube.picks });
         haptics.tap();
@@ -1933,6 +1969,7 @@ export function DeckEditorPage() {
   const handleAddEngineCard = async (cardName: string) => {
     if (!deck) return;
     if (deckIsFull) {
+      setPendingMove(null);
       setPendingAdd(cardName);
       return;
     }
@@ -1962,6 +1999,13 @@ export function DeckEditorPage() {
     if (!deck || !pendingAdd) return;
     const name = pendingAdd;
     setPendingAdd(null);
+    if (pendingMoveFor) {
+      // Atomic 1-for-1 here too: the cut frees its copy, the moved one binds.
+      await commitCrossDeckMove(pendingMoveFor, (deckId, card, copyId) =>
+        swapCard(deckId, cutSlotId, card, copyId)
+      );
+      return;
+    }
     const cutName = deck.cards.find((c) => c.slotId === cutSlotId)?.card.name;
     setAddingEngineNames((prev) => new Set(prev).add(name));
     try {
@@ -1998,18 +2042,21 @@ export function DeckEditorPage() {
     if (!pendingAdd) return;
     const name = pendingAdd;
     setPendingAdd(null);
+    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addSideboardCard);
     await addResolvedCard(name, 'sideboard');
   };
   const addToConsideringAndClose = async () => {
     if (!pendingAdd) return;
     const name = pendingAdd;
     setPendingAdd(null);
+    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addConsideringCard);
     await addResolvedCard(name, 'considering');
   };
   const addAnywayAndClose = async () => {
     if (!pendingAdd) return;
     const name = pendingAdd;
     setPendingAdd(null);
+    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, addCard);
     await addResolvedCard(name);
   };
 
@@ -2138,10 +2185,62 @@ export function DeckEditorPage() {
     }
   };
 
+  // Commit a "Your decks" move: the physical copy leaves its sibling deck for
+  // this one, and the owned replacement takes its slot there. `place` seats the
+  // card here (a plain add, a 1-for-1 swap into a full deck, or another zone).
+  // One Undo restores both decks (executeReallocation).
+  const commitCrossDeckMove = async (
+    move: CrossDeckMove,
+    place: (deckId: string, card: ScryfallCard, copyId: string) => void
+  ): Promise<void> => {
+    if (!deck) return;
+    const donor = useDecksStore.getState().decks.find((d) => d.id === move.fromDeckId);
+    const slot = donor?.cards.find((c) => c.slotId === move.slotId);
+    const patch = collectionCards.find((c) => c.copyId === move.replacementCopyId);
+    if (!donor || !slot || !patch) {
+      pushToast({
+        message: `${move.cardName} has changed since this suggestion.`,
+        tone: 'error',
+      });
+      return;
+    }
+    setAddingEngineNames((prev) => new Set(prev).add(move.cardName));
+    try {
+      const patchCard = await getOwnedPrinting(patch.scryfallId, patch.name);
+      executeReallocation({
+        donorDeckId: donor.id,
+        recipientDeckId: deck.id,
+        recipientApply: () => place(deck.id, slot.card, slot.allocatedCopyId ?? move.cardCopyId),
+        donorApply: () => swapCard(donor.id, slot.slotId, patchCard, patch.copyId),
+        label: `Moved ${move.cardName} here. ${patch.name} covers ${donor.name}.`,
+      });
+    } catch {
+      pushToast({ message: `Couldn't move ${move.cardName}`, tone: 'error' });
+    } finally {
+      setAddingEngineNames((prev) => {
+        const next = new Set(prev);
+        next.delete(move.cardName);
+        return next;
+      });
+    }
+  };
+
   // CoachFeed unified apply handler — routes add/cut/swap changes from the
   // CoachFeed to the existing engine add/cut/swap flows.
   const handleApplyCoachMove = async (change: Change) => {
     if (!deck) return;
+    if (change.lane === 'decks') {
+      // One move per card into this deck (the engine dedupes card × target).
+      const move = crossDeckMoves.find((m) => m.cardName === change.name);
+      if (!move) return;
+      if (deckIsFull) {
+        setPendingMove(move);
+        setPendingAdd(move.cardName);
+        return;
+      }
+      await commitCrossDeckMove(move, addCard);
+      return;
+    }
     if (change.type === 'add') {
       await handleAddEngineCard(change.name);
     } else if (change.type === 'cut') {
@@ -3426,6 +3525,7 @@ export function DeckEditorPage() {
                   bracketFit={deck.bracketFit ?? undefined}
                   landUpgrades={landUpgrades}
                   oneAwayCombos={mainboardComboData?.oneAway}
+                  crossDeckMoves={crossDeckMoves}
                   planScore={deck.planScore}
                   roleCounts={deck.roleCounts ?? {}}
                   roleTargets={deck.roleTargets ?? {}}
@@ -3813,7 +3913,9 @@ export function DeckEditorPage() {
           actionVerb="Replace"
           subject={{ name: pendingAdd, label: "The card you're adding" }}
           aiSlot={
-            formatConfig?.hasCommander && deck.commander ? (
+            // A move's apply carries the sibling deck's patch; the AI verdict
+            // applies a plain swap, so it stays out of a move's prompt.
+            formatConfig?.hasCommander && deck.commander && !pendingMoveFor ? (
               <DeckAiRefine
                 key={deck.id}
                 variant="replace"

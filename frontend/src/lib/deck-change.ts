@@ -24,6 +24,8 @@ import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUp
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
+import type { CrossDeckMove } from './cross-deck-moves';
+import { classifyInclusion } from './inclusion-label';
 import type { BrewCandidate } from '@/deck-builder/services/deckBuilder/brewSlots';
 import {
   buildBracketMoveFactors,
@@ -44,8 +46,9 @@ export type ChangeType = 'add' | 'cut' | 'swap';
 /**
  * The intent lanes a Change can belong to: the four Tune lanes, the carousel's
  * `similar` suggestion rows (not a Tune lane), and the Power tab's `bracket-fit`
- * coaching lane (target-bracket card moves). The hero is a router, not a
- * Change-owning lane.
+ * coaching lane (target-bracket card moves), and `decks`: an owned copy idle
+ * in a sibling deck, moved here with a patch for the deck it leaves (E90).
+ * The hero is a router, not a Change-owning lane.
  */
 export type LaneId =
   | 'fill-gaps'
@@ -55,7 +58,8 @@ export type LaneId =
   | 'similar'
   | 'bracket-fit'
   | 'combos'
-  | 'lands';
+  | 'lands'
+  | 'decks';
 
 /**
  * Allocation-aware ownership, evaluated at render time:
@@ -468,6 +472,39 @@ export function fromSubstituteRow(r: SubstituteRow): Change {
     cmc: r.wantedCmc,
     alternatives: r.alternatives?.map(fromSubstituteRow),
   };
+}
+
+/**
+ * A cross-deck move, seen from the deck it moves INTO (E90). An add row: the
+ * copy is owned and the donor gets an owned patch, so it is fieldable tonight
+ * (`owned`). Keyed on the move id, which the page resolves back to the move
+ * to apply it (the donor slot and both physical copies live there, not here).
+ */
+export function fromCrossDeckMove(move: CrossDeckMove): Change {
+  return {
+    id: `decks:${move.id}`,
+    type: 'add',
+    lane: 'decks',
+    name: move.cardName,
+    reason: `Sitting in ${move.fromDeckName}. ${move.replacementName} takes its place there.`,
+    whyFactors: move.whyMove,
+    ownership: 'owned',
+    cmc: move.cardCmc,
+    typeLine: move.cardTypeLine,
+    imageUrl: move.cardImageUrl,
+  };
+}
+
+/**
+ * A genuine "spicy" off-meta pick (E88): no EDHREC play-rate evidence. Only
+ * lanes that come FROM EDHREC-rated candidates can be off-meta; a combo
+ * completion is proven by the combo, and a Your-decks move is a card you
+ * already own moving over, so neither carries a play-rate to be missing.
+ * The one rule behind both the row's "Off-meta" chip and the feed's count.
+ */
+export function isOffMetaChange(change: Change): boolean {
+  if (change.lane === 'combos' || change.lane === 'decks') return false;
+  return classifyInclusion(change.inclusion).kind === 'offmeta';
 }
 
 /** Higher = stronger reason to keep this row when two sources name one card. */

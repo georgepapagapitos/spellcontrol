@@ -128,15 +128,15 @@ interface RawCandidate {
 }
 
 export interface FindCrossDeckMovesOptions {
-  /** Cap the number of suggestions returned (best fitGain first). Default: no cap. */
-  limit?: number;
+  /** Only moves INTO this deck (the deck page's Coach feed). Default: any sibling. */
+  toDeckId?: string;
 }
 
 /**
  * Find cross-deck moves across every deck the user owns. `collection` is the
  * full owned card list and `allocations` is the live copyId→deck map (e.g.
- * from `useAllocations()`) — both already computed by callers like
- * `DecksIndexPage` for other features, so this never re-derives them.
+ * from `useAllocations()`) — both already computed by the deck page for
+ * other features, so this never re-derives them.
  */
 export function findCrossDeckMoves(
   decks: Deck[],
@@ -181,6 +181,7 @@ export function findCrossDeckMoves(
       let best: { target: DeckProfile; hits: AxisHit[] } | null = null;
       for (const target of profiles) {
         if (target.deck.id === donor.deck.id) continue;
+        if (opts.toDeckId && target.deck.id !== opts.toDeckId) continue;
         // Target already runs this card — a singleton (commander-family) deck
         // would be offered a nonsensical duplicate. Applied universally: all
         // current suggestion targets are singleton formats, and skipping is
@@ -284,5 +285,5 @@ export function findCrossDeckMoves(
     });
   }
 
-  return opts.limit != null ? moves.slice(0, opts.limit) : moves;
+  return moves;
 }

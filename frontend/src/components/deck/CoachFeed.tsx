@@ -23,6 +23,8 @@ import {
   fromCostSwapRow,
   fromComboCompletion,
   fromLandUpgradeMove,
+  fromCrossDeckMove,
+  isOffMetaChange,
   mergeMisfitCuts,
   mergeImprove,
   type Change,
@@ -38,6 +40,7 @@ import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer'
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { ComboMatch } from '@/types/combos';
+import type { CrossDeckMove } from '@/lib/cross-deck-moves';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
 import type {
@@ -54,6 +57,7 @@ type FilterId =
   | 'upgrade'
   | 'budget'
   | 'collection'
+  | 'decks'
   | 'bracket-fit'
   | 'combos'
   | 'lands'
@@ -65,23 +69,12 @@ const FILTER_LABELS: Record<FilterId, string> = {
   upgrade: 'Upgrades',
   budget: 'Budget',
   collection: 'Stand-ins',
+  decks: 'Your decks',
   'bracket-fit': 'Bracket',
   combos: 'Combos',
   lands: 'Lands',
   cuts: 'Cuts',
 };
-
-/**
- * A row is a genuine "spicy" off-meta pick by the exact same rule
- * `DeckCardRow` uses to paint its "Off-meta" chip (E88): no EDHREC play-rate
- * evidence, and not a combos-lane row (a proven combo completion is never
- * off-meta by definition). Kept in lockstep with DeckCardRow's inline
- * `inclusionInfo`/`change.lane === 'combos'` check so the E64 discoverability
- * count/filter below never disagrees with which rows actually show the badge.
- */
-function isOffMetaChange(change: Change): boolean {
-  return change.lane !== 'combos' && classifyInclusion(change.inclusion).kind === 'offmeta';
-}
 
 /** First page of the feed — enough to fill a laptop viewport below the hero
  *  without walling off the browse catalog and AI strips underneath. */
@@ -121,6 +114,9 @@ export interface CoachFeedProps {
   bracketFit?: BracketFitPlan;
   landUpgrades?: LandUpgradeMove[];
   oneAwayCombos?: ComboMatch[];
+  /** E90: owned copies idle in a sibling deck that would feed an engine here,
+   *  each with an owned patch for the deck it leaves. Applied by the page. */
+  crossDeckMoves?: CrossDeckMove[];
   // Context for ranking
   planScore?: PlanScore;
   roleCounts?: Record<string, number>;
@@ -222,6 +218,7 @@ export function CoachFeed({
   bracketFit,
   landUpgrades,
   oneAwayCombos,
+  crossDeckMoves,
   planScore,
   roleCounts,
   roleTargets,
@@ -468,11 +465,22 @@ export function CoachFeed({
     // Bracket adds (not swaps/cuts).
     const bracketAdds = bracketChanges.filter((c) => c.type === 'add');
 
+    // A card another lane would add from scratch, when it already sits idle in
+    // a sibling deck, shows once: as the move, which brings the physical copy
+    // and patches the deck it leaves. The plain add would list it unowned.
+    const moveChanges = (crossDeckMoves ?? []).map(fromCrossDeckMove);
+    const moved = new Set(moveChanges.map((c) => c.name.toLowerCase()));
+    const notMoved = (c: Change) => c.type !== 'add' || !moved.has(c.name.toLowerCase());
+
     // Ground-truth filter against the live deck list (see the deckNames prop
     // doc): applied rows drop out, undone applies come back, and a swap whose
     // target slot is gone can no longer be offered.
     const inDeck = (n: string) => deckNames.has(n.toLowerCase());
-    return [...mergedAdds, ...bracketAdds, ...comboChanges, ...swapsAndCuts].filter((c) => {
+    return [
+      ...moveChanges,
+      ...[...mergedAdds, ...bracketAdds, ...comboChanges].filter(notMoved),
+      ...swapsAndCuts,
+    ].filter((c) => {
       if (c.type === 'add') return !inDeck(c.name);
       if (c.type === 'cut') return inDeck(c.name);
       return c.inName ? inDeck(c.inName) && !inDeck(c.name) : false;
@@ -487,6 +495,7 @@ export function CoachFeed({
     bracketFit,
     landUpgrades,
     oneAwayCombos,
+    crossDeckMoves,
     resolveOwnership,
     deckNames,
   ]);
@@ -599,6 +608,7 @@ export function CoachFeed({
       upgrade: 0,
       budget: 0,
       collection: 0,
+      decks: 0,
       'bracket-fit': 0,
       combos: 0,
       lands: 0,
@@ -684,7 +694,8 @@ export function CoachFeed({
 
   const entryFor = (change: Change): CarouselEntry => ({
     name: change.name,
-    label: classifyInclusion(change.inclusion).label,
+    // A move carries no play-rate; it'd read "Off-meta" (see isOffMetaChange).
+    label: change.lane === 'decks' ? 'From your decks' : classifyInclusion(change.inclusion).label,
   });
   const previewEntries = useMemo<CarouselEntry[]>(
     () =>
@@ -934,7 +945,9 @@ export function CoachFeed({
               <ul className="coach-feed-rows" aria-label="Deck suggestions">
                 {(showAllRows ? filteredRows : filteredRows.slice(0, ROW_CAP)).map(({ change }) => {
                   const isLeaving = leavingIds.has(change.id);
-                  const showFit = onPreviewFit && change.type !== 'cut';
+                  // A move row's apply carries the donor's patch; the Fit audition
+                  // adds through the plain path, so it would leave that out.
+                  const showFit = onPreviewFit && change.type !== 'cut' && change.lane !== 'decks';
                   const aiWhy = change.type === 'cut' ? undefined : aiAgrees?.get(change.name);
                   return (
                     <li
@@ -959,6 +972,7 @@ export function CoachFeed({
                           )
                         }
                         onAct={(c) => handleApplyWithLeave(c)}
+                        actLabel={change.lane === 'decks' ? 'Move in' : undefined}
                         acting={
                           busy.has(change.name) || (change.inName ? busy.has(change.inName) : false)
                         }

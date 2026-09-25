@@ -26,10 +26,6 @@ const SHARED_ROOTS = [
   '.deck-ai-review',
   '.deck-stats-panel',
   '.ai-sources',
-  // Index-page insight strip. Was charging its host's flex `gap` TWICE (the
-  // page's rhythm plus its own margin-bottom) — the same defect this guard
-  // exists for, and 16px of a phone screen above the first deck card.
-  '.between-decks-strip',
   // primitives (STYLE_GUIDE § Primitives index)
   '.wedge-hint-strip',
   '.thin-data-note',

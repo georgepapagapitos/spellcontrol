@@ -1804,7 +1804,7 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   adding a sibling: Add cards 900 · Test hand 1180 · CardGroup 960 ·
   NewArrivals / PullList 720 · ConflictPanel 720 · DeckSizePrompt /
   CardFitPanel 42rem ·
-  BuildReport / BetweenYourDecks / DeckTokens 640 · BuyList / DeckPrimer
+  BuildReport / DeckTokens 640 · BuyList / DeckPrimer
   ≈560. A new overlay whose body is rows, a diff, images, or anything you
   _work in_ picks from this table — it does not ship on the 480px default.
   Playtest's sheets are on it too: opening hand 1180 · zone viewer 900 ·
@@ -3179,13 +3179,25 @@ arrow they rendered was a passive status glyph you had no way to act on.
 
 ## Index-page insight strips (UX-334)
 
-An insight/advisor engine surfaced on an index page (readiness, coaching,
-cross-entity suggestions) **collapses to a one-row summary strip that opens a
-sheet on tap — it never displaces the page's primary content.** The first ship
-of "Between your decks" (E90) rendered its full suggestion list inline above
-the Decks Index grid, pushing every deck below the fold; the fix (`fix(decks):
-Between your decks collapses to a one-row strip + sheet`) is the reference
-implementation (`components/deck/BetweenYourDecks.tsx`):
+**First ask whether it belongs on the index at all.** A suggestion that edits
+one entity lives where that entity is being worked on, not on the page you pass
+through to pick it. "Between your decks" (E90) proposes moving a card from one
+deck into another. It spent four PRs as a Decks Index strip (inline list →
+strip + sheet → batch dismiss → reshaped rows) and still read as clutter,
+because on the index it interrupts choosing a deck to ask for a two-deck edit
+nobody opened the page for. It now lives as the **Your decks** lane of the
+receiving deck's Coach feed (a `decks`-lane `Change`, applied through the
+editor's `executeReallocation` so one Undo restores both decks). A strip is
+for a fact about the page's own list (the public deck page's
+`OwnershipLensStrip`: how much of this list you already own), not an
+invitation to go edit something else.
+
+When it does belong there, an insight/advisor engine surfaced on an index page
+(readiness, coverage, cross-entity facts) **collapses to a one-row summary
+strip that opens a sheet on tap — it never displaces the page's primary
+content.** The first ship of "Between your decks" rendered its full suggestion
+list inline above the Decks Index grid, pushing every deck below the fold. The
+rules that came out of it:
 
 - **Strip**: one toolbar-row tall, full-width, a real `<button>` (not a card),
   `min-height: 44px` on coarse pointers. Contents: a leading icon, a label, a
@@ -3210,8 +3222,8 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
     wrapper `<div>` that reacts to `:hover` / `:focus-within` of either child,
     and each child keeps its own focus ring + 44px coarse target.
 - **Every row in the sheet must be self-sufficient: the user can reconstruct
-  the proposed action from that row alone.** The reference implementation
-  originally rendered `Card → DestinationDeck` and never named the **donor**
+  the proposed action from that row alone.** The first "Between your decks"
+  sheet rendered `Card → DestinationDeck` and never named the **donor**
   deck until a sentence at the bottom of the card — so the surface's core object
   (a two-sided trade) wasn't readable off the row. A suggestion row leads with
   its subject (art + name + a `Type · N MV` meta line), then states the full
@@ -3228,9 +3240,8 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
   lanes both having something to say is normal, and stacked they cost 108px of
   a 780px screen before the page's first row — the same "displaces the primary
   content" failure this ruling exists for, reached by addition rather than by
-  one tall strip. Strips therefore share one wrapper slot
-  (`.decks-index-insights` is the reference): the wrapper owns the gap between
-  them, collapses via `:empty`, and hides `:nth-child(n + 2)` at ≤600px.
+  one tall strip. Strips therefore share one wrapper slot: the wrapper owns
+  the gap between them, collapses via `:empty`, and hides `:nth-child(n + 2)` at ≤600px.
   Nothing is lost — a strip unmounts when dismissed or when it has nothing to
   say, so whatever is left becomes the first child and surfaces. Desktop shows
   them all. The strips themselves declare no `margin-top`/`-bottom`: the host
@@ -3243,8 +3254,9 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
   should be near-identical to what an inline surface would have shown, just
   gated behind one tap instead of always-on real estate.
 
-**Known instances (sweep-3).** `BetweenYourDecks` (reference) and `BuildTimeCoachStrip` /
-`WedgeHintStrip` (navigating variant). The Decks-index "Build another" readiness
+**Known instances (sweep-3).** `BuildTimeCoachStrip` / `WedgeHintStrip` (navigating
+variant). `BetweenYourDecks` was the first and moved to the Coach feed (see the top of
+this section). The Decks-index "Build another" readiness
 spotlight was a third (migrated in #1748 after it rendered three full cards and pushed
 the first deck card to y=934 on a 780px phone) and was later removed outright: it
 scored only the eight most recently imported legends, so its "closest to done" picks
@@ -5027,8 +5039,7 @@ proportional track reads as a percentage, so "Fits 1 engine" as a third-full
 bar is false precision (E95). Render N round dots (`999px`, `var(--border)`
 track / semantic fill color), `aria-hidden`, with the true count as adjacent
 visible text — same a11y story as bars. Pips are fixed-size, so they don't
-(and must not) route through `MeterBar`; reference:
-`BetweenYourDecks.tsx` `.between-decks-fit-pip`. Vertical charts (curve hero,
+(and must not) route through `MeterBar`. Vertical charts (curve hero,
 test-hand histogram) are charts, not meters, and stay bespoke. Radar/polar
 charts also stay bespoke — see **"Radar / polar charts"** below.
 

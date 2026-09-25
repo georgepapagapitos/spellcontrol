@@ -305,13 +305,15 @@ describe('findCrossDeckMoves', () => {
     expect(moves[0].cardName).toBe('Idle Cleric');
   });
 
-  it('respects the limit option', () => {
+  it('toDeckId keeps only the moves into that deck', () => {
     const { donor, target } = buildScene();
     const decks = [donor, target];
     const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })];
     const allocations = buildAllocationMap(decks);
 
-    const moves = findCrossDeckMoves(decks, collection, allocations, { limit: 0 });
-    expect(moves).toHaveLength(0);
+    const into = findCrossDeckMoves(decks, collection, allocations, { toDeckId: 'target' });
+    expect(into.map((m) => m.cardName)).toEqual(['Idle Cleric']);
+    // The donor is never a target for its own card, so nothing moves into it.
+    expect(findCrossDeckMoves(decks, collection, allocations, { toDeckId: 'donor' })).toEqual([]);
   });
 });
