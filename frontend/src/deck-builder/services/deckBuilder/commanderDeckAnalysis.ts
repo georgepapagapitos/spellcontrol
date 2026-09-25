@@ -1,7 +1,7 @@
 import { logger } from '@/lib/logger';
 import { bestEffortBudget } from '@/lib/best-effort';
 import { HARDCODED_GAME_CHANGERS, resolveComboTemplates } from '@spellcontrol/deck-metrics';
-import { getCardTags, isKnownCardTag } from '@/lib/card-tags';
+import { ensureCardTags, getCardTags, isKnownCardTag } from '@/lib/card-tags';
 import type {
   ScryfallCard,
   EDHRECCommanderData,
@@ -321,6 +321,26 @@ export function comboMatchesToDetected(
       templatesSatisfied: satisfied,
     };
   });
+}
+
+/**
+ * {@link comboMatchesToDetected} for the persisted analysis. A template's
+ * `otag:` clause reads the card-tag snapshot, which loads lazily; resolved
+ * before it arrives, the combo reads "unsatisfied" and is persisted under a
+ * signature that never recomputes on its own. So wait for the snapshot, but
+ * only when an in-deck combo's template actually asks for an oracle tag: the
+ * snapshot is 3 MB and every other deck shouldn't pay for it. A failed load
+ * leaves those clauses unresolved (no floor), never a wrong "satisfied".
+ */
+export async function detectCombosForAnalysis(
+  resp: ComboMatchResponse | null | undefined,
+  deckCards: readonly ScryfallCard[]
+): Promise<DetectedCombo[]> {
+  const needsTags = resp?.inDeck.some((m) =>
+    m.combo.templateQueries?.some((q) => q?.includes('otag:'))
+  );
+  if (needsTags) await ensureCardTags().catch(() => undefined);
+  return comboMatchesToDetected(resp, deckCards);
 }
 
 // ── Grade + bracket (shared by generator and manual editor) ─────────────────

@@ -3,7 +3,7 @@ import type { Deck } from '../store/decks';
 import type { ComboMatchResponse } from '../types/combos';
 import {
   analyzeCommanderDeck,
-  comboMatchesToDetected,
+  detectCombosForAnalysis,
 } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { setApplyingAnalysis } from './applying-analysis';
 
@@ -291,7 +291,6 @@ export function useCommanderBracketAnalysis(args: Args): {
     const commander = deck.commander;
     const partnerCommander = deck.partnerCommander;
     const cards = deck.cards.map((c) => c.card);
-    const detectedCombos = comboMatchesToDetected(comboData, cards);
     // The user's target bracket + the live oneAway combos feed the Bracket Fit
     // plan (target-pool fetch + upshift combo-completion adds happen inside).
     const targetBracket = bracketOverride ?? undefined;
@@ -305,17 +304,19 @@ export function useCommanderBracketAnalysis(args: Args): {
     const myReqId = ++reqIdRef.current;
     const timer = window.setTimeout(() => {
       withStallTimeout(
-        analyzeCommanderDeck({
-          commander,
-          partnerCommander,
-          cards,
-          deckSize: mainboardSize,
-          colorIdentity,
-          detectedCombos,
-          targetBracket,
-          oneAwayCombos,
-          archetypeBlendNames,
-        }),
+        detectCombosForAnalysis(comboData, cards).then((detectedCombos) =>
+          analyzeCommanderDeck({
+            commander,
+            partnerCommander,
+            cards,
+            deckSize: mainboardSize,
+            colorIdentity,
+            detectedCombos,
+            targetBracket,
+            oneAwayCombos,
+            archetypeBlendNames,
+          })
+        ),
         STALL_TIMEOUT_MS
       )
         .then((result) => {

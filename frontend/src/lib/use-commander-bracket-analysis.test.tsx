@@ -7,7 +7,7 @@ import type { ComboMatchResponse } from '../types/combos';
 
 vi.mock('@/deck-builder/services/deckBuilder/commanderDeckAnalysis', () => ({
   analyzeCommanderDeck: vi.fn(),
-  comboMatchesToDetected: vi.fn(() => []),
+  detectCombosForAnalysis: vi.fn(async () => []),
 }));
 
 import { analyzeCommanderDeck } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
