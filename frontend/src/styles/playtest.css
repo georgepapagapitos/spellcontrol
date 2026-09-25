@@ -2163,7 +2163,11 @@ button.playtest-card-pt__value--editable:focus-visible {
   .ctx-menu-sheet .playtest-ctx-sticker-add button,
   /* …and the action list itself — the most-tapped control set on the touch
      board was the one left out (its padding computed to ~37px). */
-  .ctx-menu-sheet .playtest-ctx-action {
+  .ctx-menu-sheet .playtest-ctx-action,
+  /* The submenu's own back row — the way out of Counters / Power-toughness
+     on a phone, so it is tapped as often as anything below it. Its small
+     label padding measured 31px. */
+  .playtest-ctx-back {
     min-height: 44px;
   }
 }
