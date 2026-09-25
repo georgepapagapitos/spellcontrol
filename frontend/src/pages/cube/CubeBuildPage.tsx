@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './cube.css';
 import { BackLink } from '../../components/BackLink';
@@ -6,25 +6,21 @@ import { PageHeader } from '../../components/PageHeader';
 import { Disclosure } from '../../components/shared/form';
 import { NameInputDialog } from '../../components/NameInputDialog';
 import { useCollectionStore } from '../../store/collection';
-import { useDecksStore } from '../../store/decks';
 import { useToastsStore } from '../../store/toasts';
 import { useCubeStore } from '../../store/cube';
-import { buildAvailableCollection } from '../../lib/collection-availability';
-import { filterPool, DEFAULT_POOL_FILTERS, type PoolFilters } from '../../lib/cube/pool-filters';
+import { DEFAULT_POOL_FILTERS, type PoolFilters } from '../../lib/cube/pool-filters';
 import { SelectMenu } from '../../components/SelectMenu';
 import { InfoTip } from '../../components/InfoTip';
 import { formatMoney } from '../../lib/format-money';
 import { useCurrency, type Currency } from '../../lib/currency';
 import { Link } from 'react-router-dom';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
-import { fetchCubeOracle } from '../../lib/cube/oracle';
-import { loadTaggerData } from '../../deck-builder/services/tagger/client';
-import { loadCubeSignal } from '../../lib/cube/signal';
-import { ensureCardTags, getCardTags, useCardTagsReady } from '../../lib/card-tags';
+import { useOwnedCubePool } from '../../lib/cube/use-owned-pool';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CubeSize } from '../../lib/cube/targets';
 import { generateCubeAsync, type CubeProgress } from '../../lib/cube/generate-async';
 import { toCubeCobraList } from '../../lib/cube/format';
+import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 import {
   useOwnershipFor,
   CubeEmptyState,
@@ -34,7 +30,6 @@ import {
   CubeErrorBlock,
   type CardPriority,
 } from './shared';
-import { namesToCubePool } from '../../lib/cube/pool';
 import { CubeResult } from './CubeResult';
 
 import { userMessage } from '@/lib/user-error';
@@ -127,7 +122,6 @@ function PoolFilterRow({
 export function CubeBuildPage() {
   const collectionCards = useCollectionStore((s) => s.cards);
   const awaitingFirstPull = useAwaitingFirstPull();
-  const decks = useDecksStore((s) => s.decks);
   const pushToast = useToastsStore((s) => s.push);
   const navigate = useNavigate();
   const [filters, setFilters] = useState<PoolFilters>(DEFAULT_POOL_FILTERS);
@@ -146,6 +140,7 @@ export function CubeBuildPage() {
   useEffect(() => () => genAbort.current?.abort(), []);
   const cube = cubeStore.result;
   const { ownershipFor, committedFor } = useOwnershipFor();
+  const { uniqueNames, hidden, load: loadPool } = useOwnedCubePool(filters);
 
   // This route is always a fresh build — if the store still carries a
   // PREVIOUSLY SAVED cube as the working result (e.g. from a Rebuild elsewhere,
@@ -164,16 +159,6 @@ export function CubeBuildPage() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
 
-  const availableNames = useMemo(
-    () => buildAvailableCollection(collectionCards, decks, cubeStore.saved).names,
-    [collectionCards, decks, cubeStore.saved]
-  );
-  const tagsOf = useCardTagsReady() ? getCardTags : NO_TAGS;
-  const { names: uniqueNames, hidden } = useMemo(
-    () => filterPool(collectionCards, availableNames, filters, tagsOf),
-    [collectionCards, availableNames, filters, tagsOf]
-  );
-
   const generate = useCallback(async () => {
     genAbort.current?.abort();
     const controller = new AbortController();
@@ -185,13 +170,9 @@ export function CubeBuildPage() {
     setEnrichedMap(new Map());
     cubeStore.clear();
     try {
-      await Promise.all([loadTaggerData(), loadCubeSignal(), ensureCardTags()]);
-      const { names } = filterPool(collectionCards, availableNames, filters);
-      const enriched = await fetchCubeOracle(names, collectionCards, (fetched, total) => {
-        setFetchProgress({ fetched, total });
-      });
+      const pool = await loadPool((fetched, total) => setFetchProgress({ fetched, total }));
       setFetchProgress(null);
-      const pool = namesToCubePool(names, collectionCards, enriched);
+      if (!pool) throw new Error("Couldn't load your collection's cards. Try again.");
       const newCube = await generateCubeAsync(
         pool,
         size,
@@ -205,7 +186,7 @@ export function CubeBuildPage() {
       setError(userMessage(e, "Couldn't build the cube. Try again."));
       setStatus('error');
     }
-  }, [collectionCards, availableNames, filters, size, priority, cubeStore]);
+  }, [loadPool, filters.format, size, priority, cubeStore]);
 
   const copyList = useCallback(async () => {
     if (!cube) return;
@@ -217,7 +198,7 @@ export function CubeBuildPage() {
   }, [cube, pushToast]);
 
   const handleSave = (name: string) => {
-    const id = cubeStore.saveCurrent(name);
+    const id = cubeStore.saveCurrent(name, false, [], { synergyLevel: priority, filters });
     setSaveOpen(false);
     if (!id) return;
     pushToast({ message: `Saved "${name}"`, tone: 'success' });
@@ -338,6 +319,3 @@ export function CubeBuildPage() {
     </div>
   );
 }
-
-/** Tag lookup before the otag snapshot lands — nothing is excluded yet. */
-const NO_TAGS = (): readonly string[] => [];
