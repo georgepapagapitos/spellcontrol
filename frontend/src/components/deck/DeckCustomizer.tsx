@@ -540,11 +540,11 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
     ? 'Import cards on the Collection page to enable this.'
     : active
       ? strategy === 'partial'
-        ? `Prioritizing your cards (~${pct}% owned); the rest come from outside your collection.`
+        ? `Aims for about ${pct}% owned; the rest come from outside your collection.`
         : strategy === 'available'
           ? 'Uses only copies not committed to other decks.'
           : strategy === 'prefer'
-            ? 'Builds the best deck it can while favoring cards you already own. No card is excluded.'
+            ? 'Builds the best deck it can, leaning on cards you already own. No card is excluded.'
             : 'Uses only cards you own.'
       : 'Constrain the build to your owned cards.';
   return (
@@ -579,9 +579,9 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
             <OptionGrid<CollectionStrategy>
               value={strategy}
               options={[
-                { value: 'prefer', label: 'Favor mine', sublabel: 'Owned-first' },
+                { value: 'prefer', label: 'Lean on mine', sublabel: 'Owned-first' },
                 { value: 'full', label: 'Only my cards', sublabel: 'Owned only' },
-                { value: 'partial', label: 'Prioritize mine', sublabel: 'Target %' },
+                { value: 'partial', label: 'Owned share %', sublabel: 'Target %' },
                 { value: 'available', label: 'Available only', sublabel: 'Free copies' },
               ]}
               onChange={(v) => update({ collectionStrategy: v })}
