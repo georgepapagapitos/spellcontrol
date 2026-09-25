@@ -6495,23 +6495,34 @@ these are the rulings specific to sharing one board with a real, live game.
   during setup is still exactly half the table, not a sliver that grows.
   `--pt-card-w`/`--pt-card-h`/`--pt-edge` are redeclared together on BOTH
   halves for the half-height row, same rule as the seat grid.
-- **The horde's half is desaturated, never relabelled.** `filter: saturate(0.85)
-brightness(0.92)` on `.horde-half` is the only visual difference from the
-  paper table — a glance tells you which half is "not yours" without adding
+- **The horde's half is dimmed, never relabelled.** A translucent
+  `.horde-half::before` tint under its cards is the only visual difference
+  from the paper table: a glance tells you which half is "not yours" without
   a badge or a border the paper table doesn't have.
+- **Never a `filter`, `transform`, `perspective`, `contain`,
+  `backdrop-filter` or `will-change` on `.horde-half`, `.horde-band` or
+  `.horde-band__field`.** Each makes the element the containing block for
+  `position: fixed` descendants, and a sheet or menu inside it then clips to
+  the half with its Done button out of reach (it shipped once, as a
+  `filter`, in PR 5's first build). The horde's card menu and damage sheet
+  mount at board level (`HordeOverlays`), never inside the half or band;
+  `horde-containing-block.test.ts` enforces both.
 - **The phone band is one line until its turn, never a modal.** `.horde-band`
   folds to a bar (`flex: 0 0 auto`) and opens to `flex: 0 0 48%` on its own
-  the moment `phase` becomes `reveal`/`combat`, folding back on `waiting` —
-  a real `<button aria-expanded>` lets the player override either way. The
-  open strip reuses the same `HordeFelt` (battlefield + card menu) the
-  desktop half does, at a smaller card density (`clamp(36px, (48vh - 60px) /
-1.6, 80px)`).
+  the moment `phase` becomes `reveal`/`combat`, folding back on `waiting`.
+  A real `<button aria-expanded>` lets the player override either way, and a
+  compact "Damage" button (accessible name "Damage the horde") sits at the
+  bar's right end outside combat, so a phone can always hit back. The open
+  strip reuses the same `HordeFelt` battlefield the desktop half does, at a
+  smaller card density.
 - **In combat, the damage total moves INTO the band's bar — nothing ever
   floats over either board on a phone.** The desktop equivalent
   (`HordeAttackBanner`) sits in YOUR half's own `.playtest-banners` stack,
   `position: static`, never centred over the screen the way the paper
   table's copy floats — two boards share the screen, so a screen-centred
-  banner would sit on the seam between them.
+  banner would sit on the seam between them. When any attacker's power is
+  variable (`*`), the field is not capped at the printed total and the copy
+  names the variable attackers, on the paper table too.
 - **A (re-)load never leaves a blank half.** Whenever `hordeLoad.status` is
   `loading` or `error` — the setup sheet's own submit, or a Reset re-arming
   the same settings — the half/band shows a quiet "Loading the horde…" or an
