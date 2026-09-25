@@ -27,7 +27,7 @@
     "concurrently": "^10.0.5",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
-    "prettier": "^3.9.6",
+    "prettier": "^3.9.8",
     "puppeteer-core": "^25.11.0",
     "yaml": "^2.9.1"
   }
