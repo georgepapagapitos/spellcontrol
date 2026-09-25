@@ -13,6 +13,7 @@ import type { GameLogEntry } from './game-log';
 import type { PlaytestState } from './types';
 import { isPlaytestLand } from '@/playtest/lib/zones';
 import type { Deck } from '@/store/decks';
+import type { SoloHordeRecord } from '@/playtest/lib/horde-solo';
 
 export interface PlaytestSessionRecord {
   id: string;
@@ -36,6 +37,9 @@ export interface PlaytestSessionRecord {
   landDropTurnsChecked: number;
   /** Null when the deck's original size wasn't available at capture time. */
   cardsDrawn: number | null;
+  /** Set when the session was a solo Horde fight (E387 PR 5). Absent on every
+   *  record saved before it, and on sessions with no horde. */
+  horde?: SoloHordeRecord;
 }
 
 export interface SessionAggregates {

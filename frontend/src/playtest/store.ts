@@ -45,6 +45,9 @@ import {
   type ResistanceLevel,
   type ResistanceState,
 } from './lib/resistance';
+import type { SoloHordeState } from './lib/horde-solo';
+import type { HordeLevel, HordeSettings } from '@/lib/horde';
+import type { Rect } from './lib/auto-place';
 
 function configFor(level: ResistanceLevel): ResistanceConfig | null {
   return level === 'off' ? null : RESISTANCE_PRESETS[level];
@@ -204,6 +207,16 @@ interface PlaytestStore {
    *  same pattern as `freeMulligan`. NOT reset by init/hydrate/teardown. */
   /** null until the player picks one — `resolveTakebackMode` fills it. */
   takebackMode: TakebackMode | null;
+  /** Solo Horde (E387 PR 5): the self-running horde beside your board, or
+   *  null. See `lib/horde-solo.ts`. */
+  horde: SoloHordeState | null;
+  /** Aligned entry-for-entry with `state.past`, like `resistancePast`. */
+  hordePast: (SoloHordeState | null)[];
+  hordeLoad: {
+    status: 'idle' | 'loading' | 'error';
+    error: string | null;
+    pending: { hordeId: string; level: HordeLevel; overrides: Partial<HordeSettings> } | null;
+  };
   /** Most recently captured session record (Reset, teardown, or
    *  replaced-by-init), for the end-of-session summary. Null once a fresh
    *  session starts with nothing yet to report. */
@@ -236,6 +249,15 @@ interface PlaytestStore {
   /** Finalize London-mulligan bottoms and start play. */
   finalizeBottom(cardIds: readonly string[]): void;
   teardown(): void;
+  armHorde(hordeId: string, level: HordeLevel, overrides?: Partial<HordeSettings>): Promise<void>;
+  retryHordeLoad(): void;
+  disarmHorde(): void;
+  startHordeTurn(rect?: Rect | null): void;
+  confirmHordeReveal(): void;
+  resolveHordeAttack(damage: number): void;
+  damageHorde(amount: number, rect?: Rect | null): void;
+  clearHordeDamageResult(): void;
+  moveHordeCard(cardId: string, to: 'graveyard' | 'exile' | 'library'): void;
 }
 
 /** How many history entries `newPast` gained over `oldPast` (both newest-first;
@@ -264,6 +286,19 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   rewindTrail: [],
   takebackMode: loadTakebackMode(),
   lastSessionRecord: null,
+  horde: null,
+  hordePast: [],
+  hordeLoad: { status: 'idle', error: null, pending: null },
+  // Contract stubs (PR 5 lane A replaces every one of these).
+  async armHorde() {},
+  retryHordeLoad() {},
+  disarmHorde() {},
+  startHordeTurn() {},
+  confirmHordeReveal() {},
+  resolveHordeAttack() {},
+  damageHorde() {},
+  clearHordeDamageResult() {},
+  moveHordeCard() {},
   init(deckId, init, externalDeck) {
     // A live, meaningfully-played game being replaced by a fresh one (e.g.
     // navigating straight to a different deck's playtest) is itself a session

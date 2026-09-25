@@ -189,3 +189,39 @@ export function hordeOutcome(horde: PlaytestState, survivorsLife: number): 'won'
   if (horde.zones.library.length === 0 && noCreatures) return 'won';
   return null;
 }
+
+/* ── Shapes the two horde surfaces share (the paper table's store and the
+   solo playtest board) ─────────────────────────────────────────────────── */
+
+export interface HordeReveal {
+  /** Display order for the reveal sheet — not yet on the battlefield. */
+  revealed: PlaytestCard[];
+  /** Precomputed placements, applied on confirm. */
+  toBattlefield: PlaytestAction[];
+  /** Instants/sorceries the player resolves by hand, then confirms to the
+   *  graveyard. */
+  toResolve: PlaytestCard[];
+  /** The card that ends the last wave — outlined in the sheet. */
+  waveEndId: string | null;
+}
+
+export interface HordePendingAttack {
+  attackers: number;
+  power: number;
+  groups: AttackerGroup[];
+}
+
+export interface HordeBossArrival {
+  name: string;
+  /** The `bossTicks` fraction crossed (0-1, 1 = library emptied) — drives the
+   *  banner's wording ("Half the horde is gone.", …). */
+  tick: number;
+}
+
+export interface HordeDamageResult {
+  amount: number;
+  before: number;
+  after: number;
+  milled: PlaytestCard[];
+  bossesEntered: HordeBossArrival[];
+}
