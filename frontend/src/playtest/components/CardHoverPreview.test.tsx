@@ -132,6 +132,49 @@ describe('CardHoverPreview', () => {
     expect(document.querySelector('.playtest-hover-preview')).toBeNull();
   });
 
+  // Touch has no hover (user, 2026-09-25, EDHPlay's phone table): a tapped
+  // hand card is pinned in the same slot, another hand card swaps it, and a
+  // tap anywhere off the hand puts it away.
+  it('shows a tapped card on touch until a tap lands off the hand', () => {
+    stubMatchMedia(false);
+    const hand = document.createElement('div');
+    hand.className = 'playtest-hand';
+    document.body.appendChild(hand);
+    const a = cardEl('a');
+    const b = cardEl('b');
+    hand.append(a, b);
+    const onUnpin = vi.fn();
+    const { rerender } = render(
+      <CardHoverPreview suspended={false} resolve={resolve} pinned="a" onUnpin={onUnpin} />
+    );
+    const src = () =>
+      document.querySelector('.playtest-hover-preview img')?.getAttribute('src') ?? null;
+    expect(src()).toBe(SRCS.a);
+
+    act(() => {
+      b.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    });
+    expect(onUnpin).not.toHaveBeenCalled();
+    rerender(<CardHoverPreview suspended={false} resolve={resolve} pinned="b" onUnpin={onUnpin} />);
+    expect(src()).toBe(SRCS.b);
+
+    act(() => {
+      document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    });
+    expect(onUnpin).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows nothing for a pinned card that has left the hand, or while suspended', () => {
+    stubMatchMedia(false);
+    const { rerender } = render(
+      <CardHoverPreview suspended={false} resolve={resolve} pinned="a" />
+    );
+    expect(document.querySelector('.playtest-hover-preview')).toBeNull();
+    cardEl('a');
+    rerender(<CardHoverPreview suspended resolve={resolve} pinned="a" />);
+    expect(document.querySelector('.playtest-hover-preview')).toBeNull();
+  });
+
   it('sits in one fixed slot at the right edge, and flips left only for a card under that slot', () => {
     stubMatchMedia(true);
     Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });

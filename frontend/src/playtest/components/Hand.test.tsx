@@ -62,8 +62,9 @@ describe('the fan', () => {
  * Nothing on a hand card plays it by itself (user ruling, 2026-09-23: "tapping
  * a card from hand should not play it to the field"). A mouse click does
  * nothing, as in EDHPlay: you drag it, press A, or use Move to ▸ Battlefield.
- * A finger or a keyboard has no drag and no hover key, so a tap or Enter opens
- * the card's menu instead, where playing it is one more tap.
+ * A keyboard has no drag, so Enter opens the card's menu instead, where
+ * playing it is one more key. A finger previews the card when the board takes
+ * previews, and otherwise gets the menu too.
  */
 describe('a click on a hand card', () => {
   function mount() {
@@ -91,6 +92,33 @@ describe('a click on a hand card', () => {
       el.dispatchEvent(new PointerEvent('click', { bubbles: true, pointerType: 'touch' }));
     });
     expect(onCardMenu).toHaveBeenCalledWith('a', expect.any(Number), expect.any(Number));
+  });
+
+  // User, 2026-09-25: a tap on a phone enlarges the card, as EDHPlay's phone
+  // table does. The menu moves to the long-press.
+  it('previews the card from a tap or a pen when the board takes previews', () => {
+    const onCardMenu = vi.fn();
+    const onCardPreview = vi.fn();
+    render(
+      <DndContext>
+        <Hand
+          cards={[card({ id: 'a', name: 'Shock' })]}
+          fan
+          onCardMenu={onCardMenu}
+          onCardPreview={onCardPreview}
+        />
+      </DndContext>
+    );
+    const el = document.querySelector<HTMLElement>('[data-card-id="a"]')!;
+    for (const pointerType of ['touch', 'pen']) {
+      act(() => {
+        el.dispatchEvent(new PointerEvent('click', { bubbles: true, pointerType }));
+      });
+    }
+    expect(onCardPreview).toHaveBeenCalledTimes(2);
+    expect(onCardPreview).toHaveBeenCalledWith('a', expect.any(Number), expect.any(Number));
+    fireEvent.keyDown(el.closest('[tabindex]') ?? el, { key: 'Enter' });
+    expect(onCardMenu).toHaveBeenCalledTimes(1);
   });
 
   it('opens the card menu from Enter', () => {
