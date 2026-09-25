@@ -67,6 +67,32 @@ describe('buildGameRecap', () => {
     expect(byId['designation-initiative']).toBe('Maya claimed it and never let go.');
   });
 
+  // F12b: a keypad `set-life` isn't a "hit" — it's a direct entry, not a
+  // swing, so the game's first damaging event being a set-life must not read
+  // as combat. summarizeGame's own semantics (persisted, server-shared)
+  // aren't touched — this pins the RECAP's presentation only.
+  it('describes a set-life first blood as setting life, never as a hit', () => {
+    const maya = player(0, 'Maya', 40);
+    const priya = player(1, 'Priya', 40);
+    const sam = player(2, 'Sam', 40);
+
+    const game = play([maya, priya, sam], 40, [
+      { type: 'start', ts: 0 },
+      { type: 'pass-turn', actorSeat: null, ts: 1_000 }, // turn 1 -> seat 0
+      // Sam's life is typed straight to 0 on the keypad — the game's first
+      // damaging event, but never a "hit".
+      { type: 'set-life', seat: 2, value: 0, actorSeat: 2, ts: 5_000 },
+      { type: 'pass-turn', actorSeat: null, ts: 10_000 }, // turn 2 -> seat 1
+      { type: 'end', winnerSeat: 0, ts: 20_000 },
+    ]);
+
+    const stats = buildGameRecap(game);
+    const byId = Object.fromEntries(stats.map((s) => [s.id, s.detail]));
+
+    expect(byId['first-blood']).toBe('Sam set their life to 0 early on.');
+    expect(byId['first-blood']).not.toMatch(/hit|drew first blood/);
+  });
+
   it('omits first blood and the comeback once the log has been truncated, keeps the rest', () => {
     const maya = player(0, 'Maya', 40);
     const priya = player(1, 'Priya', 40);
