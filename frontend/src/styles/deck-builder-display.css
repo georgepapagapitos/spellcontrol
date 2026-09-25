@@ -41,6 +41,47 @@
   flex-wrap: wrap;
 }
 
+/* Tablet and desktop: one row that never wraps (STYLE_GUIDE § Layout system).
+   Search takes the slack; every other control keeps its size, and what the
+   width can't hold is in the trailing ⋯ (DeckToolbar measures the row). */
+.deck-toolbar-controls--row {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.deck-toolbar-controls--row > * {
+  flex: none;
+}
+
+.deck-toolbar-controls--row > .deck-toolbar-search {
+  flex: 1 1 auto;
+  min-width: 9rem;
+  max-width: none;
+}
+
+/* The ⋯ is icon-only, so it is as wide as it is tall. Two classes, because
+   .toolbar-pill (later in this file) would otherwise win back its side padding
+   and squash the glyph to a sliver. */
+.toolbar-pill.deck-toolbar-more-btn {
+  justify-content: center;
+  width: 2.1rem;
+  padding: 0;
+}
+
+@media (pointer: coarse) {
+  .toolbar-pill.deck-toolbar-more-btn {
+    width: 44px;
+  }
+}
+
+/* The ⋯ panel opens on its list actions; a rule separates them from the
+   display settings under them (the Details section brings its own). */
+.view-popover-actions + .view-popover-row {
+  margin-top: var(--space-1);
+  border-top: 0.5px solid var(--border);
+}
+
 /* ── Pill-shaped toolbar controls ─────────────────────────────────────── */
 .toolbar-pill {
   display: inline-flex;

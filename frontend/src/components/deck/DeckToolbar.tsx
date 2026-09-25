@@ -13,9 +13,11 @@ import {
   Layers,
   LayoutGrid,
   List as ListIconLucide,
+  MoreHorizontal,
   Share2,
+  type LucideIcon,
 } from 'lucide-react';
-import { Legend, LegendContent } from '../Legend';
+import { LegendContent } from '../Legend';
 import { OverflowMenu } from '../OverflowMenu';
 import { SearchPill } from '../SearchPill';
 import { SelectMenu } from '../SelectMenu';
@@ -25,6 +27,7 @@ import { ZoomControl } from '../ZoomControl';
 import { ZOOM_MAX, ZOOM_MAX_NARROW } from '@/lib/grid-zoom';
 import { ROLE_BADGE_BY_TONE, ROLE_BADGE_GROUPS } from '../../lib/role-badges';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
+import { useElementWidth } from '@/lib/use-element-width';
 import type { DeckGroupBy, DeckViewMode, ShowPrefs, SortMode } from './deck-display-rows';
 
 // ── Toolbar ───────────────────────────────────────────────────────────────
@@ -180,13 +183,23 @@ function ShowPrefsList({
   );
 }
 
-// Narrow-viewport "View" popover panel — consolidates the display controls
-// (layout, grouping, card size, row details, symbol key) that would otherwise
-// wrap the deck toolbar onto three rows on a phone, pushing the card list off
-// the first screen entirely. Mirrors the collection toolbar's ViewPopoverPanel
-// (CardListTable) down to the sub-page key, per STYLE_GUIDE "Toolbars & action
-// rows". State lives here so it resets whenever the popover closes.
+interface ListAction {
+  label: string;
+  icon: LucideIcon;
+  onClick: () => void;
+}
+
+// The toolbar's fold panel. What doesn't fit the row lands here instead of
+// wrapping it (STYLE_GUIDE § Layout system: the toolbar never wraps). On a
+// phone it is the "View" popover and carries every display control; wider,
+// it is the row's trailing ⋯ and carries only the rows the width had to
+// drop, plus the list actions (Select, Test hand, Export). Mirrors the
+// collection toolbar's ViewPopoverPanel (CardListTable) down to the sub-page
+// key. State lives here so it resets whenever the popover closes.
 function DeckViewPopoverPanel({
+  rows = { layout: true, groupBy: true },
+  actions = [],
+  onAction,
   viewMode,
   onViewModeChange,
   groupBy,
@@ -208,6 +221,11 @@ function DeckViewPopoverPanel({
   zoomMax: number;
   showPrefs: ShowPrefs;
   onShowPrefsChange: (next: ShowPrefs) => void;
+  /** Which display controls the row couldn't hold. */
+  rows?: { layout?: boolean; groupBy?: boolean };
+  actions?: ListAction[];
+  /** Closes the panel before an action runs. */
+  onAction?: () => void;
 }) {
   const [keyOpen, setKeyOpen] = useState(false);
   if (keyOpen) {
@@ -227,18 +245,42 @@ function DeckViewPopoverPanel({
   }
   return (
     <>
-      <div className="view-popover-row">
-        <span className="view-popover-row-label">Layout</span>
-        <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
-      </div>
-      <div className="view-popover-row">
-        <span className="view-popover-row-label">Group by</span>
-        <DeckGroupByMenu value={groupBy} onChange={onGroupByChange} labelled={false} />
-      </div>
-      {/* This panel only exists on a phone, where a stack is one full-width
-          column and the card is as wide as the screen already — the size
-          stepper has nothing left to change there, so it is a grid control. */}
-      {viewMode === 'grid' && (
+      {/* The list actions lead: they are what the ⋯ is opened for most, and
+          a panel taller than the space below the row scrolls, which would
+          hide them under the display settings. */}
+      {actions.length > 0 && (
+        <div className="view-popover-actions">
+          {actions.map((a) => (
+            <button
+              key={a.label}
+              type="button"
+              className="toolbar-popover-item"
+              onClick={() => {
+                onAction?.();
+                a.onClick();
+              }}
+            >
+              <a.icon width={14} height={14} strokeWidth={2} aria-hidden />
+              <span>{a.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {rows.layout && (
+        <div className="view-popover-row">
+          <span className="view-popover-row-label">Layout</span>
+          <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
+        </div>
+      )}
+      {rows.groupBy && (
+        <div className="view-popover-row">
+          <span className="view-popover-row-label">Group by</span>
+          <DeckGroupByMenu value={groupBy} onChange={onGroupByChange} labelled={false} />
+        </div>
+      )}
+      {/* Card size folds in with Group by. On a phone a stack is one
+          full-width column already, so there it is a grid control only. */}
+      {rows.groupBy && (viewMode === 'grid' || (viewMode === 'stacks' && !rows.layout)) && (
         <div className="view-popover-row">
           <span className="view-popover-row-label">Card size</span>
           <ZoomControl
@@ -263,6 +305,11 @@ function DeckViewPopoverPanel({
   );
 }
 
+// ponytail: the row's full width is an estimate of its controls at the
+// default type scale; measure the rendered controls if a label change or a
+// larger type set starts folding them early or clipping them.
+const FULL_ROW_MIN = { list: 760, other: 880 };
+
 export function DeckToolbar({
   sort,
   sortDir,
@@ -285,93 +332,68 @@ export function DeckToolbar({
   selectMode,
   onToggleSelectMode,
 }: ToolbarProps) {
+  const [rowRef, rowWidth] = useElementWidth<HTMLElement>();
+  // Three shapes, one order (STYLE_GUIDE § Layout system): search grows, then
+  // sort, group, card size, layout, Select, and a trailing ⋯ for the rest.
+  // Unmeasured (0) reads as full so the first frame and the tests see the
+  // whole row; the callback ref measures before paint.
+  const fullMin = viewMode === 'list' ? FULL_ROW_MIN.list : FULL_ROW_MIN.other;
+  const full = rowWidth === 0 || rowWidth >= fullMin;
+
+  const selectAction: ListAction[] =
+    canBulkEdit && !selectMode
+      ? [{ label: 'Select cards', icon: CheckSquare, onClick: onToggleSelectMode }]
+      : [];
+  const listActions: ListAction[] = [
+    ...(onShowTestHand ? [{ label: 'Test hand', icon: Hand, onClick: onShowTestHand }] : []),
+    { label: 'Export', icon: Share2, onClick: onExport },
+  ];
+
+  const doneButton = canBulkEdit && selectMode && (
+    <button
+      type="button"
+      className="toolbar-pill deck-toolbar-select-toggle"
+      aria-pressed
+      onClick={onToggleSelectMode}
+    >
+      <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
+      <span>Done</span>
+    </button>
+  );
+
   return (
-    <header className="deck-toolbar">
+    <header className="deck-toolbar" ref={rowRef}>
       {/* The toolbar holds controls and nothing else. The out-zone jump used
           to live here as a muted "Not in deck N" fragment alone on the left of
           a right-aligned control row — restating a count the page hero already
           gives as "+N sideboard" / "+N considering". The hero's own segments
           carry the jump now (DeckEditorPage), so the fact and the way to reach
           it are one thing in one place. */}
-      <div className="deck-toolbar-controls">
-        {canBulkEdit && !isNarrowGrid && (
-          <button
-            type="button"
-            className="toolbar-pill deck-toolbar-select-toggle"
-            aria-pressed={selectMode}
-            onClick={onToggleSelectMode}
-          >
-            <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
-            <span>{selectMode ? 'Done' : 'Select'}</span>
-          </button>
-        )}
-        {/* Narrow: Select stays visible only while active, so leaving the mode
-            never requires hunting through the kebab. */}
-        {canBulkEdit && isNarrowGrid && selectMode && (
-          <button
-            type="button"
-            className="toolbar-pill deck-toolbar-select-toggle"
-            aria-pressed
-            onClick={onToggleSelectMode}
-          >
-            <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
-            <span>Done</span>
-          </button>
-        )}
+      {isNarrowGrid ? (
+        <div className="deck-toolbar-controls">
+          {/* Select stays visible only while active, so leaving the mode
+              never requires hunting through the kebab. */}
+          {doneButton}
 
-        <SortMenu
-          ariaLabel="Sort"
-          value={sort}
-          dir={sortDir}
-          options={SORT_MENU_OPTIONS}
-          onChange={onToggleSort}
-        />
-
-        {!isNarrowGrid && (
-          <ToolbarPopover
-            label="Show"
-            icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
-          >
-            {() => (
-              <>
-                <ShowPrefsList showPrefs={showPrefs} onShowPrefsChange={onShowPrefsChange} />
-                <RoleBadgeLegend />
-              </>
-            )}
-          </ToolbarPopover>
-        )}
-
-        <SearchPill
-          className="deck-toolbar-search"
-          placeholder="Search…"
-          value={search}
-          onChange={onSearch}
-          ariaLabel="Search this deck"
-        />
-
-        {!isNarrowGrid && <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />}
-
-        {!isNarrowGrid && <DeckGroupByMenu value={groupBy} onChange={onGroupByChange} />}
-
-        {!isNarrowGrid && viewMode !== 'list' && (
-          <ZoomControl
-            zoom={gridZoom}
-            width={gridWidth}
-            max={ZOOM_MAX}
-            onChange={onGridZoomChange}
+          <SortMenu
+            ariaLabel="Sort"
+            value={sort}
+            dir={sortDir}
+            options={SORT_MENU_OPTIONS}
+            onChange={onToggleSort}
           />
-        )}
 
-        {/* The symbol key is the trailing reference control, grouped with the
-            view-mode toggles — it sits after them and before the action buttons
-            (Test hand / Export), per STYLE_GUIDE § Symbol key / Legend. */}
-        {!isNarrowGrid && <Legend context="deck" align="right" variant="pill" />}
+          <SearchPill
+            className="deck-toolbar-search"
+            placeholder="Search…"
+            value={search}
+            onChange={onSearch}
+            ariaLabel="Search this deck"
+          />
 
-        {/* ≤640px: the display controls above (layout, grouping, card size,
-            row details, key) collapse into one "View" popover so the toolbar
-            stays a single row and the card list clears the fold — same
-            treatment as the collection toolbar. */}
-        {isNarrowGrid && (
+          {/* ≤640px: the display controls (layout, grouping, card size, row
+              details, key) collapse into one "View" popover so the toolbar
+              stays a single row and the card list clears the fold. */}
           <ToolbarPopover
             label="View"
             icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
@@ -395,52 +417,90 @@ export function DeckToolbar({
               />
             )}
           </ToolbarPopover>
-        )}
 
-        {!isNarrowGrid && onShowTestHand && (
-          <button
-            type="button"
-            className="btn deck-toolbar-test-hand"
-            onClick={onShowTestHand}
-            title="Draw an opening hand"
-          >
-            <Hand width={14} height={14} strokeWidth={2} aria-hidden />
-            Test hand
-          </button>
-        )}
-
-        {!isNarrowGrid && (
-          <button type="button" className="btn btn-primary deck-toolbar-export" onClick={onExport}>
-            Export
-          </button>
-        )}
-
-        {/* ≤640px: the list *actions* (select, test hand, export) collapse into
-            the standard kebab rather than the View panel — they act on the
-            deck, they don't configure the display. */}
-        {isNarrowGrid && (
+          {/* The list *actions* (select, test hand, export) collapse into the
+              standard kebab rather than the View panel: they act on the deck,
+              they don't configure the display. */}
           <OverflowMenu
             ariaLabel="Deck list actions"
             className="deck-toolbar-more"
             triggerClassName="toolbar-pill"
-            items={[
-              ...(canBulkEdit && !selectMode
-                ? [
-                    {
-                      label: 'Select cards',
-                      icon: CheckSquare,
-                      onClick: onToggleSelectMode,
-                    },
-                  ]
-                : []),
-              ...(onShowTestHand
-                ? [{ label: 'Test hand', icon: Hand, onClick: onShowTestHand }]
-                : []),
-              { label: 'Export', icon: Share2, onClick: onExport },
-            ]}
+            items={[...selectAction, ...listActions]}
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="deck-toolbar-controls deck-toolbar-controls--row">
+          <SearchPill
+            className="deck-toolbar-search"
+            placeholder="Search…"
+            value={search}
+            onChange={onSearch}
+            ariaLabel="Search this deck"
+          />
+
+          <SortMenu
+            ariaLabel="Sort"
+            value={sort}
+            dir={sortDir}
+            options={SORT_MENU_OPTIONS}
+            onChange={onToggleSort}
+          />
+
+          {full && <DeckGroupByMenu value={groupBy} onChange={onGroupByChange} />}
+
+          {full && viewMode !== 'list' && (
+            <ZoomControl
+              zoom={gridZoom}
+              width={gridWidth}
+              max={ZOOM_MAX}
+              onChange={onGridZoomChange}
+            />
+          )}
+
+          <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
+
+          {full && canBulkEdit && (
+            <button
+              type="button"
+              className="toolbar-pill deck-toolbar-select-toggle"
+              aria-pressed={selectMode}
+              onClick={onToggleSelectMode}
+            >
+              <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
+              <span>{selectMode ? 'Done' : 'Select'}</span>
+            </button>
+          )}
+          {!full && doneButton}
+
+          <ToolbarPopover
+            triggerClassName="toolbar-pill deck-toolbar-more-btn"
+            triggerContent={<MoreHorizontal width={18} height={18} strokeWidth={3} aria-hidden />}
+            triggerAriaLabel="More list options"
+            haspopup="dialog"
+            panelRole="dialog"
+            panelAriaLabel="List options"
+            panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed view-popover-panel"
+          >
+            {(close) => (
+              <DeckViewPopoverPanel
+                rows={{ groupBy: !full }}
+                actions={full ? listActions : [...selectAction, ...listActions]}
+                onAction={close}
+                viewMode={viewMode}
+                onViewModeChange={onViewModeChange}
+                groupBy={groupBy}
+                onGroupByChange={onGroupByChange}
+                gridZoom={gridZoom}
+                onGridZoomChange={onGridZoomChange}
+                gridWidth={gridWidth}
+                zoomMax={ZOOM_MAX}
+                showPrefs={showPrefs}
+                onShowPrefsChange={onShowPrefsChange}
+              />
+            )}
+          </ToolbarPopover>
+        </div>
+      )}
     </header>
   );
 }

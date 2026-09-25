@@ -13,48 +13,11 @@
      old stats-sidebar layout; it was inert dead CSS — `display` was never
      `grid` — and was removed.) */
 
-  /* Tablet/mobile: flatten the per-section bordered cards into one
-     continuous panel. Each section keeps its header + rows for
-     organization but loses its own background/border/padding, so the
-     deck composition reads as a single contiguous list (echoing the
-     20q2 deck-generator's layout). Multi-column is also dropped — rows
-     stay full-width for legibility once the stats sidebar drops below. */
-  .deck-card-list {
-    gap: 0;
-    background: var(--surface);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-1) 0.85rem;
-  }
-
   /* One column: DeckDisplay reads this same breakpoint and packs into a single
-     column, so these are plain stacked sections inside the flat panel. */
+     column, so the sections simply stack. */
   .deck-card-columns,
   .deck-command-zone .deck-section-rows {
     grid-template-columns: 1fr;
-  }
-
-  .deck-card-column {
-    gap: 0;
-  }
-
-  .deck-card-list .deck-section {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    padding: 0;
-    margin-bottom: 0;
-    display: block;
-  }
-
-  /* Thin divider between sections — replaces the inter-card whitespace
-     that the bordered cards used to create. The first section skips
-     the line so the panel doesn't open with a rule. */
-  .deck-card-list .deck-section + .deck-section,
-  .deck-card-list .deck-command-zone + .deck-card-columns .deck-section:first-child {
-    border-top: 0.5px solid var(--border);
-    margin-top: var(--space-2);
-    padding-top: var(--space-2);
   }
 
   .deck-toolbar {

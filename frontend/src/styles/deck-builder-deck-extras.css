@@ -402,18 +402,6 @@
   gap: var(--space-2);
 }
 
-/* The reused CategorySection (.deck-section) is its own raised card
-   everywhere else it appears (the mainboard list) — floating cards directly
-   on the page. Nested inside .deck-outzone's own tinted panel that would
-   double up into a card-in-a-card look, so flatten it here: one bordered
-   surface (the zone), not N. Rows/headers keep their own spacing untouched. */
-.deck-outzone-body .deck-section {
-  background: none;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-}
-
 .deck-outzone-body .deck-section:last-child {
   margin-bottom: 0;
 }

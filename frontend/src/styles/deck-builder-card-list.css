@@ -610,7 +610,7 @@
 .deck-card-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-5);
 }
 
 .deck-card-columns {
@@ -623,7 +623,7 @@
 .deck-card-column {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-5);
   min-width: 0;
 }
 
@@ -636,11 +636,10 @@
   column-gap: var(--space-4);
 }
 
+/* A section is its header over hairline rows, on the page itself: no card
+   around it (STYLE_GUIDE § Layout system, surfaces: one frame; a list is
+   hairline rows under a section header, never a bordered card holding rows). */
 .deck-section {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 0.55rem 0.85rem var(--space-3);
   display: block;
   min-width: 0;
 }
@@ -656,9 +655,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.55rem;
-  padding: var(--space-1) 0.1rem 0.55rem;
-  border-bottom: 0.5px solid var(--border);
-  margin-bottom: 0.45rem;
+  padding: var(--space-1) 0.1rem var(--space-2);
+  border-bottom: 1px solid var(--border-strong);
 }
 
 /* Collapse toggle (leads the header, before the section icon). Sized to the
@@ -975,6 +973,12 @@
   text-align: right;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+/* Hairline rows: the line, not a box, separates one card from the next. */
+.deck-section-rows > .deck-row {
+  border-bottom: 0.5px solid var(--border);
+  border-radius: 0;
 }
 
 .deck-section-rows {

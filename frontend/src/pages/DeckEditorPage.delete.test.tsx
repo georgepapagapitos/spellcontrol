@@ -512,20 +512,14 @@ describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => 
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
 
-  it('omits Export from the desktop ⋮ menu — the toolbar Export button is the single desktop entry point', () => {
-    renderEditor();
-    const [desktopTrigger] = screen.getAllByLabelText('Deck actions');
-    fireEvent.click(desktopTrigger);
-
-    expect(screen.queryByRole('menuitem', { name: 'Export' })).toBeNull();
-  });
-
-  it('keeps Export in the ⋮ menu below 1024px, where the toolbar button is hidden', () => {
-    atWidth(768);
+  // Export belongs to the deck toolbar (its ⋯ on a wide row, its kebab on a
+  // phone), so the header ⋮ never repeats it at any width.
+  it.each([390, 768, 1280])('leaves Export out of the header ⋮ at %ipx', (px) => {
+    atWidth(px);
     renderEditor();
     fireEvent.click(screen.getByLabelText('Deck actions'));
 
-    expect(screen.getByRole('menuitem', { name: 'Export' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Export' })).toBeNull();
     vi.unstubAllGlobals();
   });
 
