@@ -1347,10 +1347,16 @@ function PlayerPanel({
             a fixed, small strip rather than eating the numeral above it —
             `.player-panel.is-cmd-self` pads the content box by the same
             height this bar takes, so the two can never overlap regardless of
-            panel size. */}
+            panel size. Title truncates with an ellipsis rather than
+            shortening the copy outright — "Commander damage" is the word
+            that actually carries the mode's meaning. The Return pill matches
+            the hub's own "Return to game" copy (STYLE_GUIDE) at any size
+            that fits it; only a genuinely narrow/short panel swaps to the
+            bare "Return" — a container-query text swap, not a shorter
+            button by default. */}
         {isCmdSelf && (
           <div className="pp-cmd-focus-bar">
-            <span className="pp-cmd-focus-title">Damage received</span>
+            <span className="pp-cmd-focus-title">Commander damage received</span>
             <button
               type="button"
               className="pp-cmd-focus-done"
@@ -1360,7 +1366,12 @@ function PlayerPanel({
                 onCmdFocusExit();
               }}
             >
-              Return
+              {/* No aria-hidden on either span: CSS toggles which one is
+                  `display: none` for the panel's size, and a display:none
+                  element drops out of the button's accessible name on its
+                  own — the announced label always matches what's shown. */}
+              <span className="pp-cmd-focus-done-full">Return to game</span>
+              <span className="pp-cmd-focus-done-short">Return</span>
             </button>
           </div>
         )}

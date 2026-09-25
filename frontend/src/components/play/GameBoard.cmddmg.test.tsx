@@ -374,7 +374,13 @@ describe('leaving focus mode', () => {
     renderPod();
     drag(tapZone(0), ALICE_UP);
 
-    fireEvent.click(within(focusBar() as HTMLElement).getByRole('button', { name: 'Return' }));
+    // The button carries both the full ("Return to game") and short
+    // ("Return") copy as separate spans — CSS (untested in jsdom) picks
+    // one per panel size, so query by class rather than accessible name.
+    const done = within(focusBar() as HTMLElement).getByRole('button');
+    expect(done.className).toContain('pp-cmd-focus-done');
+    expect(done.textContent).toContain('Return to game');
+    fireEvent.click(done);
 
     expect(focusBar()).toBeNull();
     expect(screen.getByLabelText('Bob: 40 life')).toBeTruthy();

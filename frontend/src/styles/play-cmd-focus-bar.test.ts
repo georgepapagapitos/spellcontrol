@@ -89,5 +89,38 @@ describe('commander-damage focus: the bar never covers the numeral', () => {
     // Same ratio already used for a 5/6-digit total (play-board.css) — a
     // floor this codebase already treats as legible.
     expect(css.slice(at, open)).toContain('.game-board-10 .player-panel.is-cmd-self');
+    // Tuned against the upright 8p-4v4/10p-6v4 layouts — 8p-sides/10p-sides
+    // (now the DEFAULT for those counts) never measured the same collision,
+    // so this stays scoped out of sideways seats rather than an untested
+    // extra squeeze applied everywhere.
+    expect(css.slice(at, open)).toContain(':not([data-sideways])');
+  });
+
+  it('the title says "Commander damage" — truncates via CSS, doesn\'t reword the copy', () => {
+    // The bar's fixed height comes from `.pp-cmd-focus-title` staying single-
+    // line + ellipsis (already asserted above), not from shortening the copy
+    // itself — "Commander damage" is the word that carries the mode's
+    // meaning to whoever reads a truncated title.
+    const gameBoardTsx = readFileSync(
+      join(here, '..', 'components', 'play', 'GameBoard.tsx'),
+      'utf8'
+    );
+    expect(gameBoardTsx).toContain('Commander damage received');
+  });
+
+  it('the Return pill carries the hub\'s own "Return to game" copy, with a narrow-panel-only short fallback', () => {
+    // Full copy shown by default; the short span is opt-in via a container
+    // query, not the default — same thresholds the drawer/keypad already use.
+    const short = ruleBody('.pp-cmd-focus-done-short');
+    expect(short).toMatch(/display:\s*none/);
+    for (const query of ['max-width: 300px', 'max-height: 300px']) {
+      const start = css.indexOf(`@container (${query})`);
+      expect(start, `@container (${query}) is missing for the Return pill`).toBeGreaterThan(-1);
+      const end = css.indexOf('\n}\n', start);
+      const block = css.slice(start, end);
+      expect(block).toContain('.pp-cmd-focus-done-full');
+      expect(block).toMatch(/\.pp-cmd-focus-done-full\s*\{\s*display:\s*none;/);
+      expect(block).toMatch(/\.pp-cmd-focus-done-short\s*\{\s*display:\s*inline;/);
+    }
   });
 });

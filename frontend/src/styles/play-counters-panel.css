@@ -294,22 +294,31 @@
 
 /* 8 and 10 players' own boards still measured a residual name/numeral
    contact at the shared 1.25rem/0.72 combination above — their shortest
-   seats have less local-top headroom above the name than the 7/9-player
-   boards those values already clear, and no top-inset value alone found a
-   spot that helped both without moving the collision rather than closing it
-   (measured: 0 and 1.25rem both leave contact, just different amounts). A
-   smaller numeral gives real margin from both edges regardless of exactly
-   where the centred box lands — 0.42 is the same ratio already used
-   elsewhere in this file for a 5/6-digit total, i.e. a floor this codebase
-   already treats as legible, not a new one invented for this case.
+   UPRIGHT seats have less local-top headroom above the name than the 7/9-
+   player boards those values already clear, and no top-inset value alone
+   found a spot that helped both without moving the collision rather than
+   closing it (measured: 0 and 1.25rem both leave contact, just different
+   amounts). A smaller numeral gives real margin from both edges regardless
+   of exactly where the centred box lands — 0.42 is the same ratio already
+   used elsewhere in this file for a 5/6-digit total, i.e. a floor this
+   codebase already treats as legible, not a new one invented for this case.
    Residual: at 320px specifically (9-10 players' own tightest tier) this
    gets to 154-206px² rather than 0 — smaller than any step tried, and gone
    entirely by 390px (measured) — the same "smaller, not gone" bar already
    accepted for this exact 320px/9-10-player extreme in the numeral-tier
    work (STYLE_GUIDE § "7-10 players"). Every OTHER required preset/viewport
-   in this program measures a clean 0px². */
-.game-board-8 .player-panel.is-cmd-self,
-.game-board-10 .player-panel.is-cmd-self {
+   in this program measures a clean 0px².
+
+   Scoped to `:not([data-sideways])` on purpose: this was tuned against the
+   8p-4v4/10p-6v4 upright layouts, and 8p-sides/10p-sides (now the DEFAULT
+   for those counts) never hit the same collision the same way — their
+   sideways seats already skip the `top` inset above for the same reason
+   (local top/bottom is their screen WIDTH, not height), so applying this
+   extra shrink there would be an untested, unneeded further squeeze rather
+   than a measured fix. Revisit once the sideways defaults are measured in
+   focus mode; unscope only if a residual actually shows up there. */
+.game-board-8 .player-panel.is-cmd-self:not([data-sideways]),
+.game-board-10 .player-panel.is-cmd-self:not([data-sideways]) {
   --life-scale: 0.42;
 }
 
@@ -656,6 +665,32 @@
 @media (pointer: coarse) {
   .pp-cmd-focus-done {
     min-height: 2.75rem;
+  }
+}
+
+/* "Return to game" (matches the hub's own copy) by default; only a
+   genuinely narrow/short panel swaps to the bare "Return" — same
+   container-query thresholds the drawer/keypad already use for a short
+   seat, since that's the same panel size that can't afford the full pill. */
+.pp-cmd-focus-done-short {
+  display: none;
+}
+
+@container (max-width: 300px) {
+  .player-panel[data-sideways] .pp-cmd-focus-done-full {
+    display: none;
+  }
+  .player-panel[data-sideways] .pp-cmd-focus-done-short {
+    display: inline;
+  }
+}
+
+@container (max-height: 300px) {
+  .player-panel:not([data-sideways]) .pp-cmd-focus-done-full {
+    display: none;
+  }
+  .player-panel:not([data-sideways]) .pp-cmd-focus-done-short {
+    display: inline;
   }
 }
 

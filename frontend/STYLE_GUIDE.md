@@ -8263,3 +8263,70 @@ accidental bump change what's rendered.
   seating chart mid-game, sideways, is an edge case of an edge case) and out
   of scope for this pass; a future session should drive it under
   `Emulation.setDeviceMetricsOverride` before touching it.
+
+## Play board: the life keypad is a board-level dialog, and the commander-damage focus bar keeps its full copy (2026-09-25)
+
+Two Lotus-parity fixes to the life-counter board, batched together because
+both were measured on the same short/sideways seats.
+
+- **The life keypad moved from an in-panel cover to a board-level dialog.**
+  `GameBoard` owns which seat it's open for and renders one `LifeKeypad`
+  instance (inside `.game-board-rotator`, so it rotates with the board's own
+  landscape lock like every other overlay there) that dims the whole board
+  and rotates to face the seat that opened it, sized off the viewport
+  instead of one seat's cell. The old in-panel cover crushed to 14-16px
+  digit keys on any seat under ~300px — every seat of 4p-sides, the default
+  four-player board, among others. This REPLACES the in-panel keypad
+  entirely; don't reintroduce a per-panel cover for it. Centring the dialog
+  with its own `position: absolute` + `transform: translate(-50%,-50%)
+rotate(...)`, not flexbox, is load-bearing: CSS layout runs before a
+  `transform`'s `rotate()` applies, so a flex parent shrinks a 90°/270°
+  dialog's deliberately-larger local width (meant to become the tall screen
+  dimension once rotated) to fit its own available width first — measured
+  14px-wide keys from exactly this. A definite-size CSS Grid container also
+  doesn't grow a `minmax(44px, 1fr)` track to fit its content the way an
+  intrinsic-size one does; it shrinks the track instead, so the rotated
+  layout's column split and the digit grid's row-span both needed real
+  measurement, not just the spec on paper.
+- **Commander-damage focus mode's bar keeps its full copy — a fixed-height
+  single line handles the space problem, not shorter words.** The bar used
+  to wrap onto 2-4 lines on a short/narrow seat and cover the focused
+  player's own numeral (measured up to 100% coverage). The fix is
+  `flex-wrap: nowrap` + a fixed `min-height` the numeral's own centred box
+  reserves room for (`--cmd-focus-bar-h`, read by both), **not** trimming
+  the words: the title stays "Commander damage received" and truncates with
+  an ellipsis if it must, because "Commander damage" is the word that
+  actually carries the mode's meaning to whoever reads a cut-off title. The
+  Return pill matches the hub's own "Return to game" copy (the hub becomes
+  the gold dagger and is the other way out, from the middle of the table)
+  at any size that fits it; only a genuinely narrow/short seat (the same
+  container-query thresholds the drawer and keypad use) swaps to the bare
+  "Return" — two spans in the button, one `display: none`d per size, so the
+  accessible name always matches what's shown (neither is `aria-hidden`;
+  `display: none` alone drops a span out of the accessible-name
+  computation). A first pass shortened both the title ("Damage received")
+  and the pill ("Return" always) to solve the same space problem — wrong
+  trade: it silently dropped the word that told a reader what number
+  they're looking at, for space the fixed-height/ellipsis approach didn't
+  actually need to spend that way.
+- **The per-seat "⚔ dealt to `<name>`" caption is gone**, replacing itself
+  with the panel's own `aria-label` (already carried the same meaning) — it
+  used to print directly over the panel's name on a short seat, 300-900px²
+  measured. A partner (split) seat's own life total also moved from an
+  absolutely-positioned corner chip to an in-flow `<span>` inside the split
+  wrap, so it can't land on a half's own − button the way the corner
+  overlay did on a short panel.
+- **The focused seat's numeral clears both the bar (below) and the name
+  corner (above) by pulling in `.player-panel-life-wrap`'s own centred box
+  from both edges** — padding on `.player-panel-content` has no effect here,
+  a dead end tried first: the life-wrap is `position: absolute; inset: 0`,
+  so its containing block is the panel's full padding box regardless of any
+  padding set on an ancestor. The top inset is scoped to `:not([data-
+sideways])` on purpose — a sideways panel's local top/bottom axis is its
+  screen WIDTH after rotation, a scarcer resource than height, and adding a
+  second reservation there measured worse, not better. The two shortest
+  upright boards (8p-4v4/10p-6v4, not the newer sideways defaults for those
+  counts) additionally shrink the numeral itself in focus mode
+  (`--life-scale: 0.42`, the same ratio already used for a 5/6-digit total)
+  since no inset value alone found a spot clear of both edges there — a
+  small, floor-matched shrink, not the numeral cut to nothing.
