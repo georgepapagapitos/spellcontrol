@@ -1,17 +1,19 @@
 /*
- * GameRecap sits inside `.win-celebration-card` (GameBoard.tsx), which is an
- * always-dark surface regardless of site theme — the same ruling as the
- * card-preview panel and on-art overlays (STYLE_GUIDE.md "on-art overlays
- * are always dark, in both themes"). It intentionally does NOT use the
- * light/dark token pair; it inherits the card's own white-on-near-black
- * palette so the celebration reads as one consistent surface.
+ * GameRecap is embedded on two different surfaces:
+ *  - `.ogv-finished` (OnlineGameView.tsx), a themed `var(--surface-raised)`
+ *    panel — the rules below default to theme text/border tokens so the
+ *    recap reads correctly in every theme (all AAA, see themes-contrast.test.ts).
+ *  - `.win-celebration-card` (GameBoard.tsx), an always-dark surface
+ *    regardless of site theme (STYLE_GUIDE.md "on-art overlays are always
+ *    dark, in both themes") — the scoped overrides below restore its fixed
+ *    white-on-near-black ink so the celebration keeps its current look.
  */
 
 .game-recap {
   max-width: min(22rem, 82vw);
   margin-top: 1.1rem;
   padding-top: 0.9rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid var(--border);
   text-align: left;
 }
 
@@ -21,7 +23,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-muted);
 }
 
 .game-recap-list {
@@ -49,11 +51,31 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--win-accent, #ffe07a);
+  color: var(--text-primary);
 }
 
 .game-recap-detail {
   font-size: var(--text-sm);
   line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+/* Always-dark celebration card: fixed ink, never the theme's. `--win-accent`
+ * is only set inline on `.win-celebration-card` itself (GameBoard.tsx), so
+ * the label's accent-gold look is scoped here too rather than left as a
+ * bare fallback that would otherwise leak onto the themed panel. */
+.win-celebration-card .game-recap {
+  border-top-color: rgba(255, 255, 255, 0.14);
+}
+
+.win-celebration-card .game-recap-title {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.win-celebration-card .game-recap-label {
+  color: var(--win-accent, #ffe07a);
+}
+
+.win-celebration-card .game-recap-detail {
   color: rgba(255, 255, 255, 0.88);
 }
