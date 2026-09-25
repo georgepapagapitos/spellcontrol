@@ -89,7 +89,11 @@ describe('evaluateTemplate — real Spellbook template queries', () => {
 
   it('nested parens + OR + negation: "Ally Creature" (kw:changeling or t:ally) t:creature', () => {
     const q = '(kw:changeling or t:ally) t:creature';
-    const ally: TemplateCard = { name: 'Kabira Vindicator', type_line: 'Creature — Kor Ally', cmc: 2 };
+    const ally: TemplateCard = {
+      name: 'Kabira Vindicator',
+      type_line: 'Creature — Kor Ally',
+      cmc: 2,
+    };
     const changeling: TemplateCard = {
       name: 'Mistform Ultimus',
       type_line: 'Creature — Shapeshifter',
@@ -132,13 +136,12 @@ describe('evaluateTemplate — real Spellbook template queries', () => {
       toughness: '0',
     };
     expect(evaluateTemplate('o:"~ enters tapped"', chamberSentry, EMPTY_ORACLE_TAGS)).toBe(true);
-    expect(evaluateTemplate('o:"~ enters untapped"', chamberSentry, EMPTY_ORACLE_TAGS)).toBe(
-      false
-    );
+    expect(evaluateTemplate('o:"~ enters untapped"', chamberSentry, EMPTY_ORACLE_TAGS)).toBe(false);
   });
 
   it('a /regex/ oracle clause (id "Any land that taps for one mana")', () => {
-    const q = 'o:/^{T}: Add / -o:"~ enters tapped" -o:"spend this mana only to" -t:land (t:artifact -t:creature or t:creature keyword:haste)';
+    const q =
+      'o:/^{T}: Add / -o:"~ enters tapped" -o:"spend this mana only to" -t:land (t:artifact -t:creature or t:creature keyword:haste)';
     const hasteRock: TemplateCard = {
       name: 'Fast Rock',
       type_line: 'Artifact',
@@ -158,7 +161,11 @@ describe('evaluateTemplate — real Spellbook template queries', () => {
   });
 
   it('otag: reads null when the tag is unknown to the injected corpus, else checks membership', () => {
-    const dork: TemplateCard = { name: 'Llanowar Elves', type_line: 'Creature — Elf Druid', cmc: 1 };
+    const dork: TemplateCard = {
+      name: 'Llanowar Elves',
+      type_line: 'Creature — Elf Druid',
+      cmc: 1,
+    };
     expect(evaluateTemplate('otag:mana-dork', dork, EMPTY_ORACLE_TAGS)).toBeNull();
 
     const knowsManaDork: OracleTagLookup = {
@@ -167,7 +174,11 @@ describe('evaluateTemplate — real Spellbook template queries', () => {
     };
     expect(evaluateTemplate('otag:mana-dork', dork, knowsManaDork)).toBe(true);
     expect(
-      evaluateTemplate('otag:mana-dork', { name: 'Grizzly Bears', type_line: 'Creature' }, knowsManaDork)
+      evaluateTemplate(
+        'otag:mana-dork',
+        { name: 'Grizzly Bears', type_line: 'Creature' },
+        knowsManaDork
+      )
     ).toBe(false);
   });
 
@@ -178,7 +189,12 @@ describe('evaluateTemplate — real Spellbook template queries', () => {
   });
 
   it('c=c / c=0 / color=colorless all mean colorless', () => {
-    const colorless: TemplateCard = { name: 'Karn, Scion of Urza', type_line: 'Legendary Planeswalker', cmc: 4, colors: [] };
+    const colorless: TemplateCard = {
+      name: 'Karn, Scion of Urza',
+      type_line: 'Legendary Planeswalker',
+      cmc: 4,
+      colors: [],
+    };
     expect(evaluateTemplate('c=c', colorless, EMPTY_ORACLE_TAGS)).toBe(true);
     expect(evaluateTemplate('c=0', colorless, EMPTY_ORACLE_TAGS)).toBe(true);
     expect(evaluateTemplate('color=colorless', colorless, EMPTY_ORACLE_TAGS)).toBe(true);
@@ -194,7 +210,9 @@ describe('evaluateTemplate — real Spellbook template queries', () => {
     expect(evaluateTemplate('pow>=3', { name: 'X', cmc: 3, power: '2' }, EMPTY_ORACLE_TAGS)).toBe(
       false
     );
-    expect(evaluateTemplate('pow>=3', { name: 'X', cmc: 3, power: '*' }, EMPTY_ORACLE_TAGS)).toBeNull();
+    expect(
+      evaluateTemplate('pow>=3', { name: 'X', cmc: 3, power: '*' }, EMPTY_ORACLE_TAGS)
+    ).toBeNull();
   });
 
   it('is:dfc / is:tdfc / is:mdfc by layout', () => {
@@ -239,7 +257,7 @@ describe('resolveComboTemplates', () => {
     expect(r.satisfyingCards).toEqual([null]);
   });
 
-  it('the combo\'s own named pieces never count as the satisfying card', () => {
+  it("the combo's own named pieces never count as the satisfying card", () => {
     // Sol Ring itself matches the template's query, but it's a NAMED piece —
     // the deck needs a DIFFERENT permanent-for-{C}.
     const r = resolveComboTemplates([CASTABLE_FOR_C], ['Sol Ring'], [SOL_RING], EMPTY_ORACLE_TAGS);
