@@ -113,4 +113,15 @@ describe('ComboRow', () => {
       screen.getByRole('button', { name: 'Preview Demonic Consultation (not owned)' })
     ).toBeTruthy();
   });
+
+  it('marks an in-deck combo completed only via a sideboard card', () => {
+    renderRow({ sideboardCardNames: ['Demonic Consultation'] });
+    expect(screen.getByText(/Uses sideboard: Demonic Consultation/)).toBeTruthy();
+    expect(screen.getByText(/Not counted toward the bracket/)).toBeTruthy();
+  });
+
+  it('shows no sideboard note when every piece is on the mainboard', () => {
+    renderRow();
+    expect(screen.queryByText(/Uses sideboard/)).toBeNull();
+  });
 });

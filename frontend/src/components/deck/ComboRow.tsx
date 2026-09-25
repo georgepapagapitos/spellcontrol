@@ -89,6 +89,15 @@ export interface ComboRowProps {
    * un-fetched one look the same to the user, deliberately).
    */
   missingPrice?: number;
+  /**
+   * Name(s) of the sideboard card(s) this (in-deck) combo needs to complete.
+   * The deck-editor panel still lists a combo like this — it IS assembled —
+   * but marks it: this combo does not count toward the bracket, the coach, or
+   * any "combos in deck" total, because a sideboard card isn't in the 99.
+   * Absent/empty on every other row (one-away rows, or the collection-wide
+   * combos view, which has no deck zones at all).
+   */
+  sideboardCardNames?: string[];
 }
 
 export function ComboRow({
@@ -102,6 +111,7 @@ export function ComboRow({
   scope = 'deck',
   aside,
   missingPrice,
+  sideboardCardNames,
 }: ComboRowProps) {
   const { combo } = match;
   // E216: a match can now be missing MORE than one piece (card-scoped search
@@ -232,6 +242,15 @@ export function ComboRow({
           </>
         )}
       </p>
+
+      {/* ── Sideboard note — this combo is assembled, but only counts as
+            "in deck" here because a sideboard card fills one of its slots.
+            It sets no bracket floor and isn't in any combo total. ── */}
+      {sideboardCardNames && sideboardCardNames.length > 0 && (
+        <p className="deck-combos-sideboard-note">
+          Uses sideboard: {sideboardCardNames.join(', ')}. Not counted toward the bracket.
+        </p>
+      )}
 
       {/* ── Card art grid — present cards full colour; missing dimmed ── */}
       <ul className="deck-combos-card-grid" role="list">

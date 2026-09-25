@@ -131,8 +131,21 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        replacements can no longer be fast mana, a tutor, or the missing
  *        piece of a floor-setting one-away combo, and a replacement that
  *        would re-raise the bracket degrades to a plain cut.
+ *   v14 — combos completed only via a sideboard card no longer set a bracket
+ *        floor, feed the coach, or count toward the hero's combo totals (only
+ *        commander(s) + mainboard do — see combo-zone-partition.ts); and an
+ *        unreachable EDHREC no longer blanks the whole analysis — the local
+ *        bracket/win-conditions/bracket-fit are computed and persisted with
+ *        `edhrecMissing: true` instead.
  */
-const ANALYSIS_ENGINE_VERSION = 'v13-bracket-fit-verified';
+const ANALYSIS_ENGINE_VERSION = 'v14-mainboard-combos-edhrec-optional';
+
+/** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
+ *  (EDHREC was unreachable). Distinguishes it from a full result computed for
+ *  the exact same signature so a fresh mount (the next visit) retries EDHREC
+ *  even though the deck's content hasn't changed — see `edhrecMissingAttempted`
+ *  below for the within-session half of that (don't loop on every re-render). */
+const EDHREC_MISSING_SUFFIX = '#edhrec-missing';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)
@@ -195,6 +208,13 @@ export function useCommanderBracketAnalysis(args: Args): {
    * out or failed), so its bracket is a floor: combos can only raise it.
    */
   missesCombos: boolean;
+  /**
+   * The persisted estimate was computed without EDHREC (unreachable / this
+   * commander isn't indexed) — the bracket and win conditions are real, but
+   * grade/gaps/hidden gems/plan score/cost & optimize lanes are absent.
+   * `retry()` also clears this and re-attempts EDHREC.
+   */
+  edhrecMissing: boolean;
 } {
   const {
     deck,
@@ -237,8 +257,18 @@ export function useCommanderBracketAnalysis(args: Args): {
     return () => window.clearTimeout(timer);
   }, [combosLoading, signature]);
 
+  // The signature whose EDHREC fetch already came back missing THIS MOUNT.
+  // Local (not persisted), so it resets on the next visit and EDHREC gets
+  // retried then — even though the deck's persisted signature (below) already
+  // carries the partial result for this exact signature and would otherwise
+  // never look stale. Without this, `signature !== persistedSignature`
+  // (guaranteed by the suffix) would re-fire the fetch on every unrelated
+  // re-run of this effect within the same session.
+  const [edhrecMissingAttempted, setEdhrecMissingAttempted] = useState<string | null>(null);
+
   const retry = useCallback(() => {
     setFailedSignature(null);
+    setEdhrecMissingAttempted(null);
     setRetryNonce((n) => n + 1);
   }, []);
 
@@ -251,6 +281,7 @@ export function useCommanderBracketAnalysis(args: Args): {
     if (combosLoading && (persistedSignature || comboWaitOver !== signature)) return;
     if (signature === persistedSignature) return;
     if (signature === failedSignature) return;
+    if (signature === edhrecMissingAttempted) return;
 
     const deckId = deck.id;
     const commander = deck.commander;
@@ -316,7 +347,13 @@ export function useCommanderBracketAnalysis(args: Args): {
                 winConditions: result.winConditions,
                 // null when no target set / non-commander — clears a stale plan.
                 bracketFit: result.bracketFit ?? null,
-                gradeBracketSignature: signature,
+                // A partial (EDHREC-missing) result gets a suffixed signature —
+                // distinct from the plain one a full analysis would persist for
+                // the same deck, so a later successful analysis (deck unchanged,
+                // EDHREC back up) doesn't read as "already done" and skip.
+                gradeBracketSignature: result.edhrecMissing
+                  ? `${signature}${EDHREC_MISSING_SUFFIX}`
+                  : signature,
                 // silent: derived analysis, not a user edit — don't bump updatedAt
                 // (else merely viewing a deck marks it "edited just now").
               },
@@ -325,6 +362,7 @@ export function useCommanderBracketAnalysis(args: Args): {
           } finally {
             setApplyingAnalysis(false);
           }
+          if (result.edhrecMissing) setEdhrecMissingAttempted(signature);
         })
         .catch(() => {
           if (reqIdRef.current !== myReqId) return;
@@ -342,6 +380,7 @@ export function useCommanderBracketAnalysis(args: Args): {
     persistedSignature,
     enabled,
     failedSignature,
+    edhrecMissingAttempted,
     retryNonce,
     combosLoading,
     comboWaitOver,
@@ -357,6 +396,7 @@ export function useCommanderBracketAnalysis(args: Args): {
   // The combo segment is second to last (only the target follows it), and no
   // card or commander name contains '|'.
   const missesCombos = persistedSignature?.split('|').at(-2) === COMBOS_UNCHECKED;
+  const edhrecMissing = persistedSignature?.endsWith(EDHREC_MISSING_SUFFIX) ?? false;
 
-  return { status, retry, missesCombos };
+  return { status, retry, missesCombos, edhrecMissing };
 }

@@ -261,6 +261,34 @@ describe('DeckIdentityCard', () => {
     expect(screen.queryByText(/Bracket 3/)).toBeNull();
   });
 
+  // ── Defect 2: a partial (EDHREC-missing) analysis ─────────────────────────
+
+  it('shows a retryable EDHREC-missing notice in Build health when ready but planScore never landed', () => {
+    const onRetryAnalysis = vi.fn();
+    const { container } = renderCard({
+      analysisState: 'ready',
+      edhrecMissing: true,
+      planScore: null,
+      bracket: 3,
+      onRetryAnalysis,
+    });
+    // 'ready' with a real bracket — never the skeleton or the generic error copy.
+    expect(container.querySelector('.deck-identity-card-skeleton-pillar')).toBeNull();
+    expect(hasText(/Bracket 3/)).toBe(true);
+    expect(hasText(/^Build health$/)).toBe(true);
+    expect(hasText(/Couldn.t reach EDHREC/)).toBe(true);
+
+    const retryBtn = screen.getByRole('button', { name: 'Retry' });
+    fireEvent.click(retryBtn);
+    expect(onRetryAnalysis).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the real planScore instead of the EDHREC-missing notice once one lands', () => {
+    renderCard({ analysisState: 'ready', edhrecMissing: true, planScore: healthyPlan });
+    expect(hasText(/Couldn.t reach EDHREC/)).toBe(false);
+    expect(hasText(/Healthy/)).toBe(true);
+  });
+
   it('repeats none of the page hero: no commander names, deck name or art', () => {
     // The card leads the stats under the deck list, and the hero right above
     // the list already carries the commander art, the names and the format.

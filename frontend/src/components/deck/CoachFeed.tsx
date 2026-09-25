@@ -169,6 +169,13 @@ export interface CoachFeedProps {
   analysisState?: 'pending' | 'ready' | 'error';
   /** E162: retries a failed/stalled first analysis. Passed only when analysisState is 'error'. */
   onRetryAnalysis?: () => void;
+  /**
+   * The persisted analysis ran without EDHREC (unreachable / this commander
+   * isn't indexed) — gaps/optimize/cost/synergy lanes are all EDHREC-derived,
+   * so they're absent even though `analysisState` is 'ready'. Shows a
+   * retryable notice where those lanes would be, instead of a silent empty feed.
+   */
+  edhrecMissing?: boolean;
   // Commander name for row copy
   commanderName?: string;
   // EDHREC theme browser
@@ -232,6 +239,7 @@ export function CoachFeed({
   onFilterHandled,
   analysisState = 'ready',
   onRetryAnalysis,
+  edhrecMissing = false,
   commanderName,
   browser,
   busyNames,
@@ -689,9 +697,21 @@ export function CoachFeed({
     [addsAndSwaps, cuts]
   );
 
-  // ── Skeleton / error ─────────────────────────────────────────────────────
+  // ── Skeleton / error / EDHREC-missing ───────────────────────────────────
+  // A partial analysis (EDHREC unreachable) has `analysisState === 'ready'`
+  // (a real bracket exists), but every lane here — gaps, optimize, cost,
+  // synergy — is EDHREC-derived, so `allChanges` stays empty. Same
+  // notice-with-retry shape as pending/error, reworded.
+  const skeletonStatus: 'pending' | 'error' | 'edhrec-missing' | null =
+    analysisState === 'pending'
+      ? 'pending'
+      : analysisState === 'error'
+        ? 'error'
+        : edhrecMissing
+          ? 'edhrec-missing'
+          : null;
 
-  if ((analysisState === 'pending' || analysisState === 'error') && allChanges.length === 0) {
+  if (skeletonStatus && allChanges.length === 0) {
     return (
       <div className="coach-feed">
         {(nextBestMoves.length > 0 || combosLoading) && (
@@ -705,7 +725,7 @@ export function CoachFeed({
             currentView="tune"
           />
         )}
-        <DeckAnalysisSkeleton status={analysisState} onRetry={onRetryAnalysis} />
+        <DeckAnalysisSkeleton status={skeletonStatus} onRetry={onRetryAnalysis} />
       </div>
     );
   }

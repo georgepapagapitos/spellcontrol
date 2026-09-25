@@ -65,6 +65,7 @@ export function DeckAnalysisView({
   analysisState = 'ready',
   onNavigateToTune,
   onRetryAnalysis,
+  edhrecMissing = false,
   commander,
   partnerCommander,
   format,
@@ -123,6 +124,9 @@ export function DeckAnalysisView({
   onNavigateToTune?: (lane: LaneId) => void;
   /** E162: retries a failed/stalled first analysis. */
   onRetryAnalysis?: () => void;
+  /** The persisted analysis was computed without EDHREC — grade/plan score
+   *  are absent even though `analysisState` is 'ready'. */
+  edhrecMissing?: boolean;
   /** Stronger owned lands found for this deck → the Mana base "Re-analyze lands" CTA. */
   landUpgradeCount?: number;
   /** Session-scoped reveal key for score animations. Null/undefined suppresses the reveal. */
@@ -198,6 +202,7 @@ export function DeckAnalysisView({
               bracket={effectiveBracketValue}
               analysisState={analysisState}
               onRetryAnalysis={onRetryAnalysis}
+              edhrecMissing={edhrecMissing}
               validation={validation}
               planScore={planScore ?? null}
               edhrecNumDecks={edhrecNumDecks ?? null}

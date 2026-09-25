@@ -43,6 +43,13 @@ export interface DeckIdentityCardProps {
   analysisState: 'pending' | 'ready' | 'error';
   /** E162: retries a failed/stalled first analysis. Passed only when analysisState is 'error'. */
   onRetryAnalysis?: () => void;
+  /**
+   * The persisted analysis ran without EDHREC (unreachable / this commander
+   * isn't indexed) — `analysisState` is 'ready' (a real bracket exists), but
+   * `planScore` is absent because Build health is EDHREC-derived. Renders a
+   * retryable notice in that pillar instead of silently showing nothing.
+   */
+  edhrecMissing?: boolean;
   validation: ValidationResult;
   planScore: PlanScore | null;
   /**
@@ -132,6 +139,7 @@ export function DeckIdentityCard({
   bracket,
   analysisState,
   onRetryAnalysis,
+  edhrecMissing = false,
   validation,
   planScore,
   edhrecNumDecks: edhrecNumDecksProp,
@@ -372,6 +380,30 @@ export function DeckIdentityCard({
               <span className="deck-identity-card-eyebrow">Build health</span>
               <p className="deck-identity-card-error-text">
                 Couldn't analyze this deck.
+                {onRetryAnalysis && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      className="deck-identity-card-retry-btn"
+                      onClick={onRetryAnalysis}
+                    >
+                      Retry
+                    </button>
+                  </>
+                )}
+              </p>
+            </div>
+          ) : edhrecMissing && !planScore ? (
+            // A partial (EDHREC-missing) analysis: `analysisState` is 'ready'
+            // (a real bracket exists), but Build health is EDHREC-derived, so
+            // planScore never got computed. Same failure-message shape as the
+            // 'error' branch above, reworded — this isn't a failed analysis,
+            // just one EDHREC couldn't finish.
+            <div className="deck-identity-card-pillar">
+              <span className="deck-identity-card-eyebrow">Build health</span>
+              <p className="deck-identity-card-error-text">
+                Couldn't reach EDHREC for build health.
                 {onRetryAnalysis && (
                   <>
                     {' '}

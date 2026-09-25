@@ -37,6 +37,7 @@ import { CopyDeckButton } from './CopyDeckButton';
 import { useAuth } from '../../store/auth';
 import { useCollectionStore } from '../../store/collection';
 import { useDeckCombos } from '../../lib/use-deck-combos';
+import { partitionCombosByZone } from '../../lib/combo-zone-partition';
 import type { ChangeOwnership } from '../../lib/deck-change';
 import type { CardOwnership } from './SharedCardTile';
 import { bracketReasons } from '@spellcontrol/deck-metrics';
@@ -128,6 +129,17 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
     return Array.from(ids);
   }, [deck]);
 
+  // Commander(s) + mainboard only — see combo-zone-partition.ts. The combo
+  // counts shown here (below) must agree with the owner's own bracket/coach,
+  // which never counts a sideboard-completed combo either.
+  const mainboardOracleIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (deck.commander?.oracle_id) ids.add(deck.commander.oracle_id);
+    if (deck.partnerCommander?.oracle_id) ids.add(deck.partnerCommander.oracle_id);
+    for (const c of deck.cards) if (c.card.oracle_id) ids.add(c.card.oracle_id);
+    return ids;
+  }, [deck]);
+
   // Only commander decks carry an identity restriction — undefined disables the
   // hook's suggestion filter (an empty array would mean "colorless").
   const comboColorIdentity = useMemo(() => {
@@ -160,16 +172,23 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
     colorIdentity: comboColorIdentity,
   });
 
+  // Commander(s) + mainboard view of the raw match — a combo completed only
+  // via a sideboard card doesn't count here either (see combo-zone-partition.ts).
+  const partitionedCombos = useMemo(
+    () => partitionCombosByZone(comboData.data, mainboardOracleIds),
+    [comboData.data, mainboardOracleIds]
+  );
+
   // One-away combos whose missing piece the visitor already owns. Same
   // `oneAway`-not-`almostInCollection` reasoning as the deck editor's copy
   // (see match.ts:112 — the latter is empty for decks carrying oracle ids).
   const comboOwnedMissingCount = useMemo(
     () =>
-      (comboData.data?.oneAway ?? []).filter((m) => {
+      partitionedCombos.oneAway.filter((m) => {
         const id = m.missingOracleIds[0];
         return id && ownedOracleIdSet.has(id);
       }).length,
-    [comboData.data?.oneAway, ownedOracleIdSet]
+    [partitionedCombos.oneAway, ownedOracleIdSet]
   );
 
   // Bridge the share page's ownership lens into the shape DeckDisplay's rows
@@ -421,8 +440,8 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
               engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
               enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
               engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
-              comboInDeck={comboData.data?.inDeck.length ?? 0}
-              comboOneAway={comboData.data?.oneAway.length ?? 0}
+              comboInDeck={partitionedCombos.mainboardComplete.length}
+              comboOneAway={partitionedCombos.oneAway.length}
               comboOwnedMissing={comboOwnedMissingCount}
               combosLoading={combosEnabled && comboData.loading}
               winConditionSummary={buildWinConditionSummary(deck.winConditions)}
@@ -459,6 +478,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
               embedded
               deckId={deck.id}
               deckOracleIds={deckOracleIds}
+              mainboardOracleIds={mainboardOracleIds}
               format={deck.format}
               colorIdentity={comboColorIdentity}
             />

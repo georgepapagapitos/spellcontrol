@@ -395,6 +395,13 @@ export interface DeckDisplayProps {
   /** E162: retries a failed/stalled first analysis. Passed only when analysisState is 'error'. */
   onRetryAnalysis?: () => void;
   /**
+   * The persisted analysis was computed without EDHREC (unreachable / this
+   * commander isn't indexed) — bracket + win conditions are real, but
+   * grade/plan score/gap/optimize/cost lanes are absent. Drives a small
+   * retryable notice where that content would otherwise be.
+   */
+  edhrecMissing?: boolean;
+  /**
    * Session-scoped reveal key for score animations. When non-null, plays the
    * 0→target reveal tween on first delivery; null/undefined suppresses the reveal.
    * Computed by the page from deck.id + gradeBracketSignature.
@@ -534,6 +541,7 @@ export function DeckDisplay({
   analysisState = 'ready',
   onNavigateToTune,
   onRetryAnalysis,
+  edhrecMissing,
   scoreRevealKey,
   onAddSuggestedCard,
   openSlots,
@@ -1574,6 +1582,7 @@ export function DeckDisplay({
       analysisState={analysisState}
       onNavigateToTune={onNavigateToTune}
       onRetryAnalysis={onRetryAnalysis}
+      edhrecMissing={edhrecMissing}
       commander={commander}
       partnerCommander={partnerCommander}
       format={format}

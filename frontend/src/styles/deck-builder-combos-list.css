@@ -377,6 +377,13 @@
   color: var(--text-secondary);
 }
 
+/* ── Sideboard note (in-deck combos completed via a sideboard card) ──────── */
+.deck-combos-sideboard-note {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 /* ── Missing piece footer (one-away only) ───────────────────────────────── */
 .deck-combos-missing-footer {
   display: flex;

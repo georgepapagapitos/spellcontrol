@@ -443,6 +443,16 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
    * target, the deck is aligned-with-no-target, or no estimation is available.
    */
   bracketFit?: BracketFitPlan | null;
+  /**
+   * True when EDHREC couldn't be reached for this commander (unindexed
+   * commander, offline, a fetch error). `bracketEstimation`, `winConditions`
+   * and `bracketFit` are still real (they're local/pure), but every
+   * EDHREC-derived field (`deckGrade`, `gapAnalysis`, `hiddenGems`,
+   * `planScore`, `optimizeSwaps`, `costPlan`, `synergyAnalysis`,
+   * `cardInclusionMap`) is absent rather than stale. Absent/false on a full
+   * analysis.
+   */
+  edhrecMissing?: boolean;
 }
 
 export interface AnalyzeCommanderDeckParams {
@@ -585,11 +595,106 @@ async function sourceOracleCandidates(
 }
 
 /**
+ * Local-only fallback for when EDHREC can't be reached for this commander.
+ * Computes everything `estimateBracket` / `detectWinConditions` /
+ * `buildBracketFitPlan` need — Game Changers, tagger roles, combos, curve —
+ * none of which reads EDHREC, so the Power tab still gets a real bracket
+ * instead of nothing. EDHREC-derived fields (grade, gaps, hidden gems, plan
+ * score, cost/optimize lanes) are simply absent; `edhrecMissing: true` tells
+ * the UI to say so and offer a retry.
+ */
+async function buildEdhrecMissingResult(
+  params: AnalyzeCommanderDeckParams,
+  scryfallBudget: ReturnType<typeof bestEffortBudget>
+): Promise<CommanderDeckAnalysisResult> {
+  const { roleCounts } = computeRoleCounts(params.cards);
+  const nonLand = params.cards.filter((c) => !frontTypeLine(c).toLowerCase().includes('land'));
+  const averageCmc =
+    nonLand.length > 0 ? nonLand.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLand.length : 0;
+  const gameChangerNames = await scryfallBudget(
+    getGameChangerNames(),
+    new Set<string>(HARDCODED_GAME_CHANGERS)
+  );
+  const allCardNames = [...params.cards.map((c) => c.name), params.commander.name];
+  if (params.partnerCommander) allCardNames.push(params.partnerCommander.name);
+  const commanderNames = params.partnerCommander
+    ? [params.commander.name, params.partnerCommander.name]
+    : [params.commander.name];
+
+  const gradeBracket = computeGradeAndBracket({
+    allCardNames,
+    detectedCombos: params.detectedCombos,
+    averageCmc,
+    bracketRoleCounts: roleCounts,
+    gameChangerNames,
+    commanderNames,
+    allCards: params.cards,
+    roleCounts,
+    deckSize: params.deckSize,
+    colorIdentity: params.colorIdentity,
+  });
+
+  const deckSynergy = analyzeDeckSynergy(params.cards);
+  let winConditions: WinConditionAnalysis | undefined;
+  try {
+    winConditions = detectWinConditions({
+      cards: params.cards,
+      commander: params.commander,
+      partnerCommander: params.partnerCommander,
+      combosInDeck: (params.detectedCombos ?? []).map((c) => ({
+        results: c.results,
+        cards: c.cards,
+      })),
+      deckSynergy,
+      format: 'commander',
+    });
+  } catch (err) {
+    logger.warn(
+      '[CommanderDeckAnalysis] Win-condition detection failed (EDHREC-missing path):',
+      err
+    );
+  }
+
+  const bracketFit = buildBracketFitPlan(
+    params.targetBracket ?? null,
+    gradeBracket.bracketEstimation,
+    {
+      gameChangerNames,
+      allCardNames,
+      detectedCombos: params.detectedCombos ?? [],
+      averageCmc,
+      cardCmcMap: Object.fromEntries(
+        params.cards.map((c) => [
+          c.name,
+          { cmc: c.cmc ?? 0, isLand: frontTypeLine(c).toLowerCase().includes('land') },
+        ])
+      ),
+      roleCounts,
+      targetPool: null,
+      cardInclusionMap: {},
+      oneAwayCombos: params.oneAwayCombos ?? [],
+      gapAnalysis: [],
+      commanderNames,
+      deckFull: params.cards.length >= params.deckSize,
+    }
+  );
+
+  return {
+    bracketEstimation: gradeBracket.bracketEstimation,
+    winConditions,
+    bracketFit,
+    edhrecMissing: true,
+  };
+}
+
+/**
  * Compute grade + bracket for a manually-built commander deck. Fetches (cached)
  * EDHREC data for the commander and derives every other input the generator
- * normally has in memory. Returns null when there's no usable commander data
- * (e.g. EDHREC unreachable or commander not found) — callers should leave the
- * deck's existing grade/bracket untouched in that case.
+ * normally has in memory. Returns null on a genuinely unexpected failure
+ * (tagger data, an oracle-text pass) — callers should leave the deck's
+ * existing grade/bracket untouched in that case. When only EDHREC itself is
+ * unreachable, this degrades to {@link buildEdhrecMissingResult} instead of
+ * failing outright.
  */
 export async function analyzeCommanderDeck(
   params: AnalyzeCommanderDeckParams
@@ -604,9 +709,22 @@ export async function analyzeCommanderDeck(
     // loaded) this resolves immediately.
     await loadTaggerData();
 
-    const edhrecData = params.partnerCommander
-      ? await fetchPartnerCommanderData(params.commander.name, params.partnerCommander.name)
-      : await fetchCommanderData(params.commander.name);
+    let edhrecData: EDHRECCommanderData;
+    try {
+      edhrecData = params.partnerCommander
+        ? await fetchPartnerCommanderData(params.commander.name, params.partnerCommander.name)
+        : await fetchCommanderData(params.commander.name);
+    } catch (err) {
+      // EDHREC unreachable / commander not indexed. estimateBracket, the
+      // combo/curve/role signals it reads, and detectWinConditions are all
+      // local — nothing here actually needs EDHREC — so compute a real
+      // bracket instead of discarding everything the deck already tells us.
+      logger.warn(
+        '[CommanderDeckAnalysis] EDHREC unreachable — computing a local-only bracket:',
+        err
+      );
+      return buildEdhrecMissingResult(params, scryfallBudget);
+    }
 
     // Bracket Fit: when the user has set a target bracket, also fetch the
     // target-bracket EDHREC pool — the card pool a deck at that bracket would
