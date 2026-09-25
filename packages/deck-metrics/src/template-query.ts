@@ -307,9 +307,38 @@ function parseColorWord(word: string): Set<string> {
   return out;
 }
 
+/**
+ * The `{…}` symbols in a mana cost or clause value, upper-cased. A linear
+ * scan rather than /\{[^}]+\}/g, which is quadratic on a run of unclosed
+ * braces (CodeQL js/polynomial-redos): an open brace restarts the symbol.
+ */
 function extractSymbols(value: string): string[] {
-  const matches = value.match(/\{[^}]+\}/g);
-  return matches ? matches.map((s) => s.toUpperCase()) : [];
+  const out: string[] = [];
+  let start = -1;
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i];
+    if (ch === '{') start = i;
+    else if (ch === '}' && start !== -1) {
+      if (i > start + 1) out.push(value.slice(start, i + 1).toUpperCase());
+      start = -1;
+    }
+  }
+  return out;
+}
+
+/** An unescaped `*`, `+` or `{n,}` repeat: the shapes that let a regex
+ *  backtrack on long input. */
+function hasOpenEndedRepeat(pattern: string): boolean {
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === '\\') {
+      i++;
+      continue;
+    }
+    if (ch === '*' || ch === '+') return true;
+    if (ch === '{' && /^\{\d+,/.test(pattern.slice(i, i + 12))) return true;
+  }
+  return false;
 }
 
 function classifyClause(raw: string): Clause {
@@ -329,8 +358,15 @@ function classifyClause(raw: string): Clause {
     case 'o':
     case 'oracle': {
       if (rawValue.length >= 2 && rawValue.startsWith('/') && rawValue.endsWith('/')) {
+        const pattern = rawValue.slice(1, -1);
+        // The pattern comes from Spellbook's data and runs on our one server
+        // (check_bracket), so only a pattern that can't backtrack badly is
+        // compiled. Every regex template in use today is an anchored literal
+        // like ^{T}: Add; one with a repeat would read as unsupported (unmet),
+        // never as a match.
+        if (hasOpenEndedRepeat(pattern)) return { c: 'unsupported' };
         try {
-          return { c: 'oracleRegex', re: new RegExp(rawValue.slice(1, -1), 'im') };
+          return { c: 'oracleRegex', re: new RegExp(pattern, 'im') };
         } catch {
           return { c: 'unsupported' };
         }
@@ -501,7 +537,7 @@ function evalIs(card: TemplateCard, value: string): Tri {
     case 'flip':
       return card.layout === 'flip';
     case 'hybrid':
-      return /\{[^}]*\/[^}]*\}/.test(effectiveManaCost(card));
+      return extractSymbols(effectiveManaCost(card)).some((sym) => sym.includes('/'));
     default:
       return null;
   }

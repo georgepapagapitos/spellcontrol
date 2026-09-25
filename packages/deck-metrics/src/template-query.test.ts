@@ -306,3 +306,37 @@ describe('resolveComboTemplates', () => {
     expect(r.satisfied).toBe(false);
   });
 });
+
+describe('evaluateTemplate — input from Spellbook runs in bounded time', () => {
+  it('compiles the anchored literal regexes Spellbook uses', () => {
+    // Templates 13 and 42, verbatim.
+    expect(evaluateTemplate('o:/^{T}:/', SOL_RING, EMPTY_ORACLE_TAGS)).toBe(true);
+    const outlet: TemplateCard = {
+      name: 'Goblin Bombardment',
+      type_line: 'Enchantment',
+      oracle_text: 'Sacrifice a Goblin: deals 1 damage to any target.',
+      cmc: 2,
+      keywords: [],
+    };
+    expect(evaluateTemplate('o:/^Sacrifice a Goblin:/', outlet, EMPTY_ORACLE_TAGS)).toBe(true);
+    expect(evaluateTemplate('o:/^Sacrifice a Goblin:/', SOL_RING, EMPTY_ORACLE_TAGS)).toBe(false);
+  });
+
+  it('reads a regex with an open-ended repeat as unsupported, never compiling it', () => {
+    // (a+)+$ is the classic catastrophic-backtracking shape.
+    expect(evaluateTemplate('o:/^(a+)+$/', SOL_RING, EMPTY_ORACLE_TAGS)).toBeNull();
+    expect(evaluateTemplate('o:/x*y/', SOL_RING, EMPTY_ORACLE_TAGS)).toBeNull();
+    expect(evaluateTemplate('o:/a{2,}/', SOL_RING, EMPTY_ORACLE_TAGS)).toBeNull();
+    // An escaped + is a literal, not a repeat.
+    const plusOne: TemplateCard = { ...SOL_RING, oracle_text: 'Put a +1 counter on it.' };
+    expect(evaluateTemplate('o:/\\+1/', plusOne, EMPTY_ORACLE_TAGS)).toBe(true);
+  });
+
+  it('scans a long run of unclosed braces in linear time', () => {
+    const brace: TemplateCard = { ...SOL_RING, mana_cost: '{'.repeat(50_000) };
+    const started = Date.now();
+    expect(evaluateTemplate('is:hybrid', brace, EMPTY_ORACLE_TAGS)).toBe(false);
+    evaluateTemplate(`mana:${'{'.repeat(50_000)}`, brace, EMPTY_ORACLE_TAGS);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+});
