@@ -5798,7 +5798,7 @@ public profile) is the reference. Rulings:
   deck hero shows and the Value sort orders by). It sits in
   `.decks-index-card-facts`, one flex item holding the detail and the value:
   the detail shrinks, the value never does, and a CSS `::before` supplies the
-  ` · ` so it reads as the tail's last item. Never put it inside the detail
+  `·` separator (a space either side) so it reads as the tail's last item. Never put it inside the detail
   text (a partner pair truncates it away) or as a loose sibling of the detail
   (on a phone it wraps onto a line that starts with `·`). It stays in Compact,
   where it is what a Value sort is read by, and it is omitted for a deck with
