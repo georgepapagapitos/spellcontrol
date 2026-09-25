@@ -321,10 +321,11 @@
 }
 
 /* Section titles join the canonical serif/uppercase treatment (.cube-saved-head)
-   so all five headings on the page read in one register. */
+   so all six headings on the page read in one register. */
 .cube-balance h3,
 .cube-gaps h3,
-.cube-list h3 {
+.cube-list h3,
+.cube-mv-group h3 {
   margin: 0 0 var(--space-2);
   font-family: var(--font-serif);
   font-size: var(--text-sm);
@@ -854,6 +855,88 @@
 /* ---- friend picker (build page "Draw from" + the old collaborative-cube
    start it replaced; class names kept as cube-collab-* since both are the
    same "pick up to 3 friends" control) ---- */
+
+/* ---- build my version ---- */
+.cube-build-mine {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border);
+}
+.cube-build-mine-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  max-width: 60ch;
+}
+.cube-my-version {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.cube-mv-group {
+  margin-bottom: var(--space-4);
+}
+/* Two-sided substitution row — art + name on each side, both always
+   labelled (STYLE_GUIDE "Comparing two of anything": no bare arrow). */
+.cube-sub-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cube-sub-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
+}
+.cube-sub-side {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cube-sub-side:hover .cube-sub-name {
+    color: var(--accent);
+  }
+}
+.cube-sub-side:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cube-sub-arrow {
+  flex: none;
+  color: var(--text-muted);
+}
+.cube-sub-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+.cube-sub-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ---- collaborative cube ---- */
 
 .cube-collab-fieldset {
   border: 1px solid var(--border);

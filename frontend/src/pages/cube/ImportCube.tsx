@@ -3,6 +3,9 @@ import { Tabs } from '../../components/Tabs';
 import { StackedBar } from '../../components/shared/MeterBar';
 import { CardPreview } from '../../components/CardPreview';
 import type { EnrichedCard } from '../../types';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { userMessage } from '@/lib/user-error';
+import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import {
   fetchCubeCobraCube,
   overlayOwnership,
@@ -10,6 +13,12 @@ import {
   OwnershipOverlay,
   CubeImportError,
 } from '../../lib/cube/import';
+import {
+  buildMyVersion,
+  type BuildMyVersionResult as BuildMyVersionData,
+} from '../../lib/cube/build-my-version';
+import { useOwnedCubePool } from './use-owned-cube-pool';
+import { BuildMyVersionResult } from './BuildMyVersionResult';
 import {
   useOwnershipFor,
   CubeLoadingBlock,
@@ -20,6 +29,7 @@ import {
 import { Button } from '@/components/shared/Button';
 
 type OwnFilter = 'all' | 'owned' | 'in-other-deck' | 'unowned';
+type BuildStatus = 'idle' | 'working' | 'done' | 'error';
 
 export function ImportCube() {
   const { ownershipFor } = useOwnershipFor();
@@ -32,6 +42,16 @@ export function ImportCube() {
   const [filter, setFilter] = useState<OwnFilter>('all');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
+  const { load: loadOwnedPool, hasCollection } = useOwnedCubePool();
+  const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
+  const [buildError, setBuildError] = useState('');
+  const [buildFetchProgress, setBuildFetchProgress] = useState<{
+    fetched: number;
+    total: number;
+  } | null>(null);
+  const [myVersion, setMyVersion] = useState<BuildMyVersionData | null>(null);
+  const [myVersionEnriched, setMyVersionEnriched] = useState<Map<string, ScryfallCard>>(new Map());
+
   const run = useCallback(async () => {
     if (!url.trim()) return;
     setStatus('working');
@@ -41,11 +61,35 @@ export function ImportCube() {
       const overlay = overlayOwnership(cube.cards, ownershipFor);
       setResult({ cube, overlay });
       setStatus('done');
+      setBuildStatus('idle');
+      setMyVersion(null);
     } catch (e) {
       setError(e instanceof CubeImportError ? e.message : "Couldn't import that cube.");
       setStatus('error');
     }
   }, [url, ownershipFor]);
+
+  const buildMine = useCallback(async () => {
+    if (!result) return;
+    setBuildStatus('working');
+    setBuildError('');
+    setBuildFetchProgress(null);
+    try {
+      const pool = await loadOwnedPool((fetched, total) =>
+        setBuildFetchProgress({ fetched, total })
+      );
+      setBuildFetchProgress(null);
+      const mine = buildMyVersion(result.cube, pool);
+      const names = [...new Set(mine.cube.picks.map((p) => p.card.name))];
+      const enriched = await getCardsByNames(names);
+      setMyVersion(mine);
+      setMyVersionEnriched(enriched);
+      setBuildStatus('done');
+    } catch (e) {
+      setBuildError(userMessage(e, "Couldn't build your version. Try again."));
+      setBuildStatus('error');
+    }
+  }, [result, loadOwnedPool]);
 
   const rows = useMemo(() => {
     if (!result) return [];
@@ -232,6 +276,54 @@ export function ImportCube() {
             />
           )}
         </section>
+      )}
+
+      {status === 'done' && result && (
+        <div className="cube-build-mine">
+          {hasCollection ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={buildMine}
+                disabled={buildStatus === 'working'}
+              >
+                {buildStatus === 'working'
+                  ? 'Building…'
+                  : myVersion
+                    ? 'Build my version again'
+                    : 'Build my version'}
+              </button>
+              <p className="cube-build-mine-hint">
+                Keeps every card you own from this list, substitutes your closest match for the
+                rest, and leaves anything left over for your want list.
+              </p>
+            </>
+          ) : (
+            <p className="cube-import-hint">
+              Import your collection first, so "Build my version" has something to draw from.
+            </p>
+          )}
+        </div>
+      )}
+
+      <div aria-live="polite" aria-atomic="true">
+        {buildStatus === 'working' && (
+          <CubeLoadingBlock
+            fetchProgress={buildFetchProgress}
+            lookupLabel="Looking up your cards"
+            finalizingLabel="Matching the cube to your collection…"
+          />
+        )}
+        {buildStatus === 'error' && <CubeErrorBlock error={buildError} onRetry={buildMine} />}
+      </div>
+
+      {buildStatus === 'done' && myVersion && result && (
+        <BuildMyVersionResult
+          imported={result.cube}
+          result={myVersion}
+          enrichedMap={myVersionEnriched}
+        />
       )}
     </div>
   );
