@@ -6,7 +6,7 @@
   position: sticky;
   top: 0;
   height: 0;
-  z-index: 5; /* above list content, below the header + overlays */
+  z-index: var(--z-refresh); /* over sticky page chrome, under the header + sheets */
   display: flex;
   justify-content: center;
   pointer-events: none;

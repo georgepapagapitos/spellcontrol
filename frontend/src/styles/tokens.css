@@ -217,6 +217,11 @@
   /* ── Z-index scale ───────────────────────────────────────────────────── */
   --z-dropdown: 50;
   --z-popover: 60;
+  /* Pull-to-refresh spinner. It descends from the top of `.app-main`, the edge
+     every sticky page strip pins to (hub tabs, search rows, table heads, all
+     at or under --z-popover), so it has to clear that tier while staying under
+     the app frame and every sheet. pull-to-refresh-stacking.test.ts guards it. */
+  --z-refresh: 90;
   --z-panel: 100;
   --z-sheet-bg: 110;
   --z-sheet-fg: 111;
