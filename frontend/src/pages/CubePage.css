@@ -503,6 +503,76 @@
   color: var(--text-muted);
 }
 
+/* ---- cube health ---- */
+/* Every measure the generator shapes toward (curve, types, roles, fixing),
+   read back against the same corpus band shown in "Where your collection
+   lands". Auto-fit grids reflow to one column on phone with no extra
+   breakpoint; rows carry no interactive controls, so no touch-target rule
+   applies. */
+.cube-health {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.cube-health h3 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cube-health-sub {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.cube-health-group h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cube-health-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+.cube-health-rows--single {
+  grid-template-columns: minmax(min(100%, 200px), 320px);
+}
+.cube-health-row {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cube-health-row-label {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.cube-health-row-caption {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cube-health-row-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--warn-text);
+}
+
 /* ---- sample pack ---- */
 /* Closed by default (STYLE_GUIDE "index-page insight strips": never displace
    the page's primary content) — opening it draws the first pack, so it never
