@@ -1894,8 +1894,12 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
     gesture a reader makes most, and pinch-zoom starts with it. Empty space
     closes (the backdrop, the stage, the gaps between slides, the top bar), a
     neighbour centers, and on touch a tap on the card lowers a raised sheet.
-  - **Neighbours recede under a dark wash and `scale(.94)`, never opacity.**
-    A see-through neighbour let the page behind read through it. The binder
+  - **Neighbours recede under a dark wash only: never opacity, never a
+    transform.** A see-through neighbour let the page behind read through it.
+    A slide is a scroll-snap target, and `scrollIntoView` and the snap both
+    centre its transformed box, so the `scale(.94)` #2259 shipped left every
+    arrow-key or neighbour-click page turn 17.5px off centre (guarded in
+    `binder-page-sizing.test.ts` and the journey's centring check). The binder
     page viewer uses the same wash. The backdrop is 90% (the old 60% left a
     field of cards competing with the one being read). In the split the stage
     fades into both edges, so the inspector never slices a neighbour.

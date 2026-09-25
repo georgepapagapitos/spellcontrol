@@ -111,4 +111,23 @@ describe('binder page viewer surface', () => {
     // arrows, so page 1 showed a dead left arrow and no right one.
     expect(blocks(css, '.carousel-nav:disabled').join(';')).toMatch(/opacity:\s*0/);
   });
+
+  // 2026-09-25: the card preview's neighbours were `scale(0.94)`. A slide is a
+  // scroll-snap target, and scrollIntoView and the snap both centre its
+  // TRANSFORMED box, so every arrow-key / neighbour-click page turn stopped 3%
+  // of a card width short and left the card 17.5px off centre once it grew
+  // back. Neighbours recede by the ::after wash only; the slide itself never
+  // takes a transform, in any state, in either viewer.
+  it('no carousel slide is ever transformed (it is a snap target)', () => {
+    const offenders: string[] = [];
+    for (const m of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const slideSelectors = m[1]
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => /\.(card-preview|binder-pages)-slide(?![\w-])(?!.*::)[^ >~+]*$/.test(s));
+      if (slideSelectors.length && /(^|;|\s)(transform|scale|translate|rotate)\s*:/.test(m[2]))
+        offenders.push(slideSelectors.join(', '));
+    }
+    expect(offenders).toEqual([]);
+  });
 });
