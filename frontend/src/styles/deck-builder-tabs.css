@@ -14,7 +14,16 @@
   border: 0.5px solid var(--border);
 }
 
+/* A scrollable strip hugs its tabs. `.sc-tabs` is a block-level flex box, so
+   left alone it stretches to whatever it sits in and paints a track across the
+   whole panel with two tabs huddled at its left (the deck Power tab's Combos,
+   the collection combos page). `max-width` keeps the horizontal scroll when the
+   tabs outrun the row; `align-self` because a column flexbox parent stretches
+   its children regardless. The shared `.segmented` track does the same. */
 .sc-tabs--scrollable {
+  width: fit-content;
+  max-width: 100%;
+  align-self: flex-start;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none; /* Firefox */

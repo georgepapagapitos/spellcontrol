@@ -45,12 +45,23 @@ describe('settings-card-body children keep their intrinsic width', () => {
   }
 });
 
-// The shared SegmentedControl lands in any column flexbox (the cube
-// workshop's `.cube-size` stretched its Draft / Commander track across the
-// panel, 2026-09-25), so the opt-out lives on the component, not per parent.
-describe('the shared segmented track keeps its intrinsic width', () => {
-  it('.segmented opts out of the column stretch', () => {
-    const css = readFileSync(join(here, '../components/shared/form.css'), 'utf8');
-    expect(ruleBody(css, '.segmented')).toMatch(/align-self:\s*flex-start|width:\s*fit-content/);
-  });
+// The shared boxed tracks land in any parent (the cube workshop's
+// `.cube-size` stretched the Draft / Commander segmented track across the
+// panel; the deck Power tab's Combos strip ran "In deck / One card away" the
+// full panel width, both 2026-09-25), so the opt-out lives on the primitive,
+// not per parent. `fitted` Tabs are exempt: equal segments filling the row is
+// what that variant is for.
+const SHARED_TRACKS: Array<[file: string, selector: string]> = [
+  ['../components/shared/form.css', '.segmented'],
+  ['deck-builder-tabs.css', '.sc-tabs--scrollable'],
+];
+
+describe('the shared boxed tracks keep their intrinsic width', () => {
+  for (const [file, selector] of SHARED_TRACKS) {
+    it(`${selector} hugs its content, capped at the row`, () => {
+      const body = ruleBody(readFileSync(join(here, file), 'utf8'), selector);
+      expect(body).toMatch(/width:\s*fit-content/);
+      expect(body).toMatch(/max-width:\s*100%/);
+    });
+  }
 });
