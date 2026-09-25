@@ -5684,9 +5684,10 @@ They are two different facts and the copy never blurs them into one:
   a named tier" rule above) and, only when the Estimate disagrees, a second
   line reads "Estimate: Bracket 4 · Optimized" beneath it.
 - The estimate's hard-floor reasons ("because: …") always show, whether or
-  not a bracket is stated — they explain the Estimate, not the headline, so
-  the panel prefixes them "estimate because: …" once a stated bracket makes
-  that distinction necessary.
+  not a bracket is stated — they explain the Estimate, not the headline.
+  They sit directly under whichever line shows the Estimate, so a plain
+  "because: …" reads as belonging to it; don't prefix "estimate" (the line
+  above already says it, and "Estimate … estimate because" stutters).
 - **Bracket 1 (Exhibition) is never "above target."** The estimator never
   returns 1 — Exhibition is a theme-first build intent the estimator can't
   confirm from card content, so it floors at Core (2) (`CORE_BASELINE` in
@@ -5700,7 +5701,10 @@ They are two different facts and the copy never blurs them into one:
   names where the Estimate comes from — `'contents'` (a hard floor set it),
   `'power'` (the power signal lifted it past its floor, bump or cEDH alike),
   or `'baseline'` (neither fired; it sits at Core by default) — and the
-  Bracket panel says so in one plain sentence next to the verdict strip.
+  Bracket panel says so in one plain sentence next to the verdict strip. The
+  sentence always names the Estimate ("The estimate comes from what's in the
+  list."): under a strip that shows a stated B2, "Set by what's in the list"
+  read as if the list had set the owner's number.
   `bracketBorderline(est)` flags when the power signal sits within
   `SOFT_SCORE.borderlineWithin` of the threshold that could move the deck;
   render it as a compact neutral "Borderline N/M" pill (the Tag chips plate:

@@ -46,7 +46,7 @@ describe('PowerHero', () => {
   it('drops the "manual" tag and still shows the reasons, labeled as the estimate', () => {
     renderHero({ bracketOverridden: true });
     expect(screen.queryByText('manual')).toBeNull();
-    expect(hasText(/^estimate because: 2 game changers, 1 combo, 8 tutors$/)).toBe(true);
+    expect(hasText(/^because: 2 game changers, 1 combo, 8 tutors$/)).toBe(true);
   });
 
   it('shows an Estimate line only when it differs from the stated bracket', () => {

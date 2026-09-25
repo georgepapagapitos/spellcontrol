@@ -277,10 +277,7 @@ export function PowerHero({
             </p>
           )}
           {showReasons && (
-            <p className="power-hero-because">
-              {bracketOverridden ? 'estimate because: ' : 'because: '}
-              {bracketReasons.slice(0, 3).join(', ')}
-            </p>
+            <p className="power-hero-because">because: {bracketReasons.slice(0, 3).join(', ')}</p>
           )}
           {bracketIsFloor && (
             <p className="power-hero-because">

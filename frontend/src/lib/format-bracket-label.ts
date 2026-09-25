@@ -26,10 +26,10 @@ export const EXHIBITION_BRACKET_NOTE =
 export function bracketSourceSentence(source: 'contents' | 'power' | 'baseline'): string {
   switch (source) {
     case 'contents':
-      return "Set by what's in the list.";
+      return "The estimate comes from what's in the list.";
     case 'power':
-      return 'Raised by the power signal.';
+      return 'The power signal raised the estimate.';
     case 'baseline':
-      return 'Nothing in the list pushes it past Core.';
+      return 'Nothing in the list pushes the estimate past Core.';
   }
 }
