@@ -4,6 +4,7 @@ import {
   getPartnerWithName,
   canHavePartner,
   areValidPartners,
+  namedPartner,
   getPartnerTypeLabel,
   choosesColorBeforeGame,
   withChosenColor,
@@ -203,5 +204,39 @@ describe('choose-a-color commanders', () => {
     const bg = card({ name: 'Raised by Giants', type_line: 'Legendary Enchantment — Background' });
     expect(areValidPartners(FACELESS_ONE, bg)).toBe(true);
     expect(areValidPartners(bg, FACELESS_ONE)).toBe(true);
+  });
+});
+
+const PAKO = card({
+  name: 'Pako, Arcane Retriever',
+  type_line: 'Legendary Creature — Elemental Dog',
+  keywords: ['Partner with', 'Haste', 'Partner'],
+  oracle_text:
+    "Partner with Haldan, Avid Arcanist\nHaste\nWhenever Pako attacks, exile the top card of each player's library and put a fetch counter on each of them. Put a +1/+1 counter on Pako for each noncreature card exiled this way.",
+});
+const HALDAN = card({
+  name: 'Haldan, Avid Arcanist',
+  type_line: 'Legendary Creature — Human Wizard',
+  keywords: ['Partner with', 'Partner'],
+  oracle_text:
+    'Partner with Pako, Arcane Retriever (When this creature enters, target player may put Pako into their hand from their library, then shuffle.)\nYou may play lands and cast noncreature spells from among cards you exiled that have fetch counters on them, and you may spend mana as though it were mana of any color to cast those spells.',
+});
+
+/** The partner a list named under its Commander header pairs only when the
+ *  rules say the two pair; anything else stays in the 99. */
+describe('namedPartner', () => {
+  it('pairs a Partner with pair the list named', () => {
+    expect(namedPartner(PAKO, HALDAN)).toBe(HALDAN);
+  });
+
+  it('refuses a card that does not pair, and a missing commander or partner', () => {
+    const solRing = card({
+      name: 'Sol Ring',
+      type_line: 'Artifact',
+      oracle_text: '{T}: Add {C}{C}.',
+    });
+    expect(namedPartner(PAKO, solRing)).toBeNull();
+    expect(namedPartner(null, HALDAN)).toBeNull();
+    expect(namedPartner(PAKO, undefined)).toBeNull();
   });
 });

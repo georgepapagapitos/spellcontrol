@@ -11,6 +11,7 @@ import { CommanderSearch } from './CommanderSearch';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
+import { namedPartner } from '@/deck-builder/lib/partnerUtils';
 import type { DeckImportResponse } from '../../types';
 import {
   normalizeFormat,
@@ -235,7 +236,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       }
       setPendingResult(result);
       setPendingCommander(commander);
-      setPendingPartner(null);
+      // A partner the list itself put under Commander arrives already picked;
+      // one found only among the cards is offered, never auto-paired.
+      setPendingPartner(namedPartner(commander, result.partner));
       setShowCommanderSearch(false);
       setStep('review');
       setIsLoading(false);
@@ -306,6 +309,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       const mergedSideboard: ScryfallCard[] = [];
       const mergedConsidering: ScryfallCard[] = [];
       let mergedCommander: ScryfallCard | null = null;
+      let mergedPartner: ScryfallCard | null = null;
       let mergedCompanion: ScryfallCard | null = null;
       const unresolved: string[] = [];
       const fetchFailed: string[] = [];
@@ -318,7 +322,10 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           mergedCards.push(...r.cards);
           mergedSideboard.push(...(r.sideboard ?? []));
           mergedConsidering.push(...(r.considering ?? []));
-          if (!mergedCommander && r.commander) mergedCommander = r.commander;
+          if (!mergedCommander && r.commander) {
+            mergedCommander = r.commander;
+            mergedPartner = r.partner ?? null;
+          }
           if (!mergedCompanion && r.companion) mergedCompanion = r.companion;
           unresolved.push(...r.unresolvedNames);
           fetchFailed.push(...r.fetchErrors);
@@ -340,6 +347,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       if (failed.length > 0) setError(`Some files were skipped: ${failed.join('; ')}`);
       processSingleResult({
         commander: mergedCommander,
+        partner: mergedPartner,
         companion: mergedCompanion,
         cards: mergedCards,
         sideboard: mergedSideboard,
@@ -369,7 +377,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           name: stripExtension(file.name),
           format: fmt,
           commander,
-          partner: null,
+          partner: namedPartner(commander, r.partner),
           candidates: commanderCandidatesFor(r.cards, fmt),
           searchOpen: false,
         });

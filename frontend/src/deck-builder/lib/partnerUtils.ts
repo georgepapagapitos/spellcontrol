@@ -96,6 +96,19 @@ export function getPartnerWithName(card: ScryfallCard): string | null {
 }
 
 /**
+ * The partner a deck list itself named under its Commander header, when it
+ * really pairs with `commander` (Partner, Partner with, Friends forever, a
+ * Background). Anything else gets null and simply stays in the 99, where the
+ * import already put it, rather than being paired against the rules.
+ */
+export function namedPartner(
+  commander: ScryfallCard | null,
+  named: ScryfallCard | null | undefined
+): ScryfallCard | null {
+  return commander && named && areValidPartners(commander, named) ? named : null;
+}
+
+/**
  * Checks if a card can have a partner
  */
 export function canHavePartner(card: ScryfallCard): boolean {

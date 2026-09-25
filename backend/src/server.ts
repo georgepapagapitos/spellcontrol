@@ -507,6 +507,7 @@ app.get('/api/products/:fileName', productLimiter, async (req: Request, res: Res
 
     const deck: DeckImportResponse = {
       commander: sections.commander,
+      partner: sections.partner,
       companion: sections.companion,
       cards: sections.cards,
       unresolvedNames: dedupePreservingOrder(sections.unresolvedNames),
@@ -820,6 +821,7 @@ app.post(
 
       const response: DeckImportResponse = {
         commander: sections.commander,
+        partner: sections.partner,
         companion: sections.companion,
         cards: sections.cards,
         sideboard: sections.sideboard,

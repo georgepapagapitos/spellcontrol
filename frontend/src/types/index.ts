@@ -145,6 +145,14 @@ export interface UploadResponse {
 
 export interface DeckImportResponse {
   commander: import('@/deck-builder/types').ScryfallCard | null;
+  /**
+   * The second card the list put under its Commander header (a partner, a
+   * Background). The server also puts it in `cards`, so ignoring this field
+   * never loses the card; it only says which one the list named. Pair it
+   * through `namedPartner`, which checks it really pairs. Optional: an older
+   * server omits it.
+   */
+  partner?: import('@/deck-builder/types').ScryfallCard | null;
   companion: import('@/deck-builder/types').ScryfallCard | null;
   cards: import('@/deck-builder/types').ScryfallCard[];
   /** Format sideboard rows ("Sideboard" header). Absent/empty when the input had none. */
