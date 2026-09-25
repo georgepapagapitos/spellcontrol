@@ -3206,8 +3206,8 @@ never shows the chooser.
   counts `role="switch"` outside the kit, `aria-pressed={a === b}` (an
   exclusive choice on toggle buttons) and native `<select>` per file. A new
   file with one, or a higher count in a listed one, fails. Every listed file
-  names the ruling that keeps it, or is debt tracked as board E423 that only
-  ever shrinks.
+  names the ruling that keeps it; the rollout's leftover debt (E423) is
+  cleared, so a new match is fixed with the kit, never allowlisted.
 - **An option that can't be picked right now stays in the group, disabled,
   with the reason in view** (`Option.disabled`, on `SegmentedControl` and
   `ChoiceList`). Hiding it teaches that the choice doesn't exist; greying it

@@ -19,22 +19,27 @@ function moveButton(cardName: string) {
   return screen.getByRole('button', { name: new RegExp(`^${cardName}: Move`) });
 }
 
+const countMenu = () => screen.getByRole('button', { name: 'Number of cards to look at' });
+
+/** Opens the count menu and picks a count — the SelectMenu jump-to-value path. */
+function pickCount(n: number) {
+  fireEvent.click(countMenu());
+  fireEvent.click(screen.getByRole('option', { name: `${n} card${n === 1 ? '' : 's'}` }));
+}
+
 describe('ScrySheet', () => {
-  it('opens on scry looking at one card, all of it kept on top', () => {
+  it('opens on scry looking at one card, all of it kept on top, the count as a menu button not a native select', () => {
     renderSheet();
-    expect(screen.getByRole('combobox', { name: 'Number of cards to look at' })).toHaveProperty(
-      'value',
-      '1'
-    );
+    expect(countMenu().textContent).toContain('1 card');
+    expect(document.querySelector('select')).toBeNull();
     expect(screen.getByRole('list', { name: 'Top of library' }).textContent).toContain('Card 0');
     expect(screen.getByRole('button', { name: 'Scry 1' })).toBeTruthy();
   });
 
-  it('jumps straight to a count from the select (Ponder = 3 in two taps)', () => {
+  it('jumps straight to a count from the menu (Ponder = 3 in two taps)', () => {
     const onResolve = renderSheet();
-    fireEvent.change(screen.getByRole('combobox', { name: 'Number of cards to look at' }), {
-      target: { value: '3' },
-    });
+    pickCount(3);
+    expect(countMenu().textContent).toContain('3 cards');
     expect(screen.getByRole('list', { name: 'Top of library' }).textContent).toContain('Card 2');
     fireEvent.click(screen.getByRole('checkbox', { name: /^Shuffle/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Scry 3, then shuffle' }));
@@ -48,9 +53,7 @@ describe('ScrySheet', () => {
 
   it('draws chosen cards into hand as an unordered chip row (Impulse)', () => {
     const onResolve = renderSheet();
-    fireEvent.change(screen.getByRole('combobox', { name: 'Number of cards to look at' }), {
-      target: { value: '3' },
-    });
+    pickCount(3);
     fireEvent.click(screen.getByRole('button', { name: 'Card 1: Put in hand' }));
     expect(screen.getByRole('list', { name: 'To hand' }).textContent).toContain('Card 1');
     expect(screen.getByRole('list', { name: 'Top of library' }).textContent).not.toContain(
@@ -88,10 +91,7 @@ describe('ScrySheet', () => {
   it('steps the peeked window and re-deals the columns', () => {
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Look at one more card' }));
-    expect(screen.getByRole('combobox', { name: 'Number of cards to look at' })).toHaveProperty(
-      'value',
-      '2'
-    );
+    expect(countMenu().textContent).toContain('2 cards');
     expect(screen.getByRole('list', { name: 'Top of library' }).textContent).toContain('Card 1');
   });
 

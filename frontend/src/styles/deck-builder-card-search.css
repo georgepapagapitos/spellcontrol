@@ -350,30 +350,6 @@
   gap: var(--space-2);
 }
 
-.card-search-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  flex: none;
-}
-
-.card-search-sort select {
-  font-size: var(--text-xs);
-  color: var(--text-primary);
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.15rem 0.3rem;
-}
-
-@media (pointer: coarse) {
-  .card-search-sort select {
-    min-height: 36px;
-  }
-}
-
 /* Row card thumbnail — a portrait MINI CARD (full card image, ≈0.72 aspect),
    not an art crop, so the card is recognizable at a glance. It spans both grid
    rows (name + meta), setting the row height; the + button spans too so it

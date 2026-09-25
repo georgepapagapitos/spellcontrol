@@ -335,18 +335,7 @@
 }
 
 .import-deck-draft-format {
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
   flex-shrink: 0;
-}
-
-.import-deck-draft-format:focus {
-  outline: none;
-  border-color: var(--accent);
 }
 
 .import-deck-draft-commander {

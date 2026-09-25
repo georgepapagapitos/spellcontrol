@@ -29,6 +29,7 @@ import {
 } from '../../lib/google-picker';
 import { usePublishOnCreate, type PublishOutcome } from '../../lib/use-publish-on-create';
 import { VisibilityChoice } from '../VisibilityChoice';
+import { SelectMenu, type SelectOption } from '../SelectMenu';
 
 import {
   MAX_STAGED_FILES as MAX_FILES,
@@ -50,6 +51,10 @@ type Step = 'input' | 'parsing' | 'batch' | 'review';
 type BatchMode = 'separate' | 'merge';
 
 const FORMATS = Object.keys(DECK_FORMAT_CONFIGS) as DeckFormat[];
+const FORMAT_OPTIONS: SelectOption<DeckFormat>[] = FORMATS.map((f) => ({
+  value: f,
+  label: DECK_FORMAT_CONFIGS[f].label,
+}));
 
 /**
  * A parsed-but-not-yet-saved deck. The user can edit name / format / commander
@@ -915,18 +920,13 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                         maxLength={DECK_NAME_MAX}
                         aria-label={`Deck name for ${d.fileName}`}
                       />
-                      <select
+                      <SelectMenu<DeckFormat>
                         className="import-deck-draft-format"
+                        ariaLabel={`Format for ${d.name}`}
                         value={d.format}
-                        onChange={(e) => changeDraftFormat(d.key, e.target.value as DeckFormat)}
-                        aria-label={`Format for ${d.name}`}
-                      >
-                        {FORMATS.map((f) => (
-                          <option key={f} value={f}>
-                            {DECK_FORMAT_CONFIGS[f].label}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(f) => changeDraftFormat(d.key, f)}
+                        options={FORMAT_OPTIONS}
+                      />
                     </div>
                     <div className="import-deck-summary-meta">
                       <span>
