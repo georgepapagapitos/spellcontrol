@@ -3749,9 +3749,13 @@ button.playtest-card-pt__value--editable:focus-visible {
 }
 
 /* The lift is on the card's wrapper (card + cost badge together), so the
-   slot keeps the fan rotation and the neighbours never move. */
+   slot keeps the fan rotation and the neighbours never move.
+
+   Keyboard focus only (`:focus-visible`), never `:focus-within`: a right-click
+   focuses the card and its menu hands focus back on close, so any focus left
+   the card raised and ringed after the pointer had moved on. */
 .playtest-hand--fan .playtest-hand__slot:hover,
-.playtest-hand--fan .playtest-hand__slot:focus-within {
+.playtest-hand--fan .playtest-hand__slot:has(:focus-visible) {
   z-index: 60;
 }
 
@@ -3774,11 +3778,11 @@ button.playtest-card-pt__value--editable:focus-visible {
   }
 }
 
-.playtest-hand--fan .playtest-hand__slot:focus-within .playtest-hand__lift {
+.playtest-hand--fan .playtest-hand__slot:has(:focus-visible) .playtest-hand__lift {
   transform: translateY(calc(var(--pt-card-h) * -0.38 - 12px));
 }
 
-.playtest-hand--fan .playtest-hand__slot:focus-within .playtest-card {
+.playtest-hand--fan .playtest-hand__slot:has(:focus-visible) .playtest-card {
   box-shadow:
     0 0 0 2px var(--accent),
     var(--shadow-modal);
