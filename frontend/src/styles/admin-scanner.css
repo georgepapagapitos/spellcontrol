@@ -264,11 +264,12 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  /* Full-bleed camera, the way the native preview looked. The stream
-     arrives portrait on a portrait phone (see startCamera's constraints),
-     so cover trims only a sliver of the sides. `contain` letterboxed it
-     into a thin band. CardScanner's computeDisplayRect assumes cover. */
-  object-fit: cover;
+  /* The whole camera frame, like a phone's camera app: the 4:3 portrait
+     stream runs full width with black bars above and below, where the
+     corner controls and the last-scan panel sit. `cover` filled the screen
+     by cropping a third of the width off, which read as zoomed in.
+     CardScanner's computeDisplayRect assumes contain. */
+  object-fit: contain;
   background: #000;
 }
 
