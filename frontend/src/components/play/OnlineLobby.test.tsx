@@ -140,6 +140,17 @@ describe('OnlineLobby', () => {
     expect(within(seats[0]).getByLabelText('Host')).toBeTruthy();
   });
 
+  it('shows a seated bracket computed on the OWNER’s device, for any seat (E370)', () => {
+    const game = table(2);
+    game.players[1] = seat(1, { bracket: 4 });
+    renderLobby(game, 'u0');
+    const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');
+    // u0 is viewing; seat 1 (someone else's deck) still shows the bracket
+    // that seat's own device published — no local recompute required.
+    expect(within(seats[1]).getByText('Bracket 4')).toBeTruthy();
+    expect(within(seats[0]).queryByText(/^Bracket /)).toBeNull();
+  });
+
   it('states readiness in words, not only in colour', () => {
     const game = applyAction(table(2), { type: 'set-ready', actorSeat: 0, ready: true });
     renderLobby(game);

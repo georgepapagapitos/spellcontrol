@@ -102,6 +102,7 @@ export function OnlineLobby({
         commander: picked?.commander ?? null,
         partner: picked?.partner ?? null,
         colorIdentity: picked?.colorIdentity ?? [],
+        bracket: picked?.bracket ?? null,
       },
     });
 
@@ -386,7 +387,7 @@ function SeatCard({
   player,
   isHost,
   isMe,
-  bracket,
+  bracket: ownBracket,
   estimatedBracket,
   bracketOverridden,
   manage,
@@ -394,8 +395,9 @@ function SeatCard({
   player: GamePlayer;
   isHost: boolean;
   isMe: boolean;
-  /** Only ever set for your own seat: the state carries no bracket for anyone
-   *  else's deck, and a guessed one would be a number the table argues over. */
+  /** Your own seat's bracket, read from your own deck (fresher than the
+   *  published number, and the one the estimate below is measured against).
+   *  Every other seat falls back to the bracket its owner published. */
   bracket?: number;
   /** The auto-estimate, independent of `bracket` — shown alongside it
    *  whenever it differs and `bracket` is a stated bracket, not Auto
@@ -406,6 +408,11 @@ function SeatCard({
   /** Set when the viewer is the host and this is a guest seat they manage. */
   manage?: { decks: Deck[]; dispatch: (action: GameAction) => void };
 }) {
+  // Board E370: every seat publishes its own computed bracket (the device that
+  // owns the deck ran the estimator and sent the number with deckId/commander),
+  // so another player's seat shows theirs too. Your own seat reads your deck
+  // directly. Null/absent means "no known bracket": never guessed.
+  const bracket = ownBracket ?? player.bracket ?? undefined;
   const art = useCardThumb(player.commander ?? undefined, 'art_crop');
   const ready = player.ready === true;
   const isGuest = player.userId === null;
@@ -448,6 +455,7 @@ function SeatCard({
                     commander: picked?.commander ?? null,
                     partner: picked?.partner ?? null,
                     colorIdentity: picked?.colorIdentity ?? [],
+                    bracket: picked?.bracket ?? null,
                   },
                 })
               }

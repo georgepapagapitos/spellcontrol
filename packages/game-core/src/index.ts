@@ -112,6 +112,19 @@ export interface GamePlayer {
   colorIdentity: string[];
   /** Player-chosen panel color override (W/U/B/R/G/M/C) or null to auto. */
   panelColorKey: string | null;
+  /**
+   * This seat's Commander bracket (1-5), computed CLIENT-SIDE from the seated
+   * deck (the device that owns the deck runs the estimator; the server never
+   * sees a deck's cards). Null/absent means "no known bracket" — no deck
+   * seated yet, a non-Commander deck, or a deck whose estimate hasn't been
+   * computed on its owner's device — and must render as a neutral state,
+   * never a guess. Display only, like `commander`/`partner`.
+   *
+   * OPTIONAL by design, same as `ready`: every row written before this field
+   * existed reads `undefined`, which means exactly what `null` means, so
+   * nothing needed migrating.
+   */
+  bracket?: 1 | 2 | 3 | 4 | 5 | null;
   life: number;
   poison: number;
   /**
@@ -372,6 +385,7 @@ export type GameAction =
           | 'partner'
           | 'colorIdentity'
           | 'panelColorKey'
+          | 'bracket'
           | 'connected'
         >
       >;
@@ -844,6 +858,7 @@ export function makePlayer(input: {
   commander?: string | null;
   partner?: string | null;
   colorIdentity?: string[];
+  bracket?: 1 | 2 | 3 | 4 | 5 | null;
   startingLife: number;
   isHost?: boolean;
   connected?: boolean;
@@ -859,6 +874,7 @@ export function makePlayer(input: {
     partner: input.partner ?? null,
     colorIdentity: input.colorIdentity ?? [],
     panelColorKey: null,
+    bracket: input.bracket ?? null,
     life: input.startingLife,
     poison: 0,
     commanderDamage: {},

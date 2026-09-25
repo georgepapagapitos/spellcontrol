@@ -1251,6 +1251,7 @@ function OnlineSetup({
     hostCommander: string | null;
     hostPartner: string | null;
     hostColorIdentity: string[];
+    hostBracket: 1 | 2 | 3 | 4 | 5 | null;
     name: string;
     visibility: GameState['visibility'];
   }) => void;
@@ -1263,6 +1264,7 @@ function OnlineSetup({
       commander: string | null;
       partner: string | null;
       colorIdentity: string[];
+      bracket: 1 | 2 | 3 | 4 | 5 | null;
     }
   ) => void;
   onWatch: (code: string) => void;
@@ -1318,6 +1320,7 @@ function OnlineSetup({
               commander: deck?.commander ?? null,
               partner: deck?.partner ?? null,
               colorIdentity: deck?.colorIdentity ?? [],
+              bracket: deck?.bracket ?? null,
             })
           }
           onWatch={onWatch}
@@ -1339,6 +1342,7 @@ function OnlineSetup({
               hostDeckName: deck?.name ?? null,
               hostCommander: deck?.commander ?? null,
               hostPartner: deck?.partner ?? null,
+              hostBracket: deck?.bracket ?? null,
               name: tableName.trim(),
               visibility,
             });
@@ -1458,6 +1462,7 @@ function OnlineSetup({
               commander: deck?.commander ?? null,
               partner: deck?.partner ?? null,
               colorIdentity: deck?.colorIdentity ?? [],
+              bracket: deck?.bracket ?? null,
             });
           }}
         >

@@ -21,6 +21,7 @@ function row(overrides: Partial<GameListing> = {}): GameListing {
     seated: 2,
     max: 8,
     joinable: true,
+    bracket: null,
     ...overrides,
   };
 }
@@ -86,5 +87,26 @@ describe('RoomBrowser', () => {
       expect(screen.getByText(/Pauper/)).toBeTruthy();
     });
     expect(screen.getByText(/3\/8 seated/)).toBeTruthy();
+  });
+
+  it('shows a single computed bracket when every seated deck agrees', async () => {
+    mockListGames.mockResolvedValue([row({ bracket: { min: 3, max: 3 } })]);
+    render(<RoomBrowser onJoin={vi.fn()} onWatch={vi.fn()} onHostInstead={vi.fn()} />);
+    expect(await screen.findByText('Bracket 3')).toBeTruthy();
+  });
+
+  it('shows a bracket range when seated decks disagree', async () => {
+    mockListGames.mockResolvedValue([row({ bracket: { min: 2, max: 4 } })]);
+    render(<RoomBrowser onJoin={vi.fn()} onWatch={vi.fn()} onHostInstead={vi.fn()} />);
+    expect(await screen.findByText('Bracket 2-4')).toBeTruthy();
+  });
+
+  it('shows no bracket badge when no seated deck has a known one', async () => {
+    mockListGames.mockResolvedValue([row({ bracket: null })]);
+    const { container } = render(
+      <RoomBrowser onJoin={vi.fn()} onWatch={vi.fn()} onHostInstead={vi.fn()} />
+    );
+    await screen.findByText('Bracket 3 chill');
+    expect(container.querySelector('.room-browser-bracket')).toBeNull();
   });
 });

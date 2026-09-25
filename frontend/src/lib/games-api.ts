@@ -38,6 +38,8 @@ export interface CreateGameInput {
   hostCommander?: string | null;
   hostPartner?: string | null;
   hostColorIdentity?: string[];
+  /** Computed client-side from the host's picked deck — see `GamePlayer.bracket`. */
+  hostBracket?: 1 | 2 | 3 | 4 | 5 | null;
   name?: string;
   visibility?: GameState['visibility'];
 }
@@ -285,6 +287,8 @@ export interface JoinGameInput {
   commander?: string | null;
   partner?: string | null;
   colorIdentity?: string[];
+  /** Computed client-side from the picked deck — see `GamePlayer.bracket`. */
+  bracket?: 1 | 2 | 3 | 4 | 5 | null;
 }
 
 export async function joinGame(code: string, input: JoinGameInput): Promise<GameState> {
@@ -334,6 +338,12 @@ export interface GameListing {
    *  separate affordance (available once `status` is 'active') and doesn't
    *  depend on this flag. */
   joinable: boolean;
+  /**
+   * Board E370: the computed Commander bracket range across seated decks
+   * that have one — `min === max` for a single known bracket, null when
+   * nobody seated has one yet. Never a guess; render nothing when null.
+   */
+  bracket: { min: 1 | 2 | 3 | 4 | 5; max: 1 | 2 | 3 | 4 | 5 } | null;
 }
 
 /** List public, live, non-stale games for the room browser. */

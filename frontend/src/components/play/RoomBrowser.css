@@ -54,6 +54,10 @@
   font-size: var(--text-sm);
 }
 
+.room-browser-bracket {
+  font-style: italic;
+}
+
 .room-browser-live {
   font-size: var(--text-xs);
   font-weight: 700;

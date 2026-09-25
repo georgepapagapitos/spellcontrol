@@ -97,8 +97,17 @@ describe('your own decks', () => {
       commander: 'Atraxa, Praetors’ Voice',
       partner: null,
       colorIdentity: ['W', 'U', 'B', 'G'],
+      bracket: null,
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("carries the deck's known bracket (board E370)", () => {
+    const { onPick } = open({
+      decks: [deck({ bracketOverride: 4 })],
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Atraxa/ }));
+    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ bracket: 4 }));
   });
 
   it('filters by name and by commander', () => {
@@ -201,6 +210,7 @@ describe('the starter catalog', () => {
       commander: 'Hazel of the Rootbloom',
       partner: null,
       colorIdentity: ['G', 'W'],
+      bracket: null,
     });
   });
 

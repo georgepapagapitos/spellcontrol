@@ -173,6 +173,7 @@ describe('games-api', () => {
         seated: 2,
         max: 8,
         joinable: true,
+        bracket: { min: 3, max: 3 },
       },
     ];
     fetchSpy.mockResolvedValueOnce(json({ games }));
