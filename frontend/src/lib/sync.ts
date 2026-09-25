@@ -12,6 +12,7 @@ import {
 } from './auth-api';
 import * as queue from './mutation-queue';
 import * as estore from './entity-store';
+import { clearAnalysisCache } from './deck-analysis-cache';
 import type { EntityKind } from './entity-store';
 import { applyPrices, setPrices, priceKey } from './card-prices';
 import { fetchOracleIds } from './api/combos';
@@ -436,6 +437,8 @@ export async function stopSyncAndWipeLocal(): Promise<void> {
 async function stopSyncAndWipeLocalInternal(): Promise<void> {
   await queue.clear();
   await estore.wipeAll();
+  // The device's copy of each deck's analysis names the account's cards.
+  await clearAnalysisCache();
   clearCursor();
   clearOwner();
   currentOwnerId = null;
