@@ -15,6 +15,7 @@ import {
   countsTowardComboFloor,
   floorsAtFourAlone,
   needsUnnamedCard,
+  ratingOnlyComboFloor,
   estimateBracket,
   floorOf,
   softScorePoints,
@@ -489,5 +490,64 @@ describe('cEDH needs Game Changers as well as a high power signal', () => {
     const r = estimateBracket(names, [combo], 1.5, undefined, {}, gc, tags);
     expect(r.softScore).toBeGreaterThanOrEqual(80);
     expect(r.bracket).toBe(4);
+  });
+});
+
+// The Atraxa list four calculators split 2–2 on (2026-09-25): Ruthless
+// two-card combos, 2 tutors, 1 fast mana. Tags as the dataset carries them.
+describe('a Bracket 4 that rests on the Ruthless rating alone', () => {
+  const atraxa = [
+    sb(["Magistrate's Scepter", 'Ichormoon Gauntlet'], 'R'),
+    sb(["Magistrate's Scepter", 'Viral Drake'], 'R'),
+    sb(['Teferi, Temporal Archmage', 'The Chain Veil'], 'S'),
+    sb(['Teferi, Who Slows the Sunset', 'The Chain Veil'], 'S'),
+  ];
+
+  it('stays Bracket 4, names the combo, and reads borderline 3', () => {
+    const r = estimate(atraxa, { tutors: 2 });
+    expect(r.bracket).toBe(4);
+    const floor = r.hardFloors.find((f) => f.bracket === 4)!;
+    expect(floor.reason).toBe(
+      "Commander Spellbook rates the Magistrate's Scepter + Ichormoon Gauntlet combo Ruthless (and 1 more)"
+    );
+    expect(floor.ruthlessCombos).toEqual([
+      ["Magistrate's Scepter", 'Ichormoon Gauntlet'],
+      ["Magistrate's Scepter", 'Viral Drake'],
+    ]);
+    expect(ratingOnlyComboFloor(r)).toBe(floor);
+    expect(bracketBorderline(r)).toBe(3);
+  });
+
+  it('stays a judgment call on tutors alone: speed needs fast mana too', () => {
+    expect(ratingOnlyComboFloor(estimate(atraxa, { tutors: 6 }))).not.toBeNull();
+  });
+
+  it('is not a judgment call once tutors and fast mana make the combo fast', () => {
+    const fast = ['Mana Crypt', 'Mana Vault', 'Chrome Mox'];
+    const tutors = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
+    const tags: TagLookup = {
+      ...noTags,
+      hasTag: (name, tag) => tag === 'tutor' && tutors.includes(name),
+      getCardRole: (name) => (tutors.includes(name) ? 'cardDraw' : null),
+    };
+    const names = [...new Set([...atraxa.flatMap((c) => c.cards), ...fast, ...tutors])];
+    const r = estimateBracket(names, atraxa, 3.4, undefined, {}, new Set(), tags);
+    expect(r.bracket).toBe(4);
+    expect(ratingOnlyComboFloor(r)).toBeNull();
+    expect(r.hardFloors.find((f) => f.bracket === 4)!.ruthlessCombos).toBeUndefined();
+  });
+
+  it('is not a judgment call when the commander is a piece', () => {
+    const r = estimate(atraxa, { commanders: ["Magistrate's Scepter"] });
+    expect(ratingOnlyComboFloor(r)).toBeNull();
+  });
+
+  it('is not a judgment call when another floor also holds the deck at 4', () => {
+    const r = estimate(atraxa, { tutors: 2 });
+    const withMld: BracketEstimation = {
+      ...r,
+      hardFloors: [...r.hardFloors, { bracket: 4, reason: 'Mass land denial (Armageddon)' }],
+    };
+    expect(ratingOnlyComboFloor(withMld)).toBeNull();
   });
 });

@@ -6137,6 +6137,39 @@ They are two different facts and the copy never blurs them into one:
     stated, estimate 4". A badge never carries its own separate aria-label;
     it rides in the tile's/row's existing accessible name.
 
+### The Bracket panel: Settled, then the Judgment (2026-09-25)
+
+Four calculators read the same list and split 2–2 on one question (is a
+Ruthless-rated two-card combo "early" in a list with two tutors?), each taking
+a side without saying so. Players trust what the rules settle and distrust
+the rest, so the panel labels which is which:
+
+- **Settled** heads the floors ("Settled · At least Bracket 3"): what the
+  rules fix. "At least" whenever the estimate sits above it or could.
+- **Judgment** appears only when the estimate is borderline
+  (`bracketBorderline`), and argues the call both ways: "Reads as 4" and
+  "Reads as 3", one line of evidence each, ours marked "Our call" in words.
+  Two sources: a Bracket 4 that rests on Spellbook's Ruthless rating alone
+  (`ratingOnlyComboFloor`: its combo is shown as Settled at 3, and the
+  question is whether it's early), or a power signal near a line. A bracket
+  the rules settle gets no Judgment block, whatever the deck.
+- The sides are hairline columns under a rule (outlines belong to controls);
+  ours takes a 2px `--accent` rule. The Settled/Judgment labels are pills;
+  Judgment wears the warn plate, the words carry the meaning.
+- **Spellbook's words get a gloss every time.** "Ruthless, its rating for
+  combos that belong at Bracket 4 and up." A player can't be expected to
+  know Spellbook's scale.
+- **The Judgment ends with the owner's answer** ("Which does your table play
+  it at?", a `SegmentedControl` of the two brackets). Picking one states the
+  deck's Bracket: it is the stated-bracket control, not a second feedback
+  system, so the hero reacts per the ruling above. Owner only.
+- **Tell your pod** closes the panel for the owner: one copyable sentence
+  (`lib/bracket-pod-line.ts`) with the bracket, Game Changers by name, the
+  deciding combo, land denial, extra turns, and what the deck does NOT run.
+  It speaks in the owner's voice once they state a bracket the estimate
+  disagrees with. Copy confirms with the app's toast; Share only where
+  `canShare()`.
+
 ## Full-viewport centered pages (scroll, don't clip)
 
 **Load-bearing rule — any full-viewport centered card page (auth, the `/`

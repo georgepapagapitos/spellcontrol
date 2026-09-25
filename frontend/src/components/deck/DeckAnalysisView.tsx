@@ -369,6 +369,8 @@ export function DeckAnalysisView({
                       estimation={bracketEstimation}
                       deckCardsByName={deckCardsByName}
                       combosUncounted={bracketMissesCombos}
+                      bracketOverride={bracketOverride ?? null}
+                      onSetBracketOverride={onSetBracketOverride}
                     />
                   )}
                 </div>

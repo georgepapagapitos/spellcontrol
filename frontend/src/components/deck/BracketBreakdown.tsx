@@ -2,14 +2,23 @@ import './BracketBreakdown.css';
 import type { JSX, ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { InfoTip } from '../InfoTip';
-import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { SegmentedControl } from '../shared/form';
+import type {
+  BracketEstimation,
+  BracketFloor,
+} from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import {
+  bracketBorderline,
   bracketLabel,
   floorOf,
+  ratingOnlyComboFloor,
   softScorePoints,
   SOFT_SCORE,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { formatBracketLabel } from '@/lib/format-bracket-label';
+import { bracketPodLine } from '@/lib/bracket-pod-line';
+import { canShare, openShareSheet } from '@/lib/web-share';
+import { toast } from '@/store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
 import { MeterBar } from '../shared/MeterBar';
@@ -72,7 +81,16 @@ const SOFT_SCORE_TIP: ReactNode = (
   </>
 );
 
-function CardChips({ names, deckCardsByName }: { names: string[]; deckCardsByName?: DeckCardMap }) {
+function CardChips({
+  names,
+  deckCardsByName,
+  joined = false,
+}: {
+  names: string[];
+  deckCardsByName?: DeckCardMap;
+  /** The cards form one combo: show "+" between them. */
+  joined?: boolean;
+}) {
   const carousel = useCardCarousel('Bracket cards');
   if (names.length === 0) return null;
   const entries = names.map((name) => ({
@@ -82,7 +100,7 @@ function CardChips({ names, deckCardsByName }: { names: string[]; deckCardsByNam
   }));
   return (
     <>
-      <ul className="bracket-breakdown-chips">
+      <ul className={`bracket-breakdown-chips${joined ? ' bracket-breakdown-chips--joined' : ''}`}>
         {names.map((name) => (
           <li key={name} className="bracket-breakdown-chip">
             <button
@@ -214,21 +232,241 @@ function SoftScoreRow({
   );
 }
 
+type Bracket = 1 | 2 | 3 | 4 | 5;
+
+function counted(n: number, noun: string, none: string): string {
+  return n === 0 ? none : `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+
+/** One side of a judgment call: the bracket it reads as and why. */
+interface Side {
+  bracket: number;
+  why: string;
+}
+
+/**
+ * The call the estimate hangs on, argued both ways, with ours marked. Rendered
+ * only when the deck is borderline: a bracket the rules settle has nothing to
+ * argue. Ends with the owner's answer, which is the deck's stated Bracket.
+ */
+function JudgmentCall({
+  question,
+  chips,
+  sides,
+  ours,
+  verdict,
+  deckCardsByName,
+  answer,
+}: {
+  question: string;
+  chips?: string[];
+  sides: [Side, Side];
+  ours: number;
+  verdict: string;
+  deckCardsByName?: DeckCardMap;
+  answer: ReactNode;
+}): JSX.Element {
+  const [lo, hi] = [...sides].sort((a, b) => a.bracket - b.bracket);
+  return (
+    <div className="bracket-breakdown-section bracket-call">
+      <h4 className="bracket-breakdown-heading">
+        <span className="bracket-call-kind bracket-call-kind--judgment">Judgment</span>
+        Bracket {lo.bracket} or {hi.bracket}
+      </h4>
+      <p className="bracket-call-question">{question}</p>
+      {chips && <CardChips names={chips} deckCardsByName={deckCardsByName} joined />}
+      <div className="bracket-call-sides">
+        {[hi, lo].map((s) => (
+          <div
+            key={s.bracket}
+            className={`bracket-call-side${s.bracket === ours ? ' is-ours' : ''}`}
+          >
+            <p className="bracket-call-side-head">
+              Reads as <strong>{s.bracket}</strong>
+              {s.bracket === ours && <span className="bracket-call-ours">Our call</span>}
+            </p>
+            <p className="bracket-call-side-why">{s.why}</p>
+          </div>
+        ))}
+      </div>
+      <p className="bracket-call-verdict">{verdict}</p>
+      {answer}
+    </div>
+  );
+}
+
+/** "Which does your table play it at?" Picking one states the deck's Bracket. */
+function BracketAnswer({
+  choices,
+  stated,
+  onChoose,
+}: {
+  choices: number[];
+  stated: number | null;
+  onChoose: (bracket: Bracket) => void;
+}): JSX.Element {
+  return (
+    <div className="bracket-call-answer">
+      <p className="bracket-call-answer-q" aria-hidden="true">
+        Which does your table play it at?
+      </p>
+      {/* 0 matches no option: nothing is picked until the owner answers. */}
+      <SegmentedControl
+        ariaLabel="Which bracket does your table play it at?"
+        value={stated ?? 0}
+        options={choices.map((b) => ({ value: b, label: formatBracketLabel(b) }))}
+        onChange={(b) => onChoose(b as Bracket)}
+      />
+      <p className="bracket-breakdown-footnote">
+        {stated == null
+          ? "Your answer becomes this deck's Bracket. The estimate stays beside it."
+          : `This deck's Bracket is now ${stated}.`}
+      </p>
+    </div>
+  );
+}
+
+/** The sentence an owner reads out (or pastes) before a game. */
+function PodLine({ text }: { text: string }): JSX.Element {
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.show({ message: 'Copied for your pod.', tone: 'success' });
+    } catch {
+      toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
+    }
+  };
+  return (
+    <div className="bracket-breakdown-section">
+      <h4 className="bracket-breakdown-heading">Tell your pod</h4>
+      <div className="bracket-pod">
+        <p className="bracket-pod-text">{text}</p>
+        <div className="bracket-pod-actions">
+          <button type="button" className="btn" onClick={() => void copy()}>
+            Copy
+          </button>
+          {canShare() && (
+            <button type="button" className="btn" onClick={() => void openShareSheet({ text })}>
+              Share
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The judgment a borderline estimate hangs on, or null when the rules settle it. */
+function judgmentFor(
+  estimation: BracketEstimation,
+  ratingFloor: BracketFloor | null,
+  hasSolRing: boolean
+): {
+  question: string;
+  chips?: string[];
+  sides: [Side, Side];
+  verdict: string;
+} | null {
+  const { breakdown, bracket, softScore, hardFloors } = estimation;
+  if (ratingFloor?.ruthlessCombos) {
+    const [first, ...rest] = ratingFloor.ruthlessCombos;
+    const which =
+      rest.length === 0
+        ? 'this combo'
+        : rest.length === 1
+          ? `this combo and ${rest[0].join(' + ')}`
+          : `this combo and ${rest.length} more`;
+    return {
+      question: 'It turns on one question: does the combo come together early?',
+      chips: first,
+      sides: [
+        {
+          bracket: 4,
+          why: `Commander Spellbook rates ${which} Ruthless, its rating for combos that belong at Bracket 4 and up.`,
+        },
+        {
+          bracket: 3,
+          // Sol Ring is exempt from fast mana (a precon staple), but a player
+          // who sees it in the list would read "no fast mana" as a mistake.
+          why: `The list has ${counted(breakdown.tutorCount, 'tutor', 'no tutors')} and ${counted(
+            breakdown.fastManaCount,
+            'fast mana card',
+            'no fast mana'
+          )}${hasSolRing ? ' besides Sol Ring' : ''}, too few to call the combo fast.`,
+        },
+      ],
+      verdict:
+        "We go with Spellbook's rating, so the estimate is Bracket 4, borderline 3. If your table counts late combos as Bracket 3, say so before the game.",
+    };
+  }
+
+  const neighbour = bracketBorderline(estimation);
+  if (neighbour == null) return null;
+  const floor = floorOf(hardFloors);
+  const hi = Math.max(bracket, neighbour);
+  const lo = Math.min(bracket, neighbour);
+  const at = floor >= 4 ? SOFT_SCORE.cedhAt : SOFT_SCORE.bumpAt;
+  const gap = Math.abs(softScore - at);
+  const where =
+    gap === 0
+      ? `right on the Bracket ${hi} line`
+      : `${gap} point${gap === 1 ? '' : 's'} ${softScore > at ? 'over' : 'under'} the Bracket ${hi} line`;
+  return {
+    question: 'It turns on how strong the cards are overall.',
+    sides: [
+      { bracket: hi, why: `Power signal ${softScore}/100, ${where}.` },
+      {
+        bracket: lo,
+        why:
+          lo >= 4
+            ? 'Bracket 4 is the floor the rules set. cEDH is a call on power alone.'
+            : `Nothing in the list sets a Bracket ${hi} floor.`,
+      },
+    ],
+    verdict: `The power signal decides it, so the estimate is Bracket ${bracket}, borderline ${neighbour}.`,
+  };
+}
+
 export function BracketBreakdown({
   estimation,
   deckCardsByName,
   combosUncounted = false,
+  bracketOverride = null,
+  onSetBracketOverride,
 }: {
   estimation: BracketEstimation;
   deckCardsByName?: DeckCardMap;
   /** The estimate was made before the combo match answered. A combo is what
    *  most often sets a floor, so "no hard floors" can't be claimed yet. */
   combosUncounted?: boolean;
+  /** The owner's stated bracket, or null on Auto. */
+  bracketOverride?: Bracket | null;
+  /** The owner's control. Without it (someone else's deck) there is no
+   *  answer to give and no pod line to copy. */
+  onSetBracketOverride?: (bracket: Bracket | null) => void;
 }): JSX.Element {
   const { breakdown, hardFloors, softScore, bracket } = estimation;
 
   // Core (2) when nothing fires: the estimator never infers Exhibition.
   const floor = floorOf(hardFloors);
+
+  // A Bracket 4 that rests on Spellbook's rating alone is a judgment call, not
+  // a settled floor: the combo counts as settled at 3 (the rules allow it late)
+  // and the question of whether it's early is argued below.
+  const ratingFloor = combosUncounted ? null : ratingOnlyComboFloor(estimation);
+  const settledFloors: BracketFloor[] = hardFloors.map((f) =>
+    f === ratingFloor
+      ? {
+          bracket: 3,
+          reason: 'Two-card infinite combos',
+          detail: 'Bracket 3 allows them only when they come together late.',
+        }
+      : f
+  );
+  const settledFloor = floorOf(settledFloors);
+  const judgment = combosUncounted
+    ? null
+    : judgmentFor(estimation, ratingFloor, !!deckCardsByName?.has('Sol Ring'));
   const lowPowerCombos = breakdown.lowPowerComboCount ?? 0;
   const loops = breakdown.loopCombos ?? [];
   const engines = breakdown.loopEngineCount ?? 0;
@@ -273,14 +511,27 @@ export function BracketBreakdown({
         : null;
 
   // Sort hard floors strongest-first for display.
-  const sortedFloors = [...hardFloors].sort((a, b) => b.bracket - a.bracket);
+  const sortedFloors = [...settledFloors].sort((a, b) => b.bracket - a.bracket);
+
+  const isOwner = !!onSetBracketOverride;
+  const answer =
+    judgment && onSetBracketOverride ? (
+      <BracketAnswer
+        choices={judgment.sides.map((s) => s.bracket).sort((a, b) => a - b)}
+        stated={bracketOverride}
+        onChoose={onSetBracketOverride}
+      />
+    ) : null;
 
   return (
     <section className="bracket-breakdown" aria-label="Bracket breakdown">
-      {/* ── 1. Hard floors ── deterministic signals that force a minimum bracket. */}
+      {/* ── 1. Settled ── what the rules fix: deterministic floors. A deck
+          that could still read higher says "at least". */}
       <div className="bracket-breakdown-section">
         <h4 className="bracket-breakdown-heading">
-          Hard floors
+          <span className="bracket-call-kind">Settled</span>
+          {combosUncounted || judgment || bracket > settledFloor ? 'At least ' : ''}Bracket{' '}
+          {settledFloor}
           <InfoTip label="a hard floor" text={HARD_FLOOR_TIP} />
         </h4>
         {sortedFloors.length === 0 ? (
@@ -295,7 +546,9 @@ export function BracketBreakdown({
           // box inside the panel, for what is usually one reason.
           <ul className="bracket-breakdown-floors" aria-label="Hard floors">
             {sortedFloors.map((f, i) => {
-              const chips = floorChips(f.reason, breakdown);
+              // The rewritten combo row shows no art: the judgment below
+              // names the deciding pair, and the Combos panel lists them all.
+              const chips = hardFloors.includes(f) ? floorChips(f.reason, breakdown) : [];
               const comboNote = comboFloorNote(f.reason, breakdown);
               return (
                 <li key={`${f.bracket}-${f.reason}-${i}`} className="bracket-breakdown-floor">
@@ -340,6 +593,15 @@ export function BracketBreakdown({
           )
         )}
       </div>
+
+      {judgment && (
+        <JudgmentCall
+          {...judgment}
+          ours={bracket}
+          deckCardsByName={deckCardsByName}
+          answer={answer}
+        />
+      )}
 
       {/* ── 2. Power signal ── the score on its 0–100 scale with the line it
           would have to reach to move the bracket ticked, so "how close is it"
@@ -488,6 +750,15 @@ export function BracketBreakdown({
         Estimated from the card list alone. Pilot skill and what your table plays aren&rsquo;t in
         it, so treat it as the start of the Rule 0 talk.
       </p>
+      {isOwner && !combosUncounted && (
+        <PodLine
+          text={bracketPodLine(
+            estimation,
+            bracketOverride,
+            judgment ? (bracketBorderline(estimation) ?? null) : null
+          )}
+        />
+      )}
     </section>
   );
 }

@@ -585,3 +585,125 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+/* ── Settled / Judgment ── the two kinds of evidence, each labelled in its
+   heading. A label is a pill (it names state, it isn't a control). Judgment
+   takes the warn plate: a caution, like a Budget verdict. The words carry the
+   meaning; the colour only backs them up. */
+.bracket-call-kind {
+  padding: 0.05rem var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.bracket-call-kind--judgment {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn-text);
+}
+
+.bracket-call-question,
+.bracket-call-verdict {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.bracket-breakdown-chips--joined .bracket-breakdown-chip:not(:last-child)::after {
+  content: '+';
+  align-self: center;
+  margin-left: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* The two readings side by side, each under a rule: hairline columns, not
+   boxes (outlines belong to controls). Ours carries the accent rule and says
+   so in words. Stacks when the panel is narrow. */
+.bracket-call-sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.bracket-call-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-strong);
+}
+
+.bracket-call-side.is-ours {
+  border-top: 2px solid var(--accent);
+}
+
+.bracket-call-side-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bracket-call-side-head strong {
+  font-size: var(--text-md);
+}
+
+.bracket-call-ours {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.bracket-call-side-why {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.bracket-call-answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 0.5px solid var(--border);
+}
+
+.bracket-call-answer-q {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── Tell your pod ── the sentence, then its actions. */
+.bracket-pod {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.bracket-pod-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-primary);
+  user-select: text;
+}
+
+.bracket-pod-actions {
+  display: flex;
+  gap: var(--space-2);
+}
