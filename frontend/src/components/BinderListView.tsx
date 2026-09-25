@@ -109,6 +109,8 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
       {
         key: 'cover',
         label: isCover ? 'Remove cover' : 'Set cover',
+        // Only when a 360px phone has no room for every label.
+        shortLabel: isCover ? undefined : 'Cover',
         icon: isCover ? (
           <ImageOff width={18} height={18} strokeWidth={2} aria-hidden />
         ) : (

@@ -396,3 +396,53 @@ describe('CardPreview playtest inspector (rules first, no shop talk)', () => {
     expect(screen.getByText('Tapped')).toBeTruthy();
   });
 });
+
+describe('CardPreview action row (one line on a phone)', () => {
+  // happy-dom has no layout, so the fit measurement can't run here; this pins
+  // WHICH buttons the compact row may strip, which is the part a later edit
+  // could quietly get wrong (STYLE_GUIDE: no icon-only on an ambiguous glyph).
+  it('marks only the universal-glyph buttons compactable', () => {
+    render(
+      <MemoryRouter>
+        <CardPreview
+          cards={[mk({ imageNormal: 'front.jpg', imageNormalBack: 'back.jpg' })]}
+          index={0}
+          binderName=""
+          sectionLabels={['']}
+          pageNumbers={[0]}
+          totalPages={0}
+          onIndexChange={() => {}}
+          onClose={() => {}}
+          onEdit={() => {}}
+          getActions={() => [
+            {
+              key: 'cover',
+              icon: null,
+              label: 'Set cover',
+              shortLabel: 'Cover',
+              onClick: () => {},
+            },
+            { key: 'cut', icon: null, label: 'Suggest cut', onClick: () => {} },
+          ]}
+        />
+      </MemoryRouter>
+    );
+    const compactable = (name: string) =>
+      screen.getByRole('button', { name }).hasAttribute('data-compactable');
+    expect(compactable('Share card image')).toBe(true);
+    expect(compactable('Show back face')).toBe(true);
+    expect(compactable('Edit printing')).toBe(true);
+    expect(compactable('Expand card details')).toBe(false);
+    expect(compactable('Set cover')).toBe(false);
+    expect(compactable('Suggest cut')).toBe(false);
+
+    // A short label is extra text for the compact row only; the full label
+    // stays the accessible name.
+    const cover = screen.getByRole('button', { name: 'Set cover' });
+    expect(cover.hasAttribute('data-has-short')).toBe(true);
+    expect(cover.querySelector('span[data-short]')?.textContent).toBe('Cover');
+    expect(
+      screen.getByRole('button', { name: 'Suggest cut' }).querySelector('span[data-short]')
+    ).toBeNull();
+  });
+});

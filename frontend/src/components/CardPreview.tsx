@@ -57,6 +57,9 @@ export interface CardPreviewAction {
   key: string;
   icon: ReactNode;
   label: string;
+  /** Shown instead of `label` only when the row is too narrow for every label
+   *  (a 360px phone). `label` stays the button's accessible name and title. */
+  shortLabel?: string;
   onClick: () => void;
   danger?: boolean;
 }
@@ -209,6 +212,49 @@ export function CardPreview({
   const panelInnerRef = useRef<HTMLDivElement>(null);
   const carousel = useRef<SnapCarouselHandle>(null);
   const [selected, setSelected] = useState(index);
+
+  // The action row holds one line. When its labelled width won't fit, the
+  // buttons with universal glyphs (Share, Flip, Turn, Edit) drop their words,
+  // a caller action with a `shortLabel` swaps to it, and the row tightens.
+  // Details and the other caller actions keep their words: an ambiguous glyph
+  // never goes icon-only (STYLE_GUIDE § Toolbars & action rows). Re-measured
+  // every render: it is a handful of buttons, and which ones exist changes per
+  // card (Flip only on a double-faced one). A hidden full label is absolutely
+  // positioned, so it still reports the width it would take back — `need` is
+  // always the fully labelled width, whichever mode is showing.
+  const actionRowRef = useRef<HTMLDivElement>(null);
+  const labelledGap = useRef(0);
+  const [actionsCompact, setActionsCompact] = useState(false);
+  const fitActions = useCallback(() => {
+    const row = actionRowRef.current;
+    if (!row) return;
+    const cs = getComputedStyle(row);
+    const compact = row.classList.contains('is-compact');
+    if (!compact) labelledGap.current = parseFloat(cs.columnGap) || 0;
+    const buttons = [...row.children] as HTMLElement[];
+    let need = labelledGap.current * (buttons.length - 1);
+    for (const b of buttons) {
+      need += b.offsetWidth;
+      const full = compact ? b.querySelector<HTMLElement>(':scope > span:not([data-short])') : null;
+      if (!full || getComputedStyle(full).position !== 'absolute') continue;
+      const short = b.querySelector<HTMLElement>(':scope > span[data-short]');
+      need += short
+        ? full.offsetWidth - short.offsetWidth
+        : full.offsetWidth + (parseFloat(getComputedStyle(b).columnGap) || 0);
+    }
+    // `need` is always the labelled width and the padding doesn't change with
+    // the mode, so this can't flip back and forth at the boundary.
+    const room = row.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    setActionsCompact(need > room);
+  }, []);
+  useLayoutEffect(fitActions);
+  useEffect(() => {
+    const row = actionRowRef.current;
+    if (!row || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(fitActions);
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, [fitActions]);
   // Compact (image-hero) ↔ expanded (text-hero) panel. Expanded is a fixed
   // taller height applied to every card, so swiping between cards stays
   // height-stable — the card just shrinks via the track's container query.
@@ -555,7 +601,10 @@ export function CardPreview({
         {/* Always rendered so single-faced and transform cards reserve the
             same vertical space — otherwise navigating between them would
             shift the panel up/down. */}
-        <div className="card-preview-flip-row">
+        <div
+          ref={actionRowRef}
+          className={`card-preview-flip-row${actionsCompact ? ' is-compact' : ''}`}
+        >
           <button
             type="button"
             className={`card-preview-flip-btn card-preview-details-btn${expanded ? ' is-on' : ''}`}
@@ -585,6 +634,7 @@ export function CardPreview({
                 e.stopPropagation();
                 shareCard();
               }}
+              data-compactable
               aria-label="Share card image"
               title="Share card image"
               disabled={sharing}
@@ -608,6 +658,7 @@ export function CardPreview({
                   [selected]: !prev[selected],
                 }))
               }
+              data-compactable
               aria-label={flipped[selected] ? 'Show front face' : 'Show back face'}
               title={flipped[selected] ? 'Show front face' : 'Show back face'}
             >
@@ -620,6 +671,7 @@ export function CardPreview({
               type="button"
               className="card-preview-flip-btn"
               onClick={() => setTurned((prev) => ({ ...prev, [selected]: nextTurn }))}
+              data-compactable
               aria-label={nextTurnLabel}
               title={nextTurnLabel}
             >
@@ -635,6 +687,7 @@ export function CardPreview({
                 e.stopPropagation();
                 onEdit(current);
               }}
+              data-compactable
               aria-label="Edit printing"
               title="Edit printing"
             >
@@ -647,6 +700,7 @@ export function CardPreview({
               key={a.key}
               type="button"
               className={`card-preview-flip-btn${a.danger ? ' is-danger' : ''}`}
+              data-has-short={a.shortLabel ? '' : undefined}
               onClick={(e) => {
                 e.stopPropagation();
                 a.onClick();
@@ -656,6 +710,11 @@ export function CardPreview({
             >
               {a.icon}
               <span>{a.label}</span>
+              {a.shortLabel && (
+                <span data-short aria-hidden>
+                  {a.shortLabel}
+                </span>
+              )}
             </button>
           ))}
         </div>

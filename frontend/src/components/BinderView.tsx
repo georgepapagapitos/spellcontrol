@@ -28,6 +28,7 @@ import { BinderDriftBanner } from './BinderDriftBanner';
 import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
 import { useAllocations } from '../lib/allocations';
 import { useToastsStore } from '../store/toasts';
+import { useMediaQuery } from '../lib/use-media-query';
 
 /** Maximum pages rendered inline per section before the "+N more" expander. */
 export const SECTION_PAGE_CAP = 3;
@@ -35,6 +36,12 @@ export const SECTION_PAGE_CAP = 3;
 /** Same, for the header-less continuous run — it IS the whole binder, so it
  *  gets a screenful rather than a section's teaser. */
 const PAGE_RUN_CAP = 12;
+
+/** A phone shows one full-width page per row, so the desktop caps above cost a
+ *  screen and a half per section (three ~520px pages) before the next header.
+ *  One page teases a section; the expander and the page viewer carry the rest. */
+export const PHONE_SECTION_PAGE_CAP = 1;
+const PHONE_PAGE_RUN_CAP = 4;
 
 interface Props {
   binders: MaterializedBinder[];
@@ -115,6 +122,8 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
       {
         key: 'cover',
         label: isCover ? 'Remove cover' : 'Set cover',
+        // Only when a 360px phone has no room for every label.
+        shortLabel: isCover ? undefined : 'Cover',
         icon: isCover ? (
           <ImageOff width={18} height={18} strokeWidth={2} aria-hidden />
         ) : (
@@ -359,6 +368,8 @@ function SectionList({
   // reconcile), so hiding tooltips a frame late is invisible. Closing clears
   // a frame later so tooltips re-enable just after it (the modal is unmounting,
   // nothing is animating, so the one-frame lag is imperceptible).
+  const phone = useMediaQuery('(max-width: 600px)');
+
   const previewActive = preview !== null || pagesStartIndex !== null;
   const [gridPreviewOpen, setGridPreviewOpen] = useState(false);
   useEffect(() => {
@@ -393,6 +404,7 @@ function SectionList({
           pages={flatPages}
           labels={flatPageLabels}
           pocketSize={pocketSize}
+          pageCap={phone ? PHONE_PAGE_RUN_CAP : PAGE_RUN_CAP}
           isPreviewOpen={gridPreviewOpen}
           qtyByCopyId={qtyByCopyId}
           showImages={showImages}
@@ -414,6 +426,7 @@ function SectionList({
               headerId={headerId}
               panelId={panelId}
               pocketSize={pocketSize}
+              pageCap={phone ? PHONE_SECTION_PAGE_CAP : SECTION_PAGE_CAP}
               isPreviewOpen={gridPreviewOpen}
               qtyByCopyId={qtyByCopyId}
               showImages={showImages}
@@ -516,6 +529,7 @@ const PageRun = memo(function PageRun({
   pages,
   labels,
   pocketSize,
+  pageCap,
   isPreviewOpen,
   qtyByCopyId,
   showImages,
@@ -526,6 +540,8 @@ const PageRun = memo(function PageRun({
   /** Parallel to `pages`: what sits on each one. */
   labels: string[];
   pocketSize: PocketSize;
+  /** Pages shown before the "+N more" expander. */
+  pageCap: number;
   isPreviewOpen: boolean;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
@@ -541,7 +557,7 @@ const PageRun = memo(function PageRun({
   // When every page would carry the same heading (an ungrouped binder, where
   // each page reads "All cards"), the label is noise — drop it entirely.
   const labelled = useMemo(() => new Set(labels).size > 1, [labels]);
-  const visible = expanded ? pages : pages.slice(0, PAGE_RUN_CAP);
+  const visible = expanded ? pages : pages.slice(0, pageCap);
   const hiddenCount = pages.length - visible.length;
 
   return (
@@ -579,6 +595,7 @@ const SectionBlock = memo(function SectionBlock({
   headerId,
   panelId,
   pocketSize,
+  pageCap,
   isPreviewOpen,
   qtyByCopyId,
   showImages,
@@ -592,6 +609,8 @@ const SectionBlock = memo(function SectionBlock({
   headerId: string;
   panelId: string;
   pocketSize: PocketSize;
+  /** Pages shown before the "+N more" expander. */
+  pageCap: number;
   isPreviewOpen: boolean;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
@@ -599,7 +618,7 @@ const SectionBlock = memo(function SectionBlock({
   onOpenCard: (card: EnrichedCard) => void;
   onOpenPages: (sectionIdx: number, localPageIndex: number) => void;
 }) {
-  // Whether the user has expanded past the SECTION_PAGE_CAP inline preview.
+  // Whether the user has expanded past the inline page cap.
   const [pagesExpanded, setPagesExpanded] = useState(false);
 
   // Bind this section's flipbook offset once. Stable identity keeps the
@@ -615,8 +634,8 @@ const SectionBlock = memo(function SectionBlock({
     [onOpenCard, openPages, isPreviewOpen, qtyByCopyId]
   );
 
-  const visiblePages = pagesExpanded ? section.pages : section.pages.slice(0, SECTION_PAGE_CAP);
-  const hiddenCount = section.pages.length - SECTION_PAGE_CAP;
+  const visiblePages = pagesExpanded ? section.pages : section.pages.slice(0, pageCap);
+  const hiddenCount = section.pages.length - pageCap;
 
   return (
     <div className="binder-section">

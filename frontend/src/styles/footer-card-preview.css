@@ -621,6 +621,48 @@
   pointer-events: auto;
 }
 
+/* The row's one-line fallback (CardPreview measures, then sets .is-compact
+   when the labelled row won't fit): buttons with universal glyphs drop their
+   word, and the gap tightens. The word leaves the flow but stays in the box
+   (absolute + hidden) so it can still be measured; aria-label and title carry
+   it. Details and caller actions keep their labels. */
+.card-preview-flip-row.is-compact {
+  gap: var(--space-1);
+}
+
+/* Same side gutter as the card above it on a phone (.card-preview-track). */
+@media (max-width: 600px) {
+  .card-preview-flip-row {
+    padding-inline: var(--space-3);
+  }
+}
+
+.card-preview-flip-row.is-compact .card-preview-flip-btn[data-compactable] {
+  justify-content: center;
+  min-width: 2.75rem;
+}
+
+.card-preview-flip-row.is-compact .card-preview-flip-btn[data-compactable],
+.card-preview-flip-row.is-compact .card-preview-flip-btn[data-has-short] {
+  position: relative;
+}
+
+.card-preview-flip-row.is-compact .card-preview-flip-btn[data-compactable] > span,
+.card-preview-flip-row.is-compact .card-preview-flip-btn[data-has-short] > span:not([data-short]) {
+  position: absolute;
+  visibility: hidden;
+}
+
+/* A caller action's short label ("Cover" for "Set cover") exists only for the
+   compact row. */
+.card-preview-flip-btn > span[data-short] {
+  display: none;
+}
+
+.card-preview-flip-row.is-compact .card-preview-flip-btn > span[data-short] {
+  display: inline;
+}
+
 .card-preview-flip-btn {
   flex-shrink: 0;
   display: inline-flex;

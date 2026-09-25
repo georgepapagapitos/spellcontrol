@@ -1831,6 +1831,16 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   the stacked sheet and its Details toggle unchanged. Flanking carousel
   slides render at `opacity: 0.45` at every width — the centered card is the
   one being read.
+- **`CardPreview`'s action row holds one line.** Callers add their own buttons
+  (binder "Set cover", deck Edit + Delete, search Add + Printings), so on a
+  phone the labelled row wrapped to two lines and took height from the card.
+  `CardPreview` measures the fully labelled width; when it won't fit it sets
+  `.is-compact`: the universal-glyph buttons (Share, Flip, Turn, Edit, marked
+  `data-compactable`) drop their word, a caller action with a `shortLabel`
+  ("Cover") swaps to it, and the gap tightens. Details and every other caller
+  action keep their words, since an ambiguous glyph never goes icon-only. The
+  full label stays the button's `aria-label` and `title`. Wrapping is the
+  safety net only.
 - **The deck editor's workbench rail is RETIRED (2026-08-19) — don't
   re-add it.** The ≥1280px `.deck-add-rail` docked "Add cards" beside the
   decklist as a 400px sticky column; the user ruled the narrow column made
@@ -3145,6 +3155,10 @@ never shows the chooser.
   fixed 112/150/200px thumbnails: 42px pockets on a 1440 screen, and on a
   phone a lone page in one half of the row with the other half empty. Text-only
   pockets scale their name with the pocket (`cqw`), for the same reason.
+- **On a phone a section teases one page** (`PHONE_SECTION_PAGE_CAP`, ≤600px;
+  the header-less run shows four). Full-width pages made the desktop cap of
+  three a screen and a half of scroll before the next section's header. The
+  "+N more pages" expander and the page viewer carry the rest.
 - **A page's header is its door into the page viewer.** "Page 3" on the left,
   the book glyph "Browse pages" uses on the right, the whole row one button.
   It replaced an underlined mono "page 3" link floating centred above the page.
