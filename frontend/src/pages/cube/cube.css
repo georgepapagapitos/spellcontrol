@@ -879,11 +879,15 @@
   margin-bottom: var(--space-4);
 }
 /* Two-sided substitution row — art + name on each side, both always
-   labelled (STYLE_GUIDE "Comparing two of anything": no bare arrow). */
+   labelled (STYLE_GUIDE "Comparing two of anything": no bare arrow). A
+   `container` (not a viewport media query — the page itself is width-capped,
+   see STYLE_GUIDE "container query in capped panels") lets the row switch to
+   a stacked layout on its OWN available width. */
 .cube-sub-rows {
   list-style: none;
   margin: 0;
   padding: 0;
+  container-type: inline-size;
 }
 .cube-sub-row {
   display: grid;
@@ -892,8 +896,21 @@
   gap: var(--space-2);
   padding: var(--space-2);
   border-bottom: 1px solid var(--border);
-  content-visibility: auto;
-  contain-intrinsic-size: auto 56px;
+  /* No content-visibility/contain-intrinsic-size here: names wrap, so a row's
+     height varies with its content — a fixed estimate would drift and jump
+     the scroll position the way a stale grid-caption estimate did elsewhere. */
+}
+/* Below ~36rem of row width (the "was 600px viewport" container tier), two
+   full card names plus a substitution reason no longer fit side by side —
+   stack original / arrow / substitute so neither name has to truncate. */
+@container (max-width: 36rem) {
+  .cube-sub-row {
+    grid-template-columns: 1fr;
+    row-gap: var(--space-1);
+  }
+  .cube-sub-arrow {
+    transform: rotate(90deg);
+  }
 }
 .cube-sub-side {
   display: flex;
@@ -921,11 +938,11 @@
   flex: none;
   color: var(--text-muted);
 }
+/* A card name wraps rather than ellipsizes at any width — it's the content,
+   not a label. */
 .cube-sub-name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
   font-size: var(--text-sm);
   color: var(--text-primary);
 }
@@ -934,6 +951,22 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+/* No-match rows share the plain `.cube-row` shape with other cube card
+   lists, but those lists intentionally truncate a single-line name — the
+   no-match row's whole point is the name plus why it didn't match, so both
+   need to wrap here. Scoped to this list only: `.cube-row-name`/
+   `.cube-row-reason` stay a nowrap-ellipsis single line everywhere else
+   (their fixed `content-visibility` row-height estimate depends on it). */
+.cube-mv-nomatch-rows .cube-row {
+  content-visibility: visible;
+}
+.cube-mv-nomatch-rows .cube-row-name,
+.cube-mv-nomatch-rows .cube-row-reason {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 /* ---- collaborative cube ---- */

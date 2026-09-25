@@ -260,7 +260,7 @@ export function BuildMyVersionResult({
           <h3>
             No match <span className="cube-group-count">({result.missing.length})</span>
           </h3>
-          <ul className="cube-rows">
+          <ul className="cube-rows cube-mv-nomatch-rows">
             {result.missing.map((c, i) => (
               <li key={c.oracleId || c.name} className="cube-row">
                 <button

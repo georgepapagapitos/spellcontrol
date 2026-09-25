@@ -65,12 +65,14 @@ function toMatchable(c: CubeCobraCard): CubeCard {
   };
 }
 
-function substituteReason(original: CubeCobraCard, sub: CubeCard): string {
+// No "Substitute for X:" prefix — every caller shows this next to the
+// original card it's replacing, so naming it again is redundant.
+function substituteReason(sub: CubeCard): string {
   const bucket = bucketOf(sub);
   const color = COLOR_LABEL[bucket] ?? bucket;
   const slot = curveSlotOf(sub.cmc);
   const slotLabel = slot === '7' ? '7+' : slot;
-  return `Substitute for ${original.name}: ${color}, ${slotLabel} mana`;
+  return `${color.charAt(0).toUpperCase()}${color.slice(1)}, ${slotLabel} mana`;
 }
 
 export function buildMyVersion(
@@ -137,7 +139,7 @@ export function buildMyVersion(
       continue;
     }
     used.add(sub.oracleId);
-    substituted.push({ original, substitute: sub, reason: substituteReason(original, sub) });
+    substituted.push({ original, substitute: sub, reason: substituteReason(sub) });
   }
 
   const picks: Pick[] = [
