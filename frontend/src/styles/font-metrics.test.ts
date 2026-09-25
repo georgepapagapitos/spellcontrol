@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { brotliDecompressSync } from 'node:zlib';
 
 /**
@@ -79,10 +79,28 @@ function woff2Metrics(buf: Buffer): { ascent: number; descent: number; cap: numb
   return { ascent: asc / em, descent: -desc / em, cap: data.readInt16BE(at('OS/2', 88)) / em };
 }
 
-/** Every @font-face in the type-set stylesheets, with where it came from. */
+/** Every stylesheet under src/, so a face declared anywhere later is covered. */
+function srcSheets(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory()
+      ? srcSheets(join(dir, e.name))
+      : e.name.endsWith('.css')
+        ? [join(dir, e.name)]
+        : []
+  );
+}
+
+// Glyph fonts (mana symbols, set symbols) are drawn as icons, not text: their
+// metrics are the icon's own geometry and must stay as the font ships them.
+const GLYPH_SHEETS = new Set(['icon-fonts.css']);
+
+/** Every text @font-face the app declares, with where it came from. */
 function faces(): { sheet: string; body: string }[] {
   const sheets: [string, string][] = [
-    ['styles/fonts.css', readFileSync(join(here, 'fonts.css'), 'utf8')],
+    ...srcSheets(join(here, '..'))
+      .filter((f) => !GLYPH_SHEETS.has(basename(f)))
+      .map((f): [string, string] => [basename(f), readFileSync(f, 'utf8')])
+      .filter(([, css]) => css.includes('@font-face')),
     ...readdirSync(publicFonts)
       .filter((f) => /^typeset-[a-z]+\.css$/.test(f))
       .map((f): [string, string] => [
@@ -103,9 +121,10 @@ const percent = (body: string, prop: string) => {
 describe('type-set faces centre their capital height', () => {
   const all = faces();
 
-  it('finds the default sheet and every per-set sheet', () => {
-    // Non-vacuous: six webfont sheets plus plain's local() aliases.
-    expect(new Set(all.map((f) => f.sheet)).size).toBe(7);
+  it('finds the default sheet, the play-board sheet and every per-set sheet', () => {
+    // Non-vacuous: fonts.css, play-fonts.css, five webfont sets and plain's
+    // local() aliases.
+    expect(new Set(all.map((f) => f.sheet)).size).toBe(8);
   });
 
   for (const { sheet, body } of all) {
