@@ -7693,6 +7693,67 @@ correctness bug the capacity work exposed.
   is not supported; if it's ever wanted, it's a second `seats` ordering per
   preset, not a reducer change.
 
+**Sideways is now the DEFAULT for 7-10 (2026-09-25).** The Wide-row presets
+above were the whole story for one day; a look at real screenshots of Lotus's
+own 7-10p gallery showed people at a real 7-10 player table sit along the
+two long edges, the way 4p-sides already seats four — not stacked in rows
+facing the short edges. The 2-column model still holds; only the default
+changed, and everything the Wide-row presets already offer stays in the
+picker.
+
+- **`Xp-sides` (X = 7-10) is `layoutsForCount(X)[0]`, the new default.** 8p
+  and 10p (even) split cleanly, every seat rotated 90°/270° by COLUMN
+  (`8p-sides` 4+4, `10p-sides` 5+5) — the same col-seam construction as
+  `4p-sides`, just taller. 7p and 9p (odd) can't split evenly, so — the same
+  move `3p-wide-top-sides` makes for 3 — the extra seat takes a Wide top end
+  (rot 180) and the rest split evenly (`7p-sides` 3+3, `9p-sides` 4+4).
+- **`Xp-ends` is new too: a seat at each short end, the rest along the
+  sides.** Both ends are Wide (top rot 180, bottom rot 0); the remaining
+  seats split between the columns. 8/10 (even, minus the two wide ends
+  leaves an even remainder) split cleanly (`8p-ends` 1+3+3+1, `10p-ends`
+  1+4+4+1). 7/9 (odd, minus two wide ends leaves an odd remainder) can't —
+  one column gets one more seat than the other (`7p-ends` 1+3+2+1, `9p-ends`
+  1+4+3+1) and the shorter column's far cell is `empty` rather than
+  shrinking the grid to fit it.
+- **`Xp-sides` (7p/9p) uses a COL seam even though its top seat is Wide.**
+  `3p-wide-top-sides` gets away with a row seam because it has only ONE
+  sideways row below the wide top seat; `7p-sides`/`9p-sides` stack three
+  and four. A row seam's undo satellite offsets ±3.4rem horizontally from
+  centre — a margin measured against upright/180° panels — and at 4-5 rows
+  the sideways rows are short enough that their step buttons sit close
+  enough to the seam in absolute px to be inside that margin: measured
+  90-100px² of undo-vs-step overlap at 320px, on the sideways row on
+  _both_ sides of wherever the row seam landed (row 1 or a centred row 2 —
+  moving the row didn't fix it, since both neighbouring rows are sideways
+  either way). A COL seam sidesteps the whole problem: `seamSatellite`'s
+  col-seam quarter-point rule (E299/E310) already keeps satellites off
+  every panel's furniture regardless of row count, and the hub lands
+  dead-centre (`left/top: 50%`) — which reads fine even with a Wide seat
+  at row 1, per the screenshot taken while fixing this. `8p-sides` and
+  `10p-sides` were always col-seam (no Wide seat at all, so this never
+  came up for them).
+- **A mixed-rotation layout still needs one seam.** `Xp-ends` has no single
+  row where every seat above is one rotation and every seat below is
+  another (the side seats are 90°/270° regardless of row), so there's no
+  rotation boundary to place the hub at the way a pure Wide-row layout has.
+  It takes the row seam at `Math.floor(rows / 2)` — the vertical middle of
+  the grid, same convention `Xp-sides` now uses above and the existing
+  wide-middle presets already used for a seam that isn't a rotation
+  boundary — which keeps the hub centred rather than pulled toward
+  whichever end happens to be first.
+- **Every new preset passes the existing clockwise/fill-grid suites
+  unmodified** (`board-layouts.test.ts`'s `every preset fills its grid
+exactly` and `clockwise seat order` both iterate `layoutsForCount` for
+  every count, so the new ids were verified for free) plus a dedicated
+  `7-10p Lotus sides/ends layouts` suite for the default-per-count,
+  even/odd split and seam-sanity assertions specific to this change.
+- **Numeral sizing is unchanged by this ruling.** A sideways cell on these
+  boards gets the same container-query tiers every other sideways seat
+  already uses (`[data-sideways]`, keyed off the panel's own cqw/cqh, not
+  the preset id) — nothing here is preset-specific CSS. Re-measure once the
+  Bebas Neue numeral face and its tier re-tune land (a concurrent change);
+  this ruling only adds seat geometry.
+
 ## Play board: the hub ring and its table moments (2026-09-24)
 
 Lotus parity group 2 (`BoardHubMenu.tsx`, `GameBoard.tsx`'s High Roll section,

@@ -232,6 +232,134 @@ describe('homeSlotIndex', () => {
   });
 });
 
+describe('7-10p Lotus sides/ends layouts', () => {
+  // Lotus's own 7-10p arrangement seats everyone along the two long edges
+  // (4p-sides scaled up) rather than stacking rows facing the short edges —
+  // it is now the DEFAULT for these counts, with the existing wide-row
+  // presets still available and a new "ends" variant (a seat at each short
+  // end, the rest along the sides) alongside it.
+  it('the new "sides" preset is the default (index 0) for 7-10 players', () => {
+    for (const count of [7, 8, 9, 10]) {
+      expect(layoutsForCount(count)[0].id).toBe(`${count}p-sides`);
+    }
+  });
+
+  it('a matching "ends" preset exists for 7-10 players', () => {
+    for (const count of [7, 8, 9, 10]) {
+      const ids = layoutsForCount(count).map((l) => l.id);
+      expect(ids).toContain(`${count}p-ends`);
+    }
+  });
+
+  it('every existing preset is still in the picker alongside the new ones', () => {
+    const preExisting: Record<number, string[]> = {
+      7: ['7p-wide-top', '7p-wide-bottom'],
+      8: ['8p-4v4', '8p-2v6'],
+      9: ['9p-wide-top', '9p-wide-bottom'],
+      10: ['10p-6v4', '10p-4v6'],
+    };
+    for (const [count, ids] of Object.entries(preExisting)) {
+      const available = layoutsForCount(Number(count)).map((l) => l.id);
+      for (const id of ids) expect(available).toContain(id);
+    }
+  });
+
+  it('"sides" seats every seat along a long edge — even counts fully, odd counts via one Wide top end', () => {
+    // 8/10 (even) split cleanly into two columns, so every seat faces a
+    // long edge (rot 90/270). 7/9 (odd) can't split evenly, so — same move
+    // 3p-wide-top-sides makes for 3 — the extra seat takes a Wide top end
+    // (rot 180) and the rest (an even count) split between the columns.
+    for (const count of [8, 10]) {
+      const sides = layoutsForCount(count).find((l) => l.id === `${count}p-sides`)!;
+      for (const seat of sides.seats) expect([90, 270]).toContain(seat.rot);
+    }
+    for (const count of [7, 9]) {
+      const sides = layoutsForCount(count).find((l) => l.id === `${count}p-sides`)!;
+      const wide = sides.seats.filter((seat) => seat.colSpan === 2);
+      expect(wide).toHaveLength(1);
+      expect(wide[0].rot).toBe(180);
+      const rest = sides.seats.filter((seat) => seat.colSpan !== 2);
+      for (const seat of rest) expect([90, 270]).toContain(seat.rot);
+    }
+  });
+
+  it('"ends" seats a Wide seat at each short end (rot 180 top, rot 0 bottom) and the rest sideways', () => {
+    for (const count of [7, 8, 9, 10]) {
+      const ends = layoutsForCount(count).find((l) => l.id === `${count}p-ends`)!;
+      const wide = ends.seats.filter((seat) => seat.colSpan === 2);
+      expect(wide.map((seat) => seat.rot).sort()).toEqual([0, 180]);
+      const sideways = ends.seats.filter((seat) => seat.colSpan !== 2);
+      for (const seat of sideways) expect([90, 270]).toContain(seat.rot);
+    }
+  });
+
+  it('an even count splits its sides evenly; an odd count splits as evenly as possible', () => {
+    // 8/10 (even, after the wide ends on "ends") split N/2 either column;
+    // 7/9 (odd) can't split evenly once two wide seats are subtracted, so
+    // one column gets one more seat than the other and the shorter column
+    // leaves its far cell empty rather than shrinking the grid.
+    const countBySide = (l: ReturnType<typeof layoutsForCount>[number]) => {
+      const left = l.seats.filter((seat) => seat.col === 1 && seat.colSpan !== 2).length;
+      const right = l.seats.filter((seat) => seat.col === 2 && seat.colSpan !== 2).length;
+      return { left, right };
+    };
+    expect(countBySide(layoutsForCount(8).find((l) => l.id === '8p-sides')!)).toEqual({
+      left: 4,
+      right: 4,
+    });
+    expect(countBySide(layoutsForCount(10).find((l) => l.id === '10p-sides')!)).toEqual({
+      left: 5,
+      right: 5,
+    });
+    expect(countBySide(layoutsForCount(8).find((l) => l.id === '8p-ends')!)).toEqual({
+      left: 3,
+      right: 3,
+    });
+    expect(countBySide(layoutsForCount(10).find((l) => l.id === '10p-ends')!)).toEqual({
+      left: 4,
+      right: 4,
+    });
+    const ends7 = countBySide(layoutsForCount(7).find((l) => l.id === '7p-ends')!);
+    expect(ends7.left + ends7.right).toBe(5);
+    expect(Math.abs(ends7.left - ends7.right)).toBe(1);
+    const ends9 = countBySide(layoutsForCount(9).find((l) => l.id === '9p-ends')!);
+    expect(ends9.left + ends9.right).toBe(7);
+    expect(Math.abs(ends9.left - ends9.right)).toBe(1);
+  });
+
+  it('"ends" leaves exactly one empty cell for an odd count, none for an even one', () => {
+    expect(layoutsForCount(7).find((l) => l.id === '7p-ends')!.empty).toHaveLength(1);
+    expect(layoutsForCount(9).find((l) => l.id === '9p-ends')!.empty ?? []).toHaveLength(1);
+    expect(layoutsForCount(8).find((l) => l.id === '8p-ends')!.empty ?? []).toHaveLength(0);
+    expect(layoutsForCount(10).find((l) => l.id === '10p-ends')!.empty ?? []).toHaveLength(0);
+  });
+
+  it('seam satellites clear the hub for every new seam (row and col alike)', () => {
+    for (const count of [7, 8, 9, 10]) {
+      for (const id of [`${count}p-sides`, `${count}p-ends`]) {
+        const layout = layoutsForCount(count).find((l) => l.id === id)!;
+        const before = seamSatellite(layout.seam, layout.rows, -1, '3.4rem');
+        const after = seamSatellite(layout.seam, layout.rows, 1, '3.4rem');
+        // The seam row/col itself must sit strictly inside the grid (never
+        // on row 0 or past the last row), or the satellites would land off
+        // the board entirely.
+        if ('row' in layout.seam) {
+          expect(layout.seam.row).toBeGreaterThan(0);
+          expect(layout.seam.row).toBeLessThan(layout.rows);
+        } else {
+          expect(layout.seam.col).toBe(1);
+        }
+        for (const p of [before, after]) {
+          expect(p.topPct).toMatch(/^\d+(\.\d+)?%$/);
+          const pct = parseFloat(p.topPct);
+          expect(pct).toBeGreaterThanOrEqual(0);
+          expect(pct).toBeLessThanOrEqual(100);
+        }
+      }
+    }
+  });
+});
+
 describe('3p default', () => {
   // Three people round a phone lying flat sit one on the short edge and one on
   // each long edge. The upright half-width cells of 3p-wide-top capped the

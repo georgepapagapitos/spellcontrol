@@ -294,7 +294,63 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
   // ── 7 players ──────────────────────────────────────────────────────────
   // 4 rows × 2 cols; the odd seat is a Wide row (top or bottom) rather than
   // an empty cell, matching how 3p/5p absorb their odd seat.
+  //
+  // 7p-sides and 9p-sides are now the DEFAULT for their counts (Lotus's own
+  // 7-10p arrangement: everyone along the two long edges of the device,
+  // like 4p-sides scaled up). The odd seat takes a Wide top end — the same
+  // move 3p-wide-top-sides makes for 3 — leaving the rest split evenly
+  // between the two columns (3+3 for 7, 4+4 for 9).
   7: [
+    {
+      // Wide top (1) + 3 right + 3 left, every side seat rotated to face
+      // its own long edge. Clockwise: top, right top→bottom, left
+      // bottom→top. COL-seam, not row-seam like 3p-wide-top-sides: a row
+      // seam's undo satellite offsets ±3.4rem horizontally from centre, a
+      // margin measured against upright/180° panels, and it lands square on
+      // a sideways row's step buttons once the board is short enough (4+
+      // rows) to put those buttons close to the seam in absolute px —
+      // measured 90-100px² of undo/step overlap at 320px with a row seam
+      // here, on BOTH the row above and below it. A col seam sidesteps this
+      // entirely: `seamSatellite`'s col-seam quarter-point rule (E299/E310)
+      // already keeps the hub/undo off every panel's furniture regardless
+      // of row count, and it places the hub dead-centre (left/top 50%),
+      // which reads fine even though the row-1 seat above it is Wide.
+      id: '7p-sides',
+      cols: 2,
+      rows: 4,
+      seam: { col: 1 },
+      seats: [
+        s(1, 1, 180, { c: 2 }),
+        s(2, 2, 270),
+        s(2, 3, 270),
+        s(2, 4, 270),
+        s(1, 4, 90),
+        s(1, 3, 90),
+        s(1, 2, 90),
+      ],
+    },
+    {
+      // Wide top (1) + Wide bottom (1) + 3 right + 2 left — Lotus's other
+      // 7p arrangement, a seat at each short end plus the rest along the
+      // sides. 7 doesn't split the 5 remaining seats evenly between the
+      // columns, so the right column takes 3 and the left 2 (row4/col1
+      // empty) rather than leaving a gap at an end. Clockwise: top,
+      // right top→bottom, bottom, left bottom→top.
+      id: '7p-ends',
+      cols: 2,
+      rows: 5,
+      seam: { col: 1 },
+      seats: [
+        s(1, 1, 180, { c: 2 }),
+        s(2, 2, 270),
+        s(2, 3, 270),
+        s(2, 4, 270),
+        s(1, 5, 0, { c: 2 }),
+        s(1, 3, 90),
+        s(1, 2, 90),
+      ],
+      empty: [e(1, 4)],
+    },
     {
       // Wide top (1) + 2 far + 4 near. Clockwise: top, row2-right,
       // row3-right, row4-right, row4-left, row3-left, row2-left.
@@ -332,8 +388,47 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
   ],
 
   // ── 8 players ────────────────────────────────────────────────────────────
-  // 4 rows × 2 cols, fully populated.
+  // 4 rows × 2 cols, fully populated. 8p-sides is now the DEFAULT — every
+  // seat along a long edge, 4+4, the even-count sibling of 4p-sides.
   8: [
+    {
+      // 4 left + 4 right, col-seam — the same seat walk as 8p-4v4 (far
+      // column top→bottom, near column bottom→top) but rotated 90°/270°
+      // by COLUMN instead of 180°/0° by row-half, since every seat faces
+      // a long edge rather than a short one.
+      id: '8p-sides',
+      cols: 2,
+      rows: 4,
+      seam: { col: 1 },
+      seats: [
+        s(1, 1, 90),
+        s(2, 1, 270),
+        s(2, 2, 270),
+        s(2, 3, 270),
+        s(2, 4, 270),
+        s(1, 4, 90),
+        s(1, 3, 90),
+        s(1, 2, 90),
+      ],
+    },
+    {
+      // Wide top (1) + Wide bottom (1) + 3 right + 3 left — a seat at
+      // each short end, the rest along the sides.
+      id: '8p-ends',
+      cols: 2,
+      rows: 5,
+      seam: { col: 1 },
+      seats: [
+        s(1, 1, 180, { c: 2 }),
+        s(2, 2, 270),
+        s(2, 3, 270),
+        s(2, 4, 270),
+        s(1, 5, 0, { c: 2 }),
+        s(1, 4, 90),
+        s(1, 3, 90),
+        s(1, 2, 90),
+      ],
+    },
     {
       // 4 far + 4 near. Clockwise: TL, TR, row2-right, row3-right,
       // bottom-right, bottom-left, row3-left, row2-left.
@@ -372,8 +467,49 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
   ],
 
   // ── 9 players ────────────────────────────────────────────────────────────
-  // 5 rows × 2 cols; the odd seat is a Wide row (top or bottom).
+  // 5 rows × 2 cols; the odd seat is a Wide row (top or bottom). 9p-sides
+  // is now the DEFAULT — see the 7p comment above for the shared reasoning.
   9: [
+    {
+      // Wide top (1) + 4 right + 4 left. Col-seam, same fix as 7p-sides
+      // above — see that comment.
+      id: '9p-sides',
+      cols: 2,
+      rows: 5,
+      seam: { col: 1 },
+      seats: [
+        s(1, 1, 180, { c: 2 }),
+        s(2, 2, 270),
+        s(2, 3, 270),
+        s(2, 4, 270),
+        s(2, 5, 270),
+        s(1, 5, 90),
+        s(1, 4, 90),
+        s(1, 3, 90),
+        s(1, 2, 90),
+      ],
+    },
+    {
+      // Wide top (1) + Wide bottom (1) + 4 right + 3 left — 9 minus the two
+      // wide ends leaves 7, split 4/3 between the columns for the same
+      // reason 7p-ends splits 3/2 (an odd remainder can't split evenly).
+      id: '9p-ends',
+      cols: 2,
+      rows: 6,
+      seam: { col: 1 },
+      seats: [
+        s(1, 1, 180, { c: 2 }),
+        s(2, 2, 270),
+        s(2, 3, 270),
+        s(2, 4, 270),
+        s(2, 5, 270),
+        s(1, 6, 0, { c: 2 }),
+        s(1, 4, 90),
+        s(1, 3, 90),
+        s(1, 2, 90),
+      ],
+      empty: [e(1, 5)],
+    },
     {
       // Wide top (1) + 4 far + 4 near.
       id: '9p-wide-top',
@@ -413,8 +549,47 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
   ],
 
   // ── 10 players ───────────────────────────────────────────────────────────
-  // 5 rows × 2 cols, fully populated — the ceiling Lotus supports.
+  // 5 rows × 2 cols, fully populated — the ceiling Lotus supports. 10p-sides
+  // is now the DEFAULT — every seat along a long edge, 5+5.
   10: [
+    {
+      // 5 left + 5 right, col-seam — same construction as 8p-sides.
+      id: '10p-sides',
+      cols: 2,
+      rows: 5,
+      seam: { col: 1 },
+      seats: [
+        s(1, 1, 90),
+        s(2, 1, 270),
+        s(2, 2, 270),
+        s(2, 3, 270),
+        s(2, 4, 270),
+        s(2, 5, 270),
+        s(1, 5, 90),
+        s(1, 4, 90),
+        s(1, 3, 90),
+        s(1, 2, 90),
+      ],
+    },
+    {
+      // Wide top (1) + Wide bottom (1) + 4 right + 4 left.
+      id: '10p-ends',
+      cols: 2,
+      rows: 6,
+      seam: { col: 1 },
+      seats: [
+        s(1, 1, 180, { c: 2 }),
+        s(2, 2, 270),
+        s(2, 3, 270),
+        s(2, 4, 270),
+        s(2, 5, 270),
+        s(1, 6, 0, { c: 2 }),
+        s(1, 5, 90),
+        s(1, 4, 90),
+        s(1, 3, 90),
+        s(1, 2, 90),
+      ],
+    },
     {
       // 6 far + 4 near.
       id: '10p-6v4',
