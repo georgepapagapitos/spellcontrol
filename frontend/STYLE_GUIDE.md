@@ -4450,7 +4450,8 @@ non-negotiables that follow from that:
 ## Z-index / layering
 
 - **Always use the `--z-*` tokens** (in `styles/tokens.css`), never raw integers:
-  `--z-dropdown` (50) · `--z-popover` (60) · `--z-menu` (80) · `--z-panel` (100)
+  `--z-dropdown` (50) · `--z-popover` (60) · `--z-refresh` (90) · `--z-panel` (100)
+  · `--z-menu` (120)
   · `--z-sheet-bg`/`--z-sheet-fg` (110/111) · `--z-suggest` (200) · `--z-modal`
   (1000) · `--z-overlay` (1100) · `--z-tooltip` (9999).
 - **Never guess a z-index. Pick the token by _role_, using this layering
@@ -4461,10 +4462,16 @@ non-negotiables that follow from that:
   2. `--z-popover` (60) — **sticky page chrome**: search rows, section-nav
      strips, sort bars. Content scaffolding that pins above scrolling content.
      **Cap sticky chrome here — never `--z-panel`.**
-  3. `--z-menu` (80) — menus/popovers opened from a **header/hero that sits
-     above sticky chrome** (e.g. a ⋮ overflow in the page hero). One tier above
-     the sticky row so it floats over it instead of dropping behind.
-  4. `--z-panel` (100) and up — fixed app frame (tab bar), sheets (`--z-sheet-*`),
+  3. `--z-refresh` (90) — the **pull-to-refresh spinner**, nothing else. It
+     descends from the top of `.app-main`, the same edge every sticky strip
+     pins to, so it must clear all of them, and it stays under the app frame
+     and every sheet. It shipped at a raw `5` and slid under the hub tabs.
+     A new sticky rule inside the app stays below it;
+     `styles/pull-to-refresh-stacking.test.ts` checks every sticky rule.
+  4. `--z-menu` (120) — menus/popovers opened from a **header/hero that sits
+     above sticky chrome** (e.g. a ⋮ overflow in the page hero). Above the
+     sticky row so it floats over it instead of dropping behind.
+  5. `--z-panel` (100) and up — fixed app frame (tab bar), sheets (`--z-sheet-*`),
      modals/overlays (`--z-modal`/`--z-overlay`), tooltips (`--z-tooltip`). These
      always sit above all of the above.
 - **The recurring bug:** a sticky search/nav row at `--z-panel` swallows any menu
