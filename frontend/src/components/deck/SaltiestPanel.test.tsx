@@ -71,10 +71,11 @@ describe('SaltiestPanel', () => {
     expect(screen.getByText('table-friendly')).toBeTruthy();
   });
 
-  it('shows the avg salt with band word when averageSalt is provided', () => {
+  it('leads with the deck average as a band word when averageSalt is provided', () => {
     render(<SaltiestPanel cards={cards} averageSalt={1.55} />);
-    // 1.55 → spicy
-    expect(screen.getByText(/deck avg 1\.55 \(spicy\)/)).toBeTruthy();
+    // 1.55 → spicy, stated first, the number beside it.
+    expect(screen.getByText('Spicy')).toBeTruthy();
+    expect(screen.getByText('deck avg 1.55')).toBeTruthy();
   });
 
   it('omits the avg salt line when averageSalt is not provided', () => {

@@ -46,8 +46,23 @@ export function SaltiestPanel({ cards, averageSalt }: SaltiestPanelProps): JSX.E
     );
   };
 
+  // The deck's own read leads, as a band word: it is the answer to "how will
+  // this land at a table?", and the rows below are the cards behind it.
+  const avg =
+    typeof averageSalt === 'number'
+      ? { band: saltBandWord(averageSalt), text: averageSalt.toFixed(2) }
+      : null;
+
   return (
     <>
+      {avg && (
+        <p className="deck-saltiest-avg">
+          <strong className="deck-saltiest-avg-band">
+            {avg.band.charAt(0).toUpperCase() + avg.band.slice(1)}
+          </strong>{' '}
+          <span className="deck-saltiest-avg-num">deck avg {avg.text}</span>
+        </p>
+      )}
       <ul className="deck-saltiest-list">
         {cards.map((c) => {
           const band = saltBandWord(c.salt);
@@ -68,12 +83,7 @@ export function SaltiestPanel({ cards, averageSalt }: SaltiestPanelProps): JSX.E
           );
         })}
       </ul>
-      <p className="deck-saltiest-hint">
-        EDHREC salt score (higher = more polarizing)
-        {typeof averageSalt === 'number' &&
-          ` · deck avg ${averageSalt.toFixed(2)} (${saltBandWord(averageSalt)})`}
-        .
-      </p>
+      <p className="deck-saltiest-hint">EDHREC salt score, 0 to 4. Higher is more polarizing.</p>
       {carousel.preview}
     </>
   );

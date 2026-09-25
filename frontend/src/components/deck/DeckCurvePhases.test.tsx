@@ -56,10 +56,24 @@ describe('DeckCurvePhases', () => {
     }
   });
 
-  it('shows the average CMC rounded to 1 decimal', () => {
-    render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.14} />);
-    // Now shows 1 decimal: "3.1 avg mana value"
-    expect(screen.getByText(/3\.1/)).toBeTruthy();
+  it("shows the average at two decimals, the stat strip's figure", () => {
+    // The strip said 2.09 while the curve said 2.1.
+    const { container } = render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.14} />);
+    expect(container.querySelector('.deck-curve-phases-avg-num')?.textContent).toBe('3.14');
+  });
+
+  it('keys the dashed target marks in the legend', () => {
+    render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
+    expect(screen.getByText('Target for this pacing')).toBeTruthy();
+  });
+
+  it('lays each phase under the columns it rolls up', () => {
+    const { container } = render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
+    const spans = Array.from(
+      container.querySelectorAll<HTMLElement>('.deck-curve-phases-phase')
+    ).map((p) => p.style.gridColumn);
+    // Early 0-2, Mid 3-4, Late 5-7+: 3 + 2 + 3 = the 8 bars.
+    expect(spans).toEqual(['span 3', 'span 2', 'span 3']);
   });
 
   it('makes bars and phases tappable when card lists are provided', () => {

@@ -3616,8 +3616,11 @@ three times on one screen, so these rulings now hold:
   `Fit & cut` (aria: "Will X fit this deck, and what would it replace?"), not
   `Fit?` — on a full deck every suggestion is really a swap, and the cut is
   the half the user is looking for.
-- **Empty states sit last.** `Table record` in the deck stats renders its
-  empty state below Build report, never between the composition panels.
+- **A placeholder is never the tallest thing in the stats.** `Table record`
+  on a never-played deck is one line and a secondary "Track a game", sized
+  to its row beside Salt (§ Empty states: a sub-panel placeholder is a
+  single concise line). It used to be a display-face tagline plus a primary
+  button, taller than any real panel on the page.
 - **The list view is a command zone plus packed columns, not CSS multi-column
   flow.** The Commander section (one or two rows — a partner is just a second
   row with its existing "Partner" tag) is a full-width strip ABOVE the type
@@ -3682,6 +3685,32 @@ what it did to the curve meant switching tabs every time.
 - **Under the list the board spans the list's width** (`--analysis-max: none`
   inside `.deck-stats-below`). The 1320px cap centred a board on its own tab;
   beside a full-width list it read as a ragged inset.
+- **Panels are sized to what they hold (2026-09-24, E415).** After the glance
+  band, the stats sit on two `.deck-stats-row`s: Mana curve (two shares)
+  beside Types, then Color (two shares) beside Saltiest cards and Table
+  record. A row is a flex line, so an absent panel closes it up; under ~900px
+  of board it stacks. Every panel used to span the full board, which put a
+  two-row salt list's scores 1,000px from their names and drew eight curve
+  bars 140px wide. Never make a stats panel full-width to "use the space".
+- **The curve reads without a key it doesn't have.** Each count rides on its
+  bar (or on the target mark, when that sits higher); the pacing targets are
+  a dashed notch with a "Target for this pacing" legend; the phases are rules
+  under the columns they roll up (Early under 0–2, Mid 3–4, Late 5+), in the
+  bars' own 8-column grid, not three boxed tiles. Off target is a caution
+  tone (the tip says it can be what the deck wants), never error red. The
+  average is two decimals, the strip's figure.
+- **Types files the command zone as its own row**, "Commander" first, the way
+  the list does, so the Creature count here is the list's Creature section.
+  Count only: on a 100-card deck a percentage beside it just repeated it.
+- **Salt leads with the deck's own band word** ("Table-friendly", deck avg
+  beside it), then the saltiest cards on a name · band · score grid.
+- **Build report is one resting row** naming the archetype whose targets the
+  generator used ("Generated with Goodstuff targets": worded as targets, so it
+  doesn't read as contradicting "Plays as", which reads the cards); it opens
+  in place (`<details>`), and every "+ Add" inside still works.
+  It is a record of the build, not a stat, so it never takes a panel's room
+  until asked. A disclosure, not a sheet, because the public shared deck
+  renders the same stats and has no sheet.
 - **A lone tab is not a choice.** A deck with no Power/Coach (any non-Commander
   format, or a shared deck with no analysis) shows no view-tab bar at all, and
   `DeckDisplay` drops its tabpanel role (`tabbed={false}`).

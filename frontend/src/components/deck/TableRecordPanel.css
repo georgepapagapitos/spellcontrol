@@ -9,10 +9,19 @@
   gap: var(--space-3);
 }
 
-/* Slightly de-emphasized inside a `.deck-stats-panel` — it's already a
-   sub-section, no need to repeat the section-level empty-state weight. */
+/* A sub-panel placeholder: one line and a secondary door. */
 .table-record-empty {
-  padding: var(--space-4) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.table-record-empty-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
 }
 
 .table-record-summary {

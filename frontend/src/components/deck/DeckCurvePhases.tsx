@@ -172,7 +172,9 @@ export function DeckCurvePhases({
       <div className="deck-curve-phases-head">
         <div className="deck-curve-phases-head-meta">
           <span className="deck-curve-phases-avg">
-            {averageCmc.toFixed(1)}{' '}
+            {/* Two decimals, the same figure as the stat strip's avg mana
+                value (it read 2.09 there and 2.1 here). */}
+            <span className="deck-curve-phases-avg-num">{averageCmc.toFixed(2)}</span>{' '}
             <span className="deck-curve-phases-avg-label">avg mana value</span>
             <InfoTip
               label="avg mana value"
@@ -235,12 +237,23 @@ export function DeckCurvePhases({
           const cards = cardsByCmc?.[slot.cmc] ?? [];
           const interactive = cards.length > 0;
           const bucket = curveByColor?.[slot.cmc];
+          const targetPct =
+            total > 0 && maxCount > 0 && targetByCmc[slot.cmc] != null
+              ? (targetByCmc[slot.cmc] / maxCount) * 100
+              : 0;
 
           return (
             <li key={slot.cmc} className="deck-curve-phases-bar-col">
-              <span className="deck-curve-phases-bar-count">{slot.count}</span>
-
               <div className="deck-curve-phases-bar-track">
+                {/* The count rides on its bar (or on the target mark, when
+                    that sits higher), so it reads as the bar's own number
+                    rather than a separate row of figures above the chart. */}
+                <span
+                  className="deck-curve-phases-bar-count"
+                  style={{ bottom: `calc(${Math.max(heightPct, targetPct)}% + var(--space-1))` }}
+                >
+                  {slot.count}
+                </span>
                 {/* Target-height marker: a small dash at the pacing-aware target
                     count for this CMC slot's phase. Rendered before the bar fill
                     so it sits behind the fill in paint order. Static — no motion. */}
@@ -326,18 +339,25 @@ export function DeckCurvePhases({
         })}
       </ul>
 
-      {effectiveMode === 'color' && legendKeys.length > 0 && (
-        <ul className="deck-curve-phases-legend" aria-label="Color legend">
-          {legendKeys.map((k) => (
-            <li key={k} className="deck-curve-phases-legend-item">
-              <span
-                className="deck-curve-phases-legend-swatch"
-                style={{ background: segmentColor(k) }}
-                aria-hidden="true"
-              />
-              {SEGMENT_LABEL[k]}
-            </li>
-          ))}
+      {total > 0 && (
+        <ul className="deck-curve-phases-legend" aria-label="Chart legend">
+          {effectiveMode === 'color' &&
+            legendKeys.map((k) => (
+              <li key={k} className="deck-curve-phases-legend-item">
+                <span
+                  className="deck-curve-phases-legend-swatch"
+                  style={{ background: segmentColor(k) }}
+                  aria-hidden="true"
+                />
+                {SEGMENT_LABEL[k]}
+              </li>
+            ))}
+          {/* The dashes on the bars are this deck's pacing targets; without
+              a legend they read as stray lines. */}
+          <li className="deck-curve-phases-legend-item deck-curve-phases-legend-target">
+            <span className="deck-curve-phases-legend-dash" aria-hidden="true" />
+            Target for this pacing
+          </li>
         </ul>
       )}
 
@@ -382,7 +402,13 @@ export function DeckCurvePhases({
             </>
           );
           return (
-            <li key={phase.key} className="deck-curve-phases-phase">
+            // Each phase is a rule under the columns it covers (Early under
+            // 0–2, Mid under 3–4, Late under 5+), not a tile of its own.
+            <li
+              key={phase.key}
+              className={`deck-curve-phases-phase deck-curve-phases-phase--${phase.grade.replace(/ /g, '-')}`}
+              style={{ gridColumn: `span ${phase.cmcs.length}` }}
+            >
               {interactive ? (
                 <button
                   type="button"
