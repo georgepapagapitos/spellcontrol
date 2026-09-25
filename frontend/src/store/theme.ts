@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from '@/lib/safe-local-storage';
 import { DEFAULT_DARK_THEME, DEFAULT_THEME, isValidTheme, themeScheme } from '../lib/themes';
 
 interface ThemeState {
@@ -49,7 +50,7 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: 'spellcontrol-theme',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       onRehydrateStorage: () => (state) => {
         const id = state && isValidTheme(state.theme) ? state.theme : resolveDefaultTheme();
         applyTheme(id);

@@ -128,6 +128,26 @@ describe('HordeTable', () => {
     expect(useHordeGameStore.getState().cardsMilledByDamage).toBeGreaterThan(0);
   });
 
+  it('Done closes the damage sheet even when localStorage is full', () => {
+    seed();
+    render(<HordeTable />);
+    fireEvent.click(screen.getByRole('button', { name: 'Damage the horde' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    // A long game's saved state once overflowed the quota; every write then
+    // threw out of the store action and "Done" never closed the sheet.
+    const full = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      const err = new Error('quota');
+      err.name = 'QuotaExceededError';
+      throw err;
+    });
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+      expect(screen.queryByRole('dialog', { name: 'Damage the horde' })).toBeNull();
+    } finally {
+      full.mockRestore();
+    }
+  });
+
   function seedBattlefieldCard() {
     seed();
     // A card already on the battlefield gets its own id, distinct from any

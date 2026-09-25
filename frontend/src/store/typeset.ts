@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from '@/lib/safe-local-storage';
 import { DEFAULT_TYPESET, isValidTypeSet, typeSetHref } from '../lib/typesets';
 
 interface TypeSetState {
@@ -53,7 +54,7 @@ export const useTypeSetStore = create<TypeSetState>()(
     }),
     {
       name: 'spellcontrol-typeset',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       onRehydrateStorage: () => (state) => {
         applyTypeSet(state && isValidTypeSet(state.typeset) ? state.typeset : DEFAULT_TYPESET);
       },

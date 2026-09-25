@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from './safe-local-storage';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 import type { ScannedEntry } from '../components/ScannerQueueSheet';
@@ -116,7 +117,7 @@ export const useScanQueueStore = create<ScanQueueState>()(
     }),
     {
       name: 'spellcontrol-scan-queue',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       // ponytail: persists the full ScryfallCard per row to localStorage. A
       // scan session is bounded (add-to-collection clears it), so size is a
       // non-issue; move to IndexedDB if sessions ever hold hundreds of cards.

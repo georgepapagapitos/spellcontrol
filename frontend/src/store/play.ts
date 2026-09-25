@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { genId } from '../lib/id';
 import { track } from '../lib/analytics';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from '@/lib/safe-local-storage';
 import {
   applyAction,
   createGameState,
@@ -553,9 +554,15 @@ function ingestTickerLines(seat: number, ticker: TickerEntry[] | undefined, set:
   const fresh = maxSeq < seen ? ticker : ticker.filter((e) => e.seq > seen);
   if (fresh.length === 0) return;
   tickerSeen.set(seat, maxSeq);
-  const items = fresh.map(
-    (entry): TickerItem => ({ id: nextTickerItemId++, seat, kind: 'play', entry })
-  );
+  // Typed on the variable, not the arrow's return: the root prettier (3.9)
+  // and frontend's (3.8, what CI checks) format a return-typed arrow here
+  // differently, so lint-staged and format:check fought over it.
+  const items: TickerItem[] = fresh.map((entry) => ({
+    id: nextTickerItemId++,
+    seat,
+    kind: 'play',
+    entry,
+  }));
   set((s) => ({ onlineTicker: [...s.onlineTicker, ...items].slice(-TICKER_FEED_LIMIT) }));
 }
 
@@ -1552,7 +1559,7 @@ export const usePlayStore = create<PlayState>()(
         }
         return state;
       },
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         state.hydrated = true;

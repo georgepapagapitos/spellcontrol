@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { useHordeGameStore, type HordeSurvivor } from './horde-game';
 import { resolveHordeSettings } from '@/lib/horde';
@@ -375,5 +375,34 @@ describe('persistence', () => {
     expect(parsed.state.board.zones.library.length).toBe(
       useHordeGameStore.getState().board!.zones.library.length
     );
+  });
+});
+
+describe('persistence (a long game once overflowed localStorage)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('saves the game but never its undo stack', async () => {
+    await start({ setupTurns: 2 });
+    useHordeGameStore.getState().endSurvivorTurn();
+    useHordeGameStore.getState().damageHorde(3);
+    expect(useHordeGameStore.getState().past.length).toBeGreaterThan(0);
+    const saved = JSON.parse(localStorage.getItem('spellcontrol-horde-game') ?? '{}');
+    expect(saved.state.board).toBeTruthy();
+    expect(saved.state.past).toBeUndefined();
+  });
+
+  it('a full localStorage never throws out of a store action', async () => {
+    await start({ setupTurns: 0 });
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      const err = new Error('quota');
+      err.name = 'QuotaExceededError';
+      throw err;
+    });
+    expect(() => useHordeGameStore.getState().damageHorde(2)).not.toThrow();
+    expect(useHordeGameStore.getState().lastDamageResult?.amount).toBe(2);
+    expect(() => useHordeGameStore.getState().clearLastDamageResult()).not.toThrow();
+    expect(useHordeGameStore.getState().lastDamageResult).toBeNull();
   });
 });

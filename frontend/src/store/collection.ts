@@ -3,6 +3,7 @@ import { isApplyingServer } from '../lib/applying-server';
 import { track } from '../lib/analytics';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from '@/lib/safe-local-storage';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type {
   BinderDef,
@@ -1775,7 +1776,7 @@ export const useCollectionStore = create<CollectionState>()(
     {
       name: 'spellcontrol',
       version: 15,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       // Synced data — including binders — lives in the per-entity IDB
       // (`entity-store`) and is rehydrated by `lib/sync.ts`. Nothing in this
       // store needs zustand-persist anymore; partialize returns an empty
