@@ -10,10 +10,16 @@ vi.mock('@/deck-builder/services/deckBuilder/commanderDeckAnalysis', () => ({
   detectCombosForAnalysis: vi.fn(async () => []),
 }));
 
+vi.mock('./deck-analysis-cache', () => ({
+  readCachedAnalysis: vi.fn(),
+  writeCachedAnalysis: vi.fn(),
+}));
+
 import {
   analyzeCommanderDeck,
   detectCombosForAnalysis,
 } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
+import { readCachedAnalysis, writeCachedAnalysis } from './deck-analysis-cache';
 import { useCommanderBracketAnalysis } from './use-commander-bracket-analysis';
 
 const RESULT = {
@@ -76,6 +82,8 @@ function args(over: Partial<Parameters<typeof useCommanderBracketAnalysis>[0]> =
 
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.mocked(readCachedAnalysis).mockReset().mockResolvedValue(null);
+  vi.mocked(writeCachedAnalysis).mockReset();
   vi.mocked(analyzeCommanderDeck).mockReset();
 });
 
@@ -547,5 +555,80 @@ describe('useCommanderBracketAnalysis — EDHREC-missing (partial) results', () 
       expect.objectContaining({ gradeBracketSignature: sig(deck) }),
       true
     );
+  });
+});
+
+// Sync never stores analysis on the device, so every page load read
+// "Estimating bracket…" for the combo match + analysis (~3 s warm, measured on
+// production). The last result now lives in a device-local cache.
+describe('useCommanderBracketAnalysis — device cache of the last result', () => {
+  const combo = {
+    inDeck: [{ combo: { id: 'cx' } }],
+    oneAway: [],
+    almostInCollection: [],
+  } as unknown as ComboMatchResponse;
+
+  it('caches exactly what it persisted', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+    const a = args({ comboData: combo });
+    renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    const persisted = vi.mocked(a.updateDeck).mock.calls.at(-1)![1];
+    expect(writeCachedAnalysis).toHaveBeenCalledWith('d1', persisted);
+    expect(persisted).toEqual(
+      expect.objectContaining({ gradeBracketSignature: sig(a.deck as Deck, combo) })
+    );
+  });
+
+  it('restores the cached result when the deck opens with none in memory', async () => {
+    const deck = makeDeck();
+    const cached = { bracketEstimation: { bracket: 4 }, gradeBracketSignature: sig(deck, combo) };
+    vi.mocked(readCachedAnalysis).mockResolvedValue(cached as never);
+    const a = args({ deck, combosLoading: true });
+    renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(readCachedAnalysis).toHaveBeenCalledWith('d1');
+    expect(a.updateDeck).toHaveBeenCalledWith('d1', cached, true);
+  });
+
+  it('does not recompute when the restored result already matches the deck', async () => {
+    const deck = makeDeck();
+    (deck as Deck).gradeBracketSignature = sig(deck, combo); // what the restore stamps
+    const a = args({ deck, comboData: combo });
+    renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    expect(readCachedAnalysis).not.toHaveBeenCalled(); // already has one in memory
+    expect(analyzeCommanderDeck).not.toHaveBeenCalled();
+  });
+
+  it('never lets a slow cache read overwrite a fresher analysis', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+    let resolveRead!: (v: unknown) => void;
+    vi.mocked(readCachedAnalysis).mockReturnValue(
+      new Promise((r) => {
+        resolveRead = r;
+      }) as never
+    );
+    const deck = makeDeck();
+    let a = args({ deck, comboData: combo });
+    const { rerender } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(a.updateDeck).toHaveBeenCalledTimes(1); // the fresh analysis
+    // The store stamps it back onto the deck before the stale read resolves.
+    a = { ...a, deck: { ...deck, gradeBracketSignature: sig(deck, combo) } as Deck };
+    rerender();
+    await act(async () => {
+      resolveRead({ bracketEstimation: { bracket: 2 }, gradeBracketSignature: 'old' });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(a.updateDeck).toHaveBeenCalledTimes(1);
   });
 });

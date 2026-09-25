@@ -10,6 +10,7 @@ vi.mock('./auth-api', () => ({
   clearCollectionSync: vi.fn(),
 }));
 
+import { readCachedAnalysis, writeCachedAnalysis } from './deck-analysis-cache';
 import {
   startSync,
   stopSyncAndWipeLocal,
@@ -152,6 +153,22 @@ describe('lifecycle', () => {
     expect(localStorage.getItem('spellcontrol-sync-cursor')).toBeNull();
     expect(localStorage.getItem('spellcontrol-sync-owner')).toBeNull();
     expect(getSyncState()).toBe('idle');
+  });
+
+  it('the account wipe also clears the device cache of deck analyses', async () => {
+    await startSync('user-1');
+    writeCachedAnalysis('deck-1', { gradeBracketSignature: 's' });
+    await vi.waitFor(async () => expect(await readCachedAnalysis('deck-1')).not.toBeNull());
+    await stopSyncAndWipeLocal();
+    expect(await readCachedAnalysis('deck-1')).toBeNull();
+  });
+
+  it('a different user signing in never sees the last user’s cached analyses', async () => {
+    await startSync('user-1');
+    writeCachedAnalysis('deck-1', { gradeBracketSignature: 's' });
+    await vi.waitFor(async () => expect(await readCachedAnalysis('deck-1')).not.toBeNull());
+    await startSync('user-2');
+    expect(await readCachedAnalysis('deck-1')).toBeNull();
   });
 
   // The retired welcome-digest feature's keys are account-agnostic (no user id

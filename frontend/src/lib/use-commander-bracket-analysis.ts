@@ -6,6 +6,7 @@ import {
   detectCombosForAnalysis,
 } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { setApplyingAnalysis } from './applying-analysis';
+import { readCachedAnalysis, writeCachedAnalysis } from './deck-analysis-cache';
 
 interface Args {
   deck: Deck | null;
@@ -270,6 +271,34 @@ export function useCommanderBracketAnalysis(args: Args): {
   // re-run of this effect within the same session.
   const [edhrecMissingAttempted, setEdhrecMissingAttempted] = useState<string | null>(null);
 
+  // A deck opened with no analysis in memory (every page load: sync never
+  // stores it) gets its last result from this device's cache, so the Power
+  // tab shows the last bracket at once instead of "Estimating bracket…". The
+  // effect below still recomputes when the signature moved. The ref lets the
+  // async read see whether a fresh analysis landed first; that one wins.
+  const persistedRef = useRef(persistedSignature);
+  useEffect(() => {
+    persistedRef.current = persistedSignature;
+  });
+  const cacheDeckId = enabled ? deck?.id : undefined;
+  const needsRestore = !!cacheDeckId && !persistedSignature;
+  useEffect(() => {
+    if (!cacheDeckId || !needsRestore) return;
+    let cancelled = false;
+    void readCachedAnalysis(cacheDeckId).then((cached) => {
+      if (cancelled || !cached || persistedRef.current) return;
+      setApplyingAnalysis(true);
+      try {
+        updateDeck(cacheDeckId, cached, true);
+      } finally {
+        setApplyingAnalysis(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cacheDeckId, needsRestore, updateDeck]);
+
   const retry = useCallback(() => {
     setFailedSignature(null);
     setEdhrecMissingAttempted(null);
@@ -334,45 +363,45 @@ export function useCommanderBracketAnalysis(args: Args): {
             return;
           }
           setFailedSignature(null);
+          const analysis = {
+            deckGrade: result.deckGrade,
+            bracketEstimation: result.bracketEstimation,
+            roleTargets: result.roleTargets,
+            gapAnalysis: result.gapAnalysis,
+            hiddenGems: result.hiddenGems,
+            cardInclusionMap: result.cardInclusionMap,
+            planScore: result.planScore,
+            misfits: result.misfits,
+            edhrecNumDecks: result.edhrecNumDecks ?? null,
+            optimizeSwaps: result.optimizeSwaps,
+            costPlan: result.costPlan,
+            synergyAnalysis: result.synergyAnalysis,
+            winConditions: result.winConditions,
+            // null when no target set / non-commander — clears a stale plan.
+            bracketFit: result.bracketFit ?? null,
+            // A partial (EDHREC-missing) result gets a suffixed signature —
+            // distinct from the plain one a full analysis would persist for
+            // the same deck, so a later successful analysis (deck unchanged,
+            // EDHREC back up) doesn't read as "already done" and skip.
+            gradeBracketSignature: result.edhrecMissing
+              ? `${signature}${EDHREC_MISSING_SUFFIX}`
+              : signature,
+          };
           // Flag the write as analysis-derived so the decks-store subscriber
           // skips enqueueing it into the sync queue. The flag is set
           // synchronously around the store mutation so the subscriber (which
           // also checks synchronously, before the lazy sync import) sees it.
           setApplyingAnalysis(true);
           try {
-            updateDeck(
-              deckId,
-              {
-                deckGrade: result.deckGrade,
-                bracketEstimation: result.bracketEstimation,
-                roleTargets: result.roleTargets,
-                gapAnalysis: result.gapAnalysis,
-                hiddenGems: result.hiddenGems,
-                cardInclusionMap: result.cardInclusionMap,
-                planScore: result.planScore,
-                misfits: result.misfits,
-                edhrecNumDecks: result.edhrecNumDecks ?? null,
-                optimizeSwaps: result.optimizeSwaps,
-                costPlan: result.costPlan,
-                synergyAnalysis: result.synergyAnalysis,
-                winConditions: result.winConditions,
-                // null when no target set / non-commander — clears a stale plan.
-                bracketFit: result.bracketFit ?? null,
-                // A partial (EDHREC-missing) result gets a suffixed signature —
-                // distinct from the plain one a full analysis would persist for
-                // the same deck, so a later successful analysis (deck unchanged,
-                // EDHREC back up) doesn't read as "already done" and skip.
-                gradeBracketSignature: result.edhrecMissing
-                  ? `${signature}${EDHREC_MISSING_SUFFIX}`
-                  : signature,
-                // silent: derived analysis, not a user edit — don't bump updatedAt
-                // (else merely viewing a deck marks it "edited just now").
-              },
-              true
-            );
+            // silent: derived analysis, not a user edit — don't bump updatedAt
+            // (else merely viewing a deck marks it "edited just now").
+            updateDeck(deckId, analysis, true);
           } finally {
             setApplyingAnalysis(false);
           }
+          // Sync never stores analysis on this device, so keep a copy for the
+          // next visit to show at once (see deck-analysis-cache.ts).
+          writeCachedAnalysis(deckId, analysis);
           if (result.edhrecMissing) setEdhrecMissingAttempted(signature);
         })
         .catch(() => {
