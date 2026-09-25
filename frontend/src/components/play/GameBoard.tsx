@@ -311,8 +311,14 @@ export function GameBoard({
   // Seam satellite placement, at both size steps the CSS switches between.
   // The clock used to be the seam's other satellite; it's an edge strip now
   // (see the render below), so undo is the only satellite left.
-  const undoPlace = seamSatellite(board.seam, board.rows, -1, '3.4rem');
-  const undoPlaceLg = seamSatellite(board.seam, board.rows, -1, '4rem');
+  // `wideFirstRow`: derived from the layout's own data (never a preset id) —
+  // seamSatellite only shifts the column-seam quarter point off 25% for a
+  // board whose row 1 has no left/right split at all, and only when that
+  // shape's row count would otherwise land the flat quarter inside a cell
+  // rather than on its boundary. See that function's own doc comment.
+  const wideFirstRow = board.seats[0]?.colSpan === 2;
+  const undoPlace = seamSatellite(board.seam, board.rows, -1, '3.4rem', wideFirstRow);
+  const undoPlaceLg = seamSatellite(board.seam, board.rows, -1, '4rem', wideFirstRow);
   // Read-only "up next" marker: the seat `pass-turn` would move to right now.
   // Null (no marker anywhere) with the turn tracker off, before turn tracking
   // starts, or once only one seat survives — "next" means nothing when

@@ -742,48 +742,56 @@ const HUB_CLEARANCE = '2rem';
  * ~180px long, so the name would have to move further than the panel is deep.
  *
  * So a col-seam satellite stops being hub-relative and takes the **midpoint of
- * an adjacent panel's inner edge** instead: roughly a third of the way down
- * the seam for the "before" satellite, roughly two thirds for the "after"
- * one (32%/68% — see below for why it moved off an exact quarter). Panels put
- * their furniture at corners and their ± zones at the middle of the panel, so
- * the middle of an edge is clear *by construction* rather than by a magic
- * number tuned to one viewport — which is what makes this hold at every board
- * size instead of only the one it was measured at.
+ * an adjacent panel's inner edge** instead: a quarter of the way down the
+ * seam for the "before" satellite, three quarters for the "after" one.
+ * Panels put their furniture at corners and their ± zones at the middle of
+ * the panel, so the middle of an edge is clear *by construction* rather than
+ * by a magic number tuned to one viewport — which is what makes this hold at
+ * every board size instead of only the one it was measured at, PROVIDED
+ * every row is a plain left/right pair (see the exception below for the one
+ * shape where it isn't).
  *
  * All three stay on the seam line, so they still read as the boundary's
  * furniture rather than as any seat's.
  *
- * **32%/68%, not a literal quarter (2026-09-25).** The original 25%/75% was
- * tuned against the four col-seam boards that existed then (`2p-side`,
- * `4p-sides`, `8p-sides`, `10p-sides`) — every row on all four is a plain
- * left/right sideways pair, so a flat quarter of the total grid height
- * always falls comfortably clear of any one row's own corner furniture.
- * `7p-sides`/`9p-sides` and every `Xp-ends` preset broke that assumption:
- * they seat a WIDE seat (colSpan 2, no left/right split at all) in row 1,
- * which pushes seat 1 — the first seat after it, and the one a table
+ * **Exception: a Wide seat in row 1 (2026-09-25).** The flat quarter above
+ * holds only because a plain left/right row repeats identically at every
+ * position, so *which* row 25% happens to land in never matters. `7p-ends`,
+ * `8p-ends`, `9p-sides`, `9p-ends` and `10p-ends` all seat a Wide seat (no
+ * left/right split at all) in row 1, which pushes seat 1 — the seat a table
  * actually marks "up next" most of the time — into row 2 instead of row 1.
- * On a 5-6 row board (`7p-ends`, `8p-ends`, `9p-sides`, `9p-ends`,
- * `10p-ends`) a flat 25% lands inside that row 2 cell rather than near a row
- * boundary, close enough to seat 1's own "up next" chip corner that growing
- * the undo button 42 → 44px (#2279) tipped it into a 10px² overlap. The
- * four-row col-seam presets (`7p-sides`, `8p-sides`, `10p-sides`) never
- * showed it: `8p-sides`/`10p-sides` have no wide seat at all, and
- * `7p-sides`' flat quarter happens to land exactly on its own row 1/row 2
- * boundary rather than inside a cell. 32%/68% clears every col-seam preset
- * (`LAYOUTS=ALL`, all three
- * viewports, `.claude/tools/life-board-probe.mjs`) including the four
- * original boards this rule was first tuned against — moving the point
- * further from row 1 costs nothing there, since every row past it is
- * identical.
+ * On a 5-6 row board that puts row 2 somewhere a flat quarter doesn't land
+ * cleanly on its boundary (`0.25 * rows` isn't a whole number), so the point
+ * ends up *inside* that cell rather than near its edge, close enough to seat
+ * 1's own "up next" chip corner that undo growing 42 → 44px (#2279) tipped
+ * it into a measured 10px² overlap. `wideFirstRow` (derived by the caller
+ * from `seats[0].colSpan === 2`, never a preset id) opts a board into a
+ * shifted 32% "before" point *only* when both hold: a Wide first row AND
+ * `0.25 * rows` isn't already a whole number. `7p-sides` has the Wide-row-1
+ * shape too but only 4 rows (`0.25 * 4 === 1`, exactly a boundary) so it's
+ * excluded by the second half of the check, same as `8p-sides`/`10p-sides`
+ * are by the first (no Wide seat at all) — none of the three ever needed
+ * the shift, and none of them get it. Every OTHER col-seam board keeps the
+ * exact original 25%/75% this rule has always used. 32% (not a formula tied
+ * to `rows`) is itself measured, not derived: it clears both the 5-row and
+ * 6-row cases in one value (`LAYOUTS=ALL`, all three viewports,
+ * `.claude/tools/life-board-probe.mjs`). The "after" (75%) side keeps its
+ * literal value unconditionally — nothing today renders a col-seam "after"
+ * satellite, and a symmetric Wide-last-row exception would be guessing
+ * ahead of a collision nobody has measured.
  */
 export function seamSatellite(
   seam: BoardLayout['seam'],
   rows: number,
   side: -1 | 1,
-  offset: string
+  offset: string,
+  wideFirstRow = false
 ): { topPct: string; tx: string; ty: string } {
   if ('col' in seam) {
-    return { topPct: side < 0 ? '32%' : '68%', tx: '-50%', ty: '-50%' };
+    if (side < 0 && wideFirstRow && (0.25 * rows) % 1 !== 0) {
+      return { topPct: '32%', tx: '-50%', ty: '-50%' };
+    }
+    return { topPct: side < 0 ? '25%' : '75%', tx: '-50%', ty: '-50%' };
   }
   const topPct = `${(seam.row / rows) * 100}%`;
   if (side > 0) {

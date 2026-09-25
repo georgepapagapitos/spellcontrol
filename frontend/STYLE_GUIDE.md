@@ -7518,27 +7518,39 @@ shows it?
      (`seamSatellite`), because the hub there is a four-panel crossing and
      anything hung a few rem from it lands on a name in either direction. The
      middle of a panel edge is clear by construction, which is why this holds
-     at every board size rather than only the one it was tuned at.
+     at every board size rather than only the one it was tuned at — for
+     every board whose rows are a plain left/right pair, which is every
+     col-seam board except the one shape rule 4 below carves out.
   3. A **wide** satellite is anchored by its near edge, never centred at an
      offset — half of a 133px pill swallowed the 44px hub button and hid the ⋯
      glyph entirely on every row-seam board. Cap its width against the board
      edge too, so a narrow phone or a long player name shrinks the pill instead
      of pushing it off-screen.
-  4. **The column-seam quarter point (rule 2) is 32%/68%, not a literal
-     quarter (2026-09-25).** It held at an exact 25%/75% only because every
-     col-seam board that existed when it was tuned (`2p-side`, `4p-sides`,
-     `8p-sides`, `10p-sides`) seats a plain left/right pair on every row, so a
-     flat quarter of the grid always falls clear of any one row's own corner
-     furniture. `7p-ends`/`8p-ends`/`9p-sides`/`9p-ends`/`10p-ends` broke that:
-     each seats a Wide seat (no left/right split at all) in row 1, which
-     pushes seat 1 into row 2 instead of row 1 — on a 5-6 row board a flat
-     25% lands inside that row 2 cell rather than near its boundary, and
+  4. **Exception to rule 2: a Wide seat in row 1 shifts the "before" point to
+     32% (2026-09-25) — everything else still gets the literal quarter.** A
+     flat 25% holds only because a plain left/right row repeats identically
+     at every position, so _which_ row it lands in never matters. `7p-ends`,
+     `8p-ends`, `9p-sides`, `9p-ends` and `10p-ends` all seat a Wide seat (no
+     left/right split at all) in row 1, which pushes seat 1 — the seat a
+     table actually marks "up next" most of the time — into row 2 instead of
+     row 1. Their 5-6 rows put row 2 somewhere a flat quarter doesn't land on
+     its own boundary, so the point ends up _inside_ that cell instead, and
      undo growing 42→44px (#2279) tipped that into a measured 10px² overlap
-     with seat 1's own "up next" chip corner. 32%/68% clears every col-seam
-     preset, including the four originals — moving the point further from
-     row 1 costs nothing there, since every row past it is identical.
-     `board-layouts.test.ts` pins both the value and the Wide-seat-in-row-1
-     shape that makes a preset need it.
+     with seat 1's own "up next" chip corner. `seamSatellite`'s `wideFirstRow`
+     parameter — GameBoard.tsx derives it from `seats[0].colSpan === 2`,
+     never a preset id — opts a board into the 32% point **only** when a Wide
+     first row AND the row count would otherwise land the flat quarter inside
+     a cell (`0.25 * rows` not a whole number); `7p-sides` has the same
+     Wide-row-1 shape but only 4 rows, where a flat quarter already lands
+     exactly on the row 1/row 2 boundary, so it keeps rule 2's literal 25%
+     same as `8p-sides`/`10p-sides` (no Wide seat at all) and every other
+     col-seam board. 32% is itself measured, not a `rows`-driven formula — one
+     value clears both the 5-row and 6-row cases. The "after" (75%) side never
+     shifts: nothing renders a column-seam "after" satellite today, so a
+     symmetric Wide-last-row exception would be guessing ahead of a collision
+     nobody has measured. `board-layouts.test.ts` pins the literal-quarter
+     default, the shifted value under the exact condition, and the
+     Wide-seat-in-row-1 shape GameBoard.tsx derives `wideFirstRow` from.
 
   Verify with `.claude/tools/seam-geometry-scratch.mjs`, which drives all 16
   preset layouts through the menu's Setup tab and reports every satellite ∩

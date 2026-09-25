@@ -150,24 +150,55 @@ describe('seamSatellite', () => {
     expect(seamSatellite({ row: 1 }, 4, -1, '3.4rem').topPct).toBe('25%');
   });
 
-  it('column seam: satellites take the near-third points instead of hugging the hub', () => {
+  it('column seam: satellites take the quarter points instead of hugging the hub', () => {
     // The hub is a four-corner crossing on a column seam, so anything offset a
     // few rem from it lands on a name — measured at 766px² on 4p-sides before
-    // this rule. 32%/68% (not a literal quarter — see the function's own doc
-    // comment): a flat 25%/75% cleared the four col-seam boards it was first
-    // tuned against (every row a plain left/right pair), but 7p-ends/8p-ends/
-    // 9p-sides/9p-ends/10p-ends seat a Wide seat in row 1, which pushes seat 1
-    // into row 2 instead of row 1 on a 5-6 row board — close enough to that
-    // row's own "up next" chip corner that undo growing 42->44px (#2279)
-    // tipped a flat quarter into a 10px² overlap there.
+    // this rule. A quarter of the way along the seam is the middle of an
+    // adjacent panel's edge, which is clear by construction — for every board
+    // whose rows are a plain left/right pair, which is the default
+    // (`wideFirstRow` omitted / false). See the next test for the one shape
+    // that needs a different point instead.
     const before = seamSatellite({ col: 1 }, 2, -1, '3.4rem');
     const after = seamSatellite({ col: 1 }, 2, 1, '3.4rem');
-    expect(before.topPct).toBe('32%');
-    expect(after.topPct).toBe('68%');
+    expect(before.topPct).toBe('25%');
+    expect(after.topPct).toBe('75%');
     // Centred on that point — no hub-relative offset left to apply.
     for (const p of [before, after]) {
       expect(p.tx).toBe('-50%');
       expect(p.ty).toBe('-50%');
+    }
+  });
+
+  it('column seam + Wide first row: the "before" point shifts to 32%, but only where 25% would land inside a cell', () => {
+    // 7p-ends/8p-ends/9p-sides/9p-ends/10p-ends all seat a Wide seat (no
+    // left/right split) in row 1, pushing seat 1 into row 2 — on their 5-6
+    // row boards a flat 25% lands inside that cell rather than on its
+    // boundary, close enough to seat 1's own "up next" chip corner that undo
+    // growing 42->44px (#2279) tipped it into a measured 10px² overlap.
+    // `wideFirstRow` is a caller-supplied boolean (GameBoard.tsx derives it
+    // from `seats[0].colSpan === 2`, never a preset id), and the shift only
+    // fires when the quarter ALSO doesn't already land on a row boundary
+    // (`0.25 * rows` not a whole number) — so a 4-row Wide-first-row board
+    // (`7p-sides`) is excluded exactly like a board with no Wide seat at all.
+    for (const rows of [5, 6]) {
+      const before = seamSatellite({ col: 1 }, rows, -1, '3.4rem', true);
+      expect(before.topPct, `rows=${rows}`).toBe('32%');
+      expect(before.tx).toBe('-50%');
+      expect(before.ty).toBe('-50%');
+    }
+    // 4 rows: the flat quarter already lands exactly on the row 1/row 2
+    // boundary (0.25 * 4 === 1), so no shift even with a Wide first row.
+    expect(seamSatellite({ col: 1 }, 4, -1, '3.4rem', true).topPct).toBe('25%');
+    // No Wide first row at all: never shifts, regardless of row count.
+    for (const rows of [4, 5, 6]) {
+      expect(seamSatellite({ col: 1 }, rows, -1, '3.4rem', false).topPct, `rows=${rows}`).toBe(
+        '25%'
+      );
+    }
+    // The "after" side never shifts — nothing renders a column-seam "after"
+    // satellite today, so there is nothing measured to fix there.
+    for (const rows of [4, 5, 6]) {
+      expect(seamSatellite({ col: 1 }, rows, 1, '3.4rem', true).topPct, `rows=${rows}`).toBe('75%');
     }
   });
 
@@ -364,20 +395,22 @@ describe('7-10p Lotus sides/ends layouts', () => {
     }
   });
 
-  it('pins the col-seam + Wide-seat-in-row-1 shape that put seat 1 next to the undo satellite', () => {
-    // The 2026-09-25 fix (seamSatellite's 25%->32% move): 7p-ends, 8p-ends,
-    // 9p-sides, 9p-ends and 10p-ends all seat a Wide seat (colSpan 2) in
-    // row 1, which pushes seat 1 into row 2 rather than row 1 — close enough
-    // to the undo satellite's "before" quarter point that growing undo
-    // 42->44px (#2279) produced a measured 10px² overlap with seat 1's own
-    // "up next" chip corner. `7p-sides`/`8p-sides`/`10p-sides` are the
-    // control group: `8p-sides`/`10p-sides` have no Wide seat at all, and
+  it('pins the col-seam + Wide-seat-in-row-1 shape that GameBoard.tsx derives wideFirstRow from', () => {
+    // GameBoard.tsx computes seamSatellite's `wideFirstRow` argument as
+    // `board.seats[0]?.colSpan === 2` — 7p-ends, 8p-ends, 9p-sides, 9p-ends
+    // and 10p-ends all seat a Wide seat (colSpan 2) in row 1, which pushes
+    // seat 1 into row 2 rather than row 1 — close enough to the undo
+    // satellite's "before" quarter point that growing undo 42->44px (#2279)
+    // produced a measured 10px² overlap with seat 1's own "up next" chip
+    // corner (see the `seamSatellite` test above for the shifted-point
+    // assertion itself). `7p-sides`/`8p-sides`/`10p-sides` are the control
+    // group: `8p-sides`/`10p-sides` have no Wide seat at all, and
     // `7p-sides` (4 rows, the same Wide-in-row-1 shape) never collided
     // because its row count happens to put a flat quarter exactly on the
     // row 1/row 2 boundary rather than inside row 2 — pinned here too, so a
     // future preset that reproduces the Wide-seat-in-row-1 shape at 5+ rows
-    // is caught by the same seam-satellite value check above, not silently
-    // reintroducing a collision no test would see.
+    // is caught by this same structural check, not silently landing outside
+    // wideFirstRow's derivation and reintroducing the collision.
     const wideSeatPushesSeatOneToRow2 = ['7p-ends', '8p-ends', '9p-sides', '9p-ends', '10p-ends'];
     for (const id of wideSeatPushesSeatOneToRow2) {
       const count = Number(id.match(/^\d+/)![0]);
