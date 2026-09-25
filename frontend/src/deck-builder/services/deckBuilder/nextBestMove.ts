@@ -31,12 +31,7 @@ export interface NextBestMove {
  *  Tune intent lanes (so a within-Tune move opens the right lane). Includes
  *  'bracket-fit' for the third Tune lane (UX-313). */
 export type NextBestMoveFocus =
-  | 'combos'
-  | 'fill-gaps'
-  | 'upgrade'
-  | 'budget'
-  | 'collection'
-  | 'bracket-fit';
+  'combos' | 'fill-gaps' | 'upgrade' | 'budget' | 'collection' | 'bracket-fit';
 
 export interface NextBestMoveInput {
   /** Live PlanScore on the deck (deck.planScore). Tier-2 + limited-data note. */

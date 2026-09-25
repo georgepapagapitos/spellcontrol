@@ -60,7 +60,12 @@ describe('buildCommands', () => {
       decks: [deck('d1', 'Abigale', 'Abigale, Eloquent First-Year')],
       go: vi.fn(),
     });
-    expect(scoreCommand(commands.find((c) => c.id === 'deck:d1')!, 'eloquent')).toBeGreaterThan(0);
+    expect(
+      scoreCommand(
+        commands.find((c) => c.id === 'deck:d1')!,
+        'eloquent'
+      )
+    ).toBeGreaterThan(0);
   });
 
   it('routes the import action through location state, not a bare path', () => {

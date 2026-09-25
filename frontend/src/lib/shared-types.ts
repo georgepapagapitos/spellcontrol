@@ -10,13 +10,7 @@ import type { GameEvent } from './game-state';
  *  same PublicDeck payload, different viewer UI. 'game-result' shares a
  *  finished online game's canonical recap — see PublicGameResultShare. */
 export type ShareKind =
-  | 'collection'
-  | 'binder'
-  | 'deck'
-  | 'list'
-  | 'cube'
-  | 'feedback'
-  | 'game-result';
+  'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'feedback' | 'game-result';
 
 /** Who can open a share. 'direct' = addressed to one friend (the addressee). */
 export type ShareAudience = 'link' | 'friends' | 'direct';

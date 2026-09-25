@@ -223,13 +223,7 @@ export type Treatment = 'fullart' | 'extendedart' | 'showcase' | 'etched' | 'inv
 export type BorderColor = 'black' | 'white' | 'borderless' | 'silver' | 'gold';
 
 export type Format =
-  | 'standard'
-  | 'pioneer'
-  | 'modern'
-  | 'legacy'
-  | 'vintage'
-  | 'commander'
-  | 'pauper';
+  'standard' | 'pioneer' | 'modern' | 'legacy' | 'vintage' | 'commander' | 'pauper';
 
 /**
  * Card layouts we surface as filter chips. Card.layout values from Scryfall.

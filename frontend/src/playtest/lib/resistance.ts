@@ -32,8 +32,7 @@ export interface ResistanceState {
 }
 
 export type ResistanceEvent =
-  | { kind: 'played'; card: PlaytestCard }
-  | { kind: 'turnStart'; turn: number };
+  { kind: 'played'; card: PlaytestCard } | { kind: 'turnStart'; turn: number };
 
 export interface ResistanceResponse {
   spellName: string;

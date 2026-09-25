@@ -63,12 +63,7 @@ export const PREVIEW_SPLIT_QUERY =
 /** Which surface opened the preview. Drives per-context panel content
  *  (exposed as `data-source` on the panel for context-specific styling). */
 export type CardPreviewSource =
-  | 'deck'
-  | 'collection'
-  | 'binder'
-  | 'suggestion'
-  | 'search'
-  | 'playtest';
+  'deck' | 'collection' | 'binder' | 'suggestion' | 'search' | 'playtest';
 
 /** One button in the preview's action row. Callers supply only the actions
  *  relevant to their view, so the row is view-dependent by construction. */

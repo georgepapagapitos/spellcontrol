@@ -304,7 +304,7 @@ function selectBucket(
   // resort — otherwise the highest-signal deferred cards, which are exactly the
   // capped ones, would walk straight back in.
   for (const allowCapped of [false, true]) {
-    for (let i = 0; i < deferred.length && picks.length < target; ) {
+    for (let i = 0; i < deferred.length && picks.length < target;) {
       const c = deferred[i];
       if (overCap(c) && !allowCapped) {
         i++;

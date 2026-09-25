@@ -205,16 +205,7 @@ const VIEW_MODE_OPTIONS = [
 ];
 
 type SortKey =
-  | 'name'
-  | 'set'
-  | 'rarity'
-  | 'price'
-  | 'edhrec'
-  | 'qty'
-  | 'cmc'
-  | 'release'
-  | 'added'
-  | 'edited';
+  'name' | 'set' | 'rarity' | 'price' | 'edhrec' | 'qty' | 'cmc' | 'release' | 'added' | 'edited';
 
 const ROW_HEIGHT_LIST = 66;
 const ROW_HEIGHT_COMPACT = 32;

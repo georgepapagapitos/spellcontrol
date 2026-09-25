@@ -7,14 +7,7 @@ import type { EnrichedCard } from '../types';
  * rather than each getting their own one-off treatment.
  */
 export type FoilStyle =
-  | 'none'
-  | 'regular'
-  | 'etched'
-  | 'textured'
-  | 'oilslick'
-  | 'gilded'
-  | 'halo'
-  | 'fracture';
+  'none' | 'regular' | 'etched' | 'textured' | 'oilslick' | 'gilded' | 'halo' | 'fracture';
 
 /** The foil-relevant fields `classifyFoil` reads. Accepting this structural
  *  subset (rather than the full `EnrichedCard`) lets deck-view rows — which

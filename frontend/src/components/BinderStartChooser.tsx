@@ -5,9 +5,7 @@ import { useCardTagsError, useCardTagsReady, useCardsWithTags } from '../lib/car
 import type { BinderFilter, EnrichedCard } from '../types';
 
 export type BinderStart =
-  | { kind: 'template'; template: StarterTemplate }
-  | { kind: 'blank' }
-  | { kind: 'import' };
+  { kind: 'template'; template: StarterTemplate } | { kind: 'blank' } | { kind: 'import' };
 
 /** Templates that need a choice before they mean anything show no count. */
 const PICK_NEXT: Record<string, string> = {

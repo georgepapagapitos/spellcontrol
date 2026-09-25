@@ -14,12 +14,7 @@ export const SIZE_SLOT_ID = 'size';
 export const LAND_FLOOR_SLOT_ID = 'land-floor';
 
 type LegalityIssueKind =
-  | 'not-legal'
-  | 'over-copy-limit'
-  | 'color-identity'
-  | 'over-size'
-  | 'under-size'
-  | 'land-floor';
+  'not-legal' | 'over-copy-limit' | 'color-identity' | 'over-size' | 'under-size' | 'land-floor';
 
 export interface LegalityIssue {
   slotId: string;
