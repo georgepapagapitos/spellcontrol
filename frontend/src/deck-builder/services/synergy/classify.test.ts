@@ -66,3 +66,25 @@ describe('synergy classifier — safety invariants', () => {
     expect(recall).toBeGreaterThanOrEqual(0.9);
   });
 });
+
+// E412: the deck page classifies the same card objects many times per load
+// (every deck's profile for the cross-deck scan, then per-candidate hits, the
+// radar, and every recompute). The result is cached per card OBJECT: a second
+// call is free, and a different copy of a card is still read from its own text.
+describe('synergy classifier — per-object cache (E412)', () => {
+  const tokenMaker = {
+    name: 'Cache Probe',
+    type_line: 'Sorcery',
+    oracle_text: 'Create two 1/1 white Soldier creature tokens.',
+  };
+
+  it('returns the cached result for the same card object', () => {
+    expect(classifyCard(tokenMaker)).toBe(classifyCard(tokenMaker));
+  });
+
+  it('classifies a different object from its own text, even under the same name', () => {
+    const other = { ...tokenMaker, oracle_text: 'Draw a card.' };
+    expect(axesOf(classifyCard(tokenMaker).producers)).toContain('tokens');
+    expect(axesOf(classifyCard(other).producers)).not.toContain('tokens');
+  });
+});
