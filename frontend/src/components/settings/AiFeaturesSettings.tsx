@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SettingsSection } from './SettingsSection';
-import { SettingsRow } from './SettingsRow';
+import { SwitchRow } from '../shared/form';
 import { fetchAiStatus, setAiOptIn, type AiStatus } from '../../lib/ai-review';
 import { toast } from '../../store/toasts';
 
@@ -55,18 +55,18 @@ export function AiFeaturesSettings() {
         title="Read the deck"
         hint="Sends this deck to Anthropic for analysis: card names and your deck's stats. Your collection is never sent."
       >
-        <SettingsRow
+        <SwitchRow
           label="AI deck analysis"
           hint={
-            status.optIn
-              ? `Nothing is sent unless you press an AI button. ${status.limit} requests per day · used today: ${status.used}.`
-              : 'Off. Nothing is ever sent.'
+            busy
+              ? 'Saving…'
+              : status.optIn
+                ? `Nothing is sent unless you press an AI button. ${status.limit} requests per day · used today: ${status.used}.`
+                : 'Off. Nothing is ever sent.'
           }
-          actions={
-            <button type="button" className="btn" onClick={() => void toggle()} disabled={busy}>
-              {busy ? 'Saving…' : status.optIn ? 'Turn off' : 'Turn on'}
-            </button>
-          }
+          checked={status.optIn}
+          onChange={() => void toggle()}
+          disabled={busy}
         />
       </SettingsSection>
     </div>

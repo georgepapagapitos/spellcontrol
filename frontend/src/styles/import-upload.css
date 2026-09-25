@@ -823,16 +823,6 @@
   }
 }
 
-.import-proxy-toggle {
-  margin: 0;
-}
-
-.import-proxy-toggle span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
 .import-card-footer {
   display: flex;
   align-items: center;

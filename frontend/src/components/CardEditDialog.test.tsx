@@ -76,16 +76,27 @@ describe('CardEditDialog owned-finish awareness', () => {
     await selectOwnedPrinting();
     // Row tag carries the sr-only ownership note…
     expect(screen.getByText(/\(owned\)/)).toBeTruthy();
-    // …and the finish button announces it.
-    expect(screen.getByRole('button', { name: 'Foil · You own this finish' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Non-foil' })).toBeTruthy();
+    // …and the finish radio announces it.
+    expect(screen.getByRole('radio', { name: 'Foil · You own this finish' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Non-foil' })).toBeTruthy();
+  });
+
+  it('is a single-choice radio group, not aria-pressed chips', async () => {
+    renderDialog();
+    await selectOwnedPrinting();
+    // SegmentedControl's <fieldset> takes the implicit "group" role — native
+    // radios inside it are what make this a one-of choice, not aria-pressed.
+    expect(screen.getByRole('group', { name: 'Finish' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Non-foil' })).toBeTruthy();
   });
 
   it('defaults to an owned finish when an owned printing is selected', async () => {
     renderDialog();
     await selectOwnedPrinting();
-    const foilBtn = screen.getByRole('button', { name: 'Foil · You own this finish' });
-    expect(foilBtn.getAttribute('aria-pressed')).toBe('true');
+    const foilBtn = screen.getByRole('radio', {
+      name: 'Foil · You own this finish',
+    }) as HTMLInputElement;
+    expect(foilBtn.checked).toBe(true);
   });
 
   it('restricts the finish choice to owned finishes under "Owned only" and confirms it', async () => {
@@ -93,7 +104,7 @@ describe('CardEditDialog owned-finish awareness', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Owned only' }));
     await selectOwnedPrinting();
     // Only foil is owned → no finish toggle is offered at all.
-    expect(screen.queryByRole('button', { name: 'Non-foil' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Non-foil' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ finish: 'foil' }));
     expect(onConfirm.mock.calls[0][0].card.id).toBe('sf-b');
@@ -102,11 +113,58 @@ describe('CardEditDialog owned-finish awareness', () => {
   it('passes the explicitly chosen finish through onConfirm', async () => {
     const onConfirm = renderDialog();
     await selectOwnedPrinting();
-    fireEvent.click(screen.getByRole('button', { name: 'Non-foil' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Non-foil' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() =>
       expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ finish: 'nonfoil' }))
     );
+  });
+});
+
+describe('CardEditDialog card flags (Altered/Proxy/Misprint)', () => {
+  beforeEach(() => {
+    fetchPrintingsMock.mockReset();
+    fetchPrintingsMock.mockResolvedValue([current]);
+  });
+
+  function renderFlagsDialog(onConfirm = vi.fn()) {
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        details={{ condition: 'nm' }}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    return onConfirm;
+  }
+
+  it('renders each flag as its own switch row, independently toggleable', async () => {
+    renderFlagsDialog();
+    const altered = await screen.findByRole('switch', { name: 'Altered' });
+    const proxy = screen.getByRole('switch', { name: 'Proxy' });
+    const misprint = screen.getByRole('switch', { name: 'Misprint' });
+    expect(altered.getAttribute('aria-checked')).toBe('false');
+    expect(proxy.getAttribute('aria-checked')).toBe('false');
+    expect(misprint.getAttribute('aria-checked')).toBe('false');
+
+    fireEvent.click(proxy);
+    expect(proxy.getAttribute('aria-checked')).toBe('true');
+    // Turning one on leaves its siblings off — these aren't a one-of choice.
+    expect(altered.getAttribute('aria-checked')).toBe('false');
+    expect(misprint.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('sends only the flags turned on', async () => {
+    const onConfirm = renderFlagsDialog();
+    fireEvent.click(await screen.findByRole('switch', { name: 'Misprint' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.misprint).toBe(true);
+    expect(details.altered).toBeUndefined();
+    expect(details.proxy).toBeUndefined();
   });
 });
 
