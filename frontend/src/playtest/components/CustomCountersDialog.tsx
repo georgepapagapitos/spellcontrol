@@ -71,7 +71,14 @@ export function CustomCountersDialog({ cardName, counters, onApply, onClose }: P
   const changed = Object.keys(deltas).length > 0;
 
   return (
-    <Modal onClose={onClose} labelledBy={`${id}-title`} className="modal counters-dialog">
+    <Modal
+      onClose={onClose}
+      labelledBy={`${id}-title`}
+      className="modal counters-dialog"
+      // A picker, so a bottom sheet on phones that grows only as tall as its
+      // content (STYLE_GUIDE, Pattern B), not a full-height page of empty space.
+      backdropClassName="modal-backdrop--sheet"
+    >
       <header className="modal-header">
         <h2 id={`${id}-title`}>Custom counters</h2>
         <button type="button" className="modal-close" onClick={onClose} aria-label="Close">

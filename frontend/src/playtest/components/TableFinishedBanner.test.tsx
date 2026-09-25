@@ -147,3 +147,24 @@ describe('TableFinishedBanner', () => {
     expect(document.body.querySelector('[aria-modal]')).toBeNull();
   });
 });
+
+describe('TableFinishedBanner placement', () => {
+  // At the very top of the viewport it sat over an opponent's life total
+  // (the E351 screenshots, 2026-09-24). It docks where the hold banner does,
+  // under the seat headers, and the two must not drift apart.
+  it('docks at the hold banner’s top, under the seat headers', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const { dirname, join } = await import('node:path');
+    const here = dirname(fileURLToPath(import.meta.url));
+    const top = (file: string, selector: string) => {
+      const css = readFileSync(join(here, file), 'utf8');
+      const start = css.indexOf(`${selector} {`);
+      const body = start < 0 ? '' : css.slice(start, css.indexOf('}', start));
+      return /(?:^|\n)\s*top:\s*([^;]+);/.exec(body)?.[1].trim();
+    };
+    const hold = top('HoldBanner.css', '.playtest-hold-banner');
+    expect(hold).toBeTruthy();
+    expect(top('TableFinishedBanner.css', '.playtest-finished-banner')).toBe(hold);
+  });
+});

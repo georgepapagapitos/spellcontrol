@@ -1126,7 +1126,8 @@ body[data-felt='slate'] {
    card at full zoom on a 2x display; the source PNG is 1.1MB and this is 71KB.
    `cover` on a 5:7 box matches the art's own ratio, so nothing is cropped. */
 .playtest-card__back,
-.playtest-pile__back--library {
+.playtest-pile__back--library,
+.playtest-pile__back--card {
   width: 100%;
   height: 100%;
   background-color: #1e130b;
@@ -1889,6 +1890,16 @@ button.playtest-card-pt__value--editable:focus-visible {
   font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* A keyboard hint teaches a key the device can press. A touch-only device
+   (no hover, a coarse pointer: a phone or a tablet without a keyboard) has
+   none, so the hint is noise at the end of every row. A laptop with a touch
+   screen still hovers, and keeps them. */
+@media (hover: none) and (pointer: coarse) {
+  .playtest-ctx-key {
+    display: none;
+  }
 }
 
 .playtest-ctx-action__end {

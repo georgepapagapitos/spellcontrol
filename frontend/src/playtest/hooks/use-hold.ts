@@ -34,6 +34,8 @@ export function useHold(): HoldStatus | null {
   const onlineRequests = usePlayStore((s) => s.onlineRequests);
   const raiseGameRequest = usePlayStore((s) => s.raiseGameRequest);
   const cancelGameRequest = usePlayStore((s) => s.cancelGameRequest);
+  // A finished table has nothing left to wait for, so there is no hold to ask.
+  const finished = usePlayStore((s) => s.online?.status === 'finished');
 
   const mySeat = linked?.mySeat ?? null;
   const [myRequestId, setMyRequestId] = useState<string | null>(null);
@@ -89,6 +91,6 @@ export function useHold(): HoldStatus | null {
       });
   }, [pending, raiseGameRequest, cancelGameRequest]);
 
-  if (!linked) return null;
+  if (!linked || finished) return null;
   return { pending, toggle };
 }

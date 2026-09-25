@@ -2687,6 +2687,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             zone="exile"
             label="Exile"
             cards={state.zones.exile}
+            hiddenIds={faceDownExile}
             click={{ label: 'View exile', onClick: () => setViewer({ zone: 'exile' }) }}
             onMenu={openPileMenu('exile')}
           />
@@ -3000,6 +3001,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       {isPhone && (
         <MobileZonesPanel
           zones={state.zones}
+          hiddenIds={faceDownExile}
           commanderTax={state.commanderTax}
           taxCards={taxCards}
           onAdjustTax={(cardId, delta) => dispatch({ type: 'ADJUST_COMMANDER_TAX', cardId, delta })}

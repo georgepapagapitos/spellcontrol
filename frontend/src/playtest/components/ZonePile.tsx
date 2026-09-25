@@ -69,6 +69,10 @@ interface Props {
    * replace; every other pile already shows its top card.
    */
   revealTop?: boolean;
+  /** Cards lying face down in this pile (exiled face down). One on top shows
+   *  the card back, as it lies on the table; the viewer still lets its owner
+   *  look, with a "Face down" badge. */
+  hiddenIds?: ReadonlySet<string>;
   /** Opens one commander's own card menu, where Move to ▸ Battlefield casts
    *  it. A click,
    *  a right-click or a long-press on a commander reaches it; anywhere else
@@ -87,6 +91,7 @@ export function ZonePile({
   click,
   onMenu,
   revealTop = false,
+  hiddenIds,
   onCardMenu,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `zone:${zone}` });
@@ -125,7 +130,8 @@ export function ZonePile({
   const [erroredId, setErroredId] = useState<string | null>(null);
   // The library is the only pile with something to hide, and only while it
   // is not being revealed. Everything else is a face-up pile by definition.
-  const faceUp = Boolean(shown) && (zone !== 'library' || revealTop);
+  const faceDown = shown !== undefined && (hiddenIds?.has(shown.id) ?? false);
+  const faceUp = Boolean(shown) && (zone !== 'library' || revealTop) && !faceDown;
   // An empty command zone stays a plain empty well — there is nothing to lay
   // out, and the row would just be a labelled gap.
   const isCommandRow = zone === 'command' && cards.length > 0;
@@ -233,7 +239,9 @@ export function ZonePile({
               // degrades to, never a card back, which would say "hidden".
               <span className="playtest-card__placeholder">{shown.name}</span>
             ) : (
-              <span className={`playtest-pile__back playtest-pile__back--${zone}`} />
+              <span
+                className={`playtest-pile__back playtest-pile__back--${faceDown ? 'card' : zone}`}
+              />
             )}
           </span>
         </button>
