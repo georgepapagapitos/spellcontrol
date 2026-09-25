@@ -158,19 +158,24 @@ describe('useCubeStore', () => {
 describe('useCubeStore — saved cubes', () => {
   it('saveCurrent snapshots the working cube (newest first) with its own size', () => {
     useCubeStore.getState().setResult(360, makeCube(360));
-    useCubeStore.getState().saveCurrent('First');
+    const firstId = useCubeStore.getState().saveCurrent('First');
     useCubeStore.getState().setResult(540, makeCube(540));
-    useCubeStore.getState().saveCurrent('Second');
+    const secondId = useCubeStore.getState().saveCurrent('Second');
     const saved = useCubeStore.getState().saved;
     expect(saved.map((c) => c.name)).toEqual(['Second', 'First']);
     expect(saved[0].size).toBe(540);
     expect(saved[1].size).toBe(360);
     expect(saved[0].id).not.toBe(saved[1].id);
+    // The returned id is the new saved cube's own id, so a caller can
+    // navigate straight to /decks/cube/:id after saving.
+    expect(secondId).toBe(saved[0].id);
+    expect(firstId).toBe(saved[1].id);
   });
 
-  it('saveCurrent is a no-op when there is no working cube', () => {
-    useCubeStore.getState().saveCurrent('Nothing');
+  it('saveCurrent is a no-op when there is no working cube, and returns null', () => {
+    const id = useCubeStore.getState().saveCurrent('Nothing');
     expect(useCubeStore.getState().saved).toHaveLength(0);
+    expect(id).toBeNull();
   });
 
   it('clear keeps saved cubes; only the working result drops', () => {
