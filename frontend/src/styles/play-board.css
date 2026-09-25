@@ -310,19 +310,32 @@
   }
 }
 
-/* 7-10 player boards push rows to 4-5, producing ~104-140px-tall cells at
-   320px wide where the tier above still runs the numeral into the
-   top-left name (measured with the seam-geometry-style probe: ~440px² of
-   overlap at a 104px cell, ~250px² at 132px). The fixed seam-keepout corner
-   offset alone costs ~45px of vertical room regardless of cell height, so a
-   104px cell can't fit a legible numeral AND clear it — this tier cuts the
-   overlap substantially rather than to zero, the same "smaller than before,
-   not gone" tradeoff already accepted for 320px boards. Placed after the
-   12rem tier so it wins where both match (104/132px cells); the 5p/6p cells
-   this tier doesn't reach (179px) are untouched. */
-@container (max-height: 9rem) {
+/* 7-10 player boards push rows to 4-5, producing ~90-145px-tall cells with
+   the clock strip on (the default) at 320-390px wide — 9.5rem (not 9rem)
+   is the real ceiling: 9p/10p measure 145px at 390x844, 1px over the old
+   9rem cut, which left them in the 12rem tier below with no name-condensing
+   at all. 320px cells (90-115px) and the 104px cells with both clock
+   switches off all fall well inside this tier too. Placed after the 12rem
+   tier so it wins where both match; 5p/6p cells (179px+) are untouched.
+   E416: this used to only shrink the numeral and still leave a residual
+   overlap (up to ~450px² at 90px cells, up to ~121px² at 145px cells, all of
+   it the name — measured with a per-element breakdown, never a badge or
+   chip). The name's own font never shrank with the panel, so no numeral size
+   left room for a fixed ~23px-tall label at this cell height. Condensing the
+   name here — smaller, tighter line, a shorter host-icon gap — clears every
+   seat of every 7-10p preset at 320x568, 390x844 and 430x932 (every clock
+   state) while raising the numeral a touch on the worst cells (30 -> 32cqh,
+   27px -> 29px at 90px, clearing the ~28px 2-digit legibility floor).
+   Measured with `.claude/tools/life-board-probe.mjs`. */
+@container (max-height: 9.5rem) {
   .game-board:not(.game-board-2) .player-panel:not([data-sideways]) {
-    --life-size: min(30cqh, 38cqw);
+    --life-size: min(32cqh, 38cqw);
+  }
+
+  .game-board:not(.game-board-2) .player-panel:not([data-sideways]) .player-panel-name {
+    font-size: calc(var(--text-xs) * 0.7);
+    line-height: 1;
+    gap: 0.1rem;
   }
 }
 

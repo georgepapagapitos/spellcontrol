@@ -793,6 +793,20 @@
   backdrop-filter: blur(4px);
 }
 
+/* E416: on a 7-10p board's ~90-145px cells (play-board.css's matching
+   numeral/name tier), the chip rail's fixed 28px size — anchored at the same
+   top corner as the name, by the same unconditional seam-keepout — reaches
+   down far enough to graze the ± step button, which sits vertically centred
+   in a cell this short. Shrinking the chip here clears it, the same fix as
+   the name in the tier next to it. */
+@container (max-height: 9.5rem) {
+  .game-board:not(.game-board-2) .player-panel:not([data-sideways]) .pp-designation-chip {
+    width: 1rem;
+    height: 1rem;
+    font-size: calc(var(--text-xs) * 0.85);
+  }
+}
+
 /* "Up next" (board-timer program): a quiet cue, not a claimed designation
    like Monarch/Initiative — fainter so it never reads as a third one. */
 .pp-designation-chip.is-next {

@@ -8,6 +8,7 @@ import { paletteForIndex, SEAT_PALETTE_COUNT } from '../lib/seat-palette';
 const here = dirname(fileURLToPath(import.meta.url));
 const board = readFileSync(join(here, 'play-board.css'), 'utf8');
 const identity = readFileSync(join(here, 'play-history-inline.css'), 'utf8');
+const counters = readFileSync(join(here, 'play-counters-panel.css'), 'utf8');
 
 /**
  * The life numeral was always white. On the W (amber) seat that measured
@@ -121,14 +122,50 @@ describe('numeral size', () => {
     );
   });
 
-  it('a 7-10 player board shrinks the numeral further on its ~104-140px cells', () => {
-    // 7-10 players push rows to 4-5, so a 320px-wide board's cells are
-    // shorter than the 42% tier above was tuned for (measured with the
-    // board probe: ~440px² of numeral/name overlap at a 104px cell). This
-    // tier is placed AFTER the 12rem one so it wins where both match.
+  it('a 7-10 player board shrinks the numeral further on its ~90-145px cells', () => {
+    // 7-10 players push rows to 4-5, so a 320-390px-wide board's cells are
+    // shorter than the 42% tier above was tuned for. This tier is placed
+    // AFTER the 12rem one so it wins where both match. 9.5rem (not 9rem): a
+    // 390px-wide 9p/10p board measures 145px, 1px past the old 9rem cut,
+    // which silently left it in the 12rem tier with no name-condensing
+    // (E416) — see the CSS comment for the measured overlap this closed.
     expect(board).toMatch(
-      /@container \(max-height: 9rem\) \{\s*\.game-board:not\(\.game-board-2\) \.player-panel:not\(\[data-sideways\]\) \{\s*--life-size: min\(30cqh, 38cqw\);/
+      /@container \(max-height: 9\.5rem\) \{\s*\.game-board:not\(\.game-board-2\) \.player-panel:not\(\[data-sideways\]\) \{\s*--life-size: min\(32cqh, 38cqw\);/
     );
+  });
+
+  it('that same tier condenses the name, or the numeral shrink alone leaves it grazing the numeral', () => {
+    // E416: the name's own font never shrank with the panel, so on a
+    // 90-145px cell the corner keep-out alone can't clear a fixed ~23px-tall
+    // label from the centred numeral — measured as a real overlap (up to
+    // 450px², always the name, never a badge or chip) at every 7-10p preset.
+    const tierStart = board.indexOf('@container (max-height: 9.5rem)');
+    expect(tierStart, '9.5rem tier is missing').toBeGreaterThan(-1);
+    // The container's own (unindented) closing brace — its two inner rule
+    // bodies are indented, so their own `}` lines don't match this.
+    const tierEnd = board.indexOf('\n}\n', tierStart);
+    const tier = board.slice(tierStart, tierEnd);
+    expect(tier).toContain(
+      '.game-board:not(.game-board-2) .player-panel:not([data-sideways]) .player-panel-name {'
+    );
+    expect(tier).toMatch(/font-size:\s*calc\(var\(--text-xs\) \* 0\.7\)/);
+  });
+
+  it('the same short-cell tier also shrinks the designation chip rail (Monarch/Initiative/Up next)', () => {
+    // E416: the chip rail sits at the opposite (top-right) corner, anchored
+    // by the same unconditional seam-keepout, and its fixed 28px size reached
+    // down into the ± step button's vertical band on the same ~90-145px
+    // cells (measured as STEP-HITS, never zero until this shrank too).
+    const tierStart = counters.indexOf('@container (max-height: 9.5rem)');
+    expect(tierStart, '9.5rem chip tier is missing from play-counters-panel.css').toBeGreaterThan(
+      -1
+    );
+    const tier = counters.slice(tierStart, counters.indexOf('\n}\n', tierStart));
+    expect(tier).toContain(
+      '.game-board:not(.game-board-2) .player-panel:not([data-sideways]) .pp-designation-chip {'
+    );
+    expect(tier).toMatch(/width:\s*1rem/);
+    expect(tier).toMatch(/height:\s*1rem/);
   });
 
   it('the ± hug the numeral at every player count, never pinned to the panel ends', () => {

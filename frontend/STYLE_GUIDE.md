@@ -7464,18 +7464,26 @@ correctness bug the capacity work exposed.
   `MAX_SEATS`, unchanged) — an online game's whole state is one JSONB row, and
   raising that cap is a separate decision this change didn't need to make.
 - **A very short panel needs a third numeral tier.** 9p/10p at 320px produce
-  ~104px-tall cells, and 7p/8p ~132px ones — shorter than the 5p/6p cells
-  (~179px) the existing `@container (max-height: 12rem)` tier was tuned for.
-  A further `@container (max-height: 9rem)` step (`--life-size: min(30cqh,
-38cqw)`) cuts the 320px numeral/name overlap from ~440px² to ~190px² on
-  9p/10p's shortest cells, and eliminates it entirely on 7p/8p's — measured
-  with the board probe, not read off the CSS. The fixed seam-keepout corner
-  offset alone costs ~45px of a 104px cell regardless of numeral size, so a
-  small residual overlap remains at that one extreme (320px, 9-10 players);
-  it is smaller than what shipped before this fix, the same "smaller, not
-  gone" bar already accepted for 320px boards generally, and disappears by
-  390px. Every count is collision-free against the hub/clock/undo satellites
-  at every width tested (320/390/820) — that part scales for free, since
+  ~90-104px-tall cells (90px with the clock strip on, the default; 104px with
+  both clock switches off), and 7p/8p ~115-132px ones — shorter than the
+  5p/6p cells (~179px) the existing `@container (max-height: 12rem)` tier was
+  tuned for. A further `@container (max-height: 9.5rem)` step
+  (`--life-size: min(32cqh, 38cqw)`) targets these cells — measured with the
+  board probe, not read off the CSS.
+  ⛔ **Superseded by E416 (2026-09-25):** the numeral-only shrink above used
+  to leave a residual numeral/name overlap at 320px (9-10 players) and,
+  unnoticed until the board probe was run at 390px too, at 390px as well (a
+  145px 9p/10p cell missed the old `9rem` cut by 1px and fell back to the
+  12rem tier with no protection at all). The name's own font never shrank
+  with the panel — the fixed seam-keepout corner offset costs ~45px of room
+  regardless of numeral size, so no amount of numeral shrinking alone could
+  clear a fixed ~23px-tall label off a 90-145px cell. The same tier now also
+  condenses the name (smaller, tighter line) and the designation-chip rail
+  (Monarch/Initiative/Up next — its fixed 28px chip reached into the ± step
+  buttons on these cells too), clearing every seat of every 7-10p preset at
+  320x568, 390x844 and 430x932, both clock states, with the numeral still
+  ≥29px. Every count is collision-free against the hub/clock/undo satellites
+  at every width tested (320/390/430/820) — that part scales for free, since
   `seamSatellite` already keys off row/col count, not player count.
 - **Seat order is clockwise from above, seat 0 first (fixed for 2-10).** Turn
   order is seat index + 1 (`packages/game-core`), and MTG passes the turn to
