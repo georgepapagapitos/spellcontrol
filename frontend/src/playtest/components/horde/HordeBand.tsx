@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { usePlaytestStore } from '@/playtest/store';
+import { VARIABLE_POWER_CEILING, variablePowerCount, type AttackerGroup } from '@/lib/horde';
 import type { SoloHordeState } from '@/playtest/lib/horde-solo';
 import { hordeBandLine } from '@/playtest/lib/horde-view';
 import { HordeFelt } from './HordeFelt';
@@ -20,28 +21,44 @@ interface Props {
 
 /** '' reads as 0, same rule as the damage sheet's own draft field — never
  *  NaN, always clamped to a real damage amount. */
-function clampDamage(raw: string, power: number): number {
+function clampDamage(raw: string, max: number): number {
   if (raw === '') return 0;
   const n = Number(raw);
   if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(power, Math.floor(n)));
+  return Math.max(0, Math.min(max, Math.floor(n)));
 }
 
-/** The combat total, typed into the band's bar instead of a banner floating
- *  over either board (design point 2). Same clamp/prefill/Take-Skip rule as
- *  the desktop `HordeAttackBanner`, in the band's own compact wording. */
-function CombatBar({ power, onTake }: { power: number; onTake(amount: number): void }) {
+/**
+ * The combat total, typed into the band's bar instead of a banner floating
+ * over either board (design point 2). Same clamp/prefill/Take-Skip rule as
+ * the desktop `HordeAttackBanner`, in the band's own compact wording — a
+ * `*`/`*` attacker (Soulless One) only clamps to a sane ceiling, never to
+ * `power` (which counts it as 0), same reasoning as the banner (#2178).
+ */
+function CombatBar({
+  power,
+  groups,
+  onTake,
+}: {
+  power: number;
+  groups: readonly AttackerGroup[];
+  onTake(amount: number): void;
+}) {
   const [draft, setDraft] = useState(() => String(power));
-  const value = clampDamage(draft, power);
+  const variable = variablePowerCount(groups);
+  const max = variable > 0 ? VARIABLE_POWER_CEILING : power;
+  const value = clampDamage(draft, max);
   return (
     <div className="horde-band__combat">
-      <span className="horde-band__combat-label">Attacks · {power} power</span>
+      <span className="horde-band__combat-label">
+        Attacks · {power} power{variable > 0 ? ` + ${variable} variable` : ''}
+      </span>
       <label className="horde-band__combat-field">
         <span className="horde-band__combat-field-label">Damage</span>
         <input
           type="number"
           min={0}
-          max={power}
+          max={max}
           value={draft}
           onFocus={(e) => e.target.select()}
           onChange={(e) => setDraft(e.target.value)}
@@ -115,7 +132,11 @@ export function HordeBand({
     <section className={`horde-band${open ? ' is-open' : ''}`} aria-label="The horde">
       <div className="horde-band__bar">
         {inCombat && horde.pendingAttack ? (
-          <CombatBar power={horde.pendingAttack.power} onTake={resolveHordeAttack} />
+          <CombatBar
+            power={horde.pendingAttack.power}
+            groups={horde.pendingAttack.groups}
+            onTake={resolveHordeAttack}
+          />
         ) : (
           <>
             <button

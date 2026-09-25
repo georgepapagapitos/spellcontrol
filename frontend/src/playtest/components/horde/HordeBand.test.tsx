@@ -108,6 +108,26 @@ describe('HordeBand', () => {
     expect(usePlaytestStore.getState().resolveHordeAttack).toHaveBeenCalledWith(0);
   });
 
+  // Soulless One (`*`/`*`) attacking alone: the power total reads 0, but the
+  // field must still accept the real damage it dealt, not clamp to 0 (#2178).
+  it('names a variable-power attacker in the compact line and lets it deal past its (0) power', () => {
+    renderBand({
+      horde: buildTestHorde({
+        phase: 'combat',
+        pendingAttack: {
+          attackers: 1,
+          power: 0,
+          groups: [{ name: 'Soulless One', power: '*', toughness: '*', count: 1 }],
+        },
+      }),
+    });
+    expect(screen.getByText('Attacks · 0 power + 1 variable')).toBeTruthy();
+    const input = screen.getByDisplayValue('0');
+    fireEvent.change(input, { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Take 7' }));
+    expect(usePlaytestStore.getState().resolveHordeAttack).toHaveBeenCalledWith(7);
+  });
+
   // The band shipped with no way to damage the horde on a phone (E387 PR 5
   // follow-up) — this is the guard for that fix.
   it('requests the damage sheet from the bar while waiting, next to the toggle', () => {

@@ -151,6 +151,27 @@ export function attackSummary(battlefield: readonly BattlefieldCard[]): {
   return { attackers: creatures.length, power, groups: [...groups.values()] };
 }
 
+/** A sane ceiling for a variable-power attacker's real damage — there is no
+ *  printed number to clamp to (Soulless One's `*` is however many Zombies
+ *  the horde controls, easily double digits). Shared by both damage-total
+ *  fields (`HordeAttackBanner`, the playtest band's `CombatBar`). */
+export const VARIABLE_POWER_CEILING = 999;
+
+/**
+ * How many attacking copies have a non-numeric printed power (Soulless
+ * One's power/toughness are both `*`, some print `1+*`, etc.) —
+ * `attackSummary` already counts each toward `power` as 0, which used to
+ * also cap the damage-total field's max at that (possibly 0) number: with a
+ * variable-power creature attacking alone, the field read "0 power",
+ * prefilled 0, and clamped to 0 — there was no way to type the real damage
+ * it dealt (#2178 on the paper table; fixed here for both surfaces).
+ */
+export function variablePowerCount(groups: readonly AttackerGroup[]): number {
+  return groups
+    .filter((g) => !Number.isFinite(Number(g.power)))
+    .reduce((sum, g) => sum + g.count, 0);
+}
+
 /** Mills the horde's library for `damage` cards (clamped >= 0). */
 export function millForDamage(damage: number): PlaytestAction {
   return { type: 'MOVE_TOP_N', n: Math.max(0, Math.floor(damage)), to: 'graveyard' };

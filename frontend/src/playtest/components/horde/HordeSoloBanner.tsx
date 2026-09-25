@@ -22,6 +22,7 @@ export function HordeSoloBanner({ horde }: Props) {
       <HordeAttackBanner
         attackers={horde.pendingAttack.attackers}
         power={horde.pendingAttack.power}
+        groups={horde.pendingAttack.groups}
         onTake={resolveHordeAttack}
       />
     </div>

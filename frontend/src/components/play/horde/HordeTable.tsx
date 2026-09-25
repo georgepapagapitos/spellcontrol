@@ -313,6 +313,7 @@ export function HordeTable() {
           <HordeAttackBanner
             attackers={pendingAttack.attackers}
             power={pendingAttack.power}
+            groups={pendingAttack.groups}
             onTake={resolveAttack}
           />
         )}
