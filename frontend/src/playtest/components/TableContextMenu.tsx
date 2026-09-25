@@ -6,7 +6,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
 import { getSafeViewport } from '@/lib/popover-placement';
 
@@ -36,11 +36,10 @@ export type MenuEntry = TableMenuItem | typeof SEPARATOR;
 interface Props {
   x: number;
   y: number;
-  variant: 'floating' | 'sheet';
   /** See CtxMenuShell: `bottom-end` for a menu opened from a button. */
   origin?: 'top-start' | 'bottom-end';
   items: MenuEntry[];
-  /** Accessible name, and the sheet variant's visible heading. Defaults to
+  /** Accessible name. Defaults to
    *  the felt's own menu; a zone pile passes its zone ("Library") so the
    *  menu says which pile it belongs to. */
   title?: string;
@@ -178,7 +177,7 @@ function Flyout({
   return (
     <div
       ref={ref}
-      className="ctx-menu ctx-menu-items playtest-ctx-flyout"
+      className="ctx-menu ctx-menu-items"
       role="menu"
       aria-label={label}
       data-menu-panel={level}
@@ -200,27 +199,18 @@ function Flyout({
  * move the same way — EDHPlay's way, since that is the table these players
  * arrive from:
  *
- * - With a pointer, a `▸` row opens its submenu BESIDE the menu on hover (or
- *   a click, or →), and ← or hovering a sibling row closes it again. The root
- *   stays put, so the path you took stays in view.
- * - In the bottom sheet, where there is no room beside anything, the same
- *   tree drills down a page at a time with a back row.
+ * - A `▸` row opens its submenu BESIDE the menu on hover, a click or a tap,
+ *   or →, and ← or hovering a sibling row closes it again. The root stays
+ *   put, so the path you took stays in view.
+ * - A phone gets the same floating menu from a long-press, as EDHPlay's
+ *   does (user, 2026-09-25). It used to get a full-width bottom sheet that
+ *   drilled down a page at a time, which covered the table it acts on.
  *
  * Rows print their key binding — this menu is where the board's shortcuts are
  * discovered — and `SEPARATOR` groups them the way the actions group at a
  * table.
  */
-export function TableContextMenu({
-  x,
-  y,
-  variant,
-  origin,
-  items,
-  title,
-  header,
-  openId,
-  onClose,
-}: Props) {
+export function TableContextMenu({ x, y, origin, items, title, header, openId, onClose }: Props) {
   const [path, setPath] = useState<number[]>(() => (openId && pathTo(items, openId)) || []);
   // The level whose first row takes focus when it opens: a click or → hands
   // the keyboard to the submenu, a hover leaves focus where it is.
@@ -231,7 +221,6 @@ export function TableContextMenu({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootTitle = title ?? 'Table actions';
   const open = levels(items, path);
-  const floating = variant === 'floating';
 
   const cancelHover = () => {
     if (timer.current) clearTimeout(timer.current);
@@ -263,7 +252,7 @@ export function TableContextMenu({
   /** Keys on a row: ↑/↓ walk its panel, → opens its submenu, ← backs out of
    *  a submenu to the row that opened it. */
   function rowKey(e: React.KeyboardEvent<HTMLElement>, level: number, prefix: number[]) {
-    if (floating && e.key === 'ArrowLeft' && level > 0) {
+    if (e.key === 'ArrowLeft' && level > 0) {
       e.preventDefault();
       setPath(path.slice(0, level - 1));
       findRow(rootRef, prefix.join('.'))?.focus();
@@ -275,13 +264,11 @@ export function TableContextMenu({
       if (item === SEPARATOR)
         return <div key={`sep-${i}`} role="separator" className="playtest-ctx-sep" />;
       const here = [...prefix, i].join('.');
-      const onPointerEnter = floating
-        ? (e: React.PointerEvent) => {
-            if (e.pointerType === 'mouse') hover(level, i, item);
-          }
-        : undefined;
+      const onPointerEnter = (e: React.PointerEvent) => {
+        if (e.pointerType === 'mouse') hover(level, i, item);
+      };
       if (isSubmenu(item)) {
-        const isOpen = floating && path.length > level && path[level] === i;
+        const isOpen = path.length > level && path[level] === i;
         return (
           <button
             key={item.label}
@@ -290,12 +277,12 @@ export function TableContextMenu({
             data-menu-path={here}
             className={`playtest-ctx-action playtest-ctx-action--submenu${isOpen ? ' is-open' : ''}`}
             aria-haspopup="menu"
-            aria-expanded={floating ? isOpen : undefined}
+            aria-expanded={isOpen}
             disabled={item.disabled}
             onPointerEnter={onPointerEnter}
-            onClick={() => (floating ? openSubmenu(level, i, true) : setPath([...prefix, i]))}
+            onClick={() => openSubmenu(level, i, true)}
             onKeyDown={(e) => {
-              if (floating && e.key === 'ArrowRight') {
+              if (e.key === 'ArrowRight') {
                 e.preventDefault();
                 openSubmenu(level, i, true);
               } else rowKey(e, level, prefix);
@@ -343,44 +330,6 @@ export function TableContextMenu({
       {renderRows(rows, level, prefix)}
     </>
   );
-
-  if (!floating) {
-    // One page at a time: the deepest open level, with a row back up.
-    const current = open[open.length - 1];
-    const backLabel = open.length > 1 ? open[open.length - 2].item.label : rootTitle;
-    return (
-      <CtxMenuShell
-        x={x}
-        y={y}
-        title={current ? current.item.label : rootTitle}
-        variant="sheet"
-        // A page swap moves focus onto the new page's first row.
-        contentKey={path.join('.')}
-        onClose={onClose}
-      >
-        {current ? (
-          <>
-            <button
-              type="button"
-              role="menuitem"
-              className="playtest-ctx-back"
-              onClick={() => setPath(path.slice(0, -1))}
-              aria-label={`Back to ${backLabel}`}
-            >
-              <ChevronLeft width={14} height={14} aria-hidden />
-              <span>{backLabel}</span>
-            </button>
-            {body(current.item, current.rows, path.length, path)}
-          </>
-        ) : (
-          <>
-            {header}
-            {renderRows(tidy(items), 0, [])}
-          </>
-        )}
-      </CtxMenuShell>
-    );
-  }
 
   return (
     <CtxMenuShell

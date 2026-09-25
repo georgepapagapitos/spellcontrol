@@ -25,7 +25,7 @@ function items(overrides: Partial<TableMenuItem>[] = []): TableMenuItem[] {
 
 describe('TableContextMenu', () => {
   it('renders every item as a menuitem with its shortcut beside it', () => {
-    render(<TableContextMenu x={10} y={10} variant="floating" items={items()} onClose={vi.fn()} />);
+    render(<TableContextMenu x={10} y={10} items={items()} onClose={vi.fn()} />);
 
     const menuItems = screen.getAllByRole('menuitem');
     expect(menuItems.map((el) => el.textContent)).toEqual([
@@ -44,7 +44,7 @@ describe('TableContextMenu', () => {
     const order: string[] = [];
     const onClose = vi.fn(() => order.push('close'));
     const list = items([{ onClick: () => order.push('draw') }]);
-    render(<TableContextMenu x={0} y={0} variant="floating" items={list} onClose={onClose} />);
+    render(<TableContextMenu x={0} y={0} items={list} onClose={onClose} />);
 
     fireEvent.click(screen.getByRole('menuitem', { name: /Draw/ }));
 
@@ -54,7 +54,7 @@ describe('TableContextMenu', () => {
   it('renders a disabled item as non-interactive rather than hiding it', () => {
     const onClick = vi.fn();
     const list = items([{ onClick, disabled: true }]);
-    render(<TableContextMenu x={0} y={0} variant="floating" items={list} onClose={vi.fn()} />);
+    render(<TableContextMenu x={0} y={0} items={list} onClose={vi.fn()} />);
 
     const draw = screen.getByRole('menuitem', { name: /Draw/ });
     expect((draw as HTMLButtonElement).disabled).toBe(true);
@@ -63,7 +63,7 @@ describe('TableContextMenu', () => {
   });
 
   it('names itself for the menu role so the shell announces what opened', () => {
-    render(<TableContextMenu x={0} y={0} variant="floating" items={items()} onClose={vi.fn()} />);
+    render(<TableContextMenu x={0} y={0} items={items()} onClose={vi.fn()} />);
     expect(screen.getByRole('menu', { name: 'Table actions' })).toBeTruthy();
   });
 
@@ -72,7 +72,7 @@ describe('TableContextMenu', () => {
       <TableContextMenu
         x={0}
         y={0}
-        variant="floating"
+
         title="Library"
         items={items()}
         onClose={vi.fn()}
@@ -87,7 +87,7 @@ describe('TableContextMenu', () => {
       { label: 'Reveal the library to the table', pressed: false, onClick: vi.fn() },
       { label: 'Shuffle', onClick: vi.fn() },
     ];
-    render(<TableContextMenu x={0} y={0} variant="floating" items={list} onClose={vi.fn()} />);
+    render(<TableContextMenu x={0} y={0} items={list} onClose={vi.fn()} />);
     // A toggle in a menu is a menuitemcheckbox, not a pressed button — the
     // role is what tells a screen reader this row has an on and an off.
     expect(
@@ -126,9 +126,7 @@ describe('TableContextMenu — submenus', () => {
   it('flies a submenu out beside the menu, runs its row, and never fires the parent', () => {
     const onMove = vi.fn();
     const onClose = vi.fn();
-    render(
-      <TableContextMenu x={0} y={0} variant="floating" items={nested(onMove)} onClose={onClose} />
-    );
+    render(<TableContextMenu x={0} y={0} items={nested(onMove)} onClose={onClose} />);
 
     const parent = screen.getByRole('menuitem', { name: /Move all to/ });
     expect(parent.getAttribute('aria-haspopup')).toBe('menu');
@@ -148,9 +146,7 @@ describe('TableContextMenu — submenus', () => {
   it('opens on hover and closes when the pointer rests on a sibling row', () => {
     vi.useFakeTimers();
     try {
-      render(
-        <TableContextMenu x={0} y={0} variant="floating" items={nested()} onClose={vi.fn()} />
-      );
+      render(<TableContextMenu x={0} y={0} items={nested()} onClose={vi.fn()} />);
       fireEvent.pointerEnter(screen.getByRole('menuitem', { name: /Move all to/ }), {
         pointerType: 'mouse',
       });
@@ -168,7 +164,7 @@ describe('TableContextMenu — submenus', () => {
   });
 
   it('opens with → and backs out with ←, handing focus each way', () => {
-    render(<TableContextMenu x={0} y={0} variant="floating" items={nested()} onClose={vi.fn()} />);
+    render(<TableContextMenu x={0} y={0} items={nested()} onClose={vi.fn()} />);
     const parent = screen.getByRole('menuitem', { name: /Move all to/ });
     fireEvent.keyDown(parent, { key: 'ArrowRight' });
     const hand = screen.getByRole('menuitem', { name: 'Hand' });
@@ -180,7 +176,7 @@ describe('TableContextMenu — submenus', () => {
   });
 
   it('walks its rows with ↑ and ↓, wrapping at the ends', () => {
-    render(<TableContextMenu x={0} y={0} variant="floating" items={items()} onClose={vi.fn()} />);
+    render(<TableContextMenu x={0} y={0} items={items()} onClose={vi.fn()} />);
     const rows = screen.getAllByRole('menuitem');
     rows[0].focus();
     fireEvent.keyDown(rows[0], { key: 'ArrowUp' });
@@ -198,7 +194,7 @@ describe('TableContextMenu — submenus', () => {
       <TableContextMenu
         x={0}
         y={0}
-        variant="floating"
+
         items={list}
         openId="counters"
         onClose={vi.fn()}
@@ -207,29 +203,9 @@ describe('TableContextMenu — submenus', () => {
     expect(screen.getByText('steppers')).toBeTruthy();
   });
 
-  it('drills down a page at a time in the sheet, with a way back', () => {
-    render(
-      <TableContextMenu
-        x={0}
-        y={0}
-        variant="sheet"
-        title="Graveyard"
-        items={nested()}
-        onClose={vi.fn()}
-      />
-    );
-    fireEvent.click(screen.getByRole('menuitem', { name: /Move all to/ }));
-    expect(screen.getByRole('dialog', { name: 'Move all to' })).toBeTruthy();
-    expect(screen.queryByRole('menuitem', { name: 'Shuffle' })).toBeNull();
-
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Back to Graveyard' }));
-    expect(screen.getByRole('dialog', { name: 'Graveyard' })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: 'Shuffle' })).toBeTruthy();
-  });
-
   it('renders a submenu that is a control instead of a list of rows', () => {
     const list: MenuEntry[] = [{ label: 'Draw several', content: <p>count goes here</p> }];
-    render(<TableContextMenu x={0} y={0} variant="floating" items={list} onClose={vi.fn()} />);
+    render(<TableContextMenu x={0} y={0} items={list} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('menuitem', { name: /Draw several/ }));
     expect(screen.getByText('count goes here')).toBeTruthy();
   });
@@ -249,7 +225,7 @@ describe('TableContextMenu — separators', () => {
       { label: 'Flip', onClick: vi.fn() },
       SEPARATOR,
     ];
-    render(<TableContextMenu x={0} y={0} variant="floating" items={list} onClose={vi.fn()} />);
+    render(<TableContextMenu x={0} y={0} items={list} onClose={vi.fn()} />);
     const menu = screen.getByRole('menu');
     const kinds = [...menu.querySelectorAll('[role="menuitem"], [role="separator"]')].map((el) =>
       el.getAttribute('role')

@@ -496,10 +496,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   useEffect(() => applyTableSkin(felt), [felt]);
   const [snap, setSnap] = useState(readSnap);
   const [turnAlert, setTurnAlert] = useState(readTurnAlert);
-  /** A mouse (and therefore a right-click and a keyboard) is driving the
-   *  board — the one place a click can mean "select" without stranding a
-   *  player who has no other way to tap a permanent. */
-  const mouseDriven = useMediaQuery('(hover: hover) and (pointer: fine)');
   // The conditional multiplayer seam (see use-online-table.ts): non-null only
   // when there's an active online game AND this device holds a seat in it.
   // Publishes `state` internally; solo playtest never touches it beyond this
@@ -828,7 +824,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // ⌘/ctrl-click, and tapping is a deliberate act (T, or Tap in the card
   // menu) the way it is at EDHPlay. Tapping on every stray click was the
   // first misfire; selecting on every stray click was the second. A finger
-  // has neither key nor right-click, so on a touch device a tap still taps.
+  // is the same since 2026-09-25 (EDHPlay's phone table, user-confirmed): a
+  // tap pings, and Tap is the first row of the long-press menu.
   const handleCardClick = useCallback(
     (cardId: string, e: React.MouseEvent | React.KeyboardEvent) => {
       // Drawing an arrow: this tap is where it lands, not a tap of the card.
@@ -852,15 +849,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         });
         return;
       }
-      // A plain click with a mouse says nothing beyond the ring it just put
-      // round the card: it leaves the selection exactly as it found it, so a
-      // stray click can neither tap a permanent nor throw away a box you
-      // spent a gesture building.
-      if (mouseDriven) return;
-      setSelected((prev) => (prev.size === 0 ? prev : new Set()));
-      dispatch({ type: 'TAP', cardId });
+      // A plain click or tap says nothing beyond the ring it just put round
+      // the card: it leaves the selection exactly as it found it, so a stray
+      // one can neither tap a permanent nor throw away a box you spent a
+      // gesture building.
     },
-    [dispatch, selectMode, arrowFrom, onlineTable, finishArrow, ping, mouseDriven]
+    [selectMode, arrowFrom, onlineTable, finishArrow, ping]
   );
 
   // Leaving select mode drops the selection with it, so nothing lingers
@@ -3004,7 +2998,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         <TableContextMenu
           x={tableMenu.x}
           y={tableMenu.y}
-          variant={isNarrow ? 'sheet' : 'floating'}
           items={tableMenuItems}
           onClose={() => setTableMenu(null)}
         />
@@ -3016,7 +3009,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           y={pileMenu.y}
           // One menu, two presentations: a cursor-anchored popover where
           // there is a cursor, the shared bottom sheet where there is a thumb.
-          variant={isNarrow ? 'sheet' : 'floating'}
           origin={pileMenu.origin}
           title={ZONE_VIEWER_LABEL[pileMenu.zone]}
           items={pileMenuItems(pileMenu.zone)}
@@ -3111,7 +3103,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           tapped={ctxCard.tapped}
           faceDown={ctxCard.faceDown}
           phased={ctxCard.phased ?? false}
-          variant={isNarrow ? 'sheet' : 'floating'}
           keyFor={keyFor}
           onClose={() => setCtx(null)}
           // Every action here reads the selection the same way the copy does:
@@ -3193,7 +3184,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           libraryCount={libraryCount}
           tokens={tokensMadeBy(handMenuCard.name)}
           onCreateToken={createToken}
-          variant={isNarrow ? 'sheet' : 'floating'}
           keyFor={keyFor}
           onClose={() => setHandMenu(null)}
           onPreview={

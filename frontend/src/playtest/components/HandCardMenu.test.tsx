@@ -8,7 +8,6 @@ function renderMenu(overrides: Partial<Parameters<typeof HandCardMenu>[0]> = {})
     x: 0,
     y: 0,
     cardName: 'Brainstorm',
-    variant: 'floating' as const,
     onClose: vi.fn(),
     onPlay: vi.fn(),
     onMoveTo: vi.fn(),
@@ -81,7 +80,6 @@ describe('HandCardMenu', () => {
         x={0}
         y={0}
         cardName="Tireless Provisioner"
-        variant="floating"
         onClose={vi.fn()}
         onPlay={vi.fn()}
         onMoveTo={vi.fn()}
@@ -125,12 +123,6 @@ describe('HandCardMenu', () => {
     renderMenu({ onPreview, cardName: 'Ponder' });
     fireEvent.click(screen.getByRole('menuitem', { name: 'View information' }));
     expect(onPreview).toHaveBeenCalled();
-  });
-
-  it('renders as a titled dialog sheet on narrow viewports', () => {
-    renderMenu({ variant: 'sheet' });
-    expect(screen.getByRole('dialog', { name: 'Brainstorm' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy();
   });
 });
 

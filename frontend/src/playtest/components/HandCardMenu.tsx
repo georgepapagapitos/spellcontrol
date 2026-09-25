@@ -10,7 +10,6 @@ interface Props {
   /** Where the card is. The hand gets the hand's whole vocabulary; a
    *  commander in the command zone gets EDHPlay's shorter list for it. */
   zone?: 'hand' | 'command';
-  variant: 'floating' | 'sheet';
   /** The live binding for a shortcut, formatted for display — the same keys
    *  the board listens for on the card under the pointer. */
   keyFor?(id: ShortcutId): string | undefined;
@@ -60,7 +59,6 @@ export function HandCardMenu({
   y,
   cardName,
   zone = 'hand',
-  variant,
   keyFor,
   onClose,
   onPreview,
@@ -133,14 +131,5 @@ export function HandCardMenu({
     ...(onMove && canMoveEarlier ? [{ label: 'Move it left', onClick: () => onMove(-1) }] : []),
     ...(onMove && canMoveLater ? [{ label: 'Move it right', onClick: () => onMove(1) }] : []),
   ];
-  return (
-    <TableContextMenu
-      x={x}
-      y={y}
-      variant={variant}
-      title={cardName}
-      items={items}
-      onClose={onClose}
-    />
-  );
+  return <TableContextMenu x={x} y={y} title={cardName} items={items} onClose={onClose} />;
 }

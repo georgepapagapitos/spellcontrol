@@ -1100,9 +1100,8 @@ describe('PlaytestBoard — card size', () => {
  * rule, user 2026-09-20) and, since 2026-09-21, not a selection either: it
  * says nothing at all, because the click is the start of a drag. Selecting is
  * the box or ⌘/ctrl-click, tapping is T or the card menu. A finger has
- * neither key nor right-click, so on a touch device a tap still taps, and
- * these tests are what keeps one device tier from quietly taking the other's
- * behaviour.
+ * neither key nor right-click, but EDHPlay's phone table pings on a tap
+ * too (user, 2026-09-25), and Tap is the first row of the long-press menu.
  */
 describe('PlaytestBoard — what a click on a permanent means', () => {
   function onBattlefield() {
@@ -1153,14 +1152,18 @@ describe('PlaytestBoard — what a click on a permanent means', () => {
     expect(dispatch).not.toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
   });
 
-  it('with a finger: a tap still taps the permanent', () => {
+  // EDHPlay's phone table, as the user reported it (2026-09-25): a tap
+  // pings the card, like a mouse click, and Tap is the first row of the
+  // long-press menu.
+  it('with a finger: a tap pings the permanent and leaves it untapped', () => {
     render(
       <MemoryRouter>
         <PlaytestBoard state={onBattlefield()} />
       </MemoryRouter>
     );
     fireEvent.click(screen.getByRole('button', { name: 'Card 0' }));
-    expect(dispatch).toHaveBeenCalledWith({ type: 'TAP', cardId: 'card-0' });
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'TAP' }));
+    expect(document.querySelector('.playtest-card--selected')).toBeNull();
   });
 });
 
@@ -1815,23 +1818,24 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
    *  no button for it: `contextmenu` is the event a right-click, the Context
    *  Menu key and Shift+F10 all raise, and the press-and-hold routes to the
    *  same handler (covered in ZonePile.test.tsx). */
-  function openLibrarySheet() {
+  function openLibraryMenu() {
     fireEvent.contextMenu(screen.getByRole('button', { name: /^Draw a card\./ }), {
       clientX: 20,
       clientY: 20,
     });
   }
 
-  it('opens the library menu as a sheet, with every row the table tier has', () => {
+  it('opens the same floating library menu the table tier has, every row of it', () => {
     render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    openLibrarySheet();
+    openLibraryMenu();
 
-    // The sheet variant, not the cursor-anchored popover.
-    expect(screen.getByRole('dialog', { name: 'Library' })).toBeTruthy();
+    // The floating menu, as EDHPlay's long-press shows it: no bottom sheet.
+    expect(screen.getByRole('menu', { name: 'Library' })).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Library' })).toBeNull();
     for (const label of [
       /^Draw a card/,
       /^Draw several/,
@@ -1845,24 +1849,24 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
     }
   });
 
-  it('runs an action from the sheet', () => {
+  it('runs an action from the menu', () => {
     render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    openLibrarySheet();
+    openLibraryMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: /^Shuffle/ }));
     expect(dispatch).toHaveBeenCalledWith({ type: 'SHUFFLE_LIBRARY' });
   });
 
-  it('drills into a submenu on a phone too', () => {
+  it('opens a submenu beside the menu on a phone too', () => {
     render(
       <MemoryRouter>
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    openLibrarySheet();
+    openLibraryMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: /^Move top cards to/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Exile face down' }));
     fireEvent.click(screen.getByRole('button', { name: 'Exile 1 card face down' }));
@@ -1884,12 +1888,12 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
       clientX: 20,
       clientY: 20,
     });
-    expect(screen.getByRole('dialog', { name: 'Graveyard' })).toBeTruthy();
+    expect(screen.getByRole('menu', { name: 'Graveyard' })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: /^Move all to/ })).toBeTruthy();
   });
 
   /* The two zones a 412px screen has no width for sit behind the edge tab,
-     and reach the same sheet from there. */
+     and reach the same menu from there. */
   it('gives exile and the command zone their menus from the tab', () => {
     render(
       <MemoryRouter>
@@ -1901,7 +1905,7 @@ describe('PlaytestBoard — the phone gets the same zone menus', () => {
     // keeps its kebab: it is a header row in a panel you opened on purpose,
     // not a button parked on a card.
     fireEvent.click(screen.getByRole('button', { name: 'Exile actions' }));
-    expect(screen.getByRole('dialog', { name: 'Exile' })).toBeTruthy();
+    expect(screen.getByRole('menu', { name: 'Exile' })).toBeTruthy();
   });
 });
 

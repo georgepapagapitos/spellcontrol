@@ -380,11 +380,10 @@ describe('coarse-pointer touch floor', () => {
     // B3-03: bulk-select toolbar's mutating actions (Delete/Move/Mark as
     // proxy/Select all), a fixed 2.1rem .toolbar-pill with no coarse override.
     ['styles/collection.css', '.card-list-bulk-toolbar .toolbar-pill'],
-    // The bottom-sheet card menu's own back row (E361 phone sweep) — the way
-    // out of Counters / Power-toughness, tapped as often as the rows below
-    // it. A real box: it is its own full-width line, not crowded by a
-    // sibling. Measured 374x31 before the fix.
-    ['styles/playtest.css', '.playtest-ctx-back'],
+    // The card menu's rows. A phone's long-press opens the floating menu
+    // now (2026-09-25), not the bottom sheet whose rows alone had the floor,
+    // so every row takes it: they computed to ~37px without it.
+    ['styles/playtest.css', '.playtest-ctx-action'],
   ];
 
   // The shared kebab trigger is its own control, not one crowded into a dense
