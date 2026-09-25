@@ -154,6 +154,62 @@ describe('deck Stacks view', () => {
     expect(readStoredViewMode()).toBe('stacks');
   });
 
+  describe('on touch, where there is no hover to open a card', () => {
+    const tap = (el: Element) => {
+      fireEvent.pointerDown(el, { pointerType: 'touch' });
+      fireEvent.click(el, { detail: 1 });
+    };
+    const tile = (container: HTMLElement, name: string) =>
+      container.querySelector(`.deck-card-stack [data-peek-name="${name}"]`)!;
+    const open = (container: HTMLElement) =>
+      [...container.querySelectorAll('.deck-card-stack .is-open')].map((li) =>
+        li.querySelector('[data-peek-name]')?.getAttribute('data-peek-name')
+      );
+    const carousel = () => document.querySelector('[role="dialog"]');
+
+    beforeEach(() => localStorage.setItem('mtg-decks-view-mode', 'stacks'));
+
+    it('opens a buried card in the stack first, and the carousel on a second tap', () => {
+      const { container } = renderDeck();
+      tap(tile(container, 'Goblin Lackey'));
+      expect(open(container)).toEqual(['Goblin Lackey']);
+      expect(carousel()).toBeNull();
+      tap(tile(container, 'Goblin Lackey'));
+      expect(carousel()).not.toBeNull();
+    });
+
+    it('goes straight to the carousel for a card that already shows whole', () => {
+      const { container } = renderDeck();
+      // Skirk Prospector is the last card of its stack, Bolt the only one of its.
+      tap(tile(container, 'Skirk Prospector'));
+      expect(open(container)).toEqual([]);
+      expect(carousel()).not.toBeNull();
+    });
+
+    it('closes the open card on a tap outside the stacks', () => {
+      const { container } = renderDeck();
+      tap(tile(container, 'Goblin Lackey'));
+      fireEvent.click(document.body);
+      expect(open(container)).toEqual([]);
+    });
+
+    it('keeps the mouse on the one-step path', () => {
+      const { container } = renderDeck();
+      fireEvent.pointerDown(tile(container, 'Goblin Lackey'), { pointerType: 'mouse' });
+      fireEvent.click(tile(container, 'Goblin Lackey'), { detail: 1 });
+      expect(carousel()).not.toBeNull();
+    });
+
+    it('never lets a keyboard press inherit an earlier tap', () => {
+      const { container } = renderDeck();
+      fireEvent.pointerDown(tile(container, 'Goblin Lackey'), { pointerType: 'touch' });
+      // Enter on a focused button: a click with detail 0.
+      fireEvent.click(tile(container, 'Goblin Lackey'), { detail: 0 });
+      expect(open(container)).toEqual([]);
+      expect(carousel()).not.toBeNull();
+    });
+  });
+
   it('shows the card-size stepper in stacks, as in the grid', () => {
     localStorage.setItem('mtg-decks-view-mode', 'stacks');
     const { queryByRole } = renderDeck();

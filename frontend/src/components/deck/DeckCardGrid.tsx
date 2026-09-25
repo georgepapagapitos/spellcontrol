@@ -4,12 +4,12 @@
 // `layout="stacks"` (2026-09-19) is the visual-stacks layout Moxfield and
 // Archidekt default Commander decks to: every group is a column of card
 // images overlapped so only each card's name strip shows, and the hovered /
-// focused card opens to full size, pushing the rest of the column down so the
-// cards under it stay reachable. It renders the exact
+// focused / tapped card opens to full size, pushing the rest of the column
+// down so the cards under it stay reachable. It renders the exact
 // same <li> tile as the grid — qty pip, allocation, legality, foil, badge
 // cluster — so the two can't drift; only the section/list classes and the
 // `--stack-w` width differ (see deck-builder-card-list.css § Stacks).
-import { useCallback, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ChevronDown, Handshake, MoreVertical, Tag as TagIcon } from 'lucide-react';
 import { getRoleBadge, type RoleKey } from '../../lib/role-badges';
 import { stackWidth, zoomBucket, zoomCols, zoomMinCol, zoomTier } from '@/lib/grid-zoom';
@@ -161,13 +161,34 @@ export function DeckCardGrid({
 }) {
   const stacks = layout === 'stacks';
   const [containerRef, containerWidth] = useElementWidth<HTMLDivElement>();
+  const containerEl = useRef<HTMLDivElement | null>(null);
   const setContainer = useCallback(
     (el: HTMLDivElement | null) => {
+      containerEl.current = el;
       containerRef(el);
       if (!stacks) gridRef?.(el);
     },
     [containerRef, gridRef, stacks]
   );
+  // A touch has no hover to open a stacked card, so the first tap does it:
+  // the card a tap opened, keyed `section\ncard`. A second tap on it opens the
+  // carousel. Keyboard and a fine pointer never set it (focus and hover open
+  // the card already), so only a touch pays the extra step.
+  const [openCell, setOpenCell] = useState<string | null>(null);
+  const lastPointer = useRef<string | null>(null);
+  // A tap anywhere but a card in this view closes it. `click`, not
+  // `pointerdown`, so a scroll to read the open card leaves it open.
+  useEffect(() => {
+    if (!openCell) return;
+    const close = (e: MouseEvent) => {
+      const t = e.target as Element | null;
+      if (!t?.closest?.('.deck-card-grid-cell') || !containerEl.current?.contains(t)) {
+        setOpenCell(null);
+      }
+    };
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openCell]);
   const { phone, stackW, columns } = stackLayout(
     typeof window === 'undefined' ? containerWidth : window.innerWidth,
     containerWidth,
@@ -318,7 +339,8 @@ export function DeckCardGrid({
             } as CSSProperties
           }
         >
-          {g.rows.map((row) => {
+          {g.rows.map((row, i) => {
+            const cellKey = `${g.title}\n${row.name}`;
             const role = showRoles ? getRoleBadge(row.card) : null;
             const synergy = synergyByName?.get(row.name);
             const binders: BinderInfo[] = [];
@@ -339,13 +361,30 @@ export function DeckCardGrid({
               // the same delegated hover handlers the list rows use.
               <li
                 key={row.name}
-                className={`deck-card-grid-cell${roleDimmed ? ' is-role-dimmed' : ''}`}
+                className={`deck-card-grid-cell${roleDimmed ? ' is-role-dimmed' : ''}${
+                  stacks && openCell === cellKey ? ' is-open' : ''
+                }`}
                 onContextMenu={onRowContextMenu ? (e) => onRowContextMenu(row, e) : undefined}
               >
                 <button
                   type="button"
                   className={`deck-card-grid-tile${foilTileClass(row)}`}
-                  onClick={() => onRowClick(row.name)}
+                  onPointerDown={(e) => {
+                    lastPointer.current = e.pointerType;
+                  }}
+                  onClick={(e) => {
+                    // `detail` is 0 for a keyboard press, which must not
+                    // inherit the pointer type of an earlier tap.
+                    const tap = lastPointer.current === 'touch' && e.detail > 0;
+                    lastPointer.current = null;
+                    // The last card of a stack already shows whole: straight
+                    // to the carousel.
+                    if (stacks && tap && openCell !== cellKey && i < g.rows.length - 1) {
+                      setOpenCell(cellKey);
+                      return;
+                    }
+                    onRowClick(row.name);
+                  }}
                   data-peek-name={row.name}
                   aria-label={`${row.name} (${row.qty} in deck, ${allocationSummary(row)})`}
                 >
