@@ -25,6 +25,8 @@ export interface GameResultRow {
   coopOutcome: 'won' | 'lost' | null;
   /** Which horde deck this co-op game was fought against. Null otherwise. */
   hordeId: string | null;
+  /** Which way the table sat. Null when the state never set it (clockwise). */
+  turnOrder: 'clockwise' | 'counterclockwise' | null;
 }
 
 /**
@@ -100,6 +102,7 @@ export async function buildGameResultRow(
     summary: summarizeGame(state, endedAt),
     coopOutcome: state.coopOutcome ?? null,
     hordeId: state.hordeId ?? null,
+    turnOrder: state.turnOrder ?? null,
   };
 }
 
@@ -114,8 +117,8 @@ export async function insertGameResult(row: GameResultRow, pool: Pool): Promise<
     `INSERT INTO game_results
        (session_id, code, format, starting_life, winner_seat, winner_user_id,
         started_at, ended_at, duration_ms, participants, notable_events, summary, created_at,
-        mode, recorded_by_user_id, host_user_id, coop_outcome, horde_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+        mode, recorded_by_user_id, host_user_id, coop_outcome, horde_id, turn_order)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
      ON CONFLICT (session_id) DO NOTHING`,
     [
       row.sessionId,
@@ -136,6 +139,7 @@ export async function insertGameResult(row: GameResultRow, pool: Pool): Promise<
       row.hostUserId,
       row.coopOutcome,
       row.hordeId,
+      row.turnOrder,
     ]
   );
   return (res.rowCount ?? 0) > 0;

@@ -59,6 +59,7 @@ function localGame(opts: {
   format?: string;
   coopOutcome?: 'won' | 'lost';
   hordeId?: string;
+  turnOrder?: 'clockwise' | 'counterclockwise';
 }) {
   // Every fixture gets a fresh id even when a caller pins endedAt — a reused
   // id is a 200 (same recorder) or a 409 (another's), never a second row.
@@ -73,6 +74,7 @@ function localGame(opts: {
     format: opts.format ?? 'commander',
     ...(opts.coopOutcome !== undefined ? { coopOutcome: opts.coopOutcome } : {}),
     ...(opts.hordeId !== undefined ? { hordeId: opts.hordeId } : {}),
+    ...(opts.turnOrder !== undefined ? { turnOrder: opts.turnOrder } : {}),
     startingLife: 40,
     commanderDamageEnabled: true,
     poisonEnabled: false,
@@ -288,6 +290,33 @@ describe('POST /api/game-results (local game)', () => {
       game.id,
     ]);
     expect(Number(n.rows[0].n)).toBe(1);
+  });
+
+  it('persists turnOrder and returns it on read, defaulting to null when absent', async () => {
+    const ana = await makeUser('lr-turnorder');
+    const ccw = localGame({ seats: [{}, {}], turnOrder: 'counterclockwise' });
+    const res = await request(app).post('/api/game-results').set('Cookie', ana).send({ game: ccw });
+    expect(res.status).toBe(201);
+    expect(res.body.result.turnOrder).toBe('counterclockwise');
+
+    const mine = await request(app).get('/api/game-results/mine').set('Cookie', ana);
+    const row = mine.body.results.find((r: { sessionId: string }) => r.sessionId === ccw.id);
+    expect(row.turnOrder).toBe('counterclockwise');
+
+    const noOrder = localGame({ seats: [{}, {}] });
+    const res2 = await request(app)
+      .post('/api/game-results')
+      .set('Cookie', ana)
+      .send({ game: noOrder });
+    expect(res2.status).toBe(201);
+    expect(res2.body.result.turnOrder).toBeNull();
+  });
+
+  it('rejects a bad turnOrder value on POST', async () => {
+    const ana = await makeUser('lr-turnorder-bad');
+    const bad = { ...localGame({ seats: [{}, {}] }), turnOrder: 'sideways' };
+    const res = await request(app).post('/api/game-results').set('Cookie', ana).send({ game: bad });
+    expect(res.status).toBe(400);
   });
 
   it('413 for a body over the size cap', async () => {

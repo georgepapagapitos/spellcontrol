@@ -1741,7 +1741,7 @@ describe('gameToRematch / recordToRematch', () => {
     expect(gameToRematch(ccw).turnOrder).toBe('counterclockwise');
   });
 
-  it('recordToRematch has no source for turnOrder and reads as clockwise', () => {
+  it('recordToRematch reads a legacy record (no turnOrder) as clockwise', () => {
     const rec: GameRecord = {
       id: 'g',
       code: '',
@@ -1766,6 +1766,34 @@ describe('gameToRematch / recordToRematch', () => {
       ],
     };
     expect(recordToRematch(rec).turnOrder).toBeUndefined();
+  });
+
+  it('recordToRematch carries a counterclockwise record forward', () => {
+    const rec: GameRecord = {
+      id: 'g',
+      code: '',
+      format: 'commander',
+      startingLife: 40,
+      mode: 'local',
+      startedAt: 1,
+      endedAt: 2,
+      durationMs: 1,
+      winnerSeat: 0,
+      turnOrder: 'counterclockwise',
+      players: [
+        {
+          seat: 0,
+          userId: null,
+          name: 'A',
+          deckId: 'd1',
+          deckName: 'D1',
+          commander: 'Cmd',
+          finalLife: 1,
+          eliminated: false,
+        },
+      ],
+    };
+    expect(recordToRematch(rec).turnOrder).toBe('counterclockwise');
   });
 
   it('recordToRematch infers commander damage from a commander record', () => {

@@ -880,6 +880,13 @@ export const gameResults = pgTable(
      * non-co-op row.
      */
     hordeId: text('horde_id'),
+    /**
+     * Which way the table sat: 'clockwise' | 'counterclockwise'. Null means
+     * either a legacy row (recorded before this column existed) or an
+     * explicitly clockwise table — both read as clockwise wherever this is
+     * consumed, matching `GameState.turnOrder`'s own convention.
+     */
+    turnOrder: text('turn_order').$type<'clockwise' | 'counterclockwise' | null>(),
   },
   (t) => ({
     endedIdx: index('game_results_ended_idx').on(t.endedAt),
