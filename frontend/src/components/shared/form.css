@@ -116,11 +116,15 @@
 /* ── Segmented control: two or three short options ─────────────────────── */
 /* Native radios in a track; the selected option is a raised chip, never an
    accent fill (STYLE_GUIDE § Tabs / view switchers). Container is the
-   container tier, options are rects (§ Shape language). */
+   container tier, options are rects (§ Shape language). `width: fit-content`
+   because inline-flex is blockified inside a column flexbox (`.cube-size`),
+   which then stretches the track across the panel with the options huddled
+   at its left. */
 .segmented {
   display: inline-flex;
   align-items: stretch;
   gap: var(--space-1);
+  width: fit-content;
   max-width: 100%;
   margin: 0;
   padding: var(--space-1);

@@ -44,3 +44,13 @@ describe('settings-card-body children keep their intrinsic width', () => {
     });
   }
 });
+
+// The shared SegmentedControl lands in any column flexbox (the cube
+// workshop's `.cube-size` stretched its Draft / Commander track across the
+// panel, 2026-09-25), so the opt-out lives on the component, not per parent.
+describe('the shared segmented track keeps its intrinsic width', () => {
+  it('.segmented opts out of the column stretch', () => {
+    const css = readFileSync(join(here, '../components/shared/form.css'), 'utf8');
+    expect(ruleBody(css, '.segmented')).toMatch(/align-self:\s*flex-start|width:\s*fit-content/);
+  });
+});
