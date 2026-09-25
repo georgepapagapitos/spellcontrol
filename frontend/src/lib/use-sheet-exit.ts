@@ -137,5 +137,11 @@ export function useSheetExit(
     ? ({ ['--sheet-exit-from' as string]: `${exitFrom}px` } as CSSProperties)
     : undefined;
 
-  return { isClosing, beginClose, onAnimationEnd, exitStyle };
+  // Exposed so a caller with its own Escape listener (rather than relying on
+  // Modal's) can gate it the same way the Tab trap above already is — only
+  // the topmost overlay should react. `isTopmost` is already computed for
+  // useFocusTrap; most consumers don't need it (Escape closing a background
+  // sheet under a popover/menu is usually harmless), but one that owns a
+  // bespoke Escape handler shouldn't skip the same stack check the trap uses.
+  return { isClosing, beginClose, onAnimationEnd, exitStyle, isTopmost };
 }

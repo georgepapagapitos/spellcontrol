@@ -36,19 +36,27 @@ export function ListRuleEditor({ list, onClose }: Props) {
   );
   const [autofocusIdx, setAutofocusIdx] = useState<number | null>(null);
 
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const { isClosing, beginClose, onAnimationEnd, isTopmost } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out'
+  );
   const dismiss = useCallback(() => {
     if (window.matchMedia('(min-width: 1024px)').matches) onClose();
     else beginClose();
   }, [beginClose, onClose]);
 
   useEffect(() => {
+    // Only the topmost overlay answers Escape (overlay-layer.ts) — this sheet
+    // used to close on any Escape regardless of stacking, so opening a
+    // condition's own popover (the set picker, a suggestion list) on top of
+    // it and pressing Escape closed the whole sheet instead of just that
+    // popover.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismiss();
+      if (e.key === 'Escape' && isTopmost()) dismiss();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [dismiss]);
+  }, [dismiss, isTopmost]);
 
   // Same inputs the binder editor feeds FilterGroupList: owned sets for the
   // set picker, catalog+collection suggestions for type/oracle chips, and

@@ -313,13 +313,9 @@
    `overflow-y: auto`, and would be hidden the moment the picker sits
    anywhere but at the top of the dialog. Inline flows naturally with
    the body scroll; focusing the input also scrollIntoView's the picker
-   so the results land in the visible area. */
-.collection-filters-section .set-filter-results {
-  position: static;
-  margin-top: 0.4rem;
-  box-shadow: none;
-  max-height: 16rem;
-}
+   so the results land in the visible area. The rule itself now lives in
+   binder-rules-editor.css alongside its `.modal-body` / `.add-card-sheet-body`
+   twins (SetFilterPicker is shared by the binder/list rule editors too). */
 
 .collection-filters-dialog-footer {
   flex: 0 0 auto;
@@ -329,6 +325,20 @@
   gap: 0.6rem;
   padding: var(--space-3) var(--space-4);
   border-top: 0.5px solid var(--border);
+}
+
+/* Groups Clear with the "Save as a binder…" link so the footer's flex layout
+   still sees three items (this group, the count, Apply) — the count's
+   auto margins below center it between them regardless of how many buttons
+   the left group holds. */
+.collection-filters-dialog-footer-start {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.collection-filters-dialog-save-as-binder {
+  font-size: var(--text-sm);
 }
 
 /* Live match count over the draft. Sits between Clear and Apply because it is

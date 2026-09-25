@@ -4,15 +4,22 @@ import { createPortal } from 'react-dom';
 import type { ChipExpression, Condition, MaterializedBinder, ScryfallQueryRule } from '../types';
 import type { SetMap } from '../lib/api';
 import { Modal } from './Modal';
-import { SetFilterPicker } from './SetFilterPicker';
+import { SetFilterPicker, setMapToOptions } from './SetFilterPicker';
 import { ColorPip } from './shared/ManaSymbol';
 import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
+import { SwitchRow } from './shared/form';
 import { countMatchingRows, type FilterableRow } from '../lib/collection-filter';
 import { compileExpression, compileFilter, isExpressionEmpty } from '../lib/rules';
+import {
+  collectionFiltersToFilterGroup,
+  deriveBinderName,
+  hasStructuredFilter,
+} from '../lib/collection-filters-to-binder';
 import type { ColorMatchMode } from '../lib/colors';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
+import { useCollectionStore } from '../store/collection';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
@@ -334,6 +341,8 @@ function DialogBody({
   const [draftSurplusOnly, setDraftSurplusOnly] = useState<boolean>(surplusOnly ?? false);
   const [draftProxyOnly, setDraftProxyOnly] = useState<boolean>(proxyOnly ?? false);
 
+  const setOptions = useMemo(() => setMapToOptions(setMap), [setMap]);
+
   const showBinder = binderExpr !== undefined && !hideBinderFilter;
   const showOracleTags = oracleTagExpr !== undefined;
   const showScryfallQuery = setScryfallQuery !== undefined;
@@ -467,6 +476,45 @@ function DialogBody({
     });
   };
 
+  const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
+
+  // What "Save as a binder…" seeds from — the DRAFT, not the applied filters,
+  // so it captures whatever is on screen even before Apply. Condition,
+  // language and binder membership can't map to a binder rule (no physical-
+  // copy or membership concept there); collectionFiltersToFilterGroup flags
+  // those, and BinderEditor's own seed note explains the gap.
+  const saveAsBinderInput = {
+    colorFilter: draftColor,
+    supertypeExpr: draftSuper,
+    typesExpr: draftTypes,
+    subtypeExpr: draftSubtype,
+    rarityExpr: draftRarity,
+    oracleExpr: draftOracle,
+    oracleTagExpr: draftOracleTag,
+    scryfallQuery: draftScryfallQuery,
+    legalityExpr: draftLegality,
+    layoutExpr: draftLayout,
+    treatmentExpr: draftTreatment,
+    borderExpr: draftBorder,
+    finishExpr: draftFinish,
+    conditionExpr: draftCondition,
+    languageExpr: draftLanguage,
+    binderExpr: draftBinder,
+    setFilter: draftSet,
+    priceMin: draftPriceMin,
+    priceMax: draftPriceMax,
+    cmcMin: draftCmcMin,
+    cmcMax: draftCmcMax,
+    search: searchTerm ?? '',
+  };
+  const canSaveAsBinder = hasStructuredFilter(saveAsBinderInput);
+  const saveAsBinder = () => {
+    const { group, flagged } = collectionFiltersToFilterGroup(saveAsBinderInput);
+    const name = deriveBinderName(saveAsBinderInput);
+    setEditingBinder('new', { name, groups: [group], flagged });
+    onClose();
+  };
+
   const apply = () => {
     setSupertypeExpr(draftSuper);
     setTypesExpr(draftTypes);
@@ -551,12 +599,15 @@ function DialogBody({
         </button>
       </header>
 
+      {/* Section order mirrors the Add-condition picker's registry groups
+          (lib/filter-fields.ts: Identity, Cost, Text, Printing, Value & play)
+          so the same field reads in the same neighborhood in both places.
+          FilterFieldEditor's own block (Text/Value&play/Printing rows shared
+          with BinderEditor) keeps its internal order — reordering those rows
+          would move them in the binder rule editor too, which isn't this
+          dialog's call to make. */}
       <div className="collection-filters-dialog-body">
-        {/* Type line — one shared input that auto-classifies each
-              token into Supertypes / Type / Subtype, then displays
-              classified chips in their respective row. Each row's
-              chips are its own ChipExpression so AND/OR composes
-              naturally per category. */}
+        {/* Identity: type line + color. */}
         <section className="collection-filters-section">
           <div className="collection-filters-section-label">Type line</div>
           <TypeLineExpressionBuilder
@@ -595,12 +646,54 @@ function DialogBody({
           </div>
         </section>
 
-        {/* Single-valued fields (a card has one rarity, lives in one
-              binder). The AND/OR joiner pills still render for visual
-              consistency with the type-line rows, but flipping to AND
-              between two values is unsatisfiable — the evaluator just
-              returns no matches, which is technically correct.
-              Defaults to OR for both. */}
+        {/* Cost. */}
+        {showCmc && (
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Mana value</div>
+            <NumberRangeInput
+              min={draftCmcMin}
+              max={draftCmcMax}
+              step={1}
+              onMinChange={setDraftCmcMin}
+              onMaxChange={setDraftCmcMax}
+            />
+          </section>
+        )}
+
+        {/* Text · Value & play · Printing (shared rows with BinderEditor). */}
+        <FilterFieldEditor
+          value={draftAsFilter}
+          onPatch={handleFilterPatch}
+          showOracleTags={showOracleTags}
+          showScryfallQuery={showScryfallQuery}
+          showFinish={showFinish}
+          showOracleText={showOracleText}
+          showLegality={showLegality}
+          showTreatment={showTreatment}
+          showBorder={showBorder}
+          showLayout={showLayout}
+          variant="dialog"
+        />
+
+        {/* Value & play: price sits beside Format above (both that group). */}
+        {showPrice && (
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Price</div>
+            <NumberRangeInput
+              min={draftPriceMin}
+              max={draftPriceMax}
+              step={0.01}
+              onMinChange={setDraftPriceMin}
+              onMaxChange={setDraftPriceMax}
+            />
+          </section>
+        )}
+
+        {/* Printing: rarity, then sets (single-valued fields — a card has one
+            rarity, lives in one binder. The AND/OR joiner pills still render
+            for visual consistency with the type-line rows, but flipping to
+            AND between two values is unsatisfiable — the evaluator just
+            returns no matches, which is technically correct. Defaults OR). */}
         <section className="collection-filters-section">
           <div className="collection-filters-section-label">Rarity</div>
           <ChipExpressionBuilder
@@ -616,22 +709,15 @@ function DialogBody({
           />
         </section>
 
-        {/* Oracle · Format · Layout · Treatment · Border · Finish
-              (chip rows common with BinderEditor — deduped via FilterFieldEditor). */}
-        <FilterFieldEditor
-          value={draftAsFilter}
-          onPatch={handleFilterPatch}
-          showOracleTags={showOracleTags}
-          showScryfallQuery={showScryfallQuery}
-          showFinish={showFinish}
-          showOracleText={showOracleText}
-          showLegality={showLegality}
-          showTreatment={showTreatment}
-          showBorder={showBorder}
-          showLayout={showLayout}
-          variant="dialog"
-        />
+        {showSet && (
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Set</div>
+            <SetFilterPicker options={setOptions} value={draftSet} onChange={setDraftSet} />
+          </section>
+        )}
 
+        {/* Physical-copy / where-it-lives fields — no registry group, since
+            they describe the copy rather than the card. */}
         {showCondition && (
           <section className="collection-filters-section">
             <div className="collection-filters-section-label">Condition</div>
@@ -677,94 +763,60 @@ function DialogBody({
           </section>
         )}
 
-        {showPrice && (
+        {/* Surplus, Proxy and Options used to be three uppercase headings
+            each gating a single checkbox — the config-surface kit (T139)
+            makes an on/off setting a full-width switch row, and related
+            settings share ONE heading rather than one each. */}
+        {(showSurplus || showProxy || showOptions) && (
           <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Price</div>
-            <NumberRangeInput
-              min={draftPriceMin}
-              max={draftPriceMax}
-              step={0.01}
-              onMinChange={setDraftPriceMin}
-              onMaxChange={setDraftPriceMax}
-            />
-          </section>
-        )}
-
-        {showCmc && (
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Mana value</div>
-            <NumberRangeInput
-              min={draftCmcMin}
-              max={draftCmcMax}
-              step={1}
-              onMinChange={setDraftCmcMin}
-              onMaxChange={setDraftCmcMax}
-            />
-          </section>
-        )}
-
-        {showSet && (
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Set</div>
-            <SetFilterPicker setMap={setMap} value={draftSet} onChange={setDraftSet} />
-          </section>
-        )}
-
-        {showSurplus && (
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Surplus</div>
-            <label className="filter-popover-row">
-              <input
-                type="checkbox"
+            <div className="collection-filters-section-label">This copy</div>
+            {showSurplus && (
+              <SwitchRow
+                label="Tradeable surplus only"
+                hint="Copies not in any deck or cube, beyond your first kept copy. Basic lands excluded."
                 checked={draftSurplusOnly}
-                onChange={(e) => setDraftSurplusOnly(e.target.checked)}
+                onChange={setDraftSurplusOnly}
               />
-              <span className="filter-popover-label">Tradeable surplus only</span>
-            </label>
-            <p className="filter-popover-hint">
-              Copies not in any deck or cube, beyond your first kept copy. Basic lands excluded.
-            </p>
-          </section>
-        )}
-
-        {showProxy && (
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Proxy</div>
-            <label className="filter-popover-row">
-              <input
-                type="checkbox"
+            )}
+            {showProxy && (
+              <SwitchRow
+                label="Proxies only"
                 checked={draftProxyOnly}
-                onChange={(e) => setDraftProxyOnly(e.target.checked)}
+                onChange={setDraftProxyOnly}
               />
-              <span className="filter-popover-label">Proxies only</span>
-            </label>
-          </section>
-        )}
-
-        {showOptions && (
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Options</div>
-            <label className="filter-popover-row">
-              <input
-                type="checkbox"
+            )}
+            {showOptions && (
+              <SwitchRow
+                label="Group printings"
+                hint="Combine identical printings of a card into one row."
                 checked={draftGroup}
-                onChange={(e) => setDraftGroup(e.target.checked)}
+                onChange={setDraftGroup}
               />
-              <span className="filter-popover-label">Group printings</span>
-            </label>
+            )}
           </section>
         )}
       </div>
 
       <footer className="collection-filters-dialog-footer">
-        <button
-          type="button"
-          className="collection-filters-dialog-clear"
-          onClick={clearDraft}
-          disabled={!draftHasAny}
-        >
-          Clear
-        </button>
+        <div className="collection-filters-dialog-footer-start">
+          <button
+            type="button"
+            className="collection-filters-dialog-clear"
+            onClick={clearDraft}
+            disabled={!draftHasAny}
+          >
+            Clear
+          </button>
+          {canSaveAsBinder && (
+            <button
+              type="button"
+              className="btn-link collection-filters-dialog-save-as-binder"
+              onClick={saveAsBinder}
+            >
+              Save as a binder…
+            </button>
+          )}
+        </div>
         {draftMatchCount !== null && (
           <span
             className={`collection-filters-dialog-count${draftMatchCount === 0 ? ' is-empty' : ''}`}

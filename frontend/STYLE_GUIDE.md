@@ -3018,6 +3018,29 @@ to anything new that edits a predicate.
   picker's predicate (folded name, set code, collector number). The Order
   tab stays unfiltered: a drag-sortable list with hidden rows can't say where
   a drop lands.
+- **A predicate surface's sections order by the same registry groups the
+  Add-condition picker uses** (`lib/filter-fields.ts`: Identity, Cost, Text,
+  Printing, Value & play), so a field reads in the same neighborhood whether
+  you're narrowing the collection Filters dialog or building a binder rule.
+  Fields with no registry entry (Condition, Language, Binder membership — all
+  physical-copy or membership concepts, not card facts) sit in their own
+  cluster after Printing rather than being forced into a group they aren't
+  part of.
+- **One set picker, not two.** `SetFilterPicker` takes a plain `options` list
+  (`{ code, label, iconSvgUri?, releasedAt? }[]`) so both the binder/list rule
+  editor (options = the sets you own) and the collection Filters dialog
+  (options = every Scryfall set, via `setMapToOptions`) share one control.
+  They used to be two components built from two different option shapes
+  (`SetMultiSelect`, folded into this one).
+- **The dynamic-list rule sheet's Escape is topmost-gated**, like every other
+  overlay (`useOverlayLayer`) — its own `document` keydown listener used to
+  fire regardless of stacking, so a nested popover's Escape (the set picker,
+  a suggestion list) closed the whole sheet instead of just that popover.
+- **"Save as a binder…"** sits in the collection Filters dialog's footer, next
+  to Clear, and seeds `BinderEditor` from the DRAFT (not yet applied) filters
+  via `editingBinderSeed` (`lib/collection-filters-to-binder.ts`). It shows
+  only once a structured filter is set — a search-only draft has nothing a
+  binder rule can express.
 
 ## Config surfaces (T139)
 
