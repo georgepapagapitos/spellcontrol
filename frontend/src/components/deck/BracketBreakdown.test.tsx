@@ -328,3 +328,13 @@ describe('BracketBreakdown — distance to the next threshold', () => {
     expect(distanceText(container)).toContain('Bracket 3');
   });
 });
+
+describe('BracketBreakdown before combos are counted', () => {
+  it('does not claim "no hard floors" while a combo could still set one', () => {
+    const est = makeEstimation({ bracket: 2, label: 'Core', softScore: 5, hardFloors: [] });
+    const { container } = render(<BracketBreakdown estimation={est} combosUncounted />);
+    expect(
+      container.querySelector('.bracket-breakdown-empty')?.textContent?.replace(/\s+/g, ' ')
+    ).toBe("No hard floors yet. Combos aren't counted, and a combo can set one.");
+  });
+});

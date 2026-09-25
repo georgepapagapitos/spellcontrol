@@ -7,9 +7,17 @@ import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions
  * Lives here rather than on the deck editor because the shared/public deck
  * surface renders the same PowerHero — one deck view, one summary.
  */
-export function buildWinConditionSummary(wc: WinConditionAnalysis | undefined): string | undefined {
+export function buildWinConditionSummary(
+  wc: WinConditionAnalysis | undefined,
+  /** The analysis ran before the combo match answered: a combo may be the win. */
+  combosUncounted = false
+): string | undefined {
   if (!wc) return undefined;
-  if (wc.noClearWinCondition) return 'No clear win condition';
+  if (wc.noClearWinCondition) {
+    return combosUncounted
+      ? 'Win condition unclear until combos are counted'
+      : 'No clear win condition';
+  }
   if (!wc.primary) return undefined;
   const parts: string[] = [`Wins via ${wc.primary.label}`];
   if (wc.secondary.length > 0) {

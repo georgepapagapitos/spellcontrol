@@ -8,6 +8,13 @@ export interface BracketVerdictStripProps {
   bracket?: 1 | 2 | 3 | 4 | 5 | null;
   /** The auto-estimated bracket, if an estimation exists. */
   estimate?: number;
+  /**
+   * The estimate was made before the combo match answered, so it is a floor:
+   * combos only raise a bracket. It reads "B2+", and only a verdict the floor
+   * already proves is given ("Plays above" when the floor clears the stated
+   * bracket); anything else waits for combos.
+   */
+  estimateIsFloor?: boolean;
 }
 
 const COACH_HINT = "See the Coach tab's Bracket lane to";
@@ -15,8 +22,22 @@ const COACH_HINT = "See the Coach tab's Bracket lane to";
 /** Compare the deck's stated bracket against the auto-estimate. */
 function verdictFor(
   bracket: number | null | undefined,
-  estimate: number | undefined
+  estimate: number | undefined,
+  estimateIsFloor = false
 ): { label: string; tone: VerdictTone; reason: string } {
+  // Only "Plays above" survives a floor: combos can raise the estimate, never
+  // lower it. For Bracket 1 a Core estimate is already the Exhibition reading,
+  // so "above" starts one higher.
+  const certainlyAboveFrom = bracket === 1 ? 3 : (bracket ?? 0) + 1;
+  if (bracket != null && estimate != null && estimateIsFloor && estimate < certainlyAboveFrom) {
+    // "Matches" or "Plays below" off a floor could flip once combos count, and
+    // "Plays below" would send the owner to add power to a deck already above.
+    return {
+      label: 'Unconfirmed',
+      tone: 'neutral',
+      reason: "The estimate doesn't include combos yet, so it may be higher.",
+    };
+  }
   if (bracket == null) {
     return {
       label: 'Auto',
@@ -65,9 +86,10 @@ function verdictFor(
 export function BracketVerdictStrip({
   bracket,
   estimate,
+  estimateIsFloor = false,
 }: BracketVerdictStripProps): JSX.Element | null {
   if (bracket == null && estimate == null) return null;
-  const v = verdictFor(bracket, estimate);
+  const v = verdictFor(bracket, estimate, estimateIsFloor);
 
   return (
     <div className="bracket-verdict-strip">
@@ -78,7 +100,7 @@ export function BracketVerdictStrip({
         </div>
         <div className="bracket-verdict-figure">
           <dt>Estimate</dt>
-          <dd>{estimate == null ? '—' : `B${estimate}`}</dd>
+          <dd>{estimate == null ? '—' : `B${estimate}${estimateIsFloor ? '+' : ''}`}</dd>
         </div>
       </dl>
       <VerdictBadge

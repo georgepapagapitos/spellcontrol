@@ -158,9 +158,13 @@ function SoftScoreRow({
 export function BracketBreakdown({
   estimation,
   deckCardsByName,
+  combosUncounted = false,
 }: {
   estimation: BracketEstimation;
   deckCardsByName?: DeckCardMap;
+  /** The estimate was made before the combo match answered. A combo is what
+   *  most often sets a floor, so "no hard floors" can't be claimed yet. */
+  combosUncounted?: boolean;
 }): JSX.Element {
   const { breakdown, hardFloors, softScore, bracket } = estimation;
 
@@ -222,7 +226,9 @@ export function BracketBreakdown({
         </h4>
         {sortedFloors.length === 0 ? (
           <p className="bracket-breakdown-empty">
-            No hard floors, so the deck starts at {formatBracketLabel(floor)}.
+            {combosUncounted
+              ? "No hard floors yet. Combos aren't counted, and a combo can set one."
+              : `No hard floors, so the deck starts at ${formatBracketLabel(floor)}.`}
           </p>
         ) : (
           <div className="deck-bracket-table" role="table" aria-label="Hard floors">

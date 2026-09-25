@@ -217,3 +217,33 @@ describe('PowerHero', () => {
     expect(screen.queryByLabelText('View combos')).toBeNull();
   });
 });
+
+describe('PowerHero with a stated bracket and a floor estimate', () => {
+  it('says the estimate is a floor and may be higher', () => {
+    renderHero({
+      bracket: 3,
+      bracketOverridden: true,
+      bracketEstimate: 2,
+      bracketMissesCombos: true,
+    });
+    expect(hasText(/^Estimate: at least Bracket 2 · Core$/)).toBe(true);
+    expect(screen.getByText('Still checking combos, so it may be higher.')).toBeTruthy();
+    // The owner's stated bracket is their word, never a floor.
+    expect(hasText(/^At least Bracket 3/)).toBe(false);
+  });
+
+  it('shows the floor estimate even when it equals the stated bracket', () => {
+    renderHero({
+      bracket: 3,
+      bracketOverridden: true,
+      bracketEstimate: 3,
+      bracketMissesCombos: true,
+    });
+    expect(hasText(/^Estimate: at least Bracket 3 · Upgraded$/)).toBe(true);
+  });
+
+  it('keeps the plain estimate line when combos were counted', () => {
+    renderHero({ bracket: 3, bracketOverridden: true, bracketEstimate: 4 });
+    expect(hasText(/^Estimate: Bracket 4 · Optimized/)).toBe(true);
+  });
+});

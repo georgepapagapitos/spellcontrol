@@ -190,6 +190,9 @@ export interface DeckDisplayProps {
   deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
   /** User-pinned bracket (1–5); when set it overrides the auto estimate. */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  /** The estimate was made before the combo match answered, so it is a floor
+   *  (combos only raise a bracket). See useCommanderBracketAnalysis. */
+  bracketMissesCombos?: boolean;
   /** Set/clear the manual bracket override. Passing null reverts to auto. */
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   /** User-pinned archetype; when set it overrides the derived identity headline. */
@@ -484,6 +487,7 @@ export function DeckDisplay({
   bracketEstimation,
   deckCardsByName,
   bracketOverride,
+  bracketMissesCombos,
   onSetBracketOverride,
   archetypeOverride,
   onSetArchetypeOverride,
@@ -1556,6 +1560,7 @@ export function DeckDisplay({
       bracketEstimation={bracketEstimation}
       deckCardsByName={deckCardsByName}
       bracketOverride={bracketOverride}
+      bracketMissesCombos={bracketMissesCombos}
       onSetBracketOverride={onSetBracketOverride}
       archetypeOverride={archetypeOverride}
       onSetArchetypeOverride={onSetArchetypeOverride}

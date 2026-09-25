@@ -51,3 +51,31 @@ describe('BracketVerdictStrip', () => {
     expect(screen.getByText(/cuts toward the Core floor/)).toBeTruthy();
   });
 });
+
+// An estimate made before the combo match answered is a floor. "Plays below"
+// off it once told an owner to add power to a deck that was really above.
+describe('BracketVerdictStrip with a floor estimate', () => {
+  it('reads the estimate as B2+ and holds the verdict when the floor is under the stated bracket', () => {
+    render(<BracketVerdictStrip bracket={3} estimate={2} estimateIsFloor />);
+    expect(screen.getByText('B2+')).toBeTruthy();
+    expect(screen.getByText('Unconfirmed')).toBeTruthy();
+    expect(screen.queryByText('Plays below')).toBeNull();
+  });
+
+  it('does not call a floor that equals the stated bracket a match', () => {
+    render(<BracketVerdictStrip bracket={3} estimate={3} estimateIsFloor />);
+    expect(screen.getByText('Unconfirmed')).toBeTruthy();
+    expect(screen.queryByText('Matches')).toBeNull();
+  });
+
+  it('still says "Plays above" when the floor alone clears the stated bracket', () => {
+    render(<BracketVerdictStrip bracket={2} estimate={3} estimateIsFloor />);
+    expect(screen.getByText('B3+')).toBeTruthy();
+    expect(screen.getByText('Plays above')).toBeTruthy();
+  });
+
+  it('holds the Bracket 1 verdict too: a Core floor may still play above Exhibition', () => {
+    render(<BracketVerdictStrip bracket={1} estimate={2} estimateIsFloor />);
+    expect(screen.getByText('Unconfirmed')).toBeTruthy();
+  });
+});

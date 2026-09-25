@@ -63,3 +63,41 @@ describe('DeckCombosPanel error state', () => {
     expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
   });
 });
+
+// The deck page hands the panel the match its hero and bracket already use.
+// With a second match of its own, a Retry here refreshed only the panel: the
+// hero kept "Couldn't reach combos" and the bracket stayed a floor.
+describe("DeckCombosPanel with the caller's combo match", () => {
+  beforeEach(() => {
+    useDeckCombos.mockReset();
+    refetch.mockReset();
+    useDeckCombos.mockReturnValue({ data: null, loading: false, error: null, refetch: vi.fn() });
+  });
+
+  it("shows the caller's result, runs no match of its own, and retries the caller's", () => {
+    const callerRefetch = vi.fn();
+    render(
+      <DeckCombosPanel
+        deckId="deck-1"
+        deckOracleIds={['o1']}
+        format="commander"
+        embedded
+        combos={{
+          data: null,
+          loading: false,
+          error: "Couldn't load combos.",
+          refetch: callerRefetch,
+        }}
+      />
+    );
+    expect(useDeckCombos).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
+    expect(screen.getByRole('alert').textContent).toContain("Couldn't load combos.");
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(callerRefetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs its own match when the caller passes none (the shared deck page)', () => {
+    renderPanel();
+    expect(useDeckCombos).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
+  });
+});

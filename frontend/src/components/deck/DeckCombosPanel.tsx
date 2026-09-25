@@ -58,6 +58,14 @@ interface Props {
    * inside the tabbed analysis surface.
    */
   embedded?: boolean;
+  /**
+   * The caller's own combo match for these same inputs. The deck page passes
+   * the result its hero and bracket already use, so the panel shows the same
+   * answer and its Retry refreshes everything; without it the panel runs a
+   * second match of its own, and a Retry here left the hero and bracket on
+   * the failed one.
+   */
+  combos?: ReturnType<typeof useDeckCombos>;
 }
 
 type Tab = 'inDeck' | 'oneAway';
@@ -72,6 +80,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     colorIdentity,
     onAdd,
     embedded = false,
+    combos,
   },
   ref
 ) {
@@ -116,7 +125,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   const firstButtonRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data, loading, error, refetch } = useDeckCombos({
+  const ownMatch = useDeckCombos({
     deckOracleIds,
     ownedOracleIds,
     format,
@@ -125,7 +134,9 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     // ("11 in deck · 2 one away") is accurate at a glance. The hook caches
     // results and debounces requests, so the cost on idle deck-views is
     // small and the at-a-glance value is high.
+    enabled: !combos,
   });
+  const { data, loading, error, refetch } = combos ?? ownMatch;
 
   // Which in-deck combos are only complete because of a sideboard card —
   // keyed by combo id so each row can look itself up. Empty when the caller
