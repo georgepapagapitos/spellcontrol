@@ -735,13 +735,20 @@ a hero CTA.
   raised chip, never an accent fill.** The track is a padded, bordered
   container (`--surface`, `var(--radius-lg)` or `999px`, `var(--space-1)`
   padding + gap); the selected segment lifts onto `--surface-raised` with
-  `box-shadow: 0 1px 2px rgb(0 0 0 / 0.08)` and `--text-primary` text, while
-  the rest stay `--text-secondary` on transparent. **`--accent` stays reserved
+  `box-shadow: inset 0 0 0 1px var(--border-strong), 0 1px 2px rgb(0 0 0 / 0.08)`
+  and `--text-primary` text at weight 600, while the rest stay
+  `--text-secondary` on transparent. **The ring and the weight are part of the
+  chip (revised 2026-09-24, E410).** The chip alone read faint on the light
+  themes, where `--surface-raised` sits a few shades off `--surface` (Public
+  on the new-deck Visibility control looked unselected). The ring is inset so
+  it takes no layout and never overlaps a neighbour. Guard:
+  `styles/segmented-selected-chip.test.ts`. **`--accent` stays reserved
   for primary actions** — filling a passive setting with the same colour as
   the Save button makes the two compete, which read worst on the home hero,
   where a scope toggle sits directly beneath the primary CTA. On a track that
   is already `--surface-raised`, invert it: the chip lifts to `--surface`
-  (`.deck-curve-phases-toggle`, `.card-group-layout-toggle`).
+  (`.deck-curve-phases-toggle`, `.card-group-layout-toggle`), keeping the ring
+  and the weight.
   Reference: `.share-audience` in `styles/shared.css`.
   This applies **only to controls in a track**. A standalone row of chips or
   option cards with no container behind them (`.format-pill-row`,

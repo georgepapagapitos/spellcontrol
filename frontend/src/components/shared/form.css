@@ -182,8 +182,13 @@
   background: var(--surface-raised);
   color: var(--text-primary);
   box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.2),
-    0 0 0 1px var(--border-strong);
+    inset 0 0 0 1px var(--border-strong),
+    0 1px 2px rgb(0 0 0 / 0.2);
+}
+
+/* The span pins its own weight, so the selected weight lands here. */
+.segmented-option.is-selected span {
+  font-weight: 600;
 }
 
 .segmented-option input:focus-visible + span {
