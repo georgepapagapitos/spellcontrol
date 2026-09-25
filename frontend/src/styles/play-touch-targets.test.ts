@@ -13,6 +13,22 @@ const setup = read('play-setup.css');
 const panelMenus = read('play-panel-menus.css');
 
 /**
+ * Every body declared for a selector, joined.
+ *
+ * ALL of them, not the first: a selector legitimately appears twice — once
+ * in the base sheet and again inside `@media (pointer: coarse)` — and
+ * matching only the first made this file assert against the base rule and
+ * miss the floor that was right there. The coarse-block placement is
+ * asserted separately below. Module-scoped so every describe block below
+ * (not only the first) can use it.
+ */
+function ruleBody(css: string, selector: string): string | null {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const bodies = [...css.matchAll(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, 'g'))].map((m) => m[1]);
+  return bodies.length > 0 ? bodies.join('\n') : null;
+}
+
+/**
  * The play board is the one surface driven entirely by thumbs on a device
  * lying on a table, and its controls are deliberately small so the life
  * numeral dominates. That trade-off is only safe while the *hit* area still
@@ -24,23 +40,6 @@ const panelMenus = read('play-panel-menus.css');
  * short axis while the text-bearing chips beside it passed.
  */
 describe('play board touch targets', () => {
-  /**
-   * Every body declared for a selector, joined.
-   *
-   * ALL of them, not the first: a selector legitimately appears twice — once
-   * in the base sheet and again inside `@media (pointer: coarse)` — and
-   * matching only the first made this file assert against the base rule and
-   * miss the floor that was right there. The coarse-block placement is
-   * asserted separately below.
-   */
-  function ruleBody(css: string, selector: string): string | null {
-    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const bodies = [...css.matchAll(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, 'g'))].map(
-      (m) => m[1]
-    );
-    return bodies.length > 0 ? bodies.join('\n') : null;
-  }
-
   it('the ± step button carries a 44px ghost hit area', () => {
     const body = ruleBody(board, '.player-panel-step-btn::after');
     expect(body, '.player-panel-step-btn::after is missing').toBeTruthy();
@@ -104,6 +103,31 @@ describe('play board touch targets', () => {
     const at = enhancements.indexOf('min-height: 2.75rem');
     expect(at, 'no min-height: 2.75rem floor on the strip button').toBeGreaterThan(-1);
     expect(enhancements.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
+  });
+
+  it('the clock strip Pause button (icon-only, no label) also gets a min-width floor', () => {
+    // F11: Start/Pass carry a text label so their own padding clears 44px
+    // wide; Pause swaps its glyph instead of relabeling to "Resume", and
+    // measured 31x44 on a phone / 39x44 on a tablet — min-height alone left
+    // its narrow axis short.
+    const at = enhancements.indexOf('min-width: 2.75rem');
+    expect(at, 'no min-width: 2.75rem floor on the strip button').toBeGreaterThan(-1);
+    expect(enhancements.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
+    // The floor must live in the SAME rule as min-height, or it could land in
+    // an unrelated selector and pass this assertion without fixing anything.
+    const body = ruleBody(enhancements, '.game-clock-strip-btn');
+    expect(body).toMatch(/min-width:\s*2\.75rem/);
+    expect(body).toMatch(/min-height:\s*2\.75rem/);
+  });
+
+  it('the undo seam satellite is a real 44px circle on phones, not 2.6rem (42px)', () => {
+    // F11: measured 42x42 on a phone — no ghost on this control, so its own
+    // box has to clear the floor.
+    const body = ruleBody(enhancements, '.game-board-undo-btn');
+    expect(body, '.game-board-undo-btn is missing').toBeTruthy();
+    expect(body).toMatch(/width:\s*2\.75rem/);
+    expect(body).toMatch(/height:\s*2\.75rem/);
+    expect(body).not.toMatch(/width:\s*2\.6rem/);
   });
 
   it('every board touch floor lives inside a coarse-pointer block', () => {
@@ -194,5 +218,87 @@ describe('table clock is an edge strip, not a seam satellite', () => {
     const gameBoard = board.match(/\.game-board\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(gameBoard).toMatch(/--safe-bottom/);
     expect(enhancements).not.toMatch(/\.game-clock-strip[^{]*\{[^}]*safe-area-inset/);
+  });
+});
+
+/**
+ * F1 (P0): `.game-board`'s touch-action: manipulation still lets the browser
+ * treat a drag past the touch slop as a native pan, which cancels the
+ * pointer stream (pointercancel) before useTapAndHold's 40px swipe threshold
+ * fires — measured 0/4 fast swipes opening anything on a real touch screen.
+ * The fix is scoped to the gesture surface itself, never a shared ancestor:
+ * touch-action only narrows down the DOM ancestor chain (a descendant can
+ * restrict it further, never re-open it), so putting `none` on `.player-panel`
+ * or `.game-board` would also silence the seat drawer and game menu sheets
+ * nested inside them, which must keep scrolling by touch.
+ */
+describe('F1: a fast swipe on the panel is not cancelled by the browser', () => {
+  it('every tap-zone half stops the browser from taking the gesture as a pan', () => {
+    const body = ruleBody(board, '.player-panel-tapzone');
+    expect(body, '.player-panel-tapzone is missing').toBeTruthy();
+    expect(body).toMatch(/touch-action:\s*none/);
+  });
+
+  it('is scoped to the tap zone, not a shared ancestor of the seat drawer', () => {
+    // touch-action narrows down the ancestor chain and can never be re-opened
+    // by a descendant, so `.player-panel` (the seat drawer's actual parent)
+    // must NOT carry `none`, or the drawer body below would stop scrolling.
+    const panel = ruleBody(board, '.player-panel') ?? '';
+    expect(panel).not.toMatch(/touch-action:\s*none/);
+    const gameBoard = ruleBody(board, '.game-board') ?? '';
+    expect(gameBoard).not.toMatch(/touch-action:\s*none/);
+  });
+
+  it('the seat drawer body and the game menu sheet keep scrolling by touch', () => {
+    const drawerBody = ruleBody(panelMenus, '.seat-menu-body');
+    expect(drawerBody, '.seat-menu-body is missing').toBeTruthy();
+    expect(drawerBody).toMatch(/touch-action:\s*pan-y/);
+    const menuBody = ruleBody(panelMenus, '.game-menu-body');
+    expect(menuBody, '.game-menu-body is missing').toBeTruthy();
+    expect(menuBody).toMatch(/touch-action:\s*pan-y/);
+  });
+});
+
+/**
+ * F2 (P0): the ± buttons sit at the exact centre of each tap-zone half and,
+ * as real buttons, intercepted pointerdown ahead of useTapAndHold — a long
+ * press on the visible "+" gave +1 (not the zone's +10) and a swipe starting
+ * on one did nothing. Lotus's model: on a coarse pointer the ± are hints,
+ * not hit targets, so the zone underneath carries every gesture.
+ */
+describe('F2: the ± glyphs are hints on touch, not their own hit target', () => {
+  const sel = '.player-panel-life-wrap > .player-panel-step-btn';
+
+  it('goes pointer-events: none on a coarse pointer, falling through to the tap zone', () => {
+    // The selector legitimately appears twice (base rule + coarse override),
+    // same convention as the rest of this file — ruleBody joins both bodies.
+    const body = ruleBody(board, sel);
+    expect(body, `${sel} is missing`).toBeTruthy();
+    expect(body).toMatch(/pointer-events:\s*auto/);
+    expect(body).toMatch(/pointer-events:\s*none/);
+    // The `none` must live specifically inside a coarse-pointer block, not
+    // stand alone as a second unconditional rule that would just win by
+    // source order and break mouse/trackpad too.
+    expect(board).toMatch(
+      /@media \(pointer: coarse\) \{\s*\.player-panel-life-wrap > \.player-panel-step-btn \{\s*pointer-events:\s*none;/
+    );
+  });
+
+  it('stays a real button on a fine pointer — the base rule is unconditional auto', () => {
+    // The base (mouse/trackpad) rule keeps pointer-events: auto with no
+    // pointer-coarse guard around it — only the override is conditional.
+    expect(board).toMatch(
+      /\.player-panel-life-wrap > \.player-panel-step-btn \{\s*position: absolute;\s*top: 50%;\s*pointer-events:\s*auto;\s*\}/
+    );
+  });
+
+  it('the 24x24 life-numeral keypad button is untouched — it stays a real hit target on touch', () => {
+    // This one is INTENTIONAL (project_life_counter_board_invariants): a
+    // stray tap should fall through to ±1, not open the keypad.
+    const body = ruleBody(board, '.player-panel-life-wrap > .player-panel-life-btn');
+    expect(body).toMatch(/pointer-events:\s*auto/);
+    expect(board).not.toMatch(
+      /@media \(pointer: coarse\)\s*\{[^}]*\.player-panel-life-btn[^}]*pointer-events:\s*none/
+    );
   });
 });
