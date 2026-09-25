@@ -40,6 +40,12 @@
   line-height: 1;
 }
 
+.pp-highroll-tiebreak {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
 .pp-highroll-caption {
   font-size: var(--text-sm);
   text-transform: uppercase;

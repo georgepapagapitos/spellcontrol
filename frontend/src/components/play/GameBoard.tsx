@@ -272,12 +272,15 @@ export function GameBoard({
     if (!result) return;
     setHighRollState(result);
     const winner = game.players.find((p) => p.seat === result.winnerSeat);
+    const winnerRolls = result.rolls[result.winnerSeat];
+    const rolledText =
+      winnerRolls.length > 1
+        ? `rolled ${winnerRolls[0]}, then ${winnerRolls.slice(1).join(', then ')}`
+        : `rolled ${winnerRolls[0]}`;
     dispatchTracked({
       type: 'note',
       actorSeat: null,
-      message: `High roll: ${winner?.name ?? `seat ${result.winnerSeat}`} goes first (rolled ${
-        result.rolls[result.winnerSeat]
-      })`,
+      message: `High roll: ${winner?.name ?? `seat ${result.winnerSeat}`} goes first (${rolledText})`,
     });
     dispatchTracked({ type: 'settings', patch: { startingSeat: result.winnerSeat } });
     dispatchTracked({ type: 'pass-turn', actorSeat: null, toSeat: result.winnerSeat });
@@ -417,7 +420,7 @@ export function GameBoard({
               isNextTurn={nextSeat === p.seat && activeSeat !== p.seat}
               isMonarch={designations.monarch === p.seat}
               isInitiative={designations.initiative === p.seat}
-              highRollValue={highRollState ? (highRollState.rolls[p.seat] ?? null) : null}
+              highRollRolls={highRollState ? (highRollState.rolls[p.seat] ?? null) : null}
               isHighRollWinner={highRollState?.winnerSeat === p.seat}
               highRollActive={highRollState != null}
               onHighRollDismiss={dismissHighRoll}
@@ -641,7 +644,7 @@ function PlayerPanel({
   isNextTurn,
   isMonarch,
   isInitiative,
-  highRollValue,
+  highRollRolls,
   isHighRollWinner,
   highRollActive,
   onHighRollDismiss,
@@ -672,8 +675,9 @@ function PlayerPanel({
   /** Designations held by this player. */
   isMonarch: boolean;
   isInitiative: boolean;
-  /** This seat's own d20, while a board-level High Roll is showing. */
-  highRollValue: number | null;
+  /** This seat's own roll history, while a board-level High Roll is showing:
+   *  index 0 is the first roll, further entries are tiebreak re-rolls. */
+  highRollRolls: number[] | null;
   isHighRollWinner: boolean;
   /** A High Roll is showing on SOME seat — every panel freezes its taps. */
   highRollActive: boolean;
@@ -1220,7 +1224,7 @@ function PlayerPanel({
             role="presentation" + dismiss-only-on-self mirrors the win
             celebration's own backdrop, the established pattern for a
             non-interactive full-panel dismiss surface. */}
-        {highRollValue != null && (
+        {highRollRolls != null && (
           <div
             className={`pp-highroll ${isHighRollWinner ? 'is-winner' : 'is-dim'}`}
             role="presentation"
@@ -1234,8 +1238,17 @@ function PlayerPanel({
               <Dices width={20} height={20} strokeWidth={2} />
             </span>
             <span className="pp-highroll-value" aria-live="polite">
-              {numeralDigits(highRollValue, underlineSixNine)}
+              {numeralDigits(highRollRolls[0], underlineSixNine)}
             </span>
+            {/* A tied seat's decisive value is its LAST roll — show the
+                tiebreak(s) beneath the first roll so the winner is visibly
+                the one whose tiebreak came out highest, never a loser who
+                merely rolled higher on the first throw. */}
+            {highRollRolls.length > 1 && (
+              <span className="pp-highroll-tiebreak">
+                then {highRollRolls.slice(1).join(' · then ')}
+              </span>
+            )}
             {isHighRollWinner && <span className="pp-highroll-caption">goes first</span>}
           </div>
         )}
