@@ -18,7 +18,22 @@ export interface CardSynergy {
   payoffs: AxisRole[];
 }
 
+// Keyed on the card OBJECT, so it is exact: a deck's frozen card copy is
+// classified from its own text. The deck page classifies the same objects many
+// times per load (every deck's synergy profile for the cross-deck Coach rows,
+// then per-candidate axis hits, the radar, and again on every recompute).
+// Results are shared, so callers must treat them as read-only.
+const classified = new WeakMap<CardLike, CardSynergy>();
+
 export function classifyCard(card: CardLike): CardSynergy {
+  const hit = classified.get(card);
+  if (hit) return hit;
+  const result = classifyUncached(card);
+  classified.set(card, result);
+  return result;
+}
+
+function classifyUncached(card: CardLike): CardSynergy {
   const parsed = parseCard(card);
   const producers: AxisRole[] = [];
   const payoffs: AxisRole[] = [];

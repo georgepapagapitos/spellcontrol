@@ -384,6 +384,16 @@ vi.mock('@/deck-builder/lib/constants/archetypes', () => ({
   },
 }));
 
+// E412: records the deck list each cross-deck scan receives.
+const crossDeckScans: number[] = [];
+vi.mock('@/lib/cross-deck-moves', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cross-deck-moves')>()),
+  findCrossDeckMoves: (decks: unknown[]) => {
+    crossDeckScans.push(decks.length);
+    return [];
+  },
+}));
+
 import { DeckEditorPage } from './DeckEditorPage';
 
 function renderEditor({ justGenerated = false }: { justGenerated?: boolean } = {}) {
@@ -650,6 +660,26 @@ describe('DeckEditorPage — header action cluster on phones (≤1023px collapse
 
     expect(screen.queryByRole('menuitem', { name: /^Undo/ })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /^Redo/ })).toBeNull();
+  });
+});
+
+// E412: the cross-deck scan classifies every card of every deck and was the
+// largest piece of the deck page's first long task, in front of the hero
+// art (the LCP element). Its rows live in the Coach feed, off screen at first
+// paint, so the first render scans no decks and a deferred render scans all.
+describe('DeckEditorPage — the cross-deck scan waits for a deferred render (E412)', () => {
+  afterEach(() => {
+    mockDecks = [mockDeck];
+    crossDeckScans.length = 0;
+  });
+
+  it('scans nothing on the first render, then every deck', () => {
+    mockDecks = [mockDeck, { ...mockDeck, id: 'deck-2', name: 'Second Deck' }];
+    crossDeckScans.length = 0;
+    renderEditor();
+
+    expect(crossDeckScans[0]).toBe(0);
+    expect(crossDeckScans.at(-1)).toBe(2);
   });
 });
 
