@@ -19,12 +19,17 @@ interface Props {
    */
   fan?: boolean;
   /** Open the hand-card menu (HandCardMenu.tsx) — right-click, the Context
-   *  Menu key / Shift+Enter, a touch long-press, or a tap or Enter on the card.
+   *  Menu key / Shift+Enter, a touch long-press, or Enter on the card.
    *  Nothing on a hand card plays it by itself: a mouse click does nothing
    *  (EDHPlay's rule — you drag it, press A, or pick Move to ▸ Battlefield),
-   *  and a finger or a keyboard, which have no drag and no hover key, get the
-   *  menu, where playing it is one more tap. */
+   *  and a keyboard, which has no drag, gets the menu, where playing it is
+   *  one more key. */
   onCardMenu?(cardId: string, x: number, y: number): void;
+  /** A tap from a finger or a pen: show the card at reading size, the one
+   *  thing a mouse gets by resting on it (EDHPlay's phone table; user,
+   *  2026-09-25). The menu stays on the long-press. Without this, a tap
+   *  opens the menu as Enter does. */
+  onCardPreview?(cardId: string, x: number, y: number): void;
   /** Cards currently being shown to the table (R). Marked in place rather
    *  than moved: it is still in your hand, everyone can just see it. */
   revealedIds?: ReadonlySet<string>;
@@ -76,7 +81,14 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number 
   return width;
 }
 
-export function Hand({ cards, fan = false, onCardMenu, revealedIds, reorderable = false }: Props) {
+export function Hand({
+  cards,
+  fan = false,
+  onCardMenu,
+  onCardPreview,
+  revealedIds,
+  reorderable = false,
+}: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: 'hand' });
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerW = useContainerWidth(rootRef);
@@ -116,11 +128,16 @@ export function Hand({ cards, fan = false, onCardMenu, revealedIds, reorderable 
       onClick={
         onCardMenu
           ? (cardId, e) => {
-              // A click from an actual mouse does nothing. Anything else (a
-              // tap, Enter) opens the menu at the card.
-              if ((e.nativeEvent as PointerEvent).pointerType === 'mouse') return;
+              // A click from an actual mouse does nothing. A finger or a pen
+              // previews the card; Enter opens the menu at the card.
+              const pointer = (e.nativeEvent as PointerEvent).pointerType;
+              if (pointer === 'mouse') return;
               const r = e.currentTarget.getBoundingClientRect();
-              onCardMenu(cardId, r.left + r.width / 2, r.top + r.height / 2);
+              const open =
+                onCardPreview && (pointer === 'touch' || pointer === 'pen')
+                  ? onCardPreview
+                  : onCardMenu;
+              open(cardId, r.left + r.width / 2, r.top + r.height / 2);
             }
           : undefined
       }

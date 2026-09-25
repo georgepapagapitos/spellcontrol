@@ -1,10 +1,11 @@
-/* ── Hover / focus card preview (fine pointer only) ───────────────────── */
+/* ── Hover / focus / tap card preview ───────────────────────────────── */
 /*  Battlefield and hand cards are ~100px wide — legible for shape and art,
     not for rules text. Resting the pointer on (or focusing) any card shows
     the full-size face in ONE fixed slot at the table's right edge (the left
     edge only when the hovered card would sit under it), the way EDHPlay
     does it: the pane never covers the card you're reading and the eye
-    always knows where to look. Pointer-events: none so it never steals the
+    always knows where to look. Touch has no hover, so a tap on a hand card
+    shows it here instead, until the next tap off the hand. Pointer-events: none so it never steals the
     hover it's answering; z above the table chrome, below every sheet. */
 .playtest-hover-preview {
   position: fixed;

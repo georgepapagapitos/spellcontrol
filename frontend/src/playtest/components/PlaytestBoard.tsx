@@ -340,6 +340,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // is still the shared `CardPreview` carousel (OpeningHandSheet /
   // ZoneViewerModal); a single card is not a carousel.
   const [previewCardId, setPreviewCardId] = useState<string | null>(null);
+  /** The hand card a finger tapped, enlarged in the hover slot. */
+  const [tappedPreviewId, setTappedPreviewId] = useState<string | null>(null);
   const [tokenCreator, setTokenCreator] = useState(false);
   const [showScry, setShowScry] = useState(false);
   // Which end of the library the scry sheet is looking at (P vs Shift+P).
@@ -684,6 +686,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
+    // Picking a card up is done reading it: the preview must not come back
+    // over the table once it lands.
+    setTappedPreviewId(null);
   }
 
   /** Mid-drag, the cards riding along with the grabbed one follow the pointer
@@ -1051,8 +1056,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   );
 
   const handleHandCardMenu = useCallback((cardId: string, x: number, y: number) => {
+    setTappedPreviewId(null);
     setHandMenu({ cardId, x, y });
   }, []);
+  // A tap enlarges the card; the same card again puts it away. A card with no
+  // art to enlarge would make the tap do nothing, so it opens the menu.
+  const handleHandCardPreview = useCallback(
+    (cardId: string, x: number, y: number) => {
+      if (!resolvePreview(cardId)) return handleHandCardMenu(cardId, x, y);
+      setTappedPreviewId((prev) => (prev === cardId ? null : cardId));
+    },
+    [resolvePreview, handleHandCardMenu]
+  );
+  const unpinPreview = useCallback(() => setTappedPreviewId(null), []);
   const handMenuZone = handMenu?.zone ?? 'hand';
   const handMenuCard = handMenu
     ? state.zones[handMenuZone].find((c) => c.id === handMenu.cardId)
@@ -2896,6 +2912,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                   fan
                   reorderable
                   onCardMenu={handleHandCardMenu}
+                  onCardPreview={handleHandCardPreview}
                   revealedIds={revealedIds}
                 />
               </>
@@ -2907,7 +2924,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               : opponents.slice(2).map(renderQuadrant))}
           {gridMode && opponents.length === 2 && <OpenSeatQuadrant />}
         </div>
-        <CardHoverPreview suspended={activeId !== null || anySheetOpen} resolve={resolvePreview} />
+        <CardHoverPreview
+          suspended={activeId !== null || anySheetOpen}
+          resolve={resolvePreview}
+          pinned={tappedPreviewId}
+          onUnpin={unpinPreview}
+        />
         {/* Above `--z-overlay` so a card dragged out of a sheet renders over
             the sheet, not behind it. */}
         {/* `playtest-drag-overlay` centres the copy in the wrapper, which

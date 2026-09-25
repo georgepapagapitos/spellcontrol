@@ -6,6 +6,10 @@ import { CardPtBox } from './PlaytestCardFace';
 import './CardHoverPreview.css';
 
 const MARGIN = 12;
+const SELECTOR = '[data-preview-id]';
+/** A tap on another hand card swaps the preview rather than dismissing it,
+ *  so the hand can be read card by card with no blink between them. */
+const HAND_CARD = `.playtest-hand ${SELECTOR}`;
 /** Between the two faces of a two-faced card. */
 const FACE_GAP = 8;
 
@@ -28,6 +32,11 @@ interface Props {
    *  (face-down, no art). The DOM carries only the id (`data-preview-id`);
    *  the URLs always come from here, i.e. from React state. */
   resolve(cardId: string): PreviewFaces | null;
+  /** The card a finger tapped, shown until the next tap anywhere else (touch
+   *  has no hover to rest on, so the tap stands in for it). */
+  pinned?: string | null;
+  /** The pinned card is done with: a tap landed off the hand. */
+  onUnpin?(): void;
 }
 
 interface Target extends PreviewFaces {
@@ -39,13 +48,21 @@ interface Target extends PreviewFaces {
   isToken: boolean;
 }
 
+function read(el: Element, resolve: Props['resolve']): Target | null {
+  const id = el.getAttribute('data-preview-id');
+  const faces = id ? resolve(id) : null;
+  return faces
+    ? { ...faces, rect: el.getBoundingClientRect(), isToken: el.hasAttribute('data-token') }
+    : null;
+}
+
 /**
  * Full-size card face beside the board for whatever card the pointer rests
  * on (or keyboard focus lands on). Event-delegated off `document` on the
  * `data-preview-id` attribute `PlaytestCardFace` sets, so every card
  * surface — battlefield, hand, drag overlay excluded by `suspended` — gets
- * it with no per-card wiring. Fine-pointer only: touch has no hover, and the
- * long-press → menu → Preview path already serves it.
+ * it with no per-card wiring. Touch has no hover: a tap on a hand card pins
+ * it instead (`pinned`), in the same slot, until the next tap elsewhere.
  *
  * It shows the moment the pointer lands on a card, with no delay and no
  * fade, and follows the pointer card to card (EDHPlay's; user feedback
@@ -53,22 +70,14 @@ interface Target extends PreviewFaces {
  * fade in over 120ms so a sweep across the hand would not flicker, which
  * read as the table being slow.
  */
-export function CardHoverPreview({ suspended, resolve }: Props) {
+export function CardHoverPreview({ suspended, resolve, pinned = null, onUnpin }: Props) {
   const finePointer = useMediaQuery('(hover: hover) and (pointer: fine)');
-  const [target, setTarget] = useState<Target | null>(null);
+  const [hovered, setTarget] = useState<Target | null>(null);
 
   useEffect(() => {
     if (!finePointer) return;
-    const SELECTOR = '[data-preview-id]';
-    const read = (el: Element): Target | null => {
-      const id = el.getAttribute('data-preview-id');
-      const faces = id ? resolve(id) : null;
-      return faces
-        ? { ...faces, rect: el.getBoundingClientRect(), isToken: el.hasAttribute('data-token') }
-        : null;
-    };
     const show = (el: Element) => {
-      const next = read(el);
+      const next = read(el, resolve);
       if (next) setTarget(next);
     };
     const hide = () => setTarget(null);
@@ -102,7 +111,23 @@ export function CardHoverPreview({ suspended, resolve }: Props) {
     };
   }, [finePointer, resolve]);
 
-  if (!finePointer || suspended || !target) return null;
+  useEffect(() => {
+    if (!pinned || !onUnpin) return;
+    const onDown = (e: Event) => {
+      if (!(e.target as Element | null)?.closest?.(HAND_CARD)) onUnpin();
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, [pinned, onUnpin]);
+
+  // Read at render, like the corner clusters below: the card is on screen
+  // now or it has left the hand, and a card no longer there has nothing to
+  // point the preview at.
+  const pinnedEl = pinned
+    ? document.querySelector(`[data-preview-id="${CSS.escape(pinned)}"]`)
+    : null;
+  const target = (finePointer ? hovered : null) ?? (pinnedEl ? read(pinnedEl, resolve) : null);
+  if (suspended || !target) return null;
 
   // One fixed slot: vertically centred at the table's right edge, matching
   // the stylesheet's `min(22rem, 24vw)`. It flips to the left edge only when
