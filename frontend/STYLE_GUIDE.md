@@ -3241,16 +3241,32 @@ never shows the chooser.
 
 ### Binder page viewer (flipbook)
 
-- **The open page is the only thing at full strength.** Opaque page, neighbours
-  at 45% like the card preview's, and an 85% scrim: at the shared 60% the same
-  binder grid behind read as a second page under the open one.
-- **The panel says each fact once**: binder name, then "White · Page 3 of 14".
-  During a search only matching pages remain, so it reads "Page 12 · 3 of 5
-  shown", the one case where the physical page and the position differ.
-- **More than two pages get a scrubber** (a native range under the context
-  line). A 60-page binder is 59 swipes end to end; the scrubber jumps. Its
-  touches stop at the input so a sideways drag can't start the sheet's
-  swipe-down dismiss.
+- **Same geometry model as the card preview (rebuilt 2026-09-25).** Every
+  length comes from the viewport (the backdrop is the one
+  `container-type: size` box) and the page shape (`--page-w-ratio`): a top bar,
+  the page centered on the stage, and a **fixed-height panel** below. No text
+  may size the layout. The viewer used to be a grid with an auto-sized column,
+  and a Secret Lair binder's six-drop section line grew that column to 1208px
+  on a 384px phone, so the page, the name and the scrubber all centered
+  off-screen and the viewer opened blank. Guarded by
+  `binder-page-sizing.test.ts` and the journey's "binder page viewer geometry"
+  check, which injects a long line.
+- **The open page is the only thing at full strength.** Opaque page,
+  neighbours under the card preview's dark wash (never opacity, which let the
+  grid behind read through them) and a 90% scrim.
+- **Each fact once.** The top bar says where you are ("Page 3 of 14"; during a
+  search only matching pages remain, so it reads "Page 12 · 3 of 5 shown",
+  the one case where the physical page and the position differ). The panel
+  says what: the binder name, then the page's sections, at most two lines,
+  ellipsized.
+- **More than two pages get a scrubber** (a native range at the panel's foot).
+  A 60-page binder is 59 swipes end to end; the scrubber jumps. Its touches
+  stop at the input so a sideways drag can't start the sheet's swipe-down
+  dismiss.
+- **Arrows sit beside the page, are hidden on touch, and a disabled one is
+  hidden everywhere.** A ghosted disabled arrow outranked the touch rule and
+  showed page 1 a dead Previous arrow and no Next. Empty space closes, as in
+  the card preview; a pocket opens its card.
 
 ### Sort chains
 

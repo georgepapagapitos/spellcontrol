@@ -85,4 +85,30 @@ describe('binder page viewer surface', () => {
     );
     expect(blocks(css, '.binder-pages-slide.is-active::after')[0]).toMatch(/opacity:\s*0/);
   });
+
+  // 2026-09-25: a Secret Lair binder's section line ("Artist Series Mark Poole ·
+  // Extra Life 2021 · Secret Lair x Arcane Lands · …") is one unbreakable
+  // nowrap run. The sheet was a grid with an auto-sized column, and that line's
+  // min-content grew the column to 1208px on a 384px phone: the page, the
+  // binder name and the scrubber all centered off-screen to the right, so the
+  // viewer opened blank. No length in the viewer may come from its content.
+  it('no text can size the viewer: positioned layout, fixed-height panel, clamped line', () => {
+    const sheet = blocks(css, '.binder-pages-sheet').join(';');
+    expect(sheet).not.toMatch(/display:\s*grid|grid-template/);
+    const panel = blocks(css, '.binder-pages-panel').join(';');
+    expect(panel).toMatch(/position:\s*absolute/);
+    expect(panel).toMatch(/height:\s*var\(--bp-panel\)/);
+    expect(panel).toMatch(/overflow:\s*hidden/);
+    const line = blocks(css, '.binder-pages-context').join(';');
+    expect(line).toMatch(/line-clamp:\s*2/);
+    expect(line).toMatch(/overflow:\s*hidden/);
+    // The page's width is the viewport's arithmetic, not its slide's content.
+    expect(blocks(css, '.binder-pages-slide').join(';')).toMatch(/flex:\s*0 0 var\(--bp-page-w\)/);
+  });
+
+  it('a dead arrow is hidden, not ghosted', () => {
+    // On touch the ghosted disabled "previous" arrow outranked the rule hiding
+    // arrows, so page 1 showed a dead left arrow and no right one.
+    expect(blocks(css, '.carousel-nav:disabled').join(';')).toMatch(/opacity:\s*0/);
+  });
 });

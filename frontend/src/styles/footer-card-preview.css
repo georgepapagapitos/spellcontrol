@@ -138,6 +138,7 @@
   --pv-peek: max(var(--pv-peek-min), 100cqh - var(--pv-top) - var(--pv-card-h) - var(--space-5));
   --pv-full: calc(100cqh - var(--pv-top));
   --pv-half: max(var(--pv-peek), 58cqh);
+  --nav-around: var(--pv-card-w);
   position: absolute;
   inset: 0;
   will-change: transform;
@@ -234,26 +235,24 @@
   pointer-events: none;
 }
 
-/* Floating prev/next buttons. Non-essential — swipe and keyboard arrows still
-   work — but they make the carousel discoverable for mouse users and
-   reachable for switch / pointer-only AT. Shared with the binder page viewer;
-   hidden on touch (swipe + tap-a-neighbour cover it) unless focused. */
+/* Floating prev/next buttons, shared by both viewers (SnapCarousel renders
+   them in a layer beside its track). Non-essential — swipe and the arrow keys
+   still work — but they make paging discoverable for a mouse and reachable for
+   switch / pointer-only AT. They sit just outside the card or page each viewer
+   centers (--nav-around is its width), clamped on-screen when it fills the
+   width. On touch they're hidden (swipe and tap-a-neighbour cover it), and a
+   disabled one is hidden everywhere: a dead ghost arrow at the first page read
+   as the only way to go. */
 .carousel-nav-layer {
-  grid-row: 1;
-  grid-column: 1;
+  position: absolute;
   z-index: 3;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-left: max(var(--space-4), var(--safe-left));
-  padding-right: max(var(--space-4), var(--safe-right));
-  padding-bottom: 1.25rem;
   pointer-events: none;
 }
 
 .carousel-nav {
+  position: absolute;
+  top: calc(50% - 1.375rem);
   pointer-events: auto;
-  z-index: 3;
   width: 2.75rem;
   height: 2.75rem;
   border-radius: var(--radius);
@@ -268,6 +267,14 @@
     background 0.15s,
     opacity 0.15s,
     transform var(--motion-fast);
+}
+
+.carousel-nav-prev {
+  left: max(var(--space-2), 50% - var(--nav-around, 0px) / 2 - var(--space-4) - 2.75rem);
+}
+
+.carousel-nav-next {
+  right: max(var(--space-2), 50% - var(--nav-around, 0px) / 2 - var(--space-4) - 2.75rem);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -286,45 +293,23 @@
 }
 
 .carousel-nav:disabled {
-  opacity: 0.25;
-  cursor: not-allowed;
+  opacity: 0;
+  pointer-events: none;
 }
 
-/* Touch-only: hide until the user explicitly focuses one (keyboard
-   navigation). Touch users have swipe + tap-peeking-neighbor and don't
-   need persistent thumb-blocking buttons. */
 @media (hover: none) and (pointer: coarse) {
   .carousel-nav {
     opacity: 0;
     pointer-events: none;
   }
-  .carousel-nav:focus-visible {
+  .carousel-nav:not(:disabled):focus-visible {
     opacity: 1;
     pointer-events: auto;
   }
 }
 
-/* In the card preview the arrows sit just outside the card (not at the stage
-   edges, where they pointed at nothing), clamped on-screen when the card
-   fills the width. */
 .card-preview-stage .carousel-nav-layer {
-  position: absolute;
   inset: var(--pv-top) 0 0 0;
-  display: block;
-  padding: 0;
-}
-
-.card-preview-stage .carousel-nav {
-  position: absolute;
-  top: calc(50% - 1.375rem);
-}
-
-.card-preview-stage .carousel-nav-prev {
-  left: max(var(--space-2), 50% - var(--pv-card-w) / 2 - var(--space-4) - 2.75rem);
-}
-
-.card-preview-stage .carousel-nav-next {
-  right: max(var(--space-2), 50% - var(--pv-card-w) / 2 - var(--space-4) - 2.75rem);
 }
 
 @keyframes fade-in {
@@ -1465,59 +1450,79 @@
   }
 }
 
-/* ── Binder pages flipbook (full-section page-flipper popup) ────────────── */
+/* ── Binder page viewer (full-screen page flipper) ─────────────────────────
+   Same geometry model as the card preview: every length comes from the
+   backdrop's box (the one `container-type: size`) and the page's shape
+   (--page-w-ratio = cols×5 / rows×7, set inline), never from content. The top
+   bar says where you are, the page is centered on the stage, and a
+   FIXED-HEIGHT panel below says what's on the page. It used to be a grid with
+   an auto-sized column, and a long section line (a Secret Lair binder's six
+   drop names) grew that column to 1208px on a 384px phone — the page, the
+   binder name and the scrubber all centered off-screen to the right. */
 .binder-pages-backdrop {
-  /* --slide-size is owned by .binder-pages-track (it depends on the
-     track's actual rendered size via container queries — see that rule).
-     Mirrors .card-preview-backdrop for consistency. */
-  --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
-  /* The sheet above is transparent, so this layer supplies the dim and also
-     carries the sizing var (--page-w-ratio drives --slide-size). Denser than
-     the card preview's --overlay: behind a page sits the same binder grid at
-     full brightness, and at 60% it read as a second page layered under the
-     open one. Fades in/out; does not slide. */
-  background: rgb(0 0 0 / 85%);
+  /* Near-opaque, like the card preview: behind a page sits the same binder
+     grid at full brightness, and a light scrim read as a second page under
+     the open one. */
+  background: rgb(6 7 12 / 90%);
   animation: fade-in 0.3s var(--ease-drawer) backwards;
   z-index: var(--z-overlay);
+  container-type: size;
 }
 
 .binder-pages-sheet {
+  --bp-top: calc(52px + var(--safe-top));
+  --bp-panel: calc(9rem + var(--safe-bottom));
+  --bp-gutter: var(--space-3);
+  --bp-gap: var(--space-3);
+  --bp-arrows: 0px;
+  --bp-page-w: min(
+    100cqw - 2 * var(--bp-gutter) - var(--bp-arrows),
+    (100cqh - var(--bp-top) - var(--bp-panel) - 2 * var(--bp-gutter)) * var(--page-w-ratio, 0.7143),
+    820px
+  );
+  --nav-around: var(--bp-page-w);
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template-rows: 1fr auto;
-  /* Pattern B — sheet child (see .card-preview-sheet). Top-only: the info
-     panel (bottom `auto` row) owns its own `padding-bottom: max(0.9rem,
-     var(--safe-bottom))`, so a sheet-level bottom inset would double up and
-     expose a safe-area-tall strip of scrim below the panel on native. */
-  padding-top: var(--safe-top);
   will-change: transform;
-  /* Transparent — see .card-preview-sheet. Only the opaque binder page and
-     info panel visibly rise; the dim is .binder-pages-backdrop. */
+  /* Transparent — see .card-preview-sheet. Only the opaque page and panel
+     visibly rise; the dim is .binder-pages-backdrop. */
   background: transparent;
-  /* Bottom-sheet rise on open — identical to .card-preview-sheet (shared
-     keyframe + easing token). Runs once on mount (the component remounts
-     each time the flipbook opens); `backwards` pins the off-screen start
-     before the first frame, then releases transform control so the
-     swipe-down-dismiss inline translateY still works (0 at mount, so no
-     conflict). */
   animation: sheet-rise var(--motion-drawer) var(--ease-drawer) backwards;
-  /* Same touch contract as .card-preview-sheet — vertical = JS, horizontal
-     = native pan-x on the nested track, `pinch-zoom` kept so the browser's
-     own zoom survives the intersection. */
+  /* Same touch contract as the card preview — vertical = JS, horizontal =
+     native pan-x on the nested track, `pinch-zoom` kept so the browser's own
+     zoom survives the intersection. */
   touch-action: pan-x pinch-zoom;
 }
 
-/* The flipbook's drag grabber (touch only, where swipe-down-to-dismiss works).
-   The card preview's sheet has its own handle (.card-preview-handle). */
+@media (min-width: 600px) {
+  .binder-pages-sheet {
+    --bp-gutter: var(--space-5);
+    --bp-gap: var(--space-6);
+  }
+}
+
+/* A mouse gets arrows beside the page, and a scrubber shorter than a 44px
+   touch one. */
+@media (hover: hover) and (pointer: fine) {
+  .binder-pages-sheet {
+    --bp-arrows: 7.5rem;
+    --bp-panel: calc(7.5rem + var(--safe-bottom));
+  }
+}
+
+.binder-pages-sheet:not(.is-dragging) {
+  transition: transform 0.22s var(--ease-out-soft);
+}
+
+/* The swipe-down grabber (touch only, where swipe-down-to-dismiss works),
+   centered in the top bar. */
 .card-preview-grabber {
   position: absolute;
   top: max(var(--space-2), var(--safe-top));
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1;
   width: 2.5rem;
   height: 0.25rem;
   border-radius: 999px;
@@ -1532,98 +1537,64 @@
   }
 }
 
-.binder-pages-sheet:not(.is-dragging) {
-  transition: transform 0.22s var(--ease-out-soft);
+.binder-pages-stage {
+  position: absolute;
+  inset: 0 0 var(--bp-panel) 0;
+}
+
+.binder-pages-topbar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 4;
+  height: var(--bp-top);
+  display: flex;
+  align-items: center;
+  padding: var(--safe-top) var(--space-8) 0 var(--space-5);
+  background: linear-gradient(rgb(6 7 12 / 96%) 55%, rgb(6 7 12 / 0%));
+}
+
+.binder-pages-pos {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: rgb(255 255 255 / 72%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 .binder-pages-track {
+  position: absolute;
+  inset: var(--bp-top) 0 0 0;
   display: flex;
-  /* Explicitly pin to the `1fr` row (panel pins to row 2). Without this,
-     the track is auto-placed — and because .carousel-nav-layer (grid-row:1)
-     sits BEFORE the track in the DOM here (unlike CardPreview, where it's
-     last), auto-placement bumped the track into the `auto` row 2, which —
-     since container-type:size means its content adds no height — collapsed
-     it to its 8px padding (100cqh→0 → --slide-size→0 → zero-width slides). */
-  grid-row: 1;
-  grid-column: 1;
-  /* This track is the sheet's `1fr` grid row; the panel is the `auto`
-     row directly below it. The slide is just the page grid (the per-slide
-     label is gone). Center it vertically in the remaining space.
-     min-height:0 lets the `1fr` actually shrink so the page is bounded by
-     --slide-size, not by the intrinsic slide height. */
   align-items: center;
-  gap: var(--slide-spacing);
-  width: 100%;
-  min-height: 0;
+  gap: var(--bp-gap);
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: none; /* see .card-preview-track */
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pinch-zoom;
-  /* Same breathing room as .card-preview-track (kept in lockstep so the two
-     carousels feel identical): 1.25rem bottom here, plus the top/side padding
-     in the media blocks below. Safe now that the track is pinned to grid-row 1
-     (a real 1fr height) — the earlier collapse was the row-placement bug, not
-     this padding. */
-  padding-bottom: 1.25rem;
   scrollbar-width: none;
-  /* Size containment so the slide can bound itself against the track's
-     actual rendered height (cqh). Same rationale as .card-preview-track —
-     the panel's height is variable (binder name + context line wrapping
-     into pills), so a fixed `10rem` chrome budget was always going to
-     drift. With cqh the slide just shrinks if the panel grows. */
-  container-type: size;
-  /* Width constraints (min() picks the smallest):
-       (a) track width (100cqw) — never wider than the track.
-       (b) track height (100cqh) × --page-w-ratio. The page fills the
-           track's content box (no reserve — the page label is gone, and the
-           breathing room comes from the track padding, exactly like
-           .card-preview-track's `calc(100cqh * 488/680)`). The multiplier
-           --page-w-ratio = cols×5 / rows×7 varies by pocket count
-           (9-/4-pocket → 5:7, 12-pocket → 20:21).
-       (c) clamp(460,64vw,820) — desktop ceiling. Higher than the card's
-           620 because a 3×3 page is inherently larger than one card; the
-           padding/spacing match, the max-size ceiling is page-appropriate. */
-  --slide-size: min(100cqw, calc(100cqh * var(--page-w-ratio, 0.72)), clamp(460px, 64vw, 820px));
-}
-
-/* Breathing room around the page grid — kept identical to .card-preview-track
-   so the two carousels are consistent. Padding lives on the TRACK (the
-   container-type:size query container): it shrinks 100cqh/100cqw → --slide-size
-   → the page, rendering as a gutter around the grid, never an inset on the
-   panel. Tablet + desktop (≥601) get top headroom; mobile (≤600) also gets side
-   gutters. */
-@media (min-width: 600px) {
-  .binder-pages-track {
-    padding-top: 1.25rem;
-  }
-}
-
-@media (max-width: 600px) {
-  .binder-pages-track {
-    padding-top: var(--space-3);
-    padding-inline: var(--space-3);
-  }
 }
 
 .binder-pages-track::-webkit-scrollbar {
   display: none;
 }
 
+.binder-pages-stage .carousel-nav-layer {
+  inset: var(--bp-top) 0 0 0;
+}
+
 .binder-pages-slide {
-  flex: 0 0 var(--slide-size);
+  position: relative;
+  flex: 0 0 var(--bp-page-w);
   min-width: 0;
   scroll-snap-align: center;
   scroll-snap-stop: always;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
   /* Neighbours recede under the same dark wash as .card-preview-slide (the
-     ::after in the card-preview section): on a desktop three full-brightness
-     pages side by side left no page reading as the open one, and an opacity
-     fade let the binder grid behind read through the neighbours. */
-  position: relative;
+     shared ::after above), never by opacity: a see-through neighbour let the
+     binder grid behind read through it. */
 }
 
 .binder-pages-slide::after {
@@ -1721,39 +1692,57 @@
   pointer-events: none;
 }
 
+/* The panel is FIXED height (--bp-panel) and pinned to the sheet's edges, so
+   nothing in it can size the layout: a long line wraps or clips inside it. */
 .binder-pages-panel {
-  /* Explicitly the `auto` row 2 (track pins to row 1) so DOM order /
-     the nav-layer can't bump it. */
-  grid-row: 2;
-  grid-column: 1;
-  /* In normal grid flow — the `auto` row of .binder-pages-sheet's
-     `grid-template-rows: 1fr auto`. (Was position:absolute over the
-     bottom, which forced the centered track to reserve ~2× the panel's
-     height from BOTH ends to avoid the page sliding under it. In flow,
-     the track is the remaining `1fr` and the page centers cleanly above
-     the panel — single-count reservation, ~5rem more page on desktop.) */
-  background: rgba(15, 15, 18, 0.92);
-  border-top: 0.5px solid rgba(255, 255, 255, 0.08);
-  padding: 0.9rem 1.1rem;
-  padding-bottom: max(0.9rem, var(--safe-bottom));
+  position: absolute;
+  inset: auto 0 0 0;
+  height: var(--bp-panel);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
-  /* Centered under the centered page, like the card preview's panel. */
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-5) calc(var(--space-3) + var(--safe-bottom));
+  overflow: hidden;
+  background: #14151d;
+  border-top: 1px solid rgb(255 255 255 / 12%);
   text-align: center;
   color: #fff;
 }
 
-.binder-pages-name,
-.binder-pages-context {
+.binder-pages-name {
   max-width: 100%;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* What's on this page: its sections. Two lines at most, ellipsized — a page
+   can straddle half a dozen Secret Lair drops. The height is reserved so a
+   one-line page doesn't move the scrubber. */
+.binder-pages-context {
+  max-width: min(100%, 40rem);
+  min-height: calc(2 * 1.45em);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: rgb(255 255 255 / 70%);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 /* Page scrubber: a long binder is dozens of swipes end to end. */
 .binder-pages-scrubber {
   width: min(100%, 28rem);
-  margin: var(--space-1) 0 0;
+  margin: auto 0 0;
   accent-color: var(--accent);
   cursor: pointer;
 }
@@ -1762,33 +1751,6 @@
   .binder-pages-scrubber {
     height: 44px;
   }
-}
-
-.binder-pages-name {
-  font-family: var(--font-serif);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: #fff;
-  line-height: 1.2;
-  /* One line, ellipsis — keeps the panel height stable so the carousel
-     above doesn't shrink mid-navigation when a longer binder name lands.
-     (Top/bottom clipping is no longer the risk it was: the track is a
-     size container and --slide-size is bound by 100cqh, so the slide
-     just resizes if the panel ever grows; the nowrap is purely a UX
-     stability choice now.) */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.binder-pages-context {
-  font-size: var(--text-sm);
-  color: rgba(255, 255, 255, 0.7);
-  font-family: var(--font-mono);
-  /* Same determinism contract as .binder-pages-name. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .binder-pages-cell:focus-visible {

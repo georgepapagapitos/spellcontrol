@@ -1,4 +1,4 @@
-import { Boxes, Layers } from 'lucide-react';
+import { Boxes, Layers, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { BinderPage, EnrichedCard, PocketSize } from '../types';
@@ -45,6 +45,17 @@ interface Props {
 // Mirrors CardPreview's windowing — keeps the carousel light on large binders
 // without disturbing native scroll-snap (every page keeps a sized slide div).
 const PAGE_WINDOW_RADIUS = 5;
+
+/** Clicks on these are clicks on empty space — they close the page viewer. */
+function isEmptySpace(el: EventTarget): boolean {
+  return (
+    el instanceof HTMLElement &&
+    (el.classList.contains('binder-pages-backdrop') ||
+      el.classList.contains('binder-pages-stage') ||
+      el.classList.contains('binder-pages-track') ||
+      el.classList.contains('binder-pages-topbar'))
+  );
+}
 
 export function BinderPagePreview({
   pages,
@@ -149,27 +160,29 @@ export function BinderPagePreview({
   // Same model as CardPreview: the sheet is a transparent transform carrier
   // (only the opaque binder page + info panel rise); the dim sits on the
   // backdrop, which stays put, fades in/out (.is-closing), and carries the
-  // sizing var (--page-w-ratio drives --slide-size).
+  // page shape (--page-w-ratio drives --bp-page-w).
   const backdropStyle = { ['--page-w-ratio' as string]: pageAspectRatio } as React.CSSProperties;
 
-  // One line of context: what's on this page and where it sits. A search
-  // leaves only matching pages, so the physical page number and the position
-  // in this run diverge; say both only then.
+  // Where this page sits (the top bar) and what's on it (the panel), each said
+  // once. A search leaves only matching pages, so the physical page number and
+  // the position in this run diverge; say both only then.
   const current = pages[selected];
   const unfiltered = pages[pages.length - 1]?.pageNum === pages.length;
   const where = unfiltered
     ? `Page ${current?.pageNum} of ${pages.length}`
     : `Page ${current?.pageNum} · ${selected + 1} of ${pages.length} shown`;
   const currentLabel = pageLabels[selected] ?? '';
-  const contextLine = currentLabel ? `${currentLabel} · ${where}` : where;
 
   return (
     <>
       <div
         className={`binder-pages-backdrop${isClosing ? ' is-closing' : ''}`}
+        // Empty space closes — the backdrop, the stage around the page, the
+        // gaps between pages, the top bar (as in CardPreview). A pocket opens
+        // its card; nothing in the panel is empty space.
         onClick={(e) => {
           e.stopPropagation();
-          if (e.target === e.currentTarget) beginClose();
+          if (isEmptySpace(e.target)) beginClose();
         }}
         role="presentation"
         style={backdropStyle}
@@ -181,6 +194,7 @@ export function BinderPagePreview({
           }`}
           role="dialog"
           aria-modal="true"
+          aria-label={`${binderName} pages`}
           style={exitStyle}
           onAnimationEnd={onAnimationEnd}
           {...touchHandlers}
@@ -192,38 +206,46 @@ export function BinderPagePreview({
               e.stopPropagation();
               beginClose();
             }}
-            aria-label="Close preview"
+            aria-label="Close pages"
           >
-            ×
+            <X width={20} height={20} strokeWidth={2} aria-hidden />
           </button>
-          <div className="card-preview-grabber" aria-hidden="true" />
-          <SnapCarousel
-            ref={carousel}
-            trackRef={trackRef}
-            count={pages.length}
-            index={selected}
-            onIndexChange={setSelected}
-            windowRadius={PAGE_WINDOW_RADIUS}
-            keysEnabled={!innerCard}
-            className="binder-pages-track"
-            prevLabel="Previous page"
-            nextLabel="Next page"
-            slideClassName="binder-pages-slide"
-            renderSlide={(i) => (
-              <SlideGrid
-                slots={pages[i].slots}
-                cols={cols}
-                rows={rows}
-                aspect={slideAspect}
-                allocations={allocations}
-                onTapCard={handleCardTap}
-              />
-            )}
-          />
+          <div className="binder-pages-stage">
+            <div className="binder-pages-topbar">
+              <span className="binder-pages-pos">{where}</span>
+              <span className="card-preview-grabber" aria-hidden="true" />
+            </div>
+            <SnapCarousel
+              ref={carousel}
+              trackRef={trackRef}
+              count={pages.length}
+              index={selected}
+              onIndexChange={setSelected}
+              windowRadius={PAGE_WINDOW_RADIUS}
+              keysEnabled={!innerCard}
+              className="binder-pages-track"
+              prevLabel="Previous page"
+              nextLabel="Next page"
+              slideClassName="binder-pages-slide"
+              renderSlide={(i) => (
+                <SlideGrid
+                  slots={pages[i].slots}
+                  cols={cols}
+                  rows={rows}
+                  aspect={slideAspect}
+                  allocations={allocations}
+                  onTapCard={handleCardTap}
+                />
+              )}
+            />
+          </div>
 
+          {/* A fixed-height panel: its text wraps or clips inside it and can
+              never size the layout (a long section line once widened the
+              whole sheet and pushed the page off-screen). */}
           <div className="binder-pages-panel">
             <div className="binder-pages-name">{binderName}</div>
-            <div className="binder-pages-context">{contextLine}</div>
+            <div className="binder-pages-context">{currentLabel}</div>
             {pages.length > 2 && (
               // Jump anywhere in a long binder without swiping page by page.
               // Its own touches never reach the sheet's swipe-down dismiss.
@@ -239,6 +261,9 @@ export function BinderPagePreview({
                 onTouchStart={(e) => e.stopPropagation()}
               />
             )}
+          </div>
+          <div className="sr-only" aria-live="polite">
+            {currentLabel ? `${where}, ${currentLabel}` : where}
           </div>
         </div>
       </div>
