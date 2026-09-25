@@ -446,7 +446,7 @@ export async function acquireCommanderDataPhase(
     onProgress?.('Your library takes shape…', 12);
   } else {
     // FULL PATH: Pre-fetch basic lands, game changer list, combo data, and tagger data in parallel
-    onProgress?.('Shuffling up…', 5);
+    onProgress?.('Opening the archives…', 5);
     let combosFetchFailed = false;
     const [, fetchedGCNames, fetchedCombos] = await Promise.all([
       prefetchBasicLands(state.cfg.arenaOnly),

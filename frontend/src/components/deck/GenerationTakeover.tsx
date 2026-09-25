@@ -39,11 +39,11 @@ const FLAVOR_LINES: [string, string[]][] = [
     ],
   ],
   [
-    'Shuffling up',
+    'Opening the archives',
     [
-      'Randomness is just order unseen…',
-      'The deck breathes and stirs…',
-      'Chaos resolves into strategy.',
+      'Dust lifts from old spellbooks…',
+      'Every page remembers a game.',
+      'The archive opens for your commander.',
     ],
   ],
   [
