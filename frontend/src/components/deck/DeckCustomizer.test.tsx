@@ -156,14 +156,14 @@ describe('DeckCustomizer — collection controls', () => {
         update={vi.fn()}
       />
     );
-    const group = screen.getByText('Collection strategy').closest('.deck-customizer-field')!;
-    const labels = [...group.querySelectorAll('.option-card-label')].map((el) => el.textContent);
+    const group = screen.getByText('Collection strategy').closest('.form-field')!;
+    const labels = [...group.querySelectorAll('.choice-option-label')].map((el) => el.textContent);
     expect(labels).toHaveLength(4);
     expect(
       labels.filter((l) => /\b(favou?r|prefer|prioriti[sz]e|lean)/i.test(l ?? ''))
     ).toHaveLength(1);
-    const partial = container.querySelector('input[value="partial"]')?.closest('.option-card');
-    expect(partial?.querySelector('.option-card-label')?.textContent).toMatch(/%/);
+    const partial = container.querySelector('input[value="partial"]')?.closest('.choice-option');
+    expect(partial?.querySelector('.choice-option-label')?.textContent).toMatch(/%/);
   });
 
   it('keeps the owned-% slider hidden under the full strategy', () => {

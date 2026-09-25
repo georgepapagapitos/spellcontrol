@@ -180,9 +180,9 @@ describe('PlayPage tabs', () => {
   });
 });
 
-// T139: the host form's visibility control moved onto the shared
-// VisibilityChoice component (components/shared/form ChoiceList underneath).
-// Public/Private only here — Friends is a separate lane (T139 Lane E).
+// T139: the host form's visibility control is the shared VisibilityChoice
+// component (components/shared/form ChoiceList underneath). Games Friends
+// (#2238) is live server-side, so Public/Friends/Private all show here.
 describe('Online setup — table visibility (T139)', () => {
   beforeEach(() => {
     useAuth.setState({
@@ -195,22 +195,30 @@ describe('Online setup — table visibility (T139)', () => {
     useAuth.setState({ user: null, status: 'guest', profile: null });
   });
 
-  it('offers Public then Private, defaulting to Private, with no Friends option', () => {
+  it('offers Public, Friends and Private in that order, defaulting to Private', () => {
     renderPage('/play/online');
-    const radios = screen.getAllByRole('radio', { name: /^(Public|Private)/ });
-    expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'private']);
+    const radios = screen.getAllByRole('radio', { name: /^(Public|Friends|Private)/ });
+    expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'friends', 'private']);
     expect((screen.getByRole('radio', { name: /^Private/ }) as HTMLInputElement).checked).toBe(
       true
     );
-    expect(screen.queryByRole('radio', { name: /^Friends/ })).toBeNull();
   });
 
   it('names what each choice does', () => {
     renderPage('/play/online');
-    expect(screen.getByText(/Reachable by code only/)).toBeTruthy();
+    expect(screen.getByText('Only people with the code.')).toBeTruthy();
+    expect(screen.getByText('Listed for your friends. They can watch.')).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: /^Public/ }));
     expect((screen.getByRole('radio', { name: /^Public/ }) as HTMLInputElement).checked).toBe(true);
-    expect(screen.getByText(/Anyone with the code can watch without a seat/)).toBeTruthy();
+    expect(screen.getByText('Listed in the room browser. Anyone can watch.')).toBeTruthy();
+  });
+
+  it('picks a friends-visibility table when Friends is selected', () => {
+    renderPage('/play/online');
+    fireEvent.click(screen.getByRole('radio', { name: /^Friends/ }));
+    expect((screen.getByRole('radio', { name: /^Friends/ }) as HTMLInputElement).checked).toBe(
+      true
+    );
   });
 });
 

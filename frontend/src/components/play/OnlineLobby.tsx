@@ -1,8 +1,9 @@
 import { Check, Copy, Crown, Shuffle, UserRound, X } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { SelectMenu } from '../SelectMenu';
+import { VisibilityChoice } from '../VisibilityChoice';
 import { DeckPicker, SeatPips, Stepper } from './SetupControls';
 import type { PickedDeck } from './DeckPickerDialog';
 import { deckBoardPath } from '../../lib/starter-decks';
@@ -506,7 +507,6 @@ function LobbyRail({
   dispatch: (action: GameAction) => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const visibilityGroup = useId();
 
   const copyCode = async () => {
     try {
@@ -689,35 +689,24 @@ function LobbyRail({
               <span className="lobby-voice-label" id="lobby-visibility-label">
                 Visibility
               </span>
-              <fieldset className="share-audience" aria-labelledby="lobby-visibility-label">
-                {(
-                  [
-                    { value: 'private' as const, label: 'Private' },
-                    { value: 'public' as const, label: 'Public' },
-                  ] as const
-                ).map((opt) => (
-                  <label
-                    key={opt.value}
-                    className={`share-audience-option${
-                      (game.visibility ?? 'private') === opt.value ? ' is-active' : ''
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name={visibilityGroup}
-                      value={opt.value}
-                      checked={(game.visibility ?? 'private') === opt.value}
-                      onChange={() =>
-                        dispatch({ type: 'settings', patch: { visibility: opt.value } })
-                      }
-                    />
-                    <span>{opt.label}</span>
-                  </label>
-                ))}
-              </fieldset>
-              <p className="play-setup-help">
-                Watchers see what each seat shows the table. They cannot act.
-              </p>
+              <VisibilityChoice
+                ariaLabel="Visibility"
+                value={game.visibility ?? 'private'}
+                options={[
+                  {
+                    value: 'public',
+                    label: 'Public',
+                    hint: 'Listed in the room browser. Anyone can watch.',
+                  },
+                  {
+                    value: 'friends',
+                    label: 'Friends',
+                    hint: 'Listed for your friends. They can watch.',
+                  },
+                  { value: 'private', label: 'Private', hint: 'Only people with the code.' },
+                ]}
+                onChange={(visibility) => dispatch({ type: 'settings', patch: { visibility } })}
+              />
             </div>
             <VoiceLinkRow game={game} dispatch={dispatch} />
           </>
@@ -740,7 +729,11 @@ function LobbyRail({
             <div className="lobby-setting">
               <span>Visibility</span>
               <span className="lobby-setting-value">
-                {game.visibility === 'public' ? 'Public' : 'Private'}
+                {game.visibility === 'public'
+                  ? 'Public'
+                  : game.visibility === 'friends'
+                    ? 'Friends'
+                    : 'Private'}
               </span>
             </div>
             {game.voiceUrl && (

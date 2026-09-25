@@ -564,10 +564,9 @@ corpus the build is shaped toward. Options wrap on phones exactly as the size
 row already does.
 
 **Segmented options carry the 44px coarse floor on the SPAN, not the label.**
-The label-wrapping-a-hidden-radio pattern (`.share-audience-option`,
-`.binder-mode-pill`, `.rule-segmented-pill`, `.playtest-scry-mode`,
-`.settings-currency-option`) puts padding and text
-in an inner `<span>`. A `min-height: 44px` on the label wrapper grows the pill
+The label-wrapping-a-hidden-radio pattern (`.binder-mode-pill`,
+`.rule-segmented-pill`, `.playtest-scry-mode`, `.settings-currency-option`)
+puts padding and text in an inner `<span>`. A `min-height: 44px` on the label wrapper grows the pill
 but leaves the span text-height and top-aligned inside it — the Private /
 Public toggle shipped that way on phones. The span is a centering flex box
 (`align-items: center`) and the coarse floor sits on it; the
@@ -749,7 +748,7 @@ a hero CTA.
   is already `--surface-raised`, invert it: the chip lifts to `--surface`
   (`.deck-curve-phases-toggle`, `.card-group-layout-toggle`), keeping the ring
   and the weight.
-  Reference: `.share-audience` in `styles/shared.css`.
+  Reference: `.segmented-option.is-selected` in `components/shared/form.css`.
   This applies **only to controls in a track**. A standalone row of chips or
   option cards with no container behind them (`.format-pill-row`,
   `.bracket-pill-row`, `.option-grid`, `.gen-mode-grid`, the Discover filter
@@ -3077,13 +3076,11 @@ to anything new that edits a predicate.
 Every dialog that creates or edits a thing (a binder, a list rule, filters, a
 card, a game night) is built from one kit in `components/shared/form`. The
 binder editor was the first surface on it; the rest move one PR at a time.
-`DeckCustomizer`'s collapsed groups (`Disclosure`) and one-of pickers
-(`ChoiceList`/`SelectMenu`), the cube workshop's format/size pickers
-(`SegmentedControl`/`SelectMenu`, `pages/cube/shared.tsx`), and the game night
-create dialog's date/venue/format fields moved onto it in the same pass —
-DeckCustomizer's density-tier CSS (36/40/44px closed rows, #2225) now scopes
-`.disclosure-toggle` under `.deck-customizer-more-body` rather than the kit's
-flat 44px, so it keeps its own measured density inside a page section (guard:
+
+**A page section with several closed `Disclosure` rows can scope its own
+density tier**, instead of the kit's flat 44px — a bottom-sheet dialog and a
+stacked page section don't read the same. `DeckCustomizer` scopes
+`.disclosure-toggle` under `.deck-customizer-more-body` to 36/40/44px (guard:
 `styles/deck-customizer-rows.test.ts`).
 
 **A config dialog answers its questions in order of how often they change.**
@@ -4024,40 +4021,30 @@ raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
 
 ### Visibility is one choice, not a link to manage (board T136)
 
-Who can see a thing is a single native radio group, applied the moment it's
-picked: **Public / Friends / Private** for a deck, and **Anyone with the link
-/ Friends / Private** for kinds that have no public page yet. There is no
-confirm step, no display-name gate and no list of links to revoke anywhere in
-Settings. The dialog opens on the real current state and never creates
-anything just by opening. The link it shows is the thing's own address, to
-copy; it is never something the owner manages. New decks start Public (the
-create form's first option); "Send to a friend" sits below the choice because
-it isn't one. The collection has the same three choices in
-`CollectionVisibilityDialog`, stored on the account, and a public or
-friends-only collection lives on the owner's profile (`/u/:name?tab=collection`),
-not at a link of its own.
+Who can see a thing is one control, `components/VisibilityChoice.tsx` (a
+`ChoiceList` under the hood), applied the moment it's picked: **Public /
+Friends / Private**, or **Anyone with the link / Friends / Private** for a
+kind with no public page of its own. Every option's hint stays visible, not
+just the picked one's, and an option that isn't available right now (Public
+while signed out or offline) stays in the group, disabled, with the reason as
+its hint — never hidden, never a bare greyed-out label with no explanation.
+There is no confirm step, no display-name gate and no list of links to revoke
+anywhere in Settings. The control opens on the real current state and never
+creates anything just by opening. The link it shows is the thing's own
+address, to copy; it is never something the owner manages. New decks start
+Public (the create form's first option); "Send to a friend" sits below the
+choice because it isn't one. `ShareDialog`, `CollectionVisibilityDialog`,
+`DeckNewPage` and `ImportDeckDialog`'s creation-time fieldset, the online host
+form, and the online lobby's in-game setting all render through it. A public
+or friends-only collection lives on the owner's profile
+(`/u/:name?tab=collection`), not at a link of its own.
 
-**The control itself is `components/VisibilityChoice.tsx` (T139)** — a
-`ChoiceList` under the hood, so hint text is always visible and the group
-sizes to its labels (`flex: 1 1 auto`, three short choices hold one line at
-320px). `ShareDialog` and the online host form (`PlayPage.tsx`, Public/Private
-only — Friends there is a separate lane that owns the backend/game-core/room-
-browser side of it) both render through it. `DeckNewPage` and
-`ImportDeckDialog`'s creation-time fieldsets still hand-roll their own
-`.share-audience` radios instead: Public (and Friends) need a per-option
-`disabled` state when the viewer is signed out or offline, and `ChoiceList`'s
-`Option<T>` has no such field yet. Once it grows one, swap those two fieldsets
-onto `VisibilityChoice` — no other change needed.
-
-**A deck can be created as Friends, end to end (T139).** `usePublishOnCreate`'s
-`CreateVisibility` is `'public' | 'friends' | 'private'`; picking Friends calls
-`shareWithFriendsAfterCreate`, which mints the exact share `ShareDialog`'s own
-Friends choice does (`createShare({kind:'deck', audience:'friends'})`) —
-reused, not duplicated. Server-side, a deck's first sync carries
-`initialVisibility: 'friends'` the same way `'public'`/`'private'` already did
-(`publications/sync-hook.ts`); it books the deck unpublished (private to the
-`deck_publications` listing) and mints the friends share in the same pass, so
-a repeat sync never re-mints it.
+**A deck can be created as Friends, end to end.** Picking Friends mints the
+same share `ShareDialog`'s own Friends choice does
+(`createShare({kind:'deck', audience:'friends'})`); the deck's first sync
+carries `initialVisibility: 'friends'` the same way `'public'`/`'private'`
+already did (`publications/sync-hook.ts`), which books it unpublished and
+mints the friends share in the same pass, so a repeat sync never re-mints it.
 
 ### Feedback view (suggestion-mode deck share)
 

@@ -4,28 +4,18 @@ export interface VisibilityOption<T extends string> {
   value: T;
   label: string;
   hint: string;
+  /** Shown but not pickable right now (e.g. Public while signed out) — stays
+   *  in the group with its hint stating why, never hidden. */
+  disabled?: boolean;
 }
 
 /**
- * The shared "who can see this" control (STYLE_GUIDE "Visibility is one
- * choice, not a link to manage") — one native radio group, applied the
- * moment it's picked, always in Public/Friends/Private order (or, for a kind
- * with no public page of its own, Anyone-with-the-link/Friends/Private).
- * Callers pass exactly the option subset + order they need.
- *
- * Used by ShareDialog and the PlayPage host form (Public/Private only there —
- * see PlayPage.tsx for why Friends isn't offered yet).
- *
- * NOTE (T139 kit gap, reported to the coordinator): DeckNewPage and
- * ImportDeckDialog's creation-time fieldsets need Public (and Friends)
- * DISABLED with a reason when the viewer is signed out or offline.
- * `components/shared/form`'s `ChoiceList`/`Option<T>` has no per-option
- * `disabled` field, so those two dialogs still carry their own hand-rolled
- * `.share-audience` radio group rather than this component (see the
- * `T139 kit gap` comment at each of their fieldsets). Once `Option<T>` grows
- * an optional `disabled` (ChoiceList setting it on the `<input>`, plus a
- * `.choice-option.is-disabled` style), swap their fieldset for this
- * component with a `disabled` per option — no other change needed here.
+ * The one "who can see this" control (STYLE_GUIDE "Visibility is one
+ * choice, not a link to manage") — a `ChoiceList` under the hood, so every
+ * option's hint is always visible, always in Public/Friends/Private order (or,
+ * for a kind with no public page of its own, Anyone-with-the-link/Friends/
+ * Private). Callers pass exactly the option subset + order they need, and a
+ * `disabled` option stays in the group with its hint stating the reason.
  */
 export function VisibilityChoice<T extends string>({
   ariaLabel,
@@ -58,6 +48,7 @@ export function VisibilityChoice<T extends string>({
           value: o.value,
           label: busyValue === o.value ? 'Saving…' : o.label,
           hint: o.hint,
+          disabled: o.disabled,
         }))}
         onChange={onChange}
       />

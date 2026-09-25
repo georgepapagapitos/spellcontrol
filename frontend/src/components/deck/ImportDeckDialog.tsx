@@ -28,6 +28,7 @@ import {
   warmGooglePicker,
 } from '../../lib/google-picker';
 import { usePublishOnCreate, type PublishOutcome } from '../../lib/use-publish-on-create';
+import { VisibilityChoice } from '../VisibilityChoice';
 
 import {
   MAX_STAGED_FILES as MAX_FILES,
@@ -121,7 +122,6 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
   // Radios group by shared `name` — scope each group to this dialog instance.
   const formatGroup = useId();
-  const visibilityGroup = useId();
   const [step, setStep] = useState<Step>('input');
   const [pasteText, setPasteText] = useState('');
   /** Google Sheets / Drive share link, fetched server-side and staged as a file. */
@@ -847,51 +847,34 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                 decks stay private, publishable afterward per-deck like
                 today, and a single-result landing gets the lighter
                 DeckPublishNudge instead (see commitBatch). */}
-            {/* NOTE (T139 kit gap): hand-rolled `.share-audience` radios, not the
-                shared VisibilityChoice component — Public/Friends need a
-                per-option disabled state when signed out or offline, and the
-                kit's ChoiceList has no such field yet. See VisibilityChoice.tsx. */}
             {(batchFiles.length === 0 || batchMode === 'merge') && (
               <div className="import-deck-commander-section">
                 <div className="import-deck-section-title">Visibility</div>
-                <fieldset
-                  className="share-audience"
-                  aria-label="Deck visibility"
+                <VisibilityChoice
+                  ariaLabel="Deck visibility"
+                  value={visibility}
                   disabled={isLoading}
-                >
-                  {(
-                    [
-                      { value: 'public', label: 'Public', blocked: !canPublish },
-                      { value: 'friends', label: 'Friends', blocked: !canPublish },
-                      { value: 'private', label: 'Private', blocked: false },
-                    ] as const
-                  ).map((opt) => (
-                    <label
-                      key={opt.value}
-                      className={`share-audience-option${
-                        visibility === opt.value ? ' is-active' : ''
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={visibilityGroup}
-                        value={opt.value}
-                        checked={visibility === opt.value}
-                        disabled={opt.blocked}
-                        onChange={() => setVisibility(opt.value)}
-                      />
-                      <span>{opt.label}</span>
-                    </label>
-                  ))}
-                </fieldset>
-                <p className="import-deck-hint">
-                  {visibility === 'public'
-                    ? 'Anyone can find it at a stable link and on your profile.'
-                    : visibility === 'friends'
-                      ? 'Only your friends can find it, on your page in their Friends list.'
-                      : 'Only you can see this deck.'}
-                  {!canPublish && ` ${publicDisabledReason}`}
-                </p>
+                  options={[
+                    {
+                      value: 'public',
+                      label: 'Public',
+                      hint: canPublish
+                        ? 'Anyone can find it at a stable link and on your profile.'
+                        : publicDisabledReason!,
+                      disabled: !canPublish,
+                    },
+                    {
+                      value: 'friends',
+                      label: 'Friends',
+                      hint: canPublish
+                        ? 'Only your friends can find it, on your page in their Friends list.'
+                        : publicDisabledReason!,
+                      disabled: !canPublish,
+                    },
+                    { value: 'private', label: 'Private', hint: 'Only you can see this deck.' },
+                  ]}
+                  onChange={setVisibility}
+                />
               </div>
             )}
             <input

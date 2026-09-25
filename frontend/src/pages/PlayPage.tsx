@@ -1479,10 +1479,6 @@ function OnlineSetup({
           </section>
 
           <section className="play-setup-row">
-            {/* Public/Private only — Friends joins here in a separate lane
-                (T139 Lane E) that owns the backend/game-core/room-browser
-                side of it. `options` already takes the subset, so that lands
-                as a one-line addition to this array, not a rewrite. */}
             <VisibilityChoice
               ariaLabel="Table visibility"
               value={visibility}
@@ -1490,13 +1486,14 @@ function OnlineSetup({
                 {
                   value: 'public',
                   label: 'Public',
-                  hint: 'Anyone with the code can watch without a seat.',
+                  hint: 'Listed in the room browser. Anyone can watch.',
                 },
                 {
-                  value: 'private',
-                  label: 'Private',
-                  hint: 'Reachable by code only. Nobody can watch without a seat.',
+                  value: 'friends',
+                  label: 'Friends',
+                  hint: 'Listed for your friends. They can watch.',
                 },
+                { value: 'private', label: 'Private', hint: 'Only people with the code.' },
               ]}
               onChange={setVisibility}
             />

@@ -112,6 +112,13 @@ function pasteAndImport() {
   fireEvent.click(screen.getByRole('button', { name: 'Import' }));
 }
 
+// The visibility ChoiceList radio's accessible name is its label plus its
+// (always-visible) hint text glued together — match just the label, at the
+// start.
+const byLabel = (name: string) => new RegExp(`^${name}`);
+const visibilityRadio = (name: string) =>
+  screen.getByRole('radio', { name: byLabel(name) }) as HTMLInputElement;
+
 beforeEach(() => {
   useAuth.setState({
     user: { id: 'u1', username: 'alice', role: 'user' },
@@ -140,16 +147,14 @@ describe('ImportDeckDialog — creation-time visibility', () => {
     renderDialog();
     selectStandardFormat();
     // Native <input type="radio"> now — `checked`/`disabled`, not aria-*.
-    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).disabled).toBe(
-      false
-    );
+    expect(visibilityRadio('Public').checked).toBe(true);
+    expect(visibilityRadio('Private').disabled).toBe(false);
   });
 
   it('creates the deck as private and never publishes it when Private is picked, and closes + navigates with no router state', async () => {
     const { onClose } = renderDialog();
     selectStandardFormat();
-    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
+    fireEvent.click(visibilityRadio('Private'));
     pasteAndImport();
 
     await waitFor(() => expect(buildDeckFromResultMock).toHaveBeenCalledTimes(1));
@@ -164,7 +169,7 @@ describe('ImportDeckDialog — creation-time visibility', () => {
   it('publishes after creating when Public is selected, closes, and navigates with justPublished: true', async () => {
     const { onClose } = renderDialog();
     selectStandardFormat();
-    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(visibilityRadio('Public'));
     pasteAndImport();
 
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledTimes(1));
@@ -176,7 +181,7 @@ describe('ImportDeckDialog — creation-time visibility', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('disables the Public radio for a guest, with a sign-in hint, and never blocks creation', () => {
+  it('disables Public and Friends for a guest, with a sign-in reason as the hint, and never blocks creation', () => {
     useAuth.setState({
       user: null,
       status: 'guest',
@@ -187,9 +192,9 @@ describe('ImportDeckDialog — creation-time visibility', () => {
     renderDialog();
     selectStandardFormat();
 
-    const publicRadio = screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement;
-    expect(publicRadio.disabled).toBe(true);
-    expect(screen.getByText(/Sign in to publish/)).toBeTruthy();
+    expect(visibilityRadio('Public').disabled).toBe(true);
+    expect(visibilityRadio('Friends').disabled).toBe(true);
+    expect(screen.getAllByText('Sign in to publish.')).toHaveLength(2);
 
     // The Import button itself must still be enabled for a guest — only
     // gated on having text to import, never on publish eligibility.
@@ -204,10 +209,10 @@ describe('ImportDeckDialog — creation-time visibility', () => {
   it('shares with friends after creating when Friends is selected, in Public/Friends/Private order', async () => {
     const { onClose } = renderDialog();
     selectStandardFormat();
-    const radios = screen.getAllByRole('radio', { name: /Public|Friends|Private/ });
+    const radios = screen.getAllByRole('radio', { name: /^(Public|Friends|Private)/ });
     expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'friends', 'private']);
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Friends' }));
+    fireEvent.click(visibilityRadio('Friends'));
     pasteAndImport();
 
     await waitFor(() =>

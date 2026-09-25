@@ -44,4 +44,23 @@ describe('VisibilityChoice', () => {
     expect(outer).toBeTruthy();
     expect(outer.disabled).toBe(true);
   });
+
+  it('keeps a not-available option in the group, disabled, with its reason as the hint', () => {
+    const onChange = vi.fn();
+    render(
+      <VisibilityChoice
+        value="private"
+        options={[
+          { value: 'public', label: 'Public', hint: 'Sign in to publish.', disabled: true },
+          { value: 'private', label: 'Private', hint: 'Only you can see it.' },
+        ]}
+        onChange={onChange}
+      />
+    );
+    expect(screen.getByText('Sign in to publish.')).toBeTruthy();
+    const publicRadio = screen.getByRole('radio', { name: /^Public/ }) as HTMLInputElement;
+    expect(publicRadio.disabled).toBe(true);
+    fireEvent.click(publicRadio);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
