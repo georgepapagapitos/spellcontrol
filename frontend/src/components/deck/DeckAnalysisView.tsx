@@ -8,8 +8,10 @@ import type { LaneId } from '@/lib/deck-change';
 import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
 import {
   bracketReasons,
+  bracketSource,
   type BracketEstimation,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { bracketSourceSentence } from '@/lib/format-bracket-label';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
@@ -293,7 +295,7 @@ export function DeckAnalysisView({
               <Panel id="deck-power-bracket" title="Bracket">
                 {/* No repeated "Bracket N · Label" title here: the Power hero
                     above already says it, and the verdict strip carries the
-                    target/detected pair (including a manual target). */}
+                    bracket/estimate pair (including a stated bracket). */}
                 <div className="deck-stats-bracket">
                   {illegalCardNames.length > 0 && (
                     <p className="deck-stats-bracket-illegal" role="note">
@@ -305,11 +307,19 @@ export function DeckAnalysisView({
                     </p>
                   )}
                   <BracketVerdictStrip
-                    target={bracketOverride}
-                    detected={bracketEstimation?.bracket}
+                    bracket={bracketOverride}
+                    estimate={bracketEstimation?.bracket}
                   />
-                  {/* Detected vs target now lives in the strip above; keep the
-                      top hard-floor reason as context when on Auto. */}
+                  {/* One sentence naming where the ESTIMATE comes from (a hard
+                      floor, the power signal, or neither), whether or not the
+                      owner has stated a bracket above it. */}
+                  {bracketEstimation && (
+                    <p className="deck-stats-bracket-source">
+                      {bracketSourceSentence(bracketSource(bracketEstimation))}
+                    </p>
+                  )}
+                  {/* The source sentence above is general; keep the top
+                      hard-floor reason as more specific context on Auto. */}
                   {!bracketOverridden &&
                     bracketEstimation &&
                     bracketEstimation.hardFloors.length > 0 && (
@@ -317,20 +327,21 @@ export function DeckAnalysisView({
                         {bracketReasons(bracketEstimation)[0]}
                       </span>
                     )}
-                  {/* UX-313: the target-bracket control moved to the PowerHero above
-                      (the "Target: N ▾" SelectMenu). Keeping just a small note here
-                      when a manual override is active so the Bracket panel stays
-                      self-explaining without re-providing a redundant control. */}
+                  {/* UX-313: the bracket control moved to the PowerHero above
+                      (the "Bracket: N ▾" SelectMenu). Keeping just a small note
+                      here when a stated bracket is active so the Bracket panel
+                      stays self-explaining without re-providing a redundant
+                      control. */}
                   {bracketOverridden && (
                     <p className="deck-stats-bracket-override-note">
-                      Target set in Power level.{' '}
+                      Bracket set in Power level.{' '}
                       {onSetBracketOverride && (
                         <button
                           type="button"
                           className="deck-stats-bracket-clear-btn"
                           onClick={() => onSetBracketOverride(null)}
                         >
-                          Clear target
+                          Use the estimate
                         </button>
                       )}
                     </p>

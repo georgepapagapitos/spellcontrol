@@ -13,10 +13,23 @@ export interface PowerHeroProps {
    * the first time this key is seen. Pass null/undefined to skip the reveal.
    */
   revealKey?: string | null;
-  /** True when the bracket is a manual override rather than the auto estimate. */
+  /** True when the headline bracket is the owner's stated bracket rather than the auto estimate. */
   bracketOverridden: boolean;
-  /** Pre-formatted hard-floor reasons (top 3 are shown). */
+  /**
+   * The auto-estimated bracket, independent of any stated override. Shown as
+   * a secondary "Estimate: …" line whenever it differs from the headline.
+   */
+  bracketEstimate?: number | null;
+  /** Pre-formatted hard-floor reasons (top 3 are shown) — these explain the estimate. */
   bracketReasons: string[];
+  /**
+   * The neighbouring bracket when the estimate's power signal sits within
+   * {@link import('@spellcontrol/deck-metrics').SOFT_SCORE.borderlineWithin}
+   * of the threshold that could move it (`bracketBorderline` from the
+   * estimator package). Renders a compact "Borderline N/M" marker next to
+   * the estimate. Null/undefined → no marker.
+   */
+  bracketBorderline?: number | null;
   /** Primary synergy axis label, e.g. "Tokens / go-wide". */
   engineLabel?: string;
   /** Producer count for the primary axis. */
@@ -114,15 +127,30 @@ function HeroLink({
   );
 }
 
-/** Options for the Target bracket SelectMenu. "Auto" clears the override. */
-const TARGET_OPTIONS: SelectOption<string>[] = [
-  { value: '', label: 'Auto (no target)', triggerLabel: 'Auto' },
+/** Options for the deck's Bracket SelectMenu. "Auto" clears the stated bracket. */
+const BRACKET_OPTIONS: SelectOption<string>[] = [
+  { value: '', label: 'Auto (use the estimate)', triggerLabel: 'Auto' },
   { value: '1', label: '1 · Exhibition', triggerLabel: '1 · Exhibition' },
   { value: '2', label: '2 · Core', triggerLabel: '2 · Core' },
   { value: '3', label: '3 · Upgraded', triggerLabel: '3 · Upgraded' },
   { value: '4', label: '4 · Optimized', triggerLabel: '4 · Optimized' },
   { value: '5', label: '5 · cEDH', triggerLabel: '5 · cEDH' },
 ];
+
+/** A compact "Borderline N/M" marker — lower bracket first. Read via an
+ *  aria-label so a screen reader gets the full sentence, not the digits. */
+function BorderlineMarker({ current, neighbour }: { current: number; neighbour: number }) {
+  const lo = Math.min(current, neighbour);
+  const hi = Math.max(current, neighbour);
+  return (
+    <span
+      className="power-hero-borderline"
+      aria-label={`Borderline between Bracket ${lo} and Bracket ${hi}`}
+    >
+      Borderline {lo}/{hi}
+    </span>
+  );
+}
 
 /**
  * The hero's combo line. The two counts are different combos, so the second
@@ -150,14 +178,16 @@ function comboLine(inDeck: number, oneAway: number, ownedMissing: number): strin
  * existing fields computed by the page.
  *
  * UX-313: when `onSetBracketOverride` is provided, the Power level pillar
- * surfaces a "Target: N ▾" SelectMenu so the user can set a target bracket
- * directly from the hero rather than hunting for the buried select in the
- * Bracket panel below.
+ * surfaces a "Bracket: N ▾" SelectMenu so the user can state the deck's
+ * bracket directly from the hero rather than hunting for the buried select in
+ * the Bracket panel below.
  */
 export function PowerHero({
   bracket,
   bracketOverridden,
+  bracketEstimate,
   bracketReasons,
+  bracketBorderline,
   engineLabel,
   engineProducers,
   enginePayoffs,
@@ -190,10 +220,19 @@ export function PowerHero({
   const producers = engineProducers ?? 0;
   const payoffs = enginePayoffs ?? 0;
   const engineBalanced = producers > 0 && payoffs > 0 && !engineLopsided;
-  const showReasons = !bracketOverridden && bracketReasons.length > 0;
+  // The "because" reasons always explain the ESTIMATE, not the stated bracket
+  // above it — so they show whether or not the deck has a stated bracket, with
+  // wording that says which one they're about.
+  const showReasons = bracketReasons.length > 0;
   const bracketIsFloor = !!bracketMissesCombos && !bracketOverridden && bracket != null;
+  // The estimate gets its own line only when it differs from the stated
+  // bracket above it — on Auto, `bracket` already IS the estimate.
+  const showEstimateLine =
+    bracketOverridden && bracketEstimate != null && bracketEstimate !== bracket;
+  const borderlineOnHeadline = !bracketOverridden && bracketBorderline != null && bracket != null;
+  const borderlineOnEstimate = showEstimateLine && bracketBorderline != null;
 
-  // UX-313: "Target" control — shows when the caller provides the override callback.
+  // UX-313: "Bracket" control — shows when the caller provides the override callback.
   const showTargetControl = !!onSetBracketOverride;
   const targetValue = bracketOverride != null ? String(bracketOverride) : '';
 
@@ -219,16 +258,29 @@ export function PowerHero({
                   {bracketIsFloor ? 'At least Bracket' : 'Bracket'}{' '}
                   <strong className="power-hero-bracket-num">{bracketDisplay}</strong> ·{' '}
                   {bracketLabel(bracket)}
+                  {borderlineOnHeadline && (
+                    <BorderlineMarker current={bracket} neighbour={bracketBorderline!} />
+                  )}
                 </>
               ) : (
                 <>Bracket —</>
               )}
-              {bracketOverridden && <span className="power-hero-tag">manual</span>}
               {onViewBracket && <LinkChevron />}
             </HeroLink>
           )}
+          {showEstimateLine && (
+            <p className="power-hero-estimate">
+              Estimate: Bracket {bracketEstimate} · {bracketLabel(bracketEstimate!)}
+              {borderlineOnEstimate && (
+                <BorderlineMarker current={bracketEstimate!} neighbour={bracketBorderline!} />
+              )}
+            </p>
+          )}
           {showReasons && (
-            <p className="power-hero-because">because: {bracketReasons.slice(0, 3).join(', ')}</p>
+            <p className="power-hero-because">
+              {bracketOverridden ? 'estimate because: ' : 'because: '}
+              {bracketReasons.slice(0, 3).join(', ')}
+            </p>
           )}
           {bracketIsFloor && (
             <p className="power-hero-because">
@@ -237,16 +289,16 @@ export function PowerHero({
                 : 'Still checking combos, so it may be higher.'}
             </p>
           )}
-          {/* UX-313: Target bracket control — visible entry point for the Coach
+          {/* UX-313: Bracket control — visible entry point for the Coach
               feed's Bracket filter. Replaces the buried <select> in the Bracket
-              panel below as the primary target-setting affordance. */}
+              panel below as the primary bracket-setting affordance. */}
           {showTargetControl && (
             <div className="power-hero-target">
               <SelectMenu
-                label="Target"
-                ariaLabel="Set target bracket"
+                label="Bracket"
+                ariaLabel="Set this deck's bracket"
                 value={targetValue}
-                options={TARGET_OPTIONS}
+                options={BRACKET_OPTIONS}
                 onChange={(v) => {
                   onSetBracketOverride!(v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5));
                 }}

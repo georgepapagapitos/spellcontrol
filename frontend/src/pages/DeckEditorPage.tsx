@@ -54,7 +54,11 @@ import {
   scrollToDeckStats,
 } from '../components/deck/DeckDisplay';
 import { Tabs, type TabBadge } from '../components/Tabs';
-import { bracketLabel, bracketReasons } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import {
+  bracketLabel,
+  bracketReasons,
+  bracketBorderline,
+} from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { materializeBinders } from '../lib/materialize';
 import { formatMoney } from '../lib/format-money';
 import { buildCommanderKey } from '../lib/commander-key';
@@ -3279,9 +3283,13 @@ export function DeckEditorPage() {
                 <PowerHero
                   bracket={effectiveBracket(deck) ?? null}
                   bracketOverridden={deck.bracketOverride != null}
+                  bracketEstimate={deck.bracketEstimation?.bracket ?? null}
                   revealKey={scoreRevealKey}
                   bracketReasons={
                     deck.bracketEstimation ? bracketReasons(deck.bracketEstimation) : []
+                  }
+                  bracketBorderline={
+                    deck.bracketEstimation ? bracketBorderline(deck.bracketEstimation) : null
                   }
                   engineLabel={deck.synergyAnalysis?.axes[0]?.label}
                   engineProducers={deck.synergyAnalysis?.axes[0]?.producers}

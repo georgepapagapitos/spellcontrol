@@ -1,68 +1,84 @@
 import type { JSX } from 'react';
 import './BracketVerdictStrip.css';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
+import { EXHIBITION_BRACKET_NOTE } from '@/lib/format-bracket-label';
 
 export interface BracketVerdictStripProps {
-  /** The bracket the player is aiming for (override), or null/undefined on Auto. */
-  target?: 1 | 2 | 3 | 4 | 5 | null;
+  /** The deck's stated bracket (the owner's override), or null/undefined on Auto. */
+  bracket?: 1 | 2 | 3 | 4 | 5 | null;
   /** The auto-estimated bracket, if an estimation exists. */
-  detected?: number;
+  estimate?: number;
 }
 
-/** Compare the player's intended bracket against the auto-estimate. */
+const COACH_HINT = "See the Coach tab's Bracket lane to";
+
+/** Compare the deck's stated bracket against the auto-estimate. */
 function verdictFor(
-  target: number | null | undefined,
-  detected: number | undefined
+  bracket: number | null | undefined,
+  estimate: number | undefined
 ): { label: string; tone: VerdictTone; reason: string } {
-  if (target == null) {
+  if (bracket == null) {
     return {
       label: 'Auto',
       tone: 'neutral',
-      reason: 'No target set. Showing the auto-estimated power level.',
+      reason: 'No bracket set. Showing the estimate.',
     };
   }
-  if (detected == null) {
-    return { label: 'No estimate', tone: 'neutral', reason: 'Set a deck to estimate its bracket.' };
+  if (estimate == null) {
+    return { label: 'No estimate', tone: 'neutral', reason: 'Add cards to estimate this deck.' };
   }
-  if (detected === target) {
-    return { label: 'Aligned', tone: 'success', reason: 'The deck plays at the bracket you set.' };
-  }
-  if (detected > target) {
+  // Exhibition (Bracket 1) is a theme-first build intent, not a power level the
+  // estimator can confirm — it never estimates below Core (2). "Above target"
+  // would misread a deck that already sits at the Core floor as needing cuts.
+  if (bracket === 1) {
+    if (estimate <= 2) {
+      return { label: 'Exhibition', tone: 'neutral', reason: EXHIBITION_BRACKET_NOTE };
+    }
     return {
-      label: 'Above target',
+      label: 'Plays above',
       tone: 'warn',
-      reason: 'The deck estimates hotter than your target. Consider trimming high-power cards.',
+      reason: `${EXHIBITION_BRACKET_NOTE} ${COACH_HINT} bring cuts toward the Core floor.`,
+    };
+  }
+  if (estimate === bracket) {
+    return { label: 'Matches', tone: 'success', reason: 'The list plays at the bracket you set.' };
+  }
+  if (estimate > bracket) {
+    return {
+      label: 'Plays above',
+      tone: 'warn',
+      reason: `The list plays above the bracket you set. ${COACH_HINT} bring it down.`,
     };
   }
   return {
-    label: 'Below target',
+    label: 'Plays below',
     tone: 'info',
-    reason: 'The deck estimates softer than your target. Room to add power.',
+    reason: `The list plays below the bracket you set. ${COACH_HINT} bring it up.`,
   };
 }
 
 /**
- * A compact `Target B3 · Detected B3 · [Verdict]` strip for the Bracket panel.
- * Target is the player's override; Detected is the auto-estimate. The verdict
- * chip reuses the shared VerdictBadge tones (aligned/above/below target).
+ * A compact `Bracket B3 · Estimate B3 · [Verdict]` strip for the Bracket panel.
+ * Bracket is the deck owner's stated bracket; Estimate is the auto-estimate.
+ * The verdict chip reuses the shared VerdictBadge tones (matches/above/below).
  */
 export function BracketVerdictStrip({
-  target,
-  detected,
+  bracket,
+  estimate,
 }: BracketVerdictStripProps): JSX.Element | null {
-  if (target == null && detected == null) return null;
-  const v = verdictFor(target, detected);
+  if (bracket == null && estimate == null) return null;
+  const v = verdictFor(bracket, estimate);
 
   return (
     <div className="bracket-verdict-strip">
       <dl className="bracket-verdict-figures">
         <div className="bracket-verdict-figure">
-          <dt>Target</dt>
-          <dd>{target == null ? 'Auto' : `B${target}`}</dd>
+          <dt>Bracket</dt>
+          <dd>{bracket == null ? 'Auto' : `B${bracket}`}</dd>
         </div>
         <div className="bracket-verdict-figure">
-          <dt>Detected</dt>
-          <dd>{detected == null ? '—' : `B${detected}`}</dd>
+          <dt>Estimate</dt>
+          <dd>{estimate == null ? '—' : `B${estimate}`}</dd>
         </div>
       </dl>
       <VerdictBadge

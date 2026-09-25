@@ -414,6 +414,10 @@ export const SOFT_SCORE = {
   bumpAt: 66,
   /** A deck at floor 4 reads as cEDH at this score. */
   cedhAt: 80,
+  /** How close the power signal has to sit to `bumpAt`/`cedhAt` (either side)
+   *  to call the deck borderline between its bracket and the neighbouring
+   *  one — see {@link bracketBorderline}. */
+  borderlineWithin: 6,
   /** ...and runs at least this many Game Changers. The premier tutors and fast
    *  mana cEDH is built on are mostly on the list: all 17 decks declared cEDH in
    *  a 71-deck Archidekt corpus (2026-09-23) ran 5 or more, and a 2-Game-Changer
@@ -486,6 +490,50 @@ export function bracketReasons(est: BracketEstimation): string[] {
     reasons.push(`power signal ${est.softScore}/100`);
   }
   return reasons;
+}
+
+/**
+ * Where a deck's bracket comes from, for the "borderline" / source line shown
+ * beside the estimate: `'contents'` when a hard floor set it (the certain
+ * case — specific cards are why), `'power'` when the soft power signal is
+ * what lifted it above the floor (a bump or a cEDH read), or `'baseline'`
+ * when neither fired and it sits at the Core default. Works on persisted
+ * estimations too, since it reads only fields every estimation carries.
+ */
+export function bracketSource(est: BracketEstimation): 'contents' | 'power' | 'baseline' {
+  const floor = floorOf(est.hardFloors);
+  if (est.bracket > floor) return 'power';
+  if (est.hardFloors.length > 0) return 'contents';
+  return 'baseline';
+}
+
+/**
+ * The neighbouring bracket when the power signal sits within
+ * `SOFT_SCORE.borderlineWithin` points of the threshold that could move this
+ * deck — else `null`. Floors are deterministic (a hard floor either fires or
+ * it doesn't), so only the soft power signal can make a deck borderline:
+ *   - floor < 4: `bumpAt` (66) is the threshold, either side. Below it, the
+ *     neighbour is the bump target (`floor + 1`, capped at 4); at/above it
+ *     (already bumped), the neighbour is the floor itself.
+ *   - floor >= 4: `cedhAt` (80) applies only when the deck also clears
+ *     `cedhMinGameChangers` — without enough Game Changers cEDH isn't reachable
+ *     at any score, so there's no borderline to report. Below the threshold
+ *     the neighbour is 5; at/above it (already cEDH) the neighbour is 4.
+ */
+export function bracketBorderline(est: BracketEstimation): number | null {
+  const floor = floorOf(est.hardFloors);
+  const { softScore } = est;
+  const within = SOFT_SCORE.borderlineWithin;
+
+  if (floor < 4) {
+    if (Math.abs(softScore - SOFT_SCORE.bumpAt) > within) return null;
+    const bumped = Math.min(floor + 1, 4);
+    return softScore >= SOFT_SCORE.bumpAt ? floor : bumped;
+  }
+
+  if (est.breakdown.gameChangerCount < SOFT_SCORE.cedhMinGameChangers) return null;
+  if (Math.abs(softScore - SOFT_SCORE.cedhAt) > within) return null;
+  return softScore >= SOFT_SCORE.cedhAt ? 4 : 5;
 }
 
 /**

@@ -1,4 +1,4 @@
-/* Target / Detected / Verdict summary at the top of the Bracket panel. The
+/* Bracket / Estimate / Verdict summary at the top of the Bracket panel. The
    verdict chip is the shared <VerdictBadge>; see VerdictBadge.css. */
 .bracket-verdict-strip {
   display: flex;

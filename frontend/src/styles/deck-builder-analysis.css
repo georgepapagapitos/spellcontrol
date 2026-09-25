@@ -751,6 +751,15 @@
   color: var(--text-muted);
 }
 
+/* The source line ("Set by what's in the list.", "Raised by the power
+   signal.", "Nothing in the list pushes it past Core."). Same weight as the
+   hard-floor note beside it. */
+.deck-stats-bracket-source {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 /* A banned or illegal card: the bracket describes a legal deck, so this leads. */
 .deck-stats-bracket-illegal {
   margin: 0;
@@ -758,8 +767,8 @@
   color: var(--warn-text);
 }
 
-/* UX-313: the target-bracket control moved to the PowerHero. The Bracket panel
-   shows only a small note + "Clear target" link when an override is active. */
+/* UX-313: the bracket control moved to the PowerHero. The Bracket panel
+   shows only a small note + "Use the estimate" link when a bracket is stated. */
 .deck-stats-bracket-override-note {
   margin: 0;
   margin-top: 0.35rem;
