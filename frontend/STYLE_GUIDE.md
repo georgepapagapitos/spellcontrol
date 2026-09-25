@@ -7293,3 +7293,102 @@ and undo.
   `nextActiveSeat` (game-core, now exported) computes it — the same
   alive/sort/wrap logic `pass-turn` already uses, so the marker can never
   disagree with where a tap would actually go.
+
+## Play board: the remaining Lotus settings, and counterclockwise seating (2026-09-24)
+
+The last lane of the Lotus parity program — the settings list beyond timer/
+tracker (already shipped, see above): low life warning, underlined 6/9,
+minimalist mode, a per-bracket starting life, and a table-level turn
+direction.
+
+- **Low life warning fires below 10, gated by a device pref (default on).**
+  `isLowLife` (`GameBoard.tsx`) widened from 1-5 to 1-9 to match Lotus's own
+  "below 10" wording, and now reads `lowLifeWarningEnabled` from the play
+  store before applying at all. The ring-plus-pulse treatment it already had
+  (`is-low-life`, `play-enhancements.css`) needed no change: a ring that only
+  exists in the danger state is a structural cue, not a color-only one, and
+  `prefers-reduced-motion` already swapped the pulse for a steady ring rather
+  than dropping the signal outright — both were correct before this lane and
+  stayed that way.
+- **Underlined 6 and 9 is a shared digit renderer, not a per-surface hack.**
+  `numeralDigits(value, underline)` in `GameBoard.tsx` wraps only the `6`/`9`
+  characters of a number in `.pp-digit-underline` spans when the device pref
+  is on; off, it returns the plain number so the DOM is byte-identical to
+  before the pref existed. One function feeds all three numerals that can sit
+  upside down across a table — the life/commander-damage numeral, a Partner
+  seat's split-half numeral, and the High Roll die value — so a fourth numeral
+  can never quietly skip it. The underline is `em`-sized
+  (`text-decoration-thickness`/`text-underline-offset`), so it holds at every
+  `--life-size` tier without a media query. The aria-label on the life button
+  still reads the plain number (unaffected — it's a separate attribute, not
+  derived from the digit spans' text content).
+- **Minimalist mode hides the ± glyphs, not the controls.** `.is-minimalist
+  .player-panel-life-wrap > .player-panel-step-btn` uses the standard
+  clip-rect sr-only pattern (1px box, `overflow: hidden`, `clip: rect(0,0,0,0)`)
+  instead of `display: none`, so the buttons stay in the DOM, focusable, and
+  announced — only a pointer user loses the visible glyph, and the tap-zone
+  halves (already invisible) are the primary gesture regardless. Scoped to
+  the life numeral's own step buttons on purpose: the commander-damage
+  split-half steps (`.pp-cmd-half-step`) sit in a flex row keyed to their own
+  visible width, and hiding them the same way would re-center the split
+  value oddly for a pairing (minimalist + Partner focus) rare enough not to
+  be worth that risk. **The burst-count badge ("-3") is dropped in minimalist
+  mode along with its button** — it's chrome for the same control, not an
+  independent readout, so there's no second home to give it. Decided rather
+  than defaulted: revisit only if a table actually asks for the burst back
+  without the glyph.
+- **Starting life remembers the last value chosen per player-count bracket
+  (2 vs 3+), and a format pick always wins over that memory.** Two device
+  prefs, `startingLifeTwoPlayer` / `startingLifeMultiplayer` (play store v3,
+  default `null` = "no override yet"). Precedence, on the local setup form:
+  1. **A loaded table profile wins outright** — a profile is an explicit
+     reset (see the table-profiles ruling above), not a bracket-memory
+     candidate, so loading one suppresses the save-on-change effect for that
+     update and re-primes the bracket tracker to match the profile's own
+     roster size.
+  2. **Picking a format sets its canonical life**, unconditionally — the
+     existing `applyFormat` behavior, untouched. This also becomes the new
+     "last chosen" value for whichever bracket the table is currently in
+     (nothing suppresses the save effect here), since a format pick is as
+     much a deliberate choice as dialing the stepper.
+  3. **A manual stepper edit is remembered** for the bracket the table is in
+     right now.
+  4. **Crossing 2↔3+ players applies the OTHER bracket's memory**, or the
+     current format's default if that bracket has no memory yet — never the
+     bracket you're leaving. This is one `useEffect` keyed on `count`,
+     comparing against a `prevBracketRef` so it only fires on an actual
+     crossing (not every add/remove-player click within a bracket), paired
+     with a `suppressBracketSaveRef` so applying the OTHER bracket's value
+     doesn't immediately get written back as if the user had chosen it.
+- **Turn order travels with the GAME, not the device.** `GameState.turnOrder`
+  (`'clockwise' | 'counterclockwise'`, game-core) is optional and settable
+  through the existing `settings` action, same as `layout`/`tapOrientation` —
+  presentation, not a rule, so it earns no log row and the backend validates
+  it the same way it validates `visibility` (`invalidTurnOrderError`,
+  `routes/games.ts`). It is picked once on the **local setup form**, next to
+  Game timer / Turn tracker (a `RulePill`, "Counterclockwise seating") — a
+  fact decided before the game starts, unlike the device-level board display
+  prefs above (which live in the game menu's Setup tab instead).
+  - **The reducer's own turn order never changes.** Seat index + 1 is still
+    the whole rule. What changes is which SEAT sits in which CELL:
+    `board-layouts.ts`'s `layoutsForCount`/`resolveLayout` take a `turnOrder`
+    argument and, for `'counterclockwise'`, reorder a preset's `seats` array
+    to `[s0, s(n-1), …, s1]` — seat 0 (the topmost-leftmost anchor) stays put,
+    the rest run backward. Seat index + 1 read against a reversed placement
+    already goes the other way around the table, so nothing about pass-turn,
+    the next-seat marker, or a recorded first player needed to change; they
+    all key off seat index, and seat index's on-screen position is the only
+    thing that moved.
+  - **A custom (user-arranged) layout ignores `turnOrder` entirely** — it
+    already IS the order the user set by dragging seats into place, and
+    reversing it out from under them would be the surprise, not the feature.
+  - **The layout picker's previews carry `turnOrder` through** (`LayoutPicker`
+    now takes it, `GameMenu` passes `turnOrderOf(game)`), so a picker shown
+    for a counterclockwise table shows counterclockwise thumbnails — the seat
+    numbers printed on each preview cell are what actually prove it at a
+    glance.
+  - **Verify geometrically, not by eye**: `board-layouts.test.ts`'s
+    `clockwise seat order` suite gained a mirror-image counterclockwise
+    assertion (angles run the other way around the grid centre, excluding
+    the one seat0→seat1 edge that wraps through the anchor) plus a seat-0-
+    stays-put check and a legacy-state-reads-clockwise check.

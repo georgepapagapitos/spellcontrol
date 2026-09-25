@@ -40,6 +40,18 @@ import { summarizeGame, type GameSummary } from './summary';
 export type TapOrientation = 'horizontal' | 'vertical';
 
 /**
+ * Which way seats come around the table, clockwise being the MTG default
+ * (the player on your left takes the turn after you). This only reorders
+ * where each seat index is DRAWN on the board (see the frontend's
+ * `board-layouts.ts`) — the reducer's own turn order (seat index + 1, below)
+ * never changes, so a table seated counterclockwise still just needs its
+ * preset layout's seats reversed (seat 0 stays put, the rest run backward),
+ * and the existing seat-index pass-turn already reads as going the other way
+ * around a reversed board.
+ */
+export type TurnOrder = 'clockwise' | 'counterclockwise';
+
+/**
  * How the table takes mulligans. Three real variants, and every one of them is
  * just "how many cards go to the bottom after the Nth mulligan":
  * - `commander` — the first mulligan is free, then London. The Commander
@@ -280,6 +292,15 @@ export interface GameState {
    */
   tapOrientation: TapOrientation;
   /**
+   * Which way seats are arranged around the table. Optional: absent (every
+   * game persisted before this field existed) reads as `'clockwise'`
+   * wherever it is consumed — there is no reducer behaviour keyed on it, so
+   * no normalization is needed here (contrast `mulliganType`, which the
+   * reducer itself branches on). A custom (user-arranged) layout ignores
+   * this field entirely and keeps the order the user set.
+   */
+  turnOrder?: TurnOrder;
+  /**
    * The seat number of the player whose turn it currently is, or null when
    * turn tracking has not yet started. Games that never call `pass-turn` keep
    * this null and behave exactly as before — no change in existing behaviour.
@@ -448,6 +469,7 @@ export type GameAction =
           | 'format'
           | 'layout'
           | 'tapOrientation'
+          | 'turnOrder'
           | 'startingSeat'
           | 'visibility'
           | 'voiceUrl'
@@ -795,6 +817,7 @@ export function createGameState(input: {
   turnTimerEnabled?: boolean;
   layout?: GameLayout;
   tapOrientation?: TapOrientation;
+  turnOrder?: TurnOrder;
   name?: string;
   visibility?: 'public' | 'private';
   players: GamePlayer[];
@@ -819,6 +842,7 @@ export function createGameState(input: {
     voiceUrl: null,
     layout: input.layout ?? 'pod',
     tapOrientation: input.tapOrientation ?? 'horizontal',
+    turnOrder: input.turnOrder,
     activeSeat: null,
     startingSeat: null,
     designations: { monarch: null, initiative: null },

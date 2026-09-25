@@ -156,6 +156,37 @@
   letter-spacing: -0.03em;
 }
 
+/* Underlined 6 and 9 (device pref, default off): the two board-numeral
+   digits that read the same upside down. Underline scales with the numeral
+   itself since it's `em`-based, so it holds at every --life-size. */
+.pp-digit-underline {
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.12em;
+}
+
+/* Minimalist mode (device pref, default off): hide the ± glyphs beside the
+   life numeral without removing the buttons from the DOM — the tap-zone
+   gestures (the whole panel half) keep working regardless, and a screen
+   reader / keyboard user keeps the explicit ±1 control. The burst-count
+   badge ("-3") is chrome for the same button, so it's dropped along with it
+   rather than finding a second home. Scoped to the life numeral's own step
+   buttons — the commander-damage split-half steps sit in a flex row keyed to
+   their own visible width, and hiding them the same way would re-center the
+   split value oddly for a pairing (minimalist + Partner focus) rare enough
+   not to be worth that risk. */
+.is-minimalist .player-panel-life-wrap > .player-panel-step-btn {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .floating-delta.is-positive {
   color: var(--pp-accent);
 }

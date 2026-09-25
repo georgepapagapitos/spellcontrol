@@ -1,4 +1,5 @@
-import type { GameLayout } from './game-state';
+import type { GameLayout, GameState, TurnOrder } from './game-state';
+export type { TurnOrder };
 
 /**
  * Layout model
@@ -455,10 +456,37 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
   ],
 };
 
-/** All layouts available at the given player count (default first). */
-export function layoutsForCount(count: number): BoardLayout[] {
+/** `game.turnOrder`, resolved for a legacy state that never set it. */
+export function turnOrderOf(game: Pick<GameState, 'turnOrder'>): TurnOrder {
+  return game.turnOrder === 'counterclockwise' ? 'counterclockwise' : 'clockwise';
+}
+
+/**
+ * Reorder a clockwise preset's seats to run counterclockwise instead, without
+ * moving any seat's cell/rotation: seat 0 (the anchor, topmost-leftmost)
+ * keeps its position, and the rest of the walk runs backward —
+ * `[s0, s(n-1), …, s1]`. Turn order itself (seat index + 1, in game-core)
+ * never changes; reversing which seat sits in which cell is what makes that
+ * same advance read as going the other way around the table.
+ */
+function reverseSeatsCounterclockwise(seats: SeatSlot[]): SeatSlot[] {
+  if (seats.length <= 1) return seats;
+  return [seats[0], ...seats.slice(1).reverse()];
+}
+
+function applyTurnOrder(layout: BoardLayout, turnOrder: TurnOrder): BoardLayout {
+  if (turnOrder === 'clockwise') return layout;
+  return { ...layout, seats: reverseSeatsCounterclockwise(layout.seats) };
+}
+
+/** All layouts available at the given player count (default first). Presets
+ *  come out clockwise; pass `'counterclockwise'` to reverse seating for
+ *  every preset (a custom, user-arranged layout isn't in this list at all,
+ *  so it never goes through this — see `resolveLayout`). */
+export function layoutsForCount(count: number, turnOrder: TurnOrder = 'clockwise'): BoardLayout[] {
   const c = Math.max(2, Math.min(count, 10));
-  return LAYOUTS[c] ?? LAYOUTS[2];
+  const presets = LAYOUTS[c] ?? LAYOUTS[2];
+  return turnOrder === 'clockwise' ? presets : presets.map((l) => applyTurnOrder(l, turnOrder));
 }
 
 /**
@@ -711,12 +739,15 @@ export function decodeCustomLayout(
  */
 export function resolveLayout(
   count: number,
-  id: GameLayout | string | undefined | null
+  id: GameLayout | string | undefined | null,
+  turnOrder: TurnOrder = 'clockwise'
 ): BoardLayout {
   const c = Math.max(2, Math.min(count, 10));
+  // A custom (user-arranged) layout keeps the order the user set — turnOrder
+  // only reverses the built-in presets.
   const custom = decodeCustomLayout(id, c);
   if (custom) return custom;
-  const available = layoutsForCount(count);
+  const available = layoutsForCount(count, turnOrder);
   const match = available.find((l) => l.id === id);
   return match ?? available[0];
 }

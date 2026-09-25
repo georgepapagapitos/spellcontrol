@@ -186,6 +186,34 @@ describe('usePlayStore — local game flow', () => {
     expect(usePlayStore.getState().local!.layout).toBe('custom-2up');
   });
 
+  it('carries turnOrder from the setup into the created game, defaulting to unset (clockwise)', () => {
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      turnOrder: 'counterclockwise',
+      players: [
+        { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+      ],
+    });
+    expect(usePlayStore.getState().local!.turnOrder).toBe('counterclockwise');
+
+    resetStore();
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [
+        { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+      ],
+    });
+    expect(usePlayStore.getState().local!.turnOrder).toBeUndefined();
+  });
+
   it('dispatches life delta and updates state', () => {
     const s = usePlayStore.getState();
     s.startLocal({
@@ -428,6 +456,44 @@ describe('usePlayStore — persisted store migration (v1 → v2)', () => {
     const migrated = migrate({ gameTimerEnabled: false, turnTrackerEnabled: true }, 2);
     expect(migrated.gameTimerEnabled).toBe(false);
     expect(migrated.turnTrackerEnabled).toBe(true);
+  });
+});
+
+describe('usePlayStore — persisted store migration (v2 → v3)', () => {
+  function migrate(state: Record<string, unknown>, fromVersion: number) {
+    const options = (
+      usePlayStore as unknown as {
+        persist: { getOptions: () => { migrate: (s: unknown, v: number) => unknown } };
+      }
+    ).persist.getOptions();
+    return options.migrate(state, fromVersion) as Record<string, unknown>;
+  }
+
+  it('a v2 row with none of the new fields gets the documented defaults', () => {
+    const migrated = migrate({ gameTimerEnabled: true, turnTrackerEnabled: true }, 2);
+    expect(migrated.lowLifeWarningEnabled).toBe(true);
+    expect(migrated.underlineSixNine).toBe(false);
+    expect(migrated.minimalistMode).toBe(false);
+    expect(migrated.startingLifeTwoPlayer).toBeNull();
+    expect(migrated.startingLifeMultiplayer).toBeNull();
+  });
+
+  it('leaves an already-current row alone', () => {
+    const migrated = migrate(
+      {
+        lowLifeWarningEnabled: false,
+        underlineSixNine: true,
+        minimalistMode: true,
+        startingLifeTwoPlayer: 30,
+        startingLifeMultiplayer: 40,
+      },
+      3
+    );
+    expect(migrated.lowLifeWarningEnabled).toBe(false);
+    expect(migrated.underlineSixNine).toBe(true);
+    expect(migrated.minimalistMode).toBe(true);
+    expect(migrated.startingLifeTwoPlayer).toBe(30);
+    expect(migrated.startingLifeMultiplayer).toBe(40);
   });
 });
 

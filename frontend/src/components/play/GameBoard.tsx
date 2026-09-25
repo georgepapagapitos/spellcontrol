@@ -12,7 +12,16 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey, nextActiveSeat } from '../../lib/game-state';
 import type { EmptyCell, SeatSlot } from '../../lib/board-layouts';
@@ -20,6 +29,7 @@ import {
   isCustomLayout,
   resolveLayout,
   seamSatellite,
+  turnOrderOf,
   undoButtonParams,
 } from '../../lib/board-layouts';
 import { paletteForSeat } from '../../lib/seat-palette';
@@ -110,7 +120,7 @@ export function GameBoard({
   const isShared = game.mode === 'local';
   // Resolve to a concrete layout (grid + per-seat slots). Unknown / legacy
   // layout ids fall back to the count's default.
-  const board = resolveLayout(total, game.layout);
+  const board = resolveLayout(total, game.layout, turnOrderOf(game));
   const [menuOpen, setMenuOpen] = useState(false);
   const gameTimerEnabled = usePlayStore((st) => st.gameTimerEnabled);
   const turnTrackerEnabled = usePlayStore((st) => st.turnTrackerEnabled);
@@ -564,6 +574,28 @@ export function GameBoard({
 
 // ── Player panel ───────────────────────────────────────────────────────────
 
+/**
+ * A numeral's digits, underlining 6 and 9 when the device pref is on (Lotus's
+ * "Underlined 6 and 9" — the two digits a table reads upside down). Off, this
+ * returns the plain number so the rendered DOM is identical to before the
+ * pref existed. Shared by the life/commander-damage numeral and the high-roll
+ * value — every board number that could sit upside down across a table.
+ */
+function numeralDigits(value: number, underline: boolean): ReactNode {
+  if (!underline) return value;
+  return String(value)
+    .split('')
+    .map((ch, i) =>
+      ch === '6' || ch === '9' ? (
+        <span key={i} className="pp-digit-underline">
+          {ch}
+        </span>
+      ) : (
+        ch
+      )
+    );
+}
+
 function PlayerPanel({
   player,
   game,
@@ -621,6 +653,9 @@ function PlayerPanel({
   highRollActive: boolean;
   onHighRollDismiss: () => void;
 }) {
+  const lowLifeWarningEnabled = usePlayStore((st) => st.lowLifeWarningEnabled);
+  const underlineSixNine = usePlayStore((st) => st.underlineSixNine);
+  const minimalistMode = usePlayStore((st) => st.minimalistMode);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [lethalFlash, setLethalFlash] = useState(false);
@@ -829,8 +864,13 @@ function PlayerPanel({
 
   const isSideways = rotation === 90 || rotation === 270;
   // Ambient "danger" pulse when a player is in topdeck range but still alive.
+  // Lotus's own low health warning fires below 10; device pref, default on.
   const isLowLife =
-    game.status === 'active' && !player.eliminated && player.life >= 1 && player.life <= 5;
+    lowLifeWarningEnabled &&
+    game.status === 'active' &&
+    !player.eliminated &&
+    player.life >= 1 &&
+    player.life <= 9;
   // Highest commander damage taken from any single opponent — the value
   // that actually matters (lethal at 21 from one commander).
   const cmdDmgValues = Object.values(player.commanderDamage);
@@ -857,7 +897,7 @@ function PlayerPanel({
         } ${cmdTarget ? 'is-cmd-source' : ''} ${isCmdSelf ? 'is-cmd-self' : ''} ${
           // Either commander independently reaching 21 is lethal — never the sum.
           cmdTarget && (cmdValue >= 21 || cmdPartnerValue >= 21) ? 'is-cmd-lethal' : ''
-        } ${isCmdSplit ? 'is-cmd-split' : ''}`}
+        } ${isCmdSplit ? 'is-cmd-split' : ''} ${minimalistMode ? 'is-minimalist' : ''}`}
         // Rotation is set as a CSS variable consumed by the .player-panel
         // transform rule so it composes cleanly with any other transforms.
         // When no identity / no override applies, the inline palette vars
@@ -968,6 +1008,7 @@ function PlayerPanel({
                   handlers={tapHandlers}
                   stepLabel={(d) => stepLabel(d, false)}
                   onStep={(d) => adjust(d, false, false)}
+                  underline={underlineSixNine}
                 />
                 <CmdSplitHalf
                   name={player.partner!}
@@ -976,6 +1017,7 @@ function PlayerPanel({
                   handlers={partnerTapHandlers}
                   stepLabel={(d) => stepLabel(d, true)}
                   onStep={(d) => adjust(d, false, true)}
+                  underline={underlineSixNine}
                 />
               </div>
             </div>
@@ -1025,7 +1067,7 @@ function PlayerPanel({
                 }}
               >
                 <span key={popKey} className="player-panel-life-num is-pop">
-                  {animatedLife}
+                  {numeralDigits(animatedLife, underlineSixNine)}
                 </span>
               </button>
               {cmdTarget && cmdDamageToLethal(cmdValue) !== null && (
@@ -1166,7 +1208,7 @@ function PlayerPanel({
               <Dices width={20} height={20} strokeWidth={2} />
             </span>
             <span className="pp-highroll-value" aria-live="polite">
-              {highRollValue}
+              {numeralDigits(highRollValue, underlineSixNine)}
             </span>
             {isHighRollWinner && <span className="pp-highroll-caption">goes first</span>}
           </div>
@@ -1434,6 +1476,7 @@ function CmdSplitHalf({
   handlers,
   stepLabel,
   onStep,
+  underline,
 }: {
   name: string;
   value: number;
@@ -1442,6 +1485,7 @@ function CmdSplitHalf({
   handlers: (arg: number) => Record<string, unknown>;
   stepLabel: (delta: number) => string;
   onStep: (delta: number) => void;
+  underline: boolean;
 }) {
   const toLethal = cmdDamageToLethal(value);
   return (
@@ -1472,7 +1516,7 @@ function CmdSplitHalf({
           −
         </button>
         <span className="pp-cmd-half-value" aria-live="polite">
-          {value}
+          {numeralDigits(value, underline)}
         </span>
         <button
           type="button"

@@ -59,6 +59,10 @@ export interface LocalGameSetup {
   startingLife: number;
   commanderDamageEnabled: boolean;
   poisonEnabled: boolean;
+  /** Which way seats are arranged around the table. Optional — a setup built
+   *  before this field existed (an old saved table profile) omits it, and
+   *  `createGameState` reads that the same as an explicit `'clockwise'`. */
+  turnOrder?: 'clockwise' | 'counterclockwise';
   players: Array<{
     name: string;
     /**
@@ -293,6 +297,30 @@ interface PlayState {
   /** Show the active seat's turn time and let the clock pass the turn.
    *  Persisted; default on, same split as `gameTimerEnabled`. */
   turnTrackerEnabled: boolean;
+  /** Blink a red ring on a seat below 10 life (Lotus's "Low health warning").
+   *  Persisted; default on. `prefers-reduced-motion` swaps the blink for a
+   *  steady ring (see `play-enhancements.css`). */
+  lowLifeWarningEnabled: boolean;
+  /** Underline the digits 6 and 9 in every board numeral (life, commander
+   *  damage, high roll) so they can't be misread upside down. Persisted;
+   *  default off (Lotus's "Underlined 6 and 9" is opt-in too). */
+  underlineSixNine: boolean;
+  /** Hide the visible ± glyphs beside the life numeral (Lotus's "Minimalist
+   *  mode"). The tap zones and the step buttons themselves keep working —
+   *  only the glyphs (and their burst-count badge) are visually hidden, kept
+   *  in the DOM for screen reader / keyboard access. Persisted; default off. */
+  minimalistMode: boolean;
+  /**
+   * The starting life last chosen for a 2-player table, remembered
+   * separately from `startingLifeMultiplayer` (Lotus splits these the same
+   * way). `null` means no override yet — the setup form falls back to the
+   * picked format's own default. Persisted, device-local (a property of how
+   * this device's setup form defaults, not of any one game).
+   */
+  startingLifeTwoPlayer: number | null;
+  /** The starting life last chosen for a 3+ player table. See
+   *  `startingLifeTwoPlayer` — same rules, the other bracket. */
+  startingLifeMultiplayer: number | null;
   /**
    * Saved table setups — a pod that plays the same four people every week
    * shouldn't retype the roster each session. Persisted locally only: this is
@@ -320,6 +348,12 @@ interface PlayState {
   setHaptics(enabled: boolean): void;
   setGameTimerEnabled(enabled: boolean): void;
   setTurnTrackerEnabled(enabled: boolean): void;
+  setLowLifeWarningEnabled(enabled: boolean): void;
+  setUnderlineSixNine(enabled: boolean): void;
+  setMinimalistMode(enabled: boolean): void;
+  /** Remember the starting life last chosen for the given player-count
+   *  bracket ('two' = exactly 2, 'multi' = 3+). */
+  setStartingLifeForBracket(bracket: 'two' | 'multi', life: number): void;
   /** Save (or overwrite, by name) a setup as a reusable table profile. */
   saveTableProfile(name: string, setup: LocalGameSetup): void;
   deleteTableProfile(id: string): void;
@@ -802,6 +836,11 @@ export const usePlayStore = create<PlayState>()(
       hapticsEnabled: true,
       gameTimerEnabled: true,
       turnTrackerEnabled: true,
+      lowLifeWarningEnabled: true,
+      underlineSixNine: false,
+      minimalistMode: false,
+      startingLifeTwoPlayer: null,
+      startingLifeMultiplayer: null,
       tableProfiles: [],
       preferredLayouts: {},
       gameNightSeed: null,
@@ -814,6 +853,13 @@ export const usePlayStore = create<PlayState>()(
       },
       setGameTimerEnabled: (enabled) => set({ gameTimerEnabled: enabled }),
       setTurnTrackerEnabled: (enabled) => set({ turnTrackerEnabled: enabled }),
+      setLowLifeWarningEnabled: (enabled) => set({ lowLifeWarningEnabled: enabled }),
+      setUnderlineSixNine: (enabled) => set({ underlineSixNine: enabled }),
+      setMinimalistMode: (enabled) => set({ minimalistMode: enabled }),
+      setStartingLifeForBracket: (bracket, life) =>
+        set(
+          bracket === 'two' ? { startingLifeTwoPlayer: life } : { startingLifeMultiplayer: life }
+        ),
       saveTableProfile: (name, setup) => {
         const trimmed = name.replace(/\s+/g, ' ').trim().slice(0, MAX_PROFILE_NAME_LENGTH);
         if (!trimmed) return;
@@ -900,6 +946,7 @@ export const usePlayStore = create<PlayState>()(
           poisonEnabled: setup.poisonEnabled,
           // Honor a remembered arrangement for this table size, if any.
           layout: get().preferredLayouts[players.length],
+          turnOrder: setup.turnOrder,
           players,
         });
         const started = applyAction(game, { type: 'start' });
@@ -1453,7 +1500,7 @@ export const usePlayStore = create<PlayState>()(
     }),
     {
       name: 'mtg-play',
-      version: 2,
+      version: 3,
       /**
        * v1 → v2: `showClock` gated the total game time and the turn segment
        * together; split into `gameTimerEnabled` + `turnTrackerEnabled` so
@@ -1462,6 +1509,16 @@ export const usePlayStore = create<PlayState>()(
        * over unchanged to BOTH new flags — `showClock: true` (or absent, the
        * pre-preference default) already showed both readings, and `false`
        * hid both, so this is not a behavior change for anyone upgrading.
+       *
+       * v2 → v3: added the remaining Lotus board settings —
+       * `lowLifeWarningEnabled` (default true, matches the always-on warning
+       * every reader already saw before this was a preference),
+       * `underlineSixNine` / `minimalistMode` (default off, both opt-in), and
+       * the per-bracket `startingLifeTwoPlayer` / `startingLifeMultiplayer`
+       * memory (default null — "no override yet", so the setup form keeps
+       * falling back to the picked format's own default exactly as before).
+       * None of these existed pre-v3, so there's nothing to read out of the
+       * old state; the defaults below just need to be present.
        */
       migrate: (persistedState, fromVersion) => {
         const state = persistedState as Record<string, unknown> | undefined;
@@ -1471,6 +1528,14 @@ export const usePlayStore = create<PlayState>()(
           state.gameTimerEnabled = legacy;
           state.turnTrackerEnabled = legacy;
           delete state.showClock;
+        }
+        if (fromVersion < 3) {
+          if (typeof state.lowLifeWarningEnabled !== 'boolean') state.lowLifeWarningEnabled = true;
+          if (typeof state.underlineSixNine !== 'boolean') state.underlineSixNine = false;
+          if (typeof state.minimalistMode !== 'boolean') state.minimalistMode = false;
+          if (typeof state.startingLifeTwoPlayer !== 'number') state.startingLifeTwoPlayer = null;
+          if (typeof state.startingLifeMultiplayer !== 'number')
+            state.startingLifeMultiplayer = null;
         }
         return state;
       },
@@ -1514,6 +1579,11 @@ export const usePlayStore = create<PlayState>()(
         hapticsEnabled: s.hapticsEnabled,
         gameTimerEnabled: s.gameTimerEnabled,
         turnTrackerEnabled: s.turnTrackerEnabled,
+        lowLifeWarningEnabled: s.lowLifeWarningEnabled,
+        underlineSixNine: s.underlineSixNine,
+        minimalistMode: s.minimalistMode,
+        startingLifeTwoPlayer: s.startingLifeTwoPlayer,
+        startingLifeMultiplayer: s.startingLifeMultiplayer,
         tableProfiles: s.tableProfiles,
         preferredLayouts: s.preferredLayouts,
       }),

@@ -7,6 +7,7 @@ import {
   layoutsForCount,
   resolveLayout,
   seamSatellite,
+  turnOrderOf,
   undoButtonParams,
   type SeatSlot,
 } from './board-layouts';
@@ -293,5 +294,51 @@ describe('clockwise seat order (T-tenplayers)', () => {
     for (const count of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
       for (const l of layoutsForCount(count)) assertClockwise(l);
     }
+  });
+
+  // Counterclockwise reverses which SEAT sits in which cell (seat 0 stays
+  // anchored; the rest run backward) without touching a cell's position or
+  // rotation — so the geometric angle sequence must run the other way. The
+  // seat0→seat1 step is excluded: it's the one edge that wraps back through
+  // the anchor, so it isn't part of either monotonic run (the clockwise
+  // test's own relative[0] = 0 baseline makes that edge trivially ≥ 0 there,
+  // which is not evidence of direction the way every interior step is).
+  function assertCounterclockwise(layout: ReturnType<typeof layoutsForCount>[number]) {
+    const angles = layout.seats.map((seat) => angleDeg(seat, layout.rows));
+    const relative = angles.map((a) => (a - angles[0] + 360) % 360);
+    for (let i = 2; i < relative.length; i++) {
+      expect(
+        relative[i],
+        `${layout.id}: seat ${i} not counterclockwise from seat ${i - 1}`
+      ).toBeLessThanOrEqual(relative[i - 1]);
+    }
+  }
+
+  it('every preset (2-10) seats counterclockwise when turnOrder is reversed', () => {
+    for (const count of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      for (const l of layoutsForCount(count, 'counterclockwise')) assertCounterclockwise(l);
+    }
+  });
+
+  it('seat 0 stays in its cell either way; only the rest reverse', () => {
+    for (const count of [3, 4, 5, 6, 7, 8, 9, 10]) {
+      const cw = layoutsForCount(count)[0];
+      const ccw = layoutsForCount(count, 'counterclockwise')[0];
+      expect(ccw.seats[0]).toEqual(cw.seats[0]);
+      expect(ccw.seats.slice(1)).toEqual(cw.seats.slice(1).reverse());
+    }
+  });
+
+  it("a custom layout keeps the user's own order regardless of turnOrder", () => {
+    const id = encodeCustomLayout(pod4);
+    const cw = resolveLayout(4, id, 'clockwise');
+    const ccw = resolveLayout(4, id, 'counterclockwise');
+    expect(ccw).toEqual(cw);
+  });
+
+  it('turnOrderOf reads a legacy state (no field) as clockwise', () => {
+    expect(turnOrderOf({ turnOrder: undefined })).toBe('clockwise');
+    expect(turnOrderOf({ turnOrder: 'clockwise' })).toBe('clockwise');
+    expect(turnOrderOf({ turnOrder: 'counterclockwise' })).toBe('counterclockwise');
   });
 });

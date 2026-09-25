@@ -245,6 +245,105 @@ describe('Local setup — Horde (co-op)', () => {
   });
 });
 
+function blankSeat(name: string) {
+  return { name, deckId: null, deckName: null, commander: null, partner: null, colorIdentity: [] };
+}
+
+describe('Local setup — starting-life bracket memory', () => {
+  beforeEach(() => {
+    usePlayStore.setState({
+      local: null,
+      boardVisible: true,
+      startingLifeTwoPlayer: null,
+      startingLifeMultiplayer: null,
+      tableProfiles: [],
+    });
+  });
+  afterEach(() => {
+    usePlayStore.setState({
+      local: null,
+      startingLifeTwoPlayer: null,
+      startingLifeMultiplayer: null,
+      tableProfiles: [],
+    });
+  });
+
+  it('remembers a manual starting-life edit per bracket and swaps it back in when the count crosses 2↔3+', () => {
+    renderPage('/play/local');
+    const group = screen.getByRole('group', { name: 'Starting life' });
+    const decrease = within(group).getByRole('button', { name: 'Decrease' });
+    // Commander default is 40; dial the two-player bracket down to 30.
+    fireEvent.click(decrease);
+    fireEvent.click(decrease);
+    expect(within(group).getByText('30')).toBeTruthy();
+
+    // Crossing to 3 players: no memory yet for that bracket, so it falls
+    // back to the picked format's own default (40), not the two-player 30.
+    fireEvent.click(screen.getByRole('button', { name: 'Add player' }));
+    expect(within(group).getByText('40')).toBeTruthy();
+
+    // Back to 2: the two-player override reapplies.
+    fireEvent.click(screen.getByRole('button', { name: /^Remove Player 3/ }));
+    expect(within(group).getByText('30')).toBeTruthy();
+  });
+
+  it('picking a format always sets its canonical life, overriding a bracket override', () => {
+    renderPage('/play/local');
+    const group = screen.getByRole('group', { name: 'Starting life' });
+    fireEvent.click(within(group).getByRole('button', { name: 'Decrease' }));
+    expect(within(group).getByText('35')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Format/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Standard' }));
+    expect(within(group).getByText('20')).toBeTruthy();
+  });
+
+  it("a loaded table profile's starting life wins over any remembered bracket override", () => {
+    usePlayStore.setState({
+      startingLifeTwoPlayer: 30,
+      tableProfiles: [
+        {
+          id: 'p1',
+          name: 'Thursday',
+          savedAt: 1,
+          setup: {
+            format: 'commander',
+            startingLife: 25,
+            commanderDamageEnabled: true,
+            poisonEnabled: false,
+            players: [blankSeat('Alice'), blankSeat('Bob')],
+          },
+        },
+      ],
+    });
+    renderPage('/play/local');
+    fireEvent.click(screen.getByText('Thursday').closest('button')!);
+    const group = screen.getByRole('group', { name: 'Starting life' });
+    expect(within(group).getByText('25')).toBeTruthy();
+  });
+});
+
+describe('Local setup — turn order', () => {
+  beforeEach(() => {
+    usePlayStore.setState({ local: null, boardVisible: true });
+  });
+  afterEach(() => {
+    usePlayStore.setState({ local: null });
+  });
+
+  it('defaults to clockwise', () => {
+    renderPage('/play/local');
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(usePlayStore.getState().local!.turnOrder).toBe('clockwise');
+  });
+
+  it('flipping "Counterclockwise seating" carries turnOrder into the started game', () => {
+    renderPage('/play/local');
+    fireEvent.click(screen.getByRole('switch', { name: /Counterclockwise seating/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(usePlayStore.getState().local!.turnOrder).toBe('counterclockwise');
+  });
+});
+
 describe('History — removing a game asks first', () => {
   // Playtest batch 7: the × on every history row removed the record on one
   // tap, with no confirmation and no undo, and it never came back.
