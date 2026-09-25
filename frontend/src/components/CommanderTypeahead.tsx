@@ -1,5 +1,5 @@
 import './CommanderTypeahead.css';
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { SearchPill } from './SearchPill';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { searchCommanders } from '@/lib/discover-client';
@@ -8,6 +8,9 @@ interface Props {
   /** Currently selected commander filter, or null for "any". */
   value: string | null;
   onChange: (next: string | null) => void;
+  /** Docked inside the pill after the clear button (the filters popover),
+   *  the same slot every other SearchPill surface puts its filter icon in. */
+  trailing?: ReactNode;
 }
 
 const DEBOUNCE_MS = 250;
@@ -27,7 +30,7 @@ const DEBOUNCE_MS = 250;
  * that row is deliberately excluded from `results` so it's never reachable
  * via arrow-key nav or `aria-activedescendant`.
  */
-export function CommanderTypeahead({ value, onChange }: Props) {
+export function CommanderTypeahead({ value, onChange, trailing }: Props) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -141,17 +144,20 @@ export function CommanderTypeahead({ value, onChange }: Props) {
         ariaLabel="Filter by commander"
         hideClear
         trailing={
-          value && (
-            <button
-              type="button"
-              className="search-pill-clear"
-              onClick={clear}
-              aria-label="Clear commander filter"
-              title="Clear commander filter"
-            >
-              ×
-            </button>
-          )
+          <>
+            {value && (
+              <button
+                type="button"
+                className="search-pill-clear"
+                onClick={clear}
+                aria-label="Clear commander filter"
+                title="Clear commander filter"
+              >
+                ×
+              </button>
+            )}
+            {trailing}
+          </>
         }
         inputProps={{
           role: 'combobox',

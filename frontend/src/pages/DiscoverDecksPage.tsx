@@ -293,8 +293,8 @@ export function DiscoverDecksPage() {
           <CommanderTypeahead
             value={filters.commander}
             onChange={(commander) => setFilters({ ...filters, commander })}
+            trailing={<DiscoverFiltersPopover filters={filters} onChange={setFilters} />}
           />
-          <DiscoverFiltersPopover filters={filters} onChange={setFilters} />
           <SelectMenu
             value={sortField}
             options={sortOptions}

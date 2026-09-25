@@ -36,6 +36,7 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     ownerAvatarUrl: null,
     format: 'commander',
     commanderName: "Atraxa, Praetors' Voice",
+    commanderImageNormal: null,
     colorIdentity: ['W', 'U', 'B', 'G'],
     bracket: 3,
     estimatedBracket: null,

@@ -128,6 +128,7 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
     ownerAvatarUrl: row.owner_avatar_url,
     format: row.format,
     commanderName: row.commander_name,
+    commanderImageNormal: row.commander_image_normal,
     colorIdentity: row.color_identity,
     bracket: row.bracket,
     estimatedBracket: row.estimated_bracket,

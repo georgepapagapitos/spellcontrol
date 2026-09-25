@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import type { Server } from 'node:http';
 import type { Pool } from 'pg';
@@ -564,6 +564,40 @@ describe('GET /api/discover/decks', () => {
     expect(aEntry.cardOracleIds).toEqual([aCmdrOracle]);
     expect(bEntry.estimatedValueUsd).toBe(9);
     expect(bEntry.cardOracleIds).toEqual([bCmdrOracle]);
+  });
+
+  it("carries the deck's own commander printing, and follows a printing change on sync", async () => {
+    const cmdr = uid('Disco Printing Cmdr');
+    const commander = (normal: string) => ({
+      id: uid('c'),
+      oracle_id: 'disco-printing-oracle',
+      name: cmdr,
+      color_identity: ['B'],
+      image_uris: { normal },
+    });
+    const deck = await publishDeck({
+      commander: commander('https://cards.scryfall.io/normal/cn2.jpg'),
+    });
+    const listed = async () => {
+      const res = await request(app).get('/api/discover/decks').query({ commander: cmdr });
+      expect(res.status).toBe(200);
+      return res.body.decks.find((d: { slug: string }) => d.slug === deck.slug)!;
+    };
+    expect((await listed()).commanderImageNormal).toBe('https://cards.scryfall.io/normal/cn2.jpg');
+
+    // The owner swaps to the Secret Lair printing: the tile must follow it,
+    // not a by-name lookup that lands on Scryfall's default printing.
+    await setSnapshotViaSyncApi(request(app), deck.cookie, {
+      decks: [
+        makeDeckJson(deck.deckId, {
+          commander: commander('https://cards.scryfall.io/normal/sld.jpg'),
+        }),
+      ],
+    });
+    // The publication refresh is fire-and-forget after the sync response.
+    await vi.waitFor(async () =>
+      expect((await listed()).commanderImageNormal).toBe('https://cards.scryfall.io/normal/sld.jpg')
+    );
   });
 
   it('carries the owner display name (JOIN users) and null avatar when unset', async () => {
