@@ -250,6 +250,54 @@ describe('PlayPage rules door', () => {
   });
 });
 
+// The local setup form's rule toggles moved off the bespoke `RulePill` onto
+// the shared `SwitchRow` (board T139) — same aria contract, hint now visible
+// per STYLE_GUIDE § Config surfaces / § Table settings, unlike the lobby's
+// own compact RuleToggle which keeps its hint on `title`.
+describe('Local setup — rule switches', () => {
+  // A prior describe block's "Start game" click leaves `local` set on the
+  // shared usePlayStore singleton; without this the form renders GameBoard
+  // instead of LocalSetup.
+  beforeEach(() => {
+    usePlayStore.setState({ local: null, boardVisible: true });
+  });
+  afterEach(() => {
+    usePlayStore.setState({ local: null });
+  });
+
+  it('renders each rule as a named switch with a visible hint, reading real state', () => {
+    renderPage('/play/local');
+    for (const [name, hint] of [
+      ['Commander damage', 'Lose at 21 combat damage from a single commander.'],
+      ['Game timer', 'Show how long the game has run, with a pause.'],
+      ['Turn tracker', 'Show whose turn it is and how long, and pass it from the clock.'],
+      ['Counterclockwise seating', 'Seats run the other way around the table.'],
+      ['Poison counters', 'Lose at 10 poison counters.'],
+    ] as const) {
+      const row = screen.getByRole('switch', { name });
+      expect(screen.getByText(hint)).toBeTruthy();
+      const describedBy = row.getAttribute('aria-describedby');
+      expect(describedBy).toBeTruthy();
+      expect(document.getElementById(describedBy!)?.textContent).toBe(hint);
+    }
+    // Commander damage and poison default from the format; the rest default off.
+    expect(
+      screen.getByRole('switch', { name: 'Commander damage' }).getAttribute('aria-checked')
+    ).toBe('true');
+    expect(
+      screen.getByRole('switch', { name: 'Poison counters' }).getAttribute('aria-checked')
+    ).toBe('false');
+  });
+
+  it('flips a rule switch on click', () => {
+    renderPage('/play/local');
+    const poison = screen.getByRole('switch', { name: 'Poison counters' });
+    expect(poison.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(poison);
+    expect(poison.getAttribute('aria-checked')).toBe('true');
+  });
+});
+
 describe('Local setup — Horde (co-op)', () => {
   // A prior describe block's "Start game" click leaves `local` set on the
   // shared usePlayStore singleton; without this the form renders GameBoard
@@ -301,6 +349,26 @@ describe('Local setup — Horde (co-op)', () => {
     fireEvent.click(add);
     expect(screen.getAllByRole('textbox', { name: /Player \d name/ })).toHaveLength(4);
     expect(screen.queryByRole('button', { name: /Add player/ })).toBeNull();
+  });
+
+  // Bosses / Safe zone moved off `RulePill` onto `SwitchRow` too (board T139).
+  it('the Customise switches carry a visible hint and flip on click', () => {
+    renderPage('/play/local');
+    pickHorde();
+    fireEvent.click(screen.getByText('Customise'));
+    for (const [name, hint] of [
+      ['Bosses', 'A held-back boss joins the battlefield when the library crosses a tick.'],
+      ['Safe zone', "The horde's first cards skip its late-game threats."],
+    ] as const) {
+      const row = screen.getByRole('switch', { name });
+      const describedBy = row.getAttribute('aria-describedby');
+      expect(describedBy).toBeTruthy();
+      expect(document.getElementById(describedBy!)?.textContent).toBe(hint);
+    }
+    const bosses = screen.getByRole('switch', { name: 'Bosses' });
+    const before = bosses.getAttribute('aria-checked');
+    fireEvent.click(bosses);
+    expect(bosses.getAttribute('aria-checked')).not.toBe(before);
   });
 });
 

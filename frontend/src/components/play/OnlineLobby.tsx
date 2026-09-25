@@ -760,11 +760,10 @@ function LobbyRail({
 
 /**
  * A rule toggle, sized to sit in the settings list beside the plain rows
- * above it (Format, Starting life, ...) rather than as its own bordered
- * card. `RulePill` in SetupControls is the local setup form's two-line
- * card and stays that shape there; this is a lobby-only compact switch
- * that trades the always-visible hint sentence for a tooltip, since a row
- * this size has no room for one and still read as a setting, not clutter.
+ * above it (Format, Starting life, ...) rather than as its own full-width
+ * `SwitchRow`. This is a lobby-only compact switch that trades the
+ * always-visible hint sentence for a tooltip, since a row this size has no
+ * room for one and still read as a setting, not clutter.
  */
 function RuleToggle({
   labelId,

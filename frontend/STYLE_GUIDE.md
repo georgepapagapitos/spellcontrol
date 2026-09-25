@@ -2006,13 +2006,14 @@ the live board with a Start button in its header. Two regions at >=1024px
   Keep its help text to one short clause; it does not need to spell out the
   whole join flow.
 - **A rule toggle (commander damage, poison, turn timer) is a
-  `.lobby-setting` row, not a bordered card.** `RulePill` (`SetupControls`)
-  is the two-line card with a permanent hint sentence used by the local
-  setup form, and that shape stays there; the lobby's own `RuleToggle`
-  matches the plain settings rows above it and puts the hint sentence on
-  the control's `title` instead, since three permanent hint lines next to
-  four hint-less rows read as three heavier cards, not part of the same
-  list.
+  `.lobby-setting` row, not a `SwitchRow`.** The local setup form's own rule
+  toggles (`PlayPage`'s Rules section, `HordeSetupFields`' Bosses/Safe zone)
+  are `SwitchRow`s with their hint visible, same as every other config
+  surface on the kit. The lobby is the one place that shape doesn't fit: its
+  own `RuleToggle` matches the plain settings rows above it (Format, Starting
+  life, ...) and puts the hint sentence on the control's `title` instead,
+  since a full-width row per rule would read as heavier cards next to the
+  hint-less rows beside them, not part of the same list.
 - **Start puts you at the table.** The board is the online surface; this tab
   is the lobby before a game and the record after one. On the first render
   after a game goes active, a seat that has a deck is sent to
@@ -7654,7 +7655,7 @@ direction.
   presentation, not a rule, so it earns no log row and the backend validates
   it the same way it validates `visibility` (`invalidTurnOrderError`,
   `routes/games.ts`). It is picked once on the **local setup form**, next to
-  Game timer / Turn tracker (a `RulePill`, "Counterclockwise seating") — a
+  Game timer / Turn tracker (a `SwitchRow`, "Counterclockwise seating") — a
   fact decided before the game starts, unlike the device-level board display
   prefs above (which live in the game menu's Setup tab instead).
   - **The reducer's own turn order never changes.** Seat index + 1 is still

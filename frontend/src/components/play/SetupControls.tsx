@@ -55,34 +55,6 @@ export function Stepper({
   );
 }
 
-export function RulePill({
-  on,
-  onChange,
-  label,
-  hint,
-}: {
-  on: boolean;
-  onChange: (next: boolean) => void;
-  label: string;
-  hint: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      className={`play-rule-pill ${on ? 'is-on' : ''}`}
-      onClick={() => onChange(!on)}
-    >
-      <span className="play-rule-pill-label">{label}</span>
-      <span className="play-rule-pill-hint">{hint}</span>
-      <span className="play-rule-pill-state" aria-hidden="true">
-        {on ? 'On' : 'Off'}
-      </span>
-    </button>
-  );
-}
-
 // A seat's color-identity pips — the deck's colors are game information, so
 // the roster shows them the moment a deck is picked. WUBRG order, always.
 const WUBRG_ORDER = ['W', 'U', 'B', 'R', 'G'];

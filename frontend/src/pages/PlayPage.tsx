@@ -45,7 +45,8 @@ import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/
 import { aggregateMatchupRecords } from '../lib/matchup-records';
 import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/game-formats';
 import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '../lib/game-state';
-import { DeckPicker, RulePill, SeatPips, Stepper } from '../components/play/SetupControls';
+import { DeckPicker, SeatPips, Stepper } from '../components/play/SetupControls';
+import { SwitchRow } from '../components/shared/form';
 import type { PickedDeck } from '../components/play/DeckPickerDialog';
 import { deckBoardPath, starterFileName } from '../lib/starter-decks';
 import { TableProfiles } from '../components/play/TableProfiles';
@@ -981,38 +982,38 @@ function LocalSetup({
             warnings={hordeBanWarnings}
           />
         ) : (
-          <>
-            <RulePill
-              on={commanderDamageEnabled}
-              onChange={setCmdDmg}
+          <div className="play-setup-switches">
+            <SwitchRow
               label="Commander damage"
               hint="Lose at 21 combat damage from a single commander."
+              checked={commanderDamageEnabled}
+              onChange={setCmdDmg}
             />
-            <RulePill
-              on={gameTimerEnabled}
-              onChange={setGameTimerEnabled}
+            <SwitchRow
               label="Game timer"
               hint="Show how long the game has run, with a pause."
+              checked={gameTimerEnabled}
+              onChange={setGameTimerEnabled}
             />
-            <RulePill
-              on={turnTrackerEnabled}
-              onChange={setTurnTrackerEnabled}
+            <SwitchRow
               label="Turn tracker"
               hint="Show whose turn it is and how long, and pass it from the clock."
+              checked={turnTrackerEnabled}
+              onChange={setTurnTrackerEnabled}
             />
-            <RulePill
-              on={turnOrder === 'counterclockwise'}
-              onChange={(on) => setTurnOrder(on ? 'counterclockwise' : 'clockwise')}
+            <SwitchRow
               label="Counterclockwise seating"
               hint="Seats run the other way around the table."
+              checked={turnOrder === 'counterclockwise'}
+              onChange={(on) => setTurnOrder(on ? 'counterclockwise' : 'clockwise')}
             />
-            <RulePill
-              on={poisonEnabled}
-              onChange={setPoison}
+            <SwitchRow
               label="Poison counters"
               hint="Lose at 10 poison counters."
+              checked={poisonEnabled}
+              onChange={setPoison}
             />
-          </>
+          </div>
         )}
 
         {/* Free-form counters every seat starts with. Nothing here is a rule:
