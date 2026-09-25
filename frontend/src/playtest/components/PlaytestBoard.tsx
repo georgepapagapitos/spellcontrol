@@ -2926,6 +2926,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               : undefined
           }
           hiddenIds={viewer.zone === 'exile' ? faceDownExile : undefined}
+          libraryCount={libraryCount}
           onShuffleIntoLibrary={
             viewer.zone === 'graveyard' || viewer.zone === 'exile'
               ? () => {

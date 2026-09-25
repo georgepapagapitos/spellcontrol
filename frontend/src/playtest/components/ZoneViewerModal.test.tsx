@@ -128,6 +128,107 @@ describe('ZoneViewerModal — one primary action per tile, not a stacked list', 
   });
 });
 
+/**
+ * E366: the zone viewer's per-card overflow menu gets the battlefield menu's
+ * "Library X from top" row too, reusing CountPage (see
+ * menu-entries.tsx/CardContextMenu.tsx for the source of the convention this
+ * mirrors: `n` is the count of cards left ABOVE the moved card, so it lands
+ * (n + 1)th from the top).
+ */
+describe('ZoneViewerModal — Library X from top', () => {
+  it('offers the row, capped at the library size, and the stepper cannot exceed that cap', () => {
+    const cards = [ptCard('c1', 'Sol Ring')];
+    render(
+      <ZoneViewerModal
+        zone="graveyard"
+        cards={cards}
+        onClose={() => {}}
+        onMove={() => {}}
+        libraryCount={2}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Move Sol Ring' }));
+    expect(screen.getByRole('menuitem', { name: 'Library X from top' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Library X from top' }));
+    const input = screen.getByRole('spinbutton', { name: 'How many cards' });
+    expect(input.getAttribute('max')).toBe('2');
+    // Three clicks past a cap of 2 — the third is a no-op, not a 3rd card.
+    fireEvent.click(screen.getByRole('button', { name: 'One more' }));
+    fireEvent.click(screen.getByRole('button', { name: 'One more' }));
+    fireEvent.click(screen.getByRole('button', { name: 'One more' }));
+    expect(screen.getByRole('button', { name: 'Put it under 2 cards' })).toBeTruthy();
+  });
+
+  it('confirming dispatches the move to the library at the chosen index', () => {
+    const onMove = vi.fn();
+    const cards = [ptCard('c1', 'Sol Ring')];
+    render(
+      <ZoneViewerModal
+        zone="graveyard"
+        cards={cards}
+        onClose={() => {}}
+        onMove={onMove}
+        libraryCount={5}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Move Sol Ring' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Library X from top' }));
+    fireEvent.click(screen.getByRole('button', { name: 'One more' }));
+    fireEvent.click(screen.getByRole('button', { name: 'One more' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it under 3 cards' }));
+    expect(onMove).toHaveBeenCalledWith('c1', 'library', 3);
+  });
+
+  it("Cancel returns to the overflow menu's actions without moving the card", () => {
+    const onMove = vi.fn();
+    const cards = [ptCard('c1', 'Sol Ring')];
+    render(
+      <ZoneViewerModal
+        zone="graveyard"
+        cards={cards}
+        onClose={() => {}}
+        onMove={onMove}
+        libraryCount={5}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Move Sol Ring' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Library X from top' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('button', { name: 'Move Sol Ring' })).toBeTruthy();
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('hides the row when the library is empty', () => {
+    const cards = [ptCard('c1', 'Sol Ring')];
+    render(
+      <ZoneViewerModal
+        zone="graveyard"
+        cards={cards}
+        onClose={() => {}}
+        onMove={() => {}}
+        libraryCount={0}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Move Sol Ring' }));
+    expect(screen.queryByRole('menuitem', { name: 'Library X from top' })).toBeNull();
+  });
+
+  it('hides the row for a card already in the library', () => {
+    const cards = [ptCard('c1', 'Sol Ring'), ptCard('c2', 'Arcane Signet')];
+    render(
+      <ZoneViewerModal
+        zone="library"
+        cards={cards}
+        onClose={() => {}}
+        onMove={() => {}}
+        libraryCount={2}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Move Sol Ring' }));
+    expect(screen.queryByRole('menuitem', { name: 'Library X from top' })).toBeNull();
+  });
+});
+
 describe('ZoneViewerModal — empty vs no-match states', () => {
   it('shows the zone-specific empty message when the zone has no cards', () => {
     render(<ZoneViewerModal zone="graveyard" cards={[]} onClose={() => {}} onMove={() => {}} />);
