@@ -39,24 +39,20 @@ import { entryKey, useScanQueue } from '../lib/use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 /**
- * Compute the on-screen rectangle of the visible video band given a fit mode.
- * `contain` letterboxes (rect may be smaller than the container);
- * `cover` fills the container (rect may extend outside it — dispX/dispY can
- * be negative). The capture and viewfinder math both branch on this so the
- * cropped pixels stay aligned with what the user actually sees.
+ * Compute the on-screen rectangle of the `object-fit: cover` video. It fills
+ * the container and may extend past it (dispX/dispY can be negative). Capture
+ * and detection map viewport rects through this so the cropped pixels stay
+ * aligned with what the user actually sees.
  */
 function computeDisplayRect(
   vW: number,
   vH: number,
   cW: number,
-  cH: number,
-  fit: 'contain' | 'cover'
+  cH: number
 ): { dispX: number; dispY: number; dispW: number; dispH: number } {
   const videoAspect = vW / vH;
   const containerAspect = cW / cH;
-  const fillsWidth =
-    fit === 'contain' ? videoAspect > containerAspect : videoAspect < containerAspect;
-  if (fillsWidth) {
+  if (videoAspect < containerAspect) {
     const dispW = cW;
     const dispH = cW / videoAspect;
     return { dispX: 0, dispY: (cH - dispH) / 2, dispW, dispH };
@@ -256,17 +252,17 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Camera isn't available in this browser.");
       }
-      // Request a portrait-oriented stream. Phone cameras are physically
-      // landscape sensors, but browsers will crop/rotate to match the
-      // requested aspect — without this hint we get a 16:9 landscape feed
-      // that `object-fit: cover` then crops aggressively in portrait
-      // viewports (the "zoomed in" complaint). Asking for 1080×1920 makes
-      // the displayed frame match the screen much more closely.
+      // Ask in the sensor's own landscape terms. Mobile browsers match
+      // width/height against the camera's native (landscape) modes and then
+      // rotate frames to the screen, so 1920×1080 arrives as 1080×1920 on a
+      // portrait phone. The old portrait request (1080×1920) made Chrome on
+      // Android crop a tall slice out of the sensor and rotate *that*, which
+      // came back as a narrow, zoomed landscape band on a portrait screen.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1080 },
-          height: { ideal: 1920 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
           // Hint that we want close-up focus. Browsers that support these
           // advanced constraints (Chromium on Android primarily) will pick
           // continuous autofocus; iOS Safari ignores them silently and we
@@ -289,6 +285,20 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       // root cause of the "blurry through the camera" feeling was a fixed
       // focus distance picked at stream-start time.
       const track = stream.getVideoTracks()[0];
+      // A browser that reads the constraints the other way round still hands
+      // a portrait screen a landscape feed. Swap once for that case. This runs
+      // before the tuning below, since applyConstraints replaces the set.
+      const first = track?.getSettings?.() ?? {};
+      if (
+        window.innerHeight > window.innerWidth &&
+        first.width &&
+        first.height &&
+        first.width > first.height
+      ) {
+        await track
+          .applyConstraints({ width: { ideal: 1080 }, height: { ideal: 1920 } })
+          .catch((e) => logger.warn('[scanner] could not re-orient camera:', e));
+      }
       const caps = (track?.getCapabilities?.() ?? {}) as MediaTrackCapabilities & {
         torch?: boolean;
         focusMode?: string[];
@@ -397,16 +407,12 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   }, [onClose, isTopmost]);
 
   /**
-   * Keep the on-screen viewfinder sized to live inside the *visible*
-   * camera area. With `object-fit: contain` the video gets letterboxed
-   * when the stream aspect doesn't match the container — we want the
-   * framing rectangle to fit inside the visible video band, not the
-   * whole viewport.
-   *
-   * The math is plain "contain-fit": video either fills width or fills
-   * height of the container, whichever produces a fully-visible image.
-   * Once we know the displayed rect we drop a 5:7 portrait box centred
-   * inside it at ~78% of the smaller axis.
+   * Keep the viewfinder and search region in viewport coordinates. The
+   * preview is `object-fit: cover`, so the camera fills the whole screen
+   * the way the native app's preview did, and the visible band IS the
+   * container. A 5:7 portrait box sits centred inside it at ~78% of the
+   * smaller axis. Capture and detection map these rects back into video
+   * pixels through `computeDisplayRect`.
    */
   useEffect(() => {
     const video = videoRef.current;
@@ -417,51 +423,39 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       const cW = root.clientWidth;
       const cH = root.clientHeight;
       if (!cW || !cH) return;
-
-      // On native the preview cover-fits the sensor to the screen, so the
-      // visible band IS the screen — no need to consult video.videoWidth
-      // (which doesn't exist anyway, there's no <video> element).
-      if (!video) return;
-      const vW = video.videoWidth;
-      const vH = video.videoHeight;
-      if (!vW || !vH) return;
-      const { dispX, dispY, dispW, dispH } = computeDisplayRect(vW, vH, cW, cH, 'contain');
-
-      const visW = dispW;
-      const visH = dispH;
-      const visX = dispX;
-      const visY = dispY;
+      // Wait for real frames: the capture math needs the stream's size.
+      if (!video?.videoWidth || !video.videoHeight) return;
 
       // Default viewfinder: a 5:7 portrait box at ~78% of the smaller
       // axis. The user sees this when nothing has been detected yet.
       const FILL = 0.78;
       let vfW: number;
       let vfH: number;
-      if (visW / visH > CARD_ASPECT) {
-        vfH = visH * FILL;
+      if (cW / cH > CARD_ASPECT) {
+        vfH = cH * FILL;
         vfW = vfH * CARD_ASPECT;
       } else {
-        vfW = visW * FILL;
+        vfW = cW * FILL;
         vfH = vfW / CARD_ASPECT;
       }
       const nextDefault: Rect = {
-        left: visX + (visW - vfW) / 2,
-        top: visY + (visH - vfH) / 2,
+        left: (cW - vfW) / 2,
+        top: (cH - vfH) / 2,
         width: vfW,
         height: vfH,
       };
       setDefaultViewfinderRect(nextDefault);
 
-      // Search region: almost the full visible band (leave a 4% margin
-      // so chrome / safe-area insets don't bleed in). The detector
-      // looks for a card anywhere inside this rectangle — that's how
-      // the user can hover closer or further and still get a hit.
+      // Search region: almost the full screen (leave a 4% margin so
+      // chrome / safe-area insets don't bleed in). The detector looks
+      // for a card anywhere inside this rectangle — that's how the user
+      // can hover closer or further and still get a hit.
       const INSET = 0.04;
       const nextSearch: Rect = {
-        left: visX + visW * INSET,
-        top: visY + visH * INSET,
-        width: visW * (1 - 2 * INSET),
-        height: visH * (1 - 2 * INSET),
+        left: cW * INSET,
+        top: cH * INSET,
+        width: cW * (1 - 2 * INSET),
+        height: cH * (1 - 2 * INSET),
       };
       setSearchRect(nextSearch);
 
@@ -474,14 +468,22 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       setDetectorBufSize({ w: bufW, h: bufH });
     };
 
+    // `resize` fires when the stream's dimensions change: the re-orient
+    // swap above, or the phone turning.
     const onMeta = () => recompute();
-    if (video) video.addEventListener('loadedmetadata', onMeta);
+    if (video) {
+      video.addEventListener('loadedmetadata', onMeta);
+      video.addEventListener('resize', onMeta);
+    }
     const ro = new ResizeObserver(() => recompute());
     ro.observe(root);
     recompute();
 
     return () => {
-      if (video) video.removeEventListener('loadedmetadata', onMeta);
+      if (video) {
+        video.removeEventListener('loadedmetadata', onMeta);
+        video.removeEventListener('resize', onMeta);
+      }
       ro.disconnect();
     };
   }, [status]);
@@ -533,7 +535,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         const vh = video.videoHeight;
         const cW = root.clientWidth;
         const cH = root.clientHeight;
-        const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, 'contain');
+        const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH);
         const scale = vw / dispW;
         const cardX = (rect.left - dispX) * scale;
         const cardY = (rect.top - dispY) * scale;
@@ -693,7 +695,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       }
       if (!frameSource || !vw || !vh) return null;
 
-      const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, 'contain');
+      const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH);
       const scale = vw / dispW;
       const sx = (searchRect.left - dispX) * scale;
       const sy = (searchRect.top - dispY) * scale;

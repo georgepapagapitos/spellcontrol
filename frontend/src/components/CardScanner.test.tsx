@@ -120,4 +120,59 @@ describe('CardScanner', () => {
       expect(screen.getByRole('button', { name: 'Review 3 scanned cards' })).toBeTruthy()
     );
   });
+
+  describe('camera orientation on a portrait phone', () => {
+    // Browsers read width/height in the sensor's landscape terms and rotate
+    // frames to the screen. Asking for 1080×1920 made Chrome on Android hand
+    // a portrait phone a narrow, zoomed landscape band, reported from a real
+    // phone after the web scanner became the only one.
+    function liveCamera(settings: { width: number; height: number }) {
+      const track = {
+        getCapabilities: () => ({}),
+        getSettings: () => settings,
+        applyConstraints: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn(),
+      };
+      const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
+      const getUserMedia = vi.fn().mockResolvedValue(stream);
+      installMediaDevices({ getUserMedia });
+      HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(HTMLMediaElement.prototype, 'srcObject', {
+        configurable: true,
+        writable: true,
+        value: null,
+      });
+      return { getUserMedia, track };
+    }
+
+    beforeEach(() => {
+      vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(390);
+      vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(844);
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it('asks for the sensor-landscape size and leaves a portrait stream alone', async () => {
+      const { getUserMedia, track } = liveCamera({ width: 1080, height: 1920 });
+      render(<CardScanner onClose={vi.fn()} onConfirm={vi.fn()} />);
+
+      await screen.findByRole('button', { name: 'Close scanner' });
+      const video = getUserMedia.mock.calls[0][0].video;
+      expect(video.width).toEqual({ ideal: 1920 });
+      expect(video.height).toEqual({ ideal: 1080 });
+      expect(track.applyConstraints).not.toHaveBeenCalledWith(
+        expect.objectContaining({ width: expect.anything() })
+      );
+    });
+
+    it('swaps once when the browser still returns a landscape stream', async () => {
+      const { track } = liveCamera({ width: 1920, height: 1080 });
+      render(<CardScanner onClose={vi.fn()} onConfirm={vi.fn()} />);
+
+      await screen.findByRole('button', { name: 'Close scanner' });
+      expect(track.applyConstraints).toHaveBeenCalledWith({
+        width: { ideal: 1080 },
+        height: { ideal: 1920 },
+      });
+    });
+  });
 });
