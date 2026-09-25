@@ -244,10 +244,126 @@
 .coach-feed-rows {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* ── Suggestion rows as a table (E415) ──────────────────────────────────
+   Hairline rows, not bordered cards inside the panel (§ Surfaces: one
+   frame). From a 48rem feed each row is a grid: art | name + chips | why |
+   played in (the tinted % over a meter, one scale down the column) |
+   actions. The row body steps aside (`display: contents`) so its three parts
+   land in their own columns. Narrower, the row keeps its stacked anatomy:
+   art, then name, the inclusion line and the reason, with the actions right. */
+.coach-feed-rows > li > .deck-card-row {
+  padding: var(--space-3) 0;
+  background: none;
+  border: 0;
+  border-bottom: 0.5px solid var(--border);
+  border-radius: 0;
+}
+
+.coach-feed-rows > li:last-child > .deck-card-row {
+  border-bottom: 0;
+}
+
+.coach-feed-rows-head {
+  display: none;
+}
+
+/* A narrow feed gives the body the row's full width and puts the actions on
+   their own line at the right: beside a 140px pair of buttons the name, its
+   chips and the played-in line each broke onto two lines. */
+@container (max-width: 30rem) {
+  .coach-feed-rows > li > .deck-card-row {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  .coach-feed-rows > li > .deck-card-row > .deck-card-row-body {
+    flex-basis: calc(100% - var(--coach-art-col) - 0.6rem);
+  }
+
+  /* The first action after the body starts the right-aligned pair. */
+  .coach-feed-rows > li > .deck-card-row > .deck-card-row-body + button {
+    margin-left: auto;
+  }
+}
+
+/* The art column fits a swap's out -> in pair when the list has one, so every
+   row's name still starts at one line down the table. */
+.coach-feed-panel {
+  --coach-art-col: 52px;
+}
+
+.coach-feed-panel:has(.deck-card-row-swap-art) {
+  --coach-art-col: 7rem;
+}
+
+@container (min-width: 48rem) {
+  .coach-feed-rows-head,
+  .coach-feed-rows > li > .deck-card-row {
+    display: grid;
+    grid-template-columns: var(--coach-art-col) minmax(0, 1.2fr) minmax(0, 1fr) 9.5rem auto auto;
+    column-gap: var(--space-4);
+    align-items: center;
+  }
+
+  .coach-feed-rows-head {
+    padding-bottom: var(--space-2);
+    border-bottom: 0.5px solid var(--border);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+
+  .coach-feed-rows-head > :first-child {
+    grid-column: 2;
+  }
+
+  .coach-feed-rows > li > .deck-card-row > .deck-card-row-body {
+    display: contents;
+  }
+
+  .coach-feed-rows > li > .deck-card-row .deck-card-row-title {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .coach-feed-rows > li > .deck-card-row .deck-card-row-why {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .coach-feed-rows > li > .deck-card-row .deck-card-row-meta {
+    grid-column: 4;
+    grid-row: 1;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+  }
+
+  .coach-feed-rows > li > .deck-card-row .deck-card-row-incl {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .coach-feed-rows > li > .deck-card-row .deck-card-row-incl-meter {
+    display: block;
+  }
+
+  .coach-feed-rows > li > .deck-card-row > .deck-card-row-secondary-act {
+    grid-column: 5;
+    grid-row: 1;
+  }
+
+  .coach-feed-rows > li > .deck-card-row > .deck-card-row-act {
+    grid-column: 6;
+    grid-row: 1;
+  }
 }
 
 /* "Show all N suggestions" — the feed's progressive-disclosure expander.

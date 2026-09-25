@@ -1,6 +1,7 @@
 import { formatBytes } from '../lib/format-bytes';
 import { formatMoney } from '../lib/format-money';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOverflowEdges } from '@/lib/use-overflow-edges';
 import {
   listUsers,
   deleteUser,
@@ -138,28 +139,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
   // the actions column past the right edge read as clipped layout.
   const usersScrollRef = useRef<HTMLDivElement | null>(null);
   const usersTableMounted = !loading && !error && users.length > 0;
-  useLayoutEffect(() => {
-    const el = usersScrollRef.current;
-    if (!el) return;
-    const update = () => {
-      const max = el.scrollWidth - el.clientWidth;
-      let next = 'none';
-      if (max > 1) {
-        const atStart = el.scrollLeft <= 1;
-        const atEnd = el.scrollLeft >= max - 1;
-        next = atStart ? 'end' : atEnd ? 'start' : 'both';
-      }
-      if (el.dataset.overflow !== next) el.dataset.overflow = next;
-    };
-    update();
-    el.addEventListener('scroll', update, { passive: true });
-    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
-    ro?.observe(el);
-    return () => {
-      el.removeEventListener('scroll', update);
-      ro?.disconnect();
-    };
-  }, [usersTableMounted]);
+  useOverflowEdges(usersScrollRef, usersTableMounted);
 
   // Refreshes the list (used after mount and after a successful delete). The
   // *initial* load goes through the useEffect below directly to avoid a

@@ -168,4 +168,14 @@
     order: -1;
     max-width: none;
   }
+
+  /* Sort and View pack left under the search; the ⋮ holds the right edge.
+     Spread with space-between they read as three unrelated controls. */
+  .deck-toolbar-controls {
+    justify-content: flex-start;
+  }
+
+  .deck-toolbar-more {
+    margin-left: auto;
+  }
 }

@@ -27,6 +27,13 @@ export interface WhyFactor {
 
 const pct = (n: number): string => `${Math.round(n)}%`;
 
+/**
+ * EDHREC synergy as a whole percent. The score is a -1..1 fraction (0.12 is
+ * "+12% more often with this commander than in its colors"), so rounding it
+ * bare printed "+0%" for every card (E415).
+ */
+export const synergyPct = (synergy: number): number => Math.round(synergy * 100);
+
 /** Inclusion → a one-word "how staple", matching DeckCardRow's <10/50 break. */
 function stapleWord(inclusion: number): 'staple' | 'common' | 'fringe' {
   if (inclusion >= 50) return 'staple';
@@ -67,9 +74,9 @@ export function buildSwapAlternativeFactors(s: SwapAlternativeSignals): WhyFacto
         : { text: `A ${word} in similar decks (${pct(s.inclusion)})`, tone: 'pro' }
     );
   }
-  if (typeof s.synergy === 'number' && s.synergy > 0) {
+  if (typeof s.synergy === 'number' && synergyPct(s.synergy) >= 1) {
     out.push({
-      text: `Pulls its weight on synergy${s.commanderName ? ` with ${s.commanderName}` : ''} (+${pct(s.synergy)})`,
+      text: `Pulls its weight on synergy${s.commanderName ? ` with ${s.commanderName}` : ''} (+${synergyPct(s.synergy)}%)`,
       tone: 'pro',
     });
   }
@@ -172,9 +179,9 @@ export function buildGapAddFactors(s: GapAddSignals): WhyFactor[] {
         : { text: `A ${word} in similar decks (${pct(s.inclusion)})`, tone: 'pro' }
     );
   }
-  if (typeof s.synergy === 'number' && s.synergy > 0) {
+  if (typeof s.synergy === 'number' && synergyPct(s.synergy) >= 1) {
     out.push({
-      text: `Overperforms with this commander (+${pct(s.synergy)} vs baseline)`,
+      text: `Overperforms with this commander (+${synergyPct(s.synergy)}% vs baseline)`,
       tone: 'pro',
     });
   }

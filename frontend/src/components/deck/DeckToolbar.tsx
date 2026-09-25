@@ -421,6 +421,7 @@ export function DeckToolbar({
         {isNarrowGrid && (
           <OverflowMenu
             ariaLabel="Deck list actions"
+            className="deck-toolbar-more"
             triggerClassName="toolbar-pill"
             items={[
               ...(canBulkEdit && !selectMode

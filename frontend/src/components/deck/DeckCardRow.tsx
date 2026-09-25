@@ -18,6 +18,9 @@ import { useCardThumb } from '@/lib/card-thumbs';
 import { formatMoney } from '@/lib/format-money';
 import { ManaCost } from '../ManaCost';
 import { classifyInclusion } from '@/lib/inclusion-label';
+import { synergyPct } from '@/lib/why-factors';
+import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
+import { MeterBar } from '../shared/MeterBar';
 
 /** Card art, or a placeholder while it resolves (thin EDHREC/synergy rows arrive
  *  name-only and resolve their CDN art lazily — never a bare img against the
@@ -93,6 +96,10 @@ export interface DeckCardRowProps {
     ariaLabel: string;
     onClick: () => void;
   };
+  /** Show the incoming card's art crop, wide, instead of the whole card
+   *  shrunk to a sliver. The Coach feed's table reads by art; the swap
+   *  panels keep the card. */
+  artThumb?: boolean;
 }
 
 /**
@@ -113,12 +120,20 @@ export function DeckCardRow({
   acting,
   peekName,
   secondaryAction,
+  artThumb,
 }: DeckCardRowProps): JSX.Element {
   const { name, reason, ownership, inclusion, synergy, roleLabel, deltaPrice, manaCost } = change;
   // Prefer an imageUrl already carried by the Change; otherwise resolve the
   // card's CDN art by name (cached + batched), never the rate-limited API host.
-  const resolved = useCardThumb(change.imageUrl ? undefined : name);
-  const thumb = change.imageUrl || resolved;
+  const resolved = useCardThumb(
+    change.imageUrl ? undefined : name,
+    artThumb ? 'art_crop' : undefined
+  );
+  const thumb = change.imageUrl
+    ? artThumb
+      ? scryfallArtCrop(change.imageUrl)
+      : change.imageUrl
+    : resolved;
   const preview = onPreview ? () => onPreview(change) : undefined;
   const previewOut = onPreviewOut ? () => onPreviewOut(change) : undefined;
   const ActIcon = ACT_ICON[change.type];
@@ -132,7 +147,7 @@ export function DeckCardRow({
   const inThumb = (
     <button
       type="button"
-      className="deck-card-row-art"
+      className={`deck-card-row-art${artThumb ? ' deck-card-row-art--crop' : ''}`}
       data-peek-name={peekName}
       onClick={preview}
       disabled={!preview}
@@ -152,17 +167,28 @@ export function DeckCardRow({
   // moves) show no "Off-meta" label: `isOffMetaChange` is the one rule, shared
   // with the feed's Off-meta count so the chip and the count never disagree.
   const inclusionInfo = classifyInclusion(inclusion);
+  const synergyShown = typeof synergy === 'number' ? synergyPct(synergy) : 0;
+  // The meter under it only shows where the row is a table (the Coach feed),
+  // so a column of them scans as one scale.
   const inclusionNode =
     inclusionInfo.kind === 'pct' ? (
       <span className="deck-card-row-incl">
-        In{' '}
-        <span
-          className="deck-card-row-incl-pct"
-          style={{ color: inclusionColor(inclusionInfo.pct) }}
-        >
-          {inclusionInfo.pct}%
-        </span>{' '}
-        of {commanderName ? `${commanderName} ` : ''}decks
+        <span className="deck-card-row-incl-text">
+          In{' '}
+          <span
+            className="deck-card-row-incl-pct"
+            style={{ color: inclusionColor(inclusionInfo.pct) }}
+          >
+            {inclusionInfo.pct}%
+          </span>{' '}
+          of {commanderName ? `${commanderName} ` : ''}decks
+        </span>
+        <MeterBar
+          className="deck-card-row-incl-meter"
+          value={inclusionInfo.pct}
+          max={100}
+          color={inclusionColor(inclusionInfo.pct)}
+        />
       </span>
     ) : isOffMetaChange(change) ? (
       <span className="deck-card-row-incl is-offmeta">Off-meta</span>
@@ -212,7 +238,19 @@ export function DeckCardRow({
             />
           )}
           {roleLabel && <VerdictBadge tone="neutral" label={roleLabel} />}
-          {change.isThemeSynergy && <VerdictBadge tone="accent" label="Synergy" />}
+          {/* Synergy is a chip, and only above zero: EDHREC's score is a -1..1
+              fraction, and a "+0% synergy" line in green said nothing. */}
+          {(change.isThemeSynergy || synergyShown > 0) && (
+            <VerdictBadge
+              tone="accent"
+              label={synergyShown > 0 ? `Synergy +${synergyShown}%` : 'Synergy'}
+              title={
+                synergyShown > 0
+                  ? `Played ${synergyShown}% more with this commander than in its colors`
+                  : undefined
+              }
+            />
+          )}
           {ownership === 'owned' && <OwnershipBadge owned />}
           {ownership === 'in-other-deck' && (
             <VerdictBadge
@@ -244,9 +282,6 @@ export function DeckCardRow({
         </span>
         <span className="deck-card-row-meta">
           {inclusionNode}
-          {typeof synergy === 'number' && synergy > 0 && (
-            <span className="deck-card-row-syn">+{Math.round(synergy)}% synergy</span>
-          )}
           {typeof deltaPrice === 'number' && (
             <span className="deck-card-row-price">
               {deltaPrice >= 0 ? '+' : '−'}
@@ -254,22 +289,25 @@ export function DeckCardRow({
             </span>
           )}
         </span>
-        {reason && <span className="deck-card-row-reason">{reason}</span>}
-        {/* E274: the AI refine reading picked this same card. Its sentence is
-            model-written, so it carries the provenance marker and stays apart
-            from the engine's grounded reason/factors above and below it. */}
-        {change.aiWhy && (
-          <span className="deck-card-row-ai">
-            <AiMarker label="AI agrees" />
-            {change.aiWhy}
-          </span>
-        )}
-        {change.whyFactors && change.whyFactors.length > 0 && (
-          <WhyBreakdown
-            factors={change.whyFactors}
-            label={change.type === 'cut' ? 'Why cut this?' : 'Why this?'}
-          />
-        )}
+        {/* The why: one cell of the Coach table, stacked under the name elsewhere. */}
+        <div className="deck-card-row-why">
+          {reason && <span className="deck-card-row-reason">{reason}</span>}
+          {/* E274: the AI refine reading picked this same card. Its sentence is
+              model-written, so it carries the provenance marker and stays apart
+              from the engine's grounded reason/factors above and below it. */}
+          {change.aiWhy && (
+            <span className="deck-card-row-ai">
+              <AiMarker label="AI agrees" />
+              {change.aiWhy}
+            </span>
+          )}
+          {change.whyFactors && change.whyFactors.length > 0 && (
+            <WhyBreakdown
+              factors={change.whyFactors}
+              label={change.type === 'cut' ? 'Why cut this?' : 'Why this?'}
+            />
+          )}
+        </div>
       </div>
 
       {secondaryAction && (

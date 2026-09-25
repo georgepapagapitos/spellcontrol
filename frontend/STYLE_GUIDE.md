@@ -147,6 +147,10 @@ meanwhile.
 - **Chip rows are one line.** Past the width they scroll horizontally with an
   edge fade; they never wrap into a second row with one chip left over.
   Explanatory text for a chip row goes in an `InfoTip`, not a sentence under it.
+  The fade is `useOverflowEdges` (`lib/use-overflow-edges.ts`), which sets
+  `data-overflow` to the edge(s) with more behind them. It is the one copy:
+  `Tabs`, the admin users table and the deck's role chips use it, so never
+  hand-roll another scroll listener for a fade.
 - **Surfaces: one frame.** Tiles are sleeves (`--surface-raised` +
   `--shadow-card`, no outline). A list is hairline rows under a section header,
   never a bordered card holding bordered rows. Outlines belong to controls.
@@ -3650,6 +3654,14 @@ three times on one screen, so these rulings now hold:
   what the hero does _not_ say: avg mana value, archetype, missing, new
   arrivals. Never re-print a hero number in a strip, panel title or badge below
   it. (Tab health badges are exempt — they are verdicts, not the number.)
+- **The top of the Deck tab puts the first cards on a phone's first screen
+  (2026-09-25, E415).** Under 600px the glance strip is one line: its cells
+  spread across the width, long labels swap for short ones ("avg MV"), and
+  the missing cards' price drops (the buy list the stat opens states it);
+  more than four stats scroll with the edge fade. Sort and View pack left
+  under the search with the `⋮` on the right edge. The role chips are one
+  scrolling line at every width. The archetype's label is "plays as", the
+  stats band's word for it.
 - **A panel's eyebrow is its only title.** `Panel title="Mana curve"` means the
   child renders no `<h4>Mana curve</h4>` of its own; sub-headings inside a panel
   (Color → Distribution / Mana base) are fine because they name _parts_. The
@@ -6801,6 +6813,11 @@ The tab reads top-to-bottom as **verdict → work surface → catalog → extras
 and every zone wears the panel vocabulary the other analysis tabs already use:
 
 1. **Next best move** hero — the verdict. Always expanded, max 3 moves.
+   **Every numbered step has an action** (2026-09-25, E415): Add, Fill, a
+   jump to another tab, or, when the move points at the tab you are on, a
+   "Show upgrades" / "Show gaps" button that opens that lane. A move with
+   nothing to do ("Limited data") is a muted note under the steps, never a
+   numbered step with an empty right edge.
 2. **"Suggestions" panel** — the feed (chips + strips + rows) sits inside the
    shared `.deck-stats-panel--wide` chrome with a `.deck-stats-panel-title`
    header. A bare chips-and-rows zone on the bento reads as an unstructured
@@ -6850,6 +6867,28 @@ right:
 
 Never hand-roll a suggestion row outside `DeckCardRow` — the primitive owns
 the thumb, badges, reason, and action layout.
+
+### The feed is a table (2026-09-25, E415)
+
+The Suggestions panel's rows are hairline rows, not bordered cards inside the
+panel (§ Surfaces: one frame). From a 48rem feed each row is a grid with a
+quiet column header (Card / Why / Played in): the art, the name with its
+chips, the why (reason, "AI agrees", Why this?), the played-in cell (the
+tinted "In 71% of Sram decks" over a `MeterBar` in the same `inclusionColor`,
+one scale down the column), then Fit & cut and the primary action. The row
+body steps aside with `display: contents` so its parts land in their columns;
+the art column widens to fit a swap's out → in pair when the list has one.
+Under 30rem the body takes the row's full width and the actions sit on their
+own line at the right.
+
+- **The thumb is the art crop** (`DeckCardRow artThumb`, 52px wide at 4:3),
+  not a whole card shrunk to 42px. The swap panels keep the card.
+- **Synergy is a chip, only above zero:** `Synergy +34%` in the accent
+  `VerdictBadge`. EDHREC's synergy is a −1..1 fraction; `synergyPct` in
+  `lib/why-factors.ts` is the one conversion. Printing it rounded bare put a
+  green "+0% synergy" on every row.
+- **The rows name the commander by its short name** ("Sram", not "Sram,
+  Senior Edificer"), so the played-in line holds one line in its column.
 
 ### Why disclosure (the reasoning behind a suggestion)
 

@@ -115,6 +115,46 @@ describe('NextBestMove', () => {
     expect(screen.queryByText(/Checking for combos/)).toBeNull();
   });
 
+  // E415: every numbered step has an action. On the tab a move points at, a
+  // move with a focus opens that part of the tab instead of losing its button;
+  // a move with nowhere to go is a note under the steps, not a numbered step.
+  it('gives a same-tab move with a focus a Show action', () => {
+    const onNavigate = vi.fn();
+    const fit: Move[] = [
+      {
+        id: 'cardfit',
+        tier: 2,
+        title: 'Tighten card fit',
+        detail: '1 misfit. Swap low-fit cards for stronger options.',
+        navigateTo: 'tune',
+        focus: 'upgrade',
+      },
+    ];
+    render(<NextBestMove moves={fit} onNavigate={onNavigate} currentView="tune" />);
+    fireEvent.click(screen.getByRole('button', { name: /Show upgrades/ }));
+    expect(onNavigate).toHaveBeenCalledWith('tune', 'upgrade');
+  });
+
+  it('renders a move with no action as a note, not a numbered step', () => {
+    const withNote: Move[] = [
+      ...moves,
+      {
+        id: 'limited-data',
+        tier: 3,
+        title: 'Limited data',
+        detail: 'Some sub-scores were excluded.',
+      },
+    ];
+    const { container } = render(
+      <NextBestMove moves={withNote} onNavigate={vi.fn()} currentView="stats" />
+    );
+    expect(container.querySelectorAll('.next-best-move-row')).toHaveLength(2);
+    expect(container.querySelector('.next-best-move-note')?.textContent).toContain('Limited data');
+    for (const row of container.querySelectorAll('.next-best-move-row')) {
+      expect(row.querySelector('button')).toBeTruthy();
+    }
+  });
+
   it('suppresses the navigate button when navigateTo === currentView', () => {
     const onNavigate = vi.fn();
     render(<NextBestMove moves={moves} onNavigate={onNavigate} currentView="tune" />);

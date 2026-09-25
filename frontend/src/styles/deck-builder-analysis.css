@@ -279,6 +279,60 @@
   color: var(--text-muted);
 }
 
+/* A phone swaps a long label for its short form ("avg MV"), and drops the
+   missing cards' price, which the buy list it opens states. */
+.deck-stat-label-short {
+  display: none;
+}
+
+/* A phone fits the strip on one line (E415): four cells spread across the
+   width, never three and a straggler. With more than four stats (open slots,
+   new arrivals) the line scrolls, and the edge with more behind it fades
+   (`data-overflow`, set by useOverflowEdges). */
+@media (max-width: 600px) {
+  .deck-stat-strip {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: var(--space-4);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    /* Room for the focus ring inside the scroller's clip. */
+    padding: var(--space-1);
+    margin: calc(var(--space-1) * -1);
+  }
+
+  .deck-stat-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .deck-stat-strip[data-overflow='end'] {
+    mask-image: linear-gradient(to right, #000 calc(100% - var(--space-6)), transparent 100%);
+  }
+
+  .deck-stat-strip[data-overflow='start'] {
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--space-6));
+  }
+
+  .deck-stat-strip[data-overflow='both'] {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--space-6),
+      #000 calc(100% - var(--space-6)),
+      transparent 100%
+    );
+  }
+
+  .deck-stat-label-long {
+    display: none;
+  }
+
+  .deck-stat-label-short {
+    display: inline;
+  }
+}
+
 .deck-stat-missing .deck-stat-value,
 .deck-stat-missing .deck-stat-label {
   color: var(--warn-text, #b85c00);

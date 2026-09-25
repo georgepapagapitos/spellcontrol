@@ -1,7 +1,10 @@
 import type { JSX } from 'react';
 import './NextBestMove.css';
-import { ArrowRight, Loader2, Plus, Sparkles, WandSparkles } from 'lucide-react';
-import type { NextBestMove } from '@/deck-builder/services/deckBuilder/nextBestMove';
+import { ArrowDown, ArrowRight, Loader2, Plus, Sparkles, WandSparkles } from 'lucide-react';
+import type {
+  NextBestMove,
+  NextBestMoveFocus,
+} from '@/deck-builder/services/deckBuilder/nextBestMove';
 import type { DeckView } from './DeckDisplay';
 
 /** Human-readable destination names for the navigate button's aria-label. */
@@ -10,6 +13,16 @@ const VIEW_LABELS: Record<DeckView, string> = {
   stats: 'Stats',
   power: 'Power',
   tune: 'Coach',
+};
+
+/** A move that points at the tab you're on opens its part of that tab. */
+const FOCUS_ACTIONS: Record<NextBestMoveFocus, string> = {
+  combos: 'Show combos',
+  'fill-gaps': 'Show gaps',
+  upgrade: 'Show upgrades',
+  budget: 'Show budget swaps',
+  collection: 'Show your cards',
+  'bracket-fit': 'Show Bracket Fit',
 };
 
 export interface NextBestMoveProps {
@@ -50,11 +63,19 @@ export function NextBestMove({
   combosLoading,
   currentView,
 }: NextBestMoveProps): JSX.Element {
-  const shown = moves.slice(0, 3);
+  // A numbered step always has something to do (E415): a move with no card,
+  // no fill and no place to go is a note under the steps, not a step.
+  const actionable = (m: NextBestMove) =>
+    !!m.cardName ||
+    m.id === 'size-under' ||
+    (!!m.navigateTo && (m.navigateTo !== currentView || !!m.focus));
+  const top = moves.slice(0, 3);
+  const shown = top.filter(actionable);
+  const notes = top.filter((m) => !actionable(m));
   // Hold a slot for a still-loading combo suggestion — but only when there's
   // room (the list caps at 3) and no combo move is already shown.
   const showComboLoading =
-    !!combosLoading && shown.length < 3 && !shown.some((m) => m.focus === 'combos');
+    !!combosLoading && top.length < 3 && !top.some((m) => m.focus === 'combos');
 
   if (moves.length === 0 && !showComboLoading) {
     return (
@@ -81,6 +102,9 @@ export function NextBestMove({
           const canFill = move.id === 'size-under' && !!onFill;
           const adding = !!move.cardName && (busyNames?.has(move.cardName) ?? false);
           const showNav = move.navigateTo && onNavigate && move.navigateTo !== currentView;
+          // Same tab, but a part of it to open (a Coach move while on Coach).
+          const showFocus =
+            !showNav && move.navigateTo && onNavigate && move.focus ? move.focus : undefined;
           return (
             <li
               key={move.id}
@@ -93,7 +117,7 @@ export function NextBestMove({
                 <p className="next-best-move-title">{move.title}</p>
                 <p className="next-best-move-detail">{move.detail}</p>
               </div>
-              {(canApply || canFill || showNav) && (
+              {(canApply || canFill || showNav || showFocus) && (
                 <div className="next-best-move-actions">
                   {canFill && (
                     <button type="button" className="next-best-move-add" onClick={onFill}>
@@ -115,6 +139,16 @@ export function NextBestMove({
                         <Plus className="next-best-move-add-icon" aria-hidden="true" />
                       )}
                       Add
+                    </button>
+                  )}
+                  {showFocus && (
+                    <button
+                      type="button"
+                      className="next-best-move-nav"
+                      onClick={() => onNavigate!(move.navigateTo!, showFocus)}
+                    >
+                      <span className="next-best-move-nav-label">{FOCUS_ACTIONS[showFocus]}</span>
+                      <ArrowDown className="next-best-move-nav-icon" aria-hidden="true" />
                     </button>
                   )}
                   {showNav && (
@@ -147,6 +181,11 @@ export function NextBestMove({
           </li>
         )}
       </ol>
+      {notes.map((m) => (
+        <p key={m.id} className="next-best-move-note">
+          <strong className="next-best-move-note-title">{m.title}</strong> <span>{m.detail}</span>
+        </p>
+      ))}
     </section>
   );
 }
