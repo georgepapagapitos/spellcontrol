@@ -14,6 +14,13 @@ export interface ListingFields {
   commanderImageNormal: string | null;
   colorIdentity: string[];
   bracket: number | null;
+  /**
+   * The auto-estimate, independent of `bracket` (stated ?? estimate) — so a
+   * listing can show "Bracket 2 · est. 4" instead of letting a stated number
+   * hide what the deck actually estimates at (2026-09-24 ruling). Null when
+   * the deck has never been analyzed.
+   */
+  estimatedBracket: number | null;
   cardCount: number;
   /**
    * og:image for the public `/d/:slug` landing (w1-public-routes-linkability).
@@ -92,6 +99,7 @@ export function extractListingFields(deckData: unknown): ListingFields | null {
       asFiniteNumber(deck.bracketOverride) ??
       asFiniteNumber(asRecord(deck.bracketEstimation)?.bracket) ??
       null,
+    estimatedBracket: asFiniteNumber(asRecord(deck.bracketEstimation)?.bracket) ?? null,
     // Counted with the SAME guard the public deck page renders with, not
     // `cardsArr.length`: this number is the /d/:slug link preview's "N cards"
     // and the /u/ tile's count, and a slot with no `card` is one the page

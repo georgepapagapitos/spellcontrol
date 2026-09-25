@@ -23,6 +23,7 @@ import { useCurrency } from '../../lib/currency';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
 import { priceOf } from '../deck/deck-display-rows';
 import { effectiveBracket } from '../../store/decks';
+import { bracketTextWithEstimate } from '../../lib/format-bracket-label';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { DeckDisplay, type DeckView } from '../deck/DeckDisplay';
@@ -40,7 +41,7 @@ import { useDeckCombos } from '../../lib/use-deck-combos';
 import { partitionCombosByZone } from '../../lib/combo-zone-partition';
 import type { ChangeOwnership } from '../../lib/deck-change';
 import type { CardOwnership } from './SharedCardTile';
-import { bracketReasons } from '@spellcontrol/deck-metrics';
+import { bracketReasons, bracketBorderline } from '@spellcontrol/deck-metrics';
 
 // Below this, a platform count (views/copies) reads as more "ghost town" than
 // informative, so each is hidden entirely rather than shown as a tiny number
@@ -253,6 +254,18 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
     [deckCards, currency]
   );
   const bracketValue = effectiveBracket(deck);
+  // A stated bracket that differs from the estimate carries the estimate
+  // alongside it — the same "shown to other people, so it can't hide the
+  // estimate" rule the tiles and lists follow (2026-09-24 ruling). On Auto
+  // bracketValue already IS the estimate, so nothing extra renders.
+  const bracketHeroText =
+    bracketValue != null
+      ? deck.bracketOverride != null &&
+        deck.bracketEstimation?.bracket != null &&
+        deck.bracketEstimation.bracket !== bracketValue
+        ? bracketTextWithEstimate(bracketValue, deck.bracketEstimation.bracket)
+        : `Bracket ${bracketValue}`
+      : null;
 
   const owner = formatIdentity({
     username: data.ownerUsername,
@@ -310,8 +323,8 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
               {heroValue > 0 && `\u00A0· ${formatMoney(heroValue, { currency })}`}
               {data.sideboard.length > 0 && `\u00A0· +${data.sideboard.length}\u00A0sideboard`}
             </span>
-            {bracketValue != null && (
-              <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketValue}`}</span>
+            {bracketHeroText && (
+              <span className="deck-hero-bracket">{`\u00A0· ${bracketHeroText}`}</span>
             )}
           </p>
           {/* Byline, not a banner: whose deck this is belongs under the name,
@@ -435,7 +448,11 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
             <PowerHero
               bracket={effectiveBracket(deck) ?? null}
               bracketOverridden={deck.bracketOverride != null}
+              bracketEstimate={deck.bracketEstimation?.bracket ?? null}
               bracketReasons={deck.bracketEstimation ? bracketReasons(deck.bracketEstimation) : []}
+              bracketBorderline={
+                deck.bracketEstimation ? bracketBorderline(deck.bracketEstimation) : null
+              }
               engineLabel={deck.synergyAnalysis?.axes[0]?.label}
               engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
               enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}

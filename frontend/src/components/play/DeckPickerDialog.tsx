@@ -14,6 +14,7 @@ import {
 } from '../../lib/use-product-commander';
 import { userMessage } from '../../lib/user-error';
 import { effectiveBracket, type Deck } from '../../store/decks';
+import { bracketTextWithEstimate } from '../../lib/format-bracket-label';
 import type { ProductSummary } from '../../types';
 import './DeckPickerDialog.css';
 
@@ -232,6 +233,17 @@ function MyDecksTab({
           )}
           {shown.map(({ deck, label }) => {
             const bracket = effectiveBracket(deck);
+            // A stated bracket that differs from the estimate carries the
+            // estimate alongside it — this list is what shows up when a
+            // teammate/opponent chooses a deck for the table (2026-09-24
+            // ruling). On Auto, bracket already IS the estimate.
+            const estimate = deck.bracketEstimation?.bracket;
+            const bracketText =
+              bracket !== undefined
+                ? deck.bracketOverride != null && estimate != null && estimate !== bracket
+                  ? bracketTextWithEstimate(bracket, estimate)
+                  : `Bracket ${bracket}`
+                : undefined;
             return (
               <li key={deck.id}>
                 <button
@@ -247,9 +259,7 @@ function MyDecksTab({
                     )}
                   </span>
                   {label !== deck.name && <span className="sr-only">{label}</span>}
-                  {bracket !== undefined && (
-                    <span className="deck-picker-row-bracket">Bracket {bracket}</span>
-                  )}
+                  {bracketText && <span className="deck-picker-row-bracket">{bracketText}</span>}
                 </button>
               </li>
             );

@@ -948,6 +948,9 @@ export const deckPublications = pgTable(
     ogArtCrop: text('og_art_crop'),
     colorIdentity: jsonb('color_identity').notNull().default([]).$type<string[]>(),
     bracket: integer('bracket'),
+    /** The auto-estimate, independent of `bracket` (stated ?? estimate) —
+     *  see the ALTER in db/index.ts for the 2026-09-24 ruling this backs. */
+    estimatedBracket: integer('estimated_bracket'),
     cardCount: integer('card_count').notNull().default(0),
     viewCount: integer('view_count').notNull().default(0),
     copyCount: integer('copy_count').notNull().default(0),

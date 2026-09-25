@@ -37,6 +37,7 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     commanderName: "Atraxa, Praetors' Voice",
     colorIdentity: ['W', 'U', 'B', 'G'],
     bracket: 3,
+    estimatedBracket: null,
     estimatedValueUsd: 245,
     viewCount: 340,
     copyCount: 12,
@@ -214,5 +215,33 @@ describe('DiscoverDeckTile — list view stays the pre-v2 compact row', () => {
     expect(stats?.textContent).toContain('$245.00');
     expect(stats?.textContent).toContain('340 views');
     expect(stats?.textContent).toContain('8 likes');
+  });
+});
+
+describe('DiscoverDeckTile — bracket badge carries the estimate (2026-09-24 ruling)', () => {
+  it('shows only the stated tier word when no estimate differs', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ bracket: 3, estimatedBracket: null });
+
+    expect(container.querySelector('.decks-index-card-meta')?.textContent).toContain('Upgraded');
+    expect(container.querySelector('.decks-index-card-meta')?.textContent).not.toContain('est.');
+  });
+
+  it('adds "· est. <tier>" to the badge and the accessible name when the estimate differs', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ bracket: 2, estimatedBracket: 4 });
+
+    expect(container.querySelector('.decks-index-card-meta')?.textContent).toContain(
+      'Core · est. Optimized'
+    );
+    const link = container.querySelector('.discover-tile-link');
+    expect(link?.getAttribute('aria-label')).toContain('Bracket 2 stated, estimate 4');
+  });
+
+  it('omits the estimate when it equals the stated bracket', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ bracket: 3, estimatedBracket: 3 });
+
+    expect(container.querySelector('.decks-index-card-meta')?.textContent).not.toContain('est.');
   });
 });

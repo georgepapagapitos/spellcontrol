@@ -74,8 +74,9 @@ export async function refreshDeckPublications(
         `UPDATE deck_publications
             SET deck_name = $3, format = $4, commander_name = $5,
                 commander_image_normal = $6, og_art_crop = $7, color_identity = $8::jsonb,
-                bracket = $9, card_count = $10, deck_rev = $11, updated_at = $12
-          WHERE user_id = $1 AND deck_id = $2 AND deck_rev < $11`,
+                bracket = $9, estimated_bracket = $10, card_count = $11, deck_rev = $12,
+                updated_at = $13
+          WHERE user_id = $1 AND deck_id = $2 AND deck_rev < $12`,
         [
           userId,
           row.id,
@@ -86,6 +87,7 @@ export async function refreshDeckPublications(
           fields.ogArtCrop,
           JSON.stringify(fields.colorIdentity),
           fields.bracket,
+          fields.estimatedBracket,
           fields.cardCount,
           row.rev,
           Date.now(),

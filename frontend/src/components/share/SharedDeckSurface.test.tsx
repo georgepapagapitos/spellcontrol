@@ -9,12 +9,43 @@
  * the kind of thing a later refactor breaks silently: pass one handler through
  * by reflex and a stranger gets a Remove button on someone else's deck.
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useAuth } from '../../store/auth';
 import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
+import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { SharedDeckSurface } from './SharedDeckSurface';
+
+/** A full BracketEstimation fixture — the Bracket panel's BracketBreakdown
+ *  reads `breakdown` directly (no fallback for an absent object), so a test
+ *  that opens the Power tab needs the whole shape, not just `bracket`. */
+function estimation(bracket: number): BracketEstimation {
+  return {
+    bracket: bracket as 1 | 2 | 3 | 4 | 5,
+    label: 'Core',
+    hardFloors: [],
+    softScore: 20,
+    breakdown: {
+      gameChangerCount: 0,
+      gameChangerNames: [],
+      massLandDenialCount: 0,
+      massLandDenialNames: [],
+      extraTurnCount: 0,
+      extraTurnNames: [],
+      twoCardComboCount: 0,
+      multiCardComboCount: 0,
+      fastManaCount: 0,
+      fastManaNames: [],
+      tutorCount: 0,
+      tutorNames: [],
+      staxPieceCount: 0,
+      staxPieceNames: [],
+      averageCmc: 3,
+      interactionCount: 5,
+    },
+  } as BracketEstimation;
+}
 
 function card(name: string, typeLine = 'Creature — Human'): PublicDeckCard {
   return { card: { name, type_line: typeLine, cmc: 2 } };
@@ -238,5 +269,36 @@ describe('SharedDeckSurface', () => {
     renderSurface();
     expect(screen.queryByRole('button', { name: /Copy to my decks/i })).toBeNull();
     expect(screen.getByRole('link', { name: /Edit this deck/i })).toBeTruthy();
+  });
+
+  it('carries the estimate alongside a stated bracket that differs, in the hero and the Power hero (2026-09-24 ruling)', () => {
+    renderSurface(
+      makeDeck({
+        commander: { name: 'Atraxa, Praetors’ Voice', type_line: 'Legendary Creature' },
+        bracketOverride: 2,
+        bracketEstimation: estimation(4),
+      })
+    );
+    const hero = document.querySelector('.deck-editor-hero')!;
+    expect(hero.querySelector('.deck-hero-bracket')?.textContent).toContain('Bracket 2 · est. 4');
+    // PowerHero's own secondary line, same rule as the owner's deck page —
+    // only rendered once the Power tab is active.
+    fireEvent.click(screen.getByRole('tab', { name: 'Power' }));
+    expect(screen.getByText(/Estimate: Bracket 4/)).toBeTruthy();
+  });
+
+  it('shows only the stated bracket, no estimate line, when it matches the estimate', () => {
+    renderSurface(
+      makeDeck({
+        commander: { name: 'Atraxa, Praetors’ Voice', type_line: 'Legendary Creature' },
+        bracketOverride: 3,
+        bracketEstimation: estimation(3),
+      })
+    );
+    const hero = document.querySelector('.deck-editor-hero')!;
+    expect(hero.querySelector('.deck-hero-bracket')?.textContent).toContain('Bracket 3');
+    expect(hero.querySelector('.deck-hero-bracket')?.textContent).not.toContain('est.');
+    fireEvent.click(screen.getByRole('tab', { name: 'Power' }));
+    expect(screen.queryByText(/Estimate:/)).toBeNull();
   });
 });

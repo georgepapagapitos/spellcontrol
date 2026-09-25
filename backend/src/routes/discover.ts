@@ -109,6 +109,7 @@ interface PublicationSqlRow {
   commander_image_normal: string | null;
   color_identity: string[];
   bracket: number | null;
+  estimated_bracket: number | null;
   card_count: number;
   view_count: number;
   copy_count: number;
@@ -129,6 +130,7 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
     commanderName: row.commander_name,
     colorIdentity: row.color_identity,
     bracket: row.bracket,
+    estimatedBracket: row.estimated_bracket,
     viewCount: row.view_count,
     copyCount: row.copy_count,
     likeCount: row.like_count,
@@ -142,7 +144,8 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
 const LISTING_COLUMNS = `dp.user_id, dp.deck_id, dp.slug, dp.deck_name, u.username AS owner_username,
        u.display_name AS owner_display_name, u.avatar_image_url AS owner_avatar_url,
        dp.format, dp.commander_name, dp.commander_image_normal, dp.color_identity,
-       dp.bracket, dp.card_count, dp.view_count, dp.copy_count, dp.like_count, dp.published_at`;
+       dp.bracket, dp.estimated_bracket, dp.card_count, dp.view_count, dp.copy_count,
+       dp.like_count, dp.published_at`;
 
 // Real deck_publications columns only — the required fold. $4 (colorIdentity)
 // is the one JSONB predicate, over deck_publications' own small denormalized

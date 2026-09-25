@@ -135,6 +135,7 @@ function DeckGrid({ decks, username }: { decks: PublicProfileDeck[]; username: s
         commanderImage: deck.commanderImage,
         colorIdentity: deck.colorIdentity,
         bracket: deck.bracket,
+        estimatedBracket: deck.estimatedBracket,
         updatedAt: deck.updatedAt,
         // Publication stats — this surface has them, a friend's library does not.
         statsLine: tileStatsLine(deck),

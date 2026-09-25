@@ -1655,6 +1655,42 @@ describe('GET /api/friends/:friendId/decks', () => {
     expect(res.body.decks[0].commanderImage).toContain('art_crop');
   });
 
+  it('carries the raw estimate for a friends-rung deck too, via the same extractor', async () => {
+    const owner = await makeUserFull('dl-estimate-owner');
+    const viewer = await makeUserFull('dl-estimate-viewer');
+    await befriend(owner, viewer);
+
+    await pool.query(
+      `INSERT INTO user_decks (user_id, id, data, rev, updated_at)
+       VALUES ($1, $2, $3, nextval('user_data_rev_seq'), $4)`,
+      [
+        owner.id,
+        'deck-estimate',
+        JSON.stringify({
+          id: 'deck-estimate',
+          name: 'Estimate Pile',
+          format: 'commander',
+          commander: { name: 'Krenko, Mob Boss', color_identity: ['R'] },
+          cards: [],
+          bracketOverride: 2,
+          bracketEstimation: { bracket: 4 },
+        }),
+        Date.now(),
+      ]
+    );
+    await createShare(owner.cookie, {
+      kind: 'deck',
+      resourceId: 'deck-estimate',
+      audience: 'friends',
+    });
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/decks`)
+      .set('Cookie', viewer.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.decks[0]).toMatchObject({ bracket: 2, estimatedBracket: 4 });
+  });
+
   it('does NOT widen the ladder — link-rung and unshared decks stay invisible', async () => {
     // The load-bearing assertion. This endpoint is a UNION of two rungs the
     // friend can already see, never an ambient "friends see everything".

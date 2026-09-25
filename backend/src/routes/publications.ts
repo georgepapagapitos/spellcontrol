@@ -156,8 +156,8 @@ publicationsRouter.post(
       `UPDATE deck_publications
           SET deck_name = $3, format = $4, commander_name = $5,
               commander_image_normal = $6, og_art_crop = $7, color_identity = $8::jsonb,
-              bracket = $9, card_count = $10, deck_rev = $11, updated_at = $12,
-              unpublished_at = NULL
+              bracket = $9, estimated_bracket = $10, card_count = $11, deck_rev = $12,
+              updated_at = $13, unpublished_at = NULL
         WHERE user_id = $1 AND deck_id = $2
         RETURNING slug, published_at, updated_at, unpublished_at, view_count, copy_count`,
       [
@@ -170,6 +170,7 @@ publicationsRouter.post(
         fields.ogArtCrop,
         JSON.stringify(fields.colorIdentity),
         fields.bracket,
+        fields.estimatedBracket,
         fields.cardCount,
         Number(rev),
         now,

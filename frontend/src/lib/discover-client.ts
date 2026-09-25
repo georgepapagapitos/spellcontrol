@@ -22,6 +22,9 @@ export interface DiscoverDeck {
   commanderName: string | null;
   colorIdentity: string[];
   bracket: number | null;
+  /** The auto-estimate, independent of `bracket` — null on a row published
+   *  before the 2026-09-24 ruling, or for a deck never analyzed. */
+  estimatedBracket: number | null;
   estimatedValueUsd: number | null;
   viewCount: number;
   copyCount: number;

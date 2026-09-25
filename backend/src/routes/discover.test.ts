@@ -176,6 +176,7 @@ interface DecksResponseBody {
     commanderName: string | null;
     colorIdentity: string[];
     bracket: number | null;
+    estimatedBracket: number | null;
     estimatedValueUsd: number | null;
     viewCount: number;
     copyCount: number;
@@ -328,6 +329,22 @@ describe('GET /api/discover/decks', () => {
       .query({ commander: cmdr, format: 'legacy', bracket: '1' });
     expect(combined.status).toBe(200);
     expect(slugsOf(combined.body)).toEqual([b1.slug]);
+  });
+
+  it('carries the raw estimate alongside a stated bracket, filtering still on the stated/displayed one', async () => {
+    // The bracket filter/sort stay on `bracket` (stated ?? estimate) — this
+    // just proves the independent estimatedBracket column rides along in the
+    // listing response (2026-09-24 ruling: a stated number can't hide the
+    // estimate in a list).
+    const { slug } = await publishDeck({
+      bracketOverride: 2,
+      bracketEstimation: { bracket: 4 },
+    });
+    const res = await request(app).get('/api/discover/decks').query({ pageSize: 48 });
+    expect(res.status).toBe(200);
+    const deck = (res.body as DecksResponseBody).decks.find((d) => d.slug === slug);
+    expect(deck?.bracket).toBe(2);
+    expect(deck?.estimatedBracket).toBe(4);
   });
 
   it('sorts by newest, most-copied, and most-viewed', async () => {

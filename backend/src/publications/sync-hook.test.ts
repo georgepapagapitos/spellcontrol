@@ -107,6 +107,7 @@ interface PublicationFixtureOverrides {
   ogArtCrop: string | null;
   colorIdentity: string[];
   bracket: number | null;
+  estimatedBracket: number | null;
   cardCount: number;
   deckRev: number;
   publishedAt: number;
@@ -129,6 +130,7 @@ async function seedPublication(
     ogArtCrop: null,
     colorIdentity: [],
     bracket: null,
+    estimatedBracket: null,
     cardCount: 0,
     deckRev: 0,
     publishedAt: 1000,
@@ -138,8 +140,9 @@ async function seedPublication(
   await pool.query(
     `INSERT INTO deck_publications
        (user_id, deck_id, slug, deck_name, format, commander_name, commander_image_normal,
-        og_art_crop, color_identity, bracket, card_count, deck_rev, published_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14)`,
+        og_art_crop, color_identity, bracket, estimated_bracket, card_count, deck_rev,
+        published_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15)`,
     [
       userId,
       deckId,
@@ -151,6 +154,7 @@ async function seedPublication(
       o.ogArtCrop,
       JSON.stringify(o.colorIdentity),
       o.bracket,
+      o.estimatedBracket,
       o.cardCount,
       o.deckRev,
       o.publishedAt,
@@ -168,6 +172,7 @@ interface PublicationFixtureRow {
   og_art_crop: string | null;
   color_identity: string[];
   bracket: number | null;
+  estimated_bracket: number | null;
   card_count: number;
   deck_rev: string;
   updated_at: string;
@@ -179,7 +184,7 @@ async function readPublication(
 ): Promise<PublicationFixtureRow | undefined> {
   const res = await pool.query<PublicationFixtureRow>(
     `SELECT slug, deck_name, format, commander_name, commander_image_normal, og_art_crop,
-            color_identity, bracket, card_count, deck_rev, updated_at
+            color_identity, bracket, estimated_bracket, card_count, deck_rev, updated_at
        FROM deck_publications WHERE user_id = $1 AND deck_id = $2`,
     [userId, deckId]
   );
@@ -190,7 +195,12 @@ describe('refreshDeckPublications — upserts', () => {
   it('refreshes every denormalized column (incl. og_art_crop) and bumps updated_at/deck_rev', async () => {
     const userId = 'u-refresh-all';
     await seedUser(userId, 'refresh-all');
-    await upsertDeck(userId, 'deck-1', baseDeckData(), 5);
+    await upsertDeck(
+      userId,
+      'deck-1',
+      baseDeckData({ bracketOverride: 3, bracketEstimation: { bracket: 4 } }),
+      5
+    );
     await seedPublication(userId, 'deck-1', { slug: 'frozen-slug', deckRev: 1 });
 
     const applied: AppliedRow[] = [{ kind: 'deck', id: 'deck-1', rev: 5, deletedAt: null }];
@@ -206,6 +216,10 @@ describe('refreshDeckPublications — upserts', () => {
     expect(row!.og_art_crop).toBe('https://cards.scryfall.io/art_crop/atraxa.jpg');
     expect(row!.color_identity).toEqual(['W', 'U', 'B', 'G']);
     expect(row!.card_count).toBe(2); // commander + 1 mainboard card
+    // The stated bracket (3) and the raw estimate (4) refresh independently —
+    // a stated bracket never overwrites estimated_bracket.
+    expect(row!.bracket).toBe(3);
+    expect(row!.estimated_bracket).toBe(4);
     expect(Number(row!.deck_rev)).toBe(5);
     expect(Number(row!.updated_at)).toBeGreaterThan(1000);
   });

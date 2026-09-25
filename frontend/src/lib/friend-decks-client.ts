@@ -30,6 +30,9 @@ export interface FriendDeck {
   colorIdentity: string[];
   cardCount: number;
   bracket: number | null;
+  /** The auto-estimate, independent of `bracket` — null on a row published
+   *  before the 2026-09-24 ruling, or for a deck never analyzed. */
+  estimatedBracket: number | null;
   /** Why it is visible — the tile badges `friends` so the viewer knows the
    *  difference between "anyone can see this" and "they showed me this". */
   visibility: 'published' | 'friends';

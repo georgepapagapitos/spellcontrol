@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '@/lib/format-bracket-label';
 import type { DeckFormat } from '@/deck-builder/types';
 import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '../../lib/discover-filters';
 import { DiscoverFiltersPopover } from '../DiscoverFiltersPopover';
@@ -34,6 +35,10 @@ export interface LibraryDeck {
   commanderImage: string | null;
   colorIdentity: string[];
   bracket: number | null;
+  /** The auto-estimate, independent of `bracket` — shown alongside it
+   *  whenever they differ (2026-09-24 ruling), so a stated bracket can't
+   *  hide what the deck actually estimates at. Null when unavailable. */
+  estimatedBracket?: number | null;
   /** Sort key for "Recently updated" — published-at or updated-at, per caller. */
   updatedAt: number;
   /** On-art overlay (views · copies · recency). The public profile has these
@@ -227,7 +232,11 @@ function DeckLibraryTile({
     deck.commanderName ? `led by ${deck.commanderName}` : null,
     formatLabel(deck.format),
     colorSummary(deck.colorIdentity),
-    deck.bracket != null ? BRACKET_LABELS[deck.bracket] : null,
+    deck.bracket != null
+      ? deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
+        ? bracketAriaWithEstimate(deck.bracket, deck.estimatedBracket)
+        : BRACKET_LABELS[deck.bracket]
+      : null,
     deck.statsLine,
     deck.badge,
   ]
@@ -290,7 +299,11 @@ function DeckLibraryTile({
             )}
             <span className="deck-format-badge">{formatLabel(deck.format)}</span>
             {deck.bracket != null && (
-              <span className="deck-bracket-badge">{BRACKET_LABELS[deck.bracket]}</span>
+              <span className="deck-bracket-badge">
+                {deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
+                  ? bracketBadgeWithEstimate(deck.bracket, deck.estimatedBracket)
+                  : BRACKET_LABELS[deck.bracket]}
+              </span>
             )}
           </div>
           {deck.commanderName && (

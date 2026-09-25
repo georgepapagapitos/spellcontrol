@@ -1,4 +1,5 @@
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { bracketTextWithEstimate } from '@/lib/format-bracket-label';
 import type { DeckIdentity } from '@/deck-builder/services/deckBuilder/deckIdentity';
 import {
   summarizeValidation,
@@ -22,6 +23,14 @@ export interface IdentityLineInput {
   formatLabel: string;
   /** The effective bracket number (1-5) or undefined when no bracket computed yet. */
   bracket?: number;
+  /**
+   * The auto-estimate, independent of any stated override — shown as
+   * "· est. N" next to the bracket segment whenever it differs from
+   * `bracket` (2026-09-24 ruling: a stated bracket can't hide the estimate).
+   * When `bracket` equals the estimate (Auto, or a stated bracket that
+   * happens to match), nothing extra renders.
+   */
+  estimatedBracket?: number;
   /** The validation result to summarize. */
   validation: ValidationResult;
 }
@@ -32,7 +41,7 @@ export interface IdentityLineInput {
  * Band words only — no raw scores in the line.
  */
 export function buildIdentityLine(input: IdentityLineInput): IdentitySegment[] {
-  const { identity, formatLabel, bracket, validation } = input;
+  const { identity, formatLabel, bracket, estimatedBracket, validation } = input;
   const segments: IdentitySegment[] = [];
 
   // Archetype segment — always first. Pacing and archetype are detected
@@ -52,9 +61,13 @@ export function buildIdentityLine(input: IdentityLineInput): IdentitySegment[] {
   // Bracket segment — only when bracket is known
   if (bracket !== undefined) {
     const tierWord = BRACKET_LABELS[bracket] ?? String(bracket);
+    const text =
+      estimatedBracket != null && estimatedBracket !== bracket
+        ? bracketTextWithEstimate(bracket, estimatedBracket)
+        : `Bracket ${bracket}`;
     segments.push({
       kind: 'bracket',
-      text: `Bracket ${bracket}`,
+      text,
       tipText: tierWord,
     });
   }

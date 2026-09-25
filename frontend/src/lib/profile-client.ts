@@ -10,6 +10,9 @@ export interface PublicProfileDeck {
   colorIdentity: string[];
   cardCount: number;
   bracket: number | null;
+  /** The auto-estimate, independent of `bracket` — null on a row published
+   *  before the 2026-09-24 ruling, or for a deck never analyzed. */
+  estimatedBracket: number | null;
   viewCount: number;
   copyCount: number;
   publishedAt: number;

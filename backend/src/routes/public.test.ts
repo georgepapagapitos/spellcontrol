@@ -353,6 +353,9 @@ describe('GET /api/public/users/:username', () => {
     const res = await request(app).get('/api/public/users/pub-profile-bracket');
     expect(res.status).toBe(200);
     expect(res.body.decks[0].bracket).toBe(4);
+    // The raw estimate rides alongside the stated bracket — a stated number
+    // never hides what the deck actually estimates at (2026-09-24 ruling).
+    expect(res.body.decks[0].estimatedBracket).toBe(2);
   });
 
   it('404s an unknown username', async () => {

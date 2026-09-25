@@ -130,6 +130,35 @@ describe('your own decks', () => {
       screen.getByRole('button', { name: 'Pick a random deck' }).hasAttribute('disabled')
     ).toBe(true);
   });
+
+  it('shows the estimate alongside a stated bracket that differs (2026-09-24 ruling)', () => {
+    open({
+      decks: [
+        deck({
+          id: 'd2',
+          name: 'Sandbagged',
+          bracketOverride: 2,
+          bracketEstimation: { bracket: 4 } as Deck['bracketEstimation'],
+        }),
+      ],
+    });
+    expect(screen.getByText('Bracket 2 · est. 4')).toBeTruthy();
+  });
+
+  it('shows only the stated bracket when it matches the estimate', () => {
+    open({
+      decks: [
+        deck({
+          id: 'd2',
+          name: 'Matched',
+          bracketOverride: 3,
+          bracketEstimation: { bracket: 3 } as Deck['bracketEstimation'],
+        }),
+      ],
+    });
+    expect(screen.getByText('Bracket 3')).toBeTruthy();
+    expect(screen.queryByText(/est\./)).toBeNull();
+  });
 });
 
 describe('the starter catalog', () => {

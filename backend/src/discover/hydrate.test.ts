@@ -63,6 +63,7 @@ function listingRow(overrides: Partial<PublicationListingRow>): PublicationListi
     commanderName: 'Test Commander',
     colorIdentity: ['U'],
     bracket: 3,
+    estimatedBracket: null,
     viewCount: 0,
     copyCount: 0,
     likeCount: 0,
@@ -74,6 +75,27 @@ function listingRow(overrides: Partial<PublicationListingRow>): PublicationListi
 describe('hydratePublicationRows', () => {
   it('returns [] for empty input', async () => {
     expect(await hydratePublicationRows([])).toEqual([]);
+  });
+
+  it('carries estimatedBracket straight through from the listing row', async () => {
+    await makeUser('hyd-user-est', 'hyd-owner-est');
+    await makeDeck('hyd-user-est', 'deck-est', {
+      id: 'deck-est',
+      name: 'Estimate Deck',
+      format: 'commander',
+      cards: [],
+    });
+    const [row] = await hydratePublicationRows([
+      listingRow({
+        userId: 'hyd-user-est',
+        deckId: 'deck-est',
+        slug: 'estimate-deck',
+        bracket: 2,
+        estimatedBracket: 4,
+      }),
+    ]);
+    expect(row.bracket).toBe(2);
+    expect(row.estimatedBracket).toBe(4);
   });
 
   it('sums price per physical copy, dedupes cardOracleIds, nulls the value on partial cache coverage, and attributes both correctly per deck with no cross-deck bleed', async () => {

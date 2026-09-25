@@ -124,6 +124,30 @@ describe('buildIdentityLine', () => {
     }
   });
 
+  it('bracket segment adds "· est. N" when the estimate differs from a stated bracket', () => {
+    const segments = buildIdentityLine({
+      identity: mockIdentity,
+      formatLabel: 'Commander',
+      bracket: 2,
+      estimatedBracket: 4,
+      validation: allClearValidation,
+    });
+    const bracketSeg = segments.find((s) => s.kind === 'bracket');
+    expect(bracketSeg?.text).toBe('Bracket 2 · est. 4');
+  });
+
+  it('bracket segment stays plain when the estimate equals the shown bracket (Auto)', () => {
+    const segments = buildIdentityLine({
+      identity: mockIdentity,
+      formatLabel: 'Commander',
+      bracket: 4,
+      estimatedBracket: 4,
+      validation: allClearValidation,
+    });
+    const bracketSeg = segments.find((s) => s.kind === 'bracket');
+    expect(bracketSeg?.text).toBe('Bracket 4');
+  });
+
   it('no-commander + no-bracket: only archetype + validation segments', () => {
     const segments = buildIdentityLine({
       identity: null,

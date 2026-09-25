@@ -126,4 +126,23 @@ describe('DeckLibrary tile', () => {
     // aria-hidden on the art, so it must also reach the accessible name.
     expect(screen.getByRole('link').getAttribute('aria-label')).toContain('12 views');
   });
+
+  it('carries the estimate on the bracket badge and the accessible name when it differs (2026-09-24 ruling)', () => {
+    const { container } = renderLibrary([
+      deck({ id: 'a', name: 'Sandbagged', bracket: 2, estimatedBracket: 4 }),
+    ]);
+    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe(
+      'Core · est. Optimized'
+    );
+    expect(screen.getByRole('link').getAttribute('aria-label')).toContain(
+      'Bracket 2 stated, estimate 4'
+    );
+  });
+
+  it('omits the estimate from the badge when it equals the stated bracket', () => {
+    const { container } = renderLibrary([
+      deck({ id: 'a', name: 'Auto', bracket: 4, estimatedBracket: 4 }),
+    ]);
+    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe('Optimized');
+  });
 });

@@ -11,6 +11,7 @@ import { formatRelativeTime } from '../lib/format-time';
 import { formatIdentity } from '../lib/display-name';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import { bracketLabel } from '../deck-builder/services/deckBuilder/bracketEstimator';
+import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '../lib/format-bracket-label';
 import { LikeButton } from './LikeButton';
 import { BookmarkButton } from './BookmarkButton';
 import type { DeckFormat } from '../deck-builder/types';
@@ -62,7 +63,13 @@ function tileAriaLabel(
   buildablePercent: number | null
 ): string {
   const parts = [deck.name, formatLabel(deck.format)];
-  if (deck.bracket != null) parts.push(bracketLabel(deck.bracket));
+  if (deck.bracket != null) {
+    parts.push(
+      deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
+        ? bracketAriaWithEstimate(deck.bracket, deck.estimatedBracket)
+        : bracketLabel(deck.bracket)
+    );
+  }
   if (deck.colorIdentity.length > 0) parts.push(deck.colorIdentity.join(''));
   parts.push(formatMoney(deck.estimatedValueUsd, { currency: 'USD' }));
   if (social) parts.push(social);
@@ -178,7 +185,11 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
             )}
             <span className="deck-format-badge">{formatLabel(deck.format)}</span>
             {deck.bracket != null && (
-              <span className="deck-format-badge">{bracketLabel(deck.bracket)}</span>
+              <span className="deck-format-badge">
+                {deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
+                  ? bracketBadgeWithEstimate(deck.bracket, deck.estimatedBracket)
+                  : bracketLabel(deck.bracket)}
+              </span>
             )}
           </div>
           {!isGrid && (
