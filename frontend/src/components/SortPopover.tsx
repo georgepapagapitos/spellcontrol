@@ -59,7 +59,7 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
         onClick={toggle}
       >
         <ArrowUpDown width={13} height={13} strokeWidth={2} aria-hidden />
-        <span className="sort-popover-label">{breadcrumb ? `Sort: ${breadcrumb}` : 'Sort'}</span>
+        <span className="sort-popover-label">{breadcrumb || 'Sort'}</span>
       </button>
       {open &&
         panelStyle &&

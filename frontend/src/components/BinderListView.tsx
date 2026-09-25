@@ -1,10 +1,4 @@
-import {
-  BookOpen,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Image as ImageIcon,
-  ImageOff,
-} from 'lucide-react';
+import { Image as ImageIcon, ImageOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
@@ -29,8 +23,7 @@ import {
 } from '../lib/edit-card';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
-import { SortPopover } from './SortPopover';
-import { Legend } from './Legend';
+import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
 import { BinderPagePreview } from './BinderPagePreview';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { sectionHeading } from '../lib/section-heading';
@@ -38,8 +31,8 @@ import { printingFinishKey } from '../lib/collection-mutations';
 
 interface Props {
   binder: MaterializedBinder;
-  /** Optional slot rendered in the summary line next to "Collapse all". */
-  viewToggle?: React.ReactNode;
+  /** Layout + display preferences for the shared control row. */
+  controls: BinderViewControls;
   /**
    * When the page-level groupPrintings flag is on, the materializer feeds
    * one card per unique (scryfallId × foil); the qty for each surviving
@@ -76,7 +69,7 @@ interface Row {
  * grid view. Sister to CardListTable, but binder-scoped: rows live under
  * their section header instead of being globally sorted into a flat list.
  */
-export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'detail' }: Props) {
+export function BinderListView({ binder, controls, qtyByCopyId, density = 'detail' }: Props) {
   const isCompact = density === 'compact';
   // Compact becomes the shared card table from tablet width up, exactly as
   // Collection's does — same row component, same columns, same widths. Below
@@ -314,48 +307,27 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
 
   return (
     <>
-      <div className="binder-summary" aria-live="polite">
-        {flatPages.length > 0 && (
-          <button
-            type="button"
-            className="binder-summary-browse-pages"
-            onClick={() => setPagesStartIndex(0)}
-            aria-label={`Browse pages of ${binder.def.name}`}
-          >
-            <BookOpen width={13} height={13} strokeWidth={1.8} aria-hidden />
-            <span>Browse pages</span>
-          </button>
-        )}
-        {sortEditable && (
-          <span className="binder-summary-sep" aria-hidden="true">
-            ·
-          </span>
-        )}
-        {sortEditable && (
-          <SortPopover
-            sorts={binder.def.sorts}
-            valueOrders={binder.def.sortValueOrders ?? {}}
-            onSortsChange={(next) => updateBinder(binder.def.id, { sorts: next })}
-            onValueOrdersChange={(next) => updateBinder(binder.def.id, { sortValueOrders: next })}
-          />
-        )}
-        {flat.sectionRows.length > 1 && (
-          <button
-            type="button"
-            className="toolbar-pill binder-summary-collapse"
-            onClick={allCollapsed ? expandAll : collapseAll}
-          >
-            {allCollapsed ? (
-              <ChevronsUpDown width={13} height={13} strokeWidth={1.8} aria-hidden />
-            ) : (
-              <ChevronsDownUp width={13} height={13} strokeWidth={1.8} aria-hidden />
-            )}
-            <span>{allCollapsed ? 'Expand all' : 'Collapse all'}</span>
-          </button>
-        )}
-        {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
-        <Legend context="binder" variant="pill" align="right" />
-      </div>
+      <BinderSummaryBar
+        binderName={binder.def.name}
+        onBrowsePages={flatPages.length > 0 ? () => setPagesStartIndex(0) : undefined}
+        sort={
+          sortEditable
+            ? {
+                sorts: binder.def.sorts,
+                valueOrders: binder.def.sortValueOrders ?? {},
+                onSortsChange: (next) => updateBinder(binder.def.id, { sorts: next }),
+                onValueOrdersChange: (next) =>
+                  updateBinder(binder.def.id, { sortValueOrders: next }),
+              }
+            : undefined
+        }
+        collapse={
+          flat.sectionRows.length > 1
+            ? { allCollapsed, onToggle: allCollapsed ? expandAll : collapseAll }
+            : undefined
+        }
+        controls={controls}
+      />
       <CardTableFrame columns={columns} framed={isTable}>
         {isTable && <CardTableHead columns={columns} />}
         {flat.sectionRows.map(({ sectionKey, rows }, sectionIdx) => {

@@ -1,13 +1,4 @@
-import {
-  AlignJustify,
-  LayoutGrid,
-  List as ListIconLucide,
-  ListChecks,
-  Pencil,
-  Plus,
-  Share2,
-  Trash2,
-} from 'lucide-react';
+import { ListChecks, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
@@ -34,17 +25,14 @@ import { BinderTabs } from '../components/BinderTabs';
 import { BinderDriftBanner } from '../components/BinderDriftBanner';
 import { BinderView } from '../components/BinderView';
 import { BinderListView } from '../components/BinderListView';
-import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
-import { ViewOptionsPopover } from '../components/ViewOptionsPopover';
+import { type BinderViewControls, type BinderViewMode } from '../components/BinderSummaryBar';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
 import { useStoredView } from '../lib/use-stored-view';
 import { ShareDialog } from '../components/ShareDialog';
 import { CardName } from '@/components/shared/CardName';
-
-type BinderViewMode = 'pages' | 'list' | 'compact';
 
 export function BinderPage() {
   const { id: routeId } = useParams<{ id: string }>();
@@ -269,32 +257,31 @@ export function BinderPage() {
     return <Navigate to="/collection/binders" replace />;
   }
 
-  // Rendered next to "Collapse all" inside each view's summary line so the
-  // mode toggle sits adjacent to the content it switches between.
-  const viewToggle = (
-    <ViewModeToggle<'pages' | 'list' | 'compact'>
-      ariaLabel="Binder view mode"
-      value={view}
-      onChange={setView}
-      options={[
-        {
-          value: 'pages',
-          label: 'Pages view',
-          icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
-        },
-        {
-          value: 'list',
-          label: 'List view (with thumbnails)',
-          icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
-        },
-        {
-          value: 'compact',
-          label: 'Compact list (text only)',
-          icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
-        },
-      ]}
-    />
-  );
+  // One control row for all three views (BinderSummaryBar). The two display
+  // toggles only mean something on the page grid, so the lists get none.
+  const controls: BinderViewControls = {
+    view,
+    onViewChange: setView,
+    toggles:
+      view === 'pages'
+        ? [
+            {
+              key: 'show-images',
+              label: 'Show card images',
+              value: showImages,
+              onChange: setShowImages,
+              // On by default: only badge it once the user turns images off.
+              defaultValue: true,
+            },
+            {
+              key: 'group-printings',
+              label: 'Group printings',
+              value: groupPrintings,
+              onChange: setGroupPrintings,
+            },
+          ]
+        : [],
+  };
 
   return (
     <>
@@ -399,32 +386,6 @@ export function BinderPage() {
           onChange={setSearch}
           placeholder="Search"
           ariaLabel="Search cards by name"
-          trailing={
-            <ViewOptionsPopover
-              ariaLabel="Binder options"
-              toggles={[
-                ...(view === 'pages'
-                  ? [
-                      {
-                        key: 'show-images',
-                        label: 'Show card images',
-                        value: showImages,
-                        onChange: setShowImages,
-                        // On by default — only badge it when the user
-                        // has actively turned card images off.
-                        defaultValue: true,
-                      },
-                      {
-                        key: 'group-printings',
-                        label: 'Group printings',
-                        value: groupPrintings,
-                        onChange: setGroupPrintings,
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-          }
         />
       </div>
       <FilterChipsRow
@@ -439,7 +400,7 @@ export function BinderPage() {
         <BinderView
           binders={materialized}
           driftBinders={driftBinders}
-          viewToggle={viewToggle}
+          controls={controls}
           qtyByCopyId={qtyByCopyId}
           showImages={showImages}
         />
@@ -482,7 +443,7 @@ export function BinderPage() {
               />
               <BinderListView
                 binder={active}
-                viewToggle={viewToggle}
+                controls={controls}
                 qtyByCopyId={qtyByCopyId}
                 density={view === 'compact' ? 'compact' : 'detail'}
               />

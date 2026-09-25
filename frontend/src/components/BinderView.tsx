@@ -1,10 +1,4 @@
-import {
-  BookOpen,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Image as ImageIcon,
-  ImageOff,
-} from 'lucide-react';
+import { Image as ImageIcon, ImageOff } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type {
@@ -16,7 +10,6 @@ import type {
   SortEntry,
   SortField,
 } from '../types';
-import { SortPopover } from './SortPopover';
 import { PageGrid } from './PageGrid';
 import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
@@ -32,7 +25,7 @@ import {
 } from '../lib/edit-card';
 import { BinderPagePreview } from './BinderPagePreview';
 import { BinderDriftBanner } from './BinderDriftBanner';
-import { Legend } from './Legend';
+import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
 import { useAllocations } from '../lib/allocations';
 import { useToastsStore } from '../store/toasts';
 
@@ -51,15 +44,15 @@ interface Props {
    * "no longer matching". Defaults to `binders` when no search is active.
    */
   driftBinders?: MaterializedBinder[];
-  /** Optional slot rendered in the summary line next to "Collapse all". */
-  viewToggle?: React.ReactNode;
+  /** Layout + display preferences for the shared control row. */
+  controls: BinderViewControls;
   /** Per-copyId qty when binder is in group-printings mode (otherwise undefined). */
   qtyByCopyId?: Map<string, number>;
   /** When true, card slots show thumbnail images instead of text names. */
   showImages?: boolean;
 }
 
-export function BinderView({ binders, driftBinders, viewToggle, qtyByCopyId, showImages }: Props) {
+export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showImages }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
@@ -156,7 +149,7 @@ export function BinderView({ binders, driftBinders, viewToggle, qtyByCopyId, sho
         sortEditable={active.def.mode !== 'manual' && !active.def.manualOrder?.length}
         onSortsChange={(next) => updateBinder(active.def.id, { sorts: next })}
         onValueOrdersChange={(next) => updateBinder(active.def.id, { sortValueOrders: next })}
-        viewToggle={viewToggle}
+        controls={controls}
         qtyByCopyId={qtyByCopyId}
         showImages={showImages}
         getCardActions={coverActions}
@@ -176,7 +169,7 @@ function SectionList({
   sortEditable,
   onSortsChange,
   onValueOrdersChange,
-  viewToggle,
+  controls,
   qtyByCopyId,
   showImages,
   getCardActions,
@@ -191,7 +184,7 @@ function SectionList({
   sortEditable: boolean;
   onSortsChange: (next: SortEntry[]) => void;
   onValueOrdersChange: (next: Partial<Record<SortField, string[]>>) => void;
-  viewToggle?: React.ReactNode;
+  controls: BinderViewControls;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
   /** Extra per-card actions (e.g. "Set cover") for the card-preview icon bar. */
@@ -375,48 +368,26 @@ function SectionList({
 
   return (
     <>
-      <div className="binder-summary" aria-live="polite">
-        {flatPages.length > 0 && (
-          <button
-            type="button"
-            className="binder-summary-browse-pages"
-            onClick={() => setPagesStartIndex(0)}
-            aria-label={`Browse pages of ${binderName}`}
-          >
-            <BookOpen width={13} height={13} strokeWidth={1.8} aria-hidden />
-            <span>Browse pages</span>
-          </button>
-        )}
-        {sortEditable && (
-          <span className="binder-summary-sep" aria-hidden="true">
-            ·
-          </span>
-        )}
-        {sortEditable && (
-          <SortPopover
-            sorts={editSorts}
-            valueOrders={valueOrders}
-            onSortsChange={onSortsChange}
-            onValueOrdersChange={onValueOrdersChange}
-          />
-        )}
-        {sections.length > 1 && !merged && (
-          <button
-            type="button"
-            className="toolbar-pill binder-summary-collapse"
-            onClick={allCollapsed ? expandAll : collapseAll}
-          >
-            {allCollapsed ? (
-              <ChevronsUpDown width={13} height={13} strokeWidth={1.8} aria-hidden />
-            ) : (
-              <ChevronsDownUp width={13} height={13} strokeWidth={1.8} aria-hidden />
-            )}
-            <span>{allCollapsed ? 'Expand all' : 'Collapse all'}</span>
-          </button>
-        )}
-        {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
-        <Legend context="binder" variant="pill" align="right" />
-      </div>
+      <BinderSummaryBar
+        binderName={binderName}
+        onBrowsePages={flatPages.length > 0 ? () => setPagesStartIndex(0) : undefined}
+        sort={
+          sortEditable
+            ? {
+                sorts: editSorts,
+                valueOrders,
+                onSortsChange,
+                onValueOrdersChange,
+              }
+            : undefined
+        }
+        collapse={
+          sections.length > 1 && !merged
+            ? { allCollapsed, onToggle: allCollapsed ? expandAll : collapseAll }
+            : undefined
+        }
+        controls={controls}
+      />
       {merged && (
         <PageRun
           pages={flatPages}
@@ -575,7 +546,7 @@ const PageRun = memo(function PageRun({
 
   return (
     <CardPreviewContext.Provider value={ctxValue}>
-      <div className="page-row">
+      <div className={`page-row page-row--p${pocketSize}`}>
         {visible.map((page, i) => (
           <PageGrid
             key={page.pageNum}
@@ -669,7 +640,12 @@ const SectionBlock = memo(function SectionBlock({
       </button>
       {!isCollapsed && (
         <CardPreviewContext.Provider value={ctxValue}>
-          <div id={panelId} role="region" aria-labelledby={headerId} className="page-row">
+          <div
+            id={panelId}
+            role="region"
+            aria-labelledby={headerId}
+            className={`page-row page-row--p${pocketSize}`}
+          >
             {visiblePages.map((page, idx) => (
               <PageGrid
                 key={page.pageNum}

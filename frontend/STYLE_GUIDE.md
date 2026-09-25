@@ -3125,6 +3125,37 @@ never shows the chooser.
 - **A whole-library destructive action has one home: the index, below the
   list, as a danger link.** "Delete all binders" used to sit in every binder
   page's tab strip as a peer of "+ New binder" and "Export".
+- **A page is shown at a size you can read.** The page grid is a fluid grid
+  whose track floor is 5rem per pocket column (`.page-row--p4/--p9/--p12`:
+  10 / 15 / 20rem), so a pocket is the same size whatever the pocket count: a
+  phone gets one full-width 9- or 12-pocket page per row (~110px pockets) and
+  a desktop gets as many ~270px 9-pocket pages as fit. Pages used to be
+  fixed 112/150/200px thumbnails: 42px pockets on a 1440 screen, and on a
+  phone a lone page in one half of the row with the other half empty. Text-only
+  pockets scale their name with the pocket (`cqw`), for the same reason.
+- **A page's header is its door into the page viewer.** "Page 3" on the left,
+  the book glyph "Browse pages" uses on the right, the whole row one button.
+  It replaced an underlined mono "page 3" link floating centred above the page.
+- **One control row for all three views** (`BinderSummaryBar`): Browse pages,
+  the sort chip, then Collapse, layout, Key and View options at the end.
+  Display preferences (layout, card images, Group printings, the symbol key)
+  are the View popover's on a phone (≤640px), where the row holds one line and
+  the sort chip is the one control that ellipsizes. It used to be two copies of
+  the same markup that wrapped to three rows at 390px around a stray "·", with
+  two of the display toggles hidden behind an eye inside the search box.
+
+### Binder page viewer (flipbook)
+
+- **The open page is the only thing at full strength.** Opaque page, neighbours
+  at 45% like the card preview's, and an 85% scrim: at the shared 60% the same
+  binder grid behind read as a second page under the open one.
+- **The panel says each fact once**: binder name, then "White · Page 3 of 14".
+  During a search only matching pages remain, so it reads "Page 12 · 3 of 5
+  shown", the one case where the physical page and the position differ.
+- **More than two pages get a scrubber** (a native range under the context
+  line). A 60-page binder is 59 swipes end to end; the scrubber jumps. Its
+  touches stop at the input so a sideways drag can't start the sheet's
+  swipe-down dismiss.
 
 ### Sort chains
 
@@ -3141,10 +3172,12 @@ never shows the chooser.
   own pair beside its option list; it does not fall back to asc/desc.
 - **The field picker hides fields another row already uses.** A second pass on
   the same field has no ties left to break.
-- **The compact breadcrumb pill ("sort: release date ↑ › set") keeps its glyph,
+- **The compact breadcrumb pill ("⇅ release date ↑ › set") keeps its glyph,
   but its `title` / accessible name spell every level out by effect** ("Sorted
   by Release date, oldest first › Set, A → Z"). The glyph is the only thing that
-  fits the pill; the words are what it means.
+  fits the pill; the words are what it means. The ⇅ already says "sort", so the
+  label carries no "sort:" prefix: on a 320px phone the prefix was all the pill
+  had room to show.
 - **Same-day sets under a Release-date sort read A → Z** (or follow the chain's
   own Set direction when it has one) — never the date's direction. "Newest
   first" used to flip three same-day Secret Lair drops into Z → A headers while

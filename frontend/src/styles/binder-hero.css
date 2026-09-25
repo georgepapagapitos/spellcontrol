@@ -184,21 +184,26 @@
 
 .binder-summary {
   display: flex;
-  /* Center every item on the row's cross axis. The row mixes different
-     font sizes, a bordered pill, and the tall view-mode toggle, so
-     baseline alignment left them visually staggered — center stays
-     consistent across breakpoints, wrapping, and long sort chains. */
+  /* Center every item on the row's cross axis. The row mixes a mono sort
+     chip, labelled pills and the view toggle, so baseline alignment
+     staggered them. */
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-2);
   margin: var(--space-1) 0 var(--space-4);
-  padding-left: 2px;
+  /* The safety net only: at ≤640px the display controls fold into the View
+     popover (BinderSummaryBar) so this holds one line on a phone. */
   flex-wrap: wrap;
 }
-/* Separator dot between the Browse-pages button and the sort pill. */
-.binder-summary-sep {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
+
+/* A wrapping row wraps before anything shrinks, so on a phone it must not
+   wrap: the sort chip then gives way instead. Safe by construction: below 640
+   the display controls are already in the View popover, so every other control
+   here is the Browse button or a fixed-size icon (~215px of a 304px row at
+   320). Between 601 and 640 the folded row fits without help. */
+@media (max-width: 600px) {
+  .binder-summary {
+    flex-wrap: nowrap;
+  }
 }
 
 .binder-summary-overcap {
@@ -206,25 +211,32 @@
   font-weight: 600;
 }
 
-/* Pushes the Collapse-all/Expand-all button to the far right of the
-   binder-summary line so it doesn't claim its own row. */
-.binder-summary-collapse {
-  margin-left: auto;
-  font-size: var(--text-sm);
-}
-
-/* The view-mode toggle anchors itself to the right of the summary
-   line. When Collapse all sits beside it, only Collapse all gets the
-   auto margin (otherwise both items split the slack and the buttons
-   end up centered). */
-.binder-summary-viewmode {
-  display: inline-flex;
+/* Collapse, layout, key and View options cluster at the row's end; the sort
+   chip before them is the one control that shrinks (it ellipsizes). */
+.binder-summary-end {
+  display: flex;
   align-items: center;
+  gap: var(--space-2);
   margin-left: auto;
 }
 
-.binder-summary-collapse + .binder-summary-viewmode {
-  margin-left: 0.6rem;
+/* Holds the changed-count badge. */
+.binder-summary-view {
+  position: relative;
+}
+
+/* One height for the whole row: the accent button and the sort chip match
+   the toolbar pills beside them instead of sitting 3 to 13px shorter. */
+.binder-summary-browse-pages,
+.binder-summary .sort-popover-btn {
+  min-height: 2.1rem;
+}
+
+@media (pointer: coarse) {
+  .binder-summary-browse-pages,
+  .binder-summary .sort-popover-btn {
+    min-height: 44px;
+  }
 }
 
 /* "Browse pages" — primary action in the binder summary bar: a compact
@@ -232,8 +244,9 @@
 .binder-summary-browse-pages {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-3);
   background: var(--accent);
   color: var(--on-accent);
   border: none;

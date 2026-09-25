@@ -201,27 +201,6 @@
     font-size: var(--text-xs);
   }
 
-  /* Page rows wrap on mobile so the viewport never scrolls horizontally.
-     Tapping a page number opens the dedicated BinderPagePreview sheet
-     for full-bleed page-by-page swiping — that's the canonical mobile
-     browse path, so the inline row only needs to lay pages out within
-     the available width. */
-  .page-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: var(--space-3) var(--space-2);
-  }
-
-  .page-wrap {
-    min-width: 0;
-  }
-
-  .grid-9,
-  .grid-4,
-  .grid-12 {
-    width: 100%;
-  }
-
   /* Modal: full-bleed-ish on phones. The full-bleed look is intentional
      (align-items: stretch + tight 0.5rem side padding) — but the top/
      bottom edges still need to clear the system chrome on native, so the

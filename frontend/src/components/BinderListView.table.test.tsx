@@ -120,7 +120,15 @@ function stubViewport(tabletOrWider: boolean) {
 const renderBinder = (density: 'detail' | 'compact', b: MaterializedBinder = binder) =>
   render(
     <MemoryRouter>
-      <BinderListView binder={b} density={density} />
+      <BinderListView
+        binder={b}
+        density={density}
+        controls={{
+          view: density === 'compact' ? 'compact' : 'list',
+          onViewChange: () => {},
+          toggles: [],
+        }}
+      />
     </MemoryRouter>
   );
 

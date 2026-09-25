@@ -1278,11 +1278,12 @@
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
-  /* Dim scrim, same as .card-preview-backdrop: the sheet above is
-     transparent, so this layer supplies the dim and also carries the
-     sizing var (--page-w-ratio drives --slide-size). Fades in/out; does
-     not slide. */
-  background: var(--overlay);
+  /* The sheet above is transparent, so this layer supplies the dim and also
+     carries the sizing var (--page-w-ratio drives --slide-size). Denser than
+     the card preview's --overlay: behind a page sits the same binder grid at
+     full brightness, and at 60% it read as a second page layered under the
+     open one. Fades in/out; does not slide. */
+  background: rgb(0 0 0 / 85%);
   animation: fade-in 0.3s var(--ease-drawer) backwards;
   z-index: var(--z-overlay);
 }
@@ -1393,15 +1394,6 @@
   display: none;
 }
 
-/* NOTE: no breathing-room padding on .binder-pages-track. Unlike
-   .card-preview-track, the binder page grid is height-driven with a FIXED
-   1.6rem label reserve baked into --slide-size:
-     min(100cqw, calc((100cqh - 1.6rem) * --page-w-ratio), …)
-   Padding on this size container shrinks 100cqh, and combined with the
-   page+label fit math it drives --slide-size to ~0 and collapses the grid
-   (the slides go zero-width, leaving only the page labels). If binder top
-   breathing room is wanted, add it to .binder-pages-sheet's padding-top
-   (outside the size container), never here. */
 .binder-pages-slide {
   flex: 0 0 var(--slide-size);
   min-width: 0;
@@ -1410,6 +1402,14 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Neighbours recede, exactly as .card-preview-slide: on a desktop three
+     full-brightness pages side by side left no page reading as the open one. */
+  opacity: 0.45;
+  transition: opacity 200ms ease;
+}
+
+.binder-pages-slide.is-active {
+  opacity: 1;
 }
 
 .binder-pages-page {
@@ -1421,7 +1421,9 @@
   width: 100%;
   gap: var(--space-1);
   padding: 6px;
-  background: rgba(20, 20, 22, 0.6);
+  /* Opaque: a see-through page let the binder grid behind the scrim show
+     through every empty pocket and gutter. */
+  background: rgb(20 20 22);
   border: 0.5px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
@@ -1518,8 +1520,30 @@
   padding-bottom: max(0.9rem, var(--safe-bottom));
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0.3rem;
+  /* Centered under the centered page, like the card preview's panel. */
+  text-align: center;
   color: #fff;
+}
+
+.binder-pages-name,
+.binder-pages-context {
+  max-width: 100%;
+}
+
+/* Page scrubber: a long binder is dozens of swipes end to end. */
+.binder-pages-scrubber {
+  width: min(100%, 28rem);
+  margin: var(--space-1) 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .binder-pages-scrubber {
+    height: 44px;
+  }
 }
 
 .binder-pages-name {
@@ -1547,14 +1571,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.binder-pages-counter {
-  font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.45);
-  font-family: var(--font-mono);
-  letter-spacing: 0.05em;
-  margin-top: 0.15rem;
 }
 
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
