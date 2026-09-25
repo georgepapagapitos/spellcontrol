@@ -23,6 +23,9 @@
 
 .horde-band__toggle {
   flex: 1;
+  /* So the line keeps ellipsis-truncating rather than pushing the damage
+     button off the bar (or wrapping) once both sit in the same 390px row. */
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -34,6 +37,21 @@
   font: inherit;
   font-size: var(--text-sm);
   text-align: left;
+}
+
+/* The damage button sits to the right of the toggle, never wider than its
+   own compact label needs — `.btn` already carries the 44px coarse-pointer
+   floor (tabs.css). The extra `.horde-band` ancestor class, not just
+   `.horde-band__damage` alone, is what makes this win over `.btn`'s own
+   background/border regardless of chunk load order (same two-class rule
+   horde-table.css's own override comment explains). */
+.horde-band .horde-band__damage {
+  flex: 0 0 auto;
+  border-radius: 0;
+  border: 0;
+  border-left: 1px solid rgb(255 255 255 / 20%);
+  background: rgb(0 0 0 / 38%);
+  color: var(--felt-text, #fff);
 }
 
 .horde-band__line {
@@ -89,8 +107,15 @@
 }
 
 .horde-band__combat-field input {
-  box-sizing: content-box;
-  width: 3ch;
+  /* Explicit `height`, not the generic `input[type=number]` rule's own
+     padding-driven one — that rendered 58px next to the 44px "Take" button,
+     a ragged bar. `border-box` + a calc'd width (rather than content-box's
+     bare `Nch`) is what keeps two digits fully visible at a FIXED height —
+     see the attack banner's own version of this bug for the ch/padding trap. */
+  box-sizing: border-box;
+  height: 44px;
+  width: calc(3ch + 20px);
+  padding: 0 var(--space-2);
   text-align: center;
 }
 

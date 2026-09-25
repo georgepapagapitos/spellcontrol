@@ -4,6 +4,7 @@ import { usePlaytestStore } from '@/playtest/store';
 import type { SoloHordeState } from '@/playtest/lib/horde-solo';
 import { hordeBandLine } from '@/playtest/lib/horde-view';
 import { HordeFelt } from './HordeFelt';
+import { HordeDamageControl } from './HordeDamageControl';
 import './HordeBand.css';
 
 interface Props {
@@ -11,6 +12,10 @@ interface Props {
   hordeLoad: { status: 'idle' | 'loading' | 'error'; error: string | null };
   playerTurn: number;
   feltRef: RefObject<HTMLDivElement | null>;
+  /** Requests the board-level card menu / damage sheet (see `HordeOverlays`
+   *  for why neither renders inside this band). */
+  onCardMenu(cardId: string): void;
+  onOpenDamage(): void;
 }
 
 /** '' reads as 0, same rule as the damage sheet's own draft field — never
@@ -55,7 +60,14 @@ function CombatBar({ power, onTake }: { power: number; onTake(amount: number): v
  * and folds on yours, and the player can still toggle it. In combat the
  * damage total lives in the bar itself, so nothing floats over either board.
  */
-export function HordeBand({ horde, hordeLoad, playerTurn, feltRef }: Props) {
+export function HordeBand({
+  horde,
+  hordeLoad,
+  playerTurn,
+  feltRef,
+  onCardMenu,
+  onOpenDamage,
+}: Props) {
   const resolveHordeAttack = usePlaytestStore((s) => s.resolveHordeAttack);
   const retryHordeLoad = usePlaytestStore((s) => s.retryHordeLoad);
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
@@ -94,6 +106,10 @@ export function HordeBand({ horde, hordeLoad, playerTurn, feltRef }: Props) {
   const autoOpen = horde.phase === 'reveal' || horde.phase === 'combat';
   const open = manualOpen ?? autoOpen;
   const inCombat = horde.phase === 'combat' && horde.pendingAttack !== null;
+  // A phone player needs the same way to mill the horde's library a desktop
+  // player has — absent only while there's an attack total to resolve or the
+  // fight is over (E387 PR 5 follow-up: the band shipped with no way to win).
+  const canDamage = horde.phase !== 'combat' && horde.phase !== 'ended';
 
   return (
     <section className={`horde-band${open ? ' is-open' : ''}`} aria-label="The horde">
@@ -101,24 +117,40 @@ export function HordeBand({ horde, hordeLoad, playerTurn, feltRef }: Props) {
         {inCombat && horde.pendingAttack ? (
           <CombatBar power={horde.pendingAttack.power} onTake={resolveHordeAttack} />
         ) : (
-          <button
-            type="button"
-            className="horde-band__toggle"
-            aria-expanded={open}
-            onClick={() => setManualOpen(!open)}
-          >
-            <span className="horde-band__line">{hordeBandLine(horde, playerTurn)}</span>
-            {open ? (
-              <ChevronUp width={16} height={16} aria-hidden />
-            ) : (
-              <ChevronDown width={16} height={16} aria-hidden />
+          <>
+            <button
+              type="button"
+              className="horde-band__toggle"
+              aria-expanded={open}
+              onClick={() => setManualOpen(!open)}
+            >
+              <span className="horde-band__line">{hordeBandLine(horde, playerTurn)}</span>
+              {open ? (
+                <ChevronUp width={16} height={16} aria-hidden />
+              ) : (
+                <ChevronDown width={16} height={16} aria-hidden />
+              )}
+            </button>
+            {canDamage && (
+              <HordeDamageControl
+                libraryCount={horde.board.zones.library.length}
+                graveyardCount={horde.board.zones.graveyard.length}
+                onOpen={onOpenDamage}
+                className="btn horde-band__damage"
+                label="Damage"
+                ariaLabel="Damage the horde"
+              />
             )}
-          </button>
+          </>
         )}
       </div>
       {open && (
         <div ref={feltRef} className="horde-band__field playtest-battlefield-wrap">
-          <HordeFelt board={horde.board} attackingIds={horde.attackingIds} />
+          <HordeFelt
+            board={horde.board}
+            attackingIds={horde.attackingIds}
+            onCardMenu={onCardMenu}
+          />
         </div>
       )}
     </section>

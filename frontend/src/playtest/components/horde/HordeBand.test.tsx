@@ -7,17 +7,7 @@ import { buildTestHorde } from '@/playtest/lib/horde-solo.fixtures';
 import { HordeBand } from './HordeBand';
 
 beforeEach(() => {
-  vi.spyOn(window, 'matchMedia').mockImplementation(
-    (query: string) =>
-      ({
-        matches: query.includes('prefers-reduced-motion'),
-        media: query,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-      }) as unknown as MediaQueryList
-  );
   usePlaytestStore.setState({
-    moveHordeCard: vi.fn(),
     resolveHordeAttack: vi.fn(),
     retryHordeLoad: vi.fn(),
   });
@@ -31,6 +21,8 @@ function renderBand(overrides: Partial<Parameters<typeof HordeBand>[0]> = {}) {
       hordeLoad={{ status: 'idle', error: null }}
       playerTurn={1}
       feltRef={feltRef}
+      onCardMenu={vi.fn()}
+      onOpenDamage={vi.fn()}
       {...overrides}
     />
   );
@@ -50,17 +42,28 @@ describe('HordeBand', () => {
   });
 
   it('opens by itself on reveal and closes again once back to waiting', () => {
-    const { rerender } = renderBand({ horde: buildTestHorde({ phase: 'waiting' }) });
+    const feltRef = createRef<HTMLDivElement>();
+    const { rerender } = render(
+      <HordeBand
+        horde={buildTestHorde({ phase: 'waiting' })}
+        hordeLoad={{ status: 'idle', error: null }}
+        playerTurn={1}
+        feltRef={feltRef}
+        onCardMenu={vi.fn()}
+        onOpenDamage={vi.fn()}
+      />
+    );
     let section = document.querySelector('.horde-band') as HTMLElement;
     expect(section.className).not.toContain('is-open');
 
-    const feltRef = createRef<HTMLDivElement>();
     rerender(
       <HordeBand
         horde={buildTestHorde({ phase: 'reveal' })}
         hordeLoad={{ status: 'idle', error: null }}
         playerTurn={1}
         feltRef={feltRef}
+        onCardMenu={vi.fn()}
+        onOpenDamage={vi.fn()}
       />
     );
     section = document.querySelector('.horde-band') as HTMLElement;
@@ -72,6 +75,8 @@ describe('HordeBand', () => {
         hordeLoad={{ status: 'idle', error: null }}
         playerTurn={1}
         feltRef={feltRef}
+        onCardMenu={vi.fn()}
+        onOpenDamage={vi.fn()}
       />
     );
     section = document.querySelector('.horde-band') as HTMLElement;
@@ -101,6 +106,64 @@ describe('HordeBand', () => {
     fireEvent.change(input, { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
     expect(usePlaytestStore.getState().resolveHordeAttack).toHaveBeenCalledWith(0);
+  });
+
+  // The band shipped with no way to damage the horde on a phone (E387 PR 5
+  // follow-up) — this is the guard for that fix.
+  it('requests the damage sheet from the bar while waiting, next to the toggle', () => {
+    const onOpenDamage = vi.fn();
+    renderBand({ horde: buildTestHorde({ phase: 'waiting' }), onOpenDamage });
+    const btn = screen.getByRole('button', { name: 'Damage the horde' });
+    fireEvent.click(btn);
+    expect(onOpenDamage).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('has no damage action during combat or once the fight has ended', () => {
+    const { rerender } = renderBand({
+      horde: buildTestHorde({
+        phase: 'combat',
+        pendingAttack: { attackers: 1, power: 4, groups: [] },
+      }),
+    });
+    expect(screen.queryByRole('button', { name: 'Damage the horde' })).toBeNull();
+
+    const feltRef = createRef<HTMLDivElement>();
+    rerender(
+      <HordeBand
+        horde={buildTestHorde({ phase: 'ended', outcome: 'won' })}
+        hordeLoad={{ status: 'idle', error: null }}
+        playerTurn={1}
+        feltRef={feltRef}
+        onCardMenu={vi.fn()}
+        onOpenDamage={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Damage the horde' })).toBeNull();
+  });
+
+  it('requests the card menu on a real pointer tap of an open felt card, never rendering one itself', () => {
+    const horde = buildTestHorde({ phase: 'reveal' });
+    const card = horde.board.zones.library[0];
+    horde.board = {
+      ...horde.board,
+      battlefield: [
+        { card, tapped: false, counters: {}, stickers: [], x: 0.5, y: 0.5, faceDown: false },
+      ],
+    };
+    const onCardMenu = vi.fn();
+    renderBand({ horde, onCardMenu });
+    const cardEl = document.querySelector(`[data-card-id="${card.id}"]`) as HTMLElement;
+    fireEvent.pointerDown(cardEl, {
+      pointerId: 1,
+      isPrimary: true,
+      button: 0,
+      pointerType: 'mouse',
+    });
+    fireEvent.pointerUp(cardEl, { pointerId: 1, isPrimary: true, button: 0, pointerType: 'mouse' });
+    fireEvent.click(cardEl);
+    expect(onCardMenu).toHaveBeenCalledWith(card.id);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('shows a quiet loading line instead of an empty band', () => {

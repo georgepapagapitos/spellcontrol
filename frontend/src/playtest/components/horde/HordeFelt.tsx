@@ -1,56 +1,47 @@
-import { useState } from 'react';
 import { DndContext } from '@dnd-kit/core';
 import type { PlaytestState } from '@/lib/playtest';
 import { Battlefield } from '@/playtest/components/Battlefield';
-import { HordeCardMenu } from '@/components/play/horde/HordeCardMenu';
-import { usePlaytestStore } from '@/playtest/store';
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 interface Props {
   board: PlaytestState;
   attackingIds: readonly string[];
+  /** A card was tapped/long-pressed/right-clicked — the caller owns which
+   *  card menu is open and where it renders. Never rendered here: this felt
+   *  sits inside `.horde-half`/`.horde-band__field`, whose own CSS review
+   *  turned up a `filter` that quietly made the felt the containing block
+   *  for any `position: fixed` overlay mounted inside it — the sheet then
+   *  clipped to the felt's own box instead of the viewport (E387 PR 5
+   *  follow-up). Rendering no overlay here at all is the fix that survives
+   *  the next such property, not just this one. */
+  onCardMenu(cardId: string): void;
 }
 
 /**
- * The horde's own real `Battlefield` plus its one card menu (Destroyed /
- * Exiled / Returned to the library) — shared by the desktop half and the
+ * The horde's own real `Battlefield` — shared by the desktop half and the
  * phone band's open strip, which render identical cards (see STYLE_GUIDE
- * "Horde table": "A horde permanent's death is recorded by hand").
+ * "Horde table": "A horde permanent's death is recorded by hand"). Purely
+ * presentational; the card menu it requests is mounted at board level.
  */
-export function HordeFelt({ board, attackingIds }: Props) {
-  const moveHordeCard = usePlaytestStore((s) => s.moveHordeCard);
-  const [cardMenuId, setCardMenuId] = useState<string | null>(null);
-  const menuCard = cardMenuId
-    ? (board.battlefield.find((b) => b.card.id === cardMenuId)?.card ?? null)
-    : null;
-
+export function HordeFelt({ board, attackingIds, onCardMenu }: Props) {
   return (
-    <>
-      <DndContext>
-        <Battlefield
-          cards={board.battlefield}
-          selectedIds={EMPTY_SET}
-          stackIds={EMPTY_SET}
-          attackingIds={new Set(attackingIds)}
-          dropId="horde-battlefield"
-          cardsDraggable={false}
-          onBackgroundClick={() => {}}
-          onCardClick={(cardId) => setCardMenuId(cardId)}
-          onCardContextMenu={(cardId, e) => {
-            e.preventDefault();
-            setCardMenuId(cardId);
-          }}
-          onCardLongPress={(cardId) => setCardMenuId(cardId)}
-        />
-      </DndContext>
-      {menuCard && (
-        <HordeCardMenu
-          card={menuCard}
-          onMove={(to) => moveHordeCard(menuCard.id, to)}
-          onClose={() => setCardMenuId(null)}
-        />
-      )}
-    </>
+    <DndContext>
+      <Battlefield
+        cards={board.battlefield}
+        selectedIds={EMPTY_SET}
+        stackIds={EMPTY_SET}
+        attackingIds={new Set(attackingIds)}
+        dropId="horde-battlefield"
+        cardsDraggable={false}
+        onBackgroundClick={() => {}}
+        onCardClick={(cardId) => onCardMenu(cardId)}
+        onCardContextMenu={(cardId, e) => {
+          e.preventDefault();
+          onCardMenu(cardId);
+        }}
+        onCardLongPress={(cardId) => onCardMenu(cardId)}
+      />
+    </DndContext>
   );
 }

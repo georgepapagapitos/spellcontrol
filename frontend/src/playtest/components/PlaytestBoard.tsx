@@ -167,6 +167,7 @@ import { HordeHalf } from './horde/HordeHalf';
 import { HordeBand } from './horde/HordeBand';
 import { HordeSoloBanner } from './horde/HordeSoloBanner';
 import { HordeSetupSheet } from './horde/HordeSetupSheet';
+import { HordeOverlays } from './horde/HordeOverlays';
 import { HordeRevealSheet } from '@/components/play/horde/HordeRevealSheet';
 import { HordeEndSheet } from '@/components/play/horde/HordeEndSheet';
 import { isHordeTurnDue } from '../lib/horde-solo';
@@ -267,6 +268,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const startHordeTurn = usePlaytestStore((s) => s.startHordeTurn);
   const confirmHordeReveal = usePlaytestStore((s) => s.confirmHordeReveal);
   const [showHordeSetup, setShowHordeSetup] = useState(false);
+  // The card menu and damage sheet ONLY ever render here, never inside
+  // `HordeHalf`/`HordeBand` — see `HordeOverlays`'s own doc comment for why
+  // (a `filter` on the half's container quietly trapped their fixed-position
+  // overlay to the felt's own box).
+  const [hordeCardMenuId, setHordeCardMenuId] = useState<string | null>(null);
+  const [hordeDamageOpen, setHordeDamageOpen] = useState(false);
   const hordeFeltRef = useRef<HTMLDivElement>(null);
   // Visible whenever there is a fight to show OR one is mid (re-)load — the
   // Reset "Play again" path re-arms the same settings, and the half/band
@@ -2287,7 +2294,25 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       ) : (
         <div className="playtest-turn-chip" aria-live="polite">
           <span className="playtest-turn-chip__label">
-            {hordeBlocksTurn ? "The horde's turn" : activeName ? `${activeName}'s turn` : 'Turn'}
+            {hordeBlocksTurn ? (
+              isNarrow ? (
+                // The phone corner is a quarter of the desktop pill's width
+                // (playtest.css), and "THE HORDE'S TURN" doesn't fit it and
+                // clipped mid-word. Short visible text; the full sentence
+                // still reaches the live region via the sr-only span, so an
+                // announcement reads the same as before.
+                <>
+                  <span aria-hidden>Horde</span>
+                  <span className="sr-only">The horde&apos;s turn</span>
+                </>
+              ) : (
+                "The horde's turn"
+              )
+            ) : activeName ? (
+              `${activeName}'s turn`
+            ) : (
+              'Turn'
+            )}
           </span>
           <span className="playtest-turn-chip__value">{state.turn}</span>
           {onlineTable?.turnTimerEnabled && onlineTable.turnStartedAt != null && (
@@ -2801,6 +2826,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 hordeLoad={hordeLoad}
                 playerTurn={state.turn}
                 feltRef={hordeFeltRef}
+                onCardMenu={setHordeCardMenuId}
+                onOpenDamage={() => setHordeDamageOpen(true)}
               />
             ) : (
               <HordeHalf
@@ -2808,6 +2835,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 hordeLoad={hordeLoad}
                 playerTurn={state.turn}
                 feltRef={hordeFeltRef}
+                onCardMenu={setHordeCardMenuId}
+                onOpenDamage={() => setHordeDamageOpen(true)}
               />
             ))}
           <div
@@ -3347,42 +3376,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         />
       )}
 
-      {/* Solo Horde (E387 PR 5) — a horde never exists at an online table. */}
-      {!onlineTable && showHordeSetup && (
-        <HordeSetupSheet
-          horde={horde}
-          hordeLoad={hordeLoad}
-          cardNames={hordeDeckCardNames}
-          resistanceOn={resistanceLevel !== 'off'}
-          onClose={() => setShowHordeSetup(false)}
-        />
-      )}
-
-      {!onlineTable && horde?.phase === 'reveal' && horde.pendingReveal && (
-        <HordeRevealSheet
-          revealed={horde.pendingReveal.revealed}
-          toResolveIds={new Set(horde.pendingReveal.toResolve.map((c) => c.id))}
-          waveEndId={horde.pendingReveal.waveEndId}
-          onConfirm={confirmHordeReveal}
-        />
-      )}
-
-      {!onlineTable && horde?.outcome && (
-        <HordeEndSheet
-          outcome={horde.outcome}
-          hordeId={horde.config.hordeId}
-          hordeTurns={horde.hordeTurn}
-          damageTaken={horde.damageTaken}
-          cardsMilledByDamage={horde.cardsMilledByDamage}
-          bossesBeaten={
-            horde.board.zones.graveyard.filter((c) => c.id.startsWith('horde-boss-')).length
-          }
-          hideRecord
-          onPlayAgain={() => dispatch({ type: 'RESET' })}
-          onDone={disarmHorde}
-        />
-      )}
-
       {countersBf && (
         <CustomCountersDialog
           cardName={countersBf.card.name}
@@ -3452,6 +3445,63 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           onKeep={keepOpeningHand}
           onMulligan={mulliganOpeningHand}
           onConfirmBottom={finalizeBottom}
+        />
+      )}
+
+      {/* Solo Horde (E387 PR 5) — a horde never exists at an online table.
+          Mounted AFTER `OpeningHandSheet`, not before it: both use the same
+          `.card-picker-root` overlay layer, and that layer has no z-index
+          ordering of its own — later in the DOM paints (and receives
+          pointer events) on top. The setup sheet opens FROM the opening-hand
+          takeover's own row, so it has to out-rank the takeover it was
+          opened from, the same way a sheet opened from within a component
+          (e.g. this file's own CardPreview, mounted last in its return)
+          always sits after its opener. Mounted before this comment once,
+          which put "Fight the horde" under the takeover and ate the click. */}
+      {!onlineTable && showHordeSetup && (
+        <HordeSetupSheet
+          horde={horde}
+          hordeLoad={hordeLoad}
+          cardNames={hordeDeckCardNames}
+          resistanceOn={resistanceLevel !== 'off'}
+          onClose={() => setShowHordeSetup(false)}
+        />
+      )}
+
+      {!onlineTable && horde?.phase === 'reveal' && horde.pendingReveal && (
+        <HordeRevealSheet
+          revealed={horde.pendingReveal.revealed}
+          toResolveIds={new Set(horde.pendingReveal.toResolve.map((c) => c.id))}
+          waveEndId={horde.pendingReveal.waveEndId}
+          onConfirm={confirmHordeReveal}
+        />
+      )}
+
+      {!onlineTable && horde?.outcome && (
+        <HordeEndSheet
+          outcome={horde.outcome}
+          hordeId={horde.config.hordeId}
+          hordeTurns={horde.hordeTurn}
+          damageTaken={horde.damageTaken}
+          cardsMilledByDamage={horde.cardsMilledByDamage}
+          bossesBeaten={
+            horde.board.zones.graveyard.filter((c) => c.id.startsWith('horde-boss-')).length
+          }
+          hideRecord
+          endedOnTurn={state.turn}
+          onPlayAgain={() => dispatch({ type: 'RESET' })}
+          onDone={disarmHorde}
+        />
+      )}
+
+      {!onlineTable && horde && (
+        <HordeOverlays
+          horde={horde}
+          cardMenuId={hordeCardMenuId}
+          onCloseCardMenu={() => setHordeCardMenuId(null)}
+          damageOpen={hordeDamageOpen}
+          onCloseDamage={() => setHordeDamageOpen(false)}
+          feltRef={hordeFeltRef}
         />
       )}
 

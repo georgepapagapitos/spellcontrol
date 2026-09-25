@@ -7,23 +7,7 @@ import { buildTestHorde } from '@/playtest/lib/horde-solo.fixtures';
 import { HordeHalf } from './HordeHalf';
 
 beforeEach(() => {
-  // Reduced motion true so `useSheetExit` (the damage sheet) closes/opens
-  // synchronously under happy-dom, which never fires `animationend`.
-  vi.spyOn(window, 'matchMedia').mockImplementation(
-    (query: string) =>
-      ({
-        matches: query.includes('prefers-reduced-motion'),
-        media: query,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-      }) as unknown as MediaQueryList
-  );
-  usePlaytestStore.setState({
-    moveHordeCard: vi.fn(),
-    damageHorde: vi.fn(),
-    clearHordeDamageResult: vi.fn(),
-    retryHordeLoad: vi.fn(),
-  });
+  usePlaytestStore.setState({ retryHordeLoad: vi.fn() });
 });
 
 /** Real browser sequence for a click/tap — a bare `fireEvent.click` skips
@@ -44,6 +28,8 @@ function renderHalf(overrides: Partial<Parameters<typeof HordeHalf>[0]> = {}) {
       hordeLoad={{ status: 'idle', error: null }}
       playerTurn={1}
       feltRef={feltRef}
+      onCardMenu={vi.fn()}
+      onOpenDamage={vi.fn()}
       {...overrides}
     />
   );
@@ -57,9 +43,11 @@ describe('HordeHalf', () => {
     expect(screen.getByText(/Horde library ·/)).toBeTruthy();
   });
 
-  it('opens the card menu on a real pointer tap and records a choice', () => {
+  // The menu/sheet themselves are `HordeOverlays`' job, mounted at board
+  // level (see its own doc comment and horde-containing-block.test.ts) — this
+  // half only ever REQUESTS them.
+  it('requests the card menu on a real pointer tap, never rendering one itself', () => {
     const horde = buildTestHorde();
-    // Put one real card on the horde's battlefield to tap.
     const card = horde.board.zones.library[0];
     horde.board = {
       ...horde.board,
@@ -67,23 +55,28 @@ describe('HordeHalf', () => {
         { card, tapped: false, counters: {}, stickers: [], x: 0.5, y: 0.5, faceDown: false },
       ],
     };
-    renderHalf({ horde });
+    const onCardMenu = vi.fn();
+    renderHalf({ horde, onCardMenu });
     const cardEl = document.querySelector(`[data-card-id="${card.id}"]`) as HTMLElement;
     realPointerActivate(cardEl);
-    expect(screen.getByRole('dialog', { name: card.name })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Destroyed' }));
-    expect(usePlaytestStore.getState().moveHordeCard).toHaveBeenCalledWith(card.id, 'graveyard');
+    expect(onCardMenu).toHaveBeenCalledWith(card.id);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('opens the damage sheet and calls damageHorde with the confirmed amount', () => {
-    renderHalf();
+  it('requests the damage sheet on click, never rendering one itself', () => {
+    const onOpenDamage = vi.fn();
+    renderHalf({ onOpenDamage });
     fireEvent.click(screen.getByRole('button', { name: 'Damage the horde' }));
-    expect(screen.getByRole('dialog', { name: 'Damage the horde' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
-    expect(usePlaytestStore.getState().damageHorde).toHaveBeenCalled();
-    const [amount] = (usePlaytestStore.getState().damageHorde as ReturnType<typeof vi.fn>).mock
-      .calls[0];
-    expect(amount).toBeGreaterThanOrEqual(0);
+    expect(onOpenDamage).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('disables the damage action when the library and graveyard are both empty', () => {
+    const horde = buildTestHorde();
+    horde.board = { ...horde.board, zones: { ...horde.board.zones, library: [], graveyard: [] } };
+    renderHalf({ horde });
+    const btn = screen.getByRole('button', { name: 'Damage the horde' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
   });
 
   it('hides the damage action once the fight has ended', () => {

@@ -24,11 +24,20 @@ export function HordeAttackBanner({ attackers, power, onTake }: Props) {
         <label htmlFor="horde-attack-amount">Damage</label>
         <input
           id="horde-attack-amount"
-          type="number"
-          min={0}
-          max={power}
+          // Not `type="number"`: Chrome/Edge's native spin buttons render
+          // INSIDE the content box and eat into the visible text area, so
+          // even a correctly-sized `content-box` width still clipped a
+          // two-digit value ("14" as "1") — the digit-only text field the
+          // damage sheet already uses for the same reason.
+          type="text"
+          inputMode="numeric"
           value={value}
-          onChange={(e) => setValue(Math.max(0, Math.min(power, Number(e.target.value) || 0)))}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => {
+            const raw = e.target.value;
+            if (raw !== '' && !/^\d+$/.test(raw)) return;
+            setValue(raw === '' ? 0 : Math.max(0, Math.min(power, Number(raw))));
+          }}
         />
       </div>
       <div className="horde-attack-banner-actions">

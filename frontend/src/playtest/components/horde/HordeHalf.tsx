@@ -1,22 +1,12 @@
-import { useState, type RefObject } from 'react';
+import type { RefObject } from 'react';
 import '@/styles/horde-table.css';
-// `HordeDamageSheet` reuses the Local setup form's `.play-stepper` shell
-// around its own input — an explicit import so the playtest page chunks
-// that mount this half actually load that stylesheet too (see
-// css-chunk-ownership.test.ts).
-import '@/styles/play-setup.css';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { ZonePile } from '@/playtest/components/ZonePile';
-import { HordeDamageSheet } from '@/components/play/horde/HordeDamageSheet';
 import { usePlaytestStore } from '@/playtest/store';
 import type { SoloHordeState } from '@/playtest/lib/horde-solo';
-import {
-  cardsUntilNextBoss,
-  hordeLevelLabel,
-  hordeStatusText,
-  measureHordeRect,
-} from '@/playtest/lib/horde-view';
+import { cardsUntilNextBoss, hordeLevelLabel, hordeStatusText } from '@/playtest/lib/horde-view';
 import { HordeFelt } from './HordeFelt';
+import { HordeDamageControl } from './HordeDamageControl';
 import './HordeHalf.css';
 
 interface Props {
@@ -24,6 +14,10 @@ interface Props {
   hordeLoad: { status: 'idle' | 'loading' | 'error'; error: string | null };
   playerTurn: number;
   feltRef: RefObject<HTMLDivElement | null>;
+  /** Requests the board-level card menu / damage sheet (see `HordeOverlays`
+   *  for why neither renders inside this half). */
+  onCardMenu(cardId: string): void;
+  onOpenDamage(): void;
 }
 
 /**
@@ -32,11 +26,15 @@ interface Props {
  * `Battlefield`, fixed to exactly half the board's height, on top. Reuses
  * every class the paper `HordeTable` already defines in horde-table.css.
  */
-export function HordeHalf({ horde, hordeLoad, playerTurn, feltRef }: Props) {
-  const damageHorde = usePlaytestStore((s) => s.damageHorde);
-  const clearHordeDamageResult = usePlaytestStore((s) => s.clearHordeDamageResult);
+export function HordeHalf({
+  horde,
+  hordeLoad,
+  playerTurn,
+  feltRef,
+  onCardMenu,
+  onOpenDamage,
+}: Props) {
   const retryHordeLoad = usePlaytestStore((s) => s.retryHordeLoad);
-  const [damageSheetOpen, setDamageSheetOpen] = useState(false);
 
   if (!horde) {
     return (
@@ -55,8 +53,7 @@ export function HordeHalf({ horde, hordeLoad, playerTurn, feltRef }: Props) {
     );
   }
 
-  const { board, config, bossTicksCrossed, librarySizeAtStart, attackingIds, lastDamageResult } =
-    horde;
+  const { board, config, bossTicksCrossed, librarySizeAtStart, attackingIds } = horde;
   const libraryRemaining = board.zones.library.length;
   const nextBossIn = cardsUntilNextBoss(
     librarySizeAtStart,
@@ -118,34 +115,18 @@ export function HordeHalf({ horde, hordeLoad, playerTurn, feltRef }: Props) {
         </div>
       </div>
 
-      <HordeFelt board={board} attackingIds={attackingIds} />
+      <HordeFelt board={board} attackingIds={attackingIds} onCardMenu={onCardMenu} />
 
       {horde.phase !== 'ended' && (
         <div className="horde-table-actions">
-          <button
-            type="button"
+          <HordeDamageControl
+            libraryCount={board.zones.library.length}
+            graveyardCount={board.zones.graveyard.length}
+            onOpen={onOpenDamage}
             className="btn"
-            onClick={() => setDamageSheetOpen(true)}
-            disabled={board.zones.library.length === 0 && board.zones.graveyard.length === 0}
-          >
-            Damage the horde
-          </button>
+            label="Damage the horde"
+          />
         </div>
-      )}
-
-      {damageSheetOpen && (
-        <HordeDamageSheet
-          libraryCount={board.zones.library.length}
-          result={lastDamageResult}
-          onConfirm={(amount) =>
-            damageHorde(amount, feltRef.current ? measureHordeRect(feltRef.current) : null)
-          }
-          onDone={() => {
-            clearHordeDamageResult();
-            setDamageSheetOpen(false);
-          }}
-          onClose={() => setDamageSheetOpen(false)}
-        />
       )}
     </div>
   );

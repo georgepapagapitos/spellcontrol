@@ -204,13 +204,22 @@
 }
 
 .horde-attack-banner-input input {
-  /* `border-box` (the app-wide default) counts the shared `input[type=number]`
-     rule's 6px/10px padding INSIDE this width, leaving too little content
-     room for two digits ("32" rendered as "3") — found reusing this banner
-     on the playtest board (E387 PR 5). `content-box` makes the `ch` figure
-     describe the digits alone, with the padding added around it. */
+  /* `border-box` (the app-wide default) counts the shared input rule's
+     6px/10px padding INSIDE this width, leaving too little content room for
+     two digits ("32" rendered as "3") — found reusing this banner on the
+     playtest board (E387 PR 5). `content-box` makes the `ch` figure describe
+     the digits alone, with the padding added around it. 4ch comfortably
+     fits a life-sized 3-digit value ("999"). Paired with the field's own
+     switch off `type="number"` (HordeAttackBanner.tsx) — its native spin
+     buttons render INSIDE the content box and re-clipped the text even with
+     this fixed, which is why a monospace/tabular font matters here too: a
+     proportional font's "0" glyph (what `ch` measures) understates a wider
+     digit's real rendered width. Pinned by
+     horde-attack-banner-input-width.test.ts. */
   box-sizing: content-box;
-  width: 3ch;
+  width: 4ch;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 

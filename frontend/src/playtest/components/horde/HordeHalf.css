@@ -4,10 +4,25 @@
    half's own surface and its loading/error state. Everything else reuses
    horde-table.css's status/corner/action classes verbatim. */
 
+/* `.horde-half` used to read as a step back via `filter: saturate() brightness()`
+   — a `filter` (like `transform`, `perspective`, `contain`, `backdrop-filter`
+   or `will-change: transform`/`filter`) makes its element the containing
+   block for any `position: fixed` descendant, so an overlay mounted inside
+   it (the damage sheet, the card menu) clipped to this box instead of the
+   viewport and its own buttons went unreachable (E387 PR 5 follow-up). The
+   tint is a `::before` UNDER the cards instead — it dims the felt, never the
+   containing block of anything painted after it. See
+   `horde-containing-block.test.ts`, which forbids these properties here. */
 .horde-half {
-  /* Reads as a step back from your own board, the way the paper table's
-     "not your board" chrome never needs — there IS only one board there. */
-  filter: saturate(0.85) brightness(0.92);
+  position: relative;
+}
+
+.horde-half::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 12%);
+  pointer-events: none;
 }
 
 .horde-half--loading {
