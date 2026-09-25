@@ -4,7 +4,6 @@ import { MeterBar } from '../../components/shared/MeterBar';
 import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
 import { VerdictBadge } from '../../components/deck/VerdictBadge';
 import { InfoTip } from '../../components/InfoTip';
-import { SegmentedControl } from '../../components/shared/form';
 import { SelectMenu } from '../../components/SelectMenu';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -12,7 +11,6 @@ import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, type AllocationInfo } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { CUBE_SIZES, sizeInfo, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
-import { CUBE_FORMATS, FORMAT_INFO, type CubeFormat } from '../../lib/cube/play-format';
 import type { GeneratedCube } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -310,31 +308,19 @@ export function CubeEmptyState({
   );
 }
 
-/** The play-format + cube-size pickers plus their descriptive notes. Format
- *  sits with size because together they say what the cube is FOR — a 4-player
- *  draft pod or a Commander night — and both feed the same corpus lookup
- *  (`targetsForSize(size, format)`). Same rect-option row as size
- *  (STYLE_GUIDE: in-panel selector options are rects). */
+/** The cube-size picker plus its note on who the size is for. Every build is a
+ *  draft cube: the Commander format was taken out of the UI (board T150) because
+ *  it only swapped the corpus targets and knew nothing about commanders, so it
+ *  promised a Commander cube it could not build. */
 export function CubeSizePicker({
   size,
   onSize,
-  format,
-  onFormat,
 }: {
   size: CubeSize;
   onSize: (s: CubeSize) => void;
-  format: CubeFormat;
-  onFormat: (f: CubeFormat) => void;
 }) {
   return (
     <div className="cube-size">
-      <SegmentedControl
-        ariaLabel="Play format"
-        value={format}
-        options={CUBE_FORMATS.map((f) => ({ value: f, label: FORMAT_INFO[f].label }))}
-        onChange={onFormat}
-      />
-      <p className="cube-size-note">{FORMAT_INFO[format].note}</p>
       <SelectMenu<CubeSize>
         label="Cube size"
         ariaLabel="Cube size"

@@ -625,16 +625,15 @@ a control row (then the whole `.toolbar-pill` segmented family is `999px`, e.g.
 `.pick-mode-toggle`). A radio/segmented selector inside a form or settings panel
 is not that — its options are rects.
 
-**Paired in-panel selectors stack as sibling rows in ONE block, each option a
-rect.** When two selectors together say what a thing is FOR — the cube's play
-format (Draft / Commander) and its size (180–720) — they live in the same
-`.cube-size` block as two `role="group"` rows of the same rect option
-(`.cube-size-opt`: `var(--radius)`, `--surface`, accent-light when active), the
-deciding one first, each followed by its one-line note. Don't split the pair
-across the controls row or demote one to a `SelectMenu` pill: the pill family is
-for toolbar filters ("Draw from"), and a format is not a filter — it changes the
-corpus the build is shaped toward. Options wrap on phones exactly as the size
-row already does.
+**A selector keeps its note in ONE block with it.** The cube's size picker
+(six options, so a `SelectMenu` per § Config surfaces) sits in the `.cube-size`
+column with its one-line note directly under it, so the note stays with the
+control when `.cube-controls` becomes a toolbar row. A selector that decides
+what a thing is FOR (a play format, a pod size) is not a filter; it leads the
+controls, ahead of the "Draw from" pickers. The Draft / Commander format row
+that used to lead this block was taken out of the UI (board T150): it only
+swapped corpus targets and could not build a Commander cube. If a format comes
+back, it is a `SegmentedControl` above the size, with its own note.
 
 **Segmented options carry the 44px coarse floor on the SPAN, not the label.**
 The label-wrapping-a-hidden-radio pattern (`.binder-mode-pill`,

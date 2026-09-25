@@ -274,12 +274,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
   return (
     <div className="cube-build">
       <div className="cube-controls">
-        <CubeSizePicker
-          size={size}
-          onSize={setSize}
-          format={filters.format}
-          onFormat={(format) => setFilters({ ...filters, format })}
-        />
+        <CubeSizePicker size={size} onSize={setSize} />
         <SynergySlider value={synergyLevel} onChange={setSynergyLevel} />
         <PoolFilterRow filters={filters} onChange={setFilters} />
         <button
