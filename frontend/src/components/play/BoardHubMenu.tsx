@@ -1,4 +1,11 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { useMenuKeyboard } from '../../lib/use-menu-keyboard';
 import { hubPetalPositions, type Point } from '../../lib/board-hub-layout';
 import './BoardHubMenu.css';
@@ -29,10 +36,20 @@ export function BoardHubMenu({
   hubRef,
   onClose,
   petals,
+  openedByKeyboard = true,
 }: {
   hubRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
   petals: HubPetal[];
+  /** How this open was triggered. A pointer open still moves focus into the
+   *  first petal (arrow-key roaming has to start somewhere either way), but
+   *  doesn't draw its ring — a tap on the hub isn't "selecting" Restart, and
+   *  Chromium can otherwise still show `:focus-visible` on a script-driven
+   *  `.focus()` moments after a real pointer click (verified in a real
+   *  browser, not assumed from the spec's heuristic wording). Defaults to
+   *  true so every other caller (there are none yet, but this is a shared
+   *  primitive) keeps the WAI-ARIA-correct ring unless it opts out. */
+  openedByKeyboard?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [points, setPoints] = useState<Point[]>([]);
@@ -79,6 +96,24 @@ export function BoardHubMenu({
     panelRef,
     triggerRef: hubRef,
   });
+
+  // useMenuKeyboard focuses the first petal on open unconditionally (right —
+  // arrow-key roaming needs a start either way). This only controls whether
+  // THAT focus draws a ring: a class scoped to the panel, removed on the
+  // first real keydown so keyboard nav after a pointer-open still shows a
+  // ring for wherever focus lands next.
+  useEffect(() => {
+    if (openedByKeyboard) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    panel.classList.add('board-hub-ring-pointer-opened');
+    const clear = () => panel.classList.remove('board-hub-ring-pointer-opened');
+    document.addEventListener('keydown', clear, { once: true });
+    return () => {
+      document.removeEventListener('keydown', clear);
+      panel.classList.remove('board-hub-ring-pointer-opened');
+    };
+  }, [openedByKeyboard]);
 
   return (
     <>
