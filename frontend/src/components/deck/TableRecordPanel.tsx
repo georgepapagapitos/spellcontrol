@@ -33,14 +33,17 @@ export function TableRecordPanel({ deckId }: TableRecordPanelProps): JSX.Element
 
   if (!deckRow) {
     return (
-      <div className="empty-state table-record-empty">
-        <p className="empty-state-tagline">No games tracked yet.</p>
-        <p className="empty-state-hint">Track a game to see this deck's real record.</p>
-        <div className="empty-state-actions">
-          <Link to="/play" className="btn btn-primary">
-            Track a game
-          </Link>
-        </div>
+      // A sub-panel placeholder, not a page's empty state (§ Empty states): one
+      // line and a quiet door. The headline-plus-primary-button version stood
+      // taller than any real panel beside it, for a deck that simply hasn't
+      // been played yet.
+      <div className="table-record-empty">
+        <p className="table-record-empty-text">
+          No games tracked yet. Log one and this shows wins, losses and who beat it.
+        </p>
+        <Link to="/play" className="btn table-record-empty-action">
+          Track a game
+        </Link>
       </div>
     );
   }

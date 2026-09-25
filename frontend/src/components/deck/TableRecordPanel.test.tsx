@@ -56,7 +56,7 @@ describe('TableRecordPanel', () => {
   it('shows an invitation empty state with no tracked games', () => {
     history = [];
     renderPanel();
-    expect(screen.getByText('No games tracked yet.')).toBeTruthy();
+    expect(screen.getByText(/^No games tracked yet\./)).toBeTruthy();
     const link = screen.getByRole('link', { name: /track a game/i });
     expect(link.getAttribute('href')).toBe('/play');
   });

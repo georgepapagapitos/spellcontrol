@@ -25,9 +25,29 @@
 }
 
 .deck-saltiest-band--spicy {
-  color: #d4a838; /* matches grade-C amber — intentional literal per GOLD_COLOR pattern */
+  color: var(--warn-text);
 }
 
 .deck-saltiest-band--polarizing {
   color: var(--err-text);
+}
+
+/* The deck's own read, first: the band word large, the number beside it. */
+.deck-saltiest-avg {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+}
+
+.deck-saltiest-avg-band {
+  font-size: var(--text-lg);
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.deck-saltiest-avg-num {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }

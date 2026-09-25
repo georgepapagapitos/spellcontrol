@@ -2,6 +2,7 @@
 // deck card list. Split out of DeckDisplay.tsx purely to shrink the file —
 // no logic changes.
 import { useMemo } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { ScryfallCard, Archetype } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import type { LaneId } from '@/lib/deck-change';
@@ -14,6 +15,7 @@ import {
 import { bracketSourceSentence } from '@/lib/format-bracket-label';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import { ROLE_TITLES } from '@/lib/role-badges';
+import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
 import type { ValidationResult } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { BuildReport } from '@/deck-builder/types';
 import { MeterBar } from '../shared/MeterBar';
@@ -162,6 +164,13 @@ export function DeckAnalysisView({
 
   const showRoles = roleCounts !== undefined;
 
+  // The commander (and partner): the Types panel files them as their own row,
+  // the way the deck list does.
+  const commandZone = useMemo(
+    () => [commander, partnerCommander].filter((c): c is ScryfallCard => !!c),
+    [commander, partnerCommander]
+  );
+
   const bracketOverridden = bracketOverride != null;
   // The parent `.deck-display` is the tabpanel for the active view; this just
   // renders the view's content. `current` aliases `view` so the per-view blocks
@@ -202,20 +211,31 @@ export function DeckAnalysisView({
               cards={allCards}
             />
           </div>
-          {/* Mana curve — full-width so the stacked curve reads well. */}
-          <Panel title="Mana curve" wide className={panelCascadeClass(1, cascade.animating)}>
-            <DeckCurvePhases
-              manaCurve={manaData.manaCurve}
-              curveByColor={manaData.curveByColor}
-              averageCmc={manaData.averageCmc}
-              cardsByCmc={manaData.cardsByCmc}
-            />
-          </Panel>
-          {/* Color + Types — a compact pair (lone survivor spans full width). */}
-          <div
-            className={`deck-stats-pair${panelCascadeClass(2, cascade.animating) ? ` ${panelCascadeClass(2, cascade.animating)}` : ''}`}
-          >
-            <Panel title="Color">
+          {/* The panels sit on two rows sized to what they hold (§ Deck stats
+              sit under the list): the curve beside the type counts, then
+              colour beside the salt and the table record. Each row is a flex
+              line whose wide member takes two shares; under ~900px of board
+              the rows stack. A panel that has nothing to show is simply
+              absent, and its row closes up. */}
+          <div className={`deck-stats-row ${panelCascadeClass(1, cascade.animating) ?? ''}`.trim()}>
+            <Panel title="Mana curve" className="deck-stats-row-main">
+              <DeckCurvePhases
+                manaCurve={manaData.manaCurve}
+                curveByColor={manaData.curveByColor}
+                averageCmc={manaData.averageCmc}
+                cardsByCmc={manaData.cardsByCmc}
+              />
+            </Panel>
+            <Panel title="Types">
+              <DeckTypeBreakdown
+                typeCounts={manaData.typeBreakdown}
+                cardsByType={manaData.cardsByType}
+                commandZone={commandZone}
+              />
+            </Panel>
+          </div>
+          <div className={`deck-stats-row ${panelCascadeClass(2, cascade.animating) ?? ''}`.trim()}>
+            <Panel title="Color" className="deck-stats-row-main">
               <DeckColorPanel
                 colorDist={manaData.colorDist}
                 manaProduction={manaData.manaProduction}
@@ -225,46 +245,49 @@ export function DeckAnalysisView({
                 onReanalyzeLands={onNavigateToTune ? () => onNavigateToTune('lands') : undefined}
               />
             </Panel>
-            <Panel title="Types">
-              <DeckTypeBreakdown
-                typeCounts={manaData.typeBreakdown}
-                cardsByType={manaData.cardsByType}
-              />
-            </Panel>
-          </div>
-          {/* Saltiest — lone, spans full width. */}
-          <div
-            className={`deck-stats-pair${panelCascadeClass(3, cascade.animating) ? ` ${panelCascadeClass(3, cascade.animating)}` : ''}`}
-          >
             {saltiestCards && saltiestCards.length > 0 && (
               <Panel title="Saltiest cards">
                 <SaltiestPanel cards={saltiestCards} averageSalt={averageSalt} />
               </Panel>
             )}
+            {/* Table record: this deck's real tracked W/L. Owns its own
+                compact empty state for a never-played deck. */}
+            {tableRecordSlot && <Panel title="Table record">{tableRecordSlot}</Panel>}
           </div>
-          {/* Build report — full width, list-heavy. */}
+          {/* Build report: how the generator built this deck. It is a record
+              of the build, not a stat, so it rests as one row naming the
+              archetype the generator used and opens in place (every "+ Add"
+              and the "Fix gaps" link still work inside). A disclosure rather
+              than a sheet because the public shared deck renders these same
+              stats and has no sheet to open. */}
           {buildReport && (
-            <Panel title="Build report" wide className={panelCascadeClass(4, cascade.animating)}>
-              <BuildReportPanel
-                report={buildReport}
-                onFixGaps={onNavigateToTune ? () => onNavigateToTune('fill-gaps') : undefined}
-                onAddCard={onAddSuggestedCard}
-                deckCardNames={buildReportDeckNames}
-                addingCardNames={addingSuggestedCardNames}
-                oneAwayCombos={oneAwayCombos}
-                ownedOracleIds={ownedOracleIds}
-              />
-            </Panel>
-          )}
-          {/* Table record — this deck's real tracked W/L, full width. Always
-              rendered (owns its own empty state for zero tracked games), so it
-              sits last: on a never-played deck it is an empty state, and an
-              empty state must not split the composition panels from the
-              build report. */}
-          {tableRecordSlot && (
-            <Panel title="Table record" wide>
-              {tableRecordSlot}
-            </Panel>
+            <details
+              className={`deck-stats-report ${panelCascadeClass(3, cascade.animating) ?? ''}`.trim()}
+            >
+              <summary className="deck-stats-report-summary">
+                <span className="deck-stats-report-eyebrow">Build report</span>
+                <span className="deck-stats-report-line">
+                  {/* The generator's archetype set the role targets and land
+                      count; "Plays as" above reads the deck's cards. Worded as
+                      targets so the two don't read as a contradiction. */}
+                  {buildReport.archetype
+                    ? `Generated with ${ARCHETYPE_LABEL[buildReport.archetype]} targets`
+                    : 'How the generator built this deck'}
+                </span>
+                <ChevronDown className="deck-stats-report-chevron" aria-hidden={true} />
+              </summary>
+              <div className="deck-stats-report-body">
+                <BuildReportPanel
+                  report={buildReport}
+                  onFixGaps={onNavigateToTune ? () => onNavigateToTune('fill-gaps') : undefined}
+                  onAddCard={onAddSuggestedCard}
+                  deckCardNames={buildReportDeckNames}
+                  addingCardNames={addingSuggestedCardNames}
+                  oneAwayCombos={oneAwayCombos}
+                  ownedOracleIds={ownedOracleIds}
+                />
+              </div>
+            </details>
           )}
         </div>
       )}
