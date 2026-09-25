@@ -15,10 +15,9 @@
 //     buttons (use SegmentedControl / ChoiceList)
 //   - a native `<select>` (use SelectMenu)
 //
-// Every allowlist entry says why. RULING entries are kept by a written
-// STYLE_GUIDE ruling. DEBT entries are real violations T139 did not reach,
-// tracked as board E423: migrate one, then delete its entry here so the count
-// can only go down.
+// Every allowlist entry says why, and each is kept by a written STYLE_GUIDE
+// ruling (or is the kit itself). The debt T139 left (board E423) is cleared,
+// so a new match is fixed with the kit, not added here.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -52,7 +51,6 @@ type Pattern = keyof typeof PATTERNS;
 const KIT = 'components/shared/form.tsx';
 const FILTER_CHIPS = 'RULING: a filter-chip row acts on a list (§ Filter-chip row)';
 const RSVP = 'RULING: an RSVP answer writes at once (§ Home, inline RSVP)';
-const DEBT = 'DEBT (E423): an exclusive setting, move it onto the kit';
 
 const ALLOWED: Record<Pattern, Record<string, { count: number; why: string }>> = {
   switch: {
