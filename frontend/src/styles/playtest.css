@@ -60,6 +60,15 @@ body:has(.playtest-page, .horde-table-page) .modal-backdrop {
   initial-value: 126px;
 }
 
+/* The pile row's width below 1024px (set per tier further down). Registered
+   for the same reason: Hand.tsx reads it back as px to spread the fan over
+   what the row leaves. 0 at the desk, where the fan derives the row itself. */
+@property --pt-pile-span {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
 body:has(.playtest-page, .horde-table-page) {
   /* Table density scales with the board instead of a fixed 90px: 7% of the
      viewport width, capped by what three type rows (permanents / creatures /
@@ -4613,6 +4622,22 @@ button.playtest-card-pt__value--editable:focus-visible {
 @media (max-height: 500px) and (orientation: landscape) {
   .playtest-board {
     --pt-pile-span: calc(2 * var(--pt-card-w) + var(--pt-hand-btn-w) + 4 * var(--space-2));
+  }
+
+  /* The hand is the part of a phone table read most, and at the table's
+     56px a card showed about 60px of itself above the edge: too small to
+     read a name or aim a thumb at. It gets its own size, about a fifth of
+     the screen's height as EDHPlay's phone hand is; the felt, the
+     permanents and the piles keep theirs. The pile span above is already
+     computed at the table's size, so the row it reserves does not grow. */
+  .playtest-hand--fan {
+    --pt-card-w: clamp(56px, 22vh, 96px);
+    --pt-card-h: calc(var(--pt-card-w) * 1.4);
+  }
+
+  .playtest-hand--fan .playtest-card--sm {
+    width: var(--pt-card-w);
+    height: var(--pt-card-h);
   }
 
   .playtest-hand-menu-btn {

@@ -201,6 +201,28 @@ describe('table chrome at the wide tier', () => {
     expect(block('.playtest-main--grid .playtest-hand--fan {')).toContain('var(--pt-hand-btn-w)');
   });
 
+  // A phone on its side drew the hand at the table's 56px, about 60px of
+  // each card above the edge (user, 2026-09-25: EDHPlay's phone hand is
+  // about a fifth of the screen's height). The hand gets a size of its own
+  // there; the pile span stays at the table's, and is registered so the fan
+  // (Hand.tsx) reads it back as px rather than as `calc()` text.
+  it('gives a phone on its side a hand bigger than its table, fanned over what the piles leave', () => {
+    const sideways = (() => {
+      const header = '@media (max-height: 500px) and (orientation: landscape) {';
+      const start = css.lastIndexOf(header);
+      expect(start, 'the sideways-phone block is missing').toBeGreaterThan(-1);
+      return css.slice(start, css.indexOf('\n}\n', start));
+    })();
+    expect(sideways).toContain(
+      '.playtest-hand--fan {\n    --pt-card-w: clamp(56px, 22vh, 96px);\n    --pt-card-h: calc(var(--pt-card-w) * 1.4);'
+    );
+    // Without this the tier's `min(64px, …)` cap keeps the old size.
+    expect(sideways).toContain(
+      '.playtest-hand--fan .playtest-card--sm {\n    width: var(--pt-card-w);\n    height: var(--pt-card-h);'
+    );
+    expect(block('@property --pt-pile-span {')).toContain("syntax: '<length>'");
+  });
+
   // The hint it used to style ("Tap or drag a card from your hand to play
   // it") is gone: an empty felt with a full hand in front of it is not a
   // state that needs narrating, and the app does not narrate itself.
