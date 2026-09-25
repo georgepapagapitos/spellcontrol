@@ -3989,6 +3989,14 @@ moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
   step: the mouse opens by hover and the keyboard by focus, and both go straight
   to the carousel on activation. Stacks never open on load; the strips are the
   index.
+- **A tapped card scrolls into view by the least distance, never centred.**
+  The card opens downward from the strip, so a strip low on the screen used to
+  open most of its card below the fold. The tap now scrolls the cell with
+  `block: 'nearest'`: a card that already fits does not move the page, so the
+  strip stays under the finger, and one that does not fit moves just enough to
+  show whole. `scroll-margin-top` clears the sticky Deck / Power / Coach tabs.
+  Centring was ruled out because it moves the tapped strip away from the finger
+  on every tap and makes walking down a stack jump.
 - **Stacks pack, they do not wrap.** `packStacks` balances the columns, so
   a 28-card Creature stack never holds a screen-high hole beside a 1-card
   Commander. On a phone there is exactly ONE stack, as wide as the screen: a

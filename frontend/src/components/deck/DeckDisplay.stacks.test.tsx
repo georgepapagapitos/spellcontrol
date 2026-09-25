@@ -3,7 +3,7 @@
 // one column per group, the grid's own tile overlapped so only each name
 // strip shows. See STYLE_GUIDE § Deck list on a wide screen.
 import 'fake-indexeddb/auto';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -198,6 +198,41 @@ describe('deck Stacks view', () => {
       fireEvent.pointerDown(tile(container, 'Goblin Lackey'), { pointerType: 'mouse' });
       fireEvent.click(tile(container, 'Goblin Lackey'), { detail: 1 });
       expect(carousel()).not.toBeNull();
+    });
+
+    describe('scrolls the opened card into view', () => {
+      // Which stacked cells were scrolled, and how. The carousel scrolls its
+      // own slides, so only calls on a stack cell count.
+      afterEach(() => vi.restoreAllMocks());
+      const scrolled = () => {
+        const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+        return () =>
+          spy.mock.contexts
+            .map((el, n) => ({ el: el as Element, arg: spy.mock.calls[n][0] }))
+            .filter(({ el }) => el.matches('.deck-card-stack .deck-card-grid-cell'))
+            .map(({ el, arg }) => ({
+              name: el.querySelector('[data-peek-name]')?.getAttribute('data-peek-name'),
+              block: (arg as ScrollIntoViewOptions).block,
+            }));
+      };
+
+      it('by the least distance, never centred', () => {
+        const calls = scrolled();
+        const { container } = renderDeck();
+        tap(tile(container, 'Goblin Lackey'));
+        expect(calls()).toEqual([{ name: 'Goblin Lackey', block: 'nearest' }]);
+      });
+
+      it('only on the tap that opens it', () => {
+        const calls = scrolled();
+        const { container } = renderDeck();
+        // Last card: straight to the carousel, nothing opened, nothing scrolled.
+        tap(tile(container, 'Skirk Prospector'));
+        // The mouse opens by hover; a click never moves the page.
+        fireEvent.pointerDown(tile(container, 'Goblin Lackey'), { pointerType: 'mouse' });
+        fireEvent.click(tile(container, 'Goblin Lackey'), { detail: 1 });
+        expect(calls()).toEqual([]);
+      });
     });
 
     it('never lets a keyboard press inherit an earlier tap', () => {

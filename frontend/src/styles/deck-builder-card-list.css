@@ -207,6 +207,10 @@
   /* Every card in the tail carries the same duration and curve, so the tail
      keeps its overlap exactly and arrives as one block of cards. */
   transition: transform var(--motion-gentle) var(--ease-drawer);
+  /* A tapped card scrolls itself into view (DeckCardGrid) and must land below
+     the editor's sticky Deck / Power / Coach tabs. The bottom needs nothing:
+     `.app-main`'s own scroll-padding-bottom already leaves a cushion. */
+  scroll-margin-top: 4.5rem;
 }
 
 /* The overlap is pure layout and never animates: it is where each card LIVES in
