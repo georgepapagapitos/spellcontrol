@@ -171,6 +171,21 @@ describe('App — "*" (unmatched path) route resolution', () => {
 // here" state — every other branch (including errored, which can arrive
 // with no code/signup payload at all) still describes something to resume
 // or retry, so the fallback link stays.
+describe('App — the old "With friends" cube start redirects', () => {
+  // Friends folded into the "Draw from" picker on the collection start
+  // (board note) — a bookmarked or shared /new/friends link still lands
+  // somewhere real instead of 404ing.
+  it('/decks/cube/new/friends forwards to /decks/cube/new/collection', () => {
+    authState.status = 'authed';
+    authState.user = { id: 'u1', username: 'alice', role: 'user' };
+    hasEverVisitedMock.mockReturnValue(true);
+    renderAt('/decks/cube/new/friends');
+    expect(screen.getByTestId('navigate').getAttribute('data-to')).toBe(
+      '/decks/cube/new/collection'
+    );
+  });
+});
+
 describe('App — the public playtest is a page of the app', () => {
   // Playtest batch 11: mounted bare, /d/:slug/playtest had no <main>
   // landmark at all; the owner's /decks/:id/playtest has always been inside

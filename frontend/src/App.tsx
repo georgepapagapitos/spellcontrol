@@ -69,7 +69,6 @@ const DeckEditorPage = lazyPage(() => import('./pages/DeckEditorPage'), 'DeckEdi
 const DeckComparePage = lazyPage(() => import('./pages/DeckComparePage'), 'DeckComparePage');
 const CubeIndexPage = lazyPage(() => import('./pages/CubeIndexPage'), 'CubeIndexPage');
 const CubeChooserPage = lazyPage(() => import('./pages/cube/CubeChooserPage'), 'CubeChooserPage');
-const CubeFriendsPage = lazyPage(() => import('./pages/cube/CubeFriendsPage'), 'CubeFriendsPage');
 const CubeImportPage = lazyPage(() => import('./pages/cube/CubeImportPage'), 'CubeImportPage');
 const CubeBuildPage = lazyPage(() => import('./pages/cube/CubeBuildPage'), 'CubeBuildPage');
 const CubeDetailPage = lazyPage(() => import('./pages/cube/CubeDetailPage'), 'CubeDetailPage');
@@ -393,7 +392,12 @@ export default function App() {
             <Route path="/decks/compare" element={<DeckComparePage />} />
             <Route path="/decks/cube" element={<CubeIndexPage />} />
             <Route path="/decks/cube/new" element={<CubeChooserPage />} />
-            <Route path="/decks/cube/new/friends" element={<CubeFriendsPage />} />
+            {/* "With friends" folded into the "Draw from" picker on the collection
+                start (board note) — forward any bookmarked/shared link to it. */}
+            <Route
+              path="/decks/cube/new/friends"
+              element={<Navigate to="/decks/cube/new/collection" replace />}
+            />
             <Route path="/decks/cube/new/import" element={<CubeImportPage />} />
             <Route path="/decks/cube/new/collection" element={<CubeBuildPage />} />
             <Route path="/decks/cube/:id" element={<CubeDetailPage />} />
