@@ -40,6 +40,7 @@ import { UsernameEditor } from '../components/UsernameEditor';
 import { TypeSetPicker } from '../components/TypeSetPicker';
 import { SettingsSection } from '../components/settings/SettingsSection';
 import { SettingsRow } from '../components/settings/SettingsRow';
+import { SwitchRow } from '../components/shared/form';
 import { scrollToHeading } from '../lib/scroll-to-heading';
 import { track } from '../lib/analytics';
 import { listFriends } from '../lib/friends-client';
@@ -546,26 +547,16 @@ export function YouPage() {
                 </div>
               )}
             </SettingsRow>
-            <SettingsRow
+            <SwitchRow
               label="Email notifications"
               hint={
                 identities.emailVerified
                   ? 'Get emailed for new friend requests, trade offers, and game-night invites.'
                   : 'Add a verified email above to get these.'
               }
-              actions={
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={identities.notifyEmail}
-                  aria-label="Email notifications"
-                  className={`btn settings-switch${identities.notifyEmail ? ' is-on' : ''}`}
-                  disabled={!identities.emailVerified || notifyEmailBusy}
-                  onClick={() => void handleToggleNotifyEmail()}
-                >
-                  {identities.notifyEmail ? 'On' : 'Off'}
-                </button>
-              }
+              checked={identities.notifyEmail}
+              onChange={() => void handleToggleNotifyEmail()}
+              disabled={!identities.emailVerified || notifyEmailBusy}
             />
             <SettingsRow
               label="Google"

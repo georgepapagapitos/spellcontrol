@@ -50,6 +50,7 @@ import { StagedFileList } from './StagedFileList';
 import { ImportRoutingSummary } from './ImportRoutingSummary';
 import { InlineCardSearch } from './InlineCardSearch';
 import { InfoTip } from './InfoTip';
+import { SwitchRow } from './shared/form';
 import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 import {
@@ -995,22 +996,13 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             </div>
           )}
 
-          <label className="field-checkbox import-proxy-toggle">
-            <input
-              type="checkbox"
-              checked={markAsProxies}
-              onChange={(e) => setMarkAsProxies(e.target.checked)}
-              disabled={isLoading}
-            />
-            <span>
-              Mark all as proxies
-              <InfoTip
-                label="marking an import as proxies"
-                ariaLabel="What does marking an import as proxies do?"
-                text="Proxy copies count as owned in your collection and binders, but carry no market value. Their cost, if any, still counts toward what you paid."
-              />
-            </span>
-          </label>
+          <SwitchRow
+            label="Mark all as proxies"
+            hint="Proxy copies count as owned in your collection and binders, but carry no market value. Their cost, if any, still counts toward what you paid."
+            checked={markAsProxies}
+            onChange={setMarkAsProxies}
+            disabled={isLoading}
+          />
 
           <div className="import-card-footer">
             <span className="import-card-hint">
