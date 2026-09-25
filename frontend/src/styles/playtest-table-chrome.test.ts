@@ -36,7 +36,7 @@ describe('table chrome at the wide tier', () => {
     // the badge behind on the felt.
     expect(css).toContain('.playtest-hand--fan .playtest-hand__slot:hover .playtest-hand__lift {');
     expect(css).toContain(
-      '.playtest-hand--fan .playtest-hand__slot:focus-within .playtest-hand__lift {'
+      '.playtest-hand--fan .playtest-hand__slot:has(:focus-visible) .playtest-hand__lift {'
     );
     // The card under the pointer reads as the active one.
     expect(block('.playtest-hand--fan .playtest-hand__slot:hover .playtest-card {')).toContain(
@@ -49,8 +49,12 @@ describe('table chrome at the wide tier', () => {
       'bottom: calc(var(--pt-hand-card-h, var(--pt-card-h)) * -0.38)'
     );
     expect(
-      block('.playtest-hand--fan .playtest-hand__slot:focus-within .playtest-hand__lift {')
+      block('.playtest-hand--fan .playtest-hand__slot:has(:focus-visible) .playtest-hand__lift {')
     ).toContain('var(--pt-card-h) * -0.38');
+    // Mouse focus must not lift: a right-click focuses the card and its menu
+    // restores focus on close, which left the card stuck up under
+    // `:focus-within` once the pointer had moved away.
+    expect(css).not.toMatch(/\.playtest-hand__slot:focus-within/);
     // The fan centres itself left of the pile row rather than on the viewport.
     expect(block('.playtest-hand--fan {')).not.toContain('left: 50%');
   });
