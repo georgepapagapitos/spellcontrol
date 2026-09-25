@@ -52,6 +52,10 @@ interface Props {
   onOnDrawChange(on: boolean): void;
   /** Present only when this playtest is seated at an online table. */
   online?: OpeningHandOnline;
+  /** Solo Horde (E387 PR 5): a third row under the two variant switches that
+   *  opens the horde setup sheet. Absent at an online table — a horde never
+   *  exists there. */
+  horde?: { label: string; desc: string; onOpen(): void };
   /** Leave playtest and return to the deck. The sheet is otherwise
    *  non-dismissable (Keep / Mulligan), so this is the only way out. */
   /** Where `onExit` goes (deck name, or the online table). */
@@ -100,6 +104,7 @@ export function OpeningHandSheet({
   onDraw,
   onOnDrawChange,
   online,
+  horde,
   exitLabel,
   onExit,
   onKeep,
@@ -496,6 +501,19 @@ export function OpeningHandSheet({
                 </span>
               </span>
             </label>
+            {horde && (
+              <button
+                type="button"
+                className="playtest-opening-variant horde-opening-row"
+                onClick={horde.onOpen}
+              >
+                <span className="playtest-opening-variant__text">
+                  <span className="playtest-opening-variant__label">{horde.label}</span>
+                  <span className="playtest-opening-variant__desc">{horde.desc}</span>
+                </span>
+                <span aria-hidden>›</span>
+              </button>
+            )}
           </div>
         )}
       </div>

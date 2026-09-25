@@ -23,6 +23,7 @@ import {
   type ResistanceState,
 } from '@/playtest/lib/resistance';
 import type { Deck } from '@/store/decks';
+import type { SoloHordeState } from '@/playtest/lib/horde-solo';
 
 /** Mirrors `PlaytestPhase` in `@/playtest/store` (kept local to avoid a cycle). */
 export type PlaytestSnapshotPhase = 'opening' | 'mulligan-bottom' | 'playing';
@@ -42,6 +43,11 @@ export interface PlaytestSnapshot {
   /** Event journal (E140). Optional on the wire — a snapshot saved before this
    *  field existed loads with an empty log rather than failing validation. */
   gameLog: GameLogEntry[];
+  /** Solo Horde (E387 PR 5). Optional on the wire — a snapshot saved before
+   *  this field existed loads with no horde rather than failing validation,
+   *  and a present-but-malformed one is dropped the same way (see
+   *  `sanitizeHorde`) rather than failing the whole snapshot. */
+  horde?: SoloHordeState | null;
 }
 
 const KEY_PREFIX = 'spellcontrol:playtest:';
@@ -214,6 +220,19 @@ function normalizeResistanceLevel(v: unknown): ResistanceLevel {
   return raw.resistance === true ? 'standard' : 'off';
 }
 
+/** A present-but-malformed horde (no `board`, or a board with no `zones`)
+ *  is dropped rather than failing the whole snapshot — the rest of the game
+ *  is still worth resuming. Anything else (including absent) passes through
+ *  unchanged; `usePlaytestStore.hydrate` is what actually restores it. */
+function sanitizeHorde(v: unknown): SoloHordeState | null {
+  if (!v || typeof v !== 'object') return null;
+  const board = (v as { board?: unknown }).board;
+  if (!board || typeof board !== 'object') return null;
+  const zones = (board as { zones?: unknown }).zones;
+  if (!zones || typeof zones !== 'object') return null;
+  return v as SoloHordeState;
+}
+
 function readIndex(): string[] {
   try {
     const raw = localStorage.getItem(INDEX_KEY);
@@ -264,10 +283,12 @@ export function loadPlaytestSnapshot(deckId: string, fingerprint: string): Playt
     }
     // Snapshots saved before E140 have no `gameLog` — load them with an empty one.
     // Snapshots saved before E142 have `resistance: boolean` instead of a level.
+    // Snapshots saved before E387 PR 5 have no `horde` at all.
     return {
       ...parsed,
       gameLog: Array.isArray(parsed.gameLog) ? parsed.gameLog : [],
       resistanceLevel: normalizeResistanceLevel(parsed),
+      horde: sanitizeHorde(parsed.horde),
     };
   } catch {
     clearPlaytestSnapshot(deckId);

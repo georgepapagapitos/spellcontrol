@@ -3,7 +3,6 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   applyAction,
   createPlaytestState,
-  type PlaytestAction,
   type PlaytestCard,
   type PlaytestState,
 } from '@/lib/playtest';
@@ -19,8 +18,11 @@ import {
   planHordeTurn,
   resolveActions,
   resolveHordeSettings,
-  type AttackerGroup,
+  type HordeBossArrival,
+  type HordeDamageResult,
   type HordeLevel,
+  type HordePendingAttack,
+  type HordeReveal,
   type HordeSettings,
 } from '@/lib/horde';
 import { genId } from '@/lib/id';
@@ -31,6 +33,11 @@ export interface HordeSurvivor {
   name: string;
   deckId: string | null;
   deckName: string | null;
+  /** Optional: a game persisted before these fields existed has none, and
+   *  still needs to load and post. Mirrors `makePlayer`'s own optionality. */
+  commander?: string | null;
+  partner?: string | null;
+  colorIdentity?: string[];
 }
 
 export interface HordeConfig {
@@ -43,38 +50,7 @@ export interface HordeConfig {
 
 export type HordePhase = 'setup' | 'live' | 'reveal' | 'combat' | 'ended';
 
-export interface HordeReveal {
-  /** Display order for the reveal sheet — not yet on the battlefield. */
-  revealed: PlaytestCard[];
-  /** Precomputed placements, applied on confirm. */
-  toBattlefield: PlaytestAction[];
-  /** Instants/sorceries the player resolves by hand, then confirms to the
-   *  graveyard. */
-  toResolve: PlaytestCard[];
-  /** The card that ends the last wave — outlined in the sheet. */
-  waveEndId: string | null;
-}
-
-export interface HordePendingAttack {
-  attackers: number;
-  power: number;
-  groups: AttackerGroup[];
-}
-
-export interface HordeBossArrival {
-  name: string;
-  /** The `bossTicks` fraction crossed (0-1, 1 = library emptied) — drives the
-   *  banner's wording ("Half the horde is gone.", …). */
-  tick: number;
-}
-
-export interface HordeDamageResult {
-  amount: number;
-  before: number;
-  after: number;
-  milled: PlaytestCard[];
-  bossesEntered: HordeBossArrival[];
-}
+export type { HordeBossArrival, HordeDamageResult, HordePendingAttack, HordeReveal };
 
 export interface HordeFinishedRecord {
   id: string;
@@ -250,6 +226,9 @@ function buildHordeGameState(s: HordeStore, id: string, outcome: 'won' | 'lost')
       name: survivor.name,
       deckId: survivor.deckId,
       deckName: survivor.deckName,
+      commander: survivor.commander ?? null,
+      partner: survivor.partner ?? null,
+      colorIdentity: survivor.colorIdentity ?? [],
       startingLife: config.settings.life,
       isHost: i === 0,
     })

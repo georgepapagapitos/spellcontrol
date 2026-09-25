@@ -163,6 +163,15 @@ import { PlaytestStatsSheet } from './PlaytestStatsSheet';
 import { PlaytestLogSheet } from './PlaytestLogSheet';
 import { ResistanceBanner } from './ResistanceBanner';
 import { ResistancePicker } from './ResistancePicker';
+import { HordeHalf } from './horde/HordeHalf';
+import { HordeBand } from './horde/HordeBand';
+import { HordeSoloBanner } from './horde/HordeSoloBanner';
+import { HordeSetupSheet } from './horde/HordeSetupSheet';
+import { HordeOverlays } from './horde/HordeOverlays';
+import { HordeRevealSheet } from '@/components/play/horde/HordeRevealSheet';
+import { HordeEndSheet } from '@/components/play/horde/HordeEndSheet';
+import { isHordeTurnDue } from '../lib/horde-solo';
+import { hordeLevelLabel, hordeStatusText, measureHordeRect } from '../lib/horde-view';
 import { DesignationsPicker } from './DesignationsPicker';
 import { RESISTANCE_LEVEL_ANNOUNCE, RESISTANCE_LEVEL_LABEL } from '../lib/resistance';
 import { PlaytestSessionSummary } from './PlaytestSessionSummary';
@@ -250,6 +259,26 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const setResistanceLevel = usePlaytestStore((s) => s.setResistanceLevel);
   const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
   const lastSessionRecord = usePlaytestStore((s) => s.lastSessionRecord);
+  // Solo Horde (E387 PR 5) — see lib/horde-solo.ts and horde-view.ts. Never
+  // exists at an online table (gated at every render site below), so these
+  // reads cost nothing there beyond the subscription itself.
+  const horde = usePlaytestStore((s) => s.horde);
+  const hordeLoad = usePlaytestStore((s) => s.hordeLoad);
+  const disarmHorde = usePlaytestStore((s) => s.disarmHorde);
+  const startHordeTurn = usePlaytestStore((s) => s.startHordeTurn);
+  const confirmHordeReveal = usePlaytestStore((s) => s.confirmHordeReveal);
+  const [showHordeSetup, setShowHordeSetup] = useState(false);
+  // The card menu and damage sheet ONLY ever render here, never inside
+  // `HordeHalf`/`HordeBand` — see `HordeOverlays`'s own doc comment for why
+  // (a `filter` on the half's container quietly trapped their fixed-position
+  // overlay to the felt's own box).
+  const [hordeCardMenuId, setHordeCardMenuId] = useState<string | null>(null);
+  const [hordeDamageOpen, setHordeDamageOpen] = useState(false);
+  const hordeFeltRef = useRef<HTMLDivElement>(null);
+  // Visible whenever there is a fight to show OR one is mid (re-)load — the
+  // Reset "Play again" path re-arms the same settings, and the half/band
+  // must show a loading line rather than blink away and back (design point 9).
+  const hordeVisible = horde !== null || hordeLoad.status !== 'idle';
   const gameLog = usePlaytestStore((s) => s.gameLog);
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
   // A shared or public deck is NOT in the viewer's decks store — it is
@@ -293,6 +322,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     for (const slot of deck.sideboard ?? []) map.set(sideboardInstanceId(slot.slotId), slot.card);
     return map;
   }, [deck]);
+
+  // Fed to `findBannedCards` by the horde setup sheet — this deck's own
+  // ban-list warnings (E387 PR 5).
+  const hordeDeckCardNames = useMemo(() => deck?.cards.map((c) => c.card.name) ?? [], [deck]);
 
   const { confirm, dialog: confirmDialog } = useConfirm();
 
@@ -1168,9 +1201,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const activeName = onlineTable?.players.find((p) => p.seat === onlineTable.activeSeat)?.name;
   const myTurn = onlineTable !== null && onlineTable.activeSeat === onlineTable.mySeat;
   const canPassTurn = onlineTable !== null && (myTurn || onlineTable.activeSeat === null);
+  // Solo Horde (E387 PR 5): while the horde is mid-turn (its reveal or its
+  // attack), the chip is not pressable — same degrade as "somebody else's
+  // turn" online.
+  const hordeBlocksTurn = horde !== null && (horde.phase === 'reveal' || horde.phase === 'combat');
   /** Is there a turn to move on at all? Always, solo — there is nobody to
    *  wait for. */
-  const canAdvanceTurn = onlineTable === null || canPassTurn;
+  const canAdvanceTurn = (onlineTable === null || canPassTurn) && !hordeBlocksTurn;
 
   const libraryCount = state.zones.library.length;
   const libraryReveal = state.libraryReveal ?? 'none';
@@ -1190,6 +1227,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }, [onlineMulliganType, setTableMulliganType]);
 
   const doNextTurn = useCallback(() => dispatch({ type: 'NEXT_TURN' }), [dispatch]);
+  // Passing your turn while the horde is due opens its reveal instead of
+  // advancing (design decision: "the horde's turn starts when you pass
+  // yours"). The turn chip, the Space/next-turn shortcut and the table
+  // menu's "Next turn" row all route through this one function.
+  const doNextTurnHordeAware = useCallback(() => {
+    if (horde && isHordeTurnDue(horde, state.turn)) {
+      startHordeTurn(hordeFeltRef.current ? measureHordeRect(hordeFeltRef.current) : null);
+      return;
+    }
+    doNextTurn();
+  }, [horde, state.turn, startHordeTurn, doNextTurn]);
   const doUntapAll = useCallback(() => dispatch({ type: 'UNTAP_ALL' }), [dispatch]);
   const doPassTurn = useCallback(() => {
     if (!onlineTable) return;
@@ -1268,9 +1316,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       doPassTurn();
       return true;
     }
-    doNextTurn();
+    doNextTurnHordeAware();
     return true;
-  }, [onlineTable, canPassTurn, doPassTurn, doNextTurn]);
+  }, [onlineTable, canPassTurn, doPassTurn, doNextTurnHordeAware]);
 
   const advancePhase = useCallback(() => {
     if (!onlineTable) return;
@@ -1670,7 +1718,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           if (e.target instanceof HTMLElement && e.target.closest('button')) return false;
           return advanceTurn();
         },
-        'next-turn': doNextTurn,
+        'next-turn': doNextTurnHordeAware,
         draw: () => (libraryCount === 0 ? false : doDraw()),
         'untap-all': doUntapAll,
         'advance-phase': () => (onlineTable ? advancePhase() : false),
@@ -1782,6 +1830,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     advanceTurn,
     doDraw,
     doNextTurn,
+    doNextTurnHordeAware,
     doPassTurn,
     doUntapAll,
     advancePhase,
@@ -1861,6 +1910,22 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         setShowTakebackSettings(true);
       },
     },
+    // Solo Horde (E387 PR 5): hidden at an online table, a horde never
+    // exists there.
+    ...(!onlineTable
+      ? [
+          {
+            label: 'Horde',
+            value: horde
+              ? `${horde.config.hordeName} · ${hordeLevelLabel(horde.config.level)}`
+              : 'Off',
+            onOpen: () => {
+              setShowTableSettings(false);
+              setShowHordeSetup(true);
+            },
+          },
+        ]
+      : []),
     {
       label: 'Resistance',
       value: RESISTANCE_LEVEL_LABEL[resistanceLevel],
@@ -2026,7 +2091,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           // Solo, Space is the next turn too (EDHPlay's key for this row);
           // online and not your turn it does nothing, so Shift+N is the key.
           shortcut: keyFor(onlineTable ? 'next-turn' : 'pass-turn'),
-          onClick: doNextTurn,
+          onClick: doNextTurnHordeAware,
         },
     { label: 'Untap all', shortcut: keyFor('untap-all'), onClick: doUntapAll },
     {
@@ -2229,7 +2294,25 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       ) : (
         <div className="playtest-turn-chip" aria-live="polite">
           <span className="playtest-turn-chip__label">
-            {activeName ? `${activeName}'s turn` : 'Turn'}
+            {hordeBlocksTurn ? (
+              isNarrow ? (
+                // The phone corner is a quarter of the desktop pill's width
+                // (playtest.css), and "THE HORDE'S TURN" doesn't fit it and
+                // clipped mid-word. Short visible text; the full sentence
+                // still reaches the live region via the sr-only span, so an
+                // announcement reads the same as before.
+                <>
+                  <span aria-hidden>Horde</span>
+                  <span className="sr-only">The horde&apos;s turn</span>
+                </>
+              ) : (
+                "The horde's turn"
+              )
+            ) : activeName ? (
+              `${activeName}'s turn`
+            ) : (
+              'Turn'
+            )}
           </span>
           <span className="playtest-turn-chip__value">{state.turn}</span>
           {onlineTable?.turnTimerEnabled && onlineTable.turnStartedAt != null && (
@@ -2718,7 +2801,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         <div
           className={`playtest-main${gridMode ? ' playtest-main--grid' : ''}${
             gridMode && opponents.length === 1 ? ' playtest-main--seats-2' : ''
-          }`}
+          }${!onlineTable && hordeVisible && !isNarrow ? ' playtest-main--horde' : ''}`}
         >
           {onlineTable && !gridMode && (
             <OpponentRail
@@ -2732,6 +2815,30 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               so with two seats the single opponent sits beside you and with
               three or four the others fill the row above. */}
           {gridMode && opponents.length > 1 && opponents.slice(0, 2).map(renderQuadrant)}
+          {/* Solo Horde (E387 PR 5): a horde never exists at an online table.
+              The desktop half sits above your board (fixed two-row grid via
+              `.playtest-main--horde`); the phone band folds above it inline. */}
+          {!onlineTable &&
+            hordeVisible &&
+            (isNarrow ? (
+              <HordeBand
+                horde={horde}
+                hordeLoad={hordeLoad}
+                playerTurn={state.turn}
+                feltRef={hordeFeltRef}
+                onCardMenu={setHordeCardMenuId}
+                onOpenDamage={() => setHordeDamageOpen(true)}
+              />
+            ) : (
+              <HordeHalf
+                horde={horde}
+                hordeLoad={hordeLoad}
+                playerTurn={state.turn}
+                feltRef={hordeFeltRef}
+                onCardMenu={setHordeCardMenuId}
+                onOpenDamage={() => setHordeDamageOpen(true)}
+              />
+            ))}
           <div
             ref={battlefieldRef}
             // Solo play has no seat order, so every turn is yours and the
@@ -2770,6 +2877,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 <div className="playtest-banners">
                   {pendingBanner}
                   {banners}
+                  {!onlineTable && !isNarrow && horde && <HordeSoloBanner horde={horde} />}
                 </div>
                 {trackers}
                 {cornerActions}
@@ -3304,6 +3412,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         <OpeningHandSheet
           phase={phase}
           online={openingOnline}
+          horde={
+            onlineTable
+              ? undefined
+              : {
+                  label: horde
+                    ? `Horde: ${horde.config.hordeName}, ${hordeLevelLabel(horde.config.level)}`
+                    : 'Fight a horde',
+                  desc: horde
+                    ? `${horde.config.hordeName}, ${hordeLevelLabel(horde.config.level)}. ${hordeStatusText(horde, state.turn)}.`
+                    : 'A deck that plays itself attacks you every turn.',
+                  onOpen: () => setShowHordeSetup(true),
+                }
+          }
           hand={state.zones.hand}
           mulliganCount={mulliganCount}
           cardsOwedToBottom={cardsToBottom(
@@ -3324,6 +3445,63 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           onKeep={keepOpeningHand}
           onMulligan={mulliganOpeningHand}
           onConfirmBottom={finalizeBottom}
+        />
+      )}
+
+      {/* Solo Horde (E387 PR 5) — a horde never exists at an online table.
+          Mounted AFTER `OpeningHandSheet`, not before it: both use the same
+          `.card-picker-root` overlay layer, and that layer has no z-index
+          ordering of its own — later in the DOM paints (and receives
+          pointer events) on top. The setup sheet opens FROM the opening-hand
+          takeover's own row, so it has to out-rank the takeover it was
+          opened from, the same way a sheet opened from within a component
+          (e.g. this file's own CardPreview, mounted last in its return)
+          always sits after its opener. Mounted before this comment once,
+          which put "Fight the horde" under the takeover and ate the click. */}
+      {!onlineTable && showHordeSetup && (
+        <HordeSetupSheet
+          horde={horde}
+          hordeLoad={hordeLoad}
+          cardNames={hordeDeckCardNames}
+          resistanceOn={resistanceLevel !== 'off'}
+          onClose={() => setShowHordeSetup(false)}
+        />
+      )}
+
+      {!onlineTable && horde?.phase === 'reveal' && horde.pendingReveal && (
+        <HordeRevealSheet
+          revealed={horde.pendingReveal.revealed}
+          toResolveIds={new Set(horde.pendingReveal.toResolve.map((c) => c.id))}
+          waveEndId={horde.pendingReveal.waveEndId}
+          onConfirm={confirmHordeReveal}
+        />
+      )}
+
+      {!onlineTable && horde?.outcome && (
+        <HordeEndSheet
+          outcome={horde.outcome}
+          hordeId={horde.config.hordeId}
+          hordeTurns={horde.hordeTurn}
+          damageTaken={horde.damageTaken}
+          cardsMilledByDamage={horde.cardsMilledByDamage}
+          bossesBeaten={
+            horde.board.zones.graveyard.filter((c) => c.id.startsWith('horde-boss-')).length
+          }
+          hideRecord
+          endedOnTurn={state.turn}
+          onPlayAgain={() => dispatch({ type: 'RESET' })}
+          onDone={disarmHorde}
+        />
+      )}
+
+      {!onlineTable && horde && (
+        <HordeOverlays
+          horde={horde}
+          cardMenuId={hordeCardMenuId}
+          onCloseCardMenu={() => setHordeCardMenuId(null)}
+          damageOpen={hordeDamageOpen}
+          onCloseDamage={() => setHordeDamageOpen(false)}
+          feltRef={hordeFeltRef}
         />
       )}
 

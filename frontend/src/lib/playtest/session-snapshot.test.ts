@@ -40,6 +40,7 @@ function baseSnapshot(overrides: Partial<PlaytestSnapshot> = {}): PlaytestSnapsh
     resistanceState: null,
     state: baseState({ turn: 3 }),
     gameLog: [],
+    horde: null,
     ...overrides,
   };
 }
@@ -429,5 +430,77 @@ describe('sideboard zone — backward compat', () => {
     const legacy = baseState();
     delete (legacy.zones as Partial<typeof legacy.zones>).sideboard;
     expect(migrateSnapshotState(legacy, undefined).zones.sideboard).toEqual([]);
+  });
+});
+
+describe('E387 PR 5 horde — backward compat and validation', () => {
+  function fakeHorde() {
+    return {
+      config: {
+        hordeId: 'zombies',
+        hordeName: 'Zombies',
+        level: 'standard',
+        overrides: {},
+        settings: {
+          survivors: 1,
+          life: 40,
+          librarySize: 50,
+          setupTurns: 3,
+          reveal: { kind: 'until-nontoken' },
+          bossTicks: [0.5, 1],
+          safeZone: 'reduced',
+        },
+      },
+      board: baseState({ life: 40 }),
+      librarySizeAtStart: 50,
+      bossTicksCrossed: [],
+      armedAtTurn: 1,
+      hordeTurn: 0,
+      phase: 'waiting',
+      pendingReveal: null,
+      pendingAttack: null,
+      attackingIds: [],
+      lastDamageResult: null,
+      outcome: null,
+      damageTaken: 0,
+      cardsMilledByDamage: 0,
+    };
+  }
+
+  it('round-trips a snapshot with an armed horde', () => {
+    const snap = baseSnapshot({ horde: fakeHorde() as never });
+    savePlaytestSnapshot('deck-1', snap);
+    expect(loadPlaytestSnapshot('deck-1', '100:60')?.horde).toEqual(fakeHorde());
+  });
+
+  it('loads a pre-PR-5 snapshot with no horde field as null, not a crash', () => {
+    const { horde: _horde, ...withoutHorde } = baseSnapshot();
+    localStorage.setItem('spellcontrol:playtest:deck-1', JSON.stringify(withoutHorde));
+    const loaded = loadPlaytestSnapshot('deck-1', '100:60');
+    expect(loaded).not.toBeNull();
+    expect(loaded?.horde ?? null).toBeNull();
+  });
+
+  it('drops a malformed horde with no board, without failing the whole snapshot', () => {
+    const snap = baseSnapshot({ horde: { config: {} } as never });
+    savePlaytestSnapshot('deck-1', snap);
+    const loaded = loadPlaytestSnapshot('deck-1', '100:60');
+    expect(loaded).not.toBeNull();
+    expect(loaded?.state).toEqual(snap.state); // the rest of the game is intact
+    expect(loaded?.horde).toBeNull();
+  });
+
+  it('drops a malformed horde whose board has no zones, without failing the whole snapshot', () => {
+    const snap = baseSnapshot({ horde: { board: {} } as never });
+    savePlaytestSnapshot('deck-1', snap);
+    const loaded = loadPlaytestSnapshot('deck-1', '100:60');
+    expect(loaded).not.toBeNull();
+    expect(loaded?.horde).toBeNull();
+  });
+
+  it('a null horde (disarmed at save time) round-trips as null', () => {
+    const snap = baseSnapshot({ horde: null });
+    savePlaytestSnapshot('deck-1', snap);
+    expect(loadPlaytestSnapshot('deck-1', '100:60')?.horde).toBeNull();
   });
 });

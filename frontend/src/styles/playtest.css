@@ -4021,6 +4021,37 @@ button.playtest-card-pt__value--editable:focus-visible {
   --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
 }
 
+/* Solo Horde (E387 PR 5): the felt splits into two fixed halves, horde on
+   top, yours below — a lightweight sibling of `.playtest-main--grid` above
+   (same "redeclare the derived trio together" contract). Never active
+   alongside an online table, so it never combines with the grid classes:
+   `gridMode` requires `onlineTable.opponents`, and a horde only ever exists
+   solo. */
+.playtest-main--horde {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2px;
+  background: var(--border);
+}
+
+.playtest-main--horde > .playtest-battlefield-wrap,
+.playtest-main--horde > .horde-half {
+  min-width: 0;
+  min-height: 0;
+  /* `/ 7.6`, not `/ 5.6` (the throwaway prototype's own unvalidated value,
+     carried over by mistake) — the same divisor `.playtest-main--seats-2`
+     and `.playtest-main--grid` already use for a half-height felt. It's
+     sized for `autoPlace`'s three battlefield rows PLUS the horde half's own
+     ~0.18/0.24 top/bottom reservation (`measureHordeRect`): at 5.6 there
+     wasn't enough `rowsHeight` left after reserving that chrome for the
+     permanents and creatures rows to stay apart, and a two-turn horde board
+     placed an enchantment on top of a token (E387 PR 5 follow-up). */
+  --pt-card-w: clamp(56px, min(5vw, (50vh - 40px) / 7.6), 120px);
+  --pt-card-h: calc(var(--pt-card-w) * 1.4);
+  --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
+}
+
 /* Your fan is centred on your quadrant, and your quadrant is half a table: at
    that width the pile row's real footprint (~21rem) reaches into the fan's
    right end and swallowed the Library tile. Centre the fan in the space LEFT

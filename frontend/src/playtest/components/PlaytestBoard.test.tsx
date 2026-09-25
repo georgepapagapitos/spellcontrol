@@ -7,6 +7,7 @@ import { applyAction, createPlaytestState } from '@/lib/playtest';
 import type { GameState } from '@/lib/game-state';
 import { usePlayStore } from '@/store/play';
 import { usePlaytestStore } from '../store';
+import { buildTestHorde } from '../lib/horde-solo.fixtures';
 import type { OnlineTable } from '../hooks/use-online-table';
 import type { OpponentSeat } from './OpponentRail';
 import { opponentPreviewId } from './OpponentQuadrant';
@@ -2436,5 +2437,265 @@ describe('PlaytestBoard — a finished table drops the opening-hand wait', () =>
     // The battlefield underneath is intact and visible — the state was never
     // wiped, only the curtain that was hiding it.
     expect(document.querySelector('.playtest-battlefield')).toBeTruthy();
+  });
+});
+
+/**
+ * Solo Horde on the playtest board (E387 PR 5). The turn chip, the
+ * next-turn shortcut and the table menu's "Next turn" row all route through
+ * one horde-aware function: due → `startHordeTurn`, not due → the normal
+ * `NEXT_TURN`. The store's horde actions are still stubs on this branch (see
+ * store.ts), so every action is asserted via a spy substituted with
+ * `usePlaytestStore.setState`.
+ */
+/** A horde whose turn is due the instant the game starts (turn 1) — no
+ *  setup turns to wait out. */
+function dueHorde() {
+  const horde = buildTestHorde({ armedAtTurn: 1 });
+  horde.config = { ...horde.config, settings: { ...horde.config.settings, setupTurns: 0 } };
+  return horde;
+}
+
+describe('PlaytestBoard — solo Horde', () => {
+  beforeEach(() => {
+    // Reduced motion true so a sheet's `useSheetExit` (the horde end sheet's
+    // "Done") closes synchronously — happy-dom never fires `animationend`.
+    // Overrides the file's own default (outer `beforeEach`) stub.
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes('prefers-reduced-motion'),
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList
+    );
+    usePlaytestStore.setState({
+      horde: null,
+      hordeLoad: { status: 'idle', error: null, pending: null },
+      startHordeTurn: vi.fn(),
+      confirmHordeReveal: vi.fn(),
+      disarmHorde: vi.fn(),
+      armHorde: vi.fn(async () => {}),
+      retryHordeLoad: vi.fn(),
+    });
+  });
+
+  it('calls startHordeTurn from the turn chip once the horde is due', () => {
+    usePlaytestStore.setState({ horde: dueHorde() });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    const chip = screen.getByRole('button', { name: /Next turn/ });
+    fireEvent.click(chip);
+    expect(usePlaytestStore.getState().startHordeTurn).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+  });
+
+  it('still takes the normal next turn while the horde is not yet due', () => {
+    // Default fixture: standard preset, 3 setup turns, armed on turn 1 — not
+    // due until turn 3.
+    usePlaytestStore.setState({ horde: buildTestHorde({ armedAtTurn: 1 }) });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Next turn/ }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+    expect(usePlaytestStore.getState().startHordeTurn).not.toHaveBeenCalled();
+  });
+
+  it('degrades the chip to a readout during the horde reveal/combat', () => {
+    usePlaytestStore.setState({ horde: buildTestHorde({ phase: 'reveal' }) });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByRole('button', { name: /Next turn/ })).toBeNull();
+    expect(screen.getByText("The horde's turn")).toBeTruthy();
+  });
+
+  // The phone corner is a quarter of the desktop turn pill's width
+  // (playtest.css), and "THE HORDE'S TURN" clipped mid-word there.
+  it.each([390, 844])(
+    'shortens the readout to "Horde" at %dpx wide, full text still announced',
+    (width) => {
+      stubWidth(width);
+      usePlaytestStore.setState({ horde: buildTestHorde({ phase: 'combat' }) });
+      render(
+        <MemoryRouter>
+          <PlaytestBoard state={seededState()} />
+        </MemoryRouter>
+      );
+      // The decorative visible text is short — checked on the element itself,
+      // since `getByText` would also match the sr-only span below (same exact
+      // string, just not the one a sighted player reads).
+      const label = document.querySelector('.playtest-turn-chip__label') as HTMLElement;
+      expect(label.querySelector('[aria-hidden]')?.textContent).toBe('Horde');
+      // Still reaches an announcement with the full sentence — a visually
+      // hidden span, not a dropped fact.
+      expect(document.querySelector('.sr-only')?.textContent).toBe("The horde's turn");
+    }
+  );
+
+  it('routes Space through the same horde-aware function', () => {
+    usePlaytestStore.setState({ horde: dueHorde() });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.keyDown(window, { key: ' ' });
+    expect(usePlaytestStore.getState().startHordeTurn).toHaveBeenCalledTimes(1);
+    expect(dispatch).not.toHaveBeenCalledWith({ type: 'NEXT_TURN' });
+  });
+
+  it('offers the Horde row in Table settings solo, and it is absent at an online table', () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Table settings' }));
+    let sheet = screen.getByRole('dialog', { name: 'Table settings' });
+    expect(within(sheet).getByRole('button', { name: /^Horde/ })).toBeTruthy();
+
+    onlineTable = seatedTable([opponent(1)]);
+    rerender(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    sheet = screen.getByRole('dialog', { name: 'Table settings' });
+    expect(within(sheet).queryByRole('button', { name: /^Horde/ })).toBeNull();
+  });
+
+  it('opens the horde setup sheet from the Horde row', () => {
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Table settings' }));
+    fireEvent.click(screen.getByRole('button', { name: /Horde/ }));
+    expect(screen.getByRole('dialog', { name: 'Fight a horde' })).toBeTruthy();
+  });
+
+  /**
+   * Regression: the setup sheet used to mount BEFORE `OpeningHandSheet` in
+   * this file's JSX. Both share the `.card-picker-root` overlay layer, which
+   * carries no z-index of its own — later in the DOM paints (and receives
+   * pointer events) on top — so opening the sheet from the takeover's own
+   * row put it UNDER the takeover: a real click on "Fight the horde" landed
+   * on `.playtest-opening-sheet` instead, and nothing armed. A plain
+   * "is it in the DOM" assertion doesn't catch this; it has to check the
+   * sheet outranks the takeover it was opened from.
+   */
+  it('opens the setup sheet ABOVE the opening-hand takeover it was opened from', () => {
+    usePlaytestStore.setState({ phase: 'opening' });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    const row = screen.getByRole('button', { name: /Fight a horde/ });
+    // The real sequence, not a bare fireEvent.click (see HordeTable.test.tsx
+    // for why: a bare click can pass falsely under a mounted DndContext).
+    fireEvent.pointerDown(row, { pointerId: 1, isPrimary: true, button: 0, pointerType: 'mouse' });
+    fireEvent.pointerUp(row, { pointerId: 1, isPrimary: true, button: 0, pointerType: 'mouse' });
+    fireEvent.click(row);
+
+    const setupDialog = screen.getByRole('dialog', { name: 'Fight a horde' });
+    const takeoverRoot = document.querySelector('.playtest-opening-root');
+    expect(takeoverRoot).toBeTruthy();
+    // Later in document order than the takeover — the real stand-in for
+    // "topmost" under happy-dom, where nothing actually paints.
+    const position = takeoverRoot!.compareDocumentPosition(setupDialog);
+    expect(Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  });
+
+  it('offers the opening-hand row solo, and it is absent at an online table', () => {
+    usePlaytestStore.setState({ phase: 'opening' });
+    const { rerender } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Fight a horde')).toBeTruthy();
+
+    onlineTable = seatedTable([opponent(1)]);
+    usePlaytestStore.setState({ phase: 'opening' });
+    rerender(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText('Fight a horde')).toBeNull();
+  });
+
+  it('ends the fight: Play again resets the game, Done disarms the horde', () => {
+    usePlaytestStore.setState({ horde: buildTestHorde({ phase: 'ended', outcome: 'won' }) });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText('Record against this horde')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Play again' }));
+    expect(dispatch).toHaveBeenCalledWith({ type: 'RESET' });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(usePlaytestStore.getState().disarmHorde).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Regression: `.horde-half` used to carry a `filter`, which makes an
+   * element the containing block for any `position: fixed` descendant — an
+   * overlay mounted "inside" it (the damage sheet, the card menu) clipped to
+   * the half's own box instead of the viewport, with its Done/Close button
+   * unreachable. The filter is gone (`horde-containing-block.test.ts` pins
+   * that), but the sheets are ALSO never rendered as descendants any more —
+   * this is the guard for that: not "is it in the DOM", but "is it a
+   * sibling of the half, not inside it".
+   */
+  it('renders the damage sheet and the card menu OUTSIDE .horde-half, never as its descendant', () => {
+    const card = { id: 'zombie-onboard', name: 'Zombie' };
+    const horde = buildTestHorde();
+    horde.board = {
+      ...horde.board,
+      battlefield: [
+        { card, tapped: false, counters: {}, stickers: [], x: 0.5, y: 0.5, faceDown: false },
+      ],
+    };
+    usePlaytestStore.setState({ horde });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    const half = document.querySelector('.horde-half') as HTMLElement;
+    expect(half).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Damage the horde' }));
+    const damageDialog = screen.getByRole('dialog', { name: 'Damage the horde' });
+    expect(half.contains(damageDialog)).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    const cardEl = document.querySelector('[data-card-id="zombie-onboard"]') as HTMLElement;
+    fireEvent.pointerDown(cardEl, {
+      pointerId: 1,
+      isPrimary: true,
+      button: 0,
+      pointerType: 'mouse',
+    });
+    fireEvent.pointerUp(cardEl, { pointerId: 1, isPrimary: true, button: 0, pointerType: 'mouse' });
+    fireEvent.click(cardEl);
+    const cardMenu = screen.getByRole('dialog', { name: 'Zombie' });
+    expect(half.contains(cardMenu)).toBe(false);
   });
 });

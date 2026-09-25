@@ -11,6 +11,15 @@ interface Props {
   damageTaken: number;
   cardsMilledByDamage: number;
   bossesBeaten: number;
+  /** Solo (E387 PR 5): hides the "Record against this horde" line, which
+   *  reads `usePlayStore` — a solo playtest game never touches Play history. */
+  hideRecord?: boolean;
+  /** Solo (E387 PR 5): the headline's "Overrun on turn N" prefers this over
+   *  `hordeTurns` when present — solo, the turn that matters to the player
+   *  is THEIRS (`state.turn`), not the horde's own round count, which can
+   *  still read 0 on a loss before its first turn ever comes up. The paper
+   *  table passes nothing and keeps reading `hordeTurns`, unchanged. */
+  endedOnTurn?: number;
   onPlayAgain(): void;
   onDone(): void;
 }
@@ -27,15 +36,20 @@ export function HordeEndSheet({
   damageTaken,
   cardsMilledByDamage,
   bossesBeaten,
+  hideRecord = false,
+  endedOnTurn,
   onPlayAgain,
   onDone,
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onDone);
   useLockBodyScroll();
   const history = usePlayStore((s) => s.history);
-  const record = aggregateHordeRecords(history).find((r) => r.hordeId === hordeId);
+  const record = hideRecord
+    ? undefined
+    : aggregateHordeRecords(history).find((r) => r.hordeId === hordeId);
 
-  const headline = outcome === 'won' ? 'The horde is gone' : `Overrun on turn ${hordeTurns}`;
+  const headline =
+    outcome === 'won' ? 'The horde is gone' : `Overrun on turn ${endedOnTurn ?? hordeTurns}`;
 
   return (
     <div className="card-picker-root">

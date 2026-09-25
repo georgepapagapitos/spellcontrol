@@ -46,7 +46,7 @@ import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/gam
 import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '../lib/game-state';
 import { DeckPicker, RulePill, SeatPips, Stepper } from '../components/play/SetupControls';
 import type { PickedDeck } from '../components/play/DeckPickerDialog';
-import { deckBoardPath } from '../lib/starter-decks';
+import { deckBoardPath, starterFileName } from '../lib/starter-decks';
 import { TableProfiles } from '../components/play/TableProfiles';
 import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '../lib/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';
@@ -57,6 +57,7 @@ import { HordeSetupFields } from '../components/play/horde/HordeSetupFields';
 import { HordeTable } from '../components/play/horde/HordeTable';
 import { HordeResumeBanner } from '../components/play/horde/HordeResumeBanner';
 import { findBannedCards } from '../lib/horde/ban-list';
+import { useStarterDeckCardNames } from '../lib/horde/starter-deck-cards';
 import { HORDE_CATALOG, type HordeLevel, type HordeSettings } from '@/lib/horde';
 import { useHordeGameStore, type HordeSurvivor } from '../store/horde-game';
 type Tab = 'home' | 'local' | 'online' | 'nights' | 'history';
@@ -785,30 +786,51 @@ function LocalSetup({
     };
   }
 
-  /** Named seats + their owned deck's card names, for the Horde ban-list
-   *  check — a starter deck (not in `decks`) has nothing to check against and
-   *  is silently skipped rather than treated as clean. */
+  // A starter seat (never in the decks store) checks against its own
+  // lazily-resolved card list instead — see `useStarterDeckCardNames`. Until
+  // that resolves the seat is silently clean, same as any other soft warning.
+  const hordeStarterFiles = useMemo(
+    () =>
+      isHorde
+        ? Array.from(
+            new Set(
+              players
+                .slice(0, count)
+                .map((p) => (p.deckId ? starterFileName(p.deckId) : null))
+                .filter((f): f is string => Boolean(f))
+            )
+          )
+        : [],
+    [isHorde, players, count]
+  );
+  const hordeStarterCardNames = useStarterDeckCardNames(hordeStarterFiles);
+
+  /** Named seats + their deck's card names, for the Horde ban-list check. */
   const hordeBanWarnings = useMemo(() => {
     if (!isHorde) return [];
     const seats = players.slice(0, count).map((p, i) => {
       const deck = p.deckId ? decks.find((d) => d.id === p.deckId) : null;
+      const file = p.deckId ? starterFileName(p.deckId) : null;
       const cardNames = deck
         ? [
             deck.commander?.name,
             deck.partnerCommander?.name,
             ...deck.cards.map((c) => c.card.name),
           ].filter((n): n is string => Boolean(n))
-        : [];
+        : ((file ? hordeStarterCardNames.get(file) : undefined) ?? []);
       return { name: p.name.trim() || `Player ${i + 1}`, cardNames };
     });
     return findBannedCards(seats);
-  }, [isHorde, players, count, decks]);
+  }, [isHorde, players, count, decks, hordeStarterCardNames]);
 
   function submitHorde() {
     const survivors: HordeSurvivor[] = players.slice(0, count).map((p, i) => ({
       name: p.name.trim() || `Player ${i + 1}`,
       deckId: p.deckId,
       deckName: p.deckName,
+      commander: p.commander,
+      partner: p.partner,
+      colorIdentity: p.colorIdentity,
     }));
     const overrides = Object.keys(hordeOverrides).length > 0 ? hordeOverrides : undefined;
     void useHordeGameStore.getState().startHorde(hordeId, hordeLevel, overrides, survivors);

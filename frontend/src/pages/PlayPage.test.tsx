@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayPage } from './PlayPage';
 import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
+import { HORDE_BAN_LIST } from '../lib/horde/ban-list';
 import type { GameRecord } from '../lib/game-state';
 
 // Signed in, the History tab reads the server record and the leaderboard;
@@ -40,6 +41,22 @@ vi.mock('../lib/friends-client', () => ({
     ])
   ),
 }));
+// The starter-deck catalog (My decks is empty by default in these tests, so
+// the deck picker opens straight on this tab) and the full product resolve
+// the Horde ban-list check fetches for a starter seat.
+const searchProducts = vi.fn();
+const fetchProductCommanderSummary = vi.fn();
+const fetchProduct = vi.fn();
+vi.mock('../lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/api')>();
+  return {
+    ...actual,
+    searchProducts: (...args: unknown[]) => searchProducts(...args),
+    fetchProductCommanderSummary: (...args: unknown[]) => fetchProductCommanderSummary(...args),
+    fetchProduct: (...args: unknown[]) => fetchProduct(...args),
+  };
+});
+
 vi.mock('../lib/pods-client', () => ({
   listPods: vi.fn(() =>
     Promise.resolve([
@@ -242,6 +259,81 @@ describe('Local setup — Horde (co-op)', () => {
     fireEvent.click(add);
     expect(screen.getAllByRole('textbox', { name: /Player \d name/ })).toHaveLength(4);
     expect(screen.queryByRole('button', { name: /Add player/ })).toBeNull();
+  });
+});
+
+describe('Local setup — Horde ban-list check reaches starter decks', () => {
+  const bannedName = HORDE_BAN_LIST[0];
+
+  beforeEach(() => {
+    usePlayStore.setState({ local: null, boardVisible: true });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const product = {
+      fileName: 'ghoulcaller.json',
+      code: 'xyz',
+      name: 'Ghoulcaller Gisa',
+      type: 'Commander Deck',
+      releaseDate: '2026-01-01',
+    };
+    searchProducts.mockResolvedValue([product]);
+    fetchProductCommanderSummary.mockResolvedValue({
+      name: 'Ghoulcaller Gisa',
+      colorIdentity: ['B'],
+      image: null,
+    });
+    // The starter's full decklist, resolved the way the ban check does it —
+    // a card on the list sits in the 99, not the commander slot.
+    fetchProduct.mockResolvedValue({
+      product,
+      deck: {
+        commander: { name: 'Ghoulcaller Gisa', color_identity: ['B'] },
+        partner: null,
+        companion: null,
+        cards: [
+          { name: 'Sol Ring', color_identity: [] },
+          { name: bannedName, color_identity: [] },
+        ],
+        unresolvedNames: [],
+        fetchErrors: [],
+        detectedFormat: 'commander',
+        cardCount: 2,
+      },
+      physicalCards: [],
+      unresolvedNames: [],
+      fetchErrors: [],
+      physicalCardCount: 2,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    usePlayStore.setState({ local: null });
+    searchProducts.mockReset();
+    fetchProductCommanderSummary.mockReset();
+    fetchProduct.mockReset();
+  });
+
+  it('warns once the starter deck resolves, though the seat is never in the decks store', async () => {
+    renderPage('/play/local');
+    fireEvent.click(screen.getByRole('button', { name: /Format/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Horde (co-op)' }));
+
+    // Picking a starter is the same "My decks is empty" door every other
+    // starter test goes through — the picker opens straight on that tab.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add deck' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Deck' }));
+    await vi.advanceTimersByTimeAsync(400);
+    fireEvent.click(await screen.findByRole('button', { name: /Ghoulcaller Gisa/ }));
+
+    // The seat's picked deck id lands before the fuller lookup this check
+    // needs does — no warning yet, and nothing errors while it's in flight.
+    await waitFor(() => expect(fetchProduct).toHaveBeenCalledWith('ghoulcaller.json'));
+
+    await waitFor(() =>
+      expect(screen.getByRole('status').textContent).toContain(
+        `${bannedName} is on the Horde ban list.`
+      )
+    );
   });
 });
 

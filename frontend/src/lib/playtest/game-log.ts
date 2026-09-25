@@ -45,7 +45,11 @@ export type LogEntryKind =
   | 'stack'
   /** A card shown to the table out of a hand. Public by definition — the
    *  showing IS the event. */
-  | 'reveal';
+  | 'reveal'
+  /** Solo Horde (E387 PR 5) bookkeeping: a reveal, an attack, damage to the
+   *  horde, a card leaving its board, or it arriving/being dismissed. Never
+   *  reaches an online table (a horde only ever exists solo). */
+  | 'horde';
 
 export interface GameLogEntry {
   /** Monotonic within a session — always ascending in log order. */

@@ -1,0 +1,38 @@
+/* HordeHalf.css — the solo Horde board's desktop half (>=1024px). The
+   two-row grid split itself lives on `.playtest-main--horde` in
+   playtest.css (PlaytestBoard owns that class); this file only styles the
+   half's own surface and its loading/error state. Everything else reuses
+   horde-table.css's status/corner/action classes verbatim. */
+
+/* `.horde-half` used to read as a step back via `filter: saturate() brightness()`
+   — a `filter` (like `transform`, `perspective`, `contain`, `backdrop-filter`
+   or `will-change: transform`/`filter`) makes its element the containing
+   block for any `position: fixed` descendant, so an overlay mounted inside
+   it (the damage sheet, the card menu) clipped to this box instead of the
+   viewport and its own buttons went unreachable (E387 PR 5 follow-up). The
+   tint is a `::before` UNDER the cards instead — it dims the felt, never the
+   containing block of anything painted after it. See
+   `horde-containing-block.test.ts`, which forbids these properties here. */
+.horde-half {
+  position: relative;
+}
+
+.horde-half::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 12%);
+  pointer-events: none;
+}
+
+.horde-half--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.horde-half-message {
+  margin: 0;
+  color: var(--felt-text, var(--text-secondary));
+  font-size: var(--text-sm);
+}
