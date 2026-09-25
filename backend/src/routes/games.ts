@@ -14,11 +14,15 @@ import {
   makePlayer,
   GAME_PHASES,
   MAX_ONLINE_SEATS,
+  HORDE_MAX_SEATS,
   type GameAction,
   type GameFormat,
   type GamePlayer,
   type GameState,
   type GameStatus,
+  type HordeRevealMode,
+  type HordeSettings,
+  type HordeStep,
 } from '../games/state';
 
 export const gamesRouter: Router = Router();
@@ -562,6 +566,199 @@ function sanitizeAddedPlayer(raw: GamePlayer): GamePlayer {
   };
 }
 
+/** 1-40 lowercase alphanumeric/hyphen — the host's own deck/table slug, never rendered as HTML. */
+const HORDE_ID_RE = /^[a-z0-9-]{1,40}$/;
+
+/**
+ * Rebuild a claimed `HordeRevealMode` field by field, or null if it names an
+ * unknown `kind` or a field outside its bounds. Mirrors the union in
+ * `packages/game-core` exactly — see `HordeRevealMode`'s doc there.
+ */
+function sanitizeHordeReveal(raw: unknown): HordeRevealMode | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  switch (r.kind) {
+    case 'until-nontoken':
+      return { kind: 'until-nontoken' };
+    case 'waves': {
+      const perTurn = r.perTurn;
+      if (!Number.isInteger(perTurn) || (perTurn as number) < 1 || (perTurn as number) > 10) {
+        return null;
+      }
+      return { kind: 'waves', perTurn: perTurn as number };
+    }
+    case 'waves-pattern': {
+      const pattern = r.pattern;
+      if (!Array.isArray(pattern) || pattern.length < 1 || pattern.length > 12) return null;
+      const clean: number[] = [];
+      for (const p of pattern) {
+        if (!Number.isInteger(p) || (p as number) < 1 || (p as number) > 10) return null;
+        clean.push(p as number);
+      }
+      return { kind: 'waves-pattern', pattern: clean };
+    }
+    case 'fixed': {
+      const count = r.count;
+      if (!Number.isInteger(count) || (count as number) < 1 || (count as number) > 20) return null;
+      return {
+        kind: 'fixed',
+        count: count as number,
+        ...(r.plusPerArtifact !== undefined ? { plusPerArtifact: r.plusPerArtifact === true } : {}),
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Rebuild a claimed `HordeSettings` field by field — the settings a
+ * `horde-setup` action resolves once, on the host's device, and every other
+ * client then trusts verbatim out of the persisted log. Returns null on the
+ * first out-of-range or malformed field.
+ */
+function sanitizeHordeSettings(raw: unknown): HordeSettings | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const survivors = r.survivors;
+  if (!Number.isInteger(survivors) || (survivors as number) < 1 || (survivors as number) > 4) {
+    return null;
+  }
+  const life = r.life;
+  if (!Number.isInteger(life) || (life as number) < 1 || (life as number) > 999) return null;
+  const librarySize = r.librarySize;
+  if (
+    !Number.isInteger(librarySize) ||
+    (librarySize as number) < 1 ||
+    (librarySize as number) > 300
+  ) {
+    return null;
+  }
+  const setupTurns = r.setupTurns;
+  if (!Number.isInteger(setupTurns) || (setupTurns as number) < 0 || (setupTurns as number) > 10) {
+    return null;
+  }
+  const safeZone = r.safeZone;
+  if (safeZone !== 'full' && safeZone !== 'reduced' && safeZone !== 'off') return null;
+  const bossTicksRaw = r.bossTicks;
+  if (!Array.isArray(bossTicksRaw) || bossTicksRaw.length > 8) return null;
+  const bossTicks: number[] = [];
+  for (const t of bossTicksRaw) {
+    if (typeof t !== 'number' || !Number.isFinite(t) || t <= 0 || t > 1) return null;
+    bossTicks.push(t);
+  }
+  const reveal = sanitizeHordeReveal(r.reveal);
+  if (!reveal) return null;
+  return {
+    survivors: survivors as number,
+    life: life as number,
+    librarySize: librarySize as number,
+    setupTurns: setupTurns as number,
+    reveal,
+    bossTicks,
+    safeZone,
+  };
+}
+
+/**
+ * Rebuild a claimed `HordeStep` field by field, keeping only the fields its
+ * own `k` declares — mirrors the union in `packages/game-core` exactly.
+ * Returns null for an unknown `k` or an out-of-range field.
+ */
+function sanitizeHordeStep(raw: unknown): HordeStep | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  switch (r.k) {
+    case 'reveal':
+      return { k: 'reveal' };
+    case 'confirm':
+      return { k: 'confirm' };
+    case 'take': {
+      const dealt = r.dealt;
+      if (!Number.isInteger(dealt) || (dealt as number) < 0 || (dealt as number) > 999) return null;
+      return { k: 'take', dealt: dealt as number };
+    }
+    case 'damage': {
+      const n = r.n;
+      if (!Number.isInteger(n) || (n as number) < 0 || (n as number) > 999) return null;
+      return { k: 'damage', n: n as number };
+    }
+    case 'move': {
+      const cardId = r.cardId;
+      if (typeof cardId !== 'string' || cardId.length < 1 || cardId.length > 80) return null;
+      const to = r.to;
+      if (to !== 'graveyard' && to !== 'exile' && to !== 'library') return null;
+      return { k: 'move', cardId, to };
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Reject a malformed `horde-setup` action before it reaches `sanitizeAction`
+ * — like `noteMessageError`/`invalidPhaseError`, a 400 rather than a silent
+ * coercion, since there is no sane default for an invalid seed or level.
+ */
+function invalidHordeSetupError(action: GameAction): string | null {
+  if (action.type !== 'horde-setup') return null;
+  if (!HORDE_ID_RE.test(action.hordeId as unknown as string)) return 'Invalid horde id.';
+  if (action.level !== 'casual' && action.level !== 'standard' && action.level !== 'brutal') {
+    return 'Invalid horde level.';
+  }
+  const seed = action.seed as unknown;
+  if (!Number.isInteger(seed) || (seed as number) < 0 || (seed as number) > 4294967295) {
+    return 'Invalid horde seed.';
+  }
+  const deckRev = action.deckRev as unknown;
+  if (typeof deckRev !== 'string' || deckRev.length < 1 || deckRev.length > 64) {
+    return 'Invalid deck revision.';
+  }
+  return sanitizeHordeSettings(action.settings) ? null : 'Invalid horde settings.';
+}
+
+/** Reject a malformed `horde-step` action — `step` is validated by kind, `at` must be a real log index. */
+function invalidHordeStepError(action: GameAction): string | null {
+  if (action.type !== 'horde-step') return null;
+  if (!Number.isInteger(action.at) || action.at < 0) return 'Invalid step index.';
+  return sanitizeHordeStep(action.step) ? null : 'Invalid horde step.';
+}
+
+/** Reject a malformed `horde-undo` action — same `at` bound as `horde-step`. */
+function invalidHordeUndoError(action: GameAction): string | null {
+  if (action.type !== 'horde-undo') return null;
+  return Number.isInteger(action.at) && action.at >= 0 ? null : 'Invalid step index.';
+}
+
+/**
+ * `end.coopOutcome` is meaningful only at a horde table (see the `GameAction`
+ * doc in `packages/game-core`) — reject a malformed value outright, and
+ * reject a well-formed one at any other format rather than letting the
+ * reducer silently ignore it.
+ */
+function invalidCoopOutcomeError(action: GameAction, state: GameState): string | null {
+  if (action.type !== 'end' || action.coopOutcome === undefined) return null;
+  if (action.coopOutcome !== 'won' && action.coopOutcome !== 'lost') return 'Invalid outcome.';
+  return state.format === 'horde' ? null : 'coopOutcome is only valid for a horde table.';
+}
+
+/**
+ * Horde seats at most `HORDE_MAX_SEATS` (4) — the two ways a batch could
+ * push past that: the host seating a guest via `add-player`, or the host
+ * switching an already-crowded table's format to `'horde'` via `settings`.
+ * `POST /:code/join`'s own seat cap covers the third way (a self-service
+ * join) directly at that route, since it never goes through this batch.
+ */
+function invalidHordeSeatCapError(action: GameAction, state: GameState): string | null {
+  if (action.type === 'add-player' && state.format === 'horde') {
+    return state.players.length >= HORDE_MAX_SEATS ? 'This Horde table is full.' : null;
+  }
+  if (action.type === 'settings' && action.patch.format === 'horde') {
+    return state.players.length > HORDE_MAX_SEATS ? 'A Horde table seats at most 4.' : null;
+  }
+  return null;
+}
+
 /**
  * Scrub user-controllable fields on actions before they hit the reducer.
  * The reducer is pure and trusts its inputs; the route is the place to
@@ -618,6 +815,23 @@ function sanitizeAction(action: GameAction): GameAction {
     return {
       ...action,
       patch: { ...action.patch, name: action.patch.name.trim().slice(0, MAX_GAME_NAME_LEN) },
+    };
+  }
+  // horde-setup/horde-step have already been through invalidHordeSetupError /
+  // invalidHordeStepError by the time this runs, so the rebuild always
+  // succeeds — the `!` mirrors that ordering, not a new assumption.
+  if (action.type === 'horde-setup') {
+    return { ...action, settings: sanitizeHordeSettings(action.settings)! };
+  }
+  if (action.type === 'horde-step') {
+    return { ...action, step: sanitizeHordeStep(action.step)! };
+  }
+  if (action.type === 'horde-done') {
+    // Same boolean-coercion reasoning as `set-ready`/`clock` above.
+    return {
+      ...action,
+      done: (action.done as unknown) === true,
+      ...(action.force !== undefined ? { force: (action.force as unknown) === true } : {}),
     };
   }
   return action;
@@ -913,6 +1127,7 @@ function fallbackGameName(format: GameFormat): string {
  *  never be handed a `'private'` session's state. */
 export function projectGameListing(state: GameState): GameListing {
   const seated = state.players.length;
+  const maxSeats = state.format === 'horde' ? HORDE_MAX_SEATS : MAX_ONLINE_SEATS;
   const knownBrackets = state.players
     .map((p) => p.bracket)
     .filter((b): b is 1 | 2 | 3 | 4 | 5 => b != null);
@@ -922,8 +1137,8 @@ export function projectGameListing(state: GameState): GameListing {
     format: state.format,
     status: state.status,
     seated,
-    max: MAX_ONLINE_SEATS,
-    joinable: state.status === 'lobby' && seated < MAX_ONLINE_SEATS,
+    max: maxSeats,
+    joinable: state.status === 'lobby' && seated < maxSeats,
     // Only 'public'/'friends' rows ever reach this function (see the doc
     // above), so a bare cast is safe rather than needing a fallback branch.
     visibility: state.visibility as 'public' | 'friends',
@@ -2014,10 +2229,13 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     return res.json({ game: next });
   }
 
-  if (current.players.length >= MAX_ONLINE_SEATS) {
-    return res.status(409).json({ error: 'Game is full.' });
+  const seatCap = current.format === 'horde' ? HORDE_MAX_SEATS : MAX_ONLINE_SEATS;
+  if (current.players.length >= seatCap) {
+    return res
+      .status(409)
+      .json({ error: current.format === 'horde' ? 'This Horde table is full.' : 'Game is full.' });
   }
-  const seat = nextOpenSeat(current, MAX_ONLINE_SEATS);
+  const seat = nextOpenSeat(current, seatCap);
   const player = makePlayer({
     id: req.user!.id,
     userId: req.user!.id,
@@ -2077,6 +2295,28 @@ function actionIsAllowed(action: GameAction, state: GameState, userId: string): 
       }
       break;
     }
+    // horde-done is the horde table's own "statement about yourself" — same
+    // shape and same guest carve-out as set-ready above, just ending the
+    // caller's own team turn instead of flipping a ready flag.
+    case 'horde-done': {
+      const target = state.players.find((p) => p.seat === action.actorSeat);
+      if (target && target.userId !== userId && target.userId !== null) {
+        return 'Can only end your own turn.';
+      }
+      break;
+    }
+    // horde-step/horde-undo: any seated survivor may act, but `actorSeat` is
+    // attribution in the replayable log, not just a UI label, so it must be
+    // the caller's own seat — no guest carve-out (unlike the cases above): a
+    // host-added guest has no device to dispatch a horde step from at all.
+    case 'horde-step':
+    case 'horde-undo': {
+      const target = state.players.find((p) => p.seat === action.actorSeat);
+      if (target && target.userId !== userId) {
+        return 'Can only act as your own seat.';
+      }
+      break;
+    }
     default:
       break;
   }
@@ -2096,6 +2336,7 @@ function actionIsAllowed(action: GameAction, state: GameState, userId: string): 
     case 'add-player':
     case 'remove-player':
     case 'reseat':
+    case 'horde-setup':
       return 'Host only.';
     case 'update-player': {
       const target = state.players.find((p) => p.seat === action.seat);
@@ -2160,6 +2401,16 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
     if (turnOrderErr) return res.status(400).json({ error: turnOrderErr });
     const nameErr = invalidNameError(raw);
     if (nameErr) return res.status(400).json({ error: nameErr });
+    const hordeSetupErr = invalidHordeSetupError(raw);
+    if (hordeSetupErr) return res.status(400).json({ error: hordeSetupErr });
+    const hordeStepErr = invalidHordeStepError(raw);
+    if (hordeStepErr) return res.status(400).json({ error: hordeStepErr });
+    const hordeUndoErr = invalidHordeUndoError(raw);
+    if (hordeUndoErr) return res.status(400).json({ error: hordeUndoErr });
+    const coopOutcomeErr = invalidCoopOutcomeError(raw, next);
+    if (coopOutcomeErr) return res.status(400).json({ error: coopOutcomeErr });
+    const hordeSeatCapErr = invalidHordeSeatCapError(raw, next);
+    if (hordeSeatCapErr) return res.status(400).json({ error: hordeSeatCapErr });
     const action = sanitizeAction(raw);
     try {
       next = applyAction(next, action);

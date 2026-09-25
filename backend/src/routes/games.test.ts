@@ -3405,3 +3405,567 @@ describe('friends visibility (games)', () => {
     ).toBeUndefined();
   });
 });
+
+// ─── Horde (board E387): the games routes guard the horde table ───────────────
+
+describe('Horde: games routes guard the trust boundary', () => {
+  const hordeSettings = {
+    survivors: 2,
+    life: 5,
+    librarySize: 40,
+    setupTurns: 0,
+    reveal: { kind: 'until-nontoken' },
+    bossTicks: [0.5, 1],
+    safeZone: 'off',
+  };
+
+  function hordeSetupAction(overrides: Record<string, unknown> = {}) {
+    return {
+      type: 'horde-setup',
+      hordeId: 'test-horde-1',
+      level: 'casual',
+      seed: 42,
+      deckRev: 'rev-1',
+      settings: hordeSettings,
+      ...overrides,
+    };
+  }
+
+  async function setupHordeTable(hostName: string, joinerNames: string[]) {
+    const host = await registerAndGetCookie(hostName);
+    const created = await request(app)
+      .post('/api/games')
+      .set('Cookie', host)
+      .send({ format: 'horde' });
+    const code = created.body.game.code as string;
+    const joiners: string[] = [];
+    for (const name of joinerNames) {
+      const cookie = await registerAndGetCookie(name);
+      await request(app).post(`/api/games/${code}/join`).set('Cookie', cookie).send({});
+      joiners.push(cookie);
+    }
+    return { code, host, joiners };
+  }
+
+  /** host + joiner, horde-setup applied, game started — ready for horde-step/-done. */
+  async function activeHordeTable(hostName: string, joinName: string) {
+    const { code, host, joiners } = await setupHordeTable(hostName, [joinName]);
+    const joiner = joiners[0];
+    const afterSetup = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({ baseVersion: 1, actions: [hordeSetupAction()] });
+    expect(afterSetup.status).toBe(200);
+    const started = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({ baseVersion: afterSetup.body.game.version, actions: [{ type: 'start' }] });
+    expect(started.status).toBe(200);
+    return { code, host, joiner, version: started.body.game.version as number };
+  }
+
+  describe('permissions', () => {
+    it('horde-done is own-seat only, with the same guest carve-out set-ready has', async () => {
+      const { code, host, joiner, version } = await activeHordeTable(
+        'horde_done_host',
+        'horde_done_join'
+      );
+      const wrongSeat = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: version,
+          actions: [{ type: 'horde-done', actorSeat: 1, done: true }],
+        });
+      expect(wrongSeat.status).toBe(403);
+      expect(wrongSeat.body.error).toBe('Can only end your own turn.');
+
+      const ownSeat = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({
+          baseVersion: version,
+          actions: [{ type: 'horde-done', actorSeat: 1, done: true }],
+        });
+      expect(ownSeat.status).toBe(200);
+
+      const added = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: ownSeat.body.game.version,
+          actions: [
+            {
+              type: 'add-player',
+              player: {
+                id: 'guest_horde_done',
+                userId: null,
+                seat: 2,
+                name: 'Guest',
+                deckId: null,
+                deckName: null,
+                commander: null,
+                partner: null,
+                colorIdentity: [],
+                panelColorKey: null,
+                life: 5,
+                poison: 0,
+                commanderDamage: {},
+                eliminated: false,
+                isHost: false,
+                connected: true,
+              },
+            },
+          ],
+        });
+      expect(added.status).toBe(200);
+      const guestDone = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({
+          baseVersion: added.body.game.version,
+          actions: [{ type: 'horde-done', actorSeat: 2, done: true }],
+        });
+      expect(guestDone.status).toBe(200);
+    });
+
+    it('horde-setup is host only', async () => {
+      const { code, host, joiners } = await setupHordeTable('horde_setup_host', [
+        'horde_setup_join',
+      ]);
+      const nonHost = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiners[0])
+        .send({ baseVersion: 1, actions: [hordeSetupAction()] });
+      expect(nonHost.status).toBe(403);
+      expect(nonHost.body.error).toBe('Host only.');
+
+      const hosted = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: 1, actions: [hordeSetupAction()] });
+      expect(hosted.status).toBe(200);
+      expect(hosted.body.game.horde.hordeId).toBe('test-horde-1');
+    });
+
+    it('horde-step and horde-undo require actorSeat to be the caller’s own seat, no guest carve-out', async () => {
+      const { code, host, joiner, version } = await activeHordeTable(
+        'horde_step_host',
+        'horde_step_join'
+      );
+      const wrongActor = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({
+          baseVersion: version,
+          actions: [{ type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 }],
+        });
+      expect(wrongActor.status).toBe(403);
+      expect(wrongActor.body.error).toBe('Can only act as your own seat.');
+
+      const ownActor = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({
+          baseVersion: version,
+          actions: [{ type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 1 }],
+        });
+      expect(ownActor.status).toBe(200);
+      expect(ownActor.body.game.horde.phase).toBe('reveal');
+
+      const wrongUndo = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: ownActor.body.game.version,
+          actions: [{ type: 'horde-undo', at: 1, actorSeat: 1 }],
+        });
+      expect(wrongUndo.status).toBe(403);
+      expect(wrongUndo.body.error).toBe('Can only act as your own seat.');
+
+      const ownUndo = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({
+          baseVersion: ownActor.body.game.version,
+          actions: [{ type: 'horde-undo', at: 1, actorSeat: 1 }],
+        });
+      expect(ownUndo.status).toBe(200);
+      expect(ownUndo.body.game.horde.phase).toBe('survivors');
+    });
+
+    it('a non-participant still gets the stealth 404 on a horde game, unchanged', async () => {
+      const { code } = await setupHordeTable('horde_stealth_host', []);
+      const stranger = await registerAndGetCookie('horde_stealth_stranger');
+      const real = await request(app).get(`/api/games/${code}`).set('Cookie', stranger);
+      const unknown = await request(app).get('/api/games/ZZZZ').set('Cookie', stranger);
+      expect(real.status).toBe(404);
+      expect(real.body).toEqual(unknown.body);
+    });
+  });
+
+  describe('sanitising horde-setup', () => {
+    const badSettings = (patch: Record<string, unknown>) => ({ ...hordeSettings, ...patch });
+    const cases: Array<[string, Record<string, unknown>]> = [
+      ['hordeId with an uppercase/invalid char', { hordeId: 'Test_ID!' }],
+      ['unknown level', { level: 'nightmare' }],
+      ['seed out of range', { seed: -1 }],
+      ['empty deckRev', { deckRev: '' }],
+      ['settings.survivors out of range', { settings: badSettings({ survivors: 5 }) }],
+      ['settings.life out of range', { settings: badSettings({ life: 0 }) }],
+      ['settings.librarySize out of range', { settings: badSettings({ librarySize: 301 }) }],
+      ['settings.setupTurns out of range', { settings: badSettings({ setupTurns: -1 }) }],
+      ['settings.safeZone unknown', { settings: badSettings({ safeZone: 'partial' }) }],
+      ['settings.bossTicks entry out of (0,1]', { settings: badSettings({ bossTicks: [1.5] }) }],
+      ['settings.reveal unknown kind', { settings: badSettings({ reveal: { kind: 'unknown' } }) }],
+      [
+        'settings.reveal waves.perTurn out of range',
+        { settings: badSettings({ reveal: { kind: 'waves', perTurn: 0 } }) },
+      ],
+      [
+        'settings.reveal waves-pattern entry out of range',
+        { settings: badSettings({ reveal: { kind: 'waves-pattern', pattern: [0] } }) },
+      ],
+      [
+        'settings.reveal fixed.count out of range',
+        { settings: badSettings({ reveal: { kind: 'fixed', count: 0 } }) },
+      ],
+    ];
+
+    it.each(cases)('rejects %s with 400', async (_label, patch) => {
+      const host = await registerAndGetCookie(
+        `horde_bad_${Math.random().toString(36).slice(2, 8)}`
+      );
+      const created = await request(app)
+        .post('/api/games')
+        .set('Cookie', host)
+        .send({ format: 'horde' });
+      const code = created.body.game.code as string;
+      const res = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: 0, actions: [hordeSetupAction(patch)] });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('sanitising horde-step / horde-undo / end.coopOutcome', () => {
+    it.each([
+      ['negative at', { type: 'horde-step', step: { k: 'reveal' }, at: -1, actorSeat: 0 }],
+      ['unknown step kind', { type: 'horde-step', step: { k: 'bogus' }, at: 0, actorSeat: 0 }],
+      [
+        'take.dealt out of range',
+        { type: 'horde-step', step: { k: 'take', dealt: 1000 }, at: 0, actorSeat: 0 },
+      ],
+      [
+        'damage.n out of range',
+        { type: 'horde-step', step: { k: 'damage', n: -1 }, at: 0, actorSeat: 0 },
+      ],
+      [
+        'move.cardId empty',
+        {
+          type: 'horde-step',
+          step: { k: 'move', cardId: '', to: 'graveyard' },
+          at: 0,
+          actorSeat: 0,
+        },
+      ],
+      [
+        'move.to unknown zone',
+        { type: 'horde-step', step: { k: 'move', cardId: 'c1', to: 'hand' }, at: 0, actorSeat: 0 },
+      ],
+      ['horde-undo negative at', { type: 'horde-undo', at: -1, actorSeat: 0 }],
+    ])('rejects %s with 400', async (_label, action) => {
+      const { code, host, version } = await activeHordeTable(
+        `horde_stepbad_${Math.random().toString(36).slice(2, 8)}`,
+        `horde_stepbad_join_${Math.random().toString(36).slice(2, 8)}`
+      );
+      const res = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: version, actions: [action] });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a non-won/lost coopOutcome, and a well-formed one on a non-horde table', async () => {
+      const { code, host, version } = await activeHordeTable(
+        'horde_coop_bad_host',
+        'horde_coop_bad_join'
+      );
+      const badValue = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: version,
+          actions: [{ type: 'end', winnerSeat: null, coopOutcome: 'draw' }],
+        });
+      expect(badValue.status).toBe(400);
+
+      const commanderHost = await registerAndGetCookie('horde_coop_wrongformat_host');
+      const commanderGame = await request(app)
+        .post('/api/games')
+        .set('Cookie', commanderHost)
+        .send({ format: 'commander' });
+      const wrongFormat = await request(app)
+        .patch(`/api/games/${commanderGame.body.game.code}`)
+        .set('Cookie', commanderHost)
+        .send({
+          baseVersion: commanderGame.body.game.version,
+          actions: [{ type: 'end', winnerSeat: null, coopOutcome: 'won' }],
+        });
+      expect(wrongFormat.status).toBe(400);
+      expect(wrongFormat.body.error).toBe('coopOutcome is only valid for a horde table.');
+    });
+  });
+
+  it('a well-formed setup and every horde-step kind are accepted end to end through PATCH', async () => {
+    const { code, host, joiner, version } = await activeHordeTable(
+      'horde_e2e_host',
+      'horde_e2e_join'
+    );
+    let v = version;
+    let at = 0;
+    for (const step of [
+      { k: 'reveal' },
+      { k: 'confirm' },
+      { k: 'damage', n: 3 },
+      { k: 'move', cardId: 'card-123', to: 'graveyard' },
+      { k: 'take', dealt: 1 },
+    ]) {
+      const res = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({
+          baseVersion: v,
+          actions: [{ type: 'horde-step', step, at, actorSeat: 1 }],
+        });
+      expect(res.status).toBe(200);
+      v = res.body.game.version;
+      at += 1;
+    }
+    const final = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    expect(final.body.game.horde.steps).toHaveLength(5);
+    expect(final.body.game.players[0].life).toBe(4);
+  });
+
+  it('a stale `at` on horde-step is a no-op 200, not an error', async () => {
+    const { code, joiner, version } = await activeHordeTable(
+      'horde_stale_host',
+      'horde_stale_join'
+    );
+    const first = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: version,
+        actions: [{ type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 1 }],
+      });
+    expect(first.status).toBe(200);
+    expect(first.body.game.horde.steps).toHaveLength(1);
+
+    const stale = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: first.body.game.version,
+        actions: [{ type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 1 }],
+      });
+    expect(stale.status).toBe(200);
+    expect(stale.body.game.horde.steps).toHaveLength(1);
+    expect(stale.body.game.horde.phase).toBe('reveal');
+  });
+
+  describe('seat cap (HORDE_MAX_SEATS = 4)', () => {
+    it('POST /:code/join refuses a 5th survivor with 409', async () => {
+      const { code, joiners } = await setupHordeTable('horde_joincap_host', [
+        'horde_joincap_j1',
+        'horde_joincap_j2',
+        'horde_joincap_j3',
+      ]);
+      expect(joiners).toHaveLength(3);
+      const fifth = await registerAndGetCookie('horde_joincap_j4');
+      const res = await request(app).post(`/api/games/${code}/join`).set('Cookie', fifth).send({});
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('This Horde table is full.');
+    });
+
+    it('PATCH add-player refuses a 5th seat at a full horde table with 400', async () => {
+      const host = await registerAndGetCookie('horde_addcap_host');
+      const created = await request(app)
+        .post('/api/games')
+        .set('Cookie', host)
+        .send({ format: 'horde' });
+      const code = created.body.game.code as string;
+      let v = created.body.game.version as number;
+      const guestPlayer = (seat: number) => ({
+        id: `guest_addcap_${seat}`,
+        userId: null,
+        seat,
+        name: 'Guest',
+        deckId: null,
+        deckName: null,
+        commander: null,
+        partner: null,
+        colorIdentity: [],
+        panelColorKey: null,
+        life: 20,
+        poison: 0,
+        commanderDamage: {},
+        eliminated: false,
+        isHost: false,
+        connected: true,
+      });
+      for (const seat of [1, 2, 3]) {
+        const res = await request(app)
+          .patch(`/api/games/${code}`)
+          .set('Cookie', host)
+          .send({ baseVersion: v, actions: [{ type: 'add-player', player: guestPlayer(seat) }] });
+        expect(res.status).toBe(200);
+        v = res.body.game.version;
+      }
+      const overCap = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: v, actions: [{ type: 'add-player', player: guestPlayer(4) }] });
+      expect(overCap.status).toBe(400);
+      expect(overCap.body.error).toBe('This Horde table is full.');
+    });
+
+    it('PATCH settings switching to horde with more than 4 seated is a 400', async () => {
+      const host = await registerAndGetCookie('horde_fmtcap_host');
+      const created = await request(app).post('/api/games').set('Cookie', host).send({});
+      const code = created.body.game.code as string;
+      for (let i = 0; i < 4; i++) {
+        const joinerCookie = await registerAndGetCookie(`horde_fmtcap_j${i}`);
+        await request(app).post(`/api/games/${code}/join`).set('Cookie', joinerCookie).send({});
+      }
+      const current = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+      expect(current.body.game.players).toHaveLength(5);
+      const res = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: current.body.game.version,
+          actions: [{ type: 'settings', patch: { format: 'horde' } }],
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('A Horde table seats at most 4.');
+    });
+  });
+
+  it('the room browser row caps max/joinable at 4 for a horde table', async () => {
+    const host = await registerAndGetCookie('horde_browser_host');
+    await request(app)
+      .post('/api/games')
+      .set('Cookie', host)
+      .send({ format: 'horde', visibility: 'public', name: 'Horde table' });
+    const viewer = await registerAndGetCookie('horde_browser_viewer');
+    const rows = await request(app).get('/api/games').set('Cookie', viewer);
+    const row = (
+      rows.body.games as Array<{ name: string; max: number; joinable: boolean; seated: number }>
+    ).find((g) => g.name === 'Horde table');
+    expect(row).toBeDefined();
+    expect(row!.max).toBe(4);
+    expect(row!.joinable).toBe(true);
+  });
+
+  describe('game_results write hook for a finished horde game', () => {
+    async function waitForResult(sessionId: string, tries = 40): Promise<boolean> {
+      for (let i = 0; i < tries; i++) {
+        const r = await pool.query(`SELECT 1 FROM game_results WHERE session_id = $1`, [sessionId]);
+        if ((r.rowCount ?? 0) > 0) return true;
+        await new Promise((res) => setTimeout(res, 25));
+      }
+      return false;
+    }
+
+    it('a shared-life "take" to 0 auto-finishes the game and writes one row with coop_outcome lost', async () => {
+      const { code, host, joiner, version } = await activeHordeTable(
+        'horde_result_lost_host',
+        'horde_result_lost_join'
+      );
+      const sessionId = (await request(app).get(`/api/games/${code}`).set('Cookie', host)).body.game
+        .id as string;
+
+      const reveal = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({
+          baseVersion: version,
+          actions: [{ type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 1 }],
+        });
+      const confirm = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({
+          baseVersion: reveal.body.game.version,
+          actions: [{ type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 1 }],
+        });
+      const take = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({
+          baseVersion: confirm.body.game.version,
+          actions: [{ type: 'horde-step', step: { k: 'take', dealt: 5 }, at: 2, actorSeat: 1 }],
+        });
+      expect(take.status).toBe(200);
+      expect(take.body.game.status).toBe('finished');
+      expect(take.body.game.coopOutcome).toBe('lost');
+      expect(take.body.game.winnerSeat).toBeNull();
+
+      expect(await waitForResult(sessionId)).toBe(true);
+      const row = await pool.query(
+        `SELECT winner_seat, coop_outcome, horde_id FROM game_results WHERE session_id = $1`,
+        [sessionId]
+      );
+      expect(row.rowCount).toBe(1);
+      expect(row.rows[0].winner_seat).toBeNull();
+      expect(row.rows[0].coop_outcome).toBe('lost');
+      expect(row.rows[0].horde_id).toBe('test-horde-1');
+
+      // A second finishing PATCH (the reducer's own `end` no-op on an
+      // already-finished game) must not insert a second row.
+      const again = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: take.body.game.version,
+          actions: [{ type: 'end', winnerSeat: null }],
+        });
+      expect(again.status).toBe(200);
+      const count = await pool.query(
+        `SELECT COUNT(*) AS n FROM game_results WHERE session_id = $1`,
+        [sessionId]
+      );
+      expect(Number(count.rows[0].n)).toBe(1);
+    });
+
+    it('end with coopOutcome "won" writes one row with a null winner_seat', async () => {
+      const { code, host, version } = await activeHordeTable(
+        'horde_result_won_host',
+        'horde_result_won_join'
+      );
+      const sessionId = (await request(app).get(`/api/games/${code}`).set('Cookie', host)).body.game
+        .id as string;
+      const ended = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: version,
+          actions: [{ type: 'end', winnerSeat: null, coopOutcome: 'won' }],
+        });
+      expect(ended.status).toBe(200);
+      expect(ended.body.game.coopOutcome).toBe('won');
+
+      expect(await waitForResult(sessionId)).toBe(true);
+      const row = await pool.query(
+        `SELECT winner_seat, coop_outcome, horde_id FROM game_results WHERE session_id = $1`,
+        [sessionId]
+      );
+      expect(row.rowCount).toBe(1);
+      expect(row.rows[0].winner_seat).toBeNull();
+      expect(row.rows[0].coop_outcome).toBe('won');
+      expect(row.rows[0].horde_id).toBe('test-horde-1');
+    });
+  });
+});
