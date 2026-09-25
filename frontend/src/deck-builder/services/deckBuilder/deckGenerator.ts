@@ -2370,9 +2370,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     const cardMap = await getCardsByNames(
       [...allCardNames],
       (fetched, total) => {
-        // Scale progress from 25% to 35% during the batch fetch
-        const pct = 25 + Math.round((fetched / total) * 10);
-        onProgress?.('Scrying the multiverse…', pct);
+        // Scale progress from 25% to 34% during the batch fetch; 35% is the
+        // takeover's next step, and this message names this one.
+        onProgress?.('Scrying the multiverse…', 25 + Math.round((fetched / total) * 9));
       },
       preferredSet,
       { arenaOnly }
@@ -3006,7 +3006,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       state.cfg.mtgFormat
     );
 
-    onProgress?.('Drawing cards…', 30);
+    onProgress?.('Drawing cards…', 25);
     categories.cardDraw = await fillWithScryfall(
       'o:"draw" (t:instant OR t:sorcery OR t:enchantment)',
       colorIdentity,
@@ -3030,7 +3030,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       state.cfg.mtgFormat
     );
 
-    onProgress?.('Sharpening removal…', 40);
+    onProgress?.('Sharpening removal…', 28);
     categories.singleRemoval = await fillWithScryfall(
       '(o:"destroy target" OR o:"exile target") (t:instant OR t:sorcery)',
       colorIdentity,
@@ -3054,7 +3054,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       state.cfg.mtgFormat
     );
 
-    onProgress?.('Preparing board wipes…', 50);
+    onProgress?.('Preparing board wipes…', 32);
     categories.boardWipes = await fillWithScryfall(
       '(o:"destroy all" OR o:"exile all") (t:instant OR t:sorcery)',
       colorIdentity,
@@ -3117,7 +3117,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       't:creature',
       scryfallCreatureTarget,
       'Summoning creatures…',
-      60
+      35
     );
     categories.creatures.push(...scryfallCreatures);
 
@@ -3130,7 +3130,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       't:artifact -t:creature',
       scryfallArtifactTarget,
       'Forging artifacts…',
-      65
+      38
     );
     categorizeCards(scryfallArtifacts, categories);
 
@@ -3143,7 +3143,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       't:enchantment -t:creature',
       scryfallEnchantmentTarget,
       'Weaving enchantments…',
-      70
+      41
     );
     categorizeCards(scryfallEnchantments, categories);
 
@@ -3160,7 +3160,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         't:instant',
         scryfallInstantTarget,
         'Readying instants…',
-        72
+        45
       );
       categorizeCards(scryfallInstants, categories);
     }
@@ -3175,7 +3175,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         't:sorcery',
         scryfallSorceryTarget,
         'Inscribing sorceries…',
-        74
+        55
       );
       categorizeCards(scryfallSorceries, categories);
     }
