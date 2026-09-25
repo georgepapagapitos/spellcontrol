@@ -280,7 +280,8 @@ interface PlaytestStore {
   retryHordeLoad(): void;
   disarmHorde(): void;
   startHordeTurn(rect?: Rect | null): void;
-  confirmHordeReveal(): void;
+  /** `rect` is the horde felt's live box, for placing a boss the reveal deals (E436). */
+  confirmHordeReveal(rect?: Rect | null): void;
   resolveHordeAttack(damage: number): void;
   damageHorde(amount: number, rect?: Rect | null): void;
   clearHordeDamageResult(): void;
@@ -567,7 +568,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       `The horde reveals ${revealed.length} card${revealed.length === 1 ? '' : 's'}`
     );
   },
-  confirmHordeReveal() {
+  confirmHordeReveal(rect) {
     const { state, horde, gameLog, hordePast, rewindTrail } = get();
     if (!state || !horde || horde.phase !== 'reveal' || !horde.pendingReveal) return;
     const { toBattlefield, toResolve } = horde.pendingReveal;
@@ -583,7 +584,8 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       board,
       horde.librarySizeAtStart,
       horde.config.settings.bossTicks,
-      horde.bossTicksCrossed
+      horde.bossTicksCrossed,
+      rect
     );
     board = dealt.board;
     const bossTicksCrossed = dealt.crossed;

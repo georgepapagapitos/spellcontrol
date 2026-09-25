@@ -172,10 +172,11 @@ interface HordeStore extends HordeData {
   startHordeTurn(rect?: Rect | null): void;
   /** Confirms the open reveal: permanents onto the battlefield, resolved
    *  spells to the graveyard, then combat. */
-  confirmReveal(): void;
+  /** `rect` is the table's live battlefield box, for placing a boss the reveal deals (E436). */
+  confirmReveal(rect?: Rect | null): void;
   /** Applies (or skips, at 0) the horde's attack to shared life. */
   resolveAttack(damageDealt: number): void;
-  damageHorde(amount: number): void;
+  damageHorde(amount: number, rect?: Rect | null): void;
   clearLastDamageResult(): void;
   /** Moves one horde permanent off the battlefield — the survivors' own
    *  removal/combat kills, since this board never simulates their side. */
@@ -416,7 +417,7 @@ export const useHordeGameStore = create<HordeStore>()(
         });
       },
 
-      confirmReveal() {
+      confirmReveal(rect) {
         const s = get();
         if (!s.board || !s.config || !s.pendingReveal || s.phase !== 'reveal') return;
         const past = [...s.past, captureData(s)].slice(-MAX_HORDE_UNDO);
@@ -432,7 +433,8 @@ export const useHordeGameStore = create<HordeStore>()(
           board,
           s.librarySizeAtStart,
           s.config.settings.bossTicks,
-          s.bossTicksCrossed
+          s.bossTicksCrossed,
+          rect
         );
         board = dealt.board;
 
@@ -484,7 +486,7 @@ export const useHordeGameStore = create<HordeStore>()(
         }
       },
 
-      damageHorde(amount) {
+      damageHorde(amount, rect) {
         const s = get();
         if (!s.board || !s.config) return;
         const past = [...s.past, captureData(s)].slice(-MAX_HORDE_UNDO);
@@ -499,7 +501,8 @@ export const useHordeGameStore = create<HordeStore>()(
           board,
           s.librarySizeAtStart,
           s.config.settings.bossTicks,
-          s.bossTicksCrossed
+          s.bossTicksCrossed,
+          rect
         );
         board = dealt.board;
 

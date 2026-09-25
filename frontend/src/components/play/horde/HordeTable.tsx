@@ -324,7 +324,7 @@ export function HordeTable() {
           revealed={pendingReveal.revealed}
           toResolveIds={new Set(pendingReveal.toResolve.map((c) => c.id))}
           waveEndId={pendingReveal.waveEndId}
-          onConfirm={confirmReveal}
+          onConfirm={() => confirmReveal(wrapRef.current ? measureRect(wrapRef.current) : null)}
         />
       )}
 
@@ -332,7 +332,9 @@ export function HordeTable() {
         <HordeDamageSheet
           libraryCount={board.zones.library.length}
           result={lastDamageResult}
-          onConfirm={damageHorde}
+          onConfirm={(amount) =>
+            damageHorde(amount, wrapRef.current ? measureRect(wrapRef.current) : null)
+          }
           onDone={() => {
             clearLastDamageResult();
             setDamageSheetOpen(false);
