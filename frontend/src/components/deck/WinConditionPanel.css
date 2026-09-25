@@ -219,10 +219,17 @@
   margin: calc(0.35rem - var(--space-3)) 0 0;
   padding: 0 var(--space-3);
   display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.win-con-clock-line {
+  margin: 0;
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
   line-height: 1.5;
 }
 
@@ -231,14 +238,56 @@
   flex: 0 0 auto;
 }
 
-.win-con-clock strong {
-  color: var(--text-primary);
-  font-weight: 600;
+/* The share of games assembled by each turn: six columns on a fixed scale,
+   so two decks compare column for column. The fill is the share. */
+.win-con-clock-steps {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+  /* A chart, not a banner: on a wide panel six stretched bars read as one. */
+  max-width: 28rem;
+}
+
+.win-con-clock-step {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.win-con-clock-bar {
+  position: relative;
+  height: 2.5rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  overflow: hidden;
+}
+
+.win-con-clock-fill {
+  position: absolute;
+  inset: auto 0 0;
+  background: var(--accent);
+}
+
+.win-con-clock-share {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
-.win-con-clock-sub {
+.win-con-clock-turn {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   color: var(--text-muted);
+}
+
+.win-con-clock-scope {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.45;
 }
 
 /* 44px floor on coarse pointers via an invisible centered ghost, without

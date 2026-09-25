@@ -1,5 +1,5 @@
 import './BracketBreakdown.css';
-import type { JSX, ReactNode } from 'react';
+import { useMemo, type JSX, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { InfoTip } from '../InfoTip';
 import { SegmentedControl } from '../shared/form';
@@ -19,6 +19,13 @@ import { formatBracketLabel } from '@/lib/format-bracket-label';
 import { bracketPodLine } from '@/lib/bracket-pod-line';
 import { canShare, openShareSheet } from '@/lib/web-share';
 import { toast } from '@/store/toasts';
+import {
+  CLOCK_EARLY_TURN,
+  clockShare,
+  librarySeed,
+  simulateAssemblyClock,
+  type ClockCard,
+} from '@/lib/opening-hand-sim';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
 import { MeterBar } from '../shared/MeterBar';
@@ -360,7 +367,8 @@ function PodLine({ text }: { text: string }): JSX.Element {
 function judgmentFor(
   estimation: BracketEstimation,
   ratingFloor: BracketFloor | null,
-  hasSolRing: boolean
+  hasSolRing: boolean,
+  earlyShare: number | null
 ): {
   question: string;
   chips?: string[];
@@ -392,7 +400,13 @@ function judgmentFor(
             breakdown.fastManaCount,
             'fast mana card',
             'no fast mana'
-          )}${hasSolRing ? ' besides Sol Ring' : ''}, too few to call the combo fast.`,
+          )}${hasSolRing ? ' besides Sol Ring' : ''}, too few to call the combo fast.${
+            earlyShare == null
+              ? ''
+              : ` In 1,000 goldfish games it's assembled by turn ${CLOCK_EARLY_TURN} ${
+                  earlyShare === 0 ? 'in none of them' : `in ${clockShare(earlyShare)} of them`
+                }.`
+          }`,
         },
       ],
       verdict:
@@ -432,6 +446,7 @@ export function BracketBreakdown({
   deckCardsByName,
   combosUncounted = false,
   bracketOverride = null,
+  clockLibrary,
   onSetBracketOverride,
 }: {
   estimation: BracketEstimation;
@@ -444,6 +459,10 @@ export function BracketBreakdown({
   /** The owner's control. Without it (someone else's deck) there is no
    *  answer to give and no pod line to copy. */
   onSetBracketOverride?: (bracket: Bracket | null) => void;
+  /** Mainboard cards, one per copy (the Win conditions clock's library).
+   *  With it, the rating-only judgment says how often the combo is assembled
+   *  by the early turn, from the same seeded clock. */
+  clockLibrary?: readonly ClockCard[];
 }): JSX.Element {
   const { breakdown, hardFloors, softScore, bracket } = estimation;
 
@@ -464,9 +483,28 @@ export function BracketBreakdown({
       : f
   );
   const settledFloor = floorOf(settledFloors);
+  // How often the Ruthless combos come together early, from the same seeded
+  // clock the Win conditions panel runs: the "Reads as 3" side's evidence.
+  const earlyShare = useMemo(() => {
+    const ruthlessCombos = combosUncounted
+      ? null
+      : ratingOnlyComboFloor(estimation)?.ruthlessCombos;
+    if (!ruthlessCombos || !clockLibrary?.length) return null;
+    const clock = simulateAssemblyClock(
+      clockLibrary,
+      ruthlessCombos.map((names) => ({ names, need: names.length })),
+      {
+        iterations: 1000,
+        wildcards: estimation.breakdown.tutorNames,
+        seed: librarySeed(clockLibrary),
+      }
+    );
+    return clock ? (clock.assembledBy[CLOCK_EARLY_TURN] ?? 0) : null;
+  }, [estimation, combosUncounted, clockLibrary]);
+
   const judgment = combosUncounted
     ? null
-    : judgmentFor(estimation, ratingFloor, !!deckCardsByName?.has('Sol Ring'));
+    : judgmentFor(estimation, ratingFloor, !!deckCardsByName?.has('Sol Ring'), earlyShare);
   const lowPowerCombos = breakdown.lowPowerComboCount ?? 0;
   const loops = breakdown.loopCombos ?? [];
   const engines = breakdown.loopEngineCount ?? 0;

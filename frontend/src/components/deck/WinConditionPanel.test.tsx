@@ -148,7 +148,14 @@ describe('WinConditionPanel — the clock is kill-categories only', () => {
         library={library}
       />
     );
-    expect(screen.getByText(/Typically kills by turn/)).toBeTruthy();
+    // Assembled, never 'kills': the sentence leads with the early turn.
+    expect(screen.getByText(/^The win card is cast by turn 6 /)).toBeTruthy();
+    expect(screen.queryByText(/kills/)).toBeNull();
+    // The strip spells every column out for a screen reader.
+    expect(
+      screen.getByRole('img', { name: /^Share of games with it assembled: by turn 4, / })
+    ).toBeTruthy();
+    expect(screen.getByText(/Combat and poison damage aren't simulated\./)).toBeTruthy();
   });
 
   it('hides the clock for a strategic mass, keeping the path and its evidence', () => {

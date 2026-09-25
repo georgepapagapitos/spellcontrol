@@ -20,6 +20,7 @@ import type { BuildReport } from '@/deck-builder/types';
 import { MeterBar } from '../shared/MeterBar';
 import { BuildReportPanel } from './BuildReportPanel';
 import { BracketBreakdown } from './BracketBreakdown';
+import type { ClockCard } from '@/lib/opening-hand-sim';
 import { BracketVerdictStrip } from './BracketVerdictStrip';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { DeckColorPanel } from './DeckColorPanel';
@@ -43,6 +44,7 @@ export function DeckAnalysisView({
   bracketOverride,
   bracketMissesCombos,
   onSetBracketOverride,
+  clockLibrary,
   archetypeOverride,
   onSetArchetypeOverride,
   roleCounts,
@@ -94,6 +96,8 @@ export function DeckAnalysisView({
    *  (combos only raise a bracket). See useCommanderBracketAnalysis. */
   bracketMissesCombos?: boolean;
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
+  /** Mainboard, one entry per copy: lets the Bracket judgment quote the combo clock. */
+  clockLibrary?: readonly ClockCard[];
   archetypeOverride?: Archetype | null;
   onSetArchetypeOverride?: (archetype: Archetype | null) => void;
   roleCounts?: Record<string, number>;
@@ -371,6 +375,7 @@ export function DeckAnalysisView({
                       combosUncounted={bracketMissesCombos}
                       bracketOverride={bracketOverride ?? null}
                       onSetBracketOverride={onSetBracketOverride}
+                      clockLibrary={clockLibrary}
                     />
                   )}
                 </div>

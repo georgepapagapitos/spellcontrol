@@ -3340,6 +3340,7 @@ export function DeckEditorPage() {
             bracketOverride={deck.bracketOverride}
             bracketMissesCombos={bracketAnalysis.missesCombos}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
+            clockLibrary={deckLibrary}
             archetypeOverride={deck.archetypeOverride}
             onSetArchetypeOverride={(a) => updateDeck(deck.id, { archetypeOverride: a })}
             deckGrade={deck.deckGrade}

@@ -1,3 +1,4 @@
+import type { ClockCard } from '@/lib/opening-hand-sim';
 import { CircleAlert, Layers, Pencil, Search, Tag as TagIcon, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useOverflowEdges } from '@/lib/use-overflow-edges';
@@ -201,6 +202,8 @@ export interface DeckDisplayProps {
   bracketMissesCombos?: boolean;
   /** Set/clear the manual bracket override. Passing null reverts to auto. */
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
+  /** Mainboard, one entry per copy: lets the Bracket judgment quote the combo clock. */
+  clockLibrary?: readonly ClockCard[];
   /** User-pinned archetype; when set it overrides the derived identity headline. */
   archetypeOverride?: Archetype | null;
   /** Set/clear the manual archetype override. Passing null reverts to auto. */
@@ -495,6 +498,7 @@ export function DeckDisplay({
   bracketOverride,
   bracketMissesCombos,
   onSetBracketOverride,
+  clockLibrary,
   archetypeOverride,
   onSetArchetypeOverride,
   // deckGrade: removed from stat-strip (UX-315: one grading system; letter grades dropped)
@@ -1589,6 +1593,7 @@ export function DeckDisplay({
       bracketOverride={bracketOverride}
       bracketMissesCombos={bracketMissesCombos}
       onSetBracketOverride={onSetBracketOverride}
+      clockLibrary={clockLibrary}
       archetypeOverride={archetypeOverride}
       onSetArchetypeOverride={onSetArchetypeOverride}
       roleCounts={shownRoles.roleCounts}

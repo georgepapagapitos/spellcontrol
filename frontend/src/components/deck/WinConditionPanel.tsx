@@ -7,7 +7,13 @@ import type {
   WinCondition,
 } from '@/deck-builder/services/winConditions/types';
 import { tagOnlyWinCons } from '@/deck-builder/services/winConditions/winConTags';
-import { simulateAssemblyClock, type ClockCard } from '@/lib/opening-hand-sim';
+import {
+  assemblyClockSentence,
+  clockShare,
+  librarySeed,
+  simulateAssemblyClock,
+  type ClockCard,
+} from '@/lib/opening-hand-sim';
 import { InfoTip } from '../InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 
@@ -90,6 +96,9 @@ export function assemblyClockTip(): JSX.Element {
     </>
   );
 }
+
+/** The strip's turns: fixed, so two decks' strips compare column for column. */
+const CLOCK_STEPS = [4, 6, 8, 10, 12, 15];
 
 /**
  * One evidence chip: tap the name to preview the card; tap the trailing Tag
@@ -209,6 +218,7 @@ export function WinConditionPanel({
     return simulateAssemblyClock(library, primary.assembly, {
       iterations: 1000,
       wildcards: analysis.tutors,
+      seed: librarySeed(library),
     });
   }, [analysis, library]);
 
@@ -292,22 +302,47 @@ export function WinConditionPanel({
           onTapCard={carousel.open}
         />
       )}
-      {clock && (
-        <p className="win-con-clock">
-          <Hourglass className="win-con-clock-icon" width={13} height={13} aria-hidden />
-          <span>
-            Typically kills by turn <strong>{clock.typicalTurn}</strong>
-            <span className="win-con-clock-sub">
-              {' '}
-              · 90% of games by turn {clock.p90Turn}, across 1,000 simulated games
-            </span>
-          </span>
-          <InfoTip
-            label="the kill-turn estimate"
-            className="win-con-clock-tip"
-            text={assemblyClockTip()}
-          />
-        </p>
+      {clock && analysis.primary && (
+        <div className="win-con-clock">
+          <p className="win-con-clock-line">
+            <Hourglass className="win-con-clock-icon" width={13} height={13} aria-hidden />
+            <span>{assemblyClockSentence(clock, analysis.primary.category)}</span>
+            <InfoTip
+              label="the assembly estimate"
+              className="win-con-clock-tip"
+              text={assemblyClockTip()}
+            />
+          </p>
+          {/* The same shares as a strip. The sentence carries the reading;
+              the image label spells every column out for a screen reader. */}
+          <div
+            className="win-con-clock-steps"
+            role="img"
+            aria-label={`Share of games with it assembled: ${CLOCK_STEPS.map(
+              (t) => `by turn ${t}, ${clockShare(clock.assembledBy[t] ?? 0)}`
+            ).join('; ')}`}
+          >
+            {CLOCK_STEPS.map((t) => {
+              const share = clock.assembledBy[t] ?? 0;
+              return (
+                <div key={t} className="win-con-clock-step">
+                  <span className="win-con-clock-bar">
+                    <span
+                      className="win-con-clock-fill"
+                      style={{ height: `${Math.round(share * 100)}%` }}
+                    />
+                  </span>
+                  <span className="win-con-clock-share">{clockShare(share)}</span>
+                  <span className="win-con-clock-turn">T{t}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="win-con-clock-scope">
+            Drawing{analysis.tutors?.length ? ', tutoring' : ''} and casting the pieces, over 1,000
+            goldfish games. Combat and poison damage aren&apos;t simulated.
+          </p>
+        </div>
       )}
       {analysis.secondary.length > 0 && (
         <>
