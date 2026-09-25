@@ -41,6 +41,7 @@ export {
   bracketReasons,
   bracketSource,
   bracketBorderline,
+  ratingOnlyComboFloor,
   softScorePoints,
   SOFT_SCORE,
   type BracketEstimation,

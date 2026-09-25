@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { BracketBreakdown } from './BracketBreakdown';
@@ -52,7 +52,8 @@ describe('BracketBreakdown', () => {
   it('lists the hard floors as rows and keeps the power-signal working as a table', () => {
     render(<BracketBreakdown estimation={makeEstimation()} />);
 
-    expect(screen.getByText('Hard floors')).toBeTruthy();
+    // The floors sit under a "Settled" heading: what the rules fix.
+    expect(screen.getByRole('heading', { name: /Settled\s*Bracket 4/ })).toBeTruthy();
     expect(screen.getByText('Power signal')).toBeTruthy();
 
     // Hard floors are a list of rows, one per floor, not a two-column table.
@@ -122,7 +123,7 @@ describe('BracketBreakdown', () => {
 
     // Floor tags
     expect(screen.getAllByText('Bracket 3').length).toBeGreaterThan(0);
-    expect(screen.getByText('Bracket 4')).toBeTruthy();
+    expect(screen.getAllByText('Bracket 4').length).toBeGreaterThan(0);
 
     // Contributing card chips for game-changer + land-denial floors
     expect(screen.getByText('Cyclonic Rift')).toBeTruthy();
@@ -374,5 +375,122 @@ describe('BracketBreakdown before combos are counted', () => {
     expect(
       container.querySelector('.bracket-breakdown-empty')?.textContent?.replace(/\s+/g, ' ')
     ).toBe("No hard floors yet. Combos aren't counted, and a combo can set one.");
+  });
+});
+
+// Any deck whose Bracket 4 rests on Spellbook's Ruthless rating alone: the
+// rule keys on why the floor fired, never on which cards.
+function ratingOnly(): BracketEstimation {
+  return makeEstimation({
+    bracket: 4,
+    softScore: 22,
+    hardFloors: [
+      {
+        bracket: 4,
+        reason: 'Commander Spellbook rates the Card A + Card B combo Ruthless',
+        ruthlessCombos: [['Card A', 'Card B']],
+      },
+      { bracket: 3, reason: '1 Game Changer card' },
+    ],
+    breakdown: {
+      ...makeEstimation().breakdown,
+      gameChangerCount: 1,
+      gameChangerNames: ['Rhystic Study'],
+      massLandDenialCount: 0,
+      massLandDenialNames: [],
+      fastManaCount: 1,
+      fastManaNames: ['Sol Ring'],
+      tutorCount: 0,
+      tutorNames: [],
+    },
+  });
+}
+
+describe('BracketBreakdown judgment call', () => {
+  it('settles the combo at 3 and argues 3 against 4, with ours marked', () => {
+    render(<BracketBreakdown estimation={ratingOnly()} />);
+    expect(screen.getByRole('heading', { name: /Settled\s*At least Bracket 3/ })).toBeTruthy();
+    expect(screen.getByText('Two-card infinite combos')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Judgment\s*Bracket 3 or 4/ })).toBeTruthy();
+    expect(screen.getByText(/rates this combo Ruthless, its rating for combos/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        'The list has no tutors and 1 fast mana card, too few to call the combo fast.'
+      )
+    ).toBeTruthy();
+    expect(screen.getByText('Our call').closest('.bracket-call-side')?.textContent).toMatch(
+      /Reads as 4/
+    );
+  });
+
+  it('says Sol Ring is not counted as fast mana when the deck runs it', () => {
+    const cards = new Map([['Sol Ring', {} as ScryfallCard]]);
+    render(<BracketBreakdown estimation={ratingOnly()} deckCardsByName={cards} />);
+    expect(
+      screen.getByText(
+        'The list has no tutors and 1 fast mana card besides Sol Ring, too few to call the combo fast.'
+      )
+    ).toBeTruthy();
+  });
+
+  it('has no judgment when the rules settle the bracket', () => {
+    render(<BracketBreakdown estimation={makeEstimation()} />);
+    expect(screen.queryByText('Judgment')).toBeNull();
+  });
+
+  it('holds the judgment while combos are uncounted', () => {
+    render(<BracketBreakdown estimation={ratingOnly()} combosUncounted />);
+    expect(screen.queryByText('Judgment')).toBeNull();
+  });
+
+  it('argues a power-signal borderline the same way', () => {
+    render(
+      <BracketBreakdown
+        estimation={makeEstimation({
+          bracket: 2,
+          softScore: 62,
+          hardFloors: [],
+          breakdown: { ...ratingOnly().breakdown, gameChangerCount: 0, gameChangerNames: [] },
+        })}
+      />
+    );
+    expect(screen.getByRole('heading', { name: /Judgment\s*Bracket 2 or 3/ })).toBeTruthy();
+    expect(
+      screen.getByText('Power signal 62/100, 4 points under the Bracket 3 line.')
+    ).toBeTruthy();
+    expect(screen.getByText('Nothing in the list sets a Bracket 3 floor.')).toBeTruthy();
+  });
+
+  it("the owner's answer states the deck's Bracket", () => {
+    const set = vi.fn();
+    render(<BracketBreakdown estimation={ratingOnly()} onSetBracketOverride={set} />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Bracket 3 · Upgraded' }));
+    expect(set).toHaveBeenCalledWith(3);
+  });
+
+  it('shows the stated answer as picked', () => {
+    render(
+      <BracketBreakdown
+        estimation={ratingOnly()}
+        bracketOverride={3}
+        onSetBracketOverride={vi.fn()}
+      />
+    );
+    expect(
+      (screen.getByRole('radio', { name: 'Bracket 3 · Upgraded' }) as HTMLInputElement).checked
+    ).toBe(true);
+    expect(screen.getByText("This deck's Bracket is now 3.")).toBeTruthy();
+  });
+});
+
+describe('BracketBreakdown pod line', () => {
+  it('is for the owner only', () => {
+    const { rerender } = render(<BracketBreakdown estimation={ratingOnly()} />);
+    expect(screen.queryByText('Tell your pod')).toBeNull();
+    rerender(<BracketBreakdown estimation={ratingOnly()} onSetBracketOverride={vi.fn()} />);
+    expect(screen.getByText('Tell your pod')).toBeTruthy();
+    expect(
+      screen.getByText(/^Bracket 4 \(Optimized\), borderline 3\. 1 Game Changer: Rhystic Study\./)
+    ).toBeTruthy();
   });
 });

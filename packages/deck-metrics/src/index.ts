@@ -68,6 +68,15 @@ export interface BracketFloor {
   bracket: number;
   reason: string;
   detail?: string;
+  /**
+   * Set on a Bracket 4 combo floor that rests on Commander Spellbook's
+   * Ruthless rating alone: the list has too few tutors and fast mana to count
+   * as fast, the combos aren't redundant, and none uses the commander. Holds
+   * the Ruthless two-card combos, one array of pieces each. Whether such a
+   * combo comes together early is a judgment the rating makes for us, so the
+   * estimate reads borderline (see `ratingOnlyComboFloor`).
+   */
+  ruthlessCombos?: string[][];
 }
 
 export interface BracketBreakdown {
@@ -514,10 +523,21 @@ export function bracketSource(est: BracketEstimation): 'contents' | 'power' | 'b
 }
 
 /**
- * The neighbouring bracket when the power signal sits within
- * `SOFT_SCORE.borderlineWithin` points of the threshold that could move this
- * deck — else `null`. Floors are deterministic (a hard floor either fires or
- * it doesn't), so only the soft power signal can make a deck borderline:
+ * The Bracket 4 combo floor, when it is the only thing holding the deck at 4
+ * and it rests on Spellbook's Ruthless rating alone (`BracketFloor.ruthlessCombos`).
+ * Without it the deck would read Bracket 3: its other floors are 3 or lower.
+ * The Bracket panel argues this call both ways, and `bracketBorderline` reads 3/4.
+ */
+export function ratingOnlyComboFloor(est: BracketEstimation): BracketFloor | null {
+  const atFour = est.hardFloors.filter((f) => f.bracket >= 4);
+  return atFour.length === 1 && atFour[0].ruthlessCombos?.length ? atFour[0] : null;
+}
+
+/**
+ * The neighbouring bracket when the estimate could reasonably read one
+ * bracket over — else `null`. A Bracket 4 that rests on Spellbook's rating
+ * alone (`ratingOnlyComboFloor`) is borderline 3. Otherwise only the soft
+ * power signal can make a deck borderline:
  *   - floor < 4: `bumpAt` (66) is the threshold, either side. Below it, the
  *     neighbour is the bump target (`floor + 1`, capped at 4); at/above it
  *     (already bumped), the neighbour is the floor itself.
@@ -527,6 +547,7 @@ export function bracketSource(est: BracketEstimation): 'contents' | 'power' | 'b
  *     the neighbour is 5; at/above it (already cEDH) the neighbour is 4.
  */
 export function bracketBorderline(est: BracketEstimation): number | null {
+  if (est.bracket === 4 && ratingOnlyComboFloor(est)) return 3;
   const floor = floorOf(est.hardFloors);
   const { softScore } = est;
   const within = SOFT_SCORE.borderlineWithin;
@@ -898,7 +919,27 @@ export function estimateBracket(
               twoCardComboCount + multiCardComboCount === 1 ? '' : 's'
             }`;
 
-    if (isEarlyAssembly) {
+    // Spellbook's rating is the only reason to call it early: nothing in the
+    // list speeds the combo up. The floor stays 4 (the rating is the RC's
+    // per-combo classification, E382), but it names the combo it rests on
+    // instead of claiming a speed the list doesn't show.
+    const byRatingOnly = hasReliableTag && accel < 4 && !isComboDense && !usesCommander;
+
+    if (byRatingOnly) {
+      const ruthlessCombos = counted
+        .filter((c) => c.cardCount <= 2 && c.bracketTag === 'R')
+        .map((c) => c.cards);
+      const others = ruthlessCombos.length - 1;
+      hardFloors.push({
+        bracket: 4,
+        reason: `Commander Spellbook rates the ${ruthlessCombos[0].join(' + ')} combo Ruthless${
+          others > 0 ? ` (and ${others} more)` : ''
+        }`,
+        detail:
+          'Ruthless is its rating for combos that belong at Bracket 4 and up. Bracket 3 allows two-card combos only when they come together late, and with few tutors or fast mana this list may not bring them together early.',
+        ruthlessCombos,
+      });
+    } else if (isEarlyAssembly) {
       // When redundancy (not raw speed) is what tips it, say so — the deck may have
       // zero "fast mana" yet still be a combo deck, and "fast combos" would mislead.
       const byRedundancyOnly = isComboDense && accel < 4 && !hasReliableTag && !usesCommander;

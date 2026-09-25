@@ -142,8 +142,11 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        now RESOLVED against the deck's own cards instead of always
  *        dropped: `templatesSatisfied` lets it count toward the combo floor
  *        like any other complete combo once a deck card matches its query.
+ *   v16 — a Bracket 4 combo floor that rests on Spellbook's Ruthless rating
+ *        alone names the combo and carries `ruthlessCombos`, so the estimate
+ *        reads borderline 3 and the Bracket panel argues the call both ways.
  */
-const ANALYSIS_ENGINE_VERSION = 'v15-combo-templates-resolved';
+const ANALYSIS_ENGINE_VERSION = 'v16-rating-only-combo-floor';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for
