@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  heroBracketReadout,
   formatBracketLabel,
   bracketSourceSentence,
   bracketBadgeWithEstimate,
@@ -51,5 +52,35 @@ describe('bracketSourceSentence', () => {
 describe('EXHIBITION_BRACKET_NOTE', () => {
   it('explains the Core floor', () => {
     expect(EXHIBITION_BRACKET_NOTE).toMatch(/Core \(2\) or higher/);
+  });
+});
+
+// The owner's Deck tab states the bracket once, in the hero. The deck stats'
+// identity line used to be where "Bracket 2 · est. 4" showed, and it no
+// longer repeats the bracket, so the hero carries the Estimate instead.
+describe('heroBracketReadout', () => {
+  it('shows the Estimate beside a stated bracket it disagrees with', () => {
+    expect(heroBracketReadout({ bracket: 2, stated: 2, estimate: 4 })).toEqual({
+      text: 'Bracket 2 · est. 4',
+      aria: 'Bracket 2 stated, estimate 4',
+    });
+  });
+
+  it('shows the bracket alone when the two agree', () => {
+    expect(heroBracketReadout({ bracket: 3, stated: 3, estimate: 3 })).toEqual({
+      text: 'Bracket 3',
+    });
+  });
+
+  it('marks an estimate made without the combo match as a floor', () => {
+    expect(heroBracketReadout({ bracket: 4, estimate: 4, missesCombos: true })).toEqual({
+      text: 'Bracket 4+',
+    });
+  });
+
+  it('never marks a stated bracket as a floor', () => {
+    expect(heroBracketReadout({ bracket: 2, stated: 2, missesCombos: true })).toEqual({
+      text: 'Bracket 2',
+    });
   });
 });

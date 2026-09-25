@@ -131,6 +131,7 @@ import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
 import { classifyCandidate, analyzeDeck } from '../lib/deck-analysis';
 import { useTaggerReady } from '../lib/use-tagger-ready';
+import { heroBracketReadout } from '../lib/format-bracket-label';
 import { findCrossDeckMoves, type CrossDeckMove } from '../lib/cross-deck-moves';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
@@ -2933,6 +2934,15 @@ export function DeckEditorPage() {
   const bracketValue = effectiveBracket(deck);
   // An estimate made before the combo match answered is a floor (combos only
   // raise a bracket); the glanceable readouts say "2+" like the hero's "At least".
+  const heroBracket =
+    bracketValue === undefined
+      ? undefined
+      : heroBracketReadout({
+          bracket: bracketValue,
+          stated: deck.bracketOverride,
+          estimate: deck.bracketEstimation?.bracket,
+          missesCombos: bracketAnalysis.missesCombos,
+        });
   const bracketText =
     bracketValue === undefined
       ? undefined
@@ -3113,9 +3123,15 @@ export function DeckEditorPage() {
                 </>
               )}
             </span>
-            {/* Bracket — glanceable on every view (it left the feature strip). */}
+            {/* Bracket — glanceable on every view (it left the feature strip).
+                The hero is the one place the Deck tab states it, so a stated
+                bracket the Estimate disagrees with carries the Estimate here
+                ("Bracket 2 · est. 4", § Bracket: the owner's word); the deck
+                stats under the list no longer repeat either. */}
             {bracketValue != null && (
-              <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketText}`}</span>
+              <span className="deck-hero-bracket" aria-label={heroBracket?.aria}>
+                {`\u00A0· ${heroBracket?.text.replace(/ /g, '\u00A0')}`}
+              </span>
             )}
           </p>
           <DeckVisibilityChip

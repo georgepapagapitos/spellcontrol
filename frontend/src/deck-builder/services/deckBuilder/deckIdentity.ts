@@ -115,6 +115,18 @@ export function resolveAutoArchetype(input: {
   return engineArchetype(input.engine) ?? built;
 }
 
+/**
+ * One sentence on how the deck is built, from the same engine read the radar
+ * draws, so every number in it is on the radar too. Null when no axis is an
+ * engine yet (the radar's own fallback says so).
+ */
+export function engineSentence(synergy: DeckSynergy, spellCount: number): string | null {
+  const [top, next] = synergy.axes.filter((a) => synergy.invested.includes(a.axis));
+  if (!top) return null;
+  const lead = `${top.total} of ${spellCount} spells build the ${top.label} engine`;
+  return next ? `${lead}, and ${next.total} build ${next.label}.` : `${lead}.`;
+}
+
 export function deriveDeckIdentity(input: {
   profile: CommanderProfile;
   /** The deck's selected themes (generated decks); empty for manual/imported. */

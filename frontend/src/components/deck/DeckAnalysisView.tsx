@@ -162,7 +162,6 @@ export function DeckAnalysisView({
 
   const showRoles = roleCounts !== undefined;
 
-  const effectiveBracketValue = bracketOverride ?? bracketEstimation?.bracket;
   const bracketOverridden = bracketOverride != null;
   // The parent `.deck-display` is the tabpanel for the active view; this just
   // renders the view's content. `current` aliases `view` so the per-view blocks
@@ -190,8 +189,6 @@ export function DeckAnalysisView({
               commander={commander ?? null}
               partnerCommander={partnerCommander}
               format={format}
-              bracket={effectiveBracketValue}
-              estimatedBracket={bracketEstimation?.bracket}
               analysisState={analysisState}
               onRetryAnalysis={onRetryAnalysis}
               edhrecMissing={edhrecMissing}

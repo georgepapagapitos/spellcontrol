@@ -4,10 +4,26 @@
    className, never re-style the track. */
 
 .meterbar {
+  position: relative;
   height: 6px;
   background: var(--border);
   border-radius: 999px;
   overflow: hidden;
+}
+
+/* A target / threshold mark: a 2px notch the full height of the track, in the
+   primary ink with a surface hairline either side so it reads on the fill and
+   on the empty track alike. */
+.meterbar-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text-primary);
+  box-shadow:
+    -1px 0 0 var(--surface-raised),
+    1px 0 0 var(--surface-raised);
 }
 
 /* Progress-bar weight (uploads / long operations). */

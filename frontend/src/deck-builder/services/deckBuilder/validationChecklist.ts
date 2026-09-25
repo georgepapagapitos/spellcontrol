@@ -109,7 +109,7 @@ export function buildValidationChecklist(input: ValidationInput): ValidationResu
       status: offColor.length === 0 ? 'pass' : 'fail',
       detail:
         offColor.length === 0
-          ? 'every card within identity'
+          ? 'all in identity'
           : `${offColor.length} off-color card${offColor.length === 1 ? '' : 's'}`,
     });
   }
@@ -142,7 +142,7 @@ export function buildValidationChecklist(input: ValidationInput): ValidationResu
       status: illegal === 0 ? 'pass' : 'fail',
       detail:
         illegal === 0
-          ? `every card legal in ${formatLabel}`
+          ? 'all legal'
           : illegal === 1
             ? `${input.illegalCardNames[0]} isn't legal in ${formatLabel}`
             : `${illegal} cards not legal in ${formatLabel}`,
