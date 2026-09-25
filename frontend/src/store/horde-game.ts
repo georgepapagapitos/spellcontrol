@@ -33,6 +33,11 @@ export interface HordeSurvivor {
   name: string;
   deckId: string | null;
   deckName: string | null;
+  /** Optional: a game persisted before these fields existed has none, and
+   *  still needs to load and post. Mirrors `makePlayer`'s own optionality. */
+  commander?: string | null;
+  partner?: string | null;
+  colorIdentity?: string[];
 }
 
 export interface HordeConfig {
@@ -221,6 +226,9 @@ function buildHordeGameState(s: HordeStore, id: string, outcome: 'won' | 'lost')
       name: survivor.name,
       deckId: survivor.deckId,
       deckName: survivor.deckName,
+      commander: survivor.commander ?? null,
+      partner: survivor.partner ?? null,
+      colorIdentity: survivor.colorIdentity ?? [],
       startingLife: config.settings.life,
       isHost: i === 0,
     })
