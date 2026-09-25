@@ -302,12 +302,18 @@ describe('DeckIdentityCard', () => {
 
   const identity = { archetypeLabel: 'Voltron', pacingShort: 'Late game', themes: [] };
 
-  it('leads with what the deck plays as, and mounts the radar without an expander', () => {
+  it('leads with what the deck plays as, and mounts the radar without an expander', async () => {
     const { container } = renderCard({ identity });
     expect(screen.getByRole('heading', { level: 4, name: 'Voltron' })).toBeTruthy();
     expect(hasText(/^Late game$/)).toBe(true);
     expect(container.querySelector('.deck-identity-card-radar')).not.toBeNull();
-    expect(screen.queryByRole('button', { name: /playstyle/i })).toBeNull();
+    // Wait for the lazy radar itself. Its "What is playstyle radar?" tip is a
+    // button, so this asserts in the state that used to fail on CI: the old
+    // unanchored /playstyle/ passed or failed on whether the radar's chunk had
+    // resolved yet (module-cache order across files), and red main skips the
+    // deploy. No "Playstyle" expander means no button NAMED Playstyle.
+    await screen.findByRole('button', { name: 'What is playstyle radar?' });
+    expect(screen.queryByRole('button', { name: /^playstyle/i })).toBeNull();
   });
 
   it('says how the deck is built, with the numbers the radar shows', () => {
