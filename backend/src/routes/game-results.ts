@@ -57,6 +57,8 @@ export interface ResultRow {
   coop_outcome: 'won' | 'lost' | null;
   horde_id: string | null;
   turn_order: 'clockwise' | 'counterclockwise' | null;
+  commander_damage_enabled: boolean | null;
+  poison_enabled: boolean | null;
 }
 
 export function toPublic(r: ResultRow): PublicGameResult {
@@ -79,6 +81,8 @@ export function toPublic(r: ResultRow): PublicGameResult {
     coopOutcome: r.coop_outcome,
     hordeId: r.horde_id,
     turnOrder: r.turn_order,
+    commanderDamageEnabled: r.commander_damage_enabled,
+    poisonEnabled: r.poison_enabled,
   };
 }
 
@@ -87,7 +91,8 @@ export function toPublic(r: ResultRow): PublicGameResult {
  *  `undefined` at runtime with no type error. */
 export const RESULT_COLUMNS = `session_id, code, mode, recorded_by_user_id, host_user_id, format, starting_life,
             winner_seat, winner_user_id, started_at, ended_at, duration_ms, participants,
-            notable_events, summary, coop_outcome, horde_id, turn_order`;
+            notable_events, summary, coop_outcome, horde_id, turn_order,
+            commander_damage_enabled, poison_enabled`;
 
 /** Accepted-friend ids of `userId`, both directions, as a `Set` for the
  *  membership checks this file's callers want (`listFriendIds` itself

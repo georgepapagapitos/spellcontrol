@@ -23,7 +23,7 @@
  * from the most recent events — game length via timestamps, the biggest hit
  * within the window, eliminations, designations — stays honest.
  */
-import { summarizeGame, type GameState } from './game-state';
+import { summarizeGame, type GameEvent, type GameState } from './game-state';
 
 export interface RecapStat {
   id: string;
@@ -51,6 +51,33 @@ interface HitCandidate {
    *  (a self-tapped `life` event — see the module doc on `actorSeat`). */
   dealerSeat: number | null;
   targetSeat: number;
+}
+
+/**
+ * F12b: `summarizeGame`'s `firstBlood` tracks a `set-life` the same as a
+ * `life`/`cmd-dmg` loss for STATS purposes (damage taken, lowest life —
+ * correctly, the life total really did drop) but that reducer-level number
+ * carries no event kind, so the recap can't tell "hit" from "typed a new
+ * total" without looking. A `set-life` is a keypad entry, not a swing — it's
+ * never described as a hit here, without touching `summarizeGame` itself
+ * (the persisted, server-shared stats semantics stay exactly as they are).
+ * Matched by seat + timestamp, the same identity `noteFirstBlood` used to
+ * record it.
+ */
+function firstBloodSetLifeEvent(
+  game: GameState,
+  firstBlood: { seat: number; ts: number }
+): GameEvent | null {
+  return (
+    game.events.find(
+      (ev) =>
+        !ev.undone &&
+        !ev.undo &&
+        ev.kind === 'set-life' &&
+        ev.targetSeat === firstBlood.seat &&
+        ev.ts === firstBlood.ts
+    ) ?? null
+  );
 }
 
 /**
@@ -151,11 +178,13 @@ export function buildGameRecap(game: GameState): RecapStat[] {
 
   if (!truncated && summary.firstBlood) {
     const { seat, bySeat, amount } = summary.firstBlood;
+    const setLifeEvent = firstBloodSetLifeEvent(game, summary.firstBlood);
     stats.push({
       id: 'first-blood',
       label: 'First blood',
-      detail:
-        bySeat != null
+      detail: setLifeEvent
+        ? `${nameOf(game, seat)} set their life to ${setLifeEvent.delta} early on.`
+        : bySeat != null
           ? `${nameOf(game, bySeat)} drew first blood on ${nameOf(game, seat)}, for ${amount}.`
           : `${nameOf(game, seat)} took the game's first hit, for ${amount}.`,
     });

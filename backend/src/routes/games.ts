@@ -13,6 +13,7 @@ import {
   createGameState,
   makePlayer,
   GAME_PHASES,
+  MAX_ONLINE_SEATS,
   type GameAction,
   type GameFormat,
   type GamePlayer,
@@ -442,12 +443,6 @@ function removeSubscriber(code: string, sub: Subscriber): void {
   subs.delete(sub);
   if (subs.size === 0) subscribers.delete(code);
 }
-
-/** Seat cap for every online table, shared by the join route and the room
- *  browser's `max` field — a table format doesn't change how many physical
- *  seats a session has, so this stays one constant rather than the two
- *  hand-matched `8`s it used to be. */
-const MAX_SEATS = 8;
 
 export const VALID_FORMATS: ReadonlyArray<GameFormat> = [
   'commander',
@@ -927,8 +922,8 @@ export function projectGameListing(state: GameState): GameListing {
     format: state.format,
     status: state.status,
     seated,
-    max: MAX_SEATS,
-    joinable: state.status === 'lobby' && seated < MAX_SEATS,
+    max: MAX_ONLINE_SEATS,
+    joinable: state.status === 'lobby' && seated < MAX_ONLINE_SEATS,
     // Only 'public'/'friends' rows ever reach this function (see the doc
     // above), so a bare cast is safe rather than needing a fallback branch.
     visibility: state.visibility as 'public' | 'friends',
@@ -2019,10 +2014,10 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     return res.json({ game: next });
   }
 
-  if (current.players.length >= MAX_SEATS) {
+  if (current.players.length >= MAX_ONLINE_SEATS) {
     return res.status(409).json({ error: 'Game is full.' });
   }
-  const seat = nextOpenSeat(current, MAX_SEATS);
+  const seat = nextOpenSeat(current, MAX_ONLINE_SEATS);
   const player = makePlayer({
     id: req.user!.id,
     userId: req.user!.id,

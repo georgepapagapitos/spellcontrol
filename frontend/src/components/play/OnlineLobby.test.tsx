@@ -131,6 +131,14 @@ describe('OnlineLobby', () => {
     expect(screen.getAllByText('Open seat')).toHaveLength(2);
   });
 
+  it('renders all 10 seats for a full table, not clamped to the old 8-seat cap', () => {
+    renderLobby(table(10));
+    const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');
+    expect(seats).toHaveLength(10);
+    expect(screen.getByText('P9')).toBeTruthy();
+    expect(screen.queryAllByText('Open seat')).toHaveLength(0);
+  });
+
   it('marks the viewer’s own seat and the host', () => {
     renderLobby(table(2), 'u1');
     const seats = within(screen.getByRole('list', { name: 'Seats' })).getAllByRole('listitem');

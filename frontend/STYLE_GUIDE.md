@@ -7460,9 +7460,11 @@ correctness bug the capacity work exposed.
   `10p-6v4`/`10p-4v6`), mirroring 4p/6p's own pair of splits. `MAX_LOCAL_PLAYERS`
   (setup roster), the in-game roster (`GameMenu.tsx`'s `MAX_PLAYERS`) and the
   backend's recorded-local-result cap (`local-result.ts`'s `MAX_PLAYERS`) all
-  moved to 10 together. **Online seats stay at 8** (`routes/games.ts`'s
-  `MAX_SEATS`, unchanged) — an online game's whole state is one JSONB row, and
-  raising that cap is a separate decision this change didn't need to make.
+  moved to 10 together. **Online seats moved to 10 too** (game-core's
+  `MAX_ONLINE_SEATS`, shared by `routes/games.ts` and `OnlineLobby.tsx` — was
+  `routes/games.ts`'s own `MAX_SEATS`, 8) — an online game's whole state is
+  one JSONB row; 8→10 measured as a 1-2KB row-size increase, well inside the
+  existing MAX_EVENTS-bounded log's headroom.
 - **A very short panel needs a third numeral tier.** 9p/10p at 320px produce
   ~104px-tall cells, and 7p/8p ~132px ones — shorter than the 5p/6p cells
   (~179px) the existing `@container (max-height: 12rem)` tier was tuned for.

@@ -32,6 +32,7 @@ function publicResult(over: Partial<PublicGameResult> = {}): PublicGameResult {
         deckId: null,
         deckName: null,
         commander: null,
+        partner: null,
         colorIdentity: [],
         finalLife: 40,
         eliminated: false,
@@ -83,6 +84,64 @@ describe('resultToRecord', () => {
   it('omits turnOrder for a legacy row (null)', () => {
     const rec = resultToRecord(publicResult({ turnOrder: null }));
     expect(rec.turnOrder).toBeUndefined();
+  });
+
+  it('carries the rule toggles and each seat’s partner/colorIdentity onto the record', () => {
+    const rec = resultToRecord(
+      publicResult({
+        commanderDamageEnabled: false,
+        poisonEnabled: true,
+        participants: [
+          {
+            seat: 0,
+            userId: 'u1',
+            username: 'u1',
+            name: 'P1',
+            deckId: null,
+            deckName: null,
+            commander: 'Atraxa',
+            partner: null,
+            colorIdentity: [],
+            finalLife: 40,
+            eliminated: false,
+          },
+          {
+            seat: 1,
+            userId: null,
+            username: null,
+            name: 'P2',
+            deckId: null,
+            deckName: null,
+            commander: 'Thrasios',
+            partner: 'Silas Renn',
+            colorIdentity: ['U', 'B'],
+            finalLife: 40,
+            eliminated: false,
+          },
+        ],
+      })
+    );
+    expect(rec.commanderDamageEnabled).toBe(false);
+    expect(rec.poisonEnabled).toBe(true);
+    expect(rec.players[0].partner).toBeNull();
+    expect(rec.players[1].partner).toBe('Silas Renn');
+    expect(rec.players[1].colorIdentity).toEqual(['U', 'B']);
+  });
+
+  it('omits the rule toggles for a legacy row (null), including a false poisonEnabled staying present when explicit', () => {
+    const legacy = resultToRecord(
+      publicResult({ commanderDamageEnabled: null, poisonEnabled: null })
+    );
+    expect(legacy.commanderDamageEnabled).toBeUndefined();
+    expect(legacy.poisonEnabled).toBeUndefined();
+
+    // false is a real, non-legacy value and must survive — not get dropped
+    // by a falsy check the way `r.poisonEnabled ? … : {}` would.
+    const explicit = resultToRecord(
+      publicResult({ commanderDamageEnabled: false, poisonEnabled: false })
+    );
+    expect(explicit.commanderDamageEnabled).toBe(false);
+    expect(explicit.poisonEnabled).toBe(false);
   });
 });
 

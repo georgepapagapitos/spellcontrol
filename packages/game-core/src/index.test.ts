@@ -166,6 +166,23 @@ describe('applyAction', () => {
     expect(gameToRecord(s, 9999).turnOrder).toBeUndefined();
   });
 
+  it('gameToRecord carries the rule toggles and each seat is partner + colorIdentity', () => {
+    let s = lobby(2, { commanderDamageEnabled: false, poisonEnabled: true });
+    s = applyAction(s, {
+      type: 'update-player',
+      seat: 1,
+      patch: { partner: 'Silas Renn', colorIdentity: ['U', 'B'] },
+    });
+    s = applyAction(s, { type: 'end', winnerSeat: null });
+    const rec = gameToRecord(s, 9999);
+    expect(rec.commanderDamageEnabled).toBe(false);
+    expect(rec.poisonEnabled).toBe(true);
+    expect(rec.players[0].partner).toBeNull();
+    expect(rec.players[0].colorIdentity).toEqual([]);
+    expect(rec.players[1].partner).toBe('Silas Renn');
+    expect(rec.players[1].colorIdentity).toEqual(['U', 'B']);
+  });
+
   it('end is a no-op when already finished', () => {
     let s = applyAction(lobby(), { type: 'start' });
     s = applyAction(s, { type: 'end', winnerSeat: 0 });

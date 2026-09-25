@@ -11,7 +11,11 @@ export function ToastViewport() {
   const { entries, listRef, registerItem, onExitEnd } = useToastExits(toasts);
 
   return (
-    <div className="toast-viewport" role="region" aria-label="Notifications">
+    // F10: exempt from useBackgroundInert — a signed-in write-through failure
+    // or a full-screen overlay like the board still needs to reach the
+    // person, so toasts stay reachable/announced while everything else
+    // behind an overlay goes inert.
+    <div className="toast-viewport" role="region" aria-label="Notifications" data-inert-exempt>
       {/* Each toast announces itself via its per-item role (alert/status); the
           list itself is not a live region to avoid double announcements. */}
       <ol className="toast-list" ref={listRef}>

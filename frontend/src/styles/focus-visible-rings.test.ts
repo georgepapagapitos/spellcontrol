@@ -90,6 +90,14 @@ const NO_VISIBLE_OUTLINE_ALLOWLIST = new Set<string>([
   // real ring is a double box-shadow instead: `0 0 0 2px var(--accent), 0 0 0
   // 4px var(--surface)` (deck-builder-commander.css) — a genuine 2px ring,
   // just drawn via box-shadow rather than the outline property.
+  '.board-hub-ring-pointer-opened .board-hub-petal', // F12a (BoardHubMenu.tsx):
+  // the hub ring's first petal still gets real DOM focus on a POINTER-
+  // triggered open (needed so arrow-key roaming has somewhere to start), but
+  // that focus isn't a keyboard user's — a tap on the hub isn't "selecting"
+  // Restart. `.board-hub-petal:focus-visible` above keeps the real 2px ring
+  // for the actual keyboard case (opened via Enter/Space) and for arrow-key
+  // navigation after ANY open; this class is removed on the first real
+  // keydown, restoring the ring for that keyboard user immediately.
 ]);
 
 function focusVisibleBlocks(css: string): Array<{ selector: string; body: string }> {

@@ -20,7 +20,7 @@ import type {
   GameState,
   MulliganType,
 } from '../../lib/game-state';
-import { makePlayer } from '../../lib/game-state';
+import { makePlayer, MAX_ONLINE_SEATS } from '../../lib/game-state';
 import './OnlineLobby.css';
 
 /** Same cap as the create/join paths and the local setup's seat names. */
@@ -38,10 +38,10 @@ const MULLIGAN_OPTIONS: { value: MulliganType; label: string }[] = [
  *  never collide with it, and null is not a select value. */
 const RANDOM_SEAT = 'random';
 
-/** Seats an online table shows before anyone joins. The server seats up to 8;
- *  a pod is four, so four is what the grid promises and it grows from there. */
+/** Seats an online table shows before anyone joins. The server seats up to
+ *  MAX_ONLINE_SEATS; a pod is four, so four is what the grid promises and it
+ *  grows from there. */
 const MIN_SEATS = 4;
-const MAX_SEATS = 8;
 const MAX_CHAT_LEN = 240;
 
 /** Chat and system lines share one feed, newest last. */
@@ -83,7 +83,7 @@ export function OnlineLobby({
   const [confirmLeave, setConfirmLeave] = useState(false);
 
   const seats: Array<GamePlayer | null> = useMemo(() => {
-    const count = Math.min(MAX_SEATS, Math.max(MIN_SEATS, game.players.length));
+    const count = Math.min(MAX_ONLINE_SEATS, Math.max(MIN_SEATS, game.players.length));
     return Array.from({ length: count }, (_, i) => game.players.find((p) => p.seat === i) ?? null);
   }, [game.players]);
 

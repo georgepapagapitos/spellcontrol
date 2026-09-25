@@ -17,6 +17,10 @@ export interface GameResultParticipant {
   deckId: string | null;
   deckName: string | null;
   commander: string | null;
+  /** Second commander for a Partner pair. Null for the common single-commander
+   *  seat. Captured here (rather than left for GameRecord to infer) for the
+   *  same reason as colorIdentity below. */
+  partner: string | null;
   /** Captured here because GameRecord/gameToRecord() drops it. */
   colorIdentity: string[];
   finalLife: number;
@@ -68,4 +72,12 @@ export interface PublicGameResult {
    *  column existed) and for an explicitly clockwise table — both read as
    *  clockwise, matching `GameState.turnOrder`'s own convention. */
   turnOrder: 'clockwise' | 'counterclockwise' | null;
+  /**
+   * The two rule toggles the table played with. Null only for a row recorded
+   * before these columns existed — every row written from here on always
+   * carries a real boolean, since `GameState.commanderDamageEnabled` /
+   * `poisonEnabled` are required fields, never absent on a live game.
+   */
+  commanderDamageEnabled: boolean | null;
+  poisonEnabled: boolean | null;
 }
