@@ -2,12 +2,17 @@ import {
   estimateBracket,
   bracketLabel,
   checkRoleEvidence,
+  resolveComboTemplates,
   HARDCODED_GAME_CHANGERS,
+  EMPTY_ORACLE_TAGS,
   type BracketEstimation,
   type DetectedCombo,
   type TagLookup,
+  type OracleTagLookup,
+  type TemplateCard,
 } from '@spellcontrol/deck-metrics';
 import type { ScryfallCache } from '../cache';
+import type { ScryfallCard } from '../types';
 import { matchCombos, type ComboInput, type ComboMatch } from '../combos/match';
 
 /**
@@ -33,10 +38,23 @@ import { matchCombos, type ComboInput, type ComboMatch } from '../combos/match';
 
 const ORACLE_MAX_AGE_MS = Number.MAX_SAFE_INTEGER;
 
-/** The `inDeck` bucket, in the shape the estimator wants. */
-function toDetectedCombos(matched: ComboMatch[]): DetectedCombo[] {
-  return matched.map(
-    (m): DetectedCombo => ({
+/** The `inDeck` bucket, in the shape the estimator wants. `deckCards` +
+ *  `oracleTags` resolve any `--` template requirement against the deck's
+ *  actual cards (see `resolveComboTemplates`) instead of leaving it
+ *  permanently unverified. */
+function toDetectedCombos(
+  matched: ComboMatch[],
+  deckCards: readonly TemplateCard[],
+  oracleTags: OracleTagLookup
+): DetectedCombo[] {
+  return matched.map((m): DetectedCombo => {
+    const { satisfied } = resolveComboTemplates(
+      m.combo.templateQueries,
+      m.combo.cards.map((c) => c.cardName),
+      deckCards,
+      oracleTags
+    );
+    return {
       comboId: m.combo.id,
       cards: m.combo.cards.map((c) => c.cardName),
       results: m.combo.produces,
@@ -47,8 +65,9 @@ function toDetectedCombos(matched: ComboMatch[]): DetectedCombo[] {
       bracket: m.combo.bracket,
       bracketTag: m.combo.bracketTag ?? null,
       cardCount: m.combo.cardCount,
-    })
-  );
+      templatesSatisfied: satisfied,
+    };
+  });
 }
 
 export interface BracketInputs {
@@ -59,6 +78,10 @@ export interface BracketInputs {
   /** The deck's commander(s). Without them a commander + one-card combo reads as
    *  Bracket 3 here while the deck page, which passes them, shows Bracket 4. */
   commanderNames?: readonly string[];
+  /** Scryfall oracle-tag corpus for `otag:` combo-template clauses
+   *  (`otag-lookup.ts`). Defaults to "no known tags" — every `otag:` template
+   *  clause then reads null (unsupported), same as an absent snapshot. */
+  oracleTags?: OracleTagLookup;
 }
 
 /**
@@ -80,9 +103,10 @@ export interface BracketInputs {
  */
 export async function estimateForNames(
   names: string[],
-  { cache, tags, loadCombos, commanderNames }: BracketInputs
+  { cache, tags, loadCombos, commanderNames, oracleTags = EMPTY_ORACLE_TAGS }: BracketInputs
 ): Promise<BracketEstimation> {
   const oracleIds: string[] = [];
+  const deckCards: ScryfallCard[] = [];
   let cmcTotal = 0;
   let nonLandCount = 0;
   const roleCounts: Record<string, number> = {};
@@ -91,6 +115,7 @@ export async function estimateForNames(
   for (const name of names) {
     const card = cache.getCheapestByName(name, ORACLE_MAX_AGE_MS);
     if (!card) continue;
+    deckCards.push(card);
     if (card.oracle_id) oracleIds.push(card.oracle_id);
     // The FRONT face decides: an MDFC's combined type line reads "Sorcery // Land",
     // and every frontend call site counts that card as a spell.
@@ -129,7 +154,7 @@ export async function estimateForNames(
         ownedOracleIds: oracleIds,
         format: 'commander',
       });
-      combos = toDetectedCombos(matched.inDeck);
+      combos = toDetectedCombos(matched.inDeck, deckCards, oracleTags);
     }
   } catch {
     // A combo lookup failure must not fail the whole check; it only removes a

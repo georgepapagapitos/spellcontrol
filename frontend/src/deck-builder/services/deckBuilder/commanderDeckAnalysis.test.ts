@@ -241,6 +241,58 @@ describe('comboMatchesToDetected', () => {
     expect(detected[0].cardCount).toBe(2);
     expect(detected[0].bracket).toBeNull();
   });
+
+  it("resolves a template combo's templatesSatisfied against the deck's own cards", () => {
+    const templateResp: ComboMatchResponse = {
+      inDeck: [
+        {
+          combo: {
+            id: '5034--46',
+            identity: 'u',
+            produces: ['Infinite bounce'],
+            prerequisites: null,
+            description: null,
+            manaNeeded: null,
+            popularity: 10,
+            cardCount: 2,
+            bracket: 4,
+            bracketTag: 'R',
+            templateQueries: ['mv<=1 (mana={0} or mana={1} or mana={C}) is:permanent'],
+            cards: [
+              { oracleId: 'h1', cardName: 'Hullbreaker Horror', quantity: 1 },
+              { oracleId: 's1', cardName: 'Sol Ring', quantity: 1 },
+            ],
+          },
+          presentOracleIds: ['h1', 's1'],
+          missingOracleIds: [],
+        },
+      ],
+      oneAway: [],
+      almostInCollection: [],
+      source: 'local',
+      almostInCollectionTotal: 0,
+    };
+
+    const solRing = {
+      name: 'Sol Ring',
+      mana_cost: '{1}',
+      cmc: 1,
+      type_line: 'Artifact',
+    } as ScryfallCard;
+    const moxAmber = {
+      name: 'Mox Amber',
+      mana_cost: '{0}',
+      cmc: 0,
+      type_line: 'Legendary Artifact',
+    } as ScryfallCard;
+
+    // Without a qualifying deck card the template stays unresolved.
+    expect(comboMatchesToDetected(templateResp, [solRing])[0].templatesSatisfied).toBe(false);
+    // Mox Amber (not one of the combo's named pieces) satisfies it.
+    expect(comboMatchesToDetected(templateResp, [solRing, moxAmber])[0].templatesSatisfied).toBe(
+      true
+    );
+  });
 });
 
 describe('computeGradeAndBracket', () => {

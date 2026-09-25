@@ -36,6 +36,9 @@ export interface ComboInput {
   bracketTag?: string | null;
   /** Unnamed-card requirements (Spellbook templates); absent when none. */
   templates?: string[] | null;
+  /** Each template's Scryfall query, aligned with `templates`; absent when
+   *  `templates` is. */
+  templateQueries?: (string | null)[] | null;
   cards: ComboCardRef[];
 }
 
@@ -52,6 +55,9 @@ export interface ComboSummary {
   bracketTag?: string | null;
   /** Unnamed-card requirements (Spellbook templates); absent when none. */
   templates?: string[] | null;
+  /** Each template's Scryfall query, aligned with `templates`; absent when
+   *  `templates` is. */
+  templateQueries?: (string | null)[] | null;
   cards: ComboCardRef[];
 }
 
@@ -164,6 +170,7 @@ function toSummary(combo: ComboInput): ComboSummary {
     bracket: combo.bracket,
     bracketTag: combo.bracketTag ?? null,
     templates: combo.templates ?? null,
+    templateQueries: combo.templateQueries ?? null,
     cards: combo.cards,
   };
 }

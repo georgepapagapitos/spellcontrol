@@ -1,8 +1,9 @@
 {
   // Base config: editor + `typecheck`. The CJS/ESM emit configs extend this.
-  // Like game-core (and unlike binder-routing), the whole package is a single
-  // `src/index.ts`, so there are no relative imports and none of the explicit
-  // `.js` extensions `module: Node16` would otherwise demand.
+  // Like game-core (and unlike binder-routing), most of the package lives in
+  // `src/index.ts`; `template-query.ts` is the one other module, re-exported
+  // from it with an explicit `.js` extension — `module: Node16` (the CJS
+  // build) demands it on every relative import.
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],

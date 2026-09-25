@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import { bestEffortBudget } from '@/lib/best-effort';
-import { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
+import { HARDCODED_GAME_CHANGERS, resolveComboTemplates } from '@spellcontrol/deck-metrics';
+import { ensureCardTags, getCardTags, isKnownCardTag } from '@/lib/card-tags';
 import type {
   ScryfallCard,
   EDHRECCommanderData,
@@ -283,22 +284,63 @@ export function buildStrategyEngineInput(
  * `estimateBracket` expects. Only `inDeck` matters: estimateBracket counts
  * complete combos only, so partial (`oneAway`) combos are intentionally
  * dropped here.
+ *
+ * `deckCards` (the deck's full Scryfall payloads — `ScryfallCard` satisfies
+ * deck-metrics' `TemplateCard` structurally, no adapter needed) resolves any
+ * `--` unnamed-card ("template") requirement against what the deck actually
+ * runs, via `resolveComboTemplates`. `otag:` clauses read against whatever
+ * the `lib/card-tags` snapshot has loaded so far — best-effort: if it hasn't
+ * loaded yet, those clauses stay unresolved (never a wrong "satisfied") until
+ * the next recompute.
  */
 export function comboMatchesToDetected(
-  resp: ComboMatchResponse | null | undefined
+  resp: ComboMatchResponse | null | undefined,
+  deckCards: readonly ScryfallCard[] = []
 ): DetectedCombo[] {
   if (!resp) return [];
-  return resp.inDeck.map((m) => ({
-    comboId: m.combo.id,
-    cards: m.combo.cards.map((c) => c.cardName),
-    results: m.combo.produces,
-    isComplete: true,
-    missingCards: [],
-    deckCount: m.combo.popularity,
-    bracket: m.combo.bracket,
-    bracketTag: m.combo.bracketTag ?? null,
-    cardCount: m.combo.cardCount,
-  }));
+  return resp.inDeck.map((m) => {
+    const { satisfied } = resolveComboTemplates(
+      m.combo.templateQueries,
+      m.combo.cards.map((c) => c.cardName),
+      deckCards,
+      {
+        isKnownTag: isKnownCardTag,
+        hasTag: (name, tag) => getCardTags(name).includes(tag),
+      }
+    );
+    return {
+      comboId: m.combo.id,
+      cards: m.combo.cards.map((c) => c.cardName),
+      results: m.combo.produces,
+      isComplete: true,
+      missingCards: [],
+      deckCount: m.combo.popularity,
+      bracket: m.combo.bracket,
+      bracketTag: m.combo.bracketTag ?? null,
+      cardCount: m.combo.cardCount,
+      templatesSatisfied: satisfied,
+    };
+  });
+}
+
+/**
+ * {@link comboMatchesToDetected} for the persisted analysis. A template's
+ * `otag:` clause reads the card-tag snapshot, which loads lazily; resolved
+ * before it arrives, the combo reads "unsatisfied" and is persisted under a
+ * signature that never recomputes on its own. So wait for the snapshot, but
+ * only when an in-deck combo's template actually asks for an oracle tag: the
+ * snapshot is 3 MB and every other deck shouldn't pay for it. A failed load
+ * leaves those clauses unresolved (no floor), never a wrong "satisfied".
+ */
+export async function detectCombosForAnalysis(
+  resp: ComboMatchResponse | null | undefined,
+  deckCards: readonly ScryfallCard[]
+): Promise<DetectedCombo[]> {
+  const needsTags = resp?.inDeck.some((m) =>
+    m.combo.templateQueries?.some((q) => q?.includes('otag:'))
+  );
+  if (needsTags) await ensureCardTags().catch(() => undefined);
+  return comboMatchesToDetected(resp, deckCards);
 }
 
 // ── Grade + bracket (shared by generator and manual editor) ─────────────────

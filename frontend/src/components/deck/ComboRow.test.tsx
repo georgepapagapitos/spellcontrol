@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ComboRow, type CardImageIndex } from './ComboRow';
 import type { ComboMatch } from '../../types/combos';
+import type { ScryfallCard } from '@/deck-builder/types';
 
 // useCardThumb hits the thumbnail CDN resolver; stub it so the row renders the
 // placeholder art and the test stays offline.
@@ -84,6 +85,31 @@ describe('ComboRow', () => {
     expect(screen.getByLabelText('Also needs a card by type')).toBeTruthy();
     expect(screen.getByText('Also needs:')).toBeTruthy();
     expect(screen.getByText('Instant or Sorcery that untaps a Creature')).toBeTruthy();
+  });
+
+  it('shows a template combo as complete and names the deck card that satisfies it', () => {
+    // Same variant, but the deck runs Mox Amber — which satisfies "Permanent
+    // Castable for {C}" and isn't one of the combo's own named pieces.
+    const base = match();
+    renderRow({
+      match: {
+        ...base,
+        combo: {
+          ...base.combo,
+          id: '5534--46',
+          templates: ['Permanent Castable for {C}'],
+          templateQueries: ['mv<=1 (mana={0} or mana={1} or mana={C}) is:permanent'],
+        },
+      },
+      deckCards: [
+        { name: 'Mox Amber', mana_cost: '{0}', cmc: 0, type_line: 'Legendary Artifact' },
+      ] as ScryfallCard[],
+    });
+
+    expect(screen.getByLabelText('Complete')).toBeTruthy();
+    expect(screen.getByText('Completed by:')).toBeTruthy();
+    expect(screen.getByText('Mox Amber')).toBeTruthy();
+    expect(screen.queryByText('Also needs:')).toBeNull();
   });
 
   it('renders the missing piece and add CTA when one away', () => {

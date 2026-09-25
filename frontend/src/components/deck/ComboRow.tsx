@@ -11,7 +11,10 @@ import {
   Plus,
   Zap,
 } from 'lucide-react';
+import { resolveComboTemplates } from '@spellcontrol/deck-metrics';
+import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardThumb } from '../../lib/card-thumbs';
+import { getCardTags, isKnownCardTag, useCardTagsReady } from '../../lib/card-tags';
 import { ColorPip } from '../shared/ManaSymbol';
 import type { EdhrecComboStat } from '../../lib/edhrec-combo-overlay';
 import type { ComboMatch } from '../../types/combos';
@@ -98,6 +101,10 @@ export interface ComboRowProps {
    * combos view, which has no deck zones at all).
    */
   sideboardCardNames?: string[];
+  /** The deck's own cards, used to resolve a template combo's unnamed-card
+   *  requirement (see `needsTemplate` below). Omit on a surface with no deck
+   *  card list handy — the requirement then just stays unresolved. */
+  deckCards?: readonly ScryfallCard[];
 }
 
 export function ComboRow({
@@ -112,6 +119,7 @@ export function ComboRow({
   aside,
   missingPrice,
   sideboardCardNames,
+  deckCards = [],
 }: ComboRowProps) {
   const { combo } = match;
   // E216: a match can now be missing MORE than one piece (card-scoped search
@@ -127,10 +135,29 @@ export function ComboRow({
     : null;
   const missingIsOwned = missingOracleId ? ownedOracleIds.has(missingOracleId) : false;
   // Cards the combo needs but doesn't name ("Instant or Sorcery that untaps a
-  // Creature"). We can't check a list for them, so the combo isn't shown as
-  // complete, and it sets no bracket floor.
+  // Creature"). Resolved against the deck's own cards when possible; a
+  // template that stays unresolved sets no bracket floor and shows a
+  // near-miss state instead of complete.
   const templates = combo.templates ?? [];
   const needsTemplate = templates.length > 0;
+  // Triggers the (idempotent) oracle-tag snapshot load and re-renders once it
+  // lands, so an `otag:` template clause resolves as soon as the corpus is
+  // available rather than staying stuck at its first-render answer.
+  const tagsReady = useCardTagsReady(needsTemplate);
+  const templateResolution = useMemo(() => {
+    if (!needsTemplate) return null;
+    return resolveComboTemplates(
+      combo.templateQueries,
+      combo.cards.map((c) => c.cardName),
+      deckCards,
+      { isKnownTag: isKnownCardTag, hasTag: (name, tag) => getCardTags(name).includes(tag) }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsTemplate, combo.templateQueries, combo.cards, deckCards, tagsReady]);
+  const templatesSatisfied = templateResolution?.satisfied ?? false;
+  const templateSatisfyingCards = (templateResolution?.satisfyingCards ?? []).filter(
+    (n): n is string => n != null
+  );
 
   const steps = useMemo(() => splitSteps(combo.description), [combo.description]);
   // One unified collapsible covering Prerequisites + Steps so the user toggles
@@ -196,10 +223,10 @@ export function ComboRow({
       {/* ── Row header — status icon + color identity + combo name ── */}
       <header className="deck-combos-row-header">
         <span
-          className={`deck-combos-row-status ${missingCount > 0 || needsTemplate ? 'is-near-miss' : 'is-complete'}`}
+          className={`deck-combos-row-status ${missingCount > 0 || (needsTemplate && !templatesSatisfied) ? 'is-near-miss' : 'is-complete'}`}
           aria-label={
             missingCount === 0
-              ? needsTemplate
+              ? needsTemplate && !templatesSatisfied
                 ? 'Also needs a card by type'
                 : 'Complete'
               : missingCount === 1
@@ -207,7 +234,7 @@ export function ComboRow({
                 : `${missingCount} cards away`
           }
         >
-          {missingCount > 0 || needsTemplate ? (
+          {missingCount > 0 || (needsTemplate && !templatesSatisfied) ? (
             <AlertTriangle width={14} height={14} aria-hidden />
           ) : (
             <CheckCircle2 width={14} height={14} aria-hidden />
@@ -342,7 +369,16 @@ export function ComboRow({
         </div>
       )}
 
-      {needsTemplate && (
+      {needsTemplate && templatesSatisfied && (
+        <div className="deck-combos-missing-footer">
+          <span className="deck-combos-missing-label">Completed by:</span>
+          <span className="deck-combos-missing-name deck-combos-missing-name--wrap">
+            {templateSatisfyingCards.join(', ')}
+          </span>
+        </div>
+      )}
+
+      {needsTemplate && !templatesSatisfied && (
         <div className="deck-combos-missing-footer">
           <span className="deck-combos-missing-label">Also needs:</span>
           <span className="deck-combos-missing-name deck-combos-missing-name--wrap">

@@ -208,6 +208,73 @@ describe('estimateForNames', () => {
     });
     expect(est.bracket).toBeGreaterThanOrEqual(1);
   });
+
+  it("resolves a template combo against the deck's own cards", async () => {
+    // 5034--46: Hullbreaker Horror + Sol Ring + "Permanent Castable for {C}".
+    cache.setMany([
+      card({
+        id: 'hh',
+        name: 'Hullbreaker Horror',
+        oracle_id: 'ohh',
+        type_line: 'Creature — Horror',
+        cmc: 8,
+      }),
+      card({
+        id: 'sr',
+        name: 'Sol Ring',
+        oracle_id: 'osr',
+        type_line: 'Artifact',
+        mana_cost: '{1}',
+        cmc: 1,
+      }),
+      card({
+        id: 'ma',
+        name: 'Mox Amber',
+        oracle_id: 'oma',
+        type_line: 'Legendary Artifact',
+        mana_cost: '{0}',
+        cmc: 0,
+      }),
+    ]);
+    cache.setLookups(
+      [
+        { name: 'Hullbreaker Horror', id: 'hh' },
+        { name: 'Sol Ring', id: 'sr' },
+        { name: 'Mox Amber', id: 'ma' },
+      ].map((c) => ({ key: `ns:${c.name.toLowerCase()}|tst`, scryfallId: c.id }))
+    );
+    const templateCombo = {
+      id: '1-2--46',
+      identity: 'u',
+      produces: ['Infinite bounce'],
+      prerequisites: null,
+      description: null,
+      manaNeeded: null,
+      popularity: 1,
+      legalities: { commander: 'legal' },
+      cardCount: 2,
+      bracket: 4,
+      bracketTag: 'R',
+      templateQueries: ['mv<=1 (mana={0} or mana={1} or mana={C}) is:permanent'],
+      cards: [
+        { oracleId: 'ohh', cardName: 'Hullbreaker Horror', quantity: 1 },
+        { oracleId: 'osr', cardName: 'Sol Ring', quantity: 1 },
+      ],
+    };
+    const withCombo = { ...inputs(), loadCombos: async () => [templateCombo] };
+
+    // Without a qualifying deck card the template stays unresolved: no floor.
+    const unresolved = await estimateForNames(['Hullbreaker Horror', 'Sol Ring'], withCombo);
+    expect(unresolved.breakdown.twoCardComboCount).toBe(0);
+
+    // Mox Amber satisfies "Permanent Castable for {C}" (not one of the combo's
+    // named pieces) — the combo now counts toward the floor like any other.
+    const resolved = await estimateForNames(
+      ['Hullbreaker Horror', 'Sol Ring', 'Mox Amber'],
+      withCombo
+    );
+    expect(resolved.breakdown.twoCardComboCount).toBe(1);
+  });
 });
 
 describe('renderBracketCheck', () => {
