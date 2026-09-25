@@ -130,6 +130,39 @@ export function validateDeckSize(mainboardCount: number, config: DeckFormatConfi
   return null;
 }
 
+/**
+ * Whether the sideboard is part of the deck for legality. In a 60-card
+ * constructed format it is: tournament rules check every card you register,
+ * and the four-copy limit spans main and side. In Commander it is not: the
+ * deck is the commander and the 99, and a "sideboard" is a holding pile, so
+ * an illegal card or an extra copy sitting there must not fail the deck's
+ * checks, set its bracket note, or badge a mainboard row.
+ */
+export function sideboardCountsForLegality(config: DeckFormatConfig): boolean {
+  return !config.hasCommander;
+}
+
+/**
+ * The deck's legality issues, split by what they judge. `deck` is what the
+ * deck's own verdicts read (the checks, the flagged count, the bracket note,
+ * the complete seal); `sideboardOnly` flags sideboard rows the deck doesn't
+ * count, so they still show their own badge before they're moved in.
+ */
+export function validateDeckZones(
+  cards: DeckCard[],
+  sideboard: DeckCard[],
+  config: DeckFormatConfig,
+  options: Parameters<typeof validateDeck>[3] = {}
+): { deck: LegalityIssue[]; sideboardOnly: LegalityIssue[] } {
+  if (sideboardCountsForLegality(config)) {
+    return { deck: validateDeck(cards, sideboard, config, options), sideboardOnly: [] };
+  }
+  return {
+    deck: validateDeck(cards, [], config, options),
+    sideboardOnly: sideboard.length > 0 ? validateDeck([], sideboard, config, options) : [],
+  };
+}
+
 export function validateDeck(
   cards: DeckCard[],
   sideboard: DeckCard[],

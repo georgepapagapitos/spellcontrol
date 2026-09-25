@@ -5,6 +5,8 @@ import {
   fitsColorIdentity,
   deckColorIdentity,
   validateDeck,
+  validateDeckZones,
+  sideboardCountsForLegality,
   validateDeckSize,
   validateGeneratedDeckUnderSize,
   validateGeneratedLandFloor,
@@ -625,5 +627,57 @@ describe('validateDeck — Pauper Commander', () => {
       commander: pdhCommander,
     });
     expect(issues).toEqual([]);
+  });
+});
+
+// A Commander deck's sideboard is a holding pile, not the deck. A banned card
+// or a second copy parked there used to fail the deck's checks, set the Power
+// tab's "can't be played at any bracket" note, badge a mainboard row and block
+// the complete seal. In 60-card formats the sideboard is registered, so it
+// still counts.
+describe('validateDeckZones', () => {
+  const commander = DECK_FORMAT_CONFIGS.commander;
+  const standard = DECK_FORMAT_CONFIGS.standard;
+
+  it('counts the sideboard for legality only outside Commander', () => {
+    expect(sideboardCountsForLegality(commander)).toBe(false);
+    expect(sideboardCountsForLegality(standard)).toBe(true);
+  });
+
+  it('never judges a Commander deck on a banned card in its sideboard', () => {
+    const banned = card({ name: 'Mana Crypt', legalities: { commander: 'banned' } });
+    const { deck, sideboardOnly } = validateDeckZones(
+      [slot(card({ name: 'Sol Ring' }), 'main-1')],
+      [slot(banned, 'side-1')],
+      commander
+    );
+    expect(deck).toEqual([]);
+    // The sideboard row still carries its own badge.
+    expect(sideboardOnly.map((i) => [i.slotId, i.issue])).toEqual([['side-1', 'not-legal']]);
+  });
+
+  it('keeps a Commander singleton to the 99: a second copy in the sideboard flags nothing', () => {
+    const solRing = card({ name: 'Sol Ring' });
+    const { deck, sideboardOnly } = validateDeckZones(
+      [slot(solRing, 'main-1')],
+      [slot(solRing, 'side-1')],
+      commander
+    );
+    expect(deck).toEqual([]);
+    expect(sideboardOnly).toEqual([]);
+  });
+
+  it('counts copies across main and side in a 60-card format', () => {
+    const bolt = card({
+      name: 'Lightning Bolt',
+      legalities: { commander: 'legal', standard: 'legal' },
+    });
+    const { deck, sideboardOnly } = validateDeckZones(
+      [slot(bolt, 'a'), slot(bolt, 'b'), slot(bolt, 'c')],
+      [slot(bolt, 'd'), slot(bolt, 'e')],
+      standard
+    );
+    expect(deck.some((i) => i.issue === 'over-copy-limit')).toBe(true);
+    expect(sideboardOnly).toEqual([]);
   });
 });

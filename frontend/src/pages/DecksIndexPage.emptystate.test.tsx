@@ -57,7 +57,7 @@ vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => n
 vi.mock('../lib/deck-validation', () => ({
   effectiveDeckColors: () => [],
   deckColorFrequency: () => [],
-  validateDeck: () => ({ errors: [] }),
+  validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),
   countFlaggedCards: () => 0,
 }));
 vi.mock('../deck-builder/services/scryfall/client', () => ({

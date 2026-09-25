@@ -141,11 +141,22 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   // Which in-deck combos are only complete because of a sideboard card —
   // keyed by combo id so each row can look itself up. Empty when the caller
   // doesn't pass `mainboardOracleIds` (e.g. no deck shape known).
-  const sideboardNamesByComboId = useMemo(() => {
-    if (!mainboardOracleIds) return new Map<string, string[]>();
-    const { sideboardComplete } = partitionCombosByZone(data, mainboardOracleIds);
-    return new Map(sideboardComplete.map((s) => [s.match.combo.id, s.sideboardCardNames]));
-  }, [data, mainboardOracleIds]);
+  const partitioned = useMemo(
+    () => (mainboardOracleIds ? partitionCombosByZone(data, mainboardOracleIds) : null),
+    [data, mainboardOracleIds]
+  );
+  const sideboardNamesByComboId = useMemo(
+    () =>
+      new Map(
+        (partitioned?.sideboardComplete ?? []).map((s) => [s.match.combo.id, s.sideboardCardNames])
+      ),
+    [partitioned]
+  );
+  // One card away means one card from the 99: a combo whose present pieces
+  // include a sideboard card isn't one add from firing in the deck, so it
+  // never lists (or counts) here, and its "add the missing piece" would
+  // complete nothing. Without a deck shape the raw match stands.
+  const oneAwayMatches = partitioned ? partitioned.oneAway : (data?.oneAway ?? []);
 
   useImperativeHandle(ref, () => ({
     reveal: (revealTab) => {
@@ -161,25 +172,30 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 
   const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>('all');
 
-  const inDeckCount = data?.inDeck.length ?? 0;
-  const oneAwayCount = data?.oneAway.length ?? 0;
+  // "In deck" counts the combos the commander and the 99 complete, the same
+  // number the Power hero states; a sideboard-completed combo still lists
+  // below, marked "Uses sideboard", but isn't counted as in the deck.
+  const inDeckCount = partitioned
+    ? partitioned.mainboardComplete.length
+    : (data?.inDeck.length ?? 0);
+  const oneAwayCount = oneAwayMatches.length;
 
   // Split one-away combos by ownership for filter counts + filtering.
   const oneAwayOwned = useMemo(
     () =>
-      (data?.oneAway ?? []).filter((m) => {
+      oneAwayMatches.filter((m) => {
         const missingId = m.missingOracleIds[0];
         return missingId && ownedOracleIdSet.has(missingId);
       }),
-    [data?.oneAway, ownedOracleIdSet]
+    [oneAwayMatches, ownedOracleIdSet]
   );
   const oneAwayNotOwned = useMemo(
     () =>
-      (data?.oneAway ?? []).filter((m) => {
+      oneAwayMatches.filter((m) => {
         const missingId = m.missingOracleIds[0];
         return missingId && !ownedOracleIdSet.has(missingId);
       }),
-    [data?.oneAway, ownedOracleIdSet]
+    [oneAwayMatches, ownedOracleIdSet]
   );
 
   const filteredOneAway = useMemo(
@@ -188,8 +204,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
         ? oneAwayOwned
         : ownershipFilter === 'notOwned'
           ? oneAwayNotOwned
-          : (data?.oneAway ?? []),
-    [ownershipFilter, oneAwayOwned, oneAwayNotOwned, data?.oneAway]
+          : oneAwayMatches,
+    [ownershipFilter, oneAwayOwned, oneAwayNotOwned, oneAwayMatches]
   );
 
   // EDHREC per-commander combo stats, overlaid by card-name-set onto the
@@ -232,7 +248,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   // yet, the buckets will be misleadingly empty. Distinct from "deck has zero
   // combos" — handled by a different empty-state message below.
   const deckHasOracleIds = deckOracleIds.length > 0;
-  const deckEntered = (data?.inDeck.length ?? 0) + (data?.oneAway.length ?? 0) === 0 && !loading;
+  const deckEntered = (data?.inDeck.length ?? 0) + oneAwayCount === 0 && !loading;
 
   const handleAddMissing = async (match: ComboMatch) => {
     const oracleId = match.missingOracleIds[0];
