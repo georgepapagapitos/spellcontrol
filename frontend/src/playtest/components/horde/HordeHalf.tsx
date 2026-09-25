@@ -8,6 +8,7 @@ import { useHordeActions } from './horde-actions';
 import { HordeFelt } from './HordeFelt';
 import { HordeDamageControl } from './HordeDamageControl';
 import './HordeHalf.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   horde: SoloHordeState | null;
@@ -51,10 +52,7 @@ export function HordeHalf({
     return (
       <div ref={feltRef} className="horde-half horde-half--loading playtest-battlefield-wrap">
         <p className="horde-half-message">
-          {blocked.message}{' '}
-          <button type="button" className="btn" onClick={blocked.onAction}>
-            {blocked.actionLabel}
-          </button>
+          {blocked.message} <Button onClick={blocked.onAction}>{blocked.actionLabel}</Button>
         </p>
       </div>
     );

@@ -7,6 +7,7 @@ import { useHordeActions } from './horde-actions';
 import { HordeFelt } from './HordeFelt';
 import { HordeDamageControl } from './HordeDamageControl';
 import './HordeBand.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   horde: SoloHordeState | null;
@@ -184,14 +185,13 @@ export function HordeBand({
               )}
             </button>
             {extraAction && (
-              <button
-                type="button"
-                className="btn horde-band__damage"
+              <Button
+                className="horde-band__damage"
                 aria-label={extraAction.ariaLabel}
                 onClick={extraAction.onClick}
               >
                 {extraAction.label}
-              </button>
+              </Button>
             )}
             {canDamage && (
               <HordeDamageControl

@@ -83,6 +83,7 @@ import { StackPanel, type StackPanelItem } from './StackPanel';
 import { isTypingTarget, useRegisterShortcuts } from '@/lib/shortcut-registry';
 import { useOnlineTable } from '../hooks/use-online-table';
 import { useOnlineHorde } from '../hooks/use-online-horde';
+import { Button } from '@/components/shared/Button';
 import { usePlayStore } from '@/store/play';
 import { useTakeback } from '../hooks/use-takeback';
 import { OpponentRail } from './OpponentRail';
@@ -2449,13 +2450,12 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 </span>
               </button>
               {!isNarrow && onlineHorde.team.waitingOn.length > 0 && (
-                <button
-                  type="button"
-                  className="btn playtest-team-turn__go"
+                <Button
+                  className="playtest-team-turn__go"
                   onClick={() => onlineHorde.startWithout()}
                 >
                   {`Start without ${onlineHorde.team.waitingOn.join(', ')}`}
-                </button>
+                </Button>
               )}
             </div>
           ) : (
