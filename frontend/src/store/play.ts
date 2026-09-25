@@ -1,3 +1,4 @@
+import { seatCountsForDeck } from '@/lib/table-read';
 import { logger } from '@/lib/logger';
 import { create } from 'zustand';
 import { genId } from '../lib/id';
@@ -1661,14 +1662,10 @@ export function aggregateDeckRecords(
 ): DeckRecordRow[] {
   const byDeck = new Map<string, DeckRecordRow>();
   for (const rec of history) {
-    // Horde is co-op — there is no winning seat, and it belongs in its own
-    // horde tally (aggregateHordeRecords), not a deck's PvP win rate.
-    if (rec.format === 'horde') continue;
     for (const p of rec.players) {
-      if (!p.deckId) continue;
-      // For online games, attribute by userId; for local, attribute by deck
-      // regardless (everyone shares the device).
-      if (rec.mode === 'online' && p.userId !== userId) continue;
+      // Horde is co-op (its own tally); online counts only the viewer's seat.
+      // One rule with the Bracket panel's read (lib/table-read.ts).
+      if (!p.deckId || !seatCountsForDeck(rec, p, userId)) continue;
       const cur = byDeck.get(p.deckId) ?? {
         deckId: p.deckId,
         deckName: p.deckName ?? 'Untitled deck',

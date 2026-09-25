@@ -447,6 +447,7 @@ export function BracketBreakdown({
   combosUncounted = false,
   bracketOverride = null,
   clockLibrary,
+  tableSlot,
   onSetBracketOverride,
 }: {
   estimation: BracketEstimation;
@@ -463,6 +464,9 @@ export function BracketBreakdown({
    *  With it, the rating-only judgment says how often the combo is assembled
    *  by the early turn, from the same seeded clock. */
   clockLibrary?: readonly ClockCard[];
+  /** How the deck does at the table (BracketTableRead), owner only. Sits
+   *  above the pod line, since it is evidence the pod may ask about. */
+  tableSlot?: ReactNode;
 }): JSX.Element {
   const { breakdown, hardFloors, softScore, bracket } = estimation;
 
@@ -788,6 +792,7 @@ export function BracketBreakdown({
         Estimated from the card list alone. Pilot skill and what your table plays aren&rsquo;t in
         it, so treat it as the start of the Rule 0 talk.
       </p>
+      {tableSlot}
       {isOwner && !combosUncounted && (
         <PodLine
           text={bracketPodLine(

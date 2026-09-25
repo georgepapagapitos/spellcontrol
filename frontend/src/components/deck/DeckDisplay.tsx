@@ -204,6 +204,8 @@ export interface DeckDisplayProps {
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   /** Mainboard, one entry per copy: lets the Bracket judgment quote the combo clock. */
   clockLibrary?: readonly ClockCard[];
+  /** The Bracket panel's "At the table" read (owner only). */
+  bracketTableSlot?: React.ReactNode;
   /** User-pinned archetype; when set it overrides the derived identity headline. */
   archetypeOverride?: Archetype | null;
   /** Set/clear the manual archetype override. Passing null reverts to auto. */
@@ -499,6 +501,7 @@ export function DeckDisplay({
   bracketMissesCombos,
   onSetBracketOverride,
   clockLibrary,
+  bracketTableSlot,
   archetypeOverride,
   onSetArchetypeOverride,
   // deckGrade: removed from stat-strip (UX-315: one grading system; letter grades dropped)
@@ -1594,6 +1597,7 @@ export function DeckDisplay({
       bracketMissesCombos={bracketMissesCombos}
       onSetBracketOverride={onSetBracketOverride}
       clockLibrary={clockLibrary}
+      bracketTableSlot={bracketTableSlot}
       archetypeOverride={archetypeOverride}
       onSetArchetypeOverride={onSetArchetypeOverride}
       roleCounts={shownRoles.roleCounts}

@@ -6182,6 +6182,14 @@ the rest, so the panel labels which is which:
   It speaks in the owner's voice once they state a bracket the estimate
   disagrees with. Copy confirms with the app's toast; Share only where
   `canShare()`.
+- **At the table** sits above the pod line for the owner (`BracketTableRead`,
+  `lib/table-read.ts`): tracked wins against an even share (one over the pod
+  size, per decided game), the even share ticked on a `MeterBar`. Below 10
+  games it says how many more give a read, and never guesses. Twice an even
+  share reads "may play above the tables you take it to", half or less
+  "below". It never moves the estimate and never names a bracket: the
+  opponents' brackets are unknown. The seat rule (`seatCountsForDeck`) is the
+  one the Table record uses, so the two can't count different games.
 
 ### The combo clock says what it measures (2026-09-25)
 

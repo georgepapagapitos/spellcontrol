@@ -92,6 +92,7 @@ import { PullListSheet } from '../components/deck/PullListSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
 import { TableRecordPanel } from '../components/deck/TableRecordPanel';
+import { BracketTableRead } from '../components/deck/BracketTableRead';
 import { CoachFeed } from '../components/deck/CoachFeed';
 import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
 import { FillDeckSheet } from '../components/deck/FillDeckSheet';
@@ -3341,6 +3342,7 @@ export function DeckEditorPage() {
             bracketMissesCombos={bracketAnalysis.missesCombos}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
             clockLibrary={deckLibrary}
+            bracketTableSlot={<BracketTableRead deckId={deck.id} />}
             archetypeOverride={deck.archetypeOverride}
             onSetArchetypeOverride={(a) => updateDeck(deck.id, { archetypeOverride: a })}
             deckGrade={deck.deckGrade}
