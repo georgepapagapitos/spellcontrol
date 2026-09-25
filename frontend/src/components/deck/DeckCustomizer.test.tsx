@@ -143,7 +143,27 @@ describe('DeckCustomizer — collection controls', () => {
     );
     expect(screen.getByText('Collection strategy')).toBeTruthy();
     expect(screen.getByText('Only my cards')).toBeTruthy();
-    expect(screen.getByText('Prioritize mine')).toBeTruthy();
+    expect(screen.getByText('Owned share %')).toBeTruthy();
+  });
+
+  // E409: "Favor mine" and "Prioritize mine" read as synonyms. Only one
+  // strategy may be the lean-toward-owned one, and the target-% strategy's
+  // label names the number it sets.
+  it('gives each collection strategy a label that says how it differs', () => {
+    const { container } = render(
+      <DeckCustomizer
+        customization={baseCustomization({ collectionMode: true })}
+        update={vi.fn()}
+      />
+    );
+    const group = screen.getByText('Collection strategy').closest('.deck-customizer-field')!;
+    const labels = [...group.querySelectorAll('.option-card-label')].map((el) => el.textContent);
+    expect(labels).toHaveLength(4);
+    expect(
+      labels.filter((l) => /\b(favou?r|prefer|prioriti[sz]e|lean)/i.test(l ?? ''))
+    ).toHaveLength(1);
+    const partial = container.querySelector('input[value="partial"]')?.closest('.option-card');
+    expect(partial?.querySelector('.option-card-label')?.textContent).toMatch(/%/);
   });
 
   it('keeps the owned-% slider hidden under the full strategy', () => {
@@ -173,7 +193,7 @@ describe('DeckCustomizer — collection controls', () => {
     render(
       <DeckCustomizer customization={baseCustomization({ collectionMode: true })} update={update} />
     );
-    fireEvent.click(screen.getByText('Prioritize mine'));
+    fireEvent.click(screen.getByText('Owned share %'));
     expect(update).toHaveBeenCalledWith({ collectionStrategy: 'partial' });
   });
 
@@ -200,7 +220,7 @@ describe('DeckCustomizer — collection controls', () => {
         update={vi.fn()}
       />
     );
-    expect(screen.getByText(/~60% owned/)).toBeTruthy();
+    expect(screen.getByText(/about 60% owned/)).toBeTruthy();
     expect(screen.getByText(/outside your collection/)).toBeTruthy();
   });
 });
