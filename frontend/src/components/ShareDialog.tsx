@@ -1,7 +1,8 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { Modal } from './Modal';
+import { VisibilityChoice } from './VisibilityChoice';
 import { ShareQrCode } from './shared/ShareQrCode';
 import { useSealMoment } from './shared/SealMoment';
 import { createShare, listShares, revokeShare, shareUrl } from '../lib/share-client';
@@ -112,7 +113,6 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const groupName = useId();
   // First-publish seal (E150): the dialog stays open showing the live link,
   // so it's safe to fire here rather than handing off to a landing page.
   const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
@@ -257,11 +257,6 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     );
   }
 
-  const hint =
-    current === 'legacy-link'
-      ? LEGACY_LINK_HINT
-      : (rungs.find((r) => r.value === current)?.hint ?? '');
-
   return (
     <Modal
       onClose={onClose}
@@ -281,30 +276,15 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         </p>
       ) : (
         <>
-          {/* Native radios: exclusivity, arrow keys and one tab stop for free. */}
-          <fieldset
-            className="share-audience"
-            aria-label="Who can see it"
+          {current === 'legacy-link' && <p className="choice-dialog-body">{LEGACY_LINK_HINT}</p>}
+          <VisibilityChoice
+            ariaLabel="Who can see it"
+            value={current as Rung}
+            options={rungs}
+            busyValue={busy}
             disabled={!!busy}
-            aria-busy={!!busy || undefined}
-          >
-            {rungs.map((opt) => (
-              <label
-                key={opt.value}
-                className={`share-audience-option${current === opt.value ? ' is-active' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name={groupName}
-                  value={opt.value}
-                  checked={current === opt.value}
-                  onChange={() => void choose(opt.value)}
-                />
-                <span>{busy === opt.value ? 'Saving…' : opt.label}</span>
-              </label>
-            ))}
-          </fieldset>
-          <p className="choice-dialog-body">{hint}</p>
+            onChange={(next) => void choose(next)}
+          />
         </>
       )}
       <div className="sr-only" role="status" aria-live="polite">

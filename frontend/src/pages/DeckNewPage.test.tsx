@@ -44,6 +44,11 @@ vi.mock('../lib/publications-client', async (importOriginal) => {
   };
 });
 
+const createShareMock = vi.fn();
+vi.mock('../lib/share-client', () => ({
+  createShare: (input: unknown) => createShareMock(input),
+}));
+
 // ── Heavy commander-generation UI, irrelevant to the non-commander 'standard'
 // format path this suite exercises ─────────────────────────────────────────
 vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
@@ -90,6 +95,7 @@ describe('DeckNewPage — creation-time visibility', () => {
     authStatus = 'authed';
     createDeckMock.mockClear();
     publishDeckMock.mockReset().mockResolvedValue(PUB);
+    createShareMock.mockReset().mockResolvedValue({ token: 'tok', audience: 'friends' });
   });
   afterEach(() => localStorage.clear());
 
@@ -165,5 +171,39 @@ describe('DeckNewPage — creation-time visibility', () => {
     );
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id'));
     expect(publishDeckMock).not.toHaveBeenCalled();
+  });
+
+  it('creates the deck as friends-visible via the same share ShareDialog mints, in Public/Friends/Private order', async () => {
+    renderPage();
+    selectStandardFormat();
+
+    const radios = screen.getAllByRole('radio', { name: /Public|Friends|Private/ });
+    expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'friends', 'private']);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Friends' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
+
+    await waitFor(() => expect(createDeckMock).toHaveBeenCalledTimes(1));
+    expect(createDeckMock).toHaveBeenCalledWith(
+      expect.objectContaining({ initialVisibility: 'friends' })
+    );
+    await waitFor(() =>
+      expect(createShareMock).toHaveBeenCalledWith({
+        kind: 'deck',
+        resourceId: 'new-deck-id',
+        audience: 'friends',
+      })
+    );
+    expect(publishDeckMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', undefined));
+  });
+
+  it('disables the Friends radio for a guest too, with the same sign-in hint', () => {
+    authStatus = 'guest';
+    renderPage();
+    selectStandardFormat();
+    expect((screen.getByRole('radio', { name: 'Friends' }) as HTMLInputElement).disabled).toBe(
+      true
+    );
   });
 });

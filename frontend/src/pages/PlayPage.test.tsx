@@ -180,6 +180,40 @@ describe('PlayPage tabs', () => {
   });
 });
 
+// T139: the host form's visibility control moved onto the shared
+// VisibilityChoice component (components/shared/form ChoiceList underneath).
+// Public/Private only here — Friends is a separate lane (T139 Lane E).
+describe('Online setup — table visibility (T139)', () => {
+  beforeEach(() => {
+    useAuth.setState({
+      user: { id: 'me', username: 'georg', role: 'user' },
+      status: 'authed',
+      profile: null,
+    });
+  });
+  afterEach(() => {
+    useAuth.setState({ user: null, status: 'guest', profile: null });
+  });
+
+  it('offers Public then Private, defaulting to Private, with no Friends option', () => {
+    renderPage('/play/online');
+    const radios = screen.getAllByRole('radio', { name: /^(Public|Private)/ });
+    expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'private']);
+    expect((screen.getByRole('radio', { name: /^Private/ }) as HTMLInputElement).checked).toBe(
+      true
+    );
+    expect(screen.queryByRole('radio', { name: /^Friends/ })).toBeNull();
+  });
+
+  it('names what each choice does', () => {
+    renderPage('/play/online');
+    expect(screen.getByText(/Reachable by code only/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: /^Public/ }));
+    expect((screen.getByRole('radio', { name: /^Public/ }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText(/Anyone with the code can watch without a seat/)).toBeTruthy();
+  });
+});
+
 describe('Local setup — seat name field (B7-05)', () => {
   it('seeds the name field empty, not a live "Player N" value', () => {
     renderPage('/play/local');

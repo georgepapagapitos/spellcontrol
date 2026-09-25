@@ -14,6 +14,9 @@ import { dirname, join } from 'node:path';
  * to 44px, and from 52px to 36px on desktop.
  *
  * Fix a failure by putting the frame back on the section, not the group.
+ * The settings behind "More settings" are kit Disclosures (form.css) as of
+ * the config-surface kit migration; this file keeps the density-tier
+ * override that scopes the kit's flat 44px down for this section.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -66,21 +69,19 @@ describe('Customize settings are hairline rows, not cards', () => {
   });
 
   it('a closed row sits at the density tier', () => {
-    expect(rules(css, '.deck-customizer-group-toggle').join(';')).toMatch(/min-height:\s*36px/);
+    expect(rules(css, '.deck-customizer-more-body .disclosure-toggle').join(';')).toMatch(
+      /min-height:\s*36px/
+    );
     expect(
-      rules(mediaBody('(max-width: 1023px)'), '.deck-customizer-group-toggle').join(';')
+      rules(mediaBody('(max-width: 1023px)'), '.deck-customizer-more-body .disclosure-toggle').join(
+        ';'
+      )
     ).toMatch(/min-height:\s*40px/);
     expect(
       rules(
         mediaBody('(max-width: 599px), (pointer: coarse)'),
-        '.deck-customizer-group-toggle'
+        '.deck-customizer-more-body .disclosure-toggle'
       ).join(';')
     ).toMatch(/min-height:\s*44px/);
-  });
-
-  it('a row toggle keeps its focus ring', () => {
-    expect(rules(css, '.deck-customizer-group-toggle:focus-visible').join(';')).toMatch(
-      /outline:\s*2px solid var\(--accent\)/
-    );
   });
 });

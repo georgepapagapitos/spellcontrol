@@ -114,6 +114,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     setVisibility,
     publishing,
     publishAfterCreate,
+    shareWithFriendsAfterCreate,
   } = usePublishOnCreate(onPublishSettled);
 
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>(initialFormat);
@@ -198,8 +199,12 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         partner,
         initialVisibility: visibility,
       });
-      if (visibility === 'public' && canPublish) {
-        void publishAfterCreate(id);
+      if (visibility !== 'private' && canPublish) {
+        if (visibility === 'friends') {
+          void shareWithFriendsAfterCreate(id);
+        } else {
+          void publishAfterCreate(id);
+        }
         return;
       }
       onClose();
@@ -213,6 +218,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       visibility,
       canPublish,
       publishAfterCreate,
+      shareWithFriendsAfterCreate,
     ]
   );
 
@@ -841,6 +847,10 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                 decks stay private, publishable afterward per-deck like
                 today, and a single-result landing gets the lighter
                 DeckPublishNudge instead (see commitBatch). */}
+            {/* NOTE (T139 kit gap): hand-rolled `.share-audience` radios, not the
+                shared VisibilityChoice component — Public/Friends need a
+                per-option disabled state when signed out or offline, and the
+                kit's ChoiceList has no such field yet. See VisibilityChoice.tsx. */}
             {(batchFiles.length === 0 || batchMode === 'merge') && (
               <div className="import-deck-commander-section">
                 <div className="import-deck-section-title">Visibility</div>
@@ -852,6 +862,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   {(
                     [
                       { value: 'public', label: 'Public', blocked: !canPublish },
+                      { value: 'friends', label: 'Friends', blocked: !canPublish },
                       { value: 'private', label: 'Private', blocked: false },
                     ] as const
                   ).map((opt) => (
@@ -876,7 +887,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                 <p className="import-deck-hint">
                   {visibility === 'public'
                     ? 'Anyone can find it at a stable link and on your profile.'
-                    : 'Only you can see this deck.'}
+                    : visibility === 'friends'
+                      ? 'Only your friends can find it, on your page in their Friends list.'
+                      : 'Only you can see this deck.'}
                   {!canPublish && ` ${publicDisabledReason}`}
                 </p>
               </div>

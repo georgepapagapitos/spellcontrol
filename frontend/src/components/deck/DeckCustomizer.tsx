@@ -17,6 +17,8 @@ import { buildAvailableCollection } from '../../lib/collection-availability';
 import { SearchPill } from '../SearchPill';
 import { InfoTip } from '../InfoTip';
 import { StackedBar } from '../shared/MeterBar';
+import { Field, SwitchRow, ChoiceList, Disclosure } from '../shared/form';
+import { SelectMenu } from '../SelectMenu';
 import { useSearchCards } from '../../lib/use-search-cards';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../../store/collection';
@@ -175,53 +177,31 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
                 </div>
               </div>
 
-              <CollapsibleGroup
-                title="Mana philosophy"
-                defaultOpen={false}
-                summary={manaPhilosophySummary(customization)}
-              >
+              <Disclosure title="Mana philosophy" summary={manaPhilosophySummary(customization)}>
                 <ManaPhilosophyGroup customization={customization} update={update} />
-              </CollapsibleGroup>
+              </Disclosure>
 
-              <CollapsibleGroup
-                title="Budget"
-                defaultOpen={false}
-                summary={budgetSummary(customization)}
-              >
+              <Disclosure title="Budget" summary={budgetSummary(customization)}>
                 <BudgetGroup customization={customization} update={update} />
-              </CollapsibleGroup>
-              <CollapsibleGroup
-                title="Card pool"
-                defaultOpen={false}
-                summary={poolSummary(customization)}
-              >
+              </Disclosure>
+              <Disclosure title="Card pool" summary={poolSummary(customization)}>
                 <PoolGroup customization={customization} update={update} />
-              </CollapsibleGroup>
-              <CollapsibleGroup
-                title="Tempo"
-                defaultOpen={false}
-                summary={tempoSummary(customization)}
-              >
+              </Disclosure>
+              <Disclosure title="Tempo" summary={tempoSummary(customization)}>
                 <TempoGroup customization={customization} update={update} />
-              </CollapsibleGroup>
-              <CollapsibleGroup
-                title="Salt"
-                defaultOpen={false}
-                summary={SALT_LABELS[customization.saltTolerance ?? 2]}
-              >
+              </Disclosure>
+              <Disclosure title="Salt" summary={SALT_LABELS[customization.saltTolerance ?? 2]}>
                 <SaltGroup customization={customization} update={update} />
-              </CollapsibleGroup>
-              <CollapsibleGroup
+              </Disclosure>
+              <Disclosure
                 title="Scryfall filter"
-                defaultOpen={false}
                 summary={customization.scryfallQuery.trim() || 'None'}
               >
                 <ScryfallGroup customization={customization} update={update} />
-              </CollapsibleGroup>
-              <CollapsibleGroup
+              </Disclosure>
+              <Disclosure
                 title="Must-include cards"
-                defaultOpen={false}
-                count={customization.mustIncludeCards.length}
+                summary={count(customization.mustIncludeCards.length, 'card', 'cards') ?? 'None'}
               >
                 <CardListGroup
                   hint={
@@ -237,25 +217,23 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
                   onChange={(next) => update({ mustIncludeCards: next })}
                   fetcher={poolFetcher}
                 />
-              </CollapsibleGroup>
-              <CollapsibleGroup
+              </Disclosure>
+              <Disclosure
                 title="Excluded cards"
-                defaultOpen={false}
-                count={customization.bannedCards.length}
+                summary={count(customization.bannedCards.length, 'card', 'cards') ?? 'None'}
               >
                 <CardListGroup
                   hint="These cards will never be suggested by the generator."
                   values={customization.bannedCards}
                   onChange={(next) => update({ bannedCards: next })}
                 />
-              </CollapsibleGroup>
-              <CollapsibleGroup
+              </Disclosure>
+              <Disclosure
                 title="Ban lists"
-                defaultOpen={false}
-                count={(customization.banLists ?? []).length}
+                summary={count((customization.banLists ?? []).length, 'list', 'lists') ?? 'None'}
               >
                 <BanListsGroup customization={customization} update={update} />
-              </CollapsibleGroup>
+              </Disclosure>
             </div>
           )}
         </div>
@@ -576,13 +554,14 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
       {active && (
         <div className="collection-group-controls">
           <Field label="Collection strategy">
-            <OptionGrid<CollectionStrategy>
+            <ChoiceList<CollectionStrategy>
+              ariaLabel="Collection strategy"
               value={strategy}
               options={[
-                { value: 'prefer', label: 'Lean on mine', sublabel: 'Owned-first' },
-                { value: 'full', label: 'Only my cards', sublabel: 'Owned only' },
-                { value: 'partial', label: 'Owned share %', sublabel: 'Target %' },
-                { value: 'available', label: 'Available only', sublabel: 'Free copies' },
+                { value: 'prefer', label: 'Lean on mine', hint: 'Owned-first' },
+                { value: 'full', label: 'Only my cards', hint: 'Owned only' },
+                { value: 'partial', label: 'Owned share %', hint: 'Target %' },
+                { value: 'available', label: 'Available only', hint: 'Free copies' },
               ]}
               onChange={(v) => update({ collectionStrategy: v })}
             />
@@ -619,47 +598,6 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function CollapsibleGroup({
-  title,
-  defaultOpen,
-  count,
-  summary,
-  children,
-}: {
-  title: string;
-  defaultOpen?: boolean;
-  count?: number;
-  /** Current setting, shown muted in the header while the group is closed. */
-  summary?: string;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(!!defaultOpen);
-  return (
-    <div
-      className={`deck-customizer-group deck-customizer-group-collapsible${open ? ' open' : ''}`}
-    >
-      <button
-        type="button"
-        className="deck-customizer-group-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="deck-customizer-group-toggle-title">
-          <span className="deck-customizer-group-title">{title}</span>
-          {typeof count === 'number' && count > 0 && (
-            <span className="deck-customizer-group-count" aria-label={`${count} selected`}>
-              {count}
-            </span>
-          )}
-        </span>
-        {!open && summary && <span className="deck-customizer-group-summary">{summary}</span>}
-        <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
-      </button>
-      {open && <div className="deck-customizer-group-body">{children}</div>}
     </div>
   );
 }
@@ -918,7 +856,7 @@ function BudgetGroup({ customization, update }: DeckCustomizerProps) {
           ariaLabel="Custom max card price"
         />
       </Field>
-      <Toggle
+      <SwitchRow
         label="Owned cards do not count toward budget"
         checked={customization.ignoreOwnedBudget}
         onChange={(v) => update({ ignoreOwnedBudget: v })}
@@ -932,12 +870,13 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
   return (
     <>
       <Field label="EDHREC card pool">
-        <OptionGrid<BudgetOption>
+        <ChoiceList<BudgetOption>
+          ariaLabel="EDHREC card pool"
           value={customization.budgetOption}
           options={[
-            { value: 'any', label: 'Any', sublabel: 'All cards' },
-            { value: 'budget', label: 'Budget', sublabel: 'Cheaper picks' },
-            { value: 'expensive', label: 'Expensive', sublabel: 'Premium picks' },
+            { value: 'any', label: 'Any', hint: 'All cards' },
+            { value: 'budget', label: 'Budget', hint: 'Cheaper picks' },
+            { value: 'expensive', label: 'Expensive', hint: 'Premium picks' },
           ]}
           onChange={(v) => update({ budgetOption: v })}
         />
@@ -947,7 +886,8 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
         label="Max card rarity"
         hint="Cards in your collection bypass this cap when the toggle below is on."
       >
-        <OptionGrid<MaxRarity | 'all'>
+        <SelectMenu<Exclude<MaxRarity, null> | 'all'>
+          ariaLabel="Max card rarity"
           value={customization.maxRarity ?? 'all'}
           options={[
             { value: 'all', label: 'All' },
@@ -960,7 +900,7 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
         />
       </Field>
       {customization.maxRarity != null && (
-        <Toggle
+        <SwitchRow
           label="Owned cards skip rarity limit"
           checked={customization.ignoreOwnedRarity}
           onChange={(v) => update({ ignoreOwnedRarity: v })}
@@ -975,7 +915,8 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
       </Field>
 
       <Field label="Combos">
-        <OptionGrid<number>
+        <ChoiceList<number>
+          ariaLabel="Combos"
           value={customization.comboCount}
           options={[
             { value: 0, label: 'None' },
@@ -987,13 +928,13 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
         />
       </Field>
 
-      <Toggle
+      <SwitchRow
         label="Arena only"
         hint="Only cards playable on MTG Arena."
         checked={customization.arenaOnly}
         onChange={(v) => update({ arenaOnly: v })}
       />
-      <Toggle
+      <SwitchRow
         label="Tiny Leaders"
         hint="Caps every non-land card at mana value 3."
         checked={customization.tinyLeaders}
@@ -1176,13 +1117,14 @@ function TempoGroup({ customization, update }: DeckCustomizerProps) {
         </a>
         &apos;s stats for your commander.
       </p>
-      <Toggle
+      <SwitchRow
         label="Auto-detect from EDHREC stats"
         checked={customization.tempoAutoDetect}
         onChange={(v) => update({ tempoAutoDetect: v })}
       />
       <Field label="Pacing">
-        <OptionGrid<Pacing>
+        <SelectMenu<Pacing>
+          ariaLabel="Pacing"
           value={customization.tempoPacing}
           disabled={customization.tempoAutoDetect}
           options={pacings}
@@ -1196,11 +1138,7 @@ function TempoGroup({ customization, update }: DeckCustomizerProps) {
 // ── Scryfall query ────────────────────────────────────────────────────────
 function ScryfallGroup({ customization, update }: DeckCustomizerProps) {
   return (
-    <Field
-      label="Additional Scryfall query"
-      hint="Appended to every card-pool query."
-      align="stretch"
-    >
+    <Field label="Additional Scryfall query" hint="Appended to every card-pool query.">
       <input
         type="text"
         className="deck-customizer-text-input"
@@ -1325,80 +1263,6 @@ function CardNameAutocomplete({
 
 // ── Primitives ────────────────────────────────────────────────────────────
 
-/** Wrap a control with a centered label above it (and an optional hint below). */
-function Field({
-  label,
-  hint,
-  align = 'center',
-  children,
-}: {
-  label: string;
-  hint?: string;
-  align?: 'center' | 'stretch';
-  children: React.ReactNode;
-}) {
-  const labelId = useId();
-  return (
-    <div
-      className={`deck-customizer-field deck-customizer-field-${align}`}
-      role="group"
-      aria-labelledby={labelId}
-    >
-      <span id={labelId} className="deck-customizer-field-label">
-        {label}
-      </span>
-      <div className="deck-customizer-field-control">{children}</div>
-      {hint && <small className="deck-customizer-field-hint">{hint}</small>}
-    </div>
-  );
-}
-
-interface OptionGridItem<T> {
-  value: T;
-  label: string;
-  sublabel?: string;
-}
-
-/** Pill-card grid of mutually-exclusive options. Replaces small-N <select>s. */
-function OptionGrid<T extends string | number | null>({
-  value,
-  options,
-  onChange,
-  disabled,
-}: {
-  value: T;
-  options: OptionGridItem<T>[];
-  onChange: (v: T) => void;
-  disabled?: boolean;
-}) {
-  // Radios group by shared `name` — every OptionGrid on the page needs its own,
-  // or they'd all be one group and deselect each other.
-  const group = useId();
-  return (
-    <fieldset
-      className={`option-grid option-grid-${Math.min(5, options.length)}`}
-      disabled={disabled}
-    >
-      {options.map((opt) => (
-        <label
-          key={String(opt.value)}
-          className={`option-card${value === opt.value ? ' active' : ''}`}
-        >
-          <input
-            type="radio"
-            name={group}
-            value={String(opt.value)}
-            checked={value === opt.value}
-            onChange={() => onChange(opt.value)}
-          />
-          <span className="option-card-label">{opt.label}</span>
-          {opt.sublabel && <span className="option-card-sublabel">{opt.sublabel}</span>}
-        </label>
-      ))}
-    </fieldset>
-  );
-}
-
 /**
  * Preset row + Custom click-to-edit numeric input. `null` is treated as "no
  * limit" / unset; selecting it commits null upstream.
@@ -1488,29 +1352,6 @@ function PresetEditableNumber({
         </button>
       )}
     </div>
-  );
-}
-
-/** Themed checkbox row used by the customizer. */
-function Toggle({
-  label,
-  hint,
-  checked,
-  onChange,
-}: {
-  label: string;
-  hint?: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <label className="field-checkbox deck-customizer-toggle">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span>
-        {label}
-        {hint && <small className="deck-customizer-toggle-hint">{hint}</small>}
-      </span>
-    </label>
   );
 }
 

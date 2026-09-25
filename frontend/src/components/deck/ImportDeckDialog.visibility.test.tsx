@@ -55,6 +55,11 @@ vi.mock('../../lib/publications-client', async (importOriginal) => {
   };
 });
 
+const createShareMock = vi.fn();
+vi.mock('../../lib/share-client', () => ({
+  createShare: (input: unknown) => createShareMock(input),
+}));
+
 // Never rendered by the 'standard'-format paths under test (no commander
 // step), but still imported transitively — stub it out rather than pull in
 // its live useCollectionStore (IndexedDB) dependency, mirroring
@@ -126,6 +131,7 @@ beforeEach(() => {
   importDeckTextMock.mockReset().mockResolvedValue(CLEAN_RESULT);
   updateProfileMock.mockReset();
   publishDeckMock.mockReset().mockResolvedValue(PUB);
+  createShareMock.mockReset().mockResolvedValue({ token: 'tok', audience: 'friends' });
 });
 afterEach(() => localStorage.clear());
 
@@ -193,5 +199,26 @@ describe('ImportDeckDialog — creation-time visibility', () => {
     expect((screen.getByRole('button', { name: 'Import' }) as HTMLButtonElement).disabled).toBe(
       false
     );
+  });
+
+  it('shares with friends after creating when Friends is selected, in Public/Friends/Private order', async () => {
+    const { onClose } = renderDialog();
+    selectStandardFormat();
+    const radios = screen.getAllByRole('radio', { name: /Public|Friends|Private/ });
+    expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'friends', 'private']);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Friends' }));
+    pasteAndImport();
+
+    await waitFor(() =>
+      expect(createShareMock).toHaveBeenCalledWith({
+        kind: 'deck',
+        resourceId: 'new-deck-id',
+        audience: 'friends',
+      })
+    );
+    expect(publishDeckMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', undefined));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

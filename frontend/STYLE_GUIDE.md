@@ -3077,6 +3077,14 @@ to anything new that edits a predicate.
 Every dialog that creates or edits a thing (a binder, a list rule, filters, a
 card, a game night) is built from one kit in `components/shared/form`. The
 binder editor was the first surface on it; the rest move one PR at a time.
+`DeckCustomizer`'s collapsed groups (`Disclosure`) and one-of pickers
+(`ChoiceList`/`SelectMenu`), the cube workshop's format/size pickers
+(`SegmentedControl`/`SelectMenu`, `pages/cube/shared.tsx`), and the game night
+create dialog's date/venue/format fields moved onto it in the same pass —
+DeckCustomizer's density-tier CSS (36/40/44px closed rows, #2225) now scopes
+`.disclosure-toggle` under `.deck-customizer-more-body` rather than the kit's
+flat 44px, so it keeps its own measured density inside a page section (guard:
+`styles/deck-customizer-rows.test.ts`).
 
 **A config dialog answers its questions in order of how often they change.**
 The binder editor is the reference:
@@ -4016,19 +4024,40 @@ raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
 
 ### Visibility is one choice, not a link to manage (board T136)
 
-Who can see a thing is a single native radio group in `ShareDialog`, applied
-the moment it's picked: **Public / Friends / Private** for a deck, and
-**Anyone with the link / Friends / Private** for kinds that have no public
-page yet. There is no confirm step, no display-name gate and no list of links
-to revoke anywhere in Settings. The dialog opens on the real current state
-and never creates anything just by opening. The link it shows is the thing's
-own address, to copy; it is never something the owner manages. New decks
-start Public (the create form's first option); "Send to a friend" sits below
-the choice because it isn't one. The collection has the same three choices in
+Who can see a thing is a single native radio group, applied the moment it's
+picked: **Public / Friends / Private** for a deck, and **Anyone with the link
+/ Friends / Private** for kinds that have no public page yet. There is no
+confirm step, no display-name gate and no list of links to revoke anywhere in
+Settings. The dialog opens on the real current state and never creates
+anything just by opening. The link it shows is the thing's own address, to
+copy; it is never something the owner manages. New decks start Public (the
+create form's first option); "Send to a friend" sits below the choice because
+it isn't one. The collection has the same three choices in
 `CollectionVisibilityDialog`, stored on the account, and a public or
 friends-only collection lives on the owner's profile (`/u/:name?tab=collection`),
-not at a link of its own. The group sizes each option to its label
-(`flex: 1 1 auto`), so three short choices hold one line at 320px.
+not at a link of its own.
+
+**The control itself is `components/VisibilityChoice.tsx` (T139)** — a
+`ChoiceList` under the hood, so hint text is always visible and the group
+sizes to its labels (`flex: 1 1 auto`, three short choices hold one line at
+320px). `ShareDialog` and the online host form (`PlayPage.tsx`, Public/Private
+only — Friends there is a separate lane that owns the backend/game-core/room-
+browser side of it) both render through it. `DeckNewPage` and
+`ImportDeckDialog`'s creation-time fieldsets still hand-roll their own
+`.share-audience` radios instead: Public (and Friends) need a per-option
+`disabled` state when the viewer is signed out or offline, and `ChoiceList`'s
+`Option<T>` has no such field yet. Once it grows one, swap those two fieldsets
+onto `VisibilityChoice` — no other change needed.
+
+**A deck can be created as Friends, end to end (T139).** `usePublishOnCreate`'s
+`CreateVisibility` is `'public' | 'friends' | 'private'`; picking Friends calls
+`shareWithFriendsAfterCreate`, which mints the exact share `ShareDialog`'s own
+Friends choice does (`createShare({kind:'deck', audience:'friends'})`) —
+reused, not duplicated. Server-side, a deck's first sync carries
+`initialVisibility: 'friends'` the same way `'public'`/`'private'` already did
+(`publications/sync-hook.ts`); it books the deck unpublished (private to the
+`deck_publications` listing) and mints the friends share in the same pass, so
+a repeat sync never re-mints it.
 
 ### Feedback view (suggestion-mode deck share)
 

@@ -279,7 +279,9 @@ describe('DeckCustomizer — collapsed group summaries', () => {
     expect(screen.getByText('Unsalted')).toBeTruthy();
     expect(screen.getByText('Auto-detect')).toBeTruthy();
     expect(screen.getByText('Rare max')).toBeTruthy();
-    expect(screen.getByText('None')).toBeTruthy();
+    // Scryfall filter, plus the must-include/excluded/ban-list groups (all
+    // empty by default) all read "None" as their neutral summary.
+    expect(screen.getAllByText('None').length).toBeGreaterThan(0);
   });
 
   it('shows neutral defaults when nothing is set', () => {

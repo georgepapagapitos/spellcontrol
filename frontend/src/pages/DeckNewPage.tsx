@@ -133,6 +133,7 @@ export function DeckNewPage() {
     setVisibility,
     publishing,
     publishAfterCreate,
+    shareWithFriendsAfterCreate,
   } = usePublishOnCreate(onPublishSettled);
 
   /**
@@ -144,12 +145,16 @@ export function DeckNewPage() {
    */
   const publishGeneratedDeck = useCallback(
     async (id: string, destination: string, navState?: Record<string, unknown>) => {
-      if (visibility !== 'public' || !canPublish) return false;
+      if (visibility === 'private' || !canPublish) return false;
       pendingDestination.current = { path: destination, state: navState };
-      await publishAfterCreate(id);
+      if (visibility === 'friends') {
+        await shareWithFriendsAfterCreate(id);
+      } else {
+        await publishAfterCreate(id);
+      }
       return true;
     },
-    [visibility, canPublish, publishAfterCreate]
+    [visibility, canPublish, publishAfterCreate, shareWithFriendsAfterCreate]
   );
 
   const {
@@ -283,8 +288,12 @@ export function DeckNewPage() {
       partnerCommanderAllocatedCopyId: partnerAlloc,
       initialVisibility: visibility,
     });
-    if (visibility === 'public' && canPublish) {
-      await publishAfterCreate(id);
+    if (visibility !== 'private' && canPublish) {
+      if (visibility === 'friends') {
+        await shareWithFriendsAfterCreate(id);
+      } else {
+        await publishAfterCreate(id);
+      }
       return;
     }
     navigate(`/decks/${id}`);
@@ -300,6 +309,7 @@ export function DeckNewPage() {
     visibility,
     canPublish,
     publishAfterCreate,
+    shareWithFriendsAfterCreate,
     colorReady,
   ]);
 
@@ -334,6 +344,12 @@ export function DeckNewPage() {
   // "Create deck") so the same choice + ladder styling isn't duplicated.
   // Reuses ShareDialog's own ladder classes (share-audience/-option) per the
   // established visibility-ladder pattern, rather than inventing a new one.
+  // NOTE (T139 kit gap): this stays the hand-rolled `.share-audience` radio
+  // group, not the shared VisibilityChoice component (components/shared/form
+  // ChoiceList underneath), because Public/Friends need a per-option disabled
+  // state when signed out or offline and ChoiceList's Option has no such
+  // field yet. See VisibilityChoice.tsx's header comment for the exact API
+  // this needs before it can move onto the kit.
   const visibilityFieldset = (
     <section className="deck-builder-section">
       <h2 className="deck-builder-section-title">Visibility</h2>
@@ -341,6 +357,7 @@ export function DeckNewPage() {
         {(
           [
             { value: 'public', label: 'Public', disabled: !canPublish },
+            { value: 'friends', label: 'Friends', disabled: !canPublish },
             { value: 'private', label: 'Private', disabled: false },
           ] as const
         ).map((opt) => (
@@ -363,7 +380,9 @@ export function DeckNewPage() {
       <p className="format-pill-hint">
         {visibility === 'public'
           ? 'Anyone can find it at a stable link and on your profile.'
-          : 'Only you can see this deck.'}
+          : visibility === 'friends'
+            ? 'Only your friends can find it, on your page in their Friends list.'
+            : 'Only you can see this deck.'}
         {!canPublish && ` ${publicDisabledReason}`}
       </p>
     </section>

@@ -91,7 +91,7 @@ interface Options {
    *  build's one-shot nav state so the post-build summary can confirm the
    *  combo assembled. Never persisted on the deck; see ComboSeedContext. */
   comboContext?: ComboSeedContext;
-  /** The page's Public/Private choice for the new deck. Omitted: the
+  /** The page's Public/Friends/Private choice for the new deck. Omitted: the
    *  signed-in default (see defaultNewDeckVisibility). */
   initialVisibility?: NewDeckVisibility;
 }

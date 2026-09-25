@@ -10,7 +10,7 @@ import '@/styles/play-layout-editor.css';
 import '@/styles/play-counters-panel.css';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { Check, Copy, Eye, Swords, X } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
@@ -36,6 +36,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
 import { GameResultEditDialog } from '../components/play/GameResultEditDialog';
 import { SelectMenu } from '../components/SelectMenu';
+import { VisibilityChoice } from '../components/VisibilityChoice';
 import { Tabs } from '../components/Tabs';
 import { PageHeader } from '../components/PageHeader';
 import { StackedBar } from '../components/shared/MeterBar';
@@ -1373,7 +1374,6 @@ function OnlineSetup({
   // unlike every rules field below which is left for the lobby to argue over.
   const [tableName, setTableName] = useState('');
   const [visibility, setVisibility] = useState<GameState['visibility']>('private');
-  const visibilityGroup = useId();
 
   // The format decides the table's opening rules; the host tunes them in the
   // lobby afterwards, so they are derived here rather than held as state.
@@ -1479,33 +1479,27 @@ function OnlineSetup({
           </section>
 
           <section className="play-setup-row">
-            <fieldset className="share-audience" aria-label="Table visibility">
-              {(
-                [
-                  { value: 'private' as const, label: 'Private' },
-                  { value: 'public' as const, label: 'Public' },
-                ] as const
-              ).map((opt) => (
-                <label
-                  key={opt.value}
-                  className={`share-audience-option${visibility === opt.value ? ' is-active' : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name={visibilityGroup}
-                    value={opt.value}
-                    checked={visibility === opt.value}
-                    onChange={() => setVisibility(opt.value)}
-                  />
-                  <span>{opt.label}</span>
-                </label>
-              ))}
-            </fieldset>
-            <p className="play-setup-help">
-              {visibility === 'public'
-                ? 'Anyone with the code can watch without a seat.'
-                : 'Reachable by code only. Nobody can watch without a seat.'}
-            </p>
+            {/* Public/Private only — Friends joins here in a separate lane
+                (T139 Lane E) that owns the backend/game-core/room-browser
+                side of it. `options` already takes the subset, so that lands
+                as a one-line addition to this array, not a rewrite. */}
+            <VisibilityChoice
+              ariaLabel="Table visibility"
+              value={visibility}
+              options={[
+                {
+                  value: 'public',
+                  label: 'Public',
+                  hint: 'Anyone with the code can watch without a seat.',
+                },
+                {
+                  value: 'private',
+                  label: 'Private',
+                  hint: 'Reachable by code only. Nobody can watch without a seat.',
+                },
+              ]}
+              onChange={setVisibility}
+            />
           </section>
 
           <section className="play-setup-roster" aria-label="You">
