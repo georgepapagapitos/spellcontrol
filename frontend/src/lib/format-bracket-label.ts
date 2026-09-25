@@ -68,3 +68,30 @@ export function bracketTextWithEstimate(bracket: number, estimatedBracket: numbe
 export function bracketAriaWithEstimate(bracket: number, estimatedBracket: number): string {
   return `Bracket ${bracket} stated, estimate ${estimatedBracket}`;
 }
+
+/**
+ * The deck hero's bracket readout, the one place the owner's Deck tab states
+ * the bracket. A stated bracket the Estimate disagrees with carries the
+ * Estimate ("Bracket 2 · est. 4"); an estimate made before the combo match
+ * answered is a floor ("Bracket 2+"). `aria` is set only when the short form
+ * abbreviates something a screen reader should hear in full.
+ */
+export function heroBracketReadout(input: {
+  /** The effective bracket (stated ?? estimate). */
+  bracket: number;
+  /** The owner's stated bracket, when there is one. */
+  stated?: number | null;
+  /** The computed Estimate, when there is one. */
+  estimate?: number;
+  /** The Estimate ran without the combo match, so it is only a floor. */
+  missesCombos?: boolean;
+}): { text: string; aria?: string } {
+  const { bracket, stated, estimate, missesCombos } = input;
+  if (stated != null && estimate !== undefined && estimate !== stated) {
+    return {
+      text: bracketTextWithEstimate(stated, estimate),
+      aria: bracketAriaWithEstimate(stated, estimate),
+    };
+  }
+  return { text: `Bracket ${bracket}${missesCombos && stated == null ? '+' : ''}` };
+}

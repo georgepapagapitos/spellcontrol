@@ -3580,8 +3580,24 @@ what it did to the curve meant switching tabs every time.
   `Layout`'s scroll reset on navigation cancels the scroll. In-app jumps go
   through `scrollToDeckStats` (built on `lib/scroll-to-heading.ts`).
 - **The identity card repeats nothing the hero says.** It has no art band,
-  commander or deck name, format, or curve sparkline (the Mana curve panel
-  sits right below it). It opens on the identity line.
+  commander or deck name, format, bracket, brand mark, or curve sparkline
+  (the Mana curve panel sits right below it).
+- **The stats open on a glance band that shows the working (2026-09-24,
+  E415).** The card answers "what is this deck?" before any panel: a "Plays
+  as" headline (the archetype in the display face, the pacing beside it, the
+  archetype picker as an "Auto" / "Your pick" chip), one sentence on the
+  engine built from the same read the radar draws (so every number in it is
+  on the radar), and the playstyle radar itself, always mounted at full size.
+  It was collapsed behind a "Playstyle" expander and drew ~180px wide in a
+  1,100px box, which is what made the section read as lazy. Below that sit
+  the workings of the two verdicts: **every** deck check as a hairline row
+  (glyph, label, number; a failing tunable one carries "Fix in Coach"), and
+  build health as four sub-score meters with the 70 line ticked. The verdict
+  WORDS are not here: "All clear" / "N to tune" belong to the strip, the
+  bracket to the hero. The band and the sentence under the meters are built
+  from the stored score (`bandFor` / `headlineFor(overall)`), never from the
+  stored headline, so they can't disagree; a "Needs work" over "Your deck is
+  solid" came from exactly that.
 - **Under the list the board spans the list's width** (`--analysis-max: none`
   inside `.deck-stats-below`). The 1320px cap centred a board on its own tab;
   beside a full-width list it read as a ragged inset.
@@ -5033,7 +5049,9 @@ Every horizontal proportional bar goes through the shared
 
 - **`MeterBar`** — single fill: `value`/`max`, optional `color`,
   `size` (`sm` 6px meter / `md` 12px progress), `minPct` visual floor,
-  `indeterminate` sweep.
+  `indeterminate` sweep, and `tick` (a target or threshold on the same
+  scale, drawn as a 2px notch: the Dialed-in line on build health, a role's
+  want). A target is a tick on the one bar, never a second bar beside it.
 - **`StackedBar`** — multi-segment: `segments` (`key`/`value`/`color`/`title`),
   optional `max` for partial-width stacks (the stack spans `sum/max` of the
   track). Segments carry an inset hairline divider as a non-color boundary cue.
@@ -5234,7 +5252,9 @@ Rules (all mandatory):
   InfoTip explaining that vertices are normalized to the busiest axis.
 - **Every vertex carries its word + value** — label + count, no unlabeled
   vertices, ever. (The "charts say what they mean" obligation extends to polar
-  geometry.)
+  geometry.) A two-part label breaks only at its slash, one name per line
+  ("Tokens /" over "go-wide"); a width cap that broke inside a word or after
+  a hyphen ("go- / wide") read as a rendering bug.
 - **Vertices that drill down are real `<button>`s** with ≥44px coarse-pointer
   hit areas (padding/`min-height: 44px`). Each carries a full `aria-label`
   ("Axis — N cards: M producers, K payoffs. Show cards.").
@@ -5758,7 +5778,7 @@ They are two different facts and the copy never blurs them into one:
     not by dropping content).
   - **Text-line form** (`bracketTextWithEstimate`) — for a surface that
     already spells out "Bracket N" as running text: "Bracket 2 · est. 4"
-    (the deck identity line, a public deck header, a lobby seat, the deck
+    (the owner's deck hero, a public deck header, a lobby seat, the deck
     picker).
   - **Accessible name** (`bracketAriaWithEstimate`) — spells both out in
     plain words for the element's aria-label/aria description: "Bracket 2
@@ -7357,7 +7377,7 @@ direction.
   (unaffected — it's a separate attribute, not derived from the digit
   spans' text content).
 - **Minimalist mode hides the ± glyphs, not the controls.** `.is-minimalist
-  .player-panel-life-wrap > .player-panel-step-btn` uses the standard
+.player-panel-life-wrap > .player-panel-step-btn` uses the standard
   clip-rect sr-only pattern (1px box, `overflow: hidden`, `clip: rect(0,0,0,0)`)
   instead of `display: none`, so the buttons stay in the DOM, focusable, and
   announced — only a pointer user loses the visible glyph, and the tap-zone

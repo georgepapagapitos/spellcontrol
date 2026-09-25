@@ -41,7 +41,7 @@ describe('buildValidationChecklist', () => {
     const clean = buildValidationChecklist({ cards: legalDeck(), illegalCardNames: [] });
     expect(clean.checks.find((c) => c.id === 'legal')).toMatchObject({
       status: 'pass',
-      detail: 'every card legal in Commander',
+      detail: 'all legal',
     });
     const one = buildValidationChecklist({
       cards: legalDeck(),

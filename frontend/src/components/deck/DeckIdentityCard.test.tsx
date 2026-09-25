@@ -72,7 +72,6 @@ const healthyPlan = makePlan(82, {
 const base: DeckIdentityCardProps = {
   commander: null,
   format: 'commander',
-  bracket: undefined,
   analysisState: 'ready',
   validation: makeValidation([PASS('size'), PASS('identity')]),
   planScore: healthyPlan,
@@ -85,151 +84,161 @@ function renderCard(overrides: Partial<DeckIdentityCardProps> = {}) {
 
 /** Match by an element's full (whitespace-collapsed) textContent across common text elements. */
 function hasText(re: RegExp): boolean {
-  return Array.from(document.querySelectorAll('p, span, strong, li')).some((el) =>
+  return Array.from(document.querySelectorAll('p, span, strong, li, h4')).some((el) =>
     re.test((el.textContent ?? '').replace(/\s+/g, ' ').trim())
   );
 }
 
-/** Collect all shortfall item texts (each <li> in the shortfall list). */
-function shortfallTexts(): string[] {
-  return Array.from(document.querySelectorAll('.deck-identity-card-shortfall-item')).map((el) =>
-    (el.textContent ?? '').replace(/\s+/g, ' ').trim()
-  );
+/** A row's parts (its child elements) read as one line, space-separated. */
+function rowText(el: Element): string {
+  return Array.from(el.children)
+    .map((c) => (c.textContent ?? '').trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
+/** Each listed check as "glyph label detail". */
+function checkRows(): string[] {
+  return Array.from(document.querySelectorAll('.deck-identity-card-check')).map(rowText);
 }
 
 describe('DeckIdentityCard', () => {
-  it('renders an all-clear verdict + healthy plan with its weakest soft spot', () => {
+  // ── Deck checks: every check, with its number ─────────────────────────────
+
+  it('lists every check with its detail, passes included', () => {
     renderCard();
-    expect(hasText(/^✓ ?All clear$/)).toBe(true);
-    expect(hasText(/^2 of 2 checks pass$/)).toBe(true);
-    expect(hasText(/^Healthy$/)).toBe(true);
-    expect(
-      screen.getByText('Your deck is performing well, with a little room to grow.')
-    ).toBeTruthy();
-    // curve (48) is the weakest non-partial subscore.
-    expect(hasText(/^soft spot: Curve · Rough$/)).toBe(true);
+    expect(checkRows()).toEqual(['✓ size ok', '✓ identity ok']);
+    expect(hasText(/^2 of 2 pass$/)).toBe(true);
   });
 
-  it('shows "N to fix" with named shortfalls (first 3) and "+k more" when over three', () => {
+  it('never repeats the verdict words the strip owns ("All clear", "N to fix")', () => {
     const checks: ValidationCheck[] = [
       { id: 'size', label: 'Deck size', status: 'fail', detail: '98 / 100 cards' },
-      { id: 'identity', label: 'Commander identity', status: 'fail', detail: '2 off-color cards' },
-      { id: 'singleton', label: 'Singleton', status: 'fail', detail: '1 duplicate name' },
-      { id: 'ramp', label: 'Ramp count', status: 'fail', detail: '4 / 10' },
-      { id: 'removal', label: 'Removal count', status: 'fail', detail: '6 / 8' },
       PASS('curve'),
     ];
     renderCard({ validation: makeValidation(checks) });
-    expect(hasText(/^✗ ?5 to fix$/)).toBe(true);
-    // First three items in the list, then "+2 more".
-    const items = shortfallTexts();
-    expect(items[0]).toMatch(/Deck size 98 \/ 100 cards/);
-    expect(items[1]).toMatch(/Commander identity 2 off-color cards/);
-    expect(items[2]).toMatch(/Singleton 1 duplicate name/);
-    expect(items[3]).toMatch(/\+2 more/);
+    expect(hasText(/All clear|to fix|to tune/)).toBe(false);
   });
 
-  it('shows "N to tune" when there are only soft warnings', () => {
+  it('marks warn and fail rows with their own glyph, not color alone', () => {
     const checks: ValidationCheck[] = [
-      PASS('size'),
+      { id: 'size', label: 'Deck size', status: 'fail', detail: '98 / 100 cards' },
       { id: 'removal', label: 'Removal count', status: 'warn', detail: '6 / 8' },
-      { id: 'curve', label: 'Curve', status: 'warn', detail: 'Avg MV 3.80' },
+      PASS('curve'),
     ];
-    renderCard({ validation: makeValidation(checks) });
-    expect(hasText(/^▾ ?2 to tune$/)).toBe(true);
-    const items = shortfallTexts();
-    expect(items[0]).toMatch(/Removal count 6 \/ 8/);
-    expect(items[1]).toMatch(/Curve Avg MV 3.80/);
+    const { container } = renderCard({ validation: makeValidation(checks) });
+    expect(checkRows()).toEqual([
+      '✗ Deck size 98 / 100 cards',
+      '▾ Removal count 6 / 8',
+      '✓ curve ok',
+    ]);
+    expect(container.querySelector('.deck-identity-card-check.is-fail')).not.toBeNull();
+    expect(container.querySelector('.deck-identity-card-check.is-warn')).not.toBeNull();
   });
 
-  it('renders only the Functional pillar when planScore is null', () => {
-    renderCard({ planScore: null });
-    expect(hasText(/^✓ ?All clear$/)).toBe(true);
-    expect(screen.queryByText('Build health')).toBeNull();
-    expect(hasText(/soft spot:/)).toBe(false);
-  });
+  // ── UX-311: a check that needs work links to the Coach lane that fixes it ─
 
-  it('tags "limited data" and picks the weakest from non-partial subscores only', () => {
-    const plan = makePlan(
-      70,
-      {
-        strategy: sub(50, 'Thin', true), // partial — excluded
-        roles: sub(72, 'Solid'),
-        curve: sub(64, 'Solid'),
-        cardFit: sub(80, 'Healthy'),
-      },
-      { bandLabel: 'Solid', limitedData: true }
-    );
-    renderCard({ planScore: plan });
-    expect(hasText(/^Solid · limited data$/)).toBe(true);
-    // curve (64) is the weakest of the non-partial entries; the partial strategy (50) is ignored.
-    expect(hasText(/^soft spot: Curve · Solid$/)).toBe(true);
-    expect(hasText(/soft spot: Strategy/)).toBe(false);
-  });
-
-  it('omits the soft-spot line when every subscore is partial', () => {
-    const plan = makePlan(0, {
-      strategy: sub(50, 'Unscored', true),
-      roles: sub(50, 'Unscored', true),
-      curve: sub(50, 'Unscored', true),
-      cardFit: sub(50, 'Unscored', true),
-    });
-    renderCard({ planScore: plan });
-    expect(hasText(/soft spot:/)).toBe(false);
-  });
-
-  // ── UX-311: shortfall deep-link buttons ───────────────────────────────────
-
-  it('renders tunable shortfalls as plain text when onNavigate is not provided', () => {
-    const checks: ValidationCheck[] = [
-      PASS('size'),
-      { id: 'ramp', label: 'Ramp count', status: 'warn', detail: '4 / 10' },
-    ];
-    renderCard({ validation: makeValidation(checks) });
-    expect(screen.queryByRole('button', { name: /Ramp count/i })).toBeNull();
-    expect(shortfallTexts()[0]).toMatch(/Ramp count 4 \/ 10/);
-  });
-
-  it('renders tunable shortfalls as buttons when onNavigate is provided', () => {
-    const checks: ValidationCheck[] = [
-      PASS('size'),
-      { id: 'ramp', label: 'Ramp count', status: 'warn', detail: '4 / 10' },
-    ];
-    renderCard({ validation: makeValidation(checks), onNavigate: vi.fn() });
-    const btn = screen.getByRole('button', { name: /Ramp count 4 \/ 10, go to Tune/i });
-    expect(btn).toBeTruthy();
-  });
-
-  it('calls onNavigate with "fill-gaps" when a tunable shortfall button is clicked', () => {
+  it('offers "Fix in Coach" on a tunable check and navigates to fill-gaps', () => {
     const onNavigate = vi.fn();
     const checks: ValidationCheck[] = [
       PASS('size'),
       { id: 'removal', label: 'Removal count', status: 'warn', detail: '6 / 8' },
     ];
     renderCard({ validation: makeValidation(checks), onNavigate });
-    const btn = screen.getByRole('button', { name: /Removal count/i });
-    fireEvent.click(btn);
+    fireEvent.click(screen.getByRole('button', { name: 'Removal count 6 / 8, fix in Coach' }));
     expect(onNavigate).toHaveBeenCalledWith('fill-gaps');
   });
 
-  it('hard-rule checks (size, identity, singleton) render as plain text even with onNavigate', () => {
+  it('offers no fix link on a hard rule or a passing check', () => {
     const checks: ValidationCheck[] = [
       { id: 'size', label: 'Deck size', status: 'fail', detail: '98 / 100 cards' },
       { id: 'identity', label: 'Commander identity', status: 'fail', detail: '2 off-color' },
       { id: 'singleton', label: 'Singleton', status: 'fail', detail: '1 duplicate' },
+      { id: 'ramp', label: 'Ramp count', status: 'pass', detail: '12 / 10' },
     ];
     renderCard({ validation: makeValidation(checks), onNavigate: vi.fn() });
-    // No Tune deep-link for hard-rule failures — they require card edits in the Deck view.
-    expect(screen.queryAllByRole('button', { name: /go to Tune/i })).toHaveLength(0);
+    // Hard rules need card edits in the list; a pass needs nothing.
+    expect(screen.queryAllByRole('button', { name: /fix in Coach/i })).toHaveLength(0);
+  });
+
+  it('offers no fix link without onNavigate', () => {
+    renderCard({
+      validation: makeValidation([
+        { id: 'ramp', label: 'Ramp count', status: 'warn', detail: '4 / 10' },
+      ]),
+    });
+    expect(screen.queryAllByRole('button', { name: /fix in Coach/i })).toHaveLength(0);
+  });
+
+  // ── Build health: four meters, the 70 line, a headline that agrees ───────
+
+  it('shows each sub-score with the 70 line marked, and names the soft spot', () => {
+    const { container } = renderCard();
+    const rows = Array.from(container.querySelectorAll('.deck-identity-card-health-row'));
+    expect(rows.map(rowText)).toEqual(['Strategy 85', 'Roles 80', 'Curve 48', 'Card fit 78']);
+    expect(container.querySelectorAll('.meterbar-tick')).toHaveLength(4);
+    // Curve (48) is under the line, so it is the soft spot.
+    expect(rows[2].classList.contains('is-soft')).toBe(true);
+    expect(hasText(/The soft spot is curve\.$/)).toBe(true);
+  });
+
+  it('builds the band and headline from the score, not the stored copy', () => {
+    // A 64 was stored as "Needs work" over "Your deck is solid"; the page now
+    // derives both from the number so they agree, old analyses included.
+    const plan = makePlan(
+      64,
+      {
+        strategy: sub(58, 'x'),
+        roles: sub(70, 'x'),
+        curve: sub(72, 'x'),
+        cardFit: sub(60, 'x'),
+      },
+      { bandLabel: 'Needs work', headline: 'Your deck is solid, with clear room for improvement.' }
+    );
+    renderCard({ planScore: plan });
+    expect(hasText(/^Needs work$/)).toBe(true);
+    expect(hasText(/Your deck has the foundation\. It needs some tuning\./)).toBe(true);
+    expect(hasText(/is solid/)).toBe(false);
+  });
+
+  it('names no soft spot when every scored part clears the line', () => {
+    const plan = makePlan(84, {
+      strategy: sub(80, 'x'),
+      roles: sub(90, 'x'),
+      curve: sub(75, 'x'),
+      cardFit: sub(88, 'x'),
+    });
+    renderCard({ planScore: plan });
+    expect(hasText(/soft spot/)).toBe(false);
+  });
+
+  it('tags "limited data" and skips partial sub-scores for the soft spot', () => {
+    const plan = makePlan(
+      70,
+      {
+        strategy: sub(50, 'Unscored', true), // partial — excluded
+        roles: sub(72, 'x'),
+        curve: sub(64, 'x'),
+        cardFit: sub(80, 'x'),
+      },
+      { limitedData: true }
+    );
+    renderCard({ planScore: plan });
+    expect(hasText(/Dialed in · limited data/)).toBe(true);
+    const strategy = document.querySelector('.deck-identity-card-health-row');
+    expect(rowText(strategy as Element)).toBe('Strategy not scored');
+    expect(hasText(/The soft spot is curve\./)).toBe(true);
+  });
+
+  it('shows no scores when planScore is null and analysis is ready', () => {
+    renderCard({ planScore: null });
+    expect(document.querySelector('.deck-identity-card-health')).toBeNull();
   });
 
   it('shows the Build health skeleton while analysis is pending (no planScore yet)', () => {
-    // A pending first analysis means planScore is absent — the skeleton must not
-    // depend on planScore existing.
     const { container } = renderCard({ analysisState: 'pending', planScore: null });
-    expect(container.querySelector('.deck-identity-card-skeleton-pillar')).not.toBeNull();
-    expect(hasText(/^Build health$/)).toBe(true);
-    expect(container.querySelector('.deck-identity-card-pillars.is-solo')).toBeNull();
+    expect(container.querySelector('.deck-identity-card-skeleton')).not.toBeNull();
+    expect(hasText(/^Analyzing this deck…$/)).toBe(true);
   });
 
   // ── E162: error/stalled analysis state ────────────────────────────────────
@@ -241,13 +250,9 @@ describe('DeckIdentityCard', () => {
       planScore: null,
       onRetryAnalysis,
     });
-    expect(container.querySelector('.deck-identity-card-skeleton-pillar')).toBeNull();
-    expect(hasText(/^Build health$/)).toBe(true);
+    expect(container.querySelector('.deck-identity-card-skeleton')).toBeNull();
     expect(hasText(/Couldn.t analyze this deck\./)).toBe(true);
-    expect(container.querySelector('.deck-identity-card-pillars.is-solo')).toBeNull();
-
-    const retryBtn = screen.getByRole('button', { name: 'Retry' });
-    fireEvent.click(retryBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetryAnalysis).toHaveBeenCalledTimes(1);
   });
 
@@ -256,42 +261,28 @@ describe('DeckIdentityCard', () => {
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 
-  it('never shows a bracket segment while analysis is errored', () => {
-    renderCard({ analysisState: 'error', bracket: 3, planScore: null });
-    expect(screen.queryByText(/Bracket 3/)).toBeNull();
-  });
-
   // ── Defect 2: a partial (EDHREC-missing) analysis ─────────────────────────
 
   it('shows a retryable EDHREC-missing notice in Build health when ready but planScore never landed', () => {
     const onRetryAnalysis = vi.fn();
-    const { container } = renderCard({
-      analysisState: 'ready',
-      edhrecMissing: true,
-      planScore: null,
-      bracket: 3,
-      onRetryAnalysis,
-    });
-    // 'ready' with a real bracket — never the skeleton or the generic error copy.
-    expect(container.querySelector('.deck-identity-card-skeleton-pillar')).toBeNull();
-    expect(hasText(/Bracket 3/)).toBe(true);
-    expect(hasText(/^Build health$/)).toBe(true);
+    renderCard({ analysisState: 'ready', edhrecMissing: true, planScore: null, onRetryAnalysis });
     expect(hasText(/Couldn.t reach EDHREC/)).toBe(true);
-
-    const retryBtn = screen.getByRole('button', { name: 'Retry' });
-    fireEvent.click(retryBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetryAnalysis).toHaveBeenCalledTimes(1);
   });
 
   it('shows the real planScore instead of the EDHREC-missing notice once one lands', () => {
     renderCard({ analysisState: 'ready', edhrecMissing: true, planScore: healthyPlan });
     expect(hasText(/Couldn.t reach EDHREC/)).toBe(false);
-    expect(hasText(/Healthy/)).toBe(true);
+    expect(hasText(/^Dialed in$/)).toBe(true);
   });
 
-  it('repeats none of the page hero: no commander names, deck name or art', () => {
+  // ── One fact, one place ──────────────────────────────────────────────────
+
+  it('repeats none of the page hero: no commander names, art, bracket or brand mark', () => {
     // The card leads the stats under the deck list, and the hero right above
-    // the list already carries the commander art, the names and the format.
+    // the list already carries the commander art, the names, the format and
+    // the bracket.
     const commander = {
       name: "Atraxa, Praetors' Voice",
       color_identity: ['W', 'U', 'B', 'G'],
@@ -302,72 +293,55 @@ describe('DeckIdentityCard', () => {
       color_identity: ['W', 'B'],
     } as unknown as DeckIdentityCardProps['partnerCommander'];
     const { container } = renderCard({ commander, partnerCommander });
-    expect(hasText(/Atraxa|Tymna/)).toBe(false);
+    expect(hasText(/Atraxa|Tymna|Bracket|SpellControl/)).toBe(false);
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('h2')).toBeNull();
   });
 
-  // ── Playstyle expander ────────────────────────────────────────────────────
-
-  it('Playstyle expander is collapsed by default', () => {
-    const { container } = renderCard();
-    const body = container.querySelector('#deck-identity-playstyle-body');
-    expect(body).not.toBeNull();
-    // The body is hidden when collapsed
-    expect(body!.hasAttribute('hidden')).toBe(true);
-  });
-
-  it('Playstyle toggle button has aria-expanded=false when collapsed', () => {
-    renderCard();
-    const toggle = screen.getByRole('button', { name: /playstyle/i });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-  });
-
-  it('radar body mounts on expand (lazy-mount: not present before first expand)', () => {
-    const { container } = renderCard({ cards: [] });
-    // Before expand: no PlaystyleRadar content inside the body
-    const body = container.querySelector('#deck-identity-playstyle-body');
-    expect(body).not.toBeNull();
-    // The body is hidden initially
-    expect(body!.hasAttribute('hidden')).toBe(true);
-  });
-
-  it('toggle opens and closes the expander', () => {
-    const { container } = renderCard({ cards: [] });
-    const toggle = screen.getByRole('button', { name: /playstyle/i });
-
-    // Open
-    act(() => {
-      fireEvent.click(toggle);
-    });
-    const body = container.querySelector('#deck-identity-playstyle-body');
-    expect(body!.hasAttribute('hidden')).toBe(false);
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-
-    // Close again
-    act(() => {
-      fireEvent.click(toggle);
-    });
-    expect(body!.hasAttribute('hidden')).toBe(true);
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-  });
-
-  // ── Archetype override picker ────────────────────────────────────────────
+  // ── Plays as ─────────────────────────────────────────────────────────────
 
   const identity = { archetypeLabel: 'Voltron', pacingShort: 'Late game', themes: [] };
 
-  it('renders the archetype segment as plain text when onSetArchetypeOverride is absent', () => {
+  it('leads with what the deck plays as, and mounts the radar without an expander', () => {
+    const { container } = renderCard({ identity });
+    expect(screen.getByRole('heading', { level: 4, name: 'Voltron' })).toBeTruthy();
+    expect(hasText(/^Late game$/)).toBe(true);
+    expect(container.querySelector('.deck-identity-card-radar')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /playstyle/i })).toBeNull();
+  });
+
+  it('says how the deck is built, with the numbers the radar shows', () => {
+    const equipment = Array.from({ length: 6 }, (_, i) => ({
+      name: `Blade ${i}`,
+      type_line: 'Artifact — Equipment',
+      oracle_text: 'Equip {2}',
+      cmc: 2,
+    }));
+    const sram = {
+      name: 'Sram',
+      type_line: 'Legendary Creature — Dwarf Advisor',
+      oracle_text: 'Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.',
+      cmc: 2,
+    };
+    const land = { name: 'Plains', type_line: 'Basic Land — Plains', oracle_text: '', cmc: 0 };
+    renderCard({
+      identity,
+      cards: [sram, ...equipment, land] as unknown as DeckIdentityCardProps['cards'],
+    });
+    expect(hasText(/^7 of 7 spells build the Equipment \/ Voltron engine\.$/)).toBe(true);
+  });
+
+  it('shows the archetype as plain text when onSetArchetypeOverride is absent', () => {
     renderCard({ identity });
-    expect(hasText(/Late game Voltron deck/)).toBe(true);
     expect(screen.queryByRole('button', { name: /change deck archetype/i })).toBeNull();
   });
 
-  it('renders the picker trigger with the identity line text and sets an override on pick', () => {
+  it('the picker trigger says whose call it is, and sets an override on pick', () => {
     const onSet = vi.fn();
     renderCard({ identity, archetypeOverride: null, onSetArchetypeOverride: onSet });
 
     const trigger = screen.getByRole('button', { name: /change deck archetype/i });
-    expect(trigger.textContent).toContain('Late game Voltron deck');
+    expect(trigger.textContent).toContain('Auto');
 
     act(() => {
       fireEvent.click(trigger);
@@ -387,6 +361,7 @@ describe('DeckIdentityCard', () => {
     });
 
     const trigger = screen.getByRole('button', { name: /change deck archetype/i });
+    expect(trigger.textContent).toContain('Your pick');
     act(() => {
       fireEvent.click(trigger);
     });
@@ -402,6 +377,7 @@ describe('DeckIdentityCard', () => {
   it('does not render a picker for non-commander decks (no identity)', () => {
     renderCard({ identity: null, onSetArchetypeOverride: vi.fn() });
     expect(screen.queryByRole('button', { name: /change deck archetype/i })).toBeNull();
+    expect(screen.getByRole('heading', { level: 4, name: 'Commander deck' })).toBeTruthy();
   });
 });
 

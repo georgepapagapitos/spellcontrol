@@ -1,107 +1,171 @@
-/* ── DeckIdentityCard ────────────────────────────────────────────────────────
-   Leads the deck stats under the list: identity line, playstyle, and the two
-   pillars (Functional + Build health). No art band or names; the page hero
-   above the list already carries them.
-   Container-query responsive: child of `.deck-bento` (container-name: bento).
-   Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
+/* ── DeckIdentityCard: the glance band that leads the deck stats ──────────────
+   Three parts: what the deck plays as (archetype headline + engine sentence),
+   the playstyle radar, and the working behind the verdicts (every deck check,
+   build health as four meters). No art band or names; the page hero above
+   the list carries them, and the verdict words (strip, hero) aren't repeated.
+
+   Laid out against its OWN width (container `identity`), since the card sits
+   in a board whose width has nothing to do with the viewport:
+     narrow  → one column: plays, radar, verdicts
+     ≥720px  → radar on the left, plays + verdicts stacked beside it
+     ≥980px  → the two verdict blocks side by side
+   Theme vars and the --space-* / --text-* scales only; see STYLE_GUIDE
+   § Deck stats. */
 
 .deck-identity-card {
+  container: identity / inline-size;
   grid-column: 1 / -1;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
+  padding: var(--space-4);
 }
 
-/* ── Main body ───────────────────────────────────────────────────────────── */
+.deck-identity-card-glance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'plays'
+    'radar'
+    'verdicts';
+  gap: var(--space-4);
+}
 
-.deck-identity-card-body {
-  padding: var(--space-3) var(--space-4) var(--space-4);
+.deck-identity-card-plays {
+  grid-area: plays;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-1);
+  min-width: 0;
 }
 
-/* ── Identity line (archetype · bracket · validation) ─────────────────────── */
+.deck-identity-card-radar {
+  grid-area: radar;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 0;
+}
 
-.deck-identity-card-identity-line {
+/* Holds the radar's footprint while its chunk loads, so the verdicts below
+   don't jump when it lands. */
+.deck-identity-card-radar-loading {
+  width: 100%;
+  min-height: 20rem;
+}
+
+.deck-identity-card-verdicts {
+  grid-area: verdicts;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+@container identity (min-width: 720px) {
+  .deck-identity-card-glance {
+    grid-template-columns: minmax(0, 19rem) minmax(0, 1fr);
+    grid-template-areas:
+      'radar plays'
+      'radar verdicts';
+    column-gap: var(--space-6);
+    row-gap: var(--space-4);
+    align-items: start;
+  }
+
+  .deck-identity-card-verdicts {
+    padding-top: var(--space-4);
+    border-top: 0.5px solid var(--border);
+  }
+}
+
+@container identity (min-width: 980px) {
+  .deck-identity-card-verdicts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-6);
+  }
+
+  /* A deck with no build health (any non-Commander format) has the checks
+     alone; they take the row instead of half of it. */
+  .deck-identity-card-verdicts > :only-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ── Plays as ──────────────────────────────────────────────────────────────── */
+
+.deck-identity-card-eyebrow {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.deck-identity-card-archetype-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   flex-wrap: wrap;
-  gap: var(--space-1);
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+}
+
+/* The one display-face line in the stats: the deck's answer to "what is it?".
+   Hero tier, so the display face at --text-xl (§ Typography, Display). */
+.deck-identity-card-archetype {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+@container identity (min-width: 720px) {
+  .deck-identity-card-archetype {
+    font-size: calc(var(--text-xl) * 1.35);
+  }
+}
+
+.deck-identity-card-pacing {
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
 
-.deck-identity-card-identity-sep {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  user-select: none;
-}
-
-.deck-identity-card-identity-bracket {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.deck-identity-card-identity-val {
-  font-weight: 600;
-}
-
-.deck-identity-card-identity-val.is-success {
-  color: var(--success);
-}
-
-.deck-identity-card-identity-val.is-warn {
-  color: var(--warn-text);
-}
-
-.deck-identity-card-identity-val.is-err {
-  color: var(--err-text);
-}
-
-/* Archetype segment as an edit-in-place picker: strip the pill chrome so the
-   closed trigger reads like the plain text segment it replaces, with a dotted
-   underline + chevron as the editability affordance. */
+/* Archetype picker as an edit chip beside the headline: a quiet pill that
+   says whose call the label is ("Auto" / "Your pick"). Pills are for
+   toggles and choices (§ Shape language), and this is a choice. */
 .deck-identity-card-archetype-menu {
   display: inline-flex;
+  align-self: center;
 }
 
 .deck-identity-card-archetype-menu .toolbar-pill {
   height: auto;
-  padding: 0;
-  gap: 0.2rem;
-  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
   color: var(--text-secondary);
-  background: none;
-  border: none;
-  border-radius: var(--radius);
-  text-decoration: underline dotted;
-  text-decoration-color: var(--text-muted);
-  text-underline-offset: 3px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .deck-identity-card-archetype-menu .toolbar-pill:hover {
     color: var(--text-primary);
-    text-decoration-color: currentcolor;
+    border-color: var(--border-strong);
   }
 }
 
 .deck-identity-card-archetype-menu .toolbar-pill.open {
   color: var(--text-primary);
-  text-decoration-color: currentcolor;
+  border-color: var(--border-strong);
 }
 
-/* 44px touch target via a centered ghost (STYLE_GUIDE § Responsive) — growing
-   the inline trigger itself would distort the identity line. */
+/* 44px touch target via a centered ghost (STYLE_GUIDE § Responsive): the chip
+   stays small beside the headline. */
 @media (pointer: coarse) {
   .deck-identity-card-archetype-menu .toolbar-pill {
     position: relative;
+    min-height: 0;
   }
 
   .deck-identity-card-archetype-menu .toolbar-pill::after {
@@ -115,262 +179,216 @@
   }
 }
 
-/* ── Playstyle expander ──────────────────────────────────────────────────── */
-
-.deck-identity-card-playstyle {
-  display: flex;
-  flex-direction: column;
+.deck-identity-card-lead {
+  margin: var(--space-1) 0 0;
+  max-width: 60ch;
+  font-size: var(--text-md);
+  line-height: 1.45;
+  color: var(--text-secondary);
 }
 
-.deck-identity-card-playstyle-toggle {
+/* ── Verdict blocks (checks, build health) ────────────────────────────────── */
+
+.deck-identity-card-block {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-2);
-  width: 100%;
-  background: none;
-  border: none;
-  border-top: 0.5px solid var(--border);
-  border-bottom: 0.5px solid var(--border);
-  cursor: pointer;
-  padding: var(--space-2) 0;
-  color: var(--text-muted);
-  transition: color var(--motion-fast);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-identity-card-playstyle-toggle:hover {
-    color: var(--accent);
-  }
-}
-
-.deck-identity-card-playstyle-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius);
-}
-
-/* Every sibling disclosure header in this file (shortfall buttons, the stats/
-   combos/test-hand headers elsewhere) guarantees 44px on coarse pointers —
-   this toggle was the one left out. */
-@media (pointer: coarse) {
-  .deck-identity-card-playstyle-toggle {
-    min-height: 44px;
-  }
-}
-
-.deck-identity-card-playstyle-title {
-  /* Section-title style: serif uppercase letter-spacing (per STYLE_GUIDE collapsible rules) */
-  font-family: var(--font-serif);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  flex: 1 1 auto;
-  text-align: left;
-}
-
-.deck-identity-card-playstyle-chevron {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  color: var(--text-muted);
-}
-
-.deck-identity-card-playstyle-body {
-  /* When visible, show the radar; hidden= attribute hides it. */
-  padding: var(--space-2) 0 var(--space-1);
-}
-
-.deck-identity-card-playstyle-loading {
-  height: 40px;
-}
-
-/* ── Pillars (ported from StatsHero) ──────────────────────────────────────── */
-
-.deck-identity-card-pillars {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.85rem;
-}
-
-@container bento (min-width: 640px) {
-  .deck-identity-card-pillars {
-    grid-template-columns: 1fr 1fr;
-    gap: clamp(var(--space-4), 2.5cqi, 1.75rem);
-  }
-
-  .deck-identity-card-pillars.is-solo {
-    grid-template-columns: 1fr;
-  }
-}
-
-.deck-identity-card-pillar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
   min-width: 0;
 }
 
-.deck-identity-card-eyebrow {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
-
-/* ── Functional verdict ────────────────────────────────────────────────────── */
-
-.deck-identity-card-verdict {
+.deck-identity-card-block-head {
   display: flex;
   align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: var(--space-2);
+}
+
+.deck-identity-card-aside {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Every check, one hairline row each: glyph · label · detail. Two columns
+   once the block is wide enough that a row would otherwise be mostly gap. */
+.deck-identity-card-checks {
+  list-style: none;
   margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: var(--space-5);
+}
+
+@container identity (min-width: 560px) {
+  .deck-identity-card-checks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.deck-identity-card-check {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+  min-height: 2rem;
+  border-bottom: 0.5px solid var(--border);
   font-size: var(--text-sm);
 }
 
-.deck-identity-card-verdict-glyph {
+.deck-identity-card-check-glyph {
+  width: 1em;
+  text-align: center;
   font-weight: 700;
-  line-height: 1;
-}
-
-.deck-identity-card-verdict-label {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.deck-identity-card-verdict.is-success {
   color: var(--success);
 }
 
-.deck-identity-card-verdict.is-warn {
-  color: var(--warn-text);
-}
-
-.deck-identity-card-verdict.is-err {
-  color: var(--err-text);
-}
-
-.deck-identity-card-ratio {
-  margin: 0;
-  font-size: var(--text-xs);
+.deck-identity-card-check-label {
   color: var(--text-secondary);
+}
+
+.deck-identity-card-check-detail {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Shortfall list ────────────────────────────────────────────────────────── */
-
-.deck-identity-card-shortfall-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+/* A pass keeps one line: its detail only restates the ✓ ("no duplicates"),
+   so it truncates rather than wrap a row taller than its neighbours in the
+   two-column list. A row that needs attention wraps, so its detail and its
+   fix link are read in full. */
+.deck-identity-card-check.is-pass {
+  flex-wrap: nowrap;
 }
 
-.deck-identity-card-shortfall-item {
-  font-size: var(--text-xs);
-  line-height: 1.45;
-  color: var(--text-muted);
+.deck-identity-card-check.is-pass .deck-identity-card-check-label {
+  flex: none;
 }
 
-.deck-identity-card-shortfall-more {
-  color: var(--text-muted);
+.deck-identity-card-check.is-pass .deck-identity-card-check-detail {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.deck-identity-card-shortfall-btn {
-  display: flex;
+/* A check that needs attention reads as a tinted row, so the one to act on
+   is findable in a list of passes. Warn and fail differ by glyph AND tone. */
+.deck-identity-card-check.is-warn,
+.deck-identity-card-check.is-fail {
+  border-bottom-color: transparent;
+  border-radius: var(--radius);
+  padding: 0 var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
+}
+
+.deck-identity-card-check.is-warn {
+  background: color-mix(in srgb, var(--warn-bg) 70%, transparent);
+}
+
+.deck-identity-card-check.is-fail {
+  background: color-mix(in srgb, var(--err-bg) 70%, transparent);
+}
+
+.deck-identity-card-check.is-warn .deck-identity-card-check-glyph {
+  color: var(--warn-text);
+}
+
+.deck-identity-card-check.is-fail .deck-identity-card-check-glyph {
+  color: var(--err-text);
+}
+
+.deck-identity-card-check.is-warn .deck-identity-card-check-label,
+.deck-identity-card-check.is-fail .deck-identity-card-check-label,
+.deck-identity-card-check.is-warn .deck-identity-card-check-detail,
+.deck-identity-card-check.is-fail .deck-identity-card-check-detail {
+  color: var(--text-primary);
+}
+
+/* The way to the fix, on the row that needs it: a link, not a chrome button. */
+.deck-identity-card-check-fix {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  width: 100%;
-  padding: var(--space-1) var(--space-2);
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius);
-  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
   font-size: var(--text-xs);
-  color: var(--text-secondary);
-  text-align: left;
-  transition:
-    border-color var(--motion-fast),
-    background var(--motion-fast);
-  min-height: 28px;
+  color: var(--accent);
+  cursor: pointer;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .deck-identity-card-shortfall-btn:hover {
-    background: var(--surface-raised);
-    border-color: var(--accent);
-    color: var(--text-primary);
+  .deck-identity-card-check-fix:hover {
+    text-decoration: underline;
   }
 }
 
-.deck-identity-card-shortfall-btn:focus-visible {
+.deck-identity-card-check-fix:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-.deck-identity-card-shortfall-text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.deck-identity-card-shortfall-arrow {
-  flex-shrink: 0;
-  color: var(--text-muted);
+  border-radius: var(--radius);
 }
 
 @media (pointer: coarse) {
-  .deck-identity-card-shortfall-btn {
+  .deck-identity-card-check-fix {
     min-height: 44px;
-    padding-block: var(--space-2);
   }
 }
 
-/* ── Build health ──────────────────────────────────────────────────────────── */
-
-.deck-identity-card-band {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+/* Build health: four scored meters, the 70 line marked on each. */
+.deck-identity-card-health {
+  list-style: none;
   margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.deck-identity-card-health-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) 4.5rem;
+  align-items: center;
+  gap: var(--space-3);
   font-size: var(--text-sm);
-  color: var(--text-primary);
 }
 
-.deck-identity-card-band-num {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--text-primary);
-}
-
-.deck-identity-card-limited {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-.deck-identity-card-headline {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.4;
+.deck-identity-card-health-label {
   color: var(--text-secondary);
 }
 
-.deck-identity-card-softspot {
-  margin: 0;
+.deck-identity-card-health-value {
+  text-align: right;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.deck-identity-card-health-row.is-soft .deck-identity-card-health-label,
+.deck-identity-card-health-row.is-soft .deck-identity-card-health-value {
+  color: var(--warn-text);
+}
+
+.deck-identity-card-foot {
+  margin: 0;
+  font-size: var(--text-sm);
   line-height: 1.45;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+}
+
+.deck-identity-card-soft {
+  font-weight: 600;
+  color: var(--warn-text);
 }
 
 /* ── Skeleton shimmer (uses global .deck-analysis-skeleton-bar) ──────────── */
 
-.deck-identity-card-skeleton-pillar {
-  height: 60px;
+.deck-identity-card-skeleton {
+  height: 5rem;
   border-radius: var(--radius);
 }
 
@@ -406,30 +424,5 @@
     display: inline-flex;
     align-items: center;
     min-height: 44px;
-  }
-}
-
-/* ── Brand mark ───────────────────────────────────────────────────────────── */
-
-.deck-identity-card-brand {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 var(--space-4) var(--space-2);
-}
-
-.deck-identity-card-brand-text {
-  font-family: var(--font-serif);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-}
-
-/* ── Phone (E264) ─────────────────────────────────────────────────────────── */
-@media (max-width: 600px) {
-  /* One step tighter than desktop: the phone card is a column of short rows,
-     and the desktop gap read as dead space between them. */
-  .deck-identity-card-body {
-    padding: var(--space-2) var(--space-4) var(--space-3);
-    gap: var(--space-2);
   }
 }

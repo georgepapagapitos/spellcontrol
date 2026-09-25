@@ -125,3 +125,16 @@ describe('StackedBar', () => {
     expect(track.querySelector('.meterbar-segments')).toBeNull();
   });
 });
+
+describe('MeterBar tick', () => {
+  it('marks the tick value on the same scale as the fill', () => {
+    const { container } = render(<MeterBar value={58} max={100} tick={70} />);
+    const tick = container.querySelector<HTMLElement>('.meterbar-tick');
+    expect(tick?.style.left).toBe('70%');
+  });
+
+  it('renders no mark without a tick', () => {
+    const { container } = render(<MeterBar value={58} />);
+    expect(container.querySelector('.meterbar-tick')).toBeNull();
+  });
+});

@@ -16,6 +16,7 @@ import {
   roleSlotsFromCounts,
   roleSlotsFromDeficits,
   bandFor,
+  headlineFor,
   type PlanScoreInput,
   type RoleSlot,
 } from './planScore';
@@ -262,5 +263,15 @@ describe('computePlanScore', () => {
     expect(computePlanScore(input).byline).toBe('Based on 12,345 decklists.');
     delete input.sampleSize;
     expect(computePlanScore(input).byline).toMatch(/EDHREC decklists/);
+  });
+});
+
+// A 60-69 deck read "Needs work" over "Your deck is solid, with clear room for
+// improvement." The headline refines the band and must never contradict it.
+describe('headlineFor agrees with bandFor at every score', () => {
+  const praise = ["Your deck's dialed in.", 'Your deck plays well, with a little room to grow.'];
+  it.each(Array.from({ length: 101 }, (_, s) => s))('score %i', (score) => {
+    const praised = praise.includes(headlineFor(score));
+    expect(praised).toBe(bandFor(score) === 'Dialed in');
   });
 });
