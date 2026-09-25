@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { BinderFilter, BinderFilterGroup, ListDef } from '../types';
 import { useCollectionStore } from '../store/collection';
 import { cleanFilter } from '../lib/clean-filter';
@@ -6,8 +6,7 @@ import { areAllGroupsEmpty } from '../lib/rules';
 import { dynamicListCount } from '../lib/dynamic-list';
 import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
+import { Modal } from './Modal';
 import { FilterGroupList, cloneChips, validateGroups } from './FilterGroupEditor';
 import './ListRuleEditor.css';
 
@@ -20,13 +19,16 @@ const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
 /**
  * Rule editor for a dynamic list — the binder editor's `FilterGroupList`
- * (OR-of-groups, live match counts) in a bottom-sheet shell, minus every
- * binder-only concern (capacity, routing order, pockets). Saving cleans each
- * group via `cleanFilter` (same persistence hygiene as binders) and writes the
- * rule to the store; membership everywhere else recomputes live.
+ * (OR-of-groups, live match counts) on the same editor-sheet pattern as
+ * BinderEditor (config-surface kit, board T139): the shared `Modal` supplies
+ * the backdrop, focus trap, body-scroll lock and Escape (through the overlay
+ * stack, so a nested popover's Escape closes only the popover), and a bottom
+ * sheet on phone via `modal-backdrop--sheet`. Minus every binder-only concern
+ * (capacity, routing order, pockets). Saving cleans each group via
+ * `cleanFilter` (same persistence hygiene as binders) and writes the rule to
+ * the store; membership everywhere else recomputes live.
  */
 export function ListRuleEditor({ list, onClose }: Props) {
-  useLockBodyScroll();
   const cards = useCollectionStore((s) => s.cards);
   const setListRule = useCollectionStore((s) => s.setListRule);
   const [groups, setGroups] = useState<BinderFilterGroup[]>(() =>
@@ -35,28 +37,6 @@ export function ListRuleEditor({ list, onClose }: Props) {
       : [newGroup()]
   );
   const [autofocusIdx, setAutofocusIdx] = useState<number | null>(null);
-
-  const { isClosing, beginClose, onAnimationEnd, isTopmost } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out'
-  );
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-
-  useEffect(() => {
-    // Only the topmost overlay answers Escape (overlay-layer.ts) — this sheet
-    // used to close on any Escape regardless of stacking, so opening a
-    // condition's own popover (the set picker, a suggestion list) on top of
-    // it and pressing Escape closed the whole sheet instead of just that
-    // popover.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isTopmost()) dismiss();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [dismiss, isTopmost]);
 
   // Same inputs the binder editor feeds FilterGroupList: owned sets for the
   // set picker, catalog+collection suggestions for type/oracle chips, and
@@ -121,94 +101,86 @@ export function ListRuleEditor({ list, onClose }: Props) {
   };
 
   return (
-    <div
-      className="card-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
-      }}
-      role="presentation"
+    <Modal
+      onClose={onClose}
+      className="modal"
+      backdropClassName="modal-backdrop--sheet"
+      labelledBy="list-rule-editor-title"
     >
-      <div
-        className={`card-picker-sheet add-card-sheet list-rule-editor-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Edit rule for ${list.name}`}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Rule for {list.name}</h2>
-          <p className="add-card-sheet-hint">
-            Cards from your collection that match this rule appear in the list automatically. New
-            imports included.
-          </p>
-        </div>
-
-        <div className="add-card-sheet-body">
-          <FilterGroupList
-            groups={groups}
-            cards={taggedCards}
-            ownedSets={ownedSets}
-            typeSuggestions={typeSuggestions}
-            oracleSuggestions={oracleSuggestions}
-            autofocusIdx={autofocusIdx}
-            clearAutofocus={() => setAutofocusIdx(null)}
-            onPatchFilter={(idx, p: Partial<BinderFilter>) =>
-              updateGroup(idx, (g) => ({ ...g, filter: { ...g.filter, ...p } }))
-            }
-            onSetName={(idx, name) => updateGroup(idx, (g) => ({ ...g, name }))}
-            onAdd={() =>
-              setGroups((prev) => {
-                setAutofocusIdx(prev.length);
-                return [...prev, newGroup()];
-              })
-            }
-            onDuplicate={(idx) =>
-              setGroups((prev) => {
-                const src = prev[idx];
-                const copy: BinderFilterGroup = {
-                  name: src.name ? `${src.name} (copy)` : undefined,
-                  // `cloneChips` exists so a duplicate doesn't share mutable
-                  // chip/array refs with its original. The binder editor used
-                  // it; this one shallow-spread, leaving every ChipExpression
-                  // and setCodes array shared between the two groups.
-                  filter: { ...src.filter, ...cloneChips(src.filter) },
-                };
-                setAutofocusIdx(idx + 1);
-                return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
-              })
-            }
-            onRemove={(idx) =>
-              setGroups((prev) =>
-                prev.length === 1 ? [newGroup()] : prev.filter((_, i) => i !== idx)
-              )
-            }
-            emptyGroupMatchesNothing
-          />
-        </div>
-
-        <div className="card-picker-footer list-rule-editor-footer">
-          {/* Say WHY Save is off. A disabled button with no reason beside it is
-              the same dead end as no validation at all. */}
-          {rangeError ? (
-            <span className="filter-group-total list-rule-editor-error" role="alert">
-              {rangeError}
-            </span>
-          ) : (
-            <span className="filter-group-total list-rule-editor-count" aria-live="polite">
-              Matches <strong>{matchCount.toLocaleString()}</strong>{' '}
-              {matchCount === 1 ? 'card' : 'cards'} in your collection
-            </span>
-          )}
-          <button type="button" className="btn" onClick={() => dismiss()}>
-            Cancel
-          </button>
-          <button type="button" className="btn btn-primary" disabled={!canSave} onClick={save}>
-            Save rule
-          </button>
-        </div>
+      <div className="modal-header">
+        <h2 id="list-rule-editor-title">Rule for {list.name}</h2>
+        <button className="modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
       </div>
-    </div>
+
+      <div className="modal-body">
+        <p className="form-field-hint">
+          Cards from your collection that match this rule appear in the list automatically. New
+          imports included.
+        </p>
+        <FilterGroupList
+          groups={groups}
+          cards={taggedCards}
+          ownedSets={ownedSets}
+          typeSuggestions={typeSuggestions}
+          oracleSuggestions={oracleSuggestions}
+          autofocusIdx={autofocusIdx}
+          clearAutofocus={() => setAutofocusIdx(null)}
+          onPatchFilter={(idx, p: Partial<BinderFilter>) =>
+            updateGroup(idx, (g) => ({ ...g, filter: { ...g.filter, ...p } }))
+          }
+          onSetName={(idx, name) => updateGroup(idx, (g) => ({ ...g, name }))}
+          onAdd={() =>
+            setGroups((prev) => {
+              setAutofocusIdx(prev.length);
+              return [...prev, newGroup()];
+            })
+          }
+          onDuplicate={(idx) =>
+            setGroups((prev) => {
+              const src = prev[idx];
+              const copy: BinderFilterGroup = {
+                name: src.name ? `${src.name} (copy)` : undefined,
+                // `cloneChips` exists so a duplicate doesn't share mutable
+                // chip/array refs with its original. The binder editor used
+                // it; this one shallow-spread, leaving every ChipExpression
+                // and setCodes array shared between the two groups.
+                filter: { ...src.filter, ...cloneChips(src.filter) },
+              };
+              setAutofocusIdx(idx + 1);
+              return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+            })
+          }
+          onRemove={(idx) =>
+            setGroups((prev) =>
+              prev.length === 1 ? [newGroup()] : prev.filter((_, i) => i !== idx)
+            )
+          }
+          emptyGroupMatchesNothing
+        />
+      </div>
+
+      <div className="modal-footer list-rule-editor-footer">
+        {/* Say WHY Save is off. A disabled button with no reason beside it is
+            the same dead end as no validation at all. */}
+        {rangeError ? (
+          <span className="list-rule-editor-error" role="alert">
+            {rangeError}
+          </span>
+        ) : (
+          <span className="list-rule-editor-count" aria-live="polite">
+            Matches <strong>{matchCount.toLocaleString()}</strong>{' '}
+            {matchCount === 1 ? 'card' : 'cards'} in your collection
+          </span>
+        )}
+        <button type="button" className="btn" onClick={onClose}>
+          Cancel
+        </button>
+        <button type="button" className="btn btn-primary" disabled={!canSave} onClick={save}>
+          Save rule
+        </button>
+      </div>
+    </Modal>
   );
 }

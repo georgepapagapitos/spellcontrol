@@ -77,35 +77,39 @@ function Harness({ rows }: { rows?: FilterableRow[] } = {}) {
 
 const openDialog = () => fireEvent.click(screen.getByRole('button', { name: /Filters/ }));
 
-const sectionLabels = () =>
-  Array.from(document.querySelectorAll('.collection-filters-section-label')).map(
-    (el) => el.textContent
-  );
+/** The dialog's group headings, in DOM order — one `.form-section-heading`
+ *  per registry group (lib/filter-fields.ts), plus the dialog's own
+ *  "This copy" group last. */
+const groupHeadings = () =>
+  Array.from(document.querySelectorAll('.form-section-heading')).map((el) => el.textContent);
 
 beforeEach(() => {
   useCollectionStore.setState({ setEditingBinder: vi.fn() });
 });
 
 describe('CollectionFiltersDialog', () => {
-  it('orders sections by the Add-condition picker registry groups', () => {
+  it('orders groups exactly as the Add-condition picker does, then This copy', () => {
     render(<Harness />);
     openDialog();
-    const labels = sectionLabels();
-    // The Color heading's element also hosts the AND/OR toggle, so its
-    // textContent isn't the bare word — match by prefix.
-    const colorIdx = labels.findIndex((l) => l?.startsWith('Color'));
-    expect(labels.indexOf('Type line')).toBeLessThan(colorIdx);
-    // Rarity/Set (Printing) now come after the shared Text/Value&play block
-    // (Format) instead of before it.
-    expect(labels.indexOf('Format')).toBeLessThan(labels.indexOf('Rarity'));
-    expect(labels.indexOf('Rarity')).toBeLessThan(labels.indexOf('Set'));
-    expect(labels[labels.length - 1]).toBe('This copy');
+    // Cost (Mana value) has nothing to show in this harness — no CMC props
+    // wired — and is skipped entirely, same as the picker skips an empty
+    // group rather than showing a bare heading.
+    expect(groupHeadings()).toEqual(['Identity', 'Text', 'Printing', 'Value & play', 'This copy']);
+
+    // Within Printing, fields still follow registry order (rarities before
+    // setCodes) even though Rarity is the dialog's own field and Set comes
+    // from a different call than the shared Layout/Treatment/Border rows.
+    const printing = screen.getByText('Printing').closest('section') as HTMLElement;
+    const fieldLabels = Array.from(printing.querySelectorAll('.form-field-label')).map(
+      (el) => el.textContent
+    );
+    expect(fieldLabels.indexOf('Rarity')).toBeLessThan(fieldLabels.indexOf('Set'));
   });
 
   it('merges Surplus, Proxy and Options under one "This copy" heading of switches', () => {
     render(<Harness />);
     openDialog();
-    expect(sectionLabels().filter((l) => l === 'This copy')).toHaveLength(1);
+    expect(groupHeadings().filter((l) => l === 'This copy')).toHaveLength(1);
 
     const thisCopy = screen.getByText('This copy').closest('section') as HTMLElement;
     expect(within(thisCopy).getAllByRole('switch')).toHaveLength(3);

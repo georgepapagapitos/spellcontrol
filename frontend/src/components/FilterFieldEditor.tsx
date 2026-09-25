@@ -17,7 +17,8 @@ import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { X } from 'lucide-react';
 import { InfoTip } from './InfoTip';
 import { useRuleFieldVisibility } from './RuleFieldContext';
-import { filterFieldSpec, type FilterFieldId } from '../lib/filter-fields';
+import { filterFieldSpec, type FilterFieldGroup, type FilterFieldId } from '../lib/filter-fields';
+import { Field } from './shared/form';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
@@ -173,10 +174,29 @@ export interface FilterFieldEditorProps {
    * Markup variant for the row wrappers:
    * - 'binder'  (default) — uses `rule-row` / `rule-label` classes from
    *   BinderEditor's modal (label inline at 180 px).
-   * - 'dialog'  — uses `collection-filters-section` /
-   *   `collection-filters-section-label` (label stacks above the control).
+   * - 'dialog'  — a plain `Field` row (shared/form kit): sentence-case label
+   *   stacked above the control. The dialog supplies its own ONE heading per
+   *   registry group (via `group` below); this variant never renders one.
    */
   variant?: 'binder' | 'dialog';
+  /**
+   * Dialog variant only: render just the rows belonging to this registry
+   * group (`lib/filter-fields.ts`), so the collection Filters dialog can
+   * call this once per group and interleave its own bespoke rows (color,
+   * rarity, set, price, CMC) into the same group in registry order, instead
+   * of re-deciding "Format is Value & play" as a second hand-kept fact.
+   * `scryfallQuery`'s real registry group is 'Advanced' — this dialog has no
+   * Advanced heading, so it counts as 'Text' here, next to the other
+   * free-text rows it's always sat beside. Omitted (binder variant): every
+   * row renders, in the order below, exactly as before.
+   */
+  group?: FilterFieldGroup;
+}
+
+/** `group` filter used by the dialog variant — see `FilterFieldEditorProps.group`. */
+function dialogGroupOf(id: FilterFieldId): FilterFieldGroup {
+  if (id === 'scryfallQuery') return 'Text';
+  return filterFieldSpec(id)!.group;
 }
 
 /**
@@ -232,7 +252,12 @@ export function BinderRow({
   );
 }
 
-/** Row wrapper for CollectionFiltersDialog variant (label stacks above). */
+/**
+ * Row wrapper for CollectionFiltersDialog variant — a plain `Field` (kit,
+ * board T139): sentence-case label above the control, no heading of its own.
+ * The dialog wraps each registry group's `FilterFieldEditor` call in the
+ * group's ONE `.form-section-heading`.
+ */
 function DialogRow({
   label,
   children,
@@ -241,12 +266,7 @@ function DialogRow({
   fieldId?: FilterFieldId;
   children: ReactNode;
 }) {
-  return (
-    <section className="collection-filters-section">
-      <div className="collection-filters-section-label">{label}</div>
-      {children}
-    </section>
-  );
+  return <Field label={label}>{children}</Field>;
 }
 
 /**
@@ -380,9 +400,13 @@ export function FilterFieldEditor({
   showBorder = true,
   showLayout = true,
   variant = 'binder',
+  group,
 }: FilterFieldEditorProps) {
   const isBinder = variant === 'binder';
   const Row = isBinder ? BinderRow : DialogRow;
+  // Binder calls never pass `group`, so this is always true there — the
+  // filter only does something for the dialog variant.
+  const inGroup = (id: FilterFieldId) => group === undefined || dialogGroupOf(id) === group;
 
   const tagsReady = useCardTagsReady(showOracleTags);
   const tagOptions = useMemo(
@@ -393,7 +417,7 @@ export function FilterFieldEditor({
   return (
     <>
       {/* Oracle text */}
-      {showOracleText && (
+      {showOracleText && inGroup('oracleChips') && (
         <Row label="Oracle text" fieldId="oracleChips">
           <ChipExpressionBuilder
             value={value.oracleChips ?? EMPTY_EXPR}
@@ -407,7 +431,7 @@ export function FilterFieldEditor({
 
       {/* Oracle tags (Scryfall otags) — precise semantic concepts that beat
           oracle-text substrings (e.g. "mana-rock" vs the word "add"). */}
-      {showOracleTags && (
+      {showOracleTags && inGroup('oracleTagChips') && (
         <Row
           label={
             <>
@@ -431,7 +455,7 @@ export function FilterFieldEditor({
       )}
 
       {/* Scryfall query — resolved to oracle ids against the live API. */}
-      {showScryfallQuery && (
+      {showScryfallQuery && inGroup('scryfallQuery') && (
         <Row
           label={
             <>
@@ -453,7 +477,7 @@ export function FilterFieldEditor({
       )}
 
       {/* Format/Legality */}
-      {showLegality && (
+      {showLegality && inGroup('legalities') && (
         <Row label="Format" fieldId="legalities">
           <ChipExpressionBuilder
             options={SHARED_FORMAT_OPTIONS}
@@ -466,7 +490,7 @@ export function FilterFieldEditor({
       )}
 
       {/* Layout */}
-      {showLayout && (
+      {showLayout && inGroup('layouts') && (
         <Row label="Layout" fieldId="layouts">
           <ChipExpressionBuilder
             options={SHARED_LAYOUT_OPTIONS}
@@ -480,7 +504,7 @@ export function FilterFieldEditor({
       )}
 
       {/* Treatment */}
-      {showTreatment && (
+      {showTreatment && inGroup('treatments') && (
         <Row label="Treatment" fieldId="treatments">
           <ChipExpressionBuilder
             options={SHARED_TREATMENT_OPTIONS}
@@ -493,7 +517,7 @@ export function FilterFieldEditor({
       )}
 
       {/* Border */}
-      {showBorder && (
+      {showBorder && inGroup('borderColors') && (
         <Row label="Border" fieldId="borderColors">
           <ChipExpressionBuilder
             options={SHARED_BORDER_OPTIONS}
@@ -507,7 +531,7 @@ export function FilterFieldEditor({
       )}
 
       {/* Finish — collection-page only (physical copy field) */}
-      {showFinish && (
+      {showFinish && inGroup('finishes') && (
         <Row label="Finish" fieldId="finishes">
           <ChipExpressionBuilder
             options={SHARED_FINISH_OPTIONS}
@@ -525,43 +549,49 @@ export function FilterFieldEditor({
       {showTypeRows && (
         <>
           {/* Supertype */}
-          <Row label="Supertype" fieldId="supertypeChips">
-            <ChipExpressionBuilder
-              options={SUPERTYPES.map((s) => ({
-                value: s,
-                label: s.charAt(0).toUpperCase() + s.slice(1),
-              }))}
-              value={value.supertypeChips ?? EMPTY_EXPR}
-              onChange={(next) => onPatch({ supertypeChips: next })}
-              defaultJoiner="OR"
-              placeholder="legendary, basic"
-            />
-          </Row>
+          {inGroup('supertypeChips') && (
+            <Row label="Supertype" fieldId="supertypeChips">
+              <ChipExpressionBuilder
+                options={SUPERTYPES.map((s) => ({
+                  value: s,
+                  label: s.charAt(0).toUpperCase() + s.slice(1),
+                }))}
+                value={value.supertypeChips ?? EMPTY_EXPR}
+                onChange={(next) => onPatch({ supertypeChips: next })}
+                defaultJoiner="OR"
+                placeholder="legendary, basic"
+              />
+            </Row>
+          )}
 
           {/* Type (exact primary type) */}
-          <Row label="Card type" fieldId="typeTokenChips">
-            <ChipExpressionBuilder
-              options={TYPES.map((t) => ({
-                value: t,
-                label: t.charAt(0).toUpperCase() + t.slice(1),
-              }))}
-              value={value.typeTokenChips ?? EMPTY_EXPR}
-              onChange={(next) => onPatch({ typeTokenChips: next })}
-              defaultJoiner="OR"
-              placeholder="creature, instant"
-            />
-          </Row>
+          {inGroup('typeTokenChips') && (
+            <Row label="Card type" fieldId="typeTokenChips">
+              <ChipExpressionBuilder
+                options={TYPES.map((t) => ({
+                  value: t,
+                  label: t.charAt(0).toUpperCase() + t.slice(1),
+                }))}
+                value={value.typeTokenChips ?? EMPTY_EXPR}
+                onChange={(next) => onPatch({ typeTokenChips: next })}
+                defaultJoiner="OR"
+                placeholder="creature, instant"
+              />
+            </Row>
+          )}
 
           {/* Subtype */}
-          <Row label="Subtype" fieldId="subtypeChips">
-            <ChipExpressionBuilder
-              value={value.subtypeChips ?? EMPTY_EXPR}
-              onChange={(next) => onPatch({ subtypeChips: next })}
-              suggestions={subtypeSuggestions}
-              defaultJoiner="OR"
-              placeholder="angel, equipment"
-            />
-          </Row>
+          {inGroup('subtypeChips') && (
+            <Row label="Subtype" fieldId="subtypeChips">
+              <ChipExpressionBuilder
+                value={value.subtypeChips ?? EMPTY_EXPR}
+                onChange={(next) => onPatch({ subtypeChips: next })}
+                suggestions={subtypeSuggestions}
+                defaultJoiner="OR"
+                placeholder="angel, equipment"
+              />
+            </Row>
+          )}
         </>
       )}
     </>

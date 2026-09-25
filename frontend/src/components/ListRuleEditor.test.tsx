@@ -1,16 +1,16 @@
 // @vitest-environment happy-dom
 /**
- * The dynamic-list rule sheet, on the editor-sheet pattern (board T139):
- * Escape now goes through the shared overlay stack instead of a bespoke
- * `document` listener with no topmost check — a nested popover's Escape used
- * to also close the whole sheet. Also covers the result footer (live count,
- * Save) surviving the move.
+ * The dynamic-list rule sheet, on the shared Modal / editor-sheet pattern
+ * (board T139) — Escape now goes through the overlay stack Modal already
+ * manages, instead of a bespoke `document` listener with no topmost check
+ * (a nested popover's Escape used to also close the whole sheet). Also
+ * covers the result footer (live count, Save) surviving the move.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { EnrichedCard, ListDef } from '../types';
 import { useCollectionStore } from '../store/collection';
-import { useOverlayLayer } from '../lib/overlay-layer';
+import { Modal } from './Modal';
 import { ListRuleEditor } from './ListRuleEditor';
 
 vi.mock('../lib/scryfall-catalog', () => ({
@@ -55,32 +55,14 @@ function makeList(overrides: Partial<ListDef> = {}): ListDef {
   };
 }
 
-/** Mounted on top of the sheet to occupy the topmost overlay-layer slot. */
-function NestedLayer() {
-  useOverlayLayer();
-  return null;
-}
-
 beforeEach(() => {
   useCollectionStore.setState({ cards: [], setListRule: vi.fn() });
-  // Desktop-width path in `dismiss()` closes immediately; force the phone
-  // path (`beginClose`) so every test exercises the same animated exit.
-  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  }));
 });
 
+/** Modal defers onClose until its exit animation ends — see Modal.test.tsx. */
 const dismissEnd = () => {
-  const sheet = document.querySelector('.list-rule-editor-sheet') as HTMLElement;
-  expect(sheet.className).toContain('is-closing');
-  fireEvent.animationEnd(sheet, { animationName: 'binder-sheet-slide-out' });
+  expect(document.querySelector('.modal-backdrop.is-closing')).not.toBeNull();
+  fireEvent.animationEnd(screen.getByRole('dialog'), { animationName: 'modal-panel-out' });
 };
 
 describe('ListRuleEditor', () => {
@@ -102,18 +84,32 @@ describe('ListRuleEditor', () => {
   it('leaves the sheet open on Escape while a nested layer is topmost', () => {
     const onClose = vi.fn();
     render(<ListRuleEditor list={makeList()} onClose={onClose} />);
-    const nested = render(<NestedLayer />);
+    // A real Modal stacked on top (e.g. a confirm dialog opened from a
+    // condition row) — same overlay stack Modal.tsx already arbitrates
+    // "stacked modals" with; this just proves ListRuleEditor delegates to
+    // it instead of reintroducing its own listener.
+    const nestedClose = vi.fn();
+    const nested = render(
+      <Modal onClose={nestedClose} label="Nested">
+        <button type="button">nested action</button>
+      </Modal>
+    );
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
-    expect(document.querySelector('.list-rule-editor-sheet')?.className).not.toContain(
-      'is-closing'
-    );
+    expect(nestedClose).not.toHaveBeenCalled();
+    expect(document.querySelector('.modal-backdrop.is-closing')).not.toBeNull();
 
-    // Once the nested layer is gone, this sheet is topmost again and the
-    // same Escape now reaches it.
+    // The nested layer took that Escape and is mid-exit — let it finish,
+    // then this sheet is topmost again and the next Escape reaches it.
+    fireEvent.animationEnd(screen.getByRole('dialog', { name: 'Nested' }), {
+      animationName: 'modal-panel-out',
+    });
+    expect(nestedClose).toHaveBeenCalledTimes(1);
     nested.unmount();
+
     fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled(); // exit animation in flight
     dismissEnd();
     expect(onClose).toHaveBeenCalledTimes(1);
   });

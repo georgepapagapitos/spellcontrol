@@ -1100,7 +1100,7 @@
 /* Inside a scrolling dialog body the absolute popover is clipped by the
    ancestor's `overflow-y: auto` — flow it inline instead, exactly as
    `.set-filter-results` below does. */
-.collection-filters-section .chip-suggest-list,
+.collection-filters-group .chip-suggest-list,
 .modal-body .chip-suggest-list {
   position: static;
   margin-top: 0.4rem;
@@ -1110,13 +1110,12 @@
 
 /* Same fix for the set picker's inline results. `SetFilterPicker` is now
    shared by the binder rule editor and the dynamic-list sheet (both scroll
-   inside `.modal-body` / `.add-card-sheet-body`) as well as the collection
-   Filters dialog — merged with FilterGroupEditor's old SetMultiSelect, which
-   had its own `.set-dropdown` and never needed this fix because binder rows
-   only ever clipped silently. */
-.collection-filters-section .set-filter-results,
-.modal-body .set-filter-results,
-.add-card-sheet-body .set-filter-results {
+   inside `.modal-body`, the dynamic-list sheet having moved onto the shared
+   Modal too) as well as the collection Filters dialog — merged with
+   FilterGroupEditor's old SetMultiSelect, which had its own `.set-dropdown`
+   and never needed this fix because binder rows only ever clipped silently. */
+.collection-filters-group .set-filter-results,
+.modal-body .set-filter-results {
   position: static;
   margin-top: 0.4rem;
   box-shadow: none;
