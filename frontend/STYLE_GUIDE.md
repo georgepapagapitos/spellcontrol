@@ -3634,11 +3634,32 @@ three times on one screen, so these rulings now hold:
   compare page names its sections itself, so `DeckCurvePhases` /
   `DeckTypeBreakdown` carry no heading anywhere.
 - **The Power hero states the verdict; the panels show the working.** The
-  Bracket panel does not repeat "Bracket N · Label" (the hero and the verdict
-  strip already do), and the 0–100 power-signal table + the floor-plus-signal
-  arithmetic sit behind one `<details>` whose `<summary>` keeps the
-  `.bracket-breakdown-heading` signature and shows the score while closed
-  (the collapsed-group-shows-its-value ruling above).
+  Bracket panel does not repeat "Bracket N · Label" (the hero already does).
+  The stated-vs-estimate `BracketVerdictStrip` renders only when a bracket is
+  stated: on Auto the headline IS the estimate, and the strip read "Bracket
+  Auto · Estimate B4 · Auto · No bracket set" (2026-09-25, E415).
+- **The Bracket panel shows its evidence, sized to fit (2026-09-25, E415).**
+  - Hard floors are hairline rows, `tag | body`: "Bracket 4" in a narrow
+    serif-caps column, then the reason, its detail, and the cards that set
+    it as art tiles (the deck copy's `art_crop` through `scryfallArtCrop`,
+    name under it, the whole tile the preview button, a plain plate when no
+    art is on hand). Never a bordered table or an accent-barred box for what
+    is usually one reason. Under a 26rem container the tag stacks over the
+    body.
+  - The power signal is a `MeterBar` on its real 0–100 scale with the next
+    threshold the estimator can cross as the tick (66 for the bump under
+    floor 4, 80 for cEDH), the ends and the tick's number printed under it,
+    and one sentence under that: how many points to the line and which
+    bracket it lands on, or why no points get there (cEDH needs the Game
+    Changers). No tick when no threshold is left. A bare "51/100" never said
+    what 51 meant.
+  - The component table and the floor-plus-signal arithmetic sit behind one
+    `<details>` titled "How the points add up", with a turning chevron. The
+    score is already stated above it, so the summary doesn't repeat it.
+- **The Combos panel opens on the tab with something in it (2026-09-25).**
+  The tab is derived: the owner's pick once they tap one, else "One card
+  away" when nothing in the 99 is complete and something is one away, else
+  "In deck". An empty "In deck" that the owner picked points at the next tab.
 - **A role has one number on the page (2026-09-24).** The role chips above
   the list, the Power tab's Roles panel, the deck checks, the Coach and Next
   best move all read one live count: the mainboard, each card once under its

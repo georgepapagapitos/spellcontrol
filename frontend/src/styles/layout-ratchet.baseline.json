@@ -11,7 +11,7 @@
     "components/deck/AiSourcesControl.css": 4,
     "components/deck/AppendDeckDialog.css": 3,
     "components/deck/BinderRanking.css": 4,
-    "components/deck/BracketBreakdown.css": 24,
+    "components/deck/BracketBreakdown.css": 22,
     "components/deck/BracketVerdictStrip.css": 2,
     "components/deck/BuildReportPanel.css": 26,
     "components/deck/BulkEditDeckDialog.css": 5,

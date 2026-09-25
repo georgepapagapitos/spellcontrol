@@ -1,5 +1,6 @@
 import './BracketBreakdown.css';
 import type { JSX, ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { InfoTip } from '../InfoTip';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import {
@@ -12,6 +13,8 @@ import { formatBracketLabel } from '@/lib/format-bracket-label';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
 import { MeterBar } from '../shared/MeterBar';
+import { imageFromCard } from '@/lib/card-thumbs';
+import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 
 /** Actual deck `ScryfallCard`s by name. Passed so the card preview shows the
  *  printing in the deck instead of re-fetching the default printing by name. */
@@ -94,6 +97,62 @@ function CardChips({ names, deckCardsByName }: { names: string[]; deckCardsByNam
             </button>
           </li>
         ))}
+      </ul>
+      {carousel.preview}
+    </>
+  );
+}
+
+/** A card's art crop from the deck's own copy, front face first. The swap
+ *  mends an offline copy, whose "art_crop" is the full card (deck hero rule). */
+function artCropOf(card: ScryfallCard | undefined): string | undefined {
+  const art = card && imageFromCard(card, 'art_crop');
+  return art && scryfallArtCrop(art);
+}
+
+/**
+ * The cards that set a floor, shown as their art: a floor is a claim about
+ * specific cards, and "4 Game Changers" reads faster as four pictures than as
+ * four outlined names. A card with no art on hand falls back to its name.
+ * Tapping one previews it, the same carousel the name chips open.
+ */
+function CardArtTiles({
+  names,
+  deckCardsByName,
+}: {
+  names: string[];
+  deckCardsByName?: DeckCardMap;
+}) {
+  const carousel = useCardCarousel('Bracket cards');
+  if (names.length === 0) return null;
+  const entries = names.map((name) => ({
+    name,
+    label: 'Contributing card',
+    card: deckCardsByName?.get(name),
+  }));
+  return (
+    <>
+      <ul className="bracket-breakdown-art">
+        {names.map((name) => {
+          const art = artCropOf(deckCardsByName?.get(name));
+          return (
+            <li key={name}>
+              <button
+                type="button"
+                className="bracket-breakdown-art-btn"
+                onClick={() => void carousel.open(entries, name)}
+                aria-label={`Preview ${name}`}
+              >
+                {art ? (
+                  <img className="bracket-breakdown-art-img" src={art} alt="" loading="lazy" />
+                ) : (
+                  <span className="bracket-breakdown-art-img bracket-breakdown-art-img--none" />
+                )}
+                <span className="bracket-breakdown-art-name">{name}</span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
       {carousel.preview}
     </>
@@ -231,42 +290,28 @@ export function BracketBreakdown({
               : `No hard floors, so the deck starts at ${formatBracketLabel(floor)}.`}
           </p>
         ) : (
-          <div className="deck-bracket-table" role="table" aria-label="Hard floors">
-            <div className="deck-bracket-row deck-bracket-head" role="row">
-              <span className="deck-bracket-cell deck-bracket-col-head" role="columnheader">
-                Floor
-              </span>
-              <span className="deck-bracket-cell deck-bracket-col-head" role="columnheader">
-                Reason
-              </span>
-            </div>
+          // One row per floor: the bracket it sets, why, and the cards that
+          // set it, as their art. It was a two-column table inside a bordered
+          // box inside the panel, for what is usually one reason.
+          <ul className="bracket-breakdown-floors" aria-label="Hard floors">
             {sortedFloors.map((f, i) => {
               const chips = floorChips(f.reason, breakdown);
               const comboNote = comboFloorNote(f.reason, breakdown);
               return (
-                <div
-                  key={`${f.bracket}-${f.reason}-${i}`}
-                  className="deck-bracket-row deck-bracket-floor-row"
-                  role="row"
-                >
-                  <span
-                    className="deck-bracket-cell deck-bracket-cell-floor bracket-breakdown-floor-tag"
-                    role="cell"
-                  >
-                    Floor: Bracket {f.bracket}
-                  </span>
-                  <div className="deck-bracket-cell deck-bracket-cell-reason" role="cell">
+                <li key={`${f.bracket}-${f.reason}-${i}`} className="bracket-breakdown-floor">
+                  <span className="bracket-breakdown-floor-tag">Bracket {f.bracket}</span>
+                  <div className="bracket-breakdown-floor-body">
                     <span className="bracket-breakdown-floor-reason">{f.reason}</span>
                     {f.detail && <span className="bracket-breakdown-floor-detail">{f.detail}</span>}
                     {comboNote && (
                       <span className="bracket-breakdown-floor-detail">{comboNote}</span>
                     )}
-                    <CardChips names={chips} deckCardsByName={deckCardsByName} />
+                    <CardArtTiles names={chips} deckCardsByName={deckCardsByName} />
                   </div>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
         {loops.length > 0 ? (
           <div className="bracket-breakdown-loops">
@@ -296,16 +341,52 @@ export function BracketBreakdown({
         )}
       </div>
 
-      {/* ── 2 + 3. Power signal + calculation ── the 0–100 tuning components
-          and the arithmetic that turns floor + signal into the bracket. Behind
-          a disclosure: the verdict sentence ("because: …") up in the Power
-          hero is the conclusion; this is the working, for anyone who wants to
-          see how the number adds up. The summary carries the score so a closed
-          disclosure still states the one figure that matters. */}
+      {/* ── 2. Power signal ── the score on its 0–100 scale with the line it
+          would have to reach to move the bracket ticked, so "how close is it"
+          reads at a glance. The bare "51/100" never said what 51 meant. */}
+      <div className="bracket-breakdown-section bracket-breakdown-signal">
+        <div className="bracket-breakdown-signal-head">
+          <h4 className="bracket-breakdown-heading">Power signal</h4>
+          <span className="bracket-breakdown-summary-score">{softScore}/100</span>
+        </div>
+        <MeterBar
+          className="bracket-breakdown-signal-meter"
+          value={softScore}
+          max={100}
+          tick={nextThreshold?.at}
+        />
+        {/* The scale's ends, and the tick's number under the tick, so the
+            notch reads as a line on a 0–100 scale, not a stray mark. */}
+        <div className="bracket-breakdown-signal-scale" aria-hidden>
+          <span>0</span>
+          {nextThreshold && (
+            <span className="bracket-breakdown-signal-at" style={{ left: `${nextThreshold.at}%` }}>
+              {nextThreshold.at}
+            </span>
+          )}
+          <span>100</span>
+        </div>
+        {nextThreshold && (
+          <p className="bracket-breakdown-summary-note bracket-breakdown-distance">
+            <strong>{nextThreshold.need}</strong> more power{' '}
+            {nextThreshold.need === 1 ? 'point' : 'points'} ({softScore} → {nextThreshold.at}) would
+            move this to <span className="bracket-breakdown-target">{nextThreshold.target}</span>.
+          </p>
+        )}
+        {cedhNeedsGameChangers && (
+          <p className="bracket-breakdown-summary-note bracket-breakdown-distance">
+            {bracketLabel(5)} also needs at least {CEDH_MIN_GAME_CHANGERS} Game Changers; this deck
+            runs {breakdown.gameChangerCount}.
+          </p>
+        )}
+      </div>
+      {/* ── 3. The working ── the 0–100 tuning components and the arithmetic
+          that turns floor + signal into the bracket, behind a disclosure: the
+          scale above states the figure, this shows how it adds up. */}
       <details className="bracket-breakdown-section bracket-breakdown-details">
         <summary className="bracket-breakdown-heading bracket-breakdown-summary-toggle">
-          <span>Power signal</span>
-          <span className="bracket-breakdown-summary-score">{softScore}/100</span>
+          <span>How the points add up</span>
+          <ChevronDown width={14} height={14} aria-hidden />
         </summary>
         <p className="bracket-breakdown-signal-lede">
           Fast mana, tutors, a low curve, interaction and combo engines each add points.
@@ -399,19 +480,6 @@ export function BracketBreakdown({
             <p className="bracket-breakdown-summary-note">
               Power signal ≥ {ELEVATE_BUMP_THRESHOLD} bumped the floor from Bracket {floor} up to
               Bracket {bracket}.
-            </p>
-          )}
-          {cedhNeedsGameChangers && (
-            <p className="bracket-breakdown-summary-note bracket-breakdown-distance">
-              {bracketLabel(5)} also needs at least {CEDH_MIN_GAME_CHANGERS} Game Changers; this
-              deck runs {breakdown.gameChangerCount}.
-            </p>
-          )}
-          {nextThreshold && (
-            <p className="bracket-breakdown-summary-note bracket-breakdown-distance">
-              <strong>{nextThreshold.need}</strong> more power{' '}
-              {nextThreshold.need === 1 ? 'point' : 'points'} ({softScore} → {nextThreshold.at})
-              would move this to {nextThreshold.target}.
             </p>
           )}
         </div>

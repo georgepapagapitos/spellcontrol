@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import type { ScryfallCard } from '@/deck-builder/types';
 import { BracketBreakdown } from './BracketBreakdown';
 
 function makeEstimation(overrides: Partial<BracketEstimation> = {}): BracketEstimation {
@@ -48,22 +49,59 @@ function makeEstimation(overrides: Partial<BracketEstimation> = {}): BracketEsti
 }
 
 describe('BracketBreakdown', () => {
-  it('renders two labeled tables: hard floors and power signal (UX-315)', () => {
+  it('lists the hard floors as rows and keeps the power-signal working as a table', () => {
     render(<BracketBreakdown estimation={makeEstimation()} />);
 
-    // Section headers (UX-315: "Soft score" → "Power signal")
     expect(screen.getByText('Hard floors')).toBeTruthy();
     expect(screen.getByText('Power signal')).toBeTruthy();
 
-    // The two tables are present and labeled.
-    expect(screen.getByRole('table', { name: 'Hard floors' })).toBeTruthy();
-    expect(screen.getByRole('table', { name: 'Power signal' })).toBeTruthy();
+    // Hard floors are a list of rows, one per floor, not a two-column table.
+    const floors = screen.getByRole('list', { name: 'Hard floors' });
+    expect(floors.querySelectorAll(':scope > li')).toHaveLength(3);
+    expect(screen.queryByRole('table', { name: 'Hard floors' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Floor' })).toBeNull();
 
-    // Column headers — Floor/Reason for hard floors, Signal/Detail for power signal.
-    expect(screen.getByRole('columnheader', { name: 'Floor' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Reason' })).toBeTruthy();
+    // The working behind the score is still a labeled table.
+    expect(screen.getByRole('table', { name: 'Power signal' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Signal' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Detail' })).toBeTruthy();
+  });
+
+  it('shows the power signal on its 0 to 100 scale with the next threshold ticked', () => {
+    const { container } = render(
+      <BracketBreakdown
+        estimation={makeEstimation({
+          bracket: 3,
+          label: 'Upgraded',
+          softScore: 51,
+          hardFloors: [{ bracket: 3, reason: '2 Game Changer cards' }],
+        })}
+      />
+    );
+    const meter = container.querySelector('.bracket-breakdown-signal-meter');
+    expect(meter).toBeTruthy();
+    expect((meter?.querySelector('.meterbar-fill') as HTMLElement).style.width).toBe('51%');
+    expect((meter?.querySelector('.meterbar-tick') as HTMLElement).style.left).toBe('66%');
+  });
+
+  it('draws the cards that set a floor as their art, falling back to the name', () => {
+    const card = (name: string, art?: string) =>
+      ({ name, image_uris: art ? { art_crop: art } : undefined }) as unknown as ScryfallCard;
+    const deckCardsByName = new Map([
+      ['Cyclonic Rift', card('Cyclonic Rift', 'https://cards.scryfall.io/art_crop/rift.jpg')],
+      ['Smothering Tithe', card('Smothering Tithe')],
+    ]);
+    const { container } = render(
+      <BracketBreakdown estimation={makeEstimation()} deckCardsByName={deckCardsByName} />
+    );
+    const rift = screen.getByRole('button', { name: 'Preview Cyclonic Rift' });
+    expect(rift.querySelector('img')?.getAttribute('src')).toBe(
+      'https://cards.scryfall.io/art_crop/rift.jpg'
+    );
+    const tithe = screen.getByRole('button', { name: 'Preview Smothering Tithe' });
+    expect(tithe.querySelector('img')).toBeNull();
+    expect(tithe.querySelector('.bracket-breakdown-art-img--none')).toBeTruthy();
+    expect(container.querySelectorAll('.bracket-breakdown-art-name')).not.toHaveLength(0);
   });
 
   it('renders a soft-score total row', () => {
@@ -83,8 +121,8 @@ describe('BracketBreakdown', () => {
     expect(screen.getByText('1 late-game combo')).toBeTruthy();
 
     // Floor tags
-    expect(screen.getAllByText(/Floor: Bracket 3/).length).toBeGreaterThan(0);
-    expect(screen.getByText('Floor: Bracket 4')).toBeTruthy();
+    expect(screen.getAllByText('Bracket 3').length).toBeGreaterThan(0);
+    expect(screen.getByText('Bracket 4')).toBeTruthy();
 
     // Contributing card chips for game-changer + land-denial floors
     expect(screen.getByText('Cyclonic Rift')).toBeTruthy();

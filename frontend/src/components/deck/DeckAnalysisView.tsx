@@ -8,7 +8,6 @@ import type { ComboMatch } from '@/types/combos';
 import type { LaneId } from '@/lib/deck-change';
 import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
 import {
-  bracketReasons,
   bracketSource,
   type BracketEstimation,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
@@ -323,11 +322,18 @@ export function DeckAnalysisView({
                       {illegalCardNames.length === 1 ? 'it is' : 'they are'} cut.
                     </p>
                   )}
-                  <BracketVerdictStrip
-                    bracket={bracketOverride}
-                    estimate={bracketEstimation?.bracket}
-                    estimateIsFloor={bracketMissesCombos}
-                  />
+                  {/* The stated-vs-estimate strip only when there is a stated
+                      bracket to compare. On Auto the Power hero's headline IS
+                      the estimate (§ Bracket: the owner's word), and the strip
+                      read "Bracket Auto · Estimate B4 · Auto · No bracket set",
+                      saying "Auto" twice to state one number again. */}
+                  {bracketOverride != null && (
+                    <BracketVerdictStrip
+                      bracket={bracketOverride}
+                      estimate={bracketEstimation?.bracket}
+                      estimateIsFloor={bracketMissesCombos}
+                    />
+                  )}
                   {/* One sentence naming where the ESTIMATE comes from (a hard
                       floor, the power signal, or neither), whether or not the
                       owner has stated a bracket above it. */}
@@ -339,15 +345,6 @@ export function DeckAnalysisView({
                       {bracketSourceSentence(bracketSource(bracketEstimation))}
                     </p>
                   )}
-                  {/* The source sentence above is general; keep the top
-                      hard-floor reason as more specific context on Auto. */}
-                  {!bracketOverridden &&
-                    bracketEstimation &&
-                    bracketEstimation.hardFloors.length > 0 && (
-                      <span className="deck-stats-bracket-note">
-                        {bracketReasons(bracketEstimation)[0]}
-                      </span>
-                    )}
                   {/* UX-313: the bracket control moved to the PowerHero above
                       (the "Bracket: N ▾" SelectMenu). Keeping just a small note
                       here when a stated bracket is active so the Bracket panel
@@ -560,7 +557,15 @@ function RolesPanel({
                   )}
                 </span>
               </div>
-              <MeterBar className="deck-roles-bar" value={it.value} max={max} color={it.color} />
+              {/* The want is a tick on the bar, so have-vs-want reads as one
+                  mark against a line rather than two numbers to compare. */}
+              <MeterBar
+                className="deck-roles-bar"
+                value={it.value}
+                max={max}
+                color={it.color}
+                tick={hasTarget ? (it.want as number) : undefined}
+              />
               {it.sub && <div className="deck-roles-sub">{it.sub}</div>}
             </li>
           );
