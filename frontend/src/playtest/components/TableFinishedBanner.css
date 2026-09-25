@@ -5,7 +5,10 @@
 
 .playtest-finished-banner {
   position: fixed;
-  top: max(var(--space-6), var(--safe-top));
+  /* The hold banner's dock, under the seat headers: at the very top it sat
+     over an opponent's life total, which is part of the final board a
+     player stays to read. */
+  top: calc(var(--safe-top) + 3.25rem);
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-overlay);

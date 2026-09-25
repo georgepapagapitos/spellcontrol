@@ -196,3 +196,39 @@ describe('ZonePile — lifting the top card', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * A card exiled face down lies face down on the table. The pile showed its
+ * art anyway, with nothing to say it was hidden (found in the E361 phone
+ * sweep, 2026-09-24). Its owner can still look, in the viewer.
+ */
+describe('ZonePile — a card exiled face down', () => {
+  const exiled = [
+    { id: 'x1', name: 'Seen', imageUrl: 'https://img/seen.jpg' },
+    { id: 'x2', name: 'Hidden', imageUrl: 'https://img/hidden.jpg' },
+  ];
+  const renderExile = (hiddenIds?: ReadonlySet<string>) =>
+    render(
+      <DndContext>
+        <ZonePile
+          zone="exile"
+          label="Exile"
+          cards={exiled}
+          hiddenIds={hiddenIds}
+          click={{ label: 'View exile', onClick: vi.fn() }}
+          onMenu={vi.fn()}
+        />
+      </DndContext>
+    );
+
+  it('shows the card back when the top card is face down', () => {
+    const { container } = renderExile(new Set(['x2']));
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('.playtest-pile__back--card')).toBeTruthy();
+  });
+
+  it('shows the art when the top card is face up, even if one under it is not', () => {
+    const { container } = renderExile(new Set(['x1']));
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('https://img/hidden.jpg');
+  });
+});

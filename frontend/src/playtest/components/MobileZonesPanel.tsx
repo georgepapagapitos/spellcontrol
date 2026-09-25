@@ -11,6 +11,8 @@ interface Props {
    *  a commander is on the battlefield too, which is when the tax matters. */
   taxCards: PlaytestCard[];
   onAdjustTax(cardId: string, delta: 1 | -1): void;
+  /** Cards exiled face down: one on top shows the card back, as ZonePile does. */
+  hiddenIds?: ReadonlySet<string>;
   onOpenZone(zone: Zone): void;
   /**
    * Open this zone's menu. The same list of items the table tier's pile
@@ -34,6 +36,7 @@ export function MobileZonesPanel({
   commanderTax,
   taxCards,
   onAdjustTax,
+  hiddenIds,
   onOpenZone,
   onMenu,
 }: Props) {
@@ -104,7 +107,10 @@ export function MobileZonesPanel({
                 >
                   {e.cards.length === 0 ? (
                     <span className="playtest-zone-tile__empty">No cards</span>
-                  ) : e.peek === 'top' && top?.imageUrl && top.id !== erroredIds[e.key] ? (
+                  ) : e.peek === 'top' &&
+                    top?.imageUrl &&
+                    top.id !== erroredIds[e.key] &&
+                    !hiddenIds?.has(top.id) ? (
                     <img
                       src={top.imageUrl}
                       alt={top.name}

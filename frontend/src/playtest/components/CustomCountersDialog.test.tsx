@@ -31,6 +31,14 @@ describe('CustomCountersDialog', () => {
     expect((screen.getByLabelText('custom count') as HTMLInputElement).value).toBe('1');
   });
 
+  // A picker: a bottom sheet on phones that grows only as tall as its
+  // content (STYLE_GUIDE, Pattern B). As a plain dialog it filled a phone's
+  // height with empty space (the E361 phone sweep, 2026-09-24).
+  it('presents as the phone sheet, not a full-height dialog', () => {
+    open();
+    expect(screen.getByRole('dialog').closest('.modal-backdrop--sheet')).toBeTruthy();
+  });
+
   it('says so when the card has none', () => {
     open();
     expect(screen.getByText('No counters yet.')).toBeTruthy();

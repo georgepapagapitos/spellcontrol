@@ -164,3 +164,23 @@ describe('MobileZonesPanel — commander tax coins', () => {
     expect(document.querySelectorAll('.playtest-tax-coin')).toHaveLength(0);
   });
 });
+
+describe('MobileZonesPanel — a card exiled face down', () => {
+  it('shows the card back on the exile tile, not the art', () => {
+    renderPanel({
+      zones: { ...ZONES, exile: [{ id: 'fd', name: 'Hidden', imageUrl: 'https://img/h.jpg' }] },
+      hiddenIds: new Set(['fd']),
+    });
+    openDrawer();
+    expect(document.querySelector('img[src="https://img/h.jpg"]')).toBeNull();
+  });
+
+  it('still shows the art of a face-up top card', () => {
+    renderPanel({
+      zones: { ...ZONES, exile: [{ id: 'up', name: 'Seen', imageUrl: 'https://img/s.jpg' }] },
+      hiddenIds: new Set(),
+    });
+    openDrawer();
+    expect(document.querySelector('img[src="https://img/s.jpg"]')).toBeTruthy();
+  });
+});

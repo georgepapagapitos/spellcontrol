@@ -81,6 +81,14 @@ describe('HoldButton', () => {
     expect(container.innerHTML).toBe('');
   });
 
+  // Once the table is finished there is nothing left to wait for, and the
+  // button sat beside the finished banner asking the table to hold anyway.
+  it('renders nothing once the table is finished', () => {
+    usePlayStore.setState({ online: { ...onlineGame(), status: 'finished' } });
+    const { container } = render(<HoldButton />);
+    expect(container.innerHTML).toBe('');
+  });
+
   it('raises a hold with kind "hold" and an empty summary, then flips to release', async () => {
     const raised = holdRequest();
     usePlayStore.setState({ raiseGameRequest: vi.fn().mockResolvedValue(raised) });
