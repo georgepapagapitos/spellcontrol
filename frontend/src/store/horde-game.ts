@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeLocalStorage } from '@/lib/safe-local-storage';
 import {
   applyAction,
   createPlaytestState,
@@ -546,7 +547,7 @@ export const useHordeGameStore = create<HordeStore>()(
     {
       name: 'spellcontrol-horde-game',
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         // An interrupted load (reload mid-fetch) leaves no game to resume —
@@ -554,9 +555,16 @@ export const useHordeGameStore = create<HordeStore>()(
         if (state.status === 'loading' && !state.config) {
           state.status = 'idle';
         }
+        // A game saved before undo stopped being persisted still carries its
+        // stack; drop it so a resumed game behaves like any other reload.
+        state.past = [];
       },
-      // `past` (undo) and `pendingStart` (retry-only) are worth keeping across
-      // a reload too — a mid-game refresh should resume exactly where it was.
+      // `pendingStart` (retry-only) is kept across a reload so a mid-game
+      // refresh resumes exactly where it was. `past` (undo) is NOT: each entry
+      // is a full copy of the board, every card with its image URL, so 30 of
+      // them passed localStorage's ~5M-character quota after a 14-turn game
+      // and every later write threw. Undo not surviving a reload is the same
+      // trade the playtest board's own session snapshot makes.
       partialize: (s) => ({
         config: s.config,
         boardVisible: s.boardVisible,
@@ -580,7 +588,6 @@ export const useHordeGameStore = create<HordeStore>()(
         startedAt: s.startedAt,
         cardsMilledByDamage: s.cardsMilledByDamage,
         damageTaken: s.damageTaken,
-        past: s.past,
         finished: s.finished,
       }),
     }
