@@ -93,6 +93,7 @@ import {
 } from './OpponentQuadrant';
 import { OpponentBoardModal } from './OpponentBoardModal';
 import { TableMoments } from './TableMoments';
+import { TableFinishedBanner } from './TableFinishedBanner';
 import { TriggerReminder, type TriggerCard } from './TriggerReminder';
 import { matchTriggers } from '../lib/triggers';
 import { TableTicker, TableTickerDock, tickerSeatName } from './TableTicker';
@@ -2638,6 +2639,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           here only decides conditional gating, not layout. */}
       {onlineTable && <TakebackConsentPrompt onlineTable={onlineTable} />}
       {onlineTable && <TableMoments onlineTable={onlineTable} />}
+      {onlineTable && <TableFinishedBanner />}
       <TriggerReminder
         cards={triggerCards}
         beat={onlineTable?.phase ?? null}
