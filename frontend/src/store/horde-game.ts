@@ -1,17 +1,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { safeLocalStorage } from '@/lib/safe-local-storage';
-import {
-  applyAction,
-  createPlaytestState,
-  type PlaytestCard,
-  type PlaytestState,
-} from '@/lib/playtest';
-import { autoPlace, type Rect } from '@/playtest/lib/auto-place';
+import { applyAction, type PlaytestCard, type PlaytestState } from '@/lib/playtest';
+import { type Rect } from '@/playtest/lib/auto-place';
 import {
   attackSummary,
-  bossesCrossed,
+  bossTickPhrase,
   buildHordeLibrary,
+  createHordeBoard,
+  dealDueBosses,
   hordeOutcome,
   hordeTurnActions,
   loadHordeDeck,
@@ -27,6 +24,7 @@ import {
   type HordeSettings,
 } from '@/lib/horde';
 import { genId } from '@/lib/id';
+import { toast } from '@/store/toasts';
 import {
   createGameState,
   gameToRecord,
@@ -330,7 +328,7 @@ export const useHordeGameStore = create<HordeStore>()(
           const settings = resolveHordeSettings(level, survivors.length, overrides);
           const startSeed = Math.floor(Math.random() * 0xffffffff) >>> 0;
           const { library, bosses, seed } = buildHordeLibrary(def, settings, startSeed);
-          const board = createPlaytestState({ library, command: bosses, seed, openingHandSize: 0 });
+          const board = createHordeBoard(library, bosses, seed);
           set({
             ...initialData(),
             status: 'idle',
@@ -420,12 +418,24 @@ export const useHordeGameStore = create<HordeStore>()(
 
       confirmReveal() {
         const s = get();
-        if (!s.board || !s.pendingReveal || s.phase !== 'reveal') return;
+        if (!s.board || !s.config || !s.pendingReveal || s.phase !== 'reveal') return;
         const past = [...s.past, captureData(s)].slice(-MAX_HORDE_UNDO);
         let board = s.board;
         for (const action of s.pendingReveal.toBattlefield) board = applyAction(board, action);
         for (const action of resolveActions(s.pendingReveal.toResolve))
           board = applyAction(board, action);
+
+        // The reveal itself can shrink the library past a boss tick, not just
+        // damage — deal any boss that's due before combat is figured, so it
+        // both attacks this turn and shows up in the meter (E436).
+        const dealt = dealDueBosses(
+          board,
+          s.librarySizeAtStart,
+          s.config.settings.bossTicks,
+          s.bossTicksCrossed
+        );
+        board = dealt.board;
+
         const outcome = hordeOutcome(board, s.survivorsLife);
         const attackingIds = outcome ? [] : creatureIds(board);
         const pendingAttack = outcome ? null : attackSummary(board.battlefield);
@@ -436,8 +446,15 @@ export const useHordeGameStore = create<HordeStore>()(
           pendingReveal: null,
           attackingIds,
           pendingAttack,
+          bossTicksCrossed: dealt.crossed,
+          bossesRemaining: Math.max(0, s.bossesRemaining - dealt.bossesEntered.length),
           outcome,
         });
+        for (const boss of dealt.bossesEntered) {
+          toast.show({
+            message: `${bossTickPhrase(boss.tick)} ${boss.name} joins the battlefield.`,
+          });
+        }
         if (outcome) {
           const record = recordFinished(get(), outcome);
           if (record) set({ finished: [record, ...get().finished].slice(0, 20) });
@@ -478,31 +495,28 @@ export const useHordeGameStore = create<HordeStore>()(
         const movedCount = before - after;
         const milled = board.zones.graveyard.slice(board.zones.graveyard.length - movedCount);
 
-        const crossed = bossesCrossed(
+        const dealt = dealDueBosses(
+          board,
           s.librarySizeAtStart,
-          before,
-          after,
-          s.config.settings.bossTicks
-        ).filter((i) => !s.bossTicksCrossed.includes(i));
-        const bossesEntered: HordeBossArrival[] = [];
-        let bossesRemaining = s.bossesRemaining;
-        for (const tickIndex of crossed) {
-          const boss = board.zones.command[0];
-          if (!boss) continue;
-          const { x, y } = autoPlace(boss, board.battlefield);
-          board = applyAction(board, { type: 'MOVE_TO_BATTLEFIELD', cardId: boss.id, x, y });
-          bossesEntered.push({ name: boss.name, tick: s.config.settings.bossTicks[tickIndex] });
-          bossesRemaining = Math.max(0, bossesRemaining - 1);
-        }
+          s.config.settings.bossTicks,
+          s.bossTicksCrossed
+        );
+        board = dealt.board;
 
         const outcome = hordeOutcome(board, s.survivorsLife);
         set({
           past,
           board,
           cardsMilledByDamage: s.cardsMilledByDamage + milled.length,
-          bossTicksCrossed: [...s.bossTicksCrossed, ...crossed],
-          bossesRemaining,
-          lastDamageResult: { amount: clamped, before, after, milled, bossesEntered },
+          bossTicksCrossed: dealt.crossed,
+          bossesRemaining: Math.max(0, s.bossesRemaining - dealt.bossesEntered.length),
+          lastDamageResult: {
+            amount: clamped,
+            before,
+            after,
+            milled,
+            bossesEntered: dealt.bossesEntered,
+          },
           outcome,
           phase: outcome ? 'ended' : s.phase,
         });

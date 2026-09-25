@@ -4,6 +4,7 @@ import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { usePressRepeat } from '@/lib/use-press-repeat';
 import { PlaytestCardFace } from '@/playtest/components/PlaytestCardFace';
+import { bossTickPhrase } from '@/lib/horde';
 import type { HordeDamageResult } from '@/store/horde-game';
 import './horde-sheets.css';
 
@@ -15,18 +16,6 @@ interface Props {
   onConfirm(amount: number): void;
   onDone(): void;
   onClose(): void;
-}
-
-/** The banner's opening clause, derived from the crossed `bossTicks`
- *  fraction rather than hard-coded to "Half" — Casual/Standard/Brutal (and
- *  any Customise override) can cross a quarter, three quarters, or the
- *  library emptying outright. */
-function bossTickPhrase(tick: number): string {
-  if (tick >= 1) return "The horde's library is empty.";
-  if (tick === 0.75) return 'Three quarters of the horde is gone.';
-  if (tick === 0.5) return 'Half the horde is gone.';
-  if (tick === 0.25) return 'A quarter of the horde is gone.';
-  return `${Math.round(tick * 100)}% of the horde is gone.`;
 }
 
 /** '' reads as 0 (the field mid-clear, between a select-all and a fresh

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { useHordeGameStore, type HordeSurvivor } from './horde-game';
-import { resolveHordeSettings } from '@/lib/horde';
+import { buildHordeLibrary, loadHordeDeck, resolveHordeSettings } from '@/lib/horde';
 import { usePlayStore } from '@/store/play';
 
 const SURVIVORS: HordeSurvivor[] = [
@@ -59,6 +59,22 @@ describe('startHorde', () => {
     expect(s.hordeTurn).toBe(0);
     expect(s.board?.zones.hand).toEqual([]);
     expect(s.past).toEqual([]);
+  });
+
+  it('keeps the library in its dealt order at start, not a fresh shuffle (E432)', async () => {
+    const fixedRandom = 0.42;
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(fixedRandom);
+    try {
+      await start();
+    } finally {
+      randomSpy.mockRestore();
+    }
+    const s = useHordeGameStore.getState();
+    const settings = resolveHordeSettings('standard', 2);
+    const def = await loadHordeDeck('zombies');
+    const startSeed = Math.floor(fixedRandom * 0xffffffff) >>> 0;
+    const expected = buildHordeLibrary(def, settings, startSeed);
+    expect(s.board!.zones.library.map((c) => c.id)).toEqual(expected.library.map((c) => c.id));
   });
 
   it('reports a load failure and lets a retry recover', async () => {
@@ -156,6 +172,32 @@ describe('a horde turn', () => {
     expect(s.pendingAttack).toBeNull();
     expect(s.attackingIds).toEqual([]);
     expect(['live', 'ended']).toContain(s.phase);
+  });
+});
+
+describe("a boss dealt by the horde's own reveal (E436)", () => {
+  it('deals the boss on confirm when a reveal alone crosses the tick, not just damage', async () => {
+    await start({
+      setupTurns: 0,
+      librarySize: 10,
+      bossTicks: [0.5],
+      reveal: { kind: 'fixed', count: 6 },
+    });
+    useHordeGameStore.getState().startHordeTurn();
+    expect(useHordeGameStore.getState().pendingReveal!.revealed.length).toBe(6);
+    useHordeGameStore.getState().confirmReveal();
+    const s = useHordeGameStore.getState();
+    expect(s.bossTicksCrossed).toEqual([0]);
+    const bossOnBoard = s.board!.battlefield.filter((b) => b.card.id.startsWith('horde-boss-'));
+    expect(bossOnBoard).toHaveLength(1);
+    // The arriving boss is inside this same turn's attack, not skipped.
+    if (s.phase === 'combat') {
+      expect(s.attackingIds).toContain(bossOnBoard[0]!.card.id);
+    }
+
+    // Damaging further never re-deals the same tick.
+    useHordeGameStore.getState().damageHorde(1);
+    expect(useHordeGameStore.getState().bossTicksCrossed).toEqual([0]);
   });
 });
 

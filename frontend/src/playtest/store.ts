@@ -53,8 +53,10 @@ import {
 } from './lib/horde-solo';
 import {
   attackSummary,
-  bossesCrossed,
+  bossTickPhrase,
   buildHordeLibrary,
+  createHordeBoard,
+  dealDueBosses,
   hordeOutcome,
   hordeTurnActions,
   loadHordeDeck,
@@ -67,7 +69,8 @@ import {
   type HordeReveal,
   type HordeSettings,
 } from '@/lib/horde';
-import { autoPlace, type Rect } from './lib/auto-place';
+import { type Rect } from './lib/auto-place';
+import { toast } from '@/store/toasts';
 
 function configFor(level: ResistanceLevel): ResistanceConfig | null {
   return level === 'off' ? null : RESISTANCE_PRESETS[level];
@@ -436,7 +439,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     }
     const settings = resolveHordeSettings(level, 1, overrides);
     const { library, bosses, seed } = buildHordeLibrary(def, settings, state.rngSeed);
-    const board = createPlaytestState({ library, command: bosses, seed, openingHandSize: 0 });
+    const board = createHordeBoard(library, bosses, seed);
     const config: SoloHordeConfig = { hordeId, hordeName: def.name, level, overrides, settings };
     const horde: SoloHordeState = {
       config,
@@ -571,6 +574,30 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     let board = horde.board;
     for (const action of toBattlefield) board = applyAction(board, action);
     for (const action of resolveActions(toResolve)) board = applyAction(board, action);
+
+    // The reveal itself can shrink the library past a boss tick, not just
+    // damage — deal any boss that's due before the outcome/attack are
+    // figured, so it both attacks this turn and is inside this same undo
+    // entry (E436).
+    const dealt = dealDueBosses(
+      board,
+      horde.librarySizeAtStart,
+      horde.config.settings.bossTicks,
+      horde.bossTicksCrossed
+    );
+    board = dealt.board;
+    const bossTicksCrossed = dealt.crossed;
+    const bossLines: Array<Omit<GameLogEntry, 'seq'>> = dealt.bossesEntered.map((b) => ({
+      turn: state.turn,
+      kind: 'horde' as const,
+      text: `${bossTickPhrase(b.tick)} ${b.name} joins the battlefield.`,
+    }));
+    const announceBosses = () => {
+      for (const b of dealt.bossesEntered) {
+        toast.show({ message: `${bossTickPhrase(b.tick)} ${b.name} joins the battlefield.` });
+      }
+    };
+
     const outcome = hordeOutcome(board, state.life);
 
     if (outcome) {
@@ -584,6 +611,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
           {
             ...horde,
             board,
+            bossTicksCrossed,
             phase: 'ended',
             pendingReveal: null,
             attackingIds: [],
@@ -591,10 +619,11 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
             outcome,
           },
           gameLog,
-          [{ turn: state.turn, kind: 'horde', text: hordeOutcomeText(outcome) }],
+          [...bossLines, { turn: state.turn, kind: 'horde', text: hordeOutcomeText(outcome) }],
           rewindTrail
         )
       );
+      announceBosses();
       return;
     }
 
@@ -603,6 +632,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       // Nothing landed that can attack — the horde's turn passes at once.
       const finished = finishHordeTurn(state, 0);
       const lines = [
+        ...bossLines,
         { turn: state.turn, kind: 'horde' as const, text: 'The horde has nothing to attack with' },
         ...buildLogEntries(state, { type: 'NEXT_TURN' }, finished),
       ];
@@ -615,6 +645,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
           {
             ...horde,
             board,
+            bossTicksCrossed,
             phase: 'waiting',
             pendingReveal: null,
             attackingIds: [],
@@ -625,6 +656,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
           rewindTrail
         )
       );
+      announceBosses();
       return;
     }
 
@@ -636,9 +668,18 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         state.past,
         horde,
         hordePast,
-        { ...horde, board, phase: 'combat', pendingReveal: null, attackingIds, pendingAttack },
+        {
+          ...horde,
+          board,
+          bossTicksCrossed,
+          phase: 'combat',
+          pendingReveal: null,
+          attackingIds,
+          pendingAttack,
+        },
         gameLog,
         [
+          ...bossLines,
           {
             turn: state.turn,
             kind: 'horde',
@@ -648,6 +689,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         rewindTrail
       )
     );
+    announceBosses();
   },
   resolveHordeAttack(damage) {
     const { state, horde, gameLog, hordePast, rewindTrail } = get();
@@ -697,26 +739,21 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     const movedCount = before - after;
     const milled = board.zones.graveyard.slice(board.zones.graveyard.length - movedCount);
 
-    const crossed = bossesCrossed(
+    const dealt = dealDueBosses(
+      board,
       horde.librarySizeAtStart,
-      before,
-      after,
-      horde.config.settings.bossTicks
-    ).filter((i) => !horde.bossTicksCrossed.includes(i));
-    const bossesEntered: HordeBossArrival[] = [];
-    for (const tickIndex of crossed) {
-      const boss = board.zones.command[0];
-      if (!boss) continue;
-      const { x, y } = autoPlace(boss, board.battlefield, rect);
-      board = applyAction(board, { type: 'MOVE_TO_BATTLEFIELD', cardId: boss.id, x, y });
-      bossesEntered.push({ name: boss.name, tick: horde.config.settings.bossTicks[tickIndex] });
-    }
+      horde.config.settings.bossTicks,
+      horde.bossTicksCrossed,
+      rect
+    );
+    board = dealt.board;
+    const bossesEntered: HordeBossArrival[] = dealt.bossesEntered;
 
     const outcome = hordeOutcome(board, state.life);
     const nextHorde: SoloHordeState = {
       ...horde,
       board,
-      bossTicksCrossed: [...horde.bossTicksCrossed, ...crossed],
+      bossTicksCrossed: dealt.crossed,
       lastDamageResult: { amount: clamped, before, after, milled, bossesEntered },
       cardsMilledByDamage: horde.cardsMilledByDamage + milled.length,
       outcome,

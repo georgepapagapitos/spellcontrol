@@ -177,29 +177,6 @@ export function millForDamage(damage: number): PlaytestAction {
   return { type: 'MOVE_TOP_N', n: Math.max(0, Math.floor(damage)), to: 'graveyard' };
 }
 
-/**
- * Which boss ticks this change crosses. `ticks` are fractions of the
- * library gone (1 = library empty). Each tick can only be reported once
- * across a game, because `remainingBefore`/`remainingAfter` only ever moves
- * one way (the library only shrinks) — so a single sequence of calls with
- * the running remaining count naturally fires every tick exactly once.
- */
-export function bossesCrossed(
-  librarySizeAtStart: number,
-  remainingBefore: number,
-  remainingAfter: number,
-  ticks: readonly number[]
-): number[] {
-  if (librarySizeAtStart <= 0) return [];
-  const fractionBefore = (librarySizeAtStart - remainingBefore) / librarySizeAtStart;
-  const fractionAfter = (librarySizeAtStart - remainingAfter) / librarySizeAtStart;
-  const crossed: number[] = [];
-  ticks.forEach((tick, i) => {
-    if (fractionBefore < tick && fractionAfter >= tick) crossed.push(i);
-  });
-  return crossed;
-}
-
 /** `won` once the library is empty and the horde controls no creatures;
  *  `lost` at 0 shared survivor life; `null` while the game continues. Life
  *  is checked first, so a killing blow that also empties the library still
@@ -245,4 +222,17 @@ export interface HordeDamageResult {
   after: number;
   milled: PlaytestCard[];
   bossesEntered: HordeBossArrival[];
+}
+
+/** The shared clause for a boss's arrival, derived from the crossed
+ *  `bossTicks` fraction rather than hard-coded to "Half" — Casual/Standard/
+ *  Brutal (and any Customise override) can cross a quarter, three quarters,
+ *  or the library emptying outright. Used by the damage sheet's banner and
+ *  by the toast a reveal-triggered arrival shows (E436). */
+export function bossTickPhrase(tick: number): string {
+  if (tick >= 1) return "The horde's library is empty.";
+  if (tick === 0.75) return 'Three quarters of the horde is gone.';
+  if (tick === 0.5) return 'Half the horde is gone.';
+  if (tick === 0.25) return 'A quarter of the horde is gone.';
+  return `${Math.round(tick * 100)}% of the horde is gone.`;
 }

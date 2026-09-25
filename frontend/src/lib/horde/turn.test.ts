@@ -7,7 +7,6 @@ import {
   resolveActions,
   attackSummary,
   millForDamage,
-  bossesCrossed,
   hordeOutcome,
 } from './turn';
 import { resolveHordeSettings, type HordeSettings } from './settings';
@@ -266,30 +265,6 @@ describe('millForDamage', () => {
     expect(millForDamage(2.7)).toEqual({ type: 'MOVE_TOP_N', n: 2, to: 'graveyard' });
     expect(millForDamage(-3)).toEqual({ type: 'MOVE_TOP_N', n: 0, to: 'graveyard' });
     expect(millForDamage(0)).toEqual({ type: 'MOVE_TOP_N', n: 0, to: 'graveyard' });
-  });
-});
-
-describe('bossesCrossed', () => {
-  it('reports nothing when the library has not moved', () => {
-    expect(bossesCrossed(100, 100, 100, [0.5, 1])).toEqual([]);
-  });
-
-  it('fires a tick exactly once it is crossed', () => {
-    expect(bossesCrossed(100, 60, 40, [0.5, 1])).toEqual([0]);
-  });
-
-  it('does not refire a tick already passed in an earlier call', () => {
-    // Simulates a second call after the tick already fired: `remainingBefore`
-    // now starts past the tick, so only the *next* one (1, library empty) can fire.
-    expect(bossesCrossed(100, 10, 0, [0.5, 1])).toEqual([1]);
-  });
-
-  it('fires every tick a single big jump crosses', () => {
-    expect(bossesCrossed(100, 100, 0, [0.25, 0.5, 0.75, 1])).toEqual([0, 1, 2, 3]);
-  });
-
-  it('is a no-op for a zero-size library', () => {
-    expect(bossesCrossed(0, 0, 0, [0.5, 1])).toEqual([]);
   });
 });
 
