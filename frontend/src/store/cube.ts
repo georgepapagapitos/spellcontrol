@@ -3,7 +3,11 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { safeLocalStorage } from '@/lib/safe-local-storage';
 import { isApplyingServer } from '../lib/applying-server';
-import { bucketOf, type CubeCard, type GeneratedCube, type Pick } from '../lib/cube/generate';
+// `bucketOf` from the leaf module, never `./cube/generate`: this store loads at
+// boot, and a value import of the generator drags it (targets, refiner,
+// objective) into the entry's boot graph.
+import { bucketOf, type CubeCard } from '../lib/cube/core';
+import type { GeneratedCube, Pick } from '../lib/cube/generate';
 import type { ColorBucket, CubeSize } from '../lib/cube/targets';
 import type { PoolFilters } from '../lib/cube/pool-filters';
 import { rebindCubePicks } from '../lib/bind-cube-copies';
