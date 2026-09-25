@@ -55,12 +55,6 @@ const BRACKET_LABELS: Record<number, string> = {
   4: 'Optimized',
   5: 'cEDH',
 };
-// A radio group can't be un-picked, so "no read" is its own option rather
-// than a click-to-deselect gesture on the active bracket.
-const BRACKET_OPTIONS: { value: number | null; label: string; sub: string }[] = [
-  { value: null, label: 'None', sub: 'No read' },
-  ...BRACKETS.map((b) => ({ value: b as number | null, label: String(b), sub: BRACKET_LABELS[b] })),
-];
 
 function itemFromPc(pc: PublicCard): ReviewItem {
   return { key: pc.oracleId ?? pc.name, pc, quantity: 1 };
@@ -549,24 +543,31 @@ export function DeckFeedbackView({ data, token }: Props) {
           </label>
         )}
         <div className="feedback-field">
-          <span id="feedback-bracket-label">Power bracket read (optional)</span>
+          <span className="feedback-bracket-head">
+            <span id="feedback-bracket-label">Power bracket read (optional)</span>
+            {/* A radio group can't be un-picked, so the optional read clears
+                here. A sixth "None" tile wrapped cEDH onto its own line on a
+                phone. */}
+            {bracket !== null && (
+              <button type="button" className="btn-link" onClick={() => setBracket(null)}>
+                Clear
+              </button>
+            )}
+          </span>
           {/* Native radios: exclusivity + arrow-key nav + one group tab stop. */}
           <fieldset className="feedback-brackets" aria-labelledby="feedback-bracket-label">
-            {BRACKET_OPTIONS.map((b) => {
-              const active = bracket === b.value;
+            {BRACKETS.map((b) => {
+              const active = bracket === b;
               return (
-                <label
-                  key={String(b.value)}
-                  className={`feedback-bracket${active ? ' is-active' : ''}`}
-                >
+                <label key={b} className={`feedback-bracket${active ? ' is-active' : ''}`}>
                   <input
                     type="radio"
                     name={bracketGroup}
                     checked={active}
-                    onChange={() => setBracket(b.value)}
+                    onChange={() => setBracket(b)}
                   />
-                  {b.label}
-                  <small>{b.sub}</small>
+                  {b}
+                  <small>{BRACKET_LABELS[b]}</small>
                 </label>
               );
             })}
