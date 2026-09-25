@@ -76,6 +76,21 @@ export interface CubeGenOptions {
    * A side channel for the loading UI — never affects the generated cube.
    */
   onProgress?: (pass: number, maxIter: number) => void;
+  /**
+   * Cards that must appear in the result. Seated first in their color bucket —
+   * they count toward that bucket's target, its curve caps, and the role/
+   * creature quotas — and the refiner never swaps one out. Full `CubeCard`,
+   * not just an oracleId: a locked card can have been sold or committed
+   * elsewhere since it was locked, so it may no longer be in `rawPool`; its
+   * saved data is what lets it still be seated.
+   */
+  locked?: CubeCard[];
+  /**
+   * oracleIds that must never appear in the result. Removed from the pool
+   * before anything else runs. Wins over `locked` for the same card, so
+   * banning a locked card always drops it.
+   */
+  banned?: string[];
 }
 
 const BUCKETS: ColorBucket[] = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
@@ -98,6 +113,18 @@ const ROLE_NAME: Record<Role, string> = {
 
 const isBasic = (c: CubeCard) => /basic/i.test(c.typeLine) && isLand(c);
 
+/** Singleton, no basics. Dedupe by oracleId keeping the best-ranked copy (byQuality). */
+export function dedupeByOracle(rawPool: CubeCard[]): CubeCard[] {
+  const byOracle = new Map<string, CubeCard>();
+  for (const c of rawPool) {
+    if (isBasic(c)) continue;
+    const key = c.oracleId || c.name.toLowerCase();
+    const prev = byOracle.get(key);
+    if (!prev || byQuality(c, prev) < 0) byOracle.set(key, c);
+  }
+  return [...byOracle.values()];
+}
+
 /** quality: the cube-native signal first — higher CubeCobra popularity (share
  *  of cubes holding the card), then higher draft Elo — and EDHREC rank only for
  *  cards CubeCobra has never seen, which sort after every cubed card (lower rank
@@ -112,7 +139,10 @@ export const byQuality = (a: CubeCard, b: CubeCard) =>
   a.oracleId.localeCompare(b.oracleId);
 
 /** Largest-remainder apportionment so bucket targets sum exactly to `size`. */
-function apportion(shares: Record<ColorBucket, number>, size: number): Record<ColorBucket, number> {
+export function apportion(
+  shares: Record<ColorBucket, number>,
+  size: number
+): Record<ColorBucket, number> {
   const exact = BUCKETS.map((b) => ({ b, v: shares[b] * size }));
   const floored = exact.map((e) => ({ ...e, f: Math.floor(e.v), r: e.v - Math.floor(e.v) }));
   let used = floored.reduce((s, e) => s + e.f, 0);
@@ -249,25 +279,32 @@ function distributeQuota(
 
 /** Select up to `target` cards from a bucket pool: quota cards (roles, creatures)
  *  are reserved as they come in rank order; filler is admitted only while enough
- *  slots remain for the quotas still unmet, shaped toward the curve targets. */
+ *  slots remain for the quotas still unmet, shaped toward the curve targets.
+ *  `seed` (locked cards already assigned to this bucket) is taken unconditionally
+ *  first and counts toward `target`, the curve caps, and the quotas — `target`
+ *  itself is never allowed to fall below the seed count, so a locked card is
+ *  never dropped even if it overflows the bucket's normal share. */
 function selectBucket(
   pool: CubeCard[],
   target: number,
   band: BandTargets,
   isLandBucket: boolean,
-  quota: Record<Quota, number>
+  quota: Record<Quota, number>,
+  seed: CubeCard[] = []
 ): { picks: CubeCard[]; deferred: CubeCard[] } {
+  const effectiveTarget = Math.max(target, seed.length);
   const sorted = [...pool].sort(byQuality);
-  if (isLandBucket || sorted.length <= target) {
+  if (isLandBucket || sorted.length + seed.length <= effectiveTarget) {
     // Lands: quality-only (fixing nuance isn't worth a Scryfall round-trip here).
-    return { picks: sorted.slice(0, target), deferred: sorted.slice(target) };
+    const need = Math.max(0, effectiveTarget - seed.length);
+    return { picks: [...seed, ...sorted.slice(0, need)], deferred: sorted.slice(need) };
   }
 
   const curveCap: Record<CurveSlot, number> = {} as Record<CurveSlot, number>;
   const curveFill: Record<CurveSlot, number> = {} as Record<CurveSlot, number>;
   for (let s = 0; s <= 7; s++) {
     curveCap[String(s) as CurveSlot] = Math.ceil(
-      band.curve[String(s) as CurveSlot].median * target
+      band.curve[String(s) as CurveSlot].median * effectiveTarget
     );
     curveFill[String(s) as CurveSlot] = 0;
   }
@@ -285,6 +322,7 @@ function selectBucket(
     curveFill[curveSlotOf(card.cmc)]++;
     for (const k of quotasOf(card)) fill[k]++;
   };
+  for (const c of seed) take(c);
 
   // Fill slots by quality: a card owed by an unmet quota is always taken;
   // anything else only while the slots left exceed what the quotas still need
@@ -292,13 +330,13 @@ function selectBucket(
   // not even for the creature quota (a removal creature is still removal).
   const overCap = (c: CubeCard) => c.role != null && fill[c.role] >= quota[c.role];
   for (const card of sorted) {
-    if (picks.length >= target) {
+    if (picks.length >= effectiveTarget) {
       deferred.push(card);
       continue;
     }
     const wanted = !overCap(card) && quotasOf(card).some((k) => fill[k] < quota[k]);
     const fillsCurve = curveFill[curveSlotOf(card.cmc)] < curveCap[curveSlotOf(card.cmc)];
-    if (wanted || (fillsCurve && !overCap(card) && target - picks.length > deficit())) {
+    if (wanted || (fillsCurve && !overCap(card) && effectiveTarget - picks.length > deficit())) {
       take(card);
     } else {
       deferred.push(card);
@@ -309,7 +347,7 @@ function selectBucket(
   // resort — otherwise the highest-signal deferred cards, which are exactly the
   // capped ones, would walk straight back in.
   for (const allowCapped of [false, true]) {
-    for (let i = 0; i < deferred.length && picks.length < target;) {
+    for (let i = 0; i < deferred.length && picks.length < effectiveTarget;) {
       const c = deferred[i];
       if (overCap(c) && !allowCapped) {
         i++;
@@ -339,20 +377,30 @@ export function generateCube(
   const band = targetsForSize(size, format);
   const synergyLevel = Math.max(0, Math.min(1, options?.synergyLevel ?? 0));
 
-  // Singleton, no basics. Dedupe by oracleId keeping the best-ranked copy.
-  const byOracle = new Map<string, CubeCard>();
-  for (const c of rawPool) {
-    if (isBasic(c)) continue;
-    const key = c.oracleId || c.name.toLowerCase();
-    const prev = byOracle.get(key);
-    if (!prev || byQuality(c, prev) < 0) byOracle.set(key, c);
-  }
-  const pool = [...byOracle.values()];
+  // Banned cards leave the pool before anything else runs. Bans win over locks
+  // for the same card (a banned card never comes back, even if also locked).
+  const bannedSet = new Set(options?.banned ?? []);
+  let pool = dedupeByOracle(rawPool.filter((c) => !bannedSet.has(c.oracleId)));
+  const locked = (options?.locked ?? []).filter((c) => !bannedSet.has(c.oracleId));
+  const lockedIds = new Set(locked.map((c) => c.oracleId));
 
-  // Bucket the pool.
+  // A locked card may no longer be in rawPool (sold, or committed elsewhere) —
+  // splice its saved data in so it still participates in scoring/quality-sort.
+  const poolIds = new Set(pool.map((c) => c.oracleId));
+  for (const c of locked) {
+    if (!poolIds.has(c.oracleId)) {
+      pool = [...pool, c];
+      poolIds.add(c.oracleId);
+    }
+  }
+
+  // Bucket the pool, minus locked cards — those are seeded directly into their
+  // bucket below instead of competing as normal candidates.
   const buckets = {} as Record<ColorBucket, CubeCard[]>;
   for (const b of BUCKETS) buckets[b] = [];
-  for (const c of pool) buckets[bucketOf(c)].push(c);
+  for (const c of pool) {
+    if (!lockedIds.has(c.oracleId)) buckets[bucketOf(c)].push(c);
+  }
 
   // Target count per bucket (empirical color shares; land uses the fixing-land target).
   const shares = {} as Record<ColorBucket, number>;
@@ -360,20 +408,39 @@ export function generateCube(
   const targetByBucket = apportion(shares, size);
 
   // Cube-level role + creature quotas, split across the color buckets by where
-  // the pool's supply lives (see distributeQuota).
+  // the pool's supply lives (see distributeQuota). Supply is read from `buckets`
+  // (locked cards excluded) — a locked role card still counts toward its own
+  // bucket's quota via the seed below, but not toward the cross-bucket SPLIT of
+  // the cube-level total.
+  // ponytail: minor undercount of a bucket's natural supply when it holds a
+  // locked role/creature card; upgrade path is folding `locked` into
+  // distributeQuota's supply calc if this is ever measured to matter.
   const totals = cubeQuotas(band, size - targetByBucket.land);
   const quotaByKey = {} as Record<Quota, Record<ColorBucket, number>>;
   for (const k of QUOTAS) quotaByKey[k] = distributeQuota(totals[k], buckets, targetByBucket, k);
 
-  // Select per bucket, capping at what's owned.
+  // Select per bucket, capping at what's owned. `want` never drops below the
+  // bucket's locked count — a locked card is never dropped, even if it
+  // overflows the bucket's normal share of `size`.
   const picks: Pick[] = [];
   const byBucket = {} as Record<ColorBucket, number>;
   const leftovers: CubeCard[] = [];
   for (const b of BUCKETS) {
-    const want = Math.min(targetByBucket[b], buckets[b].length);
+    const lockedInBucket = locked.filter((c) => bucketOf(c) === b);
+    const want = Math.min(
+      Math.max(targetByBucket[b], lockedInBucket.length),
+      buckets[b].length + lockedInBucket.length
+    );
     const quota = {} as Record<Quota, number>;
     for (const k of QUOTAS) quota[k] = quotaByKey[k][b];
-    const { picks: sel, deferred } = selectBucket(buckets[b], want, band, b === 'land', quota);
+    const { picks: sel, deferred } = selectBucket(
+      buckets[b],
+      want,
+      band,
+      b === 'land',
+      quota,
+      lockedInBucket
+    );
     byBucket[b] = sel.length;
     for (const c of sel) picks.push({ card: c, bucket: b, reason: reasonFor(c, b) });
     leftovers.push(...deferred);
@@ -445,7 +512,8 @@ export function generateCube(
       size,
       synergyLevel,
       totals,
-      options?.onProgress
+      options?.onProgress,
+      lockedIds
     );
     finalPicks = refined.picks;
     finalByBucket = refined.byBucket;

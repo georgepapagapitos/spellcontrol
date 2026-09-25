@@ -313,6 +313,35 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     }
   });
 
+  // Cube edit (locks/bans) on the real collection: guards still hold at 360
+  // with a real slate of locked + banned cards — locks present, bans absent.
+  describe('cube edit — locked and banned', () => {
+    it('~20 locked and ~20 banned at 360: locks present, bans absent, guards hold', () => {
+      const sorted = [...pool].sort((a, b) => a.oracleId.localeCompare(b.oracleId));
+      const locked = sorted.slice(0, 20);
+      const lockedIds = new Set(locked.map((c) => c.oracleId));
+      const banned = sorted
+        .slice(20)
+        .filter((c) => !lockedIds.has(c.oracleId))
+        .slice(0, 20)
+        .map((c) => c.oracleId);
+      const bannedSet = new Set(banned);
+
+      for (const level of [0, 1]) {
+        const cube = generateCube(pool, 360, { synergyLevel: level, locked, banned });
+        // Singleton, owned-or-locked-bound (a locked card may not be in `pool`,
+        // but here every locked card IS owned, so the whole cube is pool-bound).
+        const ids = cube.picks.map((p) => p.card.oracleId);
+        expect(new Set(ids).size).toBe(ids.length);
+        // Every locked card made it in.
+        for (const id of lockedIds) expect(ids).toContain(id);
+        // No banned card made it in.
+        for (const id of bannedSet) expect(ids).not.toContain(id);
+        expect(cube.shortfall).toBe(0);
+      }
+    });
+  });
+
   for (const size of CUBE_SIZES) {
     describe(`${size} cards`, () => {
       const band = targetsForSize(size);

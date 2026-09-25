@@ -321,6 +321,67 @@ describe('generateCube — dedupes duplicate printings to one copy', () => {
   });
 });
 
+describe('generateCube — locked and banned (cube edit)', () => {
+  it('is byte-for-byte identical to no-options when locked/banned are empty', () => {
+    const pool = richPool();
+    const a = generateCube(pool, 360);
+    const b = generateCube(pool, 360, { locked: [], banned: [] });
+    expect(b.picks.map((p) => p.card.oracleId)).toEqual(a.picks.map((p) => p.card.oracleId));
+    expect(b.byBucket).toEqual(a.byBucket);
+    expect(b.shortfall).toBe(a.shortfall);
+  });
+
+  it('banned cards never appear in the result', () => {
+    const pool = richPool();
+    const base = generateCube(pool, 360);
+    const bannedId = base.picks[0].card.oracleId;
+    const cube = generateCube(pool, 360, { banned: [bannedId] });
+    expect(cube.picks.some((p) => p.card.oracleId === bannedId)).toBe(false);
+    expect(cube.poolSize).toBe(base.poolSize - 1);
+  });
+
+  it('locked cards always appear in their color bucket, filling the cube around them', () => {
+    const pool = richPool();
+    const target = pool.find((c) => c.colors[0] === 'W')!;
+    const cube = generateCube(pool, 360, { locked: [target] });
+    expect(cube.picks.some((p) => p.card.oracleId === target.oracleId)).toBe(true);
+    expect(cube.picks.length).toBe(360);
+  });
+
+  it('a locked card no longer in the pool is still seated, using its saved data', () => {
+    const pool = richPool();
+    const sold = pool.find((c) => c.colors[0] === 'G')!;
+    const remaining = pool.filter((c) => c.oracleId !== sold.oracleId);
+    const cube = generateCube(remaining, 360, { locked: [sold] });
+    expect(cube.picks.some((p) => p.card.oracleId === sold.oracleId)).toBe(true);
+  });
+
+  it('banning a locked card drops it — bans win over locks', () => {
+    const pool = richPool();
+    const target = pool.find((c) => c.colors[0] === 'R')!;
+    const cube = generateCube(pool, 360, { locked: [target], banned: [target.oracleId] });
+    expect(cube.picks.some((p) => p.card.oracleId === target.oracleId)).toBe(false);
+  });
+
+  it('a locked card counts toward its bucket target — no duplicate slot spent', () => {
+    const pool = richPool();
+    const target = pool.find((c) => c.colors[0] === 'U')!;
+    const withLock = generateCube(pool, 360, { locked: [target] });
+    const withoutLock = generateCube(pool, 360);
+    // Locking a card that the unlocked build already picked doesn't grow the cube.
+    expect(withLock.picks.length).toBe(withoutLock.picks.length);
+  });
+
+  it('is deterministic with locks and bans (same pool + size + options → same cube)', () => {
+    const pool = richPool();
+    const locked = [pool[10], pool[50]];
+    const banned = [pool[20].oracleId, pool[60].oracleId];
+    const a = generateCube(pool, 360, { locked, banned, synergyLevel: 1 });
+    const b = generateCube(pool, 360, { locked, banned, synergyLevel: 1 });
+    expect(a.picks.map((p) => p.card.oracleId)).toEqual(b.picks.map((p) => p.card.oracleId));
+  });
+});
+
 describe('byQuality — the cube signal outranks EDHREC rank (E288)', () => {
   it('orders by cube popularity, then Elo, then rank, then oracleId', () => {
     const signet = card({
