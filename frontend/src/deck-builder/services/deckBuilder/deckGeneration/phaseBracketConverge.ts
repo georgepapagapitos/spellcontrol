@@ -4,7 +4,6 @@ import { markBanned, type GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
 import {
   getCardRole,
-  isExtraTurn,
   isProtectionPiece,
   isFreeInteraction,
   type RoleKey,
@@ -25,14 +24,8 @@ import {
   OWNED_PRIORITY_BOOST_THEME_TIER,
 } from '../cardPicking';
 import type { BudgetTracker } from '../budgetTracker';
-import {
-  estimateBracket,
-  isFastMana,
-  isMassLandDenialFloor,
-  isStaxPiece,
-  isTutor,
-} from '../bracketEstimator';
-import { computeDownshiftPlan, computeUpshiftPlan } from '../bracketFit';
+import { estimateBracket } from '../bracketEstimator';
+import { computeDownshiftPlan, computeUpshiftPlan, isPowerSignal } from '../bracketFit';
 
 // ── Bracket Convergence ──
 // T43's pick-time BracketGuard caps the estimator's HARD-floor signals (game
@@ -98,18 +91,6 @@ export interface BracketConvergeResult {
   applied: number;
   /** Estimated bracket after convergence (descriptive). */
   finalBracket: number | null;
-}
-
-/** True when `name` would re-trigger any estimator signal we're lowering. */
-function isPowerSignal(name: string, gameChangerNames: Set<string>): boolean {
-  return (
-    gameChangerNames.has(name) ||
-    isMassLandDenialFloor(name) ||
-    isExtraTurn(name) ||
-    isStaxPiece(name) ||
-    isFastMana(name) ||
-    isTutor(name)
-  );
 }
 
 export function applyBracketConvergence(

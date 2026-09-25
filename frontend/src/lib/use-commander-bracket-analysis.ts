@@ -121,8 +121,18 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *   v12 — the combo floor's explanation quotes the RC's actual rule
  *        (intentional infinite combos, not only ones that end the game);
  *        it is stored in each hard floor's `detail` (E382).
+ *   v13 — Bracket Fit accuracy pass: upshift one-away combo completions
+ *        respect the combo's own bracket effect (an E/C-tagged or
+ *        template-variant completion no longer claims a floor move it
+ *        doesn't make; a Ruthless two-card or commander combo is no longer
+ *        suggested toward a Bracket 3 target, since completing it overshoots
+ *        to 4); upshift now verifies every accepted move against the real
+ *        estimator instead of hard-coding `achievable: true`; downshift
+ *        replacements can no longer be fast mana, a tutor, or the missing
+ *        piece of a floor-setting one-away combo, and a replacement that
+ *        would re-raise the bracket degrades to a plain cut.
  */
-const ANALYSIS_ENGINE_VERSION = 'v12-combo-rule-copy';
+const ANALYSIS_ENGINE_VERSION = 'v13-bracket-fit-verified';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)

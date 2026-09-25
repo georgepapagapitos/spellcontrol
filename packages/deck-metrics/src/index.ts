@@ -336,9 +336,10 @@ const COMMANDER_NONLAND_COUNT = 63;
  * larger spell-tax / cost-tax / strategy-hate body of stax cards. The
  * SpellControl tagger doesn't carry a stax tag either. So we maintain a
  * curated list here — the cEDH/competitive Commander community treats
- * these as the canonical pool. Several overlap with the Game Changers
- * list (Trinisphere, Drannith Magistrate) and are caught there too;
- * including them here as well is harmless since the floors stack.
+ * these as the canonical pool. None of them currently overlap with the
+ * Game Changers list (Trinisphere is neither list — cut from both after
+ * calibration); if a future list update puts one on both, that's harmless,
+ * since the floors stack.
  *
  * Floor thresholds parallel the combo logic:
  *  - 3+ pieces → bracket 3 floor (deliberate stax presence)

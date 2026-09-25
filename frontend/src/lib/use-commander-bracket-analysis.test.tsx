@@ -40,7 +40,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v12-combo-rule-copy',
+    'v13-bracket-fit-verified',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards
