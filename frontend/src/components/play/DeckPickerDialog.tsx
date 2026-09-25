@@ -31,6 +31,15 @@ export interface PickedDeck {
   commander: string | null;
   partner: string | null;
   colorIdentity: string[];
+  /**
+   * The deck's bracket at pick time (owner's declared `bracketOverride`, else
+   * the last computed `bracketEstimation`) — see `effectiveBracket`. Null
+   * when neither is known yet (a fresh deck that has never been analyzed, or
+   * a starter deck, whose estimate isn't computed here). Carried through so
+   * the seat can publish it to the table (board E370) without the server
+   * ever needing the deck's cards or tag data.
+   */
+  bracket: 1 | 2 | 3 | 4 | 5 | null;
 }
 
 function pickedFromDeck(deck: Deck): PickedDeck {
@@ -41,6 +50,7 @@ function pickedFromDeck(deck: Deck): PickedDeck {
     // Decks already model the second commander, so a Partner pair shows both.
     partner: deck.partnerCommander?.name ?? null,
     colorIdentity: deck.commander?.color_identity ?? [],
+    bracket: (effectiveBracket(deck) as 1 | 2 | 3 | 4 | 5 | undefined) ?? null,
   };
 }
 
@@ -328,6 +338,9 @@ function StarterDecksTab({
       // ours to guess.
       partner: null,
       colorIdentity: summary?.colorIdentity ?? [],
+      // A starter's bracket isn't estimated here (no owned Deck record to
+      // hang a persisted estimate off of) — never a guess, so it's absent.
+      bracket: null,
     });
   };
 

@@ -257,6 +257,19 @@ describe('POST /api/games', () => {
       .send({ hostName: 'Custom Name' });
     expect(res.body.game.players[0].name).toBe('Custom Name');
   });
+
+  it('carries a valid hostBracket and drops an out-of-range one (E370)', async () => {
+    const cookie = await registerAndGetCookie('games_hostbracket_ok');
+    const ok = await request(app).post('/api/games').set('Cookie', cookie).send({ hostBracket: 4 });
+    expect(ok.body.game.players[0].bracket).toBe(4);
+
+    const cookie2 = await registerAndGetCookie('games_hostbracket_bad');
+    const bad = await request(app)
+      .post('/api/games')
+      .set('Cookie', cookie2)
+      .send({ hostBracket: 9 });
+    expect(bad.body.game.players[0].bracket).toBeNull();
+  });
 });
 
 describe('GET /api/games/:code', () => {
@@ -2059,6 +2072,39 @@ describe('miscellaneous', () => {
     expect(seat1.colorIdentity).toEqual(['W', 'U']);
   });
 
+  it('PATCH sanitizes bracket on update-player (E370: trusts the number, not a guess)', async () => {
+    const host = await registerAndGetCookie('games_br_h');
+    const joiner = await registerAndGetCookie('games_br_j');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joined = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joiner)
+      .send({});
+
+    // A client-computed bracket flows through as-is.
+    const valid = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: joined.body.game.version,
+        actions: [{ type: 'update-player', seat: 1, patch: { bracket: 3 } }],
+      });
+    const seat1 = valid.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    expect(seat1.bracket).toBe(3);
+
+    // Out of 1-5 falls back to null rather than landing verbatim.
+    const garbage = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: valid.body.game.version,
+        actions: [{ type: 'update-player', seat: 1, patch: { bracket: 99 } }],
+      });
+    const seat1After = garbage.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    expect(seat1After.bracket).toBeNull();
+  });
+
   it('PATCH whitelists update-player patch (F1: no forged userId/isHost/life)', async () => {
     const host = await registerAndGetCookie('games_wl_h');
     const joiner = await registerAndGetCookie('games_wl_j');
@@ -3030,6 +3076,7 @@ describe('GET /api/games (room browser, E367)', () => {
     seated: number;
     max: number;
     joinable: boolean;
+    bracket: { min: number; max: number } | null;
   }
 
   async function listGames(cookie: string): Promise<Row[]> {
@@ -3067,11 +3114,14 @@ describe('GET /api/games (room browser, E367)', () => {
       seated: 1,
       max: 8,
       joinable: true,
+      // No deck seated yet at hostGame time (no hostBracket in the body), so
+      // no seat has a known bracket — never a guess.
+      bracket: null,
     });
-    // Allowlist — nothing beyond these seven fields, in particular no
+    // Allowlist — nothing beyond these eight fields, in particular no
     // hostUserId/players/deck data from the underlying GameState.
     expect(Object.keys(row!).sort()).toEqual(
-      ['code', 'format', 'joinable', 'max', 'name', 'seated', 'status'].sort()
+      ['bracket', 'code', 'format', 'joinable', 'max', 'name', 'seated', 'status'].sort()
     );
   });
 

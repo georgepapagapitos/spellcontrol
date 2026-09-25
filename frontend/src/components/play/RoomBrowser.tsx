@@ -89,6 +89,17 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
             <span className="room-browser-row-name">{g.name}</span>
             <span className="room-browser-row-meta">
               {gameFormatLabel(g.format)} · {g.seated}/{g.max} seated
+              {/* Board E370: computed from the seated decks, not the host's
+                  word — see GameListing.bracket's doc. Absent (no seated
+                  deck has a known one yet) renders nothing, never a guess. */}
+              {g.bracket && (
+                <span className="room-browser-bracket">
+                  Bracket{' '}
+                  {g.bracket.min === g.bracket.max
+                    ? g.bracket.min
+                    : `${g.bracket.min}-${g.bracket.max}`}
+                </span>
+              )}
               {g.status === 'active' && <span className="room-browser-live">Game started</span>}
             </span>
           </div>

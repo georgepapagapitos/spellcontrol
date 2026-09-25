@@ -504,6 +504,20 @@ function sanitizePanelColorKey(raw: unknown): string | null {
   return VALID_PANEL_KEYS.has(up) ? up : null;
 }
 
+const VALID_BRACKETS = new Set([1, 2, 3, 4, 5]);
+/**
+ * Whitelist a client-computed bracket (board E370): the server trusts the
+ * NUMBER, never the reasoning behind it — the deck itself, and the tag data
+ * the estimator needs, only ever live on the seat's own device (see
+ * `packages/deck-metrics`'s TagLookup injection: that data is null
+ * server-side, so the server cannot verify this itself). Anything outside
+ * 1-5 falls back to null, same as an unset bracket.
+ */
+function sanitizeBracket(raw: unknown): 1 | 2 | 3 | 4 | 5 | null {
+  if (typeof raw !== 'number' || !VALID_BRACKETS.has(raw)) return null;
+  return raw as 1 | 2 | 3 | 4 | 5;
+}
+
 type UpdatePlayerPatch = Extract<GameAction, { type: 'update-player' }>['patch'];
 
 /** Mirrors the create/join paths' name cap (40) for the free-text table note. */
@@ -535,6 +549,7 @@ function sanitizeAddedPlayer(raw: GamePlayer): GamePlayer {
     partner: typeof r.partner === 'string' ? r.partner : null,
     colorIdentity: sanitizeColorIdentity(r.colorIdentity),
     panelColorKey: sanitizePanelColorKey(r.panelColorKey),
+    bracket: sanitizeBracket(r.bracket),
     life: raw.life,
     poison: 0,
     commanderDamage: {},
@@ -550,7 +565,7 @@ function sanitizeAddedPlayer(raw: GamePlayer): GamePlayer {
  * enforce that.
  *
  * For `update-player`, the reducer spreads `patch` onto the player wholesale
- * (`{ ...p, ...patch }`), so we must **whitelist** it to exactly the eight
+ * (`{ ...p, ...patch }`), so we must **whitelist** it to exactly the nine
  * declared fields — otherwise a participant could smuggle `userId`, `isHost`,
  * `life`, or `eliminated` into their own seat, and those land verbatim in the
  * permanent `game_results` row. Never widen this without matching the
@@ -574,6 +589,7 @@ function sanitizeAction(action: GameAction): GameAction {
     }
     if ('colorIdentity' in raw) patch.colorIdentity = sanitizeColorIdentity(raw.colorIdentity);
     if ('panelColorKey' in raw) patch.panelColorKey = sanitizePanelColorKey(raw.panelColorKey);
+    if ('bracket' in raw) patch.bracket = sanitizeBracket(raw.bracket);
     if ('connected' in raw) patch.connected = raw.connected === true;
     return { ...action, patch };
   }
@@ -802,6 +818,19 @@ export interface GameListing {
    *  frontend's Join action. Spectating is instead always available once
    *  `status` is 'active' (spectating never claims a seat). */
   joinable: boolean;
+  /**
+   * Board E370: the COMPUTED bracket range across seated decks that have one
+   * (each seat's `bracket` was estimated client-side from the actual deck via
+   * `packages/deck-metrics` — see `GamePlayer.bracket`'s doc). `min === max`
+   * for a single seated bracket; null when nobody seated has a known one
+   * (no deck yet, or an unestimated one) — the row must show nothing rather
+   * than guess. This is deliberately the only deck-shaped field the listing
+   * exposes: unlike `deckName`/`commander` (never sent here — see the doc
+   * above), a bare 1-5 number carries no card-identifying information, so
+   * showing it to a stranger deciding whether to join is a small, reversible
+   * exposure rather than the privacy question those fields would raise.
+   */
+  bracket: { min: 1 | 2 | 3 | 4 | 5; max: 1 | 2 | 3 | 4 | 5 } | null;
 }
 
 /** A table nobody named falls back to its format, e.g. "Commander table" —
@@ -816,6 +845,9 @@ function fallbackGameName(format: GameFormat): string {
  *  it must never be handed a private session's state. */
 export function projectGameListing(state: GameState): GameListing {
   const seated = state.players.length;
+  const knownBrackets = state.players
+    .map((p) => p.bracket)
+    .filter((b): b is 1 | 2 | 3 | 4 | 5 => b != null);
   return {
     code: state.code,
     name: state.name || fallbackGameName(state.format),
@@ -824,6 +856,13 @@ export function projectGameListing(state: GameState): GameListing {
     seated,
     max: MAX_SEATS,
     joinable: state.status === 'lobby' && seated < MAX_SEATS,
+    bracket:
+      knownBrackets.length === 0
+        ? null
+        : {
+            min: Math.min(...knownBrackets) as 1 | 2 | 3 | 4 | 5,
+            max: Math.max(...knownBrackets) as 1 | 2 | 3 | 4 | 5,
+          },
   };
 }
 
@@ -871,6 +910,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     hostCommander?: unknown;
     hostPartner?: unknown;
     hostColorIdentity?: unknown;
+    hostBracket?: unknown;
     name?: unknown;
     visibility?: unknown;
   };
@@ -912,6 +952,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     commander: typeof body.hostCommander === 'string' ? body.hostCommander : null,
     partner: typeof body.hostPartner === 'string' ? body.hostPartner : null,
     colorIdentity: sanitizeColorIdentity(body.hostColorIdentity),
+    bracket: sanitizeBracket(body.hostBracket),
     startingLife,
     isHost: true,
   });
@@ -1822,6 +1863,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     commander?: unknown;
     partner?: unknown;
     colorIdentity?: unknown;
+    bracket?: unknown;
   };
   const name =
     typeof body.name === 'string' && body.name.trim().length > 0
@@ -1853,6 +1895,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
           body.colorIdentity !== undefined
             ? sanitizeColorIdentity(body.colorIdentity)
             : existing.colorIdentity,
+        bracket: body.bracket !== undefined ? sanitizeBracket(body.bracket) : existing.bracket,
       },
     });
     const updated = await db
@@ -1881,6 +1924,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     commander: typeof body.commander === 'string' ? body.commander : null,
     partner: typeof body.partner === 'string' ? body.partner : null,
     colorIdentity: sanitizeColorIdentity(body.colorIdentity),
+    bracket: sanitizeBracket(body.bracket),
     startingLife: current.startingLife,
     isHost: false,
   });
