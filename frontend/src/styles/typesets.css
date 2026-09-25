@@ -77,11 +77,14 @@
 }
 
 /* Plain — no webfont at all. The accessibility and low-bandwidth escape hatch:
-   whatever the OS considers most readable, including a user's own override. */
+   whatever the OS considers most readable, including a user's own override.
+   'SC Segoe UI' is Windows' own system-ui face with its capitals re-centred in
+   the line box (public/fonts/typeset-plain.css, local() only); anywhere Segoe
+   UI isn't installed it misses and system-ui takes over as before. */
 [data-typeset='plain'] {
-  --font-display: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-serif: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-label: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'SC Segoe UI', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'SC Segoe UI', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-label: 'SC Segoe UI', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'Menlo', 'Consolas', monospace;
 }
 

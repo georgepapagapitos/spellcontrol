@@ -918,12 +918,28 @@ Rulings:
 - **Every stack ends in the same generic families as the `tokens.css`
   defaults**, so a set whose webfont fails to load degrades to the same system
   serif/sans/mono rather than to an unrelated face.
-- **Only the active set's fonts are downloaded.** The default set's `<link>` is
-  static in `index.html`; every other set's is injected by `store/typeset.ts`
-  and removed on the way back to the default. `typeSetHref(DEFAULT_TYPESET)`
-  returns `null` for exactly that reason — returning its href would double-fetch
-  the same families. The picker is the one place that loads them all, so its
-  tiles preview rather than describe.
+- **Only the active set's fonts are downloaded.** The default set's faces are
+  bundled (`styles/fonts.css`, preloaded from `index.html`); every other set's
+  self-hosted sheet (`public/fonts/typeset-<id>.css`) is injected by
+  `store/typeset.ts` and removed on the way back to the default.
+  `typeSetHref(DEFAULT_TYPESET)` returns `null` for exactly that reason —
+  returning a sheet would double-fetch the same families. The picker is the one
+  place that loads them all, so its tiles preview rather than describe.
+- **Every face is self-hosted and centres its capital height.** No face loads
+  from Google Fonts: each `@font-face` carries `ascent-override` /
+  `descent-override` computed from the font's own tables so the capitals sit
+  exactly mid line box, with the total unchanged (so `line-height: normal`
+  doesn't move). Without them every flex-centred label (`.btn`, `.pill-btn`,
+  chips, tabs) sat a pixel or two off the icon beside it, low in Plain and high
+  in Codex. `styles/font-metrics.test.ts` re-reads each woff2 and fails on a
+  face that's missing them or carries stale numbers; the header of that test
+  has the formula. Plain can't override `system-ui`, so it leads with
+  `'SC Segoe UI'`, a `local()` alias of Windows' system face with the same
+  correction (SF and Roboto are already within 0.2px). Don't reach for
+  per-component nudges (`translate`, asymmetric padding) to centre a label:
+  they fix one surface in one set and break it in the next.
+  `text-box-trim` is not the fix either: it applies to block containers, and a
+  button's bare text node is an anonymous flex item it never reaches.
 - **`font-weight: 400` on `--font-display` still holds for every set.** Several
   display faces ship a single cut and synthesize a smeared faux-bold otherwise;
   sets whose face does have a bold simply render regular. Hierarchy still comes
@@ -933,8 +949,10 @@ Rulings:
   the exact bug E159 fixed. Verify the tab bar and the Collection hub strip at
   360px, not just at desktop.
 - **Changing `DEFAULT_TYPESET` re-skins the app for everyone who has never
-  opened the picker**, and must be changed together with the static `<link>` in
-  `index.html`.
+  opened the picker**, and must move the new default's faces into
+  `styles/fonts.css` (and the old default's out into its own
+  `typeset-<id>.css`), together with the `index.html` preloads. The comment on
+  `DEFAULT_TYPESET` lists every coordinated edit.
 
 Rulings for `--font-display` (restyle Phase 6):
 

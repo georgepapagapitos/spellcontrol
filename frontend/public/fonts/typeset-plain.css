@@ -1,0 +1,90 @@
+/* The plain type set's system faces, injected by store/typeset.ts only while
+   the set is active. Nothing downloads: every src is local().
+
+   Segoe UI (Windows' system-ui) sits its capitals 6.5% of an em below the
+   centre of its line box, so every flex-centred label (buttons, pills, chips,
+   tabs) read about a pixel low beside its icon. 'SC Segoe UI' is the same
+   installed face with ascent/descent overrides that centre the capital height,
+   the treatment every webfont gets in styles/fonts.css and the other
+   typeset-*.css files. From segoeui.ttf's own tables, identical in every
+   weight and italic: hhea ascender 107.91%, descender 25.10%, sCapHeight
+   70.02% (USE_TYPO_METRICS off, win metrics equal to hhea). Overrides keep the
+   same total so line-height: normal is unchanged:
+     ascent  = (107.91 + 25.10 + 70.02) / 2 = 101.52%
+     descent = (107.91 + 25.10 - 70.02) / 2 =  31.49%
+   Where Segoe UI isn't installed every src misses and the stack falls through
+   to system-ui. SF (Apple) and Roboto (Android) are already within 0.2px of
+   centred, and ui-monospace resolves to a centred face on Windows, so none of
+   them needs an alias. */
+
+@font-face {
+  font-family: 'SC Segoe UI';
+  font-style: normal;
+  font-weight: 300;
+  src: local('Segoe UI Light'), local('SegoeUI-Light');
+  ascent-override: 101.52%;
+  descent-override: 31.49%;
+}
+
+@font-face {
+  font-family: 'SC Segoe UI';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Segoe UI'), local('SegoeUI');
+  ascent-override: 101.52%;
+  descent-override: 31.49%;
+}
+
+@font-face {
+  font-family: 'SC Segoe UI';
+  font-style: normal;
+  font-weight: 600;
+  src: local('Segoe UI Semibold'), local('SegoeUI-Semibold');
+  ascent-override: 101.52%;
+  descent-override: 31.49%;
+}
+
+@font-face {
+  font-family: 'SC Segoe UI';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Segoe UI Bold'), local('SegoeUI-Bold');
+  ascent-override: 101.52%;
+  descent-override: 31.49%;
+}
+
+@font-face {
+  font-family: 'SC Segoe UI';
+  font-style: normal;
+  font-weight: 900;
+  src: local('Segoe UI Black'), local('SegoeUI-Black');
+  ascent-override: 101.52%;
+  descent-override: 31.49%;
+}
+
+@font-face {
+  font-family: 'SC Segoe UI';
+  font-style: italic;
+  font-weight: 400;
+  src: local('Segoe UI Italic'), local('SegoeUI-Italic');
+  ascent-override: 101.52%;
+  descent-override: 31.49%;
+}
+
+@font-face {
+  font-family: 'SC Segoe UI';
+  font-style: italic;
+  font-weight: 600;
+  src: local('Segoe UI Semibold Italic'), local('SegoeUI-SemiboldItalic');
+  ascent-override: 101.52%;
+  descent-override: 31.49%;
+}
+
+@font-face {
+  font-family: 'SC Segoe UI';
+  font-style: italic;
+  font-weight: 700;
+  src: local('Segoe UI Bold Italic'), local('SegoeUI-BoldItalic');
+  ascent-override: 101.52%;
+  descent-override: 31.49%;
+}
