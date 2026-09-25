@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Check, Notebook, Plus } from 'lucide-react';
+import { ArrowUpDown, Check, Notebook, Plus } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { searchCards, getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
@@ -33,6 +33,7 @@ import {
   substringMatchesExpression,
 } from '../../lib/rules';
 import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
+import { SelectMenu, type SelectOption } from '../SelectMenu';
 import type { FilterableRow } from '../../lib/collection-filter';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SearchPill } from '../SearchPill';
@@ -195,6 +196,14 @@ const COLOR_FILTERS: Array<{ key: string; label: string }> = [
   { key: 'C', label: 'Colorless' },
 ];
 const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
+
+const SORT_OPTIONS: SelectOption<AddSort>[] = [
+  { value: 'default', label: 'Best match' },
+  { value: 'name', label: 'Name' },
+  { value: 'edhrec', label: 'EDHREC' },
+  { value: 'cmc', label: 'Mana value' },
+  { value: 'price', label: 'Price' },
+];
 
 // One explainer for the query language every tab's search box understands.
 const SYNTAX_TIP = (
@@ -683,16 +692,13 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       {activeMode !== 'suggestions' && (
         <div className="card-search-toolbar">
           <InfoTip label="search syntax and keyboard shortcuts" text={SYNTAX_TIP} wide />
-          <label className="card-search-sort">
-            Sort
-            <select value={sort} onChange={(e) => setSort(e.target.value as AddSort)}>
-              <option value="default">Best match</option>
-              <option value="name">Name</option>
-              <option value="edhrec">EDHREC</option>
-              <option value="cmc">Mana value</option>
-              <option value="price">Price</option>
-            </select>
-          </label>
+          <SelectMenu<AddSort>
+            ariaLabel="Sort"
+            leadingIcon={<ArrowUpDown width={14} height={14} strokeWidth={2} aria-hidden />}
+            value={sort}
+            onChange={setSort}
+            options={SORT_OPTIONS}
+          />
         </div>
       )}
 

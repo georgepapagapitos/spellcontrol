@@ -84,10 +84,6 @@ const ALLOWED: Record<Pattern, Record<string, { count: number; why: string }>> =
       count: 1,
       why: 'a picker inside a context menu: the platform list works at any board size',
     },
-    'components/deck/CardSearchPanel.tsx': { count: 1, why: `${DEBT} (sort, use SortMenu)` },
-    'components/deck/ImportDeckDialog.tsx': { count: 1, why: `${DEBT} (per-draft format)` },
-    'components/ShareDialog.tsx': { count: 1, why: `${DEBT} (friend picker)` },
-    'playtest/components/ScrySheet.tsx': { count: 1, why: `${DEBT} (card count)` },
   },
 };
 

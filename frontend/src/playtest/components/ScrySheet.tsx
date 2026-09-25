@@ -21,6 +21,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, ArrowRight, Hand, Minus, Plus, Undo2 } from 'lucide-react';
+import { SelectMenu } from '@/components/SelectMenu';
 import './ScrySheet.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
@@ -110,6 +111,14 @@ export function ScrySheet({
   const modeName = useId();
 
   const maxPeek = Math.min(MAX_PEEK, library.length);
+  const countOptions = useMemo(
+    () =>
+      Array.from({ length: maxPeek }, (_, i) => i + 1).map((n) => ({
+        value: n,
+        label: `${n} card${n === 1 ? '' : 's'}`,
+      })),
+    [maxPeek]
+  );
   const [mode, setMode] = useState<ScryMode>(initialMode);
   // Always opens on 1: the sheet shows card faces, so remembering a larger
   // count from last time would reveal cards the player didn't ask to see.
@@ -268,18 +277,13 @@ export function ScrySheet({
             >
               <Minus width={16} height={16} aria-hidden />
             </button>
-            <select
+            <SelectMenu<number>
               className="playtest-scry-count__value"
-              aria-label="Number of cards to look at"
+              ariaLabel="Number of cards to look at"
               value={peeked.length}
-              onChange={(e) => setCount(Number(e.target.value))}
-            >
-              {Array.from({ length: maxPeek }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>
-                  {n} card{n === 1 ? '' : 's'}
-                </option>
-              ))}
-            </select>
+              onChange={setCount}
+              options={countOptions}
+            />
             <button
               type="button"
               className="playtest-scry-step"

@@ -228,8 +228,12 @@ describe('ShareDialog — send to a friend', () => {
     renderDialog();
     await loaded();
     fireEvent.click(screen.getByRole('button', { name: 'Send to a friend' }));
-    const select = await screen.findByRole('combobox', { name: 'Choose a friend' });
-    fireEvent.change(select, { target: { value: 'f1' } });
+    const trigger = await screen.findByRole('button', { name: 'Choose a friend' });
+    // A menu button + listbox, not a native <select> — the kit control.
+    expect(trigger.tagName).toBe('BUTTON');
+    expect(document.querySelector('select')).toBeNull();
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('option', { name: 'bob' }));
     expect((await screen.findByText(/Sent to @bob/)).textContent).toContain('inbox');
     expect(createShareMock).toHaveBeenCalledWith({
       kind: 'deck',
@@ -238,6 +242,17 @@ describe('ShareDialog — send to a friend', () => {
       addresseeId: 'f1',
     });
     expect(radio('Private').checked).toBe(true);
+  });
+
+  it('gets a search box once the friend list is long enough that scrolling stops working', async () => {
+    listFriendsMock.mockResolvedValue(
+      Array.from({ length: 9 }, (_, i) => ({ id: `f${i}`, username: `friend${i}` }))
+    );
+    renderDialog();
+    await loaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Send to a friend' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose a friend' }));
+    expect(screen.getByPlaceholderText('Search friends…')).toBeTruthy();
   });
 });
 

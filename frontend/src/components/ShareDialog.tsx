@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { Modal } from './Modal';
 import { VisibilityChoice } from './VisibilityChoice';
+import { SelectMenu } from './SelectMenu';
 import { ShareQrCode } from './shared/ShareQrCode';
 import { useSealMoment } from './shared/SealMoment';
 import { createShare, listShares, revokeShare, shareUrl } from '../lib/share-client';
@@ -389,23 +390,20 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
               .
             </p>
           ) : (
-            <select
+            <SelectMenu<string>
               className="share-recipient-select"
-              aria-label="Choose a friend"
+              ariaLabel="Choose a friend"
               value=""
+              placeholder={sending ? 'Sending…' : 'Choose a friend…'}
               disabled={sending}
-              onChange={(e) => {
-                const f = friends.find((x) => x.id === e.target.value);
+              searchable={friends.length > 8}
+              searchPlaceholder="Search friends…"
+              options={friends.map((f) => ({ value: f.id, label: f.username }))}
+              onChange={(id) => {
+                const f = friends.find((x) => x.id === id);
                 if (f) void sendTo(f);
               }}
-            >
-              <option value="">{sending ? 'Sending…' : 'Choose a friend…'}</option>
-              {friends.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.username}
-                </option>
-              ))}
-            </select>
+            />
           )}
         </div>
       )}
