@@ -42,9 +42,9 @@ export async function insertPublication(
       const inserted = await getPool().query<PublicationRow>(
         `INSERT INTO deck_publications
            (user_id, deck_id, slug, deck_name, format, commander_name, commander_image_normal,
-            og_art_crop, color_identity, bracket, card_count, deck_rev, published_at, updated_at,
-            unpublished_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $13, $14)
+            og_art_crop, color_identity, bracket, estimated_bracket, card_count, deck_rev,
+            published_at, updated_at, unpublished_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $14, $15)
          ON CONFLICT (user_id, deck_id) DO NOTHING
          RETURNING slug, published_at, updated_at, unpublished_at, view_count, copy_count`,
         [
@@ -58,6 +58,7 @@ export async function insertPublication(
           fields.ogArtCrop,
           JSON.stringify(fields.colorIdentity),
           fields.bracket,
+          fields.estimatedBracket,
           fields.cardCount,
           rev,
           now,

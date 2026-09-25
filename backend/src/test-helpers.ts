@@ -487,6 +487,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       og_art_crop TEXT,
       color_identity JSONB NOT NULL DEFAULT '[]',
       bracket INTEGER,
+      estimated_bracket INTEGER,
       card_count INTEGER NOT NULL DEFAULT 0,
       view_count INTEGER NOT NULL DEFAULT 0,
       copy_count INTEGER NOT NULL DEFAULT 0,

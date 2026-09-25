@@ -204,6 +204,7 @@ export function DeckAnalysisView({
               partnerCommander={partnerCommander}
               format={format}
               bracket={effectiveBracketValue}
+              estimatedBracket={bracketEstimation?.bracket}
               analysisState={analysisState}
               onRetryAnalysis={onRetryAnalysis}
               edhrecMissing={edhrecMissing}

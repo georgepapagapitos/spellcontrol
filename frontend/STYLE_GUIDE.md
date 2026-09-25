@@ -5721,6 +5721,32 @@ They are two different facts and the copy never blurs them into one:
   render it as a compact neutral "Borderline N/M" pill (the Tag chips plate:
   `--surface-raised` / `--text-secondary` / `--border`, never `--accent` —
   it's a hint, not a verdict) next to whichever line shows the Estimate.
+- **A stated bracket shown to someone other than the owner carries the
+  Estimate too (2026-09-24 amendment).** The rule above covers the owner's
+  own deck page. Everywhere else that reads a bracket for a LIST or for
+  someone else to see — a Discover tile, `DeckLibrary` (a stranger's or
+  friend's shelf), the online lobby's seat card, the deck picker, someone
+  else's public deck header — used to show only the effective bracket
+  (`stated ?? estimate`), so a deck stated at Bracket 2 that estimates
+  Bracket 4 read as a plain "Core" everywhere but its own Power tab. Without
+  the Estimate riding along, a stated number can hide what the list actually
+  estimates. Same "only when they differ" rule as the owner's page: on Auto
+  there's nothing to disambiguate. Two compact forms, one shared formatter
+  each (`frontend/src/lib/format-bracket-label.ts`):
+  - **Badge form** (`bracketBadgeWithEstimate`) — bare tier words, no
+    "Bracket N" prefix, matching the existing `deck-format-badge`/
+    `deck-bracket-badge` convention: "Core · est. Optimized". Tight tile
+    badges at phone width have no room for two "Bracket N" numbers side by
+    side (phone chrome density — control rows and badge rows fit by width,
+    not by dropping content).
+  - **Text-line form** (`bracketTextWithEstimate`) — for a surface that
+    already spells out "Bracket N" as running text: "Bracket 2 · est. 4"
+    (the deck identity line, a public deck header, a lobby seat, the deck
+    picker).
+  - **Accessible name** (`bracketAriaWithEstimate`) — spells both out in
+    plain words for the element's aria-label/aria description: "Bracket 2
+    stated, estimate 4". A badge never carries its own separate aria-label;
+    it rides in the tile's/row's existing accessible name.
 
 ## Full-viewport centered pages (scroll, don't clip)
 

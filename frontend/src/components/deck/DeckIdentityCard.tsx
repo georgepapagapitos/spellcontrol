@@ -34,6 +34,12 @@ export interface DeckIdentityCardProps {
   /** The effective bracket (1-5) from effectiveBracket(deck). */
   bracket?: number;
   /**
+   * The auto-estimate, independent of any stated override — the identity
+   * line shows "Bracket 2 · est. 4" instead of "Bracket 2" whenever it
+   * differs from `bracket` (2026-09-24 ruling).
+   */
+  estimatedBracket?: number;
+  /**
    * 'pending' while !deck.gradeBracketSignature on commander decks (the first
    * analysis hasn't landed). 'error' (E162) means that first attempt failed
    * or stalled — renders a failure message + retry instead of skeletoning
@@ -137,6 +143,7 @@ export function DeckIdentityCard({
   partnerCommander,
   format,
   bracket,
+  estimatedBracket,
   analysisState,
   onRetryAnalysis,
   edhrecMissing = false,
@@ -215,6 +222,7 @@ export function DeckIdentityCard({
     identity,
     formatLabel,
     bracket: analysisState === 'ready' ? bracket : undefined,
+    estimatedBracket: analysisState === 'ready' ? estimatedBracket : undefined,
     validation,
   });
 

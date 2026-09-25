@@ -61,6 +61,57 @@ function renderLobby(game: GameState, userId = 'u0', dispatch = vi.fn(), decks: 
   return dispatch;
 }
 
+function deck(over: Partial<Deck> = {}): Deck {
+  return {
+    id: 'deck-1',
+    name: 'My Deck',
+    cards: [],
+    updatedAt: 0,
+    ...over,
+  } as unknown as Deck;
+}
+
+describe('OnlineLobby — seat bracket carries the estimate (2026-09-24 ruling)', () => {
+  it('shows "Bracket N · est. M" for your own seat when a stated bracket differs from the estimate', () => {
+    const game = createGameState({
+      id: 'g1',
+      code: 'ABCD',
+      mode: 'online',
+      hostUserId: 'u0',
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [seat(0, { deckId: 'deck-1' }), seat(1)],
+      ts: 1000,
+    });
+    renderLobby(game, 'u0', vi.fn(), [
+      deck({ bracketOverride: 2, bracketEstimation: { bracket: 4 } as Deck['bracketEstimation'] }),
+    ]);
+    expect(screen.getByText('Bracket 2 · est. 4')).toBeTruthy();
+  });
+
+  it('shows only the stated bracket when it matches the estimate', () => {
+    const game = createGameState({
+      id: 'g1',
+      code: 'ABCD',
+      mode: 'online',
+      hostUserId: 'u0',
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [seat(0, { deckId: 'deck-1' }), seat(1)],
+      ts: 1000,
+    });
+    renderLobby(game, 'u0', vi.fn(), [
+      deck({ bracketOverride: 3, bracketEstimation: { bracket: 3 } as Deck['bracketEstimation'] }),
+    ]);
+    expect(screen.getByText('Bracket 3')).toBeTruthy();
+    expect(screen.queryByText(/est\./)).toBeNull();
+  });
+});
+
 describe('OnlineLobby', () => {
   it('titles the lobby with the format when the table has no name', () => {
     renderLobby(table());

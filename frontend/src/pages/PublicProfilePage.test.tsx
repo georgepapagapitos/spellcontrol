@@ -70,6 +70,7 @@ function deck(
     colorIdentity: [],
     cardCount: 100,
     bracket: null,
+    estimatedBracket: null,
     viewCount: 0,
     copyCount: 0,
     publishedAt: 0,

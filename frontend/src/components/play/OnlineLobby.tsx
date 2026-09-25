@@ -10,6 +10,7 @@ import { FORMAT_OPTIONS } from '../../lib/game-formats';
 import { pickFirstPlayer } from '../../lib/game-tools';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { effectiveBracket, type Deck } from '../../store/decks';
+import { bracketTextWithEstimate } from '../../lib/format-bracket-label';
 import type {
   GameAction,
   GameEvent,
@@ -130,6 +131,14 @@ export function OnlineLobby({
                   isMe={player.seat === mySeat.seat}
                   bracket={
                     player.seat === mySeat.seat && myDeck ? effectiveBracket(myDeck) : undefined
+                  }
+                  estimatedBracket={
+                    player.seat === mySeat.seat && myDeck
+                      ? myDeck.bracketEstimation?.bracket
+                      : undefined
+                  }
+                  bracketOverridden={
+                    player.seat === mySeat.seat && myDeck ? myDeck.bracketOverride != null : false
                   }
                   // A guest seat is the host's to manage: it has no device of
                   // its own, so its deck and its removal both happen here.
@@ -378,6 +387,8 @@ function SeatCard({
   isHost,
   isMe,
   bracket,
+  estimatedBracket,
+  bracketOverridden,
   manage,
 }: {
   player: GamePlayer;
@@ -386,6 +397,12 @@ function SeatCard({
   /** Only ever set for your own seat: the state carries no bracket for anyone
    *  else's deck, and a guessed one would be a number the table argues over. */
   bracket?: number;
+  /** The auto-estimate, independent of `bracket` — shown alongside it
+   *  whenever it differs and `bracket` is a stated bracket, not Auto
+   *  (2026-09-24 ruling). Only ever set alongside `bracket`. */
+  estimatedBracket?: number;
+  /** True when `bracket` is the owner's stated bracket rather than Auto. */
+  bracketOverridden?: boolean;
   /** Set when the viewer is the host and this is a guest seat they manage. */
   manage?: { decks: Deck[]; dispatch: (action: GameAction) => void };
 }) {
@@ -454,7 +471,13 @@ function SeatCard({
             )}
           </span>
           <SeatPips ci={player.colorIdentity} />
-          {bracket != null && <span className="lobby-seat-bracket">Bracket {bracket}</span>}
+          {bracket != null && (
+            <span className="lobby-seat-bracket">
+              {bracketOverridden && estimatedBracket != null && estimatedBracket !== bracket
+                ? bracketTextWithEstimate(bracket, estimatedBracket)
+                : `Bracket ${bracket}`}
+            </span>
+          )}
         </div>
       </div>
     </li>

@@ -205,6 +205,7 @@ export function FriendHubPage() {
         commanderImage: d.commanderImage,
         colorIdentity: d.colorIdentity,
         bracket: d.bracket,
+        estimatedBracket: d.estimatedBracket,
         updatedAt: d.updatedAt,
         // No views/copies on this surface — those are publication stats, and
         // half these decks were never published.

@@ -84,6 +84,20 @@ describe('extractListingFields', () => {
     expect(extractListingFields(baseDeck())?.bracket).toBeNull();
   });
 
+  // estimatedBracket is ALWAYS the raw estimate — never bracketOverride — so a
+  // stated bracket can never hide what the deck actually estimates at in a
+  // listing (2026-09-24 ruling).
+  it('estimatedBracket is the raw estimate regardless of a stated override', () => {
+    expect(
+      extractListingFields(baseDeck({ bracketOverride: 5, bracketEstimation: { bracket: 2 } }))
+        ?.estimatedBracket
+    ).toBe(2);
+    expect(
+      extractListingFields(baseDeck({ bracketEstimation: { bracket: 2 } }))?.estimatedBracket
+    ).toBe(2);
+    expect(extractListingFields(baseDeck())?.estimatedBracket).toBeNull();
+  });
+
   // ── ogArtCrop (ORCHESTRATOR AMENDMENT — resolved via cardArtUrl, not a
   //    derived /normal/ -> /art_crop/ string replace) ─────────────────────
   it('resolves ogArtCrop from the commander art_crop', () => {
