@@ -27,6 +27,7 @@ import { useOnline } from './import-deck-shared';
 import './BulkEditDeckDialog.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -318,9 +319,9 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
                     <li key={name}>{name}</li>
                   ))}
                 </ul>
-                <button type="button" className="btn-link" onClick={() => void runResolve()}>
+                <Button variant="link" onClick={() => void runResolve()}>
                   Retry
-                </button>
+                </Button>
               </div>
             )}
 
@@ -426,25 +427,22 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
 
       {step === 'input' && (
         <div className="modal-footer">
-          <button type="button" className="btn btn-primary" onClick={() => void runResolve()}>
+          <Button variant="primary" onClick={() => void runResolve()}>
             Review changes
-          </button>
+          </Button>
         </div>
       )}
 
       {step === 'review' && plan && (
         <div className="modal-footer">
-          <button type="button" className="btn" onClick={() => setStep('input')}>
-            Back
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
+          <Button onClick={() => setStep('input')}>Back</Button>
+          <Button
+            variant="primary"
             onClick={handleConfirm}
             disabled={plan.commanderMissing || !plan.hasChanges}
           >
             Save changes
-          </button>
+          </Button>
         </div>
       )}
     </Modal>

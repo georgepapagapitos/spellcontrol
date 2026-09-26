@@ -8,6 +8,7 @@ import type { ComboCardRef } from '../../types/combos';
 import type { CardLocation } from '../../lib/card-locations';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const SHOWN_COMMANDERS = 3;
 /**
  * Past this many hosts, the exact count stops being useful information — a
@@ -104,28 +105,28 @@ export function ComboCollectionAside({ cards, produces, hosts, locations }: Prop
             {shown.map((c, i) => (
               <span key={c.name}>
                 {i > 0 && ', '}
-                <button
-                  type="button"
-                  className="btn-link combo-aside-host"
+                <Button
+                  variant="link"
                   onClick={() => void seed(c)}
                   disabled={seeding !== null}
                   title={`Build a ${c.name} deck around this combo`}
+                  className="combo-aside-host"
                 >
                   {c.name}
-                </button>
+                </Button>
                 {seeding === c.name && <span className="combo-aside-page">, opening…</span>}
               </span>
             ))}
             {rest > 0 && (
               <>
                 {' '}
-                <button
-                  type="button"
-                  className="btn-link combo-aside-more"
+                <Button
+                  variant="link"
                   onClick={() => setExpanded(true)}
+                  className="combo-aside-more"
                 >
                   +{rest} more
-                </button>
+                </Button>
               </>
             )}
           </span>

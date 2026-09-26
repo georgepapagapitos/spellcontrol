@@ -31,6 +31,7 @@ import { useCardCarousel } from './useCardCarousel';
 import { MeterBar } from '../shared/MeterBar';
 import { imageFromCard } from '@/lib/card-thumbs';
 import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
+import { Button } from '@/components/shared/Button';
 
 /** Actual deck `ScryfallCard`s by name. Passed so the card preview shows the
  *  printing in the deck instead of re-fetching the default printing by name. */
@@ -349,14 +350,8 @@ function PodLine({ text }: { text: string }): JSX.Element {
       <div className="bracket-pod">
         <p className="bracket-pod-text">{text}</p>
         <div className="bracket-pod-actions">
-          <button type="button" className="btn" onClick={() => void copy()}>
-            Copy
-          </button>
-          {canShare() && (
-            <button type="button" className="btn" onClick={() => void openShareSheet({ text })}>
-              Share
-            </button>
-          )}
+          <Button onClick={() => void copy()}>Copy</Button>
+          {canShare() && <Button onClick={() => void openShareSheet({ text })}>Share</Button>}
         </div>
       </div>
     </div>

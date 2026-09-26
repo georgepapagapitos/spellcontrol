@@ -20,6 +20,7 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import './DeckAiReview.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface DeckAiRefineProps {
   deckId: string;
   format: DeckFormat;
@@ -449,14 +450,14 @@ export function DeckAiRefine({
           {tweaks.length > 0 ? (
             <>
               {onApplyAll && !isReplace && bulkable.length >= 2 && (
-                <button
-                  type="button"
-                  className="btn btn-primary deck-ai-bulk-apply"
+                <Button
+                  variant="primary"
                   onClick={applyAll}
+                  className="deck-ai-bulk-apply"
+                  icon={<Check width={14} height={14} strokeWidth={2.5} />}
                 >
-                  <Check width={14} height={14} strokeWidth={2.5} aria-hidden />
                   Apply all {bulkable.length} swaps
-                </button>
+                </Button>
               )}
               <ul className="deck-ai-tweaks">
                 {tweaks.map((t) => {
@@ -464,13 +465,9 @@ export function DeckAiRefine({
                     return (
                       <li key={t.add} className="deck-ai-tweak deck-ai-tweak--dismissed">
                         <span className="deck-ai-tweak-dismissed-text">Dismissed {t.add}</span>
-                        <button
-                          type="button"
-                          className="btn deck-ai-tweak-undo"
-                          onClick={() => undoDismiss(t.add)}
-                        >
+                        <Button onClick={() => undoDismiss(t.add)} className="deck-ai-tweak-undo">
                           Undo
-                        </button>
+                        </Button>
                       </li>
                     );
                   }
@@ -546,17 +543,16 @@ export function DeckAiRefine({
                             <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Applied
                           </span>
                         ) : (
-                          <button
-                            type="button"
-                            className="btn btn-primary"
+                          <Button
+                            variant="primary"
                             onClick={() => accept(t)}
                             aria-label={
                               t.cut ? `Swap ${t.cut} for ${shownName}` : `Add ${shownName}`
                             }
+                            icon={<Check width={14} height={14} strokeWidth={2.5} />}
                           >
-                            <Check width={14} height={14} strokeWidth={2.5} aria-hidden />
                             Apply
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </li>
@@ -591,9 +587,7 @@ export function DeckAiRefine({
 
       {phase === 'working' && (
         <div className="deck-ai-idle-actions">
-          <button type="button" className="btn btn-sm" onClick={stop}>
-            Stop
-          </button>
+          <Button onClick={stop}>Stop</Button>
         </div>
       )}
 
@@ -613,9 +607,7 @@ export function DeckAiRefine({
       {phase === 'error' && error && (
         <div className="deck-ai-error" role="alert">
           <span>{error}</span>
-          <button type="button" className="btn" onClick={run}>
-            Try again
-          </button>
+          <Button onClick={run}>Try again</Button>
         </div>
       )}
 
@@ -637,18 +629,13 @@ export function DeckAiRefine({
                     `Suggests a few changes${fromCopy}, chosen from the ${pool.length} candidates the coach already found.`}
           </p>
           <div className="deck-ai-idle-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={run}
-              disabled={remaining === 0 || pool.length === 0}
-            >
+            <Button variant="primary" onClick={run} disabled={remaining === 0 || pool.length === 0}>
               {isReplace
                 ? 'Weigh this add'
                 : isSuggestions
                   ? 'Weigh the suggestions'
                   : 'Refine this build'}
-            </button>
+            </Button>
             <span className="deck-ai-remaining">
               {remaining === 0
                 ? 'Daily limit reached. Resets at midnight UTC.'

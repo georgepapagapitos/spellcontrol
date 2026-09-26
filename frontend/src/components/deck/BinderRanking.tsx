@@ -19,6 +19,7 @@ import { computeReadiness, type ReadinessScore } from '@/lib/commander-readiness
 import type { EnrichedCard } from '@/types';
 import { MeterBar } from '../shared/MeterBar';
 import { CommanderResultCard } from './CommanderResultCard';
+import { Button } from '@/components/shared/Button';
 
 /** Parallel EDHREC page fetches per ranking run (the client throttles too). */
 const CONCURRENCY = 4;
@@ -427,13 +428,9 @@ export function BinderRanking({
           {topError ? (
             <p className="commander-suggestions-empty" role="alert">
               Couldn't reach EDHREC for top commanders. Check your connection and try again.{' '}
-              <button
-                type="button"
-                className="btn-link"
-                onClick={() => setTopReloadKey((k) => k + 1)}
-              >
+              <Button variant="link" onClick={() => setTopReloadKey((k) => k + 1)}>
                 Retry
-              </button>
+              </Button>
             </p>
           ) : topLoading ? (
             <p className="commander-suggestions-empty">Loading commanders…</p>

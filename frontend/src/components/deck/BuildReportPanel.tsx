@@ -11,6 +11,7 @@ import { ColorPip } from '@/components/shared/ManaSymbol';
 import { THIN_SAMPLE_FLOOR } from '@/components/shared/ThinDataNote';
 import { InfoTip } from '../InfoTip';
 import { EXHIBITION_BRACKET_NOTE, formatBracketLabel } from '@/lib/format-bracket-label';
+import { Button } from '@/components/shared/Button';
 
 const COLOR_WORDS: Record<string, string> = {
   W: 'White',
@@ -831,9 +832,9 @@ export function BuildReportPanel({
             ))}
           </ul>
           {onFixGaps && (
-            <button type="button" className="btn-link build-report-gaps-cta" onClick={onFixGaps}>
+            <Button variant="link" onClick={onFixGaps} className="build-report-gaps-cta">
               See cards to add &rarr;
-            </button>
+            </Button>
           )}
         </div>
       )}

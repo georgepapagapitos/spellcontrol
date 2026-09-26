@@ -5,6 +5,7 @@ import { formatMoney } from '../../lib/format-money';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import type { CardTally } from './useCardCarousel';
 import './BuyListDialog.css';
+import { Button } from '@/components/shared/Button';
 
 /** One `<qty> <name>` line per unique missing card — the vendor-neutral
  *  buy-list text (paste into Cardsphere, Card Kingdom, an LGS order, …). */
@@ -102,37 +103,35 @@ export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: P
         ))}
       </ul>
       <div className="buy-list-actions">
-        <button
-          type="button"
-          className="btn"
+        <Button
           onClick={handleDownload}
           aria-label="Download as text file"
+          icon={<Download width={14} height={14} strokeWidth={2} />}
         >
-          <Download width={14} height={14} strokeWidth={2} aria-hidden />
-          <span>Download</span>
-        </button>
-        <button
-          type="button"
-          className="btn"
+          Download
+        </Button>
+        <Button
           onClick={handleCopy}
           aria-label="Copy list to clipboard"
+          icon={
+            copied ? (
+              <Check width={14} height={14} strokeWidth={2.5} />
+            ) : (
+              <Clipboard width={14} height={14} strokeWidth={2} />
+            )
+          }
         >
-          {copied ? (
-            <Check width={14} height={14} strokeWidth={2.5} aria-hidden />
-          ) : (
-            <Clipboard width={14} height={14} strokeWidth={2} aria-hidden />
-          )}
-          <span>{copied ? 'Copied' : 'Copy'}</span>
-        </button>
-        <a
-          className="btn btn-primary"
+          {copied ? 'Copied' : 'Copy'}
+        </Button>
+        <Button
+          variant="primary"
           href={tcgplayerMassEntryUrl(tally)}
           target="_blank"
           rel="noopener noreferrer"
+          iconEnd={<ExternalLink width={14} height={14} strokeWidth={2} />}
         >
-          <span>Buy on TCGPlayer</span>
-          <ExternalLink width={14} height={14} strokeWidth={2} aria-hidden />
-        </a>
+          Buy on TCGPlayer
+        </Button>
       </div>
     </Modal>
   );
