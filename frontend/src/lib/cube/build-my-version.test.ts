@@ -59,6 +59,9 @@ describe('buildMyVersion', () => {
     expect(result.substituted[0].substitute.name).toBe('Bolt');
     expect(result.substituted[0].original.oracleId).toBe('not-owned');
     expect(result.missing).toHaveLength(0);
+    // No "Substitute for X:" prefix — every caller already shows the
+    // original next to this reason, so repeating its name is redundant.
+    expect(result.substituted[0].reason).toBe('Red, 3 mana');
   });
 
   it('reports a card as missing when no owned substitute matches', () => {
