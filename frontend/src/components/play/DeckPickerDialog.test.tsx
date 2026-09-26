@@ -46,6 +46,8 @@ function open(props: Partial<React.ComponentProps<typeof DeckPickerDialog>> = {}
 }
 
 beforeEach(() => {
+  searchProducts.mockReset();
+  fetchProductCommanderSummary.mockReset();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   searchProducts.mockResolvedValue([product('Squirreled Away'), product('Grave Danger')]);
   fetchProductCommanderSummary.mockResolvedValue({
@@ -59,8 +61,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  searchProducts.mockReset();
-  fetchProductCommanderSummary.mockReset();
 });
 
 describe('which tab opens', () => {

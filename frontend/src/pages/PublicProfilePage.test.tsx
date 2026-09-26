@@ -6,7 +6,7 @@
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
 import { ProfileNotFoundError, ProfileRenamedError } from '../lib/profile-client';
 
@@ -55,7 +55,7 @@ function renderProfile(path = '/u/alice') {
   );
 }
 
-afterEach(() => {
+beforeEach(() => {
   fetchPublicProfileMock.mockReset();
   fetchProfileCollectionMock.mockReset();
 });
@@ -216,6 +216,9 @@ describe('PublicProfilePage — the Collection tab (T136)', () => {
     renderProfile('/u/alice?tab=collection');
     expect(await screen.findByText(/Your friends see which cards you own/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy();
+    // The note shows before the collection's fetch has settled; the owner
+    // sees their own cards under it too.
+    expect(await screen.findByText(/1 card/)).toBeTruthy();
   });
 
   it('offers a retry when the collection fails to load', async () => {

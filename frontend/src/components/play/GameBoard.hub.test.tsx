@@ -75,11 +75,11 @@ import { GameBoard } from './GameBoard';
 const pair = () => [seat(0, 'Alice'), seat(1, 'Bob')];
 
 beforeEach(() => {
+  vi.mocked(highRoll).mockReset();
   localStorage.setItem('sc-board-gestures-seen', '1');
 });
 
 afterEach(() => {
-  vi.mocked(highRoll).mockReset();
   vi.useRealTimers();
 });
 

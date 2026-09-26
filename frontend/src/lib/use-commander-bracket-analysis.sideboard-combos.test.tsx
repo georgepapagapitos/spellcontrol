@@ -9,7 +9,7 @@
  * front of this hook — this test proves that wiring, not just the partition
  * helper in isolation.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { renderHook, waitFor, cleanup } from '@testing-library/react';
 import type { Deck } from '../store/decks';
 import type { ComboMatchResponse } from '../types/combos';
@@ -84,9 +84,12 @@ function args(over: Partial<Parameters<typeof useCommanderBracketAnalysis>[0]> =
   };
 }
 
+beforeEach(() => {
+  analyzeCommanderDeck.mockReset();
+});
+
 afterEach(() => {
   cleanup();
-  analyzeCommanderDeck.mockReset();
 });
 
 describe('useCommanderBracketAnalysis — sideboard combos never set a floor', () => {

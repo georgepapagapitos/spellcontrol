@@ -8,7 +8,7 @@
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicGameNight } from '../lib/game-nights-api';
 
 const { fetchPublicGameNightMock } = vi.hoisted(() => ({ fetchPublicGameNightMock: vi.fn() }));
@@ -55,7 +55,7 @@ function renderNight() {
   );
 }
 
-afterEach(() => {
+beforeEach(() => {
   fetchPublicGameNightMock.mockReset();
 });
 

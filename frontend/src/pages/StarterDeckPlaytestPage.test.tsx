@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { StarterDeckPlaytestPage } from './StarterDeckPlaytestPage';
@@ -65,12 +65,9 @@ function renderAt(fileName = 'precon.json') {
 }
 
 beforeEach(() => {
-  fetchProduct.mockResolvedValue(resolved());
-});
-
-afterEach(() => {
   fetchProduct.mockReset();
   toastShow.mockReset();
+  fetchProduct.mockResolvedValue(resolved());
 });
 
 describe('StarterDeckPlaytestPage', () => {
