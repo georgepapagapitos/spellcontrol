@@ -38,6 +38,7 @@ import { isTrackingList } from '../lib/lists';
 import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
 import type { ListDef, ListKind } from '../types';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
+import { Button } from '@/components/shared/Button';
 
 type ListSortField = 'order' | 'name' | 'entries';
 type SortDir = 'asc' | 'desc';
@@ -228,9 +229,9 @@ export function ListsPage() {
           <div className="empty-state">
             <p className="empty-state-tagline">List not found.</p>
             <div className="empty-state-actions">
-              <Link to="/collection/lists" className="btn btn-primary">
+              <Button variant="primary" to="/collection/lists">
                 Back to lists
-              </Link>
+              </Button>
             </div>
           </div>
           {confirmDialog}
@@ -319,12 +320,10 @@ export function ListsPage() {
             collection, binders, or decks.
           </p>
           <div className="empty-state-actions">
-            <button type="button" className="btn btn-primary" onClick={handleCreate}>
+            <Button variant="primary" onClick={handleCreate}>
               Create your first list
-            </button>
-            <button type="button" className="btn" onClick={handleCreateDynamic}>
-              New dynamic list
-            </button>
+            </Button>
+            <Button onClick={handleCreateDynamic}>New dynamic list</Button>
           </div>
         </div>
       ) : sorted.length === 0 ? (
@@ -345,15 +344,15 @@ export function ListsPage() {
               onDone={sel.exit}
               noun="list"
             >
-              <button
-                type="button"
-                className="pill-btn bulk-bar-danger"
+              <Button
+                placement="row"
                 disabled={sel.selected.size === 0}
                 onClick={() => void handleBulkDelete()}
+                className="bulk-bar-danger"
+                icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
               >
-                <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Delete selected</span>
-              </button>
+                Delete selected
+              </Button>
             </BulkSelectBar>
           )}
           <ul className={`binders-index-list is-${view}`}>
@@ -432,13 +431,13 @@ export function ListsPage() {
 
       {lists.length > 1 && (
         <div className="binders-index-danger">
-          <button
-            type="button"
-            className="btn-link binders-index-danger-btn"
+          <Button
+            variant="link"
             onClick={() => void handleDeleteAll()}
+            className="binders-index-danger-btn"
           >
             Delete all lists
-          </button>
+          </Button>
         </div>
       )}
 

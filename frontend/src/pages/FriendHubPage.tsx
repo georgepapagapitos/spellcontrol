@@ -68,6 +68,7 @@ import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import type { PublicCard, ShareKind } from '../lib/shared-types';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /** How many collection cards render before "Show more" — the friend's real
  *  collection can be ~11.5k unique oracle cards; filtering runs over the
  *  full set regardless of this cap (see filterFriendCollection). */
@@ -642,13 +643,9 @@ export function FriendHubPage() {
             {radarError ? (
               <p className="friend-hub-radar-note" role="alert">
                 Couldn't check {who}'s collection against your want lists.{' '}
-                <button
-                  type="button"
-                  className="btn-link friend-hub-radar-retry"
-                  onClick={retryCollection}
-                >
+                <Button variant="link" onClick={retryCollection} className="friend-hub-radar-retry">
                   Try again
-                </button>
+                </Button>
               </p>
             ) : collectionUnknown || radar === null ? (
               <div
@@ -675,13 +672,13 @@ export function FriendHubPage() {
                     <RadarCardTile key={m.name} match={m} />
                   ))}
                 </ul>
-                <button
-                  type="button"
-                  className="btn btn-primary friend-hub-radar-propose"
+                <Button
+                  variant="primary"
                   onClick={() => setComposing({})}
+                  className="friend-hub-radar-propose"
                 >
                   Propose a trade
-                </button>
+                </Button>
               </>
             )}
           </section>
@@ -693,13 +690,9 @@ export function FriendHubPage() {
             {wantsError ? (
               <p className="friend-hub-radar-note" role="alert">
                 Couldn't check your collection against {who}'s want lists.{' '}
-                <button
-                  type="button"
-                  className="btn-link friend-hub-radar-retry"
-                  onClick={retryWants}
-                >
+                <Button variant="link" onClick={retryWants} className="friend-hub-radar-retry">
                   Try again
-                </button>
+                </Button>
               </p>
             ) : collectionUnknown || wantRadar === null ? (
               <div
@@ -729,13 +722,13 @@ export function FriendHubPage() {
                     <WantCardTile key={m.oracleId || m.name} match={m} />
                   ))}
                 </ul>
-                <button
-                  type="button"
-                  className="btn btn-primary friend-hub-radar-propose"
+                <Button
+                  variant="primary"
                   onClick={() => setComposing({})}
+                  className="friend-hub-radar-propose"
                 >
                   Propose a trade
-                </button>
+                </Button>
               </>
             )}
           </section>
@@ -744,9 +737,8 @@ export function FriendHubPage() {
         {error && (
           <p className="friends-error" role="alert">
             <span>{error}</span>{' '}
-            <button
-              type="button"
-              className="btn-link"
+            <Button
+              variant="link"
               onClick={() => {
                 setError(null);
                 setShares(null);
@@ -754,7 +746,7 @@ export function FriendHubPage() {
               }}
             >
               Retry
-            </button>
+            </Button>
           </p>
         )}
 
@@ -799,9 +791,9 @@ export function FriendHubPage() {
         {decksError ? (
           <p className="friend-hub-radar-note" role="alert">
             Couldn't load {who}'s decks.{' '}
-            <button type="button" className="btn-link friend-hub-radar-retry" onClick={retryDecks}>
+            <Button variant="link" onClick={retryDecks} className="friend-hub-radar-retry">
               Try again
-            </button>
+            </Button>
           </p>
         ) : friendDecks === null ? (
           <div
@@ -844,13 +836,9 @@ export function FriendHubPage() {
         {collectionError ? (
           <p className="friend-hub-radar-note" role="alert">
             Couldn't load {who}'s collection.{' '}
-            <button
-              type="button"
-              className="btn-link friend-hub-radar-retry"
-              onClick={retryCollection}
-            >
+            <Button variant="link" onClick={retryCollection} className="friend-hub-radar-retry">
               Try again
-            </button>
+            </Button>
           </p>
         ) : friendCards === null ? (
           <div
@@ -970,13 +958,12 @@ export function FriendHubPage() {
                   />
                 )}
                 {hasMoreFriendCards && (
-                  <button
-                    type="button"
-                    className="btn friend-hub-collection-more"
+                  <Button
                     onClick={() => setCollectionVisible((n) => n + COLLECTION_PAGE_SIZE)}
+                    className="friend-hub-collection-more"
                   >
                     Show more ({filteredFriendCards.length - collectionVisible} left)
-                  </button>
+                  </Button>
                 )}
               </>
             )}
@@ -994,21 +981,17 @@ export function FriendHubPage() {
           <p className="friend-hub-collection-contract">
             Offers either way. Accepting settles both collections.
           </p>
-          <button type="button" className="btn btn-primary" onClick={() => setComposing({})}>
+          <Button variant="primary" onClick={() => setComposing({})}>
             Propose a trade
-          </button>
+          </Button>
         </div>
 
         {offersError ? (
           <p className="friend-hub-radar-note" role="alert">
             Couldn't load your trades with {who}.{' '}
-            <button
-              type="button"
-              className="btn-link friend-hub-radar-retry"
-              onClick={refreshTrades}
-            >
+            <Button variant="link" onClick={refreshTrades} className="friend-hub-radar-retry">
               Try again
-            </button>
+            </Button>
           </p>
         ) : offers === null ? (
           <div

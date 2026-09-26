@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   GameNightNotFoundError,
   resolveGuestInvite,
@@ -9,6 +9,7 @@ import { SharedShell } from '../components/share/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /**
  * Shared landing for the two link types that resolve to a night rather than
  * being one: the stable weekly-series link (/gn/s/:token, E125) and a named
@@ -63,9 +64,9 @@ export function GameNightLinkForward({
         <div className="shared-view shared-view--missing">
           <h1>Link not found</h1>
           <p>{notFoundMessage}</p>
-          <Link to="/" className="btn btn-primary shared-copy-btn">
+          <Button variant="primary" to="/" className="shared-copy-btn">
             Go to SpellControl
-          </Link>
+          </Button>
         </div>
       </SharedShell>
     );
@@ -76,9 +77,9 @@ export function GameNightLinkForward({
         <div className="shared-view shared-view--error">
           <h1>Something went wrong</h1>
           <p>{state.message}</p>
-          <Link to="/" className="btn btn-primary shared-copy-btn">
+          <Button variant="primary" to="/" className="shared-copy-btn">
             Go to SpellControl
-          </Link>
+          </Button>
         </div>
       </SharedShell>
     );
