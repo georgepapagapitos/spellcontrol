@@ -7,7 +7,6 @@ import {
   getInbox,
   listShares,
   PublicDeckNotFoundError,
-  recordDeckCopy,
   recordDeckView,
   revokeShare,
   ShareAuthRequiredError,
@@ -170,29 +169,6 @@ describe('getInbox', () => {
 describe('shareUrl', () => {
   it('builds an absolute URL using window.location.origin', () => {
     expect(shareUrl('abc123')).toMatch(/\/s\/abc123$/);
-  });
-});
-
-describe('recordDeckCopy', () => {
-  it('POSTs the copy beacon for the given slug', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response(null, { status: 204 }));
-    await recordDeckCopy('korvold-treasure');
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/public/decks/korvold-treasure/copy',
-      expect.objectContaining({ method: 'POST' })
-    );
-  });
-
-  it('swallows a rejected fetch instead of throwing', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network down'));
-    await expect(recordDeckCopy('korvold-treasure')).resolves.toBeUndefined();
-  });
-
-  it('swallows a non-ok response instead of throwing', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404 }));
-    await expect(recordDeckCopy('no-such-slug')).resolves.toBeUndefined();
   });
 });
 

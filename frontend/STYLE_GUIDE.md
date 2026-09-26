@@ -343,6 +343,20 @@ page/section going empty, not a new celebration moment — don't add motion
 beyond the existing idle loop, and don't reach for it on the inline sub-panel
 placeholders above (those stay text-only, same as always).
 
+**A rail that sits above a page's own content renders nothing when it's
+empty.** Discover's Trending rail is the example: the browse grid below is the
+page, and a "Nothing trending yet" card above it only pushed the grid down. So
+an empty rail returns `null` with no heading and no empty-state card, and its
+loading skeleton reserves nothing when it was empty last time. The empty-state
+rules above are for a page or section whose content IS that list.
+
+**A social ranking counts people, never clicks.** A list the app curates by
+popularity (Trending) reads rows that need a signed-in account per +1 (a like,
+a save, a live copy, a distinct author), leaves the owner out, and shows nothing
+until more than one person is behind it. Views are anonymous, so they are
+counted once per viewer per day and may be shown or sorted on by the user, but
+never feed a curated list.
+
 **A filtered-to-zero empty state's own "reset" button must not repeat a
 nearby `SearchPill`'s built-in label.** `SearchPill` already renders its own
 inline `×` labelled "Clear search" whenever its box has text — exactly the

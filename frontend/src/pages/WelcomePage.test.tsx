@@ -205,10 +205,9 @@ describe('WelcomePage fresh-decks rail', () => {
     // resolved negative rather than asserting it on first paint.
     await waitFor(() => expect(screen.queryByText('Fresh public decks')).toBeNull());
     expect(screen.getByRole('button', { name: /try sample cards/i })).toBeTruthy();
-    // TrendingRail never self-hides on its own — WelcomePage doesn't mount it
-    // at all when the sibling rail also found nothing, so its empty state
-    // ("Nothing trending yet.") must never appear here either.
-    expect(screen.queryByText(/nothing trending yet/i)).toBeNull();
+    // WelcomePage doesn't mount TrendingRail at all when the sibling rail
+    // found nothing, so no trending heading shows either.
+    expect(screen.queryByRole('heading', { name: 'Trending' })).toBeNull();
   });
 });
 
@@ -231,7 +230,7 @@ describe('WelcomePage renders', () => {
     expect(skip.getAttribute('href')).toBe('/collection');
   });
 
-  it('shows the trending rail\'s "View all" link to Discover once there are enough fresh decks', async () => {
+  it('links on to Discover exactly once when there are enough fresh decks', async () => {
     mockListDiscoverDecks.mockResolvedValue({
       decks: [makeDeck({ slug: 'a' }), makeDeck({ slug: 'b' }), makeDeck({ slug: 'c' })],
       page: 1,
@@ -239,16 +238,11 @@ describe('WelcomePage renders', () => {
     });
     renderWelcome();
     await waitFor(() => expect(screen.getByText('Fresh public decks')).toBeTruthy());
-    // The "View all" link only mounts once WelcomePage's own hasFreshDecks
-    // state (set from FreshDecksRail's onVisibilityChange effect) has
-    // committed — a separate render pass from the one above, so this needs
-    // its own wait rather than a synchronous check right after.
-    await waitFor(() =>
-      expect(screen.getByRole('link', { name: /view all public decks/i })).toBeTruthy()
-    );
-    expect(screen.getByRole('link', { name: /view all public decks/i }).getAttribute('href')).toBe(
-      '/decks/discover'
-    );
+    // FreshDecksRail's "View all" is the one way on; the trending rail below
+    // it hides when empty and no longer carries a second copy of that link.
+    const viewAll = screen.getAllByRole('link', { name: /view all/i });
+    expect(viewAll).toHaveLength(1);
+    expect(viewAll[0].getAttribute('href')).toBe('/decks/discover');
   });
 
   it('shows the feature grid and legal footer', () => {

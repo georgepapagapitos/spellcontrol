@@ -30,10 +30,33 @@ export const publicRouter: Router = Router();
 
 const publicReadLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 
-// Tighter than the read limiter — shared by the two write-ish beacons (copy,
-// view) so one IP can't inflate `copy_count`/`view_count` at the 60/min read
-// rate once a deck clears the ghost-town display threshold.
+// Tighter than the read limiter for the view beacon, the one write here.
 const publicWriteLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
+
+/**
+ * One view per viewer per deck per day: the signed-in account, or the IP for
+ * a guest. Without it a refresh, or a loop, counted again. Held in memory on
+ * purpose: the backend is one Fly machine, and an IP kept here is never
+ * written anywhere, so the privacy page's no-identifiers promise holds. A
+ * restart forgets it, which costs at most one extra view per viewer.
+ */
+const VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
+const VIEW_KEYS_MAX = 50_000;
+const recentViews = new Map<string, number>();
+
+export function isFirstViewToday(key: string, now: number): boolean {
+  const seenAt = recentViews.get(key);
+  if (seenAt !== undefined && now - seenAt < VIEW_WINDOW_MS) return false;
+  // Re-inserting moves the key to the end, so the map stays oldest-first and
+  // expired entries are always at the front.
+  recentViews.delete(key);
+  for (const [oldKey, at] of recentViews) {
+    if (now - at < VIEW_WINDOW_MS && recentViews.size < VIEW_KEYS_MAX) break;
+    recentViews.delete(oldKey);
+  }
+  recentViews.set(key, now);
+  return true;
+}
 
 const MAX_PROFILE_DECKS = 200;
 
@@ -120,21 +143,11 @@ publicRouter.get('/decks/:slug', publicReadLimiter, async (req: Request, res: Re
   res.json(page);
 });
 
-publicRouter.post('/decks/:slug/copy', publicWriteLimiter, async (req: Request, res: Response) => {
-  const result = await getPool().query(
-    `UPDATE deck_publications SET copy_count = copy_count + 1
-        WHERE slug = $1 AND unpublished_at IS NULL
-      RETURNING copy_count`,
-    [readSlugParam(req)]
-  );
-  if (result.rowCount === 0) return res.status(404).json(DECK_NOT_FOUND);
-  res.status(204).end();
-});
-
 /**
- * View beacon. Always 204 — unknown slug, unpublished deck, and a successful
- * count all read identically to the caller (a view beacon must be
- * zero-information, unlike the copy route's 404). Owner-exclusion is
+ * View beacon. Always 204 — unknown slug, unpublished deck, a repeat view and
+ * a successful count all read identically to the caller (a view beacon must
+ * be zero-information). A repeat within the day is dropped before the query
+ * (isFirstViewToday). Owner-exclusion is
  * authoritative server-side via the `user_id != $2` guard below rather than
  * trusting the client's own skip-for-owner check. Anonymous callers pass
  * `ownerId = null`, which the `$2::text IS NULL OR …` clause always
@@ -147,12 +160,16 @@ publicRouter.post(
   optionalAuth,
   async (req: Request, res: Response) => {
     const ownerId = req.user?.id ?? null;
+    const slug = readSlugParam(req);
+    if (!isFirstViewToday(`${slug}\n${ownerId ?? req.ip}`, Date.now())) {
+      return res.status(204).end();
+    }
     await getPool()
       .query(
         `UPDATE deck_publications SET view_count = view_count + 1
           WHERE slug = $1 AND unpublished_at IS NULL
             AND ($2::text IS NULL OR user_id != $2)`,
-        [readSlugParam(req), ownerId]
+        [slug, ownerId]
       )
       .catch((err) => logger.warn('[public] view beacon update failed', err));
     res.status(204).end();

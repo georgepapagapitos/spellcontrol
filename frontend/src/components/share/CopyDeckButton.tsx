@@ -1,7 +1,6 @@
 import { Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { copySharedDeck } from '../../lib/copy-shared-deck';
-import { recordDeckCopy } from '../../lib/share-client';
 import { toast } from '../../store/toasts';
 import type { PublicDeck } from '../../lib/shared-types';
 import { Button } from '@/components/shared/Button';
@@ -11,8 +10,9 @@ interface Props {
   variant?: 'header' | 'block';
   /** The deck_publications slug, present when copying from `/d/:slug`
    *  (`w1-public-deck-page`), absent from a `/s/:token` share. Stamps the
-   *  copy's `forkedFrom` lineage and bumps the public copy counter — a
-   *  share-token copy does neither. */
+   *  copy's `forkedFrom` lineage, which is also what the public copy count
+   *  reads once the copy syncs (backend publications/copies.ts). A
+   *  share-token copy carries neither. */
   slug?: string;
 }
 
@@ -26,9 +26,6 @@ export function CopyDeckButton({ data, variant = 'header', slug }: Props) {
 
   function handleCopy() {
     const id = copySharedDeck(data, slug);
-    // Fire-and-forget: a failed counter bump must never block or error the
-    // actual copy above (recordDeckCopy already swallows its own errors).
-    if (slug) void recordDeckCopy(slug);
     toast.show({ message: 'Copied to your decks', tone: 'success' });
     // promptVisibility (E150): a one-tap copy skips the creation-time
     // visibility fieldset entirely, so the editor shows a post-create

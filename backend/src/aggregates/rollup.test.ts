@@ -18,9 +18,13 @@ import {
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
+let nextOwner = 0;
+
 /** Builds one published-deck input. `cards` defaults to an empty mainboard;
- *  pass `{ oracleId, name, usd? }` entries to exercise price/inclusion logic. */
+ *  pass `{ oracleId, name, usd? }` entries to exercise price/inclusion logic.
+ *  Each deck gets its own author unless `ownerId` says otherwise. */
 function makeDeck(opts: {
+  ownerId?: string;
   commanderOracleId: string | null;
   commanderName?: string;
   partnerOracleId?: string;
@@ -32,6 +36,7 @@ function makeDeck(opts: {
   return {
     effectiveBracket: opts.effectiveBracket ?? null,
     publishedAt: opts.publishedAt ?? 0,
+    ownerId: opts.ownerId ?? `owner-${nextOwner++}`,
     data: {
       commander: opts.commanderOracleId
         ? { oracle_id: opts.commanderOracleId, name: opts.commanderName ?? opts.commanderOracleId }
@@ -276,6 +281,16 @@ describe('computeCommanderAggregates', () => {
       const { stats } = computeCommanderAggregates(decks, now);
       expect(stats[0].deckCount).toBe(5);
       expect(stats[0].newLast7d).toBe(3);
+    });
+
+    it('counts authors, not decks: one account publishing five decks is one', () => {
+      const now = 1_000_000_000_000;
+      const decks = Array.from({ length: 5 }, () =>
+        makeDeck({ commanderOracleId: 'cmd-k', publishedAt: now, ownerId: 'prolific' })
+      );
+      const { stats } = computeCommanderAggregates(decks, now);
+      expect(stats[0].deckCount).toBe(5);
+      expect(stats[0].newLast7d).toBe(1);
     });
   });
 

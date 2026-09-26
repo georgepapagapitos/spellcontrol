@@ -1,135 +1,168 @@
-import { sql, isNull, lt } from 'drizzle-orm';
-import { getDb } from '../db';
-import { deckPublications, deckStatSnapshots } from '../db/schema';
+import { getPool } from '../db';
 
-/** Per-pair decay applied per day of age -- more recent deltas score higher. */
+/**
+ * "Popular this week": public decks ranked by what other players actually did
+ * with them, read straight from the rows that record it. A like, a save, and
+ * a copy the player still holds (a live fork, see publications/copies.ts)
+ * each need a signed-in account, and one account can do each once per deck.
+ * The owner's own actions never count. Views are not an input at all: they
+ * are anonymous, so they can't tell ten players from one refresh loop.
+ *
+ * A deck needs MIN_PLAYERS different accounts in the window before it can
+ * appear. Until the community is big enough for that, the list is empty and
+ * the rail hides, which beats a list of one person's decks.
+ */
+
+export const TRENDING_WINDOW_DAYS = 7;
+/** Per day of age; recent actions count for more. */
 export const DECAY_RATE = 0.7;
-/** A copy is a stronger trending signal than a view. */
-export const COPY_WEIGHT = 3;
-export const VIEW_WEIGHT = 1;
-/** `snapshotDeckStats` prunes any row older than this many days. */
-export const SNAPSHOT_RETENTION_DAYS = 8;
-/** `computeDecayedTrending` never returns more than this many decks. */
-export const TRENDING_DECKS_LIMIT = 20;
+/** Distinct non-owner accounts a deck needs inside the window to qualify. */
+export const MIN_PLAYERS = 3;
+export const TRENDING_DECKS_LIMIT = 10;
+/** A like is a nod, a save is intent, a copy is taking the list home. */
+export const ACTION_WEIGHTS = { like: 1, save: 2, copy: 3 } as const;
+/** Extra weight for a copy its player has taken into a logged game. */
+export const PLAYED_COPY_BONUS = 2;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** Bounds Postgres's parameter-count ceiling on the bulk upsert, exactly like
- *  rollup.ts's own FLUSH_AT -- this dataset (one row per public deck) is small
- *  enough that no event-loop-yielding is needed between chunks. */
-const FLUSH_AT = 500;
 
-/** One snapshot row as `computeDecayedTrending` consumes it -- decoupled from
- *  the raw DB row so the pure function has no DB awareness. `day` is a plain
- *  'YYYY-MM-DD' string (never a JS Date -- see schema.ts's doc comment on
- *  deckStatSnapshots for why). */
-export interface DeckSnapshotRow {
-  deckId: string;
-  day: string;
-  viewCount: number;
-  copyCount: number;
+export type EngagementKind = keyof typeof ACTION_WEIGHTS;
+
+/** One action by one account on one public deck, owner already excluded. */
+export interface EngagementEvent {
+  slug: string;
+  ownerId: string;
+  deckName: string;
+  commanderName: string | null;
+  actorId: string;
+  kind: EngagementKind;
+  at: number;
+  /** Copies only: the copy has been played in a logged game. */
+  played: boolean;
 }
 
 export interface TrendingDeck {
-  deckId: string;
+  slug: string;
+  deckName: string;
+  commanderName: string | null;
+  /** Distinct accounts that liked, saved or copied it inside the window. */
+  players: number;
   score: number;
 }
 
-function dayToMs(day: string): number {
-  return Date.parse(`${day}T00:00:00.000Z`);
-}
-
-/** UTC calendar day for an epoch-ms instant, as 'YYYY-MM-DD'. Always UTC
- *  (never the server's local timezone) so the bucket is unambiguous
- *  regardless of where this runs. */
-function toDay(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 10);
+interface DeckTally {
+  ownerId: string;
+  deckName: string;
+  commanderName: string | null;
+  actors: Set<string>;
+  score: number;
 }
 
 /**
- * Pure, no DB access. Groups snapshot rows by deck, sorts each deck's rows by
- * day ascending, and walks CONSECUTIVE PAIRS only -- a deck's first-ever
- * recorded snapshot is never the right-hand side of any pair, and never the
- * left-hand side of a fabricated zero row, so it contributes zero score
- * until a second day's snapshot exists to form a real delta (folded
- * correctness fix -- see w4-trending spec: scoring a first snapshot as a
- * delta-from-zero would produce a one-time spike off pre-existing cumulative
- * counts, the opposite of what decay is meant to reward).
- *
- * Each pair's copy/view deltas are floored at 0 (a counter correction can
- * never subtract score) and decayed by the AGE OF THE LATER snapshot in the
- * pair -- the day the delta was earned. Decks with a total score <= 0 are
- * dropped; the rest are sorted desc by score and capped at
- * TRENDING_DECKS_LIMIT.
+ * Pure. Scores each deck by its weighted, decayed actions, drops any deck
+ * with fewer than MIN_PLAYERS distinct accounts behind it, and keeps only
+ * the best deck per author so one prolific account can't fill the list.
  */
-export function computeDecayedTrending(snapshots: DeckSnapshotRow[], now: number): TrendingDeck[] {
-  const byDeck = new Map<string, DeckSnapshotRow[]>();
-  for (const row of snapshots) {
-    const rows = byDeck.get(row.deckId);
-    if (rows) rows.push(row);
-    else byDeck.set(row.deckId, [row]);
+export function rankTrendingDecks(events: EngagementEvent[], now: number): TrendingDeck[] {
+  const byDeck = new Map<string, DeckTally>();
+  for (const e of events) {
+    const ageDays = Math.floor((now - e.at) / DAY_MS);
+    if (ageDays < 0 || ageDays >= TRENDING_WINDOW_DAYS) continue;
+    const deck = byDeck.get(e.slug) ?? {
+      ownerId: e.ownerId,
+      deckName: e.deckName,
+      commanderName: e.commanderName,
+      actors: new Set<string>(),
+      score: 0,
+    };
+    const weight = ACTION_WEIGHTS[e.kind] + (e.kind === 'copy' && e.played ? PLAYED_COPY_BONUS : 0);
+    deck.score += weight * DECAY_RATE ** ageDays;
+    deck.actors.add(e.actorId);
+    byDeck.set(e.slug, deck);
   }
 
-  const scored: TrendingDeck[] = [];
-  for (const [deckId, rows] of byDeck) {
-    const sorted = [...rows].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
-    let score = 0;
-    for (let i = 1; i < sorted.length; i++) {
-      const prev = sorted[i - 1];
-      const curr = sorted[i];
-      const copyDelta = Math.max(0, curr.copyCount - prev.copyCount);
-      const viewDelta = Math.max(0, curr.viewCount - prev.viewCount);
-      const ageDays = Math.floor((now - dayToMs(curr.day)) / DAY_MS);
-      score += (copyDelta * COPY_WEIGHT + viewDelta * VIEW_WEIGHT) * DECAY_RATE ** ageDays;
-    }
-    if (score > 0) scored.push({ deckId, score });
-  }
+  const ranked = [...byDeck]
+    .filter(([, d]) => d.actors.size >= MIN_PLAYERS)
+    .sort(
+      ([slugA, a], [slugB, b]) =>
+        b.score - a.score || b.actors.size - a.actors.size || (slugA < slugB ? -1 : 1)
+    );
 
-  return scored.sort((a, b) => b.score - a.score).slice(0, TRENDING_DECKS_LIMIT);
+  const authors = new Set<string>();
+  const out: TrendingDeck[] = [];
+  for (const [slug, d] of ranked) {
+    if (authors.has(d.ownerId)) continue;
+    authors.add(d.ownerId);
+    out.push({
+      slug,
+      deckName: d.deckName,
+      commanderName: d.commanderName,
+      players: d.actors.size,
+      score: d.score,
+    });
+    if (out.length === TRENDING_DECKS_LIMIT) break;
+  }
+  return out;
 }
 
 /**
- * Snapshots today's cumulative view/copy counters for every currently-public
- * deck, upserting one row per deck per day, then prunes anything older than
- * SNAPSHOT_RETENTION_DAYS. `deckPublications.viewCount`/`.copyCount` are
- * real, confirmed columns (w0-publish-schema-endpoints, batch 2 -- 14
- * batches before this one) -- read directly, no try/catch-and-warn-on-
- * missing-column path.
- *
- * Called from rollup.ts's runRollup() as a second, independent step -- never
- * inside the commander_stats transaction -- so a bug here can't roll back or
- * mis-report that unrelated, already-working write.
+ * Every like, save and live copy of a live public deck inside the window, by
+ * anyone but its owner. A copy's time is the copied deck's own `createdAt`
+ * (the CASE keeps a malformed value from failing the whole read). "Played"
+ * means the copy's id sits in one of its player's logged games.
  */
-export async function snapshotDeckStats(now: number): Promise<number> {
-  const db = getDb();
-  const today = toDay(now);
+export async function loadEngagementEvents(now: number): Promise<EngagementEvent[]> {
+  const since = now - TRENDING_WINDOW_DAYS * DAY_MS;
+  const { rows } = await getPool().query<{
+    slug: string;
+    owner_id: string;
+    deck_name: string;
+    commander_name: string | null;
+    actor_id: string;
+    kind: EngagementKind;
+    at: string;
+    played: boolean;
+  }>(
+    `SELECT p.slug, p.user_id AS owner_id, p.deck_name, p.commander_name,
+            e.actor_id, e.kind, e.at, e.played
+       FROM deck_publications p
+       JOIN (
+         SELECT slug, user_id AS actor_id, 'like' AS kind, created_at AS at, false AS played
+           FROM deck_likes WHERE created_at > $1
+         UNION ALL
+         SELECT slug, user_id, 'save', created_at, false
+           FROM deck_bookmarks WHERE created_at > $1
+         UNION ALL
+         SELECT copies.slug, copies.actor_id, 'copy', copies.at,
+                EXISTS (
+                  SELECT 1 FROM user_games g
+                   WHERE g.user_id = copies.actor_id AND g.deleted_at IS NULL
+                     AND g.data->'players' @> jsonb_build_array(jsonb_build_object('deckId', copies.deck_id))
+                )
+           FROM (
+             SELECT ud.data->'forkedFrom'->>'slug' AS slug, ud.user_id AS actor_id, ud.id AS deck_id,
+                    CASE WHEN ud.data->>'createdAt' ~ '^[0-9]{1,15}$'
+                         THEN (ud.data->>'createdAt')::bigint END AS at
+               FROM user_decks ud
+              WHERE ud.deleted_at IS NULL AND (ud.data->'forkedFrom'->>'slug') IS NOT NULL
+           ) copies
+          WHERE copies.at > $1
+       ) e ON e.slug = p.slug
+      WHERE p.unpublished_at IS NULL AND e.actor_id <> p.user_id`,
+    [since]
+  );
+  return rows.map((r) => ({
+    slug: r.slug,
+    ownerId: r.owner_id,
+    deckName: r.deck_name,
+    commanderName: r.commander_name,
+    actorId: r.actor_id,
+    kind: r.kind,
+    at: Number(r.at),
+    played: r.played,
+  }));
+}
 
-  const decks = await db
-    .select({
-      deckId: deckPublications.deckId,
-      userId: deckPublications.userId,
-      viewCount: deckPublications.viewCount,
-      copyCount: deckPublications.copyCount,
-    })
-    .from(deckPublications)
-    .where(isNull(deckPublications.unpublishedAt));
-
-  for (let i = 0; i < decks.length; i += FLUSH_AT) {
-    const chunk = decks.slice(i, i + FLUSH_AT).map((d) => ({ ...d, day: today }));
-    await db
-      .insert(deckStatSnapshots)
-      .values(chunk)
-      .onConflictDoUpdate({
-        target: [deckStatSnapshots.deckId, deckStatSnapshots.day],
-        set: {
-          userId: sql`excluded.user_id`,
-          viewCount: sql`excluded.view_count`,
-          copyCount: sql`excluded.copy_count`,
-        },
-      });
-  }
-
-  const cutoff = toDay(now - SNAPSHOT_RETENTION_DAYS * DAY_MS);
-  await db.delete(deckStatSnapshots).where(lt(deckStatSnapshots.day, cutoff));
-
-  return decks.length;
+export async function loadTrendingDecks(now: number): Promise<TrendingDeck[]> {
+  return rankTrendingDecks(await loadEngagementEvents(now), now);
 }

@@ -9,7 +9,7 @@ import {
   commanderCardInclusion,
   userDecks,
   deckPublications,
-  deckStatSnapshots,
+  deckLikes,
 } from '../db/schema';
 
 let app: Server;
@@ -165,24 +165,26 @@ describe('GET /api/aggregates/trending', () => {
       'cmd-rising', // newLast7d 8
       'cmd-atraxa', // newLast7d 5
     ]);
-    expect(res.body).not.toHaveProperty('topCopiedDecks');
+    expect(res.body.trendingDecks).toEqual([]);
     expect(res.headers['cache-control']).toBe('public, max-age=3600');
   });
 });
 
-describe('GET /api/aggregates/trending (topCopiedDecks, w4-trending)', () => {
-  it('gains topCopiedDecks once real snapshot deltas exist', async () => {
-    const reg = await request(app).post('/api/auth/register').send({
-      username: 'trending_owner',
-      password: 'correct horse battery',
-      email: 'trending_owner@example.test',
-    });
-    const ownerId = reg.body.user.id as string;
-    const db = getDb();
+describe('GET /api/aggregates/trending (trendingDecks)', () => {
+  it('lists a deck once three other players have liked it, with no internal score', async () => {
+    const register = async (username: string) => {
+      const reg = await request(app)
+        .post('/api/auth/register')
+        .send({
+          username,
+          password: 'correct horse battery',
+          email: `${username}@example.test`,
+        });
+      return reg.body.user.id as string;
+    };
+    const ownerId = await register('trending_owner');
     const now = Date.now();
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const dayStr = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-
+    const db = getDb();
     await db.insert(deckPublications).values({
       userId: ownerId,
       deckId: 'trend-deck-1',
@@ -190,38 +192,35 @@ describe('GET /api/aggregates/trending (topCopiedDecks, w4-trending)', () => {
       deckName: 'Trend Deck One',
       format: 'commander',
       commanderName: 'Trend Commander',
-      colorIdentity: [],
-      cardCount: 0,
-      viewCount: 520,
-      copyCount: 42,
-      likeCount: 0,
-      deckRev: 1,
       publishedAt: now,
       updatedAt: now,
       unpublishedAt: null,
     });
-    await db.insert(deckStatSnapshots).values([
-      {
-        deckId: 'trend-deck-1',
-        userId: ownerId,
-        day: dayStr(now - DAY_MS),
-        viewCount: 500,
-        copyCount: 40,
-      },
-      { deckId: 'trend-deck-1', userId: ownerId, day: dayStr(now), viewCount: 520, copyCount: 42 },
-    ]);
+    const like = (userId: string) =>
+      db.insert(deckLikes).values({
+        userId,
+        slug: 'trend-deck-1-slug',
+        deckOwnerId: ownerId,
+        createdAt: now,
+      });
 
+    await like(ownerId); // the owner's own like never counts
+    await like(await register('trending_fan_1'));
+    await like(await register('trending_fan_2'));
+    const before = await request(app).get('/api/aggregates/trending');
+    expect(before.body.trendingDecks).toEqual([]);
+
+    await like(await register('trending_fan_3'));
     const res = await request(app).get('/api/aggregates/trending');
     expect(res.status).toBe(200);
-    expect(res.body.topCopiedDecks).toHaveLength(1);
-    expect(res.body.topCopiedDecks[0]).toMatchObject({
-      deckId: 'trend-deck-1',
-      slug: 'trend-deck-1-slug',
-      deckName: 'Trend Deck One',
-      commanderName: 'Trend Commander',
-      partnerName: null,
-    });
-    expect(res.body.topCopiedDecks[0].score).toBeGreaterThan(0);
+    expect(res.body.trendingDecks).toEqual([
+      {
+        slug: 'trend-deck-1-slug',
+        deckName: 'Trend Deck One',
+        commanderName: 'Trend Commander',
+        players: 3,
+      },
+    ]);
   });
 });
 

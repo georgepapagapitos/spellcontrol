@@ -214,6 +214,11 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (user_id, id)
     );
     CREATE INDEX IF NOT EXISTS user_decks_rev_idx ON user_decks(user_id, rev);
+    -- A copy of a public deck carries forkedFrom.slug. Those live copies are
+    -- the deck's copy count and a trending signal (publications/copies.ts).
+    CREATE INDEX IF NOT EXISTS user_decks_forked_from_idx
+      ON user_decks ((data->'forkedFrom'->>'slug'))
+      WHERE deleted_at IS NULL AND (data->'forkedFrom'->>'slug') IS NOT NULL;
     CREATE TABLE IF NOT EXISTS user_games (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       id TEXT NOT NULL,
@@ -800,23 +805,6 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (commander_key, oracle_id)
     );
     CREATE INDEX IF NOT EXISTS commander_card_inclusion_rank_idx ON commander_card_inclusion(commander_key, rank);
-
-    -- Deck-level view/copy snapshot time series (social program W4,
-    -- w4-trending). One row per public deck per day the rollup ran, holding
-    -- that day's CUMULATIVE view_count/copy_count off deck_publications.
-    -- Deltas between consecutive days drive the decayed "most copied"
-    -- ranking -- see aggregates/trending-decks.ts. Deliberately no FK --
-    -- same disposable-derived-data reasoning as commander_stats; rows older
-    -- than SNAPSHOT_RETENTION_DAYS (8) are pruned every rollup run.
-    CREATE TABLE IF NOT EXISTS deck_stat_snapshots (
-      deck_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      day DATE NOT NULL,
-      view_count INTEGER NOT NULL DEFAULT 0,
-      copy_count INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (deck_id, day)
-    );
-    CREATE INDEX IF NOT EXISTS deck_stat_snapshots_day_idx ON deck_stat_snapshots(day);
 
     -- First-party, cookieless usage counters (marketing top-5). One row per
     -- (day, event, path) holding only a count: no identifiers, no IP, no UA

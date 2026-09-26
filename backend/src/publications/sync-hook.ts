@@ -4,6 +4,7 @@ import { extractListingFields, type ListingFields } from './listing-fields';
 import { invalidateDeckPublicationCache, invalidatePublicUserCache } from './cache';
 import { insertPublication } from './insert';
 import { invalidatePublicUserCacheById } from './purge';
+import { forkedFromSlug, recountDeckCopies } from './copies';
 import type { AppliedRow } from '../routes/sync';
 
 /**
@@ -30,17 +31,24 @@ import type { AppliedRow } from '../routes/sync';
  *
  * Every row is independently try/caught: one bad row is logged and skipped,
  * never taking down the rest of the batch's refresh.
+ *
+ * Last, it recounts `copy_count` for any public deck this push copied from.
+ * A deleted deck recounts everything: its tombstone no longer says what it
+ * was a copy of (see copies.ts).
  */
 export async function refreshDeckPublications(
   userId: string,
   applied: AppliedRow[]
 ): Promise<void> {
   const pool = getPool();
+  const copiedFrom = new Set<string>();
+  let sawDelete = false;
 
   for (const row of applied) {
     if (row.kind !== 'deck') continue;
     try {
       if (row.deletedAt !== null) {
+        sawDelete = true;
         // A deleted deck can never come back published under the same rev —
         // full deletion (not soft-unpublish) is correct.
         const deleted = await pool.query<{ slug: string }>(
@@ -64,6 +72,8 @@ export async function refreshDeckPublications(
         `SELECT data FROM user_decks WHERE user_id = $1 AND id = $2`,
         [userId, row.id]
       );
+      const forkSlug = forkedFromSlug(deck.rows[0]?.data);
+      if (forkSlug) copiedFrom.add(forkSlug);
       const fields = extractListingFields(deck.rows[0]?.data);
       if (!fields) continue; // malformed, or nothing found — no-op
 
@@ -98,6 +108,13 @@ export async function refreshDeckPublications(
     } catch (err) {
       logger.warn(`[publications] sync-hook refresh failed user=${userId} deck=${row.id}`, err);
     }
+  }
+
+  if (!sawDelete && copiedFrom.size === 0) return;
+  try {
+    await recountDeckCopies(sawDelete ? undefined : [...copiedFrom]);
+  } catch (err) {
+    logger.warn(`[publications] sync-hook copy recount failed user=${userId}`, err);
   }
 }
 

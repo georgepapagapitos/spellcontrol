@@ -172,20 +172,6 @@ export function shareUrl(token: string): string {
   return `${window.location.origin}/s/${token}`;
 }
 
-/**
- * Fire-and-forget copy-counter beacon for a published deck's public page
- * (`POST /api/public/decks/:slug/copy`, from w0-publish-public-reads). Errors
- * are swallowed here, not left to the caller — a failed counter bump must
- * never block or surface an error on the actual copy it rides alongside.
- */
-export async function recordDeckCopy(slug: string): Promise<void> {
-  try {
-    await fetch(apiUrl(`/api/public/decks/${encodeURIComponent(slug)}/copy`), { method: 'POST' });
-  } catch {
-    // Swallowed by design — see doc comment above.
-  }
-}
-
 /** `GET /api/public/decks/:slug` response (w0-publish-public-reads) — the
  *  published deck plus its publication metadata. `deck` is what
  *  SharedDeckView renders; the counts live alongside it, not inside it. */
@@ -225,12 +211,10 @@ export async function fetchPublicDeckPage(slug: string): Promise<PublicDeckPage>
 
 /**
  * Fire-and-forget view-counter beacon for a published deck's public page
- * (`POST /api/public/decks/:slug/view`), mirroring recordDeckCopy's
- * swallow-errors shape. Unlike the copy beacon, the server runs
- * `optionalAuth` on this route specifically to exclude the deck's own owner
- * from the count — `credentials: 'include'` sends the session cookie so
- * that exclusion works (recordDeckCopy omits it because its endpoint has no
- * such check to make).
+ * (`POST /api/public/decks/:slug/view`). Errors are swallowed: a failed
+ * count must never surface on the page. `credentials: 'include'` sends the
+ * session cookie so the server can leave the owner out and count each
+ * signed-in viewer once a day.
  */
 export async function recordDeckView(slug: string): Promise<void> {
   try {

@@ -16,8 +16,21 @@
   container: bento-host / inline-size;
 }
 
-.trending-rail-grid {
+/* Two classes so this beats .deck-bento's own rules whichever stylesheet
+   loads last. */
+.trending-rail > .trending-rail-grid {
   gap: clamp(var(--space-4), 2.5cqi, var(--space-5));
+  /* The rail lines up with the page's other content (the heading above, the
+     browse grid below). The bento's analysis-width cap and centering belong
+     to the deck analysis boards, and here they pushed the rail inward. */
+  max-width: none;
+  margin-inline: 0;
+}
+
+/* Most weeks only one list has anything in it. A lone section takes the
+   whole row instead of sitting in the left half beside an empty column. */
+.trending-rail-section:only-child {
+  grid-column: 1 / -1;
 }
 
 .trending-rail-section {
@@ -83,13 +96,4 @@
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-}
-
-/* Collapsed empty state -- used when the page's own primary content is also
-   empty, so this rail doesn't stack a second illustrated empty state above
-   an already-empty page (see TrendingRail's `compactWhenEmpty` prop). */
-.trending-rail-compact-empty {
-  margin: 0 0 var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
 }

@@ -4,7 +4,7 @@ import type { Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../test-helpers';
 import { deckPublicationCache, publicUserCache } from '../publications/cache';
-import { lookupPublicUserLandingMeta } from './public';
+import { isFirstViewToday, lookupPublicUserLandingMeta } from './public';
 
 import type { ShareLandingMeta, ShareLandingResult } from '../shares/og';
 
@@ -157,17 +157,21 @@ describe('GET /api/public/decks/:slug', () => {
 });
 
 describe('POST /api/public/decks/:slug/view', () => {
-  it('increments view_count by 1 per anonymous call', async () => {
+  it('counts one view per viewer per day, however often they call', async () => {
     const { slug } = await publishDeck('pub-view-anon', 'deck-view-anon');
     for (let i = 0; i < 3; i++) {
       const res = await request(app).post(`/api/public/decks/${slug}/view`);
       expect(res.status).toBe(204);
     }
+    const viewer = await makeUser('pub-view-anon-viewer');
+    await request(app).post(`/api/public/decks/${slug}/view`).set('Cookie', viewer);
+    await request(app).post(`/api/public/decks/${slug}/view`).set('Cookie', viewer);
     const row = await pool.query<{ view_count: number }>(
       `SELECT view_count FROM deck_publications WHERE slug = $1`,
       [slug]
     );
-    expect(row.rows[0].view_count).toBe(3);
+    // The guest (keyed by IP) once, the signed-in viewer once.
+    expect(row.rows[0].view_count).toBe(2);
   });
 
   it('is a no-op for the authed owner (count unchanged)', async () => {
@@ -212,30 +216,14 @@ describe('POST /api/public/decks/:slug/view', () => {
   });
 });
 
-describe('POST /api/public/decks/:slug/copy', () => {
-  it('increments copy_count and returns 204', async () => {
-    const { slug } = await publishDeck('pub-copy-ok', 'deck-copy-ok');
-    const res = await request(app).post(`/api/public/decks/${slug}/copy`);
-    expect(res.status).toBe(204);
-    const row = await pool.query<{ copy_count: number }>(
-      `SELECT copy_count FROM deck_publications WHERE slug = $1`,
-      [slug]
-    );
-    expect(row.rows[0].copy_count).toBe(1);
-  });
-
-  it('404s an unpublished slug (unlike the zero-information view beacon)', async () => {
-    const { cookie, slug } = await publishDeck('pub-copy-unpub', 'deck-copy-unpub');
-    await request(app).delete('/api/publications/decks/deck-copy-unpub').set('Cookie', cookie);
-
-    const res = await request(app).post(`/api/public/decks/${slug}/copy`);
-    expect(res.status).toBe(404);
-    expect(res.body.error).toBe('Deck not found.');
-  });
-
-  it('404s an unknown slug', async () => {
-    const res = await request(app).post('/api/public/decks/no-such-slug/copy');
-    expect(res.status).toBe(404);
+describe('isFirstViewToday', () => {
+  it('counts a viewer once, then again after a day', () => {
+    const t = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    expect(isFirstViewToday('slug:viewer', t)).toBe(true);
+    expect(isFirstViewToday('slug:viewer', t + day - 1)).toBe(false);
+    expect(isFirstViewToday('other-slug:viewer', t + 1)).toBe(true);
+    expect(isFirstViewToday('slug:viewer', t + day)).toBe(true);
   });
 });
 
