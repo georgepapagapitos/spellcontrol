@@ -1,8 +1,7 @@
-import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
+import { useMemo, type KeyboardEvent } from 'react';
 import { MeterBar } from '../../components/shared/MeterBar';
 import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
 import { VerdictBadge } from '../../components/deck/VerdictBadge';
-import { InfoTip } from '../../components/InfoTip';
 import { SelectMenu } from '../../components/SelectMenu';
 import { SegmentedControl } from '../../components/shared/form';
 import { useCollectionStore } from '../../store/collection';
@@ -199,50 +198,6 @@ export function OwnRowBadge({ own, showUnowned }: { own: Ownership; showUnowned?
   return <OwnershipBadge owned={own === 'owned'} showUnowned={showUnowned} />;
 }
 
-/** Readable label for a synergy-slider value. */
-function synergyLabel(v: number): string {
-  if (v <= 0) return 'Best cards';
-  if (v >= 1) return 'Max synergy';
-  return `${Math.round(v * 100)}% synergy`;
-}
-
-/**
- * Trades raw card power (goodstuff) against archetype synergy when generating a
- * cube. 0 keeps today's pure best-cards selection; higher values prioritise
- * cards that deepen the archetypes your collection can actually support.
- */
-export function SynergySlider({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div className="cube-synergy">
-      <div className="cube-synergy-head">
-        <span className="cube-synergy-title">Card priority</span>
-        <span className="cube-synergy-val">{synergyLabel(value)}</span>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={1}
-        step={0.1}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="cube-synergy-range"
-        aria-label="Card priority: from best cards to most archetype synergy"
-        aria-valuetext={synergyLabel(value)}
-      />
-      <div className="cube-synergy-ends" aria-hidden="true">
-        <span>Best cards</span>
-        <span>Synergy</span>
-      </div>
-    </div>
-  );
-}
-
 /**
  * Explainable archetype-support panel: the objective's per-axis breakdown plus
  * the overall draftability score. Rendered only when the cube actually fields
@@ -382,31 +337,6 @@ export function CardPrioritySegmented({
       />
       <p className="cube-priority-note">{PRIORITY_NOTES[value]}</p>
     </div>
-  );
-}
-
-/** "Available cards only" checkbox — label/mechanism explainer vary per mode.
- *  The explainer lives in an `InfoTip`, not a native `title`, so it's reachable
- *  on touch (STYLE_GUIDE "Info tooltips"). */
-export function AvailableToggle({
-  checked,
-  onChange,
-  label,
-  infoText,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  infoText: ReactNode;
-}) {
-  return (
-    <span className="cube-available-toggle">
-      <label className="field-checkbox">
-        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-        {label}
-      </label>
-      <InfoTip label={label} text={infoText} />
-    </span>
   );
 }
 

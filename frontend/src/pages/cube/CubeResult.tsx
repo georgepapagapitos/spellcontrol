@@ -37,6 +37,7 @@ import {
 } from './shared';
 import { CubeHealthPanel } from './CubeHealthPanel';
 import { Button, IconButton } from '../../components/shared/Button';
+import { CubeSuppliers } from './CubeSuppliers';
 
 /** "180 cards · 4 players · saved 1h ago · Physical · 180 reserved" — the one
  *  line that identifies a saved cube, on its row AND over the result it's loaded into. */
@@ -76,6 +77,8 @@ export function CubeResult({
   hideTitle,
   hideCopyAction,
   edit,
+  supplierMap,
+  myUsername = '',
 }: {
   cube: GeneratedCube;
   onCopy: () => void;
@@ -92,6 +95,10 @@ export function CubeResult({
   hideCopyAction?: boolean;
   /** Row editing — present only on the cube's own page (a saved cube). */
   edit?: CubeEditHandlers;
+  /** oracleId -> usernames who can supply that pick, when this cube drew from
+   *  one or more friends' collections. Absent/empty on a solo build. */
+  supplierMap?: ReadonlyMap<string, string[]>;
+  myUsername?: string;
 }) {
   const built = cube.picks.length;
   const segments = BUCKET_ORDER.filter((b) => cube.byBucket[b] > 0).map((b) => ({
@@ -165,6 +172,17 @@ export function CubeResult({
   // entirely rather than leaving an empty flex child that still eats a gap.
   const showHead = !hideTitle || !loaded || !hideCopyAction;
 
+  // Friends who supplied at least one pick, for the "Drawn from" sub-line —
+  // derived from supplierMap (the single source of truth) rather than a
+  // separate prop, so it can never disagree with the "Who brings what" panel.
+  const otherSuppliers = useMemo(() => {
+    if (!supplierMap) return [];
+    const set = new Set<string>();
+    for (const suppliers of supplierMap.values())
+      for (const s of suppliers) if (s !== myUsername) set.add(s);
+    return [...set];
+  }, [supplierMap, myUsername]);
+
   return (
     <section className="cube-result" aria-label="Generated cube">
       {showHead && (
@@ -182,6 +200,15 @@ export function CubeResult({
               <p className="cube-result-sub">
                 {loaded ? (
                   <SavedCubeMeta sc={loaded} />
+                ) : otherSuppliers.length > 0 ? (
+                  <>
+                    Drawn from {cube.poolSize.toLocaleString()} eligible singles owned by{' '}
+                    {new Intl.ListFormat('en', { type: 'conjunction' }).format([
+                      'you',
+                      ...otherSuppliers,
+                    ])}
+                    .
+                  </>
                 ) : (
                   <>Drawn from {cube.poolSize.toLocaleString()} eligible singles you own.</>
                 )}
@@ -199,6 +226,10 @@ export function CubeResult({
             {!hideCopyAction && <Button onClick={onCopy}>Copy cube list</Button>}
           </div>
         </div>
+      )}
+
+      {supplierMap && supplierMap.size > 0 && (
+        <CubeSuppliers cube={cube} supplierMap={supplierMap} myUsername={myUsername} />
       )}
 
       <div className="cube-balance">
@@ -367,6 +398,15 @@ export function CubeResult({
                       const s = enrichedMap.get(p.card.name);
                       const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
                       const isLocked = edit?.locked.has(p.card.oracleId) ?? false;
+                      // A friend-only pick (I don't supply it myself) shows who does
+                      // instead of the ownership badge — "not owned" would say less.
+                      const suppliers = p.card.oracleId
+                        ? supplierMap?.get(p.card.oracleId)
+                        : undefined;
+                      const friendSuppliers = suppliers
+                        ? suppliers.filter((u) => u !== myUsername)
+                        : [];
+                      const iSupply = !suppliers || suppliers.includes(myUsername);
                       return (
                         <li
                           key={p.card.oracleId || p.card.name}
@@ -392,11 +432,23 @@ export function CubeResult({
                                     Locked
                                   </span>
                                 )}
-                                {/* A cube is built from cards you own, so "Owned" on
-                                    every row is noise that truncates the name on a
-                                    phone; the row speaks only for the exceptions
-                                    (in a deck, in another cube). */}
-                                {own !== 'owned' && <OwnRowBadge own={own} />}
+                                {iSupply || friendSuppliers.length === 0 ? (
+                                  // A cube is built from cards you own, so "Owned" on every
+                                  // row is noise that truncates the name on a phone; the
+                                  // row speaks only for the exceptions (in a deck, in
+                                  // another cube).
+                                  own !== 'owned' && <OwnRowBadge own={own} />
+                                ) : (
+                                  <span
+                                    className="cube-collab-supplier-chip"
+                                    aria-label={`Supplied by ${friendSuppliers.join(', ')}`}
+                                  >
+                                    {friendSuppliers[0]}
+                                    {friendSuppliers.length > 1 && (
+                                      <span aria-hidden> +{friendSuppliers.length - 1}</span>
+                                    )}
+                                  </span>
+                                )}
                               </span>
                               {p.reason && <span className="cube-row-reason">{p.reason}</span>}
                             </div>

@@ -14,6 +14,7 @@ import { useCubeStore } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useToastsStore } from '../../store/toasts';
+import { useAuth } from '../../store/auth';
 import { bindCubeCopies } from '../../lib/bind-cube-copies';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import { toCubeCobraList } from '../../lib/cube/format';
@@ -48,6 +49,7 @@ export function CubeDetailPage() {
   const awaitingFirstPull = useAwaitingFirstPull();
   const pushToast = useToastsStore((s) => s.push);
   const collectionCards = useCollectionStore((s) => s.cards);
+  const myUsername = useAuth((s) => s.user?.username) ?? '';
   const target = saved.find((c) => c.id === id) ?? null;
 
   const [tab, setTab] = useState<DetailTab>('cards');
@@ -432,6 +434,8 @@ export function CubeDetailPage() {
             hideTitle
             hideCopyAction
             edit={editHandlers}
+            supplierMap={target.suppliers ? new Map(Object.entries(target.suppliers)) : undefined}
+            myUsername={myUsername}
           />
         )}
         {tab === 'cards' && rebuildStatus === 'idle' && (

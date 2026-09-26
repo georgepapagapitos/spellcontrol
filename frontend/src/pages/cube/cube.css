@@ -73,9 +73,6 @@
     align-items: flex-end;
     gap: var(--space-3) var(--space-4);
   }
-  .cube-controls .cube-synergy {
-    width: 20rem;
-  }
 }
 /* Picker + its per-size note travel together so the note stays under the
    options it describes when the controls become a row. Format is a
@@ -95,53 +92,6 @@
 .cube-pool-note {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-/* ---- synergy slider: trade best-cards vs archetype synergy ---- */
-.cube-synergy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  max-width: 320px;
-}
-.cube-synergy-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-.cube-synergy-title {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.cube-synergy-val {
-  font-size: var(--text-xs);
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-}
-.cube-synergy-range {
-  width: 100%;
-  margin: var(--space-2) 0 0;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-@media (pointer: coarse) {
-  .cube-synergy-range {
-    min-height: 44px;
-  }
-}
-.cube-synergy-range:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-  border-radius: var(--radius);
-}
-.cube-synergy-ends {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
@@ -901,7 +851,9 @@
   overflow: auto;
 }
 
-/* ---- collaborative cube ---- */
+/* ---- friend picker (build page "Draw from" + the old collaborative-cube
+   start it replaced; class names kept as cube-collab-* since both are the
+   same "pick up to 3 friends" control) ---- */
 
 .cube-collab-fieldset {
   border: 1px solid var(--border);
@@ -1026,45 +978,6 @@
   margin-top: var(--space-1);
 }
 
-/* Contributor summary pill row */
-.cube-collab-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-
-.cube-collab-contributor-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.cube-collab-contributor-pill.is-me {
-  border-color: var(--accent);
-  background: var(--accent-light);
-  color: var(--text-primary);
-}
-
-.cube-collab-pill-name {
-  font-weight: 600;
-}
-
-.cube-collab-pill-count {
-  color: var(--text-muted);
-}
-
-.cube-collab-contributor-pill.is-me .cube-collab-pill-count {
-  color: var(--accent);
-}
-
 /* Per-card supplier chip (non-actionable, shown when the current user
    does NOT supply the card) */
 .cube-collab-supplier-chip {
@@ -1080,23 +993,101 @@
   flex: none;
 }
 
-/* "Available cards only" toggle: checkbox label + its InfoTip, as one row
-   (sweep 3: the mechanism explainer moved off a touch-unreachable `title`
-   attribute and into an InfoTip — see `AvailableToggle` in pages/cube/shared.tsx). */
-.cube-available-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
 /* "Draw from" — the pool filters, inside the build page's Disclosure. Three
    toolbar pickers on one wrapping line; the pickers are the shared SelectMenu
-   pill family. */
+   pill family. Friends' collections (the old Collab Cube start, folded in
+   here) sit below the pickers in .cube-friend-picker, reusing the
+   .cube-collab-* friend-picker classes above. */
 .cube-pool-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+.cube-friend-picker {
+  margin-top: var(--space-2);
+}
+.cube-friend-picker-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ---- who brings what ---- */
+.cube-suppliers {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.cube-suppliers h3 {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cube-supplier-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.cube-supplier-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cube-supplier-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.cube-supplier-name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.cube-supplier-count {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cube-supplier-details {
+  font-size: var(--text-xs);
+}
+.cube-supplier-details summary {
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: fit-content;
+}
+@media (pointer: coarse) {
+  .cube-supplier-details summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+/* column-width (not a fixed columns:2 + breakpoint) collapses to one column
+   on its own once the panel narrows past ~12rem — no viewport tier needed. */
+.cube-supplier-cards {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  column-width: 12rem;
+  column-gap: var(--space-4);
+  color: var(--text-secondary);
+}
+.cube-suppliers-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 
 /* ---- cube index (list) ---- */

@@ -61,6 +61,12 @@ export interface SavedCube {
    *  or on a cube that was never (re)built through the settings-aware path —
    *  the caller falls back to defaults. */
   settings?: { synergyLevel: number; filters: PoolFilters };
+  /** Which usernames can supply each pick, keyed by oracleId, when this cube
+   *  drew from one or more friends' collections. Absent on a solo cube and on
+   *  cubes saved before friends joined the build page. A key surviving a pick
+   *  being removed/swapped/banned is harmless — the cube's own page only ever
+   *  reads suppliers for oracleIds that are still in `cube.picks`. */
+  suppliers?: Record<string, string[]>;
 }
 
 interface CubeState {
@@ -91,7 +97,8 @@ interface CubeState {
     name: string,
     isPhysical?: boolean,
     picks?: CubePickSlot[],
-    settings?: SavedCube['settings']
+    settings?: SavedCube['settings'],
+    suppliers?: SavedCube['suppliers']
   ) => string | null;
   /** Insert a cube into the saved list directly (e.g. copying a shared cube),
    *  WITHOUT touching the working `result` — so a copy never clobbers an
@@ -205,7 +212,7 @@ export const useCubeStore = create<CubeState>()(
       saved: [],
       setResult: (size, result) => set({ size, result, loadedId: null }),
       clear: () => set({ result: null, loadedId: null }),
-      saveCurrent: (name, isPhysical = false, picks = [], settings) => {
+      saveCurrent: (name, isPhysical = false, picks = [], settings, suppliers) => {
         let newId: string | null = null;
         set((s) => {
           if (!s.result) return s;
@@ -218,6 +225,7 @@ export const useCubeStore = create<CubeState>()(
             isPhysical,
             savedAt: Date.now(),
             ...(settings ? { settings } : {}),
+            ...(suppliers ? { suppliers } : {}),
           };
           newId = entry.id;
           return { saved: [entry, ...s.saved], loadedId: entry.id };

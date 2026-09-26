@@ -8,6 +8,7 @@ import { NameInputDialog } from '../../components/NameInputDialog';
 import { useCollectionStore } from '../../store/collection';
 import { useToastsStore } from '../../store/toasts';
 import { useCubeStore } from '../../store/cube';
+import { useAuth } from '../../store/auth';
 import { DEFAULT_POOL_FILTERS, type PoolFilters } from '../../lib/cube/pool-filters';
 import { SelectMenu } from '../../components/SelectMenu';
 import { InfoTip } from '../../components/InfoTip';
@@ -16,6 +17,10 @@ import { useCurrency, type Currency } from '../../lib/currency';
 import { Link } from 'react-router-dom';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
 import { useOwnedCubePool } from '../../lib/cube/use-owned-pool';
+import { fetchCubeOracle } from '../../lib/cube/oracle';
+import { formatExclusion } from '../../lib/cube/play-format';
+import { synergyTags } from '../../lib/cube/synergy-tags';
+import { getCardTags } from '../../lib/card-tags';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CubeSize } from '../../lib/cube/targets';
 import { generateCubeAsync, type CubeProgress } from '../../lib/cube/generate-async';
@@ -30,14 +35,27 @@ import {
   CubeErrorBlock,
   type CardPriority,
 } from './shared';
+import {
+  mergePools,
+  filterFriendCards,
+  fetchFriendCollection,
+  type FriendCard,
+} from '../../lib/cube/pool';
+import { listFriends, type Friend } from '../../lib/friends-client';
 import { CubeResult } from './CubeResult';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '../../components/shared/Button';
 
 const PRICE_CEILINGS: (number | null)[] = [null, 1, 2, 5, 10];
+const MAX_FRIENDS = 3;
+type FriendIssue = { username: string; reason: 'private' | 'failed' };
 
-function poolFiltersSummary(filters: PoolFilters, currency: Currency): string {
+function poolFiltersSummary(
+  filters: PoolFilters,
+  currency: Currency,
+  friendNames: string[]
+): string {
   const source =
     filters.source === 'available'
       ? 'Available cards'
@@ -54,7 +72,8 @@ function poolFiltersSummary(filters: PoolFilters, currency: Currency): string {
       : filters.rarity === 'peasant'
         ? 'commons and uncommons'
         : 'commons only';
-  return `${source} · ${price} · ${rarity}`;
+  const base = `${source} · ${price} · ${rarity}`;
+  return friendNames.length > 0 ? `${base} · with ${friendNames.join(', ')}` : base;
 }
 
 /**
@@ -66,15 +85,26 @@ function poolFiltersSummary(filters: PoolFilters, currency: Currency): string {
 function PoolFilterRow({
   filters,
   onChange,
+  friends,
+  friendsStatus,
+  selectedFriendIds,
+  onToggleFriend,
 }: {
   filters: PoolFilters;
   onChange: (next: PoolFilters) => void;
+  friends: Friend[];
+  friendsStatus: 'loading' | 'done' | 'error';
+  selectedFriendIds: string[];
+  onToggleFriend: (id: string) => void;
 }) {
   const currency = useCurrency();
   const price = (v: number | null) =>
     v === null ? 'Any price' : `Up to ${formatMoney(v, { currency, wholeDollars: true })}`;
+  const friendNames = selectedFriendIds
+    .map((id) => friends.find((f) => f.id === id)?.username)
+    .filter((n): n is string => Boolean(n));
   return (
-    <Disclosure title="Draw from" summary={poolFiltersSummary(filters, currency)}>
+    <Disclosure title="Draw from" summary={poolFiltersSummary(filters, currency, friendNames)}>
       <p className="cube-pool-filters-hint">
         <InfoTip
           label="Draw from"
@@ -109,6 +139,71 @@ function PoolFilterRow({
           ]}
         />
       </div>
+
+      <div className="cube-friend-picker">
+        <div className="form-field-label">Friends' collections</div>
+        {friendsStatus === 'loading' && (
+          <p className="cube-collab-friends-loading">Loading friends…</p>
+        )}
+        {friendsStatus === 'error' && (
+          <p className="cube-collab-friends-error">Couldn't load your friends list.</p>
+        )}
+        {friendsStatus === 'done' && friends.length === 0 && (
+          <p className="cube-collab-friends-error">
+            You don't have any friends yet. <Link to="/friends">Add friends</Link> to build with
+            them.
+          </p>
+        )}
+        {friendsStatus === 'done' && friends.length > 0 && (
+          <fieldset
+            className="cube-collab-fieldset"
+            aria-describedby={
+              selectedFriendIds.length >= MAX_FRIENDS ? 'build-max-friends' : undefined
+            }
+          >
+            <legend className="cube-collab-legend">
+              Build with friends{' '}
+              <span className="cube-collab-legend-hint" aria-live="polite">
+                ({selectedFriendIds.length}/{MAX_FRIENDS} selected)
+              </span>
+            </legend>
+            <div className="cube-collab-friend-grid">
+              {friends.map((f) => {
+                const checked = selectedFriendIds.includes(f.id);
+                const disabled = !checked && selectedFriendIds.length >= MAX_FRIENDS;
+                return (
+                  <label
+                    key={f.id}
+                    className={`cube-collab-friend-row${checked ? ' checked' : ''}${disabled ? ' disabled' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => onToggleFriend(f.id)}
+                      aria-label={`Build with ${f.username}`}
+                    />
+                    <span className="cube-collab-friend-name">{f.username}</span>
+                    <span className="cube-collab-friend-count">
+                      {f.cardCount.toLocaleString()} {f.cardCount === 1 ? 'card' : 'cards'}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {selectedFriendIds.length >= MAX_FRIENDS && (
+              <p className="cube-collab-max-note" id="build-max-friends" aria-live="polite">
+                Maximum {MAX_FRIENDS} friends selected. Uncheck one to pick a different friend.
+              </p>
+            )}
+          </fieldset>
+        )}
+        <p className="cube-friend-picker-note">
+          Their cards always count, regardless of Cards above. The rarity cap still applies to what
+          they own; there is no price data for a friend's cards, so the price ceiling never filters
+          them.
+        </p>
+      </div>
     </Disclosure>
   );
 }
@@ -124,6 +219,43 @@ export function CubeBuildPage() {
   const pushToast = useToastsStore((s) => s.push);
   const navigate = useNavigate();
   const [filters, setFilters] = useState<PoolFilters>(DEFAULT_POOL_FILTERS);
+  const authUser = useAuth((s) => s.user);
+  const myUsername = authUser?.username ?? '';
+
+  // Friends as a "Draw from" pool source. The list itself is ambient/cheap
+  // (already fetched elsewhere in the app); a friend's actual cards are only
+  // fetched at build time, same moment a private collection or a failed fetch
+  // is discovered today in the collaborative flow this replaces.
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendsStatus, setFriendsStatus] = useState<'loading' | 'done' | 'error'>('loading');
+  const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
+  const [friendIssues, setFriendIssues] = useState<FriendIssue[]>([]);
+  const [supplierMap, setSupplierMap] = useState<Map<string, string[]>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    listFriends()
+      .then((list) => {
+        if (!cancelled) {
+          setFriends(list);
+          setFriendsStatus('done');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFriendsStatus('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleFriend = useCallback((id: string) => {
+    setSelectedFriendIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= MAX_FRIENDS) return prev;
+      return [...prev, id];
+    });
+  }, []);
 
   const cubeStore = useCubeStore();
   const [size, setSize] = useState<CubeSize>(cubeStore.size);
@@ -167,11 +299,80 @@ export function CubeBuildPage() {
     setFetchProgress(null);
     setRefineProgress(null);
     setEnrichedMap(new Map());
+    setFriendIssues([]);
     cubeStore.clear();
     try {
-      const pool = await loadPool((fetched, total) => setFetchProgress({ fetched, total }));
+      const myPool = await loadPool((fetched, total) => setFetchProgress({ fetched, total }));
       setFetchProgress(null);
-      if (!pool) throw new Error("Couldn't load your collection's cards. Try again.");
+      if (!myPool) throw new Error("Couldn't load your collection's cards. Try again.");
+
+      // Fetch the selected friends' collections concurrently; one friend's
+      // private collection or a failed fetch doesn't block the others.
+      const selectedFriends = friends.filter((f) => selectedFriendIds.includes(f.id));
+      const results = selectedFriends.length
+        ? await Promise.allSettled(selectedFriends.map((f) => fetchFriendCollection(f.id)))
+        : [];
+      const issues: FriendIssue[] = [];
+      const friendCollections: Array<{ username: string; cards: FriendCard[] }> = [];
+      results.forEach((r, i) => {
+        const username = selectedFriends[i].username;
+        if (r.status === 'rejected') {
+          issues.push({ username, reason: 'failed' });
+          return;
+        }
+        if (r.value.collectionPrivate) {
+          issues.push({ username, reason: 'private' });
+          return;
+        }
+        friendCollections.push({ username, cards: r.value.cards });
+      });
+      setFriendIssues(issues);
+
+      // Same play-format eligibility owned cards already went through
+      // (ensureCardTags() above guarantees the otag snapshot is loaded); the
+      // rarity cap applies too, the price ceiling deliberately does not (see
+      // filterFriendCards — a friend's cards carry no price at all).
+      const eligible = (name: string) =>
+        formatExclusion(filters.format, getCardTags(name)) === null;
+      const eligibleFriendCollections = friendCollections.map(({ username, cards }) => ({
+        username,
+        cards: filterFriendCards(cards, filters.rarity, eligible),
+      }));
+
+      let pool = myPool;
+      let sm = new Map<string, string[]>();
+      if (eligibleFriendCollections.length > 0) {
+        // Oracle facts for the friends' cards only; your own came with loadPool.
+        const friendNames = new Set<string>();
+        for (const { cards } of eligibleFriendCollections)
+          for (const fc of cards) if (fc.name) friendNames.add(fc.name);
+        const enriched = await fetchCubeOracle(
+          [...friendNames],
+          collectionCards,
+          (fetched, total) => setFetchProgress({ fetched, total })
+        );
+        setFetchProgress(null);
+        const enrichedFriendCollections = eligibleFriendCollections.map(({ username, cards }) => ({
+          username,
+          cards: cards.map((fc) => {
+            const s = enriched.get(fc.name);
+            return {
+              ...fc,
+              oracleId: s?.oracle_id ?? fc.oracleId,
+              colors: s?.colors ?? fc.colors,
+              cmc: s?.cmc ?? fc.cmc,
+              typeLine: s?.type_line ?? fc.typeLine,
+              edhrecRank: s?.edhrec_rank ?? fc.edhrecRank,
+              ...synergyTags(s ?? { name: fc.name }),
+            };
+          }),
+        }));
+        const merged = mergePools(myPool, myUsername, enrichedFriendCollections);
+        pool = merged.pool;
+        sm = merged.supplierMap;
+      }
+      setSupplierMap(sm);
+
       const newCube = await generateCubeAsync(
         pool,
         size,
@@ -185,7 +386,17 @@ export function CubeBuildPage() {
       setError(userMessage(e, "Couldn't build the cube. Try again."));
       setStatus('error');
     }
-  }, [loadPool, filters.format, size, priority, cubeStore]);
+  }, [
+    loadPool,
+    filters,
+    size,
+    priority,
+    cubeStore,
+    friends,
+    selectedFriendIds,
+    myUsername,
+    collectionCards,
+  ]);
 
   const copyList = useCallback(async () => {
     if (!cube) return;
@@ -197,7 +408,14 @@ export function CubeBuildPage() {
   }, [cube, pushToast]);
 
   const handleSave = (name: string) => {
-    const id = cubeStore.saveCurrent(name, false, [], { synergyLevel: priority, filters });
+    const suppliers = supplierMap.size > 0 ? Object.fromEntries(supplierMap) : undefined;
+    const id = cubeStore.saveCurrent(
+      name,
+      false,
+      [],
+      { synergyLevel: priority, filters },
+      suppliers
+    );
     setSaveOpen(false);
     if (!id) return;
     pushToast({ message: `Saved "${name}"`, tone: 'success' });
@@ -242,8 +460,27 @@ export function CubeBuildPage() {
               shortfallFor={(s) => Math.max(0, s - uniqueNames.length)}
             />
             <CardPrioritySegmented value={priority} onChange={setPriority} />
-            <PoolFilterRow filters={filters} onChange={setFilters} />
+            <PoolFilterRow
+              filters={filters}
+              onChange={setFilters}
+              friends={friends}
+              friendsStatus={friendsStatus}
+              selectedFriendIds={selectedFriendIds}
+              onToggleFriend={toggleFriend}
+            />
           </div>
+
+          {friendIssues.length > 0 && (
+            <div className="cube-collab-warn-banner" role="alert">
+              {friendIssues.map((issue) => (
+                <p key={issue.username} className="cube-collab-warn-line">
+                  {issue.reason === 'private'
+                    ? `${issue.username}'s collection is private. Their cards were excluded.`
+                    : `Couldn't load ${issue.username}'s collection. Their cards were excluded.`}
+                </p>
+              ))}
+            </div>
+          )}
 
           <div className="cube-footer-answer">
             <p className="cube-pool-note">
@@ -299,6 +536,8 @@ export function CubeBuildPage() {
                 ownershipFor={ownershipFor}
                 committedFor={committedFor}
                 enrichedMap={enrichedMap}
+                supplierMap={supplierMap}
+                myUsername={myUsername}
               />
             )}
           </div>

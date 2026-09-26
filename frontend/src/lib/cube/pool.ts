@@ -6,6 +6,7 @@ import { synergyTags } from './synergy-tags';
 import { cubeSignalOf } from './signal';
 import type { OracleFacts } from './oracle';
 import type { EnrichedCard } from '@/types';
+import type { RarityCap } from './pool-filters';
 
 // ---------------------------------------------------------------------------
 // API contract types
@@ -91,6 +92,29 @@ async function readError(res: Response, fallback: string): Promise<string> {
   } catch {
     return fallback;
   }
+}
+
+const FRIEND_RARITY_OK: Record<RarityCap, (rarity?: string) => boolean> = {
+  any: () => true,
+  peasant: (r) => r === 'common' || r === 'uncommon',
+  pauper: (r) => r === 'common',
+};
+
+/**
+ * Friends' cards always count regardless of the "Cards" (availability) source
+ * picker in the build page's "Draw from" — their availability isn't ours to
+ * filter. The rarity cap DOES apply: a friend's payload carries the printing's
+ * rarity. The price ceiling does NOT: `FriendCard` carries no price at all, so
+ * filtering by it would drop every friend card rather than none. `eligible`
+ * carries the one other rule shared with owned cards — the play-format
+ * exclusion (commander-only / group-hug politics cards).
+ */
+export function filterFriendCards(
+  cards: FriendCard[],
+  rarity: RarityCap,
+  eligible: (name: string) => boolean
+): FriendCard[] {
+  return cards.filter((c) => FRIEND_RARITY_OK[rarity](c.rarity) && eligible(c.name));
 }
 
 export async function fetchFriendCollection(friendId: string): Promise<FriendCollectionResponse> {
