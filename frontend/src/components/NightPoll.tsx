@@ -3,6 +3,7 @@ import type { NightOption } from '../lib/game-nights-api';
 import './NightPoll.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /** Mirrors the backend MAX_OPTIONS cap — hide the suggest form once full. */
 const POLL_MAX = 8;
 
@@ -112,14 +113,13 @@ export function NightPoll({
                 : `${o.voters.length} can make it: ${o.voters.join(', ')}`}
             </p>
             {onLock && (
-              <button
-                type="button"
-                className="btn night-poll-lock-btn"
+              <Button
                 disabled={busy !== null}
                 onClick={() => onLock(o)}
+                className="night-poll-lock-btn"
               >
                 Lock it in
-              </button>
+              </Button>
             )}
           </li>
         ))}
@@ -127,14 +127,13 @@ export function NightPoll({
 
       {!readOnly && (
         <div className="night-poll-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
+          <Button
+            variant="primary"
             disabled={busy !== null || selected === null}
             onClick={() => void save()}
           >
             {busy === 'vote' ? 'Saving…' : 'Save my votes'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -149,14 +148,9 @@ export function NightPoll({
               onChange={(e) => setSuggestAt(e.target.value)}
             />
           </label>
-          <button
-            type="button"
-            className="btn"
-            disabled={busy !== null || suggestAt === ''}
-            onClick={() => void suggest()}
-          >
+          <Button disabled={busy !== null || suggestAt === ''} onClick={() => void suggest()}>
             {busy === 'suggest' ? 'Adding…' : 'Add time'}
-          </button>
+          </Button>
         </div>
       )}
 

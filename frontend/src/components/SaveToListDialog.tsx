@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import type { ListDef } from '../types';
 import { Modal } from './Modal';
+import { Button } from '@/components/shared/Button';
 
 const NEW_LIST = '__new';
 
@@ -95,12 +96,10 @@ export function SaveToListDialog({ cardCount, lists, onSubmit, onCancel }: Props
         )}
 
         <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={!canSave}>
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button variant="primary" type="submit" disabled={!canSave}>
             Save
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

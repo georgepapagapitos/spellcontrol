@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
 import { Modal } from './Modal';
 import { useConflictsStore, type DeckConflict } from '../store/conflicts';
 import { useDecksStore } from '../store/decks';
@@ -8,6 +7,7 @@ import { toast } from '../store/toasts';
 import { diffDeckCards, type CardDelta } from '../lib/deck-diff';
 import { DiffCardRow, type Tone } from './deck/DiffCardRow';
 import './ConflictPanel.css';
+import { Button } from '@/components/shared/Button';
 
 const SECTION_LABEL: Record<Tone, string> = {
   // Order matters — what the user is about to lose comes first.
@@ -111,15 +111,13 @@ function ConflictDialog({
       )}
 
       <div className="conflict-panel-actions">
-        <Link to={`/decks/${conflict.id}`} className="btn conflict-panel-view" onClick={onDismiss}>
+        <Button to={`/decks/${conflict.id}`} onClick={onDismiss} className="conflict-panel-view">
           View saved deck
-        </Link>
-        <button type="button" className="btn" onClick={onDismiss}>
-          Keep server version
-        </button>
-        <button type="button" className="btn btn-primary" onClick={handleRestore} autoFocus>
+        </Button>
+        <Button onClick={onDismiss}>Keep server version</Button>
+        <Button variant="primary" onClick={handleRestore} autoFocus>
           Restore my changes
-        </button>
+        </Button>
       </div>
     </Modal>
   );

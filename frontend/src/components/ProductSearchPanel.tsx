@@ -28,6 +28,7 @@ import type { ProductPhysicalCard, ProductResolveResponse, ProductSummary } from
 import './ProductSearchPanel.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /** Carousel entries for a product's full physical contents (one swipeable card per copy-set). */
 function physicalToEntries(physicalCards: ProductPhysicalCard[]): CarouselEntry[] {
   return physicalCards.map((pc) => ({
@@ -398,14 +399,13 @@ export function ProductSearchPanel({ onClose }: Props) {
                 selected.fetchErrors.length,
                 'The card service was unreachable, so this list is incomplete.'
               )}{' '}
-              <button
-                type="button"
-                className="btn-link"
+              <Button
+                variant="link"
                 onClick={() => void openProduct(selected.product)}
                 disabled={busy || loadingProduct}
               >
                 Try again
-              </button>
+              </Button>
             </p>
           )}
         </div>
@@ -417,43 +417,34 @@ export function ProductSearchPanel({ onClose }: Props) {
           <div className="product-actions">
             {isCardListProduct(selected.product.type) ? (
               // Card-list products (Secret Lair drops) aren't a deck — collection only.
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Button
+                variant="primary"
                 disabled={busy}
                 onClick={() => void handleAddToCollection(selected)}
+                icon={<Package width={16} height={16} />}
               >
-                <Package width={16} height={16} aria-hidden />
-                <span>Add to collection</span>
-              </button>
+                Add to collection
+              </Button>
             ) : (
               <>
-                <button
-                  type="button"
-                  className="btn btn-primary"
+                <Button
+                  variant="primary"
                   disabled={busy}
                   onClick={() => addAsDeck(selected)}
+                  icon={<Layers width={16} height={16} />}
                 >
-                  <Layers width={16} height={16} aria-hidden />
-                  <span>Add as deck</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn"
+                  Add as deck
+                </Button>
+                <Button
                   disabled={busy}
                   onClick={() => void handleAddToCollection(selected)}
+                  icon={<Package width={16} height={16} />}
                 >
-                  <Package width={16} height={16} aria-hidden />
-                  <span>Add to collection</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={busy}
-                  onClick={() => void handleAddBoth(selected)}
-                >
-                  <span>Add both</span>
-                </button>
+                  Add to collection
+                </Button>
+                <Button disabled={busy} onClick={() => void handleAddBoth(selected)}>
+                  Add both
+                </Button>
               </>
             )}
           </div>

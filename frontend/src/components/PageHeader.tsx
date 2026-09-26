@@ -1,8 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { OverflowMenu } from '@/components/OverflowMenu';
 import { useMediaQuery } from '@/lib/use-media-query';
+import { Button, buttonClass } from './shared/Button';
 
 export interface PageHeaderAction {
   label: string;
@@ -83,7 +84,7 @@ export function PageHeader({
           {primary && <ActionButton action={primary} />}
           {menu.length > 0 && (
             <OverflowMenu
-              triggerClassName="pill-btn page-header-kebab"
+              triggerClassName={`${buttonClass({ placement: 'row' })} page-header-kebab`}
               ariaLabel={menuLabel}
               items={menu.map((a) => ({
                 label: a.label,
@@ -101,31 +102,36 @@ export function PageHeader({
 }
 
 function ActionButton({ action: a }: { action: PageHeaderAction }) {
-  const className = `pill-btn${a.primary ? ' pill-btn-primary page-header-primary' : ''}`;
   const Icon = a.icon;
-  const body = (
-    <>
-      <Icon width={14} height={14} strokeWidth={1.8} aria-hidden />
-      <span>{a.label}</span>
-    </>
-  );
+  const variant = a.primary ? 'primary' : 'secondary';
+  const className = a.primary ? 'page-header-primary' : undefined;
+  const icon = <Icon width={14} height={14} strokeWidth={1.8} />;
   if (a.to) {
     return (
-      <Link to={a.to} className={className} title={a.title}>
-        {body}
-      </Link>
+      <Button
+        placement="row"
+        variant={variant}
+        className={className}
+        icon={icon}
+        to={a.to}
+        title={a.title}
+      >
+        {a.label}
+      </Button>
     );
   }
   return (
-    <button
-      type="button"
+    <Button
+      placement="row"
+      variant={variant}
       className={className}
+      icon={icon}
       onClick={a.onClick}
       disabled={a.disabled}
       title={a.title}
       aria-haspopup={a.opensDialog ? 'dialog' : undefined}
     >
-      {body}
-    </button>
+      {a.label}
+    </Button>
   );
 }

@@ -19,6 +19,7 @@ import { InfoTip } from './InfoTip';
 import { useRuleFieldVisibility } from './RuleFieldContext';
 import { filterFieldSpec, type FilterFieldGroup, type FilterFieldId } from '../lib/filter-fields';
 import { Field } from './shared/form';
+import { Button } from '@/components/shared/Button';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
@@ -357,13 +358,13 @@ function ScryfallQueryRow({
           }}
           style={{ flex: 1, minWidth: 0 }}
         />
-        <button type="button" className="btn" onClick={() => void run()} disabled={!canRun}>
+        <Button onClick={() => void run()} disabled={!canRun}>
           {loading ? 'Running…' : applied ? 'Run' : value?.resolvedAt ? 'Re-run' : 'Run'}
-        </button>
+        </Button>
         {value !== undefined && (
-          <button type="button" className="btn btn-ghost" onClick={clear} disabled={loading}>
+          <Button onClick={clear} disabled={loading} className="btn-ghost">
             Clear
-          </button>
+          </Button>
         )}
       </div>
       <span

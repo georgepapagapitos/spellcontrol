@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
 import { Modal } from './Modal';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   title: string;
@@ -64,12 +65,10 @@ export function NameInputDialog({
         />
         {children}
         <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={!trimmed}>
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button variant="primary" type="submit" disabled={!trimmed}>
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

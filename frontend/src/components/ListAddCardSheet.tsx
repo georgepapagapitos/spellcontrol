@@ -7,6 +7,7 @@ import { useCollectionStore } from '../store/collection';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   list: ListDef;
@@ -87,9 +88,7 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
         </div>
 
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => dismiss()}>
-            Done
-          </button>
+          <Button onClick={() => dismiss()}>Done</Button>
         </div>
       </div>
     </div>

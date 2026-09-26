@@ -7,6 +7,7 @@ import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
 import { FilterTrigger } from './shared/FilterTrigger';
 import { FILTER_COLOR_OPTIONS, type ColorMatchMode } from '@/lib/colors';
 import { useAnchoredPanel } from '@/lib/use-anchored-panel';
+import { Button } from '@/components/shared/Button';
 
 const SOURCE_OPTIONS: Array<{ key: DeckSource; label: string }> = [
   { key: 'generated', label: 'Generated' },
@@ -165,9 +166,9 @@ export function DeckFiltersPopover({
 
             {hasActive && (
               <div className="deck-filters-footer">
-                <button type="button" className="btn-link deck-filters-clear" onClick={clearAll}>
+                <Button variant="link" onClick={clearAll} className="deck-filters-clear">
                   Clear filters
-                </button>
+                </Button>
               </div>
             )}
           </div>,

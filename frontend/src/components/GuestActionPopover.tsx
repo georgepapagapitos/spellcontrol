@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import './GuestActionPopover.css';
 import { useMenuKeyboard } from '../lib/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   open: boolean;
@@ -87,12 +88,13 @@ export function GuestActionPopover({ open, onClose, anchorRef, message }: Props)
     >
       <p className="guest-action-popover-message">{message}</p>
       <div className="guest-action-popover-actions">
-        <Link
+        <Button
+          variant="primary"
           to={`/auth?returnTo=${encodeURIComponent(returnTo)}`}
-          className="btn btn-primary guest-action-popover-signin"
+          className="guest-action-popover-signin"
         >
           Sign in
-        </Link>
+        </Button>
         <button
           type="button"
           className="guest-action-popover-close"

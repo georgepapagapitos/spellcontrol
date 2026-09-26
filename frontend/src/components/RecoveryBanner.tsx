@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Standing bar for an account that cannot be recovered: no confirmed email,
@@ -28,13 +29,9 @@ export function RecoveryBanner() {
       <div className="recovery-banner-text">
         <strong>Confirm your email.</strong> It's the only way back in if you forget your password.
       </div>
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => navigate('/you?section=sign-in')}
-      >
+      <Button variant="primary" onClick={() => navigate('/you?section=sign-in')}>
         Confirm email
-      </button>
+      </Button>
     </div>
   );
 }

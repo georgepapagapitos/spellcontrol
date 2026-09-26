@@ -6,6 +6,7 @@ import { Modal } from './Modal';
 import './UsernameEditor.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 
 const USERNAME_MAX = 32;
 
@@ -111,14 +112,9 @@ export function UsernameEditor() {
       )}
 
       <div className="username-editor-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!canSubmit}
-          onClick={() => setConfirming(true)}
-        >
+        <Button variant="primary" disabled={!canSubmit} onClick={() => setConfirming(true)}>
           Change username
-        </button>
+        </Button>
       </div>
 
       {confirming && (
@@ -136,22 +132,17 @@ export function UsernameEditor() {
             again in 30 days.
           </p>
           <div className="choice-dialog-actions">
-            <button
-              type="button"
-              className="pill-btn"
-              onClick={() => setConfirming(false)}
-              disabled={saving}
-            >
+            <Button placement="row" onClick={() => setConfirming(false)} disabled={saving}>
               Cancel
-            </button>
-            <button
-              type="button"
-              className="pill-btn pill-btn-primary"
+            </Button>
+            <Button
+              variant="primary"
+              placement="row"
               onClick={() => void handleConfirm()}
               disabled={saving}
             >
               {saving ? 'Changing…' : `Change to @${next}`}
-            </button>
+            </Button>
           </div>
         </Modal>
       )}

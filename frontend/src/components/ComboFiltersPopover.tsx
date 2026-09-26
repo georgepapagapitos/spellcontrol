@@ -11,6 +11,7 @@ import {
   type ComboPieceCount,
   type ComboResultKind,
 } from '../lib/combo-filters';
+import { Button } from '@/components/shared/Button';
 
 const RESULT_OPTIONS = (
   Object.entries(COMBO_RESULT_LABELS) as Array<[ComboResultKind, string]>
@@ -157,13 +158,13 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
 
             {hasActive && (
               <div className="deck-filters-footer">
-                <button
-                  type="button"
-                  className="btn-link deck-filters-clear"
+                <Button
+                  variant="link"
                   onClick={() => setFilters(emptyComboFilters())}
+                  className="deck-filters-clear"
                 >
                   Clear filters
-                </button>
+                </Button>
               </div>
             )}
           </div>,

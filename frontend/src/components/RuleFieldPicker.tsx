@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAnchoredPanel } from '@/lib/use-anchored-panel';
 import { searchFilterFields, type FilterFieldId } from '../lib/filter-fields';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   /** Fields already showing a row in this group — hidden from the list. */
@@ -44,17 +45,16 @@ export function RuleFieldPicker({ inUse, onPick }: Props) {
 
   return (
     <div className="rule-field-picker">
-      <button
+      <Button
         ref={triggerRef}
-        type="button"
-        className="btn btn-add-rule"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={openPicker}
+        className="btn-add-rule"
+        icon={<Plus width={14} height={14} strokeWidth={2} />}
       >
-        <Plus width={14} height={14} strokeWidth={2} aria-hidden />
         Add condition
-      </button>
+      </Button>
       {open &&
         panelStyle &&
         createPortal(
