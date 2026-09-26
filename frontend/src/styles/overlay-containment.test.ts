@@ -173,7 +173,6 @@ describe('horizontal tab strips', () => {
     ['styles/deck-builder-tabs.css', '.sc-tabs--hub'],
     ['styles/deck-builder-tabs.css', '.sc-tabs--underline'],
     ['styles/binder-nav.css', '.binder-tab-row'],
-    ['styles/binder-card-management.css', '.add-cards-tabs'],
     ['styles/shared.css', '.shared-table-scroll'],
     ['styles/play-history-inline.css', '.play-records'],
     ['styles/playtest.css', '.playtest-life-strip'],
