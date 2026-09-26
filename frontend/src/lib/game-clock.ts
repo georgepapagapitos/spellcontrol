@@ -75,6 +75,18 @@ export function formatClock(ms: number): string {
   return `${h > 0 ? `${h}:` : ''}${mm}:${String(s).padStart(2, '0')}`;
 }
 
+/**
+ * Milliseconds until any of these elapsed readings shows its next second, for
+ * `useNow`. Each reading turns over on its own boundary (a game that started
+ * at x.7s changes digit at every x.7s), so a clock ticking on the wall's
+ * whole seconds shows a digit up to a second old.
+ */
+export function msToNextSecond(...readings: (number | null | undefined)[]): number {
+  let next = 1000;
+  for (const ms of readings) if (ms != null) next = Math.min(next, 1000 - (Math.max(0, ms) % 1000));
+  return next;
+}
+
 /** Spoken form for a screen reader — "12 minutes 4 seconds" reads, "12:04" does not. */
 export function describeClock(ms: number): string {
   const total = Number.isFinite(ms) && ms > 0 ? Math.floor(ms / 1000) : 0;

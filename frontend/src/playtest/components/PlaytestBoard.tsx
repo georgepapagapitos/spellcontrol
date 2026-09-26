@@ -56,7 +56,7 @@ import { effectiveMulliganType, usePlaytestStore } from '../store';
  * sees the number move.
  */
 function TurnTimer({ startedAt }: { startedAt: number }) {
-  const now = useNow(true);
+  const now = useNow(true, (t) => msToNextSecond(t - startedAt));
   return (
     <span className="playtest-turn-chip__clock" aria-label="Time on this turn">
       {formatClock(Math.max(0, now - startedAt))}
@@ -126,7 +126,7 @@ import { EndGameDialog } from '@/components/play/EndGameDialog';
 import { useRulesReferenceStore } from '@/store/rules-reference';
 import { GameMenuSheet, type GameMenuSection } from './GameMenuSheet';
 import { cardsToBottom, GAME_PHASES, type MulliganType } from '@/lib/game-state';
-import { formatClock } from '@/lib/game-clock';
+import { formatClock, msToNextSecond } from '@/lib/game-clock';
 import { useNow } from '@/lib/use-now';
 import {
   SHORTCUTS,
