@@ -84,13 +84,15 @@ interface CubeState {
   /** Snapshot the current working cube into the saved list under `name`. When
    *  `isPhysical`, pass the bound `picks` (built by `bindCubeCopies` at the call
    *  site, where the live collection/decks are in scope). `settings` records
-   *  what it was built with, for a later "Rebuild the rest". */
+   *  what it was built with, for a later "Rebuild the rest". Returns the new
+   *  saved cube's id (null when there was no working result to save), so a
+   *  caller can navigate straight to the cube's own page. */
   saveCurrent: (
     name: string,
     isPhysical?: boolean,
     picks?: CubePickSlot[],
     settings?: SavedCube['settings']
-  ) => void;
+  ) => string | null;
   /** Insert a cube into the saved list directly (e.g. copying a shared cube),
    *  WITHOUT touching the working `result` — so a copy never clobbers an
    *  in-progress generate. Returns the new id. */
@@ -203,7 +205,8 @@ export const useCubeStore = create<CubeState>()(
       saved: [],
       setResult: (size, result) => set({ size, result, loadedId: null }),
       clear: () => set({ result: null, loadedId: null }),
-      saveCurrent: (name, isPhysical = false, picks = [], settings) =>
+      saveCurrent: (name, isPhysical = false, picks = [], settings) => {
+        let newId: string | null = null;
         set((s) => {
           if (!s.result) return s;
           const entry: SavedCube = {
@@ -216,8 +219,11 @@ export const useCubeStore = create<CubeState>()(
             savedAt: Date.now(),
             ...(settings ? { settings } : {}),
           };
+          newId = entry.id;
           return { saved: [entry, ...s.saved], loadedId: entry.id };
-        }),
+        });
+        return newId;
+      },
       saveDirectly: (name, size, cube, isPhysical = false, picks = [], settings) => {
         const id = crypto.randomUUID();
         set((s) => ({

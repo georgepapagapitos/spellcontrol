@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { CubeResult } from './BuildCube';
+import { CubeResult } from './CubeResult';
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import { BUCKET_ORDER } from './shared';
 

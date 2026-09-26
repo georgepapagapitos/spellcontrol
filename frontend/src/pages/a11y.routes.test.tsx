@@ -107,7 +107,8 @@ import { TradesPage } from './TradesPage';
 import { PodsIndexPage } from './PodsIndexPage';
 import AuthPage from './AuthPage';
 import { WelcomePage } from './WelcomePage';
-import { CubePage } from './CubePage';
+import { CubeIndexPage } from './CubeIndexPage';
+import { CubeChooserPage } from './cube/CubeChooserPage';
 import { DeckComparePage } from './DeckComparePage';
 import { DeckEditorPage } from './DeckEditorPage';
 import { PodHubPage } from './PodHubPage';
@@ -229,8 +230,13 @@ const CASES: RouteCase[] = [
   },
   {
     path: '/decks/cube',
-    routes: <Route path="/decks/cube" element={<CubePage />} />,
+    routes: <Route path="/decks/cube" element={<CubeIndexPage />} />,
     ready: /cube/i,
+  },
+  {
+    path: '/decks/cube/new',
+    routes: <Route path="/decks/cube/new" element={<CubeChooserPage />} />,
+    ready: /new cube/i,
   },
   {
     path: '/decks/compare',

@@ -23,7 +23,7 @@ const HUB_PAGES: Array<[string, string]> = [
   ['pages/DecksIndexPage.tsx', 'DecksHubTabs'],
   ['pages/DiscoverDecksPage.tsx', 'DecksHubTabs'],
   ['pages/SavedDecksPage.tsx', 'DecksHubTabs'],
-  ['pages/CubePage.tsx', 'DecksHubTabs'],
+  ['pages/CubeIndexPage.tsx', 'DecksHubTabs'],
   ['pages/FriendsPage.tsx', 'SocialHubTabs'],
   ['pages/TradesPage.tsx', 'SocialHubTabs'],
   ['pages/PodsIndexPage.tsx', 'SocialHubTabs'],
