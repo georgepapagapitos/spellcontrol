@@ -8,6 +8,7 @@ import { ROLE_TITLES } from '../../lib/role-badges';
 import type { CurrencyCode, Row } from './deck-display-rows';
 import { allocationSummary, cardAllRoles, frontFaceMana } from './deck-display-rows';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { Button } from '@/components/shared/Button';
 
 export interface DeckCardInspectorCard {
   row: Row;
@@ -160,31 +161,28 @@ export function DeckCardInspector({
         (actions?.onMoveToSideboard || actions?.onMoveToConsidering || actions?.onRemoveCard) && (
           <div className="deck-card-inspector-actions">
             {actions.onMoveToSideboard && (
-              <button
-                type="button"
-                className="btn deck-card-inspector-action"
+              <Button
                 onClick={() => actions.onMoveToSideboard?.(slotIds)}
+                className="deck-card-inspector-action"
               >
                 To sideboard
-              </button>
+              </Button>
             )}
             {actions.onMoveToConsidering && (
-              <button
-                type="button"
-                className="btn deck-card-inspector-action"
+              <Button
                 onClick={() => actions.onMoveToConsidering?.(slotIds)}
+                className="deck-card-inspector-action"
               >
                 To considering
-              </button>
+              </Button>
             )}
             {actions.onRemoveCard && (
-              <button
-                type="button"
-                className="btn deck-card-inspector-action deck-card-inspector-remove"
+              <Button
                 onClick={() => actions.onRemoveCard?.(slotIds[0])}
+                className="deck-card-inspector-action deck-card-inspector-remove"
               >
                 Remove one
-              </button>
+              </Button>
             )}
           </div>
         )}

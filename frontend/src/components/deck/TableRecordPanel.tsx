@@ -1,10 +1,10 @@
 import './TableRecordPanel.css';
 import { type JSX, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../../store/auth';
 import { aggregateDeckRecords, usePlayStore } from '../../store/play';
 import { aggregateMatchupRecords } from '@/lib/matchup-records';
 import { StackedBar } from '../shared/MeterBar';
+import { Button } from '@/components/shared/Button';
 
 interface TableRecordPanelProps {
   deckId: string;
@@ -41,9 +41,9 @@ export function TableRecordPanel({ deckId }: TableRecordPanelProps): JSX.Element
         <p className="table-record-empty-text">
           No games tracked yet. Log one and this shows wins, losses and who beat it.
         </p>
-        <Link to="/play" className="btn table-record-empty-action">
+        <Button to="/play" className="table-record-empty-action">
           Track a game
-        </Link>
+        </Button>
       </div>
     );
   }

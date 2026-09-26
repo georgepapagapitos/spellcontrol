@@ -20,6 +20,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { LegalityIssue } from '../../lib/deck-validation';
 import { getRoleBadge, isMultiRole, multiRoleTitle } from '../../lib/role-badges';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
+import { Button } from '@/components/shared/Button';
 
 // Section-header icon per category bucket. 'lands'/'creatures' reuse the
 // mana-font type glyphs (via ManaSymbol, see SectionIcon below) — the other
@@ -199,15 +200,15 @@ export function PartnerHeaderButton({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      className="btn-link deck-section-partner-btn"
+    <Button
+      variant="link"
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
+      className="deck-section-partner-btn"
     >
       {hasPartner ? 'Edit partner' : '+ Add partner'}
-    </button>
+    </Button>
   );
 }

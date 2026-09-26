@@ -10,6 +10,7 @@ import { buildFill, type FillResult } from '@/lib/fill-deck';
 import { userMessage } from '@/lib/user-error';
 import { MeterBar } from '../shared/MeterBar';
 import type { Deck } from '../../store/decks';
+import { Button } from '@/components/shared/Button';
 
 /** Staples <-> Synergy dial stops offered here: the two ends and the middle. */
 const LEANS = [
@@ -276,42 +277,31 @@ export function FillDeckSheet({
         <div className="card-picker-footer">
           {phase.kind === 'setup' && (
             <>
-              <button type="button" className="btn" onClick={dismiss}>
-                Cancel
-              </button>
-              <button type="button" className="btn btn-primary" onClick={() => void run()}>
+              <Button onClick={dismiss}>Cancel</Button>
+              <Button variant="primary" onClick={() => void run()}>
                 Find {open} {open === 1 ? 'card' : 'cards'}
-              </button>
+              </Button>
             </>
           )}
-          {phase.kind === 'building' && (
-            <button type="button" className="btn" onClick={dismiss}>
-              Cancel
-            </button>
-          )}
+          {phase.kind === 'building' && <Button onClick={dismiss}>Cancel</Button>}
           {phase.kind === 'error' && (
             <>
-              <button type="button" className="btn" onClick={dismiss}>
-                Close
-              </button>
-              <button type="button" className="btn btn-primary" onClick={() => void run()}>
+              <Button onClick={dismiss}>Close</Button>
+              <Button variant="primary" onClick={() => void run()}>
                 Try again
-              </button>
+              </Button>
             </>
           )}
           {phase.kind === 'review' && (
             <>
-              <button type="button" className="btn" onClick={() => setPhase({ kind: 'setup' })}>
-                Back
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Button onClick={() => setPhase({ kind: 'setup' })}>Back</Button>
+              <Button
+                variant="primary"
                 disabled={additions.length === 0}
                 onClick={() => onAdd(additions)}
               >
                 Add {additions.length} {additions.length === 1 ? 'card' : 'cards'}
-              </button>
+              </Button>
             </>
           )}
         </div>

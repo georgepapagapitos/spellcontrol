@@ -13,6 +13,7 @@ import { SearchPill } from '../SearchPill';
 import { ManaCost } from '../ManaCost';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface Props {
   /** The primary commander — drives which partners are legal. */
   commander: ScryfallCard;
@@ -203,17 +204,16 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
               </div>
             )}
           </div>
-          <button
-            type="button"
-            className="btn commander-pick-change"
+          <Button
             onClick={() => {
               onSelect(null);
               setQuery('');
               setResults([]);
             }}
+            className="commander-pick-change"
           >
             Change
-          </button>
+          </Button>
         </div>
       </section>
     );

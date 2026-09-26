@@ -4,6 +4,7 @@ import { useEscapeKey } from '../../lib/use-escape-key';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { formatMoney } from '../../lib/format-money';
 import type { OwnershipLens } from '../../lib/ownership-lens';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   id?: string;
@@ -139,9 +140,9 @@ export function OwnershipLensSheet({ id, lens, missingCardPrices, onClose }: Pro
         )}
 
         <div className="card-picker-footer">
-          <button type="button" className="btn btn-primary" onClick={() => dismiss()}>
+          <Button variant="primary" onClick={() => dismiss()}>
             Done
-          </button>
+          </Button>
         </div>
       </div>
     </div>

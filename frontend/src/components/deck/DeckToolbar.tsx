@@ -29,6 +29,7 @@ import { ROLE_BADGE_BY_TONE, ROLE_BADGE_GROUPS } from '../../lib/role-badges';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
 import { useElementWidth } from '@/lib/use-element-width';
 import type { DeckGroupBy, DeckViewMode, ShowPrefs, SortMode } from './deck-display-rows';
+import { Button, buttonClass } from '@/components/shared/Button';
 
 // ── Toolbar ───────────────────────────────────────────────────────────────
 interface ToolbarProps {
@@ -350,15 +351,15 @@ export function DeckToolbar({
   ];
 
   const doneButton = canBulkEdit && selectMode && (
-    <button
-      type="button"
-      className="toolbar-pill deck-toolbar-select-toggle"
+    <Button
+      placement="toolbar"
       aria-pressed
       onClick={onToggleSelectMode}
+      className="deck-toolbar-select-toggle"
+      icon={<CheckSquare width={14} height={14} strokeWidth={2} />}
     >
-      <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
-      <span>Done</span>
-    </button>
+      Done
+    </Button>
   );
 
   return (
@@ -424,7 +425,7 @@ export function DeckToolbar({
           <OverflowMenu
             ariaLabel="Deck list actions"
             className="deck-toolbar-more"
-            triggerClassName="toolbar-pill"
+            triggerClassName={buttonClass({ placement: 'toolbar' })}
             items={[...selectAction, ...listActions]}
           />
         </div>
@@ -460,20 +461,20 @@ export function DeckToolbar({
           <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
 
           {full && canBulkEdit && (
-            <button
-              type="button"
-              className="toolbar-pill deck-toolbar-select-toggle"
+            <Button
+              placement="toolbar"
               aria-pressed={selectMode}
               onClick={onToggleSelectMode}
+              className="deck-toolbar-select-toggle"
+              icon={<CheckSquare width={14} height={14} strokeWidth={2} />}
             >
-              <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
-              <span>{selectMode ? 'Done' : 'Select'}</span>
-            </button>
+              {selectMode ? 'Done' : 'Select'}
+            </Button>
           )}
           {!full && doneButton}
 
           <ToolbarPopover
-            triggerClassName="toolbar-pill deck-toolbar-more-btn"
+            triggerClassName={`${buttonClass({ placement: 'toolbar' })} deck-toolbar-more-btn`}
             triggerContent={<MoreHorizontal width={18} height={18} strokeWidth={3} aria-hidden />}
             triggerAriaLabel="More list options"
             haspopup="dialog"
