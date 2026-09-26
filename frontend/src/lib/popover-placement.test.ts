@@ -71,6 +71,64 @@ describe('computePopoverPlacement — vertical', () => {
     const result = computePopoverPlacement(anchor, PANEL, kbSafe, 'right', 6, 812);
     expect(result.opensAbove).toBe(true);
   });
+
+  // The online host form at 1440x900, measured: the Format trigger at
+  // y 699-732 with 168px below it, a ten-option list 383px tall. The 160px
+  // floor alone opened it downward and clamped it up over its own trigger,
+  // with Horde (co-op) centred on the viewport's bottom edge.
+  it('flips ABOVE when the panel is taller than the room below, even past the 160px floor', () => {
+    const safe: SafeViewport = { top: 52, bottom: 900, left: 0, right: 1440 };
+    const anchor: AnchorRect = { top: 699, bottom: 732, left: 80, right: 230 };
+    const result = computePopoverPlacement(
+      anchor,
+      { width: 170, height: 383 },
+      safe,
+      'right',
+      6,
+      900
+    );
+    expect(result.opensAbove).toBe(true);
+    expect(result.bottom).toBe(900 - 699 + 6);
+    expect(result.top).toBeUndefined();
+  });
+
+  it('keeps opening below when the panel fits there', () => {
+    const safe: SafeViewport = { top: 52, bottom: 900, left: 0, right: 1440 };
+    const anchor: AnchorRect = { top: 400, bottom: 433, left: 80, right: 230 };
+    const result = computePopoverPlacement(anchor, { width: 170, height: 383 }, safe);
+    expect(result.opensAbove).toBe(false);
+    expect(result.top).toBe(439);
+  });
+
+  it('reports the room on the side it opens, so a capped panel scrolls beside its trigger', () => {
+    const anchor = triggerTop(400, 50); // bottom = 440
+    // Below: 756 - 440 - 6 gap - 8 pad = 302. Above: 400 - 0 - 6 - 8 = 386.
+    const below = computePopoverPlacement(anchor, PANEL, MOBILE_SAFE, 'right', 6, 812);
+    expect(below.opensAbove).toBe(false);
+    expect(below.maxHeight).toBe(302);
+    const tall = computePopoverPlacement(
+      anchor,
+      { width: 200, height: 500 },
+      MOBILE_SAFE,
+      'right',
+      6,
+      812
+    );
+    expect(tall.opensAbove).toBe(true);
+    expect(tall.maxHeight).toBe(386);
+    // Placed again at that height, it fits above with no clamp over the trigger.
+    const capped = computePopoverPlacement(
+      anchor,
+      { width: 200, height: tall.maxHeight },
+      MOBILE_SAFE,
+      'right',
+      6,
+      812
+    );
+    expect(capped.opensAbove).toBe(true);
+    expect(capped.bottom).toBe(812 - 400 + 6);
+    expect(capped.top).toBeUndefined();
+  });
 });
 
 describe('computePopoverPlacement — horizontal', () => {

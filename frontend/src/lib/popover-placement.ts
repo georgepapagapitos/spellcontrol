@@ -80,6 +80,10 @@ export interface PopoverPlacement {
   right?: number;
   /** When true the panel opens above the trigger (for animation transform-origin). */
   opensAbove: boolean;
+  /** The room on the side it opens, trigger to safe edge. A panel capped to
+   *  this scrolls inside the viewport instead of being clamped over its own
+   *  trigger. */
+  maxHeight: number;
 }
 
 /**
@@ -107,8 +111,14 @@ export function computePopoverPlacement(
   // ── Vertical ────────────────────────────────────────────────────────────────
   const spaceBelow = safe.bottom - anchor.bottom;
   const spaceAbove = anchor.top - safe.top;
+  const roomBelow = spaceBelow - gap - EDGE_PAD;
+  const roomAbove = spaceAbove - gap - EDGE_PAD;
 
-  const opensAbove = spaceBelow < MIN_BELOW_SPACE && spaceBelow < spaceAbove;
+  // Flip when the panel does not fit below and there is more room above.
+  // The 160px floor alone opened a 383px list downward with 168px to spare
+  // and clamped it up over its own trigger (the online host form's Format).
+  const opensAbove =
+    spaceBelow < spaceAbove && (spaceBelow < MIN_BELOW_SPACE || panel.height > roomBelow);
 
   let top: number | undefined;
   let bottom: number | undefined;
@@ -172,7 +182,14 @@ export function computePopoverPlacement(
     }
   }
 
-  return { top, bottom, left, right, opensAbove };
+  return {
+    top,
+    bottom,
+    left,
+    right,
+    opensAbove,
+    maxHeight: Math.max(0, opensAbove ? roomAbove : roomBelow),
+  };
 }
 
 /**
