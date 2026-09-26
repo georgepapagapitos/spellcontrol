@@ -1,5 +1,5 @@
 import type { BinderFilter, BinderFilterGroup, ChipExpression, EnrichedCard } from './types.js';
-import { getColorKey } from './colors.js';
+import { colorSelectionMatches, getColorKey, type ColorMatchMode } from './colors.js';
 import { isCommanderEligible } from './commanders-core.js';
 import { parseTypeLine } from './card-types.js';
 import { normalizeForSearch } from './normalize-search.js';
@@ -23,6 +23,7 @@ import { getFinishKey } from './sorting.js';
 interface CompiledFilter {
   legalities?: CompiledExpression;
   colors?: CompiledExpression;
+  colorIdentity?: { colors: Set<string>; mode: ColorMatchMode };
   rarities?: CompiledExpression;
   typeChips?: CompiledExpression;
   typeTokenChips?: CompiledExpression;
@@ -57,6 +58,12 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
   const out: CompiledFilter = {};
   out.legalities = compileExpression(filter.legalities);
   out.colors = compileExpression(filter.colors);
+  if (filter.colorIdentity?.colors.length) {
+    out.colorIdentity = {
+      colors: new Set(filter.colorIdentity.colors),
+      mode: filter.colorIdentity.mode,
+    };
+  }
   out.rarities = compileExpression(filter.rarities);
   out.typeChips = compileExpression(filter.typeChips);
   out.typeTokenChips = compileExpression(filter.typeTokenChips);
@@ -139,6 +146,16 @@ export function cardMatchesCompiled(
     const value = key === '?' ? '' : key;
     if (!exactMatchesExpression(value, f.colors)) return false;
   }
+  if (
+    f.colorIdentity &&
+    !colorSelectionMatches(
+      getColorKey(card),
+      card.colorIdentity ?? [],
+      f.colorIdentity.colors,
+      f.colorIdentity.mode
+    )
+  )
+    return false;
 
   if (f.typeChips && !substringMatchesExpression(card.typeLine, f.typeChips)) return false;
   if (f.supertypeChips || f.subtypeChips || f.typeTokenChips) {
@@ -291,6 +308,7 @@ export function isFilterEmpty(filter: BinderFilter): boolean {
   return (
     isExpressionEmpty(filter.legalities) &&
     isExpressionEmpty(filter.colors) &&
+    !filter.colorIdentity?.colors.length &&
     isExpressionEmpty(filter.rarities) &&
     isExpressionEmpty(filter.typeChips) &&
     isExpressionEmpty(filter.typeTokenChips) &&

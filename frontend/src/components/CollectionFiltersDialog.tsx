@@ -496,6 +496,7 @@ function DialogBody({
   // those, and BinderEditor's own seed note explains the gap.
   const saveAsBinderInput = {
     colorFilter: draftColor,
+    colorMode: draftColorMode,
     supertypeExpr: draftSuper,
     typesExpr: draftTypes,
     subtypeExpr: draftSubtype,

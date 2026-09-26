@@ -981,7 +981,6 @@ export function BinderEditor() {
                       .map((key) => {
                         if (key === 'condition') return 'condition';
                         if (key === 'binder') return 'binder membership';
-                        if (key === 'color') return 'color (binders match exact color identity)';
                         return key;
                       })
                       .join(', ')}

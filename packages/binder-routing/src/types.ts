@@ -238,7 +238,20 @@ export interface ChipExpression {
 export interface BinderFilter {
   /** Legality chips. Within an AND-group: every IS must be legal, no IS NOT may be. */
   legalities?: ChipExpression;
+  /**
+   * The older color rule: IS / IS NOT chips over each card's single color
+   * BUCKET (`getColorKey`: W/U/B/R/G, M for any multicolor card, C). "White"
+   * means mono-white, never an Azorius card. Kept so binders saved with it keep
+   * their contents; the editor no longer offers it for new rules.
+   */
   colors?: ChipExpression;
+  /**
+   * Color identity, exactly like the collection's color pips: `any` = the card
+   * shows any selected color, `all` = its colors are exactly the selection.
+   * Same predicate (`colorSelectionMatches`), so Save as binder carries a
+   * collection color filter over without changing which cards match.
+   */
+  colorIdentity?: { colors: string[]; mode: 'any' | 'all' };
   /** Rarity chips. Exact match (no substring). */
   rarities?: ChipExpression;
   cmcMin?: number;

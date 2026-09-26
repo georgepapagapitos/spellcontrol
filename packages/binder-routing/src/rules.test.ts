@@ -724,3 +724,46 @@ describe('priceSlack (sticky price margin)', () => {
     ).toBe(true);
   });
 });
+
+describe('colorIdentity rule', () => {
+  const azoriusCharm = makeCard({
+    colors: ['W', 'U'],
+    colorIdentity: ['W', 'U'],
+    typeLine: 'Instant',
+  });
+  const swords = makeCard({ colors: ['W'], colorIdentity: ['W'], typeLine: 'Instant' });
+  const solRing = makeCard({ colors: [], colorIdentity: [], typeLine: 'Artifact' });
+  const plains = makeCard({ colors: [], colorIdentity: ['W'], typeLine: 'Basic Land — Plains' });
+  const rule = (colors: string[], mode: 'any' | 'all'): BinderFilter => ({
+    colorIdentity: { colors, mode },
+  });
+
+  it('any: a card showing any selected color', () => {
+    expect(cardMatchesFilter(azoriusCharm, rule(['U'], 'any'))).toBe(true);
+    expect(cardMatchesFilter(swords, rule(['U'], 'any'))).toBe(false);
+    expect(cardMatchesFilter(plains, rule(['W'], 'any'))).toBe(true);
+  });
+
+  it('all: exactly the selected colors (W + U is Azorius only, W alone is mono-white)', () => {
+    expect(cardMatchesFilter(azoriusCharm, rule(['W', 'U'], 'all'))).toBe(true);
+    expect(cardMatchesFilter(swords, rule(['W', 'U'], 'all'))).toBe(false);
+    expect(cardMatchesFilter(azoriusCharm, rule(['W'], 'all'))).toBe(false);
+    expect(cardMatchesFilter(swords, rule(['W'], 'all'))).toBe(true);
+  });
+
+  it('C means colorless', () => {
+    expect(cardMatchesFilter(solRing, rule(['C'], 'any'))).toBe(true);
+    expect(cardMatchesFilter(swords, rule(['C'], 'any'))).toBe(false);
+  });
+
+  it('an empty selection is no constraint', () => {
+    expect(isFilterEmpty({ colorIdentity: { colors: [], mode: 'all' } })).toBe(true);
+    expect(isFilterEmpty(rule(['W'], 'any'))).toBe(false);
+    expect(cardMatchesFilter(swords, { colorIdentity: { colors: [], mode: 'all' } })).toBe(true);
+  });
+
+  it('leaves the older bucket rule exactly as it was: White means mono-white', () => {
+    expect(cardMatchesFilter(azoriusCharm, { colors: chips('W') })).toBe(false);
+    expect(cardMatchesFilter(swords, { colors: chips('W') })).toBe(true);
+  });
+});

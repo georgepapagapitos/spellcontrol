@@ -5,7 +5,9 @@ import {
   hasStructuredFilter,
   type CollectionFilterInput,
 } from './collection-filters-to-binder';
-import type { ChipExpression } from '../types';
+import type { ChipExpression, EnrichedCard } from '../types';
+import { cardMatchesFilter } from './rules';
+import { colorSelectionMatches, getColorKey } from './colors';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
@@ -153,14 +155,79 @@ describe('collectionFiltersToFilterGroup', () => {
     expect(group.filter.cmcMax).toBe(4);
   });
 
-  it('maps colorFilter → colors ChipExpression and flags color', () => {
+  it('maps the color pips and their mode → colorIdentity, and flags nothing', () => {
     const { group, flagged } = collectionFiltersToFilterGroup(
-      makeInput({ colorFilter: new Set(['R', 'B']) })
+      makeInput({ colorFilter: new Set(['R', 'B']), colorMode: 'all' })
     );
-    expect(group.filter.colors).toBeDefined();
-    expect(group.filter.colors!.chips.map((c) => c.value).sort()).toEqual(['B', 'R']);
-    expect(group.filter.colors!.joiners).toEqual(['OR']);
-    expect(flagged).toContain('color');
+    expect(group.filter.colorIdentity).toEqual({ colors: ['R', 'B'], mode: 'all' });
+    expect(group.filter.colors).toBeUndefined();
+    expect(flagged).not.toContain('color');
+  });
+
+  // The guard: Save as binder must hold exactly the cards the collection
+  // filter shows. Real cards across every identity shape; every pip subset in
+  // both modes. The old conversion (IS chips over one color bucket per card)
+  // dropped Azorius Charm from a W+U binder in both modes.
+  it('a saved binder matches exactly the cards the collection filter does', () => {
+    const corpus = [
+      { name: 'Azorius Charm', colors: ['W', 'U'], colorIdentity: ['W', 'U'], typeLine: 'Instant' },
+      { name: 'Swords to Plowshares', colors: ['W'], colorIdentity: ['W'], typeLine: 'Instant' },
+      { name: 'Brainstorm', colors: ['U'], colorIdentity: ['U'], typeLine: 'Instant' },
+      { name: 'Sol Ring', colors: [], colorIdentity: [], typeLine: 'Artifact' },
+      { name: 'Plains', colors: [], colorIdentity: ['W'], typeLine: 'Basic Land — Plains' },
+      {
+        name: 'Hallowed Fountain',
+        colors: [],
+        colorIdentity: ['W', 'U'],
+        typeLine: 'Land — Plains Island',
+      },
+      {
+        name: 'Esper Charm',
+        colors: ['W', 'U', 'B'],
+        colorIdentity: ['W', 'U', 'B'],
+        typeLine: 'Instant',
+      },
+      {
+        name: 'Figure of Destiny',
+        colors: ['R', 'W'],
+        colorIdentity: ['R', 'W'],
+        typeLine: 'Creature — Kithkin Spirit',
+      },
+    ].map((c, i) => ({
+      copyId: `c${i}`,
+      setCode: 'TST',
+      setName: 'Test',
+      collectorNumber: `${i}`,
+      rarity: 'rare',
+      scryfallId: `s${i}`,
+      purchasePrice: 1,
+      sourceCategory: '',
+      sourceFormat: 'plain' as const,
+      foil: false,
+      finish: 'nonfoil' as const,
+      ...c,
+    })) as EnrichedCard[];
+    const keys = ['W', 'U', 'B', 'R', 'G', 'C'];
+    for (let mask = 1; mask < 1 << keys.length; mask++) {
+      const selected = new Set(keys.filter((_, i) => mask & (1 << i)));
+      for (const mode of ['any', 'all'] as const) {
+        const { group } = collectionFiltersToFilterGroup(
+          makeInput({ colorFilter: selected, colorMode: mode })
+        );
+        for (const card of corpus) {
+          const collection = colorSelectionMatches(
+            getColorKey(card),
+            card.colorIdentity ?? [],
+            selected,
+            mode
+          );
+          expect(
+            cardMatchesFilter(card, group.filter),
+            `${card.name} ${[...selected]} ${mode}`
+          ).toBe(collection);
+        }
+      }
+    }
   });
 
   it('flags condition when conditionExpr is set, does NOT carry it', () => {

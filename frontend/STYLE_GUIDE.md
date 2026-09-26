@@ -1612,6 +1612,13 @@ accent-filled variant and OR the muted one.
   the collection and the public share views use (`useSharedFilters` with the
   `card-facts` facet set), so every card-filtering surface shares one filter
   door, one pip row, and one AND/OR placement.
+- **Binder / list rule rows** (`FilterGroupEditor`, the Color identity rule):
+  the rule label is a fixed-width column, so the toggle follows the pips in
+  the control column (`.rule-color-identity`) and wraps onto its own line on
+  a phone rather than squeezing its hint. The rule runs the same
+  `colorSelectionMatches`, so Save as binder carries a collection color filter
+  over exactly. The older one-bucket-per-card rule shows as **Color group**
+  only on rules saved with it; the picker never offers it.
 - **The hint is mandatory.** Between two value chips the operator explains
   itself; standing alone it doesn't — never render the bare pill without the
   hint text.

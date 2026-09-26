@@ -39,6 +39,8 @@ export function cleanFilter(f: BinderFilter): BinderFilter {
   };
   if (cleanField(f.legalities)) out.legalities = cleanField(f.legalities);
   if (cleanField(f.colors)) out.colors = cleanField(f.colors);
+  if (f.colorIdentity?.colors.length)
+    out.colorIdentity = { colors: [...f.colorIdentity.colors], mode: f.colorIdentity.mode };
   if (cleanField(f.rarities)) out.rarities = cleanField(f.rarities);
   if (cleanField(f.typeChips)) out.typeChips = cleanField(f.typeChips);
   if (cleanField(f.typeTokenChips)) out.typeTokenChips = cleanField(f.typeTokenChips);

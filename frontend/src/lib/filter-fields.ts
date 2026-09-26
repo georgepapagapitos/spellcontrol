@@ -20,6 +20,7 @@ export type FilterFieldId =
   | 'typeTokenChips'
   | 'subtypeChips'
   | 'colors'
+  | 'colorIdentity'
   | 'commanderEligible'
   | 'cmc'
   | 'manaCost'
@@ -63,6 +64,8 @@ export interface FilterFieldSpec {
   hint?: string;
   /** Extra words that should match this field in the picker's search. */
   keywords?: string[];
+  /** Still edits and clears where a filter carries it, but the picker never offers it. */
+  legacy?: boolean;
   /** True when the filter carries a value for this field. */
   isSet: (f: BinderFilter) => boolean;
   /** The patch that removes this field's value. */
@@ -106,10 +109,22 @@ export const FILTER_FIELDS: FilterFieldSpec[] = [
     clear: () => ({ subtypeChips: undefined }),
   },
   {
-    id: 'colors',
+    id: 'colorIdentity',
     label: 'Color identity',
     group: 'Identity',
-    keywords: ['wubrg', 'mono', 'multicolor', 'colourless'],
+    hint: 'Any selected color, or only these colors, like the collection filter.',
+    keywords: ['wubrg', 'mono', 'multicolor', 'colourless', 'colour'],
+    isSet: (f) => !!f.colorIdentity?.colors.length,
+    clear: () => ({ colorIdentity: undefined }),
+  },
+  // The older color rule (one bucket per card: a color, Multicolor or
+  // Colorless). Binders saved with it keep it; the picker doesn't offer it.
+  {
+    id: 'colors',
+    label: 'Color group',
+    group: 'Identity',
+    hint: 'One color, Multicolor or Colorless. From rules saved before Color identity.',
+    legacy: true,
     isSet: (f) => hasChips(f.colors),
     clear: () => ({ colors: undefined }),
   },
@@ -278,7 +293,7 @@ export function searchFilterFields(
 ): Array<{ group: FilterFieldGroup; fields: FilterFieldSpec[] }> {
   const q = query.trim().toLowerCase();
   const matches = (spec: FilterFieldSpec) => {
-    if (exclude.has(spec.id)) return false;
+    if (exclude.has(spec.id) || spec.legacy) return false;
     if (!q) return true;
     return (
       spec.label.toLowerCase().includes(q) ||

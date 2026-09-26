@@ -20,7 +20,11 @@ import type {
   EnrichedCard,
   Rarity,
 } from '../types';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
+import { ColorPip } from './shared/ManaSymbol';
+import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
+import { colorChipLabel } from './shared/FilterChipsRow';
+import { FILTER_COLOR_OPTIONS } from '../lib/colors';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
 
@@ -381,8 +385,51 @@ function FilterGroupFields({
         />
       </RuleRow>
 
-      {/* Colors */}
-      <RuleRow fieldId="colors" label="Color identity">
+      {/* Color identity: the collection's pip row and AND/OR mode, run through
+          the same predicate, so a saved collection filter matches the same cards. */}
+      <RuleRow fieldId="colorIdentity" label="Color identity">
+        <div className="rule-color-identity">
+          <div className="color-filter-row" role="group" aria-label="Color identity">
+            {FILTER_COLOR_OPTIONS.map((c) => {
+              const selected = filter.colorIdentity?.colors ?? [];
+              const active = selected.includes(c.key);
+              return (
+                <IconButton
+                  className={`color-filter-btn${active ? ' is-active' : ''}`}
+                  key={c.key}
+                  onClick={() => {
+                    const colors = active
+                      ? selected.filter((k) => k !== c.key)
+                      : [...selected, c.key];
+                    // Turning the last pip off clears the value, not the row:
+                    // keep it on screen so the next pip is one tap away.
+                    if (!colors.length) setAdded((prev) => new Set(prev).add('colorIdentity'));
+                    patch({
+                      colorIdentity: colors.length
+                        ? { colors, mode: filter.colorIdentity?.mode ?? 'any' }
+                        : undefined,
+                    });
+                  }}
+                  aria-pressed={active}
+                  label={c.label}
+                  icon={<ColorPip color={c.key} pip="lg" />}
+                />
+              );
+            })}
+          </div>
+          <ColorMatchModeToggle
+            mode={filter.colorIdentity?.mode ?? 'any'}
+            onChange={(mode) =>
+              patch({
+                colorIdentity: { colors: filter.colorIdentity?.colors ?? [], mode },
+              })
+            }
+          />
+        </div>
+      </RuleRow>
+
+      {/* The older color rule, one bucket per card. Only rules saved with it show it. */}
+      <RuleRow fieldId="colors" label="Color group">
         <ChipExpressionBuilder
           options={COLORS.map((c) => ({ value: c.key, label: c.label }))}
           value={filter.colors ?? EMPTY_EXPR}
@@ -611,6 +658,8 @@ function autoSummary(f: BinderFilter): string {
   push(chipNames(f.rarities));
   push(chipNames(f.typeChips));
   push(chipNames(f.colors));
+  if (f.colorIdentity?.colors.length)
+    push(colorChipLabel(f.colorIdentity.colors, f.colorIdentity.mode));
   push(chipNames(f.treatments));
   push(chipNames(f.finishes));
   push(chipNames(f.layouts));
@@ -672,6 +721,9 @@ export function cloneChips(f: BinderFilter): Partial<BinderFilter> {
   return {
     legalities: dup(f.legalities),
     colors: dup(f.colors),
+    colorIdentity: f.colorIdentity
+      ? { colors: [...f.colorIdentity.colors], mode: f.colorIdentity.mode }
+      : undefined,
     rarities: dup(f.rarities),
     typeChips: dup(f.typeChips),
     typeTokenChips: dup(f.typeTokenChips),

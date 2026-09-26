@@ -291,3 +291,49 @@ describe('empty-rule warning gating', () => {
     expect(screen.getByText(WARNING)).toBeTruthy();
   });
 });
+
+describe('the Color identity rule', () => {
+  // The collection's color pips and AND/OR mode, carried into a binder by
+  // Save as binder. The old conversion bucketed each card by one color, so a
+  // W + U binder held no Azorius card at all.
+  it('shows the saved pips and mode, and counts the same cards the collection did', () => {
+    const azorius = { ...card('1', 'rare'), colors: ['W', 'U'], colorIdentity: ['W', 'U'] };
+    const monoWhite = { ...card('2', 'rare'), colors: ['W'], colorIdentity: ['W'] };
+    useCollectionStore.setState({ cards: [azorius, monoWhite] });
+    render(<BinderEditor />);
+    act(() => {
+      useCollectionStore.setState({
+        editingBinder: 'new',
+        editingBinderSeed: {
+          name: 'Azorius',
+          groups: [{ filter: { colorIdentity: { colors: ['W', 'U'], mode: 'all' } } }],
+        },
+      });
+    });
+
+    const pips = screen.getByRole('group', { name: 'Color identity' });
+    expect(within(pips).getByRole('button', { name: 'White' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    expect(within(pips).getByRole('button', { name: 'Blue' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    expect(within(pips).getByRole('button', { name: 'Red' }).getAttribute('aria-pressed')).toBe(
+      'false'
+    );
+    expect(screen.getByText('only these colors')).toBeTruthy();
+    expect(landLine()).toBe('1 card lands here');
+
+    // OR: any card showing white or blue.
+    fireEvent.click(screen.getByRole('button', { name: /Color match mode/ }));
+    expect(screen.getByText('any selected color')).toBeTruthy();
+    expect(landLine()).toBe('2 cards land here');
+
+    // Clearing the last pip removes the constraint rather than matching nothing.
+    fireEvent.click(within(pips).getByRole('button', { name: 'White' }));
+    fireEvent.click(within(pips).getByRole('button', { name: 'Blue' }));
+    expect(landLine()).toBe('2 cards land here');
+    // …and the row stays where it was, so the next pip is one tap away.
+    expect(screen.getByRole('group', { name: 'Color identity' })).toBeTruthy();
+  });
+});

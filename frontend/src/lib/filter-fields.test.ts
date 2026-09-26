@@ -29,6 +29,7 @@ describe('the registry covers the whole vocabulary', () => {
       typeTokenChips: { typeTokenChips: chips('instant') },
       subtypeChips: { subtypeChips: chips('angel') },
       colors: { colors: chips('W') },
+      colorIdentity: { colorIdentity: { colors: ['W', 'U'], mode: 'all' } },
       commanderEligible: { commanderEligible: true },
       cmc: { cmcMin: 2, cmcMax: 5 },
       manaCost: { manaCost: '{2}{G}' },
@@ -69,9 +70,17 @@ describe('the registry covers the whole vocabulary', () => {
 describe('picker search', () => {
   const none = new Set<FilterFieldId>();
 
-  it('returns every group when the query is blank', () => {
+  it('returns every non-legacy field when the query is blank', () => {
     const total = searchFilterFields('', none).flatMap((s) => s.fields).length;
-    expect(total).toBe(FILTER_FIELDS.length);
+    expect(total).toBe(FILTER_FIELDS.filter((f) => !f.legacy).length);
+  });
+
+  // Binders saved with the old bucket color rule keep it, but a new rule gets
+  // Color identity: the same pips and AND/OR mode as the collection filter.
+  it('offers Color identity and never the legacy Color group', () => {
+    const ids = searchFilterFields('color', none).flatMap((s) => s.fields.map((f) => f.id));
+    expect(ids).toContain('colorIdentity');
+    expect(ids).not.toContain('colors');
   });
 
   it('hides fields already in the group', () => {
