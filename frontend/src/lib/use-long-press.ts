@@ -4,7 +4,8 @@ interface Options {
   delayMs?: number;
   onLongPress(clientX: number, clientY: number): void;
   /** Called when a pending (or already-fired) press is cancelled by movement
-   *  past the 6px slop — e.g. the gesture turned out to be a scroll. Lets a
+   *  past the 6px slop — e.g. the gesture turned out to be a scroll — or by a
+   *  second finger (a pinch). Lets a
    *  consumer that shows something eagerly on fire (a touch peek) tear it
    *  down; not called on a plain release before the delay elapses (that's
    *  just a tap). Optional — playtest's drag/reorder callers don't need it. */
@@ -25,12 +26,15 @@ export function useLongPress({ delayMs = 500, onLongPress, onCancelByMove }: Opt
   const timer = useRef<number | null>(null);
   const startPos = useRef<{ x: number; y: number } | null>(null);
   const fired = useRef(false);
+  const unlisten = useRef<(() => void) | null>(null);
 
   const cancel = useCallback(() => {
     if (timer.current != null) {
       window.clearTimeout(timer.current);
       timer.current = null;
     }
+    unlisten.current?.();
+    unlisten.current = null;
   }, []);
 
   // Clear a pending timer if the element unmounts mid-press (card played,
@@ -48,8 +52,19 @@ export function useLongPress({ delayMs = 500, onLongPress, onCancelByMove }: Opt
         fired.current = true;
         onLongPress(t.clientX, t.clientY);
       }, delayMs);
+      // A long-press is one finger held still. A second finger anywhere on
+      // the screen makes it a pinch, which can land outside this element, so
+      // the element's own touch events never see it.
+      const onSecondFinger = (ev: TouchEvent) => {
+        if (ev.touches.length < 2) return;
+        cancel();
+        onCancelByMove?.();
+      };
+      document.addEventListener('touchstart', onSecondFinger, { capture: true, passive: true });
+      unlisten.current = () =>
+        document.removeEventListener('touchstart', onSecondFinger, { capture: true });
     },
-    [cancel, delayMs, onLongPress]
+    [cancel, delayMs, onLongPress, onCancelByMove]
   );
 
   const onTouchMove = useCallback(

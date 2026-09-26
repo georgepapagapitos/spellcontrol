@@ -384,7 +384,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // <body> (where `--pt-card-w` lives so the drag overlay inherits it). 1 is
   // the size the tier computes.
   const [zoom, setZoom] = useState(() => readZoom());
+  const zoomRef = useRef(zoom);
   useEffect(() => {
+    zoomRef.current = zoom;
     document.body.style.setProperty('--pt-zoom', String(zoom));
     return () => {
       document.body.style.removeProperty('--pt-zoom');
@@ -392,14 +394,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   }, [zoom]);
   const stepZoom = useCallback((dir: 1 | -1) => {
     setZoom((z) => {
-      const next =
-        Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z + dir * ZOOM_STEP)) * 10) / 10;
+      const next = clampZoom(z + dir * ZOOM_STEP);
       writeZoom(next);
       return next;
     });
   }, []);
   const setZoomTo = useCallback((z: number) => {
-    const next = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)) * 10) / 10;
+    const next = clampZoom(z);
     writeZoom(next);
     setZoom(next);
   }, []);
@@ -490,6 +491,51 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     window.addEventListener('wheel', onWheel, { passive: false });
     return () => window.removeEventListener('wheel', onWheel);
   }, [isNarrow, stepZoom]);
+  // The same gesture on a touch screen, at every width: two fingers anywhere
+  // on the table (felt, cards, hand) pinch the card size, which follows the
+  // fingers in 0.1 steps and is saved once, when the last finger lifts. The
+  // table's `touch-action` keeps the page itself from zooming under it.
+  useEffect(() => {
+    let pinch: { span: number; from: number; to: number } | null = null;
+    const span = (t: TouchList) =>
+      Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const onStart = (e: TouchEvent) => {
+      if (pinch || e.touches.length !== 2) return;
+      if (!battlefieldRef.current?.contains(e.target as Node)) return;
+      // The first finger may be a card drag, pending or already moving. The
+      // pointer sensor listens for this on the document and drops the card
+      // back where it was. Touch events follow their pointer events, so the
+      // second finger's own pointerdown has already come and gone.
+      document.dispatchEvent(new PointerEvent('pointercancel'));
+      pinch = { span: span(e.touches) || 1, from: zoomRef.current, to: zoomRef.current };
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length < 2) return;
+      e.preventDefault();
+      const next = clampZoom((pinch.from * span(e.touches)) / pinch.span);
+      if (next === pinch.to) return;
+      pinch.to = next;
+      setZoom(next);
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!pinch) return;
+      // Neither lifting finger is a tap: no ping, no preview.
+      if (e.cancelable) e.preventDefault();
+      if (e.touches.length > 0) return;
+      setZoomTo(pinch.to);
+      pinch = null;
+    };
+    window.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd, { passive: false });
+    window.addEventListener('touchcancel', onEnd, { passive: false });
+    return () => {
+      window.removeEventListener('touchstart', onStart);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+      window.removeEventListener('touchcancel', onEnd);
+    };
+  }, [setZoomTo]);
   /* A phone, specifically. `isNarrow` is the tier boundary the CSS uses for
      sizing (≤1023px covers a tablet too); this one answers the narrower
      question of whether four card-width piles fit along the bottom beside
@@ -3891,6 +3937,11 @@ const ZOOM_MAX = 1.5;
 const ZOOM_STEP = 0.1;
 /** Wheel travel per card-size step on ctrl + wheel: one mouse notch. */
 const WHEEL_STEP_PX = 100;
+
+/** Within range, on the 0.1 grid the slider and the = / − keys use. */
+function clampZoom(z: number): number {
+  return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)) * 10) / 10;
+}
 
 function readZoom(): number {
   try {
