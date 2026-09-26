@@ -81,6 +81,13 @@ describe('HoldButton', () => {
     expect(container.innerHTML).toBe('');
   });
 
+  // It stands in the corner stack, which is where its look and its 44px
+  // floor come from; bare, it drew as an unstyled grey box.
+  it('is a corner pill', () => {
+    render(<HoldButton />);
+    expect(screen.getByRole('button', { name: 'Hold' }).classList).toContain('playtest-corner-btn');
+  });
+
   // Once the table is finished there is nothing left to wait for, and the
   // button sat beside the finished banner asking the table to hold anyway.
   it('renders nothing once the table is finished', () => {
