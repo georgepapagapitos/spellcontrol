@@ -37,7 +37,7 @@ export type ButtonPlacement = 'inline' | 'row' | 'toolbar';
 type Look =
   | { placement?: 'inline'; variant?: ButtonVariant }
   | { placement: 'row'; variant?: Exclude<ButtonVariant, 'link'> }
-  | { placement: 'toolbar'; variant?: 'secondary' };
+  | { placement: 'toolbar'; variant?: 'secondary' | 'danger' };
 
 // Literal strings, never `btn-${variant}`: css-chunk-ownership.test.ts reads
 // class tokens out of the source and cannot see an interpolated one.
@@ -53,7 +53,7 @@ const CLASSES = {
     primary: 'pill-btn pill-btn-primary',
     danger: 'pill-btn pill-btn-danger',
   },
-  toolbar: { secondary: 'toolbar-pill' },
+  toolbar: { secondary: 'toolbar-pill', danger: 'toolbar-pill toolbar-pill-danger' },
 } as const;
 
 function lookClass(placement: ButtonPlacement = 'inline', variant: ButtonVariant = 'secondary') {

@@ -16,6 +16,12 @@
 //   - rawChip: a -chip class on a raw element (use Chip from
 //     components/shared/Chip)
 //
+// A fourth check has no allowlist: a Button or IconButton whose className
+// carries an intent (`upload-action-danger`, `is-primary`). Intent is the
+// `variant`; a class that restates it fights the variant's own rules, and the
+// more specific one wins on hover (the Delete and Replace buttons in the
+// import dialogs were primary at rest and turned red under the pointer).
+//
 // The migration is done (T152 W0-W7). What is left is a list of PERMANENT
 // exemptions, each with the ruling that keeps it, and the last test below
 // refuses any entry without one: a new match is fixed with the primitive,
@@ -82,7 +88,10 @@ const isGlyph = (node: ts.JsxChild, sf: ts.SourceFile): boolean =>
   (ts.isJsxSelfClosingElement(node) && /^[A-Z]/.test(node.tagName.getText(sf))) ||
   (ts.isJsxElement(node) && node.openingElement.tagName.getText(sf) === 'svg');
 
-function count(file: string): Record<Shape, number> {
+/** A class that names an intent the `variant` prop owns. */
+const INTENT_CLASS = /(^|-)(primary|danger)$/;
+
+function count(file: string, intent: string[] = []): Record<Shape, number> {
   const sf = ts.createSourceFile(
     file,
     readFileSync(file, 'utf8'),
@@ -100,6 +109,11 @@ function count(file: string): Record<Shape, number> {
       const tag = (node.parent.parent as ts.JsxOpeningLikeElement).tagName.getText(sf);
       if ((/^[a-z]/.test(tag) || tag === 'Link') && tokens.some((t) => CHIP_CLASS.test(t)))
         n.rawChip++;
+      if (/^(Icon)?Button$/.test(tag))
+        for (const t of tokens.filter((t) => INTENT_CLASS.test(t)))
+          intent.push(
+            `${relative(srcDir, file).split(sep).join('/')}:${sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1} ${t}`
+          );
     }
     if (ts.isJsxElement(node) && node.openingElement.tagName.getText(sf) === 'button') {
       const kids = node.children.filter((c) => !(ts.isJsxText(c) && !c.text.trim()));
@@ -176,10 +190,11 @@ describe('action controls come from the control primitives', () => {
     iconOnly: new Map(),
     rawChip: new Map(),
   };
+  const intent: string[] = [];
   for (const file of sourceFiles(srcDir)) {
     const rel = relative(srcDir, file).split(sep).join('/');
     if (rel === 'components/shared/Button.tsx' || rel === 'components/shared/Chip.tsx') continue;
-    const n = count(file);
+    const n = count(file, intent);
     for (const shape of Object.keys(n) as Shape[]) if (n[shape]) found[shape].set(rel, n[shape]);
   }
 
@@ -213,6 +228,13 @@ describe('action controls come from the control primitives', () => {
       bare,
       'Migrate these onto the primitives, or record the ruling that exempts them:\n  ' +
         bare.join('\n  ')
+    ).toEqual([]);
+  });
+
+  it('a Button states its intent with variant, never with a class', () => {
+    expect(
+      intent,
+      'Drop the class and set variant="primary" or variant="danger":\n  ' + intent.join('\n  ')
     ).toEqual([]);
   });
 

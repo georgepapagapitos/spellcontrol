@@ -2200,9 +2200,9 @@ export function CardListTable({
           </Button>
           <Button
             placement="toolbar"
+            variant="danger"
             disabled={selectedRowKeys.size === 0}
             onClick={handleBulkDelete}
-            className="card-list-bulk-danger"
           >
             Delete selected
           </Button>

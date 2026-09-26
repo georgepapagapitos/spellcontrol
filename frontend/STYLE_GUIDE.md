@@ -509,7 +509,7 @@ size.
 | ------------------ | -------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------ |
 | `inline` (default) | `.btn` (+ `-primary` / `-danger`)      | dialogs, panels, inline actions        | grey hover, no icon gap, may shrink                                            |
 | `row`              | `.pill-btn` (+ `-primary` / `-danger`) | page heroes, action rows, the bulk bar | accent-tinted hover and focus, `0.4rem` icon gap, `flex-shrink: 0`, weight 500 |
-| `toolbar`          | `.toolbar-pill`                        | toolbar control rows                   | the 999px toolbar-control pill (below); `secondary` only                       |
+| `toolbar`          | `.toolbar-pill` (+ `-danger`)          | toolbar control rows                   | the 999px toolbar-control pill (below); its `danger` is neutral until hover    |
 
 `variant="link"` is `.btn-link` and exists only at `inline`. Combinations no
 stylesheet defines (`row` + `link`, `toolbar` + `primary`) don't compile.
@@ -522,7 +522,12 @@ there is no `size` prop; a site that carried one painted as plain `.btn`.
 the look: most icon-only buttons are one-off close, step and menu controls. A button whose only child is card art (a deck-row or trade thumbnail that opens the preview) is not an icon button: it stays a bespoke `<button>`, and the guard lists it as a permanent entry with that reason. A drag handle is an icon button like any other: `IconButton` forwards dnd-kit's `attributes` and `listeners` untouched, and one whose name is a long keyboard instruction sets `title={false}` so the hover tooltip stays short.
 
 A surface modifier goes in `className`, appended after the variant's classes,
-exactly as `btn btn-primary shared-copy-btn` was. A genuinely bespoke control
+exactly as `btn btn-primary shared-copy-btn` was. **Intent is the `variant`,
+never a class.** A modifier that restates it (`upload-action-danger`,
+`bulk-bar-danger`) fights the variant's own rules, and whichever is more
+specific wins state by state: the import dialogs' Delete and Replace buttons
+were primary at rest and turned red under the pointer. The control-primitives
+guard fails on an intent class on `Button` or `IconButton`, with no allowlist. A genuinely bespoke control
 (playtest board chrome, the life-counter HUD, chart and radar controls,
 card-art overlays) keeps its own `<button>`; there is deliberately no `bare`
 variant to launder one through. `SelectMenu`, `ToolbarPopover` and `Legend`

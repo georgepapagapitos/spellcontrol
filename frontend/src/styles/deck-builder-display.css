@@ -127,6 +127,21 @@
   }
 }
 
+/* `variant="danger"`: neutral until intent, then the app's error tint, so a
+   toolbar row stays calm rather than carrying a permanently red pill. */
+.toolbar-pill-danger:focus-visible:not(:disabled) {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+@media (hover: hover) and (pointer: fine) {
+  .toolbar-pill-danger:hover:not(:disabled) {
+    background: var(--err-bg);
+    border-color: var(--err-border);
+    color: var(--err-text);
+  }
+}
+
 .toolbar-pill.open {
   border-color: var(--accent);
   background: var(--accent-light);

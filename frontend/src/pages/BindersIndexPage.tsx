@@ -429,7 +429,7 @@ export function BindersIndexPage() {
                 placement="row"
                 disabled={sel.selected.size === 0}
                 onClick={() => void handleBulkDelete()}
-                className="bulk-bar-danger"
+                variant="danger"
                 icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
               >
                 Delete selected

@@ -1338,7 +1338,7 @@ function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDial
         <button type="button" className="upload-action" onClick={onCancel}>
           Cancel
         </button>
-        <Button variant="primary" onClick={onConfirm} autoFocus className="upload-action-danger">
+        <Button variant="danger" onClick={onConfirm} autoFocus>
           Delete
         </Button>
       </div>
@@ -1530,7 +1530,7 @@ function ReimportGateDialog({
         <button type="button" className="upload-action" onClick={onMergeAnyway}>
           Merge anyway
         </button>
-        <Button variant="primary" onClick={onReplace} autoFocus className="upload-action-danger">
+        <Button variant="danger" onClick={onReplace} autoFocus>
           Replace instead
         </Button>
       </div>

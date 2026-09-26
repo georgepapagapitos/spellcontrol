@@ -80,10 +80,6 @@
   }
 }
 
-.bulk-bar-danger:not(:disabled) {
-  color: var(--err-text);
-}
-
 /* While select mode is on, the whole card is the toggle target: kill pointer
    events on its inner content (link, kebab, badges) so a click anywhere
    selects rather than navigating. */

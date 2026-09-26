@@ -1062,21 +1062,6 @@
   }
 }
 
-/* Destructive action: neutral until intent, then the app's error tint —
-   keeps the bar calm rather than a permanently-red button. */
-.card-list-bulk-danger:focus-visible:not(:disabled) {
-  background: var(--err-bg);
-  border-color: var(--err-border);
-  color: var(--err-text);
-}
-@media (hover: hover) and (pointer: fine) {
-  .card-list-bulk-danger:hover:not(:disabled) {
-    background: var(--err-bg);
-    border-color: var(--err-border);
-    color: var(--err-text);
-  }
-}
-
 /* "Done" is the bar's primary (exit) action — accent-filled like the
    active select toggle / view-toggle segment so it anchors the row. */
 .card-list-bulk-done {
