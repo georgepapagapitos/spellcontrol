@@ -28,6 +28,7 @@ import { formatRelativeTime } from '../lib/format-time';
 import './RulesPage.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /** Fill-the-box starters — tapping one spends nothing (never auto-ask). */
 const SAMPLE_QUESTIONS = [
   'Does deathtouch destroy a creature with indestructible?',
@@ -353,13 +354,13 @@ function RulesAsk({ seed }: { seed?: string }) {
             }}
           />
           <div className="rules-ask-actions">
-            <button
+            <Button
+              variant="primary"
               type="submit"
-              className="btn btn-primary"
               disabled={!question.trim() || phase === 'asking' || remaining === 0}
             >
               Ask
-            </button>
+            </Button>
             <span className="rules-ask-remaining">
               {remaining === 0
                 ? 'Daily limit reached. Resets at midnight UTC.'
@@ -420,9 +421,7 @@ function RulesAsk({ seed }: { seed?: string }) {
         {phase === 'error' && error && (
           <div className="deck-ai-error" role="alert">
             <span>{error}</span>
-            <button type="button" className="btn" onClick={() => ask(lastAsked)}>
-              Try again
-            </button>
+            <Button onClick={() => ask(lastAsked)}>Try again</Button>
           </div>
         )}
 

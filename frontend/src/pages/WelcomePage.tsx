@@ -47,6 +47,7 @@ import { WelcomeHero } from '../components/welcome/WelcomeHero';
 import { FreshDecksRail } from '../components/welcome/FreshDecksRail';
 import { TrendingRail } from '../components/aggregates/TrendingRail';
 import './WelcomePage.css';
+import { Button } from '@/components/shared/Button';
 
 /** Feature blocks — real prose so the page has something for search engines to
  *  index (the gated app itself exposes almost no crawlable text). Claims here
@@ -127,15 +128,14 @@ export function WelcomePage() {
         <section className="welcome-alt-start" aria-label="Other ways to start">
           <div className="welcome-doors">
             {/* Door 3 — primary: samples */}
-            <button
-              type="button"
-              className="pill-btn"
+            <Button
+              placement="row"
               onClick={() => void handleSamples()}
               disabled={loadingSamples}
+              icon={<FlaskConical width={16} height={16} />}
             >
-              <FlaskConical width={16} height={16} aria-hidden />
               {loadingSamples ? 'Loading samples…' : 'Try sample cards'}
-            </button>
+            </Button>
 
             {/* Door 4 — secondary: sign in. markEverVisited is NOT called
                 here — AuthPage / auth store actions call it when the user
@@ -143,14 +143,15 @@ export function WelcomePage() {
                 guest), which is the correct dismissal point. A plain <Link>
                 (not an onClick+navigate button) so cmd/ctrl/middle-click
                 still work, same reasoning as TrendingRail's own tiles. */}
-            <Link
+            <Button
+              placement="row"
               to="/auth"
-              className="pill-btn welcome-door-secondary"
               onClick={() => track('sign_in')}
+              className="welcome-door-secondary"
+              icon={<LogIn width={16} height={16} />}
             >
-              <LogIn width={16} height={16} aria-hidden />
               Sign in
-            </Link>
+            </Button>
           </div>
 
           {sampleError && <p className="welcome-error">{sampleError}</p>}

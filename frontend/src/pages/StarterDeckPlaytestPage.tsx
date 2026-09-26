@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { fetchProduct } from '@/lib/api';
 import { importToDeck } from '@/lib/import-to-deck';
 import { starterDeckLocalId } from '@/lib/starter-decks';
@@ -10,6 +10,7 @@ import { toast } from '@/store/toasts';
 import type { Deck } from '@/store/decks';
 import '@/styles/playtest.css';
 import './StarterDeckPlaytestPage.css';
+import { Button } from '@/components/shared/Button';
 
 type State =
   | { status: 'loading' }
@@ -102,9 +103,7 @@ export function StarterDeckPlaytestPage() {
           <p className="starter-deck-status" role="alert">
             {state.message}
           </p>
-          <Link to="/decks" className="btn">
-            Back to decks
-          </Link>
+          <Button to="/decks">Back to decks</Button>
         </>
       )}
     </div>

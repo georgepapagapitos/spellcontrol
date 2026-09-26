@@ -47,6 +47,7 @@ import { listFriends } from '../lib/friends-client';
 import { useFriendRequests } from '../lib/use-friend-requests';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 // Deep link (`/you?section=…`) → the heading to scroll/focus. Values are the
 // linking door's own vocabulary (the header menu's "Profile" / "Settings" /
 // old "Shared links" item, the sync pill's Account, the auto-link banner's sign-in
@@ -476,11 +477,7 @@ export function YouPage() {
               <SettingsRow
                 label="Signed in as"
                 value={username}
-                actions={
-                  <button type="button" className="btn" onClick={openSignOut}>
-                    Sign out
-                  </button>
-                }
+                actions={<Button onClick={openSignOut}>Sign out</Button>}
               />
               <SettingsRow label="Sync status" actions={<SyncIndicator />} />
             </>
@@ -489,9 +486,9 @@ export function YouPage() {
               label="Not signed in"
               hint="Everything is saved on this device. Sign in to back it up and sync the cards here into your account."
               actions={
-                <Link to={signInHref} className="pill-btn pill-btn-primary">
+                <Button variant="primary" placement="row" to={signInHref}>
                   Sign in to sync
-                </Link>
+                </Button>
               }
             />
           )}
@@ -507,9 +504,9 @@ export function YouPage() {
               label="Password"
               hint={identities.password ? 'Set' : 'Not set'}
               actions={
-                <button type="button" className="btn" onClick={() => setPasswordModalOpen(true)}>
+                <Button onClick={() => setPasswordModalOpen(true)}>
                   {identities.password ? 'Change password' : 'Set password'}
-                </button>
+                </Button>
               }
             />
             <SettingsRow
@@ -526,18 +523,16 @@ export function YouPage() {
               actions={
                 <>
                   {identities.pendingEmail && (
-                    <button
-                      type="button"
-                      className="btn"
+                    <Button
                       onClick={() => void handleResendVerification()}
                       disabled={emailResendBusy}
                     >
                       {emailResendBusy ? 'Sending…' : 'Resend'}
-                    </button>
+                    </Button>
                   )}
-                  <button type="button" className="btn" onClick={() => setEmailModalOpen(true)}>
+                  <Button onClick={() => setEmailModalOpen(true)}>
                     {identities.emailVerified || identities.pendingEmail ? 'Change' : 'Add'}
-                  </button>
+                  </Button>
                 </>
               }
             >
@@ -563,22 +558,13 @@ export function YouPage() {
               hint={identities.google ? 'Linked' : 'Not linked'}
               actions={
                 identities.google ? (
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={() => setUnlinkOpen(true)}
-                  >
+                  <Button variant="danger" onClick={() => setUnlinkOpen(true)}>
                     Unlink
-                  </button>
+                  </Button>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => void handleLinkGoogle()}
-                    disabled={linkBusy}
-                  >
+                  <Button onClick={() => void handleLinkGoogle()} disabled={linkBusy}>
                     {linkBusy ? 'Opening Google…' : 'Link Google account'}
-                  </button>
+                  </Button>
                 )
               }
             />
@@ -590,11 +576,7 @@ export function YouPage() {
             <SettingsRow
               value="Friends"
               hint={friendsSummary(friendCount, pendingFriendRequests)}
-              actions={
-                <Link to="/friends" className="btn">
-                  Manage friends
-                </Link>
-              }
+              actions={<Button to="/friends">Manage friends</Button>}
             />
           </SettingsSection>
         )}
@@ -721,23 +703,16 @@ export function YouPage() {
             hint="Download a JSON backup (every card, binder, list, and deck) or a cards-only file for another tool."
             actions={
               <div className="settings-row-action-group">
-                <button
-                  type="button"
-                  className="btn"
+                <Button
                   aria-haspopup="dialog"
                   onClick={() => setExportOpen(true)}
                   disabled={cardCount === 0}
                 >
                   Export
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={handleExportFull}
-                  disabled={cardCount === 0}
-                >
+                </Button>
+                <Button onClick={handleExportFull} disabled={cardCount === 0}>
                   Download backup
-                </button>
+                </Button>
               </div>
             }
           />
@@ -751,14 +726,12 @@ export function YouPage() {
               </>
             }
             actions={
-              <button
-                type="button"
-                className="btn"
+              <Button
                 onClick={() => void handleRefreshPrices()}
                 disabled={cardCount === 0 || isRefreshingPrices}
               >
                 {isRefreshingPrices ? 'Refreshing…' : 'Refresh prices'}
-              </button>
+              </Button>
             }
           />
 
@@ -775,14 +748,12 @@ export function YouPage() {
             valueWithTip
             hint="Re-map each deck's reserved copies after edits or re-imports."
             actions={
-              <button
-                type="button"
-                className="btn"
+              <Button
                 onClick={handleRepairAllocations}
                 disabled={cardCount === 0 || deckCount === 0}
               >
                 Repair
-              </button>
+              </Button>
             }
           />
         </SettingsSection>
@@ -804,14 +775,9 @@ export function YouPage() {
             value="Reset app cache"
             hint="Reloads the app from the server. Your decks, collection, and binders aren't touched."
             actions={
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setResetCacheOpen(true)}
-                disabled={resetCacheBusy}
-              >
+              <Button onClick={() => setResetCacheOpen(true)} disabled={resetCacheBusy}>
                 {resetCacheBusy ? 'Resetting…' : 'Reset cache'}
-              </button>
+              </Button>
             }
           />
         </SettingsSection>
@@ -820,19 +786,15 @@ export function YouPage() {
           <SettingsRow
             value="Rules reference"
             hint="Keywords, the glossary, and every rule by number from the Comprehensive Rules."
-            actions={
-              <Link to="/rules" className="btn">
-                Open rules
-              </Link>
-            }
+            actions={<Button to="/rules">Open rules</Button>}
           />
           <SettingsRow
             value="Help & guides"
             hint="Import walkthroughs, binder setup, and format comparisons."
             actions={
-              <a href="/guides/" className="btn" onClick={() => track('guide_cta')}>
+              <Button href="/guides/" onClick={() => track('guide_cta')}>
                 Open guides
-              </a>
+              </Button>
             }
           />
         </SettingsSection>
@@ -860,14 +822,9 @@ export function YouPage() {
                 left to match against.
               </div>
             </div>
-            <button
-              type="button"
-              className="btn btn-danger"
-              onClick={() => setWipeStep(1)}
-              disabled={cardCount === 0}
-            >
+            <Button variant="danger" onClick={() => setWipeStep(1)} disabled={cardCount === 0}>
               Delete collection
-            </button>
+            </Button>
           </div>
 
           {username && (
@@ -879,9 +836,9 @@ export function YouPage() {
                   binders, decks, games, backups, share links. This can't be undone.
                 </div>
               </div>
-              <button type="button" className="btn btn-danger" onClick={() => setDeleteStep(1)}>
+              <Button variant="danger" onClick={() => setDeleteStep(1)}>
                 Delete account
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -1174,12 +1131,12 @@ function PasswordModal({ hasPassword, onClose, onSaved }: PasswordModalProps) {
         ) : null}
 
         <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onClose} disabled={saving}>
+          <Button onClick={onClose} disabled={saving}>
             Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+          </Button>
+          <Button variant="primary" type="submit" disabled={saving}>
             {saving ? 'Saving…' : hasPassword ? 'Change password' : 'Set password'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
@@ -1255,12 +1212,12 @@ function EmailModal({ currentEmail, onClose, onSaved }: EmailModalProps) {
         ) : null}
 
         <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onClose} disabled={saving}>
+          <Button onClick={onClose} disabled={saving}>
             Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+          </Button>
+          <Button variant="primary" type="submit" disabled={saving}>
             {saving ? 'Sending…' : 'Send verification link'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
@@ -1313,18 +1270,17 @@ function DeleteAccountDialog({
         )}
       </p>
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+        <Button onClick={onCancel} disabled={busy}>
           Cancel
-        </button>
-        <button
-          type="button"
-          className={isFinal ? 'btn btn-danger' : 'btn'}
+        </Button>
+        <Button
+          variant={isFinal ? 'danger' : 'secondary'}
           onClick={onAdvance}
           disabled={busy}
           autoFocus
         >
           {busy ? 'Deleting…' : isFinal ? 'Delete account' : 'Continue'}
-        </button>
+        </Button>
       </div>
     </Modal>
   );
@@ -1378,18 +1334,17 @@ function WipeConfirmDialog({ cardCount, step, busy, onAdvance, onCancel }: WipeC
         )}
       </p>
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+        <Button onClick={onCancel} disabled={busy}>
           Cancel
-        </button>
-        <button
-          type="button"
-          className={isFinal ? 'btn btn-danger' : 'btn'}
+        </Button>
+        <Button
+          variant={isFinal ? 'danger' : 'secondary'}
           onClick={onAdvance}
           disabled={busy}
           autoFocus
         >
           {busy ? 'Deleting…' : isFinal ? 'Delete everything' : 'Continue'}
-        </button>
+        </Button>
       </div>
     </Modal>
   );

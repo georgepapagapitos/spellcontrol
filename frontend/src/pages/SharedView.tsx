@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Link } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import {
   fetchPublicShare,
@@ -22,6 +21,7 @@ import { BrandMark } from '../components/shared/BrandMark';
 import { CopyCubeButton } from '../components/share/CopyCubeButton';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /** Tab title per share kind — every kind but `collection` carries its own
  *  owner-given name; `collection` has none, so it falls back to the same
  *  "Collection" label the page itself renders as its `<h1>`. */
@@ -122,9 +122,9 @@ function SharedViewInner({ token }: { token: string }) {
       <div className="shared-view shared-view--missing">
         <h1>Friends only</h1>
         <p>The owner shared this with their friends. Sign in to view it.</p>
-        <Link to={signInHref} className="btn btn-primary shared-copy-btn">
+        <Button variant="primary" to={signInHref} className="shared-copy-btn">
           Sign in
-        </Link>
+        </Button>
       </div>
     );
   }
@@ -135,9 +135,9 @@ function SharedViewInner({ token }: { token: string }) {
       <div className="shared-view shared-view--missing">
         <h1>Friends only</h1>
         <p>The owner shared this with their friends, and you aren’t on their list yet.</p>
-        <Link to="/friends" className="btn btn-primary shared-copy-btn">
+        <Button variant="primary" to="/friends" className="shared-copy-btn">
           Go to Friends
-        </Link>
+        </Button>
       </div>
     );
   }

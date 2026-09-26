@@ -18,6 +18,7 @@ import {
 } from '../lib/trades-client';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /**
  * `/trades` — every offer the viewer is party to, both directions, one place.
  *
@@ -236,9 +237,9 @@ function TradesPageBody() {
             Open a friend's hub to see what they have and propose one. It shows up here for both of
             you until it's answered.
           </p>
-          <Link to="/friends" className="btn btn-primary">
+          <Button variant="primary" to="/friends">
             Find a friend to trade with
-          </Link>
+          </Button>
         </div>
       )}
 
@@ -277,13 +278,13 @@ function TradesPageBody() {
                   )}
                 </h2>
                 {group.id === 'past' && rows.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn-link trades-section-action"
+                  <Button
+                    variant="link"
                     onClick={() => setClearing(true)}
+                    className="trades-section-action"
                   >
                     Clear history
-                  </button>
+                  </Button>
                 )}
               </div>
               {rows.length === 0 ? (

@@ -16,6 +16,7 @@ import { listBookmarkedDecks, type DiscoverDeck } from '../lib/discover-client';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /**
  * /decks/saved — the caller's own bookmarked decks (w2-likes-bookmarks). No
  * filters/sort/pagination, matching the backend's own no-pagination call for
@@ -82,12 +83,9 @@ export function SavedDecksPage() {
               Sign in to bookmark decks from Discover and find them here later.
             </p>
             <div className="empty-state-actions">
-              <Link
-                to={`/auth?returnTo=${encodeURIComponent('/decks/saved')}`}
-                className="btn btn-primary"
-              >
+              <Button variant="primary" to={`/auth?returnTo=${encodeURIComponent('/decks/saved')}`}>
                 Sign in
-              </Link>
+              </Button>
             </div>
           </div>
         ) : loading ? (
