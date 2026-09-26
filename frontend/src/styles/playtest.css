@@ -4582,10 +4582,11 @@ button.playtest-card-pt__value--editable:focus-visible {
     --pt-pile-span: calc(2 * var(--pt-card-w) + 3 * var(--space-2));
   }
 
-  /* Upright, a seven-card fan, the button and two piles do not fit one 390px
-     row. In the row, the fan covered the button, so it stands above the
+  /* A seven-card fan, the button and two piles do not fit one narrow row.
+     In the row, the fan covered the button, so it stands above the
      library's label instead, still beside the zones, and the fan keeps the
-     width it had. A phone on its side puts it back in the row (below). */
+     width it had. Upright and on its side the button goes back in the row
+     (the fan has a row of its own upright, and width to spare on its side). */
   .playtest-hand-menu-btn {
     position: absolute;
     bottom: 100%;
@@ -4614,6 +4615,47 @@ button.playtest-card-pt__value--editable:focus-visible {
 
   .playtest-board--narrow .playtest-zones-panel {
     display: grid;
+  }
+
+  /* Upright, the hand gets a row of its own. Beside the two piles a
+     seven-card fan had 198px of a 390px screen and shrank to 58px, with
+     two-thirds of the felt above it empty. The hand is read and touched
+     most, so it takes the full width, at a size of its own (a fifth of the
+     width, as the sideways hand is a fifth of the height), standing on the
+     zone shelf. The shelf stays on the table edge (zone-shelf-tuck) with the
+     Hand button back in it. `--pt-fan-row: own` tells Hand.tsx no row
+     shares the fan's. Same query as UPRIGHT_PHONE_QUERY. */
+  @media (orientation: portrait) {
+    .playtest-board {
+      --pt-hand-w: clamp(64px, 22vw, 96px);
+      /* The shelf's height: the table edge, the top slice of a table card
+         (`.playtest-pile__stack`), the gap and one line of label. */
+      --pt-shelf-h: calc(
+        var(--pt-table-edge) + var(--pt-card-h) * 0.35 + var(--space-1) + var(--text-xs) * 1.5
+      );
+    }
+
+    /* Whole cards, standing on the shelf: its 22px of bottom padding holds
+       the arc and the end cards' swing, so the middle card clears the shelf
+       by a gap and the end ones by a hair. */
+    .playtest-hand--fan {
+      --pt-fan-row: own;
+      --pt-card-w: var(--pt-hand-w);
+      --pt-card-h: calc(var(--pt-hand-w) * 1.4);
+
+      left: 50%;
+      bottom: calc(var(--pt-shelf-h) - var(--space-2));
+      max-width: calc(100% - 2 * var(--space-2));
+    }
+
+    .playtest-hand--fan .playtest-card--sm {
+      width: var(--pt-card-w);
+      height: var(--pt-card-h);
+    }
+
+    .playtest-hand-menu-btn {
+      position: static;
+    }
   }
 }
 

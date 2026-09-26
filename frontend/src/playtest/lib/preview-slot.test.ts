@@ -103,4 +103,46 @@ describe('previewSlot', () => {
     expect(slot.scale).toBe(1);
     expect(slot.left).toBe(24);
   });
+
+  // A 390x844 phone held upright: life panel and the menu/turn stack at the
+  // top, the zones tab on the right edge, the Hand button and piles standing
+  // above a hand that has the whole bottom edge. The desk slot sat over the
+  // zones tab and the top slot over the life panel; the felt between is empty.
+  describe('upright', () => {
+    const corners = [box(12, 12, 111, 64), box(326, 12, 378, 120)];
+    const edges = [box(346, 364, 390, 480)];
+    const floor = [box(221, 600, 382, 700), box(0, 720, 390, 844)];
+    const card = box(150, 740, 236, 860);
+    const input = { vw: 390, vh: 844, card, corners, edges, floor, upright: true };
+
+    it('centres the pane in the felt between the chrome, clear of all of it', () => {
+      const width = 281;
+      const slot = previewSlot({ ...input, paneWidth: width, height: width * 1.4 });
+      expect(slot.scale).toBe(1);
+      const pane = box(slot.left, slot.top, slot.left + width, slot.top + width * 1.4);
+      for (const o of [...corners, ...edges, ...floor, card]) expect(overlaps(pane, o)).toBe(false);
+      expect(slot.left - MARGIN).toBeCloseTo(346 - MARGIN - pane.right);
+      expect(slot.top - (120 + MARGIN)).toBeCloseTo(600 - MARGIN - pane.bottom);
+    });
+
+    it('shrinks a two-faced card to fit the width, past the desk floor on the scale', () => {
+      const width = 281 * 2 + 8;
+      const slot = previewSlot({ ...input, paneWidth: width, height: 281 * 1.4 });
+      expect(slot.scale).toBeLessThan(0.7);
+      expect(slot.left).toBeGreaterThanOrEqual(MARGIN);
+      expect(slot.left + width * slot.scale).toBeLessThanOrEqual(346 - MARGIN);
+    });
+
+    it('leaves the middle to a card that sits there', () => {
+      const middle = box(100, 300, 200, 440);
+      const slot = previewSlot({ ...input, card: middle, paneWidth: 281, height: 281 * 1.4 });
+      const pane = box(
+        slot.left,
+        slot.top,
+        slot.left + 281 * slot.scale,
+        slot.top + 281 * 1.4 * slot.scale
+      );
+      expect(overlaps(pane, middle)).toBe(false);
+    });
+  });
 });

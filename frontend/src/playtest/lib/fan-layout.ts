@@ -38,9 +38,15 @@ function clamp(n: number, lo: number, hi: number): number {
 /** The width the fan may spread across: what the pile row leaves, capped.
  *  `piles` is the row's width when the stylesheet states it
  *  (`--pt-pile-span`, below 1024px, where the row is two or four tiles at
- *  the table's card size, not the hand's); otherwise the desk row's sum. */
+ *  the table's card size, not the hand's); otherwise the desk row's sum.
+ *  0 is no row beside the fan at all (an upright phone stands the piles
+ *  above it): the hand has the whole edge, and no felt beside it to be
+ *  mistaken for, so the cap does not apply. Only the swing of the end cards
+ *  comes off it, since there it runs to the screen's own edge: each turns up
+ *  to MAX_EDGE_DEG about its foot, and its top corner goes out with it. */
 function fanRoom(cardW: number, containerW: number, piles = pilesWidth(cardW)): number {
   const band = containerW - piles - 2 * PILES_INSET;
+  if (piles === 0) return band - 2 * cardW * 1.4 * Math.sin((MAX_EDGE_DEG * Math.PI) / 180);
   return Math.min(containerW * MAX_FAN_VW, Math.max(cardW, band));
 }
 
