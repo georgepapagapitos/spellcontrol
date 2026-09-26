@@ -589,17 +589,14 @@ function DialogBody({
                 {colorOptions.map((c) => {
                   const active = draftColor.has(c.key);
                   return (
-                    <button
-                      key={c.key}
-                      type="button"
+                    <IconButton
                       className={`color-filter-btn${active ? ' is-active' : ''}`}
+                      key={c.key}
                       onClick={() => toggleDraftColor(c.key)}
-                      aria-label={c.label}
                       aria-pressed={active}
-                      title={c.label}
-                    >
-                      <ColorPip color={c.key} pip="lg" />
-                    </button>
+                      label={c.label}
+                      icon={<ColorPip color={c.key} pip="lg" />}
+                    />
                   );
                 })}
               </div>

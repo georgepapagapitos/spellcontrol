@@ -541,9 +541,11 @@ wrapping a hidden checkbox or radio is a choice control, not a chip
 (§ Tabs / view switchers, the exclusive-value picker).
 
 Guard: `src/test/control-primitives-usage.test.ts` counts raw control classes,
-glyph-only `<button>`s and raw chip classes per file. Its allowlist is the
-migration still to do (board T152) and only shrinks: a new file, or a listed
-file that grows, fails.
+glyph-only `<button>`s and raw chip classes per file. The migration is done
+(board T152), so its allowlist holds only PERMANENT exemptions, each with the
+ruling that keeps it, and a test refuses any entry without one. A new file, or
+a listed file that grows, fails: fix it with the primitive, never with an
+entry.
 
 **One frame per surface — never box a grid of self-framed tiles.** A
 container whose children already carry border + raised fill (result-grid
