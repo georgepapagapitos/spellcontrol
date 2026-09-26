@@ -11,9 +11,27 @@
   position: fixed;
   z-index: var(--z-table-panel);
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   width: min(22rem, 24vw);
   pointer-events: none;
+}
+
+/* Under a tapped card until a card menu has been opened once: the tap that
+   used to open the menu now shows the card, so this says where it went. Its
+   own line under the face(s), never over the rules text the face is shown
+   for. Budgeted as HINT_H (36px with the gap) in CardHoverPreview.tsx. */
+.playtest-hover-preview__hint {
+  flex: 1 0 100%;
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-modal);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  text-align: center;
 }
 
 /* One face; a two-faced card gets two, side by side (EDHPlay's hover). The

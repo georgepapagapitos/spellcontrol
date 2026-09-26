@@ -25,6 +25,11 @@ export const SHORT_LANDSCAPE_QUERY = '(max-height: 500px) and (orientation: land
  *  block. */
 export const PHONE_QUERY = `(max-width: ${PHONE_MAX_WIDTH}px), ${SHORT_LANDSCAPE_QUERY}`;
 
+/** A phone held upright: the hand takes the whole bottom edge and the card
+ *  preview the middle of the felt. MUST agree with playtest.css's upright
+ *  block. */
+export const UPRIGHT_PHONE_QUERY = `(max-width: ${PHONE_MAX_WIDTH}px) and (orientation: portrait)`;
+
 export function useNarrowViewport(maxWidth = 1023): boolean {
   const [narrow, setNarrow] = useState(() => {
     if (typeof window === 'undefined') return false;

@@ -4,6 +4,7 @@ import type { PtDisplay } from '../lib/power-toughness';
 import { CardCounters } from './CardCounters';
 import { CardPtBox } from './PlaytestCardFace';
 import { previewSlot } from '../lib/preview-slot';
+import { UPRIGHT_PHONE_QUERY } from '../hooks/use-narrow-viewport';
 import './CardHoverPreview.css';
 
 const SELECTOR = '[data-preview-id]';
@@ -12,6 +13,8 @@ const SELECTOR = '[data-preview-id]';
 const HAND_CARD = `.playtest-hand ${SELECTOR}`;
 /** Between the two faces of a two-faced card. */
 const FACE_GAP = 8;
+/** The hold hint's line under the face, with the gap above it. */
+const HINT_H = 36;
 
 /** The art to enlarge: the face showing, and the other one when the card has
  *  two (transform, modal double-faced). */
@@ -37,6 +40,10 @@ interface Props {
   pinned?: string | null;
   /** The pinned card is done with: a tap landed off the hand. */
   onUnpin?(): void;
+  /** Under a tapped card, say where its menu went: a tap used to open it
+   *  and now shows the card (#2282), so a hold is the one gesture left to
+   *  find. The board drops it once a card menu has been opened. */
+  holdHint?: boolean;
 }
 
 interface Target extends PreviewFaces {
@@ -70,8 +77,15 @@ function read(el: Element, resolve: Props['resolve']): Target | null {
  * fade in over 120ms so a sweep across the hand would not flicker, which
  * read as the table being slow.
  */
-export function CardHoverPreview({ suspended, resolve, pinned = null, onUnpin }: Props) {
+export function CardHoverPreview({
+  suspended,
+  resolve,
+  pinned = null,
+  onUnpin,
+  holdHint = false,
+}: Props) {
   const finePointer = useMediaQuery('(hover: hover) and (pointer: fine)');
+  const upright = useMediaQuery(UPRIGHT_PHONE_QUERY);
   const [hovered, setTarget] = useState<Target | null>(null);
 
   useEffect(() => {
@@ -126,16 +140,20 @@ export function CardHoverPreview({ suspended, resolve, pinned = null, onUnpin }:
   const pinnedEl = pinned
     ? document.querySelector(`[data-preview-id="${CSS.escape(pinned)}"]`)
     : null;
-  const target = (finePointer ? hovered : null) ?? (pinnedEl ? read(pinnedEl, resolve) : null);
+  const fromHover = finePointer ? hovered : null;
+  const target = fromHover ?? (pinnedEl ? read(pinnedEl, resolve) : null);
   if (suspended || !target) return null;
+  const hint = holdHint && !fromHover;
 
   // One fixed slot at the table's right edge, `min(22rem, 24vw)` as the
   // stylesheet says, placed clear of the card and the table's chrome (see
   // `previewSlot`). Read at render like the pinned card: the chrome moves
-  // with the layout, not with React state.
+  // with the layout, not with React state. A quarter of an upright phone is
+  // barely bigger than the card tapped, so there the face takes most of the
+  // width and the middle of the felt.
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const width = Math.min(352, vw * 0.24);
+  const width = Math.min(352, vw * (upright ? 0.72 : 0.24));
   // A two-faced card shows both faces side by side, so the slot is two wide.
   const paneWidth = target.back ? width * 2 + FACE_GAP : width;
   const rects = (selector: string) =>
@@ -144,11 +162,14 @@ export function CardHoverPreview({ suspended, resolve, pinned = null, onUnpin }:
     vw,
     vh,
     paneWidth,
-    height: width * 1.4,
+    height: width * 1.4 + (hint ? HINT_H : 0),
     card: target.rect,
     corners: rects('.playtest-corner'),
     edges: rects('.playtest-zones-tab'),
-    floor: rects('.playtest-piles, .playtest-hand--fan .playtest-hand__cards'),
+    floor: rects(
+      '.playtest-piles, .playtest-hand-menu-btn, .playtest-hand--fan .playtest-hand__cards'
+    ),
+    upright,
   });
 
   return (
@@ -170,6 +191,7 @@ export function CardHoverPreview({ suspended, resolve, pinned = null, onUnpin }:
           <img src={target.back} alt="" draggable={false} decoding="async" />
         </div>
       )}
+      {hint && <p className="playtest-hover-preview__hint">Hold a card for its menu.</p>}
     </div>
   );
 }

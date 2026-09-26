@@ -110,4 +110,23 @@ describe('fanCardWidth', () => {
   it('never shrinks a card below half the table size', () => {
     expect(fanCardWidth(60, 116, 1024)).toBeCloseTo(116 * 0.5);
   });
+
+  // An upright phone (a 390px wrap): the piles stand above the hand, so
+  // nothing shares its row. Beside the two piles, seven cards had 198px and
+  // the 52% cap, and shrank to 58px. The whole edge less the end cards'
+  // swing, which ran them off the screen by 7px when it was not taken off.
+  it('gives an upright phone hand the whole edge when no row stands beside it', () => {
+    const [cardW, wrapW] = [86, 390];
+    const swing = cardW * 1.4 * Math.sin(Math.PI / 30);
+    const room = wrapW - 24 - 2 * swing;
+    expect(fanCardWidth(7, cardW, wrapW, 0)).toBe(cardW);
+    const overlap = fanOverlap(7, cardW, wrapW, cardW, 0);
+    expect(overlap).toBeLessThan(MAX_FAN_OVERLAP);
+    expect(cardW * (1 + 6 * (1 - overlap))).toBeCloseTo(room);
+    expect(room + 2 * swing).toBeLessThanOrEqual(wrapW - 24);
+    // A big hand still shrinks, to the whole edge rather than to the cap.
+    const big = fanCardWidth(12, cardW, wrapW, 0);
+    expect(big).toBeLessThan(cardW);
+    expect(big * (1 + 11 * (1 - MAX_FAN_OVERLAP))).toBeCloseTo(room);
+  });
 });

@@ -24,6 +24,8 @@ export interface SlotInput {
   edges: Box[];
   /** What runs along the bottom: the pile row, the hand fan. */
   floor: Box[];
+  /** A phone held upright (UPRIGHT_PHONE_QUERY). */
+  upright?: boolean;
 }
 
 export interface Slot {
@@ -59,8 +61,14 @@ const box = (left: number, top: number, w: number, h: number): Box => ({
  * goes to the top of the table instead, just left of the right-hand corner
  * column, shrinking only as far as the room above the pile row and the hand
  * requires.
+ *
+ * Upright, neither fits: the right edge is the zones tab, and the top is
+ * the life panel. What an upright phone has is a tall, empty felt between
+ * the corners and the pile row, so the pane goes in the middle of that,
+ * as big as it allows.
  */
 export function previewSlot(s: SlotInput): Slot {
+  if (s.upright) return uprightSlot(s);
   const desk = deskSlot(s);
   const deskPane = box(desk.left, desk.top, s.paneWidth, s.height);
   if (![...s.corners, ...s.edges, ...s.floor].some((o) => hits(deskPane, o))) return desk;
@@ -79,6 +87,27 @@ export function previewSlot(s: SlotInput): Slot {
   const top = MARGIN;
   if (hits(box(left, top, s.paneWidth * scale, s.height * scale), s.card)) return desk;
   return { left, top, scale };
+}
+
+/** Centred in the felt the chrome leaves: below the corner clusters, above
+ *  the floor, left of an edge tab. Shrinks to fit that room, with no floor
+ *  on the scale: a two-faced card is two faces across a 390px screen. */
+function uprightSlot(s: SlotInput): Slot {
+  let ceiling = Math.max(0, ...s.corners.map((c) => c.bottom)) + MARGIN;
+  let floor = Math.min(s.vh, ...s.floor.map((o) => o.top)) - MARGIN;
+  // A card out on the felt (a pointer resting on a permanent) splits it in
+  // two; the pane takes the taller side.
+  if (s.card.bottom > ceiling && s.card.top < floor) {
+    if (s.card.top - ceiling >= floor - s.card.bottom) floor = s.card.top - MARGIN;
+    else ceiling = s.card.bottom + MARGIN;
+  }
+  const wall = Math.min(s.vw, ...s.edges.map((e) => e.left)) - MARGIN;
+  const scale = Math.min(1, (wall - MARGIN) / s.paneWidth, (floor - ceiling) / s.height);
+  return {
+    left: (MARGIN + wall - s.paneWidth * scale) / 2,
+    top: (ceiling + floor - s.height * scale) / 2,
+    scale,
+  };
 }
 
 function deskSlot(s: SlotInput): Slot {

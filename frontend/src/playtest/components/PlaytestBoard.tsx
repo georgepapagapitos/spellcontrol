@@ -347,6 +347,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const [previewCardId, setPreviewCardId] = useState<string | null>(null);
   /** The hand card a finger tapped, enlarged in the hover slot. */
   const [tappedPreviewId, setTappedPreviewId] = useState<string | null>(null);
+  // Until a card menu has been opened on this device, a tapped card says a
+  // hold opens it (the tap that used to is the preview now). Per device, like
+  // card size: the gesture is the device's, not the account's.
+  const [holdHintSeen, setHoldHintSeen] = useState(readHoldHintSeen);
+  const retireHoldHint = useCallback(() => {
+    setHoldHintSeen(true);
+    writeHoldHintSeen();
+  }, []);
   const [tokenCreator, setTokenCreator] = useState(false);
   const [showScry, setShowScry] = useState(false);
   // Which end of the library the scry sheet is looking at (P vs Shift+P).
@@ -1016,9 +1024,13 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     setCtx({ cardId, x: e.clientX, y: e.clientY });
   }, []);
 
-  const handleCardLongPress = useCallback((cardId: string, x: number, y: number) => {
-    setCtx({ cardId, x, y });
-  }, []);
+  const handleCardLongPress = useCallback(
+    (cardId: string, x: number, y: number) => {
+      setCtx({ cardId, x, y });
+      retireHoldHint();
+    },
+    [retireHoldHint]
+  );
 
   const openTableMenu = useCallback((x: number, y: number) => setTableMenu({ x, y }), []);
 
@@ -1054,13 +1066,18 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     // At the table tier the hand fan and the zone piles float OVER the board's
     // bottom edge, so auto-placement has to keep that band clear or a freshly
     // played land lands under the fan. One card height plus the fan's own
-    // chrome ≈ 1.3 card heights, or the fan's measured top where its cards
-    // are bigger than the table's (a phone's hand has a size of its own).
+    // chrome ≈ 1.3 card heights, or the measured top of whatever stands
+    // highest there: the fan where its cards are bigger than the table's (a
+    // phone's hand has a size of its own), the piles and the Hand button
+    // where they stand above the hand (an upright phone).
     const el = battlefieldRef.current;
-    const fan = el?.querySelector('.playtest-hand--fan .playtest-hand__cards');
-    const fanBand =
-      el && fan ? el.getBoundingClientRect().bottom - fan.getBoundingClientRect().top : 0;
-    const reservedBottom = Math.min(0.5, Math.max(cardH * 1.3, fanBand) / height);
+    const tops = [
+      ...(el?.querySelectorAll(
+        '.playtest-hand--fan .playtest-hand__cards, .playtest-piles, .playtest-hand-menu-btn'
+      ) ?? []),
+    ].map((n) => n.getBoundingClientRect().top);
+    const floorBand = el && tops.length ? el.getBoundingClientRect().bottom - Math.min(...tops) : 0;
+    const reservedBottom = Math.min(0.5, Math.max(cardH * 1.3, floorBand) / height);
     // And the life panel floats over the top-left: the first permanent used
     // to land straight under it. Its box is ~1.1 card heights tall.
     const reservedTop = Math.min(0.3, (cardH * 1.1) / height);
@@ -1140,10 +1157,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     [opponentPreviewNames, previewSrcs]
   );
 
-  const handleHandCardMenu = useCallback((cardId: string, x: number, y: number) => {
-    setTappedPreviewId(null);
-    setHandMenu({ cardId, x, y });
-  }, []);
+  const handleHandCardMenu = useCallback(
+    (cardId: string, x: number, y: number) => {
+      setTappedPreviewId(null);
+      setHandMenu({ cardId, x, y });
+      retireHoldHint();
+    },
+    [retireHoldHint]
+  );
   // A tap enlarges the card; the same card again puts it away. A card with no
   // art to enlarge would make the tap do nothing, so it opens the menu.
   const handleHandCardPreview = useCallback(
@@ -3221,6 +3242,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           resolve={resolvePreview}
           pinned={tappedPreviewId}
           onUnpin={unpinPreview}
+          holdHint={!holdHintSeen}
         />
         {/* Above `--z-overlay` so a card dragged out of a sheet renders over
             the sheet, not behind it. */}
@@ -3958,5 +3980,25 @@ function writeZoom(zoom: number): void {
     else localStorage.setItem(ZOOM_KEY, String(zoom));
   } catch {
     // A remembered size is a convenience, never a requirement.
+  }
+}
+
+// ── Hold hint ───────────────────────────────────────────────────────────────
+
+const HOLD_HINT_KEY = 'spellcontrol:playtest:hold-hint-seen';
+
+function readHoldHintSeen(): boolean {
+  try {
+    return localStorage.getItem(HOLD_HINT_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function writeHoldHintSeen(): void {
+  try {
+    localStorage.setItem(HOLD_HINT_KEY, '1');
+  } catch {
+    // Blocked storage: the hint goes for this session and shows again next.
   }
 }

@@ -2384,8 +2384,15 @@ Untap):
   card itself would sit under it (a permanent parked at the far right, a zone
   pile). A tooltip that floats beside the card was tried first and covers the
   neighbours you are comparing against; a fixed slot never covers what it
-  describes and the eye learns where to look. Touch gets no hover: its path is
-  long-press, menu, Preview.
+  describes and the eye learns where to look. Touch gets no hover: a TAP on a
+  hand card pins it in the same slot (#2282), and a long-press opens the menu.
+  Under a tapped card, one line says so ("Hold a card for its menu."), until a
+  card menu has been opened once on the device: the tap is the gesture that
+  used to open it, so the hold is the one left to find. The line sits under the
+  face, never on it (the face is shown for its rules text). On an upright
+  phone a quarter of the width is barely bigger than the card tapped, so the
+  pane is 72% of the width, centred in the felt between the corner clusters
+  and the hand (`previewSlot`'s upright branch).
 - **Every card surface has a menu, and it says what it will do.** Battlefield
   permanents and hand cards both open a menu (right-click, long-press, the
   Context Menu key or Shift+Enter — on every pointer type, desktop included)
@@ -2665,13 +2672,24 @@ absolute` inside `.playtest-battlefield-wrap`, not inside `.playtest-board`,
   neighbour still. Hover and `:focus-visible` both lift. dnd-kit composes by
   construction: the source card is never transformed (the moving copy is the
   top-level `<DragOverlay>`).
+- **An upright phone gives the hand a row of its own.** Beside the two piles a
+  seven-card fan had 198px of a 390px screen and shrank to 58px, under a felt
+  two-thirds empty. Upright (`UPRIGHT_PHONE_QUERY`, a portrait block nested
+  in the phone block), the fan spans the full width at a size of its own,
+  `clamp(64px, 22vw, 96px)` (a fifth of the width, as the sideways hand is a
+  fifth of the height), whole cards standing on the zone shelf. The shelf
+  keeps the table edge with the Hand button back in its row.
+  `--pt-fan-row: own` tells `Hand.tsx` no row shares the fan's, and there
+  the 52vw cap does not apply; only the end cards' 6° swing comes off the
+  width.
 - **`⌄ Hand (n)` is a menu button, never a collapse.** It opens the hand's
   menu, EDHPlay's rows in EDHPlay's order: Reveal hand ▸ Everyone, Play with
   hand revealed ▸ Everyone (both online only, like the library's reveals),
   Discard at random, Move all to ▸, View all. It is the first thing in the
   pile row, beside the library, at a fixed `--pt-hand-btn-w` that every fan
-  reservation adds in. On a phone that row has no room for it, so it stands
-  above the library's label instead. A menu opened from a button at the
+  reservation adds in. In a narrow landscape window that row has no room for
+  it, so it stands above the library's label instead; upright and sideways
+  phones keep it in the row. A menu opened from a button at the
   bottom of the screen passes `origin="bottom-end"`: it opens up and to the
   left, its corner on the button's top-right, rather than dropping down over
   the button the way a pointer's menu would. The hand is never hidden: the

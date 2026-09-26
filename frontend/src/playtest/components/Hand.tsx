@@ -101,7 +101,8 @@ export function Hand({
   // It is the HAND's card size, which a phone sets larger than the table's.
   // `--pt-pile-span` (registered too) is the pile row's width wherever the
   // stylesheet lays that row out itself; 0 at the desk, where the fan
-  // derives it.
+  // derives it. `--pt-fan-row: own` says no row stands beside the fan at all
+  // (an upright phone), which a registered 0 cannot say.
   useLayoutEffect(() => {
     if (!fan) return;
     const el = rootRef.current;
@@ -110,7 +111,8 @@ export function Hand({
     const w = parseFloat(cs.getPropertyValue('--pt-card-w'));
     if (w > 0) setCardW(w);
     const span = parseFloat(cs.getPropertyValue('--pt-pile-span'));
-    setPiles(span > 0 ? span : undefined);
+    const ownRow = cs.getPropertyValue('--pt-fan-row').trim() === 'own';
+    setPiles(ownRow ? 0 : span > 0 ? span : undefined);
   }, [fan, containerW]);
 
   const handW = fanCardWidth(cards.length, cardW, containerW, piles);

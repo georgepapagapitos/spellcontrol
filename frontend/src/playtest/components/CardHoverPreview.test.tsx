@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render } from '@testing-library/react';
 import { CardHoverPreview } from './CardHoverPreview';
 
-function stubMatchMedia(matches: boolean) {
+/** `finePointer` answers the hover query; `upright` the upright-phone one. */
+function stubMatchMedia(finePointer: boolean, upright = false) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches,
+    matches: query.includes('orientation: portrait') ? upright : finePointer,
     media: query,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
@@ -162,6 +163,43 @@ describe('CardHoverPreview', () => {
       document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     });
     expect(onUnpin).toHaveBeenCalledTimes(1);
+  });
+
+  // The tap that opened the hand menu now shows the card (#2282), so the
+  // tapped card says where the menu went, until the board has seen one open.
+  it('says a hold opens the menu under a tapped card, never under a hovered one', () => {
+    stubMatchMedia(false);
+    cardEl('a');
+    const hint = () => document.querySelector('.playtest-hover-preview__hint')?.textContent;
+    const { rerender } = render(
+      <CardHoverPreview suspended={false} resolve={resolve} pinned="a" holdHint />
+    );
+    expect(hint()).toBe('Hold a card for its menu.');
+    rerender(<CardHoverPreview suspended={false} resolve={resolve} pinned="a" />);
+    expect(hint()).toBeUndefined();
+
+    document.body.innerHTML = '';
+    stubMatchMedia(true);
+    render(<CardHoverPreview suspended={false} resolve={resolve} holdHint />);
+    const el = cardEl('b');
+    act(() => {
+      el.dispatchEvent(new Event('pointerover', { bubbles: true }));
+    });
+    expect(document.querySelector('.playtest-hover-preview')).not.toBeNull();
+    expect(hint()).toBeUndefined();
+  });
+
+  // A quarter of a 390px phone is 94px, barely bigger than the card tapped.
+  it('shows a tapped card at reading width in the middle of an upright phone', () => {
+    stubMatchMedia(false, true);
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 844, configurable: true });
+    cardEl('a');
+    render(<CardHoverPreview suspended={false} resolve={resolve} pinned="a" />);
+    const pane = document.querySelector<HTMLElement>('.playtest-hover-preview')!;
+    expect(parseFloat(pane.style.width)).toBeCloseTo(390 * 0.72, 1);
+    // Centred between the margins, nothing on this bare page to avoid.
+    expect(parseFloat(pane.style.left)).toBeCloseTo((12 + 378 - 390 * 0.72) / 2, 1);
   });
 
   it('shows nothing for a pinned card that has left the hand, or while suspended', () => {
