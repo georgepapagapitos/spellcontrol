@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCubePullList } from './pull-list';
+import { buildCubePullList, isPullableGroupKind } from './pull-list';
 import type { CubePickSlot } from '../../store/cube';
 import type { CubeCard } from './core';
 import type { BinderDef, BinderFilter, EnrichedCard } from '../../types';
@@ -248,7 +248,7 @@ describe('buildCubePullList', () => {
     expect(groups[0].rows.map((r) => r.name)).toEqual(['Alpha', 'Zeta']);
   });
 
-  it('surfaces a copy swallowed by a binder that hides allocated cards as Hidden, not Uncategorized', () => {
+  it('surfaces a copy swallowed by a binder that hides allocated cards as "out", not uncategorized', () => {
     const copy = makeCopy({ copyId: 'c1', name: 'Reserved Card', scryfallId: 'sf-r' });
     // hideDeckAllocated: false means an allocated copy this binder's rules
     // would otherwise claim is dropped from its view entirely.
@@ -266,7 +266,7 @@ describe('buildCubePullList', () => {
       allocatedCopyIds: new Set(['c1']),
     });
     expect(groups).toHaveLength(1);
-    expect(groups[0]).toMatchObject({ key: 'hidden', kind: 'hidden' });
+    expect(groups[0]).toMatchObject({ key: 'out', kind: 'out' });
     expect(groups[0].rows[0]).toMatchObject({ name: 'Reserved Card', card: copy });
   });
 
@@ -288,5 +288,14 @@ describe('buildCubePullList', () => {
 
   it('returns no groups for a cube with no picks', () => {
     expect(buildCubePullList([], [], [])).toEqual([]);
+  });
+});
+
+describe('isPullableGroupKind', () => {
+  it('is true only for binder and uncategorized rows', () => {
+    expect(isPullableGroupKind('binder')).toBe(true);
+    expect(isPullableGroupKind('uncategorized')).toBe(true);
+    expect(isPullableGroupKind('out')).toBe(false);
+    expect(isPullableGroupKind('unreserved')).toBe(false);
   });
 });

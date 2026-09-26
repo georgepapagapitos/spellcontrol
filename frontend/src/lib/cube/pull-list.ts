@@ -20,7 +20,7 @@ import type { SetMap } from '../api';
  * `allocatedCopyIds` is expected to be the FULL allocation set (every deck's
  * bound copies + every physical cube's, this one included) — exactly what
  * `useAllocations()` feeds the real Binders page — not a set that carves this
- * cube's own claims out. See "hidden" below for why that matters.
+ * cube's own claims out. See the 'out' group below for why that matters.
  *
  * `cards` must already carry whatever per-card decoration the user's binders
  * need to route/sort correctly (oracle tags, Secret Lair drop, per-printing
@@ -30,7 +30,13 @@ import type { SetMap } from '../api';
  * is the caller's job.
  */
 
-export type CubePullGroupKind = 'binder' | 'uncategorized' | 'hidden' | 'unreserved';
+export type CubePullGroupKind = 'binder' | 'uncategorized' | 'out' | 'unreserved';
+
+/** Rows the user can physically check off (a locatable copy). 'out' and
+ *  'unreserved' rows are informational only — nothing to tick. */
+export function isPullableGroupKind(kind: CubePullGroupKind): boolean {
+  return kind === 'binder' || kind === 'uncategorized';
+}
 
 /** Why a pick has no locatable copy — distinguishes "never had one" from
  *  "had one, but that copy is gone now" for the UI's hint text. */
@@ -40,7 +46,7 @@ export interface CubePullRow {
   /** The pick's slotId — stable across a rebuild that keeps this pick. */
   key: string;
   name: string;
-  /** The resolved physical copy. Present only on 'binder'/'uncategorized'/'hidden' rows. */
+  /** The resolved physical copy. Present only on 'binder'/'uncategorized'/'out' rows. */
   card?: EnrichedCard;
   /** 1-based page number within the binder (binder rows only). */
   pageNum?: number;
@@ -167,7 +173,7 @@ export function buildCubePullList(
     // The card is still physically in that binder until the user pulls it,
     // but the app has no page/slot to point at — surface it distinctly
     // rather than mislabel it "Uncategorized" (it IS categorized, just hidden).
-    pushRow('hidden', { key: pick.slotId, name, card: copy });
+    pushRow('out', { key: pick.slotId, name, card: copy });
   }
 
   const groups: CubePullGroup[] = [];
@@ -195,13 +201,13 @@ export function buildCubePullList(
       rows: uncat.sort(byName),
     });
   }
-  const hidden = byGroupKey.get('hidden');
-  if (hidden) {
+  const out = byGroupKey.get('out');
+  if (out) {
     groups.push({
-      key: 'hidden',
-      kind: 'hidden',
-      label: "Filed, but hidden from that binder's view",
-      rows: hidden.sort(byName),
+      key: 'out',
+      kind: 'out',
+      label: 'Already out of your binders',
+      rows: out.sort(byName),
     });
   }
   const unreserved = byGroupKey.get('unreserved');

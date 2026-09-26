@@ -1766,4 +1766,108 @@
   display: flex;
   justify-content: center;
   padding: var(--space-3) var(--space-4) var(--space-4);
+/* ==== Pull list by binder (CubePullList.tsx) ==== */
+.cube-pull-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.cube-pull-summary-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.cube-pull-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.cube-pull-group {
+  margin-top: var(--space-4);
+}
+.cube-pull-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.cube-pull-group-pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.cube-pull-group-name {
+  font-weight: 600;
+}
+.cube-pull-group-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cube-pull-group-hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  max-width: 42ch;
+}
+
+.cube-pull-page-head {
+  margin-top: var(--space-2);
+  padding-left: var(--space-5);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.cube-pull-rows {
+  display: flex;
+  flex-direction: column;
+}
+.cube-pull-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.cube-pull-row--info {
+  cursor: default;
+}
+.cube-pull-row:last-child {
+  border-bottom: none;
+}
+.cube-pull-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+.cube-pull-check--none {
+  visibility: hidden;
+}
+.cube-pull-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cube-pull-row-name {
+  font-size: var(--text-sm);
+}
+.cube-pull-row-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cube-pull-row-slot {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
 }
