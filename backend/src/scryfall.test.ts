@@ -140,11 +140,88 @@ describe('resolveCards', () => {
     const out = await promise;
     expect(out.resolved[0]?.id).toBe('sf-x');
     const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
-    expect(body.identifiers[0]).toEqual({
+    // The printing goes alone: Scryfall has no name + set + collector identifier.
+    expect(body.identifiers[0]).toEqual({ set: 'lea', collector_number: '161' });
+  });
+
+  // Scryfall answers a name + set + collector identifier as name + set — the
+  // set's default printing. This fake does the same, so sending the name along
+  // would resolve the plain #211 instead of the oil-slick showcase #364.
+  const scryfallCollection = (printings: ScryfallCard[]) =>
+    vi.spyOn(global, 'fetch').mockImplementation((_url, init) => {
+      const { identifiers } = JSON.parse((init as RequestInit).body as string) as {
+        identifiers: Array<{ name?: string; set?: string; collector_number?: string }>;
+      };
+      const data = identifiers.flatMap((ident) => {
+        const hit = ident.name
+          ? printings.find((c) => c.name === ident.name && c.set === ident.set)
+          : printings.find(
+              (c) => c.set === ident.set && c.collector_number === ident.collector_number
+            );
+        return hit ? [hit] : [];
+      });
+      return Promise.resolve(jsonResponse({ object: 'list', not_found: [], data }));
+    });
+
+  it('imports the exact variant printing a list names, not the set default', async () => {
+    const plain = card({
+      id: 'sf-211',
+      name: 'Nahiri, the Unforgiving',
+      set: 'one',
+      collector_number: '211',
+    });
+    const showcase = card({
+      id: 'sf-364',
+      name: 'Nahiri, the Unforgiving',
+      set: 'one',
+      collector_number: '364',
+      promo_types: ['oilslick', 'raisedfoil'],
+    });
+    scryfallCollection([plain, showcase]);
+    const rows: ImportRow[] = [
+      {
+        name: 'Nahiri, the Unforgiving',
+        setCode: 'ONE',
+        collectorNumber: '364',
+        quantity: 1,
+        sourceFormat: 'plain',
+      },
+    ];
+    const promise = resolveCards(rows, fakeCache());
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.resolved[0]?.id).toBe('sf-364');
+  });
+
+  it('falls back to name + set when the collector number lands on a different card', async () => {
+    const bolt = card({
+      id: 'sf-bolt',
       name: 'Lightning Bolt',
       set: 'lea',
       collector_number: '161',
     });
+    const other = card({
+      id: 'sf-other',
+      name: 'Lightning Blast',
+      set: 'lea',
+      collector_number: '160',
+    });
+    const fetchSpy = scryfallCollection([bolt, other]);
+    const rows: ImportRow[] = [
+      // A mistyped number that happens to be another card's.
+      {
+        name: 'Lightning Bolt',
+        setCode: 'LEA',
+        collectorNumber: '160',
+        quantity: 1,
+        sourceFormat: 'plain',
+      },
+    ];
+    const promise = resolveCards(rows, fakeCache());
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.resolved[0]?.id).toBe('sf-bolt');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it('resolves a name/set lookup from the alias cache without hitting the network', async () => {
