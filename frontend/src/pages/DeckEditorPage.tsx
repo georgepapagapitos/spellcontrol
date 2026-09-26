@@ -3587,14 +3587,12 @@ export function DeckEditorPage() {
               <div className="card-picker-handle" aria-hidden />
               <div className="deck-test-hand-sheet-header">
                 <h2 className="deck-test-hand-sheet-title">Test hand</h2>
-                <button
-                  type="button"
+                <IconButton
                   className="deck-test-hand-sheet-close"
                   onClick={dismiss}
-                  aria-label="Close test hand"
-                >
-                  <X width={18} height={18} strokeWidth={2} aria-hidden />
-                </button>
+                  label="Close test hand"
+                  icon={<X width={18} height={18} strokeWidth={2} />}
+                />
               </div>
               <div className="deck-test-hand-sheet-body">
                 <DeckTestHandPanel embedded deckId={deck.id} />
@@ -4187,17 +4185,15 @@ function DeckEditorOverflowMenu({
 
   return (
     <div className="deck-editor-overflow">
-      <button
-        ref={buttonRef}
-        type="button"
+      <IconButton
         className="deck-editor-overflow-btn"
+        ref={buttonRef}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Deck actions"
         onClick={handleToggle}
-      >
-        <MoreVertical width={20} height={20} strokeWidth={2.2} aria-hidden />
-      </button>
+        label="Deck actions"
+        icon={<MoreVertical width={20} height={20} strokeWidth={2.2} />}
+      />
       {open &&
         panelPos &&
         createPortal(

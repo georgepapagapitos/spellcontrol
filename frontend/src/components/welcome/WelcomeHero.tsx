@@ -8,7 +8,7 @@ import { useCardThumb } from '../../lib/card-thumbs';
 import { markEverVisited } from '../../lib/first-run';
 import { track } from '../../lib/analytics';
 import { pickWelcomeHeroCard } from '../../lib/welcome-hero';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /**
  * WelcomePage's hero band (welcome storefront, pass 2c — Moxfield-hero-
@@ -78,9 +78,12 @@ export function WelcomeHero() {
             ariaLabel="Search public decks by commander"
             className="welcome-hero-search-pill"
             trailing={
-              <button type="submit" className="welcome-hero-search-submit" aria-label="Search">
-                <ArrowRight width={16} height={16} strokeWidth={2} aria-hidden />
-              </button>
+              <IconButton
+                className="welcome-hero-search-submit"
+                type="submit"
+                label="Search"
+                icon={<ArrowRight width={16} height={16} strokeWidth={2} />}
+              />
             }
           />
         </form>

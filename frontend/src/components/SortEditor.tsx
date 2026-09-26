@@ -12,7 +12,7 @@ import { InfoTip } from './InfoTip';
 import { SelectMenu } from './SelectMenu';
 import { SortValueOrderEditor } from './SortValueOrderEditor';
 import type { SortEntry, SortField } from '../types';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 type ValueOrders = Partial<Record<SortField, string[]>>;
 
@@ -128,18 +128,16 @@ export function SortEditor({ sorts, valueOrders, onSortsChange, onValueOrdersCha
                   >
                     ▼
                   </button>
-                  <button
-                    type="button"
+                  <IconButton
                     className="tab-action"
                     onClick={() => onSortsChange(sorts.filter((_, j) => j !== i))}
                     disabled={sorts.length === 1}
                     title={
                       sorts.length === 1 ? 'A binder needs at least one sort' : 'Remove this sort'
                     }
-                    aria-label={`Remove the ${fieldLabel} sort`}
-                  >
-                    <X width={13} height={13} strokeWidth={2.2} aria-hidden />
-                  </button>
+                    label={`Remove the ${fieldLabel} sort`}
+                    icon={<X width={13} height={13} strokeWidth={2.2} />}
+                  />
                 </div>
                 {isCustomizable && (
                   <SortValueOrderEditor

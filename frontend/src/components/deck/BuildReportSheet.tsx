@@ -8,7 +8,7 @@ import type { BuildReport } from '@/deck-builder/types';
 import type { ComboMatch, ComboSeedContext } from '@/types/combos';
 import { markBuildReportSeen } from '@/lib/build-report-seen';
 import './BuildReportSheet.css';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {
   deckId: string;
@@ -105,14 +105,12 @@ export function BuildReportSheet({
           )}
           <div className="build-report-sheet-title-row">
             {commanderName && <p className="build-report-sheet-commander">{commanderName}</p>}
-            <button
-              type="button"
+            <IconButton
               className="build-report-sheet-close"
-              aria-label="Close build report"
               onClick={() => beginClose()}
-            >
-              <X width={18} height={18} strokeWidth={2} aria-hidden />
-            </button>
+              label="Close build report"
+              icon={<X width={18} height={18} strokeWidth={2} />}
+            />
           </div>
           <h2 className="build-report-sheet-heading">Your deck is ready</h2>
           <p className="build-report-sheet-subheading">Here's how it matches what you asked for.</p>

@@ -1,5 +1,6 @@
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import { ZOOM_MIN, nextZoomStep, zoomTier } from '../lib/grid-zoom';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   /** Current zoom step, already clamped to the viewport's range. */
@@ -31,28 +32,20 @@ export function ZoomControl({ zoom, width, max, onChange }: Props) {
 
   return (
     <div className="toolbar-viewmode" role="group" aria-label="Card size">
-      <button
-        type="button"
+      <IconButton
         className="toolbar-viewmode-btn"
-        aria-label="Smaller cards"
-        title="Smaller cards"
-        // Range ends disable, never hide (STYLE_GUIDE). "No distinct step in
-        // this direction" is the same condition as hitting the ladder end.
         disabled={smaller === zoom}
         onClick={() => onChange(smaller)}
-      >
-        <ZoomOut width={14} height={14} strokeWidth={2} aria-hidden />
-      </button>
-      <button
-        type="button"
+        label="Smaller cards"
+        icon={<ZoomOut width={14} height={14} strokeWidth={2} />}
+      />
+      <IconButton
         className="toolbar-viewmode-btn"
-        aria-label="Bigger cards"
-        title="Bigger cards"
         disabled={bigger === zoom}
         onClick={() => onChange(bigger)}
-      >
-        <ZoomIn width={14} height={14} strokeWidth={2} aria-hidden />
-      </button>
+        label="Bigger cards"
+        icon={<ZoomIn width={14} height={14} strokeWidth={2} />}
+      />
     </div>
   );
 }

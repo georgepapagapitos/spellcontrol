@@ -19,7 +19,7 @@ import { InfoTip } from './InfoTip';
 import { useRuleFieldVisibility } from './RuleFieldContext';
 import { filterFieldSpec, type FilterFieldGroup, type FilterFieldId } from '../lib/filter-fields';
 import { Field } from './shared/form';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
@@ -239,15 +239,13 @@ export function BinderRow({
       <span className="rule-label">{label}</span>
       {children}
       {visibility && fieldId && (
-        <button
-          type="button"
+        <IconButton
           className="rule-row-clear"
-          aria-label={`Remove the ${filterFieldSpec(fieldId)?.label ?? 'this'} condition`}
           title="Remove this condition"
           onClick={() => visibility.clearField(fieldId)}
-        >
-          <X width={13} height={13} strokeWidth={2.2} aria-hidden />
-        </button>
+          label={`Remove the ${filterFieldSpec(fieldId)?.label ?? 'this'} condition`}
+          icon={<X width={13} height={13} strokeWidth={2.2} />}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../../lib/use-escape-key';
 import type { DeckToken } from '@/lib/deck-tokens';
 import './DeckTokensSheet.css';
+import { IconButton } from '@/components/shared/Button';
 
 const tokenId = (t: DeckToken): string => `${t.name} ${t.typeLine ?? ''}`;
 
@@ -62,14 +63,12 @@ export function DeckTokensSheet({
               .
             </p>
           </div>
-          <button
-            type="button"
+          <IconButton
             className="deck-tokens-sheet-close"
             onClick={onClose}
-            aria-label="Close"
-          >
-            <X width={18} height={18} strokeWidth={2} aria-hidden />
-          </button>
+            label="Close"
+            icon={<X width={18} height={18} strokeWidth={2} />}
+          />
         </header>
 
         {tokens.length > 0 && (

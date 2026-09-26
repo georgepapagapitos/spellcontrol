@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MoreVertical } from 'lucide-react';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { TaxCoins } from './TaxCoins';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   zones: Record<Zone, PlaytestCard[]>;
@@ -84,18 +85,16 @@ export function MobileZonesPanel({
                       placement="inline"
                     />
                   )}
-                  <button
-                    type="button"
+                  <IconButton
                     className="playtest-zone-tile__kebab"
                     aria-haspopup="menu"
-                    aria-label={`${e.label} actions`}
                     onClick={() => {
                       setOpen(false);
                       onMenu(e.key);
                     }}
-                  >
-                    <MoreVertical width={16} height={16} strokeWidth={2} aria-hidden />
-                  </button>
+                    label={`${e.label} actions`}
+                    icon={<MoreVertical width={16} height={16} strokeWidth={2} />}
+                  />
                 </div>
                 <button
                   type="button"

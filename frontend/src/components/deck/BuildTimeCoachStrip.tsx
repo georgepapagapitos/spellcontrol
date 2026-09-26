@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import { ChevronRight, Gauge, Trophy, X, Zap } from 'lucide-react';
 import './BuildTimeCoachStrip.css';
 import type { BuildTimeNudge, BuildTimeNudgeKind } from '../../lib/use-build-time-nudge';
+import { IconButton } from '@/components/shared/Button';
 
 const KIND_ICON: Record<BuildTimeNudgeKind, JSX.Element> = {
   combo: <Zap width={16} height={16} aria-hidden />,
@@ -53,14 +54,12 @@ export function BuildTimeCoachStrip({ nudge, onView, onDismiss }: Props): JSX.El
         {KIND_VIEW_LABEL[nudge.kind]}
         <ChevronRight width={14} height={14} aria-hidden />
       </button>
-      <button
-        type="button"
+      <IconButton
         className="build-time-coach-strip-dismiss"
         onClick={onDismiss}
-        aria-label="Dismiss"
-      >
-        <X width={14} height={14} aria-hidden />
-      </button>
+        label="Dismiss"
+        icon={<X width={14} height={14} />}
+      />
     </div>
   );
 }

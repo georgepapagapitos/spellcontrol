@@ -9,6 +9,7 @@ import { importScannedCards } from '../lib/scan-import';
 import { fetchErrorMessage } from '../lib/import-review';
 
 import { userMessage } from '@/lib/user-error';
+import { IconButton } from '@/components/shared/Button';
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
 const ICON_PROPS = { width: 22, height: 22, strokeWidth: 1.7, 'aria-hidden': true } as const;
@@ -102,16 +103,14 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
   return (
     <div className="scan-fab-root">
       {showButton && (
-        <button
-          ref={buttonRef}
-          type="button"
+        <IconButton
           className={`scan-fab-btn${tucked ? ' is-tucked' : ''}`}
-          aria-label="Scan cards"
+          ref={buttonRef}
           disabled={importing}
           onClick={() => setScannerOpen(true)}
-        >
-          <Camera {...ICON_PROPS} />
-        </button>
+          label="Scan cards"
+          icon={<Camera {...ICON_PROPS} />}
+        />
       )}
 
       {scannerOpen && (

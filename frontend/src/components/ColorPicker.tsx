@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react';
 import { useId, useState } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { PRESET_COLORS } from '../lib/preset-colors';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   value: string;
@@ -53,23 +54,16 @@ export function ColorPicker({ value, onChange, ariaLabel }: Props) {
             />
           </label>
         ))}
-        <button
-          type="button"
+        <IconButton
           className={`color-swatch color-swatch-custom${isCustom ? ' selected' : ''}`}
           style={isCustom ? { background: value } : undefined}
           onClick={() => setShowCustom((v) => !v)}
           aria-expanded={showCustom}
-          aria-label="Custom color"
-          title="Custom color"
-        >
-          <Plus
-            className="color-swatch-custom-icon"
-            width={14}
-            height={14}
-            strokeWidth={2}
-            aria-hidden
-          />
-        </button>
+          label="Custom color"
+          icon={
+            <Plus className="color-swatch-custom-icon" width={14} height={14} strokeWidth={2} />
+          }
+        />
       </fieldset>
       {showCustom && (
         <div className="color-picker-custom-panel">

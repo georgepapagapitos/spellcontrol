@@ -9,6 +9,7 @@ import { useCollectionStore } from '../store/collection';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
+import { IconButton } from '@/components/shared/Button';
 
 /** Result layouts: `list` (thumbnail rows — the default everywhere this panel
  *  is embedded), `grid` (card-image tiles, preview-first), `compact`
@@ -219,18 +220,18 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded
             return (
               <li key={c.id} className="inline-card-search-item">
                 <div className="inline-card-search-row">
-                  <button
-                    type="button"
+                  <IconButton
                     className="inline-card-search-add"
-                    aria-label={`Add ${c.name}`}
                     onClick={() => void quickAdd(c)}
-                  >
-                    {added > 0 ? (
-                      <Check width={12} height={12} strokeWidth={2.5} aria-hidden />
-                    ) : (
-                      <Plus width={12} height={12} strokeWidth={2.5} aria-hidden />
-                    )}
-                  </button>
+                    label={`Add ${c.name}`}
+                    icon={
+                      added > 0 ? (
+                        <Check width={12} height={12} strokeWidth={2.5} />
+                      ) : (
+                        <Plus width={12} height={12} strokeWidth={2.5} />
+                      )
+                    }
+                  />
                   <button
                     type="button"
                     className="inline-card-search-preview-trigger"
@@ -259,14 +260,12 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded
                   <span className="inline-card-search-meta">
                     {added > 0 && <span className="inline-card-search-added">added ×{added}</span>}
                     {canUndo && (
-                      <button
-                        type="button"
+                      <IconButton
                         className="inline-card-search-undo"
-                        aria-label={`Remove last added copy of ${c.name}`}
                         onClick={() => void undoAdd(c.id)}
-                      >
-                        <Minus width={12} height={12} strokeWidth={2.5} aria-hidden />
-                      </button>
+                        label={`Remove last added copy of ${c.name}`}
+                        icon={<Minus width={12} height={12} strokeWidth={2.5} />}
+                      />
                     )}
                     {owned > 0 && (
                       <span className="inline-card-search-owned">in collection ×{owned}</span>

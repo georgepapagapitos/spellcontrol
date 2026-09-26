@@ -136,7 +136,7 @@ import { DeckCardMenu } from './DeckCardMenu';
 import type { DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
-import { Button, buttonClass } from '@/components/shared/Button';
+import { Button, buttonClass, IconButton } from '@/components/shared/Button';
 
 /** Deck ids whose completion moment already played this app-open — an edit
  *  that re-crosses the complete boundary doesn't re-celebrate (mirrors the
@@ -2591,15 +2591,12 @@ function BulkTagPopoverBody({
               >
                 {tag}
               </button>
-              <button
-                type="button"
+              <IconButton
                 className="deck-bulk-tag-chip-remove"
                 onClick={() => onRemove(tag)}
-                aria-label={`Remove "${tag}" from selection`}
-                title={`Remove "${tag}" from selection`}
-              >
-                <X width={11} height={11} strokeWidth={2.4} aria-hidden />
-              </button>
+                label={`Remove "${tag}" from selection`}
+                icon={<X width={11} height={11} strokeWidth={2.4} />}
+              />
             </li>
           ))}
         </ul>

@@ -29,7 +29,7 @@ import { resolveTradePreview } from '../../lib/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import { buildCardLocationIndex, type CardLocation } from '../../lib/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 const STATUS_LABEL: Record<TradeOffer['status'], string> = {
   proposed: 'Waiting',
@@ -339,10 +339,8 @@ function TradeOfferCard({
         {compact && (
           // Per-side: the other person keeps their copy, so there is nothing
           // to confirm and nothing to undo but a list entry.
-          <button
-            type="button"
+          <IconButton
             className="trade-offer-remove"
-            aria-label={`Remove this trade with ${who} from your list`}
             title="Remove from your list"
             disabled={busy}
             onClick={() =>
@@ -351,9 +349,9 @@ function TradeOfferCard({
                 toast.show({ message: 'Removed from your trades.', tone: 'success' });
               }, "Couldn't remove the trade. Try again.")
             }
-          >
-            <X width={16} height={16} aria-hidden />
-          </button>
+            label={`Remove this trade with ${who} from your list`}
+            icon={<X width={16} height={16} />}
+          />
         )}
       </header>
 

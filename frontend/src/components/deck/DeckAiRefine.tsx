@@ -20,7 +20,7 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import './DeckAiReview.css';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 interface DeckAiRefineProps {
   deckId: string;
   format: DeckFormat;
@@ -521,23 +521,19 @@ export function DeckAiRefine({
                       )}
                       <div className="deck-ai-tweak-actions">
                         {alts.length > 0 && (
-                          <button
-                            type="button"
+                          <IconButton
                             className="deck-ai-tweak-reroll"
                             onClick={() => cycleAlt(t.add, alts.length)}
-                            aria-label={`Try another alternative to ${shownName}`}
-                          >
-                            <RefreshCw width={16} height={16} aria-hidden />
-                          </button>
+                            label={`Try another alternative to ${shownName}`}
+                            icon={<RefreshCw width={16} height={16} />}
+                          />
                         )}
-                        <button
-                          type="button"
+                        <IconButton
                           className="deck-ai-tweak-dismiss"
                           onClick={() => dismiss(t.add)}
-                          aria-label={`Dismiss ${shownName}`}
-                        >
-                          <X width={16} height={16} aria-hidden />
-                        </button>
+                          label={`Dismiss ${shownName}`}
+                          icon={<X width={16} height={16} />}
+                        />
                         {applied.has(t.add) ? (
                           <span className="deck-ai-tweak-done">
                             <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Applied

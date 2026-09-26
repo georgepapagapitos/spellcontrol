@@ -5,6 +5,7 @@ import { useEscapeKey } from '../../lib/use-escape-key';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { useDecksStore, type Deck } from '../../store/decks';
 import './DeckPrimerSheet.css';
+import { IconButton } from '@/components/shared/Button';
 
 const PRIMER_MAX = 4000;
 const COUNTER_THRESHOLD = 200;
@@ -83,14 +84,12 @@ export function DeckPrimerSheet({ deck, onClose }: Props): JSX.Element {
           <h2 id={titleId} className="deck-primer-sheet-title">
             Primer
           </h2>
-          <button
-            type="button"
+          <IconButton
             className="deck-primer-sheet-close"
             onClick={dismiss}
-            aria-label="Close"
-          >
-            <X width={18} height={18} strokeWidth={2} aria-hidden />
-          </button>
+            label="Close"
+            icon={<X width={18} height={18} strokeWidth={2} />}
+          />
         </header>
 
         <div className="deck-primer-sheet-body">

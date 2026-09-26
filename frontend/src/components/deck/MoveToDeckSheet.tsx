@@ -12,7 +12,7 @@ import type { DonorOutcome } from '@/lib/allocations';
 import type { ChangeOwnership } from '@/lib/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 export interface MoveToDeckSheetProps {
   /** The card being moved out of the current (donor) deck. */
@@ -108,18 +108,16 @@ export function MoveToDeckSheet({
         <div className="card-picker-handle" aria-hidden />
         <header className="move-deck-head">
           {target && (
-            <button
-              type="button"
+            <IconButton
               className="move-deck-back"
               onClick={() => {
                 setTargetId(null);
                 setReplacement(null);
                 setOutcome('leave-gap');
               }}
-              aria-label="Back to deck list"
-            >
-              <ChevronLeft width={18} height={18} strokeWidth={2} aria-hidden />
-            </button>
+              label="Back to deck list"
+              icon={<ChevronLeft width={18} height={18} strokeWidth={2} />}
+            />
           )}
           <div className="move-deck-titles">
             <h2 id={titleId} className="move-deck-title">
@@ -130,9 +128,12 @@ export function MoveToDeckSheet({
               {target ? null : ' out of this deck'}
             </p>
           </div>
-          <button type="button" className="move-deck-close" onClick={dismiss} aria-label="Cancel">
-            <X width={18} height={18} strokeWidth={2} aria-hidden />
-          </button>
+          <IconButton
+            className="move-deck-close"
+            onClick={dismiss}
+            label="Cancel"
+            icon={<X width={18} height={18} strokeWidth={2} />}
+          />
         </header>
 
         {!target ? (

@@ -15,7 +15,7 @@ import {
   writeStoredCollectionExportFormat,
   type CollectionExportFormat,
 } from '../lib/collection-export';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 const PREVIEW_LINES = 30;
 
@@ -91,9 +91,12 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
         <h2 id="export-collection-title" className="export-dialog-title">
           {binderName ? `Export binder: ${binderName}` : 'Export collection'}
         </h2>
-        <button type="button" className="export-dialog-close" aria-label="Close" onClick={onClose}>
-          <X width={18} height={18} strokeWidth={2} aria-hidden />
-        </button>
+        <IconButton
+          className="export-dialog-close"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={18} height={18} strokeWidth={2} />}
+        />
       </div>
       <div className="export-dialog-body">
         <div className="export-dialog-controls">

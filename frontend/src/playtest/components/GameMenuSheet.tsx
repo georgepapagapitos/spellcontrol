@@ -4,6 +4,7 @@ import './GameMenuSheet.css';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/use-sheet-exit';
+import { IconButton } from '@/components/shared/Button';
 
 /** One row of the drawer: an icon, what it does, and how it stands. */
 export interface GameMenuItem {
@@ -74,14 +75,12 @@ export function GameMenuSheet({ sections, footer, onClose }: Props) {
           <h2 id={titleId} className="playtest-game-menu__title">
             Game menu
           </h2>
-          <button
-            type="button"
+          <IconButton
             className="playtest-game-menu__close"
-            aria-label="Close the game menu"
             onClick={() => beginClose()}
-          >
-            <X width={18} height={18} strokeWidth={1.8} aria-hidden />
-          </button>
+            label="Close the game menu"
+            icon={<X width={18} height={18} strokeWidth={1.8} />}
+          />
         </header>
 
         <div className="playtest-game-menu__body">

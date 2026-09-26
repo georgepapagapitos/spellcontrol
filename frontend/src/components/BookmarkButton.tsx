@@ -4,6 +4,7 @@ import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { bookmarkDeck, unbookmarkDeck } from '../lib/discover-client';
 import { GuestActionPopover } from './GuestActionPopover';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   slug: string;
@@ -62,23 +63,22 @@ export function BookmarkButton({ slug, initialBookmarked, size = 16, onChange }:
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
+      <IconButton
         className="tile-action-btn"
-        aria-label="Save"
+        ref={triggerRef}
         aria-pressed={bookmarked}
         disabled={busy}
         onClick={handleClick}
-      >
-        <Bookmark
-          width={size}
-          height={size}
-          strokeWidth={2}
-          fill={bookmarked ? 'currentColor' : 'none'}
-          aria-hidden
-        />
-      </button>
+        label="Save"
+        icon={
+          <Bookmark
+            width={size}
+            height={size}
+            strokeWidth={2}
+            fill={bookmarked ? 'currentColor' : 'none'}
+          />
+        }
+      />
       <GuestActionPopover
         open={guestOpen}
         onClose={() => setGuestOpen(false)}

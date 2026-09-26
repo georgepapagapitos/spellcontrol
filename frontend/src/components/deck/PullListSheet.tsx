@@ -11,7 +11,7 @@ import type { BinderDef, EnrichedCard } from '../../types';
 import { CardRow } from '../shared/CardRow';
 import { MeterBar } from '../shared/MeterBar';
 import './PullListSheet.css';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /**
  * Device-local checklist state for one deck's pull session — which row keys
@@ -150,14 +150,12 @@ export function PullListSheet({
               Start over
             </Button>
           )}
-          <button
-            type="button"
+          <IconButton
             className="pull-list-close"
             onClick={() => dismiss()}
-            aria-label="Close"
-          >
-            <X width={18} height={18} strokeWidth={2} aria-hidden />
-          </button>
+            label="Close"
+            icon={<X width={18} height={18} strokeWidth={2} />}
+          />
         </header>
 
         {totalQty > 0 && (

@@ -5,6 +5,7 @@ import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { likeDeck, unlikeDeck } from '../lib/discover-client';
 import { GuestActionPopover } from './GuestActionPopover';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   slug: string;
@@ -61,23 +62,22 @@ export function LikeButton({ slug, initialLiked, initialCount, size = 16 }: Prop
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
+      <IconButton
         className="tile-action-btn"
-        aria-label="Like"
+        ref={triggerRef}
         aria-pressed={liked}
         disabled={busy}
         onClick={handleClick}
-      >
-        <Heart
-          width={size}
-          height={size}
-          strokeWidth={2}
-          fill={liked ? 'currentColor' : 'none'}
-          aria-hidden
-        />
-      </button>
+        label="Like"
+        icon={
+          <Heart
+            width={size}
+            height={size}
+            strokeWidth={2}
+            fill={liked ? 'currentColor' : 'none'}
+          />
+        }
+      />
       <GuestActionPopover
         open={guestOpen}
         onClose={() => setGuestOpen(false)}

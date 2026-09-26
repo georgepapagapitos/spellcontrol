@@ -64,6 +64,7 @@ import {
 import { SectionIcon, AllocationChip } from './deck-display-icons';
 import { RoleBadge, LegalityBadge } from './deck-display-icons';
 import { CardName } from '@/components/shared/CardName';
+import { IconButton } from '@/components/shared/Button';
 
 // ── Category section ──────────────────────────────────────────────────────
 export function CategorySection({
@@ -275,22 +276,21 @@ export function CategorySection({
             (the partner control), and a button inside a button is invalid.
             The chevron matches the per-row printings disclosure below. */}
         {onToggleCollapsed && (
-          <button
-            type="button"
+          <IconButton
             className="deck-section-collapse"
             aria-expanded={!collapsed}
             aria-controls={listId}
-            aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
             onClick={onToggleCollapsed}
-          >
-            <ChevronDown
-              width={14}
-              height={14}
-              strokeWidth={2}
-              className="deck-section-collapse-icon"
-              aria-hidden
-            />
-          </button>
+            label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
+            icon={
+              <ChevronDown
+                width={14}
+                height={14}
+                strokeWidth={2}
+                className="deck-section-collapse-icon"
+              />
+            }
+          />
         )}
         <span className="deck-section-icon">
           <SectionIcon icon={icon} />
@@ -611,16 +611,15 @@ function DeckCardRow({
           </span>
         )}
         {!selectMode && dragEnabled && (
-          <button
-            type="button"
+          <IconButton
             className="deck-row-drag-handle"
-            aria-label={`Reorder ${row.name}. Press space to pick up, arrow keys to move, space to drop.`}
+            label={`Reorder ${row.name}. Press space to pick up, arrow keys to move, space to drop.`}
+            title={false}
             onClick={(e) => e.stopPropagation()}
+            icon={<GripVertical width={14} height={14} strokeWidth={2} />}
             {...sortable.attributes}
             {...sortable.listeners}
-          >
-            <GripVertical width={14} height={14} strokeWidth={2} aria-hidden />
-          </button>
+          />
         )}
         {canEditQty && editingQty ? (
           <input
@@ -642,31 +641,27 @@ function DeckCardRow({
           />
         ) : canEditQty && showStepper ? (
           <span className="deck-row-qty-group">
-            <button
-              type="button"
+            <IconButton
               className="deck-row-qty-step deck-row-qty-step-minus"
-              aria-label={`Remove one copy of ${row.name}`}
               disabled={stepBusy}
               onClick={(e) => {
                 e.stopPropagation();
                 step(-1);
               }}
-            >
-              <Minus width={11} height={11} strokeWidth={2.6} aria-hidden />
-            </button>
+              label={`Remove one copy of ${row.name}`}
+              icon={<Minus width={11} height={11} strokeWidth={2.6} />}
+            />
             {qtyChip}
-            <button
-              type="button"
+            <IconButton
               className="deck-row-qty-step deck-row-qty-step-plus"
-              aria-label={`Add one copy of ${row.name}`}
               disabled={stepBusy || atCap}
               onClick={(e) => {
                 e.stopPropagation();
                 step(1);
               }}
-            >
-              <Plus width={11} height={11} strokeWidth={2.6} aria-hidden />
-            </button>
+              label={`Add one copy of ${row.name}`}
+              icon={<Plus width={11} height={11} strokeWidth={2.6} />}
+            />
           </span>
         ) : canEditQty ? (
           qtyChip

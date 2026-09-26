@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, Copy, Move, X } from 'lucide-react';
 import { ManaCost } from '@/components/ManaCost';
 import './StackPanel.css';
+import { IconButton } from '@/components/shared/Button';
 
 export interface StackPanelItem {
   /** Unique per row. Your own rows use the card's own instance id; an
@@ -180,14 +181,12 @@ export function StackPanel({
           <Move width={16} height={16} />
         </span>
         <h2 className="stack-panel__title">Stack ({items.length})</h2>
-        <button
-          type="button"
+        <IconButton
           className="stack-panel__close"
-          aria-label="Hide the stack panel"
           onClick={() => setClosed(true)}
-        >
-          <X width={16} height={16} aria-hidden />
-        </button>
+          label="Hide the stack panel"
+          icon={<X width={16} height={16} />}
+        />
       </header>
 
       <ol className="stack-panel__list">
@@ -204,33 +203,24 @@ export function StackPanel({
 
       {top.mine && (
         <div className="stack-panel__actions">
-          <button
-            type="button"
+          <IconButton
             className="stack-panel__action"
             onClick={() => onDrawArrow(top.id)}
-            aria-label={arrowKey ? `Draw arrow (${arrowKey})` : 'Draw arrow'}
-            title={arrowKey ? `Draw arrow (${arrowKey})` : 'Draw arrow'}
-          >
-            <ArrowUpRight width={18} height={18} aria-hidden />
-          </button>
-          <button
-            type="button"
+            label={arrowKey ? `Draw arrow (${arrowKey})` : 'Draw arrow'}
+            icon={<ArrowUpRight width={18} height={18} />}
+          />
+          <IconButton
             className="stack-panel__action"
             onClick={() => onCopy(top.id)}
-            aria-label={copyKey ? `Create copy (${copyKey})` : 'Create copy'}
-            title={copyKey ? `Create copy (${copyKey})` : 'Create copy'}
-          >
-            <Copy width={18} height={18} aria-hidden />
-          </button>
-          <button
-            type="button"
+            label={copyKey ? `Create copy (${copyKey})` : 'Create copy'}
+            icon={<Copy width={18} height={18} />}
+          />
+          <IconButton
             className="stack-panel__action stack-panel__action--resolve"
             onClick={() => onResolve(top.id)}
-            aria-label={resolveKey ? `Resolve (${resolveKey})` : 'Resolve'}
-            title={resolveKey ? `Resolve (${resolveKey})` : 'Resolve'}
-          >
-            <Check width={18} height={18} aria-hidden />
-          </button>
+            label={resolveKey ? `Resolve (${resolveKey})` : 'Resolve'}
+            icon={<Check width={18} height={18} />}
+          />
         </div>
       )}
     </div>

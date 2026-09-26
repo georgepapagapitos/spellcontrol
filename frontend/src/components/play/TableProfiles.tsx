@@ -6,7 +6,7 @@ import {
   type LocalGameSetup,
   type TableProfile,
 } from '../../store/play';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /**
  * Saved table setups, above the local-game form.
@@ -89,14 +89,12 @@ export function TableProfiles({
                   </button>
                 </span>
               ) : (
-                <button
-                  type="button"
+                <IconButton
                   className="table-profiles-delete"
-                  aria-label={`Delete ${profile.name}`}
                   onClick={() => setConfirmingId(profile.id)}
-                >
-                  <Trash2 width={15} height={15} aria-hidden />
-                </button>
+                  label={`Delete ${profile.name}`}
+                  icon={<Trash2 width={15} height={15} />}
+                />
               )}
             </li>
           ))}

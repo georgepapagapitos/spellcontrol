@@ -7,6 +7,7 @@ import { getRoleBadge, rolesForCard, multiRoleTitle } from '../../lib/role-badge
 import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
 import { withTagAdded, withTagRemoved } from '@/lib/deck-tags';
 import './DeckCardPreviewMeta.css';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   /** The card whose deck-context this block describes. Role decoding reads
@@ -185,14 +186,12 @@ export function DeckCardPreviewMeta({
               <span key={t} className="deck-card-preview-meta-tag-chip">
                 {t}
                 {onSetTags && (
-                  <button
-                    type="button"
+                  <IconButton
                     className="deck-card-preview-meta-tag-remove"
-                    aria-label={`Remove tag "${t}"`}
                     onClick={() => removeTag(t)}
-                  >
-                    <X width={11} height={11} strokeWidth={2.6} aria-hidden />
-                  </button>
+                    label={`Remove tag "${t}"`}
+                    icon={<X width={11} height={11} strokeWidth={2.6} />}
+                  />
                 )}
               </span>
             ))}
@@ -224,14 +223,13 @@ export function DeckCardPreviewMeta({
                   <option key={t} value={t} />
                 ))}
               </datalist>
-              <button
-                type="submit"
+              <IconButton
                 className="deck-card-preview-meta-tag-add-btn"
-                aria-label="Add tag"
+                type="submit"
                 disabled={!draft.trim()}
-              >
-                <Plus width={14} height={14} strokeWidth={2.4} aria-hidden />
-              </button>
+                label="Add tag"
+                icon={<Plus width={14} height={14} strokeWidth={2.4} />}
+              />
             </form>
           )}
         </div>

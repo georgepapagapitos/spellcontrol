@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
 import { SearchPill } from '../SearchPill';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   /** Placeholder and accessible name, e.g. "Search your decks". */
@@ -42,9 +43,12 @@ export function HomeSectionSearch({ label, toResults, toPage }: Props) {
           ariaLabel={label}
           className="home-section-search-pill"
           trailing={
-            <button type="submit" className="home-section-search-submit" aria-label="Search">
-              <ArrowRight width={16} height={16} strokeWidth={2} aria-hidden />
-            </button>
+            <IconButton
+              className="home-section-search-submit"
+              type="submit"
+              label="Search"
+              icon={<ArrowRight width={16} height={16} strokeWidth={2} />}
+            />
           }
         />
       </form>

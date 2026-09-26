@@ -107,9 +107,12 @@ export function DeckPickerDialog({
     <Modal onClose={onClose} className="modal deck-picker-modal" labelledBy={labelId}>
       <div className="modal-header deck-picker-header">
         <h2 id={labelId}>{startersOnly ? 'Pick a starter deck' : 'Pick a deck'}</h2>
-        <button className="modal-close" onClick={onClose} aria-label="Close">
-          <X width={20} height={20} strokeWidth={1.8} aria-hidden />
-        </button>
+        <IconButton
+          className="modal-close"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </div>
       <div className="modal-body deck-picker-body">
         {!startersOnly && (

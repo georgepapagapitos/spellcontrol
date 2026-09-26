@@ -21,7 +21,7 @@ import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
 import { useCollectionStore } from '../store/collection';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /** The picker's registry groups this dialog actually sections by — every one
  *  except 'Advanced' (its one field, Scryfall query, renders under Text; see
@@ -744,15 +744,13 @@ function DialogBody({
     >
       <header className="collection-filters-dialog-header">
         <span className="collection-filters-dialog-title">Filters</span>
-        <button
-          type="button"
+        <IconButton
           className="collection-filters-dialog-close"
           onClick={onClose}
-          aria-label="Close filters without applying"
           title="Close without applying"
-        >
-          <X width={20} height={20} strokeWidth={1.8} aria-hidden />
-        </button>
+          label="Close filters without applying"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </header>
 
       <div className="collection-filters-dialog-body">

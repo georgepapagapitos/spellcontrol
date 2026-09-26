@@ -19,6 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { SortField } from '../types';
 import { getDefaultValueOrder, getValueLabel, resolveValueOrder } from '../lib/sorting';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   field: SortField;
@@ -66,15 +67,12 @@ export function SortValueOrderEditor({ field, value, onChange }: Props) {
             ))}
             {isCustomized && (
               <li className="sort-value-order-list-action">
-                <button
-                  type="button"
+                <IconButton
                   className="sort-value-order-reset"
                   onClick={() => onChange(undefined)}
-                  title="Reset to default order"
-                  aria-label="Reset to default order"
-                >
-                  <RotateCcw width={14} height={14} strokeWidth={2} aria-hidden />
-                </button>
+                  label="Reset to default order"
+                  icon={<RotateCcw width={14} height={14} strokeWidth={2} />}
+                />
               </li>
             )}
           </ol>

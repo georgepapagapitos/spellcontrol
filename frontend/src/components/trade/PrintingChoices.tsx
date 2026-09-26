@@ -7,6 +7,7 @@ import type { BinderRef } from '../../lib/use-binder-by-copy';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { formatMoney } from '../../lib/format-money';
 import type { PrintingGroup } from '../../lib/trade-picker';
+import { IconButton } from '@/components/shared/Button';
 
 /** "LEA · #233 · foil · NM" — the identity of one printing, compactly.
  *  The single copy: both trade dialogs render the same rows, so a second
@@ -113,28 +114,24 @@ export function PrintingChoices({
             </span>
             {onSet ? (
               <span className="printing-choice-stepper">
-                <button
-                  type="button"
+                <IconButton
                   className="printing-choice-step"
                   onClick={() => onSet(group.key, count - 1)}
                   disabled={count === 0 || disabled}
-                  aria-label={`One fewer ${printingLabel} ${cardName}`}
-                >
-                  <Minus width={14} height={14} aria-hidden />
-                </button>
+                  label={`One fewer ${printingLabel} ${cardName}`}
+                  icon={<Minus width={14} height={14} />}
+                />
                 <span className="printing-choice-count" aria-live="polite">
                   {count}
                   <span className="printing-choice-owned">/{owned}</span>
                 </span>
-                <button
-                  type="button"
+                <IconButton
                   className="printing-choice-step"
                   onClick={() => onSet(group.key, count + 1)}
                   disabled={count >= owned || disabled}
-                  aria-label={`One more ${printingLabel} ${cardName}`}
-                >
-                  <Plus width={14} height={14} aria-hidden />
-                </button>
+                  label={`One more ${printingLabel} ${cardName}`}
+                  icon={<Plus width={14} height={14} />}
+                />
               </span>
             ) : (
               <span className="printing-choice-count">

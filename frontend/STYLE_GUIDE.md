@@ -504,7 +504,7 @@ there is no `size` prop; a site that carried one painted as plain `.btn`.
 `IconButton` takes a `label` (the accessible name, and the hover tooltip unless
 `title` overrides it or `title={false}` turns it off). With no `variant` or
 `placement` it adds no shared class and the surface's own `className` carries
-the look: most icon-only buttons are one-off close, step and menu controls.
+the look: most icon-only buttons are one-off close, step and menu controls. A button whose only child is card art (a deck-row or trade thumbnail that opens the preview) is not an icon button: it stays a bespoke `<button>`, and the guard lists it as a permanent entry with that reason. A drag handle is an icon button like any other: `IconButton` forwards dnd-kit's `attributes` and `listeners` untouched, and one whose name is a long keyboard instruction sets `title={false}` so the hover tooltip stays short.
 
 A surface modifier goes in `className`, appended after the variant's classes,
 exactly as `btn btn-primary shared-copy-btn` was. A genuinely bespoke control

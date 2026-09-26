@@ -52,6 +52,7 @@ import { GameClock } from './GameClock';
 import { GameMenu } from './GameMenu';
 import { GameRecap } from './GameRecap';
 import './BoardHighRoll.css';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   game: GameState;
@@ -533,8 +534,7 @@ export function GameBoard({
             it) — the clock strip below is NOT hidden for this: it moved out
             of the seam entirely, so a petal can't reach it. */}
           {undoLabel && !hubOpen && (
-            <button
-              type="button"
+            <IconButton
               className="game-board-undo-btn"
               style={{
                 ['--seam-top-pct' as never]: undoPlace.topPct,
@@ -551,17 +551,15 @@ export function GameBoard({
                 ['--undo-ty-lg' as never]: undoPlaceLg.ty,
                 ['--undo-rot' as never]: `${undoButtonParams(board.seam).iconRot}deg`,
               }}
-              aria-label={`Undo ${undoLabel}`}
-              title={`Undo ${undoLabel}`}
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 onUndo();
               }}
-            >
-              <Undo2 width={18} height={18} strokeWidth={2.2} aria-hidden />
-            </button>
+              label={`Undo ${undoLabel}`}
+              icon={<Undo2 width={18} height={18} strokeWidth={2.2} />}
+            />
           )}
         </div>
 

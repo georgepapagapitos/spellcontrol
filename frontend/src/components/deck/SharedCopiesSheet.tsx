@@ -4,7 +4,7 @@ import './SharedCopiesSheet.css';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../../lib/use-escape-key';
 import type { ContestedCard } from '@/lib/allocations';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 export interface SharedCopiesSheetProps {
   /** This deck's name (for the header). */
@@ -62,14 +62,12 @@ export function SharedCopiesSheet({
               elsewhere. A physical copy can only be in one deck. Pull one in when you want it here.
             </p>
           </div>
-          <button
-            type="button"
+          <IconButton
             className="shared-copies-close"
             onClick={onClose}
-            aria-label="Close"
-          >
-            <X width={18} height={18} strokeWidth={2} aria-hidden />
-          </button>
+            label="Close"
+            icon={<X width={18} height={18} strokeWidth={2} />}
+          />
         </header>
 
         {contested.length === 0 ? (

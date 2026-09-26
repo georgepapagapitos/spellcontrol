@@ -12,7 +12,7 @@ import { ProductSearchPanel } from './ProductSearchPanel';
 import { Tabs } from './Tabs';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
 type Tab = 'search' | 'upload' | 'product' | 'scan';
@@ -160,9 +160,12 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
       >
         <div className="modal-header add-cards-modal-header">
           <h2 id={labelId}>Add cards</h2>
-          <button className="modal-close" onClick={() => beginClose()} aria-label="Close">
-            <X width={20} height={20} strokeWidth={1.8} aria-hidden />
-          </button>
+          <IconButton
+            className="modal-close"
+            onClick={() => beginClose()}
+            label="Close"
+            icon={<X width={20} height={20} strokeWidth={1.8} />}
+          />
         </div>
 
         <Tabs

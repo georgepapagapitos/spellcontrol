@@ -48,6 +48,7 @@ import { nextStop, useSheetStops, type SheetStop } from '../lib/use-sheet-stops'
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
 import { CardName } from '@/components/shared/CardName';
+import { IconButton } from '@/components/shared/Button';
 
 /** Scryfall card UUID — gates the rulings fetch to real printings. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -878,17 +879,15 @@ export function CardPreview({
         onAnimationEnd={onAnimationEnd}
         {...touchHandlers}
       >
-        <button
-          type="button"
+        <IconButton
           className="card-preview-close"
           onClick={(e) => {
             e.stopPropagation();
             beginClose();
           }}
-          aria-label="Close preview"
-        >
-          <X width={20} height={20} strokeWidth={2} aria-hidden />
-        </button>
+          label="Close preview"
+          icon={<X width={20} height={20} strokeWidth={2} />}
+        />
 
         <div className="card-preview-stage" ref={stageRef}>
           <div className="card-preview-topbar">
