@@ -7,6 +7,7 @@ import { PlaytestCardFace } from '@/playtest/components/PlaytestCardFace';
 import { bossTickPhrase } from '@/lib/horde';
 import type { HordeDamageResult } from '@/store/horde-game';
 import './horde-sheets.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   libraryCount: number;
@@ -158,17 +159,15 @@ export function HordeDamageSheet({ libraryCount, result, onConfirm, onDone, onCl
         <div className="card-picker-footer">
           {!result ? (
             <>
-              <button type="button" className="btn" onClick={() => beginClose()}>
-                Cancel
-              </button>
-              <button type="button" className="btn btn-primary" onClick={confirm}>
+              <Button onClick={() => beginClose()}>Cancel</Button>
+              <Button variant="primary" onClick={confirm}>
                 Confirm
-              </button>
+              </Button>
             </>
           ) : (
-            <button type="button" className="btn btn-primary" onClick={() => beginClose()}>
+            <Button variant="primary" onClick={() => beginClose()}>
               Done
-            </button>
+            </Button>
           )}
         </div>
       </div>

@@ -6,6 +6,7 @@ import {
   type LocalGameSetup,
   type TableProfile,
 } from '../../store/play';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Saved table setups, above the local-game form.
@@ -123,14 +124,9 @@ export function TableProfiles({
             placeholder="Thursday pod"
           />
         </label>
-        <button
-          type="button"
-          className="btn btn-secondary table-profiles-save-btn"
-          disabled={!name.trim()}
-          onClick={save}
-        >
+        <Button disabled={!name.trim()} onClick={save} className="table-profiles-save-btn">
           {existing ? 'Update' : 'Save'}
-        </button>
+        </Button>
       </div>
     </section>
   );

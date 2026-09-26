@@ -20,6 +20,7 @@ import { HordeAttackBanner } from './HordeAttackBanner';
 import { HordeDamageSheet } from './HordeDamageSheet';
 import { HordeEndSheet } from './HordeEndSheet';
 import { HordeCardMenu } from './HordeCardMenu';
+import { Button } from '@/components/shared/Button';
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
@@ -153,13 +154,9 @@ export function HordeTable() {
         <Modal onClose={() => setPortraitSkipped(true)} labelledBy="horde-rotate-title">
           <h2 id="horde-rotate-title">Turn your tablet sideways</h2>
           <p>The horde's table needs the width.</p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setPortraitSkipped(true)}
-          >
+          <Button variant="primary" onClick={() => setPortraitSkipped(true)}>
             Continue anyway
-          </button>
+          </Button>
         </Modal>
       </div>
     );
@@ -289,24 +286,17 @@ export function HordeTable() {
         </DndContext>
 
         <div className="horde-table-actions">
-          <button
-            type="button"
-            className="btn"
+          <Button
             onClick={() => setDamageSheetOpen(true)}
             disabled={board.zones.library.length === 0 && board.zones.graveyard.length === 0}
           >
             Damage the horde
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleHordeTurn}
-            disabled={phase !== 'live'}
-          >
+          </Button>
+          <Button variant="primary" onClick={handleHordeTurn} disabled={phase !== 'live'}>
             {phase === 'setup'
               ? `Horde arrives after turn ${config.settings.setupTurns}`
               : 'Horde turn'}
-          </button>
+          </Button>
         </div>
 
         {pendingAttack && phase === 'combat' && (

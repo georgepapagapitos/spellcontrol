@@ -6,6 +6,7 @@ import type { GameResultEdit } from '../../lib/game-results-client';
 import type { GameRecord } from '../../lib/game-state';
 import type { Deck } from '../../store/decks';
 import './GameResultEditDialog.css';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Correct the attribution on a finished game: who won, and which deck sat
@@ -123,12 +124,10 @@ export function GameResultEditDialog({
       </fieldset>
 
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="btn btn-primary" onClick={save}>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={save}>
           Save
-        </button>
+        </Button>
       </div>
     </Modal>
   );

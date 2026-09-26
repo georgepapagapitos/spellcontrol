@@ -3,6 +3,7 @@ import { useSheetExit } from '@/lib/use-sheet-exit';
 import { PlaytestCardFace } from '@/playtest/components/PlaytestCardFace';
 import type { PlaytestCard } from '@/lib/playtest';
 import './horde-sheets.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   revealed: PlaytestCard[];
@@ -62,9 +63,9 @@ export function HordeRevealSheet({ revealed, toResolveIds, waveEndId, onConfirm 
           </p>
         )}
         <div className="card-picker-footer">
-          <button type="button" className="btn btn-primary" onClick={() => beginClose()}>
+          <Button variant="primary" onClick={() => beginClose()}>
             Confirm
-          </button>
+          </Button>
         </div>
       </div>
     </div>

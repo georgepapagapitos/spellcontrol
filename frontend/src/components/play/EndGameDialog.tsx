@@ -2,6 +2,7 @@ import { useState } from 'react';
 import './EndGameDialog.css';
 import { Modal } from '../Modal';
 import type { GamePlayer } from '../../lib/game-state';
+import { Button } from '@/components/shared/Button';
 
 /**
  * End-game dialog with a real winner picker. If exactly one player is alive
@@ -58,17 +59,10 @@ export function EndGameDialog({
         </label>
       </fieldset>
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onCancel}>
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => onConfirm(winnerSeat)}
-          autoFocus
-        >
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={() => onConfirm(winnerSeat)} autoFocus>
           Save
-        </button>
+        </Button>
       </div>
     </Modal>
   );

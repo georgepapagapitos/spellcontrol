@@ -24,7 +24,7 @@ import { encodeCustomLayout, resolveLayout, turnOrderOf } from '../../lib/board-
 import { paletteForSeat } from '../../lib/seat-palette';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 import { useTapAndHold } from '../../lib/tap-and-hold';
-import { IconButton } from '../shared/Button';
+import { Button, IconButton } from '../shared/Button';
 import { FacingArrow } from './FacingArrow';
 
 // ── Seat drawer ────────────────────────────────────────────────────────────
@@ -371,13 +371,14 @@ export function SeatMenu({
                       autoComplete="off"
                       onChange={(e) => setNameDraft(e.target.value)}
                     />
-                    <button
+                    <Button
+                      variant="primary"
+                      placement="row"
                       type="submit"
-                      className="pill-btn pill-btn-primary"
                       disabled={!nameTrimmed || nameTrimmed === player.name}
                     >
                       Save
-                    </button>
+                    </Button>
                   </div>
                 </form>
               </div>
@@ -407,13 +408,14 @@ export function SeatMenu({
                       placeholder="None"
                       onChange={(e) => setPartnerDraft(e.target.value)}
                     />
-                    <button
+                    <Button
+                      variant="primary"
+                      placement="row"
                       type="submit"
-                      className="pill-btn pill-btn-primary"
                       disabled={(partnerTrimmed || null) === (player.partner ?? null)}
                     >
                       Save
-                    </button>
+                    </Button>
                   </div>
                   <span className="seat-menu-color-hint">
                     A partner counts its own commander damage, toward its own 21.

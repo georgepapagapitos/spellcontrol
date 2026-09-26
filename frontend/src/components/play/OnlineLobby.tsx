@@ -1,6 +1,5 @@
 import { Check, Copy, Crown, Shuffle, UserRound, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { SelectMenu } from '../SelectMenu';
 import { VisibilityChoice } from '../VisibilityChoice';
@@ -34,6 +33,7 @@ import {
 import { findBannedCards, type HordeBanWarning } from '@/lib/horde/ban-list';
 import { useStarterDeckCardNames } from '@/lib/horde/starter-deck-cards';
 import './OnlineLobby.css';
+import { Button } from '@/components/shared/Button';
 
 /** Same cap as the create/join paths and the local setup's seat names. */
 const MAX_GUEST_NAME = 40;
@@ -275,9 +275,7 @@ export function OnlineLobby({
                   {hordeDeck.status === 'error' && (
                     <p className="lobby-horde-error" role="alert">
                       <span>Couldn't load that horde.</span>
-                      <button type="button" className="btn" onClick={hordeDeck.retry}>
-                        Try again
-                      </button>
+                      <Button onClick={hordeDeck.retry}>Try again</Button>
                     </p>
                   )}
                 </>
@@ -354,16 +352,14 @@ export function OnlineLobby({
             onChange={pickDeck}
           />
           {mySeat.deckId && (
-            <Link to={deckBoardPath(mySeat.deckId)} className="btn lobby-bar-btn">
+            <Button to={deckBoardPath(mySeat.deckId)} className="lobby-bar-btn">
               Open board
-            </Link>
+            </Button>
           )}
         </div>
 
         <div className="lobby-bar-group lobby-bar-group--actions">
-          <button
-            type="button"
-            className={`btn lobby-bar-btn lobby-ready-btn ${mySeat.ready === true ? 'is-ready' : ''}`}
+          <Button
             aria-pressed={mySeat.ready === true}
             onClick={() =>
               dispatch({
@@ -372,9 +368,10 @@ export function OnlineLobby({
                 ready: mySeat.ready !== true,
               })
             }
+            className={`lobby-bar-btn lobby-ready-btn ${mySeat.ready === true ? 'is-ready' : ''}`}
           >
             {mySeat.ready === true ? 'Ready' : "I'm ready"}
-          </button>
+          </Button>
 
           {isHost ? (
             <>
@@ -390,9 +387,8 @@ export function OnlineLobby({
                   </span>
                 )}
               </span>
-              <button
-                type="button"
-                className="btn btn-primary lobby-bar-btn"
+              <Button
+                variant="primary"
                 disabled={isHordeFormat && (hordeDeck.status !== 'loaded' || seatedCount < 1)}
                 onClick={() => {
                   if (isHordeFormat) {
@@ -432,11 +428,12 @@ export function OnlineLobby({
                   }
                   dispatch({ type: 'start' });
                 }}
+                className="lobby-bar-btn"
               >
                 {isHordeFormat && hordeDeck.status === 'loading'
                   ? 'Loading the horde…'
                   : 'Start game'}
-              </button>
+              </Button>
             </>
           ) : (
             <span className="lobby-waiting" aria-live="polite">
@@ -444,13 +441,12 @@ export function OnlineLobby({
             </span>
           )}
 
-          <button
-            type="button"
-            className="btn lobby-bar-btn lobby-leave-btn"
+          <Button
             onClick={() => (isHost ? setConfirmLeave(true) : onLeave())}
+            className="lobby-bar-btn lobby-leave-btn"
           >
             Leave
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -615,12 +611,10 @@ function OpenSeat({
           No account or device needed. The table tracks them.
         </span>
         <div className="lobby-seat-guest-actions">
-          <button type="button" className="btn" onClick={() => setNaming(false)}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
+          <Button onClick={() => setNaming(false)}>Cancel</Button>
+          <Button variant="primary" type="submit" disabled={!name.trim()}>
             Seat them
-          </button>
+          </Button>
         </div>
       </form>
     </li>
@@ -921,10 +915,13 @@ function LobbyRail({
         {isHost && game.players.length > 1 && (
           <div className="lobby-setting">
             <span>Seats</span>
-            <button type="button" className="btn lobby-randomize" onClick={shuffleSeats}>
-              <Shuffle width={14} height={14} strokeWidth={2} aria-hidden />
+            <Button
+              onClick={shuffleSeats}
+              className="lobby-randomize"
+              icon={<Shuffle width={14} height={14} strokeWidth={2} />}
+            >
               Shuffle
-            </button>
+            </Button>
           </div>
         )}
 
@@ -1226,9 +1223,9 @@ function LobbyChat({
           maxLength={MAX_CHAT_LEN}
           autoComplete="off"
         />
-        <button type="submit" className="btn lobby-composer-send" disabled={!trimmed}>
+        <Button type="submit" disabled={!trimmed} className="lobby-composer-send">
           Send
-        </button>
+        </Button>
       </form>
     </section>
   );

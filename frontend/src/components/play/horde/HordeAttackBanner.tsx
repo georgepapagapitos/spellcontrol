@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { VARIABLE_POWER_CEILING, variablePowerCount, type AttackerGroup } from '@/lib/horde';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   attackers: number;
@@ -49,13 +50,13 @@ export function HordeAttackBanner({ attackers, power, groups, onTake }: Props) {
       </div>
       <div className="horde-attack-banner-actions">
         {value === 0 ? (
-          <button type="button" className="btn btn-primary" onClick={() => onTake(0)}>
+          <Button variant="primary" onClick={() => onTake(0)}>
             Skip
-          </button>
+          </Button>
         ) : (
-          <button type="button" className="btn btn-primary" onClick={() => onTake(value)}>
+          <Button variant="primary" onClick={() => onTake(value)}>
             Take {value}
-          </button>
+          </Button>
         )}
       </div>
     </div>

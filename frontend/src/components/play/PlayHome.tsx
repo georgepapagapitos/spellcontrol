@@ -5,6 +5,7 @@ import type { GameNight } from '../../lib/game-nights-api';
 import type { GameRecord, GameState } from '../../lib/game-state';
 import { gameFormatLabel } from '../../lib/game-formats';
 import { aggregateDeckRecords } from '../../store/play';
+import { Button } from '@/components/shared/Button';
 
 export type PlayHomeTarget =
   | { tab: 'local' }
@@ -251,9 +252,9 @@ function LiveGameRow({
           {game.players.map((p) => p.name).join(' · ')}
         </span>
       </div>
-      <button type="button" className="btn btn-primary" onClick={onOpen}>
+      <Button variant="primary" onClick={onOpen}>
         {cta}
-      </button>
+      </Button>
     </div>
   );
 }

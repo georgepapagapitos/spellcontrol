@@ -3,6 +3,7 @@ import { useSheetExit } from '@/lib/use-sheet-exit';
 import { usePlayStore } from '@/store/play';
 import { aggregateHordeRecords } from '@/lib/horde-records';
 import './horde-sheets.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   outcome: 'won' | 'lost';
@@ -105,13 +106,11 @@ export function HordeEndSheet({
           </ul>
         </div>
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            {doneLabel}
-          </button>
+          <Button onClick={() => beginClose()}>{doneLabel}</Button>
           {onPlayAgain ? (
-            <button type="button" className="btn btn-primary" onClick={onPlayAgain}>
+            <Button variant="primary" onClick={onPlayAgain}>
               {playAgainLabel}
-            </button>
+            </Button>
           ) : (
             playAgainHint && <p className="horde-end-hint">{playAgainHint}</p>
           )}

@@ -4,6 +4,7 @@ import { EmptyStateMark } from '../shared/EmptyStateMark';
 import { listGames, type GameListing } from '../../lib/games-api';
 import { gameFormatLabel } from '../../lib/game-formats';
 import { userMessage } from '../../lib/user-error';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   /** Claim a seat at this code — routed through the same `joinOnline` the
@@ -73,9 +74,9 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
           Host a table and set it to public, or ask the host for a join code.
         </p>
         <div className="empty-state-actions">
-          <button type="button" className="btn btn-primary" onClick={onHostInstead}>
+          <Button variant="primary" onClick={onHostInstead}>
             Host a table
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -112,25 +113,21 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
             </span>
           </div>
           {g.status === 'active' ? (
-            <button
-              type="button"
-              className="btn room-browser-action"
-              onClick={() => onWatch(g.code)}
-            >
+            <Button onClick={() => onWatch(g.code)} className="room-browser-action">
               Spectate
-            </button>
+            </Button>
           ) : g.joinable ? (
-            <button
-              type="button"
-              className="btn btn-primary room-browser-action"
+            <Button
+              variant="primary"
               onClick={() => onJoin(g.code)}
+              className="room-browser-action"
             >
               Join
-            </button>
+            </Button>
           ) : (
-            <button type="button" className="btn room-browser-action" disabled>
+            <Button disabled className="room-browser-action">
               Full
-            </button>
+            </Button>
           )}
         </li>
       ))}

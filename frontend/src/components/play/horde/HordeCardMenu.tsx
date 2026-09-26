@@ -3,6 +3,7 @@ import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { PlaytestCard } from '@/lib/playtest';
 import './horde-sheets.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   card: PlaytestCard;
@@ -42,20 +43,12 @@ export function HordeCardMenu({ card, onMove, onClose }: Props) {
           <h2 className="card-picker-title">{card.name}</h2>
         </div>
         <div className="card-picker-list horde-card-menu-body">
-          <button type="button" className="btn" onClick={() => act('graveyard')}>
-            Destroyed
-          </button>
-          <button type="button" className="btn" onClick={() => act('exile')}>
-            Exiled
-          </button>
-          <button type="button" className="btn" onClick={() => act('library')}>
-            Returned to the library
-          </button>
+          <Button onClick={() => act('graveyard')}>Destroyed</Button>
+          <Button onClick={() => act('exile')}>Exiled</Button>
+          <Button onClick={() => act('library')}>Returned to the library</Button>
         </div>
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            Close
-          </button>
+          <Button onClick={() => beginClose()}>Close</Button>
         </div>
       </div>
     </div>
