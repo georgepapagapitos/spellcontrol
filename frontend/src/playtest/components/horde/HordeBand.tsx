@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { usePlaytestStore } from '@/playtest/store';
 import { VARIABLE_POWER_CEILING, variablePowerCount, type AttackerGroup } from '@/lib/horde';
 import type { SoloHordeState } from '@/playtest/lib/horde-solo';
 import { hordeBandLine } from '@/playtest/lib/horde-view';
+import { useHordeActions } from './horde-actions';
 import { HordeFelt } from './HordeFelt';
 import { HordeDamageControl } from './HordeDamageControl';
 import './HordeBand.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   horde: SoloHordeState | null;
@@ -17,6 +18,17 @@ interface Props {
    *  for why neither renders inside this band). */
   onCardMenu(cardId: string): void;
   onOpenDamage(): void;
+  /** Replaces the folded line's setup-case wording — an online table's own
+   *  team-turn/waiting-on status. */
+  statusText?: string;
+  /** Replaces the field with a message + button (same markup as the
+   *  load-error state) — an online table's app-version skew. */
+  blocked?: { message: string; actionLabel: string; onAction(): void };
+  /** Hides Damage and stops card taps — a spectator's view. */
+  readOnly?: boolean;
+  /** A bar button beside Damage — an online table's "Go now" (start without
+   *  the rest of the team). */
+  extraAction?: { label: string; ariaLabel: string; onClick(): void };
 }
 
 /** '' reads as 0, same rule as the damage sheet's own draft field — never
@@ -84,9 +96,12 @@ export function HordeBand({
   feltRef,
   onCardMenu,
   onOpenDamage,
+  statusText,
+  blocked,
+  readOnly,
+  extraAction,
 }: Props) {
-  const resolveHordeAttack = usePlaytestStore((s) => s.resolveHordeAttack);
-  const retryHordeLoad = usePlaytestStore((s) => s.retryHordeLoad);
+  const { take, retryLoad } = useHordeActions();
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const prevPhase = useRef(horde?.phase ?? null);
 
@@ -101,6 +116,21 @@ export function HordeBand({
     }
   }, [horde?.phase]);
 
+  if (blocked) {
+    return (
+      <section className="horde-band is-open" aria-label="The horde">
+        <div className="horde-band__bar">
+          <span className="horde-band__line">
+            {blocked.message}{' '}
+            <button type="button" className="horde-band__retry" onClick={blocked.onAction}>
+              {blocked.actionLabel}
+            </button>
+          </span>
+        </div>
+      </section>
+    );
+  }
+
   if (!horde) {
     return (
       <section className="horde-band is-open" aria-label="The horde">
@@ -108,7 +138,7 @@ export function HordeBand({
           {hordeLoad.status === 'error' ? (
             <span className="horde-band__line">
               Couldn't load the horde.{' '}
-              <button type="button" className="horde-band__retry" onClick={() => retryHordeLoad()}>
+              <button type="button" className="horde-band__retry" onClick={() => retryLoad()}>
                 Try again
               </button>
             </span>
@@ -126,7 +156,7 @@ export function HordeBand({
   // A phone player needs the same way to mill the horde's library a desktop
   // player has — absent only while there's an attack total to resolve or the
   // fight is over (E387 PR 5 follow-up: the band shipped with no way to win).
-  const canDamage = horde.phase !== 'combat' && horde.phase !== 'ended';
+  const canDamage = horde.phase !== 'combat' && horde.phase !== 'ended' && !readOnly;
 
   return (
     <section className={`horde-band${open ? ' is-open' : ''}`} aria-label="The horde">
@@ -135,7 +165,7 @@ export function HordeBand({
           <CombatBar
             power={horde.pendingAttack.power}
             groups={horde.pendingAttack.groups}
-            onTake={resolveHordeAttack}
+            onTake={take}
           />
         ) : (
           <>
@@ -145,13 +175,24 @@ export function HordeBand({
               aria-expanded={open}
               onClick={() => setManualOpen(!open)}
             >
-              <span className="horde-band__line">{hordeBandLine(horde, playerTurn)}</span>
+              <span className="horde-band__line">
+                {statusText ?? hordeBandLine(horde, playerTurn)}
+              </span>
               {open ? (
                 <ChevronUp width={16} height={16} aria-hidden />
               ) : (
                 <ChevronDown width={16} height={16} aria-hidden />
               )}
             </button>
+            {extraAction && (
+              <Button
+                className="horde-band__damage"
+                aria-label={extraAction.ariaLabel}
+                onClick={extraAction.onClick}
+              >
+                {extraAction.label}
+              </Button>
+            )}
             {canDamage && (
               <HordeDamageControl
                 libraryCount={horde.board.zones.library.length}
@@ -170,7 +211,7 @@ export function HordeBand({
           <HordeFelt
             board={horde.board}
             attackingIds={horde.attackingIds}
-            onCardMenu={onCardMenu}
+            onCardMenu={readOnly ? () => {} : onCardMenu}
           />
         </div>
       )}

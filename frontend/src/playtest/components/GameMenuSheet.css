@@ -221,6 +221,11 @@
   color: var(--err-text);
 }
 
+.playtest-game-menu__item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .playtest-game-menu__item.is-danger:hover {
     border-color: var(--err-border);

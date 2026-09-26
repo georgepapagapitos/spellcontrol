@@ -26,6 +26,10 @@ export interface OpponentSeat {
    *  so this flag swaps them for a "no board shared yet" line instead of
    *  rendering fabricated zeros. `board.life` is still shown — it's real. */
   pending?: boolean;
+  /** A horde table's team-turn state for this seat — absent at any other
+   *  table. Rendered as a small tag after the name (glance and presence
+   *  densities alike) and folded into the entry's `aria-label`. */
+  status?: 'Playing' | 'Done' | 'Offline';
 }
 
 interface OpponentRailProps {
@@ -151,7 +155,7 @@ function OpponentEntry({
   watching: boolean;
   onOpen: () => void;
 }) {
-  const { name, board, pending } = opp;
+  const { name, board, pending, status } = opp;
   const palette = paletteForIndex(board.seat);
   const held = DESIGNATIONS.filter((d) => board[d.key]);
   const permanentCount = board.battlefield.length;
@@ -190,6 +194,7 @@ function OpponentEntry({
       `showing ${board.revealed!.map((c) => c.name ?? 'a card').join(', ')}`,
     !pending && (board.stack?.length ?? 0) > 0 && `${board.stack!.length} on the stack`,
     held.length > 0 && `holds ${held.map((d) => d.label).join(', ')}`,
+    status && status.toLowerCase(),
     // Part of the label rather than a bare visual ring: the highlight is the
     // whole point of a point, and a screen-reader user reaching this entry
     // has to be told it is lit. TableSignals separately ANNOUNCES the point
@@ -235,6 +240,14 @@ function OpponentEntry({
           {active && (
             <span className="opponent-entry__turn-chip" aria-hidden="true">
               Turn
+            </span>
+          )}
+          {status && (
+            <span
+              className={`opponent-entry__status opponent-entry__status--${status.toLowerCase()}`}
+              aria-hidden="true"
+            >
+              {status === 'Done' ? '✓ Done' : status}
             </span>
           )}
           {unseen > 0 && (

@@ -6973,6 +6973,45 @@ these are the rulings specific to sharing one board with a real, live game.
   turn"), whether passing your turn is due to open the horde's turn instead
   of advancing yours.
 
+### Horde at an online table (E387 online co-op)
+
+1-4 survivors share the same fight over the network, replaying one server-
+logged step sequence (`useOnlineHorde`) instead of driving a local reducer —
+every seat, and a reload mid-game, rebuilds the identical board.
+
+- **The horde's half sits on top, your own board below — same as solo,
+  never a quadrant.** `.playtest-main--horde` is unchanged; a horde table
+  adds `.playtest-main--horde-rail`'s 15rem rail column beside it rather than
+  reaching for the desktop seat grid. The horde is this table's one
+  "opponent", and the grid has no cell shaped for it.
+- **Teammates always sit in the existing side rail, never the 2x2 grid.**
+  The seat-grid toggle is forced off at a horde table (`gridFits` is `false`
+  there) — pressing it shows the same "This table only fits the rail." toast
+  a 5-seat pod gets, rather than a second, silently-broken layout mode.
+- **The team-turn chip replaces the turn chip, never adds a second one.**
+  Mid-survivors-phase, not yet done: a pressable chip, "Team turn N" over
+  "Done" (narrow: "Team N"). Marked done, teammates still playing: "Waiting
+  for Maya" (narrow: "Waiting", full sentence still announced), pressable
+  again to un-mark ("Not done"), plus a "Start without Maya" button under it
+  on desktop — the same intent as the band's "Go now" on a phone. During the
+  horde's own turn (reveal or combat): a plain readout, "The horde's turn"
+  (narrow "Horde"), matching solo's own degrade. `PhaseChip` never renders at
+  a horde table — a team turn has no phases to click through.
+  Space (the pass-turn shortcut) toggles this seat's own done flag instead of
+  passing a turn that doesn't exist here.
+- **One ending, never two.** The Horde end sheet is the only game-over UI at
+  a horde table — the online win ceremony (`TableMoments`) and the persistent
+  `TableFinishedBanner` both gate on `format !== 'horde'` and never mount
+  there. A host sees "Rematch" (dispatches `reset`, back to the lobby) and
+  "Leave table"; a joiner sees only "Leave table" plus "The host can start a
+  rematch." — never a Rematch button that would bounce off the server's
+  host-only check.
+- **A rail entry's status tag is glance information, not a second source of
+  truth.** `OpponentSeat.status` ("Playing" / "Done" / "Offline") is folded
+  into the same entry the rest of that seat's board already renders in, in
+  both rail densities, and into its `aria-label` — never a separate list or a
+  modal of its own.
+
 ---
 
 ## Extending this guide

@@ -6,9 +6,9 @@ import type { RefObject } from 'react';
 import '@/styles/play-setup.css';
 import { HordeCardMenu } from '@/components/play/horde/HordeCardMenu';
 import { HordeDamageSheet } from '@/components/play/horde/HordeDamageSheet';
-import { usePlaytestStore } from '@/playtest/store';
 import type { SoloHordeState } from '@/playtest/lib/horde-solo';
 import { measureHordeRect } from '@/playtest/lib/horde-view';
+import { useHordeActions } from './horde-actions';
 
 interface Props {
   horde: SoloHordeState;
@@ -40,9 +40,7 @@ export function HordeOverlays({
   onCloseDamage,
   feltRef,
 }: Props) {
-  const moveHordeCard = usePlaytestStore((s) => s.moveHordeCard);
-  const damageHorde = usePlaytestStore((s) => s.damageHorde);
-  const clearHordeDamageResult = usePlaytestStore((s) => s.clearHordeDamageResult);
+  const { move, damage, clearDamageResult } = useHordeActions();
 
   const menuCard = cardMenuId
     ? (horde.board.battlefield.find((b) => b.card.id === cardMenuId)?.card ?? null)
@@ -53,7 +51,7 @@ export function HordeOverlays({
       {menuCard && (
         <HordeCardMenu
           card={menuCard}
-          onMove={(to) => moveHordeCard(menuCard.id, to)}
+          onMove={(to) => move(menuCard.id, to)}
           onClose={onCloseCardMenu}
         />
       )}
@@ -62,10 +60,10 @@ export function HordeOverlays({
           libraryCount={horde.board.zones.library.length}
           result={horde.lastDamageResult}
           onConfirm={(amount) =>
-            damageHorde(amount, feltRef.current ? measureHordeRect(feltRef.current) : null)
+            damage(amount, feltRef.current ? measureHordeRect(feltRef.current) : null)
           }
           onDone={() => {
-            clearHordeDamageResult();
+            clearDamageResult();
             onCloseDamage();
           }}
           onClose={onCloseDamage}

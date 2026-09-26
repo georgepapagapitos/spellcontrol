@@ -184,6 +184,35 @@
   white-space: nowrap;
 }
 
+/* A horde table's team-turn state for this seat (OpponentSeat.status) —
+   never a solid accent chip like the active-turn one above, since more than
+   one seat can carry this at once. */
+.opponent-entry__status {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  padding: 1px var(--space-2);
+  white-space: nowrap;
+}
+
+.opponent-entry__status--playing {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+}
+
+.opponent-entry__status--done {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+}
+
+.opponent-entry__status--offline {
+  color: var(--warn-text);
+  background: color-mix(in srgb, var(--warn-text) 18%, transparent);
+}
+
 .opponent-entry__life {
   flex: 0 0 auto;
   font-size: var(--text-base);

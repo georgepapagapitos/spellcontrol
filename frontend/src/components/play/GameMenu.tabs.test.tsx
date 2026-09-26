@@ -114,7 +114,7 @@ describe('Reset asks first', () => {
     expect(dispatch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Reset' }).at(-1)!);
-    expect(dispatch).toHaveBeenCalledWith({ type: 'reset' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'reset', id: expect.stringMatching(/^game_/) });
   });
 });
 

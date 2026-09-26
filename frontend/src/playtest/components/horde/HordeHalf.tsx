@@ -2,12 +2,13 @@ import type { RefObject } from 'react';
 import '@/styles/horde-table.css';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { ZonePile } from '@/playtest/components/ZonePile';
-import { usePlaytestStore } from '@/playtest/store';
 import type { SoloHordeState } from '@/playtest/lib/horde-solo';
 import { cardsUntilNextBoss, hordeLevelLabel, hordeStatusText } from '@/playtest/lib/horde-view';
+import { useHordeActions } from './horde-actions';
 import { HordeFelt } from './HordeFelt';
 import { HordeDamageControl } from './HordeDamageControl';
 import './HordeHalf.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   horde: SoloHordeState | null;
@@ -18,6 +19,14 @@ interface Props {
    *  for why neither renders inside this half). */
   onCardMenu(cardId: string): void;
   onOpenDamage(): void;
+  /** Replaces the status line's "· <status>" half — an online table's own
+   *  team-turn/waiting-on wording instead of the solo `hordeStatusText`. */
+  statusText?: string;
+  /** Replaces the felt with a message + button (same markup as the
+   *  load-error state) — an online table's app-version skew. */
+  blocked?: { message: string; actionLabel: string; onAction(): void };
+  /** Hides "Damage the horde" and stops card taps — a spectator's view. */
+  readOnly?: boolean;
 }
 
 /**
@@ -33,8 +42,21 @@ export function HordeHalf({
   feltRef,
   onCardMenu,
   onOpenDamage,
+  statusText,
+  blocked,
+  readOnly,
 }: Props) {
-  const retryHordeLoad = usePlaytestStore((s) => s.retryHordeLoad);
+  const { retryLoad } = useHordeActions();
+
+  if (blocked) {
+    return (
+      <div ref={feltRef} className="horde-half horde-half--loading playtest-battlefield-wrap">
+        <p className="horde-half-message">
+          {blocked.message} <Button onClick={blocked.onAction}>{blocked.actionLabel}</Button>
+        </p>
+      </div>
+    );
+  }
 
   if (!horde) {
     return (
@@ -42,7 +64,7 @@ export function HordeHalf({
         {hordeLoad.status === 'error' ? (
           <p className="horde-half-message">
             {hordeLoad.error ?? "Couldn't load the horde."}{' '}
-            <button type="button" className="btn" onClick={() => retryHordeLoad()}>
+            <button type="button" className="btn" onClick={() => retryLoad()}>
               Try again
             </button>
           </p>
@@ -67,7 +89,7 @@ export function HordeHalf({
       <div className="horde-table-status">
         <span className="horde-table-status-name">{config.hordeName}</span>
         <span className="horde-table-status-line">
-          {hordeLevelLabel(config.level)} · {hordeStatusText(horde, playerTurn)}
+          {hordeLevelLabel(config.level)} · {statusText ?? hordeStatusText(horde, playerTurn)}
         </span>
       </div>
 
@@ -115,9 +137,13 @@ export function HordeHalf({
         </div>
       </div>
 
-      <HordeFelt board={board} attackingIds={attackingIds} onCardMenu={onCardMenu} />
+      <HordeFelt
+        board={board}
+        attackingIds={attackingIds}
+        onCardMenu={readOnly ? () => {} : onCardMenu}
+      />
 
-      {horde.phase !== 'ended' && (
+      {horde.phase !== 'ended' && !readOnly && (
         <div className="horde-table-actions">
           <HordeDamageControl
             libraryCount={board.zones.library.length}

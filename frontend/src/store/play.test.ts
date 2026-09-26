@@ -15,7 +15,9 @@ import {
   makePlayer,
   type GameRecord,
   type GameState,
+  type HordeStep,
 } from '../lib/game-state';
+import { resolveHordeSettings } from '../lib/horde';
 import { gameElapsed } from '../lib/game-clock';
 import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
 import * as gamesBoard from '../lib/games-board';
@@ -129,6 +131,38 @@ function makeOnlineGame(version = 1): GameState {
 
 function httpError(message: string, status: number): Error {
   return Object.assign(new Error(message), { status });
+}
+
+/** A started (active) online HORDE game, code ABCD like `makeOnlineGame`. */
+function makeHordeGame(version = 1): GameState {
+  let g = createGameState({
+    id: 'game_horde',
+    code: 'ABCD',
+    mode: 'online',
+    hostUserId: 'u1',
+    format: 'horde',
+    startingLife: 60,
+    commanderDamageEnabled: false,
+    poisonEnabled: false,
+    players: [
+      makePlayer({ id: 'p0', userId: 'u1', seat: 0, name: 'Host', startingLife: 60, isHost: true }),
+      makePlayer({ id: 'p1', userId: 'u2', seat: 1, name: 'Maya', startingLife: 60 }),
+    ],
+  });
+  g = applyAction(g, {
+    type: 'horde-setup',
+    hordeId: 'zombies',
+    level: 'standard',
+    settings: resolveHordeSettings('standard', 2),
+    seed: 42,
+    deckRev: 'rev1',
+  });
+  return { ...applyAction(g, { type: 'start' }), version };
+}
+
+/** Appends one logged horde step, dispatched by `actorSeat`. */
+function withHordeStep(g: GameState, step: HordeStep, actorSeat: number): GameState {
+  return applyAction(g, { type: 'horde-step', step, at: g.horde!.steps.length, actorSeat });
 }
 
 function mockGameRequest(overrides: Partial<GameRequest> = {}): GameRequest {
@@ -852,6 +886,98 @@ describe('usePlayStore — online flow', () => {
       .getState()
       .dispatchOnline({ type: 'life', seat: 0, delta: -1, actorSeat: 0 });
     expect(usePlayStore.getState().online).toBe(fresh);
+    expect(usePlayStore.getState().onlineError).toBe('Someone else moved first. Refreshed.');
+  });
+
+  it('dispatchOnline re-sends a commutable horde damage step after a 409, rebased to the fresh log length', async () => {
+    mockCreate.mockResolvedValue(makeHordeGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'horde',
+      startingLife: 60,
+      commanderDamageEnabled: false,
+      poisonEnabled: false,
+    });
+
+    mockPatch.mockRejectedValueOnce(httpError('conflict', 409));
+    // Maya's reveal landed first — the log the refetch adopts is one step in.
+    // (applyAction bumps `version` by 1 per action, so the base 5 lands at 6.)
+    const fresh = withHordeStep(makeHordeGame(5), { k: 'reveal' }, 1);
+    expect(fresh.version).toBe(6);
+    mockGet.mockResolvedValue(fresh);
+    const resent = { ...withHordeStep(fresh, { k: 'damage', n: 6 }, 0), version: 7 };
+    mockPatch.mockResolvedValueOnce({ game: resent });
+
+    await usePlayStore
+      .getState()
+      .dispatchOnline({ type: 'horde-step', step: { k: 'damage', n: 6 }, at: 0, actorSeat: 0 });
+
+    expect(mockPatch).toHaveBeenCalledTimes(2);
+    expect(mockPatch).toHaveBeenNthCalledWith(2, 'ABCD', 6, [
+      { type: 'horde-step', step: { k: 'damage', n: 6 }, at: 1, actorSeat: 0 },
+    ]);
+    expect(usePlayStore.getState().online).toBe(resent);
+    expect(usePlayStore.getState().online?.horde?.steps).toHaveLength(2);
+  });
+
+  it('dispatchOnline drops a non-commutable horde step after a 409, naming what the fresh log already did', async () => {
+    mockCreate.mockResolvedValue(makeHordeGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'horde',
+      startingLife: 60,
+      commanderDamageEnabled: false,
+      poisonEnabled: false,
+    });
+
+    mockPatch.mockRejectedValueOnce(httpError('conflict', 409));
+    const fresh = withHordeStep(makeHordeGame(4), { k: 'reveal' }, 1);
+    mockGet.mockResolvedValue(fresh);
+
+    await usePlayStore
+      .getState()
+      .dispatchOnline({ type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 });
+
+    // No re-send attempted for a non-commutable step.
+    expect(mockPatch).toHaveBeenCalledTimes(1);
+    expect(usePlayStore.getState().onlineError).toBe("Maya already started the horde's turn.");
+  });
+
+  it('dispatchOnline drops a rejected horde-done, naming the fresh log actor for a take/confirm/reveal', async () => {
+    mockCreate.mockResolvedValue(makeHordeGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'horde',
+      startingLife: 60,
+      commanderDamageEnabled: false,
+      poisonEnabled: false,
+    });
+
+    mockPatch.mockRejectedValueOnce(httpError('conflict', 409));
+    const fresh = withHordeStep(
+      withHordeStep(makeHordeGame(4), { k: 'reveal' }, 1),
+      { k: 'confirm' },
+      1
+    );
+    mockGet.mockResolvedValue(fresh);
+
+    await usePlayStore.getState().dispatchOnline({ type: 'horde-done', actorSeat: 0, done: true });
+
+    expect(usePlayStore.getState().onlineError).toBe('Maya already confirmed the reveal.');
+  });
+
+  it('dispatchOnline falls back to the generic 409 copy when the log\'s last step has no "already did X" phrasing', async () => {
+    mockCreate.mockResolvedValue(makeHordeGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'horde',
+      startingLife: 60,
+      commanderDamageEnabled: false,
+      poisonEnabled: false,
+    });
+
+    mockPatch.mockRejectedValueOnce(httpError('conflict', 409));
+    const fresh = withHordeStep(makeHordeGame(4), { k: 'damage', n: 3 }, 1);
+    mockGet.mockResolvedValue(fresh);
+
+    await usePlayStore.getState().dispatchOnline({ type: 'horde-done', actorSeat: 0, done: true });
+
     expect(usePlayStore.getState().onlineError).toBe('Someone else moved first. Refreshed.');
   });
 

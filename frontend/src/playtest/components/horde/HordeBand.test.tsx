@@ -196,4 +196,57 @@ describe('HordeBand', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(usePlaytestStore.getState().retryHordeLoad).toHaveBeenCalledTimes(1);
   });
+
+  it('overrides the folded line with statusText', () => {
+    renderBand({
+      horde: buildTestHorde({ phase: 'waiting' }),
+      statusText: 'Team turn 3 · Watching',
+    });
+    expect(screen.getByText('Team turn 3 · Watching')).toBeTruthy();
+  });
+
+  it('replaces the field with a message and an action button when blocked', () => {
+    const onAction = vi.fn();
+    renderBand({
+      blocked: { message: 'This table is from a newer build.', actionLabel: 'Reload', onAction },
+    });
+    expect(screen.getByText(/This table is from a newer build\./)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows extraAction as a bar button beside Damage', () => {
+    const onClick = vi.fn();
+    renderBand({
+      horde: buildTestHorde({ phase: 'waiting' }),
+      extraAction: { label: 'Go now', ariaLabel: 'Start the horde without the team', onClick },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Start the horde without the team' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Damage the horde' })).toBeTruthy();
+  });
+
+  it('hides Damage and ignores card taps when readOnly', () => {
+    const horde = buildTestHorde({ phase: 'reveal' });
+    const card = horde.board.zones.library[0];
+    horde.board = {
+      ...horde.board,
+      battlefield: [
+        { card, tapped: false, counters: {}, stickers: [], x: 0.5, y: 0.5, faceDown: false },
+      ],
+    };
+    const onCardMenu = vi.fn();
+    renderBand({ horde, onCardMenu, readOnly: true });
+    expect(screen.queryByRole('button', { name: 'Damage the horde' })).toBeNull();
+    const cardEl = document.querySelector(`[data-card-id="${card.id}"]`) as HTMLElement;
+    fireEvent.pointerDown(cardEl, {
+      pointerId: 1,
+      isPrimary: true,
+      button: 0,
+      pointerType: 'mouse',
+    });
+    fireEvent.pointerUp(cardEl, { pointerId: 1, isPrimary: true, button: 0, pointerType: 'mouse' });
+    fireEvent.click(cardEl);
+    expect(onCardMenu).not.toHaveBeenCalled();
+  });
 });

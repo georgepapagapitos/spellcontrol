@@ -13,6 +13,10 @@ import { HOLD_JUMP } from '../../lib/hold-ramp';
 import { useTapAndHold } from '../../lib/tap-and-hold';
 import { useAuth } from '../../store/auth';
 import { usePlayStore } from '../../store/play';
+import { HordeHalf } from '../../playtest/components/horde/HordeHalf';
+import { useHordeReplay } from '../../playtest/hooks/use-horde-replay';
+import { measureHordeRect } from '../../playtest/lib/horde-view';
+import type { Rect } from '../../playtest/lib/auto-place';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { GameRecap } from './GameRecap';
 import { PhaseChip } from './PhaseChip';
@@ -234,6 +238,8 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
         <FinishedPanel game={game} onRematch={onRematch} onLeave={onLeave} />
       ) : (
         <>
+          {!viewerSeated && game.format === 'horde' && <SpectatorHorde game={game} />}
+
           <ul className="ogv-opponents" role="list" aria-label="Opponents">
             {opponents.map((p) => (
               <OpponentTile
@@ -268,6 +274,64 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
         </>
       )}
     </div>
+  );
+}
+
+// ── Spectator horde (E387 online table) ────────────────────────────────────
+
+/** A watcher (no seat) at a horde table sees the horde itself, read-only,
+ *  above the survivors' tiles — replayed locally like every seated device
+ *  (`useHordeReplay`), never fetched. */
+function SpectatorHorde({ game }: { game: GameState }) {
+  const feltRef = useRef<HTMLDivElement>(null);
+  const [rect, setRect] = useState<Rect | null>(null);
+
+  useEffect(() => {
+    const el = feltRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setRect(measureHordeRect(el));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const { status, error, retry, replay } = useHordeReplay(game, rect);
+  const survivorTurn = game.horde?.survivorTurn ?? 1;
+
+  // `blocked` covers both failure states so its "try again"/"reload" action
+  // calls THIS hook's own `retry` — the default `useHordeActions()` a
+  // spectator falls back to (no provider here) is the SOLO playtest store's
+  // `retryHordeLoad`, which has nothing to do with this replay.
+  const blocked =
+    status === 'skew'
+      ? {
+          message: "This table's horde comes from a newer build. Reload to watch.",
+          actionLabel: 'Reload',
+          onAction: () => window.location.reload(),
+        }
+      : status === 'error'
+        ? {
+            message: error ?? "Couldn't load the horde.",
+            actionLabel: 'Try again',
+            onAction: retry,
+          }
+        : undefined;
+
+  return (
+    <section className="ogv-spectator-horde" aria-label="The horde">
+      <HordeHalf
+        horde={replay?.view ?? null}
+        hordeLoad={{ status: status === 'loading' ? 'loading' : 'idle', error: null }}
+        playerTurn={survivorTurn}
+        feltRef={feltRef}
+        onCardMenu={() => {}}
+        onOpenDamage={() => {}}
+        statusText={`Survivors' team turn ${survivorTurn} · Watching`}
+        blocked={blocked}
+        readOnly
+      />
+    </section>
   );
 }
 

@@ -14,6 +14,7 @@ export interface GameMenuItem {
   note?: string;
   /** Ends a game or gives up a seat: reads in the error colour. */
   danger?: boolean;
+  disabled?: boolean;
 }
 
 /** A named run of rows. A category word, so the stylesheet uppercases it. */
@@ -123,6 +124,7 @@ function MenuGroup({
             key={item.label}
             type="button"
             className={`playtest-game-menu__item${item.danger ? ' is-danger' : ''}`}
+            disabled={item.disabled}
             onClick={() => onRun(item)}
           >
             <Icon

@@ -110,6 +110,12 @@ describe('applyAction', () => {
     expect(s.players[1].commanderDamage).toEqual({});
   });
 
+  it('reset with an id starts a new game id; without one the id stays', () => {
+    const s0 = applyAction(lobby(), { type: 'start' });
+    expect(applyAction(s0, { type: 'reset' }).id).toBe(s0.id);
+    expect(applyAction(s0, { type: 'reset', id: 'game_next' }).id).toBe('game_next');
+  });
+
   it('settings.startingLife rebases life in lobby', () => {
     const s = applyAction(lobby(), {
       type: 'settings',

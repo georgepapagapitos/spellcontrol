@@ -52,6 +52,12 @@
   max-width: 6rem;
 }
 
+.horde-reveal-empty {
+  margin: 0 var(--space-4) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 .horde-reveal-callout {
   margin: 0 var(--space-4) var(--space-3);
   padding: var(--space-2) var(--space-3);
@@ -150,6 +156,13 @@
 .horde-end-stats li span:last-child {
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
+}
+
+.horde-end-hint {
+  align-self: center;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }
 
 /* ── Card menu ───────────────────────────────────────────────────────────── */

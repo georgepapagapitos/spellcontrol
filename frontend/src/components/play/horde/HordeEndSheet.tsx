@@ -20,8 +20,17 @@ interface Props {
    *  still read 0 on a loss before its first turn ever comes up. The paper
    *  table passes nothing and keeps reading `hordeTurns`, unchanged. */
   endedOnTurn?: number;
-  onPlayAgain(): void;
+  /** Absent for a non-host seat at an online table (E387 online co-op): the
+   *  server lets only the host rematch, so a joiner is offered no button
+   *  that would bounce — `playAgainHint` explains why instead. */
+  onPlayAgain?(): void;
   onDone(): void;
+  /** Online co-op (E387): 'Rematch' host-side, 'Play again' everywhere else. */
+  playAgainLabel?: string;
+  /** Online co-op (E387): 'Leave table' at a table, 'Done' solo. */
+  doneLabel?: string;
+  /** Shown in place of the Play-again button when `onPlayAgain` is absent. */
+  playAgainHint?: string;
 }
 
 /**
@@ -40,6 +49,9 @@ export function HordeEndSheet({
   endedOnTurn,
   onPlayAgain,
   onDone,
+  playAgainLabel = 'Play again',
+  doneLabel = 'Done',
+  playAgainHint,
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onDone);
   useLockBodyScroll();
@@ -94,11 +106,15 @@ export function HordeEndSheet({
         </div>
         <div className="card-picker-footer">
           <button type="button" className="btn" onClick={() => beginClose()}>
-            Done
+            {doneLabel}
           </button>
-          <button type="button" className="btn btn-primary" onClick={onPlayAgain}>
-            Play again
-          </button>
+          {onPlayAgain ? (
+            <button type="button" className="btn btn-primary" onClick={onPlayAgain}>
+              {playAgainLabel}
+            </button>
+          ) : (
+            playAgainHint && <p className="horde-end-hint">{playAgainHint}</p>
+          )}
         </div>
       </div>
     </div>

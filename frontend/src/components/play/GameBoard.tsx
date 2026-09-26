@@ -24,6 +24,7 @@ import {
 } from 'react';
 import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
 import { cmdDamageKey, nextActiveSeat } from '../../lib/game-state';
+import { genId } from '../../lib/id';
 import type { EmptyCell, SeatSlot } from '../../lib/board-layouts';
 import {
   isCustomLayout,
@@ -634,7 +635,7 @@ export function GameBoard({
           onCancel={() => setRestartConfirmOpen(false)}
           onConfirm={() => {
             setRestartConfirmOpen(false);
-            dispatchTracked({ type: 'reset' });
+            dispatchTracked({ type: 'reset', id: genId('game') });
           }}
         />
       )}

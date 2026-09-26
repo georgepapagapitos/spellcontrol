@@ -111,7 +111,11 @@ function WinCeremony() {
   useEffect(() => {
     const prev = prevStatusRef.current;
     prevStatusRef.current = online?.status;
-    if (!online || online.status !== 'finished' || prev === 'finished') return;
+    // A horde game's ending is the Horde end sheet's job (PlaytestBoard),
+    // never a second celebration on top of it — Round 8 found two endings
+    // at once.
+    if (!online || online.status !== 'finished' || prev === 'finished' || online.format === 'horde')
+      return;
     const winner = online.players.find((p) => p.seat === online.winnerSeat) ?? null;
     haptics.success();
     setClosing(false);

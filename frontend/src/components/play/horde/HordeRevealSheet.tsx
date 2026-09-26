@@ -38,19 +38,23 @@ export function HordeRevealSheet({ revealed, toResolveIds, waveEndId, onConfirm 
         <div className="card-picker-header">
           <h2 className="card-picker-title">The horde reveals</h2>
         </div>
-        <div className="card-picker-list horde-reveal-list">
-          {revealed.map((card, i) => (
-            <div
-              key={card.id}
-              className={`horde-reveal-card${card.id === waveEndId ? ' is-wave-end' : ''}`}
-            >
-              <PlaytestCardFace card={card} size="sm" />
-              <span className="horde-reveal-card-caption">
-                {i + 1} · {card.id === waveEndId ? 'ends the wave' : card.name}
-              </span>
-            </div>
-          ))}
-        </div>
+        {revealed.length === 0 ? (
+          <p className="horde-reveal-empty">The horde has nothing left to reveal.</p>
+        ) : (
+          <div className="card-picker-list horde-reveal-list">
+            {revealed.map((card, i) => (
+              <div
+                key={card.id}
+                className={`horde-reveal-card${card.id === waveEndId ? ' is-wave-end' : ''}`}
+              >
+                <PlaytestCardFace card={card} size="sm" />
+                <span className="horde-reveal-card-caption">
+                  {i + 1} · {card.id === waveEndId ? 'ends the wave' : card.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         {spells.length > 0 && (
           <p className="horde-reveal-callout" role="status">
             The horde casts {spells.map((c) => c.name).join(', ')}. Resolve{' '}

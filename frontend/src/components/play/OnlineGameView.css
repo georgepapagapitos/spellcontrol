@@ -782,6 +782,22 @@
   padding: var(--space-4);
 }
 
+/* A watcher's read-only view of the horde, above the survivors' tiles — a
+   fixed-height frame (NOT `.playtest-page`, which pulls in the full-screen
+   table chrome). `--pt-card-w`/`--pt-card-h`/`--pt-edge` are redeclared
+   together, same contract as playtest.css's `.playtest-main--horde`. */
+.ogv-spectator-horde {
+  position: relative;
+  height: 46vh;
+  min-height: 320px;
+  display: grid;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  --pt-card-w: clamp(56px, min(5vw, (46vh - 40px) / 7.6), 110px);
+  --pt-card-h: calc(var(--pt-card-w) * 1.4);
+  --pt-edge: calc((var(--pt-card-h) - var(--pt-card-w)) / 2);
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 600px) {
