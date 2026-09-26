@@ -6,7 +6,7 @@
  */
 import 'fake-indexeddb/auto';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -55,6 +55,23 @@ const TEYSA = {
   set_name: 'Guildpact',
 } as unknown as ScryfallCard;
 
+/** Stands in for brew mode: shows the commander the link carried, if any. */
+function BrewProbe() {
+  const state = useLocation().state as { commander?: ScryfallCard } | null;
+  return <p>brew mode with {state?.commander?.name ?? 'no commander'}</p>;
+}
+
+function renderWithBrewRoute() {
+  return render(
+    <MemoryRouter initialEntries={['/decks/new']}>
+      <Routes>
+        <Route path="/decks/new" element={<DeckNewPage />} />
+        <Route path="/decks/new/brew" element={<BrewProbe />} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
 afterEach(() => {
   navigateMock.mockClear();
   useDeckBuilderStore.getState().reset();
@@ -75,23 +92,15 @@ describe('DeckNewPage — brew door', () => {
   });
 
   it('carries an already-picked commander into brew mode', () => {
-    render(
-      <MemoryRouter>
-        <DeckNewPage />
-      </MemoryRouter>
-    );
+    renderWithBrewRoute();
     act(() => useDeckBuilderStore.getState().setCommander(TEYSA));
-    fireEvent.click(screen.getByRole('button', { name: 'Start brewing' }));
-    expect(navigateMock).toHaveBeenCalledWith('/decks/new/brew', { state: { commander: TEYSA } });
+    fireEvent.click(screen.getByRole('link', { name: 'Start brewing' }));
+    expect(screen.getByText('brew mode with Teysa, Orzhov Scion')).toBeTruthy();
   });
 
   it('opens brew mode plain when no commander is picked yet', () => {
-    render(
-      <MemoryRouter>
-        <DeckNewPage />
-      </MemoryRouter>
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Start brewing' }));
-    expect(navigateMock).toHaveBeenCalledWith('/decks/new/brew', undefined);
+    renderWithBrewRoute();
+    fireEvent.click(screen.getByRole('link', { name: 'Start brewing' }));
+    expect(screen.getByText('brew mode with no commander')).toBeTruthy();
   });
 });

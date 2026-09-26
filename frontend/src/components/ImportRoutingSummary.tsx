@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import type { ImportRoutingSummary as Summary } from '../lib/import-routing';
 
@@ -24,19 +24,9 @@ interface Props {
  * surface's success line already confirms the import landed.
  */
 export function ImportRoutingSummary({ summary }: Props) {
-  const navigate = useNavigate();
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
 
   if (summary.entries.length === 0 && summary.unroutedCount === 0) return null;
-
-  const handleOpen = (binderId: string) => {
-    setActiveTab(binderId);
-    navigate(`/collection/binders/${binderId}`);
-  };
-
-  // No binder to open: hand the Collection page a pre-seeded binder filter so
-  // the user lands on exactly the cards that escaped, ready to act on.
-  const handleOpenUnrouted = () => navigate('/collection?binder=__uncategorized');
 
   return (
     <>
@@ -53,10 +43,10 @@ export function ImportRoutingSummary({ summary }: Props) {
       <ul className="import-routing-list">
         {summary.entries.map((entry) => (
           <li key={entry.binderId}>
-            <button
-              type="button"
+            <Link
+              to={`/collection/binders/${entry.binderId}`}
               className="import-routing-row"
-              onClick={() => handleOpen(entry.binderId)}
+              onClick={() => setActiveTab(entry.binderId)}
             >
               <span
                 className="import-routing-pip"
@@ -67,15 +57,16 @@ export function ImportRoutingSummary({ summary }: Props) {
               <span className="import-routing-count">
                 {entry.count} card{entry.count === 1 ? '' : 's'}
               </span>
-            </button>
+            </Link>
           </li>
         ))}
         {summary.unroutedCount > 0 && (
           <li>
-            <button
-              type="button"
+            {/* No binder to open: a pre-seeded binder filter lands the user on
+                exactly the cards that escaped, ready to act on. */}
+            <Link
+              to="/collection?binder=__uncategorized"
               className="import-routing-row import-routing-row--unrouted"
-              onClick={handleOpenUnrouted}
             >
               <span className="import-routing-pip import-routing-pip--empty" aria-hidden="true" />
               <span className="import-routing-name">
@@ -87,7 +78,7 @@ export function ImportRoutingSummary({ summary }: Props) {
               <span className="import-routing-count">
                 {summary.unroutedCount} card{summary.unroutedCount === 1 ? '' : 's'}
               </span>
-            </button>
+            </Link>
           </li>
         )}
       </ul>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useConfirm } from '@/lib/use-confirm';
 import {
   clearPlaytestSnapshot,
@@ -170,7 +170,7 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
         <p className="empty-state-tagline">Nothing to playtest yet.</p>
         <p className="empty-state-hint">{emptyHint}</p>
         <div className="empty-state-actions">
-          <Button variant="primary" onClick={() => navigate(back.to)}>
+          <Button variant="primary" to={back.to}>
             {back.label}
           </Button>
         </div>
@@ -198,7 +198,7 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
           >
             Try again
           </Button>
-          <Button onClick={() => navigate(back.to)}>{back.label}</Button>
+          <Button to={back.to}>{back.label}</Button>
         </div>
       </div>
     );
@@ -219,9 +219,9 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
     <div className="playtest-page">
       {isNarrow && (
         <header className="playtest-page__header">
-          <button type="button" onClick={() => navigate(back.to)}>
-            ← {back.label}
-          </button>
+          <Link to={back.to} className="playtest-page__back">
+            <span className="playtest-page__back-label">← {back.label}</span>
+          </Link>
           <h1>{title}</h1>
         </header>
       )}

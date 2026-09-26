@@ -520,9 +520,8 @@ export function DeckNewPage() {
             </span>
           </div>
           <Button
-            onClick={() =>
-              navigate('/decks/new/brew', commander ? { state: { commander } } : undefined)
-            }
+            to="/decks/new/brew"
+            state={commander ? { commander } : undefined}
             iconEnd={<ArrowRight width={14} height={14} />}
           >
             Start brewing
@@ -625,9 +624,8 @@ export function DeckNewPage() {
                   </span>
                 </div>
                 <Button
-                  onClick={() =>
-                    navigate('/decks/new/brew', commander ? { state: { commander } } : undefined)
-                  }
+                  to="/decks/new/brew"
+                  state={commander ? { commander } : undefined}
                   iconEnd={<ArrowRight width={14} height={14} />}
                 >
                   Start brewing

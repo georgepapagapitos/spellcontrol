@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useDecksStore } from '@/store/decks';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
@@ -16,7 +16,6 @@ import { Button } from '@/components/shared/Button';
  */
 export function PlaytestPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const decks = useDecksStore((s) => s.decks);
   const hydrated = useDecksStore((s) => s.hydrated);
   // Same test as use-online-table, and it has to stay the same: this playtest
@@ -51,7 +50,7 @@ export function PlaytestPage() {
         <p className="empty-state-tagline">Deck not found.</p>
         <p className="empty-state-hint">It may have been deleted. Pick another deck to playtest.</p>
         <div className="empty-state-actions">
-          <Button variant="primary" onClick={() => navigate('/decks')}>
+          <Button variant="primary" to="/decks">
             Back to decks
           </Button>
         </div>

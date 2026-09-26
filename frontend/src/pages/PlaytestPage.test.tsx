@@ -120,7 +120,7 @@ describe('PlaytestPage', () => {
   it('backs out to the deck when playtesting solo', async () => {
     fakePlay.setState({ online: null });
     renderAt('/decks/deck-1/playtest');
-    fireEvent.click(await screen.findByRole('button', { name: '← Krenko' }));
+    fireEvent.click(await screen.findByRole('link', { name: '← Krenko' }));
     expect(await screen.findByText('deck page')).toBeTruthy();
   });
 
@@ -129,14 +129,14 @@ describe('PlaytestPage', () => {
       online: { code: 'JRA4', players: [{ userId: 'me', deckId: 'deck-1' }] },
     });
     renderAt('/decks/deck-1/playtest');
-    fireEvent.click(await screen.findByRole('button', { name: '← Game JRA4' }));
+    fireEvent.click(await screen.findByRole('link', { name: '← Game JRA4' }));
     expect(await screen.findByText('play page')).toBeTruthy();
   });
 
   it('ignores an online game this device is not seated in', async () => {
     fakePlay.setState({ online: { code: 'JRA4', players: [{ userId: 'someone-else' }] } });
     renderAt('/decks/deck-1/playtest');
-    expect(await screen.findByRole('button', { name: '← Krenko' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: '← Krenko' })).toBeTruthy();
   });
 
   // Seating alone used to relabel every deck's goldfish as the table's board,
@@ -147,14 +147,14 @@ describe('PlaytestPage', () => {
       online: { code: 'JRA4', players: [{ userId: 'me', deckId: 'deck-other' }] },
     });
     renderAt('/decks/deck-1/playtest');
-    expect(await screen.findByRole('button', { name: '← Krenko' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '← Game JRA4' })).toBeNull();
+    expect(await screen.findByRole('link', { name: '← Krenko' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: '← Game JRA4' })).toBeNull();
   });
 
   it('stays a plain playtest when the seat has no deck yet', async () => {
     fakePlay.setState({ online: { code: 'JRA4', players: [{ userId: 'me', deckId: null }] } });
     renderAt('/decks/deck-1/playtest');
-    expect(await screen.findByRole('button', { name: '← Krenko' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: '← Krenko' })).toBeTruthy();
   });
 
   it('keeps loading, not "Deck not found", while the first pull is in flight (same class as #1937)', async () => {

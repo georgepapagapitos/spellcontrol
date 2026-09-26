@@ -15,6 +15,9 @@
 //     which requires a label and hides the glyph)
 //   - rawChip: a -chip class on a raw element (use Chip from
 //     components/shared/Chip)
+//   - navButton: a button whose onClick only calls navigate() (a navigation
+//     is a link: Button's `to`, or a router Link, so it opens in a new tab,
+//     shows its address and reads as a link to assistive tech)
 //
 // A fourth check has no allowlist: a Button or IconButton whose className
 // carries an intent (`upload-action-danger`, `is-primary`). Intent is the
@@ -56,7 +59,7 @@ const SHARED_CLASSES = new Set([
   'btn-quiet',
 ]);
 
-type Shape = 'rawClass' | 'iconOnly' | 'rawChip';
+type Shape = 'rawClass' | 'iconOnly' | 'rawChip' | 'navButton';
 
 /** A chip family's class (`verdict-chip`, `coach-feed-filter-chip--owned-empty`), not a part (`-chip-label`) or a container (`-chips`). */
 const CHIP_CLASS = /^[a-z][a-z0-9-]*-chip(--[a-z0-9-]+)?$/;
@@ -91,6 +94,21 @@ const isGlyph = (node: ts.JsxChild, sf: ts.SourceFile): boolean =>
 /** A class that names an intent the `variant` prop owns. */
 const INTENT_CLASS = /(^|-)(primary|danger)$/;
 
+/** An arrow body that does nothing but call `navigate(…)`. */
+function onlyNavigates(body: ts.ConciseBody): boolean {
+  const call = ts.isBlock(body)
+    ? body.statements.length === 1 &&
+      ts.isExpressionStatement(body.statements[0]) &&
+      body.statements[0].expression
+    : body;
+  return (
+    !!call &&
+    ts.isCallExpression(call) &&
+    ts.isIdentifier(call.expression) &&
+    call.expression.text === 'navigate'
+  );
+}
+
 function count(file: string, intent: string[] = []): Record<Shape, number> {
   const sf = ts.createSourceFile(
     file,
@@ -99,7 +117,7 @@ function count(file: string, intent: string[] = []): Record<Shape, number> {
     true,
     ts.ScriptKind.TSX
   );
-  const n: Record<Shape, number> = { rawClass: 0, iconOnly: 0, rawChip: 0 };
+  const n: Record<Shape, number> = { rawClass: 0, iconOnly: 0, rawChip: 0, navButton: 0 };
   const visit = (node: ts.Node) => {
     if (ts.isJsxAttribute(node) && /className$/i.test(node.name.getText(sf)) && node.initializer) {
       const tokens = strings(node.initializer).join(' ').split(/\s+/);
@@ -115,6 +133,19 @@ function count(file: string, intent: string[] = []): Record<Shape, number> {
             `${relative(srcDir, file).split(sep).join('/')}:${sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1} ${t}`
           );
     }
+    if (
+      ts.isJsxAttribute(node) &&
+      node.name.getText(sf) === 'onClick' &&
+      /^(button|(Icon)?Button)$/.test(
+        (node.parent.parent as ts.JsxOpeningLikeElement).tagName.getText(sf)
+      ) &&
+      node.initializer &&
+      ts.isJsxExpression(node.initializer) &&
+      node.initializer.expression &&
+      ts.isArrowFunction(node.initializer.expression) &&
+      onlyNavigates(node.initializer.expression.body)
+    )
+      n.navButton++;
     if (ts.isJsxElement(node) && node.openingElement.tagName.getText(sf) === 'button') {
       const kids = node.children.filter((c) => !(ts.isJsxText(c) && !c.text.trim()));
       if (kids.length === 1 && isGlyph(kids[0], sf)) n.iconOnly++;
@@ -136,6 +167,8 @@ const RADIO_FACE =
 const CHOICE =
   'PERMANENT: a <label> wrapping a hidden checkbox or radio is a choice control, not a chip (§ Shape language, Chips are a primitive)';
 const NAV_LINK = 'PERMANENT: a router Link styled as a chip; Chip has no link role for one site';
+const BLOCKS_WHILE_BUSY =
+  'PERMANENT: disabled while the list is being read, so leaving mid-parse is blocked; a link cannot be disabled';
 const BOARD_CHROME =
   'PERMANENT: playtest and live-table board chrome is a bespoke control (E435 scope ruling)';
 
@@ -170,6 +203,9 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'playtest/components/LifeStrip.tsx': { count: 2, why: BOARD_CHROME },
     'playtest/components/PlaytestBoard.tsx': { count: 5, why: BOARD_CHROME },
   },
+  navButton: {
+    'pages/GoldfishListPage.tsx': { count: 1, why: BLOCKS_WHILE_BUSY },
+  },
 };
 
 const HOW: Record<Shape, string> = {
@@ -179,6 +215,8 @@ const HOW: Record<Shape, string> = {
     'Render IconButton from components/shared/Button: it requires a label and hides the glyph.',
   rawChip:
     'Render Chip from components/shared/Chip: it picks the element for the role and puts the label in its own element.',
+  navButton:
+    'A navigation is a link: give Button `to` (router state and replace pass through), or render a router Link.',
 };
 
 const allowedCount = (entry: number | { count: number } | undefined) =>
@@ -189,6 +227,7 @@ describe('action controls come from the control primitives', () => {
     rawClass: new Map(),
     iconOnly: new Map(),
     rawChip: new Map(),
+    navButton: new Map(),
   };
   const intent: string[] = [];
   for (const file of sourceFiles(srcDir)) {
