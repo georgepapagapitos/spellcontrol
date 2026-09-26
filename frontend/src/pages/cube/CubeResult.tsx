@@ -36,6 +36,7 @@ import {
   groupPicksByBucket,
 } from './shared';
 import { CubeHealthPanel } from './CubeHealthPanel';
+import { CubeDraftabilityPanel } from './CubeDraftabilityPanel';
 import { Button, IconButton } from '../../components/shared/Button';
 import { CubeSuppliers } from './CubeSuppliers';
 import { Chip } from '@/components/shared/Chip';
@@ -250,6 +251,7 @@ export function CubeResult({
       <CubeArchetypes score={cube.score} />
 
       <CubeHealthPanel cube={cube} />
+      <CubeDraftabilityPanel cube={cube} />
 
       <div className="cube-gaps">
         <h3>Where your collection lands</h3>
