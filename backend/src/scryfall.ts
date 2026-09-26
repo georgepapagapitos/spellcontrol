@@ -67,13 +67,33 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-/** Identifier shapes that Scryfall's /cards/collection endpoint accepts. */
+/**
+ * How an import row asks for a card. Every shape but name + set + collector is
+ * one Scryfall's /cards/collection endpoint accepts as-is; that one is keyed and
+ * matched on all three but sent as set + collector (see {@link wireIdentifier}).
+ */
 type Identifier =
   | { id: string }
   | { name: string; set: string; collector_number: string }
   | { name: string; set: string }
   | { name: string }
   | { set: string; collector_number: string };
+
+/**
+ * The form an identifier takes on the wire. Scryfall's collection endpoint has
+ * no name + set + collector identifier: sent together it drops the collector
+ * number and answers name + set, i.e. the set's default printing — Nahiri, the
+ * Unforgiving (ONE) 364, the oil-slick showcase, came back as the plain #211.
+ * Every variant printing (showcase, borderless, special foils) imported from a
+ * list landed with the wrong art, price and finish. So the printing goes alone;
+ * {@link identifierMatchesCard} still checks the name, so a mistyped collector
+ * number that lands on a different card misses and falls back to name + set.
+ */
+function wireIdentifier(ident: Identifier): Identifier {
+  return 'name' in ident && 'collector_number' in ident
+    ? { set: ident.set, collector_number: ident.collector_number }
+    : ident;
+}
 
 interface CollectionResponse {
   object: 'list';
@@ -263,7 +283,7 @@ async function resolveCardsOnce(rows: ImportRow[], cache: ScryfallCache): Promis
   await mapWithConcurrency(batches, BATCH_CONCURRENCY, async (batch, batchNum) => {
     await gate();
     const json = await fetchBatchWithRetry(
-      batch.map(([, ident]) => ident),
+      batch.map(([, ident]) => wireIdentifier(ident)),
       batchNum
     );
 
