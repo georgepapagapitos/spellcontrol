@@ -6,6 +6,7 @@ import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { useStoredView } from '../../lib/use-stored-view';
 import { StackedBar } from '../../components/shared/MeterBar';
 import { CardGridCell } from '../../components/shared/CardGridCell';
+import { Button } from '../../components/shared/Button';
 import { DeckBadge } from '../../components/DeckBadge';
 import { CardPreview } from '../../components/CardPreview';
 import { NameInputDialog } from '../../components/NameInputDialog';
@@ -36,6 +37,8 @@ import { GeneratedCube } from '../../lib/cube/generate';
 import { generateCubeAsync, type CubeProgress } from '../../lib/cube/generate-async';
 import { toCubeCobraList } from '../../lib/cube/format';
 import { Ownership } from '../../lib/cube/import';
+import { samplePack } from '../../lib/cube/sample-pack';
+import { nextSeed } from '../../lib/playtest/rng';
 import {
   BUCKET_ORDER,
   BUCKET_LABEL,
@@ -559,7 +562,7 @@ function SavedCubeMeta({ sc }: { sc: SavedCube }) {
   );
 }
 
-function CubeResult({
+export function CubeResult({
   cube,
   onCopy,
   onSave,
@@ -613,6 +616,33 @@ function CubeResult({
   const previewCards = useMemo<EnrichedCard[]>(
     () => allPicks.map((p) => pickToPreviewCard(p.card, enrichedMap)),
     [allPicks, enrichedMap]
+  );
+
+  // Sample pack: closed by default so it never pushes "The cards" down the
+  // page. `packSeed` stays null until first opened, so the pack is stable
+  // across re-renders; "Deal another" is the only thing that advances it.
+  const [packOpen, setPackOpen] = useState(false);
+  const [packSeed, setPackSeed] = useState<number | null>(null);
+  const [packPreviewIndex, setPackPreviewIndex] = useState<number | null>(null);
+  const [dealCount, setDealCount] = useState(0);
+  const togglePack = () => {
+    if (!packOpen && packSeed === null) {
+      setPackSeed(Math.floor(Math.random() * 0xffffffff));
+      setDealCount(1);
+    }
+    setPackOpen((v) => !v);
+  };
+  const dealAnother = () => {
+    setPackSeed((s) => nextSeed(s ?? Date.now()));
+    setDealCount((n) => n + 1);
+  };
+  const pack = useMemo(
+    () => (packSeed === null ? null : samplePack(cube.picks, packSeed)),
+    [cube.picks, packSeed]
+  );
+  const packPreviewCards = useMemo<EnrichedCard[]>(
+    () => (pack ? pack.map((p) => pickToPreviewCard(p.card, enrichedMap)) : []),
+    [pack, enrichedMap]
   );
 
   const groups = useMemo(() => groupPicksByBucket(allPicks), [allPicks]);
@@ -692,6 +722,45 @@ function CubeResult({
           popular CubeCobra {cube.format === 'commander' ? 'Commander ' : 'draft '}cubes (updated{' '}
           {provenance.generatedAt.slice(0, 10)}).
         </p>
+      </div>
+
+      <div className="cube-sample-pack">
+        <h3 className="cube-sample-pack-head">
+          <button
+            type="button"
+            className="cube-sample-pack-toggle"
+            aria-expanded={packOpen}
+            aria-controls={packOpen ? 'cube-sample-pack-body' : undefined}
+            onClick={togglePack}
+          >
+            <ChevronDown className="cube-group-chevron" width={14} height={14} aria-hidden />
+            Sample pack
+          </button>
+        </h3>
+        {packOpen && pack && (
+          <div id="cube-sample-pack-body" className="cube-sample-pack-body">
+            <p className="cube-sample-pack-sub">
+              {pack.length} card{pack.length === 1 ? '' : 's'} drawn at random from this cube.
+            </p>
+            <span className="sr-only" aria-live="polite">
+              Pack {dealCount} dealt, {pack.length} cards.
+            </span>
+            <div className="cube-gallery">
+              {pack.map((p, i) => (
+                <CardGridCell
+                  key={`${p.card.oracleId || p.card.name}-${dealCount}`}
+                  card={packPreviewCards[i]}
+                  qty={1}
+                  size="1x"
+                  onActivate={() => setPackPreviewIndex(i)}
+                />
+              ))}
+            </div>
+            <Button className="cube-sample-pack-deal" onClick={dealAnother}>
+              Deal another pack
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="cube-list">
@@ -801,6 +870,20 @@ function CubeResult({
           totalPages={0}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
+        />
+      )}
+
+      {packPreviewIndex !== null && packPreviewCards[packPreviewIndex] && (
+        <CardPreview
+          source="collection"
+          cards={packPreviewCards}
+          index={packPreviewIndex}
+          binderName="Sample pack"
+          sectionLabels={[]}
+          pageNumbers={[]}
+          totalPages={0}
+          onIndexChange={setPackPreviewIndex}
+          onClose={() => setPackPreviewIndex(null)}
         />
       )}
     </section>
