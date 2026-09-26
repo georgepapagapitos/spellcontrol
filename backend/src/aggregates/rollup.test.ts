@@ -10,7 +10,8 @@ import {
   runRollup,
   type PublishedDeckInput,
   MIN_COMMANDER_DECKS,
-  MIN_CARD_INCLUSION_DECKS,
+  MIN_COMMANDER_AUTHORS,
+  MIN_CARD_INCLUSION_AUTHORS,
   TOP_CARDS_PER_COMMANDER,
   BRACKET_SAMPLE_MIN,
   BUDGET_BUCKET_SUPPRESS_MIN,
@@ -73,6 +74,17 @@ describe('computeCommanderAggregates', () => {
       const { stats } = computeCommanderAggregates(makeDecks('cmd-a', 5), 0);
       expect(stats).toHaveLength(1);
       expect(stats[0].deckCount).toBe(5);
+    });
+
+    it('needs MIN_COMMANDER_AUTHORS different authors, not just enough decks', () => {
+      expect(MIN_COMMANDER_AUTHORS).toBe(3);
+      const byTwo = Array.from({ length: 8 }, (_, i) =>
+        makeDeck({ commanderOracleId: 'cmd-two', ownerId: i % 2 ? 'alice' : 'bob' })
+      );
+      expect(computeCommanderAggregates(byTwo, 0).stats).toHaveLength(0);
+
+      const byThree = [...byTwo, makeDeck({ commanderOracleId: 'cmd-two', ownerId: 'carol' })];
+      expect(computeCommanderAggregates(byThree, 0).stats).toHaveLength(1);
     });
   });
 
@@ -201,8 +213,8 @@ describe('computeCommanderAggregates', () => {
   });
 
   describe('topCards / card inclusion', () => {
-    it('applies MIN_CARD_INCLUSION_DECKS (1/6 decks excluded, 2/6 included)', () => {
-      expect(MIN_CARD_INCLUSION_DECKS).toBe(2);
+    it('applies MIN_CARD_INCLUSION_AUTHORS (1 author excluded, 2 included)', () => {
+      expect(MIN_CARD_INCLUSION_AUTHORS).toBe(2);
       const decks = [
         makeDeck({ commanderOracleId: 'cmd-h', cards: [{ oracleId: 'rare', name: 'Rare Card' }] }),
         makeDeck({
@@ -221,6 +233,20 @@ describe('computeCommanderAggregates', () => {
       const oracleIds = cardInclusion.map((c) => c.oracleId);
       expect(oracleIds).toContain('common');
       expect(oracleIds).not.toContain('rare');
+    });
+
+    it("leaves out one author's pet card, however many of their decks run it", () => {
+      const pet = { oracleId: 'pet', name: 'Pet Card' };
+      const decks = [
+        ...Array.from({ length: 4 }, () =>
+          makeDeck({ commanderOracleId: 'cmd-pet', ownerId: 'fan', cards: [pet] })
+        ),
+        makeDeck({ commanderOracleId: 'cmd-pet', ownerId: 'b' }),
+        makeDeck({ commanderOracleId: 'cmd-pet', ownerId: 'c' }),
+      ];
+      const { stats, cardInclusion } = computeCommanderAggregates(decks, 0);
+      expect(stats).toHaveLength(1);
+      expect(cardInclusion.map((c) => c.oracleId)).not.toContain('pet');
     });
 
     it('counts a card once per deck even if it appears in multiple mainboard slots', () => {
@@ -285,11 +311,24 @@ describe('computeCommanderAggregates', () => {
 
     it('counts authors, not decks: one account publishing five decks is one', () => {
       const now = 1_000_000_000_000;
-      const decks = Array.from({ length: 5 }, () =>
-        makeDeck({ commanderOracleId: 'cmd-k', publishedAt: now, ownerId: 'prolific' })
-      );
+      const decks = [
+        ...Array.from({ length: 5 }, () =>
+          makeDeck({ commanderOracleId: 'cmd-k', publishedAt: now, ownerId: 'prolific' })
+        ),
+        // Two older authors so the commander clears MIN_COMMANDER_AUTHORS.
+        makeDeck({
+          commanderOracleId: 'cmd-k',
+          publishedAt: now - 2 * SEVEN_DAYS_MS,
+          ownerId: 'b',
+        }),
+        makeDeck({
+          commanderOracleId: 'cmd-k',
+          publishedAt: now - 2 * SEVEN_DAYS_MS,
+          ownerId: 'c',
+        }),
+      ];
       const { stats } = computeCommanderAggregates(decks, now);
-      expect(stats[0].deckCount).toBe(5);
+      expect(stats[0].deckCount).toBe(7);
       expect(stats[0].newLast7d).toBe(1);
     });
   });

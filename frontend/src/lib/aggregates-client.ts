@@ -21,7 +21,7 @@ export interface CommanderStats {
  * line (a stat, a badge) — never primary content.
  */
 
-/** `null` on 404 (below MIN_COMMANDER_DECKS) or any network error — never
+/** `null` on 404 (below the backend's deck/author floor) or any network error — never
  *  throws into the render path. */
 export async function getCommanderStats(commanderKey: string): Promise<CommanderStats | null> {
   try {

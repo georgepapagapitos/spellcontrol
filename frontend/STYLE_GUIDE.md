@@ -332,7 +332,10 @@ single concise line — the two-part pattern would read visually heavy there.
 One row: the message in a `role="alert"` box plus a `.discover-decks-error-retry`
 button when a reload exists. Discover, Saved decks, the Trending rail and both
 combo surfaces share it; the rules live in the global `shared.css` slice so a
-page that renders it before Discover has ever loaded is still styled.
+page that renders it before Discover has ever loaded is still styled. That
+includes the Retry pill's 44px coarse-pointer floor: it once lived in
+Discover's own sheet, and every other page shipped a 32px touch target
+(`styles/error-strip-touch-floor.test.ts` keeps it in `shared.css`).
 
 **Primary empty states also carry a brand-mark aura (E114).** `<EmptyStateMark />`
 (`components/shared/EmptyStateMark.tsx`) renders `<BrandMark size={40}

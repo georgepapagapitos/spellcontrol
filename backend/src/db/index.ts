@@ -771,7 +771,8 @@ export async function ensureSchema(): Promise<void> {
     );
 
     -- One row per commander (or commander+partner pair) that has cleared
-    -- MIN_COMMANDER_DECKS (5) published decks. Sub-threshold commanders simply
+    -- MIN_COMMANDER_DECKS (5) published decks from MIN_COMMANDER_AUTHORS (3)
+    -- different accounts. Sub-threshold commanders simply
     -- have no row here -- "never return sub-threshold rows" is enforced at
     -- write time, not filtered at read time.
     --

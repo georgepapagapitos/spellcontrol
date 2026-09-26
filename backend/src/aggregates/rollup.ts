@@ -13,13 +13,18 @@ import { asRecord, asString } from '../shares/projections';
 import { buildCommanderKey } from './commander-key';
 import { recountDeckCopies } from '../publications/copies';
 
-/** Parent gate: a commander needs at least this many published decks to get
- *  a commander_stats row at all. Sub-threshold commanders simply have no row
+/** Parent gate: a commander needs at least this many published decks, from
+ *  at least MIN_COMMANDER_AUTHORS different accounts, to get a
+ *  commander_stats row at all. Sub-threshold commanders simply have no row
  *  — enforced here at write time, never filtered at read time. */
 export const MIN_COMMANDER_DECKS = 5;
-/** Card-inclusion floor: a card needs at least this many decks in the group
- *  to appear in that commander's topCards. */
-export const MIN_CARD_INCLUSION_DECKS = 2;
+/** Without it one account publishing five decks for a commander wrote that
+ *  commander's public stats (avg bracket, budget spread, top cards) alone. */
+export const MIN_COMMANDER_AUTHORS = 3;
+/** Card-inclusion floor: a card needs to be in decks from at least this many
+ *  different authors to appear in that commander's topCards, so one player's
+ *  pet card never reads as the commander's staple. */
+export const MIN_CARD_INCLUSION_AUTHORS = 2;
 export const TOP_CARDS_PER_COMMANDER = 15;
 /** `commander_stats.newLast7d` floor for the /trending "rising" list. It
  *  counts distinct AUTHORS, so one account publishing a pile of decks for a
@@ -150,7 +155,7 @@ interface DeckGroupEntry {
 
 /**
  * Pure, no DB access. Groups published decks by commander(+partner) key,
- * drops groups under MIN_COMMANDER_DECKS, and computes every stat + the
+ * drops groups under MIN_COMMANDER_DECKS or MIN_COMMANDER_AUTHORS, and computes every stat + the
  * top-15 card inclusion list for each surviving group. `now` is passed in
  * (rather than read via Date.now()) so this stays deterministic and testable.
  */
@@ -195,6 +200,7 @@ export function computeCommanderAggregates(
 
   for (const [commanderKey, { commanderOracleId, partnerOracleId, entries }] of groups) {
     if (entries.length < MIN_COMMANDER_DECKS) continue;
+    if (new Set(entries.map((e) => e.ownerId)).size < MIN_COMMANDER_AUTHORS) continue;
 
     const deckCount = entries.length;
     const newLast7d = new Set(
@@ -220,7 +226,7 @@ export function computeCommanderAggregates(
       else high++;
     }
 
-    const cardCounts = new Map<string, { name: string; count: number }>();
+    const cardCounts = new Map<string, { name: string; count: number; authors: Set<string> }>();
     for (const e of entries) {
       const seenInDeck = new Set<string>();
       for (const card of e.mainboard) {
@@ -229,13 +235,15 @@ export function computeCommanderAggregates(
         if (!oracleId || !name || seenInDeck.has(oracleId)) continue;
         seenInDeck.add(oracleId);
         const existing = cardCounts.get(oracleId);
-        if (existing) existing.count++;
-        else cardCounts.set(oracleId, { name, count: 1 });
+        if (existing) {
+          existing.count++;
+          existing.authors.add(e.ownerId);
+        } else cardCounts.set(oracleId, { name, count: 1, authors: new Set([e.ownerId]) });
       }
     }
     const topCards = [...cardCounts.entries()]
+      .filter(([, v]) => v.authors.size >= MIN_CARD_INCLUSION_AUTHORS)
       .map(([oracleId, v]) => ({ oracleId, cardName: v.name, deckCount: v.count }))
-      .filter((c) => c.deckCount >= MIN_CARD_INCLUSION_DECKS)
       .sort((a, b) => b.deckCount - a.deckCount || a.cardName.localeCompare(b.cardName))
       .slice(0, TOP_CARDS_PER_COMMANDER);
 
