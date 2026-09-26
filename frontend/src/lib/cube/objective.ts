@@ -68,8 +68,8 @@ export function typeOf(c: CubeCard): string | null {
 /** Term weights — sum to 1.0. Archetype (+ its pair-concentration sibling) is
  *  the lens the greedy ignores entirely. */
 const W = {
-  archetype: 0.36,
-  pairConcentration: 0.04,
+  archetype: 0.38,
+  pairConcentration: 0.02,
   glue: 0.12,
   color: 0.13,
   curve: 0.13,
@@ -283,6 +283,18 @@ export function axisScoreOf(ax: AxisKey, d: AxisAgg, minDepthVal: number): numbe
 }
 
 /**
+ * Below this many gold contributors, "concentration" isn't a measurement, it's
+ * noise: 1 gold card is trivially 100% concentrated, 2-3 cards swing wildly
+ * (50%-100%) on a single swap. Scoring that swing gave the refiner a strong,
+ * volatile gradient at exactly the cube sizes where gold-per-pair is naturally
+ * thin (a handful of cards per pair at 180-360) — measured dragging archetype
+ * down further on top of the seed-shape cost `selectMulticolorBucket` already
+ * pays for pair balance. A real, deep archetype has plenty of gold
+ * contributors; this floor costs it nothing.
+ */
+const MIN_GOLD_SAMPLE = 4;
+
+/**
  * How much one archetype's gold (exactly-two-color) contributors concentrate
  * in a SINGLE pair, in (0, 1] — 1 = every gold card shares one identity (a
  * real cube's "UB = reanimator"), lower = the theme's gold pieces are spread
@@ -291,14 +303,15 @@ export function axisScoreOf(ax: AxisKey, d: AxisAgg, minDepthVal: number): numbe
  * `axisScoreOf`'s bucket concentration: spreading over TWO pairs is exactly
  * the failure this term exists to catch, where spreading a mono-color theme
  * over "U" and "multicolor" (axisScoreOf's coarser buckets) is not a defect.
- * An axis with no gold contributors at all (a purely mono-color theme) has
- * nothing to concentrate — scores 1, M4-style, so it isn't penalized for a
- * property that doesn't apply to it.
+ * An axis with fewer than `MIN_GOLD_SAMPLE` gold contributors — including none
+ * at all (a purely mono-color theme) — has nothing MEANINGFUL to concentrate
+ * yet: scores 1, M4-style, so it isn't penalized for a property that doesn't
+ * apply to it (or that a thin sample can't reliably measure).
  */
 export function pairConcentrationOf(d: AxisAgg): number {
   const counts = Object.values(d.pairs);
   const total = counts.reduce((a, b) => a + b, 0);
-  if (total === 0) return 1;
+  if (total < MIN_GOLD_SAMPLE) return 1;
   return Math.max(...counts) / total;
 }
 
