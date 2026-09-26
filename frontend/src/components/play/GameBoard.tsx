@@ -570,12 +570,12 @@ export function GameBoard({
             wrapper, so it stays at the device's physical bottom edge rather
             than the current screen's. A flex sibling of the grid above, not
             an overlay — the grid shrinks to make room for it, it never sits
-            on top of a seat. Hidden in commander-damage focus mode (that mode
-            strips the board down to the damage question), but only visually:
-            it keeps its space so the seats don't grow on the way in, which
-            flipped the 7-10 player name tier mid-transition (see
-            play-enhancements.css). */}
-        {showClockStrip && (
+            on top of a seat. Hidden in commander-damage focus mode, same as
+            the old seam satellite: that mode strips the board down to the
+            damage question. Its space goes back to the seats, which the
+            7-10 player boards need for the focused total (a reserved strip
+            took 14px from each 90px cell and the total to 19px). */}
+        {showClockStrip && !cmdFocus && (
           <GameClock
             game={game}
             dispatch={dispatchTracked}

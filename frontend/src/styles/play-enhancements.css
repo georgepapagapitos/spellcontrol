@@ -118,16 +118,6 @@
   border-style: dashed;
 }
 
-/* Commander-damage focus hides the strip but keeps its space. Removing it
-   grew every seat by the strip's height, and on the 7-10 player boards that
-   carried a 145px cell across the 9.5rem name tier (play-board.css): names
-   jumped from ~7px to 17px on the way in and landed on the numerals.
-   `visibility: hidden` also takes its buttons out of the tab order and the
-   accessibility tree. */
-.game-board.is-cmd-focus .game-clock-strip {
-  visibility: hidden;
-}
-
 .game-clock-strip-text {
   display: flex;
   align-items: baseline;

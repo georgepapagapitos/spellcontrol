@@ -2,10 +2,9 @@
 /**
  * What a seat marks on itself: the host ★ (online only) and the vertical tap
  * areas class that moves the ± hints onto the vertical axis. The CSS half of
- * the vertical hints is pinned in styles/play-vertical-taps.test.ts. Also the
- * clock strip keeping its place in commander focus.
+ * the vertical hints is pinned in styles/play-vertical-taps.test.ts.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { GamePlayer, GameState } from '../../lib/game-state';
 import { createGameState, makePlayer } from '../../lib/game-state';
@@ -18,8 +17,6 @@ vi.mock('../../store/play', () => {
       setHaptics: vi.fn(),
       preferredLayouts: {},
       setPreferredLayout: vi.fn(),
-      gameTimerEnabled: true,
-      turnTrackerEnabled: true,
     });
   usePlayStore.getState = getState;
   return { usePlayStore };
@@ -72,8 +69,7 @@ function game(mode: 'local' | 'online', extra: Partial<GameState> = {}): GameSta
     poisonEnabled: true,
     players: [seat(0, 'Alice', { isHost: true }), seat(1, 'Bob')],
   });
-  // Started, so the clock strip has a total to show.
-  return { ...state, status: 'active', startedAt: Date.now() - 60_000, ...extra };
+  return { ...state, status: 'active', ...extra };
 }
 
 describe('the host mark', () => {
@@ -110,16 +106,5 @@ describe('vertical tap areas', () => {
   it('leaves a horizontal board unmarked', () => {
     render(<GameBoard game={game('local')} dispatch={vi.fn()} canControlAll />);
     expect(document.querySelector('.is-vertical-taps')).toBeNull();
-  });
-});
-
-describe('the clock strip in commander focus', () => {
-  it('stays mounted, so the seats keep their size on the way in (CSS only hides it)', () => {
-    render(<GameBoard game={game('local')} dispatch={vi.fn()} canControlAll />);
-    expect(document.querySelector('.game-clock-strip')).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Alice: seat menu' }));
-    fireEvent.click(screen.getByRole('button', { name: /Commander damage/ }));
-    expect(document.querySelector('.game-board.is-cmd-focus')).not.toBeNull();
-    expect(document.querySelector('.game-clock-strip')).not.toBeNull();
   });
 });

@@ -8553,3 +8553,54 @@ controls under 44px 2400 → 0 per viewport (the swatch and facing editors),
 controls clipped by the row or panel 4394 → 0 at 320 and 1066 → 0 at 390,
 clipped labels 1771 → 0 at 320 and 15 → 0 at 820. Guards:
 `styles/play-drawer-compact.test.ts`, `SeatMenu.test.tsx`.
+
+## Play board: the board sizes off itself, and every mark fits its seat (2026-09-26)
+
+A final audit of the board after T143 found six layout defects, each one a
+rule that only held on the seat or the orientation it was tuned on.
+
+- **Vertical tap areas move the ± with the zones.** With vertical taps on, the
+  top half of a seat is +1 and the bottom half −1, so the + sits above the
+  numeral and the − below, in the seat's own axes (`.is-vertical-taps`). Left
+  beside the numeral, the "+" sat on the zone boundary and a long press on the
+  visible "+" gave −10 on every 0° and 270° seat. The stack is centred in the
+  box below the name corner's band (`--pp-v-top`) and sized to fit it, so the +
+  never lands on the name. A partner half takes top/bottom zones too, its pair
+  at the half's far edge, one glyph centred in each zone. In commander focus
+  "N to lethal" moves below the −. **Check it by touch**: a long press on each
+  visible glyph must give that glyph's sign, on every seat rotation.
+- **Nothing inside the board reads the viewport.** Under keep-still the board
+  is turned 90° inside a landscape phone, so its width is the screen's height:
+  a `min-width: 600px` query still matched the 844px screen and gave the 7-10
+  player seats desktop names that sat on their numerals. Every width/height
+  media query in a board stylesheet is scoped to an unrotated board
+  (`:where(.game-board-rotator:not([data-board-rot]))`), and where the answer
+  flips under rotation the rotated board gets the swapped query. A rotated
+  board is always under 500px wide, so it takes the phone values. Components
+  inside the board that need their own threshold ask their container (the
+  clock strip does). Guard: `styles/play-board-viewport-queries.test.ts`.
+- **Commander focus still gives the clock strip's space back to the seats.**
+  Reserving it (`visibility: hidden`) was tried to stop the 7-10 player
+  cells crossing the 9.5rem name tier on the way in, and measured worse: it took
+  14px from every 90px cell at 320px, the focused total fell from 31px to
+  19px and the numerals ran into the life chips. The name does change tier
+  between modes, and that is fine once the board sizes off itself: zero
+  text-on-text in focus at 320/390 portrait and both landscapes.
+- **High Roll fits the seat's own height.** The number is capped by what the
+  die, tiebreak, caption and gaps leave of the panel's height (the cell's width
+  sideways), a seat under 8rem drops the die, and a seat 2.5 times longer than
+  tall reads the roll along one line.
+- **The focused total keeps off the seam.** The focus bar pushes the numeral
+  toward the seat's far edge, which faces the seam, so the focused seat insets
+  that edge by the seam keep-out (`--seam-keepout` + `--space-1`). Always on a
+  sideways seat; on an upright seat only at 12rem or taller, so the 7-10
+  player rows keep their totals.
+- **Marks read the seat's ink on the ink's opposite** (`--pp-ink-plate`).
+  "Up next" stays quiet through a fainter plate and a dashed ring, never a
+  faded glyph: at 55% opacity on a dark plate it measured about 1.5:1 on the
+  light blue seats.
+- **A local board has no host mark.** Seat 0 is "host" there only by
+  construction; the ★ stays for online games, where the host runs the table.
+- **Names give way last.** A partner half on the shortest seats keeps its
+  commander's name on its own line over a smaller value (and drops "N to
+  lethal"); a phone-narrow clock strip gives its button padding to the name.
