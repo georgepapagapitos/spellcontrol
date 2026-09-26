@@ -41,6 +41,7 @@ import {
 import { namesToCubePool } from '../../lib/cube/pool';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const MAX_FRIENDS = 3;
 
 /** Every build is a draft cube (the Commander format left the UI, board T150). */
@@ -385,14 +386,13 @@ export function CollabCube() {
           label="My available cards only"
           infoText="Your cards whose only copies are already claimed by a deck or physical cube are left out. Friends' cards always count."
         />
-        <button
-          type="button"
-          className="btn btn-primary"
+        <Button
+          variant="primary"
           onClick={generate}
           disabled={status === 'working' || selectedIds.size === 0}
         >
           {status === 'working' ? 'Building…' : cube ? 'Rebuild cube' : 'Build collaborative cube'}
-        </button>
+        </Button>
         {selectedIds.size === 0 && (
           <p className="cube-pool-note">Select at least one friend above to get started.</p>
         )}
@@ -463,9 +463,7 @@ export function CollabCube() {
               </p>
             </div>
             <div className="cube-result-actions">
-              <button type="button" className="btn" onClick={copyList}>
-                Copy cube list
-              </button>
+              <Button onClick={copyList}>Copy cube list</Button>
             </div>
           </div>
           {/* Note: saved cubes don't persist supplierMap — supplier info is available

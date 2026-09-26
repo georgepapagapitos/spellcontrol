@@ -28,6 +28,7 @@ import { VisibilityChoice } from '../components/VisibilityChoice';
 import type { ScryfallCard, DeckFormat, EDHRECTheme, Customization } from '@/deck-builder/types';
 import type { ComboSeedContext } from '../types/combos';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Router-state seed for a build. Two shapes share it:
@@ -411,9 +412,9 @@ export function DeckNewPage() {
           ) : (
             <>Create a {formatConfig.label} deck and add cards, or </>
           )}
-          <button type="button" className="btn-link" onClick={() => setShowImport(true)}>
+          <Button variant="link" onClick={() => setShowImport(true)}>
             import one you already have.
-          </button>
+          </Button>
         </p>
       </header>
 
@@ -454,9 +455,9 @@ export function DeckNewPage() {
         <h2 className="deck-builder-section-title">Format</h2>
         <div className="deck-new-format-summary">
           <span className="deck-new-format-summary-active">{formatConfig.label}</span>
-          <button type="button" className="btn-link" onClick={() => setFormatExpanded(true)}>
+          <Button variant="link" onClick={() => setFormatExpanded(true)}>
             Change format
-          </button>
+          </Button>
         </div>
         <fieldset className="format-pill-row" aria-label="Deck format">
           {(Object.keys(DECK_FORMAT_CONFIGS) as DeckFormat[]).map((fmt) => {
@@ -518,15 +519,14 @@ export function DeckNewPage() {
               pass.
             </span>
           </div>
-          <button
-            type="button"
-            className="btn"
+          <Button
             onClick={() =>
               navigate('/decks/new/brew', commander ? { state: { commander } } : undefined)
             }
+            iconEnd={<ArrowRight width={14} height={14} />}
           >
-            Start brewing <ArrowRight width={14} height={14} aria-hidden />
-          </button>
+            Start brewing
+          </Button>
         </section>
       )}
 
@@ -592,22 +592,19 @@ export function DeckNewPage() {
           <>
             {visibilityFieldset}
             <section className="deck-builder-section deck-builder-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Button
+                variant="primary"
                 onClick={build}
                 disabled={isBuilding || publishing || !modeReady || !colorReady}
               >
                 {isBuilding ? 'Building…' : publishing ? 'Publishing…' : generateLabel}
-              </button>
-              <button
-                type="button"
-                className="btn"
+              </Button>
+              <Button
                 onClick={() => void handleStartBlank()}
                 disabled={isBuilding || publishing || !colorReady}
               >
                 {publishing ? 'Creating…' : 'Start blank'}
-              </button>
+              </Button>
               <p className="deck-builder-actions-hint">
                 {colorChooser && !colorReady
                   ? `Choose ${colorChooser.name.split(' // ')[0]}'s color above to build.`
@@ -627,15 +624,14 @@ export function DeckNewPage() {
                     add or pass.
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="btn"
+                <Button
                   onClick={() =>
                     navigate('/decks/new/brew', commander ? { state: { commander } } : undefined)
                   }
+                  iconEnd={<ArrowRight width={14} height={14} />}
                 >
-                  Start brewing <ArrowRight width={14} height={14} aria-hidden />
-                </button>
+                  Start brewing
+                </Button>
               </section>
             )}
           </>
@@ -644,14 +640,9 @@ export function DeckNewPage() {
         <>
           {visibilityFieldset}
           <section className="deck-builder-section deck-builder-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void handleStartBlank()}
-              disabled={publishing}
-            >
+            <Button variant="primary" onClick={() => void handleStartBlank()} disabled={publishing}>
               {publishing ? 'Creating…' : 'Create deck'}
-            </button>
+            </Button>
             <p className="deck-builder-actions-hint">
               Create an empty {formatConfig.label} deck ({formatConfig.mainboardSize}-card mainboard
               {formatConfig.sideboardSize > 0

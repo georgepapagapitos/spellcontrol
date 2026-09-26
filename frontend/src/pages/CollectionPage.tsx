@@ -18,6 +18,7 @@ import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
 import { CollectionExportDialog } from '../components/CollectionExportDialog';
+import { Button } from '@/components/shared/Button';
 
 export function CollectionPage() {
   const rawCards = useCollectionStore((s) => s.cards);
@@ -132,13 +133,13 @@ export function CollectionPage() {
           {error && (
             <div className="error-banner" style={{ marginBottom: 'var(--space-4)' }}>
               {error}
-              <button
-                className="btn-link"
+              <Button
+                variant="link"
                 style={{ marginLeft: 'var(--space-2)' }}
                 onClick={() => setError(null)}
               >
                 Dismiss
-              </button>
+              </Button>
             </div>
           )}
           {/* The collection view is the same whether or not it has cards: hero,

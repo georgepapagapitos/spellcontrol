@@ -1,5 +1,4 @@
 import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { MeterBar } from '../../components/shared/MeterBar';
 import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
 import { VerdictBadge } from '../../components/deck/VerdictBadge';
@@ -17,6 +16,7 @@ import type { Ownership } from '../../lib/cube/import';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import type { CubeProgress } from '../../lib/cube/generate-async';
+import { Button } from '@/components/shared/Button';
 
 // Bucket display order, names, and segment colors for the balance bars.
 export const BUCKET_ORDER: ColorBucket[] = [
@@ -302,9 +302,9 @@ export function CubeEmptyState({
   return (
     <div className="cube-empty">
       <p>{message}</p>
-      <Link to={ctaHref} className="btn btn-primary">
+      <Button variant="primary" to={ctaHref}>
         {ctaLabel}
-      </Link>
+      </Button>
       <p className="cube-empty-hint">{hint}</p>
     </div>
   );
@@ -478,9 +478,9 @@ export function CubeErrorBlock({ error, onRetry }: { error: string; onRetry: () 
   return (
     <div className="cube-error" role="alert">
       {error}
-      <button type="button" className="btn-link" onClick={onRetry}>
+      <Button variant="link" onClick={onRetry}>
         Try again
-      </button>
+      </Button>
     </div>
   );
 }

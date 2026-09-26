@@ -1,6 +1,6 @@
 import './DeckComparePage.css';
 import { useMemo, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { BackLink } from '../components/BackLink';
 import { useDecksStore, type Deck } from '../store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -17,6 +17,7 @@ import { useCurrency } from '@/lib/currency';
 import { formatMoney } from '@/lib/format-money';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { Button } from '@/components/shared/Button';
 
 // Totals are computed by diffDecks in the active display currency, and
 // formatMoney's default is that same currency — number and symbol agree.
@@ -354,13 +355,13 @@ export function DeckComparePage() {
       <h1 className="deck-compare-heading">
         {deckA && deckB ? (
           <>
-            <Link to={`/decks/${deckA.id}`} className="btn-link">
+            <Button variant="link" to={`/decks/${deckA.id}`}>
               {deckA.name}
-            </Link>{' '}
+            </Button>{' '}
             vs{' '}
-            <Link to={`/decks/${deckB.id}`} className="btn-link">
+            <Button variant="link" to={`/decks/${deckB.id}`}>
               {deckB.name}
-            </Link>
+            </Button>
           </>
         ) : (
           'Compare decks'
@@ -743,9 +744,9 @@ function CompareBody({
               ) : (
                 <p className="deck-compare-empty-hint">
                   Not estimated yet —{' '}
-                  <Link to={`/decks/${deck.id}`} className="btn-link">
+                  <Button variant="link" to={`/decks/${deck.id}`}>
                     open the deck
-                  </Link>{' '}
+                  </Button>{' '}
                   to analyze it.
                 </p>
               )}

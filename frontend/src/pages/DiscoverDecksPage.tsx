@@ -39,6 +39,7 @@ import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 type DiscoverSortField = DiscoverSortKey | 'buildable';
 
 // No sort here has a real asc/desc — the server always orders each column
@@ -353,13 +354,9 @@ export function DiscoverDecksPage() {
           hasActiveFilters ? (
             <div className="empty-state">
               <p className="empty-state-tagline">No public decks match these filters.</p>
-              <button
-                type="button"
-                className="btn-link"
-                onClick={() => setFilters(NO_DISCOVER_FILTERS)}
-              >
+              <Button variant="link" onClick={() => setFilters(NO_DISCOVER_FILTERS)}>
                 Clear filters
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="empty-state">
@@ -400,16 +397,10 @@ export function DiscoverDecksPage() {
             ) : (
               hasMore && (
                 <div className="discover-decks-load-more">
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={handleLoadMore}
-                    disabled={loadingMore}
-                    aria-busy={loadingMore}
-                  >
+                  <Button onClick={handleLoadMore} disabled={loadingMore} aria-busy={loadingMore}>
                     {loadingMore && <span className="spinner" aria-hidden="true" />}
                     Load more
-                  </button>
+                  </Button>
                 </div>
               )
             )}

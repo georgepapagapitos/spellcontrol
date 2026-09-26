@@ -82,6 +82,7 @@ import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
 
 // Stable empty-set reference for guests/pre-bootstrap — avoids allocating a
@@ -675,26 +676,28 @@ export function DecksIndexPage() {
               Build one, or bring in a list or precon you already have.
             </p>
             <div className="empty-state-actions decks-empty-actions">
-              <Link to="/decks/new" className="btn btn-primary empty-state-action">
-                <Wand2 width={14} height={14} strokeWidth={2} aria-hidden />
+              <Button
+                variant="primary"
+                to="/decks/new"
+                className="empty-state-action"
+                icon={<Wand2 width={14} height={14} strokeWidth={2} />}
+              >
                 Build a deck
-              </Link>
-              <button
-                type="button"
-                className="btn empty-state-action"
+              </Button>
+              <Button
                 onClick={() => setShowImport(true)}
+                className="empty-state-action"
+                icon={<Download width={14} height={14} strokeWidth={2} />}
               >
-                <Download width={14} height={14} strokeWidth={2} aria-hidden />
                 Import deck
-              </button>
-              <button
-                type="button"
-                className="btn empty-state-action"
+              </Button>
+              <Button
                 onClick={() => setShowProductSearch(true)}
+                className="empty-state-action"
+                icon={<Package width={14} height={14} strokeWidth={2} />}
               >
-                <Package width={14} height={14} strokeWidth={2} aria-hidden />
                 Add a product
-              </button>
+              </Button>
             </div>
           </div>
         ) : sorted.length === 0 ? (
@@ -721,35 +724,33 @@ export function DecksIndexPage() {
               >
                 {authStatus === 'authed' && (
                   <>
-                    <button
-                      type="button"
-                      className="pill-btn"
+                    <Button
+                      placement="row"
                       disabled={sel.selected.size === 0 || visibilityBusy}
                       onClick={() => void applyVisibility(Array.from(sel.selected), true)}
+                      icon={<Globe width={14} height={14} strokeWidth={1.8} />}
                     >
-                      <Globe width={14} height={14} strokeWidth={1.8} aria-hidden />
-                      <span>{visibilityBusy ? 'Working…' : 'Make public'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="pill-btn"
+                      {visibilityBusy ? 'Working…' : 'Make public'}
+                    </Button>
+                    <Button
+                      placement="row"
                       disabled={sel.selected.size === 0 || visibilityBusy}
                       onClick={() => void applyVisibility(Array.from(sel.selected), false)}
+                      icon={<GlobeLock width={14} height={14} strokeWidth={1.8} />}
                     >
-                      <GlobeLock width={14} height={14} strokeWidth={1.8} aria-hidden />
-                      <span>{visibilityBusy ? 'Working…' : 'Make private'}</span>
-                    </button>
+                      {visibilityBusy ? 'Working…' : 'Make private'}
+                    </Button>
                   </>
                 )}
-                <button
-                  type="button"
-                  className="pill-btn bulk-bar-danger"
+                <Button
+                  placement="row"
                   disabled={sel.selected.size === 0 || visibilityBusy}
                   onClick={() => setConfirmBulkDelete(true)}
+                  className="bulk-bar-danger"
+                  icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
                 >
-                  <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                  <span>Delete selected</span>
-                </button>
+                  Delete selected
+                </Button>
               </BulkSelectBar>
             )}
             <ul className={`decks-index-list is-${view}`}>
@@ -1008,13 +1009,13 @@ export function DecksIndexPage() {
 
         {decks.length > 1 && (
           <div className="decks-index-danger">
-            <button
-              type="button"
-              className="btn-link decks-index-danger-btn"
+            <Button
+              variant="link"
               onClick={() => setConfirmDeleteAll(true)}
+              className="decks-index-danger-btn"
             >
               Delete all decks
-            </button>
+            </Button>
           </div>
         )}
 
