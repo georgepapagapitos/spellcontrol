@@ -1,5 +1,6 @@
 import { Modal } from './Modal';
 import { haptics } from '../lib/haptics';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   title: string;
@@ -41,12 +42,11 @@ export function ConfirmDialog({
             focus, so a reflexive Enter/Space on the dialog that just appeared
             backs out instead of destroying. Benign confirms keep the confirm
             button focused — matching the platform convention for alerts. */}
-        <button type="button" className="btn" onClick={onCancel} autoFocus={danger}>
+        <Button onClick={onCancel} autoFocus={danger}>
           {cancelLabel}
-        </button>
-        <button
-          type="button"
-          className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`}
+        </Button>
+        <Button
+          variant={danger ? 'danger' : 'primary'}
           onClick={() => {
             // Destructive confirms get the warning cue at the moment of
             // commitment, mirroring Play's semantics (mulligan buzzes on the
@@ -58,7 +58,7 @@ export function ConfirmDialog({
           autoFocus={!danger}
         >
           {confirmLabel}
-        </button>
+        </Button>
       </div>
     </Modal>
   );

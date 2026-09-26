@@ -61,6 +61,7 @@ import {
 } from '../lib/google-picker';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 
 // Per-format column/line examples for the import-source InfoTip (E130 —
 // discoverability for the 5 bare text links, which named the tools but
@@ -762,17 +763,12 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                   )}
                 </span>
                 <span className="fetch-error-actions">
-                  <button className="btn-link" onClick={() => setShowFetchErrors((v) => !v)}>
+                  <Button variant="link" onClick={() => setShowFetchErrors((v) => !v)}>
                     {showFetchErrors ? 'Hide list' : 'Show list'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleRetryFetchErrors}
-                    disabled={isLoading}
-                  >
+                  </Button>
+                  <Button variant="primary" onClick={handleRetryFetchErrors} disabled={isLoading}>
                     Retry
-                  </button>
+                  </Button>
                 </span>
               </div>
               {showFetchErrors && (
@@ -793,9 +789,9 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                   at all. They weren't imported.
                 </span>
                 <span className="fetch-error-actions">
-                  <button className="btn-link" onClick={() => setShowMalformed((v) => !v)}>
+                  <Button variant="link" onClick={() => setShowMalformed((v) => !v)}>
                     {showMalformed ? 'Hide list' : 'Show list'}
-                  </button>
+                  </Button>
                   <button
                     type="button"
                     className="banner-dismiss"
@@ -824,9 +820,9 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                   match Scryfall. Fix them below, or leave them as bare entries with no image or
                   price.
                 </span>
-                <button className="btn-link" onClick={() => setShowUnresolved((v) => !v)}>
+                <Button variant="link" onClick={() => setShowUnresolved((v) => !v)}>
                   {showUnresolved ? 'Hide list' : 'Show list'}
-                </button>
+                </Button>
               </div>
               {showUnresolved && (
                 <ul className="unresolved-repair-list">
@@ -859,47 +855,48 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             <h2 className="import-card-title">Import your collection</h2>
             <div className="import-card-header-actions">
               {canScan && !hideScanButton && (
-                <button
-                  type="button"
-                  className="btn import-upload-btn"
+                <Button
                   onClick={() => setScannerOpen(true)}
                   disabled={isLoading}
                   title="Scan physical cards with your device camera"
+                  className="import-upload-btn"
+                  icon={<Camera width={14} height={14} strokeWidth={1.8} />}
                 >
-                  <Camera width={14} height={14} strokeWidth={1.8} aria-hidden />
-                  <span>Scan cards</span>
-                </button>
+                  Scan cards
+                </Button>
               )}
               {canPickDrive && (
-                <button
-                  type="button"
-                  className="btn import-upload-btn"
+                <Button
                   onClick={handlePickDrive}
                   disabled={isLoading || driveBusy}
                   title="Browse Google Drive for a card list"
+                  className="import-upload-btn"
+                  icon={
+                    driveBusy ? (
+                      <span className="spinner" />
+                    ) : (
+                      <Cloud width={14} height={14} strokeWidth={1.8} />
+                    )
+                  }
                 >
-                  {driveBusy ? (
-                    <span className="spinner" />
-                  ) : (
-                    <Cloud width={14} height={14} strokeWidth={1.8} aria-hidden />
-                  )}
-                  <span>{driveBusy ? 'Opening…' : 'Google Drive'}</span>
-                </button>
+                  {driveBusy ? 'Opening…' : 'Google Drive'}
+                </Button>
               )}
-              <button
-                type="button"
-                className="btn import-upload-btn"
+              <Button
                 onClick={handlePickFile}
                 disabled={isLoading}
                 title="Upload CSV or TXT files"
+                className="import-upload-btn"
+                icon={
+                  isLoading ? (
+                    <span className="spinner" />
+                  ) : (
+                    <Upload width={14} height={14} strokeWidth={1.8} />
+                  )
+                }
               >
-                {isLoading ? (
-                  <span className="spinner" />
-                ) : (
-                  <Upload width={14} height={14} strokeWidth={1.8} aria-hidden />
-                )}
-                <span>Upload files</span>
-              </button>
+                Upload files
+              </Button>
             </div>
             <input
               type="file"
@@ -978,20 +975,21 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                   autoComplete="off"
                   spellCheck={false}
                 />
-                <button
-                  type="button"
-                  className="btn import-link-btn"
+                <Button
                   onClick={handleFetchLink}
                   disabled={isLoading || linkBusy || !linkUrl.trim()}
                   title="Fetch the card list from this link"
+                  className="import-link-btn"
+                  icon={
+                    linkBusy ? (
+                      <span className="spinner" />
+                    ) : (
+                      <Link2 width={14} height={14} strokeWidth={1.8} />
+                    )
+                  }
                 >
-                  {linkBusy ? (
-                    <span className="spinner" />
-                  ) : (
-                    <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                  )}
-                  <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
-                </button>
+                  {linkBusy ? 'Fetching…' : 'Fetch'}
+                </Button>
               </div>
             </div>
           )}
@@ -1038,19 +1036,19 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
               />
             </span>
             {stagedFiles.length > 0 ? (
-              <button className="btn btn-primary" onClick={handleImportStaged} disabled={isLoading}>
+              <Button variant="primary" onClick={handleImportStaged} disabled={isLoading}>
                 {isLoading
                   ? 'Importing…'
                   : `Import ${stagedFiles.length} file${stagedFiles.length === 1 ? '' : 's'}`}
-              </button>
+              </Button>
             ) : (
-              <button
-                className="btn btn-primary"
+              <Button
+                variant="primary"
                 onClick={handlePasteImport}
                 disabled={isLoading || !pasteText.trim()}
               >
                 {isLoading ? 'Importing…' : 'Import'}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -1265,20 +1263,22 @@ function UnresolvedNameRow({ name, disabled, onResolved }: UnresolvedNameRowProp
         <span className="unresolved-repair-name" title={name}>
           {name}
         </span>
-        <button
-          type="button"
-          className="btn-link unresolved-repair-toggle"
+        <Button
+          variant="link"
           onClick={() => setExpanded((v) => !v)}
           disabled={disabled}
           aria-expanded={expanded}
+          className="unresolved-repair-toggle"
+          icon={
+            expanded ? (
+              <ChevronDown width={12} height={12} strokeWidth={2} />
+            ) : (
+              <ChevronRight width={12} height={12} strokeWidth={2} />
+            )
+          }
         >
-          {expanded ? (
-            <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
-          ) : (
-            <ChevronRight width={12} height={12} strokeWidth={2} aria-hidden />
-          )}
           Fix
-        </button>
+        </Button>
       </div>
       {expanded && (
         <div className="unresolved-repair-search">
@@ -1338,14 +1338,9 @@ function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDial
         <button type="button" className="upload-action" onClick={onCancel}>
           Cancel
         </button>
-        <button
-          type="button"
-          className="btn btn-primary upload-action-danger"
-          onClick={onConfirm}
-          autoFocus
-        >
+        <Button variant="primary" onClick={onConfirm} autoFocus className="upload-action-danger">
           Delete
-        </button>
+        </Button>
       </div>
     </Modal>
   );
@@ -1459,14 +1454,9 @@ function ImportModeDialog({
                 autoFocus
                 maxLength={60}
               />
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleBinderSubmit}
-                disabled={!binderName.trim()}
-              >
+              <Button variant="primary" onClick={handleBinderSubmit} disabled={!binderName.trim()}>
                 Import
-              </button>
+              </Button>
             </div>
             <span className="choice-dialog-option-desc binder-import-note">
               Cards will also be added to your collection.
@@ -1540,14 +1530,9 @@ function ReimportGateDialog({
         <button type="button" className="upload-action" onClick={onMergeAnyway}>
           Merge anyway
         </button>
-        <button
-          type="button"
-          className="btn btn-primary upload-action-danger"
-          onClick={onReplace}
-          autoFocus
-        >
+        <Button variant="primary" onClick={onReplace} autoFocus className="upload-action-danger">
           Replace instead
-        </button>
+        </Button>
       </div>
     </Modal>
   );

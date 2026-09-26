@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Modal } from './Modal';
 import { VisibilityChoice } from './VisibilityChoice';
 import { useAuth } from '../store/auth';
@@ -12,6 +11,7 @@ import {
 import { toast } from '../store/toasts';
 import { profileCollectionUrl } from '../lib/profile-client';
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 
 const OPTIONS: { value: CollectionVisibility; label: string; hint: string }[] = [
   {
@@ -101,12 +101,10 @@ export function CollectionVisibilityDialog({
           Sharing needs an account, so you stay in control of who sees it.
         </p>
         <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onClose}>
-            Not now
-          </button>
-          <Link to={signInHref} className="btn btn-primary" onClick={onClose}>
+          <Button onClick={onClose}>Not now</Button>
+          <Button variant="primary" to={signInHref} onClick={onClose}>
             Sign in
-          </Link>
+          </Button>
         </div>
       </Modal>
     );
@@ -169,15 +167,15 @@ export function CollectionVisibilityDialog({
             className="share-dialog-url"
             aria-label="Link"
           />
-          <button type="button" className="btn btn-primary" onClick={() => void copy()}>
+          <Button variant="primary" onClick={() => void copy()}>
             Copy
-          </button>
+          </Button>
         </div>
       )}
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onClose} disabled={!!busy}>
+        <Button onClick={onClose} disabled={!!busy}>
           Done
-        </button>
+        </Button>
       </div>
     </Modal>
   );

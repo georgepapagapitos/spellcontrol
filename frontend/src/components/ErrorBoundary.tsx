@@ -2,6 +2,7 @@ import { reportError } from '@/lib/analytics';
 import { logger } from '@/lib/logger';
 import { Component, type ReactNode } from 'react';
 import { BrandMark } from './shared/BrandMark';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   children: ReactNode;
@@ -40,12 +41,10 @@ export class ErrorBoundary extends Component<Props, State> {
               Your data on this device is safe. Try again, or reload if that doesn't help.
             </p>
             <div className="error-boundary-actions">
-              <button className="btn btn-primary" onClick={() => this.setState({ error: null })}>
+              <Button variant="primary" onClick={() => this.setState({ error: null })}>
                 Try again
-              </button>
-              <button className="btn" onClick={() => window.location.reload()}>
-                Reload page
-              </button>
+              </Button>
+              <Button onClick={() => window.location.reload()}>Reload page</Button>
             </div>
           </div>
         </div>

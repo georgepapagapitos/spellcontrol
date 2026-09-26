@@ -12,6 +12,7 @@ import { InfoTip } from './InfoTip';
 import { SelectMenu } from './SelectMenu';
 import { SortValueOrderEditor } from './SortValueOrderEditor';
 import type { SortEntry, SortField } from '../types';
+import { Button } from '@/components/shared/Button';
 
 type ValueOrders = Partial<Record<SortField, string[]>>;
 
@@ -156,13 +157,12 @@ export function SortEditor({ sorts, valueOrders, onSortsChange, onValueOrdersCha
             );
           })}
           {sorts.length < MAX_SORTS && (
-            <button
-              type="button"
-              className="btn btn-add-group"
+            <Button
               onClick={() => onSortsChange([...sorts, nextDefaultSort(sorts)])}
+              className="btn-add-group"
             >
               + Add sort
-            </button>
+            </Button>
           )}
         </div>
       </div>

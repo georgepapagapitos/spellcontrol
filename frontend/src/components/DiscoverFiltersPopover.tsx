@@ -13,6 +13,7 @@ import {
 import type { DeckFormat } from '@/deck-builder/types';
 import { ColorPip } from './shared/ManaSymbol';
 import { FilterTrigger } from './shared/FilterTrigger';
+import { Button } from '@/components/shared/Button';
 
 const BRACKET_OPTIONS = [1, 2, 3, 4, 5];
 
@@ -190,9 +191,9 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
 
             {hasActive && (
               <div className="deck-filters-footer">
-                <button type="button" className="btn-link deck-filters-clear" onClick={clearAll}>
+                <Button variant="link" onClick={clearAll} className="deck-filters-clear">
                   Clear filters
-                </button>
+                </Button>
               </div>
             )}
           </div>,

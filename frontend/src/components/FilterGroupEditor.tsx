@@ -20,6 +20,7 @@ import type {
   EnrichedCard,
   Rarity,
 } from '../types';
+import { Button } from '@/components/shared/Button';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
 
@@ -146,9 +147,9 @@ export function FilterGroupList({
       ))}
 
       <div className="filter-group-footer">
-        <button type="button" className="btn btn-add-group" onClick={onAdd}>
+        <Button onClick={onAdd} className="btn-add-group">
           + Or match other cards too
-        </button>
+        </Button>
       </div>
     </div>
   );

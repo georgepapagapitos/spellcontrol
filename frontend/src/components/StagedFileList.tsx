@@ -1,4 +1,5 @@
 import { MAX_STAGED_FILES } from '../lib/staged-files';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   files: File[];
@@ -27,9 +28,9 @@ export function StagedFileList({
         <strong>
           {files.length} of {max} file{max === 1 ? '' : 's'} staged
         </strong>
-        <button type="button" className="btn-link" onClick={onClear} disabled={disabled}>
+        <Button variant="link" onClick={onClear} disabled={disabled}>
           Clear
-        </button>
+        </Button>
       </div>
       <ul className="staged-files-list">
         {files.map((f, i) => (

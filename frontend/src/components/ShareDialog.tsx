@@ -21,6 +21,7 @@ import type { ShareKind, ShareRow } from '../lib/shared-types';
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Who can see a resource: one choice, applied the moment it's picked.
@@ -247,12 +248,10 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
           Sharing needs an account, so you stay in control of who sees it.
         </p>
         <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onClose}>
-            Not now
-          </button>
-          <Link to={signInHref} className="btn btn-primary" onClick={onClose}>
+          <Button onClick={onClose}>Not now</Button>
+          <Button variant="primary" to={signInHref} onClick={onClose}>
             Sign in
-          </Link>
+          </Button>
         </div>
       </Modal>
     );
@@ -309,13 +308,11 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
               className="share-dialog-url"
               aria-label="Link"
             />
-            <button type="button" className="btn btn-primary" onClick={() => void handleCopy()}>
+            <Button variant="primary" onClick={() => void handleCopy()}>
               Copy
-            </button>
+            </Button>
             {canShare() && (
-              <button
-                type="button"
-                className="btn"
+              <Button
                 onClick={() =>
                   void openShareSheet({
                     title: `Share ${resourceLabel}`,
@@ -325,19 +322,18 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
                 }
               >
                 Share…
-              </button>
+              </Button>
             )}
           </div>
-          <button
-            type="button"
-            className="btn-link"
+          <Button
+            variant="link"
             style={{ alignSelf: 'flex-start' }}
             aria-expanded={showQr}
             aria-controls="share-qr-panel"
             onClick={() => setShowQr((v) => !v)}
           >
             {showQr ? 'Hide QR code' : 'Show QR code'}
-          </button>
+          </Button>
           {showQr && (
             <div className="share-qr-panel" id="share-qr-panel">
               <ShareQrCode value={url} label={`QR code for ${resourceLabel}`} />
@@ -371,14 +367,13 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
               Sent to @{sentTo}. They&apos;ll see it in their inbox.
             </p>
           ) : !sendOpen ? (
-            <button
-              type="button"
-              className="btn-link"
+            <Button
+              variant="link"
               style={{ alignSelf: 'flex-start' }}
               onClick={() => setSendOpen(true)}
             >
               Send to a friend
-            </button>
+            </Button>
           ) : friends === null ? (
             <p className="choice-dialog-body">Loading friends…</p>
           ) : friends.length === 0 ? (
@@ -409,9 +404,9 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       )}
 
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onClose} disabled={!!busy}>
+        <Button onClick={onClose} disabled={!!busy}>
           Done
-        </button>
+        </Button>
       </div>
     </Modal>
   );

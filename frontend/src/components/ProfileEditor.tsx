@@ -9,6 +9,7 @@ import { AvatarPickerSheet } from './AvatarPickerSheet';
 import './ProfileEditor.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const DISPLAY_NAME_MAX = 40;
 const BIO_MAX = 280;
 
@@ -176,14 +177,9 @@ export function ProfileEditor() {
       </div>
 
       <div className="profile-editor-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!dirty || saving}
-          onClick={() => void handleSave()}
-        >
+        <Button variant="primary" disabled={!dirty || saving} onClick={() => void handleSave()}>
           {saving ? 'Saving…' : 'Save'}
-        </button>
+        </Button>
       </div>
 
       {pickerOpen && (

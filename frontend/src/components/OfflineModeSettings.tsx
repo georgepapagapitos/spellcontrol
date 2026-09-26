@@ -3,6 +3,7 @@ import { useOfflineStore } from '@/store/offline';
 import type { DownloadPhase } from '@/lib/offline';
 import { formatBytes } from '@/lib/format-bytes';
 import { formatRelativeTime } from '@/lib/format-time';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Status for the local card data, plus "Refresh" to download or update it and
@@ -80,14 +81,9 @@ export function OfflineModeSettings(): React.ReactElement | null {
             </div>
           </div>
           <div className="settings-row-actions">
-            <button
-              type="button"
-              className="btn btn-quiet"
-              onClick={() => void sync()}
-              disabled={syncing}
-            >
+            <Button onClick={() => void sync()} disabled={syncing}>
               {syncing ? 'Refreshing…' : 'Refresh card data now'}
-            </button>
+            </Button>
           </div>
         </div>
         {hasData && (
@@ -99,14 +95,9 @@ export function OfflineModeSettings(): React.ReactElement | null {
               </div>
             </div>
             <div className="settings-row-actions">
-              <button
-                type="button"
-                className="btn btn-quiet"
-                onClick={() => void clear()}
-                disabled={syncing}
-              >
+              <Button onClick={() => void clear()} disabled={syncing}>
                 Clear cached card data
-              </button>
+              </Button>
             </div>
           </div>
         )}

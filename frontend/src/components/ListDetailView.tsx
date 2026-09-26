@@ -63,6 +63,7 @@ import {
   zoomTier,
 } from '../lib/grid-zoom';
 import { useElementWidth } from '../lib/use-element-width';
+import { Button } from '@/components/shared/Button';
 
 const GRID_SIZE_KEY = 'mtg-lists-grid-size';
 
@@ -758,9 +759,9 @@ export function ListDetailView({
                 : 'No cards in this list yet.'}
           </p>
           {rows.length > 0 && (
-            <button type="button" className="btn-link" onClick={clearAll}>
+            <Button variant="link" onClick={clearAll}>
               Clear filters
-            </button>
+            </Button>
           )}
         </div>
       ) : view === 'grid' ? (

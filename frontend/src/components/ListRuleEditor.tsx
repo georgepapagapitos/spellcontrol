@@ -9,6 +9,7 @@ import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-ca
 import { Modal } from './Modal';
 import { FilterGroupList, cloneChips, validateGroups } from './FilterGroupEditor';
 import './ListRuleEditor.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   list: ListDef;
@@ -177,12 +178,12 @@ export function ListRuleEditor({ list, onClose }: Props) {
             {matchCount === 1 ? 'card' : 'cards'} in your collection
           </span>
         )}
-        <button type="button" className="btn list-rule-editor-cancel" onClick={onClose}>
+        <Button onClick={onClose} className="list-rule-editor-cancel">
           Cancel
-        </button>
-        <button type="button" className="btn btn-primary" disabled={!canSave} onClick={save}>
+        </Button>
+        <Button variant="primary" disabled={!canSave} onClick={save}>
           Save rule
-        </button>
+        </Button>
       </div>
     </Modal>
   );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   cardName: string;
@@ -87,12 +88,12 @@ export function RemoveCopiesDialog({ cardName, total, onConfirm, onCancel }: Pro
       </div>
       <div className="choice-dialog-actions">
         {/* Safe default for a destructive dialog — see ConfirmDialog. */}
-        <button type="button" className="btn" onClick={onCancel} autoFocus>
+        <Button onClick={onCancel} autoFocus>
           Cancel
-        </button>
-        <button type="button" className="btn btn-danger" onClick={() => onConfirm(clamp(qty))}>
+        </Button>
+        <Button variant="danger" onClick={() => onConfirm(clamp(qty))}>
           Remove {qty}
-        </button>
+        </Button>
       </div>
     </Modal>
   );
