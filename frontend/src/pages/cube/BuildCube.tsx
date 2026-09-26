@@ -6,6 +6,7 @@ import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { useStoredView } from '../../lib/use-stored-view';
 import { StackedBar } from '../../components/shared/MeterBar';
 import { CardGridCell } from '../../components/shared/CardGridCell';
+import { Button } from '../../components/shared/Button';
 import { DeckBadge } from '../../components/DeckBadge';
 import { CardPreview } from '../../components/CardPreview';
 import { NameInputDialog } from '../../components/NameInputDialog';
@@ -755,9 +756,9 @@ export function CubeResult({
                 />
               ))}
             </div>
-            <button type="button" className="btn cube-sample-pack-deal" onClick={dealAnother}>
+            <Button className="cube-sample-pack-deal" onClick={dealAnother}>
               Deal another pack
-            </button>
+            </Button>
           </div>
         )}
       </div>
