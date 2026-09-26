@@ -7,7 +7,7 @@ import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
 import { FilterTrigger } from './shared/FilterTrigger';
 import { FILTER_COLOR_OPTIONS, type ColorMatchMode } from '@/lib/colors';
 import { useAnchoredPanel } from '@/lib/use-anchored-panel';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 
 const SOURCE_OPTIONS: Array<{ key: DeckSource; label: string }> = [
@@ -147,17 +147,14 @@ export function DeckFiltersPopover({
                 {FILTER_COLOR_OPTIONS.map((c) => {
                   const active = colors.has(c.key);
                   return (
-                    <button
-                      key={c.key}
-                      type="button"
+                    <IconButton
                       className={`color-filter-btn${active ? ' is-active' : ''}`}
+                      key={c.key}
                       onClick={() => toggleColor(c.key)}
-                      aria-label={c.label}
                       aria-pressed={active}
-                      title={c.label}
-                    >
-                      <ColorPip color={c.key} pip="lg" />
-                    </button>
+                      label={c.label}
+                      icon={<ColorPip color={c.key} pip="lg" />}
+                    />
                   );
                 })}
               </div>

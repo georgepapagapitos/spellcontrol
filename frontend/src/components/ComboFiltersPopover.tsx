@@ -11,7 +11,7 @@ import {
   type ComboPieceCount,
   type ComboResultKind,
 } from '../lib/combo-filters';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 
 const RESULT_OPTIONS = (
@@ -81,17 +81,14 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
                 {FILTER_COLOR_OPTIONS.map((c) => {
                   const active = filters.colors.has(c.key);
                   return (
-                    <button
-                      key={c.key}
-                      type="button"
+                    <IconButton
                       className={`color-filter-btn${active ? ' is-active' : ''}`}
+                      key={c.key}
                       onClick={() => toggleIn('colors', c.key)}
-                      aria-label={c.label}
                       aria-pressed={active}
-                      title={c.label}
-                    >
-                      <ColorPip color={c.key} pip="lg" />
-                    </button>
+                      label={c.label}
+                      icon={<ColorPip color={c.key} pip="lg" />}
+                    />
                   );
                 })}
               </div>

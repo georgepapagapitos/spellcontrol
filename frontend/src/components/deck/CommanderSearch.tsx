@@ -44,7 +44,7 @@ import { buildCommanderKey } from '../../lib/commander-key';
 import { getCommanderStatsBatch, type CommanderStats } from '../../lib/aggregates-client';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 /**
  * Resolves the commander-picker platform-deck-count badge (social W4) for a
@@ -189,13 +189,10 @@ function ColorPips({
       {COLORS.map((c) => {
         const active = colorFilter.has(c);
         return (
-          <button
-            key={c}
-            type="button"
+          <IconButton
             className={`commander-color-pip${active ? ' active' : ''}`}
+            key={c}
             aria-pressed={active}
-            aria-label={COLOR_LABEL[c]}
-            title={COLOR_LABEL[c]}
             onClick={() =>
               setColorFilter((prev) => {
                 const next = new Set(prev);
@@ -212,9 +209,9 @@ function ColorPips({
                 return next;
               })
             }
-          >
-            <ColorPip color={c} pip={false} />
-          </button>
+            label={COLOR_LABEL[c]}
+            icon={<ColorPip color={c} pip={false} />}
+          />
         );
       })}
       {colorFilter.size > 0 && (
