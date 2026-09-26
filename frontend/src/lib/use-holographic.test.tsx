@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useHolographic } from './use-holographic';
+import { HOLO_REST, useHolographic } from './use-holographic';
 
 function makeEl(): HTMLElement {
   const el = document.createElement('div');
@@ -143,5 +143,54 @@ describe('useHolographic', () => {
     expect(parseFloat(el.style.getPropertyValue('--ry'))).toBeCloseTo(0, 1);
     expect(el.style.getPropertyValue('--mx')).not.toBe('');
     suppress = false;
+  });
+
+  // Drive frames with real, advancing timestamps (flushRaf reuses "now").
+  let clock = 0;
+  function runFrames(frames: number, stepMs: number) {
+    for (let i = 0; i < frames; i++) {
+      const queue = rafCallbacks.splice(0);
+      if (queue.length === 0) return i;
+      clock += stepMs;
+      for (const cb of queue) cb(clock);
+    }
+    return frames;
+  }
+
+  it('eases back to the resting light and stops the loop, foil lift included', () => {
+    const { result } = renderHook(() => useHolographic(true));
+    const el = makeEl();
+    act(() => result.current(el));
+    act(() => {
+      el.dispatchEvent(new MouseEvent('mousemove', { clientX: 90, clientY: 90 }));
+      runFrames(30, 16);
+      el.dispatchEvent(new MouseEvent('mouseleave'));
+    });
+    let ran = 0;
+    act(() => {
+      ran = runFrames(400, 16);
+    });
+    expect(ran).toBeLessThan(400); // the loop stopped on its own
+    expect(parseFloat(el.style.getPropertyValue('--mx'))).toBeCloseTo(HOLO_REST.mx, 0);
+    expect(parseFloat(el.style.getPropertyValue('--my'))).toBeCloseTo(HOLO_REST.my, 0);
+    expect(parseFloat(el.style.getPropertyValue('--active'))).toBeLessThan(0.01);
+  });
+
+  it('tracks at the same speed at 60Hz and 120Hz', () => {
+    const at = (stepMs: number, frames: number) => {
+      rafCallbacks = [];
+      const { result, unmount } = renderHook(() => useHolographic(true));
+      const el = makeEl();
+      act(() => result.current(el));
+      act(() => {
+        el.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 50 }));
+        runFrames(frames, stepMs);
+      });
+      const mx = parseFloat(el.style.getPropertyValue('--mx'));
+      unmount();
+      return mx;
+    };
+    // 96ms of tracking either way (the first frame only starts the clock).
+    expect(at(16, 7)).toBeCloseTo(at(8, 13), 1);
   });
 });

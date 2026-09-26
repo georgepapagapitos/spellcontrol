@@ -78,17 +78,6 @@ export function SectionIcon({ icon }: { icon: string }) {
   return <ManaSymbol symbol={icon} />;
 }
 
-/** The two ambient-drift overlay layers (rainbow shine + glare) reused from the
- *  CardPreview foil engine. Render inside any element carrying `is-foil`. */
-export function FoilShimmer() {
-  return (
-    <>
-      <div className="card-preview-foil-shine" aria-hidden="true" />
-      <div className="card-preview-foil-glare" aria-hidden="true" />
-    </>
-  );
-}
-
 // Inline chip rendered next to the card name. Stays out of the way when the
 // row is fully allocated; surfaces a precise "M of N owned" count when only
 // some slots are bound to a real collection copy. Orphans get their own

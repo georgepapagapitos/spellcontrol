@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
- * Drives a holographic foil effect by tracking the cursor over a target element
- * and writing CSS custom properties (--rx, --ry, --mx, --my, --hyp) directly to
- * the DOM. CSS picks these up to animate tilt, glare position, and shimmer.
+ * Drives the holographic foil by tracking the cursor over a target element and
+ * writing CSS custom properties (--rx, --ry, --mx, --my, --active) directly to
+ * the DOM. CSS picks these up to tilt the card and slide the foil's spectrum
+ * and glare (holographic.css).
  *
  * Uses requestAnimationFrame for smoothing and bypasses React entirely on hover —
  * mousemove fires often enough that going through setState would tank framerate.
@@ -18,6 +19,16 @@ interface HolographicOptions {
    *  fight the swipe visually. */
   shouldSuppressTilt?: () => boolean;
 }
+
+/** Where the light sits with no cursor on the card: upper-left, like a room
+ *  light. holographic.css parks the glare at the same 32% / 22% when these
+ *  vars are unset, so leaving the card eases back to the resting picture. */
+export const HOLO_REST: Readonly<{ mx: number; my: number }> = { mx: 32, my: 22 };
+
+/** Smoothing time constants (ms): tight while tracking, gentle on release.
+ *  Time-based, so a 120Hz display settles exactly as fast as a 60Hz one. */
+const TAU_TRACK = 55;
+const TAU_RELEASE = 160;
 
 export function useHolographic(enabled: boolean, options: HolographicOptions = {}) {
   // Stash in a ref so the effect doesn't have to re-bind listeners every render
@@ -34,48 +45,44 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
     if (!el || !enabled) return;
 
     let rafId: number | null = null;
-    // Targets are what mousemove writes; current is what we lerp toward them.
-    // gx/gy are normalized cursor offset in [-1, 1] — used by CSS for tilt-aware
-    // shadow direction and inner-bevel highlight, where percentages can't be
-    // multiplied into px values directly.
-    // act is 0..1 — 1 while the cursor is on the card, lerps to 0 on leave.
-    // CSS reads it as --active and uses it to gate the foil overlay opacity
-    // so foil only appears during interaction (matches simey/pokemon-cards
-    // approach of opacity = card-opacity).
-    const target = { rx: 0, ry: 0, mx: 50, my: 50, hyp: 0, gx: 0, gy: 0, act: 0 };
-    const current = { rx: 0, ry: 0, mx: 50, my: 50, hyp: 0, gx: 0, gy: 0, act: 0 };
+    let lastT: number | null = null;
+    // Targets are what mousemove writes; current is what we ease toward them.
+    // act is 0..1 — 1 while the cursor is on the card, eases to 0 on leave.
+    // CSS reads it as --active to lift the foil from its resting level.
+    const target = { rx: 0, ry: 0, mx: HOLO_REST.mx, my: HOLO_REST.my, act: 0 };
+    const current = { ...target };
     let active = false;
 
-    const apply = () => {
-      // Lerp current → target. Higher factor = snappier. While the cursor is
-      // active we want it tracking tightly; on leave we ease back gently.
-      const k = active ? 0.28 : 0.1;
+    const apply = (t: number) => {
+      // The first frame of a run only starts the clock (assuming a 16ms frame
+      // would run 120Hz displays ahead). Clamp dt so a tab resuming from the
+      // background doesn't jump in one frame.
+      const dt = lastT == null ? 0 : Math.min(64, Math.max(0, t - lastT));
+      lastT = t;
+      const k = 1 - Math.exp(-dt / (active ? TAU_TRACK : TAU_RELEASE));
       current.rx += (target.rx - current.rx) * k;
       current.ry += (target.ry - current.ry) * k;
       current.mx += (target.mx - current.mx) * k;
       current.my += (target.my - current.my) * k;
-      current.hyp += (target.hyp - current.hyp) * k;
-      current.gx += (target.gx - current.gx) * k;
-      current.gy += (target.gy - current.gy) * k;
       current.act += (target.act - current.act) * k;
 
       el.style.setProperty('--rx', `${current.rx.toFixed(2)}deg`);
       el.style.setProperty('--ry', `${current.ry.toFixed(2)}deg`);
       el.style.setProperty('--mx', `${current.mx.toFixed(2)}%`);
       el.style.setProperty('--my', `${current.my.toFixed(2)}%`);
-      el.style.setProperty('--hyp', current.hyp.toFixed(3));
-      el.style.setProperty('--gx', current.gx.toFixed(3));
-      el.style.setProperty('--gy', current.gy.toFixed(3));
       el.style.setProperty('--active', current.act.toFixed(3));
 
-      // Stop the loop when we've settled close to neutral.
+      // Stop once everything has settled — the foil's lift included, or a
+      // leave that starts near the rest point would freeze it half-lit.
       const settled =
         Math.abs(current.rx - target.rx) < 0.05 &&
         Math.abs(current.ry - target.ry) < 0.05 &&
         Math.abs(current.mx - target.mx) < 0.1 &&
-        Math.abs(current.my - target.my) < 0.1;
+        Math.abs(current.my - target.my) < 0.1 &&
+        Math.abs(current.act - target.act) < 0.005;
       if (settled && !active) {
         rafId = null;
+        lastT = null;
         return;
       }
       rafId = requestAnimationFrame(apply);
@@ -101,13 +108,6 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
       target.rx = suppressed ? 0 : (0.5 - cy) * 14;
       target.mx = cx * 100;
       target.my = cy * 100;
-      // Hypotenuse: 0 at center, 1 at corner — used to crank up shimmer near edges.
-      const dx = cx - 0.5;
-      const dy = cy - 0.5;
-      target.hyp = Math.min(1, Math.hypot(dx, dy) * 2);
-      // Normalized -1..1 offsets for shadow/bevel direction in CSS.
-      target.gx = (cx - 0.5) * 2;
-      target.gy = (cy - 0.5) * 2;
       target.act = 1;
       active = true;
       ensureLoop();
@@ -116,11 +116,8 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
     const reset = () => {
       target.rx = 0;
       target.ry = 0;
-      target.mx = 50;
-      target.my = 50;
-      target.hyp = 0;
-      target.gx = 0;
-      target.gy = 0;
+      target.mx = HOLO_REST.mx;
+      target.my = HOLO_REST.my;
       target.act = 0;
       active = false;
       ensureLoop();
@@ -150,9 +147,6 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
       el.style.removeProperty('--ry');
       el.style.removeProperty('--mx');
       el.style.removeProperty('--my');
-      el.style.removeProperty('--hyp');
-      el.style.removeProperty('--gx');
-      el.style.removeProperty('--gy');
       el.style.removeProperty('--active');
     };
   }, [el, enabled]);

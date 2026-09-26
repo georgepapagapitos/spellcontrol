@@ -7,6 +7,7 @@ import { ProxyBadge } from './ProxyBadge';
 import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
 import { SetSymbol } from './SetSymbol';
+import { FoilShimmer } from './FoilShimmer';
 import { printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
 
@@ -208,12 +209,7 @@ export function CardGridCell({
             <CardName card={card} />
           </div>
         )}
-        {card.foil && (
-          <>
-            <div className="card-preview-foil-shine" aria-hidden="true" />
-            <div className="card-preview-foil-glare" aria-hidden="true" />
-          </>
-        )}
+        {card.foil && <FoilShimmer seed={card.copyId} />}
         {/* The Set & rarity caption line carries rarity (glyph tint) and set
             code, so the on-card overlays that duplicate them are suppressed
             while it's shown. The proxy chip is independent of that toggle —

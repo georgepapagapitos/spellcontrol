@@ -1,6 +1,7 @@
 import type { EnrichedCard } from '../types';
 import { classifyFoil } from '../lib/foil-style';
 import { useHolographic } from '../lib/use-holographic';
+import { FoilShimmer } from './shared/FoilShimmer';
 
 interface Props {
   card: EnrichedCard;
@@ -110,12 +111,7 @@ export function CardImageFrame({
             ) : card.imageNormal && imgErrored ? (
               <div className="card-preview-image-fallback">Image unavailable</div>
             ) : null}
-            {card.foil && (
-              <>
-                <div className="card-preview-foil-shine" aria-hidden="true" />
-                <div className="card-preview-foil-glare" aria-hidden="true" />
-              </>
-            )}
+            {card.foil && <FoilShimmer />}
           </div>
           {card.imageNormalBack && (
             <div className="card-preview-face card-preview-face-back">
@@ -126,12 +122,7 @@ export function CardImageFrame({
                 draggable={false}
                 decoding="async"
               />
-              {card.foil && (
-                <>
-                  <div className="card-preview-foil-shine" aria-hidden="true" />
-                  <div className="card-preview-foil-glare" aria-hidden="true" />
-                </>
-              )}
+              {card.foil && <FoilShimmer />}
             </div>
           )}
         </div>
