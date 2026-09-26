@@ -37,6 +37,7 @@ import {
 import type { OracleFacts } from './oracle';
 import { CUBE_SIZES, targetsForSize, type CubeSize } from './targets';
 import { draftablePoolAxes, scoreCube, type CubeScore } from './objective';
+import { simulateDraft } from './draft-sim';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const POOL_PATH = process.env.LIVE_CUBE_POOL;
@@ -450,6 +451,103 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           });
         });
       }
+    });
+  }
+});
+
+// Draft simulation stress report (T150 W4, item #6) — REPORTED, not gating.
+// Unlike the guards above, this block only measures and prints the three
+// draftability metrics for a real collection so a human can judge them; it
+// asserts no quality threshold a future generator change could regress
+// against. Self-contained on purpose (its own pool load, own JSON report) so
+// it merges cleanly no matter what the guard blocks above look like by then.
+describe.skipIf(!POOL_PATH)('draft simulation (real collection, reported only)', () => {
+  let pool: CubeCard[];
+  const draftRows: {
+    size: CubeSize;
+    ms: number;
+    runs: number;
+    playersPerRun: number;
+    totalDecks: number;
+    shortCube: boolean;
+    reachedBarSharePct: number;
+    topPairs: { label: string; sharePct: number }[];
+    undraftedArchetypes: string[];
+  }[] = [];
+
+  beforeAll(async () => {
+    const taggerData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'tagger-tags.json'), 'utf8')
+    ) as unknown;
+    const signalData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'cube-signal.json'), 'utf8')
+    ) as unknown;
+    const otagData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'otag-index.json'), 'utf8')
+    ) as unknown;
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith('/tagger-tags.json')) {
+        return { ok: true, status: 200, json: async () => taggerData } as Response;
+      }
+      if (url.endsWith('/cube-signal.json')) {
+        return { ok: true, status: 200, json: async () => signalData } as Response;
+      }
+      if (url.endsWith('/otag-index.json')) {
+        return { ok: true, status: 200, json: async () => otagData } as Response;
+      }
+      throw new Error(`[live-cube] unexpected fetch ${url}`);
+    });
+    await Promise.all([loadTaggerData(), loadCubeSignal(), ensureCardTags()]);
+    const file = JSON.parse(readFileSync(resolve(POOL_PATH!), 'utf8')) as {
+      cards: EnrichedCard[];
+      facts: OracleFacts[];
+    };
+    const facts = new Map(file.facts.map((f) => [f.name, f]));
+    const allNames = new Set(file.cards.map((c) => c.name));
+    const filteredNames = filterPool(file.cards, allNames, DEFAULT_POOL_FILTERS).names;
+    pool = namesToCubePool(filteredNames, file.cards, facts);
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+    mkdirSync(OUT_DIR, { recursive: true });
+    const out = join(OUT_DIR, 'draft-sim-stress.json');
+    writeFileSync(out, JSON.stringify(draftRows, null, 2));
+  });
+
+  for (const size of CUBE_SIZES) {
+    it(`${size}: draftability over 50 seeded pods`, () => {
+      const cube = generateCube(pool, size, { synergyLevel: 1 });
+      const t = Date.now();
+      const result = simulateDraft(
+        cube.picks.map((p) => p.card),
+        size,
+        { runs: 50 }
+      );
+      const ms = Date.now() - t;
+
+      // Sanity only — this block reports, it doesn't gate a generator change.
+      expect(result.totalDecks).toBe(result.runs * result.playersPerRun);
+      expect(result.reachedBarShare).toBeGreaterThanOrEqual(0);
+      expect(result.reachedBarShare).toBeLessThanOrEqual(1);
+      const shareSum = result.pairShares.reduce((s, p) => s + p.share, 0);
+      if (result.totalDecks > 0) expect(shareSum).toBeCloseTo(1, 5);
+
+      draftRows.push({
+        size,
+        ms,
+        runs: result.runs,
+        playersPerRun: result.playersPerRun,
+        totalDecks: result.totalDecks,
+        shortCube: result.shortCube,
+        reachedBarSharePct: Math.round(result.reachedBarShare * 1000) / 10,
+        topPairs: result.pairShares
+          .filter((p) => p.share > 0)
+          .slice(0, 6)
+          .map((p) => ({ label: p.label, sharePct: Math.round(p.share * 1000) / 10 })),
+        undraftedArchetypes: result.undraftedArchetypes.map((a) => a.label),
+      });
     });
   }
 });

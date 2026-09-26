@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { generateCubeAsync } from './generate-async';
+import { generateCubeAsync, simulateDraftAsync } from './generate-async';
 import { generateCube, type CubeCard } from './generate';
+import { simulateDraft } from './draft-sim';
 import type { CubeSize } from './targets';
 
 // import.meta.env.MODE is 'test' under vitest, so generateCubeAsync always
@@ -139,6 +140,44 @@ describe('generateCubeAsync — staleness', () => {
     const err = await rejection(
       generateCubeAsync(testPool(), SIZE, {}, { signal: controller.signal })
     );
+    expect(err.name).toBe('AbortError');
+  });
+});
+
+describe('simulateDraftAsync — fallback path', () => {
+  it('matches simulateDraft byte-for-byte', async () => {
+    const pool = testPool();
+    const result = await simulateDraftAsync(pool, SIZE, { runs: 3 });
+    expect(result).toEqual(simulateDraft(pool, SIZE, { runs: 3 }));
+  });
+});
+
+describe('simulateDraftAsync — staleness', () => {
+  it('has its own generation counter — an in-flight cube build is not superseded by a draft sim', async () => {
+    const pool = testPool();
+    const build = generateCubeAsync(pool, SIZE, { synergyLevel: 0 });
+    const sim = simulateDraftAsync(pool, SIZE, { runs: 2 });
+    const [buildResult, simResult] = await Promise.all([build, sim]);
+    expect(buildResult).toEqual(generateCube(pool, SIZE, { synergyLevel: 0 }));
+    expect(simResult).toEqual(simulateDraft(pool, SIZE, { runs: 2 }));
+  });
+
+  it('drops a superseded call: only the newest of two overlapping sims resolves', async () => {
+    const pool = testPool();
+    const first = simulateDraftAsync(pool, SIZE, { runs: 2 });
+    const second = simulateDraftAsync(pool, SIZE, { runs: 2 });
+
+    const [a, b] = await Promise.allSettled([first, second]);
+    expect(a.status).toBe('rejected');
+    expect(b.status).toBe('fulfilled');
+    if (a.status === 'rejected') expect(a.reason).toBeInstanceOf(DOMException);
+  });
+
+  it('rejects with AbortError when the caller aborts before the run lands', async () => {
+    const controller = new AbortController();
+    const p = simulateDraftAsync(testPool(), SIZE, { runs: 2 }, { signal: controller.signal });
+    controller.abort();
+    const err = await rejection(p);
     expect(err.name).toBe('AbortError');
   });
 });
