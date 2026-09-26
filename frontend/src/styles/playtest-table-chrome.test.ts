@@ -305,9 +305,13 @@ describe('the narrow tier is the same board, sized for a thumb', () => {
     return css.slice(start);
   })();
 
-  it('keeps the thumb-sized cards', () => {
-    expect(narrow).toContain('--pt-card-w: 72px;');
-    expect(narrow).toContain('--pt-card-h: 100px;');
+  // A phone could not size its cards at all (user, 2026-09-25: permanents
+  // too small on a phone on its side); the slider scales these too now.
+  it('keeps the thumb-sized cards, scaled by the card-size slider', () => {
+    expect(narrow).toContain('--pt-card-w: calc(72px * var(--pt-zoom, 1));');
+    expect(narrow).toContain('--pt-card-h: calc(100px * var(--pt-zoom, 1));');
+    expect(css).toContain('--pt-card-w: calc(56px * var(--pt-zoom, 1));');
+    expect(css).toContain('--pt-card-h: calc(78px * var(--pt-zoom, 1));');
   });
 
   /* The edge tab is a PHONE answer, not a tier answer: four card-width

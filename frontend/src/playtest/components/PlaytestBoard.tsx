@@ -374,9 +374,10 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // at 1600px, should be able to say so.
   const [layoutPref, setLayoutPref] = useState<'auto' | 'grid' | 'rail'>('auto');
   const [showTableSettings, setShowTableSettings] = useState(false);
-  // Card size on the wide tier: a multiplier on the density-driven card box,
-  // persisted per device and applied on <body> (where `--pt-card-w` lives so
-  // the drag overlay inherits it). 1 is the density the tier computes.
+  // Card size: a multiplier on the tier's card box (density-driven at the
+  // desk, thumb-sized below 1024px), persisted per device and applied on
+  // <body> (where `--pt-card-w` lives so the drag overlay inherits it). 1 is
+  // the size the tier computes.
   const [zoom, setZoom] = useState(() => readZoom());
   useEffect(() => {
     document.body.style.setProperty('--pt-zoom', String(zoom));
@@ -1800,10 +1801,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         // the pointer, and for card size while looking at the whole board —
         // and the shifted `plus` / `_` below stay bound as the unambiguous
         // way to force a counter whatever the pointer is over.
-        'size-up': () =>
-          bfTargets.length > 0 ? stepCounter('+1/+1') : isNarrow ? false : stepZoom(1),
-        'size-down': () =>
-          bfTargets.length > 0 ? stepCounter('-1/-1') : isNarrow ? false : stepZoom(-1),
+        'size-up': () => (bfTargets.length > 0 ? stepCounter('+1/+1') : stepZoom(1)),
+        'size-down': () => (bfTargets.length > 0 ? stepCounter('-1/-1') : stepZoom(-1)),
         'counter-plus': () => stepCounter('+1/+1'),
         'counter-minus': () => stepCounter('-1/-1'),
         'counters-all-inc': () => adjustAllCounters(bfTargets, 'inc'),
@@ -3359,13 +3358,19 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       {showDice && <DiceRoller onClose={() => setShowDice(false)} />}
       {showTableSettings && (
         <TableSettingsSheet
-          // The narrow tier sizes cards for a thumb; only the wide tier has a
-          // size to set (this slider, or = and − on the keys).
-          zoom={
-            isNarrow
-              ? undefined
-              : { value: zoom, min: ZOOM_MIN, max: ZOOM_MAX, step: ZOOM_STEP, onZoom: setZoomTo }
-          }
+          // Every tier has a size to set (user, 2026-09-25: permanents read
+          // small on a phone). Below 1024px the hand keeps its own size, so
+          // the hint names only what follows.
+          zoom={{
+            value: zoom,
+            min: ZOOM_MIN,
+            max: ZOOM_MAX,
+            step: ZOOM_STEP,
+            hint: isNarrow
+              ? 'The battlefield and the zone piles follow it. Your hand keeps the size that fits the screen.'
+              : 'Your hand, the battlefield and the zone piles all follow it. The = and − keys step it too.',
+            onZoom: setZoomTo,
+          }}
           skin={{
             felt,
             onFelt: (id) => {

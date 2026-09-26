@@ -2454,9 +2454,11 @@ button.playtest-card-pt__value--editable:focus-visible {
     height: min(90px, var(--pt-card-h));
   }
 
+  /* Thumb-sized, times the card-size slider (Table settings), as the desk's
+     density is. */
   body:has(.playtest-page, .horde-table-page) {
-    --pt-card-w: 72px;
-    --pt-card-h: 100px;
+    --pt-card-w: calc(72px * var(--pt-zoom, 1));
+    --pt-card-h: calc(100px * var(--pt-zoom, 1));
   }
 }
 
@@ -3179,9 +3181,13 @@ button.playtest-card-pt__value--editable:focus-visible {
     padding: 2px var(--space-2);
   }
 
+  /* 56px leaves three rows of permanents room between the life panel and
+     the hand on a ~384px screen, but it reads small: the card-size slider
+     (Table settings) scales it, 0.7x to 1.5x, and the rows overlap more as
+     it grows. */
   body:has(.playtest-page, .horde-table-page) {
-    --pt-card-w: 56px;
-    --pt-card-h: 78px;
+    --pt-card-w: calc(56px * var(--pt-zoom, 1));
+    --pt-card-h: calc(78px * var(--pt-zoom, 1));
   }
 }
 

@@ -73,10 +73,17 @@ function SwatchRow({
 }
 
 interface Props {
-  /** Multiplier on the tier's card density; 1 is the default. Absent on the
-   *  narrow tier, where cards are sized for a thumb and there is nothing to
-   *  set. */
-  zoom?: { value: number; min: number; max: number; step: number; onZoom(zoom: number): void };
+  /** Multiplier on the tier's card density; 1 is the default. `hint` says
+   *  what follows it, which differs by tier (a phone's hand keeps its own
+   *  size). */
+  zoom: {
+    value: number;
+    min: number;
+    max: number;
+    step: number;
+    hint: string;
+    onZoom(zoom: number): void;
+  };
   /** Felt colour. Absent (tests, previews) hides the row. */
   skin?: TableSkin;
   /** Snap to grid, and the turn alert when seated online. */
@@ -98,10 +105,8 @@ interface Props {
  * game menu instead.
  */
 export function TableSettingsSheet({ zoom, skin, toggles = [], links, onClose }: Props) {
-  const pct = zoom ? Math.round(zoom.value * 100) : 0;
-  const progress = zoom
-    ? `${Math.round(((zoom.value - zoom.min) / (zoom.max - zoom.min)) * 100)}%`
-    : '0%';
+  const pct = Math.round(zoom.value * 100);
+  const progress = `${Math.round(((zoom.value - zoom.min) / (zoom.max - zoom.min)) * 100)}%`;
   return (
     <Modal onClose={onClose} labelledBy="playtest-settings-title" className="shortcuts-overlay">
       <header className="shortcuts-overlay-head">
@@ -118,34 +123,27 @@ export function TableSettingsSheet({ zoom, skin, toggles = [], links, onClose }:
         </button>
       </header>
       <div className="shortcuts-overlay-body">
-        {zoom && (
-          <>
-            <div className="playtest-settings__row">
-              <label htmlFor="playtest-card-size" className="shortcuts-overlay-desc">
-                Card size
-              </label>
-              <input
-                id="playtest-card-size"
-                type="range"
-                className="playtest-settings__range"
-                min={zoom.min}
-                max={zoom.max}
-                step={zoom.step}
-                value={zoom.value}
-                aria-valuetext={`${pct}%`}
-                style={{ '--range-progress': progress } as CSSProperties}
-                onChange={(e) => zoom.onZoom(Number(e.target.value))}
-              />
-              <output htmlFor="playtest-card-size" className="playtest-settings__value">
-                {pct}%
-              </output>
-            </div>
-            <p className="playtest-settings__hint">
-              Your hand, the battlefield and the zone piles all follow it. The = and − keys step it
-              too.
-            </p>
-          </>
-        )}
+        <div className="playtest-settings__row">
+          <label htmlFor="playtest-card-size" className="shortcuts-overlay-desc">
+            Card size
+          </label>
+          <input
+            id="playtest-card-size"
+            type="range"
+            className="playtest-settings__range"
+            min={zoom.min}
+            max={zoom.max}
+            step={zoom.step}
+            value={zoom.value}
+            aria-valuetext={`${pct}%`}
+            style={{ '--range-progress': progress } as CSSProperties}
+            onChange={(e) => zoom.onZoom(Number(e.target.value))}
+          />
+          <output htmlFor="playtest-card-size" className="playtest-settings__value">
+            {pct}%
+          </output>
+        </div>
+        <p className="playtest-settings__hint">{zoom.hint}</p>
         {skin && (
           <>
             <SwatchRow label="Felt" options={FELTS} value={skin.felt} onChange={skin.onFelt} />
@@ -178,18 +176,16 @@ export function TableSettingsSheet({ zoom, skin, toggles = [], links, onClose }:
           ))}
         </ul>
       </div>
-      {zoom && (
-        <footer className="playtest-shortcuts-foot">
-          <button
-            type="button"
-            className="btn"
-            disabled={zoom.value === 1}
-            onClick={() => zoom.onZoom(1)}
-          >
-            Reset card size
-          </button>
-        </footer>
-      )}
+      <footer className="playtest-shortcuts-foot">
+        <button
+          type="button"
+          className="btn"
+          disabled={zoom.value === 1}
+          onClick={() => zoom.onZoom(1)}
+        >
+          Reset card size
+        </button>
+      </footer>
     </Modal>
   );
 }
