@@ -41,13 +41,13 @@ vi.mock('../../lib/cube/import', async () => {
   return { ...actual, fetchCubeCobraCube: hoisted.fetchCubeCobraCube };
 });
 
-vi.mock('./use-owned-cube-pool', () => ({
+vi.mock('../../lib/cube/use-owned-pool', () => ({
   useOwnedCubePool: () => ({
     load: (...args: unknown[]) => {
       hoisted.loadPool(...args);
       return Promise.resolve(hoisted.pool.fixture);
     },
-    hasCollection: hoisted.hasCollection.value,
+    uniqueNames: hoisted.hasCollection.value ? ['Lightning Bolt'] : [],
   }),
 }));
 

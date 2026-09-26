@@ -19,6 +19,7 @@ import type { CubeCobraCard, ImportedCube } from '../../lib/cube/import';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { cubeCardToEnriched, pickToPreviewCard } from './shared';
+import { Button } from '../../components/shared/Button';
 
 /** Why a card got no substitute — the same bucket/color language `buildMyVersion`
  *  already uses for a swap's reason, so "why" reads consistently either way. */
@@ -160,19 +161,14 @@ export function BuildMyVersionResult({
           )}
         </div>
         <div className="cube-result-actions">
-          <button type="button" className="btn btn-primary" onClick={() => setSaveOpen(true)}>
+          <Button variant="primary" onClick={() => setSaveOpen(true)}>
             Save this cube
-          </button>
+          </Button>
           {wantCards.length > 0 && (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setListOpen(true)}
-              disabled={sending}
-            >
+            <Button onClick={() => setListOpen(true)} disabled={sending}>
               Send {wantCards.length} missing {wantCards.length === 1 ? 'card' : 'cards'} to a want
               list
-            </button>
+            </Button>
           )}
         </div>
       </div>

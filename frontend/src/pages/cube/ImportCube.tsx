@@ -17,7 +17,8 @@ import {
   buildMyVersion,
   type BuildMyVersionResult as BuildMyVersionData,
 } from '../../lib/cube/build-my-version';
-import { useOwnedCubePool } from './use-owned-cube-pool';
+import { useOwnedCubePool } from '../../lib/cube/use-owned-pool';
+import { DEFAULT_POOL_FILTERS } from '../../lib/cube/pool-filters';
 import { BuildMyVersionResult } from './BuildMyVersionResult';
 import {
   useOwnershipFor,
@@ -42,7 +43,9 @@ export function ImportCube() {
   const [filter, setFilter] = useState<OwnFilter>('all');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
-  const { load: loadOwnedPool, hasCollection } = useOwnedCubePool();
+  // Build my version draws on the default pool (available cards, no caps).
+  const { load: loadOwnedPool, uniqueNames } = useOwnedCubePool(DEFAULT_POOL_FILTERS);
+  const hasCollection = uniqueNames.length > 0;
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
   const [buildError, setBuildError] = useState('');
   const [buildFetchProgress, setBuildFetchProgress] = useState<{
@@ -79,6 +82,7 @@ export function ImportCube() {
         setBuildFetchProgress({ fetched, total })
       );
       setBuildFetchProgress(null);
+      if (!pool) throw new Error("Couldn't load your collection's cards. Try again.");
       const mine = buildMyVersion(result.cube, pool);
       const names = [...new Set(mine.cube.picks.map((p) => p.card.name))];
       const enriched = await getCardsByNames(names);
@@ -282,18 +286,13 @@ export function ImportCube() {
         <div className="cube-build-mine">
           {hasCollection ? (
             <>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={buildMine}
-                disabled={buildStatus === 'working'}
-              >
+              <Button variant="primary" onClick={buildMine} disabled={buildStatus === 'working'}>
                 {buildStatus === 'working'
                   ? 'Building…'
                   : myVersion
                     ? 'Build my version again'
                     : 'Build my version'}
-              </button>
+              </Button>
               <p className="cube-build-mine-hint">
                 Keeps every card you own from this list, substitutes your closest match for the
                 rest, and leaves anything left over for your want list.
