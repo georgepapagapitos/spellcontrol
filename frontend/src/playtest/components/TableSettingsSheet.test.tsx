@@ -10,15 +10,14 @@ function links(onOpen = vi.fn()) {
   ];
 }
 
-/** `zoom: null` is the narrow tier (no size to set). An explicit `undefined`
- *  would fall through to the default parameter, so the absent case needs its
- *  own value. */
-function renderSheet(zoom: number | null = 1, onOpen = vi.fn()) {
+const ZOOM = { value: 1, min: 0.7, max: 1.5, step: 0.1, hint: 'Cards follow it.', onZoom() {} };
+
+function renderSheet(zoom = 1, onOpen = vi.fn()) {
   const onZoom = vi.fn();
   const onClose = vi.fn();
   render(
     <TableSettingsSheet
-      zoom={zoom === null ? undefined : { value: zoom, min: 0.7, max: 1.5, step: 0.1, onZoom }}
+      zoom={{ value: zoom, min: 0.7, max: 1.5, step: 0.1, hint: 'Cards follow it.', onZoom }}
       links={links(onOpen)}
       onClose={onClose}
     />
@@ -62,14 +61,6 @@ describe('the preferences it gathers', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Takeback rule Free' }));
     expect(onOpen).toHaveBeenCalled();
   });
-
-  it('drops the card size on the narrow tier, where there is nothing to set', () => {
-    renderSheet(null);
-    expect(screen.queryByRole('slider', { name: 'Card size' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Reset card size' })).toBeNull();
-    // The rest of the preferences are still offered.
-    expect(screen.getByRole('button', { name: 'Resistance Off' })).toBeTruthy();
-  });
 });
 
 /**
@@ -81,9 +72,16 @@ describe('the preferences it gathers', () => {
 describe('TableSettingsSheet — how the table looks', () => {
   function renderSkin(felt = 'theme') {
     const onFelt = vi.fn();
-    render(<TableSettingsSheet skin={{ felt, onFelt }} links={links()} onClose={vi.fn()} />);
+    render(
+      <TableSettingsSheet zoom={ZOOM} skin={{ felt, onFelt }} links={links()} onClose={vi.fn()} />
+    );
     return { onFelt };
   }
+
+  it('says what the card size moves, in the words the board passes', () => {
+    renderSkin();
+    expect(screen.getByText('Cards follow it.')).toBeTruthy();
+  });
 
   it('picks a felt from a real radio group', () => {
     const { onFelt } = renderSkin();
@@ -124,6 +122,7 @@ describe('TableSettingsSheet — switches', () => {
     const onChange = vi.fn();
     render(
       <TableSettingsSheet
+        zoom={ZOOM}
         toggles={[
           {
             label: 'Snap cards to grid',
