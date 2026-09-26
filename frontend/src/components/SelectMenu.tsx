@@ -54,7 +54,13 @@ interface Props<T extends string | number> {
   footer?: ReactNode;
 }
 
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
+type PanelPos = {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+  maxHeight?: number;
+};
 
 /**
  * Themed single-choice dropdown. Uses the same `toolbar-pill` + popover
@@ -112,22 +118,30 @@ export function SelectMenu<T extends string | number>({
   useLayoutEffect(() => {
     if (!open || !panelRef.current || !buttonRef.current) return;
     const anchorRect = buttonRef.current.getBoundingClientRect();
-    const panelRect = panelRef.current.getBoundingClientRect();
+    const panel = panelRef.current;
+    const panelRect = panel.getBoundingClientRect();
     const safe = getSafeViewport();
-    const placement = computePopoverPlacement(
-      anchorRect,
-      { width: panelRect.width, height: panelRect.height },
-      safe,
-      'right',
-      6
-    );
+    // A fixed list shows every option when the screen has room for them, as
+    // a native select does: the panel's 360px cap hid the tenth of ten
+    // formats (Horde) below the fold of its own scroller. A searchable list
+    // keeps the cap; its filter is the way through a long one.
+    const height = searchable
+      ? panelRect.height
+      : panelRect.height + panel.scrollHeight - panel.clientHeight;
+    const place = (h: number) =>
+      computePopoverPlacement(anchorRect, { width: panelRect.width, height: h }, safe, 'right', 6);
+    let placement = place(height);
+    // Taller than the room on its better side: scroll inside that room,
+    // beside the trigger, rather than be clamped over it.
+    if (!searchable && height > placement.maxHeight) placement = place(placement.maxHeight);
     setPanelPos({
       top: placement.top,
       bottom: placement.bottom,
       left: placement.left,
       right: placement.right,
+      maxHeight: searchable ? undefined : placement.maxHeight,
     });
-  }, [open]);
+  }, [open, searchable]);
 
   const handleToggle = () => {
     if (!open) {
@@ -178,6 +192,7 @@ export function SelectMenu<T extends string | number>({
           right: panelPos.right,
           top: panelPos.top,
           bottom: panelPos.bottom,
+          maxHeight: panelPos.maxHeight,
           zIndex: 'var(--z-portal-popover)',
           // Scale the enter animation from the trigger corner: anchored-side
           // top/bottom + left/right mirror how the panel was placed.
