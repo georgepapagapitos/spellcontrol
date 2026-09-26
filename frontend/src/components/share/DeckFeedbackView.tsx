@@ -21,6 +21,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 interface Props {
   data: PublicDeck;
   token: string;
@@ -463,9 +464,9 @@ export function DeckFeedbackView({ data, token }: Props) {
                       </button>
                     )}
                     {isCut && (
-                      <span className="feedback-tile-chip" aria-hidden>
+                      <Chip className="feedback-tile-chip" aria-hidden>
                         Cut
-                      </span>
+                      </Chip>
                     )}
                   </li>
                 );

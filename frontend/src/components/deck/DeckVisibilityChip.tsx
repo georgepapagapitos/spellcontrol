@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Globe, Link2, Lock, Users } from 'lucide-react';
 import { ShareDialog } from '../ShareDialog';
 import { useDeckVisibility, type DeckVisibility } from '../../lib/use-deck-visibility';
+import { Chip } from '@/components/shared/Chip';
 import './DeckVisibilityChip.css';
 
 interface Props {
@@ -36,18 +37,18 @@ export function DeckVisibilityChip({ deckId, deckName, colorIdentity }: Props) {
 
   return (
     <>
-      <button
-        type="button"
+      {/* "Sharing:" on the face, not only in the aria-label: a chip that just
+          said "Private" was the page's only share door and nothing told a
+          first-time user that tapping the state changes it. */}
+      <Chip
         className="deck-visibility-chip"
         onClick={() => setOpen(true)}
         aria-label={`Sharing: ${label}. Change visibility`}
+        icon={<Icon width={14} height={14} strokeWidth={1.8} />}
+        trailing={<span className="deck-visibility-chip-state">{label}</span>}
       >
-        <Icon width={14} height={14} strokeWidth={1.8} aria-hidden />
-        {/* "Sharing:" on the face, not only in the aria-label: a chip that
-            just said "Private" was the page's only share door and nothing
-            told a first-time user that tapping the state changes it. */}
-        <span>Sharing:</span> <span className="deck-visibility-chip-state">{label}</span>
-      </button>
+        Sharing:{' '}
+      </Chip>
       {open && (
         <ShareDialog
           kind="deck"

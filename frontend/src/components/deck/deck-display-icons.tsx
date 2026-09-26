@@ -21,6 +21,7 @@ import type { LegalityIssue } from '../../lib/deck-validation';
 import { getRoleBadge, isMultiRole, multiRoleTitle } from '../../lib/role-badges';
 import { ToolbarPopover } from '../shared/ToolbarPopover';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 // Section-header icon per category bucket. 'lands'/'creatures' reuse the
 // mana-font type glyphs (via ManaSymbol, see SectionIcon below) — the other
@@ -141,13 +142,13 @@ export function AllocationChip({ row }: { row: Row }) {
           : 'in another deck'
       : `${row.allocatedQty} of ${row.qty} owned`;
   return (
-    <span
+    <Chip
       className={`deck-row-alloc-chip deck-row-alloc-chip-${tone}`}
       title={allocationSummary(row)}
       aria-label={allocationSummary(row)}
     >
       {label}
-    </span>
+    </Chip>
   );
 }
 

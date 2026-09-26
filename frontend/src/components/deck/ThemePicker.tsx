@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchCommanderThemes } from '@/deck-builder/services/edhrec/client';
 import type { EDHRECTheme } from '@/deck-builder/types';
+import { Chip } from '@/components/shared/Chip';
 
 const COLLAPSED_COUNT = 6;
 const EXPAND_STEP = 8;
@@ -130,37 +131,34 @@ function ThemePickerList({
         {visible.map((theme) => {
           const active = selectedSlugs.has(theme.slug);
           return (
-            <button
+            <Chip
               key={theme.slug}
-              type="button"
               className={`theme-chip${active ? ' is-active' : ''}`}
-              aria-pressed={active}
+              pressed={active}
               onClick={() => onToggle(theme)}
+              labelClassName="theme-chip-name card-name-chip-text"
+              labelTitle={theme.name}
+              trailing={<span className="theme-chip-count">{formatCount(theme.count)} decks</span>}
             >
-              <span className="theme-chip-name card-name-chip-text" title={theme.name}>
-                {theme.name}
-              </span>
-              <span className="theme-chip-count">{formatCount(theme.count)} decks</span>
-            </button>
+              {theme.name}
+            </Chip>
           );
         })}
         {remaining > 0 && (
-          <button
-            type="button"
+          <Chip
             className="theme-chip theme-chip-more"
             onClick={() => setVisibleCount((prev) => prev + EXPAND_STEP)}
           >
             Show {nextStep} more ({remaining} left)
-          </button>
+          </Chip>
         )}
         {visibleCount > COLLAPSED_COUNT && (
-          <button
-            type="button"
+          <Chip
             className="theme-chip theme-chip-more"
             onClick={() => setVisibleCount(() => COLLAPSED_COUNT)}
           >
             Show fewer
-          </button>
+          </Chip>
         )}
       </div>
     </section>

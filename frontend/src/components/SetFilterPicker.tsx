@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { SetMap } from '../lib/api';
+import { Chip } from '@/components/shared/Chip';
 
 /** One candidate in the picker's list — a Scryfall set (collection Filters,
  *  via `setMapToOptions`) or an owned set code (binder/list rule editor). */
@@ -131,26 +132,26 @@ export function SetFilterPicker({ options, value, onChange }: Props) {
         onClick={() => inputRef.current?.focus()}
       >
         {selectedSummaries.map((s) => (
-          <span key={s.code} className="set-filter-chip">
-            {s.iconSvgUri && (
-              <img src={s.iconSvgUri} alt="" aria-hidden className="set-filter-chip-icon" />
-            )}
-            <span className="set-filter-chip-label" title={s.label}>
-              {s.code.toUpperCase()}
-            </span>
-            <button
-              type="button"
-              className="set-filter-chip-x"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeSet(s.code);
-              }}
-              aria-label={`Remove ${s.label}`}
-              title={`Remove ${s.label}`}
-            >
-              ×
-            </button>
-          </span>
+          <Chip
+            key={s.code}
+            className="set-filter-chip"
+            icon={
+              s.iconSvgUri ? (
+                <img src={s.iconSvgUri} alt="" className="set-filter-chip-icon" />
+              ) : null
+            }
+            labelClassName="set-filter-chip-label"
+            labelTitle={s.label}
+            onRemove={(e) => {
+              e.stopPropagation();
+              removeSet(s.code);
+            }}
+            removeLabel={`Remove ${s.label}`}
+            removeClassName="set-filter-chip-x"
+            removeIcon={<span>×</span>}
+          >
+            {s.code.toUpperCase()}
+          </Chip>
         ))}
         <input
           ref={inputRef}

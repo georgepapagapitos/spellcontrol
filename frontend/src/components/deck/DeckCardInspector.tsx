@@ -9,6 +9,7 @@ import type { CurrencyCode, Row } from './deck-display-rows';
 import { allocationSummary, cardAllRoles, frontFaceMana } from './deck-display-rows';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 export interface DeckCardInspectorCard {
   row: Row;
@@ -132,14 +133,14 @@ export function DeckCardInspector({
       {(roles.length > 0 || (card.synergyReasons?.length ?? 0) > 0) && (
         <ul className="deck-card-inspector-chips">
           {roles.map((label) => (
-            <li key={label} className="deck-card-inspector-chip">
+            <Chip as="li" key={label} className="deck-card-inspector-chip">
               {label}
-            </li>
+            </Chip>
           ))}
           {card.synergyReasons?.map((reason) => (
-            <li key={reason} className="deck-card-inspector-chip is-synergy">
+            <Chip as="li" key={reason} className="deck-card-inspector-chip is-synergy">
               {reason}
-            </li>
+            </Chip>
           ))}
         </ul>
       )}

@@ -58,6 +58,7 @@ import { userMessage } from '@/lib/user-error';
 import { printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 /**
  * Can this owned card go in the mainboard of a commander deck? The two rules
  * the mainboard enforces and the out-of-deck zones don't: the commander's
@@ -1551,16 +1552,15 @@ function SuggestionsResults({
     <>
       <div className="card-search-filters" role="group" aria-label="Filter by availability">
         {filters.map((f) => (
-          <button
+          <Chip
             key={f.key}
-            type="button"
             className="card-search-filter-chip"
-            aria-pressed={show[f.key]}
+            pressed={show[f.key]}
             onClick={() => setShow((s) => ({ ...s, [f.key]: !s[f.key] }))}
+            trailing={<span className="card-search-filter-count">{f.count}</span>}
           >
             {f.label}
-            <span className="card-search-filter-count">{f.count}</span>
-          </button>
+          </Chip>
         ))}
       </div>
       {rows.length === 0 ? (

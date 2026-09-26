@@ -79,7 +79,8 @@ describe('DeckMainboardRow (via DeckDisplay)', () => {
   it('shows the unowned allocation badge when no collection copy is allocated', () => {
     renderDeck(copies(1));
 
-    const badge = screen.getByText('unowned');
+    // The text sits in the chip's own label element; the chip carries the state.
+    const badge = screen.getByText('unowned').closest('.deck-row-alloc-chip')!;
     expect(badge.className).toContain('deck-row-alloc-chip-unowned');
     expect(badge.getAttribute('aria-label')).toBe('Not in your collection');
   });

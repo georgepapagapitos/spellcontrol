@@ -41,24 +41,25 @@ primitives directory.
 
 ### Controls & chrome
 
-| Reach for                                     | Instead of                        | Ruling                                                        |
-| --------------------------------------------- | --------------------------------- | ------------------------------------------------------------- |
-| `components/PageHeader`                       | a hand-built `.binder-hero`       | § Layout system                                               |
-| `components/shared/Button` (`Button`)         | a raw `className="btn …"`         | § Shape language — Buttons are a primitive                    |
-| `components/shared/Button` (`IconButton`)     | a `<button>` holding only a glyph | § Shape language — Buttons are a primitive                    |
-| `components/SearchPill`                       | a bare `<input type="search">`    | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
-| `components/SelectMenu`                       | a restyled `<select>`             | § Toolbars & action rows                                      |
-| `components/OverflowMenu`                     | a hand-rolled `⋮` popover         | § Toolbars & action rows                                      |
-| `components/shared/ToolbarPopover`            | a second portal-popover impl      | § Toolbars & action rows                                      |
-| `components/shared/ViewPopoverPanel`          | letting a phone toolbar wrap rows | § Toolbars & action rows                                      |
-| `components/Tabs`                             | bespoke tab markup                | § Tabs / view switchers                                       |
-| `components/ViewModeToggle`                   | a bespoke layout switcher         | § View-mode toggle option order                               |
-| `components/shared/FilterChipsRow`            | a bespoke active-filter row       | § Tag chips                                                   |
-| `components/shared/form` (`SwitchRow`)        | a checkbox for an on/off setting  | § Config surfaces                                             |
-| `components/shared/form` (`SegmentedControl`) | a new segmented-pill CSS family   | § Config surfaces                                             |
-| `components/shared/form` (`ChoiceList`)       | a hint that rewrites per option   | § Config surfaces                                             |
-| `components/shared/form` (`Disclosure`)       | a hand-rolled collapsible group   | § Config surfaces                                             |
-| `components/shared/form` (`Field`)            | an uppercase `.field label`       | § Config surfaces                                             |
+| Reach for                                     | Instead of                         | Ruling                                                        |
+| --------------------------------------------- | ---------------------------------- | ------------------------------------------------------------- |
+| `components/PageHeader`                       | a hand-built `.binder-hero`        | § Layout system                                               |
+| `components/shared/Button` (`Button`)         | a raw `className="btn …"`          | § Shape language — Buttons are a primitive                    |
+| `components/shared/Button` (`IconButton`)     | a `<button>` holding only a glyph  | § Shape language — Buttons are a primitive                    |
+| `components/shared/Chip`                      | a raw `className="…-chip"` element | § Shape language — Chips are a primitive                      |
+| `components/SearchPill`                       | a bare `<input type="search">`     | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
+| `components/SelectMenu`                       | a restyled `<select>`              | § Toolbars & action rows                                      |
+| `components/OverflowMenu`                     | a hand-rolled `⋮` popover          | § Toolbars & action rows                                      |
+| `components/shared/ToolbarPopover`            | a second portal-popover impl       | § Toolbars & action rows                                      |
+| `components/shared/ViewPopoverPanel`          | letting a phone toolbar wrap rows  | § Toolbars & action rows                                      |
+| `components/Tabs`                             | bespoke tab markup                 | § Tabs / view switchers                                       |
+| `components/ViewModeToggle`                   | a bespoke layout switcher          | § View-mode toggle option order                               |
+| `components/shared/FilterChipsRow`            | a bespoke active-filter row        | § Tag chips                                                   |
+| `components/shared/form` (`SwitchRow`)        | a checkbox for an on/off setting   | § Config surfaces                                             |
+| `components/shared/form` (`SegmentedControl`) | a new segmented-pill CSS family    | § Config surfaces                                             |
+| `components/shared/form` (`ChoiceList`)       | a hint that rewrites per option    | § Config surfaces                                             |
+| `components/shared/form` (`Disclosure`)       | a hand-rolled collapsible group    | § Config surfaces                                             |
+| `components/shared/form` (`Field`)            | an uppercase `.field label`        | § Config surfaces                                             |
 
 ### Overlays
 
@@ -516,10 +517,33 @@ restyles one of those triggers (`triggerClassName` on `OverflowMenu` or
 `ToolbarPopover`), it takes the class from `buttonClass({ variant, placement })`,
 the same vocabulary `Button` uses, rather than spelling out `btn …`. A label that hides on phones (`.toolbar-label-compact`) takes that class through `labelClassName`, which lands on `.btn-label` itself: a span nested inside it would leave an empty flex item holding the icon gap.
 
-Guard: `src/test/control-primitives-usage.test.ts` counts raw control classes
-and glyph-only `<button>`s per file. Its allowlist is the migration still to
-do (board T152) and only shrinks: a new file, or a listed file that grows,
-fails.
+**Chips are a primitive (E435, 2026-09-26).** A chip renders `Chip` from
+`components/shared/Chip`. Chips have no shared look: each family keeps its own
+class in `className`, so moving one onto `Chip` changes no pixels. The role
+picks the element, one way each:
+
+- no handler: a label chip, a `<span>` (`as="li"` inside a list);
+- `pressed` + `onClick`: a filter toggle, `<button aria-pressed>`;
+- `onClick` alone: an action chip, a `<button>`;
+- `onRemove`: a removable chip, a label plus a sibling × `IconButton` named by
+  `removeLabel` (never a control nested in the label).
+
+The label sits in its own element (`.chip-label`, with `labelClassName` and
+`labelTitle` for a family's own label class and the full name of one that
+truncates). A count badge or state mark that is its own flex item goes in
+`trailing`, and a leading glyph, dot or set icon in `icon` (rendered
+`aria-hidden`); nesting either inside the label would pull it out of the flex
+row. Some classes named `-chip` are not chips in this sense and stay as they
+are: board chrome, a rule-builder token with its own toggle and remove
+controls, a list item wrapping its own button, a drag-reorder item, a router
+link. The guard lists each as a permanent entry with its reason. A `<label>`
+wrapping a hidden checkbox or radio is a choice control, not a chip
+(§ Tabs / view switchers, the exclusive-value picker).
+
+Guard: `src/test/control-primitives-usage.test.ts` counts raw control classes,
+glyph-only `<button>`s and raw chip classes per file. Its allowlist is the
+migration still to do (board T152) and only shrinks: a new file, or a listed
+file that grows, fails.
 
 **One frame per surface — never box a grid of self-framed tiles.** A
 container whose children already carry border + raised fill (result-grid

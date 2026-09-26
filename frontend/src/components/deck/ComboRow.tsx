@@ -21,6 +21,7 @@ import type { ComboMatch } from '../../types/combos';
 import { formatMoney } from '../../lib/format-money';
 import { MagicText } from './MagicText';
 import { OwnershipBadge } from './OwnershipBadge';
+import { Chip } from '@/components/shared/Chip';
 
 export interface CardImageIndex {
   byOracle: Map<string, string>;
@@ -193,16 +194,16 @@ export function ComboRow({
             const isInfinite = p.toLowerCase().startsWith('infinite ');
             const label = isInfinite ? p.slice(9) : p;
             return (
-              <span key={i} className="deck-combos-produce-chip" title={p}>
+              <Chip key={i} className="deck-combos-produce-chip" title={p}>
                 {isInfinite && <span aria-hidden>∞ </span>}
                 {label}
-              </span>
+              </Chip>
             );
           })}
           {combo.produces.length > 3 && (
-            <span className="deck-combos-produce-chip deck-combos-produce-chip--more">
+            <Chip className="deck-combos-produce-chip deck-combos-produce-chip--more">
               +{combo.produces.length - 3}
-            </span>
+            </Chip>
           )}
         </div>
       )}

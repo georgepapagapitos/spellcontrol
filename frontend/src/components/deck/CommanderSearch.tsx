@@ -45,6 +45,7 @@ import { getCommanderStatsBatch, type CommanderStats } from '../../lib/aggregate
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 /**
  * Resolves the commander-picker platform-deck-count badge (social W4) for a
  * settled Top-EDHREC/Playstyle candidate list: looks up each visible
@@ -1301,23 +1302,23 @@ export function CommanderSearch({
             )}
 
             <div className="commander-surprise">
-              <button
-                type="button"
+              <Chip
                 className="commander-suggestion-chip commander-surprise-chip"
                 onClick={handleSurpriseMe}
                 disabled={
                   randomLoading || searchLoading || (ownedOnly && collectionLegends.length === 0)
                 }
+                icon={
+                  <Shuffle
+                    className="commander-surprise-icon"
+                    width={14}
+                    height={14}
+                    strokeWidth={2}
+                  />
+                }
               >
-                <Shuffle
-                  className="commander-surprise-icon"
-                  width={14}
-                  height={14}
-                  strokeWidth={2}
-                  aria-hidden
-                />
                 {randomLoading ? 'Picking…' : 'Random'}
-              </button>
+              </Chip>
             </div>
           </div>
         )}

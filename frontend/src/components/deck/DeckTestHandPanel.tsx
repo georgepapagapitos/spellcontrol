@@ -59,6 +59,7 @@ import { cardCmc, isLand, toClockCard, toSimCard } from '../../lib/hand-classify
 import { CardPreview } from '../CardPreview';
 import { InfoTip } from '../InfoTip';
 import { assemblyClockTip, isKillClock } from './WinConditionPanel';
+import { Chip } from '@/components/shared/Chip';
 
 export interface DeckTestHandPanelHandle {
   reveal(): void;
@@ -494,44 +495,65 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
               </div>
 
               <ul className="deck-test-hand-chips" aria-label="Hand breakdown">
-                <li className="deck-test-hand-chip">
-                  <Mountain width={12} height={12} aria-hidden />
-                  <strong>{breakdown.lands}</strong>{' '}
-                  <span className="deck-test-hand-chip-label">
-                    {breakdown.lands === 1 ? 'land' : 'lands'}
-                  </span>
-                </li>
-                <li className="deck-test-hand-chip">
-                  <Sparkles width={12} height={12} aria-hidden />
-                  <strong>{breakdown.ramp}</strong>{' '}
-                  <span className="deck-test-hand-chip-label">ramp</span>
-                </li>
-                <li className="deck-test-hand-chip">
-                  <Sword width={12} height={12} aria-hidden />
-                  <strong>{breakdown.removal}</strong>{' '}
-                  <span className="deck-test-hand-chip-label">removal</span>
-                </li>
-                <li className="deck-test-hand-chip">
-                  <BookOpen width={12} height={12} aria-hidden />
-                  <strong>{breakdown.cardDraw}</strong>{' '}
-                  <span className="deck-test-hand-chip-label">draw</span>
-                </li>
-                {Number.isFinite(breakdown.avgSpellCmc) && (
-                  <li className="deck-test-hand-chip">
-                    <span className="deck-test-hand-chip-cmc-icon" aria-hidden>
-                      {'{'}
-                      {breakdown.avgSpellCmc.toFixed(1)}
-                      {'}'}
+                <Chip
+                  as="li"
+                  className="deck-test-hand-chip"
+                  icon={<Mountain width={12} height={12} />}
+                  trailing={
+                    <span className="deck-test-hand-chip-label">
+                      {breakdown.lands === 1 ? 'land' : 'lands'}
                     </span>
-                    <span className="deck-test-hand-chip-label">avg spell</span>
-                  </li>
+                  }
+                >
+                  <strong>{breakdown.lands}</strong>{' '}
+                </Chip>
+                <Chip
+                  as="li"
+                  className="deck-test-hand-chip"
+                  icon={<Sparkles width={12} height={12} />}
+                  trailing={<span className="deck-test-hand-chip-label">ramp</span>}
+                >
+                  <strong>{breakdown.ramp}</strong>{' '}
+                </Chip>
+                <Chip
+                  as="li"
+                  className="deck-test-hand-chip"
+                  icon={<Sword width={12} height={12} />}
+                  trailing={<span className="deck-test-hand-chip-label">removal</span>}
+                >
+                  <strong>{breakdown.removal}</strong>{' '}
+                </Chip>
+                <Chip
+                  as="li"
+                  className="deck-test-hand-chip"
+                  icon={<BookOpen width={12} height={12} />}
+                  trailing={<span className="deck-test-hand-chip-label">draw</span>}
+                >
+                  <strong>{breakdown.cardDraw}</strong>{' '}
+                </Chip>
+                {Number.isFinite(breakdown.avgSpellCmc) && (
+                  <Chip
+                    as="li"
+                    className="deck-test-hand-chip"
+                    icon={
+                      <span className="deck-test-hand-chip-cmc-icon">
+                        {'{'}
+                        {breakdown.avgSpellCmc.toFixed(1)}
+                        {'}'}
+                      </span>
+                    }
+                    labelClassName="deck-test-hand-chip-label"
+                  >
+                    avg spell
+                  </Chip>
                 )}
                 {hand.length >= HAND_SIZE && (
-                  <li
+                  <Chip
+                    as="li"
                     className={`deck-test-hand-chip is-verdict ${isKeepable ? 'is-keepable' : 'is-mulligan'}`}
                   >
                     <strong>{isKeepable ? 'Keepable' : 'Mulligan'}</strong>
-                  </li>
+                  </Chip>
                 )}
               </ul>
               <p className="deck-test-hand-stat-secondary">

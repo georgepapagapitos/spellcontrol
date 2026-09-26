@@ -29,6 +29,7 @@ import './ProductSearchPanel.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 /** Carousel entries for a product's full physical contents (one swipeable card per copy-set). */
 function physicalToEntries(physicalCards: ProductPhysicalCard[]): CarouselEntry[] {
   return physicalCards.map((pc) => ({
@@ -466,15 +467,14 @@ export function ProductSearchPanel({ onClose }: Props) {
         />
         <div className="product-type-filters" role="group" aria-label="Product type">
           {TYPE_FILTERS.map((t) => (
-            <button
+            <Chip
               key={t.value || 'all'}
-              type="button"
               className={`product-type-chip${type === t.value ? ' active' : ''}`}
-              aria-pressed={type === t.value}
+              pressed={type === t.value}
               onClick={() => setType(t.value)}
             >
               {t.label}
-            </button>
+            </Chip>
           ))}
         </div>
       </div>

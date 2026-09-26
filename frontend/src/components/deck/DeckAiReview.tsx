@@ -26,6 +26,7 @@ import './DeckAiReview.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 interface DeckAiReviewProps {
   deckId: string;
   format: DeckFormat;
@@ -486,15 +487,14 @@ function ReviewProse({
       tokenizeCardNames(text, names).map((t, i) => {
         const named = t.card;
         return named ? (
-          <button
+          <Chip
             key={i}
-            type="button"
             className="deck-ai-card-chip"
             onClick={() => void carousel.open(entries, named)}
             aria-label={`Preview ${named}`}
           >
             {t.text}
-          </button>
+          </Chip>
         ) : (
           <span key={i}>{t.text}</span>
         );

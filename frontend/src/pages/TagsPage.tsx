@@ -18,6 +18,7 @@ import {
 import { describeOtag } from '../lib/otag-descriptions';
 import { parseTagParam, searchTags, tagsToQuery } from '../lib/tag-explorer';
 import { useStoredView } from '../lib/use-stored-view';
+import { Chip } from '@/components/shared/Chip';
 
 /** Rendered tag rows. The corpus is ~4,500 tags — far past what's browsable,
  *  and past what's worth putting in the DOM. Searching narrows it. */
@@ -144,15 +145,14 @@ export function TagsPage() {
           <ul className="tags-selected-list" role="list">
             {known.map((slug) => (
               <li key={slug}>
-                <button
-                  type="button"
+                <Chip
                   className="tags-selected-chip"
                   onClick={() => toggleTag(slug)}
                   aria-label={`Remove ${cardTagLabel(slug)} from the selection`}
+                  trailing={<X width={12} height={12} strokeWidth={2.5} aria-hidden />}
                 >
                   {cardTagLabel(slug)}
-                  <X width={12} height={12} strokeWidth={2.5} aria-hidden />
-                </button>
+                </Chip>
               </li>
             ))}
           </ul>

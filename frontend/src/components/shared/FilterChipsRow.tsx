@@ -1,7 +1,6 @@
-import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { ColorMatchMode } from '../../lib/colors';
-import { IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 export interface FilterChipDescriptor {
   id: string;
@@ -58,15 +57,16 @@ export function FilterChipsRow({
   return (
     <div className="collection-filter-chips" role="group" aria-label="Active filters">
       {chips.map((chip) => (
-        <span key={chip.id} className="collection-filter-chip">
-          <span className="collection-filter-chip-label">{chip.label}</span>
-          <IconButton
-            className="collection-filter-chip-clear"
-            onClick={chip.onClear}
-            label={`Remove filter: ${chip.label}`}
-            icon={<X width={12} height={12} strokeWidth={2.5} />}
-          />
-        </span>
+        <Chip
+          key={chip.id}
+          className="collection-filter-chip"
+          labelClassName="collection-filter-chip-label"
+          onRemove={chip.onClear}
+          removeLabel={`Remove filter: ${chip.label}`}
+          removeClassName="collection-filter-chip-clear"
+        >
+          {chip.label}
+        </Chip>
       ))}
       {chips.length > 1 && (
         <button type="button" className="collection-filter-chips-clear-all" onClick={onClearAll}>

@@ -29,6 +29,7 @@ import {
 import { paletteForIndex } from '../../lib/seat-palette';
 import { FacingArrow } from './FacingArrow';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
+import { Chip } from '@/components/shared/Chip';
 
 // ── Layout picker (board arrangement) ────────────────────────────────────
 
@@ -341,14 +342,13 @@ export function CustomLayoutEditor({
             <div className="cle-tray-chips">
               {placements.map((p, i) =>
                 p ? null : (
-                  <button
+                  <Chip
                     key={i}
-                    type="button"
                     className={`cle-tray-chip ${selected === i ? 'is-selected' : ''}`}
                     onClick={() => setSelected(selected === i ? null : i)}
                   >
                     {game.players[i]?.name ?? `Seat ${i + 1}`}
-                  </button>
+                  </Chip>
                 )
               )}
             </div>

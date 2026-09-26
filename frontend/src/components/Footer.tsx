@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { useShortcutRegistry } from '../lib/shortcut-registry';
 import { track } from '../lib/analytics';
+import { Chip } from '@/components/shared/Chip';
 
 export function Footer() {
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
@@ -31,15 +32,14 @@ export function Footer() {
         )}
       </p>
       {/* Desktop / fine-pointer only: no hardware keyboard on coarse-pointer devices */}
-      <button
-        type="button"
+      <Chip
         className="footer-shortcuts-chip"
         onClick={show}
         aria-label="Show keyboard shortcuts"
+        trailing={<span className="footer-shortcuts-label">Keyboard shortcuts</span>}
       >
         <kbd className="footer-shortcuts-kbd">?</kbd>
-        <span className="footer-shortcuts-label">Keyboard shortcuts</span>
-      </button>
+      </Chip>
     </footer>
   );
 }

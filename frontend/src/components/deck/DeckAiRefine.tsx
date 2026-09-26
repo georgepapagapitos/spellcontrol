@@ -21,6 +21,7 @@ import './DeckAiReview.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 interface DeckAiRefineProps {
   deckId: string;
   format: DeckFormat;
@@ -479,28 +480,26 @@ export function DeckAiRefine({
                     <li key={t.add} className="deck-ai-tweak">
                       <div className="deck-ai-tweak-move">
                         <strong>
-                          <button
-                            type="button"
+                          <Chip
                             className="deck-ai-card-chip"
                             onClick={() => carousel.open(previewEntries(), shownName)}
                             aria-label={`Preview ${shownName}`}
                           >
                             {shownName}
-                          </button>
+                          </Chip>
                         </strong>
                         {t.cut && (
                           <>
                             <span className="deck-ai-tweak-arrow" aria-hidden>
                               ←
                             </span>
-                            <button
-                              type="button"
+                            <Chip
                               className="deck-ai-card-chip deck-ai-tweak-cut"
                               onClick={() => carousel.open(previewEntries(), t.cut as string)}
                               aria-label={`Preview ${t.cut}`}
                             >
                               {t.cut}
-                            </button>
+                            </Chip>
                           </>
                         )}
                       </div>
@@ -706,15 +705,14 @@ function RefineProse({
               tokenizeCardNames(para, names).map((t, j) => {
                 const named = t.card;
                 return named ? (
-                  <button
+                  <Chip
                     key={j}
-                    type="button"
                     className="deck-ai-card-chip"
                     onClick={() => void carousel.open(entries, named)}
                     aria-label={`Preview ${named}`}
                   >
                     {t.text}
-                  </button>
+                  </Chip>
                 ) : (
                   <span key={j}>{t.text}</span>
                 );

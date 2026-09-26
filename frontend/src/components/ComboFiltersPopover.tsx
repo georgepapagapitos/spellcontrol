@@ -12,6 +12,7 @@ import {
   type ComboResultKind,
 } from '../lib/combo-filters';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 const RESULT_OPTIONS = (
   Object.entries(COMBO_RESULT_LABELS) as Array<[ComboResultKind, string]>
@@ -102,15 +103,14 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
                 {RESULT_OPTIONS.map((r) => {
                   const active = filters.results.has(r.key);
                   return (
-                    <button
+                    <Chip
                       key={r.key}
-                      type="button"
                       className={`deck-filter-chip${active ? ' is-active' : ''}`}
                       onClick={() => toggleIn('results', r.key)}
-                      aria-pressed={active}
+                      pressed={active}
                     >
                       {r.label}
-                    </button>
+                    </Chip>
                   );
                 })}
               </div>
@@ -122,15 +122,14 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
                 {PIECE_OPTIONS.map((p) => {
                   const active = filters.pieceCounts.has(p.key);
                   return (
-                    <button
+                    <Chip
                       key={p.key}
-                      type="button"
                       className={`deck-filter-chip${active ? ' is-active' : ''}`}
                       onClick={() => toggleIn('pieceCounts', p.key)}
-                      aria-pressed={active}
+                      pressed={active}
                     >
                       {p.label}
-                    </button>
+                    </Chip>
                   );
                 })}
               </div>
@@ -139,11 +138,10 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
             <section className="deck-filters-section">
               <div className="deck-filters-section-label">Commanders</div>
               <div className="deck-filters-chips" role="group" aria-label="Filter by hostability">
-                <button
-                  type="button"
+                <Chip
                   className={`deck-filter-chip${filters.hostOnly ? ' is-active' : ''}`}
                   onClick={() => setFilters({ ...filters, hostOnly: !filters.hostOnly })}
-                  aria-pressed={filters.hostOnly}
+                  pressed={filters.hostOnly}
                   disabled={!hasCommanders}
                   title={
                     hasCommanders
@@ -152,7 +150,7 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
                   }
                 >
                   One of mine can host it
-                </button>
+                </Chip>
               </div>
             </section>
 
