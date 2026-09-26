@@ -6,6 +6,7 @@ import { useSwipeDownDismiss } from '../../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import { CardThumb } from '../CardThumb';
+import { ViewModeToggle } from '../ViewModeToggle';
 import { VerdictBadge } from './VerdictBadge';
 import type { VerdictTone } from './VerdictBadge';
 import type { CardTally } from './useCardCarousel';
@@ -107,9 +108,6 @@ export function CardGroupSheet({
     return () => document.removeEventListener('keydown', onKey);
   }, [beginClose]);
 
-  // Radios group by shared `name` — scope it per mounted sheet.
-  const layoutGroup = useId();
-
   const chooseLayout = (next: GroupLayout) => {
     setLayout(next);
     try {
@@ -163,30 +161,23 @@ export function CardGroupSheet({
             </span>
           </div>
           <div className="card-group-head-actions">
-            {/* Native radios: exclusivity + arrow-key nav + one group tab
-                stop, none of which the `role="radio"` buttons here provided. */}
-            <fieldset className="card-group-layout-toggle" aria-label="Card layout">
-              {(
-                [
-                  { value: 'grid', label: 'Grid view', Icon: LayoutGrid },
-                  { value: 'list', label: 'List view', Icon: Rows3 },
-                ] as const
-              ).map(({ value, label, Icon }) => (
-                <label key={value} className="card-group-layout-btn">
-                  <input
-                    type="radio"
-                    name={layoutGroup}
-                    value={value}
-                    checked={layout === value}
-                    onChange={() => chooseLayout(value)}
-                    aria-label={label}
-                  />
-                  <span>
-                    <Icon size={16} aria-hidden="true" />
-                  </span>
-                </label>
-              ))}
-            </fieldset>
+            <ViewModeToggle<GroupLayout>
+              ariaLabel="Card layout"
+              value={layout}
+              onChange={chooseLayout}
+              options={[
+                {
+                  value: 'grid',
+                  label: 'Grid view',
+                  icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+                {
+                  value: 'list',
+                  label: 'List view',
+                  icon: <Rows3 width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+              ]}
+            />
             <button
               type="button"
               className="card-group-close"

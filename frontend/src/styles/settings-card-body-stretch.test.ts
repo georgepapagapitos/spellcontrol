@@ -50,10 +50,14 @@ describe('settings-card-body children keep their intrinsic width', () => {
 // panel; the deck Power tab's Combos strip ran "In deck / One card away" the
 // full panel width, both 2026-09-25), so the opt-out lives on the primitive,
 // not per parent. `fitted` Tabs are exempt: equal segments filling the row is
-// what that variant is for.
+// what that variant is for. A definite width is the whole opt-out (stretch
+// only applies to an `auto` width); `align-self` on a primitive is refused
+// because these also sit in toolbar ROWS, where it would move the track off
+// the row's centre line.
 const SHARED_TRACKS: Array<[file: string, selector: string]> = [
   ['../components/shared/form.css', '.segmented'],
   ['deck-builder-tabs.css', '.sc-tabs--scrollable'],
+  ['deck-builder-display.css', '.toolbar-viewmode'],
 ];
 
 describe('the shared boxed tracks keep their intrinsic width', () => {
@@ -62,6 +66,7 @@ describe('the shared boxed tracks keep their intrinsic width', () => {
       const body = ruleBody(readFileSync(join(here, file), 'utf8'), selector);
       expect(body).toMatch(/width:\s*fit-content/);
       expect(body).toMatch(/max-width:\s*100%/);
+      expect(body).not.toMatch(/align-self/);
     });
   }
 });

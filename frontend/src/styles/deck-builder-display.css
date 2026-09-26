@@ -610,9 +610,14 @@
   max-width: 18rem;
 }
 
-/* Segmented view-mode toggle (text | grid | list). */
+/* Segmented view-mode toggle (text | grid | list). `width: fit-content` so the
+   track ends at its last button in a column flexbox too, where inline-flex is
+   blockified and would otherwise stretch (same as `.segmented`,
+   `.sc-tabs--scrollable`). */
 .toolbar-viewmode {
   display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
   background: var(--surface);
   border: 0.5px solid var(--border-strong);
   border-radius: 999px;
