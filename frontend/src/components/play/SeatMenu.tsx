@@ -24,6 +24,7 @@ import { encodeCustomLayout, resolveLayout, turnOrderOf } from '../../lib/board-
 import { paletteForSeat } from '../../lib/seat-palette';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 import { useTapAndHold } from '../../lib/tap-and-hold';
+import { IconButton } from '../shared/Button';
 import { FacingArrow } from './FacingArrow';
 
 // ── Seat drawer ────────────────────────────────────────────────────────────
@@ -753,14 +754,12 @@ function CounterRow({
           +
         </button>
         {onRemove && (
-          <button
-            type="button"
+          <IconButton
             className="counter-row-remove"
-            aria-label={`Remove ${label}`}
+            label={`Remove ${label}`}
+            icon={<Trash2 width={14} height={14} />}
             onClick={onRemove}
-          >
-            <Trash2 width={14} height={14} aria-hidden />
-          </button>
+          />
         )}
       </div>
     </div>

@@ -342,7 +342,7 @@
      sibling): the corner's own top offset (--space-2 + --seam-keepout) plus
      the name button's one line (23px). A flat 1.6rem sat inside the name on
      every board once the seam keep-out moved the corner down. */
-  padding: calc(var(--space-2) + var(--seam-keepout) + 1.5rem) 0.4rem 0.4rem;
+  padding: calc(var(--space-2) + var(--seam-keepout) + var(--space-5)) 0.4rem 0.4rem;
   pointer-events: none;
   /* Sized in the panel's own (rotated) axes, so the halves can stack by the
      space they actually get without a sideways/upright pair of queries.
@@ -623,7 +623,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: 0.4rem 0.6rem;
+  padding: var(--space-1) var(--space-2);
   background: rgba(10, 12, 18, 0.82);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
@@ -724,8 +724,8 @@
 
     .player-panel.is-cmd-self[data-sideways] .pp-cmd-focus-bar {
       flex-direction: column;
-      gap: 0.15rem;
-      padding-block: 0.15rem;
+      gap: 0.125rem;
+      padding-block: 0.125rem;
     }
 
     .player-panel.is-cmd-self[data-sideways] .pp-cmd-focus-title {
@@ -741,8 +741,8 @@
 
     .player-panel.is-cmd-self:not([data-sideways]) .pp-cmd-focus-bar {
       flex-direction: column;
-      gap: 0.15rem;
-      padding-block: 0.15rem;
+      gap: 0.125rem;
+      padding-block: 0.125rem;
     }
 
     .player-panel.is-cmd-self:not([data-sideways]) .pp-cmd-focus-title {
@@ -1099,6 +1099,6 @@
    above reserved for it. */
 @container (max-height: 9.5rem) {
   .game-board:not(.game-board-2) .pp-cmd-split-wrap {
-    padding-top: calc(var(--space-2) + var(--seam-keepout) + 0.6rem);
+    padding-top: calc(var(--space-2) + var(--seam-keepout) + var(--space-2) + 0.1rem);
   }
 }

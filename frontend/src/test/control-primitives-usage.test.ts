@@ -324,7 +324,7 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/LikeButton.tsx': 1,
     'components/ListEntryTargetPrice.tsx': 1,
     'components/play/DeckPickerDialog.tsx': 2,
-    'components/play/GameBoard.tsx': 2,
+    'components/play/GameBoard.tsx': 1,
     'components/play/horde/HordeTable.tsx': 1,
     'components/play/OnlineLobby.tsx': 1,
     'components/play/TableProfiles.tsx': 1,

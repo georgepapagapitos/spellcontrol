@@ -142,7 +142,7 @@ describe('commander-damage focus: the bar never covers the numeral', () => {
     // A flat 1.6rem sat inside the name once the seam keep-out moved the
     // corner down; the 7-10 player tier's ~7px name needs far less.
     expect(ruleBody('.pp-cmd-split-wrap')).toMatch(
-      /padding:\s*calc\(var\(--space-2\) \+ var\(--seam-keepout\) \+ [\d.]+rem\)/
+      /padding:\s*calc\(var\(--space-2\) \+ var\(--seam-keepout\) \+ (?:[\d.]+rem|var\(--space-\d\))\)/
     );
     const at = css.indexOf('.game-board:not(.game-board-2) .pp-cmd-split-wrap {');
     expect(at).toBeGreaterThan(-1);
