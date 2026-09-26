@@ -18,6 +18,7 @@
 
 /* Link-styled inline action (Retry / View / Hide). */
 .link-button {
+  position: relative;
   background: none;
   border: none;
   padding: 0;
@@ -30,6 +31,22 @@
 @media (hover: hover) and (pointer: fine) {
   .link-button:hover {
     text-decoration: none;
+  }
+}
+
+/* It sits inside a sentence and a table cell, so a min-height would push the
+   line apart: the coarse floor is a centred ghost instead (STYLE_GUIDE
+   § Responsive, `.set-filter-chip-x`). */
+@media (pointer: coarse) {
+  .link-button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    min-width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 }
 
