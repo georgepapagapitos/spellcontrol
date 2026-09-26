@@ -52,6 +52,7 @@ import { ProgressBar } from '../components/ProgressBar';
 
 import { userMessage } from '@/lib/user-error';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
+import { Button } from '@/components/shared/Button';
 type BinderSortField = 'position' | 'name' | 'cards' | 'pages';
 type SortDir = 'asc' | 'desc';
 type BindersViewMode = 'grid' | 'list' | 'compact';
@@ -370,17 +371,12 @@ export function BindersIndexPage() {
               Binders sort your collection by rule. Import it first, or try the samples to see how.
             </p>
             <div className="empty-state-actions">
-              <Link to="/collection" className="btn btn-primary">
+              <Button variant="primary" to="/collection">
                 Import your collection
-              </Link>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setShowSamplesIntro(true)}
-                disabled={loadingSamples}
-              >
+              </Button>
+              <Button onClick={() => setShowSamplesIntro(true)} disabled={loadingSamples}>
                 Try it out
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -392,22 +388,13 @@ export function BindersIndexPage() {
               theme.
             </p>
             <div className="empty-state-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setEditingBinder('new')}
-              >
+              <Button variant="primary" onClick={() => setEditingBinder('new')}>
                 Create your first binder
-              </button>
+              </Button>
               {!hasSampleBinders && (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setShowSamplesIntro(true)}
-                  disabled={loadingSamples}
-                >
+                <Button onClick={() => setShowSamplesIntro(true)} disabled={loadingSamples}>
                   Load sample binders
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -430,24 +417,23 @@ export function BindersIndexPage() {
               onDone={sel.exit}
               noun="binder"
             >
-              <button
-                type="button"
-                className="pill-btn"
+              <Button
+                placement="row"
                 disabled={sel.selected.size === 0}
                 onClick={() => setBulkExportOpen(true)}
+                icon={<Upload width={14} height={14} strokeWidth={1.8} />}
               >
-                <Upload width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Export</span>
-              </button>
-              <button
-                type="button"
-                className="pill-btn bulk-bar-danger"
+                Export
+              </Button>
+              <Button
+                placement="row"
                 disabled={sel.selected.size === 0}
                 onClick={() => void handleBulkDelete()}
+                className="bulk-bar-danger"
+                icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
               >
-                <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Delete selected</span>
-              </button>
+                Delete selected
+              </Button>
             </BulkSelectBar>
           )}
           {sortField === 'position' && sortDir === 'asc' && (
@@ -617,13 +603,13 @@ export function BindersIndexPage() {
 
       {binders.length > 1 && (
         <div className="binders-index-danger">
-          <button
-            type="button"
-            className="btn-link binders-index-danger-btn"
+          <Button
+            variant="link"
             onClick={() => void handleDeleteAll()}
+            className="binders-index-danger-btn"
           >
             Delete all binders
-          </button>
+          </Button>
         </div>
       )}
 
@@ -714,18 +700,12 @@ function SamplesIntroDialog({
         />
       )}
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onCancel} disabled={loading}>
+        <Button onClick={onCancel} disabled={loading}>
           Cancel
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onConfirm}
-          disabled={loading}
-          autoFocus
-        >
+        </Button>
+        <Button variant="primary" onClick={onConfirm} disabled={loading} autoFocus>
           {loading ? 'Loading…' : bindersOnly ? 'Load sample binders' : 'Load samples'}
-        </button>
+        </Button>
       </div>
     </Modal>
   );

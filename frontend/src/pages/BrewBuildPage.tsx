@@ -35,6 +35,7 @@ import { BrewSlotPanel } from '@/deck-builder/components/brew/BrewSlotPanel';
 import { BrewRunningDeck } from '@/deck-builder/components/brew/BrewRunningDeck';
 import { BrewManabaseStep } from '@/deck-builder/components/brew/BrewManabaseStep';
 import type { DeckCategory, GeneratedDeck, ThemeResult, ScryfallCard } from '@/deck-builder/types';
+import { Button } from '@/components/shared/Button';
 
 const ALL_CATEGORIES: DeckCategory[] = [
   'lands',
@@ -240,24 +241,17 @@ export function BrewBuildPage(): JSX.Element {
             <span> Saved {relativeTime(draft.savedAt)}.</span>
           </div>
           <div className="brew-resume-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void resumeDraft(draft)}
-              disabled={resuming}
-            >
+            <Button variant="primary" onClick={() => void resumeDraft(draft)} disabled={resuming}>
               {resuming ? 'Loading…' : 'Resume'}
-            </button>
-            <button
-              type="button"
-              className="btn"
+            </Button>
+            <Button
               onClick={() => {
                 clearBrewDraft();
                 setDraft(null);
               }}
             >
               Discard
-            </button>
+            </Button>
           </div>
         </section>
       )}
@@ -283,9 +277,8 @@ export function BrewBuildPage(): JSX.Element {
 
           {commander && (
             <section className="deck-builder-section deck-builder-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Button
+                variant="primary"
                 onClick={() => void startBrewing()}
                 disabled={
                   loading || (choosesColorBeforeGame(commander) && !chosenColorOf(commander))
@@ -298,7 +291,7 @@ export function BrewBuildPage(): JSX.Element {
                     Start brewing <ArrowRight width={14} height={14} aria-hidden />
                   </>
                 )}
-              </button>
+              </Button>
               {error && <div className="error-banner deck-builder-error">{error}</div>}
             </section>
           )}

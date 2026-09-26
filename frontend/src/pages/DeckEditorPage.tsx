@@ -26,14 +26,7 @@ import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placeme
 import { haptics } from '../lib/haptics';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
-import {
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-  Link,
-  Navigate,
-} from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import {
   useDecksStore,
   effectiveBracket,
@@ -194,6 +187,7 @@ const fetchFixingLands = (identityKey: string): Promise<ScryfallCard[]> =>
   searchCards('t:land -t:basic', identityKey.split(''), { order: 'edhrec' }).then((r) => r.data);
 import { getSyncState, onSyncedChange } from '@/lib/sync';
 import { printedName } from '@spellcontrol/binder-routing';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /** Functional role key → display label (the four roles the tagger classifies). */
 const ROLE_LABEL: Record<string, string> = {
@@ -1444,9 +1438,9 @@ export function DeckEditorPage() {
     return (
       <div className="deck-editor-missing">
         <p>That deck no longer exists.</p>
-        <Link to="/decks" className="btn btn-primary">
+        <Button variant="primary" to="/decks">
           Back to decks
-        </Link>
+        </Button>
       </div>
     );
   }
@@ -3042,13 +3036,13 @@ export function DeckEditorPage() {
                     ariaLabel="Deck color"
                   />
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-primary deck-editor-hero-edit-done"
+                <Button
+                  variant="primary"
                   onClick={handleCommitRename}
+                  className="deck-editor-hero-edit-done"
                 >
                   Done
-                </button>
+                </Button>
               </div>
             ) : (
               <h1 className="deck-editor-title">
@@ -3128,54 +3122,53 @@ export function DeckEditorPage() {
           <>
             {isDesktop && (
               <>
-                <button
-                  type="button"
-                  className="btn deck-editor-action-btn deck-editor-icon-btn"
+                <IconButton
+                  variant="secondary"
+                  className="deck-editor-action-btn deck-editor-icon-btn"
                   onClick={() => undoEdit(deck.id)}
                   disabled={!canUndoEdit}
                   title={canUndoEdit ? `Undo: ${undoEditLabel} (Ctrl/Cmd+Z)` : 'Nothing to undo'}
-                  aria-label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
-                >
-                  <Undo2 width={14} height={14} strokeWidth={2} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className="btn deck-editor-action-btn deck-editor-icon-btn"
+                  label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
+                  icon={<Undo2 width={14} height={14} strokeWidth={2} />}
+                />
+                <IconButton
+                  variant="secondary"
+                  className="deck-editor-action-btn deck-editor-icon-btn"
                   onClick={() => redoEdit(deck.id)}
                   disabled={!canRedoEdit}
                   title={
                     canRedoEdit ? `Redo: ${redoEditLabel} (Ctrl/Cmd+Shift+Z)` : 'Nothing to redo'
                   }
-                  aria-label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
-                >
-                  <Redo2 width={14} height={14} strokeWidth={2} aria-hidden />
-                </button>
+                  label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
+                  icon={<Redo2 width={14} height={14} strokeWidth={2} />}
+                />
               </>
             )}
             {!isPhone && (
-              <button
-                type="button"
-                className="btn deck-editor-action-btn"
+              <Button
                 onClick={() => navigate(`/decks/${deck.id}/playtest`)}
+                className="deck-editor-action-btn"
+                icon={<Play width={14} height={14} strokeWidth={2} />}
               >
-                <Play width={14} height={14} strokeWidth={2} aria-hidden />
                 Playtest
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
-              className="btn btn-primary deck-editor-action-btn deck-editor-add-btn"
+            <Button
+              variant="primary"
               onClick={handleToggleAddPanel}
               aria-expanded={showAddPanel}
               title="Add cards (press / to focus search)"
+              className="deck-editor-action-btn deck-editor-add-btn"
+              icon={
+                showAddPanel ? (
+                  <X width={14} height={14} strokeWidth={2} />
+                ) : (
+                  <Plus width={14} height={14} strokeWidth={2} />
+                )
+              }
             >
-              {showAddPanel ? (
-                <X width={14} height={14} strokeWidth={2} aria-hidden />
-              ) : (
-                <Plus width={14} height={14} strokeWidth={2} aria-hidden />
-              )}
               {showAddPanel ? 'Hide cards panel' : 'Add cards'}
-            </button>
+            </Button>
             {/* Tokens, Pull list, Duplicate and Delete (UX-316: destructive
                 actions live here, never inline) are all in the ⋮. */}
             <DeckEditorOverflowMenu
@@ -3631,19 +3624,16 @@ export function DeckEditorPage() {
                   and color identity stay in sync.
                 </p>
                 <div className="deck-add-needs-commander-actions">
-                  <button type="button" className="btn" onClick={dismiss}>
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
+                  <Button onClick={dismiss}>Cancel</Button>
+                  <Button
+                    variant="primary"
                     onClick={() => {
                       setShowAddPanel(false);
                       openView('deck');
                     }}
                   >
                     Choose commander
-                  </button>
+                  </Button>
                 </div>
               </div>
             </>
@@ -3765,20 +3755,11 @@ export function DeckEditorPage() {
             it?
           </p>
           <div className="choice-dialog-actions">
-            <button type="button" className="btn" onClick={() => setMakeCommanderTarget(null)}>
-              Cancel
-            </button>
-            <button type="button" className="btn" onClick={() => handleConfirmMakeCommander(false)}>
-              Remove from deck
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => handleConfirmMakeCommander(true)}
-              autoFocus
-            >
+            <Button onClick={() => setMakeCommanderTarget(null)}>Cancel</Button>
+            <Button onClick={() => handleConfirmMakeCommander(false)}>Remove from deck</Button>
+            <Button variant="primary" onClick={() => handleConfirmMakeCommander(true)} autoFocus>
               Keep in deck
-            </button>
+            </Button>
           </div>
         </Modal>
       )}
@@ -3793,20 +3774,11 @@ export function DeckEditorPage() {
             happen to it?
           </p>
           <div className="choice-dialog-actions">
-            <button type="button" className="btn" onClick={() => setMakePartnerTarget(null)}>
-              Cancel
-            </button>
-            <button type="button" className="btn" onClick={() => handleConfirmMakePartner(false)}>
-              Remove from deck
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => handleConfirmMakePartner(true)}
-              autoFocus
-            >
+            <Button onClick={() => setMakePartnerTarget(null)}>Cancel</Button>
+            <Button onClick={() => handleConfirmMakePartner(false)}>Remove from deck</Button>
+            <Button variant="primary" onClick={() => handleConfirmMakePartner(true)} autoFocus>
               Keep in deck
-            </button>
+            </Button>
           </div>
         </Modal>
       )}

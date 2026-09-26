@@ -39,6 +39,7 @@ import {
   filterCombos,
   countActiveFilters,
 } from '../lib/combo-filters';
+import { Button } from '@/components/shared/Button';
 
 type Tab = 'complete' | 'oneAway';
 
@@ -339,9 +340,9 @@ export function CollectionCombosPage() {
             Showing partial results. The full combo dataset didn't load, so some combos may be
             missing.
           </span>
-          <button type="button" className="btn-link" onClick={refetch} disabled={loading}>
+          <Button variant="link" onClick={refetch} disabled={loading}>
             {loading ? 'Retrying…' : 'Retry'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -441,16 +442,15 @@ export function CollectionCombosPage() {
                 <>
                   <p>No combos match your search and filters.</p>
                   <p className="deck-combos-empty-secondary">
-                    <button
-                      type="button"
-                      className="btn-link"
+                    <Button
+                      variant="link"
                       onClick={() => {
                         setSearch('');
                         setFilters(emptyComboFilters());
                       }}
                     >
                       Clear search and filters
-                    </button>
+                    </Button>
                   </p>
                 </>
               ) : tab === 'complete' ? (
@@ -497,14 +497,13 @@ export function CollectionCombosPage() {
           )}
 
           {remaining > 0 && (
-            <button
-              type="button"
-              className="btn combos-more-btn"
+            <Button
               onClick={() => setPager({ list: matches, count: shown + PAGE_SIZE })}
+              className="combos-more-btn"
             >
               Show {Math.min(PAGE_SIZE, remaining).toLocaleString()} more ·{' '}
               {remaining.toLocaleString()} not shown
-            </button>
+            </Button>
           )}
         </div>
       </div>

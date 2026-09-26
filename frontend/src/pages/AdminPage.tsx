@@ -26,6 +26,7 @@ import {
 import { formatRelativeTime } from '../lib/format-time';
 import { userMessage } from '../lib/user-error';
 import { toast } from '../store/toasts';
+import { Button } from '@/components/shared/Button';
 
 type Tab = 'analytics' | 'users' | 'overview' | 'decks' | 'storage' | 'raw';
 
@@ -842,9 +843,9 @@ function AnalyticsTab({
     return (
       <p className="admin-warn" role="alert">
         {error}{' '}
-        <button type="button" className="btn-link" onClick={onRetry}>
+        <Button variant="link" onClick={onRetry}>
           Retry
-        </button>
+        </Button>
       </p>
     );
   }

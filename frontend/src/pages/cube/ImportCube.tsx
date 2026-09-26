@@ -17,6 +17,7 @@ import {
   cubeCardToEnriched,
   OwnRowBadge,
 } from './shared';
+import { Button } from '@/components/shared/Button';
 
 type OwnFilter = 'all' | 'owned' | 'in-other-deck' | 'unowned';
 
@@ -83,13 +84,9 @@ export function ImportCube() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={status === 'working' || !url.trim()}
-        >
+        <Button variant="primary" type="submit" disabled={status === 'working' || !url.trim()}>
           {status === 'working' ? 'Importing…' : 'Import'}
-        </button>
+        </Button>
       </form>
 
       {status === 'idle' && !result && (

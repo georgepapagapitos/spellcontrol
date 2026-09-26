@@ -33,6 +33,7 @@ import { useConfirm } from '../lib/use-confirm';
 import { useStoredView } from '../lib/use-stored-view';
 import { ShareDialog } from '../components/ShareDialog';
 import { CardName } from '@/components/shared/CardName';
+import { Button } from '@/components/shared/Button';
 
 export function BinderPage() {
   const { id: routeId } = useParams<{ id: string }>();
@@ -420,13 +421,9 @@ export function BinderPage() {
                   here.
                 </p>
                 <div className="empty-state-actions">
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => setEditingBinder(active.def.id)}
-                  >
+                  <Button variant="primary" onClick={() => setEditingBinder(active.def.id)}>
                     Binder rules
-                  </button>
+                  </Button>
                 </div>
               </div>
             );
