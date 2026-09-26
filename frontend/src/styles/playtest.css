@@ -486,6 +486,9 @@ body:has(.playtest-hold-banner) .playtest-takeback-consent {
      it ~50px to bring the card into view. Nothing can scroll it back, so the
      whole table stayed shifted up, the life panel cut off at the top. */
   overflow: clip;
+  /* A pinch here sizes the cards (PlaytestBoard), so the page must not zoom
+     under it. Panning stays: the hand strip and the log still scroll. */
+  touch-action: pan-x pan-y;
   /* Recessed "playmat": the chrome (header / action bar / hand / piles) sits
      on --surface, the mat drops to --bg, and the two radial glows pick up
      the theme's accent so each guild tints the play surface. Painted on the

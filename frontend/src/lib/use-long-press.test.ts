@@ -31,4 +31,20 @@ describe('useLongPress', () => {
     vi.advanceTimersByTime(500);
     expect(onLongPress).not.toHaveBeenCalled();
   });
+
+  it('a second finger anywhere on the screen cancels the press (a pinch)', () => {
+    vi.useFakeTimers();
+    const onLongPress = vi.fn();
+    const onCancelByMove = vi.fn();
+    const { result } = renderHook(() =>
+      useLongPress({ delayMs: 500, onLongPress, onCancelByMove })
+    );
+    result.current.onTouchStart(touch());
+    const second = new Event('touchstart');
+    Object.defineProperty(second, 'touches', { value: [{}, {}] });
+    document.body.dispatchEvent(second);
+    vi.advanceTimersByTime(500);
+    expect(onLongPress).not.toHaveBeenCalled();
+    expect(onCancelByMove).toHaveBeenCalledOnce();
+  });
 });
