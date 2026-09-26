@@ -34,6 +34,15 @@ export interface UseMenuKeyboardOptions {
    * popover underneath it.
    */
   ignoreSelector?: string;
+  /**
+   * Focus moves never scroll. For a panel on a surface that must not move:
+   * the board hub's ring lives inside the fixed, overflow-hidden game board,
+   * and a petal overhanging the board's edge (landscape, board kept still)
+   * made the opening focus() scroll the board, which the scroll-dismiss below
+   * read as "the trigger moved" and closed the ring as it opened. Off by
+   * default: a long list needs focus to scroll its own scroller to the item.
+   */
+  preventScroll?: boolean;
 }
 
 const DEFAULT_ITEM_SELECTOR = '[role="menuitem"]';
@@ -82,6 +91,7 @@ export function useMenuKeyboard({
   initialItemSelector,
   dialog = false,
   ignoreSelector,
+  preventScroll = false,
 }: UseMenuKeyboardOptions): { closeAndReturnFocus: () => void } {
   // Keep the latest onClose without re-subscribing listeners every render
   // (consumers pass inline arrows).
@@ -119,7 +129,7 @@ export function useMenuKeyboard({
         const initial =
           (initialItemSelector ? panel.querySelector<HTMLElement>(initialItemSelector) : null) ??
           getItems(panel, itemSelector)[0];
-        initial?.focus();
+        initial?.focus({ preventScroll });
       }
     }
 
@@ -186,7 +196,7 @@ export function useMenuKeyboard({
       else if (e.key === 'ArrowDown') next = activeIndex < 0 ? 0 : (activeIndex + 1) % items.length;
       else
         next = activeIndex < 0 ? items.length - 1 : (activeIndex - 1 + items.length) % items.length;
-      items[next]?.focus();
+      items[next]?.focus({ preventScroll });
     };
 
     document.addEventListener('pointerdown', onPointerDown);
@@ -210,6 +220,7 @@ export function useMenuKeyboard({
     initialItemSelector,
     dialog,
     ignoreSelector,
+    preventScroll,
     isTopmost,
   ]);
 

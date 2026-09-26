@@ -158,6 +158,8 @@ export function BoardHubMenu({
     onClose,
     panelRef,
     triggerRef: hubRef,
+    // The board never scrolls; see the option's own doc.
+    preventScroll: true,
   });
 
   // useMenuKeyboard focuses the first petal on open unconditionally (right —
