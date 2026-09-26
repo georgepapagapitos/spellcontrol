@@ -90,7 +90,7 @@ describe('CubeDraftabilityPanel — collapsed', () => {
     expect(document.getElementById('cube-draft-sim-body')).toBeNull();
     const summary = document.querySelector('.cube-draft-sim-summary');
     expect(summary).not.toBeNull();
-    expect(summary!.textContent!.length).toBeGreaterThan(0);
+    expect(summary!.textContent).toBe('Simulates 50 drafts when opened.');
     expect(mockSimulate).not.toHaveBeenCalled();
   });
 });
@@ -125,6 +125,9 @@ describe('CubeDraftabilityPanel — loaded', () => {
     openToggle();
 
     await waitFor(() => expect(screen.getByText('96%')).toBeTruthy());
+    expect(document.querySelector('.cube-draft-sim-summary')!.textContent).toBe(
+      'Simulated 50 drafts: 96% of decks reached 23 playables in two colours.'
+    );
 
     const rows = document.querySelectorAll('.cube-draft-sim-pair-row');
     expect(rows).toHaveLength(10);
@@ -170,11 +173,23 @@ describe('CubeDraftabilityPanel — error and retry', () => {
 });
 
 describe('CubeDraftabilityPanel — short cube', () => {
-  it('states in the sub-caption that fewer players were drafted', async () => {
-    mockSimulate.mockResolvedValue(draftResult({ shortCube: true, playersPerRun: 4 }));
-    render(<CubeDraftabilityPanel cube={cubeOf(100)} />);
+  it('states the pod THIS SIZE implies (not a hard-coded 8), and only when really short', async () => {
+    // 180 implies a 4-player pod (sizeInfo), not the 8 the copy used to say
+    // for every size.
+    mockSimulate.mockResolvedValue(draftResult({ shortCube: true, playersPerRun: 2 }));
+    render(<CubeDraftabilityPanel cube={cubeOf(50, 180)} />);
     openToggle();
-    await waitFor(() => expect(screen.getByText(/fewer players were drafted/)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/This cube has fewer cards than a 4-player pod needs/)).toBeTruthy()
+    );
+  });
+
+  it('says nothing about a short pod when the cube is not short', async () => {
+    mockSimulate.mockResolvedValue(draftResult({ shortCube: false }));
+    render(<CubeDraftabilityPanel cube={cubeOf(360)} />);
+    openToggle();
+    await waitFor(() => expect(screen.getByText('96%')).toBeTruthy());
+    expect(document.querySelector('.cube-draft-sim-sub')!.textContent).not.toMatch(/pod needs/);
   });
 });
 
@@ -187,6 +202,11 @@ describe('CubeDraftabilityPanel — under-75% line', () => {
 
     const note = document.querySelector('.cube-draft-sim-note')!;
     expect(note).not.toBeNull();
+    // The real number, not a vague "most decks" — true at 50% as much as 74%.
+    // sizeInfo(360).players === 8.
+    expect(note.textContent).toBe(
+      'Only 50% of simulated decks reached a full two-colour build. The cube is likely thin in too many colour pairs for a 8-player pod.'
+    );
     expect(note.querySelector('svg')).toBeNull();
     expect(note.className).not.toMatch(/warn|err|alert/i);
   });

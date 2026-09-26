@@ -4,7 +4,7 @@ import { MeterBar } from '../../components/shared/MeterBar';
 import { simulateDraftAsync } from '../../lib/cube/generate-async';
 import type { DraftSimResult, ColorPair } from '../../lib/cube/draft-sim';
 import type { GeneratedCube } from '../../lib/cube/generate';
-import type { ColorBucket } from '../../lib/cube/targets';
+import { sizeInfo, type ColorBucket } from '../../lib/cube/targets';
 import { BUCKET_COLOR, BUCKET_LABEL } from './shared';
 import { Button } from '../../components/shared/Button';
 
@@ -141,9 +141,9 @@ function toStatus(result: DraftSimResult | undefined): Status {
 function summaryLine(status: Status): string {
   if (status.kind === 'loading') return 'Simulating 50 drafts…';
   if (status.kind === 'error') return "Couldn't simulate the draft.";
-  if (status.kind === 'idle') return 'Open to simulate 50 drafts off this cube.';
+  if (status.kind === 'idle') return 'Simulates 50 drafts when opened.';
   const pct = Math.round(status.result.reachedBarShare * 100);
-  return `50 simulated drafts: ${pct}% of decks hit 23 playables in two colours.`;
+  return `Simulated 50 drafts: ${pct}% of decks reached 23 playables in two colours.`;
 }
 
 function DraftSimReport({
@@ -155,13 +155,14 @@ function DraftSimReport({
 }): JSX.Element {
   const reachPct = Math.round(result.reachedBarShare * 100);
   const reachedCount = Math.round(result.reachedBarShare * result.totalDecks);
+  const nominalPlayers = sizeInfo(size).players;
 
   return (
     <>
       <p className="cube-draft-sim-sub">
         {`${result.runs} simulated ${result.playersPerRun}-player drafts (3 packs of 15) off this ${size}-card cube.`}
         {result.shortCube &&
-          ' This cube has fewer cards than an 8-player pod needs, so fewer players were drafted.'}
+          ` This cube has fewer cards than a ${nominalPlayers}-player pod needs, so fewer players were drafted.`}
       </p>
 
       <div className="cube-draft-sim-stat">
@@ -175,9 +176,7 @@ function DraftSimReport({
         </p>
         {result.reachedBarShare < REACH_NOTE_THRESHOLD && (
           <p className="cube-draft-sim-note">
-            Most simulated decks here did not reach a full two-colour build. That usually means the
-            cube is thinner than a draft pod needs in most colour pairs, not that the draft went
-            wrong.
+            {`Only ${reachPct}% of simulated decks reached a full two-colour build. The cube is likely thin in too many colour pairs for a ${nominalPlayers}-player pod.`}
           </p>
         )}
       </div>
