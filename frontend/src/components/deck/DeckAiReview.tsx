@@ -25,6 +25,7 @@ import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface DeckAiReviewProps {
   deckId: string;
   format: DeckFormat;
@@ -275,9 +276,9 @@ export function DeckAiReview({
           {stale && (
             <div className="deck-ai-stale" role="status">
               <span>Your deck or its AI sources have changed since this was written.</span>
-              <button type="button" className="btn" onClick={read} disabled={phase === 'reading'}>
+              <Button onClick={read} disabled={phase === 'reading'}>
                 Read again
-              </button>
+              </Button>
             </div>
           )}
           {/* A history-restored reading gets an as-of date, not a stale flag —
@@ -285,9 +286,9 @@ export function DeckAiReview({
           {review?.key === null && (
             <div className="deck-ai-stale" role="status">
               <span>Written {formatRelativeTime(review.writtenAt ?? 0, { verbose: true })}.</span>
-              <button type="button" className="btn" onClick={read} disabled={phase === 'reading'}>
+              <Button onClick={read} disabled={phase === 'reading'}>
                 Read again
-              </button>
+              </Button>
             </div>
           )}
           {/* Announced, but visually hidden — a "Writing…" line that later
@@ -354,9 +355,7 @@ export function DeckAiReview({
 
       {phase === 'reading' && (
         <div className="deck-ai-idle-actions">
-          <button type="button" className="btn btn-sm" onClick={stop}>
-            Stop
-          </button>
+          <Button onClick={stop}>Stop</Button>
         </div>
       )}
 
@@ -376,9 +375,7 @@ export function DeckAiReview({
       {phase === 'error' && error && (
         <div className="deck-ai-error" role="alert">
           <span>{error}</span>
-          <button type="button" className="btn" onClick={read}>
-            Try again
-          </button>
+          <Button onClick={read}>Try again</Button>
         </div>
       )}
 
@@ -394,14 +391,9 @@ export function DeckAiReview({
             Nothing is sent until you ask.
           </p>
           <div className="deck-ai-idle-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={read}
-              disabled={remaining === 0}
-            >
+            <Button variant="primary" onClick={read} disabled={remaining === 0}>
               Read the deck
-            </button>
+            </Button>
             <span className="deck-ai-remaining">
               {remaining === 0
                 ? 'Daily limit reached. Resets at midnight UTC.'

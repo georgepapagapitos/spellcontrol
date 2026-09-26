@@ -21,6 +21,7 @@ import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import './AppendDeckDialog.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -272,16 +273,15 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
                         {chosenCommander.type_line ?? chosenCommander.card_faces?.[0]?.type_line}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      className="btn-link"
+                    <Button
+                      variant="link"
                       onClick={() => {
                         setChosenCommander(null);
                         setChosenPartner(null);
                       }}
                     >
                       Don't set
-                    </button>
+                    </Button>
                   </div>
                 ) : !showCommanderSearch ? (
                   <>
@@ -313,13 +313,13 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
                         </li>
                       ))}
                     </ul>
-                    <button
-                      type="button"
-                      className="btn-link import-deck-search-link"
+                    <Button
+                      variant="link"
                       onClick={() => setShowCommanderSearch(true)}
+                      className="import-deck-search-link"
                     >
                       Search for a commander
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <CommanderSearch
@@ -355,31 +355,23 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
 
       {step === 'input' && (
         <div className="modal-footer">
-          <button
-            type="button"
-            className="btn btn-primary"
+          <Button
+            variant="primary"
             onClick={runImport}
             disabled={isLoading || !pasteText.trim() || !online}
+            icon={<Download width={14} height={14} strokeWidth={1.8} />}
           >
-            <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span>Parse list</span>
-          </button>
+            Parse list
+          </Button>
         </div>
       )}
 
       {step === 'review' && plan && (
         <div className="modal-footer">
-          <button type="button" className="btn" onClick={() => setStep('input')}>
-            Back
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleConfirm}
-            disabled={plan.addedCount === 0}
-          >
+          <Button onClick={() => setStep('input')}>Back</Button>
+          <Button variant="primary" onClick={handleConfirm} disabled={plan.addedCount === 0}>
             Add {plan.addedCount} card{plan.addedCount === 1 ? '' : 's'}
-          </button>
+          </Button>
         </div>
       )}
     </Modal>

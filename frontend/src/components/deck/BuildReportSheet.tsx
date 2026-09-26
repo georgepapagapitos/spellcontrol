@@ -8,6 +8,7 @@ import type { BuildReport } from '@/deck-builder/types';
 import type { ComboMatch, ComboSeedContext } from '@/types/combos';
 import { markBuildReportSeen } from '@/lib/build-report-seen';
 import './BuildReportSheet.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   deckId: string;
@@ -127,20 +128,18 @@ export function BuildReportSheet({
         </div>
         <div className="build-report-sheet-footer">
           {onReviewConflicts && (report.claimedConflicts ?? 0) > 0 && (
-            <button
-              type="button"
-              className="btn btn-secondary"
+            <Button
               onClick={() => {
                 beginClose();
                 onReviewConflicts();
               }}
             >
               Review shared cards
-            </button>
+            </Button>
           )}
-          <button type="button" className="btn btn-primary" onClick={() => beginClose()}>
+          <Button variant="primary" onClick={() => beginClose()}>
             View my deck
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

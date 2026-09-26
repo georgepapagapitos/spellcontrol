@@ -57,6 +57,7 @@ import type { CardPreviewAction } from '../CardPreview';
 import { userMessage } from '@/lib/user-error';
 import { printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
+import { Button } from '@/components/shared/Button';
 /**
  * Can this owned card go in the mainboard of a commander deck? The two rules
  * the mainboard enforces and the out-of-deck zones don't: the commander's
@@ -1143,9 +1144,7 @@ function CollectionResults({
         <div className="card-search-empty-wrap">
           <p className="card-search-empty">No matches in your collection.</p>
           {query.trim().length >= 2 && (
-            <button type="button" className="btn btn-sm" onClick={onSearchScryfall}>
-              Search all of Scryfall instead
-            </button>
+            <Button onClick={onSearchScryfall}>Search all of Scryfall instead</Button>
           )}
         </div>
       </>
@@ -1422,9 +1421,7 @@ function SuggestionsResults({
         </p>
         {onRetry && (
           <div className="card-search-empty-actions">
-            <button type="button" className="btn btn-sm" onClick={onRetry}>
-              Retry
-            </button>
+            <Button onClick={onRetry}>Retry</Button>
           </div>
         )}
       </div>
@@ -1441,12 +1438,8 @@ function SuggestionsResults({
           </p>
           {query.trim().length >= 2 && (
             <div className="card-search-empty-actions">
-              <button type="button" className="btn btn-sm" onClick={onSearchCollection}>
-                Search your collection
-              </button>
-              <button type="button" className="btn btn-sm" onClick={onSearchScryfall}>
-                Search all of Scryfall
-              </button>
+              <Button onClick={onSearchCollection}>Search your collection</Button>
+              <Button onClick={onSearchScryfall}>Search all of Scryfall</Button>
             </div>
           )}
         </div>

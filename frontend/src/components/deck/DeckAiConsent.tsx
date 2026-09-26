@@ -5,6 +5,7 @@ import { AiMarker } from './AiMarker';
 import './DeckAiConsent.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /** Shared across every AI surface — dismissing anywhere dismisses everywhere. */
 const INVITE_DISMISSED_KEY = 'sc-ai-invite-dismissed';
 
@@ -65,21 +66,20 @@ export function DeckAiConsent({
           </p>
         )}
         <div className="deck-ai-invite-actions">
-          <button type="button" className="btn btn-primary" onClick={enable} disabled={busy}>
+          <Button variant="primary" onClick={enable} disabled={busy}>
             {busy ? 'Turning on…' : 'Turn on AI Beta'}
-          </button>
+          </Button>
           {onDismiss && (
-            <button
-              type="button"
-              className="btn deck-ai-invite-dismiss"
+            <Button
               onClick={() => {
                 localStorage.setItem(INVITE_DISMISSED_KEY, '1');
                 onDismiss();
               }}
+              className="deck-ai-invite-dismiss"
+              icon={<X width={16} height={16} strokeWidth={2} />}
             >
-              <X width={16} height={16} strokeWidth={2} aria-hidden />
               No thanks
-            </button>
+            </Button>
           )}
         </div>
       </div>

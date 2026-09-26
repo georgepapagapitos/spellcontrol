@@ -7,6 +7,7 @@ import type { AddFitReport } from '@/lib/card-fit';
 import type { RankedCut } from '@/lib/intelligent-cuts';
 import type { Change } from '@/lib/deck-change';
 import { DeckCardRow } from './DeckCardRow';
+import { Button } from '@/components/shared/Button';
 
 export interface CardFitPanelProps {
   /** The card being auditioned. */
@@ -190,12 +191,12 @@ export function CardFitPanel({
         </div>
 
         <div className="card-picker-footer card-fit-footer">
-          <button type="button" className="btn btn-primary" onClick={onAddAnyway} disabled={busy}>
+          <Button variant="primary" onClick={onAddAnyway} disabled={busy}>
             Add without cutting
-          </button>
-          <button type="button" className="btn" onClick={onClose} disabled={busy}>
+          </Button>
+          <Button onClick={onClose} disabled={busy}>
             Close
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -44,6 +44,7 @@ import { buildCommanderKey } from '../../lib/commander-key';
 import { getCommanderStatsBatch, type CommanderStats } from '../../lib/aggregates-client';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /**
  * Resolves the commander-picker platform-deck-count badge (social W4) for a
  * settled Top-EDHREC/Playstyle candidate list: looks up each visible
@@ -971,18 +972,17 @@ export function CommanderSearch({
             </div>
           )}
         </div>
-        <button
-          type="button"
-          className="btn commander-pick-change"
+        <Button
           onClick={() => {
             onSelect(null);
             setQuery('');
             setResults([]);
             setLocalResults([]);
           }}
+          className="commander-pick-change"
         >
           Change
-        </button>
+        </Button>
       </div>
     );
   }
@@ -1159,9 +1159,9 @@ export function CommanderSearch({
             {playstyle ? (
               <>
                 <div className="playstyle-picker-bar">
-                  <button type="button" className="btn-link" onClick={() => setPlaystyle(null)}>
+                  <Button variant="link" onClick={() => setPlaystyle(null)}>
                     ← All play styles
-                  </button>
+                  </Button>
                   <span className="playstyle-picker-current">{playstyle.label}</span>
                 </div>
                 <p className="commander-suggestions-label">{playstyle.blurb}</p>
@@ -1249,13 +1249,9 @@ export function CommanderSearch({
             ) : topError && !ownedOnly && visibleTop.length === 0 ? (
               <p className="commander-suggestions-empty" role="alert">
                 Couldn't reach EDHREC for top commanders. Check your connection and try again.{' '}
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={() => setTopReloadKey((k) => k + 1)}
-                >
+                <Button variant="link" onClick={() => setTopReloadKey((k) => k + 1)}>
                   Retry
-                </button>
+                </Button>
               </p>
             ) : visibleTop.length === 0 ? (
               pdh && !ownedOnly ? null : (
