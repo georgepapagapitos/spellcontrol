@@ -6,6 +6,7 @@
 
 import raw from './cube-targets.json';
 import type { CubeFormat } from './play-format';
+import type { ColorPair } from './core';
 
 /** A card's color bucket — the primary axis a cube is balanced on. */
 export type ColorBucket = 'W' | 'U' | 'B' | 'R' | 'G' | 'multicolor' | 'colorless' | 'land';
@@ -21,6 +22,15 @@ export interface Stat {
   p75: number;
 }
 
+/** Per-pair corpus shape (see frontend/scripts/mine-cube-targets.mjs). */
+export interface PairTargets {
+  /** Share of TOTAL cube cards that are exactly-two-color gold cards of this pair. */
+  gold: Stat;
+  /** Absolute count of lands whose produced mana covers this pair (a land can
+   *  count toward more than one pair — see `pairsFixedBy` in ./core). */
+  fixingLands: Stat;
+}
+
 export interface BandTargets {
   size: number;
   n: number;
@@ -30,6 +40,11 @@ export interface BandTargets {
   role: Record<Role, Stat>;
   /** Absolute count of nonbasic (fixing/utility) lands. */
   fixingLands: Stat;
+  /** The ten color pairs' own gold + fixing-land shape. */
+  pairs: Record<ColorPair, PairTargets>;
+  /** Share of total cube cards that are 3+ color gold cards — its own small
+   *  slice, not attributed to any one pair (see generate.ts's multicolor split). */
+  multiXColor: Stat;
 }
 
 interface TargetsFile {
@@ -104,15 +119,25 @@ export function targetsForSize(size: CubeSize, format: CubeFormat = 'limited'): 
   return scaled(data.bands['360'], size);
 }
 
+const scaleStat = (s: Stat, k: number): Stat => ({
+  median: s.median * k,
+  p25: s.p25 * k,
+  p75: s.p75 * k,
+});
+
 function scaled(base: BandTargets, size: CubeSize): BandTargets {
   const k = size / base.size;
+  const pairs = {} as Record<ColorPair, PairTargets>;
+  for (const [pair, t] of Object.entries(base.pairs) as [ColorPair, PairTargets][]) {
+    // `gold` is a size-free RATIO (same basis as color.multicolor) — carried
+    // over as-is; `fixingLands` is an absolute count, so it scales like the
+    // top-level one.
+    pairs[pair] = { gold: t.gold, fixingLands: scaleStat(t.fixingLands, k) };
+  }
   return {
     ...base,
     size,
-    fixingLands: {
-      median: base.fixingLands.median * k,
-      p25: base.fixingLands.p25 * k,
-      p75: base.fixingLands.p75 * k,
-    },
+    fixingLands: scaleStat(base.fixingLands, k),
+    pairs,
   };
 }

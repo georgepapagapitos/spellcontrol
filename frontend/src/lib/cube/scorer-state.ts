@@ -19,7 +19,7 @@
 // vs scoreCube within 1e-12).
 
 import type { Pick } from './generate';
-import { bucketOf, curveSlotOf, isLand, COLORS, type CubeCard } from './core';
+import { bucketOf, curveSlotOf, isLand, pairOf, COLORS, type CubeCard } from './core';
 import type { BandTargets, ColorBucket, CurveSlot } from './targets';
 import {
   axisScoreOf,
@@ -27,8 +27,10 @@ import {
   fit,
   glueScoreOf,
   minDepth,
+  pairConcentrationOf,
   powerTerm,
   targetArchetypeCount,
+  topKMean,
   typeOf,
   weightsFor,
   TYPE_SLOTS,
@@ -40,9 +42,10 @@ import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 const CURVE_SLOTS: CurveSlot[] = ['0', '1', '2', '3', '4', '5', '6', '7'];
 type TypeSlot = (typeof TYPE_SLOTS)[number];
 
-/** The seven scored terms, matching `CubeScore` minus the `axes` breakdown. */
+/** The scored terms, matching `CubeScore` minus the `axes` breakdown. */
 export interface ScoreTerms {
   archetype: number;
+  pairConcentration: number;
   glue: number;
   color: number;
   curve: number;
@@ -67,6 +70,7 @@ export interface ScorerState {
 
   axisData: Map<AxisKey, AxisAgg>;
   axisScore: Map<AxisKey, number>;
+  axisPairConcentration: Map<AxisKey, number>;
 
   glueSum: number;
   curveFill: Record<CurveSlot, number>;
@@ -91,7 +95,7 @@ export interface ScorerState {
 /** Everything a swap needs to (a) decide whether to accept it and (b) apply it in O(1). */
 export interface SwapEval {
   terms: ScoreTerms;
-  axisUpdates: Map<AxisKey, { agg: AxisAgg; score: number }>;
+  axisUpdates: Map<AxisKey, { agg: AxisAgg; score: number; pairConcentration: number }>;
   glueSum: number;
   curveFitSum: number;
   curveOut?: { slot: CurveSlot; fill: number; fitVal: number };
@@ -100,12 +104,6 @@ export interface SwapEval {
   typeOut?: { slot: TypeSlot; count: number; fitVal: number };
   typeIn?: { slot: TypeSlot; count: number; fitVal: number };
   interactionCount?: number;
-}
-
-function archetypeFrom(draftable: AxisKey[], k: number, get: (ax: AxisKey) => number): number {
-  if (k === 0) return 1; // M4 — nothing draftable, nothing to penalize
-  const scores = draftable.map(get).sort((a, b) => b - a);
-  return scores.slice(0, k).reduce((s, v) => s + v, 0) / k;
 }
 
 /** Build the initial state from a seed cube — one O(size) pass, same shape as scoreCube. */
@@ -129,13 +127,14 @@ export function createScorerState(
   const ensure = (ax: AxisKey) => {
     let d = axisData.get(ax);
     if (!d) {
-      d = { e: 0, y: 0, buckets: {} };
+      d = { e: 0, y: 0, buckets: {}, pairs: {} };
       axisData.set(ax, d);
     }
     return d;
   };
   for (const c of cards) {
     const b = bucketOf(c);
+    const p = pairOf(c);
     const touched = new Set<AxisKey>();
     for (const ax of c.synergyProducers ?? []) {
       if (!draftableSet.has(ax)) continue;
@@ -150,15 +149,23 @@ export function createScorerState(
     for (const ax of touched) {
       const d = ensure(ax);
       d.buckets[b] = (d.buckets[b] ?? 0) + 1;
+      if (p) d.pairs[p] = (d.pairs[p] ?? 0) + 1;
     }
   }
   const axisScore = new Map<AxisKey, number>();
+  const axisPairConcentration = new Map<AxisKey, number>();
   for (const ax of draftable) {
     const d = axisData.get(ax);
     axisScore.set(ax, d ? axisScoreOf(ax, d, minDepthVal) : 0);
+    axisPairConcentration.set(ax, d ? pairConcentrationOf(d) : 1);
   }
   const k = Math.min(draftable.length, targetArchetypeCount(size));
-  const archetype = archetypeFrom(draftable, k, (ax) => axisScore.get(ax) ?? 0);
+  const { primary: archetype, secondary: pairConcentration } = topKMean(
+    draftable,
+    k,
+    (ax) => axisScore.get(ax) ?? 0,
+    (ax) => axisPairConcentration.get(ax) ?? 1
+  );
 
   let glueSum = 0;
   for (const c of cards) glueSum += glueScoreOf(c);
@@ -231,6 +238,7 @@ export function createScorerState(
   const weights = weightsFor(synergyLevel);
   const weighted =
     weights.archetype * archetype +
+    weights.pairConcentration * pairConcentration +
     weights.glue * glue +
     weights.color * color +
     weights.curve * curve +
@@ -252,6 +260,7 @@ export function createScorerState(
     nonlandCount,
     axisData,
     axisScore,
+    axisPairConcentration,
     glueSum,
     curveFill,
     curveFit,
@@ -266,7 +275,18 @@ export function createScorerState(
     interactionCount,
     iTarget,
     iTol,
-    terms: { archetype, glue, color, curve, interaction, power, type, fixingMultiplier, total },
+    terms: {
+      archetype,
+      pairConcentration,
+      glue,
+      color,
+      curve,
+      interaction,
+      power,
+      type,
+      fixingMultiplier,
+      total,
+    },
   };
 }
 
@@ -293,17 +313,23 @@ export function evalSwap(
   const inSlot = curveSlotOf(inCard.cmc);
 
   // ── archetype: only the ≤2 axes either card touches change at all ────────
+  const outPair = pairOf(outCard);
+  const inPair = pairOf(inCard);
   const outP = (outCard.synergyProducers ?? []).filter((a) => state.draftableSet.has(a));
   const outY = (outCard.synergyPayoffs ?? []).filter((a) => state.draftableSet.has(a));
   const inP = (inCard.synergyProducers ?? []).filter((a) => state.draftableSet.has(a));
   const inY = (inCard.synergyPayoffs ?? []).filter((a) => state.draftableSet.has(a));
   const touched = new Set<AxisKey>([...outP, ...outY, ...inP, ...inY]);
-  const axisUpdates = new Map<AxisKey, { agg: AxisAgg; score: number }>();
+  const axisUpdates = new Map<
+    AxisKey,
+    { agg: AxisAgg; score: number; pairConcentration: number }
+  >();
   for (const ax of touched) {
-    const cur = state.axisData.get(ax) ?? { e: 0, y: 0, buckets: {} };
+    const cur = state.axisData.get(ax) ?? { e: 0, y: 0, buckets: {}, pairs: {} };
     let e = cur.e;
     let y = cur.y;
     const buckets = { ...cur.buckets };
+    const pairs = { ...cur.pairs };
     const outTouches = outP.includes(ax) || outY.includes(ax);
     const inTouches = inP.includes(ax) || inY.includes(ax);
     if (outP.includes(ax)) e -= 1;
@@ -314,13 +340,23 @@ export function evalSwap(
     // touches the axis and the other doesn't.
     if (outTouches && !inTouches) buckets[outBucket] = (buckets[outBucket] ?? 0) - 1;
     if (!outTouches && inTouches) buckets[outBucket] = (buckets[outBucket] ?? 0) + 1;
-    const agg: AxisAgg = { e, y, buckets };
-    axisUpdates.set(ax, { agg, score: axisScoreOf(ax, agg, state.minDepth) });
+    // Pair membership, unlike bucket, can differ between the out and in card
+    // even though they share a ColorBucket (a UB card swapped for an RW one
+    // are both 'multicolor') — updated independently per side.
+    if (outTouches && outPair) pairs[outPair] = (pairs[outPair] ?? 0) - 1;
+    if (inTouches && inPair) pairs[inPair] = (pairs[inPair] ?? 0) + 1;
+    const agg: AxisAgg = { e, y, buckets, pairs };
+    axisUpdates.set(ax, {
+      agg,
+      score: axisScoreOf(ax, agg, state.minDepth),
+      pairConcentration: pairConcentrationOf(agg),
+    });
   }
-  const archetype = archetypeFrom(
+  const { primary: archetype, secondary: pairConcentration } = topKMean(
     state.draftable,
     state.k,
-    (ax) => axisUpdates.get(ax)?.score ?? state.axisScore.get(ax) ?? 0
+    (ax) => axisUpdates.get(ax)?.score ?? state.axisScore.get(ax) ?? 0,
+    (ax) => axisUpdates.get(ax)?.pairConcentration ?? state.axisPairConcentration.get(ax) ?? 1
   );
 
   // ── glue ───────────────────────────────────────────────────────────────
@@ -401,6 +437,7 @@ export function evalSwap(
   const fixingMultiplier = state.terms.fixingMultiplier; // constant: land untouched
   const weighted =
     state.weights.archetype * archetype +
+    state.weights.pairConcentration * pairConcentration +
     state.weights.glue * glue +
     state.weights.color * color +
     state.weights.curve * curve +
@@ -410,7 +447,18 @@ export function evalSwap(
   const total = fixingMultiplier * weighted;
 
   return {
-    terms: { archetype, glue, color, curve, interaction, power, type, fixingMultiplier, total },
+    terms: {
+      archetype,
+      pairConcentration,
+      glue,
+      color,
+      curve,
+      interaction,
+      power,
+      type,
+      fixingMultiplier,
+      total,
+    },
     axisUpdates,
     glueSum,
     curveFitSum,
@@ -443,6 +491,7 @@ export function applySwap(
   for (const [ax, upd] of ev.axisUpdates) {
     state.axisData.set(ax, upd.agg);
     state.axisScore.set(ax, upd.score);
+    state.axisPairConcentration.set(ax, upd.pairConcentration);
   }
   state.glueSum = ev.glueSum;
   state.curveFitSum = ev.curveFitSum;
@@ -471,6 +520,7 @@ export function applySwap(
   );
   const weighted =
     state.weights.archetype * ev.terms.archetype +
+    state.weights.pairConcentration * ev.terms.pairConcentration +
     state.weights.glue * ev.terms.glue +
     state.weights.color * ev.terms.color +
     state.weights.curve * ev.terms.curve +

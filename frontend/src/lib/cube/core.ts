@@ -26,11 +26,79 @@ export interface CubeCard {
   cubeElo?: number;
   synergyProducers?: AxisKey[]; // archetype axes this card enables (see synergy-tags)
   synergyPayoffs?: AxisKey[]; // archetype axes this card pays off
+  /**
+   * Commander-rules colour identity. Optional — absent on pools built before
+   * this shipped, or when the source facts don't carry it. `pairOf`/
+   * `pairsFixedBy` fall back to `colors` when it's missing, so an old saved
+   * cube or a pool without it still classifies (just less precisely for a
+   * card whose identity differs from its cast colors, e.g. a hybrid or a
+   * color-indicator card).
+   */
+  colorIdentity?: string[];
+  /**
+   * Mana a LAND can produce (Scryfall's `produced_mana`). Optional, lands
+   * only — a fixing land's color_identity usually matches what it produces
+   * (its ability text carries the same colored symbols), but "add one mana of
+   * any color" lands (Command Tower, Arcane Signet) have no colored symbol in
+   * their oracle text and so an EMPTY color identity despite fixing every
+   * pair; produced_mana is what `pairsFixedBy` needs to get those right.
+   * Falls back to colorIdentity, then colors, when absent.
+   */
+  producedMana?: string[];
 }
 
 export const COLORS = ['W', 'U', 'B', 'R', 'G'] as const;
 
 export const isLand = (c: CubeCard) => /\bland\b/i.test(c.typeLine);
+
+/** The card's color identity for pair classification, falling back through
+ *  colorIdentity → colors, filtered to WUBRG (strips generic/colorless). */
+function identityColors(c: CubeCard): string[] {
+  return (c.colorIdentity ?? c.colors).filter((x) => COLORS.includes(x as (typeof COLORS)[number]));
+}
+
+/**
+ * The ten two-color pairs, in "color wheel" order: the five allied (adjacent)
+ * pairs first, then the five enemy (opposite) pairs. Order is used only for
+ * deterministic tiebreaking (apportionment, land-fill priority) — it carries
+ * no ranking meaning.
+ */
+export const COLOR_PAIRS = ['WU', 'UB', 'BR', 'RG', 'GW', 'WB', 'UR', 'BG', 'RW', 'GU'] as const;
+export type ColorPair = (typeof COLOR_PAIRS)[number];
+
+const PAIR_BY_KEY = new Map<string, ColorPair>(COLOR_PAIRS.map((p) => [[...p].sort().join(''), p]));
+
+/** A card's exactly-two-color identity as a canonical `ColorPair`, or null for
+ *  a mono/colorless card (nothing to pair) or a 3+ color card (its own slice
+ *  — see `generate.ts`'s multicolor split). */
+export function pairOf(c: CubeCard): ColorPair | null {
+  const colors = [...new Set(identityColors(c))];
+  if (colors.length !== 2) return null;
+  return PAIR_BY_KEY.get(colors.sort().join('')) ?? null;
+}
+
+/** Every pair a LAND fixes: every 2-color subset of what it can produce (a
+ *  triland fixes 3 pairs, a five-color land fixes all 10). Falls back through
+ *  producedMana → colorIdentity → colors — see `CubeCard.producedMana`'s doc
+ *  for why produced mana, not identity, is the right basis for a land. */
+export function pairsFixedBy(c: CubeCard): ColorPair[] {
+  const produced = [
+    ...new Set(
+      (c.producedMana ?? c.colorIdentity ?? c.colors).filter((x) =>
+        COLORS.includes(x as (typeof COLORS)[number])
+      )
+    ),
+  ];
+  if (produced.length < 2) return [];
+  const out: ColorPair[] = [];
+  for (let i = 0; i < produced.length; i++) {
+    for (let j = i + 1; j < produced.length; j++) {
+      const p = PAIR_BY_KEY.get([produced[i], produced[j]].sort().join(''));
+      if (p) out.push(p);
+    }
+  }
+  return out;
+}
 
 export function bucketOf(c: CubeCard): ColorBucket {
   if (isLand(c)) return 'land';

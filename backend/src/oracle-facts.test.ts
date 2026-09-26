@@ -82,12 +82,14 @@ describe('toOracleFacts', () => {
     expect(facts.oracle_text).toBe('Add CC.');
     expect(Object.keys(facts).sort()).toEqual([
       'cmc',
+      'color_identity',
       'colors',
       'edhrec_rank',
       'keywords',
       'name',
       'oracle_id',
       'oracle_text',
+      'produced_mana',
       'type_line',
     ]);
   });

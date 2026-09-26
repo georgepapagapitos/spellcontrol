@@ -182,6 +182,7 @@ export function mergePools(
         typeLine: fc.typeLine,
         role: null,
         rank: fc.edhrecRank,
+        colorIdentity: fc.colorIdentity,
         ...cubeSignalOf(fc.name),
         synergyProducers: fc.synergyProducers,
         synergyPayoffs: fc.synergyPayoffs,
@@ -243,6 +244,8 @@ export function namesToCubePool(
       typeLine: s?.type_line ?? card?.typeLine ?? '',
       role: cubeRole(name),
       rank: s?.edhrec_rank ?? card?.edhrecRank,
+      colorIdentity: s?.color_identity ?? card?.colorIdentity,
+      producedMana: s?.produced_mana,
       ...cubeSignalOf(name),
       ...synergyTags(s ?? { name }),
     };

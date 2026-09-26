@@ -26,7 +26,16 @@ import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { loadCubeSignal } from './signal';
 import { ensureCardTags, getCardTags } from '@/lib/card-tags';
 import { formatExclusion } from './play-format';
-import { generateCube, type CubeCard, type GeneratedCube, type Pick } from './generate';
+import {
+  generateCube,
+  pairOf,
+  pairsFixedBy,
+  COLOR_PAIRS,
+  type ColorPair,
+  type CubeCard,
+  type GeneratedCube,
+  type Pick,
+} from './generate';
 import { namesToCubePool } from './pool';
 import {
   filterPool,
@@ -45,6 +54,7 @@ const OUT_DIR = process.env.LIVE_CUBE_OUTDIR ?? join(tmpdir(), 'spellcontrol-liv
 const LEVELS = [0.3, 0.5, 0.7, 1] as const;
 const TERMS = [
   'archetype',
+  'pairConcentration',
   'glue',
   'color',
   'curve',
@@ -54,6 +64,41 @@ const TERMS = [
   'total',
 ] as const;
 
+/**
+ * The PRE-pair-aware-program weighted total (T150 W4 item 3 added an 8th term,
+ * `pairConcentration`, so `score.total` is no longer comparable to a `main`
+ * baseline run before that term existed). Recomputes the OLD `weightsFor` —
+ * archetype weight = 0.4 * synergyLevel, the rest scaled up to fill the
+ * remainder, exactly as `objective.ts` did before this change — from the same
+ * seven terms this change didn't touch, so a size×level row's `oldTotal` here
+ * is the apples-to-apples number against a `main` baseline JSON's `total` AT
+ * THE SAME LEVEL (the weights are level-dependent, not flat — using the flat
+ * level-1 weights at every level overstates the "regression" at low levels,
+ * where the old code leaned harder on the environment terms).
+ */
+const OLD_W = {
+  archetype: 0.4,
+  glue: 0.12,
+  color: 0.13,
+  curve: 0.13,
+  interaction: 0.09,
+  power: 0.05,
+  type: 0.08,
+} as const;
+function oldTotal(s: CubeScore, synergyLevel: number): number {
+  const archetype = OLD_W.archetype * synergyLevel;
+  const k = (1 - archetype) / (1 - OLD_W.archetype);
+  const weighted =
+    archetype * s.archetype +
+    OLD_W.glue * k * s.glue +
+    OLD_W.color * k * s.color +
+    OLD_W.curve * k * s.curve +
+    OLD_W.interaction * k * s.interaction +
+    OLD_W.power * k * s.power +
+    OLD_W.type * k * s.type;
+  return s.fixingMultiplier * weighted;
+}
+
 interface Row {
   size: CubeSize;
   level: number;
@@ -61,6 +106,8 @@ interface Row {
   pool?: string;
   ms: number;
   total: number;
+  /** See `oldTotal` — the number comparable to a pre-pairConcentration baseline. */
+  oldTotal: number;
   archetype: number;
   interaction: number;
   removalCount: number;
@@ -172,12 +219,12 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     writeFileSync(out, JSON.stringify({ ...summary, rows, goodstuffPicks }, null, 2));
     const fmt = (n: number) => n.toFixed(3);
     console.log(
-      ['size  level  pool     ms     total  arch   inter  removal creature ramp   swaps']
+      ['size  level  pool     ms     total  oldTot arch   inter  removal creature ramp   swaps']
         .concat(
           rows.map(
             (r) =>
               `${String(r.size).padEnd(5)} ${String(r.level).padEnd(6)} ${(r.pool ?? '').padEnd(8)} ${String(r.ms).padEnd(6)} ` +
-              `${fmt(r.total)}  ${fmt(r.archetype)}  ${fmt(r.interaction)}  ${String(r.removalCount).padEnd(7)} ` +
+              `${fmt(r.total)}  ${fmt(r.oldTotal)}  ${fmt(r.archetype)}  ${fmt(r.interaction)}  ${String(r.removalCount).padEnd(7)} ` +
               `${(r.creatureShare * 100).toFixed(1)}%    ${(r.rampShare * 100).toFixed(1)}%  ${r.swaps}`
           )
         )
@@ -244,6 +291,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           pool: 'commander',
           ms: 0,
           total: s.total,
+          oldTotal: oldTotal(s, level),
           archetype: s.archetype,
           interaction: s.interaction,
           removalCount: removalCount(cube.picks),
@@ -302,6 +350,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
             pool: preset,
             ms,
             total: s.total,
+            oldTotal: oldTotal(s, level),
             archetype: s.archetype,
             interaction: s.interaction,
             removalCount: removalCount(cube.picks),
@@ -374,6 +423,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           level: 0,
           ms,
           total: s.total,
+          oldTotal: oldTotal(s, 0),
           archetype: s.archetype,
           interaction: s.interaction,
           removalCount: removalCount(cube.picks),
@@ -381,6 +431,71 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           rampShare: rampShare(cube.picks),
           swaps: 0,
         });
+      });
+
+      // Pair-aware guards (T150 W4 items 1/2): the goodstuff seed's gold
+      // section and fixing lands are spread across the ten color pairs by the
+      // corpus's own per-pair shape, not by popularity alone. Skip a pair the
+      // POOL itself can't reach — that's a collection gap, not a generator bug.
+      it('pair-aware gold: each pair with enough supply lands within the corpus band', () => {
+        const cube = goodstuffBySize.get(size)!;
+        const rawSupply = {} as Record<ColorPair, number>;
+        const achieved = {} as Record<ColorPair, number>;
+        for (const p of COLOR_PAIRS) {
+          rawSupply[p] = 0;
+          achieved[p] = 0;
+        }
+        for (const c of pool) {
+          const pr = pairOf(c);
+          if (pr) rawSupply[pr]++;
+        }
+        for (const p of cube.picks) {
+          if (p.bucket !== 'multicolor') continue;
+          const pr = pairOf(p.card);
+          if (pr) achieved[pr]++;
+        }
+        // ±3 tolerance: pair gold counts are small (often single digits), so
+        // largest-remainder apportionment quantization alone can miss the
+        // band by 1-2 with no real imbalance — this still catches the failure
+        // mode a popularity-only fill produces (a whole pair at 0 while
+        // another eats several times its corpus share; see the ratio check
+        // below), which misses by far more than quantization noise.
+        for (const p of COLOR_PAIRS) {
+          const lo = Math.round(band.pairs[p].gold.p25 * size);
+          const hi = Math.round(band.pairs[p].gold.p75 * size);
+          if (rawSupply[p] < lo) continue; // the pool can't reach the band for this pair
+          expect(achieved[p], `${size}/${p} gold`).toBeGreaterThanOrEqual(Math.max(0, lo - 3));
+          expect(achieved[p], `${size}/${p} gold`).toBeLessThanOrEqual(hi + 3);
+        }
+        // Max/min ratio across well-supplied pairs — catches the OLD failure
+        // mode (a popularity-only fill lets the deepest pair eat the whole
+        // bucket while a thinner one gets zero) without pinning an exact ratio.
+        const supplied = COLOR_PAIRS.filter((p) => rawSupply[p] >= 5);
+        if (supplied.length >= 2) {
+          const counts = supplied.map((p) => achieved[p]);
+          const min = Math.min(...counts);
+          const max = Math.max(...counts);
+          expect(min, `pair balance at ${size}: ${JSON.stringify(achieved)}`).toBeGreaterThan(0);
+          expect(max / min).toBeLessThanOrEqual(8);
+        }
+      });
+
+      it('pair-aware fixing lands: every pair the pool can fix gets at least one land', () => {
+        const cube = goodstuffBySize.get(size)!;
+        const poolLandPairs = new Set<ColorPair>();
+        for (const c of pool) {
+          if (!/\bland\b/i.test(c.typeLine)) continue;
+          for (const p of pairsFixedBy(c)) poolLandPairs.add(p);
+        }
+        const achieved = new Set<ColorPair>();
+        for (const p of cube.picks) {
+          if (p.bucket !== 'land') continue;
+          for (const pr of pairsFixedBy(p.card)) achieved.add(pr);
+        }
+        for (const p of COLOR_PAIRS) {
+          if (band.pairs[p].fixingLands.median <= 0 || !poolLandPairs.has(p)) continue;
+          expect(achieved.has(p), `${size}/${p} fixing land`).toBe(true);
+        }
       });
 
       for (const level of LEVELS) {
@@ -442,6 +557,7 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
             level,
             ms,
             total: score.total,
+            oldTotal: oldTotal(score, level),
             archetype: score.archetype,
             interaction: score.interaction,
             removalCount: removalCount(cube.picks),

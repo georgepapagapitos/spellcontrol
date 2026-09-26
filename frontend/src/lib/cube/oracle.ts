@@ -18,6 +18,10 @@ export interface OracleFacts {
   colors?: string[];
   keywords?: string[];
   edhrec_rank?: number;
+  /** Color identity — the pair classifier's basis (`./core`'s `pairOf`). */
+  color_identity?: string[];
+  /** Mana a LAND can produce — the fixing-land pair basis (`pairsFixedBy`). */
+  produced_mana?: string[];
 }
 
 /** Matches ORACLE_REQUEST_LIMIT on the server. */

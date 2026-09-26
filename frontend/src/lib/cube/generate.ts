@@ -15,14 +15,24 @@ import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CubeScore } from './objective';
 import { AXIS_LABEL } from './objective';
 import { refineCube } from './refine';
-import { COLORS, isLand, bucketOf, curveSlotOf, type CubeCard } from './core';
+import {
+  COLORS,
+  COLOR_PAIRS,
+  isLand,
+  bucketOf,
+  curveSlotOf,
+  pairOf,
+  pairsFixedBy,
+  type ColorPair,
+  type CubeCard,
+} from './core';
 
 // The card shape and the pure classifiers live in ./core so `objective` and
 // `refine` can reach them without importing back up into this module — that
 // was a value-level import cycle. Re-exported here so every existing
 // `from './cube/generate'` import site keeps working unchanged.
-export { COLORS, isLand, bucketOf, curveSlotOf } from './core';
-export type { CubeCard } from './core';
+export { COLORS, COLOR_PAIRS, isLand, bucketOf, curveSlotOf, pairOf, pairsFixedBy } from './core';
+export type { ColorPair, CubeCard } from './core';
 
 /** One selected card plus the slot it was picked to fill (the "why"). */
 export interface Pick {
@@ -138,26 +148,35 @@ export const byQuality = (a: CubeCard, b: CubeCard) =>
   (a.rank ?? Infinity) - (b.rank ?? Infinity) ||
   a.oracleId.localeCompare(b.oracleId);
 
+/** Largest-remainder apportionment so a set of keys' targets sum exactly to
+ *  `size` — generic over the key set so both the 8 top-level color buckets and
+ *  (below) the 11 multicolor pair-slices can share one implementation. */
+function apportionOver<K extends string>(
+  shares: Record<K, number>,
+  size: number,
+  keys: readonly K[]
+): Record<K, number> {
+  const exact = keys.map((k) => ({ k, v: shares[k] * size }));
+  const floored = exact.map((e) => ({ ...e, f: Math.floor(e.v), r: e.v - Math.floor(e.v) }));
+  let used = floored.reduce((s, e) => s + e.f, 0);
+  const out = {} as Record<K, number>;
+  for (const e of floored) out[e.k] = e.f;
+  // Tiebreak equal remainders by fixed key order so apportionment is
+  // deterministic across JS engines (honors the module's same-pool→same-cube contract).
+  for (const e of [...floored].sort((x, y) => y.r - x.r || keys.indexOf(x.k) - keys.indexOf(y.k))) {
+    if (used >= size) break;
+    out[e.k]++;
+    used++;
+  }
+  return out;
+}
+
 /** Largest-remainder apportionment so bucket targets sum exactly to `size`. */
 export function apportion(
   shares: Record<ColorBucket, number>,
   size: number
 ): Record<ColorBucket, number> {
-  const exact = BUCKETS.map((b) => ({ b, v: shares[b] * size }));
-  const floored = exact.map((e) => ({ ...e, f: Math.floor(e.v), r: e.v - Math.floor(e.v) }));
-  let used = floored.reduce((s, e) => s + e.f, 0);
-  const out = {} as Record<ColorBucket, number>;
-  for (const e of floored) out[e.b] = e.f;
-  // Tiebreak equal remainders by fixed BUCKETS order so apportionment is
-  // deterministic across JS engines (honors the module's same-pool→same-cube contract).
-  for (const e of [...floored].sort(
-    (x, y) => y.r - x.r || BUCKETS.indexOf(x.b) - BUCKETS.indexOf(y.b)
-  )) {
-    if (used >= size) break;
-    out[e.b]++;
-    used++;
-  }
-  return out;
+  return apportionOver(shares, size, BUCKETS);
 }
 
 type AxisCount = { producers: number; payoffs: number };
@@ -240,41 +259,53 @@ const ROLES: Role[] = ['removal', 'boardwipe', 'ramp', 'cardDraw'];
  * its size) is pinned there and the remainder re-scaled over the rest, so the
  * cube-level total is still reached whenever the pool can reach it.
  */
+function distributeQuotaOver<K extends string>(
+  total: number,
+  keys: readonly K[],
+  pool: Record<K, CubeCard[]>,
+  targetByKey: Record<K, number>,
+  supplyOf: (k: K) => number
+): Record<K, number> {
+  const out = {} as Record<K, number>;
+  const natural = {} as Record<K, number>;
+  const cap = {} as Record<K, number>;
+  let open: K[] = [];
+  for (const k of keys) {
+    out[k] = 0;
+    const supply = supplyOf(k);
+    natural[k] = pool[k].length > 0 ? (supply / pool[k].length) * targetByKey[k] : 0;
+    cap[k] = Math.min(supply, targetByKey[k]);
+    if (cap[k] > 0 && natural[k] > 0) open.push(k);
+  }
+  let remaining = total;
+  // Water-fill: pin any key the common factor would push past its cap, then
+  // re-scale the rest. Terminates in ≤ keys.length rounds.
+  for (let round = 0; round < keys.length && open.length > 0 && remaining > 0; round++) {
+    const naturalSum = open.reduce((s, k) => s + natural[k], 0);
+    const f = remaining / naturalSum;
+    const pinned = open.filter((k) => natural[k] * f >= cap[k]);
+    if (pinned.length === 0) {
+      for (const k of open) out[k] = Math.round(natural[k] * f);
+      break;
+    }
+    for (const k of pinned) {
+      out[k] = cap[k];
+      remaining -= cap[k];
+    }
+    open = open.filter((k) => !pinned.includes(k));
+  }
+  return out;
+}
+
 function distributeQuota(
   total: number,
   buckets: Record<ColorBucket, CubeCard[]>,
   targetByBucket: Record<ColorBucket, number>,
   key: Quota
 ): Record<ColorBucket, number> {
-  const out = {} as Record<ColorBucket, number>;
-  const natural = {} as Record<ColorBucket, number>;
-  const cap = {} as Record<ColorBucket, number>;
-  let open: ColorBucket[] = [];
-  for (const b of BUCKETS) {
-    out[b] = 0;
-    const supply = b === 'land' ? 0 : buckets[b].filter((c) => fills(c, key)).length;
-    natural[b] = buckets[b].length > 0 ? (supply / buckets[b].length) * targetByBucket[b] : 0;
-    cap[b] = Math.min(supply, targetByBucket[b]);
-    if (cap[b] > 0 && natural[b] > 0) open.push(b);
-  }
-  let remaining = total;
-  // Water-fill: pin any bucket the common factor would push past its cap, then
-  // re-scale the rest. Terminates in ≤ BUCKETS.length rounds.
-  for (let round = 0; round < BUCKETS.length && open.length > 0 && remaining > 0; round++) {
-    const naturalSum = open.reduce((s, b) => s + natural[b], 0);
-    const f = remaining / naturalSum;
-    const pinned = open.filter((b) => natural[b] * f >= cap[b]);
-    if (pinned.length === 0) {
-      for (const b of open) out[b] = Math.round(natural[b] * f);
-      break;
-    }
-    for (const b of pinned) {
-      out[b] = cap[b];
-      remaining -= cap[b];
-    }
-    open = open.filter((b) => !pinned.includes(b));
-  }
-  return out;
+  return distributeQuotaOver(total, BUCKETS, buckets, targetByBucket, (b) =>
+    b === 'land' ? 0 : buckets[b].filter((c) => fills(c, key)).length
+  );
 }
 
 /** Select up to `target` cards from a bucket pool: quota cards (roles, creatures)
@@ -288,14 +319,12 @@ function selectBucket(
   pool: CubeCard[],
   target: number,
   band: BandTargets,
-  isLandBucket: boolean,
   quota: Record<Quota, number>,
   seed: CubeCard[] = []
 ): { picks: CubeCard[]; deferred: CubeCard[] } {
   const effectiveTarget = Math.max(target, seed.length);
   const sorted = [...pool].sort(byQuality);
-  if (isLandBucket || sorted.length + seed.length <= effectiveTarget) {
-    // Lands: quality-only (fixing nuance isn't worth a Scryfall round-trip here).
+  if (sorted.length + seed.length <= effectiveTarget) {
     const need = Math.max(0, effectiveTarget - seed.length);
     return { picks: [...seed, ...sorted.slice(0, need)], deferred: sorted.slice(need) };
   }
@@ -358,6 +387,177 @@ function selectBucket(
     }
   }
   return { picks, deferred };
+}
+
+/** Sub-buckets the 'multicolor' bucket splits into for pair-aware selection:
+ *  the ten color pairs, plus 'x' for a 3+ color gold card — its own small
+ *  slice (the corpus's `multiXColor` share), never folded into a pair since it
+ *  doesn't belong to exactly one. */
+const PAIR_SLICES = [...COLOR_PAIRS, 'x'] as const;
+type PairSlice = (typeof PAIR_SLICES)[number];
+const sliceOf = (c: CubeCard): PairSlice => pairOf(c) ?? 'x';
+
+/**
+ * Fill the multicolor bucket pair-by-pair instead of as one undifferentiated
+ * pool (item 1 of the pair-aware program): split its target across the ten
+ * pairs + the 'x' slice by the corpus's own per-pair gold shares
+ * (`band.pairs[p].gold`), then run each slice through the SAME `selectBucket`
+ * machinery (curve caps, role/creature quotas) as every other bucket — a WU
+ * slice still shapes its own curve and doesn't over-fill removal, it just
+ * can't borrow slots from a UB slice's target. Without this split, quality
+ * order alone fills the bucket wherever the pool is deepest (a cube-wide
+ * popularity ranking has no notion of "pair"), so a real cube's ten guilds
+ * come out lopsided instead of shaped like real cubes' gold sections.
+ */
+function selectMulticolorBucket(
+  pool: CubeCard[],
+  target: number,
+  band: BandTargets,
+  quota: Record<Quota, number>,
+  seed: CubeCard[] = []
+): { picks: CubeCard[]; deferred: CubeCard[] } {
+  const effectiveTarget = Math.max(target, seed.length);
+  const slicePool = {} as Record<PairSlice, CubeCard[]>;
+  const sliceSeed = {} as Record<PairSlice, CubeCard[]>;
+  for (const s of PAIR_SLICES) {
+    slicePool[s] = [];
+    sliceSeed[s] = [];
+  }
+  for (const c of pool) slicePool[sliceOf(c)].push(c);
+  for (const c of seed) sliceSeed[sliceOf(c)].push(c);
+
+  // band.pairs[p].gold and band.multiXColor are shares of the TOTAL cube (same
+  // basis as band.color.multicolor — they sum to roughly, not exactly, its
+  // median), not of this bucket's own `effectiveTarget`. Normalize to 1 before
+  // apportioning `effectiveTarget` slots so each pair gets its RELATIVE share
+  // of the bucket, not its tiny absolute share of the whole cube treated as if
+  // it summed to 100% of the bucket (which starved every pair but a few).
+  const shares = {} as Record<PairSlice, number>;
+  for (const p of COLOR_PAIRS) shares[p] = band.pairs[p].gold.median;
+  shares.x = band.multiXColor.median;
+  const shareSum = PAIR_SLICES.reduce((s, k) => s + shares[k], 0) || 1;
+  const normalizedShares = {} as Record<PairSlice, number>;
+  for (const s of PAIR_SLICES) normalizedShares[s] = shares[s] / shareSum;
+  const rawTarget = apportionOver(normalizedShares, effectiveTarget, PAIR_SLICES);
+  const sliceTarget = {} as Record<PairSlice, number>;
+  for (const s of PAIR_SLICES) sliceTarget[s] = Math.max(rawTarget[s], sliceSeed[s].length);
+
+  const quotaBySlice = {} as Record<Quota, Record<PairSlice, number>>;
+  for (const k of QUOTAS) {
+    quotaBySlice[k] = distributeQuotaOver(
+      quota[k],
+      PAIR_SLICES,
+      slicePool,
+      sliceTarget,
+      (s) => slicePool[s].filter((c) => fills(c, k)).length
+    );
+  }
+
+  const picks: CubeCard[] = [];
+  const deferred: CubeCard[] = [];
+  for (const s of PAIR_SLICES) {
+    const q = {} as Record<Quota, number>;
+    for (const k of QUOTAS) q[k] = quotaBySlice[k][s];
+    const { picks: sel, deferred: def } = selectBucket(
+      slicePool[s],
+      sliceTarget[s],
+      band,
+      q,
+      sliceSeed[s]
+    );
+    picks.push(...sel);
+    deferred.push(...def);
+  }
+
+  // A pair with thin (or no) supply leaves its share of the bucket target
+  // unfilled even when a DIFFERENT pair has plenty — unlike the top-level color
+  // buckets (whose own shortfall is meant to flow out to the whole cube's
+  // cross-bucket backfill), a starved pair's slice should first look for a home
+  // in another pair's deferred surplus: a collection deep in exactly one gold
+  // archetype (all UB, no RW) should still get a full multicolor section from
+  // more UB, not leave most of it to whatever's left over in unrelated mono
+  // buckets. Same quality order + role-ceiling rule as `selectBucket`'s own
+  // backfill, but scoped to the whole bucket's quota rather than one slice's
+  // share of it (we're now cutting across slice boundaries).
+  if (picks.length < effectiveTarget) {
+    const roleCount = {} as Record<Role, number>;
+    for (const r of ROLES) roleCount[r] = 0;
+    for (const c of picks) if (c.role) roleCount[c.role]++;
+    const overCap = (c: CubeCard) => c.role != null && roleCount[c.role] >= quota[c.role];
+    deferred.sort(byQuality);
+    for (const allowCapped of [false, true]) {
+      for (let i = 0; i < deferred.length && picks.length < effectiveTarget;) {
+        const c = deferred[i];
+        if (overCap(c) && !allowCapped) {
+          i++;
+          continue;
+        }
+        picks.push(c);
+        if (c.role) roleCount[c.role]++;
+        deferred.splice(i, 1);
+      }
+    }
+  }
+  return { picks, deferred };
+}
+
+/**
+ * Fixing lands, spread across the ten color pairs by the corpus's own per-pair
+ * fixing counts (`band.pairs[p].fixingLands`) instead of by popularity alone
+ * (item 2 of the pair-aware program) — popularity only ranks WITHIN a pair
+ * (and among lands that fix no pair at all, e.g. a mono-color utility land).
+ * A land that fixes several pairs (a triland, a five-color land) counts toward
+ * each of them at once, exactly like it does at the table: this deliberately
+ * ISN'T a partition, so one land can satisfy two pairs' deficits simultaneously.
+ *
+ * Pass 1 fills each pair's own deficit, biggest corpus target first (ties
+ * broken by `COLOR_PAIRS` order for determinism), best-quality qualifying land
+ * first. Pass 2 fills whatever's left by pure quality (utility/mono lands, or
+ * any pair whose deficit the pool couldn't reach). No curve/quota shaping here
+ * — lands never carry a role/creature quota, and the refiner never touches the
+ * land bucket (see refine.ts), so this greedy fill is the land bucket's only
+ * shot at the corpus shape.
+ */
+function selectFixingLands(
+  pool: CubeCard[],
+  target: number,
+  band: BandTargets,
+  seed: CubeCard[] = []
+): { picks: CubeCard[]; deferred: CubeCard[] } {
+  const effectiveTarget = Math.max(target, seed.length);
+  const sorted = [...pool].sort(byQuality);
+  if (sorted.length + seed.length <= effectiveTarget) {
+    return { picks: [...seed, ...sorted], deferred: [] };
+  }
+
+  const picked: CubeCard[] = [...seed];
+  const pickedIds = new Set(picked.map((c) => c.oracleId));
+  const pairCount = {} as Record<ColorPair, number>;
+  for (const p of COLOR_PAIRS) pairCount[p] = 0;
+  for (const c of seed) for (const p of pairsFixedBy(c)) pairCount[p]++;
+
+  const pairTarget = {} as Record<ColorPair, number>;
+  for (const p of COLOR_PAIRS) pairTarget[p] = band.pairs[p].fixingLands.median;
+  const order = [...COLOR_PAIRS].sort(
+    (a, b) => pairTarget[b] - pairTarget[a] || COLOR_PAIRS.indexOf(a) - COLOR_PAIRS.indexOf(b)
+  );
+  for (const p of order) {
+    for (const c of sorted) {
+      if (picked.length >= effectiveTarget || pairCount[p] >= pairTarget[p]) break;
+      if (pickedIds.has(c.oracleId) || !pairsFixedBy(c).includes(p)) continue;
+      picked.push(c);
+      pickedIds.add(c.oracleId);
+      for (const pp of pairsFixedBy(c)) pairCount[pp]++;
+    }
+  }
+  for (const c of sorted) {
+    if (picked.length >= effectiveTarget) break;
+    if (pickedIds.has(c.oracleId)) continue;
+    picked.push(c);
+    pickedIds.add(c.oracleId);
+  }
+  const deferred = sorted.filter((c) => !pickedIds.has(c.oracleId));
+  return { picks: picked, deferred };
 }
 
 function reasonFor(c: CubeCard, bucket: ColorBucket): string {
@@ -433,14 +633,14 @@ export function generateCube(
     );
     const quota = {} as Record<Quota, number>;
     for (const k of QUOTAS) quota[k] = quotaByKey[k][b];
-    const { picks: sel, deferred } = selectBucket(
-      buckets[b],
-      want,
-      band,
-      b === 'land',
-      quota,
-      lockedInBucket
-    );
+    // Land and multicolor each get a pair-aware selector (items 1/2 of the
+    // pair-aware program); every other bucket keeps the plain quota/curve fill.
+    const { picks: sel, deferred } =
+      b === 'land'
+        ? selectFixingLands(buckets[b], want, band, lockedInBucket)
+        : b === 'multicolor'
+          ? selectMulticolorBucket(buckets[b], want, band, quota, lockedInBucket)
+          : selectBucket(buckets[b], want, band, quota, lockedInBucket);
     byBucket[b] = sel.length;
     for (const c of sel) picks.push({ card: c, bucket: b, reason: reasonFor(c, b) });
     leftovers.push(...deferred);

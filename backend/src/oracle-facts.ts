@@ -32,6 +32,13 @@ export interface OracleFacts {
   colors?: string[];
   keywords?: string[];
   edhrec_rank?: number;
+  /** Commander-rules color identity — the cube generator's pair classifier
+   *  (frontend `lib/cube/core.ts:pairOf`) reads this, falling back to `colors`. */
+  color_identity?: string[];
+  /** Mana a LAND can produce — the pair classifier's fixing-land basis
+   *  (`pairsFixedBy`), since a land's identity and its produced mana can
+   *  differ (an "any color" land has no colored symbol in its rules text). */
+  produced_mana?: string[];
 }
 
 /** One requested card. `scryfallId` (an owned printing) makes it a primary-key hit. */
@@ -73,6 +80,8 @@ export function toOracleFacts(name: string, card: ScryfallCard): OracleFacts {
     colors: card.colors ?? faces[0]?.colors,
     keywords: card.keywords,
     edhrec_rank: card.edhrec_rank,
+    color_identity: card.color_identity,
+    produced_mana: card.produced_mana,
   };
 }
 
