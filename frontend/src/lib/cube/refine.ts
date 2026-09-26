@@ -110,11 +110,15 @@ const isCuttable = (c: CubeCard, draftable: ReadonlySet<AxisKey>): boolean => {
 function cuttableOuts(
   picks: Pick[],
   draftable: ReadonlySet<AxisKey>,
-  power: (c: CubeCard) => number
+  power: (c: CubeCard) => number,
+  locked: ReadonlySet<string>
 ): { p: Pick; idx: number }[] {
   return picks
     .map((p, idx) => ({ p, idx }))
-    .filter(({ p }) => bucketOf(p.card) !== 'land' && isCuttable(p.card, draftable))
+    .filter(
+      ({ p }) =>
+        bucketOf(p.card) !== 'land' && isCuttable(p.card, draftable) && !locked.has(p.card.oracleId)
+    )
     .sort(
       (a, b) =>
         Number(a.p.card.role != null) - Number(b.p.card.role != null) ||
@@ -323,7 +327,9 @@ export function refineCube(
    * Optional per-pass progress hook (worker relay for the loading UI). A pure
    * side effect — never read back, so it can't change the climb's output.
    */
-  onProgress?: (pass: number, maxIter: number) => void
+  onProgress?: (pass: number, maxIter: number) => void,
+  /** oracleIds the refiner must never swap out (a manual lock). */
+  locked: ReadonlySet<string> = new Set()
 ): RefineResult {
   const basis = computePowerBasis(pool);
   const power = (c: CubeCard) => rawPower(c, basis);
@@ -361,7 +367,7 @@ export function refineCube(
     // Cuttable swap-outs and the role-ceiling tally depend only on `state.picks`
     // — unchanged across every focus this iteration samples, so both are
     // computed once here rather than once per focus.
-    const outs = cuttableOuts(state.picks, draftableSet, power);
+    const outs = cuttableOuts(state.picks, draftableSet, power, locked);
     const roleCount = {} as Record<Role, number>;
     for (const p of state.picks)
       if (p.card.role) roleCount[p.card.role] = (roleCount[p.card.role] ?? 0) + 1;

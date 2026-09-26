@@ -225,6 +225,31 @@ describe('refineCube', () => {
   });
 });
 
+describe('refineCube — locked picks', () => {
+  it('never swaps out a locked pick, even when it is the best cuttable candidate', () => {
+    const { seed, pool } = tokensScenario();
+    // Without a lock the refiner cuts a non-synergy White filler to draft in
+    // tokens support (see 'improves the objective...' above).
+    const filler = seed.picks.find(
+      (p) => !p.card.synergyProducers?.length && !p.card.synergyPayoffs?.length
+    )!.card;
+    const locked = new Set([filler.oracleId]);
+    const r = refineCube(seed, pool, band360, 360, 1, {}, undefined, locked);
+    expect(r.picks.some((p) => p.card.oracleId === filler.oracleId)).toBe(true);
+    // The refiner still improves the cube by cutting a DIFFERENT filler instead.
+    expect(r.finalScore).toBeGreaterThan(scoreCube(seed.picks, pool, band360, 360).total);
+  });
+
+  it('with no locked set, behaves exactly as before (default empty set)', () => {
+    const { seed, pool } = tokensScenario();
+    const withDefault = refineCube(seed, pool, band360, 360);
+    const withEmptySet = refineCube(seed, pool, band360, 360, 1, {}, undefined, new Set());
+    expect(withDefault.picks.map((p) => p.card.oracleId)).toEqual(
+      withEmptySet.picks.map((p) => p.card.oracleId)
+    );
+  });
+});
+
 describe('refineCube — role ceilings', () => {
   it('admits no swap-in for a role already at its cap', () => {
     const { seed, pool } = tokensScenario();
