@@ -33,6 +33,7 @@ import { setReleaseDates } from '../lib/card-release-dates';
 import { getCurrency } from '../lib/currency';
 import type { Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
+import { availableFinishes } from '../lib/scanner-feedback';
 import { fetchWithAbortTimeout } from '../lib/fetch-utils';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
@@ -790,8 +791,13 @@ export const useCollectionStore = create<CollectionState>()(
       addCard: async (card, finish, extras) => {
         const qty = Math.max(1, Math.floor(extras?.quantity ?? 1));
         const now = Date.now();
+        // A quick add names no finish. Non-foil was the blind default, so a
+        // printing that only exists in foil landed as a non-foil copy that
+        // can't exist, priced off the wrong column. Take the printing's own
+        // first finish instead, the same call SetsPage already made.
+        const landed = finish ?? availableFinishes(card.finishes)[0];
         const rows = Array.from({ length: qty }, () => {
-          const enriched = { ...scryfallToEnrichedCard(card, finish), updatedAt: now };
+          const enriched = { ...scryfallToEnrichedCard(card, landed), updatedAt: now };
           if (extras?.condition) enriched.condition = extras.condition;
           if (extras?.language) enriched.language = extras.language;
           return enriched;

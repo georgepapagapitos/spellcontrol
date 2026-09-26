@@ -240,7 +240,7 @@ function PrintingGrid({
 
   useEffect(() => {
     let cancelled = false;
-    fetchPrintings(card.name)
+    fetchPrintings(card.name, undefined, card.oracle_id)
       .then((ps) => {
         // The card's own printing leads, so what's picked now is in view
         // without scrolling; the rest keep the server's order.

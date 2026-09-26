@@ -7,7 +7,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 
 const searchCardsMock = vi.fn();
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
-  searchCards: (...args: unknown[]) => searchCardsMock(...args),
+  searchCollectibleCards: (...args: unknown[]) => searchCardsMock(...args),
 }));
 
 function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {

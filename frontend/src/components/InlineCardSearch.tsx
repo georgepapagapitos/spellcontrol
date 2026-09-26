@@ -6,7 +6,9 @@ import { ManaCost } from './ManaCost';
 import { CardPreview } from './CardPreview';
 import { PrintingPicker, type AddExtras } from './PrintingPicker';
 import { useCollectionStore } from '../store/collection';
+import { useToastsStore } from '../store/toasts';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
+import { addedCardMessage } from '../lib/add-card-message';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import { IconButton } from '@/components/shared/Button';
@@ -59,8 +61,9 @@ function cardImage(card: ScryfallCard): string | undefined {
  * Live Scryfall search-and-add results panel, driven entirely by the
  * collection's own search bar (no second input — typing up top updates
  * these results). The trigger that opens it lives in the grid/list as
- * the trailing card/row. Quick-add uses the printing Scryfall returns
- * (nonfoil), same as the top-level Add card button; the per-row
+ * the trailing card/row. Quick-add uses the printing the row shows (the one
+ * Scryfall returns, in its first finish), same as the top-level Add card
+ * button, and confirms with the same toast and Undo; the per-row
  * "Printings" disclosure lazily loads every printing so a specific set +
  * finish (plus quantity/condition/language) can be chosen inline. A "−"
  * next to the added count removes the last copy added this session, so a
@@ -71,6 +74,7 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded
   const addCard = useCollectionStore((s) => s.addCard);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const collection = useCollectionStore((s) => s.cards);
+  const pushToast = useToastsStore((s) => s.push);
 
   const [openPrintingsId, setOpenPrintingsId] = useState<string | null>(null);
   // How many copies the user added this session, keyed by scryfall id, so
@@ -124,12 +128,48 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded
     }
   };
 
+  // Drop specific copies added here. replaceAllCards re-runs allocation/binder
+  // remapping, same as the edit flow. One path for the row's "−" (last copy)
+  // and the toast's Undo (that add's whole batch).
+  const removeCopies = async (id: string, ids: string[]) => {
+    if (ids.length === 0) return;
+    const dropping = new Set(ids);
+    setAddedCopyIds((prev) => ({
+      ...prev,
+      [id]: (prev[id] ?? []).filter((c) => !dropping.has(c)),
+    }));
+    setAddedCounts((prev) => ({ ...prev, [id]: Math.max(0, (prev[id] ?? 0) - ids.length) }));
+    await replaceAllCards(
+      useCollectionStore.getState().cards.filter((c) => !dropping.has(c.copyId))
+    );
+  };
+
+  // A collection add confirms itself the way the Add cards sheet does: a toast
+  // naming the printing and finish that landed, with Undo. This panel added in
+  // silence, so the same "+" said something in one place and nothing here.
+  const addToCollection = async (
+    id: string,
+    printing: ScryfallCard,
+    finish?: Finish,
+    extras?: AddExtras
+  ) => {
+    const copyIds = await addCard(printing, finish, extras);
+    confirm(id, copyIds);
+    pushToast({
+      message: addedCardMessage(printing, copyIds.length, finish),
+      tone: 'success',
+      durationMs: 4000,
+      actionLabel: 'Undo',
+      onAction: () => void removeCopies(id, copyIds),
+    });
+  };
+
   const quickAdd = async (card: ScryfallCard) => {
     if (onAdd) {
       await onAdd(card);
       confirm(card.id);
     } else {
-      confirm(card.id, await addCard(card));
+      await addToCollection(card.id, card);
     }
     onAdded?.(card);
   };
@@ -144,20 +184,15 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded
       await onAdd(printing, finish);
       confirm(card.id);
     } else {
-      confirm(card.id, await addCard(printing, finish, extras));
+      await addToCollection(card.id, printing, finish, extras);
     }
     onAdded?.(printing, finish);
   };
 
   // Remove the most recently added copy of this result (collection mode).
-  // replaceAllCards re-runs allocation/binder remapping, same as the edit flow.
-  const undoAdd = async (id: string) => {
-    const ids = addedCopyIds[id];
-    const last = ids?.[ids.length - 1];
-    if (!last) return;
-    setAddedCopyIds((prev) => ({ ...prev, [id]: ids.slice(0, -1) }));
-    setAddedCounts((prev) => ({ ...prev, [id]: Math.max(0, (prev[id] ?? 1) - 1) }));
-    await replaceAllCards(useCollectionStore.getState().cards.filter((c) => c.copyId !== last));
+  const undoAdd = (id: string) => {
+    const last = addedCopyIds[id]?.at(-1);
+    if (last) void removeCopies(id, [last]);
   };
 
   return (
@@ -258,11 +293,15 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded
                     <ManaCost cost={c.mana_cost} className="inline-card-search-mana" />
                   )}
                   <span className="inline-card-search-meta">
+                    {/* The printing "+" adds, in words as well as art. */}
+                    <span className="inline-card-search-owned">
+                      {c.set.toUpperCase()} #{c.collector_number}
+                    </span>
                     {added > 0 && <span className="inline-card-search-added">added ×{added}</span>}
                     {canUndo && (
                       <IconButton
                         className="inline-card-search-undo"
-                        onClick={() => void undoAdd(c.id)}
+                        onClick={() => undoAdd(c.id)}
                         label={`Remove last added copy of ${c.name}`}
                         icon={<Minus width={12} height={12} strokeWidth={2.5} />}
                       />

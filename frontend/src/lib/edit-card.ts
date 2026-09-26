@@ -97,6 +97,7 @@ export function printingStubFromEnriched(card: EnrichedCard): ScryfallCard {
       : undefined;
   return {
     id: card.scryfallId,
+    oracle_id: card.oracleId,
     name: card.name,
     set: card.setCode.toLowerCase(),
     set_name: card.setName,

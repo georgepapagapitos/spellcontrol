@@ -3,6 +3,8 @@ import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { InlineCardSearch } from './InlineCardSearch';
+import { useCollectionStore } from '../store/collection';
+import { useToastsStore } from '../store/toasts';
 
 /**
  * The results stack holds at most 60 cards, and before board E341 it never
@@ -14,7 +16,7 @@ import { InlineCardSearch } from './InlineCardSearch';
  * search hook used to drop it. These guard that it reaches the screen.
  */
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
-  searchCards: vi.fn(),
+  searchCollectibleCards: vi.fn(),
   getCardsByNames: vi.fn(async () => []),
   getPrintings: vi.fn(async () => []),
 }));
@@ -23,13 +25,16 @@ const card = (i: number) =>
   ({
     id: `id-${i}`,
     name: `Card ${i}`,
+    set: 'tst',
+    collector_number: String(i),
+    finishes: ['nonfoil'],
     type_line: 'Creature',
     prices: {},
   }) as never;
 
 async function searchWith(count: number, total: number) {
-  const { searchCards } = await import('@/deck-builder/services/scryfall/client');
-  (searchCards as ReturnType<typeof vi.fn>).mockResolvedValue({
+  const { searchCollectibleCards } = await import('@/deck-builder/services/scryfall/client');
+  (searchCollectibleCards as ReturnType<typeof vi.fn>).mockResolvedValue({
     object: 'list',
     total_cards: total,
     has_more: total > count,
@@ -60,5 +65,38 @@ describe('InlineCardSearch cap disclosure', () => {
     render(<InlineCardSearch query="lightning bolt" onAdd={() => {}} />);
     await waitFor(() => expect(screen.getByRole('button', { name: /Show 2 more/ })).toBeTruthy());
     expect(screen.queryByText(/matches/)).toBeNull();
+  });
+});
+
+// The collection page, /search and /tags added through this panel with no
+// word at all, while the Add cards sheet's identical "+" named what landed and
+// offered Undo (T153). Same add, same confirmation.
+describe('InlineCardSearch collection add', () => {
+  it('names the printing and finish that landed, and Undo takes the copy back out', async () => {
+    await searchWith(1, 1);
+    useToastsStore.getState().clear();
+    const addCard = vi.fn(async () => ['c1']);
+    const replaceAllCards = vi.fn(async () => {});
+    useCollectionStore.setState({
+      cards: [
+        { copyId: 'keep', name: 'Forest' },
+        { copyId: 'c1', name: 'Card 0' },
+      ] as never,
+      addCard,
+      replaceAllCards,
+    });
+    render(<InlineCardSearch query="card 0" />);
+    expect(await screen.findByText('TST #0')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Card 0' }));
+    await waitFor(() => expect(useToastsStore.getState().toasts).toHaveLength(1));
+    const toast = useToastsStore.getState().toasts[0];
+    expect(toast.message).toBe('Added Card 0 · TST #0 · Non-foil');
+    expect(toast.actionLabel).toBe('Undo');
+
+    toast.onAction?.();
+    await waitFor(() =>
+      expect(replaceAllCards).toHaveBeenCalledWith([{ copyId: 'keep', name: 'Forest' }])
+    );
   });
 });

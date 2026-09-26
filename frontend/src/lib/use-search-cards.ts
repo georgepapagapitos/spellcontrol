@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { searchCards } from '@/deck-builder/services/scryfall/client';
+import { searchCollectibleCards } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 import { userMessage } from '@/lib/user-error';
@@ -48,8 +48,10 @@ interface UseSearchCardsOptions<T> {
   enabled?: boolean;
 }
 
+// Every default caller searches for something to own or look at, not to play,
+// so tokens belong in the results (see searchCollectibleCards).
 const defaultFetcher = (q: string): Promise<SearchPage<ScryfallCard>> =>
-  searchCards(q, [], { skipFormatFilter: true }).then((resp) => ({
+  searchCollectibleCards(q).then((resp) => ({
     items: resp.data,
     // Scryfall's own count for the whole query, not the page it returned.
     total: resp.total_cards,

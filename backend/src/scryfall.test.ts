@@ -617,6 +617,36 @@ describe('fetchPrintings', () => {
     expect(url).not.toContain('Back');
   });
 
+  // A token's printings used to come back empty: it was searched by name
+  // without include_extras, and a double-faced token's front-face name
+  // ("Dinosaur") matches nothing. The oracle id is the identity that works.
+  it('looks a card up by oracle id, with extras included, when one is given', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(jsonResponse({ object: 'list', data: [], has_more: false }));
+    const oracle = 'fd2617fe-1bf3-40c3-9da5-841e63f4d62d';
+    const promise = fetchPrintings('Dinosaur // Treasure', undefined, oracle);
+    await vi.runAllTimersAsync();
+    await promise;
+    const params = new URL(String(fetchSpy.mock.calls[0][0])).searchParams;
+    expect(params.get('q')).toContain(`oracleid:${oracle}`);
+    expect(params.get('q')).not.toContain('Dinosaur');
+    expect(params.get('q')).toContain('-layout:art_series');
+    expect(params.get('include_extras')).toBe('true');
+  });
+
+  it('ignores an oracle id that is not a uuid and falls back to the name', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(jsonResponse({ object: 'list', data: [], has_more: false }));
+    const promise = fetchPrintings('Sol Ring', undefined, 'x) OR (name:y');
+    await vi.runAllTimersAsync();
+    await promise;
+    const q = new URL(String(fetchSpy.mock.calls[0][0])).searchParams.get('q') ?? '';
+    expect(q).toContain('!"Sol Ring"');
+    expect(q).not.toContain('oracleid');
+  });
+
   it('returns an empty array on a 500', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(new Response('boom', { status: 500 }));
     const promise = fetchPrintings('Sol Ring');

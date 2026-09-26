@@ -511,21 +511,38 @@ function buildIdentifier(row: ImportRow): Identifier | null {
  * sanity-check before claiming a match.
  */
 /**
- * Fetches all paper printings of a card by name via Scryfall's search endpoint.
+ * Fetches all paper printings of a card via Scryfall's search endpoint.
  * Returns an array of ScryfallCards sorted by release date (newest first).
  * Handles pagination — Scryfall caps search results at 175 per page.
+ *
+ * Pass `oracleId` whenever the caller has it. A name is ambiguous for tokens
+ * (dozens of different tokens are named "Soldier") and a double-faced token
+ * ("Dinosaur // Treasure") has no front-face name that finds it, so a token's
+ * printings could only ever come back empty by name. Tokens are "extras" to
+ * Scryfall, hidden unless `include_extras` is set; art-series and Jumpstart
+ * front cards are extras too and are never a printing of the card.
  */
-export async function fetchPrintings(cardName: string, set?: string): Promise<ScryfallCard[]> {
+export async function fetchPrintings(
+  cardName: string,
+  set?: string,
+  oracleId?: string
+): Promise<ScryfallCard[]> {
   const frontFace = cardName.split(' // ')[0].trim();
   // Optional set scope keeps basic-land print runs sane — "Swamp" alone is
   // ~800 printings (multi-MB, unusable to render); scoped to one set it's a
   // handful. The scanner uses this so a scanned card's printing picker only
   // offers variants from the set it was matched in.
   const setFilter = set && /^[a-z0-9]{1,6}$/i.test(set) ? ` set:${set.toLowerCase()}` : '';
-  const query = `!"${frontFace}" game:paper unique:prints${setFilter}`;
+  const identity =
+    oracleId && /^[0-9a-f-]{36}$/i.test(oracleId) ? `oracleid:${oracleId}` : `!"${frontFace}"`;
+  const query = `${identity} game:paper unique:prints -layout:art_series -layout:front_card${setFilter}`;
   const all: ScryfallCard[] = [];
-  let url: string | null =
-    `${SCRYFALL_SEARCH_URL}?${new URLSearchParams({ q: query, order: 'released', dir: 'desc' })}`;
+  let url: string | null = `${SCRYFALL_SEARCH_URL}?${new URLSearchParams({
+    q: query,
+    order: 'released',
+    dir: 'desc',
+    include_extras: 'true',
+  })}`;
 
   while (url) {
     const result = await fetchSearchPageWithRetry(url);

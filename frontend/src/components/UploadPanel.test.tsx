@@ -48,7 +48,7 @@ vi.mock('../lib/google-picker', () => ({
 // InlineCardSearch (rendered by the unresolved-name repair row) hits Scryfall
 // search through this client — stub it so repair tests control the results.
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
-  searchCards: vi.fn(),
+  searchCollectibleCards: vi.fn(),
 }));
 
 // The background server push (a big import saving to the account after the
@@ -114,9 +114,9 @@ vi.mock('../store/collection', () => ({
 }));
 
 import { UploadPanel } from './UploadPanel';
-import { searchCards } from '@/deck-builder/services/scryfall/client';
+import { searchCollectibleCards } from '@/deck-builder/services/scryfall/client';
 
-const mockSearchCards = searchCards as ReturnType<typeof vi.fn>;
+const mockSearchCards = searchCollectibleCards as ReturnType<typeof vi.fn>;
 
 function card(i: number, importId?: string): EnrichedCard {
   return {
@@ -412,7 +412,15 @@ describe('UploadPanel import review surface (E130)', () => {
     mockState.cards = [card(1)];
     mockState.unresolvedNames = ['Sol Rign'];
     mockSearchCards.mockResolvedValue({
-      data: [{ id: 'sf-sol-ring', name: 'Sol Ring', finishes: ['nonfoil'] }],
+      data: [
+        {
+          id: 'sf-sol-ring',
+          name: 'Sol Ring',
+          set: 'cmm',
+          collector_number: '410',
+          finishes: ['nonfoil'],
+        },
+      ],
     });
 
     render(<UploadPanel />);

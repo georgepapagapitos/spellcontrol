@@ -7,7 +7,7 @@ import { useSearchCards } from './use-search-cards';
 const makeCard = (id: string) => ({ id, name: `Card ${id}` }) as never;
 
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
-  searchCards: vi.fn(),
+  searchCollectibleCards: vi.fn(),
 }));
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -16,7 +16,7 @@ let mockSearchCards: ReturnType<typeof vi.fn>;
 beforeEach(async () => {
   vi.useFakeTimers();
   const mod = await import('@/deck-builder/services/scryfall/client');
-  mockSearchCards = mod.searchCards as ReturnType<typeof vi.fn>;
+  mockSearchCards = mod.searchCollectibleCards as ReturnType<typeof vi.fn>;
   mockSearchCards.mockReset();
 });
 
@@ -102,14 +102,16 @@ describe('useSearchCards', () => {
     expect(mockSearchCards).toHaveBeenCalledTimes(1);
   });
 
-  it('calls searchCards with skipFormatFilter=true', async () => {
+  // The default is the collectible search, not the deck builder's: that one's
+  // playable filter dropped every token, so none could ever be added.
+  it('searches everything a collection can hold by default', async () => {
     mockSearchCards.mockResolvedValue({ data: [] });
     renderHook(() => useSearchCards('lightning'));
     await act(async () => {
       vi.advanceTimersByTime(300);
       await Promise.resolve();
     });
-    expect(mockSearchCards).toHaveBeenCalledWith('lightning', [], { skipFormatFilter: true });
+    expect(mockSearchCards).toHaveBeenCalledWith('lightning');
   });
 
   it('respects the limit param', async () => {
@@ -207,6 +209,6 @@ describe('useSearchCards', () => {
       vi.advanceTimersByTime(300);
       await Promise.resolve();
     });
-    expect(mockSearchCards).toHaveBeenCalledWith('bolt', [], { skipFormatFilter: true });
+    expect(mockSearchCards).toHaveBeenCalledWith('bolt');
   });
 });
