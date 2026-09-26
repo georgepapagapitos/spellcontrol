@@ -177,6 +177,26 @@
   z-index: 1;
 }
 
+/* Range band — a translucent wash from one height to another (a corpus
+   p25-p75 band, in "count" mode only; the deck chart's own target dash above
+   marks a single value, this marks a span). Extension for the cube-health
+   panel (pages/cube/CubeHealthPanel.tsx), which needs a range on the same
+   track the target dash already draws on; no other caller sets it, so it
+   costs nothing when unused. No z-index: it sits below the count/target
+   marks (both z-index:1) and above the in-flow bar fill for free, the same
+   layering the target dash already relies on. */
+.deck-curve-phases-bar-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--text-primary);
+  opacity: 0.14;
+  box-shadow:
+    inset 0 1px 0 var(--text-secondary),
+    inset 0 -1px 0 var(--text-secondary);
+  pointer-events: none;
+}
+
 /* Solid (count) bar — the classic accent histogram look. */
 .deck-curve-phases-bar-fill {
   width: 100%;

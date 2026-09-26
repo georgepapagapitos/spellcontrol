@@ -55,6 +55,7 @@ import {
   groupPicksByBucket,
 } from './shared';
 import { namesToCubePool } from '../../lib/cube/pool';
+import { CubeHealthPanel } from './CubeHealthPanel';
 
 import { userMessage } from '@/lib/user-error';
 import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
@@ -696,6 +697,8 @@ export function CubeResult({
       </div>
 
       <CubeArchetypes score={cube.score} />
+
+      <CubeHealthPanel cube={cube} />
 
       <div className="cube-gaps">
         <h3>Where your collection lands</h3>
