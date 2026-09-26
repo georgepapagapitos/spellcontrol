@@ -53,6 +53,17 @@ describe('Button', () => {
     expect(trail.getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('puts labelClassName on the label element itself', () => {
+    render(
+      <Button placement="row" icon={<Plus />} labelClassName="toolbar-label-compact">
+        Select
+      </Button>
+    );
+    const label = screen.getByRole('button').children[1];
+    expect(label.className).toBe('btn-label toolbar-label-compact');
+    expect(label.textContent).toBe('Select');
+  });
+
   it('skips an icon slot given nothing', () => {
     render(<Button icon={false}>Plain</Button>);
     expect(screen.getByRole('button').children).toHaveLength(1);

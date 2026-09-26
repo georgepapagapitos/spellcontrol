@@ -124,6 +124,7 @@ import {
   printingStubFromEnriched,
 } from '../lib/edit-card';
 import { compileExpression, compileFilter, isExpressionEmpty } from '../lib/rules';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   cards: EnrichedCard[];
@@ -2052,19 +2053,20 @@ export function CardListTable({
             </span>
           )}
           {sorted.length > 0 && (
-            <button
-              type="button"
-              className="toolbar-pill card-list-select-toggle"
+            <Button
+              placement="toolbar"
+              className="card-list-select-toggle"
               aria-pressed={selectMode}
               // Idle label hides on phones (`.toolbar-label-compact`) — see
               // SelectToggle in BulkSelectBar.tsx, same control, same reason.
               aria-label={selectMode ? 'Done selecting' : 'Select'}
               title={selectMode ? 'Done selecting' : 'Select'}
               onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+              icon={<CheckSquare width={14} height={14} strokeWidth={2} />}
+              labelClassName="toolbar-label-compact"
             >
-              <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
-              <span className="toolbar-label-compact">{selectMode ? 'Done' : 'Select'}</span>
-            </button>
+              {selectMode ? 'Done' : 'Select'}
+            </Button>
           )}
           <SelectMenu<GroupKey>
             ariaLabel="Group by"
@@ -2082,23 +2084,24 @@ export function CardListTable({
             leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
           />
           {groupKey !== 'none' && allSectionKeys.length > 0 && (
-            <button
-              type="button"
-              className="toolbar-pill"
+            <Button
+              placement="toolbar"
               aria-pressed={allCollapsed}
               onClick={toggleAllCollapsed}
               title={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
               aria-label={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
+              icon={
+                allCollapsed ? (
+                  <ChevronsUpDown width={14} height={14} strokeWidth={2} />
+                ) : (
+                  <ChevronsDownUp width={14} height={14} strokeWidth={2} />
+                )
+              }
             >
-              {allCollapsed ? (
-                <ChevronsUpDown width={14} height={14} strokeWidth={2} aria-hidden />
-              ) : (
-                <ChevronsDownUp width={14} height={14} strokeWidth={2} aria-hidden />
-              )}
               {/* Icon-only on phones — the chevrons glyph + tooltip carry it,
                   and the label is what pushed the grouped toolbar to a 2nd row. */}
               {!isNarrow && <span>{allCollapsed ? 'Expand all' : 'Collapse all'}</span>}
-            </button>
+            </Button>
           )}
           <SortMenu
             ariaLabel="Sort"
@@ -2173,49 +2176,42 @@ export function CardListTable({
               ? `${selectedRowKeys.size} ${selectedRowKeys.size === 1 ? 'row' : 'rows'} · ${selectedCopiesCount} ${selectedCopiesCount === 1 ? 'copy' : 'copies'}`
               : 'Select cards'}
           </span>
-          <button
-            type="button"
-            className="toolbar-pill"
+          <Button
+            placement="toolbar"
             onClick={() => (allSelected ? clearSelection() : selectAll())}
           >
             {allSelected ? 'Deselect all' : `Select all (${sorted.length})`}
-          </button>
-          <button
-            type="button"
-            className="toolbar-pill"
+          </Button>
+          <Button
+            placement="toolbar"
             disabled={selectedRowKeys.size === 0}
             onClick={() => setBulkMoveOpen(true)}
           >
             Move to…
-          </button>
-          <button
-            type="button"
-            className="toolbar-pill"
+          </Button>
+          <Button
+            placement="toolbar"
             disabled={selectedRowKeys.size === 0}
             onClick={handleBulkToggleProxy}
           >
             {bulkProxyAllMarked ? 'Unmark proxy' : 'Mark as proxy'}
-          </button>
-          <button
-            type="button"
-            className="toolbar-pill card-list-bulk-danger"
+          </Button>
+          <Button
+            placement="toolbar"
             disabled={selectedRowKeys.size === 0}
             onClick={handleBulkDelete}
+            className="card-list-bulk-danger"
           >
             Delete selected
-          </button>
+          </Button>
           {selectedRowKeys.size > 0 && !allSelected && (
-            <button type="button" className="toolbar-pill" onClick={clearSelection}>
+            <Button placement="toolbar" onClick={clearSelection}>
               Clear
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            className="toolbar-pill card-list-bulk-done"
-            onClick={exitSelectMode}
-          >
+          <Button placement="toolbar" onClick={exitSelectMode} className="card-list-bulk-done">
             Done
-          </button>
+          </Button>
         </div>
       )}
 
@@ -2275,23 +2271,23 @@ export function CardListTable({
             {canScan ? ' or scan your cards' : ''}.
           </p>
           {onAddCards && (
-            <button
-              type="button"
-              className="btn btn-primary empty-state-action"
+            <Button
+              variant="primary"
               onClick={onAddCards}
+              className="empty-state-action"
+              icon={<Plus width={16} height={16} strokeWidth={1.8} />}
             >
-              <Plus width={16} height={16} strokeWidth={1.8} aria-hidden />
-              <span>Add cards</span>
-            </button>
+              Add cards
+            </Button>
           )}
         </div>
       ) : sorted.length === 0 && !showScryfall ? (
         <div className="empty-state">
           <p className="empty-state-tagline">No matches.</p>
           <p className="empty-state-hint">Try a broader search or fewer filters.</p>
-          <button type="button" className="btn empty-state-action" onClick={clearAllFilters}>
+          <Button onClick={clearAllFilters} className="empty-state-action">
             Clear filters
-          </button>
+          </Button>
         </div>
       ) : view === 'grid' ? (
         <div

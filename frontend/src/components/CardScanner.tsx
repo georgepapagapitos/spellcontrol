@@ -33,7 +33,7 @@ import {
 } from '../lib/scanner-feedback';
 import { conditionLabel, conditionShort } from './shared/CardRow';
 import { SegmentedControl } from './shared/form';
-import { IconButton } from './shared/Button';
+import { Button, IconButton } from './shared/Button';
 import { SelectMenu } from './SelectMenu';
 import { detectCardBox } from '../lib/scanner-detect';
 import { prewarm, scan } from '../lib/scanner/scan';
@@ -1098,9 +1098,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             aria-hidden
           />
           <p>Starting camera…</p>
-          <button type="button" className="btn" onClick={onClose}>
-            Cancel
-          </button>
+          <Button onClick={onClose}>Cancel</Button>
         </div>
       )}
 
@@ -1108,14 +1106,16 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         <div className="scanner-error" role="alert">
           <p>{errorMsg}</p>
           <div className="scanner-error-actions">
-            <button type="button" className="btn" onClick={onClose}>
-              <X width={14} height={14} strokeWidth={1.8} />
-              <span>Close</span>
-            </button>
-            <button type="button" className="btn btn-primary" onClick={() => void startCamera()}>
-              <RotateCcw width={14} height={14} strokeWidth={1.8} />
-              <span>Retry</span>
-            </button>
+            <Button onClick={onClose} icon={<X width={14} height={14} strokeWidth={1.8} />}>
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => void startCamera()}
+              icon={<RotateCcw width={14} height={14} strokeWidth={1.8} />}
+            >
+              Retry
+            </Button>
           </div>
         </div>
       )}

@@ -3,6 +3,7 @@ import { Clipboard, Download, Link as LinkIcon, Loader2, Mail } from 'lucide-rea
 import { Modal } from './Modal';
 import { toast } from '../store/toasts';
 import './CardShareDialog.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   /** Card name — titles the dialog and names the downloaded file. */
@@ -156,9 +157,9 @@ export function CardShareDialog({ name, imageUrl, onClose }: Props) {
         ))}
       </div>
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onClose} disabled={!!busy}>
+        <Button onClick={onClose} disabled={!!busy}>
           Cancel
-        </button>
+        </Button>
       </div>
     </Modal>
   );

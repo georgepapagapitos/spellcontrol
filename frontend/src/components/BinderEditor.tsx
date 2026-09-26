@@ -38,6 +38,7 @@ import type {
 } from '../types';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
@@ -973,13 +974,7 @@ export function BinderEditor() {
                     <p>
                       This binder uses manual mode. Only pinned cards appear; its rules are paused.
                     </p>
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => setRoutingMode('rules')}
-                    >
-                      Switch to rules
-                    </button>
+                    <Button onClick={() => setRoutingMode('rules')}>Switch to rules</Button>
                   </div>
                 )}
 
@@ -1036,13 +1031,9 @@ export function BinderEditor() {
                 {placeAbove && (
                   <p className="binder-editor-note">
                     Moves above <strong>{placeAbove.name}</strong> when you save.{' '}
-                    <button
-                      type="button"
-                      className="btn-link"
-                      onClick={() => setPlaceAboveId(null)}
-                    >
+                    <Button variant="link" onClick={() => setPlaceAboveId(null)}>
                       Keep its place
-                    </button>
+                    </Button>
                   </p>
                 )}
 
@@ -1057,13 +1048,9 @@ export function BinderEditor() {
                         this binder will be empty.
                       </span>
                       {firstCatcher && (
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => setPlaceAboveId(firstCatcher.id)}
-                        >
+                        <Button onClick={() => setPlaceAboveId(firstCatcher.id)}>
                           Move above {firstCatcher.name}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -1255,23 +1242,17 @@ export function BinderEditor() {
                   />
                 )}
                 <div className="binder-import-actions">
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => importFileRef.current?.click()}
-                    disabled={saving}
-                  >
+                  <Button onClick={() => importFileRef.current?.click()} disabled={saving}>
                     {importFiles_.length > 0 ? 'Add more files' : 'Upload CSV files'}
-                  </button>
+                  </Button>
                   {importFiles_.length > 0 ? (
-                    <button
-                      type="button"
-                      className="btn-link"
+                    <Button
+                      variant="link"
                       onClick={() => applyStagedFiles([], importFiles_)}
                       disabled={saving}
                     >
                       Clear
-                    </button>
+                    </Button>
                   ) : (
                     <span className="binder-editor-note">
                       or drop them here. Each file becomes its own binder.
@@ -1336,10 +1317,10 @@ export function BinderEditor() {
               landing={effectiveLanding}
               fileCount={importFiles_.length}
             />
-            <button className="btn binder-editor-cancel" onClick={close} disabled={saving}>
+            <Button onClick={close} disabled={saving} className="binder-editor-cancel">
               Cancel
-            </button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            </Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
               {saving
                 ? importProgress && importProgress.totalChunks > 1
                   ? importProgress.totalFiles && importProgress.totalFiles > 1
@@ -1353,7 +1334,7 @@ export function BinderEditor() {
                       ? `Create ${importFiles_.length} binders`
                       : 'Create and import'
                     : 'Create binder'}
-            </button>
+            </Button>
           </div>
         )}
       </Modal>

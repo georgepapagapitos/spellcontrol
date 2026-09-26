@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
+import { Button } from '@/components/shared/Button';
 
 /**
  * One-time banner shown right after the OAuth callback auto-linked a new
@@ -28,19 +29,17 @@ export function AutoLinkBanner() {
         {username ? ` @${username}` : ' your account'}. If that wasn&apos;t you, unlink it below.
       </div>
       <div className="auto-link-banner-actions">
-        <button
-          type="button"
-          className="btn"
+        <Button
           onClick={() => {
             void acknowledge();
             navigate('/you?section=sign-in');
           }}
         >
           Manage sign-in methods
-        </button>
-        <button type="button" className="btn btn-primary" onClick={() => void acknowledge()}>
+        </Button>
+        <Button variant="primary" onClick={() => void acknowledge()}>
           Got it
-        </button>
+        </Button>
       </div>
     </div>
   );

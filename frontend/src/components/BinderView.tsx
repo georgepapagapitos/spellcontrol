@@ -29,6 +29,7 @@ import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
 import { useAllocations } from '../lib/allocations';
 import { useToastsStore } from '../store/toasts';
 import { useMediaQuery } from '../lib/use-media-query';
+import { Button } from '@/components/shared/Button';
 
 /** Maximum pages rendered inline per section before the "+N more" expander. */
 export const SECTION_PAGE_CAP = 3;
@@ -96,13 +97,9 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
           Loosen a rule or add another match group, and cards from your collection file in here.
         </p>
         <div className="empty-state-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setEditingBinder(active.def.id)}
-          >
+          <Button variant="primary" onClick={() => setEditingBinder(active.def.id)}>
             Binder rules
-          </button>
+          </Button>
         </div>
       </div>
     );
