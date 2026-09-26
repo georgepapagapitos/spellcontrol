@@ -11,6 +11,7 @@ import type { BinderDef, EnrichedCard } from '../../types';
 import { CardRow } from '../shared/CardRow';
 import { MeterBar } from '../shared/MeterBar';
 import './PullListSheet.css';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Device-local checklist state for one deck's pull session — which row keys
@@ -145,9 +146,9 @@ export function PullListSheet({
             </p>
           </div>
           {pulledQty > 0 && (
-            <button type="button" className="btn-link pull-list-reset" onClick={reset}>
+            <Button variant="link" onClick={reset} className="pull-list-reset">
               Start over
-            </button>
+            </Button>
           )}
           <button
             type="button"
@@ -198,14 +199,14 @@ export function PullListSheet({
                         : `${groupQty} ${groupQty === 1 ? 'card' : 'cards'}`}
                     </span>
                     {unpulledKeys.length > 1 && (
-                      <button
-                        type="button"
-                        className="btn-link pull-list-group-all"
+                      <Button
+                        variant="link"
                         onClick={() => checkAll(unpulledKeys)}
                         aria-label={`Pulled all: ${g.label}`}
+                        className="pull-list-group-all"
                       >
                         Pulled all
-                      </button>
+                      </Button>
                     )}
                   </div>
                   <ul className="pull-list-rows" role="list">

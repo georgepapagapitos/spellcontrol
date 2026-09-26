@@ -136,6 +136,7 @@ import { DeckCardMenu } from './DeckCardMenu';
 import type { DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
+import { Button, buttonClass } from '@/components/shared/Button';
 
 /** Deck ids whose completion moment already played this app-open — an edit
  *  that re-crosses the complete boundary doesn't re-celebrate (mirrors the
@@ -1785,40 +1786,37 @@ export function DeckDisplay({
                     : 'Select cards'}
                 </span>
                 {selection && onBulkMove && selection.zone === 'cards' && showSideboardTab && (
-                  <button
-                    type="button"
-                    className="btn deck-bulk-btn"
+                  <Button
                     onClick={() => {
                       onBulkMove([...selection.keys], 'cards', 'sideboard');
                       setSelection(null);
                     }}
+                    className="deck-bulk-btn"
                   >
                     Move to sideboard
-                  </button>
+                  </Button>
                 )}
                 {selection && onBulkMove && selection.zone === 'cards' && (
-                  <button
-                    type="button"
-                    className="btn deck-bulk-btn"
+                  <Button
                     onClick={() => {
                       onBulkMove([...selection.keys], 'cards', 'considering');
                       setSelection(null);
                     }}
+                    className="deck-bulk-btn"
                   >
                     Move to considering
-                  </button>
+                  </Button>
                 )}
                 {selection && onBulkMove && selection.zone !== 'cards' && (
-                  <button
-                    type="button"
-                    className="btn deck-bulk-btn"
+                  <Button
                     onClick={() => {
                       onBulkMove([...selection.keys], selection.zone, 'cards');
                       setSelection(null);
                     }}
+                    className="deck-bulk-btn"
                   >
                     Move to mainboard
-                  </button>
+                  </Button>
                 )}
                 {selection && onBulkEditTag && (
                   <ToolbarPopover
@@ -1841,18 +1839,18 @@ export function DeckDisplay({
                   </ToolbarPopover>
                 )}
                 {selection && onBulkRemove && (
-                  <button
-                    type="button"
-                    className="btn btn-danger deck-bulk-btn"
+                  <Button
+                    variant="danger"
                     onClick={() => setConfirmBulkRemove(true)}
+                    className="deck-bulk-btn"
+                    icon={<Trash2 width={14} height={14} strokeWidth={2} />}
                   >
-                    <Trash2 width={14} height={14} strokeWidth={2} aria-hidden />
                     Remove
-                  </button>
+                  </Button>
                 )}
-                <button type="button" className="btn deck-bulk-done" onClick={exitSelectMode}>
+                <Button onClick={exitSelectMode} className="deck-bulk-done">
                   Done
-                </button>
+                </Button>
               </div>
             )}
 
@@ -1892,13 +1890,9 @@ export function DeckDisplay({
                   {claimedElsewhereCount} {claimedElsewhereCount === 1 ? 'card' : 'cards'} here{' '}
                   {claimedElsewhereCount === 1 ? 'is' : 'are'} also in your other decks
                 </span>
-                <button
-                  type="button"
-                  className="btn btn-sm deck-claimed-banner-btn"
-                  onClick={onReviewShared}
-                >
+                <Button onClick={onReviewShared} className="deck-claimed-banner-btn">
                   Review
-                </button>
+                </Button>
               </div>
             )}
 
@@ -1983,13 +1977,13 @@ export function DeckDisplay({
                         </>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary deck-empty-state-action"
+                    <Button
+                      variant="primary"
                       onClick={() => onAddCards?.()}
+                      className="deck-empty-state-action"
                     >
                       {formatConfig.hasCommander && !commander ? 'Choose a commander' : 'Add cards'}
-                    </button>
+                    </Button>
                   </div>
                 )}
                 {/* The Roles lens is a strict PARTITION: `classifyCardCategory`
@@ -2010,7 +2004,7 @@ export function DeckDisplay({
                     <span>Each card is filed under its first tag, or its card type.</span>
                     {deckTags.length > 0 && (onRenameDeckTag || onRemoveDeckTag) && (
                       <ToolbarPopover
-                        triggerClassName="btn btn-sm deck-tag-manage-btn"
+                        triggerClassName={`${buttonClass()} deck-tag-manage-btn`}
                         triggerContent="Manage tags"
                         triggerAriaLabel="Manage deck tags"
                         panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed deck-tag-manager-popover"
@@ -2581,9 +2575,9 @@ function BulkTagPopoverBody({
             }
           }}
         />
-        <button type="button" className="btn btn-primary deck-bulk-tag-add" onClick={commit}>
+        <Button variant="primary" onClick={commit} className="deck-bulk-tag-add">
           Add
-        </button>
+        </Button>
       </div>
       {existingTags.length > 0 && (
         <ul className="deck-bulk-tag-chip-list" aria-label="Existing tags">

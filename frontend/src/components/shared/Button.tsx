@@ -60,6 +60,16 @@ function lookClass(placement: ButtonPlacement = 'inline', variant: ButtonVariant
   return (CLASSES[placement] as Partial<Record<ButtonVariant, string>>)[variant] ?? '';
 }
 
+/**
+ * The class string for a look, for a primitive that renders its own trigger
+ * button (`OverflowMenu`, `ToolbarPopover`):
+ * `triggerClassName={buttonClass({ placement: 'toolbar' })}`. Same vocabulary
+ * and the same literal classes as `Button`, so a trigger never spells one out.
+ */
+export function buttonClass(look: Look = {}): string {
+  return lookClass(look.placement, look.variant);
+}
+
 type AsButton = Omit<ComponentPropsWithRef<'button'>, 'children' | 'className'> & {
   to?: never;
   href?: never;

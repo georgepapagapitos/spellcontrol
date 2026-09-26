@@ -12,6 +12,7 @@ import type { DonorOutcome } from '@/lib/allocations';
 import type { ChangeOwnership } from '@/lib/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
+import { Button } from '@/components/shared/Button';
 
 export interface MoveToDeckSheetProps {
   /** The card being moved out of the current (donor) deck. */
@@ -190,16 +191,15 @@ export function MoveToDeckSheet({
               />
             </div>
             <div className="move-deck-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Button
+                variant="primary"
                 onClick={() =>
                   onConfirm(target.id, outcome, outcome === 'replace' ? replacement : null)
                 }
                 disabled={confirmDisabled}
               >
                 Move to {target.name}
-              </button>
+              </Button>
             </div>
           </>
         )}

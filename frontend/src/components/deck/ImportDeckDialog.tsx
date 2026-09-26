@@ -40,6 +40,7 @@ import {
 
 import { DECK_NAME_MAX } from '@/lib/deck-name';
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface Props {
   onClose: () => void;
   /** Initial / fallback format selection. The user can change it per deck. */
@@ -698,14 +699,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                     {batchFiles.length} of {MAX_FILES} file
                     {batchFiles.length === 1 ? '' : 's'} staged
                   </strong>
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={() => setBatchFiles([])}
-                    disabled={isLoading}
-                  >
+                  <Button variant="link" onClick={() => setBatchFiles([])} disabled={isLoading}>
                     Clear
-                  </button>
+                  </Button>
                 </div>
                 <ul className="import-deck-batch-list">
                   {batchFiles.map((f, i) => (
@@ -826,20 +822,21 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                         autoComplete="off"
                         spellCheck={false}
                       />
-                      <button
-                        type="button"
-                        className="btn import-link-btn"
+                      <Button
+                        className="import-link-btn"
                         onClick={handleFetchLink}
                         disabled={isLoading || linkBusy || !linkUrl.trim()}
                         title="Fetch the list from this link"
+                        icon={
+                          linkBusy ? (
+                            <span className="spinner" />
+                          ) : (
+                            <Link2 width={14} height={14} strokeWidth={1.8} />
+                          )
+                        }
                       >
-                        {linkBusy ? (
-                          <span className="spinner" />
-                        ) : (
-                          <Link2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                        )}
-                        <span>{linkBusy ? 'Fetching…' : 'Fetch'}</span>
-                      </button>
+                        {linkBusy ? 'Fetching…' : 'Fetch'}
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -943,14 +940,13 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                       {d.result && d.result.fetchErrors.length > 0 && (
                         <span className="import-deck-summary-warn">
                           {d.result.fetchErrors.length} couldn't be fetched{' '}
-                          <button
-                            type="button"
-                            className="btn-link"
+                          <Button
+                            variant="link"
                             onClick={() => void retryDraft(d)}
                             disabled={isLoading}
                           >
                             Retry
-                          </button>
+                          </Button>
                         </span>
                       )}
                       <span className="import-deck-summary-file">{d.fileName}</span>
@@ -972,13 +968,12 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                                 {d.commander.type_line ?? d.commander.card_faces?.[0]?.type_line}
                               </span>
                             </div>
-                            <button
-                              type="button"
-                              className="btn-link"
+                            <Button
+                              variant="link"
                               onClick={() => patchDraft(d.key, { searchOpen: true })}
                             >
                               Change
-                            </button>
+                            </Button>
                           </div>
                         ) : !d.searchOpen ? (
                           <>
@@ -1013,13 +1008,13 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                                 ))}
                               </ul>
                             )}
-                            <button
-                              type="button"
-                              className="btn-link import-deck-search-link"
+                            <Button
+                              variant="link"
                               onClick={() => patchDraft(d.key, { searchOpen: true })}
+                              className="import-deck-search-link"
                             >
                               Search for a commander
-                            </button>
+                            </Button>
                           </>
                         ) : (
                           <CommanderSearch
@@ -1079,13 +1074,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                         {pendingCommander.type_line ?? pendingCommander.card_faces?.[0]?.type_line}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      className="btn-link"
-                      onClick={() => setShowCommanderSearch(true)}
-                    >
+                    <Button variant="link" onClick={() => setShowCommanderSearch(true)}>
                       Change
-                    </button>
+                    </Button>
                   </div>
                 ) : commanderCandidates.length > 0 && !showCommanderSearch ? (
                   <>
@@ -1114,13 +1105,13 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                         </li>
                       ))}
                     </ul>
-                    <button
-                      type="button"
-                      className="btn-link import-deck-search-link"
+                    <Button
+                      variant="link"
                       onClick={() => setShowCommanderSearch(true)}
+                      className="import-deck-search-link"
                     >
                       Search for a different commander
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <CommanderSearch
@@ -1161,93 +1152,77 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       {step === 'input' && (
         <div className="modal-footer">
           {canPickDrive && (
-            <button
-              type="button"
-              className="btn"
+            <Button
               onClick={handlePickDrive}
               disabled={isLoading || driveBusy}
               title="Browse Google Drive for a decklist"
+              icon={
+                driveBusy ? (
+                  <span className="spinner" />
+                ) : (
+                  <Cloud width={14} height={14} strokeWidth={1.8} />
+                )
+              }
             >
-              {driveBusy ? (
-                <span className="spinner" />
-              ) : (
-                <Cloud width={14} height={14} strokeWidth={1.8} aria-hidden />
-              )}
-              <span>{driveBusy ? 'Opening…' : 'Google Drive'}</span>
-            </button>
+              {driveBusy ? 'Opening…' : 'Google Drive'}
+            </Button>
           )}
-          <button
-            type="button"
-            className="btn"
+          <Button
             onClick={handlePickFile}
             disabled={isLoading}
             title="Choose files, each becomes its own deck"
+            icon={<Upload width={14} height={14} strokeWidth={1.8} />}
           >
-            <Upload width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span>Upload files</span>
-          </button>
+            Upload files
+          </Button>
           {batchFiles.length > 0 ? (
-            <button
-              type="button"
-              className="btn btn-primary"
+            <Button
+              variant="primary"
               onClick={runParse}
               disabled={isLoading || publishing}
+              iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
             >
-              <span>
-                Continue ({batchFiles.length} file{batchFiles.length === 1 ? '' : 's'})
-              </span>
-              <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
-            </button>
+              Continue ({batchFiles.length} file{batchFiles.length === 1 ? '' : 's'})
+            </Button>
           ) : (
-            <button
-              type="button"
-              className="btn btn-primary"
+            <Button
+              variant="primary"
               onClick={handlePasteImport}
               disabled={isLoading || !pasteText.trim() || publishing}
+              icon={<Download width={14} height={14} strokeWidth={1.8} />}
             >
-              <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>Import</span>
-            </button>
+              Import
+            </Button>
           )}
         </div>
       )}
 
       {step === 'batch' && (
         <div className="modal-footer">
-          <button
-            type="button"
-            className="btn"
+          <Button
             onClick={() => {
               setDrafts([]);
               setStep('input');
             }}
           >
             Back
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={commitBatch}
-            disabled={okDrafts.length === 0}
-          >
+          </Button>
+          <Button variant="primary" onClick={commitBatch} disabled={okDrafts.length === 0}>
             Create {okDrafts.length} deck{okDrafts.length === 1 ? '' : 's'}
-          </button>
+          </Button>
         </div>
       )}
 
       {step === 'review' && (
         <div className="modal-footer">
-          <button type="button" className="btn" onClick={() => setStep('input')}>
-            Back
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
+          <Button onClick={() => setStep('input')}>Back</Button>
+          <Button
+            variant="primary"
             onClick={handleConfirmReview}
             disabled={!canConfirmReview || publishing}
           >
             Create deck
-          </button>
+          </Button>
         </div>
       )}
     </Modal>

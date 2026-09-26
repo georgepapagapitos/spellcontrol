@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, Pencil, Trash2, X } from 'lucide-react';
 import './DeckTagManager.css';
+import { Button } from '@/components/shared/Button';
 
 /**
  * "See all tags" + rename/remove, for the deck-wide tag list (E171). Lives
@@ -106,9 +107,9 @@ export function DeckTagManager({
           </li>
         ))}
       </ul>
-      <button type="button" className="btn btn-sm deck-tag-manager-done" onClick={onDone}>
+      <Button onClick={onDone} className="deck-tag-manager-done">
         Done
-      </button>
+      </Button>
     </div>
   );
 }

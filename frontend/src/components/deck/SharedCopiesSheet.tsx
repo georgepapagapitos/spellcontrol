@@ -4,6 +4,7 @@ import './SharedCopiesSheet.css';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../../lib/use-escape-key';
 import type { ContestedCard } from '@/lib/allocations';
+import { Button } from '@/components/shared/Button';
 
 export interface SharedCopiesSheetProps {
   /** This deck's name (for the header). */
@@ -94,22 +95,18 @@ export function SharedCopiesSheet({
                     </span>
                   </span>
                 </span>
-                <button
-                  type="button"
-                  className="btn btn-sm shared-copies-row-btn"
-                  onClick={() => onMove(c.slotId)}
-                >
+                <Button onClick={() => onMove(c.slotId)} className="shared-copies-row-btn">
                   Move here…
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
         )}
 
         <div className="shared-copies-actions">
-          <button type="button" className="btn btn-primary" onClick={onClose}>
+          <Button variant="primary" onClick={onClose}>
             Done
-          </button>
+          </Button>
         </div>
       </div>
     </div>

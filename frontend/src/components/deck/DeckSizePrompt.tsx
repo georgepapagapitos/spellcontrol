@@ -9,6 +9,7 @@ import { WhyBreakdown } from './WhyBreakdown';
 import type { WhyFactor } from '@/lib/why-factors';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import type { CardPreviewAction } from '../CardPreview';
+import { Button } from '@/components/shared/Button';
 
 export interface SizePromptOption {
   /** Stable key (slotId for cuts, name for adds). */
@@ -300,15 +301,14 @@ export function DeckSizePrompt({
 
         <div className="card-picker-footer deck-size-prompt-footer">
           {footer.map((f) => (
-            <button
+            <Button
               key={f.label}
-              type="button"
-              className={f.primary ? 'btn btn-primary' : 'btn'}
+              variant={f.primary ? 'primary' : 'secondary'}
               onClick={f.onClick}
               disabled={busy}
             >
               {f.label}
-            </button>
+            </Button>
           ))}
         </div>
         {/* The preview portals to <body>, but it must be MOUNTED here — the

@@ -511,7 +511,10 @@ exactly as `btn btn-primary shared-copy-btn` was. A genuinely bespoke control
 (playtest board chrome, the life-counter HUD, chart and radar controls,
 card-art overlays) keeps its own `<button>`; there is deliberately no `bare`
 variant to launder one through. `SelectMenu`, `ToolbarPopover` and `Legend`
-render their own `.toolbar-pill` trigger and stay that way.
+render their own `.toolbar-pill` trigger and stay that way. When a call site
+restyles one of those triggers (`triggerClassName` on `OverflowMenu` or
+`ToolbarPopover`), it takes the class from `buttonClass({ variant, placement })`,
+the same vocabulary `Button` uses, rather than spelling out `btn …`.
 
 Guard: `src/test/control-primitives-usage.test.ts` counts raw control classes
 and glyph-only `<button>`s per file. Its allowlist is the migration still to

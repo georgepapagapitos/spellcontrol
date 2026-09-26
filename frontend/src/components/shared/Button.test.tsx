@@ -4,7 +4,15 @@ import { createRef } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Plus, X } from 'lucide-react';
-import { Button, IconButton } from './Button';
+import { Button, IconButton, buttonClass } from './Button';
+
+describe('buttonClass', () => {
+  it('gives a primitive-rendered trigger the same classes Button would', () => {
+    expect(buttonClass()).toBe('btn');
+    expect(buttonClass({ placement: 'toolbar' })).toBe('toolbar-pill');
+    expect(buttonClass({ placement: 'row', variant: 'primary' })).toBe('pill-btn pill-btn-primary');
+  });
+});
 
 describe('Button', () => {
   it.each([

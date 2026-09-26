@@ -1,5 +1,6 @@
 import { Modal } from '../Modal';
 import { haptics } from '../../lib/haptics';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   cardName: string;
@@ -50,24 +51,19 @@ export function MovePrintingPrompt({
         {swap && ` Or swap: send your ${swap.returnSetName} copy back so nothing goes short.`}
       </p>
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onCancel}>
-          Cancel
-        </button>
+        <Button onClick={onCancel}>Cancel</Button>
         {swap && (
-          <button
-            type="button"
-            className="btn"
+          <Button
             onClick={() => {
               haptics.tap();
               onSwap();
             }}
           >
             Swap
-          </button>
+          </Button>
         )}
-        <button
-          type="button"
-          className="btn btn-primary"
+        <Button
+          variant="primary"
           onClick={() => {
             haptics.tap();
             onMove();
@@ -75,7 +71,7 @@ export function MovePrintingPrompt({
           autoFocus
         >
           Move here
-        </button>
+        </Button>
       </div>
     </Modal>
   );

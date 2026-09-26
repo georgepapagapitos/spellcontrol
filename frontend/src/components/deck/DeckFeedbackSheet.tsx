@@ -23,6 +23,7 @@ import { useDecksStore, type Deck } from '../../store/decks';
 import { toast } from '../../store/toasts';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -225,14 +226,10 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                   onFocus={(e) => e.currentTarget.select()}
                   aria-label="Feedback link"
                 />
-                <button type="button" className="btn btn-primary" onClick={handleCopy}>
+                <Button variant="primary" onClick={handleCopy}>
                   Copy
-                </button>
-                {canShare() && (
-                  <button type="button" className="btn" onClick={handleShare}>
-                    Share…
-                  </button>
-                )}
+                </Button>
+                {canShare() && <Button onClick={handleShare}>Share…</Button>}
               </div>
             )}
 
@@ -343,9 +340,9 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
         )}
 
         <div className="card-picker-footer">
-          <button type="button" className="btn btn-primary" onClick={() => dismiss()}>
+          <Button variant="primary" onClick={() => dismiss()}>
             Close
-          </button>
+          </Button>
         </div>
       </div>
     </div>

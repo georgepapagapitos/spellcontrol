@@ -5,6 +5,7 @@ import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
 import { isValidCommander, isPdhCommanderEligible } from '../../lib/commanders';
 import type { DeckImportResponse } from '../../types';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Parse/review pieces shared by `ImportDeckDialog` (creates a new deck from a
@@ -133,9 +134,9 @@ export function PartnerImportPicker({
         })}
       </ul>
       {partner && (
-        <button type="button" className="btn-link" onClick={() => onSelect(null)}>
+        <Button variant="link" onClick={() => onSelect(null)}>
           Remove partner
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -198,9 +199,9 @@ export function ImportParseSummary({
         <div className="import-deck-warning">
           The file looks like a <strong>{DECK_FORMAT_CONFIGS[detectedFormat].label}</strong> list,
           but you selected <strong>{DECK_FORMAT_CONFIGS[selectedFormat].label}</strong>.{' '}
-          <button type="button" className="btn-link" onClick={() => onSwitchFormat(detectedFormat)}>
+          <Button variant="link" onClick={() => onSwitchFormat(detectedFormat)}>
             Switch to {DECK_FORMAT_CONFIGS[detectedFormat].label}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -239,9 +240,9 @@ export function ImportParseSummary({
               </li>
             )}
           </ul>
-          <button type="button" className="btn-link" onClick={onRetry} disabled={isLoading}>
+          <Button variant="link" onClick={onRetry} disabled={isLoading}>
             Retry import
-          </button>
+          </Button>
         </div>
       )}
     </>
