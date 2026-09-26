@@ -24,6 +24,7 @@ describe('Button', () => {
     [{ placement: 'row', variant: 'primary' }, 'pill-btn pill-btn-primary'],
     [{ placement: 'row', variant: 'danger' }, 'pill-btn pill-btn-danger'],
     [{ placement: 'toolbar' }, 'toolbar-pill'],
+    [{ placement: 'toolbar', variant: 'danger' }, 'toolbar-pill toolbar-pill-danger'],
   ] as const)('%o renders the existing classes %s', (look, cls) => {
     render(<Button {...look}>Save</Button>);
     expect(screen.getByRole('button', { name: 'Save' }).className).toBe(cls);

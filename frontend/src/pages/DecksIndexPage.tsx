@@ -747,7 +747,7 @@ export function DecksIndexPage() {
                   placement="row"
                   disabled={sel.selected.size === 0 || visibilityBusy}
                   onClick={() => setConfirmBulkDelete(true)}
-                  className="bulk-bar-danger"
+                  variant="danger"
                   icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
                 >
                   Delete selected
