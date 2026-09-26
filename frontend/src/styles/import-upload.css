@@ -39,27 +39,6 @@
   cursor: not-allowed;
 }
 
-.upload-action-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .upload-action-primary:hover:not(:disabled) {
-    background: var(--accent);
-    border-color: var(--accent);
-    filter: brightness(1.05);
-    color: var(--on-accent);
-  }
-}
-
-.upload-action-primary.is-active {
-  background: var(--surface);
-  color: var(--text-primary);
-  border-color: var(--accent);
-}
-
 .upload-action-danger {
   color: var(--err-text);
 }

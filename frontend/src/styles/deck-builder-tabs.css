@@ -1,4 +1,4 @@
-/* deck-builder-tabs.css — Shared <Tabs> primitive (components/Tabs.tsx): boxed/scrollable/hub/underline variants + sliding indicator.
+/* deck-builder-tabs.css — Shared <Tabs> primitive (components/Tabs.tsx): boxed/scrollable/underline variants + sliding indicator.
  * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
  * Original lines 5417-5933. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
 /* ── Shared <Tabs> primitive (components/Tabs.tsx) ──────────────────────────
@@ -36,25 +36,6 @@
   display: none; /* WebKit — keep the strip clean */
 }
 
-/* `hub` — match the Collection hub's section nav (Cards / Binders / Lists):
-   a clean bottom-bordered strip of .site-nav-link pills, not the boxed pill
-   group. Resets the .sc-tabs box look; scrolls horizontally on overflow. */
-.sc-tabs--hub {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  padding: 0 0 0.4rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.sc-tabs--hub::-webkit-scrollbar {
-  display: none;
-}
-
 /* Scroll affordance for every strip that hides its scrollbar. Tabs.tsx sets
    `data-overflow` to the edge(s) with tabs behind them; the fade lands on
    that edge only, so a strip whose tabs all fit is untouched and the edge
@@ -78,19 +59,6 @@
     #000 calc(100% - var(--space-6)),
     transparent 100%
   );
-}
-
-.sc-tabs--hub .site-nav-link {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-/* Full 44px touch target on coarse pointers (the site-nav-link padding alone
-   is ~33px tall). */
-@media (pointer: coarse) {
-  .sc-tabs--hub .site-nav-link {
-    min-height: 44px;
-  }
 }
 
 /* `underline` — page-level "distinct views" switcher: flat labels with an
@@ -356,17 +324,6 @@
   color: var(--text-muted);
   margin: 0;
   padding: var(--space-2) var(--space-1) 0;
-}
-
-.deck-combos-close-btn {
-  align-self: flex-start;
-  background: transparent;
-  border: 0;
-  color: var(--accent);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  cursor: pointer;
-  padding: 0;
 }
 
 .deck-combos-hint {

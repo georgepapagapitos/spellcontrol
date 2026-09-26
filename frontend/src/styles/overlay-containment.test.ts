@@ -170,7 +170,6 @@ describe('horizontal tab strips', () => {
   const STRIPS: Array<[string, string]> = [
     ['styles/responsive-nav.css', '.collection-hub-tabs'],
     ['styles/deck-builder-tabs.css', '.sc-tabs--scrollable'],
-    ['styles/deck-builder-tabs.css', '.sc-tabs--hub'],
     ['styles/deck-builder-tabs.css', '.sc-tabs--underline'],
     ['styles/binder-nav.css', '.binder-tab-row'],
     ['styles/binder-card-management.css', '.add-cards-tabs'],

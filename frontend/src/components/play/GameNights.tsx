@@ -501,7 +501,7 @@ function NightCard({
       {!polling && (
         <button
           type="button"
-          className="game-night-card-tally-btn game-night-card-trades-btn"
+          className="game-night-card-tally-btn"
           onClick={() => setTonightTradesOpen(true)}
           aria-haspopup="dialog"
           aria-label={`Tonight's trades for ${night.title}`}
