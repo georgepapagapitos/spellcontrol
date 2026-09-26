@@ -386,6 +386,9 @@ describe('Local setup — Horde ban-list check reaches starter decks', () => {
   const bannedName = HORDE_BAN_LIST[0];
 
   beforeEach(() => {
+    searchProducts.mockReset();
+    fetchProductCommanderSummary.mockReset();
+    fetchProduct.mockReset();
     usePlayStore.setState({ local: null, boardVisible: true });
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const product = {
@@ -428,9 +431,6 @@ describe('Local setup — Horde ban-list check reaches starter decks', () => {
   afterEach(() => {
     vi.useRealTimers();
     usePlayStore.setState({ local: null });
-    searchProducts.mockReset();
-    fetchProductCommanderSummary.mockReset();
-    fetchProduct.mockReset();
   });
 
   it('warns once the starter deck resolves, though the seat is never in the decks store', async () => {

@@ -11,7 +11,7 @@
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Outlet } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const real = await importOriginal<typeof import('react-router-dom')>();
@@ -94,10 +94,13 @@ function renderAt(path: string) {
   );
 }
 
+beforeEach(() => {
+  hasEverVisitedMock.mockReset();
+});
+
 afterEach(() => {
   authState.status = 'guest';
   authState.user = null;
-  hasEverVisitedMock.mockReset();
 });
 
 describe('App — "/" route resolution', () => {

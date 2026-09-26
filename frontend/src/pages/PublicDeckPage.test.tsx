@@ -61,6 +61,8 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  fetchPublicDeckPageMock.mockReset();
+  recordDeckViewMock.mockReset();
   fetchPublicDeckPageMock.mockResolvedValue({
     slug: 'queen-marchesa-1c9fe196',
     viewCount: 3,
@@ -74,8 +76,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  fetchPublicDeckPageMock.mockReset();
-  recordDeckViewMock.mockReset();
   useDecksStore.setState({ hydrated: false, decks: [] });
 });
 
