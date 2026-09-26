@@ -113,6 +113,12 @@ describe('CubeDraftabilityPanel — running', () => {
     expect(running.getAttribute('aria-live')).toBe('polite');
     expect(running.getAttribute('aria-busy')).toBe('true');
     expect(running.textContent).toContain('Simulating 50 drafts');
+    // The always-visible summary line stays up while loading (same as every
+    // other state) — it must read as a shorter cue, not a stacked duplicate
+    // of the body's own sentence right below it.
+    const summary = document.querySelector('.cube-draft-sim-summary')!.textContent;
+    expect(summary).toBe('Simulating…');
+    expect(summary).not.toBe(running.textContent);
   });
 });
 

@@ -139,7 +139,11 @@ function toStatus(result: DraftSimResult | undefined): Status {
 }
 
 function summaryLine(status: Status): string {
-  if (status.kind === 'loading') return 'Simulating 50 drafts…';
+  // Short on purpose: when loading, the body right below carries the fuller
+  // "Simulating 50 drafts…" text — this summary line stays visible even while
+  // open (same as the loaded/error cases), so the two must not read as an
+  // accidental duplicate stacked on top of each other.
+  if (status.kind === 'loading') return 'Simulating…';
   if (status.kind === 'error') return "Couldn't simulate the draft.";
   if (status.kind === 'idle') return 'Simulates 50 drafts when opened.';
   const pct = Math.round(status.result.reachedBarShare * 100);
