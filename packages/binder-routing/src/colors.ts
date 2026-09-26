@@ -81,3 +81,39 @@ export function getColorKeyFromIdentity(colorIdentity: string[]): string {
   if (colorIdentity.length === 1) return colorIdentity[0];
   return 'M';
 }
+
+/**
+ * How a color pip selection combines: `'any'` (OR — a card matches if it shows
+ * any selected color; the historical default) or `'all'` (AND — the card's
+ * colors are exactly the selection, so U means mono-blue and R + W means Boros,
+ * not Naya).
+ */
+export type ColorMatchMode = 'any' | 'all';
+
+/**
+ * The single color-filter predicate behind every WUBRG+C pip row (collection,
+ * lists, deck add-cards, shared views, friend collections) and the binder
+ * `colorIdentity` rule, so Save as binder carries a color filter exactly. `key` is the
+ * card's grouping key (`getColorKey`): 'C' for colorless, a color letter for
+ * mono cards (covers printings whose `colorIdentity` is missing — resolved by
+ * basic-land name), 'M' for multicolor. Selecting 'C' means "colorless"; in
+ * 'all' mode combining it with a color is unsatisfiable and correctly matches
+ * nothing.
+ *
+ * 'all' is an *exact* match, not a superset one: a card carrying a color the
+ * user didn't pick is excluded, so a lone Blue pip lists mono-blue cards rather
+ * than every card that happens to contain blue.
+ */
+export function colorSelectionMatches(
+  key: string,
+  colorIdentity: readonly string[],
+  selected: ReadonlySet<string>,
+  mode: ColorMatchMode = 'any'
+): boolean {
+  if (selected.size === 0) return true;
+  const has = (c: string) => (c === 'C' ? key === 'C' : colorIdentity.includes(c) || key === c);
+  const picks = [...selected];
+  if (mode === 'any') return picks.some(has);
+  const cardColors = key === 'C' ? ['C'] : colorIdentity.length > 0 ? colorIdentity : [key];
+  return picks.every(has) && cardColors.every((c) => selected.has(c));
+}

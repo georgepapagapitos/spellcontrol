@@ -53,12 +53,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
     id: 'one-color',
     label: 'One color',
     description: 'Single-color cards',
-    filter: {
-      colors: {
-        chips: [{ value: 'W', negate: false }],
-        joiners: [],
-      },
-    },
+    filter: { colorIdentity: { colors: ['W'], mode: 'all' } },
   },
   // Oracle-tag (otag) starters — precise semantic concepts from Scryfall's
   // curated tags, far better than oracle-text substrings. Each pre-fills the

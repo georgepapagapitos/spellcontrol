@@ -1,5 +1,6 @@
 import type { BinderFilter, BinderFilterGroup, ChipExpression, ScryfallQueryRule } from '../types';
 import { currencySymbol } from './currency';
+import type { ColorMatchMode } from './colors';
 import { isExpressionEmpty } from './rules';
 
 /**
@@ -8,6 +9,8 @@ import { isExpressionEmpty } from './rules';
  */
 export interface CollectionFilterInput {
   colorFilter: Set<string>;
+  /** The pip row's AND/OR mode; absent reads as 'any', like `colorSelectionMatches`. */
+  colorMode?: ColorMatchMode;
   supertypeExpr: ChipExpression;
   typesExpr: ChipExpression;
   subtypeExpr: ChipExpression;
@@ -161,14 +164,12 @@ export function collectionFiltersToFilterGroup(input: CollectionFilterInput): {
   if (input.cmcMin !== undefined) filter.cmcMin = input.cmcMin;
   if (input.cmcMax !== undefined) filter.cmcMax = input.cmcMax;
 
-  // Color — best-effort: map each selected color key to an IS chip, OR-joined.
-  // Binders use exact color key (getColorKey); collection uses identity-any-of.
-  // Flag it so the editor note tells the user color matching differs.
+  // Color — exact: the binder's colorIdentity rule runs the collection's own
+  // predicate (colorSelectionMatches) with the same mode. It used to become
+  // IS chips over each card's single color bucket, so a W+U filter saved a
+  // binder that held no Azorius card at all.
   if (input.colorFilter.size > 0) {
-    const colorChips = [...input.colorFilter].map((k) => ({ value: k, negate: false }));
-    const colorJoiners = colorChips.slice(1).map((): 'OR' => 'OR');
-    filter.colors = { chips: colorChips, joiners: colorJoiners };
-    flagged.push('color');
+    filter.colorIdentity = { colors: [...input.colorFilter], mode: input.colorMode ?? 'any' };
   }
 
   // Condition — dropped (physical-copy only, no binder equivalent)

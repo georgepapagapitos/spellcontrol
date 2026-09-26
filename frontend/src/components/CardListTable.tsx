@@ -1516,6 +1516,7 @@ export function CardListTable({
   const handleSaveAsBinderClick = useCallback(() => {
     const filterInput = {
       colorFilter,
+      colorMode,
       supertypeExpr,
       typesExpr,
       subtypeExpr,
@@ -1543,6 +1544,7 @@ export function CardListTable({
     setEditingBinder('new', { name, groups: [group], flagged });
   }, [
     colorFilter,
+    colorMode,
     supertypeExpr,
     typesExpr,
     subtypeExpr,
