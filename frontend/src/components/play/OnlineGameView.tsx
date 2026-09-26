@@ -18,6 +18,7 @@ import { useHordeReplay } from '../../playtest/hooks/use-horde-replay';
 import { measureHordeRect } from '../../playtest/lib/horde-view';
 import type { Rect } from '../../playtest/lib/auto-place';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { coopResultLabel } from '../../lib/horde-records';
 import { GameRecap } from './GameRecap';
 import { PhaseChip } from './PhaseChip';
 import './OnlineGameView.css';
@@ -1048,11 +1049,16 @@ function FinishedPanel({
 }) {
   const isDraw = game.winnerSeat == null;
   const winner = isDraw ? undefined : game.players.find((p) => p.seat === game.winnerSeat);
+  // A co-op Horde game has no winning seat, so it read "No winner" won or
+  // lost (E446). Its line is the one Play history prints for it.
+  const coop = coopResultLabel(game);
 
   return (
     <div className="ogv-finished">
       <div className="ogv-finished-banner" role="status">
-        {winner ? (
+        {coop ? (
+          <span className="ogv-finished-name">{coop}</span>
+        ) : winner ? (
           <>
             <span className="ogv-finished-trophy" aria-hidden="true">
               🏆

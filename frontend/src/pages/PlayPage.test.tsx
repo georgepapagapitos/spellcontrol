@@ -8,6 +8,7 @@ import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
 import { HORDE_BAN_LIST } from '../lib/horde/ban-list';
 import type { GameRecord } from '../lib/game-state';
+import { createGameState, makePlayer } from '../lib/game-state';
 import { useHordeGameStore } from '../store/horde-game';
 
 // Signed in, the History tab reads the server record and the leaderboard;
@@ -1082,6 +1083,52 @@ describe('History — a co-op Horde game', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Rematch/ }));
     expect(rematch).toHaveBeenCalledWith(expect.objectContaining({ id: 'horde-1' }));
     expect(usePlayStore.getState().local).toBeNull();
+  });
+
+  // E446: the finished online table's Rematch rebuilt a plain 40-life
+  // counter out of a Horde game (seen live). It goes the same way now.
+  it('Rematch on a finished online Horde table starts a Horde fight too', () => {
+    useAuth.setState({
+      user: { id: 'u-watch', username: 'watcher', role: 'user' },
+      status: 'authed',
+    } as never);
+    const table = createGameState({
+      id: 'online-horde',
+      code: 'HRDE',
+      mode: 'online',
+      hostUserId: 'u-host',
+      format: 'horde',
+      startingLife: 40,
+      commanderDamageEnabled: false,
+      poisonEnabled: false,
+      players: ['u-host', 'u-maya'].map((userId, seat) =>
+        makePlayer({ id: userId, userId, seat, name: userId, startingLife: 40 })
+      ),
+    });
+    const online = {
+      ...table,
+      status: 'finished',
+      coopOutcome: 'won',
+      hordeId: 'zombies',
+    } as const;
+    usePlayStore.setState({
+      local: null,
+      online,
+      startPolling: vi.fn(),
+      stopPolling: vi.fn(),
+      refreshOnline: vi.fn(async () => online),
+    } as never);
+    const rematch = vi.fn(async () => {});
+    useHordeGameStore.setState({ config: null, rematch });
+    renderPage('/play/online');
+    expect(screen.getByText('Survivors beat the Zombies horde')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Rematch/ }));
+    expect(rematch).toHaveBeenCalledWith(
+      expect.objectContaining({ format: 'horde', hordeId: 'zombies' })
+    );
+    expect(usePlayStore.getState().local).toBeNull();
+    usePlayStore.setState({ online: null });
+    useAuth.setState({ user: null, status: 'guest', profile: null });
   });
 
   it('asks before a Horde rematch replaces a fight still in progress', () => {

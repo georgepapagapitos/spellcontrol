@@ -256,6 +256,28 @@ describe('Finished state', () => {
 
     expect(screen.getByText('Game over. No winner.')).toBeTruthy();
   });
+
+  // E446: a co-op Horde table has no winning seat, so every finished one
+  // read "No winner" to anyone viewing it here, a spectator included.
+  it('names a co-op Horde result instead of "No winner"', () => {
+    const players = [
+      makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+      makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
+    ];
+    const won: GameState = {
+      ...makeTestGame(players, { status: 'finished', winnerSeat: null }),
+      format: 'horde',
+      coopOutcome: 'won',
+      hordeId: 'zombies',
+    };
+    const { unmount } = render(<OnlineGameView game={won} />);
+    expect(screen.getByText('Survivors beat the Zombies horde')).toBeTruthy();
+    expect(screen.queryByText('Game over. No winner.')).toBeNull();
+    unmount();
+
+    render(<OnlineGameView game={{ ...won, coopOutcome: 'lost' }} />);
+    expect(screen.getByText('Overrun by the Zombies horde')).toBeTruthy();
+  });
 });
 
 describe('Undo (T100)', () => {

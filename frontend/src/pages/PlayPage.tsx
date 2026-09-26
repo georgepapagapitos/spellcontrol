@@ -52,6 +52,7 @@ import type { PickedDeck } from '../components/play/DeckPickerDialog';
 import { deckBoardPath, starterFileName } from '../lib/starter-decks';
 import { TableProfiles } from '../components/play/TableProfiles';
 import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '../lib/game-state';
+import { gameToRecord } from '../lib/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';
 
 import { userMessage } from '@/lib/user-error';
@@ -241,6 +242,23 @@ export function PlayPage() {
   // A Horde rematch from History while another Horde fight is still going:
   // starting it would discard that fight, so it asks first.
   const [pendingHordeRematch, setPendingHordeRematch] = useState<GameRecord | null>(null);
+  // One rematch for a finished game, from History and from a finished online
+  // table alike: a Horde game comes back as a Horde fight, not a plain life
+  // counter, and only an unfinished fight is worth asking about. The online
+  // table used to rebuild a 40-life counter out of a Horde game (E446).
+  const rematchRecord = (rec: GameRecord) => {
+    if (rec.format === 'horde') {
+      const horde = useHordeGameStore.getState();
+      if (horde.config && horde.phase !== 'ended') {
+        setPendingHordeRematch(rec);
+        return;
+      }
+      void horde.rematch(rec);
+    } else {
+      rematchLocal(recordToRematch(rec));
+    }
+    setTab('local');
+  };
   // Starting a new local game while one is active overwrites it; hold the setup
   // here and confirm first instead of silently discarding the in-progress game.
   const [pendingStart, setPendingStart] = useState<LocalGameSetup | null>(null);
@@ -430,10 +448,7 @@ export function PlayPage() {
                   errorMessage={onlineError}
                   onEnd={() => setPendingEnd('online')}
                   onLeave={() => void leaveOnline()}
-                  onRematch={() => {
-                    rematchLocal(gameToRematch(online));
-                    setTab('local');
-                  }}
+                  onRematch={() => rematchRecord(gameToRecord(online))}
                 />
               </>
             )
@@ -511,26 +526,7 @@ export function PlayPage() {
       )}
 
       {tab === 'history' && (
-        <HistoryTab
-          history={history}
-          userId={user?.id ?? null}
-          onRematch={(rec) => {
-            if (rec.format === 'horde') {
-              // A Horde record rematches as a Horde fight, not a plain life
-              // counter. Only an unfinished fight is worth asking about.
-              const horde = useHordeGameStore.getState();
-              if (horde.config && horde.phase !== 'ended') {
-                setPendingHordeRematch(rec);
-                return;
-              }
-              void horde.rematch(rec);
-              setTab('local');
-              return;
-            }
-            rematchLocal(recordToRematch(rec));
-            setTab('local');
-          }}
-        />
+        <HistoryTab history={history} userId={user?.id ?? null} onRematch={rematchRecord} />
       )}
 
       {pendingEnd && (
