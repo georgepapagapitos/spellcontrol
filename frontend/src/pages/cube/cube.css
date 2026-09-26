@@ -1662,13 +1662,23 @@
    .cube-row-name/.cube-row-reason verbatim (same primitives as the Cards tab
    and Build-my-version's swap rows) — only the leading checkbox label and the
    trailing price are new here. */
+/* Phone/tablet: summary alone on its own line, the selection link and the
+   want-list button together on the line below (STYLE_GUIDE control-row rule —
+   fit by width rather than letting two short controls wrap onto separate
+   lines). Desktop reunites them on one row once there's room. */
 .cube-shop-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-4) var(--space-3);
+}
+@media (min-width: 1024px) {
+  .cube-shop-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 .cube-shop-summary {
   font-size: var(--text-sm);
@@ -1677,8 +1687,13 @@
 .cube-shop-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
-  flex-wrap: wrap;
+}
+@media (min-width: 1024px) {
+  .cube-shop-actions {
+    justify-content: flex-end;
+  }
 }
 .cube-row-select {
   display: flex;
@@ -1688,6 +1703,18 @@
   min-width: 0;
   padding: var(--space-1) var(--space-2);
   cursor: pointer;
+}
+/* `.cube-row-body`/`.cube-row-name` carry no flex sizing of their own (their
+   other host, `.cube-row-interactive`, is a CSS grid, where flex properties
+   are inert) — scoped here so the name is what stretches and truncates,
+   never the price. */
+.cube-row-select .cube-row-body {
+  flex: 1;
+  min-width: 0;
+}
+.cube-row-select .cube-row-name {
+  flex: 1;
+  min-width: 0;
 }
 @media (hover: hover) and (pointer: fine) {
   .cube-row-select:hover {
@@ -1710,19 +1737,29 @@
   accent-color: var(--accent);
   cursor: pointer;
 }
+/* A fixed-width, right-aligned column — `.cube-row-select .cube-row-name`
+   above is what actually flexes and truncates, so the price sits at the same
+   x on every row regardless of the name's or the price's own length (holds at
+   both 390 and 1280). Tabular numerals keep a shorter price from visibly
+   drifting even though the family is already monospace. */
 .cube-row-price {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   color: var(--text-secondary);
   white-space: nowrap;
-  flex-shrink: 0;
-  /* Pushes to the far edge of `.cube-row-title` without touching the shared
-     `.cube-row-name`'s flex-basis (other surfaces reuse that class as-is). */
-  margin-left: auto;
+  flex: none;
+  min-width: 4.5em;
+  text-align: right;
 }
 .cube-row-price-unpriced {
   font-family: var(--font-serif);
   font-style: italic;
+  color: var(--text-muted);
+}
+/* Pricing still in flight — quiet, not a red flag; `No price yet` above is
+   reserved for a card the fetch actually resolved without a price. */
+.cube-row-price-pending {
   color: var(--text-muted);
 }
 .cube-shop-more {

@@ -17,11 +17,11 @@ import type { EnrichedCard } from '../../types';
 import type { CubeCard } from '../../lib/cube/core';
 import type { SavedCube } from '../../store/cube';
 import { buildShoppingList, type ShoppingRow } from '../../lib/cube/shopping-list';
-import { loadCubeSignal, rankedCubeSignalNames } from '../../lib/cube/signal';
+import { hasCubeSignal, loadCubeSignal, rankedCubeSignalNames } from '../../lib/cube/signal';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { namesToCubePool } from '../../lib/cube/pool';
 import { formatExclusion } from '../../lib/cube/play-format';
-import { ensureCardTags, getCardTags } from '@/lib/card-tags';
+import { ensureCardTags, getCardTags, isCardTagsFailed } from '@/lib/card-tags';
 
 /** How many popular-by-cube-signal names to fetch oracle facts for — a bound
  *  generous enough that ownership/format filtering still leaves a real list,
@@ -39,7 +39,9 @@ interface Props {
 
 type Status = 'loading' | 'error' | 'ready';
 
-/** One ranked row plus its resolved market price (`null` = not priced yet). */
+/** One ranked row plus its resolved market price (`null` = not priced yet,
+ *  either because pricing is still in flight or because it genuinely has
+ *  none — `pricesReady` (component state) tells the two apart). */
 interface PricedRow {
   row: ShoppingRow;
   price: number | null;
@@ -64,6 +66,7 @@ export function CubeShoppingList({ target, loadPool }: Props) {
   const [error, setError] = useState('');
   const [rows, setRows] = useState<ShoppingRow[]>([]);
   const [priceByName, setPriceByName] = useState<Map<string, ScryfallCard>>(new Map());
+  const [pricesReady, setPricesReady] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [listOpen, setListOpen] = useState(false);
@@ -75,6 +78,7 @@ export function CubeShoppingList({ target, loadPool }: Props) {
     async function run() {
       setStatus('loading');
       setError('');
+      setPricesReady(false);
       try {
         // The candidate walk below reads `getCardTags`/`rankedCubeSignalNames`
         // SYNCHRONOUSLY — both are empty until their snapshot has loaded, so
@@ -87,6 +91,14 @@ export function CubeShoppingList({ target, loadPool }: Props) {
         const [builtPool] = await Promise.all([loadPool(), ensureCardTags(), loadCubeSignal()]);
         if (cancelled) return;
         if (!builtPool) throw new Error("Couldn't load your collection's cards. Try again.");
+        // Both loaders swallow their own network errors (they degrade to "no
+        // signal" rather than reject — see signal.ts / card-tags.ts) so a
+        // failed fetch never throws on its own. Left unchecked, that reads as
+        // "nothing beats the cube" (the empty state) rather than the failure
+        // it is — this is what let a blocked cube-signal request land there.
+        if (!hasCubeSignal() || isCardTagsFailed()) {
+          throw new Error("Couldn't load card popularity. Try again.");
+        }
 
         const format = target.cube.format ?? 'limited';
         const ownedNames = new Set(collectionCards.map((c) => c.name));
@@ -113,13 +125,19 @@ export function CubeShoppingList({ target, loadPool }: Props) {
         });
         if (cancelled) return;
         setRows(built);
-        setSelected(new Set(built.map((r) => r.card.oracleId)));
+        // Only the rows a first paint actually shows start ticked; "Show
+        // more" ticks the next page as it reveals them (handleShowMore) — a
+        // row never in view is never silently included in the want-list send.
+        setSelected(new Set(built.slice(0, PAGE_SIZE).map((r) => r.card.oracleId)));
         setVisible(PAGE_SIZE);
         setStatus('ready');
 
         const priceNames = [...new Set(built.map((r) => r.card.name))];
-        const priced = priceNames.length > 0 ? await getCardsByNames(priceNames) : new Map();
-        if (!cancelled) setPriceByName(priced);
+        const pricedMap = priceNames.length > 0 ? await getCardsByNames(priceNames) : new Map();
+        if (!cancelled) {
+          setPriceByName(pricedMap);
+          setPricesReady(true);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(userMessage(e, "Couldn't load the shopping list. Try again."));
@@ -147,14 +165,28 @@ export function CubeShoppingList({ target, loadPool }: Props) {
       }),
     [rows, priceByName, currency]
   );
-  const total = useMemo(() => priced.reduce((sum, p) => sum + (p.price ?? 0), 0), [priced]);
-  const unpricedCount = useMemo(() => priced.filter((p) => p.price == null).length, [priced]);
   const visibleRows = priced.slice(0, visible);
-  const allSelected = rows.length > 0 && selected.size === rows.length;
+  const visibleIds = useMemo(() => visibleRows.map((p) => p.row.card.oracleId), [visibleRows]);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+
+  // The header and the want-list button both describe the SELECTION, not the
+  // whole ranked list — a hidden row is never counted toward either.
+  const selectedPriced = useMemo(
+    () => priced.filter((p) => selected.has(p.row.card.oracleId)),
+    [priced, selected]
+  );
+  const selectedTotal = useMemo(
+    () => selectedPriced.reduce((sum, p) => sum + (p.price ?? 0), 0),
+    [selectedPriced]
+  );
+  const selectedUnpricedCount = useMemo(
+    () => selectedPriced.filter((p) => p.price == null).length,
+    [selectedPriced]
+  );
 
   const handleRetry = useCallback(() => setRetryToken((t) => t + 1), []);
   const handleToggleAll = () => {
-    setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.card.oracleId)));
+    setSelected(allVisibleSelected ? new Set() : new Set(visibleIds));
   };
   const handleToggleRow = (oracleId: string) => {
     setSelected((prev) => {
@@ -163,6 +195,16 @@ export function CubeShoppingList({ target, loadPool }: Props) {
       else next.add(oracleId);
       return next;
     });
+  };
+  const handleShowMore = () => {
+    const newVisible = Math.min(visible + PAGE_SIZE, priced.length);
+    const newlyRevealed = priced.slice(visible, newVisible).map((p) => p.row.card.oracleId);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of newlyRevealed) next.add(id);
+      return next;
+    });
+    setVisible(newVisible);
   };
 
   const wantLists = useMemo(
@@ -174,10 +216,10 @@ export function CubeShoppingList({ target, loadPool }: Props) {
       setSending(true);
       try {
         const listId = 'listId' in dest ? dest.listId : createList(dest.newName);
-        const selectedRows = rows.filter((r) => selected.has(r.card.oracleId));
+        const chosenRows = rows.filter((r) => selected.has(r.card.oracleId));
         const cards: { card: EnrichedCard; quantity: number }[] = [];
         let unresolved = 0;
-        for (const r of selectedRows) {
+        for (const r of chosenRows) {
           const sc = priceByName.get(r.card.name);
           if (!sc) {
             unresolved += 1;
@@ -238,24 +280,31 @@ export function CubeShoppingList({ target, loadPool }: Props) {
     <div className="cube-shop">
       <div className="cube-shop-toolbar">
         <span className="cube-shop-summary">
-          <b>{rows.length}</b> {rows.length === 1 ? 'card' : 'cards'} to consider ·{' '}
-          <b>{formatMoney(total, { currency })}</b> total
-          {unpricedCount > 0 && ` · ${unpricedCount} without a price yet`}
+          <b>{selected.size}</b> of {rows.length} selected
+          {pricesReady ? (
+            <>
+              {' '}
+              · <b>{formatMoney(selectedTotal, { currency })}</b> total
+              {selectedUnpricedCount > 0 && ` · ${selectedUnpricedCount} without a price yet`}
+            </>
+          ) : (
+            ' · Pricing…'
+          )}
         </span>
         <div className="cube-shop-actions">
           <Button variant="link" onClick={handleToggleAll}>
-            {allSelected ? 'Clear selection' : 'Select all'}
+            {allVisibleSelected ? 'Clear selection' : 'Select all'}
           </Button>
           <Button
             variant="primary"
             disabled={selected.size === 0 || sending}
             onClick={() => setListOpen(true)}
           >
-            Add selected ({selected.size}) to a want list
+            Add {selected.size} to a want list
           </Button>
         </div>
       </div>
-      <ul className="cube-rows">
+      <ul className="cube-rows" aria-busy={!pricesReady}>
         {visibleRows.map(({ row, price }) => {
           const sc = priceByName.get(row.card.name);
           const img = sc?.image_uris?.small ?? sc?.card_faces?.[0]?.image_uris?.small;
@@ -278,11 +327,15 @@ export function CubeShoppingList({ target, loadPool }: Props) {
                 <span className="cube-row-body">
                   <span className="cube-row-title">
                     <span className="cube-row-name">{row.card.name}</span>
-                    <span
-                      className={`cube-row-price${price == null ? ' cube-row-price-unpriced' : ''}`}
-                    >
-                      {price == null ? 'No price yet' : formatMoney(price, { currency })}
-                    </span>
+                    {!pricesReady ? (
+                      <span className="cube-row-price cube-row-price-pending" aria-hidden="true">
+                        …
+                      </span>
+                    ) : price == null ? (
+                      <span className="cube-row-price cube-row-price-unpriced">No price yet</span>
+                    ) : (
+                      <span className="cube-row-price">{formatMoney(price, { currency })}</span>
+                    )}
                   </span>
                   <span className="cube-row-reason">
                     Replaces <b>{row.replaces.card.name}</b>
@@ -295,9 +348,7 @@ export function CubeShoppingList({ target, loadPool }: Props) {
       </ul>
       {visible < priced.length && (
         <div className="cube-shop-more">
-          <Button onClick={() => setVisible((v) => v + PAGE_SIZE)}>
-            Show more ({priced.length - visible} left)
-          </Button>
+          <Button onClick={handleShowMore}>Show more ({priced.length - visible} left)</Button>
         </div>
       )}
       {listOpen && (
