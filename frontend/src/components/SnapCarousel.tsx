@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+import { IconButton } from '@/components/shared/Button';
 
 export interface SnapCarouselHandle {
   /** Scroll slide `index` to the center of the track. */
@@ -246,30 +247,26 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
         // Same grid cell as the track (see CSS), so the arrows center on the
         // slide area and ride with it as the panel below grows.
         <div className="carousel-nav-layer">
-          <button
-            type="button"
+          <IconButton
             className="carousel-nav carousel-nav-prev"
             onClick={(e) => {
               e.stopPropagation();
               scrollTo(index - 1);
             }}
             disabled={index <= 0}
-            aria-label={prevLabel}
-          >
-            <ChevronLeft width={20} height={20} strokeWidth={2.4} aria-hidden />
-          </button>
-          <button
-            type="button"
+            label={prevLabel}
+            icon={<ChevronLeft width={20} height={20} strokeWidth={2.4} />}
+          />
+          <IconButton
             className="carousel-nav carousel-nav-next"
             onClick={(e) => {
               e.stopPropagation();
               scrollTo(index + 1);
             }}
             disabled={index >= count - 1}
-            aria-label={nextLabel}
-          >
-            <ChevronRight width={20} height={20} strokeWidth={2.4} aria-hidden />
-          </button>
+            label={nextLabel}
+            icon={<ChevronRight width={20} height={20} strokeWidth={2.4} />}
+          />
         </div>
       )}
     </>

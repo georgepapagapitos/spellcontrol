@@ -6,7 +6,7 @@ import { unpublishDeck } from '../../lib/publications-client';
 import { notifyDeckVisibilityChanged } from '../../lib/use-deck-visibility';
 import { userMessage } from '@/lib/user-error';
 import './DeckPublishNudge.css';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {
   deckId: string;
@@ -72,14 +72,12 @@ export function DeckPublishNudge({ deckId }: Props) {
         <Button onClick={() => void onMakePrivate()} disabled={busy} aria-busy={busy || undefined}>
           {busy ? 'Making private…' : 'Make private'}
         </Button>
-        <button
-          type="button"
+        <IconButton
           className="deck-publish-nudge-dismiss"
-          aria-label="Dismiss"
           onClick={() => setDismissed(true)}
-        >
-          <X width={16} height={16} strokeWidth={2} aria-hidden />
-        </button>
+          label="Dismiss"
+          icon={<X width={16} height={16} strokeWidth={2} />}
+        />
       </div>
     </div>
   );

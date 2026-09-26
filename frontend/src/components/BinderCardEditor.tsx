@@ -27,7 +27,7 @@ import { Tabs } from './Tabs';
 import type { BinderDef, EnrichedCard, MaterializedBinder } from '../types';
 import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {
   binder: MaterializedBinder;
@@ -473,14 +473,13 @@ function SortableCardRow({ card }: { card: EnrichedCard }) {
       style={style}
       className={`binder-card-editor-row${isDragging ? ' dragging' : ''}`}
     >
-      <button
+      <IconButton
         className="binder-card-editor-drag"
-        aria-label="Drag to reorder"
+        label="Drag to reorder"
+        icon={<GripVertical width={14} height={14} strokeWidth={1.6} />}
         {...attributes}
         {...listeners}
-      >
-        <GripVertical width={14} height={14} strokeWidth={1.6} aria-hidden />
-      </button>
+      />
       <span className={`binder-card-editor-status-dot rarity-${card.rarity}`} aria-hidden />
       <span className="binder-card-editor-name">
         <CardName card={card} />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Pencil, Trash2, X } from 'lucide-react';
 import './DeckTagManager.css';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /**
  * "See all tags" + rename/remove, for the deck-wide tag list (E171). Lives
@@ -56,51 +56,43 @@ export function DeckTagManager({
                     if (e.key === 'Escape') setEditing(null);
                   }}
                 />
-                <button
-                  type="button"
+                <IconButton
                   className="deck-tag-manager-icon-btn"
-                  aria-label={`Save new name for "${tag}"`}
                   onClick={() => commitRename(tag)}
-                >
-                  <Check width={14} height={14} strokeWidth={2.4} aria-hidden />
-                </button>
-                <button
-                  type="button"
+                  label={`Save new name for "${tag}"`}
+                  icon={<Check width={14} height={14} strokeWidth={2.4} />}
+                />
+                <IconButton
                   className="deck-tag-manager-icon-btn"
-                  aria-label="Cancel rename"
                   onClick={() => setEditing(null)}
-                >
-                  <X width={14} height={14} strokeWidth={2.4} aria-hidden />
-                </button>
+                  label="Cancel rename"
+                  icon={<X width={14} height={14} strokeWidth={2.4} />}
+                />
               </>
             ) : (
               <>
                 <span className="deck-tag-manager-name">{tag}</span>
                 <span className="deck-tag-manager-count">{count}</span>
                 {onRename && (
-                  <button
-                    type="button"
+                  <IconButton
                     className="deck-tag-manager-icon-btn"
-                    aria-label={`Rename "${tag}"`}
                     title="Rename"
                     onClick={() => {
                       setDraft(tag);
                       setEditing(tag);
                     }}
-                  >
-                    <Pencil width={13} height={13} strokeWidth={2.2} aria-hidden />
-                  </button>
+                    label={`Rename "${tag}"`}
+                    icon={<Pencil width={13} height={13} strokeWidth={2.2} />}
+                  />
                 )}
                 {onRemove && (
-                  <button
-                    type="button"
+                  <IconButton
                     className="deck-tag-manager-icon-btn deck-tag-manager-remove"
-                    aria-label={`Remove "${tag}" from every card`}
                     title="Remove from every card"
                     onClick={() => onRemove(tag)}
-                  >
-                    <Trash2 width={13} height={13} strokeWidth={2.2} aria-hidden />
-                  </button>
+                    label={`Remove "${tag}" from every card`}
+                    icon={<Trash2 width={13} height={13} strokeWidth={2.2} />}
+                  />
                 )}
               </>
             )}

@@ -9,6 +9,7 @@ import { OWNERSHIP_BADGE, type ChangeOwnership } from '@/lib/deck-change';
 import { TYPE_GROUP_PLURAL, type TypeGroup } from '@/lib/build-mana-data';
 import { ManaCost } from '../ManaCost';
 import './NewArrivalsSheet.css';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   /** Category the rows came from. Omit when the sheet shows every category at once. */
@@ -114,15 +115,13 @@ export function NewArrivalsSheet({
                 updated the deck.
               </p>
             </div>
-            <button
-              ref={closeBtnRef}
-              type="button"
+            <IconButton
               className="new-arrivals-sheet-close"
-              aria-label="Close new arrivals"
+              ref={closeBtnRef}
               onClick={() => beginClose()}
-            >
-              <X width={18} height={18} strokeWidth={2} aria-hidden />
-            </button>
+              label="Close new arrivals"
+              icon={<X width={18} height={18} strokeWidth={2} />}
+            />
           </div>
         </div>
         <ul className="new-arrivals-sheet-body">

@@ -11,6 +11,7 @@ import { useBrewStore } from '@/deck-builder/store/brew';
 import { flattenAccepted } from '@/deck-builder/services/deckBuilder/brewSlots';
 import { COLOR_INFO } from '@/lib/colors';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { IconButton } from '@/components/shared/Button';
 
 const CURVE_BUCKETS = [0, 1, 2, 3, 4, 5, 6, 7];
 const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G', 'C'] as const;
@@ -119,14 +120,12 @@ function RunningDeckBody({ commander }: BrewRunningDeckProps): JSX.Element {
                     <span className="brew-running-item-slot">{slot.label}</span>
                     <span className="brew-running-item-name">{c.name}</span>
                   </span>
-                  <button
-                    type="button"
+                  <IconButton
                     className="brew-running-item-remove"
                     onClick={() => reconsider(slot.key, c.name)}
-                    aria-label={`Remove ${c.name} and reconsider`}
-                  >
-                    <X width={12} height={12} aria-hidden />
-                  </button>
+                    label={`Remove ${c.name} and reconsider`}
+                    icon={<X width={12} height={12} />}
+                  />
                 </li>
               ))
             )}
@@ -159,14 +158,12 @@ function RunningDeckSheet({
       >
         <div className="brew-running-sheet-header">
           <h2>Deck so far</h2>
-          <button
-            type="button"
+          <IconButton
             className="brew-running-sheet-close"
             onClick={() => beginClose()}
-            aria-label="Close"
-          >
-            <X width={16} height={16} aria-hidden />
-          </button>
+            label="Close"
+            icon={<X width={16} height={16} />}
+          />
         </div>
         <div className="brew-running-sheet-body">
           <RunningDeckBody commander={commander} />

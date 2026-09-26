@@ -5,6 +5,7 @@ import type { GamePhase } from '@/lib/game-state';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { BEAT_LABEL, firesAt, type TriggerHit } from '../lib/triggers';
 import './TriggerReminder.css';
+import { IconButton } from '@/components/shared/Button';
 
 /** The five beats in turn order, for the no-clock list. */
 const TURN_ORDER: readonly GamePhase[] = ['beginning', 'main1', 'combat', 'main2', 'end'];
@@ -88,14 +89,12 @@ export function TriggerReminder({ cards, beat, turn, myTurn, onLocate }: Props) 
     <div className="trigger-reminder" role="status">
       <div className="trigger-reminder__head">
         <span className="trigger-reminder__title">Triggers</span>
-        <button
-          type="button"
+        <IconButton
           className="trigger-reminder__close"
-          aria-label="Dismiss triggers"
           onClick={() => setOpenKey(null)}
-        >
-          <X size={14} aria-hidden="true" />
-        </button>
+          label="Dismiss triggers"
+          icon={<X size={14} />}
+        />
       </div>
       {groups.map((g) => (
         <div key={g.beat} className="trigger-reminder__group">

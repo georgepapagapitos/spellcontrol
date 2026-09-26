@@ -38,7 +38,7 @@ import type {
 } from '../types';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
@@ -133,18 +133,16 @@ function ColorDot({
   const { open, toggle, triggerRef, panelRef, panelStyle } = useAnchoredPanel({ align: 'left' });
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
+      <IconButton
         className="binder-color-dot"
+        ref={triggerRef}
         style={{ '--dot-color': value } as CSSProperties}
-        aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={toggle}
-      >
-        <ChevronDown width={10} height={10} strokeWidth={2.5} aria-hidden />
-      </button>
+        label={label}
+        icon={<ChevronDown width={10} height={10} strokeWidth={2.5} />}
+      />
       {open &&
         panelStyle &&
         createPortal(
@@ -917,15 +915,13 @@ export function BinderEditor() {
           ) : (
             <>
               {isNew && (
-                <button
-                  type="button"
+                <IconButton
                   className="binder-editor-back"
                   onClick={() => setStep('start')}
                   disabled={saving}
-                  aria-label="Back to ways to start"
-                >
-                  <ChevronLeft width={18} height={18} strokeWidth={2} aria-hidden />
-                </button>
+                  label="Back to ways to start"
+                  icon={<ChevronLeft width={18} height={18} strokeWidth={2} />}
+                />
               )}
               {isImportBatch ? (
                 <h2 id="binder-editor-title">

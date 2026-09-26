@@ -31,6 +31,7 @@ import {
 } from './deck-display-rows';
 import { SectionIcon, FoilShimmer } from './deck-display-icons';
 import { PartnerHeaderButton, LegalityBadge, RoleBadge } from './deck-display-icons';
+import { IconButton } from '@/components/shared/Button';
 
 /** Section chrome around one card (0.85rem of padding a side) and the gap
  *  between columns, in px at a 16px root — the two numbers the CSS spends on
@@ -263,22 +264,21 @@ export function DeckCardGrid({
         {!hideHeaders && (
           <header className="deck-section-header">
             {onToggleSection && !stacks && (
-              <button
-                type="button"
+              <IconButton
                 className="deck-section-collapse"
                 aria-expanded={!collapsed}
                 aria-controls={listId}
-                aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${g.title}`}
                 onClick={() => onToggleSection(g.title)}
-              >
-                <ChevronDown
-                  width={14}
-                  height={14}
-                  strokeWidth={2}
-                  className="deck-section-collapse-icon"
-                  aria-hidden
-                />
-              </button>
+                label={`${collapsed ? 'Expand' : 'Collapse'} ${g.title}`}
+                icon={
+                  <ChevronDown
+                    width={14}
+                    height={14}
+                    strokeWidth={2}
+                    className="deck-section-collapse-icon"
+                  />
+                }
+              />
             )}
             {/* Stacks drop the type glyph: the column is already a wall of
                   card art, and a header that has to sit above it stays
@@ -438,18 +438,16 @@ export function DeckCardGrid({
                   })()}
                 </button>
                 {onRowMenu && (
-                  <button
-                    type="button"
+                  <IconButton
                     className="deck-card-grid-menu"
                     aria-haspopup="menu"
-                    aria-label={`Actions for ${row.name}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onRowMenu(row, e.currentTarget.getBoundingClientRect());
                     }}
-                  >
-                    <MoreVertical width={14} height={14} strokeWidth={2} aria-hidden />
-                  </button>
+                    label={`Actions for ${row.name}`}
+                    icon={<MoreVertical width={14} height={14} strokeWidth={2} />}
+                  />
                 )}
                 {(row.isPartner ||
                   role ||

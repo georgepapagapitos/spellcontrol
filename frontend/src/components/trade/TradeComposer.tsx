@@ -38,7 +38,7 @@ import type { FriendCard } from '../../lib/cube/pool';
 import type { FriendWant } from '../../lib/friends-client';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 /** How many picker results render before the list asks you to narrow down.
  *  A real collection is ~11.5k unique cards; the search filters the full set
  *  regardless of this cap (same contract as the friend Collection browser). */
@@ -978,37 +978,31 @@ function PickedRow({
           )
         ) : (
           <span className="trade-stepper">
-            <button
-              type="button"
+            <IconButton
               className="trade-stepper-btn"
               onClick={() => onBump?.(row.key, -1, row.max)}
-              aria-label={`One fewer ${row.name}`}
-            >
-              <Minus width={14} height={14} aria-hidden />
-            </button>
+              label={`One fewer ${row.name}`}
+              icon={<Minus width={14} height={14} />}
+            />
             <span className="trade-stepper-value" aria-live="polite">
               {row.quantity ?? 0}
             </span>
-            <button
-              type="button"
+            <IconButton
               className="trade-stepper-btn"
               onClick={() => onBump?.(row.key, 1, row.max)}
               disabled={(row.quantity ?? 0) >= row.max}
-              aria-label={`One more ${row.name}`}
-            >
-              <Plus width={14} height={14} aria-hidden />
-            </button>
+              label={`One more ${row.name}`}
+              icon={<Plus width={14} height={14} />}
+            />
           </span>
         )}
 
-        <button
-          type="button"
+        <IconButton
           className="trade-picked-remove"
           onClick={() => onRemove(row.key)}
-          aria-label={`Remove ${row.name} from the trade`}
-        >
-          <X width={14} height={14} aria-hidden />
-        </button>
+          label={`Remove ${row.name} from the trade`}
+          icon={<X width={14} height={14} />}
+        />
       </div>
 
       {canChoose && open && (

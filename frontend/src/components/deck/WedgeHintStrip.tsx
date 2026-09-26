@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { useEscapeKey } from '../../lib/use-escape-key';
 import './WedgeHintStrip.css';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   icon: ReactNode;
@@ -52,14 +53,12 @@ export function WedgeHintStrip({
           {actionLabel}
         </button>
       )}
-      <button
-        type="button"
+      <IconButton
         className="wedge-hint-strip-dismiss"
         onClick={onDismiss}
-        aria-label="Dismiss hint"
-      >
-        <X width={14} height={14} aria-hidden />
-      </button>
+        label="Dismiss hint"
+        icon={<X width={14} height={14} />}
+      />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { formatMoney } from '../../lib/format-money';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import type { CardTally } from './useCardCarousel';
 import './BuyListDialog.css';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /** One `<qty> <name>` line per unique missing card — the vendor-neutral
  *  buy-list text (paste into Cardsphere, Card Kingdom, an LGS order, …). */
@@ -79,9 +79,12 @@ export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: P
         <h2 id="buy-list-title" className="buy-list-title">
           Buy list
         </h2>
-        <button type="button" className="buy-list-close" aria-label="Close" onClick={onClose}>
-          <X width={18} height={18} strokeWidth={2} aria-hidden />
-        </button>
+        <IconButton
+          className="buy-list-close"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={18} height={18} strokeWidth={2} />}
+        />
       </div>
       <p className="buy-list-meta">
         {count} {count === 1 ? 'card' : 'cards'} missing · {formatMoney(total, { currency })}

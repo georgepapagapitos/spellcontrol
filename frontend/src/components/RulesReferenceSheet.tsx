@@ -12,6 +12,7 @@ import {
 } from './RulesReference';
 import { useRulesReferenceStore } from '../store/rules-reference';
 import './RulesReferenceSheet.css';
+import { IconButton } from '@/components/shared/Button';
 
 /**
  * The quick-look overlay of the Comprehensive Rules reference: the same
@@ -71,9 +72,12 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
       >
         <div className="modal-header rules-ref-header">
           <h2 id={labelId}>Rules reference</h2>
-          <button className="modal-close" onClick={() => beginClose()} aria-label="Close">
-            <X width={20} height={20} strokeWidth={1.8} aria-hidden />
-          </button>
+          <IconButton
+            className="modal-close"
+            onClick={() => beginClose()}
+            label="Close"
+            icon={<X width={20} height={20} strokeWidth={1.8} />}
+          />
         </div>
 
         <RulesReference

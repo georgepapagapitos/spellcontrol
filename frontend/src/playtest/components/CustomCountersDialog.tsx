@@ -9,7 +9,7 @@ import {
   sortCounters,
 } from '../lib/counter-kinds';
 import './CustomCountersDialog.css';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {
   cardName: string;
@@ -131,18 +131,15 @@ export function CustomCountersDialog({ cardName, counters, onApply, onClose }: P
                 }
               }}
             />
-            <button
-              type="button"
+            <IconButton
               className="counters-dialog__icon-btn"
-              aria-label={listOpen ? 'Hide the list' : 'Show every printed counter'}
               aria-controls={listId}
               aria-expanded={listOpen}
-              // Keep focus in the field, so the list it opens stays open.
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setListOpen((o) => !o)}
-            >
-              <ChevronDown width={18} height={18} aria-hidden />
-            </button>
+              label={listOpen ? 'Hide the list' : 'Show every printed counter'}
+              icon={<ChevronDown width={18} height={18} />}
+            />
           </div>
           {listOpen && (
             <ul
@@ -198,15 +195,13 @@ export function CustomCountersDialog({ cardName, counters, onApply, onClose }: P
               }
             }}
           />
-          <button
-            type="button"
+          <IconButton
             className="counters-dialog__icon-btn counters-dialog__add"
-            aria-label="Add this counter"
             disabled={!name.trim()}
             onClick={addNamed}
-          >
-            <Plus width={18} height={18} aria-hidden />
-          </button>
+            label="Add this counter"
+            icon={<Plus width={18} height={18} />}
+          />
         </div>
 
         <h3 className="counters-dialog__label">On this card</h3>
@@ -239,14 +234,12 @@ export function CustomCountersDialog({ cardName, counters, onApply, onClose }: P
                       setDraft((d) => d.map(([k, c]) => [k, k === kind ? v : c]));
                     }}
                   />
-                  <button
-                    type="button"
+                  <IconButton
                     className="counters-dialog__icon-btn"
-                    aria-label={`Remove ${label}`}
                     onClick={() => setDraft((d) => d.filter(([k]) => k !== kind))}
-                  >
-                    <Trash2 width={16} height={16} aria-hidden />
-                  </button>
+                    label={`Remove ${label}`}
+                    icon={<Trash2 width={16} height={16} />}
+                  />
                 </li>
               );
             })}

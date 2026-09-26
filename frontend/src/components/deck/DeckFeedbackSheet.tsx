@@ -23,7 +23,7 @@ import { useDecksStore, type Deck } from '../../store/decks';
 import { toast } from '../../store/toasts';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -258,14 +258,12 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                   <span className="deck-feedback-time">
                     {formatRelativeTime(response.createdAt)}
                   </span>
-                  <button
-                    type="button"
+                  <IconButton
                     className="deck-feedback-dismiss"
-                    aria-label={`Delete response from ${response.authorName}`}
                     onClick={() => handleDelete(response)}
-                  >
-                    <X width={14} height={14} strokeWidth={2} aria-hidden />
-                  </button>
+                    label={`Delete response from ${response.authorName}`}
+                    icon={<X width={14} height={14} strokeWidth={2} />}
+                  />
                 </header>
                 {response.comment && <p className="deck-feedback-comment">{response.comment}</p>}
                 {response.suggestions.length > 0 && (

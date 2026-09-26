@@ -9,6 +9,7 @@ import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { classifyFoil } from '../lib/foil-style';
+import { IconButton } from '@/components/shared/Button';
 
 export interface InnerCardScope {
   cards: EnrichedCard[];
@@ -199,17 +200,15 @@ export function BinderPagePreview({
           onAnimationEnd={onAnimationEnd}
           {...touchHandlers}
         >
-          <button
-            type="button"
+          <IconButton
             className="card-preview-close"
             onClick={(e) => {
               e.stopPropagation();
               beginClose();
             }}
-            aria-label="Close pages"
-          >
-            <X width={20} height={20} strokeWidth={2} aria-hidden />
-          </button>
+            label="Close pages"
+            icon={<X width={20} height={20} strokeWidth={2} />}
+          />
           <div className="binder-pages-stage">
             <div className="binder-pages-topbar">
               <span className="binder-pages-pos">{where}</span>

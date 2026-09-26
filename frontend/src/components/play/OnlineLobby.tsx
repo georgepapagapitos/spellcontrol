@@ -33,7 +33,7 @@ import {
 import { findBannedCards, type HordeBanWarning } from '@/lib/horde/ban-list';
 import { useStarterDeckCardNames } from '@/lib/horde/starter-deck-cards';
 import './OnlineLobby.css';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /** Same cap as the create/join paths and the local setup's seat names. */
 const MAX_GUEST_NAME = 40;
@@ -661,14 +661,12 @@ function SeatCard({
       style={art ? { backgroundImage: `url(${art})` } : undefined}
     >
       {manage && (
-        <button
-          type="button"
+        <IconButton
           className="lobby-seat-remove"
-          aria-label={`Remove ${player.name}`}
           onClick={() => manage.dispatch({ type: 'remove-player', seat: player.seat })}
-        >
-          <X width={16} height={16} strokeWidth={2} aria-hidden />
-        </button>
+          label={`Remove ${player.name}`}
+          icon={<X width={16} height={16} strokeWidth={2} />}
+        />
       )}
       <div className="lobby-seat-body">
         <p className="lobby-seat-name">

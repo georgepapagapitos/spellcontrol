@@ -1,5 +1,6 @@
 import { Notebook } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { IconButton } from '@/components/shared/Button';
 
 export interface BinderInfo {
   id: string;
@@ -65,8 +66,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
     const b = unique[0];
     const color = b.color || 'var(--accent)';
     return (
-      <button
-        type="button"
+      <IconButton
         className="card-list-binder-badge"
         style={
           {
@@ -74,16 +74,14 @@ export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
             color,
           } as React.CSSProperties
         }
-        title={label}
-        aria-label={label}
         onClick={(e) => {
           e.stopPropagation();
           if (onSelect) onSelect(b);
           else navigate(`/collection/binders/${b.id}`);
         }}
-      >
-        <Notebook width={11} height={11} strokeWidth={2} aria-hidden />
-      </button>
+        label={label}
+        icon={<Notebook width={11} height={11} strokeWidth={2} />}
+      />
     );
   }
 

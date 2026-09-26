@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import './GuestActionPopover.css';
 import { useMenuKeyboard } from '../lib/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {
   open: boolean;
@@ -95,14 +95,12 @@ export function GuestActionPopover({ open, onClose, anchorRef, message }: Props)
         >
           Sign in
         </Button>
-        <button
-          type="button"
+        <IconButton
           className="guest-action-popover-close"
-          aria-label="Dismiss"
           onClick={onClose}
-        >
-          <X width={14} height={14} strokeWidth={2} aria-hidden />
-        </button>
+          label="Dismiss"
+          icon={<X width={14} height={14} strokeWidth={2} />}
+        />
       </div>
     </div>,
     document.body

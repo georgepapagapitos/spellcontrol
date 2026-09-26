@@ -4,6 +4,7 @@ import type { ListEntry } from '../types';
 import { parseTargetPrice } from '../lib/lists';
 import { formatMoney } from '../lib/format-money';
 import { currencySymbol, getCurrency } from '../lib/currency';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   entry: ListEntry;
@@ -106,16 +107,8 @@ export function ListEntryTargetPrice({ entry, onSave }: Props) {
           }}
         />
         {entry.targetPrice !== undefined && (
-          <button
-            type="button"
+          <IconButton
             className="list-target-price-clear"
-            aria-label={`Clear target price for ${entry.name}`}
-            // Pointer: mousedown fires before the input's blur-commit, so
-            // clearing doesn't race a blur-triggered re-parse of the draft.
-            // Keyboard: Enter/Space emit only `click`, never `mousedown` — so
-            // click is wired too or the button is unreachable without a mouse.
-            // `clearTarget` is idempotent per edit session, so the pointer
-            // path can't double-fire onSave.
             onMouseDown={(e) => {
               e.preventDefault();
               clearTarget();
@@ -124,9 +117,9 @@ export function ListEntryTargetPrice({ entry, onSave }: Props) {
               e.stopPropagation();
               clearTarget();
             }}
-          >
-            <X width={13} height={13} strokeWidth={2.5} aria-hidden />
-          </button>
+            label={`Clear target price for ${entry.name}`}
+            icon={<X width={13} height={13} strokeWidth={2.5} />}
+          />
         )}
       </div>
     );

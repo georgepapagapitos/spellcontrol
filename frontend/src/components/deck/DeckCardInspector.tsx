@@ -8,7 +8,7 @@ import { ROLE_TITLES } from '../../lib/role-badges';
 import type { CurrencyCode, Row } from './deck-display-rows';
 import { allocationSummary, cardAllRoles, frontFaceMana } from './deck-display-rows';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 export interface DeckCardInspectorCard {
   row: Row;
@@ -107,16 +107,14 @@ export function DeckCardInspector({
             </div>
           )}
         </button>
-        <button
-          type="button"
+        <IconButton
           className={`deck-card-inspector-pin${pinned ? ' is-pinned' : ''}`}
           aria-pressed={pinned}
-          aria-label={pinned ? `Unpin ${row.name}` : `Pin ${row.name}`}
           title={pinned ? 'Unpin' : 'Pin this card'}
           onClick={onTogglePin}
-        >
-          <Pin width={14} height={14} strokeWidth={2} aria-hidden />
-        </button>
+          label={pinned ? `Unpin ${row.name}` : `Pin ${row.name}`}
+          icon={<Pin width={14} height={14} strokeWidth={2} />}
+        />
       </div>
 
       <div className="deck-card-inspector-head">

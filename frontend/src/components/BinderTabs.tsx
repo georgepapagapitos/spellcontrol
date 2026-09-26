@@ -8,6 +8,7 @@ import { BinderExportDialog } from './BinderExportDialog';
 import { useConfirm } from '../lib/use-confirm';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
+import { IconButton } from '@/components/shared/Button';
 
 /**
  * Deliberately diverges from the shared `Tabs` component (board E164): plain
@@ -235,18 +236,16 @@ function BinderOverflowMenu({
 
   return (
     <div className="binder-overflow" ref={ref}>
-      <button
-        ref={btnRef}
-        type="button"
+      <IconButton
         className="binder-overflow-btn"
+        ref={btnRef}
         style={{ borderColor: color }}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Binder actions"
         onClick={handleToggle}
-      >
-        <MoreHorizontal width={18} height={18} strokeWidth={2.2} aria-hidden />
-      </button>
+        label="Binder actions"
+        icon={<MoreHorizontal width={18} height={18} strokeWidth={2.2} />}
+      />
       {open && panelPos && (
         <BinderOverflowPanel
           containerRef={ref}

@@ -11,7 +11,7 @@ import { ColorPip } from '@/components/shared/ManaSymbol';
 import { THIN_SAMPLE_FLOOR } from '@/components/shared/ThinDataNote';
 import { InfoTip } from '../InfoTip';
 import { EXHIBITION_BRACKET_NOTE, formatBracketLabel } from '@/lib/format-bracket-label';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 const COLOR_WORDS: Record<string, string> = {
   W: 'White',
@@ -143,14 +143,12 @@ export function BuildReportPanel({
     const lower = name.toLowerCase();
     if (addingCardNames?.has(name)) {
       return (
-        <button
-          type="button"
+        <IconButton
           className="build-report-add is-adding"
           disabled
-          aria-label={`Adding ${name}`}
-        >
-          <Loader2 className="build-report-add-spinner" aria-hidden="true" />
-        </button>
+          label={`Adding ${name}`}
+          icon={<Loader2 className="build-report-add-spinner" />}
+        />
       );
     }
     const added = justAdded.has(lower);

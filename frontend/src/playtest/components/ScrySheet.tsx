@@ -27,7 +27,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { PlaytestCard, ScryMode } from '@/lib/playtest';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /** Where a peeked card currently sits in the sheet: kept on top, sent to the
  *  mode's away destination (bottom of library / graveyard), or drawn into
@@ -269,15 +269,13 @@ export function ScrySheet({
             ))}
           </fieldset>
           <div className="playtest-scry-count">
-            <button
-              type="button"
+            <IconButton
               className="playtest-scry-step"
               onClick={() => setCount((c) => Math.max(1, c - 1))}
               disabled={count <= 1}
-              aria-label="Look at one fewer card"
-            >
-              <Minus width={16} height={16} aria-hidden />
-            </button>
+              label="Look at one fewer card"
+              icon={<Minus width={16} height={16} />}
+            />
             <SelectMenu<number>
               className="playtest-scry-count__value"
               ariaLabel="Number of cards to look at"
@@ -285,15 +283,13 @@ export function ScrySheet({
               onChange={setCount}
               options={countOptions}
             />
-            <button
-              type="button"
+            <IconButton
               className="playtest-scry-step"
               onClick={() => setCount((c) => Math.min(maxPeek, c + 1))}
               disabled={count >= maxPeek}
-              aria-label="Look at one more card"
-            >
-              <Plus width={16} height={16} aria-hidden />
-            </button>
+              label="Look at one more card"
+              icon={<Plus width={16} height={16} />}
+            />
           </div>
           <p className="playtest-scry-hint">{MODE_HINT[mode]}</p>
           {mode !== 'mill' && (
@@ -329,14 +325,12 @@ export function ScrySheet({
                     return (
                       <li key={cardId} className="playtest-scry-hand__chip">
                         <span>{card.name}</span>
-                        <button
-                          type="button"
+                        <IconButton
                           className="playtest-scry-card__move"
                           onClick={() => move(cardId, 'top')}
-                          aria-label={`${card.name}: Back to ${KEEP_LABEL[from].toLowerCase()}`}
-                        >
-                          <Undo2 width={16} height={16} aria-hidden />
-                        </button>
+                          label={`${card.name}: Back to ${KEEP_LABEL[from].toLowerCase()}`}
+                          icon={<Undo2 width={16} height={16} />}
+                        />
                       </li>
                     );
                   })}
@@ -494,27 +488,25 @@ function SortableScryCard({
         <ScryCardFace card={card} />
       </div>
       <div className="playtest-scry-card__actions">
-        <button
-          type="button"
+        <IconButton
           className="playtest-scry-card__move"
           onClick={() => onMove(card.id)}
-          aria-label={`${card.name}: ${moveLabel}`}
-        >
-          {moveIcon === 'right' ? (
-            <ArrowRight width={16} height={16} aria-hidden />
-          ) : (
-            <ArrowLeft width={16} height={16} aria-hidden />
-          )}
-        </button>
+          label={`${card.name}: ${moveLabel}`}
+          icon={
+            moveIcon === 'right' ? (
+              <ArrowRight width={16} height={16} />
+            ) : (
+              <ArrowLeft width={16} height={16} />
+            )
+          }
+        />
         {onHand && (
-          <button
-            type="button"
+          <IconButton
             className="playtest-scry-card__move"
             onClick={() => onHand(card.id)}
-            aria-label={`${card.name}: Put in hand`}
-          >
-            <Hand width={16} height={16} aria-hidden />
-          </button>
+            label={`${card.name}: Put in hand`}
+            icon={<Hand width={16} height={16} />}
+          />
         )}
       </div>
     </li>

@@ -12,6 +12,7 @@ import { availableFinishes } from '../lib/scanner-feedback';
 import { imageFromCard } from '../lib/card-thumbs';
 import { haptics } from '../lib/haptics';
 import { useSearchCards } from '../lib/use-search-cards';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   /** When provided, the card is also pinned to this binder after being added. */
@@ -272,14 +273,12 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
                         <span className="add-card-sheet-added">added ×{addedCount}</span>
                       )}
                       {addedCount > 0 && (
-                        <button
-                          type="button"
+                        <IconButton
                           className="inline-card-search-undo"
-                          aria-label={`Remove last added copy of ${c.name}`}
                           onClick={() => void undoAdd(c.id)}
-                        >
-                          <Minus width={12} height={12} strokeWidth={2.5} aria-hidden />
-                        </button>
+                          label={`Remove last added copy of ${c.name}`}
+                          icon={<Minus width={12} height={12} strokeWidth={2.5} />}
+                        />
                       )}
                     </span>
                   </div>

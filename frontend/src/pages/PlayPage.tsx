@@ -64,7 +64,7 @@ import { useStarterDeckCardNames } from '../lib/horde/starter-deck-cards';
 import { HORDE_CATALOG, type HordeLevel, type HordeSettings } from '@/lib/horde';
 import { useHordeGameStore, type HordeSurvivor } from '../store/horde-game';
 import { coopResultLabel } from '../lib/horde-records';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 type Tab = 'home' | 'local' | 'online' | 'nights' | 'history';
 const TABS: ReadonlySet<string> = new Set(['home', 'local', 'online', 'nights', 'history']);
 
@@ -406,14 +406,12 @@ export function PlayPage() {
                     <span className="play-code-hint">
                       Players go to Play → Online → Join, then enter this code.
                     </span>
-                    <button
-                      type="button"
+                    <IconButton
                       className="play-code-dismiss"
-                      aria-label="Hide join code"
                       onClick={() => setCodeHiddenFor(online.code)}
-                    >
-                      <X width={16} height={16} strokeWidth={2} aria-hidden />
-                    </button>
+                      label="Hide join code"
+                      icon={<X width={16} height={16} strokeWidth={2} />}
+                    />
                   </div>
                 )}
                 <OnlineBoardDoor

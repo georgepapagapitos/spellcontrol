@@ -16,6 +16,7 @@ import {
 } from '@/lib/opening-hand-sim';
 import { InfoTip } from '../InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
+import { IconButton } from '@/components/shared/Button';
 
 export interface WinConditionPanelProps {
   analysis: WinConditionAnalysis;
@@ -130,22 +131,16 @@ function WinConEvidenceItem({
         </span>
       </button>
       {onToggleTag && (
-        <button
-          type="button"
+        <IconButton
           className="win-con-evidence-tag-btn"
           aria-pressed={tagged}
-          aria-label={tagged ? `Untag ${name} as Wincon` : `Tag ${name} as Wincon`}
           title={tagged ? 'Tagged by you as a win condition' : 'Tag as Wincon'}
           onClick={() => onToggleTag(name)}
-        >
-          <Tag
-            width={13}
-            height={13}
-            strokeWidth={2}
-            fill={tagged ? 'currentColor' : 'none'}
-            aria-hidden
-          />
-        </button>
+          label={tagged ? `Untag ${name} as Wincon` : `Tag ${name} as Wincon`}
+          icon={
+            <Tag width={13} height={13} strokeWidth={2} fill={tagged ? 'currentColor' : 'none'} />
+          }
+        />
       )}
     </li>
   );

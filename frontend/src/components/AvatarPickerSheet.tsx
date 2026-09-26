@@ -11,7 +11,7 @@ import { SearchPill } from './SearchPill';
 import type { EnrichedCard } from '../types';
 import type { AvatarPatch } from '../lib/auth-api';
 import './AvatarPickerSheet.css';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {
   /** The currently-saved (or previously staged) avatar, if any — governs
@@ -262,14 +262,12 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
                 Remove avatar
               </Button>
             )}
-            <button
-              type="button"
+            <IconButton
               className="avatar-picker-close"
               onClick={() => dismiss()}
-              aria-label="Close"
-            >
-              <X width={18} height={18} strokeWidth={2} aria-hidden />
-            </button>
+              label="Close"
+              icon={<X width={18} height={18} strokeWidth={2} />}
+            />
           </div>
         </header>
 

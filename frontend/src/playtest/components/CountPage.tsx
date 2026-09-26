@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   /** Cards left in the library — the count can't exceed it. */
@@ -26,14 +27,12 @@ export function CountPage({ max, label, initial = 1, onConfirm }: Props) {
   return (
     <div className="playtest-ctx-count">
       <div className="playtest-ctx-count__step">
-        <button
-          type="button"
-          aria-label="One fewer"
+        <IconButton
           disabled={count <= 1}
           onClick={() => setN(clamp(count - 1))}
-        >
-          <Minus width={14} height={14} aria-hidden />
-        </button>
+          label="One fewer"
+          icon={<Minus width={14} height={14} />}
+        />
         <input
           type="number"
           min={1}
@@ -42,14 +41,12 @@ export function CountPage({ max, label, initial = 1, onConfirm }: Props) {
           aria-label="How many cards"
           onChange={(e) => setN(clamp(Number(e.target.value)))}
         />
-        <button
-          type="button"
-          aria-label="One more"
+        <IconButton
           disabled={count >= max}
           onClick={() => setN(clamp(count + 1))}
-        >
-          <Plus width={14} height={14} aria-hidden />
-        </button>
+          label="One more"
+          icon={<Plus width={14} height={14} />}
+        />
       </div>
       <button
         type="button"

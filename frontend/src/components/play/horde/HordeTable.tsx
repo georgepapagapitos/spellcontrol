@@ -20,7 +20,7 @@ import { HordeAttackBanner } from './HordeAttackBanner';
 import { HordeDamageSheet } from './HordeDamageSheet';
 import { HordeEndSheet } from './HordeEndSheet';
 import { HordeCardMenu } from './HordeCardMenu';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
@@ -226,15 +226,12 @@ export function HordeTable() {
                 <span className="horde-table-meter-next">Next boss in {nextBossIn}</span>
               )}
             </div>
-            <button
-              type="button"
+            <IconButton
               className="overflow-menu-trigger"
-              aria-label="Minimize the table"
-              title="Minimize the table"
               onClick={hideBoard}
-            >
-              <Minimize2 width={16} height={16} strokeWidth={2} aria-hidden />
-            </button>
+              label="Minimize the table"
+              icon={<Minimize2 width={16} height={16} strokeWidth={2} />}
+            />
             <OverflowMenu
               ariaLabel="Horde game menu"
               items={[

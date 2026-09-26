@@ -12,6 +12,7 @@ import { toast } from '@/store/toasts';
 import type { TickerItem } from '@/store/play';
 import { TickerLine } from './TableTicker';
 import { TableChat } from './TableChat';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   log: GameLogEntry[];
@@ -215,38 +216,32 @@ export function LogDock({
     >
       <div className="playtest-log-dock__header">
         <h2 className="playtest-log-dock__title">Log</h2>
-        <button
-          type="button"
+        <IconButton
           className="playtest-log-dock__btn"
-          aria-label="Copy log"
           onClick={handleCopy}
           disabled={log.length === 0}
-        >
-          <Copy aria-hidden size={16} />
-        </button>
+          label="Copy log"
+          icon={<Copy size={16} />}
+        />
         {popoutHref && (
-          <button
-            type="button"
+          <IconButton
             className="playtest-log-dock__btn"
-            aria-label="Open the log in its own window"
             onClick={() => {
               // A sibling window on the same origin: it reads the same saved
               // session and follows it through `storage` events, so the log
               // can live on a second screen while the table keeps the first.
               window.open(popoutHref, 'spellcontrol-playtest-log', 'popup,width=440,height=680');
             }}
-          >
-            <ExternalLink aria-hidden size={16} />
-          </button>
+            label="Open the log in its own window"
+            icon={<ExternalLink size={16} />}
+          />
         )}
-        <button
-          type="button"
+        <IconButton
           className="playtest-log-dock__btn"
-          aria-label="Close log"
           onClick={onClose}
-        >
-          <X aria-hidden size={16} />
-        </button>
+          label="Close log"
+          icon={<X size={16} />}
+        />
       </div>
 
       {phase && <PhaseStrip {...phase} />}

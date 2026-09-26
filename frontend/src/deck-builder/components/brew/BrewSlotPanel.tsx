@@ -11,7 +11,7 @@ import { useCollectionStore } from '@/store/collection';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useBrewStore } from '@/deck-builder/store/brew';
 import type { BrewCandidate, BrewSlotDef } from '@/deck-builder/services/deckBuilder/brewSlots';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /**
  * Tri-state (really 4-state) availability for a card name: 'owned' = at
@@ -136,17 +136,15 @@ function MechanicSearch({
           aria-label="Search for cards by mechanic or Scryfall query"
         />
         {value && (
-          <button
-            type="button"
+          <IconButton
             className="brew-mechanic-search-clear"
             onClick={() => {
               setValue('');
               onClear();
             }}
-            aria-label="Clear mechanic search"
-          >
-            <X width={14} height={14} aria-hidden />
-          </button>
+            label="Clear mechanic search"
+            icon={<X width={14} height={14} />}
+          />
         )}
       </div>
       {loading && <p className="brew-mechanic-search-status">Searching…</p>}

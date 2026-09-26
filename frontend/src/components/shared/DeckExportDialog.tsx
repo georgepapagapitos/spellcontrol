@@ -4,7 +4,7 @@ import { canShare, openShareSheet } from '@/lib/web-share';
 import { Modal } from '../Modal';
 import { SelectMenu } from '../SelectMenu';
 import type { ExportFormat } from '@/lib/deck-export';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 const EXPORT_FORMAT_LABEL: Record<ExportFormat, string> = {
   mtga: 'MTGA',
@@ -79,9 +79,12 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
         <h2 id="export-deck-title" className="export-dialog-title">
           Export deck
         </h2>
-        <button type="button" className="export-dialog-close" aria-label="Close" onClick={onClose}>
-          <X width={18} height={18} strokeWidth={2} aria-hidden />
-        </button>
+        <IconButton
+          className="export-dialog-close"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={18} height={18} strokeWidth={2} />}
+        />
       </div>
       <div className="export-dialog-body">
         <div className="export-dialog-controls">

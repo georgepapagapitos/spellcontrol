@@ -12,6 +12,7 @@ import { getCardType, TYPE_ORDER } from '../lib/card-types';
 import { ColorPip, ManaSymbol, TypeIcon } from './shared/ManaSymbol';
 import { MeterBar, StackedBar } from './shared/MeterBar';
 import { ValueTrend } from './ValueTrend';
+import { IconButton } from '@/components/shared/Button';
 
 const COLOR_BUCKETS: Array<{ key: string; label: string; color: string }> = [
   { key: 'W', label: 'White', color: COLOR_INFO.W.pip },
@@ -228,14 +229,12 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
       >
         <header className="stats-drawer-header">
           <h2 className="stats-drawer-title">Breakdown</h2>
-          <button
-            type="button"
+          <IconButton
             className="stats-drawer-close"
             onClick={() => beginClose()}
-            aria-label="Close breakdown"
-          >
-            <X width={20} height={20} strokeWidth={1.8} aria-hidden />
-          </button>
+            label="Close breakdown"
+            icon={<X width={20} height={20} strokeWidth={1.8} />}
+          />
         </header>
 
         <div className="stats-drawer-body">
