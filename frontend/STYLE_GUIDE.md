@@ -8342,6 +8342,49 @@ sideways])` on purpose — a sideways panel's local top/bottom axis is its
   (`--life-scale: 0.42`, the same ratio already used for a 5/6-digit total)
   since no inset value alone found a spot clear of both edges there — a
   small, floor-matched shrink, not the numeral cut to nothing.
+  ⛔ **Superseded by the space reclaim below (2026-09-26):** the top inset,
+  the focused seat's 0.72 scale and the 0.42 shrink are all gone. The 0.42
+  had been widened to every 7-10 player board, sideways included, which took
+  a 10-player sideways seat's own total from ~38px to 16px at 320px, exactly
+  what the ruling above says must not happen.
+- **The focused seat gives its corners back to its numeral (2026-09-26).**
+  While a seat holds focus its name corner (name and deck subtitle) and its
+  designation chips are hidden; counter badges already were, for every seat.
+  The bar says what the panel is, the title carries the player's name for a
+  screen reader (a visually hidden "<name>: " prefix), and the panel's
+  aria-label still reads "<name>: <life> life". The numeral keeps its
+  normal tier size. Only where the box above the bar is genuinely shorter
+  than that size does a cap bite: `font-size: min(<tier size>, <panel
+height> - bar - --space-2)`, in the panel's own axes (the cell's height
+  upright, its width sideways). That caught one case, 2p-side's 148px
+  sideways seats (a 107px total went 9% under the bar; now 80px, clear).
+  Measured on every preset: focused total ≥31px at 320x568 (was 14px on
+  9p/10p-ends), ≥50px at 390, ≥79px at 820, 0% under the bar, zero
+  text-on-text on any seat.
+- **The bar fits the shortest and the narrowest seats without cutting its
+  title to a letter.** On touch, the 7-10 player wide rows (79-95px tall)
+  tighten the bar to hug its 44px Return (`--cmd-focus-bar-h: 2.9rem`), and a
+  narrow seat with height to spare (a sideways seat ≤12rem across, an
+  upright one ≤12rem wide and ≥10rem tall) stacks the title above Return in
+  a 4.5rem bar. The title had read "C" on a 10-player sideways seat; it now
+  reads "COMMAND…" at worst and the full copy on most seats.
+- **Partner halves.** The split seat's own life readout sits BELOW the
+  halves (above them it sat on the seat's name on every board, 1075px²), the
+  wrap clears the name's real line (`--space-2 + --seam-keepout + 1.5rem`,
+  0.6rem in the 7-10 player tier where the name condenses to ~7px), and the
+  corner's commander subtitle is hidden on a split seat since the halves
+  name both commanders. On touch a half's ± are hints, not targets, the same
+  F2 ruling as the life numeral's ±: a live 44px circle over the half's own
+  tap zone swallowed the press (a long press gave +1, not +10), and the pair
+  drew over the value on any seat under ~140px. The rule is scoped through
+  `.pp-cmd-half-row` because `.player-panel-content button` re-enables
+  pointer events at higher specificity. The halves stack when the seat is
+  too narrow for them side by side (a `cmd-split` size container on the
+  wrap, so one query covers both orientations), and a stacked half on a
+  short seat is one line, name beside value. Residual: on the 7-10 player
+  boards at 320px a half's two tap zones are 30-39px on their short axis
+  (16 presets), and 36px on 9p-wide and 10p upright at 390px; every half
+  still reads cleanly and no text overlaps.
 
 ## Play board: a short seat's drawer is one scrolling row (2026-09-26)
 

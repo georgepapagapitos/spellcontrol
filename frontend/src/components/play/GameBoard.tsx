@@ -1112,13 +1112,6 @@ function PlayerPanel({
 
           {isCmdSplit ? (
             <div className="pp-cmd-split-wrap">
-              {/* The panel's aria-label already carries "dealt to <name>" — a
-                  visible caption here used to print over the seat name on
-                  short panels (dropped, see the commander-damage fixes). This
-                  panel's own life is a small in-flow readout instead of the
-                  absolutely-positioned chip the non-split panel uses, so it
-                  can never land on a half's own − button. */}
-              <span className="pp-life-chip">{player.life} life</span>
               <div className="pp-cmd-split-halves">
                 <CmdSplitHalf
                   name={cmdSourceLabel}
@@ -1139,6 +1132,13 @@ function PlayerPanel({
                   underline={underlineSixNine}
                 />
               </div>
+              {/* The panel's aria-label already carries "dealt to <name>", so
+                  there's no visible caption. This seat's own life is a small
+                  in-flow readout BELOW the halves, at the same bottom edge the
+                  single-commander panel's corner chip uses: above them it sat
+                  on the seat's name (measured on every board), and as an
+                  absolutely-positioned chip it landed on a half's − button. */}
+              <span className="pp-life-chip">{player.life} life</span>
             </div>
           ) : (
             <div className="player-panel-life-wrap">
@@ -1356,7 +1356,12 @@ function PlayerPanel({
             button by default. */}
         {isCmdSelf && (
           <div className="pp-cmd-focus-bar">
-            <span className="pp-cmd-focus-title">Commander damage received</span>
+            {/* The seat's name corner is hidden while it holds focus (space for
+                the numeral), so the title carries the name for a screen reader. */}
+            <span className="pp-cmd-focus-title">
+              <span className="visually-hidden">{player.name}: </span>
+              Commander damage received
+            </span>
             <button
               type="button"
               className="pp-cmd-focus-done"

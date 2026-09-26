@@ -251,6 +251,18 @@ describe('logging damage in focus mode', () => {
     });
   });
 
+  it("names the focused player in the bar's title, since their seat's name corner is hidden", () => {
+    renderPod();
+    drag(tapZone(0), ALICE_UP);
+
+    const title = focusBar()!.querySelector('.pp-cmd-focus-title') as HTMLElement;
+    expect(title.textContent).toBe('Alice: Commander damage received');
+    // The name is for a screen reader; the visible copy is unchanged.
+    expect(title.querySelector('.visually-hidden')?.textContent).toBe('Alice: ');
+    // The panel itself still carries the name and the live total.
+    expect(screen.getByLabelText('Alice: 40 life')).toBeTruthy();
+  });
+
   it('shows each source’s damage, their own life as a readout, and the lethal race', () => {
     renderPod(vi.fn(), { commanderDamage: { 1: 9 } });
     drag(tapZone(0), ALICE_UP);
