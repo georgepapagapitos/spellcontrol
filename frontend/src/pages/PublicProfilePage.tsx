@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { UserAvatar } from '../components/UserAvatar';
 import { ReportDialog } from '../components/share/ReportDialog';
@@ -23,6 +23,7 @@ import { DeckLibrary, type LibraryDeck } from '../components/decks/DeckLibrary';
 import './PublicProfilePage.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const NOT_FOUND_MESSAGE = "This profile doesn't exist.";
 
 type ProfileTab = 'decks' | 'collection';
@@ -209,9 +210,9 @@ function ProfileCollection({
       {isOwner && (
         <p className="public-profile-collection-note">
           {OWNER_COLLECTION_NOTE[visibility ?? 'never']}{' '}
-          <button type="button" className="btn-link" onClick={() => setChanging(true)}>
+          <Button variant="link" onClick={() => setChanging(true)}>
             Change
-          </button>
+          </Button>
         </p>
       )}
       {current === null ? (
@@ -223,9 +224,9 @@ function ProfileCollection({
       ) : current.error ? (
         <p className="public-profile-collection-note" role="alert">
           {current.error}{' '}
-          <button type="button" className="btn-link" onClick={() => setAttempt((n) => n + 1)}>
+          <Button variant="link" onClick={() => setAttempt((n) => n + 1)}>
             Try again
-          </button>
+          </Button>
         </p>
       ) : (
         <SharedCollectionView data={current.data!} embedded />
@@ -331,9 +332,9 @@ function PublicProfilePageInner({ username }: { username: string }) {
           New decks are public unless you pick Private, and they show up here.
         </p>
         <div className="empty-state-actions">
-          <Link to="/decks" className="btn btn-primary empty-state-action">
+          <Button variant="primary" to="/decks" className="empty-state-action">
             Go to your decks
-          </Link>
+          </Button>
         </div>
       </div>
     ) : (
@@ -365,18 +366,22 @@ function PublicProfilePageInner({ username }: { username: string }) {
                 // Your own profile: the way back to the editor on /you replaces
                 // Report (nobody reports themselves). Closes the round trip the
                 // Profile card's "public profile" link opens.
-                <Link to="/you?section=profile" className="btn-link public-profile-report-btn">
+                <Button
+                  variant="link"
+                  to="/you?section=profile"
+                  className="public-profile-report-btn"
+                >
                   Edit profile
-                </Link>
+                </Button>
               ) : (
-                <button
-                  type="button"
-                  className="btn-link public-profile-report-btn"
+                <Button
+                  variant="link"
                   aria-label="Report this profile"
                   onClick={() => setReporting(true)}
+                  className="public-profile-report-btn"
                 >
                   Report
-                </button>
+                </Button>
               )}
             </p>
           </div>

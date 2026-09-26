@@ -51,6 +51,7 @@ import { Tabs } from '../components/Tabs';
 import { MeterBar } from '../components/shared/MeterBar';
 import { useSealMoment } from '../components/shared/SealMoment';
 import { CardName } from '@/components/shared/CardName';
+import { Button } from '@/components/shared/Button';
 
 /** Sets whose 100%-completion seal already fired this app-open (STYLE_GUIDE
  *  "Completion moments": once per subject per app-open). */
@@ -376,9 +377,9 @@ function SetsIndex() {
             Add or import cards and your set completion shows up here.
           </p>
           <div className="empty-state-actions">
-            <Link to="/collection" className="btn btn-primary">
+            <Button variant="primary" to="/collection">
               Add cards
-            </Link>
+            </Button>
           </div>
         </div>
       ) : (
