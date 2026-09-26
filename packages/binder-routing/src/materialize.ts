@@ -466,26 +466,15 @@ function buildSections(
   }
 
   // Group by primary sort. Preserve first-seen meta so set-name/label is captured
-  // from a real card (avoids needing a second lookup table) — but take the
-  // EARLIEST `order` in the group, not the first-seen one.
-  //
-  // For every other sort field the order is a function of the group key, so all
-  // members share it and this is a no-op. `setReleaseDate` is the exception: its
-  // groups are per SET/drop while the date is now per PRINTING, so one group can
-  // hold several dates (The List spans 2020→2026 under one key). First-seen then
-  // ordered such a section by whichever of its cards happened to come first in
-  // the collection array — an arbitrary position that moved when cards were
-  // added. Earliest-wins makes it "the section sits where its oldest card does",
-  // which is stable and is what a chronological binder means. UNKNOWN_ORDER is
-  // MAX_SAFE_INTEGER, so a known date in the group correctly beats an unknown.
+  // from a real card (avoids needing a second lookup table). `order` is a
+  // function of the key for every field (`setReleaseDate` keys carry the
+  // printing's date, see getSectionMeta), so every member of a group shares it.
   const groups = new Map<string, SectionGroup>();
   for (const card of cards) {
     const meta = getSectionMeta(card, primary.field, ctx);
     const entry = groups.get(meta.key);
-    if (entry) {
-      entry.cards.push(card);
-      if (meta.order < entry.meta.order) entry.meta = { ...entry.meta, order: meta.order };
-    } else groups.set(meta.key, { meta, cards: [card] });
+    if (entry) entry.cards.push(card);
+    else groups.set(meta.key, { meta, cards: [card] });
   }
 
   // Section ordering: by meta.order, ties broken by label. Ties only happen in

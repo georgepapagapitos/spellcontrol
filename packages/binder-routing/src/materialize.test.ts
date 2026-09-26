@@ -1262,11 +1262,10 @@ describe('Secret Lair drop sections + packSections', () => {
 
   const twelve = { globalPocketSize: 12 as const, search: '' };
 
-  // A rolling container set (The List, SLP, SLC, PRM) is ONE group whose cards
-  // carry DIFFERENT per-printing dates. The section must sit at its earliest
-  // card's date, not at whichever card happened to be first in the collection
-  // array — otherwise the section's position moves as cards are added.
-  it('orders a multi-date group by its EARLIEST printing, whatever the array order', () => {
+  // A rolling container set (The List, SLP, SLC, PRM) holds printings from
+  // many dates. Each release day is its own section, so a 2026 printing can
+  // never ride along with the set's 2021 one ahead of a 2023 set.
+  it('splits a multi-date set by release day, whatever the array order', () => {
     const listCard = (name: string, releasedAt: string) =>
       makeCard({ name, setCode: 'PLST', setName: 'The List', releasedAt });
     const cmm = makeCard({ name: 'Cmm', setCode: 'CMM', setName: 'Commander Masters' });
@@ -1278,15 +1277,104 @@ describe('Secret Lair drop sections + packSections', () => {
       filter: {},
       sorts: [{ field: 'setReleaseDate', dir: 'asc' }],
     });
-    // The List holds a 2021 and a 2026 printing; it must land BEFORE Commander
-    // Masters (2023) either way round, because its oldest card is from 2021.
     for (const order of [
       [listCard('Late', '2026-01-01'), listCard('Early', '2021-01-01'), cmm],
       [listCard('Early', '2021-01-01'), listCard('Late', '2026-01-01'), cmm],
       [cmm, listCard('Late', '2026-01-01'), listCard('Early', '2021-01-01')],
     ]) {
       const { binders } = materializeBinders(order, [binder], { ...twelve, setMap });
-      expect(binders[0].sections.map((s) => s.label)).toEqual(['The List', 'Commander Masters']);
+      expect(binders[0].sections.map((s) => s.label)).toEqual([
+        'The List',
+        'Commander Masters',
+        'The List',
+      ]);
+      expect(binders[0].sections.flatMap((s) => s.cards.map((c) => c.name))).toEqual([
+        'Early',
+        'Cmm',
+        'Late',
+      ]);
+    }
+  });
+
+  // Real Scryfall printings (released_at as of 2026-09-26) with the drop the
+  // shipped `sld-drops.json` gives them. Each row is a way the old per-set
+  // sectioning put a card out of date order: SLD numbers with no MTGJSON drop
+  // (one flat block pinned to 2019), SLP and SLC printings years after their
+  // set date, and drop-map entries whose drop date isn't the printing's (Ral is
+  // a 2019 War of the Spark bonus card MTGJSON files under a 2021 drop).
+  it('never places an older printing after a newer one on real Secret Lair data', () => {
+    const setName = {
+      SLD: 'Secret Lair Drop',
+      SLP: 'Secret Lair Promo',
+      SLC: 'Secret Lair 30th Anniversary Countdown Kit',
+    };
+    const printings: Array<
+      Partial<EnrichedCard> & { setCode: keyof typeof setName; releasedAt: string }
+    > = [
+      {
+        setCode: 'SLD',
+        collectorNumber: '12',
+        name: 'Bitterblossom',
+        releasedAt: '2019-12-03',
+        sldDrop: 'Bitterblossom Dreams',
+        sldDropReleasedAt: '2019-12-03',
+      },
+      {
+        setCode: 'SLD',
+        collectorNumber: '523',
+        name: 'Ral, Storm Conduit',
+        releasedAt: '2019-12-16',
+        sldDrop: 'Culture Shocks Grixis',
+        sldDropReleasedAt: '2021-08-25',
+      },
+      {
+        setCode: 'SLD',
+        collectorNumber: '215',
+        name: 'Goblin Rabblemaster',
+        releasedAt: '2021-02-12',
+        sldDrop: 'Valentines Day 2021',
+        sldDropReleasedAt: '2021-04-13',
+      },
+      {
+        setCode: 'SLD',
+        collectorNumber: '710',
+        name: 'Command Tower',
+        releasedAt: '2022-12-02',
+        sldDrop: 'Transformers One Shall Stand One Shall Fall',
+        sldDropReleasedAt: '2022-12-19',
+      },
+      { setCode: 'SLD', collectorNumber: '916', name: 'Arcane Signet', releasedAt: '2026-08-17' },
+      { setCode: 'SLD', collectorNumber: '219', name: 'Goblin', releasedAt: '2021-02-12' },
+      { setCode: 'SLD', collectorNumber: '752', name: 'Relentless Rats', releasedAt: '2024-06-24' },
+      { setCode: 'SLP', collectorNumber: '1', name: 'Brainstorm', releasedAt: '2023-02-19' },
+      { setCode: 'SLP', collectorNumber: '35', name: 'Forest', releasedAt: '2026-05-01' },
+      { setCode: 'SLC', collectorNumber: '1993', name: 'Shivan Dragon', releasedAt: '2022-11-01' },
+      {
+        setCode: 'SLC',
+        collectorNumber: '1',
+        name: 'Altar of the Brood',
+        releasedAt: '2025-11-03',
+      },
+    ];
+    const cards = printings.map((p) => makeCard({ ...p, setName: setName[p.setCode] }));
+    const setMap = {
+      SLD: { code: 'SLD', name: setName.SLD, iconSvgUri: '', releasedAt: '2019-12-02' },
+      SLP: { code: 'SLP', name: setName.SLP, iconSvgUri: '', releasedAt: '2023-02-17' },
+      SLC: { code: 'SLC', name: setName.SLC, iconSvgUri: '', releasedAt: '2022-11-01' },
+    };
+    for (const dir of ['asc', 'desc'] as const) {
+      for (const packSections of [false, true, 'continuous'] as const) {
+        const binder = makeBinder({
+          filter: {},
+          sorts: [{ field: 'setReleaseDate', dir }],
+          packSections,
+        });
+        const { binders } = materializeBinders(cards, [binder], { ...twelve, setMap });
+        const dates = binders[0].sections.flatMap((s) => s.cards.map((c) => c.releasedAt!));
+        const expected = [...dates].sort();
+        expect(dates).toEqual(dir === 'asc' ? expected : expected.reverse());
+        expect(dates).toHaveLength(cards.length);
+      }
     }
   });
 

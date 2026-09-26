@@ -149,6 +149,31 @@ describe('grid Details captions', () => {
     expect(valueCaptions()).toEqual(['#12,034', '—']);
   });
 
+  it("echoes the active sort key: the PRINTING's release date, not its set's", () => {
+    // Both are Secret Lair printings; the SLD set date (2019-12-02) would label
+    // every one of them the same while the sort orders them years apart.
+    const setMap = {
+      SLD: { code: 'SLD', name: 'Secret Lair Drop', iconSvgUri: '', releasedAt: '2019-12-02' },
+    };
+    render(
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <CardListTable
+            cards={[
+              mk({ name: 'Goblin', setCode: 'SLD', releasedAt: '2021-02-12' }),
+              mk({ name: 'Relentless Rats', setCode: 'SLD', releasedAt: '2024-06-24' }),
+            ]}
+            binders={[]}
+            setMap={setMap}
+          />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Sort' }));
+    fireEvent.click(screen.getByRole('option', { name: /Release date/ }));
+    expect(valueCaptions()).toEqual(['Jun 24, 2024', 'Feb 12, 2021']);
+  });
+
   it('Details menu toggles each line independently and persists as JSON', () => {
     renderTable([mk({ name: 'Alpha' })]);
     openDetailsMenu();

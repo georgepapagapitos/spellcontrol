@@ -56,7 +56,7 @@ describe('getSectionMeta', () => {
         },
       }
     );
-    expect(meta.key).toBe('CMM');
+    expect(meta.key).toBe('CMM@2023-08-04');
     expect(meta.label).toBe('Commander Masters');
     expect(meta.order).toBe(new Date('2023-08-04').getTime());
   });
