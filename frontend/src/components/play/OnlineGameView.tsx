@@ -170,7 +170,7 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
               <Button
                 variant="primary"
                 onClick={() => dispatch({ type: 'start' })}
-                className="ogv-header-btn ogv-start-btn"
+                className="ogv-header-btn"
               >
                 Start game
               </Button>

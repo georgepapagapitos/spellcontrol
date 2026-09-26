@@ -190,10 +190,6 @@
   cursor: not-allowed;
 }
 
-.btn-spacer {
-  margin-left: auto;
-}
-
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
 .tab:focus-visible {
   outline: 2px solid var(--accent);

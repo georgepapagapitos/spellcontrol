@@ -41,9 +41,7 @@ export function TableRecordPanel({ deckId }: TableRecordPanelProps): JSX.Element
         <p className="table-record-empty-text">
           No games tracked yet. Log one and this shows wins, losses and who beat it.
         </p>
-        <Button to="/play" className="table-record-empty-action">
-          Track a game
-        </Button>
+        <Button to="/play">Track a game</Button>
       </div>
     );
   }

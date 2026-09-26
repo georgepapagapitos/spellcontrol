@@ -154,28 +154,6 @@
   }
 }
 
-.deck-curve-phases-bar-fill-btn {
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  transition: filter 0.15s ease;
-}
-
-.deck-curve-phases-bar-fill-btn:focus-visible {
-  filter: brightness(1.12);
-}
-@media (hover: hover) and (pointer: fine) {
-  .deck-curve-phases-bar-fill-btn:hover {
-    filter: brightness(1.12);
-  }
-}
-
-.deck-curve-phases-bar-fill-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 3px;
-}
-
 /* Stacked (by color) bar — column-reverse so W sits at the baseline. */
 .deck-curve-phases-bar-stack {
   width: 100%;

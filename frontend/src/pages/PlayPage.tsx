@@ -1117,7 +1117,6 @@ function LocalSetup({
                 disabled={seatingPod !== null}
                 aria-busy={seatingPod === pod.id}
                 onClick={() => void seatPod(pod)}
-                className="play-setup-pod-btn"
               >
                 {pod.name}
               </Button>

@@ -42,13 +42,11 @@ interface Props<T extends string> {
   /**
    * `fitted` (default) — tabs share the row equally (the 2-tab combos/analysis
    * look). `scrollable` — tabs size to content and the strip scrolls
-   * horizontally on overflow. `hub` — the app-wide section-nav look (reuses the
-   * Collection hub's `.site-nav-link` / `.site-nav-count` styling). `underline`
-   * — flat labels with an accent underline tracking the active tab (the
+   * horizontally on overflow. `underline` — flat labels with an accent underline tracking the active tab (the
    * page-level "distinct views" switcher, e.g. the deck editor's view bar);
    * scrolls horizontally on overflow.
    */
-  variant?: 'fitted' | 'scrollable' | 'hub' | 'underline';
+  variant?: 'fitted' | 'scrollable' | 'underline';
   /**
    * Forwarded to the FIRST tab's button. Lets a parent panel focus the strip
    * when it reveals itself (mirrors the old reveal() → firstButtonRef.focus()).
@@ -201,13 +199,6 @@ export function Tabs<T extends string>({
     }
   };
 
-  // `hub` reuses the global section-nav styling so the deck surface tabs match
-  // the Collection hub (Cards / Binders / Lists); other variants use the local
-  // `.sc-tab` look.
-  const isHub = variant === 'hub';
-  const tabClass = isHub ? 'site-nav-link' : 'sc-tab';
-  const countClass = isHub ? 'site-nav-count' : 'sc-tab-count';
-
   return (
     <div
       ref={listRef}
@@ -234,14 +225,14 @@ export function Tabs<T extends string>({
             aria-controls={t.controls}
             aria-label={t.ariaLabel}
             tabIndex={selected ? 0 : -1}
-            className={`${tabClass}${selected ? ' active' : ''}`}
+            className={`sc-tab${selected ? ' active' : ''}`}
             onClick={() => onChange(t.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
           >
             {t.icon}
             <span className="sc-tab-label">{t.label}</span>
             {typeof t.count === 'number' && (
-              <span className={countClass} aria-hidden>
+              <span className="sc-tab-count" aria-hidden>
                 {t.count}
               </span>
             )}

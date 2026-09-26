@@ -773,8 +773,8 @@ a hero CTA.
 
 - Page-level "distinct views" switcher → the `underline` variant of
   `components/Tabs.tsx` (accent underline tracks the active tab). It reads
-  unambiguously as tabs; the soft `hub` nav-pill look does **not** and is
-  reserved for the site/section nav (e.g. the Collection header).
+  unambiguously as tabs; the soft nav-pill look of the site and section nav
+  (`.site-nav-link`, `HubTabsNav`) does **not**, and stays there.
 - **The accent cover dye marks the CURRENT tab of the primary nav only; a
   second nav tier below it marks its current tab with an accent underline.**
   Both the leather header nav and the hub strip (`HubTabsNav`) share
@@ -790,7 +790,7 @@ a hero CTA.
   untouched), with no hover lift, because it is the page you are already on.
   Any third nav tier steps down again — it does not reach back for the dye.
 - **A scrollable tab strip tells you it scrolls.** `Tabs` (`--scrollable`,
-  `--hub`, `--underline`) sets `data-overflow="start|end|both"` on its root
+  `--underline`) sets `data-overflow="start|end|both"` on its root
   from its own scroll position and the stylesheet masks that edge with a
   `--space-6` fade (`deck-builder-tabs.css`), the same tell `HubTabsNav`
   carries; the selected tab is also scrolled into view on change. A strip
@@ -811,8 +811,8 @@ a hero CTA.
   replaces the inset: the strip's background runs edge to edge while the pill
   sits flush against one side (the rules reference, binder card editor and
   opponent board all shipped this way). `styles/tabs-consumer-overrides.test.ts`
-  guards every `fitted`/`scrollable` consumer; `underline`/`hub` reset their
-  own box and are exempt.
+  guards every `fitted`/`scrollable` consumer; `underline` resets its own box
+  and is exempt.
 - **A fitted strip that would ellipsize wraps instead.** `fitted` shares the
   row equally and clips labels, so four labelled tabs with count badges read
   as "Bat… 3 / Gra… 1 / Co… 0" on a 360px sheet (the opponent board, E280).
@@ -5119,12 +5119,13 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 - **44px touch targets** on coarse pointers for anything tappable. The
   mechanism is an explicit `@media (pointer: coarse) { .my-btn { min-height: 44px } }`
   block, separate from the resting style — a button's desktop-density height
-  (~2rem) cannot be assumed to meet the floor. **`.btn`/`.pill-btn` are NOT
-  44px by default** — the shared base classes render at desktop density
-  (`padding: 6px 14px`, no explicit height); every new usage on a touch
-  surface needs its own coarse-pointer `min-height: 44px` block, scoped to
-  the container/selector that identifies it (don't assume a sibling rule
-  already covers it). For a small ✕/clear button inside
+  (~2rem) cannot be assumed to meet the floor. **The shared control classes
+  carry the floor themselves:** `.btn` (#1931), `.pill-btn` (#2239),
+  `.toolbar-pill`, `.tab` and `.search-pill` declare it in their base
+  stylesheet, guarded by `styles/shared-control-floors.test.ts`, so a `Button`
+  needs no local block. A bespoke control class still needs its own, scoped to
+  the selector that identifies it (don't assume a sibling rule already covers
+  it). For a small ✕/clear button inside
   a chip where growing it would distort the chip, expand the hit area with a
   centered `::after` ghost (`position: absolute; width/height: 44px;
 transform: translate(-50%, -50%)` on a `position: relative` parent) rather
@@ -5143,19 +5144,15 @@ transform: translate(-50%, -50%)` on a `position: relative` parent) rather
   doesn't take, read the computed `display`, not just `min-height`** — and note
   that a wrapper is the wrong box too: sizing `.search-pill` left its `input`
   at 31px inside a 44px pill (#1538).
-- **RULING — mutating actions take the floor; `.btn` stays desktop-density
-  otherwise.** `.btn` measures **32px (≥768px) / 36px (≤600px)** on a coarse
-  pointer and that is deliberate; it is not a bug to be swept away app-wide.
-  But a row of buttons that **commits a state change** — settling a trade,
-  answering an invite, confirming a destructive dialog — takes an explicit
-  44px, because a mis-tap there costs real data rather than a wasted
-  navigation. Established selectors following this: `.choice-dialog-actions
-.btn` (every `ConfirmDialog`), `.pods-invited-actions .btn`,
-  `.trade-offer-actions .btn` (Accept/Decline/Withdraw),
-  `.trade-accept-actions .btn`. Plus `.empty-state .btn` app-wide, on the
-  different grounds that an empty state's CTA is the only thing on the surface
-  to press. Flagged in three PRs without a decision before being settled here;
-  don't re-open it per-surface.
+- **Superseded ruling: `.btn` no longer stays desktop-density on touch.** It
+  used to measure 32px (≥768px) / 36px (≤600px) on a coarse pointer by
+  decision, with only rows that commit a state change taking 44px
+  (`.choice-dialog-actions .btn`, `.pods-invited-actions .btn`,
+  `.trade-offer-actions .btn`, `.trade-accept-actions .btn`, and
+  `.empty-state .btn`). #1931 moved the floor onto `.btn` itself after the
+  playtest sweep measured 42 of 43 `.btn` on /you at 41px, and #2239 did the
+  same for `.pill-btn`. Every shared control is 44px on a coarse pointer now;
+  those per-surface selectors restate the base rule.
 - **In a dense list row, NO control may take the 44px on its own box — every
   one of them ghosts.** A row is `display: flex; align-items: center`, so a
   child with `min-height: 44px` sets the **row's** height. One un-ghosted
@@ -5229,9 +5226,10 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   list view while grid view was clean; `.slot-deck-badge` measured 12×12 on binder
   pages. Both now carry ghosts and sit in the `overlay-containment.test.ts` allowlist,
   which proves the convention; `.claude/tools/audit-matrix.mjs` measures the boxes.
-- **`.btn`/`.pill-btn` stay at desktop density on touch by the RULING above; state-
-  committing rows take 44px.** The bulk-select toolbar's Delete/Move/Mark actions
-  (`.card-list-bulk-toolbar .toolbar-pill`) are on the floor as of sweep-3.
+- **`.btn`, `.pill-btn` and `.toolbar-pill` are on the floor at their base**
+  (above). The bulk-select toolbar's Delete/Move/Mark actions
+  (`.card-list-bulk-toolbar .toolbar-pill`) were floored locally in sweep-3,
+  before `.toolbar-pill` carried it.
 
 ## Accessibility
 
