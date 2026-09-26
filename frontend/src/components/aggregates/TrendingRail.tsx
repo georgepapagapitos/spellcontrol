@@ -5,7 +5,6 @@ import { apiUrl } from '../../lib/api-base';
 import { useCardThumb } from '../../lib/card-thumbs';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
 interface RisingCommander {
   commanderKey: string;
   commanderName: string;
@@ -38,6 +37,9 @@ async function readError(res: Response, fallback: string): Promise<string> {
   }
 }
 
+/** Same shape as Discover's own load failure: what failed, then what to do. */
+const TRENDING_LOAD_ERROR = "Couldn't load trending decks. Check your connection and try again.";
+
 /** Self-fetching hook for the trending rail, mirroring `useGameNights(enabled)`'s
  *  exact {data, loading, error, refresh} contract (GameNights.tsx:57-82) --
  *  deliberately its own inline fetch rather than a shared aggregates client
@@ -51,7 +53,7 @@ function useTrendingRail(enabled: boolean) {
     if (!enabled) return Promise.resolve();
     return fetch(apiUrl('/api/aggregates/trending'), { credentials: 'include' })
       .then(async (res) => {
-        if (!res.ok) throw new Error(await readError(res, "Couldn't load trending decks."));
+        if (!res.ok) throw new Error(await readError(res, TRENDING_LOAD_ERROR));
         return (await res.json()) as TrendingData;
       })
       .then((next) => {
@@ -59,7 +61,7 @@ function useTrendingRail(enabled: boolean) {
         setError(null);
       })
       .catch((err: unknown) => {
-        setError(userMessage(err, "Couldn't load trending decks."));
+        setError(userMessage(err, TRENDING_LOAD_ERROR));
       })
       .finally(() => setLoading(false));
   }, [enabled]);
@@ -259,14 +261,18 @@ export function TrendingRail({ enabled }: { enabled: boolean }) {
         <h2 id="trending-rail-heading" className="deck-combos-title">
           Trending
         </h2>
-        <div className="empty-state">
-          <p className="empty-state-tagline">Couldn't load trending decks right now.</p>
-          <p className="empty-state-hint">Check your connection and try again.</p>
-          <div className="empty-state-actions">
-            <Button onClick={() => void refresh()} className="trending-rail-retry-btn">
-              Retry
-            </Button>
-          </div>
+        {/* The shared load-failure strip (STYLE_GUIDE), not an empty state:
+            this is a rail above the page's content, and one row keeps it
+            from pushing the browse grid down. */}
+        <div className="discover-decks-error" role="alert">
+          <span>{error}</span>
+          <button
+            type="button"
+            className="discover-decks-error-retry"
+            onClick={() => void refresh()}
+          >
+            Retry
+          </button>
         </div>
       </section>
     );

@@ -176,13 +176,14 @@ describe('TrendingRail', () => {
     expect(screen.getByText('Popular this week')).toBeTruthy();
   });
 
-  it('shows an error state with Retry, and Retry re-fetches into content', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(jsonResponse({ error: 'down' }, 500)));
+  it('shows the one-row error strip with Retry, and Retry re-fetches into content', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(jsonResponse({}, 500)));
     renderRail();
-    await waitFor(() =>
-      expect(screen.getByText("Couldn't load trending decks right now.")).toBeTruthy()
-    );
-    expect(screen.getByText('Check your connection and try again.')).toBeTruthy();
+    const alert = await screen.findByRole('alert');
+    expect(alert.className).toBe('discover-decks-error');
+    expect(alert.textContent).toContain("Couldn't load trending decks.");
+    // A strip, not an empty-state card: it must not push the grid down.
+    expect(document.querySelector('.trending-rail .empty-state')).toBeNull();
 
     vi.stubGlobal(
       'fetch',

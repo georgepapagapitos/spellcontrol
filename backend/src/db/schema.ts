@@ -1099,7 +1099,8 @@ export const aggregateRollupRuns = pgTable('aggregate_rollup_runs', {
 
 /**
  * One row per commander (or commander+partner pair) that has cleared
- * MIN_COMMANDER_DECKS published decks (aggregates/rollup.ts). Sub-threshold
+ * MIN_COMMANDER_DECKS published decks from MIN_COMMANDER_AUTHORS different
+ * accounts (aggregates/rollup.ts). Sub-threshold
  * commanders simply have no row — "never return sub-threshold rows" is
  * enforced at write time, not filtered at read time. `avgBracket` and the
  * `budget*Count` columns carry their OWN minimum-sample gates independent of

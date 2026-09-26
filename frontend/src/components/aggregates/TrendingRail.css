@@ -8,6 +8,11 @@
    skeleton's box shape. */
 
 .trending-rail {
+  /* The rail owns the gap between its heading and its lists (caller owns
+     spacing); without it the two title rows stacked flush. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   margin-bottom: var(--space-5);
   /* bento-host (E158): the rail's two subsections sit in a .deck-bento and
      were designed for its 2-col split — which never fired without a named
@@ -39,8 +44,14 @@
   gap: var(--space-2);
 }
 
-.trending-rail-section-title {
+/* One level below the rail's own "Trending" heading: same serif caps family,
+   smaller and quieter, so "TRENDING / POPULAR THIS WEEK" reads as a heading
+   and its list, not two labels of equal weight. Two classes, because the
+   shared .deck-combos-title can load after this sheet and would win a tie. */
+.trending-rail .trending-rail-section-title {
   margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
 }
 
 /* .commander-result-card was written for a <button> (no underline/link-color
@@ -63,12 +74,6 @@
   border-radius: 999px;
   padding: 0.05rem 0.4rem;
   font-variant-numeric: tabular-nums;
-}
-
-@media (pointer: coarse) {
-  .trending-rail-retry-btn {
-    min-height: 44px;
-  }
 }
 
 /* Loading tile -- matches .commander-result-card's box (art band + body

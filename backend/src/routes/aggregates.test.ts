@@ -254,11 +254,25 @@ describe('POST /api/aggregates/admin/refresh (runs the rollup)', () => {
       .post('/api/auth/login')
       .send({ username: 'aggregates_admin', password: 'correct horse battery' });
     const adminCookie = extractSessionCookie(login.headers['set-cookie'])!;
-    const ownerId = adminReg.body.user.id as string;
+    const adminId = adminReg.body.user.id as string;
+    // Three different authors: the rollup won't publish a commander's stats
+    // on one or two accounts' decks alone (MIN_COMMANDER_AUTHORS).
+    const authorIds = [adminId];
+    for (const username of ['refresh_author_b', 'refresh_author_c']) {
+      const reg = await request(app)
+        .post('/api/auth/register')
+        .send({
+          username,
+          password: 'correct horse battery',
+          email: `${username}@example.test`,
+        });
+      authorIds.push(reg.body.user.id as string);
+    }
 
     const db = getDb();
     const now = Date.now();
     for (let i = 0; i < 5; i++) {
+      const ownerId = authorIds[i % authorIds.length];
       await db.insert(userDecks).values({
         userId: ownerId,
         id: `refresh-deck-${i}`,
