@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { BrandMark } from '../components/shared/BrandMark';
 
@@ -170,13 +170,9 @@ export default function ChooseUsernamePage() {
           </>
         ) : null}
 
-        <button
-          type="button"
-          className="auth-back"
-          onClick={() => navigate('/auth', { replace: true })}
-        >
+        <Link to="/auth" replace className="auth-back">
           Back to sign in
-        </button>
+        </Link>
       </div>
     </main>
   );

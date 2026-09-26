@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   DndContext,
   KeyboardSensor,
@@ -150,7 +150,6 @@ function makeSlot(card: ScryfallCard): HandSlot {
 export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
   function DeckTestHandPanel({ deckId, embedded = false }, ref) {
     const deck = useDecksStore((s) => s.decks.find((d) => d.id === deckId) ?? null);
-    const navigate = useNavigate();
 
     const containerRef = useRef<HTMLDivElement>(null);
     // Measured inner width of the fan scroller, so the hand lays out against the
@@ -484,14 +483,13 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                 >
                   <Shuffle width={14} height={14} aria-hidden /> Deal another hand
                 </button>
-                <button
-                  type="button"
+                <Link
+                  to={`/decks/${deckId}/playtest`}
                   className="deck-test-hand-action deck-test-hand-action-bridge"
-                  onClick={() => navigate(`/decks/${deckId}/playtest`)}
                   title="Open the full playtest board"
                 >
                   <Play width={14} height={14} aria-hidden /> Play this out
-                </button>
+                </Link>
               </div>
 
               <ul className="deck-test-hand-chips" aria-label="Hand breakdown">

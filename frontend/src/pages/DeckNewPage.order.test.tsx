@@ -90,14 +90,14 @@ describe('DeckNewPage order', () => {
   it('offers Brew beside Generate once a commander is picked', () => {
     renderPage(krenko);
     const generate = screen.getByRole('button', { name: 'Generate deck' });
-    const brew = screen.getByRole('button', { name: /Start brewing/ });
+    const brew = screen.getByRole('link', { name: /Start brewing/ });
     expect(before(generate, brew)).toBe(true);
     expect(before(screen.getByTestId('customize'), brew)).toBe(true);
   });
 
   it('keeps the Brew promo under the picker before a commander is picked', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: /Start brewing/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Start brewing/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Generate deck' })).toBeNull();
   });
 });

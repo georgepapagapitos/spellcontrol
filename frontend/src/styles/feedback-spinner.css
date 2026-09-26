@@ -36,6 +36,7 @@
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
   transition: background var(--motion-fast);
 }
 

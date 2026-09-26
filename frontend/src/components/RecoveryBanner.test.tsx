@@ -1,14 +1,8 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../store/auth';
-
-const navigateMock = vi.fn();
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>();
-  return { ...actual, useNavigate: () => navigateMock };
-});
 
 import { RecoveryBanner } from './RecoveryBanner';
 
@@ -32,10 +26,6 @@ function setAuth(patch: AuthPatch) {
   });
 }
 
-beforeEach(() => {
-  navigateMock.mockReset();
-});
-
 describe('RecoveryBanner', () => {
   it('stays hidden for an account that can receive a reset', () => {
     setAuth({ emailVerified: true });
@@ -52,16 +42,17 @@ describe('RecoveryBanner', () => {
   it('has no dismiss — the only way out is confirming the address', () => {
     setAuth({ emailVerified: false });
     renderBanner();
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0].textContent).toBe('Confirm email');
+    const controls = [...screen.queryAllByRole('button'), ...screen.queryAllByRole('link')];
+    expect(controls).toHaveLength(1);
+    expect(controls[0].textContent).toBe('Confirm email');
   });
 
   it('sends the person to the sign-in methods card, where the address lives', () => {
     setAuth({ emailVerified: false });
     renderBanner();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm email' }));
-    expect(navigateMock).toHaveBeenCalledWith('/you?section=sign-in');
+    expect(screen.getByRole('link', { name: 'Confirm email' }).getAttribute('href')).toBe(
+      '/you?section=sign-in'
+    );
   });
 
   it('stays hidden while signed out, where it could not be acted on', () => {

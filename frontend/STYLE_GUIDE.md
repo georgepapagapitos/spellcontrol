@@ -500,7 +500,11 @@ They add what a class name can't enforce:
   it by accident (pass `type="submit"` for the one that should);
 - `to` renders a router `<Link>` and `href` an `<a>`. A navigation is a link and
   an action is a button, never a `<div onClick>`; the types refuse `disabled` on
-  a link.
+  a link. So a button whose `onClick` only calls `navigate()` is a link in
+  disguise: it can't open in a new tab, shows no address and announces as a
+  button. Give it `to` (router `state` and `replace` pass straight through);
+  the control-primitives guard counts the disguised ones. The one exception
+  is a navigation that must be disabled while something runs.
 
 Two props choose the class. **`variant` is intent** (the fill-vs-outline tiers
 below): `secondary` (default), `primary`, `danger`, `link`. **`placement` is

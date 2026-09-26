@@ -444,6 +444,7 @@
   font-size: var(--text-sm);
   cursor: pointer;
   font-family: inherit;
+  text-decoration: none;
 }
 
 .auth-back:focus-visible {

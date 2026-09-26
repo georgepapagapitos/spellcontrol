@@ -3146,7 +3146,7 @@ export function DeckEditorPage() {
             )}
             {!isPhone && (
               <Button
-                onClick={() => navigate(`/decks/${deck.id}/playtest`)}
+                to={`/decks/${deck.id}/playtest`}
                 className="deck-editor-action-btn"
                 icon={<Play width={14} height={14} strokeWidth={2} />}
               >

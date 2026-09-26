@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { Button } from '@/components/shared/Button';
 
@@ -20,7 +19,6 @@ import { Button } from '@/components/shared/Button';
 export function RecoveryBanner() {
   const status = useAuth((s) => s.status);
   const emailVerified = useAuth((s) => s.emailVerified);
-  const navigate = useNavigate();
 
   if (status !== 'authed' || emailVerified) return null;
 
@@ -29,7 +27,7 @@ export function RecoveryBanner() {
       <div className="recovery-banner-text">
         <strong>Confirm your email.</strong> It's the only way back in if you forget your password.
       </div>
-      <Button variant="primary" onClick={() => navigate('/you?section=sign-in')}>
+      <Button variant="primary" to="/you?section=sign-in">
         Confirm email
       </Button>
     </div>

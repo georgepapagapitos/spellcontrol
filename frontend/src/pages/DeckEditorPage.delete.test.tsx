@@ -619,9 +619,9 @@ describe('DeckEditorPage — header actions by tier (STYLE_GUIDE § Layout syste
   });
 
   const inlineLabels = () =>
-    Array.from(document.querySelectorAll('.deck-editor-actions button')).map(
-      (b) => b.getAttribute('aria-label') ?? b.textContent?.trim()
-    );
+    Array.from(
+      document.querySelectorAll('.deck-editor-actions button, .deck-editor-actions a')
+    ).map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim());
   const menuLabels = () => {
     fireEvent.click(screen.getByLabelText('Deck actions'));
     return screen.getAllByRole('menuitem').map((r) => r.textContent);

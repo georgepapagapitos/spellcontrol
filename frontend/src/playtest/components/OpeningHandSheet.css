@@ -27,7 +27,7 @@
 /* "Back to deck" exit — the opening-hand sheet covers the page header (and
    its back button), so it carries its own. Sits at the footer's far left
    (margin-right:auto) opposite the Mulligan / Keep actions, the standard
-   dialog layout. Mirrors .playtest-page__header button so the two exits
+   dialog layout. Mirrors .playtest-page__back so the two exits
    read identically. */
 .playtest-opening-back {
   display: inline-flex;
