@@ -106,12 +106,18 @@ export function getSectionMeta(
     case 'cmc':
       return cmcBucket(card.cmc);
     case 'setReleaseDate': {
-      // `releaseDateOf` is the single source of a printing's date, so a section's
-      // position and its cards' order can't disagree. Unknown sorts last in BOTH
-      // directions — see UNKNOWN_ORDER.
+      // One section per set (or drop) PER RELEASE DAY. Dates are per printing,
+      // so a set-only key let one section span years and sit wherever its
+      // oldest card did: the ~400 Secret Lairs MTGJSON has no drop for formed
+      // one "Secret Lair Drop" block pinned to 2019 that held 2026 cards, and
+      // SLP / SLC / The List did the same. With the date in the key every
+      // section is a single day, so header order and card order are one order.
+      // Unknown sorts last in BOTH directions (see UNKNOWN_ORDER).
       const released = releaseDateOf(card, ctx?.setMap);
+      const set = setMeta(card);
       return {
-        ...setMeta(card),
+        key: `${set.key}@${released ?? 'unknown'}`,
+        label: set.label,
         order: released ? new Date(released).getTime() : UNKNOWN_ORDER,
       };
     }

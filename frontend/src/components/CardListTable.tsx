@@ -77,7 +77,7 @@ import { SortMenu, type SortMenuOption } from './SortMenu';
 import { useMediaQuery } from '../lib/use-media-query';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { sortCards, printingKey, sortDirectionLabel, type SortContext } from '../lib/sorting';
-import { getSectionMeta } from '@spellcontrol/binder-routing';
+import { getSectionMeta, releaseDateOf } from '@spellcontrol/binder-routing';
 import {
   groupRowsIntoSections,
   buildGridLayout,
@@ -886,7 +886,9 @@ export function CardListTable({
       case 'edited':
         return captionDate(r.card.updatedAt ?? addedAtByImportId.get(r.card.importId ?? ''));
       case 'release': {
-        const released = setMap?.[r.card.setCode.toUpperCase()]?.releasedAt;
+        // The date the sort used, the printing's own, not its set's (every
+        // Secret Lair would otherwise read Dec 2, 2019).
+        const released = releaseDateOf(r.card, setMap);
         // Parse as local midnight — a bare YYYY-MM-DD parses as UTC and can
         // render a day early in negative-offset timezones.
         return released ? captionDate(new Date(`${released}T00:00:00`).getTime()) : '—';
