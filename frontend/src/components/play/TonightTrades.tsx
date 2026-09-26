@@ -16,6 +16,7 @@ import { RadarCardTile } from '../../pages/FriendHubPage';
 import './TonightTrades.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface TonightTradesData {
   incoming: (TradeRadarMatch & { supplierUsername: string })[];
   outgoing: (TradeRadarMatch & { wanterUsername: string })[];
@@ -177,9 +178,7 @@ export function TonightTrades({
           )}
 
           <div className="game-night-dialog-actions">
-            <button type="button" className="btn" onClick={onClose}>
-              Close
-            </button>
+            <Button onClick={onClose}>Close</Button>
           </div>
         </div>
       </Modal>
@@ -253,13 +252,13 @@ function TonightTradesSection<K extends 'supplierUsername' | 'wanterUsername'>({
           <div key={person} className="tonight-trades-person-group">
             <div className="tonight-trades-person-head">
               <h4 className="tonight-trades-person-title">{person}</h4>
-              <button
-                type="button"
-                className="btn btn-primary tonight-trades-propose"
+              <Button
+                variant="primary"
                 onClick={() => onPropose(person)}
+                className="tonight-trades-propose"
               >
                 Propose a trade
-              </button>
+              </Button>
             </div>
             <ul className="friend-hub-radar-strip" aria-label={`${title} from ${person}`}>
               {personMatches.map((m) => (

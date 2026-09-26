@@ -1,4 +1,5 @@
 import { useHordeGameStore } from '@/store/horde-game';
+import { Button } from '@/components/shared/Button';
 
 /** The Horde table's own resume banner — same shape as the real local game's
  *  `ResumeBanner`, reusing its `.play-resume-banner` classes (loaded by
@@ -25,12 +26,10 @@ export function HordeResumeBanner() {
         </span>
       </div>
       <div className="play-resume-banner-actions">
-        <button type="button" className="btn btn-primary" onClick={showBoard}>
+        <Button variant="primary" onClick={showBoard}>
           Resume
-        </button>
-        <button type="button" className="btn" onClick={leaveGame}>
-          Discard
-        </button>
+        </Button>
+        <Button onClick={leaveGame}>Discard</Button>
       </div>
     </section>
   );

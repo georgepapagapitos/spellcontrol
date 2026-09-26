@@ -7,7 +7,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useSignInPath } from '../../lib/sign-in-path';
 import {
   cancelGameNight,
@@ -55,6 +55,7 @@ import { SelectMenu } from '../SelectMenu';
 import './GameNights.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button, buttonClass } from '@/components/shared/Button';
 /** Loading placeholder — two `.game-night-card` shells (real chrome, so the
  *  silhouette can't drift from the loaded card) with shimmering bars standing
  *  in for the title/pill, when, meta, tally, and action-row lines. Mirrors the
@@ -137,9 +138,9 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
           an account.
         </p>
         <div className="empty-state-actions">
-          <Link to={signInHref} className="btn btn-primary">
+          <Button variant="primary" to={signInHref}>
             Sign in
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -171,9 +172,9 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
             needed.
           </p>
           <div className="empty-state-actions">
-            <button type="button" className="btn btn-primary" onClick={() => setDialog('create')}>
+            <Button variant="primary" onClick={() => setDialog('create')}>
               Plan a game night
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -185,9 +186,9 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
                 Share a night's link with anyone. RSVPs don't need an account.
               </p>
             </div>
-            <button type="button" className="btn btn-primary" onClick={() => setDialog('create')}>
+            <Button variant="primary" onClick={() => setDialog('create')}>
               Plan a game night
-            </button>
+            </Button>
           </header>
           <ul className="game-nights-list">
             {nights.map((night) => (
@@ -534,28 +535,25 @@ function NightCard({
       {!cancelled && !polling && (
         <div className="game-night-card-reply" role="group" aria-label={`RSVP to ${night.title}`}>
           {STATUS_LABELS.map(({ status, label }) => (
-            <button
+            <Button
               key={status}
-              type="button"
-              className={`btn game-night-status-btn${night.myStatus === status ? ' is-selected' : ''}`}
               aria-pressed={night.myStatus === status}
               disabled={busy !== null}
               onClick={() => void reply(status)}
+              className={`game-night-status-btn${night.myStatus === status ? ' is-selected' : ''}`}
             >
               {busy === status ? 'Saving…' : label}
-            </button>
+            </Button>
           ))}
         </div>
       )}
 
       <div className="game-night-card-actions">
-        <button type="button" className="btn" onClick={() => void copyLink()}>
-          Copy link
-        </button>
+        <Button onClick={() => void copyLink()}>Copy link</Button>
         {!cancelled && !polling && (
           <OverflowMenu
             ariaLabel={`Add ${night.title} to your calendar`}
-            triggerClassName="btn game-night-cal-trigger"
+            triggerClassName={`${buttonClass()} game-night-cal-trigger`}
             align="left"
             trigger={
               <>
@@ -579,16 +577,15 @@ function NightCard({
           />
         )}
         {night.isHost && !cancelled && !polling && (
-          <button
-            type="button"
-            className="btn btn-primary"
+          <Button
+            variant="primary"
             aria-label={`Start a game for ${night.title}`}
             aria-busy={startingOnline}
             disabled={startingOnline}
             onClick={startGame}
           >
             {night.venue === 'online' ? 'Open the online table' : 'Start game'}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -726,9 +723,7 @@ function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => vo
           {r.isHost && <span className="game-night-host-pill">Host</span>}
         </span>
         {canAddFriend && r.username !== undefined && (
-          <button
-            type="button"
-            className="btn game-night-attendee-add-friend"
+          <Button
             disabled={busy.has(r.username) || requested.has(r.username)}
             aria-label={
               requested.has(r.username)
@@ -736,13 +731,14 @@ function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => vo
                 : `Add ${r.displayName} as a friend`
             }
             onClick={() => void addFriend(r.username!, r.displayName)}
+            className="game-night-attendee-add-friend"
           >
             {requested.has(r.username)
               ? 'Requested'
               : busy.has(r.username)
                 ? 'Sending…'
                 : 'Add friend'}
-          </button>
+          </Button>
         )}
       </li>
     );
@@ -793,9 +789,7 @@ function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => vo
           </section>
         )}
         <div className="game-night-dialog-actions">
-          <button type="button" className="btn" onClick={onClose}>
-            Close
-          </button>
+          <Button onClick={onClose}>Close</Button>
         </div>
       </div>
     </Modal>
@@ -871,25 +865,22 @@ function PollDialog({
                 }
               />
               {optionInputs.length > 2 && (
-                <button
-                  type="button"
-                  className="btn"
+                <Button
                   aria-label={`Remove candidate time ${i + 1}`}
                   onClick={() => setOptionInputs(optionInputs.filter((_, j) => j !== i))}
                 >
                   Remove
-                </button>
+                </Button>
               )}
             </div>
           ))}
           {optionInputs.length < 5 && (
-            <button
-              type="button"
-              className="btn game-night-dialog-add-option"
+            <Button
               onClick={() => setOptionInputs([...optionInputs, ''])}
+              className="game-night-dialog-add-option"
             >
               Add another time
-            </button>
+            </Button>
           )}
         </fieldset>
         {formError && (
@@ -898,12 +889,12 @@ function PollDialog({
           </p>
         )}
         <div className="game-night-dialog-actions">
-          <button type="button" className="btn" onClick={onClose} disabled={saving}>
+          <Button onClick={onClose} disabled={saving}>
             Close
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+          </Button>
+          <Button variant="primary" type="submit" disabled={saving}>
             {saving ? 'Opening…' : 'Start the vote'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
@@ -1352,25 +1343,22 @@ function NightDialog({
                     }
                   />
                   {optionInputs.length > 2 && (
-                    <button
-                      type="button"
-                      className="btn"
+                    <Button
                       aria-label={`Remove candidate time ${i + 1}`}
                       onClick={() => setOptionInputs(optionInputs.filter((_, j) => j !== i))}
                     >
                       Remove
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))}
               {optionInputs.length < 5 && (
-                <button
-                  type="button"
-                  className="btn game-night-dialog-add-option"
+                <Button
                   onClick={() => setOptionInputs([...optionInputs, ''])}
+                  className="game-night-dialog-add-option"
                 >
                   Add another time
-                </button>
+                </Button>
               )}
             </fieldset>
           ) : (
@@ -1494,19 +1482,16 @@ function NightDialog({
                     </span>
                     {!r.isHost && (
                       <div className="game-night-person-actions">
-                        <button
-                          type="button"
-                          className="btn"
+                        <Button
                           disabled={removing !== null || saving}
                           aria-label={`Remove ${r.displayName} from the night`}
                           onClick={() => void removeRsvp(r.id!, r.displayName)}
                         >
                           {removing === r.id ? 'Removing…' : 'Remove'}
-                        </button>
+                        </Button>
                         {r.username !== undefined && (
-                          <button
-                            type="button"
-                            className="btn btn-danger"
+                          <Button
+                            variant="danger"
                             disabled={removing !== null || saving}
                             aria-label={`Block ${r.displayName} from rejoining the night`}
                             onClick={() =>
@@ -1518,7 +1503,7 @@ function NightDialog({
                             }
                           >
                             Block
-                          </button>
+                          </Button>
                         )}
                       </div>
                     )}
@@ -1528,15 +1513,13 @@ function NightDialog({
                   <li key={`invite:${username}`}>
                     <span className="game-night-person-name">{username}</span>
                     <span className="game-night-person-status">Invited · hasn't replied</span>
-                    <button
-                      type="button"
-                      className="btn"
+                    <Button
                       disabled={removing !== null || saving}
                       aria-label={`Remove the invite to ${username}`}
                       onClick={() => void removeInvite(username)}
                     >
                       {removing === `invite:${username}` ? 'Removing…' : 'Remove'}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -1570,14 +1553,12 @@ function NightDialog({
                     }}
                   />
                 </label>
-                <button
-                  type="button"
-                  className="btn"
+                <Button
                   disabled={minting || saving || guestLabel.trim() === ''}
                   onClick={() => void addGuestInvite()}
                 >
                   {minting ? 'Creating…' : 'Create link'}
-                </button>
+                </Button>
               </div>
               {guestInvites.length > 0 && (
                 <ul className="game-night-dialog-people-list">
@@ -1588,24 +1569,21 @@ function NightDialog({
                         {invite.weekly ? 'Invite link · every week' : 'Invite link'}
                       </span>
                       <div className="game-night-person-actions">
-                        <button
-                          type="button"
-                          className="btn"
+                        <Button
                           disabled={removing !== null || saving}
                           aria-label={`Share ${invite.label}'s invite link`}
                           onClick={() => void shareInviteLink(invite.url, invite.label)}
                         >
                           Share
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger"
+                        </Button>
+                        <Button
+                          variant="danger"
                           disabled={removing !== null || saving}
                           aria-label={`Revoke ${invite.label}'s invite link`}
                           onClick={() => void revokeGuestInvite(invite)}
                         >
                           {removing === `guest:${invite.id}` ? 'Revoking…' : 'Revoke'}
-                        </button>
+                        </Button>
                       </div>
                     </li>
                   ))}
@@ -1622,15 +1600,13 @@ function NightDialog({
                   <li key={`blocked:${username}`}>
                     <span className="game-night-person-name">{username}</span>
                     <span className="game-night-person-status">Can't rejoin from the link</span>
-                    <button
-                      type="button"
-                      className="btn"
+                    <Button
                       disabled={removing !== null || saving}
                       aria-label={`Unblock ${username}`}
                       onClick={() => void unblockUser(username)}
                     >
                       {removing === `unblock:${username}` ? 'Unblocking…' : 'Unblock'}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -1679,10 +1655,10 @@ function NightDialog({
           )}
 
           <div className="game-night-dialog-actions">
-            <button type="button" className="btn" onClick={onClose} disabled={saving}>
+            <Button onClick={onClose} disabled={saving}>
               Close
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
+            </Button>
+            <Button variant="primary" type="submit" disabled={saving}>
               {saving
                 ? 'Saving…'
                 : night
@@ -1692,7 +1668,7 @@ function NightDialog({
                     : repeatWeekly
                       ? 'Start weekly night'
                       : 'Create night'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

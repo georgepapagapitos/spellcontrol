@@ -23,6 +23,7 @@ import { PhaseChip } from './PhaseChip';
 import './OnlineGameView.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 
 // Mirrors playtest's TakebackConsentPrompt grace window (see its module doc):
 // native long-poll can drop a request's own terminal frame, so the banner
@@ -166,13 +167,13 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
               is why the old "Waiting to start" read as stale. */}
           {game.status === 'lobby' &&
             (isHost ? (
-              <button
-                type="button"
-                className="btn btn-primary ogv-header-btn ogv-start-btn"
+              <Button
+                variant="primary"
                 onClick={() => dispatch({ type: 'start' })}
+                className="ogv-header-btn ogv-start-btn"
               >
                 Start game
-              </button>
+              </Button>
             ) : (
               <span className="ogv-turn ogv-turn-waiting" aria-live="polite">
                 Waiting for {hostName} to start
@@ -196,14 +197,14 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
         {game.status !== 'finished' && (
           <div className="ogv-header-actions">
             {onEnd && (
-              <button type="button" className="btn ogv-header-btn" onClick={onEnd}>
+              <Button onClick={onEnd} className="ogv-header-btn">
                 End
-              </button>
+              </Button>
             )}
             {onLeave && (
-              <button type="button" className="btn ogv-header-btn" onClick={handleLeave}>
+              <Button onClick={handleLeave} className="ogv-header-btn">
                 Leave
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -1066,15 +1067,11 @@ function FinishedPanel({
       <GameRecap game={game} />
       <div className="ogv-finished-actions">
         {onRematch && (
-          <button type="button" className="btn btn-primary" onClick={onRematch}>
+          <Button variant="primary" onClick={onRematch}>
             Rematch · same players
-          </button>
+          </Button>
         )}
-        {onLeave && (
-          <button type="button" className="btn" onClick={onLeave}>
-            Close
-          </button>
-        )}
+        {onLeave && <Button onClick={onLeave}>Close</Button>}
       </div>
     </div>
   );

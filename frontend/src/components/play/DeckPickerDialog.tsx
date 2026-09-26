@@ -16,6 +16,7 @@ import { userMessage } from '../../lib/user-error';
 import { effectiveBracket, type Deck } from '../../store/decks';
 import { bracketTextWithEstimate } from '../../lib/format-bracket-label';
 import type { ProductSummary } from '../../types';
+import { IconButton } from '@/components/shared/Button';
 import './DeckPickerDialog.css';
 
 /**
@@ -171,16 +172,14 @@ function PickerSearch({
         ariaLabel={placeholder}
         className="deck-picker-search-pill"
       />
-      <button
-        type="button"
-        className="btn deck-picker-random"
+      <IconButton
+        variant="secondary"
+        className="deck-picker-random"
         onClick={onRandom}
         disabled={randomDisabled}
-        aria-label="Pick a random deck"
-        title="Pick a random deck"
-      >
-        <Dices width={18} height={18} strokeWidth={1.8} aria-hidden />
-      </button>
+        label="Pick a random deck"
+        icon={<Dices width={18} height={18} strokeWidth={1.8} />}
+      />
     </div>
   );
 }
