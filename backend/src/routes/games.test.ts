@@ -3604,6 +3604,29 @@ describe('Horde: games routes guard the trust boundary', () => {
     });
   });
 
+  // E445, reproduced against a live backend: the host pressed Done, the
+  // joiner left mid-game, and the table sat at team turn 1 with nobody left
+  // to wait on. The leave itself has to end the team turn.
+  it('a survivor leaving mid-game ends a team turn everyone left had finished', async () => {
+    const { code, host, joiner, version } = await activeHordeTable(
+      'horde_leave_host',
+      'horde_leave_join'
+    );
+    const done = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', host)
+      .send({ baseVersion: version, actions: [{ type: 'horde-done', actorSeat: 0, done: true }] });
+    expect(done.body.game.horde.phase).toBe('survivors');
+
+    const left = await request(app).post(`/api/games/${code}/leave`).set('Cookie', joiner);
+    expect(left.status).toBe(200);
+
+    const after = await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    expect(after.body.game.horde.phase).toBe('reveal');
+    expect(after.body.game.horde.hordeTurn).toBe(1);
+    expect(after.body.game.horde.steps).toMatchObject([{ k: 'reveal', seat: 0 }]);
+  });
+
   describe('sanitising horde-setup', () => {
     const badSettings = (patch: Record<string, unknown>) => ({ ...hordeSettings, ...patch });
     const cases: Array<[string, Record<string, unknown>]> = [

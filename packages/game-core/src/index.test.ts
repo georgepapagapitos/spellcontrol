@@ -1461,6 +1461,66 @@ describe('horde mode', () => {
     expect(s.horde!.phase).toBe('reveal');
   });
 
+  // E445: the other order. Seat 0 is done, then the one survivor it was
+  // waiting on leaves. Nothing sends another horde-done, and the table sat
+  // at team turn 1 waiting on nobody (reproduced against a live backend).
+  describe('the team turn ends when the survivor it waited on goes', () => {
+    it('a leave (connected: false) advances a setup turn', () => {
+      let s = startedHorde(2, { setupTurns: 3 });
+      s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+      s = applyAction(s, { type: 'update-player', seat: 1, patch: { connected: false } });
+      expect(s.horde!.survivorTurn).toBe(2);
+      expect(s.horde!.done).toEqual([]);
+      expect(s.horde!.phase).toBe('survivors');
+    });
+
+    it('after setup, a leave starts the horde turn, logged to the done seat', () => {
+      let s = startedHorde(3, { setupTurns: 0 });
+      s = applyAction(s, { type: 'horde-done', actorSeat: 2, done: true });
+      s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+      s = applyAction(s, { type: 'update-player', seat: 1, patch: { connected: false }, ts: 9000 });
+      expect(s.horde!.phase).toBe('reveal');
+      expect(s.horde!.hordeTurn).toBe(1);
+      expect(s.horde!.steps).toEqual([{ k: 'reveal', seat: 0, ts: 9000 }]);
+    });
+
+    it('a host kick (remove-player) and a knock-out (eliminate) do the same', () => {
+      let kicked = startedHorde(2, { setupTurns: 0 });
+      kicked = applyAction(kicked, { type: 'horde-done', actorSeat: 0, done: true });
+      kicked = applyAction(kicked, { type: 'remove-player', seat: 1 });
+      expect(kicked.horde!.phase).toBe('reveal');
+
+      let out = startedHorde(2, { setupTurns: 0 });
+      out = applyAction(out, { type: 'horde-done', actorSeat: 0, done: true });
+      out = applyAction(out, { type: 'eliminate', seat: 1, eliminated: true });
+      expect(out.horde!.phase).toBe('reveal');
+    });
+
+    it('waits while someone still at the table is not done', () => {
+      let s = startedHorde(3, { setupTurns: 0 });
+      s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+      s = applyAction(s, { type: 'update-player', seat: 1, patch: { connected: false } });
+      expect(s.horde!.phase).toBe('survivors');
+      expect(s.horde!.done).toEqual([0]);
+    });
+
+    it('never advances an empty team', () => {
+      let s = startedHorde(2, { setupTurns: 0 });
+      s = applyAction(s, { type: 'update-player', seat: 0, patch: { connected: false } });
+      s = applyAction(s, { type: 'update-player', seat: 1, patch: { connected: false } });
+      expect(s.horde!.phase).toBe('survivors');
+      expect(s.horde!.hordeTurn).toBe(0);
+    });
+
+    it('an unrelated seat update leaves a waiting team alone', () => {
+      let s = startedHorde(2, { setupTurns: 0 });
+      s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true });
+      s = applyAction(s, { type: 'update-player', seat: 0, patch: { name: 'Renamed' } });
+      expect(s.horde!.phase).toBe('survivors');
+      expect(s.horde!.done).toEqual([0]);
+    });
+  });
+
   it('horde-done with force ends the team turn without waiting (setup and horde turn)', () => {
     let s = startedHorde(2, { setupTurns: 2 });
     s = applyAction(s, { type: 'horde-done', actorSeat: 0, done: true, force: true });

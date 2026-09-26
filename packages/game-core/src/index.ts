@@ -1103,6 +1103,30 @@ export interface ApplyResult {
  * can map the error to a 400 — clients should never reach those branches in
  * normal use.
  */
+/** Every survivor still in the fight (not eliminated, still at the table) is
+ *  done. An empty team is never done: nobody is left to end the turn. */
+function teamIsDone(players: GamePlayer[], done: ReadonlySet<number>): boolean {
+  const active = players.filter((p) => !p.eliminated && p.connected);
+  return active.length > 0 && active.every((p) => done.has(p.seat));
+}
+
+/** The survivors' team turn is over: the next setup turn, or the horde's. */
+function endTeamTurn(horde: HordeTable, actorSeat: number, ts: number): HordeTable {
+  // Setup turn over — just advance; the horde hasn't taken a turn yet.
+  if (horde.survivorTurn < horde.settings.setupTurns) {
+    return { ...horde, survivorTurn: horde.survivorTurn + 1, done: [] };
+  }
+  // Setup is over: the horde's turn is due.
+  const entry: HordeLogEntry = { k: 'reveal', seat: actorSeat, ts };
+  return {
+    ...horde,
+    hordeTurn: horde.hordeTurn + 1,
+    phase: 'reveal',
+    done: [],
+    steps: [...horde.steps, entry],
+  };
+}
+
 export function applyAction(prev: GameState, action: GameAction): GameState {
   const ts = action.ts ?? Date.now();
   // Legacy tolerance: old persisted states won't have activeSeat / designations.
@@ -1591,28 +1615,10 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       if (action.done) doneSet.add(action.actorSeat);
       else doneSet.delete(action.actorSeat);
 
-      const activeSurvivors = prev.players.filter((p) => !p.eliminated && p.connected);
-      const allDone =
-        action.done &&
-        (action.force === true ||
-          (activeSurvivors.length > 0 && activeSurvivors.every((p) => doneSet.has(p.seat))));
+      const allDone = action.done && (action.force === true || teamIsDone(prev.players, doneSet));
 
-      if (allDone && horde.survivorTurn < horde.settings.setupTurns) {
-        // Setup turn over — just advance; the horde hasn't taken a turn yet.
-        next = { ...next, horde: { ...horde, survivorTurn: horde.survivorTurn + 1, done: [] } };
-      } else if (allDone) {
-        // Setup is over: the horde's turn is due.
-        const entry: HordeLogEntry = { k: 'reveal', seat: action.actorSeat, ts };
-        next = {
-          ...next,
-          horde: {
-            ...horde,
-            hordeTurn: horde.hordeTurn + 1,
-            phase: 'reveal',
-            done: [],
-            steps: [...horde.steps, entry],
-          },
-        };
+      if (allDone) {
+        next = { ...next, horde: endTeamTurn(horde, action.actorSeat, ts) };
       } else {
         next = { ...next, horde: { ...horde, done: [...doneSet].sort((a, b) => a - b) } };
       }
@@ -1761,6 +1767,27 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
 
   if ('undoOf' in action && typeof action.undoOf === 'string' && next.events !== prev.events) {
     next = { ...next, events: markUndone(next.events, action.undoOf) };
+  }
+
+  // A horde-done ends the team turn as it lands. A survivor leaving (the
+  // leave route's `connected: false`), removed or knocked out shrinks the
+  // team with no horde-done, and when everyone left was already done the
+  // table waited on nobody: no "Start without", the chip only un-did (E445).
+  // Only these three: horde-undo of a reveal restores an all-done team on
+  // purpose, and must not re-advance.
+  if (
+    (action.type === 'update-player' ||
+      action.type === 'remove-player' ||
+      action.type === 'eliminate') &&
+    next.status === 'active' &&
+    next.horde?.phase === 'survivors'
+  ) {
+    const done = new Set(next.horde.done);
+    if (teamIsDone(next.players, done)) {
+      // The reveal is logged to the lowest done seat still at the table.
+      const actor = next.players.find((p) => !p.eliminated && p.connected && done.has(p.seat))!;
+      next = { ...next, horde: endTeamTurn(next.horde, actor.seat, ts) };
+    }
   }
 
   // Apply auto-elimination + auto-win only while the game is in progress so
