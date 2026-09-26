@@ -219,6 +219,20 @@ describe('table clock is an edge strip, not a seam satellite', () => {
     expect(gameBoard).toMatch(/--safe-bottom/);
     expect(enhancements).not.toMatch(/\.game-clock-strip[^{]*\{[^}]*safe-area-inset/);
   });
+
+  it('a phone-narrow strip gives its padding to the name, sized off its own width', () => {
+    // "Player 10" read "Playe…'s turn" at 320px. The strip's own width, not
+    // the viewport's: under keep-still the board's width is the screen's height.
+    const strip = enhancements.match(/\.game-clock-strip\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(strip).toMatch(/container:\s*clock-strip \/ inline-size/);
+    const at = enhancements.indexOf('@container clock-strip (max-width: 22rem) {');
+    expect(at).toBeGreaterThan(-1);
+    // After the base button rule, or its padding wins by source order.
+    expect(at).toBeGreaterThan(enhancements.indexOf('\n.game-clock-strip-btn {'));
+    expect(enhancements.slice(at, enhancements.indexOf('\n}\n', at))).toMatch(
+      /\.game-clock-strip-btn \{\s*padding-inline: var\(--space-1\);/
+    );
+  });
 });
 
 /**

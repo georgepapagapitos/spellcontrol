@@ -273,3 +273,59 @@ describe('board ground', () => {
     expect(rule).not.toContain('var(--bg');
   });
 });
+
+/**
+ * The designation marks (Monarch, Initiative, "Up next") read the seat's ink
+ * too, on a plate of the ink's opposite. "Up next" was a 55%-opacity black
+ * glyph on a dark plate: mud on the light blue seats. Its quietness is now a
+ * fainter plate and a dashed ring, never a fainter glyph, so the glyph keeps
+ * the seat's own ink contrast on every palette.
+ */
+describe('designation chips', () => {
+  const rule = (sel: string) => {
+    const start = counters.indexOf(`\n${sel}`);
+    expect(start, sel).toBeGreaterThan(-1);
+    return counters.slice(start, counters.indexOf('\n}', start));
+  };
+  const mix = (a: string, b: string, pctA: number) =>
+    '#' +
+    [1, 3, 5]
+      .map((i) =>
+        Math.round(
+          (parseInt(a.slice(i, i + 2), 16) * pctA +
+            parseInt(b.slice(i, i + 2), 16) * (100 - pctA)) /
+            100
+        )
+          .toString(16)
+          .padStart(2, '0')
+      )
+      .join('');
+
+  it('the plate is the ink opposite, per seat', () => {
+    expect(board).toMatch(/\.player-panel \{\s*--pp-ink: #fff;[\s\S]*?--pp-ink-plate: #000;/);
+    expect(board).toMatch(/--pp-ink: #000;\s*--pp-ink-plate: #fff;/);
+  });
+
+  it('the glyph is the ink at full strength on every chip', () => {
+    expect(rule('.pp-designation-chip {')).toContain('color: var(--pp-ink);');
+    expect(rule('.pp-designation-chip.is-next {')).not.toMatch(/opacity/);
+  });
+
+  it('"Up next" keeps 4:1 or more on every seat palette', () => {
+    const pct = Number(
+      rule('.pp-designation-chip.is-next {').match(
+        /background: color-mix\(in srgb, var\(--pp-ink-plate\) (\d+)%, transparent\)/
+      )?.[1]
+    );
+    expect(pct).toBeGreaterThan(0);
+    for (let i = 0; i < SEAT_PALETTE_COUNT; i++) {
+      const p = paletteForIndex(i);
+      const [ink, plate] = p.ink === 'dark' ? ['#000000', '#ffffff'] : ['#ffffff', '#000000'];
+      for (const ground of [p.base, mid(p.base, p.edge)]) {
+        expect(contrast(ink, mix(plate, ground, pct)), `palette ${p.base}`).toBeGreaterThanOrEqual(
+          4
+        );
+      }
+    }
+  });
+});

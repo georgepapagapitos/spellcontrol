@@ -60,7 +60,7 @@
 }
 
 @media (min-width: 600px) {
-  .game-board-undo-btn {
+  :where(.game-board-rotator:not([data-board-rot])) .game-board-undo-btn {
     width: 3rem;
     height: 3rem;
     /* At this breakpoint the hub and button are slightly larger, so the
@@ -71,7 +71,7 @@
       var(--undo-ty-lg, var(--undo-ty, -50%))
     );
   }
-  .game-board-undo-btn:active {
+  :where(.game-board-rotator:not([data-board-rot])) .game-board-undo-btn:active {
     transform: translate(
         var(--undo-tx-lg, var(--undo-tx, calc(-50% - 4rem))),
         var(--undo-ty-lg, var(--undo-ty, -50%))
@@ -109,6 +109,9 @@
   color: #fff;
   /* Tabular figures so the digits don't jitter sideways once a second. */
   font-variant-numeric: tabular-nums;
+  /* Its own width, for the narrow tier below: the strip is the board's width,
+     which under keep-still is not the screen's. */
+  container: clock-strip / inline-size;
 }
 
 .game-clock-strip.is-paused {
@@ -236,24 +239,37 @@
   }
 }
 
+/* A phone-narrow strip (320-352px) gives its padding to the name: at 320px
+   "Player 10" read "Playe…'s turn", and "P…" once "(paused)" joined the
+   line. The Pause button keeps its 44px floor; Pass keeps its label. */
+@container clock-strip (max-width: 22rem) {
+  .game-clock-strip-text {
+    gap: 0.2em;
+  }
+
+  .game-clock-strip-btn {
+    padding-inline: var(--space-1);
+  }
+}
+
 /* ≥600px: the strip has room to breathe, so it widens back out instead of
    staying phone-tight. */
 @media (min-width: 600px) {
-  .game-clock-strip {
+  :where(.game-board-rotator:not([data-board-rot])) .game-clock-strip {
     gap: var(--space-3);
     padding: var(--space-2) var(--space-3);
   }
 
-  .game-clock-strip-text {
+  :where(.game-board-rotator:not([data-board-rot])) .game-clock-strip-text {
     gap: 0.4em;
     font-size: var(--text-sm);
   }
 
-  .game-clock-strip-actions {
+  :where(.game-board-rotator:not([data-board-rot])) .game-clock-strip-actions {
     gap: var(--space-2);
   }
 
-  .game-clock-strip-btn {
+  :where(.game-board-rotator:not([data-board-rot])) .game-clock-strip-btn {
     gap: 0.3em;
     font-size: var(--text-xs);
     padding: var(--space-2) var(--space-3);

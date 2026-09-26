@@ -572,7 +572,9 @@ export function GameBoard({
             an overlay — the grid shrinks to make room for it, it never sits
             on top of a seat. Hidden in commander-damage focus mode, same as
             the old seam satellite: that mode strips the board down to the
-            damage question. */}
+            damage question. Its space goes back to the seats, which the
+            7-10 player boards need for the focused total (a reserved strip
+            took 14px from each 90px cell and the total to 19px). */}
         {showClockStrip && !cmdFocus && (
           <GameClock
             game={game}
@@ -996,6 +998,7 @@ function PlayerPanel({
   });
 
   const isSideways = rotation === 90 || rotation === 270;
+  const verticalTaps = (game.tapOrientation ?? 'horizontal') === 'vertical';
   // Ambient "danger" pulse when a player is in topdeck range but still alive.
   // Lotus's own low health warning fires below 10; device pref, default on.
   const isLowLife =
@@ -1030,7 +1033,10 @@ function PlayerPanel({
         } ${cmdTarget ? 'is-cmd-source' : ''} ${isCmdSelf ? 'is-cmd-self' : ''} ${
           // Either commander independently reaching 21 is lethal — never the sum.
           cmdTarget && (cmdValue >= 21 || cmdPartnerValue >= 21) ? 'is-cmd-lethal' : ''
-        } ${isCmdSplit ? 'is-cmd-split' : ''} ${minimalistMode ? 'is-minimalist' : ''}`}
+        } ${isCmdSplit ? 'is-cmd-split' : ''} ${minimalistMode ? 'is-minimalist' : ''} ${
+          // The ± hints follow the tap zones onto the vertical axis.
+          verticalTaps ? 'is-vertical-taps' : ''
+        }`}
         // Rotation is set as a CSS variable consumed by the .player-panel
         // transform rule so it composes cleanly with any other transforms.
         // When no identity / no override applies, the inline palette vars
@@ -1066,7 +1072,7 @@ function PlayerPanel({
         {cmdTarget && !isCmdSplit && <div className="pp-cmd-fill" aria-hidden="true" />}
         {/* A split panel owns its zones per half, so the panel-wide ones would
             sit on top of both halves and send every tap to the primary. */}
-        {isCmdSplit ? null : (game.tapOrientation ?? 'horizontal') === 'vertical' ? (
+        {isCmdSplit ? null : verticalTaps ? (
           <>
             <div
               className="player-panel-tapzone is-top"
@@ -1111,7 +1117,10 @@ function PlayerPanel({
                 setDrawerOpen((v) => !v);
               }}
             >
-              {player.isHost && (
+              {/* Online only: there the host is who controls the table. On a
+                  local board seat 0 is "host" only by construction, and the ★
+                  read as a mark on one player. */}
+              {player.isHost && game.mode !== 'local' && (
                 <span className="player-panel-host" aria-label="host">
                   ★
                 </span>

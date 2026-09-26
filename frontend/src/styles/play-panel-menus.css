@@ -888,7 +888,7 @@
 }
 
 @media (min-width: 600px) {
-  .game-board-menu-btn {
+  :where(.game-board-rotator:not([data-board-rot])) .game-board-menu-btn {
     width: 3rem;
     height: 3rem;
   }
@@ -1119,7 +1119,7 @@
 }
 
 @media (min-width: 600px) {
-  .game-menu-backdrop {
+  :where(.game-board-rotator:not([data-board-rot])) .game-menu-backdrop {
     align-items: center;
     padding: var(--space-5);
   }
@@ -1146,13 +1146,23 @@
 }
 
 @media (min-width: 600px) {
-  .game-menu {
+  :where(.game-board-rotator:not([data-board-rot])) .game-menu {
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     width: min(32rem, 100%);
     max-height: 82dvh;
     box-shadow: var(--shadow-modal);
     animation: pp-scale-in 180ms var(--ease-out-soft);
+  }
+}
+
+/* A board kept still in landscape is turned 90° (play-board.css): its own
+   height is the screen's width, while dvh is still the short landscape
+   height. `.game-board` is the size container in exactly this query, so cqw
+   is the board's height, the same trick the life keypad uses. */
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .game-board-rotator[data-board-rot] .game-menu {
+    max-height: 88cqw;
   }
 }
 
@@ -1181,7 +1191,7 @@
 }
 
 @media (min-width: 600px) {
-  .game-menu-grabber {
+  :where(.game-board-rotator:not([data-board-rot])) .game-menu-grabber {
     display: none;
   }
 }
@@ -1256,7 +1266,7 @@
 }
 
 @media (min-width: 600px) {
-  .game-menu-tabs {
+  :where(.game-board-rotator:not([data-board-rot])) .game-menu-tabs {
     margin: var(--space-3) 1.25rem 0;
   }
 }
@@ -1291,7 +1301,7 @@
 }
 
 @media (min-width: 600px) {
-  .game-menu-body {
+  :where(.game-board-rotator:not([data-board-rot])) .game-menu-body {
     padding: var(--space-4) 1.25rem 1.25rem;
   }
 }
