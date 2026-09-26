@@ -22,8 +22,13 @@ const SECTION_HEADERS = new Set(['deck', 'sideboard', 'commander', 'maybeboard',
  */
 const MAX_LINE_LENGTH = 512;
 
-// "1 Sol Ring (CMR) 472" or "1x Sol Ring (CMR) 472"
-const MTGA_FULL = /^(\d+)\s*x?\s+(.+?)\s+\(([A-Za-z0-9]{2,5})\)\s+([A-Za-z0-9★-]+)\s*$/;
+// "1 Sol Ring (CMR) 472" or "1x Sol Ring (CMR) 472", optionally with finish /
+// condition markers AFTER the collector number — "1 Sol Ring (CMR) 472 *F*",
+// Moxfield's export order. Without that tail the line fell through to a bare
+// name lookup of "Sol Ring (CMR) 472", which resolves nothing: the foil was
+// lost outright. The markers join the name for cleanName to strip.
+const MTGA_FULL =
+  /^(\d+)\s*x?\s+(.+?)\s+\(([A-Za-z0-9]{2,5})\)\s+([A-Za-z0-9★-]+)((?:\s+(?:\*[A-Za-z]+\*|\[[A-Za-z]+\]))*)\s*$/;
 // "1 Sol Ring (CMR)"
 const MTGA_NO_COLLECTOR = /^(\d+)\s*x?\s+(.+?)\s+\(([A-Za-z0-9]{2,5})\)\s*$/;
 // "4x Lightning Bolt", "4 Lightning Bolt", or "4xLightning Bolt" (no space after x)
@@ -61,7 +66,7 @@ export function parseTextList(text: string): ParseResult {
     let match = line.match(MTGA_FULL);
     if (match) {
       usedMtga = true;
-      const cleaned = cleanName(match[2]);
+      const cleaned = cleanName(match[2] + match[5]);
       rows.push({
         name: cleaned.name,
         quantity: parseInt(match[1]) || 1,

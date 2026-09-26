@@ -132,6 +132,32 @@ describe('parseTextList', () => {
       expect(etched.rows[0]).toMatchObject({ name: 'Sol Ring', finish: 'etched' });
     });
 
+    it('reads finish and condition markers after the collector number — the Moxfield order', () => {
+      // This line used to miss every printing pattern and fall through to a
+      // bare name lookup of "Sol Ring (CMR) 472", which resolves nothing.
+      expect(parseTextList('1 Sol Ring (CMR) 472 *F*').rows[0]).toMatchObject({
+        name: 'Sol Ring',
+        setCode: 'CMR',
+        collectorNumber: '472',
+        finish: 'foil',
+      });
+      expect(parseTextList('1 Sol Ring (CMR) 472 *ETCHED*').rows[0]).toMatchObject({
+        name: 'Sol Ring',
+        collectorNumber: '472',
+        finish: 'etched',
+      });
+      expect(parseTextList('1 Sol Ring (CMR) 472 [ETCHED]').rows[0]).toMatchObject({
+        name: 'Sol Ring',
+        finish: 'etched',
+      });
+      expect(parseTextList('1 Sol Ring (CMR) 472 *F* *LP*').rows[0]).toMatchObject({
+        name: 'Sol Ring',
+        collectorNumber: '472',
+        finish: 'foil',
+        condition: 'lp',
+      });
+    });
+
     it('leaves finish undefined for cards without markers', () => {
       const { rows } = parseTextList('1 Sol Ring');
       expect(rows[0].finish).toBeUndefined();
