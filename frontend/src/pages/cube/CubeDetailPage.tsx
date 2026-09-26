@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Ban, Boxes, Copy, Pencil, Plus, Share2, Trash2, X } from 'lucide-react';
 import './cube.css';
 import { BackLink } from '../../components/BackLink';
@@ -31,7 +31,7 @@ import { userMessage } from '@/lib/user-error';
 import { useOwnershipFor, CubeLoadingBlock, CubeErrorBlock } from './shared';
 import { CubeResult, SavedCubeMeta, type CubeEditHandlers } from './CubeResult';
 import { CubeCardPickerSheet } from './CubeCardPickerSheet';
-import { Button } from '../../components/shared/Button';
+import { Button, IconButton } from '../../components/shared/Button';
 
 type DetailTab = 'cards' | 'shopping' | 'pull';
 
@@ -436,10 +436,9 @@ export function CubeDetailPage() {
         )}
         {tab === 'cards' && rebuildStatus === 'idle' && (
           <div className="cube-add-from-collection">
-            <button type="button" className="btn" onClick={handleAddOpen}>
-              <Plus width={14} height={14} strokeWidth={2} aria-hidden />
+            <Button icon={<Plus width={14} height={14} strokeWidth={2} />} onClick={handleAddOpen}>
               Add from collection
-            </button>
+            </Button>
           </div>
         )}
         {tab === 'shopping' && (
@@ -578,14 +577,12 @@ export function CubeDetailPage() {
         >
           <div className="modal-header">
             <h2 id="cube-banned-title">Banned cards</h2>
-            <button
-              type="button"
+            <IconButton
               className="modal-close"
+              label="Close"
+              icon={<X width={20} height={20} strokeWidth={1.8} />}
               onClick={() => setBannedOpen(false)}
-              aria-label="Close"
-            >
-              <X width={20} height={20} strokeWidth={1.8} aria-hidden />
-            </button>
+            />
           </div>
           <div className="modal-body cube-picker-body">
             {bannedIds.length === 0 ? (
@@ -599,13 +596,7 @@ export function CubeDetailPage() {
                         {nameByOracle.get(oracleId) ?? 'Unknown card'}
                       </span>
                     </span>
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => cubeStore.unbanCard(target.id, oracleId)}
-                    >
-                      Unban
-                    </button>
+                    <Button onClick={() => cubeStore.unbanCard(target.id, oracleId)}>Unban</Button>
                   </li>
                 ))}
               </ul>

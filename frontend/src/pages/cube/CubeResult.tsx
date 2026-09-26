@@ -36,7 +36,7 @@ import {
   groupPicksByBucket,
 } from './shared';
 import { CubeHealthPanel } from './CubeHealthPanel';
-import { Button } from '../../components/shared/Button';
+import { Button, IconButton } from '../../components/shared/Button';
 
 /** "180 cards · 4 players · saved 1h ago · Physical · 180 reserved" — the one
  *  line that identifies a saved cube, on its row AND over the result it's loaded into. */
@@ -196,9 +196,7 @@ export function CubeResult({
                 Save cube
               </Button>
             )}
-            {!hideCopyAction && (
-              <Button onClick={onCopy}>Copy cube list</Button>
-            )}
+            {!hideCopyAction && <Button onClick={onCopy}>Copy cube list</Button>}
           </div>
         </div>
       )}
@@ -405,38 +403,31 @@ export function CubeResult({
                           </button>
                           {edit && (
                             <div className="cube-row-acts">
-                              <button
-                                type="button"
+                              <IconButton
                                 className="card-edit-btn cube-row-lock-btn"
                                 aria-pressed={isLocked}
-                                aria-label={`${isLocked ? 'Unlock' : 'Lock'} ${p.card.name}`}
+                                label={`${isLocked ? 'Unlock' : 'Lock'} ${p.card.name}`}
                                 title={
                                   isLocked
                                     ? 'Stays on "Rebuild the rest"'
                                     : 'Locks this card for "Rebuild the rest"'
                                 }
+                                icon={
+                                  isLocked ? (
+                                    <Lock width={15} height={15} strokeWidth={2} />
+                                  ) : (
+                                    <LockOpen width={15} height={15} strokeWidth={2} />
+                                  )
+                                }
                                 onClick={() => edit.onToggleLock(p.card.oracleId, p.card.name)}
-                              >
-                                {isLocked ? (
-                                  <Lock width={15} height={15} strokeWidth={2} aria-hidden />
-                                ) : (
-                                  <LockOpen width={15} height={15} strokeWidth={2} aria-hidden />
-                                )}
-                              </button>
-                              <button
-                                type="button"
+                              />
+                              <IconButton
                                 className="card-edit-btn"
-                                aria-label={`Swap ${p.card.name}`}
+                                label={`Swap ${p.card.name}`}
                                 title="Swap for a ranked replacement"
+                                icon={<ArrowLeftRight width={15} height={15} strokeWidth={2} />}
                                 onClick={() => edit.onSwap(flatIndex)}
-                              >
-                                <ArrowLeftRight
-                                  width={15}
-                                  height={15}
-                                  strokeWidth={2}
-                                  aria-hidden
-                                />
-                              </button>
+                              />
                               <OverflowMenu
                                 triggerClassName="card-edit-btn"
                                 ariaLabel={`More actions for ${p.card.name}`}

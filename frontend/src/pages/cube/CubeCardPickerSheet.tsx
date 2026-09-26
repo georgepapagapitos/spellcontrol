@@ -5,6 +5,7 @@ import { CardPreview } from '../../components/CardPreview';
 import { useCardThumb } from '../../lib/card-thumbs';
 import type { CubeCard } from '../../lib/cube/core';
 import { cubeCardToEnriched } from './shared';
+import { Button, IconButton } from '../../components/shared/Button';
 
 export interface CubeCardCandidate {
   card: CubeCard;
@@ -56,9 +57,12 @@ export function CubeCardPickerSheet({
     >
       <div className="modal-header">
         <h2 id={titleId}>{title}</h2>
-        <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-          <X width={20} height={20} strokeWidth={1.8} aria-hidden />
-        </button>
+        <IconButton
+          className="modal-close"
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+          onClick={onClose}
+        />
       </div>
       <div className="modal-body cube-picker-body">
         {subtitle && <p className="cube-picker-subtitle">{subtitle}</p>}
@@ -84,9 +88,9 @@ export function CubeCardPickerSheet({
         {!loading && error && (
           <div className="cube-error" role="alert">
             {error}
-            <button type="button" className="btn-link" onClick={onRetry}>
+            <Button variant="link" onClick={onRetry}>
               Try again
-            </button>
+            </Button>
           </div>
         )}
         {!loading && !error && candidates.length === 0 && (
@@ -157,9 +161,7 @@ function CubePickerRow({
           {reason && <span className="cube-row-reason">{reason}</span>}
         </span>
       </button>
-      <button type="button" className="btn btn-sm" onClick={onPick}>
-        {pickLabel}
-      </button>
+      <Button onClick={onPick}>{pickLabel}</Button>
     </li>
   );
 }

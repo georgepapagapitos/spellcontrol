@@ -33,7 +33,6 @@ import {
 import { CubeResult } from './CubeResult';
 
 import { userMessage } from '@/lib/user-error';
-import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 import { Button } from '../../components/shared/Button';
 
 const PRICE_CEILINGS: (number | null)[] = [null, 1, 2, 5, 10];
