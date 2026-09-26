@@ -432,6 +432,58 @@ describe('leaving focus mode', () => {
   });
 });
 
+describe('keyboard focus across focus mode', () => {
+  // The mode hides the focused seat's name corner, and the drawer hands focus
+  // back to that name as it closes: focus used to fall to <body>, leaving a
+  // keyboard user nowhere on the board.
+  const name = () => screen.getByRole('button', { name: 'Alice: seat menu' });
+  const done = () => document.querySelector<HTMLElement>('.pp-cmd-focus-done');
+
+  function enterFromDrawer() {
+    name().focus();
+    fireEvent.click(name());
+    const action = screen.getByRole('button', { name: 'Commander damage' });
+    action.focus();
+    fireEvent.click(action);
+  }
+
+  it('entering from the drawer lands on Return, and Return hands focus back to the name', () => {
+    renderPod();
+    enterFromDrawer();
+
+    expect(focusBar()).toBeTruthy();
+    expect(document.activeElement).toBe(done());
+
+    fireEvent.click(done()!);
+
+    expect(focusBar()).toBeNull();
+    expect(document.activeElement).toBe(name());
+  });
+
+  it('Escape from Return also hands focus back to the name', () => {
+    renderPod();
+    drag(tapZone(0), ALICE_UP);
+    done()!.focus();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(focusBar()).toBeNull();
+    expect(document.activeElement).toBe(name());
+  });
+
+  it('leaves focus alone when it sits on a live control, like the hub', () => {
+    renderPod();
+    enterFromDrawer();
+    const hub = document.querySelector<HTMLElement>('.game-board-menu-btn')!;
+    hub.focus();
+
+    fireEvent.click(hub);
+
+    expect(focusBar()).toBeNull();
+    expect(document.activeElement).toBe(hub);
+  });
+});
+
 describe('cmdDamageFillRatio / cmdDamageToLethal', () => {
   it('clamps fill to [0, 1] across the value range', () => {
     expect(cmdDamageFillRatio(0)).toBe(0);
