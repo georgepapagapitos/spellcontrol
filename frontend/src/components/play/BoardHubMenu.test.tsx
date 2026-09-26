@@ -70,6 +70,26 @@ describe('BoardHubMenu', () => {
     expect(screen.getByRole('menuitem', { name: 'Beta' })).toBe(document.activeElement);
   });
 
+  it('never scrolls the board when focus moves into or around the ring', () => {
+    // Landscape with the board kept still: a petal overhanging the board's
+    // edge made the opening focus() scroll the (overflow: hidden) board, the
+    // ring's scroll-dismiss read that as the hub moving, and a keyboard or
+    // scripted open closed as it opened.
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+    try {
+      renderRing();
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      fireEvent.keyDown(document, { key: 'Home' });
+      const petalCalls = focus.mock.contexts
+        .map((el, i) => [el, focus.mock.calls[i][0]] as const)
+        .filter(([el]) => (el as HTMLElement).classList.contains('board-hub-petal'));
+      expect(petalCalls).toHaveLength(3);
+      for (const [, opts] of petalCalls) expect(opts).toEqual({ preventScroll: true });
+    } finally {
+      focus.mockRestore();
+    }
+  });
+
   // F12a: opening the ring by pointer must not draw a focus ring on the
   // first petal, even though focus still moves there; a keyboard open must.
   describe('the initial-focus ring, keyed to how the open was triggered', () => {

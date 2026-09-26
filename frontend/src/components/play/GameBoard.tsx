@@ -845,6 +845,25 @@ function PlayerPanel({
   const panelRef = useRef<HTMLElement | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number }>({ x: 50, y: 50 });
 
+  // Focus mode hides this seat's name corner, and "Commander damage" in the
+  // drawer hands focus back to that name as the drawer closes: focus fell to
+  // <body>. So entering hands it to the focus bar's Return button, and leaving
+  // (that button unmounts) hands it back to the name, visible again. Only
+  // stranded focus moves: a keyboard user already on another control (the
+  // hub, a source seat's ±) stays put. preventScroll: the board is rotated
+  // in landscape and must never scroll.
+  const nameBtnRef = useRef<HTMLButtonElement>(null);
+  const cmdDoneRef = useRef<HTMLButtonElement>(null);
+  const wasCmdSelfRef = useRef(isCmdSelf);
+  useEffect(() => {
+    if (wasCmdSelfRef.current === isCmdSelf) return;
+    wasCmdSelfRef.current = isCmdSelf;
+    const active = document.activeElement;
+    const stranded = !active || active === document.body || active === nameBtnRef.current;
+    if (!stranded) return;
+    (isCmdSelf ? cmdDoneRef : nameBtnRef).current?.focus({ preventScroll: true });
+  }, [isCmdSelf]);
+
   // Track the most recent pointer location (in panel-local %) so floating
   // delta chips spawn under the user's finger.
   const recordPointer = useCallback(
@@ -1081,6 +1100,7 @@ function PlayerPanel({
                 instead of falling through to the −1 tap zone beneath it. It is
                 also the drawer's keyboard and screen-reader route in. */}
             <button
+              ref={nameBtnRef}
               type="button"
               className="player-panel-name"
               title={player.name}
@@ -1362,6 +1382,7 @@ function PlayerPanel({
               Commander damage received
             </span>
             <button
+              ref={cmdDoneRef}
               type="button"
               className="pp-cmd-focus-done"
               onPointerDown={(e) => e.stopPropagation()}

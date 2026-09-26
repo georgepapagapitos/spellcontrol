@@ -119,6 +119,22 @@ describe('useMenuKeyboard', () => {
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'One' }));
   });
 
+  it('lets focus scroll by default, so a long list reveals the item it lands on', () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+    try {
+      render(<Harness />);
+      fireEvent.click(screen.getByRole('button', { name: 'Trigger' }));
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      const itemCalls = focus.mock.contexts
+        .map((el, i) => [el, focus.mock.calls[i][0]] as const)
+        .filter(([el]) => (el as HTMLElement).getAttribute('role') === 'menuitem');
+      expect(itemCalls).toHaveLength(2);
+      for (const [, opts] of itemCalls) expect(opts?.preventScroll).not.toBe(true);
+    } finally {
+      focus.mockRestore();
+    }
+  });
+
   it('focuses the initialItemSelector match (selected option) when provided', () => {
     render(
       <Harness

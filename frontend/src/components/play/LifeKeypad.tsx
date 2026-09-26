@@ -48,15 +48,36 @@ export function LifeKeypad({ playerName, currentLife, onConfirm, onClose, rotati
   }, [buffer, currentLife, onConfirm]);
 
   const panelRef = useRef<HTMLDivElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   useOverlayDismiss(onClose, panelRef);
+  // Initial focus on "Set life", after the overlay trap's own pick (its first
+  // focusable, the ✕): the keyboard path is type the digits, press Enter, and
+  // that Enter confirms once, as this button's own activation. Mount only, so
+  // flipping back from delta mode doesn't pull focus off the toggle.
+  useEffect(() => {
+    confirmRef.current?.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       // confirmSet must be a dep — an empty-dep effect captured buffer==='' at
       // mount, so Enter dropped the typed total and set life to currentLife.
-      if (e.key === 'Enter') confirmSet();
-      else if (e.key === 'Backspace') setBuffer((b) => b.slice(0, -1));
-      else if (/^[0-9]$/.test(e.key)) setBuffer((b) => (b + e.key).slice(0, 4));
+      if (e.key === 'Enter') {
+        // A focused key activates itself: Enter on "7" types 7, Enter on
+        // "Set life" confirms through its own click, Enter on ✕ closes.
+        if (e.target instanceof Element && e.target.closest('button')) return;
+        // preventDefault: the keypad unmounts on this confirm and focus goes
+        // back to the numeral button, which the same Enter's default action
+        // would otherwise click, opening the keypad again.
+        e.preventDefault();
+        confirmSet();
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        setBuffer((b) => b.slice(0, -1));
+      } else if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        setBuffer((b) => (b + e.key).slice(0, 4));
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -153,7 +174,12 @@ export function LifeKeypad({ playerName, currentLife, onConfirm, onClose, rotati
         </div>
 
         {mode === 'set' ? (
-          <button type="button" className="life-keypad-confirm" onClick={confirmSet}>
+          <button
+            ref={confirmRef}
+            type="button"
+            className="life-keypad-confirm"
+            onClick={confirmSet}
+          >
             Set life
           </button>
         ) : (

@@ -28,6 +28,42 @@ describe('getFocusable', () => {
   });
 });
 
+describe('getFocusable: rendered controls only', () => {
+  // A short seat's drawer hides its header ✕ with a container query. As the
+  // "first focusable" it took the initial focus (refused: display:none) and
+  // the Tab wrap, so focus never entered the aria-modal dialog.
+  it('skips a control under display:none or visibility:hidden, itself or an ancestor', () => {
+    const panel = panelWith(`
+      <button id="a" style="display: none">a</button>
+      <div style="display: none"><button id="b">b</button></div>
+      <button id="c" style="visibility: hidden">c</button>
+      <button id="d">d</button>
+    `);
+    expect(getFocusable(panel).map((el) => el.id)).toEqual(['d']);
+  });
+
+  it('focusInto and the Tab wrap land on the first RENDERED control', () => {
+    const panel = panelWith(`
+      <button id="close" style="display: none">x</button>
+      <button id="first">first</button>
+      <button id="last">last</button>
+    `);
+    focusInto(panel);
+    expect(document.activeElement?.id).toBe('first');
+    panel.querySelector<HTMLElement>('#last')!.focus();
+    trapTab(panel, tab());
+    expect(document.activeElement?.id).toBe('first');
+  });
+
+  it('falls back to client rects where checkVisibility is missing (Safari < 17.4)', () => {
+    const panel = panelWith('<button id="a">a</button><button id="b">b</button>');
+    const [a, b] = Array.from(panel.querySelectorAll('button'));
+    for (const el of [a, b]) Object.defineProperty(el, 'checkVisibility', { value: undefined });
+    Object.defineProperty(a, 'getClientRects', { value: () => [] });
+    expect(getFocusable(panel).map((el) => el.id)).toEqual(['b']);
+  });
+});
+
 describe('focusInto', () => {
   it('focuses the first focusable child', () => {
     const panel = panelWith('<button id="a">a</button><button id="b">b</button>');

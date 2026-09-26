@@ -30,9 +30,22 @@ const FOCUSABLE_SELECTOR = [
   '[contenteditable="true"]',
 ].join(', ');
 
+/**
+ * Whether `el` is rendered at all. A control under `display: none` (itself or
+ * any ancestor, e.g. a header ✕ a container query hides on a short seat) or
+ * `visibility: hidden` refuses `focus()`, so picking one as "first" left focus
+ * outside the dialog and the Tab wrap aimed at nothing. `checkVisibility` is
+ * missing before Safari 17.4; zero client rects is the same test there.
+ */
+function isRendered(el: HTMLElement): boolean {
+  return typeof el.checkVisibility === 'function'
+    ? el.checkVisibility({ visibilityProperty: true })
+    : el.getClientRects().length > 0;
+}
+
 export function getFocusable(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (el) => !el.closest('[hidden]')
+    (el) => !el.closest('[hidden]') && isRendered(el)
   );
 }
 

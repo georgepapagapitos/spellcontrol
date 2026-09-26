@@ -69,6 +69,55 @@ describe('LifeKeypad — absolute set mode (default)', () => {
     expect(onConfirm).toHaveBeenCalledWith(27);
   });
 
+  it('opens with focus on Set life, so typing then Enter confirms by that button', () => {
+    renderKeypad(40);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Set life' }));
+  });
+
+  it('Enter away from any key confirms exactly once and cancels the default', () => {
+    // Regression: the confirm unmounts the keypad and focus returns to the
+    // numeral button; an un-cancelled Enter then clicked that button and
+    // opened the keypad again.
+    const onConfirm = vi.fn();
+    renderKeypad(40, onConfirm);
+    fireEvent.keyDown(window, { key: '2' });
+    fireEvent.keyDown(window, { key: '5' });
+
+    const notCancelled = fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
+
+    expect(notCancelled).toBe(false);
+    expect(onConfirm).toHaveBeenCalledOnce();
+    expect(onConfirm).toHaveBeenCalledWith(25);
+  });
+
+  it('Enter on a focused digit key types that digit instead of confirming', () => {
+    const onConfirm = vi.fn();
+    renderKeypad(40, onConfirm);
+    const seven = screen.getByRole('button', { name: '7' });
+    seven.focus();
+
+    // The browser turns an un-cancelled Enter on a button into its click.
+    const notCancelled = fireEvent.keyDown(seven, { key: 'Enter' });
+    if (notCancelled) fireEvent.click(seven);
+
+    expect(notCancelled).toBe(true);
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(document.querySelector('.life-keypad-display')?.textContent).toBe('7');
+  });
+
+  it('Enter on the focused Set life button confirms once, through its own click', () => {
+    const onConfirm = vi.fn();
+    renderKeypad(40, onConfirm);
+    fireEvent.keyDown(window, { key: '9' });
+    const set = screen.getByRole('button', { name: 'Set life' });
+
+    const notCancelled = fireEvent.keyDown(set, { key: 'Enter' });
+    if (notCancelled) fireEvent.click(set);
+
+    expect(onConfirm).toHaveBeenCalledOnce();
+    expect(onConfirm).toHaveBeenCalledWith(9);
+  });
+
   it('handles keyboard Escape to close', () => {
     const onClose = vi.fn();
     renderKeypad(40, vi.fn(), onClose);
