@@ -45,6 +45,33 @@ describe('buildManaData', () => {
     expect(r.manaCurve[8]).toBeUndefined();
   });
 
+  // The stacked "By color" curve and its toggle render only when this is
+  // present. #428 deleted its one producer with DeckManaPanel, and the color
+  // curve sat dead on every deck from 2026-05-31 until this was restored.
+  it('splits each curve bucket by color: none → colorless, one → that color, 2+ → gold', () => {
+    const r = buildManaData(
+      [
+        card({ cmc: 1, type_line: 'Instant', color_identity: ['R'] }),
+        card({ cmc: 1, type_line: 'Artifact', color_identity: [] }),
+        card({ cmc: 3, type_line: 'Creature', color_identity: ['U', 'R'] }),
+        card({ cmc: 9, type_line: 'Sorcery', color_identity: ['G'] }),
+        card({ cmc: 0, type_line: 'Basic Land — Mountain', color_identity: ['R'] }),
+      ],
+      null
+    );
+    const empty = { W: 0, U: 0, B: 0, R: 0, G: 0, gold: 0, colorless: 0 };
+    expect(r.curveByColor).toEqual({
+      1: { ...empty, R: 1, colorless: 1 },
+      3: { ...empty, gold: 1 },
+      7: { ...empty, G: 1 },
+    });
+    // Every bucket sums to the plain curve's count for that mana value.
+    for (const [cmc, n] of Object.entries(r.manaCurve)) {
+      const sum = Object.values(r.curveByColor![Number(cmc)]).reduce((a, b) => a + b, 0);
+      expect(sum).toBe(n);
+    }
+  });
+
   it('averageCmc is the mean over nonland cards only', () => {
     const r = buildManaData(
       [

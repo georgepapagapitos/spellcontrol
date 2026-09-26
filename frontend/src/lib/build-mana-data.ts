@@ -11,7 +11,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { CardTally } from '@/components/deck/useCardCarousel';
-import type { DeckManaData } from '@/components/deck/deck-mana-types';
+import type { CurveColorBucket, DeckManaData } from '@/components/deck/deck-mana-types';
 import { producedManaColors, isManaSourceType, deckColorIdentity } from '@/lib/mana-sources';
 
 export type { DeckManaData };
@@ -113,12 +113,22 @@ export function buildManaData(
   commander: ScryfallCard | null,
   partnerCommander?: ScryfallCard | null
 ): DeckManaData {
-  // Curve + average CMC (nonland only).
+  // Curve + average CMC (nonland only), plus the per-color split behind the
+  // stacked "By color" curve: 0 colors → colorless, exactly 1 → that color,
+  // 2+ → gold. The same rule as DeckCurvePhases' per-card `categorize`, so a
+  // segment's count matches the cards its tap opens.
   const manaCurve: Record<number, number> = {};
+  const curveByColor: Record<number, CurveColorBucket> = {};
   const nonLand = allCards.filter((c) => !isLand(c));
   for (const c of nonLand) {
     const cmc = Math.min(7, Math.round(c.cmc ?? 0));
     manaCurve[cmc] = (manaCurve[cmc] ?? 0) + 1;
+    const ci = (c.color_identity ?? []).filter((k): k is 'W' | 'U' | 'B' | 'R' | 'G' =>
+      'WUBRG'.includes(k)
+    );
+    const key = ci.length === 0 ? 'colorless' : ci.length === 1 ? ci[0] : 'gold';
+    const bucket = (curveByColor[cmc] ??= { W: 0, U: 0, B: 0, R: 0, G: 0, gold: 0, colorless: 0 });
+    bucket[key] += 1;
   }
   const averageCmc =
     nonLand.length === 0 ? 0 : nonLand.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLand.length;
@@ -194,6 +204,7 @@ export function buildManaData(
 
   return {
     manaCurve,
+    curveByColor,
     averageCmc,
     colorDist,
     manaProduction,
