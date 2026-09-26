@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Boxes, Pencil, Share2, Trash2 } from 'lucide-react';
 import './cube.css';
 import { BackLink } from '../../components/BackLink';
@@ -20,6 +20,7 @@ import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useOwnershipFor } from './shared';
 import { CubeResult, SavedCubeMeta } from './CubeResult';
+import { Button } from '../../components/shared/Button';
 
 type DetailTab = 'cards' | 'shopping' | 'pull';
 
@@ -85,9 +86,9 @@ export function CubeDetailPage() {
             This cube doesn't exist, or you don't have access to it.
           </p>
           <div className="empty-state-actions">
-            <Link to="/decks/cube" className="btn btn-primary empty-state-action">
+            <Button to="/decks/cube" variant="primary" className="empty-state-action">
               Back to cubes
-            </Link>
+            </Button>
           </div>
         </div>
       </div>
@@ -223,9 +224,9 @@ export function CubeDetailPage() {
               A pull list only makes sense once a cube's cards are reserved from your binders.
             </p>
             <div className="empty-state-actions">
-              <button type="button" className="btn btn-primary" onClick={handleTogglePhysical}>
+              <Button variant="primary" onClick={handleTogglePhysical}>
                 Mark physical
-              </button>
+              </Button>
             </div>
           </div>
         )}

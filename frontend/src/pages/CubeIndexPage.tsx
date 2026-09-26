@@ -17,6 +17,7 @@ import { useDecksStore } from '../store/decks';
 import { bindCubeCopies } from '../lib/bind-cube-copies';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 import { SavedCubeMeta } from './cube/CubeResult';
+import { Button } from '../components/shared/Button';
 
 /**
  * `/decks/cube` — the cube list, a first-class index shaped like the deck
@@ -96,10 +97,14 @@ export function CubeIndexPage() {
             archetype-leaning build, or a mix.
           </p>
           <div className="empty-state-actions">
-            <Link to="/decks/cube/new" className="btn btn-primary empty-state-action">
-              <Plus width={14} height={14} strokeWidth={2} aria-hidden />
+            <Button
+              to="/decks/cube/new"
+              variant="primary"
+              className="empty-state-action"
+              icon={<Plus width={14} height={14} strokeWidth={2} />}
+            >
               New cube
-            </Link>
+            </Button>
           </div>
         </div>
       ) : (

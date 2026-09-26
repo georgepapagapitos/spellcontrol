@@ -39,6 +39,7 @@ import { CubeResult } from './CubeResult';
 
 import { userMessage } from '@/lib/user-error';
 import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
+import { Button } from '../../components/shared/Button';
 
 const PRICE_CEILINGS: (number | null)[] = [null, 1, 2, 5, 10];
 
@@ -292,14 +293,9 @@ export function CubeBuildPage() {
                 </span>
               )}
             </p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={generate}
-              disabled={status === 'working'}
-            >
+            <Button variant="primary" onClick={generate} disabled={status === 'working'}>
               {status === 'working' ? 'Building…' : cube ? 'Rebuild' : 'Build cube'}
-            </button>
+            </Button>
           </div>
 
           <div aria-live="polite" aria-atomic="true">

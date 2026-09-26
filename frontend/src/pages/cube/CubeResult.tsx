@@ -25,6 +25,8 @@ import {
   pickToPreviewCard,
   groupPicksByBucket,
 } from './shared';
+import { CubeHealthPanel } from './CubeHealthPanel';
+import { Button } from '../../components/shared/Button';
 
 /** "180 cards · 4 players · saved 1h ago · Physical · 180 reserved" — the one
  *  line that identifies a saved cube, on its row AND over the result it's loaded into. */
@@ -158,13 +160,11 @@ export function CubeResult({
           {/* A loaded cube is already saved — offering "Save cube" again only
               minted duplicates. Rename / physical / delete live on its row. */}
           {!loaded && (
-            <button type="button" className="btn btn-primary" onClick={onSave}>
+            <Button variant="primary" onClick={onSave}>
               Save cube
-            </button>
+            </Button>
           )}
-          <button type="button" className="btn" onClick={onCopy}>
-            Copy cube list
-          </button>
+          <Button onClick={onCopy}>Copy cube list</Button>
         </div>
       </div>
 
@@ -184,8 +184,7 @@ export function CubeResult({
 
       <CubeArchetypes score={cube.score} />
 
-      {/* A future lane adds a CubeHealthPanel here, between archetype support
-          and "where your collection lands" — no placeholder rendered for it. */}
+      <CubeHealthPanel cube={cube} />
 
       <div className="cube-gaps">
         <h3>Where your collection lands</h3>
@@ -246,9 +245,9 @@ export function CubeResult({
                 />
               ))}
             </div>
-            <button type="button" className="btn cube-sample-pack-deal" onClick={dealAnother}>
+            <Button className="cube-sample-pack-deal" onClick={dealAnother}>
               Deal another pack
-            </button>
+            </Button>
           </div>
         )}
       </div>
