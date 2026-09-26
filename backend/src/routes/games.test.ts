@@ -3940,6 +3940,69 @@ describe('Horde: games routes guard the trust boundary', () => {
       expect(Number(count.rows[0].n)).toBe(1);
     });
 
+    it('a rematch (reset with a new id) records its own result instead of losing it', async () => {
+      // Found playing two real seats: Rematch kept the table's id, so the
+      // second fight's result hit ON CONFLICT (session_id) and vanished.
+      const { code, host, version } = await activeHordeTable(
+        'horde_rematch_host',
+        'horde_rematch_join'
+      );
+      const firstId = (await request(app).get(`/api/games/${code}`).set('Cookie', host)).body.game
+        .id as string;
+      const lost = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: version,
+          actions: [{ type: 'set-life', seat: 0, value: 0, actorSeat: 0 }],
+        });
+      expect(lost.body.game.status).toBe('finished');
+      expect(await waitForResult(firstId)).toBe(true);
+
+      const rematchId = 'rematch_7c0f5e2a-2b1d-4f5e-9a41-3d2e8c1b0a99';
+      const reset = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: lost.body.game.version, actions: [{ type: 'reset', id: rematchId }] });
+      expect(reset.status).toBe(200);
+      expect(reset.body.game.id).toBe(rematchId);
+      const again = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: reset.body.game.version,
+          actions: [hordeSetupAction(), { type: 'start' }],
+        });
+      expect(again.status).toBe(200);
+      const lostAgain = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: again.body.game.version,
+          actions: [{ type: 'set-life', seat: 0, value: 0, actorSeat: 0 }],
+        });
+      expect(lostAgain.body.game.status).toBe('finished');
+      expect(await waitForResult(rematchId)).toBe(true);
+      const rows = await pool.query(
+        `SELECT session_id FROM game_results WHERE session_id = ANY($1::text[])`,
+        [[firstId, rematchId]]
+      );
+      expect(rows.rowCount).toBe(2);
+    });
+
+    it('a reset id that is not a plain token is refused', async () => {
+      const { code, host, version } = await activeHordeTable(
+        'horde_resetid_host',
+        'horde_resetid_join'
+      );
+      const bad = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: version, actions: [{ type: 'reset', id: 'no spaces/allowed' }] });
+      expect(bad.status).toBe(400);
+      expect(bad.body.error).toBe('Invalid game id.');
+    });
+
     it('end with coopOutcome "won" writes one row with a null winner_seat', async () => {
       const { code, host, version } = await activeHordeTable(
         'horde_result_won_host',

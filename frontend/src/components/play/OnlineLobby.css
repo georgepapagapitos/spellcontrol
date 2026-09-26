@@ -270,6 +270,10 @@
    `<button>` would carry. */
 .lobby-horde-readonly {
   cursor: default;
+  /* One tile's width, as in the host's row of six. Outside the tile grid a
+     .horde-tile is width: 100% of the lobby column, which drew the joiner's
+     pick as a full-width poster. */
+  max-width: 12rem;
 }
 
 .lobby-horde-error {

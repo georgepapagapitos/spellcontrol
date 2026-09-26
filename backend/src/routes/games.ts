@@ -724,6 +724,18 @@ function invalidHordeStepError(action: GameAction): string | null {
   return sanitizeHordeStep(action.step) ? null : 'Invalid horde step.';
 }
 
+/**
+ * Reject a malformed `reset` id. The id becomes the next game's
+ * `game_results.session_id`, so it is a plain opaque token: 1-100 letters,
+ * digits, `_` or `-` (a UUID, or the client's `game_<uuid>`). Absent is fine;
+ * the table then keeps its id, as every reset did before.
+ */
+function invalidResetIdError(action: GameAction): string | null {
+  if (action.type !== 'reset' || action.id === undefined) return null;
+  const id = action.id as unknown;
+  return typeof id === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(id) ? null : 'Invalid game id.';
+}
+
 /** Reject a malformed `horde-undo` action — same `at` bound as `horde-step`. */
 function invalidHordeUndoError(action: GameAction): string | null {
   if (action.type !== 'horde-undo') return null;
@@ -2407,6 +2419,8 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
     if (hordeStepErr) return res.status(400).json({ error: hordeStepErr });
     const hordeUndoErr = invalidHordeUndoError(raw);
     if (hordeUndoErr) return res.status(400).json({ error: hordeUndoErr });
+    const resetIdErr = invalidResetIdError(raw);
+    if (resetIdErr) return res.status(400).json({ error: resetIdErr });
     const coopOutcomeErr = invalidCoopOutcomeError(raw, next);
     if (coopOutcomeErr) return res.status(400).json({ error: coopOutcomeErr });
     const hordeSeatCapErr = invalidHordeSeatCapError(raw, next);

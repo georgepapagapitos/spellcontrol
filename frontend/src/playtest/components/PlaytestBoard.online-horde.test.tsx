@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { createPlaytestState } from '@/lib/playtest';
 import type { GameState } from '@/lib/game-state';
 import { usePlayStore } from '@/store/play';
@@ -261,7 +261,10 @@ describe('PlaytestBoard — a horde at an online table: the team-turn chip', () 
     expect(onlineHorde!.markDone).toHaveBeenCalledWith(true);
   });
 
-  it('shortens the label to "Team N" narrow', () => {
+  it('narrow: the word "Done" is the small label and the team turn the value', () => {
+    // Found playing a real seat on a phone held sideways: "Done" as the big
+    // value clipped at the corner's edge ("Dom"). The value slot holds a
+    // number, as the ordinary turn chip's does.
     stubWidth(390);
     onlineTable = seatedTable([opponent(1, 'Maya')]);
     onlineHorde = buildOnlineHorde({ team: team({ survivorTurn: 2, iAmDone: false }) });
@@ -270,7 +273,9 @@ describe('PlaytestBoard — a horde at an online table: the team-turn chip', () 
         <PlaytestBoard state={seededState()} />
       </MemoryRouter>
     );
-    expect(screen.getByText('Team 2')).toBeTruthy();
+    const chip = screen.getByRole('button', { name: /Done with team turn 2/ });
+    expect(chip.querySelector('.playtest-turn-chip__label')?.textContent).toBe('Done');
+    expect(chip.querySelector('.playtest-turn-chip__value')?.textContent).toBe('2');
   });
 
   it('shows "Waiting for Maya" plus "Start without Maya" once done, and un-marks on a second press', () => {
@@ -544,7 +549,11 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
     );
     expect(screen.getByText('The horde is gone')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Rematch' }));
-    expect(tableDispatch).toHaveBeenCalledWith({ type: 'reset' });
+    // A fresh id, so the rematch records its own result (it was silently
+    // dropped when the table kept its old id).
+    expect(tableDispatch).toHaveBeenCalledWith({ type: 'reset', id: expect.any(String) });
+    const sentId = (tableDispatch.mock.calls[0][0] as { id: string }).id;
+    expect(sentId.length).toBeGreaterThan(8);
     expect(screen.getByRole('button', { name: 'Leave table' })).toBeTruthy();
   });
 
@@ -603,5 +612,41 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
       });
     });
     expect(document.querySelector('.table-win-backdrop')).toBeNull();
+  });
+});
+
+describe('PlaytestBoard — a horde table sent back to the lobby', () => {
+  // Found playing two real seats: after the host's Rematch (`reset`), both
+  // seats stayed on the board of a lobby-state table behind "Waiting for
+  // players to join". The lobby owns a table that hasn't started.
+  it('takes every seat to the lobby when the Horde table returns to lobby', () => {
+    onlineTable = seatedTable([opponent(1, 'Maya')]);
+    onlineHorde = buildOnlineHorde();
+    usePlayStore.setState({ online: fakeOnline({ status: 'lobby' }) });
+    render(
+      <MemoryRouter initialEntries={['/decks/d1/playtest']}>
+        <Routes>
+          <Route path="/decks/:id/playtest" element={<PlaytestBoard state={seededState()} />} />
+          <Route path="/play/online" element={<p>Lobby page</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Lobby page')).toBeTruthy();
+  });
+
+  it('stays on the board while the Horde table is live', () => {
+    onlineTable = seatedTable([opponent(1, 'Maya')]);
+    onlineHorde = buildOnlineHorde();
+    usePlayStore.setState({ online: fakeOnline({ status: 'active' }) });
+    render(
+      <MemoryRouter initialEntries={['/decks/d1/playtest']}>
+        <Routes>
+          <Route path="/decks/:id/playtest" element={<PlaytestBoard state={seededState()} />} />
+          <Route path="/play/online" element={<p>Lobby page</p>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.queryByText('Lobby page')).toBeNull();
+    expect(document.querySelector('.horde-half')).toBeTruthy();
   });
 });

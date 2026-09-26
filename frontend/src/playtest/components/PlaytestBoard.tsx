@@ -530,6 +530,15 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   // the table doing something (E351 follow-up) — see `openingOnline` below,
   // the one place that wait lives.
   const tableFinished = usePlayStore((s) => s.online?.status === 'finished');
+  // A Horde table the host has sent back to the lobby (Rematch) is set up in
+  // the lobby, not on the board: both the host and every survivor go there,
+  // the way a table that hasn't started never shows the board at all.
+  const hordeTableBackInLobby = usePlayStore(
+    (s) => s.online?.format === 'horde' && s.online.status === 'lobby'
+  );
+  useEffect(() => {
+    if (onlineTable && hordeTableBackInLobby) navigate('/play/online');
+  }, [onlineTable, hordeTableBackInLobby, navigate]);
   // The card a per-card shortcut acts on when nothing is selected — see
   // hooks/use-hover-target. A ref, not state: it changes on every card the
   // pointer crosses and is only ever read inside a keydown.
@@ -2470,13 +2479,14 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 .filter(Boolean)
                 .join(', ')}
             >
+              {/* A phone's corner holds a number, not the word: "Done" as the
+                  big value clipped at the edge on a phone held sideways. The
+                  label carries the word there instead, over the team turn. */}
               <span className="playtest-turn-chip__label" aria-hidden>
-                {isNarrow
-                  ? `Team ${onlineHorde.team.survivorTurn}`
-                  : `Team turn ${onlineHorde.team.survivorTurn}`}
+                {isNarrow ? 'Done' : `Team turn ${onlineHorde.team.survivorTurn}`}
               </span>
               <span className="playtest-turn-chip__value" aria-hidden>
-                Done
+                {isNarrow ? onlineHorde.team.survivorTurn : 'Done'}
               </span>
             </button>
           )
@@ -3776,7 +3786,9 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
               playAgainLabel="Rematch"
               doneLabel="Leave table"
               onPlayAgain={
-                onlineTable.isHost ? () => onlineTable.dispatch({ type: 'reset' }) : undefined
+                onlineTable.isHost
+                  ? () => onlineTable.dispatch({ type: 'reset', id: crypto.randomUUID() })
+                  : undefined
               }
               playAgainHint={onlineTable.isHost ? undefined : 'The host can start a rematch.'}
               onDone={() => void leaveTable()}

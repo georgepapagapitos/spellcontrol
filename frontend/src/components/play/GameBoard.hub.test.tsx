@@ -167,7 +167,7 @@ describe('Restart, reached from the ring', () => {
     openRing();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Restart' }));
     fireEvent.click(screen.getByRole('button', { name: 'Restart' }));
-    expect(dispatch).toHaveBeenCalledWith({ type: 'reset' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'reset', id: expect.stringMatching(/^game_/) });
   });
 });
 

@@ -485,7 +485,14 @@ export type GameAction =
    * behaviour.
    */
   | { type: 'end'; winnerSeat: number | null; coopOutcome?: 'won' | 'lost'; ts?: number }
-  | { type: 'reset'; ts?: number }
+  /**
+   * Back to the lobby for a new game at the same table. `id` is the NEW
+   * game's id, supplied by the caller (the reducer stays pure, the way the
+   * horde's seed is rolled on the host's device): a finished game's result is
+   * recorded once per `id`, so a rematch that kept the old id had its own
+   * result silently dropped. Optional so a legacy dispatch keeps its meaning.
+   */
+  | { type: 'reset'; id?: string; ts?: number }
   | { type: 'add-player'; player: GamePlayer; ts?: number }
   | { type: 'remove-player'; seat: number; ts?: number }
   /**
@@ -1162,6 +1169,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     case 'reset': {
       next = {
         ...next,
+        ...(action.id ? { id: action.id } : {}),
         status: 'lobby',
         winnerSeat: null,
         startedAt: null,

@@ -2,6 +2,7 @@ import { BookOpen, Hand, Maximize, Minimize } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import type { GameAction, GameState } from '../../lib/game-state';
 import { makePlayer } from '../../lib/game-state';
+import { genId } from '../../lib/id';
 import { resolveLayout, turnOrderOf } from '../../lib/board-layouts';
 import { usePlayStore } from '../../store/play';
 import { useRulesReferenceStore } from '../../store/rules-reference';
@@ -125,7 +126,7 @@ export function GameMenu({
             onCancel={() => setConfirmReset(false)}
             onConfirm={() => {
               setConfirmReset(false);
-              dispatch({ type: 'reset' });
+              dispatch({ type: 'reset', id: genId('game') });
               onClose();
             }}
           />
