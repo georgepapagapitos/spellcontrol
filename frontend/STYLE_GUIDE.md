@@ -8335,3 +8335,176 @@ accidental bump change what's rendered.
   seating chart mid-game, sideways, is an edge case of an edge case) and out
   of scope for this pass; a future session should drive it under
   `Emulation.setDeviceMetricsOverride` before touching it.
+
+## Play board: the life keypad is a board-level dialog, and the commander-damage focus bar keeps its full copy (2026-09-25)
+
+Two Lotus-parity fixes to the life-counter board, batched together because
+both were measured on the same short/sideways seats.
+
+- **The life keypad moved from an in-panel cover to a board-level dialog.**
+  `GameBoard` owns which seat it's open for and renders one `LifeKeypad`
+  instance (inside `.game-board-rotator`, so it rotates with the board's own
+  landscape lock like every other overlay there) that dims the whole board
+  and rotates to face the seat that opened it, sized off the viewport
+  instead of one seat's cell. The old in-panel cover crushed to 14-16px
+  digit keys on any seat under ~300px — every seat of 4p-sides, the default
+  four-player board, among others. This REPLACES the in-panel keypad
+  entirely; don't reintroduce a per-panel cover for it. Centring the dialog
+  with its own `position: absolute` + `transform: translate(-50%,-50%)
+rotate(...)`, not flexbox, is load-bearing: CSS layout runs before a
+  `transform`'s `rotate()` applies, so a flex parent shrinks a 90°/270°
+  dialog's deliberately-larger local width (meant to become the tall screen
+  dimension once rotated) to fit its own available width first — measured
+  14px-wide keys from exactly this. A definite-size CSS Grid container also
+  doesn't grow a `minmax(44px, 1fr)` track to fit its content the way an
+  intrinsic-size one does; it shrinks the track instead, so the rotated
+  layout's column split and the digit grid's row-span both needed real
+  measurement, not just the spec on paper.
+- **The keypad opens already facing its seat, and fits a phone on its side
+  (2026-09-26).** Its entrance animates the individual `scale` property,
+  never `transform`: a transform in a keyframe replaces the dialog's own
+  translate + rotate for the animation's length, so it popped in unrotated
+  and off-centre, then snapped to its seat. With the board kept still in
+  landscape, the keypad sits inside the counter-rotated board, whose own
+  width is the screen's height, while vw/vh stay the physical viewport: a
+  sideways seat's keypad ran ~80px off an 844x390 screen. Under that same
+  media query it sizes from `.game-board`'s cq units (the board's own axes),
+  and measures fully on-screen with 44px keys on every seat tried. The ✕
+  holds its 44px width beside a long "Set life · <name>" title (it was
+  squeezed to 24-28px on a rotated keypad); the title ellipsises instead.
+- **Commander-damage focus mode's bar keeps its full copy — a fixed-height
+  single line handles the space problem, not shorter words.** The bar used
+  to wrap onto 2-4 lines on a short/narrow seat and cover the focused
+  player's own numeral (measured up to 100% coverage). The fix is
+  `flex-wrap: nowrap` + a fixed `min-height` the numeral's own centred box
+  reserves room for (`--cmd-focus-bar-h`, read by both), **not** trimming
+  the words: the title stays "Commander damage received" and truncates with
+  an ellipsis if it must, because "Commander damage" is the word that
+  actually carries the mode's meaning to whoever reads a cut-off title. The
+  Return pill matches the hub's own "Return to game" copy (the hub becomes
+  the gold dagger and is the other way out, from the middle of the table)
+  at any size that fits it; only a genuinely narrow/short seat (the same
+  container-query thresholds the drawer and keypad use) swaps to the bare
+  "Return" — two spans in the button, one `display: none`d per size, so the
+  accessible name always matches what's shown (neither is `aria-hidden`;
+  `display: none` alone drops a span out of the accessible-name
+  computation). A first pass shortened both the title ("Damage received")
+  and the pill ("Return" always) to solve the same space problem — wrong
+  trade: it silently dropped the word that told a reader what number
+  they're looking at, for space the fixed-height/ellipsis approach didn't
+  actually need to spend that way.
+- **The per-seat "⚔ dealt to `<name>`" caption is gone**, replacing itself
+  with the panel's own `aria-label` (already carried the same meaning) — it
+  used to print directly over the panel's name on a short seat, 300-900px²
+  measured. A partner (split) seat's own life total also moved from an
+  absolutely-positioned corner chip to an in-flow `<span>` inside the split
+  wrap, so it can't land on a half's own − button the way the corner
+  overlay did on a short panel.
+- **The focused seat's numeral clears both the bar (below) and the name
+  corner (above) by pulling in `.player-panel-life-wrap`'s own centred box
+  from both edges** — padding on `.player-panel-content` has no effect here,
+  a dead end tried first: the life-wrap is `position: absolute; inset: 0`,
+  so its containing block is the panel's full padding box regardless of any
+  padding set on an ancestor. The top inset is scoped to `:not([data-
+sideways])` on purpose — a sideways panel's local top/bottom axis is its
+  screen WIDTH after rotation, a scarcer resource than height, and adding a
+  second reservation there measured worse, not better. The two shortest
+  upright boards (8p-4v4/10p-6v4, not the newer sideways defaults for those
+  counts) additionally shrink the numeral itself in focus mode
+  (`--life-scale: 0.42`, the same ratio already used for a 5/6-digit total)
+  since no inset value alone found a spot clear of both edges there — a
+  small, floor-matched shrink, not the numeral cut to nothing.
+  ⛔ **Superseded by the space reclaim below (2026-09-26):** the top inset,
+  the focused seat's 0.72 scale and the 0.42 shrink are all gone. The 0.42
+  had been widened to every 7-10 player board, sideways included, which took
+  a 10-player sideways seat's own total from ~38px to 16px at 320px, exactly
+  what the ruling above says must not happen.
+- **The focused seat gives its corners back to its numeral (2026-09-26).**
+  While a seat holds focus its name corner (name and deck subtitle) and its
+  designation chips are hidden; counter badges already were, for every seat.
+  The bar says what the panel is, the title carries the player's name for a
+  screen reader (a visually hidden "<name>: " prefix), and the panel's
+  aria-label still reads "<name>: <life> life". The numeral keeps its
+  normal tier size. Only where the box above the bar is genuinely shorter
+  than that size does a cap bite: `font-size: min(<tier size>, <panel
+height> - bar - --space-2)`, in the panel's own axes (the cell's height
+  upright, its width sideways). That caught one case, 2p-side's 148px
+  sideways seats (a 107px total went 9% under the bar; now 80px, clear).
+  Measured on every preset: focused total ≥31px at 320x568 (was 14px on
+  9p/10p-ends), ≥50px at 390, ≥79px at 820, 0% under the bar, zero
+  text-on-text on any seat.
+- **The bar fits the shortest and the narrowest seats without cutting its
+  title to a letter.** On touch, the 7-10 player wide rows (79-95px tall)
+  tighten the bar to hug its 44px Return (`--cmd-focus-bar-h: 2.9rem`), and a
+  narrow seat with height to spare (a sideways seat ≤12rem across, an
+  upright one ≤12rem wide and ≥10rem tall) stacks the title above Return in
+  a 4.5rem bar. The title had read "C" on a 10-player sideways seat; it now
+  reads "COMMAND…" at worst and the full copy on most seats.
+- **Partner halves.** The split seat's own life readout sits BELOW the
+  halves (above them it sat on the seat's name on every board, 1075px²), the
+  wrap clears the name's real line (`--space-2 + --seam-keepout + 1.5rem`,
+  0.6rem in the 7-10 player tier where the name condenses to ~7px), and the
+  corner's commander subtitle is hidden on a split seat since the halves
+  name both commanders. On touch a half's ± are hints, not targets, the same
+  F2 ruling as the life numeral's ±: a live 44px circle over the half's own
+  tap zone swallowed the press (a long press gave +1, not +10), and the pair
+  drew over the value on any seat under ~140px. The rule is scoped through
+  `.pp-cmd-half-row` because `.player-panel-content button` re-enables
+  pointer events at higher specificity. The halves stack when the seat is
+  too narrow for them side by side (a `cmd-split` size container on the
+  wrap, so one query covers both orientations), and a stacked half on a
+  short seat is one line, name beside value. Residual: on the 7-10 player
+  boards at 320px a half's two tap zones are 30-39px on their short axis
+  (16 presets), and 36px on 9p-wide and 10p upright at 390px; every half
+  still reads cleanly and no text overlaps.
+
+## Play board: a short seat's drawer is one scrolling row (2026-09-26)
+
+On a seat under ~300px on its short axis (every seat of `4p-sides`, the
+default four-player board on a phone, and every 5-10 player seat) the seat
+drawer's body is one horizontally scrolling row: the actions, the counters as
+steppers, then Name / Partner / Color / Facing as chips that swap the row for
+that one editor, with a Back chip to return. Same component and same
+`activeEditor` state as the tall sheet; container queries on
+`.player-panel-cell` pick the shape, keyed by orientation because a sideways
+seat's height is its cell's width.
+
+- **Measure the row's height, not only its length.** The first cut checked
+  that every chip was reachable by scrolling and at least 44px in its own
+  axes, and missed that the row itself was 33px tall on a 148px seat and 0px
+  on a 95px one (the 7-10 player wide rows): header (44px) + strip (44px) +
+  padding had already taken the seat. Every chip was clipped by the row it
+  sat in. A drawer check has to confirm each control sits inside the row and
+  the panel after scrolling to it, on a touch-emulated run (the coarse floors
+  and the clock strip's 44px buttons change the budget).
+- **No header on a short seat.** Its ✕ repeats the strip (same close, same
+  44px target, same drag), and the seat's name stays the dialog's accessible
+  name. The sheet's padding tightens to `--space-1`/`--space-2`.
+- **The shortest upright seats (under 7.5rem) put the strip at the row's far
+  end**, a 44px column with an upright grab bar, so the row keeps the seat's
+  full height. The shade metaphor holds everywhere else.
+- **A counter is `[− value +]` under its label**, one 44px row. Lotus stacks
+  the stepper vertically; three 44px rows plus the label need ~135px and the
+  row gets 66-100px.
+- **Chips never outgrow the row** (`max-width: 100%`), and the Name/Partner/
+  Color/Facing group un-wraps with `display: contents` like the actions do,
+  so its chips size against the row.
+- **Editors keep 44px targets on a narrow seat.** Swatches and facing
+  buttons run as one scrolling line of 44px targets (the swatch grid had
+  squeezed to 4-23px wide), the name/partner field wraps its Save below it,
+  and on touch a tall seat's swatch grid fills with as many 44px columns as
+  fit. On a tall sheet a counter's stepper wraps under its label rather than
+  squeezing the label to nothing (it went to 1px on a 190px-wide drawer).
+- **The row has its own scroll cue.** `SeatMenu` publishes
+  `data-overflow-x` (`right` / `both` / `left` / `none`) from the same effect
+  that drives the tall sheet's vertical `data-overflow`, and the row fades
+  the edge that still has chips behind it, the Tabs.tsx convention. The fade
+  is `min(--space-6, 15%)`: a 9-10 player seat's row is one chip wide, and a
+  full 24px fade ate a third of that chip.
+
+Measured (headless Edge, touch emulation, every seat of all 33 presets at
+320x568, 390x844 and 820x1180): row body 0-40px → 66px minimum at 320,
+controls under 44px 2400 → 0 per viewport (the swatch and facing editors),
+controls clipped by the row or panel 4394 → 0 at 320 and 1066 → 0 at 390,
+clipped labels 1771 → 0 at 320 and 15 → 0 at 820. Guards:
+`styles/play-drawer-compact.test.ts`, `SeatMenu.test.tsx`.

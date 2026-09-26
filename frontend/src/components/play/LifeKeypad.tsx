@@ -6,6 +6,9 @@ interface Props {
   currentLife: number;
   onConfirm: (value: number) => void;
   onClose: () => void;
+  /** Seat rotation (Lotus's model): the keypad faces the player it's for,
+   *  same as their life total, even when read from across the table. */
+  rotation?: 0 | 90 | 270 | 180;
 }
 
 /**
@@ -20,15 +23,19 @@ interface Props {
  * `currentLife ± buffer`, keeping the caller interface unchanged (one
  * `set-life` reducer action per confirm).
  *
- * Rendered *inside* the rotated `.player-panel` (not a portal'd modal) so it
- * expands over that seat and is oriented exactly like the seat's life total —
- * upright for that player on any layout, including 90°/270° sideways seats.
- * Same cover pattern as the counters / seat menu.
+ * A board-level overlay (rendered by `GameBoard`, not inside any one
+ * `.player-panel`), Lotus's own model: it covers and dims the whole board
+ * rather than just the seat that opened it, and is rotated to face that
+ * seat (`rotation`) so a player across the table reads it upright — the
+ * same reasoning the life numeral itself already rotates for. This replaced
+ * the older in-panel cover (which shrank the keys to nothing on any seat
+ * under ~300px, the default 4-player board on a phone among them): a
+ * board-level dialog is never constrained by one seat's cell size.
  *
  * Pressing a digit starts a fresh buffer (the shown life acts as a hint
  * replaced on first keypress); backspace/clear edit the buffer in place.
  */
-export function LifeKeypad({ playerName, currentLife, onConfirm, onClose }: Props) {
+export function LifeKeypad({ playerName, currentLife, onConfirm, onClose, rotation = 0 }: Props) {
   const [buffer, setBuffer] = useState<string>('');
   // 'set' = absolute set-life; 'delta' = apply ± typed amount
   const [mode, setMode] = useState<'set' | 'delta'>('set');
@@ -80,81 +87,96 @@ export function LifeKeypad({ playerName, currentLife, onConfirm, onClose }: Prop
 
   return (
     <div
-      ref={panelRef}
-      className="life-keypad"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Set life for ${playerName}`}
+      className="life-keypad-backdrop"
+      role="presentation"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        // Dismiss only on the dim board itself, never a tap that bubbled up
+        // from inside the keypad (STYLE_GUIDE overlay rule).
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div className="life-keypad-head">
-        <span className="life-keypad-title">
-          {mode === 'set' ? `Set life · ${playerName}` : `Change life · ${playerName}`}
-        </span>
-        <button type="button" className="life-keypad-close" aria-label="Close" onClick={onClose}>
-          ✕
-        </button>
-      </div>
-      <div className="life-keypad-display" aria-live="polite">
-        {mode === 'set' ? displayValue : buffer === '' ? String(currentLife) : String(bufferNum)}
-      </div>
-      <div className="life-keypad-grid">
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-          <button key={d} type="button" className="life-keypad-btn" onClick={() => press(d)}>
-            {d}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="life-keypad-btn is-action"
-          onClick={() => {
-            if (buffer === '') return;
-            setBuffer((b) => b.slice(0, -1));
-          }}
-          aria-label="Clear last digit"
-        >
-          ⌫
-        </button>
-        <button type="button" className="life-keypad-btn" onClick={() => press('0')}>
-          0
-        </button>
-        <button
-          type="button"
-          className="life-keypad-btn is-action"
-          onClick={() => setMode((m) => (m === 'set' ? 'delta' : 'set'))}
-          aria-label={mode === 'set' ? 'Switch to change mode' : 'Switch to set mode'}
-          aria-pressed={mode === 'delta'}
-          title={
-            mode === 'set' ? 'Type a number then − or + to apply a change' : 'Back to set-life mode'
-          }
-        >
-          {mode === 'set' ? '±Δ' : 'set'}
-        </button>
-      </div>
-
-      {mode === 'set' ? (
-        <button type="button" className="life-keypad-confirm" onClick={confirmSet}>
-          Set life
-        </button>
-      ) : (
-        <div className="life-keypad-delta-row">
-          <button
-            type="button"
-            className="life-keypad-confirm life-keypad-confirm--delta life-keypad-confirm--minus"
-            onClick={() => confirmDelta(-1)}
-            aria-label={`Subtract ${buffer || '0'} from life`}
-          >
-            {deltaLabel('−')}
-          </button>
-          <button
-            type="button"
-            className="life-keypad-confirm life-keypad-confirm--delta life-keypad-confirm--plus"
-            onClick={() => confirmDelta(1)}
-            aria-label={`Add ${buffer || '0'} to life`}
-          >
-            {deltaLabel('+')}
+      <div
+        ref={panelRef}
+        className="life-keypad"
+        data-rot={rotation}
+        style={{ ['--keypad-rot' as never]: `${rotation}deg` }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Set life for ${playerName}`}
+      >
+        <div className="life-keypad-head">
+          <span className="life-keypad-title">
+            {mode === 'set' ? `Set life · ${playerName}` : `Change life · ${playerName}`}
+          </span>
+          <button type="button" className="life-keypad-close" aria-label="Close" onClick={onClose}>
+            ✕
           </button>
         </div>
-      )}
+        <div className="life-keypad-display" aria-live="polite">
+          {mode === 'set' ? displayValue : buffer === '' ? String(currentLife) : String(bufferNum)}
+        </div>
+        <div className="life-keypad-grid">
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
+            <button key={d} type="button" className="life-keypad-btn" onClick={() => press(d)}>
+              {d}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="life-keypad-btn is-action"
+            onClick={() => {
+              if (buffer === '') return;
+              setBuffer((b) => b.slice(0, -1));
+            }}
+            aria-label="Clear last digit"
+          >
+            ⌫
+          </button>
+          <button type="button" className="life-keypad-btn" onClick={() => press('0')}>
+            0
+          </button>
+          <button
+            type="button"
+            className="life-keypad-btn is-action"
+            onClick={() => setMode((m) => (m === 'set' ? 'delta' : 'set'))}
+            aria-label={mode === 'set' ? 'Switch to change mode' : 'Switch to set mode'}
+            aria-pressed={mode === 'delta'}
+            title={
+              mode === 'set'
+                ? 'Type a number then − or + to apply a change'
+                : 'Back to set-life mode'
+            }
+          >
+            {mode === 'set' ? '±Δ' : 'set'}
+          </button>
+        </div>
+
+        {mode === 'set' ? (
+          <button type="button" className="life-keypad-confirm" onClick={confirmSet}>
+            Set life
+          </button>
+        ) : (
+          <div className="life-keypad-delta-row">
+            <button
+              type="button"
+              className="life-keypad-confirm life-keypad-confirm--delta life-keypad-confirm--minus"
+              onClick={() => confirmDelta(-1)}
+              aria-label={`Subtract ${buffer || '0'} from life`}
+            >
+              {deltaLabel('−')}
+            </button>
+            <button
+              type="button"
+              className="life-keypad-confirm life-keypad-confirm--delta life-keypad-confirm--plus"
+              onClick={() => confirmDelta(1)}
+              aria-label={`Add ${buffer || '0'} to life`}
+            >
+              {deltaLabel('+')}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

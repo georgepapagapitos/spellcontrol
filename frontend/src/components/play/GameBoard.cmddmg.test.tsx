@@ -251,6 +251,18 @@ describe('logging damage in focus mode', () => {
     });
   });
 
+  it("names the focused player in the bar's title, since their seat's name corner is hidden", () => {
+    renderPod();
+    drag(tapZone(0), ALICE_UP);
+
+    const title = focusBar()!.querySelector('.pp-cmd-focus-title') as HTMLElement;
+    expect(title.textContent).toBe('Alice: Commander damage received');
+    // The name is for a screen reader; the visible copy is unchanged.
+    expect(title.querySelector('.visually-hidden')?.textContent).toBe('Alice: ');
+    // The panel itself still carries the name and the live total.
+    expect(screen.getByLabelText('Alice: 40 life')).toBeTruthy();
+  });
+
   it('shows each source’s damage, their own life as a readout, and the lethal race', () => {
     renderPod(vi.fn(), { commanderDamage: { 1: 9 } });
     drag(tapZone(0), ALICE_UP);
@@ -263,9 +275,11 @@ describe('logging damage in focus mode', () => {
     expect(bobPanel.querySelector('.pp-life-chip')?.textContent).toBe('40 life');
     const hint = screen.getByText('12 to lethal');
     expect(hint.getAttribute('aria-hidden')).toBe('true');
-    // ...and the caption names who the damage is going to, so a bare "9"
-    // can't be misread as Bob's life total.
-    expect(bobPanel.querySelector('.pp-cmd-caption')?.textContent).toContain('dealt to Alice');
+    // No visible "⚔ dealt to Alice" caption — it used to print over the
+    // panel's name on a short seat (300-900px², measured). The panel's own
+    // aria-label carries the same meaning instead (asserted via
+    // getByLabelText above), so nothing sighted lost the information.
+    expect(bobPanel.querySelector('.pp-cmd-caption')).toBeNull();
   });
 
   it('marks a source lethal at 21 from that one commander', () => {
@@ -372,9 +386,13 @@ describe('leaving focus mode', () => {
     renderPod();
     drag(tapZone(0), ALICE_UP);
 
-    fireEvent.click(
-      within(focusBar() as HTMLElement).getByRole('button', { name: 'Return to game' })
-    );
+    // The button carries both the full ("Return to game") and short
+    // ("Return") copy as separate spans — CSS (untested in jsdom) picks
+    // one per panel size, so query by class rather than accessible name.
+    const done = within(focusBar() as HTMLElement).getByRole('button');
+    expect(done.className).toContain('pp-cmd-focus-done');
+    expect(done.textContent).toContain('Return to game');
+    fireEvent.click(done);
 
     expect(focusBar()).toBeNull();
     expect(screen.getByLabelText('Bob: 40 life')).toBeTruthy();

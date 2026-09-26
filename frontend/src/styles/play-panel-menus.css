@@ -5,6 +5,10 @@
 
 .counter-row {
   display: flex;
+  /* The stepper drops under its label when the drawer is narrow (a 9-10
+     player end seat's drawer on a tablet is ~190px): without the wrap the
+     label was squeezed to 1px and "Poison" vanished. */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
@@ -340,6 +344,515 @@
   color: rgba(255, 255, 255, 0.55);
   line-height: 1.3;
   margin-top: 0.1rem;
+}
+
+/* Compact-row-only triggers (Name/Partner/Panel color/Panel facing/Counter):
+   invisible on a tall seat, where the sections they open are always shown
+   inline instead. Shape matches `.seat-menu-action` (icon over label in
+   compact mode) so the whole row reads as one family of chips. */
+.seat-menu-row-trigger {
+  display: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .seat-menu-row-trigger:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* The way back from a swapped-in editor to the row of chips. Compact-row
+   only — a tall seat's sections are always inline, so there's nothing to
+   return from. */
+.seat-menu-editor-back {
+  display: none;
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .seat-menu-editor-back:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Compact drawer (Lotus's model, batch 2026-09-25): on a SHORT seat the
+   drawer's body becomes one horizontally scrolling row instead of the tall
+   seat's stacked sections. Same container-query thresholds the life keypad
+   already uses (`play-effects.css`) — a panel under ~300px on its own short
+   axis, told apart by orientation since a sideways panel's height is its
+   cell's WIDTH.
+
+   The trick is `display: contents` on the wrapping sections (`.seat-menu-
+   quick`, `.pp-counters`, `.pp-counters-inner`, `.pp-counters-body`): it
+   un-wraps them so their own children (actions, counter steppers, the add-
+   counter trigger) become direct items of the SAME scrolling row as the
+   Name/Partner/Panel color/Panel facing triggers, without moving any markup
+   or duplicating a single control's handlers. Tapping one of the four
+   triggers (or "+ Counter") sets `data-active-editor` on `.seat-menu-body`;
+   CSS below hides the row's chips and shows just that one editor, full
+   width, with the Back chip above it — the row is "replaced", not covered.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* A sideways seat (wide and short — every seat of 4p-sides/2p-side on a
+   phone) vs. an upright short seat (narrow and short — 5-10p cells): the same
+   rules either way, just told apart by orientation, same as the life keypad. */
+@container (max-width: 300px) {
+  /* No header on a short seat. Its ✕ repeats the strip below (same close,
+     same 44px), and at the 44px header + strip + padding a 148px seat (every
+     seat of 4p-sides on a phone) left the row 33px for 44px chips; a 95px
+     seat (the 9-10 player wide rows) left it 0. The seat's name is still
+     the dialog's accessible name. */
+  .player-panel[data-sideways] .seat-menu-head {
+    display: none;
+  }
+
+  .player-panel[data-sideways] .seat-menu-sheet {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .player-panel[data-sideways] .seat-menu-body {
+    /* The scroll cue's fade, capped for a row only one chip wide (a 9-10
+       player seat's ~75px row) so it doesn't fade a third of that chip. */
+    --row-fade: min(var(--space-6), 15%);
+    flex-direction: row;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: var(--space-2);
+    scroll-snap-type: x proximity;
+  }
+
+  /* The scroll cue for the row, same fade convention as the vertical one
+     above (Tabs.tsx's own horizontal strips) — `data-overflow-x` is set by
+     the same effect that already drove `data-overflow`, now tracking both
+     axes so a short seat's row gets a tell too, not just the tall seat's
+     vertical body. */
+  .player-panel[data-sideways] .seat-menu-body[data-overflow-x='right'] {
+    mask-image: linear-gradient(to right, #000 calc(100% - var(--row-fade)), transparent 100%);
+  }
+  .player-panel[data-sideways] .seat-menu-body[data-overflow-x='left'] {
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--row-fade));
+  }
+  .player-panel[data-sideways] .seat-menu-body[data-overflow-x='both'] {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--row-fade),
+      #000 calc(100% - var(--row-fade)),
+      transparent 100%
+    );
+  }
+
+  /* Un-wraps the actions row and the counters section so their OWN children
+     (action buttons, counter steppers, the add-counter trigger) become
+     direct items of the same scrolling row as the Name/Partner/Panel color/
+     Panel facing triggers (their own group un-wraps too, or a chip couldn't
+     size against the row) — no markup moves, no handler duplicates. */
+  .player-panel[data-sideways] .seat-menu-quick,
+  .player-panel[data-sideways] .seat-menu-triggers,
+  .player-panel[data-sideways] .pp-counters,
+  .player-panel[data-sideways] .pp-counters-inner,
+  .player-panel[data-sideways] .pp-counters-body {
+    display: contents;
+  }
+
+  .player-panel[data-sideways] .seat-menu-action,
+  .player-panel[data-sideways] .seat-menu-row-trigger,
+  .player-panel[data-sideways] .counter-row,
+  .player-panel[data-sideways] .pp-counters-add-trigger {
+    flex: 0 0 auto;
+  }
+
+  /* Actions + triggers: icon over label, a narrow chip rather than the tall
+     seat's wide wrapping row. */
+  .player-panel[data-sideways] .seat-menu-action,
+  .player-panel[data-sideways] .seat-menu-row-trigger {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    width: 4rem;
+    /* Never wider than the row: a 9-10 player end seat's row is ~58px across
+       on a phone, and a 64px chip hung 6px past it. */
+    max-width: 100%;
+    padding: var(--space-2) var(--space-1);
+    /* `.seat-menu-action`'s own base font-size is --text-sm (its tall-seat
+       wide row has room); the compact chip doesn't, so both classes read at
+       the same smaller size here regardless of their own base. */
+    font-size: var(--text-xs);
+    text-align: center;
+    white-space: normal;
+    /* "Commander damage" — the longest label — still measured its own
+       single word ("Commander") a few px wider than the chip's content box
+       even at --text-xs with wrapping allowed; breaking the word is the
+       fallback once wrapping between words alone isn't enough, not the
+       default behavior. */
+    overflow-wrap: break-word;
+  }
+
+  .player-panel[data-sideways] .seat-menu-row-trigger {
+    display: inline-flex;
+  }
+
+  /* Counter rows: label on top, a [− value +] stepper below. Lotus stacks
+     the stepper vertically, and so did this row at first, but three 44px
+     rows plus the label need ~135px and the row gets 85-100px on a short
+     seat, so the ± were cut off. Side by side it needs one 44px row. */
+  .player-panel[data-sideways] .counter-row {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+
+  .player-panel[data-sideways] .counter-row-label {
+    max-width: 3.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .player-panel[data-sideways] .counter-row-controls {
+    gap: var(--space-1);
+  }
+
+  /* Dividers make sense between stacked tall-seat sections, not in a chip row. */
+  .player-panel[data-sideways] .seat-menu-divider {
+    display: none;
+  }
+
+  /* Editors: hidden by default in the compact row, shown full-width only
+     when `data-active-editor` on `.seat-menu-body` names that one — this is
+     what "swaps the row for that one editor" actually means. Switching the
+     row's own flex-direction to column at the same time stacks Back above
+     the editor rather than beside it. */
+  .player-panel[data-sideways] .seat-menu-editor {
+    display: none;
+  }
+
+  /* Inside a swapped-in editor: the field and its Save wrap rather than
+     crushing the field to nothing on a ~90px seat, and the swatches and
+     facing buttons run as one scrolling line of 44px targets instead of a
+     grid squeezed to the seat's width (4px swatches on 10p-sides). */
+  .player-panel[data-sideways] .seat-menu-row {
+    flex-wrap: wrap;
+  }
+
+  .player-panel[data-sideways] .seat-menu-row input {
+    flex: 1 1 6rem;
+  }
+
+  .player-panel[data-sideways] .seat-menu-row .pill-btn {
+    max-width: 100%;
+  }
+
+  .player-panel[data-sideways] .seat-menu-swatches {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 2.75rem;
+    overflow-x: auto;
+  }
+
+  .player-panel[data-sideways] .seat-menu-facing-row {
+    overflow-x: auto;
+  }
+
+  .player-panel[data-sideways] .seat-menu-facing-btn {
+    flex: 0 0 2.75rem;
+  }
+
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] {
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .seat-menu-quick,
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .seat-menu-triggers,
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .pp-counters > .seat-menu-label,
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .pp-counters-body,
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .pp-counters-add-trigger {
+    display: none;
+  }
+
+  .player-panel[data-sideways] .seat-menu-body[data-active-editor] .seat-menu-editor-back {
+    display: inline-flex;
+  }
+
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='name']
+    .seat-menu-editor[data-editor='name'],
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='partner']
+    .seat-menu-editor[data-editor='partner'],
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='color']
+    .seat-menu-editor[data-editor='color'],
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='facing']
+    .seat-menu-editor[data-editor='facing'],
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='counter']
+    .seat-menu-editor[data-editor='counter'] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    width: 100%;
+    flex: 1 1 auto;
+  }
+}
+
+@container (max-height: 300px) {
+  /* No header on a short seat. Its ✕ repeats the strip below (same close,
+     same 44px), and at the 44px header + strip + padding a 148px seat (every
+     seat of 4p-sides on a phone) left the row 33px for 44px chips; a 95px
+     seat (the 9-10 player wide rows) left it 0. The seat's name is still
+     the dialog's accessible name. */
+  .player-panel:not([data-sideways]) .seat-menu-head {
+    display: none;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-sheet {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body {
+    /* The scroll cue's fade, capped for a row only one chip wide (a 9-10
+       player seat's ~75px row) so it doesn't fade a third of that chip. */
+    --row-fade: min(var(--space-6), 15%);
+    flex-direction: row;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: var(--space-2);
+    scroll-snap-type: x proximity;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-overflow-x='right'] {
+    mask-image: linear-gradient(to right, #000 calc(100% - var(--row-fade)), transparent 100%);
+  }
+  .player-panel:not([data-sideways]) .seat-menu-body[data-overflow-x='left'] {
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--row-fade));
+  }
+  .player-panel:not([data-sideways]) .seat-menu-body[data-overflow-x='both'] {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--row-fade),
+      #000 calc(100% - var(--row-fade)),
+      transparent 100%
+    );
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-quick,
+  .player-panel:not([data-sideways]) .seat-menu-triggers,
+  .player-panel:not([data-sideways]) .pp-counters,
+  .player-panel:not([data-sideways]) .pp-counters-inner,
+  .player-panel:not([data-sideways]) .pp-counters-body {
+    display: contents;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-action,
+  .player-panel:not([data-sideways]) .seat-menu-row-trigger,
+  .player-panel:not([data-sideways]) .counter-row,
+  .player-panel:not([data-sideways]) .pp-counters-add-trigger {
+    flex: 0 0 auto;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-action,
+  .player-panel:not([data-sideways]) .seat-menu-row-trigger {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    width: 4rem;
+    /* Never wider than the row: a 9-10 player end seat's row is ~58px across
+       on a phone, and a 64px chip hung 6px past it. */
+    max-width: 100%;
+    padding: var(--space-2) var(--space-1);
+    /* `.seat-menu-action`'s own base font-size is --text-sm (its tall-seat
+       wide row has room); the compact chip doesn't, so both classes read at
+       the same smaller size here regardless of their own base. */
+    font-size: var(--text-xs);
+    text-align: center;
+    white-space: normal;
+    /* "Commander damage" — the longest label — still measured its own
+       single word ("Commander") a few px wider than the chip's content box
+       even at --text-xs with wrapping allowed; breaking the word is the
+       fallback once wrapping between words alone isn't enough, not the
+       default behavior. */
+    overflow-wrap: break-word;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-row-trigger {
+    display: inline-flex;
+  }
+
+  .player-panel:not([data-sideways]) .counter-row {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+
+  .player-panel:not([data-sideways]) .counter-row-label {
+    max-width: 3.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .player-panel:not([data-sideways]) .counter-row-controls {
+    gap: var(--space-1);
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-divider {
+    display: none;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-editor {
+    display: none;
+  }
+
+  /* Inside a swapped-in editor: the field and its Save wrap rather than
+     crushing the field to nothing on a ~90px seat, and the swatches and
+     facing buttons run as one scrolling line of 44px targets instead of a
+     grid squeezed to the seat's width (4px swatches on 10p-sides). */
+  .player-panel:not([data-sideways]) .seat-menu-row {
+    flex-wrap: wrap;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-row input {
+    flex: 1 1 6rem;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-row .pill-btn {
+    max-width: 100%;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-swatches {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 2.75rem;
+    overflow-x: auto;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-facing-row {
+    overflow-x: auto;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-facing-btn {
+    flex: 0 0 2.75rem;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] {
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .seat-menu-quick,
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .seat-menu-triggers,
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor]
+    .pp-counters
+    > .seat-menu-label,
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .pp-counters-body,
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .pp-counters-add-trigger {
+    display: none;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .seat-menu-editor-back {
+    display: inline-flex;
+  }
+
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='name']
+    .seat-menu-editor[data-editor='name'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='partner']
+    .seat-menu-editor[data-editor='partner'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='color']
+    .seat-menu-editor[data-editor='color'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='facing']
+    .seat-menu-editor[data-editor='facing'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='counter']
+    .seat-menu-editor[data-editor='counter'] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    width: 100%;
+    flex: 1 1 auto;
+  }
+}
+
+/* The shortest upright seats (the 7-10 player wide rows, 79-120px tall on a
+   phone) can't fit a 44px strip under a 64px row of chips at all. The strip
+   moves to the row's far end instead, as a 44px column, so the row keeps the
+   seat's full height. It's still the same close button and the same drag. */
+@container (max-height: 7.5rem) {
+  .player-panel:not([data-sideways]) .seat-menu {
+    flex-direction: row;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-sheet {
+    min-width: 0;
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-grab {
+    width: 0.3rem;
+    height: 2.5rem;
+  }
+}
+
+@media (pointer: coarse) {
+  /* `.seat-menu-action` had no coarse floor at all (pre-existing gap) — its
+     content-driven height cleared 44px by luck on a wide, wrapping tall-seat
+     row but not as a narrow icon-over-label chip in the compact row, where
+     it's the primary way to reach Commander damage / turn / designations. */
+  .seat-menu-action,
+  .seat-menu-row-trigger,
+  .seat-menu-editor-back {
+    min-height: 2.75rem;
+  }
+
+  /* Panel color and facing were 30-36px tall and as narrow as the grid let
+     them be (23px swatches on 4p-sides, the default four-player board). A
+     tall seat's swatch grid now fills with as many 44px columns as fit. */
+  .seat-menu-swatches {
+    grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+  }
+
+  .seat-menu-swatch {
+    height: 2.75rem;
+  }
+
+  .seat-menu-facing-btn {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
 }
 
 /* ── Game menu button ─────────────────────────────────────────────────── */
@@ -1059,6 +1572,11 @@
  * the counters popover and life keypad) always renders the dark --pp-base /
  * --pp-edge panel gradient regardless of app theme — white ring, not accent. */
 .seat-menu-action:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+.seat-menu-row-trigger:focus-visible,
+.seat-menu-editor-back:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }

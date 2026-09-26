@@ -230,6 +230,53 @@
    around it, still in their own colours, read as the ones answering. */
 .player-panel.is-cmd-self {
   box-shadow: inset 0 0 0 2.5px rgba(255, 255, 255, 0.55);
+  /* Reserves exactly the focus bar's own height at the player's edge, so the
+     centred life numeral above it (`.player-panel-content`'s padding box
+     shrinks by this much) can never sit under the bar regardless of panel
+     size — the bar used to wrap onto 2-3 lines on a short/narrow seat and
+     covered the numeral entirely (measured 100% on several presets).
+     `.pp-cmd-focus-bar` below reads the same variable for its own min-height,
+     so the two numbers can't drift apart. */
+  --cmd-focus-bar-h: 2.6rem;
+}
+
+@media (pointer: coarse) {
+  .player-panel.is-cmd-self {
+    /* The Return button takes the 44px coarse-pointer floor here too. */
+    --cmd-focus-bar-h: 3.75rem;
+  }
+}
+
+/* `.player-panel-life-wrap` is `position: absolute; inset: 0` (play-board.css)
+   — its containing block is the PANEL's full padding box regardless of any
+   padding on `.player-panel-content`, so reserving room via padding there
+   has no effect on where the centred numeral lands. Pulling the wrap's own
+   BOTTOM inset in by the bar's height is what actually shrinks the box the
+   numeral centres within, shifting it clear of the bar underneath. No top
+   inset: with the name corner hidden there is nothing above to clear. */
+.player-panel.is-cmd-self .player-panel-life-wrap {
+  bottom: var(--cmd-focus-bar-h);
+}
+
+/* The one place the focused total can still be taller than the box above
+   the bar: a short seat whose numeral tier is sized for the whole cell
+   (2p-side's sideways seats are 148px across on a phone, and a 107px total
+   went 9% under the bar). A cap, not a scale: it only bites where the box
+   is actually shorter than the numeral, so every other seat keeps its tier
+   size. The panel's own height is the cell's height upright and the cell's
+   WIDTH sideways (the panel is sized in swapped axes before it rotates). */
+.player-panel.is-cmd-self .player-panel-life {
+  font-size: min(
+    calc(var(--life-size) * var(--life-scale, 1)),
+    calc(100cqh - var(--cmd-focus-bar-h) - var(--space-2))
+  );
+}
+
+.player-panel.is-cmd-self[data-sideways] .player-panel-life {
+  font-size: min(
+    calc(var(--life-size) * var(--life-scale, 1)),
+    calc(100cqw - var(--cmd-focus-bar-h) - var(--space-2))
+  );
 }
 
 /* Progress-to-21 wash, rising from the panel floor as --fill (0–1) grows.
@@ -245,31 +292,14 @@
   transition: height var(--motion-fast) ease;
 }
 
-/* "⚔ dealt to <name>" — sits above the numeral so the number is never bare.
-   Centred on the panel's own axis like the numeral itself, and offset by the
-   numeral's own half-height (--life-size, play-board.css) so it clears the
-   digits at every panel size. */
+/* The numeral's offset for "N to lethal" below it (--life-size, play-board.css)
+   — used to carry the "⚔ dealt to <name>" caption above the numeral too, but
+   that caption is gone (see below): it printed over the panel's name on a
+   short seat, 300-900px² measured. Its meaning still lives in the panel's own
+   aria-label ("<commander>: N commander damage dealt to <target>"), so
+   nothing sighted lost the information — only the collision. */
 .player-panel {
   --cmd-offset: calc(var(--life-size) * 0.45 + 0.75rem);
-}
-
-.pp-cmd-caption {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, calc(-50% - var(--cmd-offset)));
-  max-width: 92%;
-  color: color-mix(in srgb, var(--pp-ink) 90%, transparent);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: 0.02em;
-  text-align: center;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 /* "N to lethal" — mirrored below the numeral. */
@@ -308,17 +338,58 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: 1.6rem 0.4rem 0.4rem;
+  /* Top padding clears the name corner (a separate absolutely-positioned
+     sibling): the corner's own top offset (--space-2 + --seam-keepout) plus
+     the name button's one line (23px). A flat 1.6rem sat inside the name on
+     every board once the seam keep-out moved the corner down. */
+  padding: calc(var(--space-2) + var(--seam-keepout) + var(--space-5)) 0.4rem 0.4rem;
   pointer-events: none;
+  /* Sized in the panel's own (rotated) axes, so the halves can stack by the
+     space they actually get without a sideways/upright pair of queries.
+     Nothing inside the wrap reads a cell-level container query. */
+  container: cmd-split / size;
 }
 
-/* The shared "⚔ dealt to <name>" caption spans both halves, so it sits in
-   normal flow here rather than being centred on a numeral the way the
-   single-commander panel's version is. */
-.pp-cmd-split-wrap > .pp-cmd-caption {
-  position: static;
-  transform: none;
+/* The halves name both commanders, so the corner's commander subtitle
+   would only repeat the first one, a line the halves need. */
+.player-panel.is-cmd-split .player-panel-subtitle {
+  display: none;
+}
+
+/* This seat's own life, in flow BELOW the halves: the same bottom edge the
+   single-commander panel's corner chip uses. Above the halves it sat on the
+   seat's name on every board (1075px² measured, 320-820px); as a corner
+   overlay it landed on a half's own − button on a short seat. */
+.pp-cmd-split-wrap > .pp-life-chip {
+  align-self: flex-start;
   flex: 0 0 auto;
+}
+
+/* Too narrow for two halves side by side (a 10-player sideways seat is
+   ~95px across) but tall enough to stack them: each half gets the panel's
+   full width. A short, wide seat keeps them side by side. */
+@container cmd-split (max-width: 11rem) and (min-height: 5rem) {
+  .pp-cmd-split-wrap .pp-cmd-split-halves {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+}
+
+/* Stacked and short (the 7-10 player sideways seats on a phone): each half is
+   one line, its commander's name beside the value, rather than a name line
+   the value no longer fits under. */
+@container cmd-split (max-width: 11rem) and (min-height: 5rem) and (max-height: 8rem) {
+  .pp-cmd-split-wrap .pp-cmd-half {
+    flex-direction: row;
+    gap: var(--space-1);
+    padding-inline: var(--space-1);
+  }
+
+  .pp-cmd-split-wrap .pp-cmd-half-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: start;
+  }
 }
 
 .pp-cmd-split-halves {
@@ -405,10 +476,16 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
+  /* The gaps between the ± and the value fall through to the half's own tap
+     zones; the step buttons opt back in below. */
+  pointer-events: none;
 }
 
 .pp-cmd-half-value {
-  min-width: 1.6em;
+  /* Room for two tabular digits (Bebas is condensed, ~0.4em each), so the ±
+     beside it hold still from 0 to 21. 1.6em pushed the pair past a 65px
+     half on the 7-10 player boards. */
+  min-width: 1em;
   color: #fff;
   font-family: var(--font-numeral);
   font-size: var(--text-2xl, 1.6rem);
@@ -459,10 +536,24 @@
   outline-offset: 2px;
 }
 
+/* On a touch screen a half's ± are hints, not their own hit targets: the
+   same ruling (F2) the life numeral's ± follow in play-board.css. Each half
+   is already split into its own −/+ tap zones, and a 44px circle sitting on
+   top of a zone swallowed the pointerdown, so a long press on it gave +1
+   instead of the zone's +10. At 44px the pair also didn't fit beside the
+   value on any seat narrower than ~140px and drew over it. Keyboard and
+   screen-reader users keep the buttons (pointer-events doesn't remove them
+   from the tab order), and a fine pointer keeps the live circle. Scoped
+   through the row so it outranks play-board.css's `.player-panel-content
+   button { pointer-events: auto }`. */
 @media (pointer: coarse) {
-  .pp-cmd-half-step {
-    width: 2.75rem;
-    height: 2.75rem;
+  .pp-cmd-half-row > .pp-cmd-half-step {
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    pointer-events: none;
   }
 }
 
@@ -523,12 +614,16 @@
   left: 0;
   right: 0;
   bottom: 0;
+  min-height: var(--cmd-focus-bar-h, 2.6rem);
   display: flex;
-  flex-wrap: wrap;
+  /* Never wrap: a second line is exactly what used to eat the numeral above
+     it. The title truncates instead (see below) so the bar's height is fixed
+     regardless of panel width. */
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: 0.45rem 0.7rem;
+  padding: var(--space-1) var(--space-2);
   background: rgba(10, 12, 18, 0.82);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
@@ -536,15 +631,21 @@
 }
 
 .pp-cmd-focus-title {
+  min-width: 0;
+  flex: 1 1 auto;
   color: rgba(255, 255, 255, 0.82);
   font-size: var(--text-xs, 0.72rem);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pp-cmd-focus-done {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -580,6 +681,74 @@
 @media (pointer: coarse) {
   .pp-cmd-focus-done {
     min-height: 2.75rem;
+  }
+}
+
+/* "Return to game" (matches the hub's own copy) by default; only a
+   genuinely narrow/short panel swaps to the bare "Return" — same
+   container-query thresholds the drawer/keypad already use for a short
+   seat, since that's the same panel size that can't afford the full pill. */
+.pp-cmd-focus-done-short {
+  display: none;
+}
+
+@container (max-width: 300px) {
+  .player-panel[data-sideways] .pp-cmd-focus-done-full {
+    display: none;
+  }
+  .player-panel[data-sideways] .pp-cmd-focus-done-short {
+    display: inline;
+  }
+}
+
+@container (max-height: 300px) {
+  .player-panel:not([data-sideways]) .pp-cmd-focus-done-full {
+    display: none;
+  }
+  .player-panel:not([data-sideways]) .pp-cmd-focus-done-short {
+    display: inline;
+  }
+}
+
+/* A narrow focused seat (a 7-10 player sideways seat is ~95px across; a
+   5-6 player seat 148px) left the title beside Return a few px, and it read
+   "C". Where the seat has the height to spare, the bar stacks the title
+   above Return instead of shrinking it, still a fixed height the numeral
+   box reserves. Touch only: that is where the 44px Return makes the bar
+   this tall to begin with, and where these boards run. */
+@media (pointer: coarse) {
+  @container (max-height: 12rem) and (min-width: 8.5rem) {
+    .player-panel.is-cmd-self[data-sideways] {
+      --cmd-focus-bar-h: 4.5rem;
+    }
+
+    .player-panel.is-cmd-self[data-sideways] .pp-cmd-focus-bar {
+      flex-direction: column;
+      gap: 0.125rem;
+      padding-block: 0.125rem;
+    }
+
+    .player-panel.is-cmd-self[data-sideways] .pp-cmd-focus-title {
+      flex: 0 0 auto;
+      max-width: 100%;
+    }
+  }
+
+  @container (max-width: 12rem) and (min-height: 10rem) {
+    .player-panel.is-cmd-self:not([data-sideways]) {
+      --cmd-focus-bar-h: 4.5rem;
+    }
+
+    .player-panel.is-cmd-self:not([data-sideways]) .pp-cmd-focus-bar {
+      flex-direction: column;
+      gap: 0.125rem;
+      padding-block: 0.125rem;
+    }
+
+    .player-panel.is-cmd-self:not([data-sideways]) .pp-cmd-focus-title {
+      flex: 0 0 auto;
+      max-width: 100%;
+    }
   }
 }
 
@@ -886,5 +1055,50 @@
   }
   .seat-menu-action.is-designation-active:hover {
     background: rgba(255, 220, 80, 0.26);
+  }
+}
+
+/* ── Focus mode: the focused seat's own space, and the 7-10 player tier ──
+   Placed after the designation chips' own 9.5rem tier so each shared-tier
+   guard (play-numeral.test.ts, play-touch-targets.test.ts) still reads the
+   base rule it was written against first. */
+
+/* The focused seat gives its corners back to the numeral. Its name, deck
+   subtitle and designation chips are hidden while it holds focus: the focus
+   bar already says what this panel is, and the name still reads in the
+   panel's own aria-label and the bar's title. That is what lets the numeral
+   keep its normal tier size (the STYLE_GUIDE commander-damage ruling: the
+   focused player's own life stays readable while it ticks down). An earlier
+   pass kept the name and shrank the numeral instead, to 0.72 everywhere and
+   0.42 on 7-10 player boards — a 10-player sideways seat at 320px went from
+   a 38px total to 16px. Counter badges are already dropped for every seat
+   in focus mode (GameBoard renders them only outside it). */
+.player-panel.is-cmd-self .player-panel-corner,
+.player-panel.is-cmd-self .pp-designation-chips {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  /* The shortest upright seats (the 7-10 player wide rows, 79-95px on a
+     phone) can't spare 60px of bar under the numeral: 9p-ends measured 11%
+     of its total under the bar. The bar hugs its 44px button there instead
+     of padding around it. */
+  @container (max-height: 9.5rem) {
+    .player-panel.is-cmd-self:not([data-sideways]) {
+      --cmd-focus-bar-h: 2.9rem;
+    }
+
+    .player-panel.is-cmd-self:not([data-sideways]) .pp-cmd-focus-bar {
+      padding-block: 0.05rem;
+    }
+  }
+}
+
+/* The 7-10 player seats' own tier condenses the name to a ~7px line
+   (play-board.css), so the halves take back what the full-size clearance
+   above reserved for it. */
+@container (max-height: 9.5rem) {
+  .game-board:not(.game-board-2) .pp-cmd-split-wrap {
+    padding-top: calc(var(--space-2) + var(--seam-keepout) + var(--space-2) + 0.1rem);
   }
 }
