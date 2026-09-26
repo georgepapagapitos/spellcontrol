@@ -6,10 +6,9 @@ import { hydratePublicationRows, type PublicationListingRow } from '../discover/
 
 /**
  * Public, unauthenticated, filtered/sorted/paginated deck browse for
- * Discover. Pure read — no view/copy tracking here; `view_count`/
- * `copy_count` are reads of columns `routes/public.ts` (view beacon) and
- * `routes/publications.ts`/`w1-deck-primer-lineage`'s copy endpoint already
- * maintain correctly (#1237 and friends). Every filter/sort predicate hits
+ * Discover. Pure read — no view/copy tracking here; `view_count` is kept by
+ * `routes/public.ts`'s view beacon and `copy_count` is derived from live
+ * copies by `publications/copies.ts`. Every filter/sort predicate hits
  * only `deck_publications`' own real, denormalized columns — never a
  * `user_decks` JSONB scan (the required fold). The only JSONB touched by a
  * WHERE/ORDER BY is `deck_publications.color_identity`, a small per-

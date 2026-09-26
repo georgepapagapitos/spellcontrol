@@ -78,12 +78,10 @@ const FEATURES = [
 export function WelcomePage() {
   const navigate = useNavigate();
   const { load: loadSamples, loading: loadingSamples, error: sampleError } = useLoadSamples();
-  // TrendingRail has no self-hiding threshold of its own (unlike
-  // FreshDecksRail) — mounting it unconditionally means a cold dataset shows
-  // "Nothing trending yet." as the first content block under the hero. Gate
-  // it on whether the sibling rail found enough live data instead: if there
-  // isn't enough for one rail, there's unlikely to be enough for the other,
-  // and this avoids stacking two half-empty marketing sections. (B1-06)
+  // TrendingRail hides itself when nothing qualifies, but it still fetches
+  // and can flash a skeleton. Gate it on whether the sibling rail found
+  // enough live data: if there isn't enough for one rail, there's unlikely
+  // to be enough for the other. (B1-06)
   const [hasFreshDecks, setHasFreshDecks] = useState(false);
 
   /**
@@ -107,23 +105,10 @@ export function WelcomePage() {
 
         <FreshDecksRail onVisibilityChange={setHasFreshDecks} />
 
-        {/* "Trending commanders" — TrendingRail mounted only once the sibling
-            rail above found enough live data to show itself (see
-            hasFreshDecks above). It already renders its own title +
-            loading/error/empty states, and is guest-safe and already
-            reachable logged-out on /decks/discover. Only the trailing
-            "View all" link is new here — TrendingRail has no such link of
-            its own since every one of ITS OWN tiles already links to a real
-            destination (a deck or the deck builder), never back to
-            /decks/discover itself. */}
-        {hasFreshDecks && (
-          <section className="welcome-trending" aria-label="Trending commanders">
-            <TrendingRail enabled={true} />
-            <Link to="/decks/discover" className="home-card-view-all">
-              View all public decks →
-            </Link>
-          </section>
-        )}
+        {/* Mounted only once the sibling rail above found enough live data
+            (see hasFreshDecks). The rail is its own labelled section; the
+            way on to /decks/discover is FreshDecksRail's "View all". */}
+        {hasFreshDecks && <TrendingRail enabled={true} />}
 
         <section className="welcome-alt-start" aria-label="Other ways to start">
           <div className="welcome-doors">

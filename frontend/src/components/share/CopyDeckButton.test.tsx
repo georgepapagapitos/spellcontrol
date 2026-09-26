@@ -9,11 +9,6 @@ vi.mock('../../lib/copy-shared-deck', () => ({
   copySharedDeck: (data: PublicDeck, token?: string) => copySharedDeckMock(data, token),
 }));
 
-const recordDeckCopyMock = vi.fn((_slug: string) => Promise.resolve());
-vi.mock('../../lib/share-client', () => ({
-  recordDeckCopy: (slug: string) => recordDeckCopyMock(slug),
-}));
-
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
   const real = await importOriginal<typeof import('react-router-dom')>();
@@ -39,8 +34,6 @@ function deck(): PublicDeck {
 
 beforeEach(() => {
   copySharedDeckMock.mockClear();
-  recordDeckCopyMock.mockClear();
-  recordDeckCopyMock.mockReturnValue(Promise.resolve());
   navigateMock.mockClear();
 });
 
@@ -53,37 +46,29 @@ function renderButton(slug?: string) {
 }
 
 describe('CopyDeckButton', () => {
-  it('fires recordDeckCopy once when a slug is present (copying from /d/:slug)', () => {
+  it('stamps the copy with the public deck it came from (copying from /d/:slug)', () => {
     renderButton('korvold-treasure');
     fireEvent.click(screen.getByRole('button'));
-    expect(recordDeckCopyMock).toHaveBeenCalledTimes(1);
-    expect(recordDeckCopyMock).toHaveBeenCalledWith('korvold-treasure');
     expect(copySharedDeckMock).toHaveBeenCalledWith(deck(), 'korvold-treasure');
     expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
       state: { promptVisibility: true },
     });
   });
 
-  it('does not fire recordDeckCopy at all when no slug is present (copying from /s/:token)', () => {
+  it('copies without lineage from a share link (copying from /s/:token)', () => {
     renderButton(undefined);
     fireEvent.click(screen.getByRole('button'));
-    expect(recordDeckCopyMock).not.toHaveBeenCalled();
     expect(copySharedDeckMock).toHaveBeenCalledWith(deck(), undefined);
     expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
       state: { promptVisibility: true },
     });
   });
 
-  it('still copies, toasts, and navigates even when recordDeckCopy rejects', async () => {
-    recordDeckCopyMock.mockReturnValue(Promise.reject(new Error('network down')));
+  it('sends no counter request of its own: the copy counts once it syncs', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     renderButton('korvold-treasure');
-    expect(() => fireEvent.click(screen.getByRole('button'))).not.toThrow();
-    expect(copySharedDeckMock).toHaveBeenCalledTimes(1);
-    expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
-      state: { promptVisibility: true },
-    });
-    // Observe the rejection after assertions so it doesn't leak into another
-    // test as an unhandled rejection — the button itself never awaits it.
-    await recordDeckCopyMock.mock.results[0]!.value.catch(() => {});
+    fireEvent.click(screen.getByRole('button'));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 });

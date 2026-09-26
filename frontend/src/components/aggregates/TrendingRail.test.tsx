@@ -7,7 +7,7 @@ import { pending } from '@/test/pending';
 const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
 vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
 
-import { TrendingRail, type TopCopiedDeck } from './TrendingRail';
+import { TrendingRail, type TrendingDeck } from './TrendingRail';
 
 interface RisingCommanderFixture {
   commanderKey: string;
@@ -34,32 +34,24 @@ const risingFixture: RisingCommanderFixture[] = [
   },
 ];
 
-// Verbatim from the w4-trending spec's "Fixture for the most-copied
-// sub-section's independent testability" block.
-const topCopiedDecksFixture: TopCopiedDeck[] = [
+const trendingDecksFixture: TrendingDeck[] = [
   {
-    deckId: 'd-1',
     slug: 'meren-of-clan-nel-toth-a1b2c3d4',
     deckName: "Meren's Graveyard Value",
     commanderName: 'Meren of Clan Nel Toth',
-    partnerName: null,
-    score: 41.2,
+    players: 9,
   },
   {
-    deckId: 'd-2',
     slug: 'thrasios-tymna-e5f6a7b8',
     deckName: 'Thrasios/Tymna Stax',
     commanderName: 'Thrasios, Triton Hero',
-    partnerName: 'Tymna the Weaver',
-    score: 33.7,
+    players: 5,
   },
   {
-    deckId: 'd-3',
     slug: 'krenko-mob-boss-c9d0e1f2',
     deckName: 'Krenko Go Wide',
-    commanderName: 'Krenko, Mob Boss',
-    partnerName: null,
-    score: 12.4,
+    commanderName: null,
+    players: 3,
   },
 ];
 
@@ -152,40 +144,36 @@ describe('TrendingRail', () => {
     expect(container.querySelector('.trending-rail')).toBeNull();
   });
 
-  it('shows the exact empty-both copy when neither sub-section has data', async () => {
-    stubFetchResolved({ risingCommanders: [] });
-    renderRail();
-    await waitFor(() => expect(screen.getByText('Nothing trending yet.')).toBeTruthy());
-    expect(screen.getByText('Publish a deck to be the first commander on the board.')).toBeTruthy();
+  it('renders nothing at all when neither list has anything in it', async () => {
+    stubFetchResolved({ risingCommanders: [], trendingDecks: [] });
+    const { container } = renderRail();
+    await loaded();
+    await waitFor(() => expect(container.querySelector('.trending-rail')).toBeNull());
+    expect(container.textContent).toBe('');
   });
 
-  it('collapses to a single muted line when compactWhenEmpty and both sub-sections are empty', async () => {
+  it('reads an API without trendingDecks as empty', async () => {
     stubFetchResolved({ risingCommanders: [] });
-    render(
-      <MemoryRouter>
-        <TrendingRail enabled={true} compactWhenEmpty={true} />
-      </MemoryRouter>
-    );
-    await waitFor(() => expect(screen.getByText('Nothing trending yet.')).toBeTruthy());
-    expect(screen.queryByText('Publish a deck to be the first commander on the board.')).toBeNull();
-    expect(screen.queryByText('Trending')).toBeNull();
+    const { container } = renderRail();
+    await loaded();
+    await waitFor(() => expect(container.textContent).toBe(''));
   });
 
-  it('renders only the rising sub-section when topCopiedDecks is absent', async () => {
+  it('renders only the rising sub-section when no deck qualifies', async () => {
     stubFetchResolved({ risingCommanders: risingFixture });
     renderRail();
     await loaded();
     expect(screen.getByText('Rising commanders')).toBeTruthy();
-    expect(screen.queryByText('Most copied decks')).toBeNull();
+    expect(screen.queryByText('Popular this week')).toBeNull();
     expect(screen.getByText(`Build with ${risingFixture[0].commanderName}`)).toBeTruthy();
   });
 
   it('renders both sub-sections when both are present', async () => {
-    stubFetchResolved({ risingCommanders: risingFixture, topCopiedDecks: topCopiedDecksFixture });
+    stubFetchResolved({ risingCommanders: risingFixture, trendingDecks: trendingDecksFixture });
     renderRail();
     await loaded();
     expect(screen.getByText('Rising commanders')).toBeTruthy();
-    expect(screen.getByText('Most copied decks')).toBeTruthy();
+    expect(screen.getByText('Popular this week')).toBeTruthy();
   });
 
   it('shows an error state with Retry, and Retry re-fetches into content', async () => {
@@ -205,13 +193,13 @@ describe('TrendingRail', () => {
     expect(screen.getByText('Rising commanders')).toBeTruthy();
   });
 
-  describe('most-copied sub-section (independently testable from rising commanders)', () => {
-    it('renders three tiles in score order, links to /d/{slug}, combines partner names, resolves art by commander name, and never shows a raw score', async () => {
+  describe('popular-this-week sub-section (independently testable from rising commanders)', () => {
+    it('renders tiles in rank order linking to /d/{slug}, names how many players, and resolves art by commander', async () => {
       // risingCommanders is deliberately empty here -- proves this sub-section
       // renders correctly on its own, decoupled from the rising section.
-      stubFetchResolved({ risingCommanders: [], topCopiedDecks: topCopiedDecksFixture });
+      stubFetchResolved({ risingCommanders: [], trendingDecks: trendingDecksFixture });
       renderRail();
-      await waitFor(() => expect(screen.getByText('Most copied decks')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('Popular this week')).toBeTruthy());
       expect(screen.queryByText('Rising commanders')).toBeNull();
 
       const links = screen.getAllByRole('link');
@@ -220,21 +208,18 @@ describe('TrendingRail', () => {
         '/d/thrasios-tymna-e5f6a7b8',
         '/d/krenko-mob-boss-c9d0e1f2',
       ]);
+      expect(links[0].textContent).toContain('9 players this week');
+      expect(screen.getByTitle('5 players this week')).toBeTruthy();
 
       expect(screen.getByText('Meren of Clan Nel Toth')).toBeTruthy();
-      expect(screen.getByText('Thrasios, Triton Hero + Tymna the Weaver')).toBeTruthy();
-      expect(screen.getByText('Krenko, Mob Boss')).toBeTruthy();
-
-      expect(screen.queryByText('41.2')).toBeNull();
-      expect(screen.queryByText('33.7')).toBeNull();
-      expect(screen.queryByText('12.4')).toBeNull();
-      expect(document.body.textContent).not.toMatch(/41\.2|33\.7|12\.4/);
+      expect(screen.getByText('Thrasios, Triton Hero')).toBeTruthy();
+      // No commander: no empty commander line under the name.
+      expect(links[2].querySelector('.commander-result-type')).toBeNull();
 
       // `small`, not `normal`: the tile art box is 2.6rem wide, and the
       // landing page renders this rail — `normal` was ~100 KB per tile there.
       expect(mockUseCardThumb).toHaveBeenCalledWith('Meren of Clan Nel Toth', 'small');
       expect(mockUseCardThumb).toHaveBeenCalledWith('Thrasios, Triton Hero', 'small');
-      expect(mockUseCardThumb).toHaveBeenCalledWith('Krenko, Mob Boss', 'small');
     });
   });
 

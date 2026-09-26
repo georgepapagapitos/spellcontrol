@@ -285,10 +285,7 @@ export function DiscoverDecksPage() {
         <PageHeader title="Discover" meta="Public decks from the SpellControl community." />
         <DecksHubTabs />
 
-        <TrendingRail
-          enabled={true}
-          compactWhenEmpty={!loading && !error && displayDecks.length === 0 && !hasActiveFilters}
-        />
+        <TrendingRail enabled={true} />
 
         <div className="discover-toolbar">
           <CommanderTypeahead

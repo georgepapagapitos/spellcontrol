@@ -60,6 +60,7 @@ import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { scheduleRulesIngest } from './rules/ingest';
 import { scheduleRetentionSweep } from './retention';
 import { lastSuccessfulRollupAt, runScheduledRollup } from './aggregates/rollup';
+import { recountDeckCopies } from './publications/copies';
 import {
   resolveCards,
   fetchCardsByIds,
@@ -1380,6 +1381,10 @@ async function start() {
   // by app_migrations — see games/backfill-results.ts.
   await backfillResultsFromUserGames(getPool());
   await promoteAdminsAtBoot();
+  // Copy counts are derived from live copies (publications/copies.ts). Recount
+  // on boot so the counts left by the old anonymous copy beacon are replaced
+  // with the real number the first time this deploys, not a night later.
+  void recountDeckCopies().catch((err) => logger.error('[publications] copy recount failed:', err));
   warnIfMultiMachine();
   const server = app.listen(PORT, () => {
     logger.info(`[server] listening on http://localhost:${PORT}`);

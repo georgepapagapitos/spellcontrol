@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiUrl } from '../../lib/api-base';
 import { useCardThumb } from '../../lib/card-thumbs';
-import { EmptyStateMark } from '../shared/EmptyStateMark';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
@@ -15,18 +14,19 @@ interface RisingCommander {
   newLast7d: number;
 }
 
-export interface TopCopiedDeck {
-  deckId: string;
+/** A deck other players liked, saved or copied this week (backend
+ *  aggregates/trending-decks.ts). `players` is how many distinct accounts. */
+export interface TrendingDeck {
   slug: string;
   deckName: string;
   commanderName: string | null;
-  partnerName: string | null;
-  score: number;
+  players: number;
 }
 
 interface TrendingData {
   risingCommanders: RisingCommander[];
-  topCopiedDecks?: TopCopiedDeck[];
+  /** Absent from an API older than this client; read it as empty. */
+  trendingDecks?: TrendingDeck[];
 }
 
 async function readError(res: Response, fallback: string): Promise<string> {
@@ -114,17 +114,13 @@ function TrendingCommanderTile({
   );
 }
 
-/** Real `<Link to="/d/:slug">` to an existing published deck -- no raw
- *  `score` is ever rendered (it's an internal ranking key). Accessible name
- *  is left to the link's own visible text content (deck name + commander),
- *  which already conveys "view deck" via the `<Link>`'s default semantics. */
-function TrendingDeckTile({ deck }: { deck: TopCopiedDeck }) {
+/** Real `<Link to="/d/:slug">` to an existing published deck. Its accessible
+ *  name is its own text: deck name, how many players, commander. The chip
+ *  mirrors the commander tile's bare-number chip beside it, with the full
+ *  phrase for screen readers and on hover. */
+function TrendingDeckTile({ deck }: { deck: TrendingDeck }) {
   const art = useCardThumb(deck.commanderName ?? undefined, 'small');
-  const commanderLine = deck.commanderName
-    ? deck.partnerName
-      ? `${deck.commanderName} + ${deck.partnerName}`
-      : deck.commanderName
-    : null;
+  const playersLabel = `${deck.players} players this week`;
   return (
     <Link to={`/d/${deck.slug}`} className="commander-result-card">
       <span className="commander-result-art" aria-hidden>
@@ -137,8 +133,12 @@ function TrendingDeckTile({ deck }: { deck: TopCopiedDeck }) {
       <span className="commander-result-body">
         <span className="commander-result-headline">
           <span className="commander-result-name">{deck.deckName}</span>
+          <span className="trending-deck-count" title={playersLabel}>
+            <span aria-hidden>{deck.players}</span>
+            <span className="sr-only">{playersLabel}</span>
+          </span>
         </span>
-        {commanderLine && <span className="commander-result-type">{commanderLine}</span>}
+        {deck.commanderName && <span className="commander-result-type">{deck.commanderName}</span>}
       </span>
     </Link>
   );
@@ -204,29 +204,20 @@ function TrendingSkeletonSection({ heading, tiles }: { heading: string; tiles: n
 }
 
 /**
- * Trending rail (social program W4, w4-trending) -- mounted into Discover
- * above the browse grid. Two independently-gating sub-sections read off one
- * `GET /api/aggregates/trending` fetch: "Rising commanders"
- * (`risingCommanders`, from w4-aggregates-backend) and "Most copied decks"
- * (`topCopiedDecks`, this PR's own decayed snapshot ranking). Feature-detects
- * `topCopiedDecks` via `'topCopiedDecks' in data` rather than an empty array,
- * matching the backend's additive-field contract for that key.
+ * Trending rail (social program W4) -- mounted into Discover above the
+ * browse grid. Two independently-gating sub-sections read off one
+ * `GET /api/aggregates/trending` fetch: "Rising commanders" (commanders
+ * several different authors built this week) and "Popular this week" (decks
+ * several different players liked, saved or copied). Both lists stay empty
+ * until more than one person is behind them, and an empty rail renders
+ * nothing: the browse grid below is the page's content, and a "nothing
+ * trending" card above it would only push that down.
  *
  * `enabled` is a real prop (parity with the established `useGameNights(enabled)`
  * pattern) -- the real call site below passes `enabled={true}` unconditionally;
  * nothing here blocks initial paint on it.
  */
-export function TrendingRail({
-  enabled,
-  compactWhenEmpty = false,
-}: {
-  enabled: boolean;
-  /** When the page's own primary content is also empty, a second full
-   *  illustrated empty state here would stack two brand marks bracketing
-   *  the toolbar. Pass true to fall back to a single muted line instead —
-   *  the page-level empty state stays the one brand moment per screen. */
-  compactWhenEmpty?: boolean;
-}) {
+export function TrendingRail({ enabled }: { enabled: boolean }) {
   const { data, loading, error, refresh } = useTrendingRail(enabled);
   const [reserve] = useState(readTrendingShape);
   useEffect(() => {
@@ -234,15 +225,13 @@ export function TrendingRail({
     rememberTrendingShape(
       Math.min(
         TRENDING_SECTION_MAX,
-        Math.max(data.risingCommanders.length, data.topCopiedDecks?.length ?? 0)
+        Math.max(data.risingCommanders.length, data.trendingDecks?.length ?? 0)
       )
     );
   }, [data]);
 
   if (loading) {
-    // A remembered empty rail reserves nothing: the loaded state is one
-    // muted line or an empty-state card, neither of which a tile grid
-    // would approximate.
+    // A remembered empty rail reserves nothing: an empty rail renders nothing.
     if (reserve === 0) return null;
     return (
       <section aria-labelledby="trending-rail-heading" className="trending-rail">
@@ -287,29 +276,9 @@ export function TrendingRail({
   if (!data) return null;
 
   const rising = data.risingCommanders.slice(0, TRENDING_SECTION_MAX);
-  const topCopied = ('topCopiedDecks' in data ? (data.topCopiedDecks ?? []) : []).slice(
-    0,
-    TRENDING_SECTION_MAX
-  );
-  const hasTopCopied = topCopied.length > 0;
+  const popular = (data.trendingDecks ?? []).slice(0, TRENDING_SECTION_MAX);
 
-  if (rising.length === 0 && !hasTopCopied) {
-    if (compactWhenEmpty) {
-      return <p className="trending-rail-compact-empty">Nothing trending yet.</p>;
-    }
-    return (
-      <section aria-labelledby="trending-rail-heading" className="trending-rail">
-        <h2 id="trending-rail-heading" className="deck-combos-title">
-          Trending
-        </h2>
-        <div className="empty-state">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">Nothing trending yet.</p>
-          <p className="empty-state-hint">Publish a deck to be the first commander on the board.</p>
-        </div>
-      </section>
-    );
-  }
+  if (rising.length === 0 && popular.length === 0) return null;
 
   return (
     <section aria-labelledby="trending-rail-heading" className="trending-rail">
@@ -334,17 +303,17 @@ export function TrendingRail({
             </ul>
           </div>
         )}
-        {hasTopCopied && (
+        {popular.length > 0 && (
           <div className="trending-rail-section">
             <h3
-              id="trending-copied-heading"
+              id="trending-popular-heading"
               className="deck-combos-title trending-rail-section-title"
             >
-              Most copied decks
+              Popular this week
             </h3>
-            <ul className="commander-result-grid" aria-labelledby="trending-copied-heading">
-              {topCopied.map((deck) => (
-                <li key={deck.deckId}>
+            <ul className="commander-result-grid" aria-labelledby="trending-popular-heading">
+              {popular.map((deck) => (
+                <li key={deck.slug}>
                   <TrendingDeckTile deck={deck} />
                 </li>
               ))}

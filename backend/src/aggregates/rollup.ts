@@ -11,7 +11,7 @@ import {
 } from '../db/schema';
 import { asRecord, asString } from '../shares/projections';
 import { buildCommanderKey } from './commander-key';
-import { snapshotDeckStats } from './trending-decks';
+import { recountDeckCopies } from '../publications/copies';
 
 /** Parent gate: a commander needs at least this many published decks to get
  *  a commander_stats row at all. Sub-threshold commanders simply have no row
@@ -21,7 +21,9 @@ export const MIN_COMMANDER_DECKS = 5;
  *  to appear in that commander's topCards. */
 export const MIN_CARD_INCLUSION_DECKS = 2;
 export const TOP_CARDS_PER_COMMANDER = 15;
-/** `commander_stats.newLast7d` floor for the /trending "rising" list. */
+/** `commander_stats.newLast7d` floor for the /trending "rising" list. It
+ *  counts distinct AUTHORS, so one account publishing a pile of decks for a
+ *  commander can't make it rise on its own. */
 export const RISING_MIN_NEW_7D = 2;
 /** USD boundaries for the budget-distribution buckets. Inclusive-low: a sum
  *  of exactly BUDGET_LOW_MAX lands in mid, not low (mirrors discover.ts's own
@@ -56,6 +58,8 @@ export interface PublishedDeckInput {
   effectiveBracket: number | null;
   /** `deck_publications.published_at`, epoch ms. */
   publishedAt: number;
+  /** `deck_publications.user_id`, the deck's author. */
+  ownerId: string;
 }
 
 export interface CommanderStatsComputed {
@@ -137,6 +141,7 @@ function suppressBudgetCount(n: number): number | null {
 
 interface DeckGroupEntry {
   publishedAt: number;
+  ownerId: string;
   effectiveBracket: number | null;
   commanderName: string;
   partnerName: string | null;
@@ -176,6 +181,7 @@ export function computeCommanderAggregates(
     };
     group.entries.push({
       publishedAt: deck.publishedAt,
+      ownerId: deck.ownerId,
       effectiveBracket: deck.effectiveBracket,
       commanderName: asString(commanderCard?.name) ?? commanderOracleId,
       partnerName: partnerOracleId ? (asString(partnerCard?.name) ?? partnerOracleId) : null,
@@ -191,7 +197,9 @@ export function computeCommanderAggregates(
     if (entries.length < MIN_COMMANDER_DECKS) continue;
 
     const deckCount = entries.length;
-    const newLast7d = entries.filter((e) => e.publishedAt > now - SEVEN_DAYS_MS).length;
+    const newLast7d = new Set(
+      entries.filter((e) => e.publishedAt > now - SEVEN_DAYS_MS).map((e) => e.ownerId)
+    ).size;
 
     const bracketed = entries.filter((e) => e.effectiveBracket !== null);
     const bracketSampleCount = bracketed.length;
@@ -308,6 +316,7 @@ export async function runRollup(): Promise<RollupResult> {
         data: userDecks.data,
         effectiveBracket: deckPublications.bracket,
         publishedAt: deckPublications.publishedAt,
+        ownerId: deckPublications.userId,
       })
       .from(deckPublications)
       .innerJoin(
@@ -351,16 +360,14 @@ export async function runRollup(): Promise<RollupResult> {
       .where(sql`id = ${runId}`);
   }
 
-  // Second, independent nightly concern (w4-trending): the deck-level view/copy
-  // snapshot feeding the decayed "most copied" ranking. Deliberately run after
-  // the commander-stats transaction above has already committed and reported
-  // its own outcome, in its own try/catch, so a bug in this feature can never
-  // roll back or mis-report the unrelated, already-working commander-stats write.
+  // Second, independent nightly concern: recount every deck's copies. The sync
+  // hook keeps them current as copies arrive, but a copy lost to an account
+  // deletion never passes through it. Its own try/catch, after the
+  // commander-stats write has committed, so it can't roll that back.
   try {
-    const snapshotted = await snapshotDeckStats(startedAt);
-    logger.info(`[aggregates] snapshotted ${snapshotted} deck(s) for trending`);
+    await recountDeckCopies();
   } catch (err) {
-    logger.error('[aggregates] deck stat snapshot failed:', err);
+    logger.error('[aggregates] copy recount failed:', err);
   }
 
   return { commandersWritten, runId };

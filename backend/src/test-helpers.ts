@@ -211,6 +211,9 @@ export async function createTestEnv(): Promise<TestEnv> {
       PRIMARY KEY (user_id, id)
     );
     CREATE INDEX user_decks_rev_idx ON user_decks(user_id, rev);
+    CREATE INDEX user_decks_forked_from_idx
+      ON user_decks ((data->'forkedFrom'->>'slug'))
+      WHERE deleted_at IS NULL AND (data->'forkedFrom'->>'slug') IS NOT NULL;
     CREATE TABLE user_games (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       id TEXT NOT NULL,
@@ -577,14 +580,6 @@ export async function createTestEnv(): Promise<TestEnv> {
       PRIMARY KEY (commander_key, oracle_id)
     );
     CREATE INDEX commander_card_inclusion_rank_idx ON commander_card_inclusion(commander_key, rank);
-    CREATE TABLE deck_stat_snapshots (
-      deck_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      day DATE NOT NULL,
-      view_count INTEGER NOT NULL DEFAULT 0,
-      copy_count INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (deck_id, day)
-    );
     CREATE TABLE event_counts (
       day DATE NOT NULL,
       name TEXT NOT NULL,
@@ -611,7 +606,6 @@ export async function createTestEnv(): Promise<TestEnv> {
       count INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (day, path, metric, rating)
     );
-    CREATE INDEX deck_stat_snapshots_day_idx ON deck_stat_snapshots(day);
   `);
 
   const db = drizzle(pool, { schema });
