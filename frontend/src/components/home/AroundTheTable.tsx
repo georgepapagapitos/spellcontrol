@@ -30,6 +30,7 @@ import { formatIdentity } from '../../lib/display-name';
 import { formatRelativeTime } from '../../lib/format-time';
 import { signInPath } from '../../lib/sign-in-path';
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 
 const ROW_LIMIT = 3;
 const ICON = { width: 16, height: 16, strokeWidth: 1.8, 'aria-hidden': true } as const;
@@ -228,16 +229,15 @@ function NextNight({ night, onReplied }: { night: GameNight; onReplied: () => Pr
       ) : (
         <div className="home-table-rsvp" role="group" aria-label={`RSVP to ${night.title}`}>
           {STATUS_LABELS.map(({ status, label }) => (
-            <button
+            <Button
               key={status}
-              type="button"
-              className={`btn game-night-status-btn${night.myStatus === status ? ' is-selected' : ''}`}
               aria-pressed={night.myStatus === status}
               disabled={busy !== null}
               onClick={() => void reply(status)}
+              className={`game-night-status-btn${night.myStatus === status ? ' is-selected' : ''}`}
             >
               {busy === status ? 'Saving…' : status === 'declined' ? "Can't" : label}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -304,9 +304,7 @@ export function AroundTheTable({
           Sign in to see game nights and what friends are building.
         </span>
         <span className="home-quiet-actions">
-          <Link to={signInPath('/home')} className="btn">
-            Sign in
-          </Link>
+          <Button to={signInPath('/home')}>Sign in</Button>
         </span>
       </section>
     );
@@ -331,14 +329,18 @@ export function AroundTheTable({
         <b className="home-quiet-title">Around the table</b>
         <span className="home-quiet-text">No game nights planned and no friend activity yet.</span>
         <span className="home-quiet-actions">
-          <Link to="/play/nights" className="btn">
-            <CalendarPlus width={14} height={14} strokeWidth={1.8} aria-hidden />
+          <Button
+            to="/play/nights"
+            icon={<CalendarPlus width={14} height={14} strokeWidth={1.8} />}
+          >
             Plan a game night
-          </Link>
-          <Link to="/friends?tab=friends" className="btn">
-            <UserPlus width={14} height={14} strokeWidth={1.8} aria-hidden />
+          </Button>
+          <Button
+            to="/friends?tab=friends"
+            icon={<UserPlus width={14} height={14} strokeWidth={1.8} />}
+          >
             Find friends
-          </Link>
+          </Button>
         </span>
       </section>
     );

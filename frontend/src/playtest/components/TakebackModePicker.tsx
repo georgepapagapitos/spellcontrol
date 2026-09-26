@@ -5,6 +5,7 @@ import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { TAKEBACK_MODES, TAKEBACK_MODE_DESCRIPTION, TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import type { TakebackMode } from '../lib/takeback';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   mode: TakebackMode;
@@ -97,9 +98,7 @@ export function TakebackModePicker({ mode, onSelect, onClose, online }: Props) {
           })}
         </fieldset>
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            Close
-          </button>
+          <Button onClick={() => beginClose()}>Close</Button>
         </div>
       </div>
     </div>

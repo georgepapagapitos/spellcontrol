@@ -1,6 +1,6 @@
 import './WelcomeHero.css';
 import { useState, type FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Import, Swords } from 'lucide-react';
 import { BrandMark } from '../shared/BrandMark';
 import { SearchPill } from '../SearchPill';
@@ -8,6 +8,7 @@ import { useCardThumb } from '../../lib/card-thumbs';
 import { markEverVisited } from '../../lib/first-run';
 import { track } from '../../lib/analytics';
 import { pickWelcomeHeroCard } from '../../lib/welcome-hero';
+import { Button } from '@/components/shared/Button';
 
 /**
  * WelcomePage's hero band (welcome storefront, pass 2c — Moxfield-hero-
@@ -85,17 +86,18 @@ export function WelcomeHero() {
         </form>
 
         <div className="welcome-hero-ctas">
-          <Link
+          <Button
+            variant="primary"
+            placement="row"
             to="/collection?add=list"
-            className="pill-btn pill-btn-primary"
             onClick={() => {
               markEverVisited();
               track('import_started');
             }}
+            icon={<Import width={14} height={14} strokeWidth={1.8} />}
           >
-            <Import width={14} height={14} strokeWidth={1.8} aria-hidden />
             Import your collection
-          </Link>
+          </Button>
           {/* The life-counter door. A local game needs no account and no
               collection, so this goes straight to a running table rather than
               a setup form (PlayPage reads `new=1`) — someone who arrived for a
@@ -106,21 +108,23 @@ export function WelcomeHero() {
               hide the game they left running. No track() call — `play_started`
               fires from the store when the game actually starts, which is the
               honest event. */}
-          <Link
+          <Button
+            placement="row"
             to="/play?new=1"
-            className="pill-btn welcome-hero-cta-secondary"
             onClick={markEverVisited}
+            className="welcome-hero-cta-secondary"
+            icon={<Swords width={14} height={14} strokeWidth={1.8} />}
           >
-            <Swords width={14} height={14} strokeWidth={1.8} aria-hidden />
             Start a game
-          </Link>
-          <Link
+          </Button>
+          <Button
+            placement="row"
             to="/decks/discover"
-            className="pill-btn welcome-hero-cta-secondary"
             onClick={() => track('browse_decks')}
+            className="welcome-hero-cta-secondary"
           >
             Browse public decks
-          </Link>
+          </Button>
         </div>
       </div>
 

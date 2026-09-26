@@ -64,9 +64,7 @@ export function HordeHalf({
         {hordeLoad.status === 'error' ? (
           <p className="horde-half-message">
             {hordeLoad.error ?? "Couldn't load the horde."}{' '}
-            <button type="button" className="btn" onClick={() => retryLoad()}>
-              Try again
-            </button>
+            <Button onClick={() => retryLoad()}>Try again</Button>
           </p>
         ) : (
           <p className="horde-half-message">Loading the horde…</p>
@@ -149,7 +147,6 @@ export function HordeHalf({
             libraryCount={board.zones.library.length}
             graveyardCount={board.zones.graveyard.length}
             onOpen={onOpenDamage}
-            className="btn"
             label="Damage the horde"
           />
         </div>

@@ -15,6 +15,7 @@ import { usePlaytestStore, flushPendingPlaytestSnapshot, tryRecordSession } from
 import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
 import { useNarrowViewport } from '@/playtest/hooks/use-narrow-viewport';
 import { usePrintedBodies } from '@/playtest/hooks/use-printed-bodies';
+import { Button } from '@/components/shared/Button';
 
 export interface PlaytestBackTarget {
   label: string;
@@ -169,9 +170,9 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
         <p className="empty-state-tagline">Nothing to playtest yet.</p>
         <p className="empty-state-hint">{emptyHint}</p>
         <div className="empty-state-actions">
-          <button type="button" className="btn btn-primary" onClick={() => navigate(back.to)}>
+          <Button variant="primary" onClick={() => navigate(back.to)}>
             {back.label}
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -185,9 +186,8 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
           its cards.
         </p>
         <div className="empty-state-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
+          <Button
+            variant="primary"
             onClick={() => {
               // Clear any snapshot that might itself be the problem, and let
               // the effect re-run from scratch for this deck.
@@ -197,10 +197,8 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
             }}
           >
             Try again
-          </button>
-          <button type="button" className="btn" onClick={() => navigate(back.to)}>
-            {back.label}
-          </button>
+          </Button>
+          <Button onClick={() => navigate(back.to)}>{back.label}</Button>
         </div>
       </div>
     );

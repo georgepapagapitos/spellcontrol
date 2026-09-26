@@ -2,6 +2,7 @@ import { useId, type CSSProperties } from 'react';
 import { Modal } from '@/components/Modal';
 import { SwitchRow } from '@/components/shared/form';
 import { FELTS, type SkinOption } from '../lib/table-skin';
+import { Button } from '@/components/shared/Button';
 
 /** One preference that owns its own picker: this row states where it stands
  *  and opens that picker. Keeps each existing picker untouched while giving
@@ -177,14 +178,9 @@ export function TableSettingsSheet({ zoom, skin, toggles = [], links, onClose }:
         </ul>
       </div>
       <footer className="playtest-shortcuts-foot">
-        <button
-          type="button"
-          className="btn"
-          disabled={zoom.value === 1}
-          onClick={() => zoom.onZoom(1)}
-        >
+        <Button disabled={zoom.value === 1} onClick={() => zoom.onZoom(1)}>
           Reset card size
-        </button>
+        </Button>
       </footer>
     </Modal>
   );

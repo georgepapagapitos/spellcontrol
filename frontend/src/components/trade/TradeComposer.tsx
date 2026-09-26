@@ -38,6 +38,7 @@ import type { FriendCard } from '../../lib/cube/pool';
 import type { FriendWant } from '../../lib/friends-client';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /** How many picker results render before the list asks you to narrow down.
  *  A real collection is ~11.5k unique cards; the search filters the full set
  *  regardless of this cap (same contract as the friend Collection browser). */
@@ -646,17 +647,12 @@ export function TradeComposer({
           </div>
 
           <div className="game-night-dialog-actions">
-            <button type="button" className="btn" onClick={onClose} disabled={sending}>
+            <Button onClick={onClose} disabled={sending}>
               Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void send()}
-              disabled={!canSend}
-            >
+            </Button>
+            <Button variant="primary" onClick={() => void send()} disabled={!canSend}>
               {sending ? 'Sending…' : 'Send offer'}
-            </button>
+            </Button>
           </div>
           {!canSend && !sending && (
             <p className="trade-composer-gate" role="status">
@@ -814,9 +810,9 @@ function TradeSide({
         <p className="trade-side-note" role="alert">
           {error}{' '}
           {onRetry && (
-            <button type="button" className="btn-link" onClick={onRetry}>
+            <Button variant="link" onClick={onRetry}>
               Try again
-            </button>
+            </Button>
           )}
         </p>
       ) : loading ? (

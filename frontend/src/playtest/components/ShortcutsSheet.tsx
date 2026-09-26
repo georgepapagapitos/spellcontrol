@@ -12,6 +12,7 @@ import {
   type ShortcutId,
   type ShortcutOverrides,
 } from '../lib/shortcuts';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   overrides: ShortcutOverrides;
@@ -139,9 +140,7 @@ export function ShortcutsSheet({ overrides, onChange, onClose }: Props) {
         ))}
       </div>
       <footer className="playtest-shortcuts-foot">
-        <button
-          type="button"
-          className="btn"
+        <Button
           disabled={!changed}
           onClick={() => {
             onChange({});
@@ -150,7 +149,7 @@ export function ShortcutsSheet({ overrides, onChange, onClose }: Props) {
           }}
         >
           Reset to defaults
-        </button>
+        </Button>
       </footer>
     </Modal>
   );

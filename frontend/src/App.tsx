@@ -1,15 +1,7 @@
 import { logger } from '@/lib/logger';
 import { BrandMark } from '@/components/shared/BrandMark';
 import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
-import {
-  Routes,
-  Route,
-  Navigate,
-  Link,
-  useLocation,
-  useNavigate,
-  useParams,
-} from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { EmptyStateMark } from '@/components/shared/EmptyStateMark';
 import { Layout } from './components/Layout';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
@@ -39,6 +31,7 @@ import { useFirstRunGate } from './lib/use-first-run-gate';
 import { useTradeSettlement } from './lib/use-trade-settlement';
 import { hasEverVisited } from './lib/first-run';
 import { setUsageSuppressed, track } from './lib/analytics';
+import { Button } from '@/components/shared/Button';
 
 /** Named-export adapter for React.lazy (every page below exports by name). */
 function lazyPage<K extends string, T extends Record<K, ComponentType>>(
@@ -160,9 +153,9 @@ function NotFoundPage({ homePath }: { homePath: string }) {
       <h1 className="empty-state-tagline">Page not found.</h1>
       <p className="empty-state-hint">That link is broken or the page has moved.</p>
       <div className="empty-state-actions">
-        <Link to={homePath} className="btn btn-primary empty-state-action">
+        <Button variant="primary" to={homePath} className="empty-state-action">
           Go to {homeLabel}
-        </Link>
+        </Button>
       </div>
     </div>
   );

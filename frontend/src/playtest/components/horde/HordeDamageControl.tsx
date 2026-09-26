@@ -1,8 +1,11 @@
+import { Button } from '@/components/shared/Button';
+
 interface Props {
   libraryCount: number;
   graveyardCount: number;
   onOpen(): void;
-  className: string;
+  /** A surface modifier; the look is `Button`'s. */
+  className?: string;
   label: string;
   /** Overrides the button's accessible name — the band's own compact "Damage"
    *  label still needs to announce as "Damage the horde". */
@@ -28,14 +31,13 @@ export function HordeDamageControl({
   ariaLabel,
 }: Props) {
   return (
-    <button
-      type="button"
+    <Button
       className={className}
       aria-label={ariaLabel}
       onClick={onOpen}
       disabled={libraryCount === 0 && graveyardCount === 0}
     >
       {label}
-    </button>
+    </Button>
   );
 }

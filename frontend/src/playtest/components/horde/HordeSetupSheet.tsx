@@ -13,6 +13,7 @@ import type { HordeLevel, HordeSettings } from '@/lib/horde';
 import { usePlaytestStore } from '@/playtest/store';
 import type { SoloHordeState } from '@/playtest/lib/horde-solo';
 import './HordeSetupSheet.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   horde: SoloHordeState | null;
@@ -87,36 +88,29 @@ export function HordeSetupSheet({ horde, hordeLoad, cardNames, resistanceOn, onC
           {hordeLoad.status === 'error' && (
             <p className="horde-setup-sheet__error" role="alert">
               {hordeLoad.error ?? "Couldn't load that horde."}{' '}
-              <button type="button" className="btn" onClick={() => retryHordeLoad()}>
-                Try again
-              </button>
+              <Button onClick={() => retryHordeLoad()}>Try again</Button>
             </p>
           )}
         </div>
         <div className="card-picker-footer">
           {horde && (
-            <button
-              type="button"
-              className="btn"
+            <Button
               onClick={() => {
                 disarmHorde();
                 beginClose();
               }}
             >
               Stop the fight
-            </button>
+            </Button>
           )}
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
+          <Button onClick={() => beginClose()}>Cancel</Button>
+          <Button
+            variant="primary"
             disabled={hordeLoad.status === 'loading'}
             onClick={() => void fight()}
           >
             {hordeLoad.status === 'loading' ? 'Fighting the horde…' : 'Fight the horde'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

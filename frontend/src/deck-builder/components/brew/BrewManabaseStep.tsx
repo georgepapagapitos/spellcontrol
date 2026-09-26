@@ -5,6 +5,7 @@ import '@/styles/deck-builder-skeleton.css';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { useBrewStore } from '@/deck-builder/store/brew';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { Button } from '@/components/shared/Button';
 
 interface TalliedLand {
   name: string;
@@ -113,9 +114,7 @@ export function BrewManabaseStep({ onAccept }: BrewManabaseStepProps): JSX.Eleme
       ) : landPlanError ? (
         <div className="brew-land-error">
           <p>{landPlanError}</p>
-          <button type="button" className="btn" onClick={() => void goToManabase()}>
-            Retry
-          </button>
+          <Button onClick={() => void goToManabase()}>Retry</Button>
         </div>
       ) : (
         <ul className="brew-land-list">
@@ -131,14 +130,14 @@ export function BrewManabaseStep({ onAccept }: BrewManabaseStepProps): JSX.Eleme
 
       <div className="brew-slot-nav">
         <span className="brew-land-total">{totalLands} lands total</span>
-        <button
-          type="button"
-          className="btn btn-primary"
+        <Button
+          variant="primary"
           onClick={onAccept}
           disabled={landPlanLoading || !landPlan}
+          iconEnd={<ArrowRight width={14} height={14} />}
         >
-          Looks good, save my deck <ArrowRight width={14} height={14} aria-hidden />
-        </button>
+          Looks good, save my deck
+        </Button>
       </div>
     </section>
   );

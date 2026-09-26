@@ -9,6 +9,7 @@ import {
   type TokenOption,
 } from '@/deck-builder/services/scryfall/client';
 import { useDeckTokens } from '@/components/deck/use-deck-tokens';
+import { Button } from '@/components/shared/Button';
 
 /** A token the player is creating. `typeLine` matters beyond display — the
  *  board reads it to decide which row a new permanent lands in, so a
@@ -174,14 +175,9 @@ export function TokenCreator({ deckCards, onCreate, onClose }: Props) {
 
         <div className="card-picker-footer">
           {/* Always available, never gated on a search landing. */}
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!typed}
-            onClick={() => create({ name: typed })}
-          >
+          <Button variant="primary" disabled={!typed} onClick={() => create({ name: typed })}>
             Create “{typed || 'token'}”
-          </button>
+          </Button>
         </div>
       </div>
     </div>
