@@ -76,7 +76,7 @@ describe('DeckCardRow', () => {
 
   it('renders the muted "In other deck" chip for claimed-elsewhere copies', () => {
     render(<DeckCardRow change={add({ ownership: 'in-other-deck' })} />);
-    const chip = screen.getByText('In other deck');
+    const chip = screen.getByText('In other deck').closest('.verdict-chip')!;
     expect(chip).toBeTruthy();
     // Shared VerdictBadge chip, neutral tone — not a hand-rolled pill.
     expect(chip.classList.contains('verdict-chip')).toBe(true);
@@ -85,11 +85,11 @@ describe('DeckCardRow', () => {
 
   it('renders the Game Changer + Synergy tags as shared VerdictBadge chips', () => {
     render(<DeckCardRow change={add({ isGameChanger: true, isThemeSynergy: true })} />);
-    const gc = screen.getByText('Game Changer');
+    const gc = screen.getByText('Game Changer').closest('.verdict-chip')!;
     expect(gc.classList.contains('verdict-chip')).toBe(true);
     expect(gc.classList.contains('is-warn')).toBe(true);
     expect(gc.getAttribute('title')).toContain('bracket-relevant');
-    const syn = screen.getByText('Synergy');
+    const syn = screen.getByText('Synergy').closest('.verdict-chip')!;
     expect(syn.classList.contains('verdict-chip')).toBe(true);
     expect(syn.classList.contains('is-accent')).toBe(true);
   });
@@ -98,7 +98,7 @@ describe('DeckCardRow', () => {
     const { unmount } = render(
       <DeckCardRow change={add({ lane: 'budget', confidence: 'drop-in', reason: undefined })} />
     );
-    const dropIn = screen.getByText('Drop-in');
+    const dropIn = screen.getByText('Drop-in').closest('.verdict-chip')!;
     expect(dropIn.classList.contains('verdict-chip')).toBe(true);
     expect(dropIn.classList.contains('is-success')).toBe(true);
     unmount();
@@ -106,7 +106,7 @@ describe('DeckCardRow', () => {
     render(
       <DeckCardRow change={add({ lane: 'budget', confidence: 'budget', reason: undefined })} />
     );
-    const budget = screen.getByText('Budget');
+    const budget = screen.getByText('Budget').closest('.verdict-chip')!;
     expect(budget.classList.contains('is-warn')).toBe(true);
   });
 
@@ -117,7 +117,7 @@ describe('DeckCardRow', () => {
 
   it('renders the role label as a neutral VerdictBadge chip', () => {
     render(<DeckCardRow change={add({ roleLabel: 'Ramp' })} />);
-    const role = screen.getByText('Ramp');
+    const role = screen.getByText('Ramp').closest('.verdict-chip')!;
     expect(role.classList.contains('verdict-chip')).toBe(true);
     expect(role.classList.contains('is-neutral')).toBe(true);
   });
