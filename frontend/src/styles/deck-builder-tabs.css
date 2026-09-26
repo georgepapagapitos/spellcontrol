@@ -18,12 +18,13 @@
    left alone it stretches to whatever it sits in and paints a track across the
    whole panel with two tabs huddled at its left (the deck Power tab's Combos,
    the collection combos page). `max-width` keeps the horizontal scroll when the
-   tabs outrun the row; `align-self` because a column flexbox parent stretches
-   its children regardless. The shared `.segmented` track does the same. */
+   tabs outrun the row. A definite width is enough to opt out of a column
+   flexbox's stretch (it only applies to an `auto` width); no `align-self`,
+   which in a row parent would pull the strip to the top. The shared
+   `.segmented` and `.toolbar-viewmode` tracks do the same. */
 .sc-tabs--scrollable {
   width: fit-content;
   max-width: 100%;
-  align-self: flex-start;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none; /* Firefox */

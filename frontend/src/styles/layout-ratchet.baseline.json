@@ -28,7 +28,7 @@
     "components/deck/DeckCardPreviewMeta.css": 6,
     "components/deck/DeckCardRow.css": 11,
     "components/deck/DeckColorBalance.css": 1,
-    "components/deck/DeckCurvePhases.css": 12,
+    "components/deck/DeckCurvePhases.css": 8,
     "components/deck/DeckFeedbackSheet.css": 1,
     "components/deck/DeckHoverPeek.css": 1,
     "components/deck/DeckPrimerSheet.css": 5,

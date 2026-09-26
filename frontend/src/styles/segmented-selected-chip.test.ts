@@ -49,14 +49,6 @@ const TRACKS: { file: string; selected: string; weightOn?: string }[] = [
   { file: 'styles/deck-builder-display.css', selected: '.toolbar-viewmode-btn.active' },
   { file: 'playtest/components/ScrySheet.css', selected: '.playtest-scry-mode.is-active' },
   {
-    file: 'components/deck/CardGroupSheet.css',
-    selected: '.card-group-layout-btn:has(input:checked)',
-  },
-  {
-    file: 'components/deck/DeckCurvePhases.css',
-    selected: '.deck-curve-phases-toggle-btn input:checked + span',
-  },
-  {
     file: 'components/shared/form.css',
     selected: '.segmented-option.is-selected',
     weightOn: '.segmented-option.is-selected span',
