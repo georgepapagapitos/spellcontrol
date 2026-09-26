@@ -17,11 +17,11 @@ import type { EnrichedCard } from '../../types';
 import type { CubeCard } from '../../lib/cube/core';
 import type { SavedCube } from '../../store/cube';
 import { buildShoppingList, type ShoppingRow } from '../../lib/cube/shopping-list';
-import { rankedCubeSignalNames } from '../../lib/cube/signal';
+import { loadCubeSignal, rankedCubeSignalNames } from '../../lib/cube/signal';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { namesToCubePool } from '../../lib/cube/pool';
 import { formatExclusion } from '../../lib/cube/play-format';
-import { getCardTags } from '@/lib/card-tags';
+import { ensureCardTags, getCardTags } from '@/lib/card-tags';
 
 /** How many popular-by-cube-signal names to fetch oracle facts for — a bound
  *  generous enough that ownership/format filtering still leaves a real list,
@@ -76,7 +76,15 @@ export function CubeShoppingList({ target, loadPool }: Props) {
       setStatus('loading');
       setError('');
       try {
-        const builtPool = await loadPool();
+        // The candidate walk below reads `getCardTags`/`rankedCubeSignalNames`
+        // SYNCHRONOUSLY — both are empty until their snapshot has loaded, so
+        // both loaders are awaited explicitly here rather than assumed as a
+        // side effect of `loadPool` (whose own contract is only "returns a
+        // pool"; relying on its internals loading these too is what let a
+        // Commander-only / group-hug candidate through silently before this
+        // fix, and would break again the moment `loadPool` is backed by
+        // anything else — a mock, a future refactor of useOwnedCubePool).
+        const [builtPool] = await Promise.all([loadPool(), ensureCardTags(), loadCubeSignal()]);
         if (cancelled) return;
         if (!builtPool) throw new Error("Couldn't load your collection's cards. Try again.");
 

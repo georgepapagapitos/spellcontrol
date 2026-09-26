@@ -11,12 +11,40 @@ import { useCurrencyStore } from '@/lib/currency';
 import { pending } from '../../test/pending';
 import type { SavedCube } from '../../store/cube';
 
+// Mutable snapshot-readiness state the mocks below close over. Real
+// `loadCubeSignal`/`ensureCardTags` gate their reads the same way (empty/[]
+// until the snapshot resolves); this reproduces exactly that gate so a test
+// can prove the component AWAITS both before reading them, rather than
+// reading whatever happens to be cached at call time.
+const snapshotState = vi.hoisted(() => ({
+  signalLoaded: true,
+  tagsLoaded: true,
+  tags: new Map<string, string[]>(),
+}));
+
 vi.mock('../../lib/cube/shopping-list', () => ({
   buildShoppingList: vi.fn(),
 }));
 vi.mock('../../lib/cube/signal', () => ({
-  rankedCubeSignalNames: vi.fn(() => ['Ragavan, Nimble Pilferer', 'Solitude']),
+  rankedCubeSignalNames: vi.fn(() =>
+    snapshotState.signalLoaded ? ['Ragavan, Nimble Pilferer', 'Solitude'] : []
+  ),
   cubeSignalOf: vi.fn(() => ({})),
+  loadCubeSignal: vi.fn(async () => {
+    if (snapshotState.signalLoaded) return;
+    await new Promise((r) => setTimeout(r, 0));
+    snapshotState.signalLoaded = true;
+  }),
+}));
+vi.mock('@/lib/card-tags', () => ({
+  ensureCardTags: vi.fn(async () => {
+    if (snapshotState.tagsLoaded) return;
+    await new Promise((r) => setTimeout(r, 0));
+    snapshotState.tagsLoaded = true;
+  }),
+  getCardTags: vi.fn((name: string) =>
+    snapshotState.tagsLoaded ? (snapshotState.tags.get(name) ?? []) : []
+  ),
 }));
 vi.mock('../../lib/cube/oracle', () => ({
   fetchCubeOracle: vi.fn(async () => new Map()),
@@ -112,6 +140,9 @@ beforeEach(() => {
   getCardsByNamesMock.mockReset().mockResolvedValue(new Map());
   useCollectionStore.setState({ cards: [], lists: [] });
   useCurrencyStore.setState({ currency: 'USD' });
+  snapshotState.signalLoaded = true;
+  snapshotState.tagsLoaded = true;
+  snapshotState.tags.clear();
 });
 
 describe('CubeShoppingList', () => {
@@ -248,5 +279,39 @@ describe('CubeShoppingList', () => {
       expect(list?.entries).toHaveLength(1);
       expect(list?.entries[0].name).toBe('Ragavan, Nimble Pilferer');
     });
+  });
+
+  it('awaits the cube-signal snapshot before building the candidate list', async () => {
+    // Empty until loadCubeSignal resolves — same gate the real module keeps.
+    snapshotState.signalLoaded = false;
+    const loadPool = vi.fn(async () => []);
+    buildShoppingListMock.mockReturnValue([]);
+
+    render(<CubeShoppingList target={saved()} loadPool={loadPool} />);
+    await waitFor(() => expect(buildShoppingListMock).toHaveBeenCalled());
+
+    // If the walk had run before the signal loaded, this would be [] — the
+    // whole point of awaiting it first.
+    const [candidates] = buildShoppingListMock.mock.calls[0];
+    expect((candidates as CubeCard[]).map((c) => c.name)).toContain('Ragavan, Nimble Pilferer');
+  });
+
+  it('excludes a Commander-only candidate once oracle tags load', async () => {
+    // Empty (nothing excluded) until ensureCardTags resolves — same gate the
+    // real module keeps.
+    snapshotState.tagsLoaded = false;
+    snapshotState.tags.set('Solitude', ['commander-matters']);
+    const loadPool = vi.fn(async () => []);
+    buildShoppingListMock.mockReturnValue([]);
+
+    render(<CubeShoppingList target={saved()} loadPool={loadPool} />);
+    await waitFor(() => expect(buildShoppingListMock).toHaveBeenCalled());
+
+    // If the walk had run before tags loaded, getCardTags would still read []
+    // and Solitude would slip through as a candidate.
+    const [candidates] = buildShoppingListMock.mock.calls[0];
+    const names = (candidates as CubeCard[]).map((c) => c.name);
+    expect(names).toContain('Ragavan, Nimble Pilferer');
+    expect(names).not.toContain('Solitude');
   });
 });
