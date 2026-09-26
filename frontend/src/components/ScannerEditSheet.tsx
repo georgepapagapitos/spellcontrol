@@ -6,6 +6,7 @@ import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { SegmentedControl } from './shared/form';
+import { Button, IconButton } from './shared/Button';
 import { conditionLabel } from './shared/CardRow';
 import { fetchPrintings } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
@@ -187,30 +188,33 @@ export function ScannerEditSheet({
                 role="group"
                 aria-labelledby="scanner-edit-qty-label"
               >
-                <button
-                  type="button"
+                <IconButton
+                  label="One fewer"
+                  icon={<Minus width={16} height={16} strokeWidth={2} />}
                   onClick={() => onQty(-1)}
                   disabled={entry.qty <= 1}
-                  aria-label="One fewer"
-                >
-                  <Minus width={16} height={16} strokeWidth={2} />
-                </button>
+                />
                 <output aria-live="polite">{entry.qty}</output>
-                <button type="button" onClick={() => onQty(1)} aria-label="One more">
-                  <Plus width={16} height={16} strokeWidth={2} />
-                </button>
+                <IconButton
+                  label="One more"
+                  icon={<Plus width={16} height={16} strokeWidth={2} />}
+                  onClick={() => onQty(1)}
+                />
               </div>
             </div>
           </div>
 
           <div className="modal-footer scanner-sheet-foot">
-            <button type="button" className="btn scanner-danger-btn" onClick={onRemove}>
-              <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+            <Button
+              className="scanner-danger-btn"
+              icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
+              onClick={onRemove}
+            >
               Remove
-            </button>
-            <button type="button" className="btn btn-primary scanner-sheet-add" onClick={onClose}>
+            </Button>
+            <Button variant="primary" className="scanner-sheet-add" onClick={onClose}>
               Done
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -263,14 +267,12 @@ function PrintingGrid({
   return (
     <>
       <div className="modal-header scanner-sheet-head">
-        <button
-          type="button"
+        <IconButton
           className="scanner-back"
+          label="Back to the card"
+          icon={<ChevronLeft width={20} height={20} strokeWidth={2} />}
           onClick={onBack}
-          aria-label="Back to the card"
-        >
-          <ChevronLeft width={20} height={20} strokeWidth={2} />
-        </button>
+        />
         <div className="scanner-sheet-heading">
           <h2 id="scanner-edit-title">Choose a printing</h2>
           <span className="scanner-sheet-sub">
@@ -299,16 +301,14 @@ function PrintingGrid({
         {error ? (
           <div className="scanner-sheet-empty" role="alert">
             <p className="scanner-sheet-empty-hint">{error}</p>
-            <button
-              type="button"
-              className="btn"
+            <Button
               onClick={() => {
                 setError(null);
                 setAttempt((a) => a + 1);
               }}
             >
               Try again
-            </button>
+            </Button>
           </div>
         ) : !printings ? (
           <ul className="scan-printings" aria-busy="true" aria-label="Loading printings">
@@ -352,13 +352,9 @@ function PrintingGrid({
               })}
             </ul>
             {matches.length > shown && (
-              <button
-                type="button"
-                className="btn scanner-more"
-                onClick={() => setShown((n) => n + PRINTINGS_PAGE)}
-              >
+              <Button className="scanner-more" onClick={() => setShown((n) => n + PRINTINGS_PAGE)}>
                 Show more ({matches.length - shown})
-              </button>
+              </Button>
             )}
           </>
         )}

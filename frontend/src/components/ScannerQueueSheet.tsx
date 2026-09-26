@@ -17,6 +17,7 @@ import { OverflowMenu } from './OverflowMenu';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { SegmentedControl } from './shared/form';
+import { Button, IconButton } from './shared/Button';
 import { conditionLabel, conditionShort } from './shared/CardRow';
 import { useSearchCards } from '../lib/use-search-cards';
 import { useConfirm } from '../lib/use-confirm';
@@ -168,9 +169,7 @@ export function ScannerQueueSheet({
           {mode === 'select' && <span className="scanner-sheet-sub">Tap cards to select them</span>}
         </div>
         {mode === 'select' ? (
-          <button type="button" className="btn" onClick={leaveSelect}>
-            Done
-          </button>
+          <Button onClick={leaveSelect}>Done</Button>
         ) : (
           <>
             {totalCount > 0 && (
@@ -215,10 +214,12 @@ export function ScannerQueueSheet({
                 onChange={setFilter}
                 ariaLabel="Filter scanned cards"
               />
-              <button type="button" className="btn" onClick={() => setMode('search')}>
-                <Plus width={14} height={14} strokeWidth={2} aria-hidden />
+              <Button
+                icon={<Plus width={14} height={14} strokeWidth={2} />}
+                onClick={() => setMode('search')}
+              >
                 Add by name
-              </button>
+              </Button>
             </div>
           )}
 
@@ -230,10 +231,12 @@ export function ScannerQueueSheet({
                 <p className="scanner-sheet-empty-hint">
                   Point the camera at a card. Each one you scan lands here.
                 </p>
-                <button type="button" className="btn" onClick={() => setMode('search')}>
-                  <Plus width={14} height={14} strokeWidth={2} aria-hidden />
+                <Button
+                  icon={<Plus width={14} height={14} strokeWidth={2} />}
+                  onClick={() => setMode('search')}
+                >
                   Add by name
-                </button>
+                </Button>
               </div>
             ) : rows.length === 0 ? (
               <p className="scanner-sheet-none">No scanned cards match “{filter.trim()}”.</p>
@@ -257,48 +260,43 @@ export function ScannerQueueSheet({
           <div className="modal-footer scanner-sheet-foot">
             {mode === 'select' ? (
               <>
-                <button
-                  type="button"
-                  className="btn scanner-danger-btn"
+                <Button
+                  className="scanner-danger-btn"
+                  icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
                   disabled={selectedIds.length === 0}
                   onClick={() => void removeSelected()}
                 >
-                  <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
                   Remove
-                </button>
-                <button
-                  type="button"
-                  className="btn"
+                </Button>
+                <Button
+                  icon={<Pencil width={14} height={14} strokeWidth={1.8} />}
                   disabled={selectedIds.length === 0}
                   onClick={() => setBulkEditOpen(true)}
                 >
-                  <Pencil width={14} height={14} strokeWidth={1.8} aria-hidden />
                   Edit
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary scanner-sheet-add"
+                </Button>
+                <Button
+                  variant="primary"
+                  className="scanner-sheet-add"
+                  icon={<Plus width={14} height={14} strokeWidth={2} />}
                   disabled={selectedIds.length === 0}
                   onClick={() => onConfirm(selectedIds)}
                 >
-                  <Plus width={14} height={14} strokeWidth={2} aria-hidden />
                   Add {countLabel(selectedCount)}
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <button type="button" className="btn" onClick={onClose}>
-                  Keep scanning
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary scanner-sheet-add"
+                <Button onClick={onClose}>Keep scanning</Button>
+                <Button
+                  variant="primary"
+                  className="scanner-sheet-add"
+                  icon={<Plus width={14} height={14} strokeWidth={2} />}
                   disabled={totalCount === 0}
                   onClick={() => onConfirm()}
                 >
-                  <Plus width={14} height={14} strokeWidth={2} aria-hidden />
                   {totalCount > 0 ? `Add ${countLabel(totalCount)}` : 'Add cards'}
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -399,14 +397,13 @@ function ScanRow({
         {body}
         <Pencil className="scan-row-pencil" width={16} height={16} strokeWidth={1.8} aria-hidden />
       </button>
-      <button
-        type="button"
+      <IconButton
         className="scan-row-remove"
+        label={`Remove ${card.name}`}
+        title={false}
+        icon={<Trash2 width={17} height={17} strokeWidth={1.8} />}
         onClick={onRemove}
-        aria-label={`Remove ${card.name}`}
-      >
-        <Trash2 width={17} height={17} strokeWidth={1.8} />
-      </button>
+      />
     </li>
   );
 }
@@ -482,22 +479,23 @@ function AddByName({
                     </span>
                   </span>
                   {usd && <span className="scan-result-price">{usd}</span>}
-                  <button
-                    type="button"
-                    className={`btn scan-result-add${isAdded ? ' is-added' : ''}`}
+                  <Button
+                    className={isAdded ? 'scan-result-add is-added' : 'scan-result-add'}
+                    icon={
+                      isAdded ? (
+                        <Check width={14} height={14} strokeWidth={2.5} />
+                      ) : (
+                        <Plus width={14} height={14} strokeWidth={2} />
+                      )
+                    }
                     onClick={() => {
                       onAddCard(c);
                       setAdded((prev) => new Set(prev).add(c.id));
                     }}
                     aria-label={`Add ${c.name}, ${c.set_name}`}
                   >
-                    {isAdded ? (
-                      <Check width={14} height={14} strokeWidth={2.5} aria-hidden />
-                    ) : (
-                      <Plus width={14} height={14} strokeWidth={2} aria-hidden />
-                    )}
                     {isAdded ? 'Added' : 'Add'}
-                  </button>
+                  </Button>
                 </li>
               );
             })}
@@ -505,9 +503,9 @@ function AddByName({
         )}
       </div>
       <div className="modal-footer scanner-sheet-foot">
-        <button type="button" className="btn btn-primary scanner-sheet-add" onClick={onDone}>
+        <Button variant="primary" className="scanner-sheet-add" onClick={onDone}>
           Done
-        </button>
+        </Button>
       </div>
     </>
   );
@@ -577,10 +575,14 @@ function BulkEdit({
         </div>
       </div>
       <div className="modal-footer scanner-sheet-foot">
-        <button type="button" className="btn btn-primary scanner-sheet-add" onClick={onClose}>
-          <CheckSquare width={14} height={14} strokeWidth={1.8} aria-hidden />
+        <Button
+          variant="primary"
+          className="scanner-sheet-add"
+          icon={<CheckSquare width={14} height={14} strokeWidth={1.8} />}
+          onClick={onClose}
+        >
           Done
-        </button>
+        </Button>
       </div>
     </Modal>
   );

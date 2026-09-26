@@ -33,6 +33,7 @@ import {
 } from '../lib/scanner-feedback';
 import { conditionLabel, conditionShort } from './shared/CardRow';
 import { SegmentedControl } from './shared/form';
+import { IconButton } from './shared/Button';
 import { SelectMenu } from './SelectMenu';
 import { detectCardBox } from '../lib/scanner-detect';
 import { prewarm, scan } from '../lib/scanner/scan';
@@ -1017,14 +1018,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
       {cameraLive && (
         <div className="scanner-topbar">
-          <button
-            type="button"
+          <IconButton
             className="scanner-icon-btn"
+            label="Close scanner"
+            title={false}
+            icon={<X width={20} height={20} strokeWidth={1.8} />}
             onClick={onClose}
-            aria-label="Close scanner"
-          >
-            <X width={20} height={20} strokeWidth={1.8} />
-          </button>
+          />
 
           {/* The count always shows; it's how a booster box keeps rhythm.
               The value is a setting. */}
@@ -1041,27 +1041,27 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
           <div className="scanner-tools">
             {torchSupported && (
-              <button
-                type="button"
-                className={`scanner-icon-btn${torchOn ? ' active' : ''}`}
+              <IconButton
+                className={torchOn ? 'scanner-icon-btn active' : 'scanner-icon-btn'}
+                label={torchOn ? 'Turn torch off' : 'Turn torch on'}
+                title={false}
+                icon={
+                  torchOn ? (
+                    <Flashlight width={20} height={20} strokeWidth={1.8} />
+                  ) : (
+                    <FlashlightOff width={20} height={20} strokeWidth={1.8} />
+                  )
+                }
                 onClick={toggleTorch}
-                aria-label={torchOn ? 'Turn torch off' : 'Turn torch on'}
-              >
-                {torchOn ? (
-                  <Flashlight width={20} height={20} strokeWidth={1.8} />
-                ) : (
-                  <FlashlightOff width={20} height={20} strokeWidth={1.8} />
-                )}
-              </button>
+              />
             )}
-            <button
-              type="button"
+            <IconButton
               className="scanner-icon-btn"
+              label="Scanner settings"
+              title={false}
+              icon={<Settings width={20} height={20} strokeWidth={1.8} />}
               onClick={() => setSettingsOpen(true)}
-              aria-label="Scanner settings"
-            >
-              <Settings width={20} height={20} strokeWidth={1.8} />
-            </button>
+            />
             <button
               type="button"
               className="scanner-icon-btn"
