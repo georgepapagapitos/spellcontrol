@@ -75,9 +75,18 @@ export function sortFriendCollection(
       case 'cmc':
         cmp = a.cmc - b.cmc;
         break;
-      case 'rarity':
-        cmp = (RARITY_ORDER[a.rarity ?? ''] ?? -1) - (RARITY_ORDER[b.rarity ?? ''] ?? -1);
+      case 'rarity': {
+        const ra = RARITY_ORDER[a.rarity ?? ''];
+        const rb = RARITY_ORDER[b.rarity ?? ''];
+        // Unknown rarity last regardless of direction (it used to rank -1,
+        // leading "Common first").
+        if (ra === undefined || rb === undefined) {
+          if (ra === rb) return byName(a, b);
+          return ra === undefined ? 1 : -1;
+        }
+        cmp = ra - rb;
         break;
+      }
     }
     return cmp !== 0 ? cmp * sign : byName(a, b);
   });

@@ -35,6 +35,7 @@ import {
   type QueryCard,
 } from './offline/scryfall-query';
 import { hasQuerySyntax } from './deck-add-search';
+import { normalizeForSearch } from './normalize-search';
 import type { FriendCard } from './cube/pool';
 
 /** Clause kinds a friend payload cannot answer, with the label the UI shows. */
@@ -153,11 +154,12 @@ export function buildFriendSearch(
     };
   }
 
-  const lower = q.toLowerCase();
+  // Folded like every other name search, so "jotun" finds Jötun Grunt.
+  const folded = normalizeForSearch(q);
   return {
     kind: 'name',
     usesTags: false,
     ignored: [],
-    match: (card) => card.name.toLowerCase().includes(lower),
+    match: (card) => normalizeForSearch(card.name).includes(folded),
   };
 }

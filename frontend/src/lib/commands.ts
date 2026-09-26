@@ -9,6 +9,7 @@
  * whole command surface is testable without a router or a store.
  */
 import type { Deck } from '../store/decks';
+import { normalizeForSearch } from './normalize-search';
 
 /** Groups render in this order, and only when they have matches. 'Cards' is
  *  the async Scryfall lane (E247): `buildCommands` never emits it — the
@@ -173,8 +174,11 @@ export function buildCommands({ decks, go, aiAvailable, deckPage }: BuildCommand
   return out;
 }
 
-/** Fold accents and case so "Jarad" matches "jarád" and "JARAD". */
-const norm = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+/**
+ * The app's one search fold (accents, case, apostrophes, punctuation), so
+ * "jarad" matches "Jarád" and "urzas" matches a deck named "Urza's Tower".
+ */
+const norm = normalizeForSearch;
 
 /**
  * Rank one command against a query. Higher is better; 0 means "no match".
@@ -186,8 +190,10 @@ const norm = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').t
  * outranks a keyword.
  */
 export function scoreCommand(command: Command, query: string): number {
-  const q = norm(query.trim());
-  if (!q) return 1;
+  if (!query.trim()) return 1;
+  const q = norm(query);
+  // Punctuation only (".*") folds to nothing: no match, not "everything".
+  if (!q) return 0;
   const label = norm(command.label);
 
   if (label === q) return 100;

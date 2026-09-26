@@ -1,4 +1,4 @@
-import { normalizeScryfallQuery } from '../normalize-search';
+import { normalizeForSearch, normalizeScryfallQuery } from '../normalize-search';
 import type { SlimCard } from './types';
 
 /**
@@ -291,15 +291,27 @@ function matchPositive(card: QueryCard, c: Clause, opts?: MatchOpts): boolean {
       return false;
     case 'is':
       return matchIs(card, c.value);
-    case 'exactName':
-      return card.name.toLowerCase() === c.value || card.flavorName?.toLowerCase() === c.value;
-    case 'free':
-      // Plain words fuzzy-match either name or oracle text.
+    case 'exactName': {
+      // Names fold like every other card search (normalizeForSearch): accents,
+      // apostrophes and punctuation. Without it "jotun" and "lim dul" missed
+      // here, the offline path, while live Scryfall and the collection found them.
+      const q = normalizeForSearch(c.value);
       return (
-        card.name.toLowerCase().includes(c.value) ||
-        !!card.flavorName?.toLowerCase().includes(c.value) ||
+        normalizeForSearch(card.name) === q ||
+        (card.flavorName !== undefined && normalizeForSearch(card.flavorName) === q)
+      );
+    }
+    case 'free': {
+      // Plain words fuzzy-match either name or oracle text. Names fold (see
+      // exactName); oracle text stays a plain lowercase scan, since folding
+      // every card's rules text on each keystroke costs more than it finds.
+      const q = normalizeForSearch(c.value);
+      return (
+        normalizeForSearch(card.name).includes(q) ||
+        (card.flavorName !== undefined && normalizeForSearch(card.flavorName).includes(q)) ||
         (card.oracleText ?? '').toLowerCase().includes(c.value)
       );
+    }
     case 'unknown':
       // Unknown clauses are treated as no-op (match anything) rather than no-match;
       // this is the "degrade gracefully" path.

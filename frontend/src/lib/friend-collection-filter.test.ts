@@ -200,3 +200,23 @@ describe('sortFriendCollection', () => {
     expect(cards).toEqual(copy);
   });
 });
+
+describe('sortFriendCollection — unknown rarity', () => {
+  it('trails in both directions', () => {
+    const cards = [
+      card({ name: 'Mystery', rarity: undefined }),
+      card({ name: 'Bolt', rarity: 'common' }),
+      card({ name: 'Wrath', rarity: 'rare' }),
+    ];
+    expect(sortFriendCollection(cards, 'rarity', 'asc').map((c) => c.name)).toEqual([
+      'Bolt',
+      'Wrath',
+      'Mystery',
+    ]);
+    expect(sortFriendCollection(cards, 'rarity', 'desc').map((c) => c.name)).toEqual([
+      'Wrath',
+      'Bolt',
+      'Mystery',
+    ]);
+  });
+});

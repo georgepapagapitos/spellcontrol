@@ -201,3 +201,10 @@ describe('matchCommands', () => {
     expect(flat[0].label).toBe('Home');
   });
 });
+
+describe('scoreCommand folding', () => {
+  it('uses the shared search fold, so apostrophes and accents do not block a match', () => {
+    expect(scoreCommand(cmd({ label: "Urza's Tower" }), 'urzas')).toBeGreaterThan(0);
+    expect(scoreCommand(cmd({ label: 'Jarád' }), 'jarad')).toBeGreaterThan(0);
+  });
+});
