@@ -20,6 +20,7 @@ import {
   type PrintingGroup,
 } from '../../lib/trade-picker';
 import type { TradeCard } from '../../lib/trades-client';
+import { Button } from '@/components/shared/Button';
 
 /** One card the offer asks for, paired with what the viewer actually owns. */
 export interface AcceptChoice {
@@ -202,17 +203,12 @@ export function TradeAcceptDialog({ counterpartyName, choices, busy, onCancel, o
           </p>
 
           <div className="choice-dialog-actions trade-accept-actions">
-            <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+            <Button onClick={onCancel} disabled={busy}>
               Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={confirm}
-              disabled={short.length > 0 || busy}
-            >
+            </Button>
+            <Button variant="primary" onClick={confirm} disabled={short.length > 0 || busy}>
               {busy ? 'Accepting…' : 'Accept trade'}
-            </button>
+            </Button>
           </div>
           {short.length > 0 && (
             // Names the card rather than saying "fix the selection" — with several

@@ -10,6 +10,7 @@ import { Tabs } from '@/components/Tabs';
 import type { TickerItem } from '@/store/play';
 import { TickerLine } from './TableTicker';
 import { TableChat } from './TableChat';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   log: GameLogEntry[];
@@ -124,18 +125,11 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
 
         <div className="card-picker-footer">
           {!showTable && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleCopy}
-              disabled={log.length === 0}
-            >
+            <Button variant="primary" onClick={handleCopy} disabled={log.length === 0}>
               Copy log
-            </button>
+            </Button>
           )}
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            Close
-          </button>
+          <Button onClick={() => beginClose()}>Close</Button>
         </div>
       </div>
     </div>

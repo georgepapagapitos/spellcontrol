@@ -29,6 +29,7 @@ import { resolveTradePreview } from '../../lib/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import { buildCardLocationIndex, type CardLocation } from '../../lib/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
+import { Button } from '@/components/shared/Button';
 
 const STATUS_LABEL: Record<TradeOffer['status'], string> = {
   proposed: 'Waiting',
@@ -384,50 +385,41 @@ function TradeOfferCard({
         <div className="trade-offer-actions">
           {canAnswer && (
             <>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={busy}
-                onClick={() => void accept()}
-              >
+              <Button variant="primary" disabled={busy} onClick={() => void accept()}>
                 {/* The ellipsis is the standard promise that a further step
                     follows — this button settles a collection either way, and
                     it must not be ambiguous which of the two it is doing. */}
                 {busy ? 'Working…' : needsChoice ? 'Accept…' : 'Accept'}
-              </button>
-              <button
-                type="button"
-                className="btn"
+              </Button>
+              <Button
                 disabled={busy}
                 onClick={() =>
                   void run(() => declineTrade(offer.id), "Couldn't decline the trade. Try again.")
                 }
               >
                 Decline
-              </button>
+              </Button>
               {onCounter && (
-                <button
-                  type="button"
-                  className="btn-link trade-offer-counter"
+                <Button
+                  variant="link"
                   disabled={busy}
                   onClick={() => onCounter(offer)}
+                  className="trade-offer-counter"
                 >
                   Counter
-                </button>
+                </Button>
               )}
             </>
           )}
           {canWithdraw && (
-            <button
-              type="button"
-              className="btn"
+            <Button
               disabled={busy}
               onClick={() =>
                 void run(() => withdrawTrade(offer.id), "Couldn't withdraw the trade. Try again.")
               }
             >
               {busy ? 'Working…' : 'Withdraw'}
-            </button>
+            </Button>
           )}
         </div>
       )}

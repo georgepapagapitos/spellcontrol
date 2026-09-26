@@ -76,9 +76,9 @@ function CombatBar({
           onChange={(e) => setDraft(e.target.value)}
         />
       </label>
-      <button type="button" className="btn btn-primary" onClick={() => onTake(value)}>
+      <Button variant="primary" onClick={() => onTake(value)}>
         {value === 0 ? 'Skip' : `Take ${value}`}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -198,7 +198,7 @@ export function HordeBand({
                 libraryCount={horde.board.zones.library.length}
                 graveyardCount={horde.board.zones.graveyard.length}
                 onOpen={onOpenDamage}
-                className="btn horde-band__damage"
+                className="horde-band__damage"
                 label="Damage"
                 ariaLabel="Damage the horde"
               />

@@ -11,6 +11,7 @@ import { useCollectionStore } from '@/store/collection';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useBrewStore } from '@/deck-builder/store/brew';
 import type { BrewCandidate, BrewSlotDef } from '@/deck-builder/services/deckBuilder/brewSlots';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Tri-state (really 4-state) availability for a card name: 'owned' = at
@@ -199,9 +200,8 @@ export function BrewSlotPanel(): JSX.Element {
       </header>
 
       <div className="brew-slot-search-toggle">
-        <button
-          type="button"
-          className="btn-link"
+        <Button
+          variant="link"
           onClick={() => {
             setShowSearch((v) => !v);
             if (showSearch) clearSearch();
@@ -214,7 +214,7 @@ export function BrewSlotPanel(): JSX.Element {
               Find a mechanic instead <ArrowRight width={14} height={14} aria-hidden />
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       {showSearch && (
@@ -236,9 +236,9 @@ export function BrewSlotPanel(): JSX.Element {
           ) : (
             <p>
               Nothing left that fits this slot from EDHREC's list.{' '}
-              <button type="button" className="btn-link" onClick={() => setShowSearch(true)}>
+              <Button variant="link" onClick={() => setShowSearch(true)}>
                 Search for something specific
-              </button>
+              </Button>
               , or move on.
             </p>
           )}
@@ -267,23 +267,30 @@ export function BrewSlotPanel(): JSX.Element {
 
       {!searchResults && (
         <div className="brew-slot-actions">
-          <button type="button" className="btn" onClick={showMore} disabled={loading}>
+          <Button onClick={showMore} disabled={loading}>
             Show more
-          </button>
-          <button type="button" className="btn" onClick={fillRest} disabled={loading || met}>
+          </Button>
+          <Button onClick={fillRest} disabled={loading || met}>
             Fill the rest for me
-          </button>
+          </Button>
         </div>
       )}
 
       <div className="brew-slot-nav">
-        <button type="button" className="btn" onClick={prevSlot} disabled={slotIndex === 0}>
-          <ArrowLeft width={14} height={14} aria-hidden /> Back
-        </button>
-        <button type="button" className="btn btn-primary" onClick={() => void nextSlot()}>
+        <Button
+          onClick={prevSlot}
+          disabled={slotIndex === 0}
+          icon={<ArrowLeft width={14} height={14} />}
+        >
+          Back
+        </Button>
+        <Button
+          variant="primary"
+          onClick={() => void nextSlot()}
+          iconEnd={<ArrowRight width={14} height={14} />}
+        >
           {isLastSlot ? 'Continue to manabase' : met ? 'Next slot' : 'Skip this slot'}
-          <ArrowRight width={14} height={14} aria-hidden />
-        </button>
+        </Button>
       </div>
     </section>
   );

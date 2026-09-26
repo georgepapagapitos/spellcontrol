@@ -9,6 +9,7 @@ import {
   sortCounters,
 } from '../lib/counter-kinds';
 import './CustomCountersDialog.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   cardName: string;
@@ -253,17 +254,10 @@ export function CustomCountersDialog({ cardName, counters, onApply, onClose }: P
         )}
       </div>
       <div className="choice-dialog-actions counters-dialog__actions">
-        <button type="button" className="btn" onClick={onClose}>
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!changed}
-          onClick={() => onApply(deltas)}
-        >
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="primary" disabled={!changed} onClick={() => onApply(deltas)}>
           Apply changes
-        </button>
+        </Button>
       </div>
     </Modal>
   );

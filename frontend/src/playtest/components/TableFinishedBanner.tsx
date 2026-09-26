@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { usePlayStore } from '@/store/play';
 import './TableFinishedBanner.css';
+import { Button } from '@/components/shared/Button';
 
 /**
  * The persistent counterpart to TableMoments' win ceremony (E351). That
@@ -45,13 +46,9 @@ export function TableFinishedBanner() {
         <span className="playtest-finished-banner__headline">
           {winner ? `${winner.name} wins the game` : 'Game over. No winner.'}
         </span>
-        <button
-          type="button"
-          className="btn btn-primary playtest-finished-banner__leave"
-          onClick={handleLeave}
-        >
+        <Button variant="primary" onClick={handleLeave} className="playtest-finished-banner__leave">
           Leave table
-        </button>
+        </Button>
       </div>
     </div>,
     document.body

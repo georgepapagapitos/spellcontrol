@@ -11,6 +11,7 @@ import {
   RESISTANCE_LEVEL_LABEL,
   type ResistanceLevel,
 } from '../lib/resistance';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   level: ResistanceLevel;
@@ -98,9 +99,7 @@ export function ResistancePicker({ level, onSelect, onClose }: Props) {
           })}
         </fieldset>
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            Close
-          </button>
+          <Button onClick={() => beginClose()}>Close</Button>
         </div>
       </div>
     </div>

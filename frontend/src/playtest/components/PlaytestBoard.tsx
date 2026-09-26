@@ -3007,9 +3007,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             </b>
             . Tap the card it points to.
           </span>
-          <button type="button" className="btn" onClick={() => setArrowFrom(null)}>
-            Cancel
-          </button>
+          <Button onClick={() => setArrowFrom(null)}>Cancel</Button>
         </div>
       )}
       {onlineTable && <TableArrows mySeat={onlineTable.mySeat} />}
@@ -3564,10 +3562,8 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 aria-labelledby="playtest-peek-moves"
               >
                 {(['hand', 'battlefield', 'graveyard', 'exile'] as const).map((to) => (
-                  <button
+                  <Button
                     key={to}
-                    type="button"
-                    className="btn"
                     onClick={() => {
                       const card = peek.card;
                       setPeek(null);
@@ -3591,18 +3587,16 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                         : to === 'graveyard'
                           ? 'Graveyard'
                           : 'Exile'}
-                  </button>
+                  </Button>
                 ))}
               </div>
-              <button type="button" className="btn" onClick={() => setPeek(null)}>
+              <Button onClick={() => setPeek(null)}>
                 {/* Nothing moved to undo — the card never left its pile. */}
                 {peek.zone === 'library' ? 'Put back' : 'Leave it'}
-              </button>
+              </Button>
             </div>
           ) : (
-            <button type="button" className="btn" onClick={() => setPeek(null)}>
-              Done
-            </button>
+            <Button onClick={() => setPeek(null)}>Done</Button>
           )}
         </Modal>
       )}

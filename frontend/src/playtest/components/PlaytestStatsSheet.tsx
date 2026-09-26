@@ -29,6 +29,7 @@ import { ColorPip, TypeIcon } from '@/components/shared/ManaSymbol';
 import { Tabs, type TabItem } from '@/components/Tabs';
 import { InfoTip } from '@/components/InfoTip';
 import { assemblyClockTip, isKillClock } from '@/components/deck/WinConditionPanel';
+import { Button } from '@/components/shared/Button';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -497,10 +498,10 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
       <p className="playtest-stats-sim-note">
         1,000 goldfished games: opener, land drops, and kill turn.
       </p>
-      <button type="button" className="btn" onClick={handleSimulate} disabled={running}>
+      <Button onClick={handleSimulate} disabled={running}>
         {running && <Loader2 className="playtest-stats-sim-spinner" aria-hidden />}
         {running ? 'Simulating…' : batch ? 'Re-run simulation' : 'Simulate 1,000 games'}
-      </button>
+      </Button>
 
       {batch && (
         <>
@@ -785,9 +786,7 @@ export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onC
         </div>
 
         <div className="card-picker-footer" style={{ justifyContent: 'flex-end' }}>
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            Close
-          </button>
+          <Button onClick={() => beginClose()}>Close</Button>
         </div>
       </div>
     </div>

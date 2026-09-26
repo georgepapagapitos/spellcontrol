@@ -3,6 +3,7 @@ import { Smartphone } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { PHONE_MAX_WIDTH } from '../hooks/use-narrow-viewport';
+import { Button } from '@/components/shared/Button';
 
 /** A phone held upright. `pointer: coarse` keeps a narrow desktop window out:
  *  it can't be turned, so asking it to is noise. */
@@ -84,13 +85,13 @@ export function RotatePrompt({ fullscreen }: Props) {
         </>
       )}
       {canFullscreen && (
-        <button type="button" className="btn btn-primary" onClick={() => void goFullscreen()}>
+        <Button variant="primary" onClick={() => void goFullscreen()}>
           Go fullscreen
-        </button>
+        </Button>
       )}
-      <button type="button" className="btn-link playtest-rotate__skip" onClick={skip}>
+      <Button variant="link" onClick={skip} className="playtest-rotate__skip">
         Skip
-      </button>
+      </Button>
     </Modal>
   );
 }

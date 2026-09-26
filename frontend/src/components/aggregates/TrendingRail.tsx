@@ -6,6 +6,7 @@ import { useCardThumb } from '../../lib/card-thumbs';
 import { EmptyStateMark } from '../shared/EmptyStateMark';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface RisingCommander {
   commanderKey: string;
   commanderName: string;
@@ -273,13 +274,9 @@ export function TrendingRail({
           <p className="empty-state-tagline">Couldn't load trending decks right now.</p>
           <p className="empty-state-hint">Check your connection and try again.</p>
           <div className="empty-state-actions">
-            <button
-              type="button"
-              className="btn trending-rail-retry-btn"
-              onClick={() => void refresh()}
-            >
+            <Button onClick={() => void refresh()} className="trending-rail-retry-btn">
               Retry
-            </button>
+            </Button>
           </div>
         </div>
       </section>

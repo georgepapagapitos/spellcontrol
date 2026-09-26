@@ -27,6 +27,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { PlaytestCard, ScryMode } from '@/lib/playtest';
+import { Button } from '@/components/shared/Button';
 
 /** Where a peeked card currently sits in the sheet: kept on top, sent to the
  *  mode's away destination (bottom of library / graveyard), or drawn into
@@ -383,17 +384,10 @@ export function ScrySheet({
         )}
 
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleConfirm}
-            disabled={peeked.length === 0}
-          >
+          <Button onClick={() => beginClose()}>Cancel</Button>
+          <Button variant="primary" onClick={handleConfirm} disabled={peeked.length === 0}>
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

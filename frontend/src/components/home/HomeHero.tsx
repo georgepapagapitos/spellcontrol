@@ -28,6 +28,7 @@ import {
   onValueHistoryChange,
   type ValuePoint,
 } from '../../lib/value-history';
+import { Button, buttonClass } from '@/components/shared/Button';
 
 /** Every scale-line label is a plain plural, so one copy of the s-strip
  *  covers all three — "1 Binders" reads as a bug in a figure that small. */
@@ -53,19 +54,19 @@ function HeroActions({ secondary }: { secondary: React.ReactNode }) {
   const [addOpen, setAddOpen] = useState(false);
   return (
     <div className="home-hero-actions">
-      <button
-        type="button"
-        className="btn btn-primary home-hero-action"
+      <Button
+        variant="primary"
         aria-haspopup="dialog"
         onClick={() => setAddOpen(true)}
+        className="home-hero-action"
+        icon={<Upload width={16} height={16} strokeWidth={1.8} />}
       >
-        <Upload width={16} height={16} strokeWidth={1.8} aria-hidden />
         Add cards
-      </button>
+      </Button>
       {secondary}
       <OverflowMenu
         ariaLabel="More actions"
-        triggerClassName="btn home-hero-more"
+        triggerClassName={`${buttonClass()} home-hero-more`}
         items={[
           {
             label: 'Plan a game night',
@@ -163,11 +164,10 @@ function HeroChecklist({ greeting }: { greeting: string }) {
       <div className="home-hero-foot">
         <HeroActions
           secondary={
-            <button
-              type="button"
-              className="btn home-hero-action"
+            <Button
               onClick={() => void trySamples()}
               disabled={loadingSamples}
+              className="home-hero-action"
             >
               {loadingSamples ? (
                 'Loading samples…'
@@ -177,7 +177,7 @@ function HeroChecklist({ greeting }: { greeting: string }) {
                   <span className="home-hero-label-short">Try samples</span>
                 </>
               )}
-            </button>
+            </Button>
           }
         />
         {sampleError && <p className="home-hero-error">{sampleError}</p>}
@@ -459,10 +459,13 @@ export function HomeHero() {
         )}
         <HeroActions
           secondary={
-            <Link to="/decks/new" className="btn home-hero-action">
-              <Plus width={16} height={16} strokeWidth={1.8} aria-hidden />
+            <Button
+              to="/decks/new"
+              className="home-hero-action"
+              icon={<Plus width={16} height={16} strokeWidth={1.8} />}
+            >
               New deck
-            </Link>
+            </Button>
           }
         />
       </div>

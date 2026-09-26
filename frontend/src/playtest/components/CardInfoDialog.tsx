@@ -11,6 +11,7 @@ import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardStatusStrip, type CardStatusStripProps } from './CardStatusStrip';
 import './CardInfoDialog.css';
+import { Button } from '@/components/shared/Button';
 
 /** Scryfall card UUID — gates the rulings fetch to real printings. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -97,14 +98,13 @@ export function CardInfoDialog({
             <div className="card-info-art-missing">No art</div>
           )}
           {artFaces.length > 1 && (
-            <button
-              type="button"
-              className="btn card-info-flip"
+            <Button
               onClick={() => setFace((f) => (f + 1) % artFaces.length)}
+              className="card-info-flip"
+              icon={<RotateCw width={14} height={14} strokeWidth={2.2} />}
             >
-              <RotateCw width={14} height={14} strokeWidth={2.2} aria-hidden />
               {artFaces[(face + 1) % artFaces.length].name}
-            </button>
+            </Button>
           )}
         </div>
 

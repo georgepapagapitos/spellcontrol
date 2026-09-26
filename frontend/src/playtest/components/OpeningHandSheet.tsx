@@ -9,6 +9,7 @@ import { CardPreview } from '@/components/CardPreview';
 import { useLongPress } from '@/lib/use-long-press';
 import type { PlaytestPhase } from '../store';
 import './OpeningHandSheet.css';
+import { Button } from '@/components/shared/Button';
 
 /** Online: who at the table still hasn't kept, and whether everyone has. */
 export interface OpeningHandOnline {
@@ -399,39 +400,27 @@ export function OpeningHandSheet({
 
         {!waiting && (
           <div className="card-picker-footer playtest-opening-footer">
-            <button type="button" className="btn" onClick={() => setPeeking(true)}>
-              View battlefield
-            </button>
+            <Button onClick={() => setPeeking(true)}>View battlefield</Button>
             {isMulliganBottom ? (
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Button
+                variant="primary"
                 disabled={!canConfirm}
                 onClick={() => onConfirmBottom(selected)}
               >
                 Send {selected.length}/{requiredBottom} to bottom
-              </button>
+              </Button>
             ) : (
               <>
-                <button
-                  type="button"
-                  className="btn playtest-opening-mulligan"
+                <Button
                   onClick={onMulligan}
                   disabled={mulliganCount >= MAX_MULLIGANS}
+                  className="playtest-opening-mulligan"
                 >
                   Mulligan
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  // Focus starts on the action the hand is usually answered
-                  // with; jsx-a11y's no-autofocus is off for exactly this
-                  // (a modal that owns the screen).
-                  autoFocus
-                  onClick={onKeep}
-                >
+                </Button>
+                <Button variant="primary" autoFocus onClick={onKeep}>
                   Keep hand
-                </button>
+                </Button>
               </>
             )}
           </div>

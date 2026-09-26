@@ -4,6 +4,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { Designation } from '@/lib/playtest';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   monarch: boolean;
@@ -117,9 +118,7 @@ export function DesignationsPicker({ monarch, initiative, citysBlessing, onSet, 
           })}
         </div>
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            Close
-          </button>
+          <Button onClick={() => beginClose()}>Close</Button>
         </div>
       </div>
     </div>

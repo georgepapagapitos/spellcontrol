@@ -6,6 +6,7 @@ import type { GameRequest } from '@/lib/games-api';
 import type { OnlineTable } from '../hooks/use-online-table';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface Props {
   onlineTable: OnlineTable;
 }
@@ -114,22 +115,12 @@ function TakebackConsentCard({ request: incoming }: { request: GameRequest }) {
         </p>
       )}
       <div className="playtest-takeback-consent__actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={responding !== null}
-          onClick={() => void respond(true)}
-        >
+        <Button variant="primary" disabled={responding !== null} onClick={() => void respond(true)}>
           {responding === 'approve' ? 'Approving…' : 'Approve'}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={responding !== null}
-          onClick={() => void respond(false)}
-        >
+        </Button>
+        <Button disabled={responding !== null} onClick={() => void respond(false)}>
           {responding === 'decline' ? 'Declining…' : 'Decline'}
-        </button>
+        </Button>
       </div>
     </div>,
     document.body

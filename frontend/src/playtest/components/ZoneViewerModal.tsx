@@ -12,6 +12,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 import { MOVE_DESTINATIONS, ZONE_VIEWER_LABEL, commanderTaxAmount } from '../lib/zones';
 import { CountPage } from './CountPage';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   zone: Zone;
@@ -195,14 +196,9 @@ export function ZoneViewerModal({
                 "Clear search"), which sits right above this and does the same
                 thing — two same-named controls in one view would be
                 indistinguishable to a screen reader. */}
-            <button
-              type="button"
-              className="btn"
-              aria-label="Clear search filter"
-              onClick={() => setFilter('')}
-            >
+            <Button aria-label="Clear search filter" onClick={() => setFilter('')}>
               Clear search
-            </button>
+            </Button>
           </div>
         ) : (
           <ul className="playtest-zone-grid">
@@ -224,23 +220,16 @@ export function ZoneViewerModal({
           </ul>
         )}
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => beginClose()}>
-            Done
-          </button>
+          <Button onClick={() => beginClose()}>Done</Button>
           {zone === 'library' && onShuffleAfter && (
-            <button type="button" className="btn btn-primary" onClick={onShuffleAfter}>
+            <Button variant="primary" onClick={onShuffleAfter}>
               Shuffle and close
-            </button>
+            </Button>
           )}
           {(zone === 'graveyard' || zone === 'exile') && onShuffleIntoLibrary && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={cards.length === 0}
-              onClick={onShuffleIntoLibrary}
-            >
+            <Button variant="primary" disabled={cards.length === 0} onClick={onShuffleIntoLibrary}>
               Shuffle into library
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -365,13 +354,9 @@ function ZoneCard({
               setCounting(false);
             }}
           />
-          <button
-            type="button"
-            className="btn playtest-zone-card__count-cancel"
-            onClick={() => setCounting(false)}
-          >
+          <Button onClick={() => setCounting(false)} className="playtest-zone-card__count-cancel">
             Cancel
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="playtest-zone-card__actions">

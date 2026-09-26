@@ -6,6 +6,7 @@ import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
 import { usePressRepeat } from '@/lib/use-press-repeat';
+import { Button } from '@/components/shared/Button';
 
 /** One commander-damage row in the self panel's list — solo: damage YOU
  *  dealt to that virtual opponent; online: damage taken FROM that seat's
@@ -324,13 +325,9 @@ export function LifeAdjustPanel({
         </p>
       )}
       {online?.kind === 'opponent' && (
-        <button
-          type="button"
-          className="btn playtest-life-panel__view-board"
-          onClick={online.onViewBoard}
-        >
+        <Button onClick={online.onViewBoard} className="playtest-life-panel__view-board">
           View board
-        </button>
+        </Button>
       )}
       {opponents && opponents.length > 0 && (
         <div className="playtest-life-panel__opponents">
@@ -485,9 +482,7 @@ export function LifeAdjustPanel({
           </div>
           <div className="playtest-life-panel">{body}</div>
           <div className="card-picker-footer">
-            <button type="button" className="btn" onClick={() => beginClose()}>
-              Close
-            </button>
+            <Button onClick={() => beginClose()}>Close</Button>
           </div>
         </div>
       </div>,
