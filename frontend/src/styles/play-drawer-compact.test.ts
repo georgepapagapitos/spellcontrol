@@ -46,6 +46,9 @@ describe('drawer is a compact scrolling row on a short seat', () => {
       expect(b).toMatch(/\.pp-counters,/);
       expect(b).toMatch(/\.pp-counters-inner,/);
       expect(b).toMatch(/\.pp-counters-body\s*\{\s*display:\s*contents;/);
+      // The Name/Partner/Color/Facing group too, or its chips size against
+      // the group rather than the row (they hung 6px past a 58px row).
+      expect(b).toMatch(/\.seat-menu-triggers,/);
     }
   });
 
@@ -62,10 +65,60 @@ describe('drawer is a compact scrolling row on a short seat', () => {
     }
   });
 
+  it('the row has its own horizontal scroll cue, not a reuse of the vertical one', () => {
+    for (const query of ['max-width: 300px', 'max-height: 300px']) {
+      const b = block(query);
+      expect(b).toMatch(/data-overflow-x='right'\]\s*\{\s*mask-image:/);
+      expect(b).toMatch(/data-overflow-x='left'\]\s*\{\s*mask-image:/);
+      expect(b).toMatch(/data-overflow-x='both'\]\s*\{\s*mask-image:/);
+    }
+  });
+
   it('every compact chip and trigger sits behind a coarse-pointer 44px floor', () => {
     const at = css.indexOf('.seat-menu-row-trigger,\n  .seat-menu-editor-back');
     expect(at, 'no coarse floor for the compact row triggers').toBeGreaterThan(-1);
     expect(css.lastIndexOf('@media (pointer: coarse)', at)).toBeGreaterThan(-1);
+  });
+
+  it("a short seat's drawer drops its header, so the row gets the height", () => {
+    // Header (44px) + strip (44px) + padding left a 148px seat's row 33px for
+    // 44px chips, and a 95px seat's row 0 (measured, every 4p-sides seat and
+    // every 7-10 player wide row on a phone).
+    for (const query of ['max-width: 300px', 'max-height: 300px']) {
+      const b = block(query);
+      expect(b).toMatch(/\.seat-menu-head\s*\{\s*display:\s*none;/);
+      expect(b).toMatch(/\.seat-menu-sheet\s*\{\s*padding:\s*var\(--space-1\) var\(--space-2\);/);
+    }
+  });
+
+  it('a counter is a side-by-side stepper, one 44px row tall, not a stacked column', () => {
+    for (const query of ['max-width: 300px', 'max-height: 300px']) {
+      expect(block(query)).not.toContain('column-reverse');
+    }
+  });
+
+  it('editors keep 44px targets on a narrow seat: a scrolling line of swatches and facings', () => {
+    for (const query of ['max-width: 300px', 'max-height: 300px']) {
+      const b = block(query);
+      expect(b).toMatch(/\.seat-menu-swatches\s*\{[^}]*grid-auto-columns:\s*2\.75rem/);
+      expect(b).toMatch(/\.seat-menu-facing-btn\s*\{\s*flex:\s*0 0 2\.75rem;/);
+      expect(b).toMatch(/\.seat-menu-row\s*\{\s*flex-wrap:\s*wrap;/);
+    }
+    // A tall seat's grid fills with 44px columns on touch.
+    const coarse = css.indexOf('repeat(auto-fill, minmax(2.75rem, 1fr))');
+    expect(coarse).toBeGreaterThan(-1);
+    expect(css.lastIndexOf('@media (pointer: coarse)', coarse)).toBeGreaterThan(-1);
+  });
+
+  it("a counter's stepper drops under its label rather than squeezing the label to nothing", () => {
+    const at = css.indexOf('.counter-row {');
+    expect(css.slice(at, css.indexOf('}', at))).toMatch(/flex-wrap:\s*wrap/);
+  });
+
+  it('the shortest upright seats put the strip at the end of the row instead of under it', () => {
+    const b = block('max-height: 7.5rem');
+    expect(b).toMatch(/:not\(\[data-sideways\]\) \.seat-menu\s*\{\s*flex-direction:\s*row;/);
+    expect(b).toMatch(/\.seat-menu-sheet\s*\{\s*min-width:\s*0;/);
   });
 
   it('neither layout leaks into the other orientation', () => {

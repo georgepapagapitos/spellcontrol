@@ -8330,3 +8330,54 @@ sideways])` on purpose — a sideways panel's local top/bottom axis is its
   (`--life-scale: 0.42`, the same ratio already used for a 5/6-digit total)
   since no inset value alone found a spot clear of both edges there — a
   small, floor-matched shrink, not the numeral cut to nothing.
+
+## Play board: a short seat's drawer is one scrolling row (2026-09-26)
+
+On a seat under ~300px on its short axis (every seat of `4p-sides`, the
+default four-player board on a phone, and every 5-10 player seat) the seat
+drawer's body is one horizontally scrolling row: the actions, the counters as
+steppers, then Name / Partner / Color / Facing as chips that swap the row for
+that one editor, with a Back chip to return. Same component and same
+`activeEditor` state as the tall sheet; container queries on
+`.player-panel-cell` pick the shape, keyed by orientation because a sideways
+seat's height is its cell's width.
+
+- **Measure the row's height, not only its length.** The first cut checked
+  that every chip was reachable by scrolling and at least 44px in its own
+  axes, and missed that the row itself was 33px tall on a 148px seat and 0px
+  on a 95px one (the 7-10 player wide rows): header (44px) + strip (44px) +
+  padding had already taken the seat. Every chip was clipped by the row it
+  sat in. A drawer check has to confirm each control sits inside the row and
+  the panel after scrolling to it, on a touch-emulated run (the coarse floors
+  and the clock strip's 44px buttons change the budget).
+- **No header on a short seat.** Its ✕ repeats the strip (same close, same
+  44px target, same drag), and the seat's name stays the dialog's accessible
+  name. The sheet's padding tightens to `--space-1`/`--space-2`.
+- **The shortest upright seats (under 7.5rem) put the strip at the row's far
+  end**, a 44px column with an upright grab bar, so the row keeps the seat's
+  full height. The shade metaphor holds everywhere else.
+- **A counter is `[− value +]` under its label**, one 44px row. Lotus stacks
+  the stepper vertically; three 44px rows plus the label need ~135px and the
+  row gets 66-100px.
+- **Chips never outgrow the row** (`max-width: 100%`), and the Name/Partner/
+  Color/Facing group un-wraps with `display: contents` like the actions do,
+  so its chips size against the row.
+- **Editors keep 44px targets on a narrow seat.** Swatches and facing
+  buttons run as one scrolling line of 44px targets (the swatch grid had
+  squeezed to 4-23px wide), the name/partner field wraps its Save below it,
+  and on touch a tall seat's swatch grid fills with as many 44px columns as
+  fit. On a tall sheet a counter's stepper wraps under its label rather than
+  squeezing the label to nothing (it went to 1px on a 190px-wide drawer).
+- **The row has its own scroll cue.** `SeatMenu` publishes
+  `data-overflow-x` (`right` / `both` / `left` / `none`) from the same effect
+  that drives the tall sheet's vertical `data-overflow`, and the row fades
+  the edge that still has chips behind it, the Tabs.tsx convention. The fade
+  is `min(--space-6, 15%)`: a 9-10 player seat's row is one chip wide, and a
+  full 24px fade ate a third of that chip.
+
+Measured (headless Edge, touch emulation, every seat of all 33 presets at
+320x568, 390x844 and 820x1180): row body 0-40px → 66px minimum at 320,
+controls under 44px 2400 → 0 per viewport (the swatch and facing editors),
+controls clipped by the row or panel 4394 → 0 at 320 and 1066 → 0 at 390,
+clipped labels 1771 → 0 at 320 and 15 → 0 at 820. Guards:
+`styles/play-drawer-compact.test.ts`, `SeatMenu.test.tsx`.

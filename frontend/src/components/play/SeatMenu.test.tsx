@@ -205,4 +205,37 @@ describe('SeatMenu — scroll strip', () => {
     fireEvent.scroll(body);
     expect(body.getAttribute('data-overflow')).toBe('top');
   });
+
+  it('publishes the same tell on the horizontal axis, for the compact row', () => {
+    // A short seat's body scrolls horizontally instead of vertically — the
+    // scroll cue needs its own axis, not a reuse of `data-overflow` (which
+    // stays 'none' here since this body never overflows vertically).
+    const game = makeGame();
+    render(
+      <SeatMenu
+        player={game.players[0]}
+        game={game}
+        canEdit
+        canLayout
+        rotation={0}
+        dispatch={() => {}}
+        onClose={() => {}}
+        isActiveTurn={false}
+        isMonarch={false}
+        isInitiative={false}
+      />
+    );
+    const body = document.querySelector('.seat-menu-body')!;
+    Object.defineProperty(body, 'scrollWidth', { value: 600, configurable: true });
+    Object.defineProperty(body, 'clientWidth', { value: 320, configurable: true });
+    body.scrollLeft = 0;
+    fireEvent.scroll(body);
+    expect(body.getAttribute('data-overflow-x')).toBe('right');
+    body.scrollLeft = 140;
+    fireEvent.scroll(body);
+    expect(body.getAttribute('data-overflow-x')).toBe('both');
+    body.scrollLeft = 280;
+    fireEvent.scroll(body);
+    expect(body.getAttribute('data-overflow-x')).toBe('left');
+  });
 });

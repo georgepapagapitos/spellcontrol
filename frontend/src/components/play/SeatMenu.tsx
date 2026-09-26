@@ -123,21 +123,31 @@ export function SeatMenu({
   // (2-player), so it scrolls — publish which edge(s) still have content
   // behind them, mirroring Tabs.tsx's `data-overflow` fade convention
   // (there: horizontal scroll strips; here: vertical). On a compact seat the
-  // body scrolls horizontally instead (the row), so this fade is inert there
-  // — harmless, since a horizontal scroller never sets these thresholds.
+  // body scrolls HORIZONTALLY instead (the row of chips) — `data-overflow-x`
+  // is the same tell on that axis, so a short seat's row gets its own scroll
+  // cue rather than silently relying on the (inert there) vertical one.
   const bodyRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const body = bodyRef.current;
     if (!body) return;
     const update = () => {
-      const max = body.scrollHeight - body.clientHeight;
-      let next = 'none';
-      if (max > 1) {
+      const maxY = body.scrollHeight - body.clientHeight;
+      let nextY = 'none';
+      if (maxY > 1) {
         const atTop = body.scrollTop <= 1;
-        const atBottom = body.scrollTop >= max - 1;
-        next = atTop ? 'bottom' : atBottom ? 'top' : 'both';
+        const atBottom = body.scrollTop >= maxY - 1;
+        nextY = atTop ? 'bottom' : atBottom ? 'top' : 'both';
       }
-      if (body.dataset.overflow !== next) body.dataset.overflow = next;
+      if (body.dataset.overflow !== nextY) body.dataset.overflow = nextY;
+
+      const maxX = body.scrollWidth - body.clientWidth;
+      let nextX = 'none';
+      if (maxX > 1) {
+        const atLeft = body.scrollLeft <= 1;
+        const atRight = body.scrollLeft >= maxX - 1;
+        nextX = atLeft ? 'right' : atRight ? 'left' : 'both';
+      }
+      if (body.dataset.overflowX !== nextX) body.dataset.overflowX = nextX;
     };
     update();
     body.addEventListener('scroll', update, { passive: true });
