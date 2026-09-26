@@ -28,6 +28,7 @@ import {
   getOwnedPrinting,
   getCardByNameResilient,
   searchCards,
+  searchCollectibleCards,
   searchTokenArt,
   commanderSearchIdentity,
   upgradeCardPrintings,
@@ -266,6 +267,60 @@ describe('searchCards color-identity query', () => {
 
     const url = decodeURIComponent(String(fetchMock.mock.calls[0][0]));
     expect(url).toContain('id<=UB');
+  });
+});
+
+// Collection search used the deck builder's searchCards, whose playable filter
+// drops every token: searching "treasure" to add a Treasure token found 17
+// cards and no token (T153).
+describe('searchCollectibleCards', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('asks Scryfall for extras and keeps the tokens it returns', async () => {
+    const token = makeCard({ id: 't', name: 'Treasure', layout: 'token' });
+    const dfcToken = makeCard({
+      id: 'd',
+      name: 'Dinosaur // Treasure',
+      layout: 'double_faced_token',
+    });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [token, dfcToken], has_more: false, total_cards: 2 }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await searchCollectibleCards('treasure');
+
+    const url = decodeURIComponent(String(fetchMock.mock.calls[0][0]));
+    expect(url).toContain('include_extras=true');
+    expect(url).toContain('-layout:art_series');
+    expect(url).toContain('-layout:front_card');
+    expect(url).not.toContain('f:commander');
+    expect(res.data.map((c) => c.id)).toEqual(['t', 'd']);
+  });
+
+  // Tokens have no EDHREC rank, so EDHREC order put the Soldier token after
+  // every card with "soldier" in its name.
+  it('puts a card named exactly what was typed first, then a face of that name', async () => {
+    const data = [
+      makeCard({ id: 'c1', name: 'Soldier of Fortune' }),
+      makeCard({ id: 'c2', name: 'Veteran Soldier' }),
+      makeCard({ id: 'f', name: 'Goblin // Soldier', layout: 'double_faced_token' }),
+      makeCard({ id: 't', name: 'Soldier', layout: 'token' }),
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data, has_more: false }) })
+    );
+
+    const res = await searchCollectibleCards('Soldier ');
+
+    expect(res.data.map((c) => c.id)).toEqual(['t', 'f', 'c1', 'c2']);
   });
 });
 

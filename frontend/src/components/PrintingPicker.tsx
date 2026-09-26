@@ -3,6 +3,7 @@ import { fetchPrintings } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { imageFromCard } from '../lib/card-thumbs';
 import { availableFinishes } from '../lib/scanner-feedback';
+import { FINISH_LABEL } from '../lib/add-card-message';
 import { CardThumb } from './CardThumb';
 import { SelectMenu, type SelectOption } from './SelectMenu';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -10,12 +11,6 @@ import type { Condition, Finish } from '../types';
 
 import { userMessage } from '@/lib/user-error';
 const PRINTING_PAGE_SIZE = 8;
-
-export const FINISH_LABEL: Record<Finish, string> = {
-  nonfoil: 'Non-foil',
-  foil: 'Foil',
-  etched: 'Etched',
-};
 
 /** Per-copy inventory details chosen at add time. */
 export interface AddExtras {
@@ -108,7 +103,7 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
   // never need to reset synchronously inside the effect.
   useEffect(() => {
     let cancelled = false;
-    fetchPrintings(cardName)
+    fetchPrintings(cardName, undefined, fallback.oracle_id)
       .then((ps) => {
         if (cancelled) return;
         const list = ps.length > 0 ? ps : [fallback];

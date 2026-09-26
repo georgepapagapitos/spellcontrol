@@ -102,7 +102,9 @@ describe('AddCardSearchPanel', () => {
 
     await waitFor(() => expect(h.push).toHaveBeenCalled());
     expect(h.push.mock.calls[0][0]).toMatchObject({
-      message: 'Added Sol Ring · LTR #123',
+      // A quick add names its finish too: the store picks the printing's own
+      // first finish, and the toast says which.
+      message: 'Added Sol Ring · LTR #123 · Non-foil',
       tone: 'success',
       actionLabel: 'Undo',
     });

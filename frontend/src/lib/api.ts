@@ -374,10 +374,21 @@ export async function importDeckFile(file: File): Promise<DeckImportResponse> {
   return importDeckText(await file.text());
 }
 
-/** Fetch all printings of a card by name. */
-export async function fetchPrintings(cardName: string, set?: string): Promise<ScryfallCard[]> {
+/**
+ * Fetch all printings of a card. Pass `oracleId` whenever the card is in
+ * hand: a name can't find a token's printings (see the backend's
+ * `fetchPrintings`), so without it a token's picker came back empty.
+ */
+export async function fetchPrintings(
+  cardName: string,
+  set?: string,
+  oracleId?: string
+): Promise<ScryfallCard[]> {
   const encoded = encodeURIComponent(cardName);
-  const query = set ? `?set=${encodeURIComponent(set)}` : '';
+  const params = new URLSearchParams();
+  if (set) params.set('set', set);
+  if (oracleId) params.set('oracle', oracleId);
+  const query = params.size > 0 ? `?${params}` : '';
   const response = await fetchWithTimeout(`/api/cards/${encoded}/printings${query}`, {
     method: 'GET',
   });

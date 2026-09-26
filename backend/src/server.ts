@@ -880,7 +880,8 @@ app.get(
       }
 
       const setParam = typeof req.query.set === 'string' ? req.query.set : undefined;
-      const cards = await fetchPrintings(cardName, setParam);
+      const oracleParam = typeof req.query.oracle === 'string' ? req.query.oracle : undefined;
+      const cards = await fetchPrintings(cardName, setParam, oracleParam);
       if (cards.length > 0) {
         cache.setMany(cards);
       }

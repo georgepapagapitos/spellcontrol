@@ -311,6 +311,40 @@ async function liveSearchCards(
   return result;
 }
 
+/** Cardboard that is never a printing of anything a collector adds. */
+const NOT_COLLECTIBLE = '-layout:art_series -layout:front_card -is:digital';
+
+/**
+ * Search for anything a collection can hold, tokens and emblems included.
+ *
+ * Collection search used to borrow `searchCards`, whose `withPlayableFilter`
+ * strips every layout a deck can't run: right for a deck, wrong for a binder,
+ * where a Treasure token is as ownable as Sol Ring. Scryfall also hides tokens
+ * as "extras" unless asked. `include_extras` is a URL parameter because
+ * `include:` can't sit inside the parentheses the query is wrapped in.
+ *
+ * Offline has no tokens in the slim bundle, so it keeps the repository search.
+ *
+ * A card named exactly what was typed leads. Tokens have no EDHREC rank, so
+ * EDHREC order sank the Treasure token to 21st of 23 behind every card with
+ * "treasure" in its name, under the very search a person types to add one.
+ */
+export async function searchCollectibleCards(query: string): Promise<ScryfallSearchResponse> {
+  if (offlineActive()) return searchCards(query, [], { skipFormatFilter: true });
+  const q = encodeURIComponent(`(${normalizeScryfallQuery(query)}) ${NOT_COLLECTIBLE}`);
+  const path = `/cards/search?q=${q}&order=edhrec&include_extras=true`;
+  const cached = searchCache.get(path);
+  if (cached && Date.now() - cached.timestamp < SEARCH_CACHE_TTL) return cached.data;
+  const result = await scryfallFetch<ScryfallSearchResponse>(path);
+  const typed = query.trim().toLowerCase();
+  const rank = (c: ScryfallCard) =>
+    c.name.toLowerCase() === typed ? 0 : c.name.toLowerCase().split(' // ').includes(typed) ? 1 : 2;
+  // Array sort is stable, so each rank keeps Scryfall's own order.
+  const ranked = { ...result, data: [...result.data].sort((a, b) => rank(a) - rank(b)) };
+  searchCache.set(path, { data: ranked, timestamp: Date.now() });
+  return ranked;
+}
+
 function offlineSearchCardsImpl(
   query: string,
   colorIdentity: string[],

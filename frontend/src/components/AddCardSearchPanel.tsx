@@ -2,7 +2,8 @@ import { Check, ChevronDown, ChevronRight, Minus, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ManaCost } from './ManaCost';
 import { SearchPill } from './SearchPill';
-import { PrintingPicker, FINISH_LABEL, type AddExtras } from './PrintingPicker';
+import { PrintingPicker, type AddExtras } from './PrintingPicker';
+import { addedCardMessage } from '../lib/add-card-message';
 import { useCardCarousel, type CarouselEntry } from './deck/useCardCarousel';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
@@ -101,14 +102,8 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
     // Name exactly what landed — a "+" that only swaps to a checkmark reads as
     // "did that register?", especially on a phone where the row is small and
     // the collection isn't on screen to confirm against.
-    const qty = copyIds.length;
-    const detail = [
-      `${card.set.toUpperCase()} #${card.collector_number}`,
-      finish ? FINISH_LABEL[finish] : null,
-      binderId ? 'pinned to this binder' : null,
-    ].filter(Boolean);
     pushToast({
-      message: `Added ${qty > 1 ? `${qty} × ` : ''}${card.name} · ${detail.join(' · ')}`,
+      message: addedCardMessage(card, copyIds.length, finish, Boolean(binderId)),
       tone: 'success',
       durationMs: 4000,
       actionLabel: 'Undo',
@@ -268,7 +263,12 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
                       {finishes.length > 1 ? 'Printing & finish' : 'Printing'}
                     </button>
                     <span className="card-search-meta">
-                      {owned ? 'owned' : ''}
+                      {/* The printing "+" adds, in words as well as art: the
+                          thumbnail alone can't tell a reprint from a promo. */}
+                      <span>
+                        {c.set.toUpperCase()} #{c.collector_number}
+                        {owned ? ' · owned' : ''}
+                      </span>
                       {addedCount > 0 && (
                         <span className="add-card-sheet-added">added ×{addedCount}</span>
                       )}

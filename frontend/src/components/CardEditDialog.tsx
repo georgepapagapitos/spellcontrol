@@ -294,10 +294,12 @@ export function CardEditDialog({
   const loading = loadedFor !== cardName && error === null;
   // Bumped by Retry so the printings effect re-runs for the same card name.
   const [reloadKey, setReloadKey] = useState(0);
+  // A string, not the stub: callers build `fallbackCard` inline every render.
+  const oracleId = fallbackCard?.oracle_id;
 
   useEffect(() => {
     let cancelled = false;
-    fetchPrintings(cardName)
+    fetchPrintings(cardName, undefined, oracleId)
       .then((cards) => {
         if (cancelled) return;
         setPrintings(cards);
@@ -320,7 +322,7 @@ export function CardEditDialog({
     return () => {
       cancelled = true;
     };
-  }, [cardName, reloadKey]);
+  }, [cardName, oracleId, reloadKey]);
 
   useEffect(() => {
     let cancelled = false;

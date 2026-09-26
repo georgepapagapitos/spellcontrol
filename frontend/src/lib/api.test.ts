@@ -264,6 +264,16 @@ describe('api', () => {
     expect(fetchSpy.mock.calls[0][0]).toContain(encodeURIComponent("Atraxa, Praetors' Voice"));
   });
 
+  it('fetchPrintings sends the oracle id, which is how a token finds its printings', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ printings: [] }));
+    await fetchPrintings('Dinosaur // Treasure', undefined, 'fd2617fe-1bf3-40c3-9da5-841e63f4d62d');
+    const url = String(fetchSpy.mock.calls[0][0]);
+    expect(url).toContain('?oracle=fd2617fe-1bf3-40c3-9da5-841e63f4d62d');
+    expect(url).not.toContain('set=');
+  });
+
   it('surfaces structured server errors', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ error: 'Boom' }), {

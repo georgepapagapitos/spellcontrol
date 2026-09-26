@@ -346,6 +346,31 @@ describe('updateCard / replaceAllCards / addCard', () => {
     expect(rows.every((c) => c.condition === 'lp' && c.language === 'ja')).toBe(true);
   });
 
+  // Quick add passes no finish. It used to land as non-foil whatever the
+  // printing was, so a foil-only printing (TMC Dark Ritual) became a copy
+  // that can't exist, priced off the wrong column.
+  it('addCard with no finish takes the printing’s own first finish', async () => {
+    const base = { name: 'Dark Ritual', set: 'tmc', set_name: 'TMNT', rarity: 'common' };
+    const [foilOnly] = await useCollectionStore.getState().addCard({
+      ...base,
+      id: 'fo',
+      collector_number: '131',
+      finishes: ['foil'],
+      prices: { usd: null, usd_foil: '7.81' },
+    } as never);
+    const [both] = await useCollectionStore.getState().addCard({
+      ...base,
+      id: 'nf',
+      collector_number: '82',
+      finishes: ['nonfoil', 'foil'],
+    } as never);
+    const cards = useCollectionStore.getState().cards;
+    const fo = cards.find((c) => c.copyId === foilOnly);
+    expect(fo?.finish).toBe('foil');
+    expect(fo?.purchasePrice).toBe(7.81);
+    expect(cards.find((c) => c.copyId === both)?.finish).toBe('nonfoil');
+  });
+
   it('addCard sets an honest error when the local save fails', async () => {
     vi.mocked(saveCollection).mockRejectedValueOnce(new Error('quota exceeded'));
 
