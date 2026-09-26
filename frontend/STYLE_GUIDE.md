@@ -5874,22 +5874,52 @@ non-English. The Key's Condition section says so in its title.
 **Editable toggles show their state, always — even at the norm.** The rule
 above governs _passive_ display chips that summarize existing data; it
 doesn't apply to a control that's also the _only way to change_ the value.
-The scanner queue's per-row finish and condition toggles (`ScannerQueueSheet`
-rows, `CardScanner`'s last-scan panel — E87) are editors, not display chips,
-so they render at their default state too: the finish toggle always reads
-"Normal", the condition toggle always reads "NM" — a control that goes
+The scanner's finish and condition editors (`CardScanner`'s last-scan panel,
+`ScannerEditSheet` — E87) render at their default state too: finish always
+shows "Normal" selected, condition always reads "NM" — a control that goes
 invisible at the default has no way to discover the deviation it exists to
-reach. Both share one neutral pill shape (tap-to-cycle: Normal → Foil →
-Etched for finish, NM → LP → MP → HP → DMG for condition), but only finish
-gets a color flourish per state (rainbow foil, gold etched) — finish IS a
-value signal. Condition stays uncolored at every state, matching
-`.card-list-condition`'s "quiet text, not a colored badge" ruling above:
-cycling through LP/MP/HP/DMG changes the letters, never the chip's color.
-Unlike finish (gated behind `finishes.length > 1` — only printings with a
-foil/etched variant get the toggle), the condition toggle has no
-availability gate: every physical card can be in any condition regardless of
-printing, so it always renders. Both toggles carry the usual
-`@media (pointer: coarse) { min-height: 44px }` floor (§ Responsive).
+reach. They are form-kit pickers, never tap-to-cycle (§ Card scanner below).
+In the scanned list, where the row is a summary and editing is a tap away,
+the same two values are display tags, and only finish gets a color flourish
+(rainbow foil, gold etched): finish IS a value signal. Condition stays
+uncolored, matching `.card-list-condition`'s "quiet text, not a colored
+badge" ruling above. Finish is gated behind `finishes.length > 1` (only
+printings with a foil/etched variant get a choice); condition never is, since
+every physical card can be in any condition.
+
+### Card scanner (2026-09-25)
+
+Redesigned against ManaBox, the scanner the owner actually uses, for two ways
+of scanning: a few cards from the mail (check each one) and a whole booster
+box (scan non-stop, fix the odd one).
+
+- **The camera shows the whole 4:3 frame, full width** (`object-fit:
+  contain`), like a phone's camera app. Filling the screen cropped a third of
+  the width off and read as zoomed in. Every control lives in the black bars
+  above and below, so nothing covers the card.
+- **The camera screen is pinned dark** (`data-theme="obsidian"` on
+  `.scanner-root`) whatever the app theme, so form-kit controls on the
+  last-scan panel read against the camera. **The sheets opened from it (the
+  list, editing a card, settings) follow the app theme** like every other
+  sheet: they're shared `<Modal>` sheets on `modal-backdrop--sheet
+  modal-backdrop--over-sheet`, and their menus portal to `<body>` anyway.
+- **Anything opened from the scanner stacks above it.** The camera sits at
+  `--z-overlay`, above the modal tier, so a sheet or confirm raised from it
+  needs `--over-sheet` (`SCANNER_SHEET_BACKDROP`, or `useConfirm`'s
+  `backdropClassName`). The old "Clear all" confirm opened on the plain
+  modal tier and was hidden behind the camera.
+- **Camera chrome is rect icon buttons** (T135), with torch, settings and the
+  list grouped in one strip. The top bar always shows the card count; the
+  value beside it is a setting.
+- **No tap-to-cycle.** Finish is a `SegmentedControl` (2–3 options) and
+  condition a `SelectMenu` (5 options): every option in view, HP one tap
+  away instead of four blind ones.
+- **Rare actions live in the list's ⋮**: select, sort, and "Clear the list"
+  last and red behind a confirm. The footer carries only Keep scanning and
+  the primary Add.
+- **Repeat scans teach every time.** "Already added. Tap the screen to add
+  another copy" shows whenever the matcher sees the card it just added, not
+  once per session.
 
 **Touch rule.** Hover-revealed information (titles/tooltips on glyphs, hover
 peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothing

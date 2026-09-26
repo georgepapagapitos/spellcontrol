@@ -7,6 +7,8 @@ interface ConfirmOptions {
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
+  /** Passed to the dialog's backdrop; see ConfirmDialog. */
+  backdropClassName?: string;
 }
 
 type PendingConfirm = ConfirmOptions & { resolve: (ok: boolean) => void };
@@ -32,6 +34,7 @@ export function useConfirm() {
       confirmLabel={pending.confirmLabel}
       cancelLabel={pending.cancelLabel}
       danger={pending.danger}
+      backdropClassName={pending.backdropClassName}
       onConfirm={() => handleClose(true)}
       onCancel={() => handleClose(false)}
     />

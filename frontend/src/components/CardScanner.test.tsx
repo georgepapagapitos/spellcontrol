@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CardScanner } from './CardScanner';
 import { useScanQueueStore } from '../lib/use-scan-queue';
+import { useScannerSettings } from '../lib/scanner-settings';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 // The scanner pulls in the opencv/WASM loader, which can't run under
@@ -117,7 +118,7 @@ describe('CardScanner', () => {
     render(<CardScanner onClose={vi.fn()} onConfirm={vi.fn()} />);
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Review 3 scanned cards' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Scanned cards, 3' })).toBeTruthy()
     );
   });
 
@@ -202,6 +203,100 @@ describe('CardScanner', () => {
 
       await screen.findByRole('button', { name: 'Close scanner' });
       expect(reoriented(track)).toBe(false);
+    });
+  });
+
+  describe('with the camera live', () => {
+    function liveScanner(onConfirm: (text: string, count: number) => boolean | Promise<boolean>) {
+      const track = {
+        getCapabilities: () => ({}),
+        applyConstraints: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn(),
+      };
+      const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
+      installMediaDevices({ getUserMedia: vi.fn().mockResolvedValue(stream) });
+      HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(HTMLMediaElement.prototype, 'srcObject', {
+        configurable: true,
+        writable: true,
+        value: null,
+      });
+      useScanQueueStore.setState({
+        queue: [
+          {
+            id: 'card-1::nonfoil',
+            card: makeCard(),
+            qty: 2,
+            finish: 'nonfoil',
+            rawText: 'Lightning Bolt',
+          },
+          {
+            id: 'card-2::nonfoil',
+            card: makeCard({ id: 'card-2', name: 'Counterspell', collector_number: '54' }),
+            qty: 1,
+            finish: 'nonfoil',
+            condition: 'lp',
+            rawText: 'Counterspell',
+          },
+        ],
+      });
+      render(<CardScanner onClose={vi.fn()} onConfirm={onConfirm} />);
+    }
+
+    async function openList() {
+      fireEvent.click(await screen.findByRole('button', { name: 'Scanned cards, 3' }));
+      return screen.getByRole('dialog', { name: '3 cards scanned' });
+    }
+
+    it('takes the added cards off the list once the add goes through', async () => {
+      const onConfirm = vi.fn().mockResolvedValue(true);
+      liveScanner(onConfirm);
+      const list = await openList();
+      fireEvent.click(within(list).getByRole('button', { name: 'Add 3 cards' }));
+      expect(onConfirm).toHaveBeenCalledWith(
+        '2 Lightning Bolt (LEA) 161\n1 Counterspell *LP* (LEA) 54',
+        3
+      );
+      // Before this, one caller never cleared the list, so the same cards
+      // were still there to be added a second time.
+      await waitFor(() => expect(useScanQueueStore.getState().queue).toEqual([]));
+    });
+
+    it('keeps the cards when the add fails or is only staged', async () => {
+      liveScanner(() => false);
+      const list = await openList();
+      fireEvent.click(within(list).getByRole('button', { name: 'Add 3 cards' }));
+      await Promise.resolve();
+      expect(useScanQueueStore.getState().queue).toHaveLength(2);
+    });
+
+    it('adds only the selected rows and leaves the rest', async () => {
+      const onConfirm = vi.fn().mockResolvedValue(true);
+      liveScanner(onConfirm);
+      const list = await openList();
+      fireEvent.click(within(list).getByRole('button', { name: 'More list actions' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Select cards' }));
+      const counterspellBox = within(list)
+        .getAllByRole('checkbox')
+        .find((b) => b.closest('.scan-row')?.textContent?.includes('Counterspell'));
+      fireEvent.click(counterspellBox!);
+      fireEvent.click(within(list).getByRole('button', { name: 'Add 1 card' }));
+      expect(onConfirm).toHaveBeenCalledWith('1 Counterspell *LP* (LEA) 54', 1);
+      await waitFor(() =>
+        expect(useScanQueueStore.getState().queue.map((e) => e.id)).toEqual(['card-1::nonfoil'])
+      );
+    });
+
+    it('shows the count and value, and settings can hide the value', async () => {
+      liveScanner(() => true);
+      await screen.findByRole('button', { name: 'Scanned cards, 3' });
+      expect(document.querySelector('.scanner-tally')?.textContent).toBe('$4.503 cards');
+      fireEvent.click(screen.getByRole('button', { name: 'Scanner settings' }));
+      const settings = screen.getByRole('dialog', { name: 'Scanner settings' });
+      fireEvent.click(within(settings).getByRole('switch', { name: 'Show the running total' }));
+      expect(useScannerSettings.getState().showTotal).toBe(false);
+      expect(document.querySelector('.scanner-tally')?.textContent).toBe('3 cards');
+      useScannerSettings.setState({ showTotal: true });
     });
   });
 });

@@ -74,7 +74,10 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
     return () => document.removeEventListener('keydown', onKey);
   }, [beginClose]);
 
-  const handleScanConfirm = async (text: string, count: number) => {
+  /** Resolves true once the cards are in the collection, so the scanner takes
+   *  those rows off its list (it used to keep them, ready to add twice). A
+   *  failed import keeps them for a retry. */
+  const handleScanConfirm = async (text: string, count: number): Promise<boolean> => {
     setScannerOpen(false);
     setScanError(null);
     setScanBusy(true);
@@ -102,8 +105,10 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
         }
         setScanSuccess(parts.join(' · '));
       }
+      return true;
     } catch (err) {
       setScanError(userMessage(err, "Couldn't save scanned cards."));
+      return false;
     } finally {
       setScanBusy(false);
     }
@@ -275,10 +280,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
 
       {scannerOpen && (
         <Suspense fallback={null}>
-          <CardScanner
-            onClose={() => setScannerOpen(false)}
-            onConfirm={(text, count) => void handleScanConfirm(text, count)}
-          />
+          <CardScanner onClose={() => setScannerOpen(false)} onConfirm={handleScanConfirm} />
         </Suspense>
       )}
     </div>

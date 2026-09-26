@@ -1178,6 +1178,9 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 label: 'scanned-cards',
                 preview: `${count} scanned card${count === 1 ? '' : 's'}`,
               });
+              // Only staged: the import-mode dialog can still be cancelled,
+              // so the scanner keeps its list.
+              return false;
             }}
           />
         </Suspense>

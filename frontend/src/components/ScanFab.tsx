@@ -6,7 +6,6 @@ import { useMediaQuery } from '../lib/use-media-query';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
 import { importScannedCards } from '../lib/scan-import';
-import { useScanQueueStore } from '../lib/use-scan-queue';
 import { fetchErrorMessage } from '../lib/import-review';
 
 import { userMessage } from '@/lib/user-error';
@@ -67,15 +66,13 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
     return () => scrollEl.removeEventListener('scroll', onScroll);
   }, [scrollEl]);
 
-  const handleScanConfirm = async (text: string, count: number) => {
+  /** Resolves true once the cards are in the collection, so the scanner takes
+   *  those rows off its list. A failed import keeps them for a retry. */
+  const handleScanConfirm = async (text: string, count: number): Promise<boolean> => {
     setScannerOpen(false);
     setImporting(true);
     try {
       const { added, requested, fetchErrors } = await importScannedCards(text, count, importCards);
-      // Cards are now committed to the collection — clear the persisted queue
-      // so they don't reappear next time the scanner opens. Only on success:
-      // a failed import (the catch below) keeps the queue so the user can retry.
-      useScanQueueStore.getState().clear();
       const tail = added === requested ? '' : ` of ${requested.toLocaleString()}`;
       toast.show({
         message:
@@ -85,11 +82,13 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
             : ''),
         tone: fetchErrors > 0 ? 'warn' : 'success',
       });
+      return true;
     } catch (err) {
       toast.show({
         message: userMessage(err, "Couldn't save scanned cards."),
         tone: 'error',
       });
+      return false;
     } finally {
       setImporting(false);
     }
@@ -117,10 +116,7 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
 
       {scannerOpen && (
         <Suspense fallback={null}>
-          <CardScanner
-            onClose={() => setScannerOpen(false)}
-            onConfirm={(text, count) => void handleScanConfirm(text, count)}
-          />
+          <CardScanner onClose={() => setScannerOpen(false)} onConfirm={handleScanConfirm} />
         </Suspense>
       )}
     </div>

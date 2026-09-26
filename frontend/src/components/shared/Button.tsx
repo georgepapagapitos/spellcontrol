@@ -139,8 +139,13 @@ export function Button({
   );
 }
 
+/** `Omit` over each member of a union. A plain `Omit<Target, …>` keeps only the
+ *  keys every member shares, which dropped `disabled` (a link has none) and
+ *  left an `IconButton` stepper with no way to turn off at its limit. */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 export type IconButtonProps = Partial<Look> &
-  Omit<Target, 'aria-label' | 'title'> & {
+  DistributiveOmit<Target, 'aria-label' | 'title'> & {
     /** The accessible name. Also the hover tooltip unless `title` says otherwise. */
     label: string;
     icon: NonNullable<Icon>;

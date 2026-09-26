@@ -42,25 +42,14 @@ export function availableFinishes(finishes: string[] | null | undefined): Finish
   return present.length > 0 ? present : ['nonfoil'];
 }
 
-/** Next finish when cycling the toggle, wrapping around the available set. */
-export function nextFinish(current: Finish, available: Finish[]): Finish {
-  if (available.length <= 1) return current;
-  const i = available.indexOf(current);
-  return available[(i + 1) % available.length];
-}
-
 /**
- * Cycling order for the scanner's condition toggle (E87). Unlike finish,
- * every condition is always available regardless of printing — there's no
- * "available subset" to intersect against.
+ * Every condition, best to worst: the order the scanner's condition pickers
+ * list them in (E87). Unlike finish, every condition is always available
+ * regardless of printing, so there's no "available subset" to intersect.
+ * The pickers show the whole list rather than cycling one step per tap:
+ * cycling hid the options and took four blind taps to reach HP.
  */
-const CONDITION_CYCLE: Condition[] = ['nm', 'lp', 'mp', 'hp', 'damaged'];
-
-/** Next condition when cycling the toggle, wrapping NM → LP → MP → HP → DMG → NM. */
-export function nextCondition(current: Condition): Condition {
-  const i = CONDITION_CYCLE.indexOf(current);
-  return CONDITION_CYCLE[(i + 1) % CONDITION_CYCLE.length];
-}
+export const CONDITIONS: readonly Condition[] = ['nm', 'lp', 'mp', 'hp', 'damaged'];
 
 /**
  * USD unit price for a given finish, falling back across finishes when the

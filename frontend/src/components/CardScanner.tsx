@@ -7,10 +7,12 @@ import {
   ChevronRight,
   Flashlight,
   FlashlightOff,
-  Inbox,
+  Layers,
+  Lightbulb,
   LoaderCircle,
   Plus,
   RotateCcw,
+  Settings,
   X,
 } from 'lucide-react';
 import { focusInto, restoreFocus, trapTab, useOverlayLayer } from '../lib/overlay-layer';
@@ -20,23 +22,29 @@ import { getCardById } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { haptics } from '../lib/haptics';
 import {
+  CONDITIONS,
   FINISH_LABELS,
   availableFinishes,
   finishUnitPrice,
-  nextFinish,
-  nextCondition,
   playValueChime,
   priceTier,
   pulseValueHaptic,
   type CardValueTier,
 } from '../lib/scanner-feedback';
 import { conditionLabel, conditionShort } from './shared/CardRow';
+import { SegmentedControl } from './shared/form';
+import { IconButton } from './shared/Button';
+import { SelectMenu } from './SelectMenu';
 import { detectCardBox } from '../lib/scanner-detect';
 import { prewarm, scan } from '../lib/scanner/scan';
 import type { Point } from '../lib/scanner/detect';
 import { ScannerQueueSheet } from './ScannerQueueSheet';
-import { entryKey, useScanQueue } from '../lib/use-scan-queue';
+import { ScannerEditSheet } from './ScannerEditSheet';
+import { ScannerSettingsSheet } from './ScannerSettingsSheet';
+import { rekeyedId, useScanQueue, useScanQueueStore } from '../lib/use-scan-queue';
+import { useScannerSettings } from '../lib/scanner-settings';
 import type { ScryfallCard } from '@/deck-builder/types';
+import type { Condition, Finish } from '../types';
 
 /**
  * Compute the on-screen rectangle of the `object-fit: contain` video: the
@@ -64,9 +72,14 @@ function computeDisplayRect(
 
 interface Props {
   onClose: () => void;
-  /** Called when the user taps "Add N cards". Emits a text list compatible
-   *  with the existing `importText()` pipeline ("1 Name (SET) collector"). */
-  onConfirm: (importText: string, count: number) => void;
+  /**
+   * Called when the user adds cards to the collection. Emits a text list
+   * compatible with the `importText()` pipeline ("1 Name (SET) collector").
+   * Resolve `true` once the cards are really in the collection: the scanner
+   * then takes exactly those rows off its list. `false` (a failed import, or
+   * a caller that only stages the text for review) leaves them in place.
+   */
+  onConfirm: (importText: string, count: number) => boolean | Promise<boolean>;
 }
 
 type ScanStatus = 'idle' | 'starting' | 'ready' | 'scanning' | 'error';
@@ -144,8 +157,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const armedRef = useRef(true);
   /** Consecutive failed capture attempts, for the quiet-until-hit nudge. */
   const consecutiveMissRef = useRef(0);
-  /** Whether the one-time "tap to add another" hint has been shown this session. */
-  const tapHintShownRef = useRef(false);
 
   const {
     queue,
@@ -166,13 +177,17 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  /** The scanned-cards list. */
   const [sheetOpen, setSheetOpen] = useState(false);
-  /**
-   * When set, the queue sheet opens with this entry's printing picker
-   * already expanded. Wired to the panel's set·# tap so "change the
-   * printing" is one tap, not "open sheet → find row → tap Printing".
-   */
-  const [pickerFor, setPickerFor] = useState<string | null>(null);
+  /** The row open in the edit sheet, from the list or the last-scan panel.
+   *  Follows the row when a finish or printing change re-keys it. */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Any sheet over the camera pauses auto-capture: a scan landing while
+   *  someone is editing would move things under their thumb. */
+  const sheetsOpen =
+    sheetOpen || (editingId !== null && queue.some((e) => e.id === editingId)) || settingsOpen;
+  const showTotal = useScannerSettings((s) => s.showTotal);
   /** Pulses the count badge briefly each time a new card lands. */
   const [pulseKey, setPulseKey] = useState(0);
   /**
@@ -600,14 +615,18 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
         // Dedupe-or-add. The hook owns the dedupe cursor; 'duplicate'
         // means the same printing was just scanned, so the matcher is
-        // still locked on the same physical card — silently skip the
-        // feedback side effects too. A manual tap forces past the dedupe so
-        // the user can intentionally add another copy of the same card.
-        if (addScan(card, manual) === 'duplicate') return;
+        // still locked on the same physical card. Skip the feedback, but
+        // say how to add another copy: holding up a second copy of the card
+        // you just scanned is exactly when someone needs to know, every time,
+        // not once per session. A manual tap forces past the dedupe.
+        if (addScan(card, manual) === 'duplicate') {
+          showHint('Already added. Tap the screen to add another copy.', 2600);
+          return;
+        }
 
         const tier = priceTier(card);
         setPulseKey((k) => k + 1);
-        playValueChime(tier);
+        if (useScannerSettings.getState().sound) playValueChime(tier);
         pulseValueHaptic(tier);
         // Map v2's detected quad (in crop-canvas coords, since we drew the
         // searchRect crop into the canvas at native frame resolution) back
@@ -629,15 +648,14 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         // Bottom card panel: persistent — stays until the next successful
         // scan replaces it. `key` is bumped on every scan so the slide-in
         // animation replays even when the same card lands twice.
-        // Scans always land as the nonfoil row (the matcher can't read finish);
-        // track that row's key so the panel's toggle/+1 act on the right row.
-        setLastScan({ card, tier, key: Date.now(), entryId: entryKey(card.id, 'nonfoil') });
-        // Teach tap-to-rescan once: the auto loop won't re-add the same card, so
-        // surface how to add another copy the first time a scan lands.
-        if (!tapHintShownRef.current) {
-          tapHintShownRef.current = true;
-          showHint('Same card again? Tap the screen to add another.', 2800);
-        }
+        // A scan lands as the settings' default finish, clamped to the
+        // printing; track that row's key so the panel's controls act on it.
+        setLastScan({
+          card,
+          tier,
+          key: Date.now(),
+          entryId: rekeyedId(card, useScannerSettings.getState().defaultFinish),
+        });
       } catch (err) {
         logger.error('[scanner] capture failed:', err);
         showHint('Scan failed. Try again.');
@@ -661,7 +679,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * successful capture before another can fire.
    */
   useEffect(() => {
-    if (status === 'error' || sheetOpen) return;
+    if (status === 'error' || sheetsOpen) return;
     if (!searchRect || !defaultViewfinderRect) return;
 
     let lastTick = 0;
@@ -838,32 +856,74 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       prevDetectorFrameRef.current = null;
       stableFramesRef.current = 0;
     };
-  }, [status, sheetOpen, searchRect, defaultViewfinderRect, detectorBufSize, captureAndIdentify]);
-
-  const handleConfirm = useCallback(() => {
-    if (queue.length === 0) return;
-    // Emit MTGA-style lines with a finish token, then a condition token,
-    // both *before* the (SET) group — that's where the text parser's
-    // cleanName() looks for them, so the chosen finish/condition round-trip
-    // to the collection as a foil/etched copy in the given condition (E87).
-    // NM is never emitted — it's the unmarked default (nothing to strip).
-    const lines = queue.map(({ card, qty, finish, condition }) => {
-      const finishToken = finish === 'foil' ? ' *F*' : finish === 'etched' ? ' *ETCHED*' : '';
-      const conditionValue = condition ?? 'nm';
-      const conditionToken = conditionValue !== 'nm' ? ` *${conditionShort(conditionValue)}*` : '';
-      return `${qty} ${card.name}${finishToken}${conditionToken} (${card.set.toUpperCase()}) ${
-        card.collector_number ?? ''
-      }`.trim();
-    });
-    onConfirm(lines.join('\n'), totalCount);
-  }, [queue, totalCount, onConfirm]);
+  }, [status, sheetsOpen, searchRect, defaultViewfinderRect, detectorBufSize, captureAndIdentify]);
 
   /**
-   * "+1" on the bottom card panel: bumps the qty of the currently-shown
-   * row (its exact printing+finish). Useful when the user has several copies
-   * of the same card and the auto-detector keeps deduping them. Re-pulses
-   * the count badge and fires haptic feedback; a no-op if the row was since
-   * removed, but the button still confirms the press.
+   * Add rows to the collection: every row, or the ones picked in select mode.
+   * Emits MTGA-style lines with a finish token, then a condition token, both
+   * *before* the (SET) group, which is where the text parser's cleanName()
+   * looks for them, so the chosen finish and condition round-trip to the
+   * collection (E87). NM is never emitted: it's the unmarked default.
+   *
+   * The caller reports whether the add went through. Only then are exactly
+   * these rows taken off the list, read from the store directly because the
+   * caller closes the scanner before its import resolves. A failed add keeps
+   * them for a retry, and adding a selection leaves the rest for next time.
+   */
+  const handleConfirm = useCallback(
+    async (ids?: string[]) => {
+      const rows = ids ? queue.filter((e) => ids.includes(e.id)) : queue;
+      if (rows.length === 0) return;
+      const lines = rows.map(({ card, qty, finish, condition }) => {
+        const finishToken = finish === 'foil' ? ' *F*' : finish === 'etched' ? ' *ETCHED*' : '';
+        const conditionValue = condition ?? 'nm';
+        const conditionToken =
+          conditionValue !== 'nm' ? ` *${conditionShort(conditionValue)}*` : '';
+        return `${qty} ${card.name}${finishToken}${conditionToken} (${card.set.toUpperCase()}) ${
+          card.collector_number ?? ''
+        }`.trim();
+      });
+      const count = rows.reduce((n, e) => n + e.qty, 0);
+      const added = await onConfirm(lines.join('\n'), count);
+      if (added) useScanQueueStore.getState().remove(rows.map((e) => e.id));
+    },
+    [queue, onConfirm]
+  );
+
+  /** Keep the edit sheet and the last-scan panel pointed at a row that a
+   *  finish or printing change just re-keyed. */
+  const followRow = useCallback((oldId: string, newId: string, card: ScryfallCard) => {
+    setEditingId((cur) => (cur === oldId ? newId : cur));
+    setLastScan((prev) =>
+      prev && prev.entryId === oldId ? { ...prev, card, entryId: newId } : prev
+    );
+  }, []);
+
+  const handleRemove = useCallback(
+    (ids: string[]) => {
+      removeFromQueue(ids);
+      setLastScan((prev) => (prev && ids.includes(prev.entryId) ? null : prev));
+      setEditingId((cur) => (cur && ids.includes(cur) ? null : cur));
+    },
+    [removeFromQueue]
+  );
+
+  const handleBulkFinish = useCallback(
+    (ids: string[], finish: Finish) => {
+      changeFinish(ids, finish);
+      setLastScan((prev) =>
+        prev && ids.includes(prev.entryId)
+          ? { ...prev, entryId: rekeyedId(prev.card, finish) }
+          : prev
+      );
+    },
+    [changeFinish]
+  );
+
+  /**
+   * "1 more" on the last-scan panel: bumps the qty of the row it shows (its
+   * exact printing and finish). The fast path for a stack of the same card,
+   * which the auto-detector deliberately won't re-add.
    */
   const incrementLastScan = useCallback(() => {
     if (!lastScan) return;
@@ -872,21 +932,17 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     pulseValueHaptic(lastScan.tier);
   }, [lastScan, changeQty]);
 
-  /**
-   * "Clear all" also dismisses the bottom card panel. The panel's `lastScan`
-   * is local to the scanner (not part of the queue), so wiping the queue alone
-   * would leave a stale card lingering on screen.
-   */
+  /** Clearing the list also clears the panel: `lastScan` is local to the
+   *  scanner, so wiping the queue alone would leave a stale card on screen. */
   const handleClearAll = useCallback(() => {
     clearQueue();
     setLastScan(null);
   }, [clearQueue]);
 
   /**
-   * Manual search-and-tap add (the in-sheet Scryfall search). Camera accepts
-   * get their value-tiered chime+haptic above; a deliberate manual add skips
-   * the celebration but still confirms with the plain success cue so the
-   * queue landing is felt, matching the scan-accept feedback contract.
+   * A card added by name. Camera accepts get their value-tiered chime and
+   * haptic above; a deliberate add skips the celebration but still confirms
+   * with the plain success cue.
    */
   const handleAddManual = useCallback(
     (card: ScryfallCard) => {
@@ -896,28 +952,32 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     [addManual]
   );
 
-  // Camera is actually up. The corner chrome (close, total, queue/torch) only
-  // makes sense over a live preview — rendering it over the black "starting"
-  // screen looks like floating orphan icons, so gate it on this.
+  // Camera is actually up. The corner chrome only makes sense over a live
+  // preview; over the black "starting" screen it reads as orphan icons.
   const cameraLive = status === 'ready' || status === 'scanning';
   const starting = status === 'idle' || status === 'starting';
+  const firstCard = cameraLive && totalCount === 0 && !lastScan;
+  const editing = editingId ? queue.find((e) => e.id === editingId) : undefined;
+  const panelEntry = lastScan ? queue.find((e) => e.id === lastScan.entryId) : undefined;
 
   const scannerNode = (
+    // data-theme pins the camera screen dark whatever the app theme is, so
+    // the form-kit controls on the last-scan panel read against the camera.
+    // The sheets portal to <body> and follow the app theme like every sheet.
     <div
       ref={rootRef}
       className="scanner-root"
+      data-theme="obsidian"
       role="dialog"
       aria-label="Card scanner"
       aria-modal="true"
     >
       <video ref={videoRef} className="scanner-video" playsInline muted />
 
-      {/* Tap-to-rescan surface. A transparent full-bleed button sitting *below*
-          the corner chrome (z-index): tapping bare camera forces a capture —
-          letting the user intentionally add another copy of the same card,
-          which the auto loop deliberately won't. Taps on the
-          close/queue/torch/panel controls land on those (higher z) instead.
-          Gated to `ready` so it doesn't fire mid-capture or during errors. */}
+      {/* Tap-to-rescan surface. A transparent full-bleed button *below* the
+          corner chrome: tapping bare camera forces a capture, which is how
+          to add another copy of the card just scanned (the auto loop
+          deliberately won't). Gated to `ready` so it can't fire mid-capture. */}
       {status === 'ready' && (
         <button
           type="button"
@@ -927,106 +987,107 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         />
       )}
 
-      {/* No persistent outline — the camera is "always looking" and the
-          v2 matcher (its own opencv contour finder) handles rotation,
-          distance, and off-center placement on its own. When a card is
-          matched, we draw a quad polygon at the actual TL/TR/BR/BL
-          corners returned by v2 — perspective-correct, no jumping. */}
-      {hasLock && matchedQuad && matchedQuad.length === 4 && (
-        <svg
-          className="scanner-overlay"
+      {/* Before the first card: a frame guide, so a first-time user knows
+          what to do. It goes once anything is scanned; the matcher finds a
+          card anywhere in view, so the guide is a hint, not a boundary. */}
+      {firstCard && defaultViewfinderRect && (
+        <div
+          className="scanner-guide"
           aria-hidden="true"
           style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            pointerEvents: 'none',
+            left: defaultViewfinderRect.left,
+            top: defaultViewfinderRect.top,
+            width: defaultViewfinderRect.width,
+            height: defaultViewfinderRect.height,
           }}
         >
-          <polygon
-            points={matchedQuad.map((p) => `${p.x},${p.y}`).join(' ')}
-            fill="rgba(80, 200, 120, 0.15)"
-            stroke="rgba(80, 220, 130, 0.95)"
-            strokeWidth={3}
-            strokeLinejoin="round"
-            style={{ transition: 'opacity 220ms ease-out' }}
-          />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
+
+      {/* On a match, an outline at the card's actual corners (TL/TR/BR/BL
+          from the matcher): perspective-correct, no jumping. */}
+      {hasLock && matchedQuad && matchedQuad.length === 4 && (
+        <svg className="scanner-overlay" aria-hidden="true">
+          <polygon points={matchedQuad.map((p) => `${p.x},${p.y}`).join(' ')} />
         </svg>
       )}
-      {/* Top-left close button — only once the camera is live (the
-          starting/error overlays carry their own exit). */}
-      {cameraLive && (
-        <button
-          type="button"
-          className="scanner-icon-btn scanner-close-btn"
-          onClick={onClose}
-          aria-label="Close scanner"
-        >
-          <X width={20} height={20} strokeWidth={1.8} />
-        </button>
-      )}
 
-      {/* Top-center running total. Hidden when nothing has been scanned. */}
-      {cameraLive && totalCount > 0 && (
-        <div
-          className="scanner-total-pill"
-          role="status"
-          aria-live="polite"
-          aria-label={`Running total ${totalPrice.toFixed(2)} dollars`}
-        >
-          {formatMoney(totalPrice)}
-        </div>
-      )}
-
-      {/* Top-right vertical action stack: queue (with badge), torch.
-          Wrapper provides the grouped-pill background; child buttons reuse
-          `.scanner-icon-btn` (transparent inside the stack — see CSS). */}
       {cameraLive && (
-        <div className="scanner-action-stack">
-          <button
-            type="button"
+        <div className="scanner-topbar">
+          <IconButton
             className="scanner-icon-btn"
-            onClick={() => setSheetOpen(true)}
-            aria-label={
-              totalCount > 0
-                ? `Review ${totalCount} scanned card${totalCount === 1 ? '' : 's'}`
-                : 'Open scan queue'
-            }
-          >
-            <Inbox width={20} height={20} strokeWidth={1.8} />
+            label="Close scanner"
+            title={false}
+            icon={<X width={20} height={20} strokeWidth={1.8} />}
+            onClick={onClose}
+          />
+
+          {/* The count always shows; it's how a booster box keeps rhythm.
+              The value is a setting. */}
+          <div className="scanner-tally" role="status" aria-live="polite">
             {totalCount > 0 && (
-              <span key={pulseKey} className="scanner-stack-badge">
-                {totalCount}
-              </span>
+              <>
+                {showTotal && <b>{formatMoney(totalPrice)}</b>}
+                <span>
+                  {totalCount} card{totalCount === 1 ? '' : 's'}
+                </span>
+              </>
             )}
-          </button>
-          {torchSupported && (
+          </div>
+
+          <div className="scanner-tools">
+            {torchSupported && (
+              <IconButton
+                className={torchOn ? 'scanner-icon-btn active' : 'scanner-icon-btn'}
+                label={torchOn ? 'Turn torch off' : 'Turn torch on'}
+                title={false}
+                icon={
+                  torchOn ? (
+                    <Flashlight width={20} height={20} strokeWidth={1.8} />
+                  ) : (
+                    <FlashlightOff width={20} height={20} strokeWidth={1.8} />
+                  )
+                }
+                onClick={toggleTorch}
+              />
+            )}
+            <IconButton
+              className="scanner-icon-btn"
+              label="Scanner settings"
+              title={false}
+              icon={<Settings width={20} height={20} strokeWidth={1.8} />}
+              onClick={() => setSettingsOpen(true)}
+            />
             <button
               type="button"
-              className={`scanner-icon-btn${torchOn ? ' active' : ''}`}
-              onClick={toggleTorch}
-              aria-label={torchOn ? 'Turn torch off' : 'Turn torch on'}
+              className="scanner-icon-btn"
+              onClick={() => setSheetOpen(true)}
+              aria-label={totalCount > 0 ? `Scanned cards, ${totalCount}` : 'Scanned cards'}
             >
-              {torchOn ? (
-                <Flashlight width={20} height={20} strokeWidth={1.8} />
-              ) : (
-                <FlashlightOff width={20} height={20} strokeWidth={1.8} />
+              <Layers width={20} height={20} strokeWidth={1.8} />
+              {totalCount > 0 && (
+                <span key={pulseKey} className="scanner-stack-badge">
+                  {totalCount}
+                </span>
               )}
             </button>
-          )}
+          </div>
         </div>
       )}
 
-      {cameraLive && hint && (
+      {cameraLive && (hint || firstCard) && (
         <div className="scanner-hint" role="status" aria-live="polite">
-          {hint}
+          <Lightbulb width={14} height={14} strokeWidth={2} aria-hidden />
+          {hint ?? 'Hold a card flat inside the frame'}
         </div>
       )}
 
-      {/* Starting state — shown over the black screen before the preview is
-          live, so the corner chrome doesn't float over nothing. Carries its
-          own Cancel so there's always an exit. */}
+      {/* Starting state, over the black screen before the preview is live.
+          Carries its own Cancel so there's always an exit. */}
       {starting && (
         <div className="scanner-starting" role="status" aria-live="polite">
           <LoaderCircle
@@ -1059,152 +1120,131 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         </div>
       )}
 
-      {/* Bottom card panel — persistent, replaces transient toast.
-          Shows the most-recently identified card; tapping the arrow
-          opens the full review sheet. */}
-      {lastScan && (
-        <div
-          key={lastScan.key}
-          className={`scanner-card-panel tier-${lastScan.tier}`}
-          role="status"
-          aria-live="polite"
-        >
-          {(() => {
-            const img =
-              lastScan.card.image_uris?.small ||
-              lastScan.card.image_uris?.normal ||
-              lastScan.card.card_faces?.[0]?.image_uris?.small;
-            const set = lastScan.card.set.toUpperCase();
-            const collector = lastScan.card.collector_number ?? '—';
-            const entry = queue.find((e) => e.id === lastScan.entryId);
-            const qty = entry?.qty ?? 1;
-            // Finish is owned by the queue entry; the panel reflects (and edits)
-            // it live so the price shown matches what will be imported.
-            const finish = entry?.finish ?? 'nonfoil';
-            const finishes = availableFinishes(lastScan.card.finishes);
-            const canToggleFinish = finishes.length > 1;
-            // Condition is owned by the queue entry too, same as finish above
-            // (E87) — undefined means Near Mint, the unmarked default.
-            const condition = entry?.condition ?? 'nm';
-            const unit = finishUnitPrice(lastScan.card.prices, finish);
-            const usd = unit != null ? formatMoney(unit) : null;
-            return (
-              <>
-                <button
-                  type="button"
-                  className="scanner-card-panel-main"
-                  onClick={() => setSheetOpen(true)}
-                  aria-label={`Review ${lastScan.card.name}`}
-                >
-                  <div className="scanner-card-panel-thumb">
-                    {img ? <img src={img} alt="" /> : null}
-                  </div>
-                  <div className="scanner-card-panel-body">
-                    <div className="scanner-card-panel-name">{lastScan.card.name}</div>
-                    <div className="scanner-card-panel-price">
-                      <span className="scanner-card-panel-market">MARKET</span>
-                      <span className="scanner-card-panel-amount">{usd ?? '—'}</span>
-                    </div>
-                  </div>
-                  <ChevronRight
-                    className="scanner-card-panel-chevron"
-                    width={18}
-                    height={18}
-                    strokeWidth={1.8}
-                  />
-                </button>
+      {firstCard && (
+        <p className="scanner-card-panel scanner-card-panel-empty">
+          Cards you scan show up here. Scanning starts on its own.
+        </p>
+      )}
+
+      {/* The last-scan panel: the card just read, its price, and its finish
+          and condition as real pickers showing every option. Stays until the
+          next scan replaces it. Tap the card to edit everything. */}
+      {lastScan &&
+        (() => {
+          const card = panelEntry?.card ?? lastScan.card;
+          const img = card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small;
+          const qty = panelEntry?.qty ?? 1;
+          const finish = panelEntry?.finish ?? 'nonfoil';
+          const finishes = availableFinishes(card.finishes);
+          const condition = panelEntry?.condition ?? 'nm';
+          const unit = finishUnitPrice(card.prices, finish);
+          return (
+            <div key={lastScan.key} className={`scanner-card-panel tier-${lastScan.tier}`}>
+              <button
+                type="button"
+                className="scanner-card-panel-main"
+                onClick={() => panelEntry && setEditingId(panelEntry.id)}
+                aria-label={`Edit ${card.name}`}
+              >
+                <span className="scanner-card-panel-thumb">
+                  {img ? <img src={img} alt="" /> : null}
+                </span>
+                <span className="scanner-card-panel-body">
+                  <span className="scanner-card-panel-name">
+                    {qty > 1 && <span className="scanner-card-panel-qty">{qty}× </span>}
+                    {card.name}
+                  </span>
+                  <span className="scanner-card-panel-set">
+                    {card.set_name} · #{card.collector_number ?? '—'}
+                  </span>
+                </span>
+                <span className="scanner-card-panel-price">
+                  <b>{unit != null ? formatMoney(unit) : '—'}</b>
+                  <span>Market</span>
+                </span>
+                <ChevronRight
+                  className="scanner-card-panel-chevron"
+                  width={18}
+                  height={18}
+                  strokeWidth={1.8}
+                  aria-hidden
+                />
+              </button>
+              {panelEntry && (
                 <div className="scanner-card-panel-meta">
-                  {canToggleFinish && (
-                    <button
-                      type="button"
-                      className={`scanner-card-panel-finish finish-${finish}`}
-                      onClick={() => {
-                        const next = nextFinish(finish, finishes);
-                        changeFinish(lastScan.entryId, next);
-                        // The row re-keys on finish change; keep the panel
-                        // pointed at it so the price/qty stay in sync.
-                        setLastScan((prev) =>
-                          prev ? { ...prev, entryId: entryKey(prev.card.id, next) } : prev
-                        );
+                  {finishes.length > 1 && (
+                    <SegmentedControl<Finish>
+                      ariaLabel={`Finish of ${card.name}`}
+                      value={finish}
+                      options={finishes.map((f) => ({ value: f, label: FINISH_LABELS[f] }))}
+                      onChange={(f) => {
+                        changeFinish(panelEntry.id, f);
+                        followRow(panelEntry.id, rekeyedId(card, f), card);
                       }}
-                      aria-label={`Finish: ${FINISH_LABELS[finish]}. Tap to change.`}
-                    >
-                      {FINISH_LABELS[finish]}
-                    </button>
+                    />
                   )}
-                  {/* No availability gate, unlike finish above — every
-                      condition is always selectable, and condition doesn't
-                      re-key the row, so this needs no setLastScan follow-up. */}
-                  <button
-                    type="button"
+                  <SelectMenu<string>
                     className="scanner-card-panel-condition"
-                    onClick={() => changeCondition(lastScan.entryId, nextCondition(condition))}
-                    aria-label={`Condition: ${conditionLabel(condition)}. Tap to change.`}
-                  >
-                    {conditionShort(condition)}
-                  </button>
-                  <button
-                    type="button"
-                    className="scanner-card-panel-set"
-                    onClick={() => {
-                      setPickerFor(lastScan.entryId);
-                      setSheetOpen(true);
-                    }}
-                    aria-label={`Change printing of ${lastScan.card.name}`}
-                  >
-                    {set} · #{collector}
-                  </button>
+                    ariaLabel={`Condition of ${card.name}`}
+                    value={condition}
+                    options={CONDITIONS.map((c) => ({
+                      value: c,
+                      label: conditionLabel(c),
+                      triggerLabel: conditionShort(c),
+                    }))}
+                    onChange={(c) => changeCondition(panelEntry.id, c as Condition)}
+                  />
                   <button
                     type="button"
                     className="scanner-card-panel-add"
                     onClick={incrementLastScan}
-                    aria-label={`Add another ${lastScan.card.name}`}
+                    aria-label={`Add another ${card.name}`}
                   >
-                    <Plus width={14} height={14} strokeWidth={2.4} />
-                    <span>{qty}</span>
+                    <Plus width={14} height={14} strokeWidth={2.4} aria-hidden />1
                   </button>
                 </div>
-              </>
-            );
-          })()}
-        </div>
-      )}
+              )}
+            </div>
+          );
+        })()}
 
       {sheetOpen && (
         <ScannerQueueSheet
           entries={queue}
-          initialPickerFor={pickerFor}
-          onClose={() => {
-            setSheetOpen(false);
-            setPickerFor(null);
-          }}
-          onChangePrinting={(id, newCard) => {
-            changePrinting(id, newCard);
-            // A printing swap re-keys the row (identity is printing+finish);
-            // if it was the bottom panel's row, follow it so the panel's
-            // card/finish/+1 controls stay wired to the right row.
-            setLastScan((prev) => {
-              if (!prev || prev.entryId !== id) return prev;
-              const allowed = availableFinishes(newCard.finishes);
-              const cur = queue.find((e) => e.id === id)?.finish ?? 'nonfoil';
-              const finish = allowed.includes(cur) ? cur : allowed[0];
-              return { ...prev, card: newCard, entryId: entryKey(newCard.id, finish) };
-            });
-          }}
-          onChangeQty={changeQty}
-          onChangeFinish={changeFinish}
-          onChangeCondition={changeCondition}
-          onRemove={removeFromQueue}
+          onClose={() => setSheetOpen(false)}
+          onEdit={setEditingId}
+          onRemove={handleRemove}
           onClearAll={handleClearAll}
-          onConfirm={handleConfirm}
+          onChangeFinish={handleBulkFinish}
+          onChangeCondition={changeCondition}
           onAddCard={handleAddManual}
+          onConfirm={(ids) => void handleConfirm(ids)}
         />
       )}
+
+      {editing && (
+        <ScannerEditSheet
+          entry={editing}
+          onClose={() => setEditingId(null)}
+          onFinish={(f) => {
+            changeFinish(editing.id, f);
+            followRow(editing.id, rekeyedId(editing.card, f), editing.card);
+          }}
+          onCondition={(c) => changeCondition(editing.id, c)}
+          onQty={(d) => changeQty(editing.id, d)}
+          onPrinting={(card) => {
+            changePrinting(editing.id, card);
+            followRow(editing.id, rekeyedId(card, editing.finish), card);
+          }}
+          onRemove={() => handleRemove([editing.id])}
+        />
+      )}
+
+      {settingsOpen && <ScannerSettingsSheet onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 
-  // Portal to document.body so the scanner escapes the app's DOM tree. On
-  // native that lets us hide #root while the camera-preview plugin's native
-  // preview shows through the (transparent) WebView. On web it's harmless.
+  // Portal to <body> so the full-screen overlay escapes any ancestor's
+  // containing block.
   return createPortal(scannerNode, document.body);
 }

@@ -1,496 +1,589 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchCards } from '../lib/use-search-cards';
-import { Check, ChevronDown, Minus, Plus, Trash2, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ArrowDownWideNarrow,
+  Camera,
+  Check,
+  CheckSquare,
+  Clock,
+  ListChecks,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
-import { fetchPrintings } from '../lib/api';
+import { Modal } from './Modal';
+import { OverflowMenu } from './OverflowMenu';
 import { SearchPill } from './SearchPill';
-import { formatMoney } from '../lib/format-money';
-import {
-  FINISH_LABELS,
-  availableFinishes,
-  finishUnitPrice,
-  nextFinish,
-  nextCondition,
-} from '../lib/scanner-feedback';
+import { SelectMenu } from './SelectMenu';
+import { SegmentedControl } from './shared/form';
+import { Button, IconButton } from './shared/Button';
 import { conditionLabel, conditionShort } from './shared/CardRow';
-import { logger } from '@/lib/logger';
+import { useSearchCards } from '../lib/use-search-cards';
 import { useConfirm } from '../lib/use-confirm';
-import { useSheetExit } from '../lib/use-sheet-exit';
+import { formatMoney } from '../lib/format-money';
+import { formatRelativeTime } from '../lib/format-time';
+import { CONDITIONS, FINISH_LABELS, finishUnitPrice } from '../lib/scanner-feedback';
+import type { ScannedEntry } from '../lib/use-scan-queue';
 
-export interface ScannedEntry {
-  /** Stable row id = printing id + finish (see useScanQueue's entryKey), so
-   *  a foil and a nonfoil copy of the same card are distinct rows — and so
-   *  are two different printings, each keeping its own set/collector. */
-  id: string;
-  card: ScryfallCard;
-  qty: number;
-  /** Owned finish for this row. Toggled in the UI; round-trips to the
-   *  collection as a foil/etched copy via the import text. */
-  finish: Finish;
-  /**
-   * Owned condition for this row (E87). Undefined means Near Mint — the
-   * unmarked default, matching the collection's "norms are unmarked"
-   * convention (STYLE_GUIDE § Card row information hierarchy). Unlike
-   * `finish`, condition is NOT part of row identity (see `entryKey`): it
-   * applies uniformly to the row's whole `qty` stack, same as an add-time
-   * condition applies to a whole search-add batch (`PrintingPicker`).
-   * Toggled in the UI; round-trips to the collection via the import text.
-   */
-  condition?: Condition;
-  /** Raw OCR text that produced this entry — surfaced as a `title` tooltip. */
-  rawText: string;
-}
+/** Every scanner sheet sits over the full-screen camera, which is above the
+ *  modal tier: `--over-sheet` lifts the backdrop past it. A bottom sheet on a
+ *  phone, a centred dialog on anything wider. */
+export const SCANNER_SHEET_BACKDROP = 'modal-backdrop--sheet modal-backdrop--over-sheet';
 
 interface Props {
   entries: ScannedEntry[];
   onClose: () => void;
-  onChangePrinting: (entryId: string, newCard: ScryfallCard) => void;
-  /** Set the owned finish (nonfoil / foil / etched) for an entry. */
-  onChangeFinish: (entryId: string, finish: Finish) => void;
-  /** Set the owned condition (nm/lp/mp/hp/damaged) for an entry (E87). */
-  onChangeCondition: (entryId: string, condition: Condition) => void;
-  onChangeQty: (entryId: string, delta: number) => void;
-  onRemove: (entryId: string) => void;
+  /** Open the edit sheet for one row. The parent owns it so the camera's
+   *  last-scan panel can open the same sheet. */
+  onEdit: (entryId: string) => void;
+  onRemove: (ids: string[]) => void;
   onClearAll: () => void;
-  /**
-   * Add a card chosen from the in-sheet Scryfall search to the queue. Wired
-   * to the scan queue's manual-add path, so searched cards flow through the
-   * same review-and-confirm step as scanned ones.
-   */
+  onChangeFinish: (ids: string[], finish: Finish) => void;
+  onChangeCondition: (ids: string[], condition: Condition) => void;
+  /** Add a card found by name. Goes through the same list as a scan. */
   onAddCard: (card: ScryfallCard) => void;
-  /**
-   * Commit the queue to the parent flow (closes the scanner and pipes
-   * the scanned cards through the import pipeline). The scanner UI no
-   * longer has its own footer CTA — the sheet owns commit, since the
-   * sheet is also where the user reviews qty and printings.
-   */
-  onConfirm: () => void;
-  /**
-   * When set, the matching row's printing picker is expanded on mount — lets
-   * the scanner panel's set·# tap land the user directly on the picker.
-   */
-  initialPickerFor?: string | null;
+  /** Add rows to the collection: the given ids, or every row when omitted. */
+  onConfirm: (ids?: string[]) => void;
 }
 
-/** Printings-cache key — printings are fetched scoped to a card's set, so the
- *  cache is keyed by name + set (not name alone). */
-function printingsKey(card: { name: string; set: string }): string {
-  return `${card.name}|${card.set}`;
+type Mode = 'list' | 'search' | 'select';
+type Sort = 'newest' | 'price';
+
+function unitPrice(e: ScannedEntry): number | null {
+  return finishUnitPrice(e.card.prices, e.finish);
 }
+
+const countLabel = (n: number) => `${n} card${n === 1 ? '' : 's'}`;
 
 /**
- * Bottom-sheet review of every card the scanner has captured this session.
+ * The scanned-cards list: a bottom sheet over the camera, like ManaBox's.
  *
- * Lets the user step quantities, swap printings (lazy-loaded from
- * Scryfall — one round-trip per row on first open, cached for the
- * sheet's lifetime), or drop cards entirely. The "Add N cards" CTA
- * lives in this sheet's footer — committing the queue is the natural
- * follow-on once you've reviewed it.
+ * Built for both ways of scanning. A booster box wants a list you can glance
+ * down: newest first, identical cards stacked into one row (3×), each row big
+ * enough to check the art. A few cards from the mail want a quick way into
+ * each one: tap a row to edit it. Everything rare (select, sort, clear) sits
+ * in the ⋮ menu, and "Clear the list" goes last in red behind a confirm
+ * instead of standing in the footer.
  */
 export function ScannerQueueSheet({
   entries,
   onClose,
-  onChangePrinting,
-  onChangeFinish,
-  onChangeCondition,
-  onChangeQty,
+  onEdit,
   onRemove,
   onClearAll,
-  onConfirm,
+  onChangeFinish,
+  onChangeCondition,
   onAddCard,
-  initialPickerFor,
+  onConfirm,
 }: Props) {
-  const totalCount = entries.reduce((sum, e) => sum + e.qty, 0);
+  const [mode, setMode] = useState<Mode>('list');
+  const [sort, setSort] = useState<Sort>('newest');
+  const [filter, setFilter] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirm();
 
-  // Symmetric exit: the panel entered with `scanner-sheet-slide` (rise +
-  // fade), so every dismiss path — backdrop, ✕, Escape, "Continue
-  // scanning" — plays `scanner-sheet-slide-out` before unmount instead of
-  // teleport-vanishing. Confirm ("Add N cards") is excluded on purpose:
-  // it closes the whole scanner overlay, not just this sheet.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'scanner-sheet-slide-out'
-  );
+  const totalCount = entries.reduce((sum, e) => sum + e.qty, 0);
+  const totalPrice = entries.reduce((sum, e) => sum + (unitPrice(e) ?? 0) * e.qty, 0);
 
-  const handleClearAll = useCallback(async () => {
+  const rows = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    const shown = q
+      ? entries.filter(
+          (e) => e.card.name.toLowerCase().includes(q) || e.card.set_name.toLowerCase().includes(q)
+        )
+      : entries;
+    return [...shown].sort((a, b) =>
+      sort === 'price'
+        ? (unitPrice(b) ?? -1) - (unitPrice(a) ?? -1)
+        : (b.addedAt ?? 0) - (a.addedAt ?? 0)
+    );
+  }, [entries, filter, sort]);
+
+  // Rows can merge or disappear under a selection (a bulk finish change
+  // re-keys them), so only ids still in the list count as selected.
+  const selectedIds = entries.filter((e) => selected.has(e.id)).map((e) => e.id);
+  const selectedCount = entries.filter((e) => selected.has(e.id)).reduce((n, e) => n + e.qty, 0);
+
+  const toggle = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const leaveSelect = () => {
+    setMode('list');
+    setSelected(new Set());
+  };
+
+  const clearAll = async () => {
     const ok = await confirm({
-      title: 'Clear scanned cards?',
-      body: `This removes all ${totalCount} scanned ${
-        totalCount === 1 ? 'card' : 'cards'
-      } from this scanning session. They won't be added to your collection.`,
-      confirmLabel: 'Clear all',
+      title: `Clear ${countLabel(totalCount)}?`,
+      body: "They haven't been added to your collection yet, so this removes them for good.",
+      confirmLabel: 'Clear',
+      cancelLabel: 'Keep them',
       danger: true,
+      backdropClassName: 'modal-backdrop--over-sheet',
     });
     if (ok) onClearAll();
-  }, [confirm, onClearAll, totalCount]);
+  };
 
-  // In-sheet Scryfall search ("add a card you don't have in hand"). Debounced,
-  // tap-to-add; mirrors the collection's AddCardSearchPanel but routes adds
-  // into the scan queue instead of straight to the collection.
-  const [query, setQuery] = useState('');
-  // Printing ids added this session — flips the row's + to a ✓ so the user
-  // sees the tap registered without the result list reshuffling.
-  const [addedIds, setAddedIds] = useState<Set<string>>(() => new Set());
+  const removeSelected = async () => {
+    const ok = await confirm({
+      title: `Remove ${countLabel(selectedCount)}?`,
+      body: "They haven't been added to your collection yet, so this removes them for good.",
+      confirmLabel: 'Remove',
+      cancelLabel: 'Keep them',
+      danger: true,
+      backdropClassName: 'modal-backdrop--over-sheet',
+    });
+    if (!ok) return;
+    onRemove(selectedIds);
+    leaveSelect();
+  };
 
-  const { results, loading: searching, error: searchError } = useSearchCards(query, 40);
-
-  const handleAddFromSearch = useCallback(
-    (card: ScryfallCard) => {
-      onAddCard(card);
-      setAddedIds((prev) => new Set(prev).add(card.id));
-    },
-    [onAddCard]
-  );
-
-  // Only one printing-picker open at a time — phones can't usefully render
-  // two side-by-side. The id is the entry id (printing id + finish).
-  const [openPickerFor, setOpenPickerFor] = useState<string | null>(null);
-
-  // Printings cache scoped to this sheet instance. A re-mount (sheet closed
-  // and re-opened) drops it, but a single session of editing the queue
-  // never re-fetches the same card's prints. Kept in state (not a ref)
-  // so React re-renders the row when the fetch resolves.
-  const [printsCache, setPrintsCache] = useState<Map<string, ScryfallCard[]>>(() => new Map());
-  const [loadingPrintsFor, setLoadingPrintsFor] = useState<string | null>(null);
-
-  const togglePicker = useCallback(
-    async (entry: ScannedEntry) => {
-      setOpenPickerFor((current) => (current === entry.id ? null : entry.id));
-      const key = printingsKey(entry.card);
-      if (!printsCache.has(key)) {
-        setLoadingPrintsFor(entry.id);
-        try {
-          // Scope to the scanned card's set — a scanned physical card's printing
-          // lives in the set it matched, and unscoped basic lands return ~800
-          // printings (multi-MB, unrenderable on a phone).
-          const prints = await fetchPrintings(entry.card.name, entry.card.set);
-          setPrintsCache((prev) => new Map(prev).set(key, prints));
-        } catch (err) {
-          logger.warn('[scanner-queue] could not fetch printings:', err);
-        } finally {
-          setLoadingPrintsFor((current) => (current === entry.id ? null : current));
-        }
-      }
-    },
-    [printsCache]
-  );
-
-  // Auto-expand a row's printing picker on mount when the caller asked for it
-  // (the panel's set·# tap). One-shot, guarded so the later printsCache update
-  // it triggers doesn't reopen a picker the user has since closed.
-  const didInitPicker = useRef(false);
-  useEffect(() => {
-    if (didInitPicker.current || !initialPickerFor) return;
-    const entry = entries.find((e) => e.id === initialPickerFor);
-    if (!entry) return;
-    didInitPicker.current = true;
-    // Defer to a microtask so the open+fetch doesn't run as a synchronous
-    // setState inside the effect body (react-hooks/set-state-in-effect).
-    void Promise.resolve().then(() => togglePicker(entry));
-  }, [initialPickerFor, entries, togglePicker]);
-
-  // Escape closes the sheet.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (openPickerFor) setOpenPickerFor(null);
-      else if (query) setQuery('');
-      else beginClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [beginClose, openPickerFor, query]);
+  const title =
+    mode === 'select'
+      ? `${countLabel(selectedCount)} selected`
+      : totalCount > 0
+        ? `${countLabel(totalCount)} scanned`
+        : 'Scanned cards';
 
   return (
-    <div className="scanner-sheet" role="dialog" aria-modal="true" aria-label="Scanned cards">
-      <div
-        className={`scanner-sheet-backdrop${isClosing ? ' is-closing' : ''}`}
-        onClick={() => beginClose()}
-        aria-hidden="true"
-      />
-      <div
-        className={`scanner-sheet-panel${isClosing ? ' is-closing' : ''}`}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <header className="scanner-sheet-header">
-          <div className="scanner-sheet-title">
-            <span>Scanned cards</span>
-            <span className="scanner-sheet-count">{totalCount}</span>
-          </div>
-          <button
-            type="button"
-            className="scanner-icon-btn"
-            onClick={() => beginClose()}
-            aria-label="Close scanned cards"
-          >
-            <X width={18} height={18} strokeWidth={1.8} />
-          </button>
-        </header>
+    <Modal
+      onClose={onClose}
+      className="modal scanner-list-sheet"
+      backdropClassName={SCANNER_SHEET_BACKDROP}
+      labelledBy="scanner-list-title"
+    >
+      <div className="modal-header scanner-sheet-head">
+        <div className="scanner-sheet-heading">
+          <h2 id="scanner-list-title">{title}</h2>
+          {mode !== 'select' && totalCount > 0 && (
+            <span className="scanner-sheet-sub">{formatMoney(totalPrice)} total</span>
+          )}
+          {mode === 'select' && <span className="scanner-sheet-sub">Tap cards to select them</span>}
+        </div>
+        {mode === 'select' ? (
+          <Button onClick={leaveSelect}>Done</Button>
+        ) : (
+          <>
+            {totalCount > 0 && (
+              <OverflowMenu
+                ariaLabel="More list actions"
+                items={[
+                  { label: 'Select cards', icon: ListChecks, onClick: () => setMode('select') },
+                  sort === 'newest'
+                    ? {
+                        label: 'Sort by price',
+                        icon: ArrowDownWideNarrow,
+                        onClick: () => setSort('price'),
+                      }
+                    : { label: 'Sort by newest', icon: Clock, onClick: () => setSort('newest') },
+                  {
+                    label: 'Clear the list',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => void clearAll(),
+                  },
+                ]}
+              />
+            )}
+            <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+              ×
+            </button>
+          </>
+        )}
+      </div>
 
-        <div className="scanner-search">
-          {/* inputType="text" (not search): the Android WebView paints the
-              native search control with an opaque white background that ignores
-              author `background` + `appearance`, resolving its color-scheme from
-              <html> (a light theme) rather than our dark scanner island. A plain
-              text input honors the transparent background. The .scanner-search-pill
-              class re-skins the shared SearchPill dark to match the overlay. */}
-          <SearchPill
-            className="scanner-search-pill"
-            inputType="text"
-            placeholder="Search Scryfall"
-            value={query}
-            onChange={setQuery}
-            ariaLabel="Search Scryfall to add a card"
-            inputProps={{
-              inputMode: 'search',
-              enterKeyHint: 'search',
-              autoCapitalize: 'none',
-              autoCorrect: 'off',
-              spellCheck: false,
-            }}
-          />
-          {query.trim().length >= 2 && (
-            <div className="scanner-search-results">
-              {searching && <div className="scanner-search-status">Searching…</div>}
-              {searchError && (
-                <div className="scanner-search-status scanner-search-error">{searchError}</div>
-              )}
-              {!searching && !searchError && results.length === 0 && (
-                <div className="scanner-search-status">No matches.</div>
-              )}
-              {results.map((c) => {
-                const img = c.image_uris?.small || c.card_faces?.[0]?.image_uris?.small;
-                const added = addedIds.has(c.id);
-                const usd = c.prices?.usd
-                  ? ` · ${formatMoney(Number.parseFloat(c.prices.usd))}`
-                  : '';
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="scanner-search-result"
-                    onClick={() => handleAddFromSearch(c)}
-                    aria-label={`Add ${c.name}`}
-                  >
-                    <div className="scanner-search-thumb">
-                      {img ? <img src={img} alt="" loading="lazy" /> : null}
-                    </div>
-                    <div className="scanner-search-result-body">
-                      <div className="scanner-search-result-name">{c.name}</div>
-                      <div className="scanner-search-result-meta">
-                        {c.set.toUpperCase()} · {c.collector_number ?? '—'}
-                        {usd}
-                      </div>
-                    </div>
-                    <span className={`scanner-search-add${added ? ' added' : ''}`} aria-hidden>
-                      {added ? (
-                        <Check width={14} height={14} strokeWidth={2.5} />
-                      ) : (
-                        <Plus width={14} height={14} strokeWidth={2.5} />
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
+      {mode === 'search' ? (
+        <AddByName onAddCard={onAddCard} onDone={() => setMode('list')} />
+      ) : (
+        <>
+          {mode === 'list' && totalCount > 0 && (
+            <div className="scanner-sheet-tools">
+              <SearchPill
+                className="scanner-sheet-filter"
+                inputType="text"
+                placeholder="Filter cards"
+                value={filter}
+                onChange={setFilter}
+                ariaLabel="Filter scanned cards"
+              />
+              <Button
+                icon={<Plus width={14} height={14} strokeWidth={2} />}
+                onClick={() => setMode('search')}
+              >
+                Add by name
+              </Button>
             </div>
           )}
-        </div>
 
-        {entries.length === 0 ? (
-          <div className="scanner-sheet-empty">
-            Nothing scanned yet. Hold a card up to the camera, or search above to add one.
+          <div className="modal-body scanner-sheet-body">
+            {totalCount === 0 ? (
+              <div className="scanner-sheet-empty">
+                <Camera width={32} height={32} strokeWidth={1.6} aria-hidden />
+                <p className="scanner-sheet-empty-title">No cards scanned yet</p>
+                <p className="scanner-sheet-empty-hint">
+                  Point the camera at a card. Each one you scan lands here.
+                </p>
+                <Button
+                  icon={<Plus width={14} height={14} strokeWidth={2} />}
+                  onClick={() => setMode('search')}
+                >
+                  Add by name
+                </Button>
+              </div>
+            ) : rows.length === 0 ? (
+              <p className="scanner-sheet-none">No scanned cards match “{filter.trim()}”.</p>
+            ) : (
+              <ul className="scan-rows">
+                {rows.map((e) => (
+                  <ScanRow
+                    key={e.id}
+                    entry={e}
+                    selecting={mode === 'select'}
+                    selected={selected.has(e.id)}
+                    onToggle={() => toggle(e.id)}
+                    onEdit={() => onEdit(e.id)}
+                    onRemove={() => onRemove([e.id])}
+                  />
+                ))}
+              </ul>
+            )}
           </div>
+
+          <div className="modal-footer scanner-sheet-foot">
+            {mode === 'select' ? (
+              <>
+                <Button
+                  className="scanner-danger-btn"
+                  icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
+                  disabled={selectedIds.length === 0}
+                  onClick={() => void removeSelected()}
+                >
+                  Remove
+                </Button>
+                <Button
+                  icon={<Pencil width={14} height={14} strokeWidth={1.8} />}
+                  disabled={selectedIds.length === 0}
+                  onClick={() => setBulkEditOpen(true)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="primary"
+                  className="scanner-sheet-add"
+                  icon={<Plus width={14} height={14} strokeWidth={2} />}
+                  disabled={selectedIds.length === 0}
+                  onClick={() => onConfirm(selectedIds)}
+                >
+                  Add {countLabel(selectedCount)}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button onClick={onClose}>Keep scanning</Button>
+                <Button
+                  variant="primary"
+                  className="scanner-sheet-add"
+                  icon={<Plus width={14} height={14} strokeWidth={2} />}
+                  disabled={totalCount === 0}
+                  onClick={() => onConfirm()}
+                >
+                  {totalCount > 0 ? `Add ${countLabel(totalCount)}` : 'Add cards'}
+                </Button>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {bulkEditOpen && (
+        <BulkEdit
+          count={selectedCount}
+          onFinish={(f) => onChangeFinish(selectedIds, f)}
+          onCondition={(c) => onChangeCondition(selectedIds, c)}
+          onClose={() => setBulkEditOpen(false)}
+        />
+      )}
+      {confirmDialog}
+    </Modal>
+  );
+}
+
+function ScanRow({
+  entry,
+  selecting,
+  selected,
+  onToggle,
+  onEdit,
+  onRemove,
+}: {
+  entry: ScannedEntry;
+  selecting: boolean;
+  selected: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const { card } = entry;
+  const img = card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal;
+  const unit = unitPrice(entry);
+  const condition = entry.condition ?? 'nm';
+  const body = (
+    <>
+      <span className="scan-row-thumb">
+        {img ? <img src={img} alt="" loading="lazy" /> : <span>{card.name}</span>}
+        {selecting && (
+          <span className={`scan-row-check${selected ? ' is-on' : ''}`} aria-hidden>
+            {selected && <Check width={16} height={16} strokeWidth={3} />}
+          </span>
+        )}
+      </span>
+      <span className="scan-row-body">
+        <span className="scan-row-name">
+          <span className="scan-row-qty">{entry.qty}×</span> {card.name}
+        </span>
+        <span className="scan-row-meta">
+          {card.set_name} · #{card.collector_number ?? '—'}
+        </span>
+        <span className="scan-row-tags">
+          <span className={`scan-row-tag finish-${entry.finish}`}>
+            {FINISH_LABELS[entry.finish]}
+          </span>
+          <span className="scan-row-tag" title={conditionLabel(condition)}>
+            {conditionShort(condition)}
+          </span>
+        </span>
+        {entry.addedAt ? (
+          <span className="scan-row-meta">{capitalize(formatRelativeTime(entry.addedAt))}</span>
+        ) : null}
+      </span>
+      <span className="scan-row-price">{unit != null ? formatMoney(unit * entry.qty) : '—'}</span>
+    </>
+  );
+
+  if (selecting) {
+    // Picking rows out of a list is a checkbox's job (STYLE_GUIDE § Config
+    // surfaces). The whole row is its label.
+    return (
+      <li className={`scan-row${selected ? ' is-selected' : ''}`}>
+        <label className="scan-row-main">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            className="scan-row-input"
+          />
+          {body}
+        </label>
+      </li>
+    );
+  }
+
+  return (
+    <li className="scan-row">
+      <button
+        type="button"
+        className="scan-row-main"
+        onClick={onEdit}
+        aria-label={`Edit ${entry.qty} ${card.name}, ${card.set_name}`}
+      >
+        {body}
+        <Pencil className="scan-row-pencil" width={16} height={16} strokeWidth={1.8} aria-hidden />
+      </button>
+      <IconButton
+        className="scan-row-remove"
+        label={`Remove ${card.name}`}
+        title={false}
+        icon={<Trash2 width={17} height={17} strokeWidth={1.8} />}
+        onClick={onRemove}
+      />
+    </li>
+  );
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** For a card the camera won't read: search every card by name, tap to add.
+ *  Replaces the list while it's open, then Done goes back. */
+function AddByName({
+  onAddCard,
+  onDone,
+}: {
+  onAddCard: (card: ScryfallCard) => void;
+  onDone: () => void;
+}) {
+  const [query, setQuery] = useState('');
+  // Printing ids added while the search is open: flips the row's + to a ✓ so
+  // the tap registers without the results reshuffling.
+  const [added, setAdded] = useState<Set<string>>(() => new Set());
+  const { results, loading, error } = useSearchCards(query, 40);
+  const searching = query.trim().length >= 2;
+
+  return (
+    <>
+      <div className="scanner-sheet-tools">
+        {/* inputType="text", not "search": Android paints a native search
+            field with an opaque background that ignores author styles. */}
+        <SearchPill
+          className="scanner-sheet-filter"
+          inputType="text"
+          placeholder="Search all cards"
+          value={query}
+          onChange={setQuery}
+          ariaLabel="Search all cards to add one"
+          inputProps={{
+            autoFocus: true,
+            inputMode: 'search',
+            enterKeyHint: 'search',
+            autoCapitalize: 'none',
+            autoCorrect: 'off',
+            spellCheck: false,
+          }}
+        />
+      </div>
+      <div className="modal-body scanner-sheet-body">
+        {!searching ? (
+          <p className="scanner-sheet-none">Type a card name to find it.</p>
+        ) : loading && results.length === 0 ? (
+          <p className="scanner-sheet-none">Searching…</p>
+        ) : error ? (
+          <p className="scanner-sheet-none" role="alert">
+            {error}
+          </p>
+        ) : results.length === 0 ? (
+          <p className="scanner-sheet-none">No cards match “{query.trim()}”.</p>
         ) : (
-          <ul className="scanner-sheet-list">
-            {entries.map((entry) => {
-              const img =
-                entry.card.image_uris?.small || entry.card.card_faces?.[0]?.image_uris?.small;
-              const isOpen = openPickerFor === entry.id;
-              const isLoading = loadingPrintsFor === entry.id;
-              const prints = printsCache.get(printingsKey(entry.card));
-              const finishes = availableFinishes(entry.card.finishes);
-              const unit = finishUnitPrice(entry.card.prices, entry.finish);
-              const condition = entry.condition ?? 'nm';
+          <ul className="scan-results">
+            {results.map((c) => {
+              const img = c.image_uris?.small || c.card_faces?.[0]?.image_uris?.small;
+              const isAdded = added.has(c.id);
+              const usd = c.prices?.usd ? formatMoney(Number.parseFloat(c.prices.usd)) : null;
               return (
-                <li key={entry.id} className="scanner-sheet-row" title={entry.rawText}>
-                  <div className="scanner-sheet-row-main">
-                    <div className="scanner-sheet-thumb">
-                      {img ? (
-                        <img src={img} alt="" loading="lazy" />
+                <li key={c.id} className="scan-result">
+                  <span className="scan-result-thumb">
+                    {img ? <img src={img} alt="" loading="lazy" /> : null}
+                  </span>
+                  <span className="scan-result-body">
+                    <span className="scan-row-name">{c.name}</span>
+                    <span className="scan-row-meta">
+                      {c.set_name} · #{c.collector_number ?? '—'}
+                    </span>
+                  </span>
+                  {usd && <span className="scan-result-price">{usd}</span>}
+                  <Button
+                    className={isAdded ? 'scan-result-add is-added' : 'scan-result-add'}
+                    icon={
+                      isAdded ? (
+                        <Check width={14} height={14} strokeWidth={2.5} />
                       ) : (
-                        <div className="scanner-sheet-thumb-fallback">{entry.card.name}</div>
-                      )}
-                    </div>
-                    <div className="scanner-sheet-row-body">
-                      <div className="scanner-sheet-row-name-line">
-                        <span className="scanner-sheet-row-name">{entry.card.name}</span>
-                        {unit != null ? (
-                          <span className="scanner-sheet-row-price">{formatMoney(unit)}</span>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        className={`scanner-sheet-printing-btn${isOpen ? ' open' : ''}`}
-                        onClick={() => void togglePicker(entry)}
-                        aria-expanded={isOpen}
-                        aria-label={`Change printing of ${entry.card.name}`}
-                      >
-                        <span className="scanner-sheet-printing-label">
-                          <span className="scanner-sheet-printing-code">
-                            {entry.card.set.toUpperCase()} · {entry.card.collector_number ?? '—'}
-                          </span>
-                          <span className="scanner-sheet-printing-setname">
-                            {entry.card.set_name}
-                          </span>
-                        </span>
-                        <ChevronDown
-                          className="scanner-sheet-printing-chevron"
-                          width={16}
-                          height={16}
-                          strokeWidth={2}
-                        />
-                      </button>
-                      <div className="scanner-sheet-row-controls">
-                        <div className="scanner-qty">
-                          <button
-                            type="button"
-                            className="scanner-qty-btn"
-                            onClick={() => onChangeQty(entry.id, -1)}
-                            disabled={entry.qty <= 1}
-                            aria-label={`Decrease quantity of ${entry.card.name}`}
-                          >
-                            <Minus width={14} height={14} strokeWidth={2} />
-                          </button>
-                          <span className="scanner-qty-value" aria-live="polite">
-                            {entry.qty}
-                          </span>
-                          <button
-                            type="button"
-                            className="scanner-qty-btn"
-                            onClick={() => onChangeQty(entry.id, 1)}
-                            aria-label={`Increase quantity of ${entry.card.name}`}
-                          >
-                            <Plus width={14} height={14} strokeWidth={2} />
-                          </button>
-                        </div>
-                        {finishes.length > 1 && (
-                          <button
-                            type="button"
-                            className={`scanner-finish-toggle finish-${entry.finish}`}
-                            onClick={() =>
-                              onChangeFinish(entry.id, nextFinish(entry.finish, finishes))
-                            }
-                            aria-label={`Finish of ${entry.card.name}: ${
-                              FINISH_LABELS[entry.finish]
-                            }. Tap to change.`}
-                          >
-                            {FINISH_LABELS[entry.finish]}
-                          </button>
-                        )}
-                        {/* No availability gate (unlike finish above): every
-                            physical card can be any condition regardless of
-                            printing, so this always renders — see
-                            STYLE_GUIDE "Editable toggles show their state,
-                            always". */}
-                        <button
-                          type="button"
-                          className="scanner-condition-toggle"
-                          onClick={() => onChangeCondition(entry.id, nextCondition(condition))}
-                          aria-label={`Condition of ${entry.card.name}: ${conditionLabel(
-                            condition
-                          )}. Tap to change.`}
-                        >
-                          {conditionShort(condition)}
-                        </button>
-                        <button
-                          type="button"
-                          className="scanner-icon-btn scanner-sheet-remove"
-                          onClick={() => onRemove(entry.id)}
-                          aria-label={`Remove ${entry.card.name}`}
-                        >
-                          <Trash2 width={14} height={14} strokeWidth={2} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  {isOpen && (
-                    <div className="scanner-printing-picker">
-                      {isLoading && !prints ? (
-                        <div className="scanner-printing-loading">Loading printings…</div>
-                      ) : prints && prints.length > 0 ? (
-                        <ul className="scanner-printing-list">
-                          {prints.map((print) => {
-                            const printImg =
-                              print.image_uris?.normal ||
-                              print.image_uris?.small ||
-                              print.card_faces?.[0]?.image_uris?.normal ||
-                              print.card_faces?.[0]?.image_uris?.small;
-                            const selected =
-                              print.set === entry.card.set &&
-                              print.collector_number === entry.card.collector_number;
-                            return (
-                              <li key={print.id}>
-                                <button
-                                  type="button"
-                                  className={`scanner-printing-item${selected ? ' selected' : ''}`}
-                                  onClick={() => {
-                                    onChangePrinting(entry.id, print);
-                                    setOpenPickerFor(null);
-                                  }}
-                                  aria-label={`Use ${print.set_name} #${print.collector_number ?? '—'}`}
-                                  aria-pressed={selected}
-                                >
-                                  <div className="scanner-printing-thumb">
-                                    {printImg ? (
-                                      <img src={printImg} alt="" loading="lazy" />
-                                    ) : (
-                                      <div className="scanner-printing-thumb-fallback">
-                                        {print.set.toUpperCase()}
-                                      </div>
-                                    )}
-                                    {selected ? (
-                                      <span className="scanner-printing-check" aria-hidden>
-                                        <Check width={13} height={13} strokeWidth={3} />
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <span className="scanner-printing-cn">
-                                    #{print.collector_number ?? '—'}
-                                  </span>
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : (
-                        <div className="scanner-printing-loading">No other printings.</div>
-                      )}
-                    </div>
-                  )}
+                        <Plus width={14} height={14} strokeWidth={2} />
+                      )
+                    }
+                    onClick={() => {
+                      onAddCard(c);
+                      setAdded((prev) => new Set(prev).add(c.id));
+                    }}
+                    aria-label={`Add ${c.name}, ${c.set_name}`}
+                  >
+                    {isAdded ? 'Added' : 'Add'}
+                  </Button>
                 </li>
               );
             })}
           </ul>
         )}
-
-        {entries.length > 0 && (
-          <footer className="scanner-sheet-footer">
-            <button type="button" className="btn" onClick={() => void handleClearAll()}>
-              <Trash2 width={14} height={14} strokeWidth={1.8} />
-              <span>Clear all</span>
-            </button>
-            <button type="button" className="btn" onClick={() => beginClose()}>
-              Continue scanning
-            </button>
-            <button type="button" className="btn btn-primary" onClick={onConfirm}>
-              Add {totalCount} card{totalCount === 1 ? '' : 's'}
-            </button>
-          </footer>
-        )}
       </div>
-      {confirmDialog}
-    </div>
+      <div className="modal-footer scanner-sheet-foot">
+        <Button variant="primary" className="scanner-sheet-add" onClick={onDone}>
+          Done
+        </Button>
+      </div>
+    </>
+  );
+}
+
+/** Edit several rows at once from select mode. Each tap applies at once;
+ *  there's nothing to save. Finish clamps per card to what its printing has. */
+function BulkEdit({
+  count,
+  onFinish,
+  onCondition,
+  onClose,
+}: {
+  count: number;
+  onFinish: (finish: Finish) => void;
+  onCondition: (condition: Condition) => void;
+  onClose: () => void;
+}) {
+  const [finish, setFinish] = useState<Finish | ''>('');
+  const [condition, setCondition] = useState<Condition | ''>('');
+  return (
+    <Modal
+      onClose={onClose}
+      className="modal scanner-edit-sheet"
+      backdropClassName={SCANNER_SHEET_BACKDROP}
+      labelledBy="scanner-bulk-title"
+    >
+      <div className="modal-header scanner-sheet-head">
+        <div className="scanner-sheet-heading">
+          <h2 id="scanner-bulk-title">Edit {countLabel(count)}</h2>
+          <span className="scanner-sheet-sub">Changes apply to every selected card</span>
+        </div>
+        <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className="modal-body scanner-edit-body">
+        <div className="scanner-edit-field">
+          <span className="form-field-label">Finish</span>
+          <SegmentedControl<Finish | ''>
+            ariaLabel="Finish for the selected cards"
+            value={finish}
+            options={[
+              { value: 'nonfoil', label: 'Normal' },
+              { value: 'foil', label: 'Foil' },
+            ]}
+            onChange={(f) => {
+              if (!f) return;
+              setFinish(f);
+              onFinish(f);
+            }}
+          />
+          <p className="form-field-hint">A card with no foil printing stays Normal.</p>
+        </div>
+        <div className="scanner-edit-field">
+          <span className="form-field-label">Condition</span>
+          <SelectMenu<string>
+            ariaLabel="Condition for the selected cards"
+            value={condition}
+            placeholder="Choose a condition"
+            options={CONDITIONS.map((c) => ({ value: c, label: conditionLabel(c) }))}
+            onChange={(c) => {
+              setCondition(c as Condition);
+              onCondition(c as Condition);
+            }}
+          />
+        </div>
+      </div>
+      <div className="modal-footer scanner-sheet-foot">
+        <Button
+          variant="primary"
+          className="scanner-sheet-add"
+          icon={<CheckSquare width={14} height={14} strokeWidth={1.8} />}
+          onClick={onClose}
+        >
+          Done
+        </Button>
+      </div>
+    </Modal>
   );
 }

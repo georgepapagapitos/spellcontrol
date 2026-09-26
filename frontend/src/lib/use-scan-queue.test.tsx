@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { entryKey, useScanQueue, useScanQueueStore } from './use-scan-queue';
+import { entryKey, rekeyedId, useScanQueue, useScanQueueStore } from './use-scan-queue';
+import { useScannerSettings } from './scanner-settings';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 // The queue is now a persisted module-singleton store; reset it (and its
@@ -9,6 +10,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 beforeEach(() => {
   localStorage.clear();
   useScanQueueStore.setState({ queue: [] });
+  useScannerSettings.setState({ defaultFinish: 'nonfoil', defaultCondition: 'nm' });
 });
 
 // Row identity is printing id + finish; scans land as nonfoil.
@@ -594,5 +596,119 @@ describe('useScanQueue', () => {
       expect(result.current.changeFinish).toBe(first.changeFinish);
       expect(result.current.changeCondition).toBe(first.changeCondition);
     });
+  });
+});
+
+describe('scanner settings defaults', () => {
+  it('lands a new scan as the default finish when the printing has it', () => {
+    useScannerSettings.setState({ defaultFinish: 'foil' });
+    const { result } = renderHook(() => useScanQueue());
+    act(() => {
+      result.current.addScan(makeCard({ finishes: ['nonfoil', 'foil'] }));
+    });
+    expect(result.current.queue[0].id).toBe(entryKey('print-1', 'foil'));
+    expect(result.current.queue[0].finish).toBe('foil');
+  });
+
+  it('falls back to a finish the printing has when the default is foil and it has none', () => {
+    useScannerSettings.setState({ defaultFinish: 'foil' });
+    const { result } = renderHook(() => useScanQueue());
+    act(() => {
+      result.current.addScan(makeCard({ finishes: ['nonfoil'] }));
+    });
+    expect(result.current.queue[0].finish).toBe('nonfoil');
+  });
+
+  it('lands a new scan in the default condition, and a repeat keeps the row as edited', () => {
+    useScannerSettings.setState({ defaultCondition: 'lp' });
+    const { result } = renderHook(() => useScanQueue());
+    act(() => {
+      result.current.addScan(makeCard());
+    });
+    expect(result.current.queue[0].condition).toBe('lp');
+    act(() => {
+      result.current.changeCondition(NONFOIL_1, 'hp');
+      result.current.addScan(makeCard(), true);
+    });
+    expect(result.current.queue[0]).toMatchObject({ qty: 2, condition: 'hp' });
+  });
+
+  it('stores Near Mint as absent, the unmarked default', () => {
+    const { result } = renderHook(() => useScanQueue());
+    act(() => {
+      result.current.addScan(makeCard());
+      result.current.changeCondition(NONFOIL_1, 'lp');
+      result.current.changeCondition(NONFOIL_1, 'nm');
+    });
+    expect(result.current.queue[0].condition).toBeUndefined();
+  });
+});
+
+describe('addedAt', () => {
+  it('stamps a new row and bumps it on a repeat scan, so the stack rises to the top', () => {
+    const { result } = renderHook(() => useScanQueue());
+    act(() => {
+      result.current.addScan(makeCard());
+    });
+    const first = result.current.queue[0].addedAt ?? 0;
+    expect(first).toBeGreaterThan(0);
+    const later = first + 5000;
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(later);
+    act(() => {
+      result.current.addScan(makeCard(), true);
+    });
+    spy.mockRestore();
+    expect(result.current.queue[0].addedAt).toBe(later);
+  });
+});
+
+describe('several rows at once (select mode)', () => {
+  const other = makeCard({
+    id: 'print-2',
+    oracle_id: 'oracle-2',
+    name: 'Arcane Signet',
+    finishes: ['nonfoil', 'foil'],
+  });
+
+  function withTwoRows() {
+    const hook = renderHook(() => useScanQueue());
+    act(() => {
+      hook.result.current.addManual(makeCard({ finishes: ['nonfoil'] }));
+      hook.result.current.addManual(other);
+    });
+    return hook;
+  }
+
+  it('removes several rows', () => {
+    const { result } = withTwoRows();
+    act(() => {
+      result.current.removeFromQueue([NONFOIL_1, entryKey('print-2', 'nonfoil')]);
+    });
+    expect(result.current.queue).toEqual([]);
+  });
+
+  it('sets one condition on several rows', () => {
+    const { result } = withTwoRows();
+    act(() => {
+      result.current.changeCondition([NONFOIL_1, entryKey('print-2', 'nonfoil')], 'mp');
+    });
+    expect(result.current.queue.map((e) => e.condition)).toEqual(['mp', 'mp']);
+  });
+
+  it('sets one finish on several rows, clamping each to its printing', () => {
+    const { result } = withTwoRows();
+    act(() => {
+      result.current.changeFinish([NONFOIL_1, entryKey('print-2', 'nonfoil')], 'foil');
+    });
+    expect(result.current.queue.map((e) => e.id)).toEqual([NONFOIL_1, entryKey('print-2', 'foil')]);
+  });
+});
+
+describe('rekeyedId', () => {
+  it('names the row a finish change lands in, clamped like the store clamps it', () => {
+    expect(rekeyedId(makeCard({ finishes: ['nonfoil', 'foil'] }), 'foil')).toBe(
+      entryKey('print-1', 'foil')
+    );
+    expect(rekeyedId(makeCard({ finishes: ['nonfoil'] }), 'foil')).toBe(NONFOIL_1);
   });
 });
