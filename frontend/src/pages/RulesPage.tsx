@@ -29,6 +29,7 @@ import './RulesPage.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 /** Fill-the-box starters — tapping one spends nothing (never auto-ask). */
 const SAMPLE_QUESTIONS = [
   'Does deathtouch destroy a creature with indestructible?',
@@ -558,9 +559,8 @@ function AnswerBody({
       if (run.ref) {
         const ref = run.ref;
         return [
-          <button
+          <Chip
             key={`r-${i}`}
-            type="button"
             className="rules-ref-chip"
             aria-expanded={expanded.has(ref)}
             aria-controls={citeId(ref)}
@@ -570,20 +570,19 @@ function AnswerBody({
             }}
           >
             {run.text}
-          </button>,
+          </Chip>,
         ];
       }
       return tokenizeCardNames(run.text, cardNames).map((t, j) =>
         t.card ? (
-          <button
+          <Chip
             key={`c-${i}-${j}`}
-            type="button"
             className="deck-ai-card-chip"
             onClick={() => void carousel.open(entries, t.card!)}
             aria-label={`Preview ${t.card}`}
           >
             {t.text}
-          </button>
+          </Chip>
         ) : (
           <span key={`t-${i}-${j}`}>{t.text}</span>
         )

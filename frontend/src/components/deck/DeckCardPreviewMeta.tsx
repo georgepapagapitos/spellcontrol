@@ -8,6 +8,7 @@ import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
 import { withTagAdded, withTagRemoved } from '@/lib/deck-tags';
 import './DeckCardPreviewMeta.css';
 import { IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 interface Props {
   /** The card whose deck-context this block describes. Role decoding reads
@@ -183,7 +184,7 @@ export function DeckCardPreviewMeta({
 
           <div className="deck-card-preview-meta-tags-chips">
             {tagList.map((t) => (
-              <span key={t} className="deck-card-preview-meta-tag-chip">
+              <Chip key={t} className="deck-card-preview-meta-tag-chip">
                 {t}
                 {onSetTags && (
                   <IconButton
@@ -193,7 +194,7 @@ export function DeckCardPreviewMeta({
                     icon={<X width={11} height={11} strokeWidth={2.6} />}
                   />
                 )}
-              </span>
+              </Chip>
             ))}
 
             {tagList.length === 0 && !onSetTags && (

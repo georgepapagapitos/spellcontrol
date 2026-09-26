@@ -65,6 +65,7 @@ import { HORDE_CATALOG, type HordeLevel, type HordeSettings } from '@/lib/horde'
 import { useHordeGameStore, type HordeSurvivor } from '../store/horde-game';
 import { coopResultLabel } from '../lib/horde-records';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 type Tab = 'home' | 'local' | 'online' | 'nights' | 'history';
 const TABS: ReadonlySet<string> = new Set(['home', 'local', 'online', 'nights', 'history']);
 
@@ -1058,15 +1059,14 @@ function LocalSetup({
               <ul className="play-setup-counter-chips" aria-labelledby="setup-counters-label">
                 {counters.map((name) => (
                   <li key={name}>
-                    <button
-                      type="button"
+                    <Chip
                       className="play-setup-counter-chip"
                       aria-label={`Remove ${name}`}
                       onClick={() => setCounters((prev) => prev.filter((c) => c !== name))}
+                      trailing={<span aria-hidden="true">✕</span>}
                     >
                       {name}
-                      <span aria-hidden="true">✕</span>
-                    </button>
+                    </Chip>
                   </li>
                 ))}
               </ul>

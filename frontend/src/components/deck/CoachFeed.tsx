@@ -48,6 +48,7 @@ import type {
   NextBestMoveFocus,
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import type { DeckView } from './DeckDisplay';
+import { Chip } from '@/components/shared/Chip';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -807,21 +808,21 @@ export function CoachFeed({
                   if (f !== 'all' && total === 0) return null;
                   const ownedEmpty = f !== 'all' && shown === 0 && total > 0;
                   return (
-                    <button
+                    <Chip
                       key={f}
-                      type="button"
                       className={
                         'coach-feed-filter-chip' +
                         (ownedEmpty ? ' coach-feed-filter-chip--owned-empty' : '')
                       }
-                      aria-pressed={activeFilter === f}
+                      pressed={activeFilter === f}
                       onClick={() => setActiveFilter(f)}
+                      trailing={
+                        shown > 0 &&
+                        f !== 'all' && <span className="coach-feed-chip-count">{shown}</span>
+                      }
                     >
                       {FILTER_LABELS[f]}
-                      {shown > 0 && f !== 'all' && (
-                        <span className="coach-feed-chip-count">{shown}</span>
-                      )}
-                    </button>
+                    </Chip>
                   );
                 })}
                 {/* E64: spicy-pick discoverability. A cross-lane toggle, not
@@ -831,16 +832,15 @@ export function CoachFeed({
                   picks at all (insight-surface "zero visible → render
                   nothing" rule), same as every other zero-count chip here. */}
                 {offMetaCount > 0 && (
-                  <button
-                    type="button"
+                  <Chip
                     className="coach-feed-filter-chip"
-                    aria-pressed={offMetaOnly}
+                    pressed={offMetaOnly}
                     aria-label={`Off-meta picks, ${offMetaCount}. Spicy, low-EDHREC-play picks for this lane.`}
                     onClick={() => setOffMetaOnly((v) => !v)}
+                    trailing={<span className="coach-feed-chip-count">{offMetaCount}</span>}
                   >
                     Off-meta
-                    <span className="coach-feed-chip-count">{offMetaCount}</span>
-                  </button>
+                  </Chip>
                 )}
                 <label className="coach-feed-owned-toggle">
                   <input

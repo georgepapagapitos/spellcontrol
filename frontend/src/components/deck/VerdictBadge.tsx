@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 import './VerdictBadge.css';
+import { Chip } from '@/components/shared/Chip';
 
 /**
  * The unified vocabulary for "what should I do with this card?" across the
@@ -66,9 +67,9 @@ export function VerdictBadge({
 
   return (
     <span className={`verdict-badge${className ? ` ${className}` : ''}`}>
-      <span className={`verdict-chip is-${resolvedTone}`} title={title}>
+      <Chip className={`verdict-chip is-${resolvedTone}`} title={title}>
         {word}
-      </span>
+      </Chip>
       {reason && <span className="verdict-reason">{reason}</span>}
     </span>
   );

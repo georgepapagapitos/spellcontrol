@@ -3,6 +3,7 @@ import type { GameEvent, GameState, GameSummary } from '../../lib/game-state';
 import { isKeyMoment, summarizeGame } from '../../lib/game-state';
 import { describeGameEvent } from '../../lib/game-event-text';
 import { paletteForSeat } from '../../lib/seat-palette';
+import { Chip } from '@/components/shared/Chip';
 
 interface Props {
   game: GameState;
@@ -74,13 +75,13 @@ function GameStats({ game, summary }: { game: GameState; summary: GameSummary })
       ) : (
         <>
           <div className="game-stats-chips">
-            {summary.turns > 0 && <span className="game-menu-chip">Turn {summary.turns}</span>}
+            {summary.turns > 0 && <Chip className="game-menu-chip">Turn {summary.turns}</Chip>}
             {summary.firstBlood && (
-              <span className="game-menu-chip">
+              <Chip className="game-menu-chip">
                 First blood: {seatName(summary.firstBlood.seat)}
                 {summary.firstBlood.bySeat != null && ` — ${seatName(summary.firstBlood.bySeat)}`}
                 {summary.firstBlood.turn != null && `, turn ${summary.firstBlood.turn}`}
-              </span>
+              </Chip>
             )}
           </div>
 

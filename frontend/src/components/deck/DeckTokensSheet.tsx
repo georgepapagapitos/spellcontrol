@@ -5,6 +5,7 @@ import { useEscapeKey } from '../../lib/use-escape-key';
 import type { DeckToken } from '@/lib/deck-tokens';
 import './DeckTokensSheet.css';
 import { IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 const tokenId = (t: DeckToken): string => `${t.name} ${t.typeLine ?? ''}`;
 
@@ -79,17 +80,18 @@ export function DeckTokensSheet({
                 const open = id === openId;
                 return (
                   <li key={id}>
-                    <button
-                      type="button"
+                    <Chip
                       className={`deck-tokens-chip${open ? ' deck-tokens-chip--open' : ''}`}
-                      aria-pressed={open}
+                      pressed={open}
                       onClick={() => setOpenId(open ? null : id)}
+                      labelClassName="deck-tokens-chip-name card-name-chip-text"
+                      labelTitle={t.name}
+                      trailing={
+                        <span className="deck-tokens-chip-count">×{t.producers.length}</span>
+                      }
                     >
-                      <span className="deck-tokens-chip-name card-name-chip-text" title={t.name}>
-                        {t.name}
-                      </span>
-                      <span className="deck-tokens-chip-count">×{t.producers.length}</span>
-                    </button>
+                      {t.name}
+                    </Chip>
                   </li>
                 );
               })}

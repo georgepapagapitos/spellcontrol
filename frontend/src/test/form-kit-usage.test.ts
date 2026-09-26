@@ -11,8 +11,8 @@
 // allowlisted one:
 //
 //   - `role="switch"` outside the kit (use SwitchRow)
-//   - `aria-pressed={a === b}`, the shape of an exclusive choice on toggle
-//     buttons (use SegmentedControl / ChoiceList)
+//   - `aria-pressed={a === b}` (or `pressed={a === b}` on a Chip), the shape
+//     of an exclusive choice on toggle buttons (use SegmentedControl / ChoiceList)
 //   - a native `<select>` (use SelectMenu)
 //
 // Every allowlist entry says why, and each is kept by a written STYLE_GUIDE
@@ -43,7 +43,8 @@ const stripComments = (source: string): string =>
 
 const PATTERNS = {
   switch: /role=["']switch["']/g,
-  pressedChoice: /aria-pressed=\{[^}]*===/g,
+  // `pressed` too: a Chip filter toggle is the same exclusive-choice shape.
+  pressedChoice: /(?:aria-)?pressed=\{[^}]*===/g,
   nativeSelect: /<select\b/g,
 } as const;
 type Pattern = keyof typeof PATTERNS;

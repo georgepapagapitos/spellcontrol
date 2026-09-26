@@ -137,6 +137,7 @@ import type { DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
 import { Button, buttonClass, IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 /** Deck ids whose completion moment already played this app-open — an edit
  *  that re-crosses the complete boundary doesn't re-celebrate (mirrors the
@@ -1907,16 +1908,15 @@ export function DeckDisplay({
                 aria-label="Role filter"
               >
                 {roleFilterEntries.map(([key, count]) => (
-                  <button
+                  <Chip
                     key={key}
-                    type="button"
                     className={`deck-role-bar-chip${activeRoleFilter === key ? ' is-active' : ''}`}
-                    aria-pressed={activeRoleFilter === key}
+                    pressed={activeRoleFilter === key}
                     onClick={() => setRoleFilter((cur) => (cur === key ? null : key))}
+                    trailing={<span className="deck-role-bar-count">{count}</span>}
                   >
                     {ROLE_TITLES[key]}
-                    <span className="deck-role-bar-count">{count}</span>
-                  </button>
+                  </Chip>
                 ))}
                 {activeRoleFilter && (
                   <button
@@ -2583,14 +2583,13 @@ function BulkTagPopoverBody({
         <ul className="deck-bulk-tag-chip-list" aria-label="Existing tags">
           {existingTags.map((tag) => (
             <li key={tag}>
-              <button
-                type="button"
+              <Chip
                 className="deck-bulk-tag-chip"
                 onClick={() => onAdd(tag)}
                 title={`Add "${tag}" to selection`}
               >
                 {tag}
-              </button>
+              </Chip>
               <IconButton
                 className="deck-bulk-tag-chip-remove"
                 onClick={() => onRemove(tag)}

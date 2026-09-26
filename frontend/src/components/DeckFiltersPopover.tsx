@@ -8,6 +8,7 @@ import { FilterTrigger } from './shared/FilterTrigger';
 import { FILTER_COLOR_OPTIONS, type ColorMatchMode } from '@/lib/colors';
 import { useAnchoredPanel } from '@/lib/use-anchored-panel';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 const SOURCE_OPTIONS: Array<{ key: DeckSource; label: string }> = [
   { key: 'generated', label: 'Generated' },
@@ -105,15 +106,14 @@ export function DeckFiltersPopover({
                 {formatEntries.map(([key, cfg]) => {
                   const active = formats.has(key);
                   return (
-                    <button
+                    <Chip
                       key={key}
-                      type="button"
                       className={`deck-filter-chip${active ? ' is-active' : ''}`}
                       onClick={() => toggleFormat(key)}
-                      aria-pressed={active}
+                      pressed={active}
                     >
                       {cfg.label}
-                    </button>
+                    </Chip>
                   );
                 })}
               </div>
@@ -125,15 +125,14 @@ export function DeckFiltersPopover({
                 {SOURCE_OPTIONS.map((s) => {
                   const active = sources.has(s.key);
                   return (
-                    <button
+                    <Chip
                       key={s.key}
-                      type="button"
                       className={`deck-filter-chip${active ? ' is-active' : ''}`}
                       onClick={() => toggleSource(s.key)}
-                      aria-pressed={active}
+                      pressed={active}
                     >
                       {s.label}
-                    </button>
+                    </Chip>
                   );
                 })}
               </div>

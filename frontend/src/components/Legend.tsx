@@ -13,6 +13,7 @@ import { BinderBadge } from './BinderBadge';
 import { ConditionChip } from './shared/CardRow';
 import { CONDITION_OPTIONS } from './PrintingPicker';
 import type { Condition } from '@/types';
+import { Chip } from '@/components/shared/Chip';
 
 /**
  * Context-aware symbol key — the "Key" popover that teaches the app's glyph
@@ -301,7 +302,7 @@ export function LegendContent({ context }: { context: LegendContext }) {
           </Section>
           <Section title="Your tags">
             <Entry
-              glyph={<span className="deck-row-tag-chip">Wincon</span>}
+              glyph={<Chip className="deck-row-tag-chip">Wincon</Chip>}
               word="A tag you applied — press and hold a row's tag button, then swipe"
             />
             <div className="legend-footnote">
@@ -320,7 +321,7 @@ export function LegendContent({ context }: { context: LegendContext }) {
             />
             <Entry
               glyph={
-                <span className="deck-row-alloc-chip deck-row-alloc-chip-unowned">unowned</span>
+                <Chip className="deck-row-alloc-chip deck-row-alloc-chip-unowned">unowned</Chip>
               }
               word="Not in your collection (red count = missing copies)"
             />

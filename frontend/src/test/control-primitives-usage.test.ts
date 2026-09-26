@@ -47,7 +47,10 @@ const SHARED_CLASSES = new Set([
   'btn-quiet',
 ]);
 
-type Shape = 'rawClass' | 'iconOnly';
+type Shape = 'rawClass' | 'iconOnly' | 'rawChip';
+
+/** A chip family's class (`verdict-chip`, `coach-feed-filter-chip--owned-empty`), not a part (`-chip-label`) or a container (`-chips`). */
+const CHIP_CLASS = /^[a-z][a-z0-9-]*-chip(--[a-z0-9-]+)?$/;
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -84,11 +87,16 @@ function count(file: string): Record<Shape, number> {
     true,
     ts.ScriptKind.TSX
   );
-  const n: Record<Shape, number> = { rawClass: 0, iconOnly: 0 };
+  const n: Record<Shape, number> = { rawClass: 0, iconOnly: 0, rawChip: 0 };
   const visit = (node: ts.Node) => {
     if (ts.isJsxAttribute(node) && /className$/i.test(node.name.getText(sf)) && node.initializer) {
       const tokens = strings(node.initializer).join(' ').split(/\s+/);
       if (tokens.some((t) => SHARED_CLASSES.has(t))) n.rawClass++;
+      // A chip class on a raw element (lowercase tag, or a router Link):
+      // `<Chip className=…>` is the primitive and does not count.
+      const tag = (node.parent.parent as ts.JsxOpeningLikeElement).tagName.getText(sf);
+      if ((/^[a-z]/.test(tag) || tag === 'Link') && tokens.some((t) => CHIP_CLASS.test(t)))
+        n.rawChip++;
     }
     if (ts.isJsxElement(node) && node.openingElement.tagName.getText(sf) === 'button') {
       const kids = node.children.filter((c) => !(ts.isJsxText(c) && !c.text.trim()));
@@ -104,7 +112,11 @@ const TOOLBAR_FAMILY =
   'PERMANENT: a toolbar-control primitive rendering its own .toolbar-pill trigger';
 const CARD_ART =
   'PERMANENT: a card-art thumbnail used as a button is a bespoke control (E435 scope ruling), not a glyph';
-const BOARD_CHROME = 'PERMANENT: playtest board chrome is a bespoke control (E435 scope ruling)';
+const STRUCTURE =
+  'PERMANENT: named -chip but a container with its own controls or structure (a rule-builder token, a list wrapper, a drag-reorder item), not a Chip role';
+const NAV_LINK = 'PERMANENT: a router Link styled as a chip; Chip has no link role for one site';
+const BOARD_CHROME =
+  'PERMANENT: playtest and live-table board chrome is a bespoke control (E435 scope ruling)';
 
 /** Files still to migrate, with their current counts. Lower as each wave lands. */
 const ALLOWED: Record<Shape, Record<string, number | { count: number; why: string }>> = {
@@ -125,6 +137,22 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/trade/TradeComposer.tsx': { count: 2, why: CARD_ART },
     'playtest/components/CardCounters.tsx': { count: 1, why: BOARD_CHROME },
   },
+  rawChip: {
+    'components/CardOtagsSheet.tsx': { count: 1, why: NAV_LINK },
+    'components/ChipExpressionBuilder.tsx': { count: 1, why: STRUCTURE },
+    'components/deck/BracketBreakdown.tsx': { count: 1, why: STRUCTURE },
+    'components/deck/GenerationModePicker.tsx': 2,
+    'components/DiscoverFiltersPopover.tsx': 6,
+    'components/play/GameBoard.tsx': { count: 5, why: BOARD_CHROME },
+    'components/play/GameMenu.tsx': { count: 5, why: BOARD_CHROME },
+    'components/play/OnlineGameView.tsx': { count: 4, why: BOARD_CHROME },
+    'components/play/PhaseChip.tsx': { count: 2, why: BOARD_CHROME },
+    'components/SortValueOrderEditor.tsx': { count: 1, why: STRUCTURE },
+    'components/trade/TradeOfferList.tsx': { count: 1, why: CARD_ART },
+    'playtest/components/CardStatusStrip.tsx': { count: 2, why: BOARD_CHROME },
+    'playtest/components/LifeStrip.tsx': { count: 2, why: BOARD_CHROME },
+    'playtest/components/PlaytestBoard.tsx': { count: 5, why: BOARD_CHROME },
+  },
 };
 
 const HOW: Record<Shape, string> = {
@@ -132,16 +160,22 @@ const HOW: Record<Shape, string> = {
     'Render Button (or IconButton with a variant) from components/shared/Button instead of the raw class.',
   iconOnly:
     'Render IconButton from components/shared/Button: it requires a label and hides the glyph.',
+  rawChip:
+    'Render Chip from components/shared/Chip: it picks the element for the role and puts the label in its own element.',
 };
 
 const allowedCount = (entry: number | { count: number } | undefined) =>
   typeof entry === 'number' ? entry : (entry?.count ?? 0);
 
 describe('action controls come from the control primitives', () => {
-  const found: Record<Shape, Map<string, number>> = { rawClass: new Map(), iconOnly: new Map() };
+  const found: Record<Shape, Map<string, number>> = {
+    rawClass: new Map(),
+    iconOnly: new Map(),
+    rawChip: new Map(),
+  };
   for (const file of sourceFiles(srcDir)) {
     const rel = relative(srcDir, file).split(sep).join('/');
-    if (rel === 'components/shared/Button.tsx') continue;
+    if (rel === 'components/shared/Button.tsx' || rel === 'components/shared/Chip.tsx') continue;
     const n = count(file);
     for (const shape of Object.keys(n) as Shape[]) if (n[shape]) found[shape].set(rel, n[shape]);
   }

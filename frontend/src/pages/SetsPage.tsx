@@ -52,6 +52,7 @@ import { MeterBar } from '../components/shared/MeterBar';
 import { useSealMoment } from '../components/shared/SealMoment';
 import { CardName } from '@/components/shared/CardName';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 /** Sets whose 100%-completion seal already fired this app-open (STYLE_GUIDE
  *  "Completion moments": once per subject per app-open). */
@@ -900,9 +901,9 @@ function SetTile({ row, onOpen }: { row: SetGridRow; onOpen: () => void }) {
         )}
       </div>
       {missing && (
-        <span className="set-grid-missing-chip" aria-hidden>
+        <Chip className="set-grid-missing-chip" aria-hidden>
           Missing
-        </span>
+        </Chip>
       )}
     </div>
   );

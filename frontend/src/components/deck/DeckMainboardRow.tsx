@@ -65,6 +65,7 @@ import { SectionIcon, AllocationChip } from './deck-display-icons';
 import { RoleBadge, LegalityBadge } from './deck-display-icons';
 import { CardName } from '@/components/shared/CardName';
 import { IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 // ── Category section ──────────────────────────────────────────────────────
 export function CategorySection({
@@ -732,9 +733,9 @@ function DeckCardRow({
           {row.tags.length > 0 && (
             <span className="deck-row-tags" aria-label={`Tags: ${row.tags.join(', ')}`}>
               {row.tags.map((t) => (
-                <span key={t} className="deck-row-tag-chip">
+                <Chip key={t} className="deck-row-tag-chip">
                   {t}
-                </span>
+                </Chip>
               ))}
             </span>
           )}

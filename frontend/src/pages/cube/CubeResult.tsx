@@ -38,6 +38,7 @@ import {
 import { CubeHealthPanel } from './CubeHealthPanel';
 import { Button, IconButton } from '../../components/shared/Button';
 import { CubeSuppliers } from './CubeSuppliers';
+import { Chip } from '@/components/shared/Chip';
 
 /** "180 cards · 4 players · saved 1h ago · Physical · 180 reserved" — the one
  *  line that identifies a saved cube, on its row AND over the result it's loaded into. */
@@ -439,7 +440,7 @@ export function CubeResult({
                                   // another cube).
                                   own !== 'owned' && <OwnRowBadge own={own} />
                                 ) : (
-                                  <span
+                                  <Chip
                                     className="cube-collab-supplier-chip"
                                     aria-label={`Supplied by ${friendSuppliers.join(', ')}`}
                                   >
@@ -447,7 +448,7 @@ export function CubeResult({
                                     {friendSuppliers.length > 1 && (
                                       <span aria-hidden> +{friendSuppliers.length - 1}</span>
                                     )}
-                                  </span>
+                                  </Chip>
                                 )}
                               </span>
                               {p.reason && <span className="cube-row-reason">{p.reason}</span>}

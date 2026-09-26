@@ -25,6 +25,7 @@ import { InfoTip } from './InfoTip';
 import { formatRelativeTime } from '../lib/format-time';
 import { toast } from '../store/toasts';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 /** Binder ids whose drift-cleared moment already played this app-open —
  *  mirrors `celebratedDeckComplete` in DeckDisplay.tsx's module-level-Set
@@ -326,20 +327,26 @@ function RouteTitle({
   importName?: string;
 }) {
   const chip = importName ? (
-    <span className="binder-drift-chip binder-drift-chip--import">
-      <span className="binder-drift-chip-dot binder-drift-chip-dot--none" aria-hidden />
+    <Chip
+      className="binder-drift-chip binder-drift-chip--import"
+      icon={<span className="binder-drift-chip-dot binder-drift-chip-dot--none" />}
+    >
       {importName}
-    </span>
+    </Chip>
   ) : endpoint ? (
-    <span className="binder-drift-chip">
-      <span className="binder-drift-chip-dot" style={{ background: endpoint.color }} aria-hidden />
+    <Chip
+      className="binder-drift-chip"
+      icon={<span className="binder-drift-chip-dot" style={{ background: endpoint.color }} />}
+    >
       {endpoint.name}
-    </span>
+    </Chip>
   ) : (
-    <span className="binder-drift-chip binder-drift-chip--none">
-      <span className="binder-drift-chip-dot binder-drift-chip-dot--none" aria-hidden />
+    <Chip
+      className="binder-drift-chip binder-drift-chip--none"
+      icon={<span className="binder-drift-chip-dot binder-drift-chip-dot--none" />}
+    >
       Uncategorized
-    </span>
+    </Chip>
   );
   const here = <span className="binder-drift-route-here">here</span>;
   const arrow = (

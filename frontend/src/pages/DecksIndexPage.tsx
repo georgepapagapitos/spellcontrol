@@ -83,6 +83,7 @@ import { useAuth } from '../store/auth';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
 
 // Stable empty-set reference for guests/pre-bootstrap — avoids allocating a
@@ -938,9 +939,9 @@ export function DecksIndexPage() {
                         {view !== 'compact' && themes.length > 0 && (
                           <div className="decks-index-card-themes">
                             {themes.map((t) => (
-                              <span key={t.slug ?? t.name} className="decks-index-card-theme-chip">
+                              <Chip key={t.slug ?? t.name} className="decks-index-card-theme-chip">
                                 {t.name}
-                              </span>
+                              </Chip>
                             ))}
                           </div>
                         )}

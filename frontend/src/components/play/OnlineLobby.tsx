@@ -34,6 +34,7 @@ import { findBannedCards, type HordeBanWarning } from '@/lib/horde/ban-list';
 import { useStarterDeckCardNames } from '@/lib/horde/starter-deck-cards';
 import './OnlineLobby.css';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 /** Same cap as the create/join paths and the local setup's seat names. */
 const MAX_GUEST_NAME = 40;
@@ -701,7 +702,7 @@ function SeatCard({
           <p className="lobby-seat-deck">{player.deckName ?? 'No deck yet'}</p>
         )}
         <div className="lobby-seat-foot">
-          <span className={`lobby-chip ${ready || isGuest ? 'is-ready' : ''}`}>
+          <Chip className={`lobby-chip ${ready || isGuest ? 'is-ready' : ''}`}>
             {isGuest ? (
               'Seated by the host'
             ) : ready ? (
@@ -713,7 +714,7 @@ function SeatCard({
             ) : (
               'Choosing a deck'
             )}
-          </span>
+          </Chip>
           <SeatPips ci={player.colorIdentity} />
           {bracket != null && (
             <span className="lobby-seat-bracket">

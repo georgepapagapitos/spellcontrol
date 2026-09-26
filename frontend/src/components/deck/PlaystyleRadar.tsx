@@ -9,6 +9,7 @@ import { InfoTip } from '@/components/InfoTip';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { CardTally } from './useCardCarousel';
 import type { AxisSummary } from '@/deck-builder/services/synergy/deckSynergy';
+import { Chip } from '@/components/shared/Chip';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -24,9 +25,9 @@ function FewAxesFallback({ axes }: { axes: AxisSummary[] }): JSX.Element {
         <>
           <div className="playstyle-radar-chips">
             {axes.map((a) => (
-              <span key={a.axis} className="playstyle-radar-chip">
+              <Chip key={a.axis} className="playstyle-radar-chip">
                 {a.label} {a.total}
-              </span>
+              </Chip>
             ))}
           </div>
           <p className="playstyle-radar-few-msg">Not enough synergy signal for a shape yet.</p>
