@@ -134,12 +134,18 @@ describe('parseTypeLine', () => {
     });
   });
 
-  it('uses the first face of a multi-face card', () => {
+  it('counts every face of a multi-face card, like Scryfall t:', () => {
     expect(parseTypeLine('Land — Swamp // Creature — Zombie')).toEqual({
       supertypes: [],
-      types: ['land'],
-      subtypes: ['swamp'],
+      types: ['land', 'creature'],
+      subtypes: ['swamp', 'zombie'],
     });
+    // Real modal DFC (ZNR #192): Scryfall's t:land finds it.
+    expect(parseTypeLine('Creature — Elephant // Land').types).toEqual(['creature', 'land']);
+    // Legendary on the back face only (Delver-style transform).
+    expect(parseTypeLine('Creature — Human // Legendary Creature — God').supertypes).toEqual([
+      'legendary',
+    ]);
   });
 
   it('drops unrecognized tokens from the left of the dash', () => {

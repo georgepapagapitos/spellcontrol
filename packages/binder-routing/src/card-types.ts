@@ -71,8 +71,11 @@ export const TYPES = [
  * recognized falls through (rare — most non-recognized tokens come
  * after the dash anyway). Subtypes are whatever sits after " — ".
  *
- * Multi-face cards use the first face only — same convention as
- * `getCardType`.
+ * Multi-face cards count EVERY face, the way Scryfall's `t:` does: Kazandu
+ * Mammoth // Kazandu Valley is a land. (Routing and the Type sort still file a
+ * card by its front face, in `getCardType`; this is for filtering.) Reading
+ * the front face only made "Card type IS Land" miss every modal-DFC land that
+ * the "Type line" rule, a plain substring, already found.
  */
 export function parseTypeLine(typeLine: string | undefined): {
   supertypes: string[];
@@ -81,19 +84,20 @@ export function parseTypeLine(typeLine: string | undefined): {
 } {
   const line = (typeLine || '').toLowerCase().trim();
   if (!line) return { supertypes: [], types: [], subtypes: [] };
-  const firstFace = line.split(' // ')[0];
-  const [left, right] = firstFace.split(' — ');
-  const leftTokens = left.split(/\s+/).filter(Boolean);
   const supertypeSet = new Set<string>(SUPERTYPES);
   const typeSet = new Set<string>(TYPES);
-  const supertypes: string[] = [];
-  const types: string[] = [];
-  for (const tok of leftTokens) {
-    if (supertypeSet.has(tok)) supertypes.push(tok);
-    else if (typeSet.has(tok)) types.push(tok);
+  const supertypes = new Set<string>();
+  const types = new Set<string>();
+  const subtypes = new Set<string>();
+  for (const face of line.split(' // ')) {
+    const [left, right] = face.split(' — ');
+    for (const tok of left.split(/\s+/)) {
+      if (supertypeSet.has(tok)) supertypes.add(tok);
+      else if (typeSet.has(tok)) types.add(tok);
+    }
+    for (const tok of right?.split(/\s+/) ?? []) if (tok) subtypes.add(tok);
   }
-  const subtypes = right ? right.split(/\s+/).filter(Boolean) : [];
-  return { supertypes, types, subtypes };
+  return { supertypes: [...supertypes], types: [...types], subtypes: [...subtypes] };
 }
 
 /** mana-font icon name for an internal type bucket. */

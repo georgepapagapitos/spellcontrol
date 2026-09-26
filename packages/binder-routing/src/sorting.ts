@@ -55,7 +55,10 @@ export const SORT_FIELDS: {
     value: 'rarity',
     label: 'Rarity',
     defaultDir: 'asc',
-    dirLabels: ['Common first', 'Mythic first'],
+    // RARITY_ORDER ranks mythic 0 → common 3, so ascending is rarest first.
+    // These read the other way round until 2026-09-26: "Common first" put
+    // mythics first on every surface that sorts through this list.
+    dirLabels: ['Mythic first', 'Common first'],
   },
   // Rank 1 is the most-played card, so ascending rank is the popular end.
   {
@@ -402,6 +405,8 @@ export function cardSortValue(
       return releaseDateOf(card, ctx?.setMap) ?? UNKNOWN_VALUE;
     case 'setName':
       return setMeta(card).label.toLowerCase();
+    case 'setGroup':
+      return sameDaySetKey(card);
     case 'price':
       return card.purchasePrice;
     case 'edhrec':
@@ -482,22 +487,44 @@ export const IMPLICIT_TIEBREAKER_FIELDS: SortField[] = [
 
 /**
  * The user's chain plus the implicit tie-breakers — the order `materializeBinders`
- * actually sorts by. One rule beyond appending: a chain sorted by release date
- * gets `setName` spliced in **right after** the date entry when it lacks one.
- * Release-date sections are per SET (same-day sets are separate headers), so
- * the cards must stay grouped by set too — otherwise a page-filled binder
- * interleaves three same-day Secret Lair drops by treatment/finish/name and
- * every page labels itself with all three. Sections tie-break same-day sets
- * A → Z (`buildSections`) to match.
+ * actually sorts by. Two rules beyond appending, both for a chain sorted by
+ * release date with no Set entry of its own:
+ *
+ *   - the internal `setGroup` goes **right after** the date, so same-day sets
+ *     stay contiguous and A → Z (three 2026-02-16 Fallout drops once
+ *     interleaved page by page). It ignores Secret Lair drops: every drop is
+ *     one set, SLD;
+ *   - **collector number** closes the user's chain, ahead of the generic
+ *     tie-breakers, so a day reads in printed order. For Secret Lairs that
+ *     number roughly tracks when each drop was made; drop names A → Z put
+ *     SLD #1708 ahead of #786.
+ *
+ * `buildSections` orders same-day headers the same way (set, then lowest number).
  */
 export function withImplicitTiebreakers(sorts: SortEntry[]): SortEntry[] {
   const out = [...sorts];
   const has = (f: SortField) => out.some((s) => s?.field === f);
   const dateIdx = out.findIndex((s) => s?.field === 'setReleaseDate');
-  if (dateIdx !== -1 && !has('setName'))
-    out.splice(dateIdx + 1, 0, { field: 'setName', dir: 'asc' });
-  for (const field of IMPLICIT_TIEBREAKER_FIELDS) if (!has(field)) out.push({ field, dir: 'asc' });
+  if (dateIdx !== -1 && !has('setName')) {
+    if (!has('setGroup')) out.splice(dateIdx + 1, 0, { field: 'setGroup', dir: 'asc' });
+    if (!has('collectorNumber')) out.push({ field: 'collectorNumber', dir: 'asc' });
+  }
+  for (const field of IMPLICIT_TIEBREAKER_FIELDS) {
+    // `setGroup` already orders by set; a trailing drop-name Set would only
+    // repeat "Set" in the editor's tie-breaker hint.
+    if (field === 'setName' && has('setGroup')) continue;
+    if (!has(field)) out.push({ field, dir: 'asc' });
+  }
   return out;
+}
+
+/**
+ * The set a printing belongs to, ignoring its Secret Lair drop: every drop is
+ * one set (SLD), ordered among themselves by collector number. The value of
+ * the internal `setGroup` sort field.
+ */
+export function sameDaySetKey(card: EnrichedCard): string {
+  return (card.setName || card.setCode || 'Unknown set').toLowerCase();
 }
 
 /**
@@ -567,7 +594,9 @@ const SORT_DEFAULT_DIR: Record<SortField, 'asc' | 'desc'> = SORT_FIELDS.reduce(
 );
 
 export function sortEntryLabel(entry: SortEntry): string {
-  const label = SORT_LABEL[entry.field] ?? entry.field;
+  // `setGroup` is internal (not in SORT_FIELDS) but shows in the editor's
+  // tie-breaker hint, where it reads as the set it is.
+  const label = SORT_LABEL[entry.field] ?? (entry.field === 'setGroup' ? 'Set' : entry.field);
   const isNonDefault = entry.dir !== (SORT_DEFAULT_DIR[entry.field] ?? 'asc');
   if (!isNonDefault) return label;
   return `${label} ${entry.dir === 'asc' ? '↑' : '↓'}`;

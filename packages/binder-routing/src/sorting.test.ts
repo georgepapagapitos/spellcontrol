@@ -715,20 +715,73 @@ describe('setName sort value is the section label, lowercased', () => {
 });
 
 describe('withImplicitTiebreakers', () => {
-  it('splices Set right after Release date so same-day sets stay together', async () => {
+  it('closes a Release-date chain on collector number, ahead of the generic tie-breakers', async () => {
     const { withImplicitTiebreakers } = await import('./sorting');
-    const chain = withImplicitTiebreakers([
-      { field: 'setReleaseDate', dir: 'desc' },
-      { field: 'collectorNumber', dir: 'asc' },
-    ]);
-    expect(chain.map((s) => s.field)).toEqual([
+    expect(
+      withImplicitTiebreakers([
+        { field: 'setReleaseDate', dir: 'desc' },
+        { field: 'color', dir: 'asc' },
+      ]).map((s) => s.field)
+    ).toEqual([
       'setReleaseDate',
-      'setName',
+      'setGroup',
+      'color',
       'collectorNumber',
       'treatment',
       'finish',
       'name',
     ]);
+  });
+
+  // Real printings, both Scryfall-dated 2024-06-24: Soul Warden is SLD #1708
+  // (drop "Featuring Julie Bell"), Frilled Mystic SLD #786 (a bonus card with
+  // no drop). Same day, same set: printed order, not drop name A → Z.
+  it('orders same-day cards of one set by collector number, not by drop name', async () => {
+    const { sortCards, withImplicitTiebreakers } = await import('./sorting');
+    const sld = (name: string, collectorNumber: string, sldDrop?: string) =>
+      makeCard({
+        name,
+        setCode: 'SLD',
+        setName: 'Secret Lair Drop',
+        collectorNumber,
+        releasedAt: '2024-06-24',
+        sldDrop,
+      });
+    const sorted = sortCards(
+      [sld('Soul Warden', '1708', 'Featuring Julie Bell'), sld('Frilled Mystic', '786')],
+      withImplicitTiebreakers([{ field: 'setReleaseDate', dir: 'asc' }])
+    );
+    expect(sorted.map((c) => c.name)).toEqual(['Frilled Mystic', 'Soul Warden']);
+  });
+
+  it('still keeps same-day SETS together, A → Z, whatever their numbers', async () => {
+    const { sortCards, withImplicitTiebreakers } = await import('./sorting');
+    const on = (setName: string, collectorNumber: string) =>
+      makeCard({
+        name: `${setName} ${collectorNumber}`,
+        setCode: setName.slice(0, 3).toUpperCase(),
+        setName,
+        collectorNumber,
+        releasedAt: '2026-02-16',
+      });
+    const sorted = sortCards(
+      [on('Zeta', '1'), on('Alpha', '9'), on('Zeta', '2'), on('Alpha', '3')],
+      withImplicitTiebreakers([{ field: 'setReleaseDate', dir: 'desc' }])
+    );
+    expect(sorted.map((c) => c.name)).toEqual(['Alpha 3', 'Alpha 9', 'Zeta 1', 'Zeta 2']);
+  });
+
+  it('labels Rarity by what it does: ascending is mythic first', async () => {
+    const { sortCards, sortDirectionLabel } = await import('./sorting');
+    const cards = ['common', 'mythic', 'uncommon', 'rare'].map((rarity) =>
+      makeCard({ name: rarity, rarity })
+    );
+    for (const dir of ['asc', 'desc'] as const) {
+      const first = sortCards(cards, [{ field: 'rarity', dir }])[0].rarity;
+      expect(sortDirectionLabel('rarity', dir)).toBe(
+        first === 'mythic' ? 'Mythic first' : 'Common first'
+      );
+    }
   });
 
   it('leaves a chain that already sorts by Set alone', async () => {
