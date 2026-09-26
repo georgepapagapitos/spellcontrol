@@ -194,6 +194,9 @@
    white. styles/play-numeral.test.ts recomputes every choice. */
 .player-panel {
   --pp-ink: #fff;
+  /* The opposite of the ink: a plate a mark sits on (the designation chips)
+     so its glyph keeps the ink's contrast on every seat colour. */
+  --pp-ink-plate: #000;
   /* On the panel, not only on the numeral: the life button resets itself to
      `color: inherit` (play-effects.css), so this is what it inherits. */
   color: var(--pp-ink);
@@ -204,6 +207,7 @@
     .is-eliminated
   ) {
   --pp-ink: #000;
+  --pp-ink-plate: #fff;
 }
 
 /* The dark drop-shadow that lifts white ink only muddies black ink. */

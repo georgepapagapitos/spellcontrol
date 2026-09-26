@@ -252,10 +252,27 @@
    padding on `.player-panel-content`, so reserving room via padding there
    has no effect on where the centred numeral lands. Pulling the wrap's own
    BOTTOM inset in by the bar's height is what actually shrinks the box the
-   numeral centres within, shifting it clear of the bar underneath. No top
-   inset: with the name corner hidden there is nothing above to clear. */
+   numeral centres within, shifting it clear of the bar underneath.
+   The top inset keeps it off the seam. The bar pushes the numeral toward the
+   panel's far edge, which faces the middle of the table, where the hub and
+   undo sit on the seam: on 4p-sides the undo bit 986px² out of the focused
+   total at 390px and the hub 1144px² on 2p-side. A sideways seat's far edge
+   is always the column seam, so it always takes the inset; an upright seat
+   takes it only when it is tall enough to spare it, since the 7-10 player
+   rows (79-145px) would give their total to a seam they mostly don't touch. */
 .player-panel.is-cmd-self .player-panel-life-wrap {
+  top: var(--cmd-self-top, 0px);
   bottom: var(--cmd-focus-bar-h);
+}
+
+.player-panel.is-cmd-self[data-sideways] {
+  --cmd-self-top: calc(var(--seam-keepout) + var(--space-1));
+}
+
+@container (min-height: 12rem) {
+  .player-panel.is-cmd-self:not([data-sideways]) {
+    --cmd-self-top: calc(var(--seam-keepout) + var(--space-1));
+  }
 }
 
 /* The one place the focused total can still be taller than the box above
@@ -268,14 +285,14 @@
 .player-panel.is-cmd-self .player-panel-life {
   font-size: min(
     calc(var(--life-size) * var(--life-scale, 1)),
-    calc(100cqh - var(--cmd-focus-bar-h) - var(--space-2))
+    calc(100cqh - var(--cmd-focus-bar-h) - var(--cmd-self-top, 0px) - var(--space-2))
   );
 }
 
 .player-panel.is-cmd-self[data-sideways] .player-panel-life {
   font-size: min(
     calc(var(--life-size) * var(--life-scale, 1)),
-    calc(100cqw - var(--cmd-focus-bar-h) - var(--space-2))
+    calc(100cqw - var(--cmd-focus-bar-h) - var(--cmd-self-top, 0px) - var(--space-2))
   );
 }
 
@@ -313,7 +330,7 @@
 }
 
 .game-board .player-panel.is-vertical-taps.is-cmd-self {
-  --pp-v-top: 0px;
+  --pp-v-top: var(--cmd-self-top, 0px);
   --pp-v-bottom: var(--cmd-focus-bar-h);
 }
 
@@ -390,20 +407,26 @@
   }
 }
 
-/* Stacked and short (the 7-10 player sideways seats on a phone): each half is
-   one line, its commander's name beside the value, rather than a name line
-   the value no longer fits under. */
+/* Stacked and short (the 7-10 player sideways seats on a phone, halves about
+   40px tall): each half keeps its commander's name on its own line, the full
+   width of the half, over a smaller value. A one-line half (name beside the
+   value, the ± and "N to lethal") left the name about 10px and cut every
+   commander to one letter ("P…", "T…"). "N to lethal" goes on these
+   halves: it only restates the value, which the fill and the red lethal ring
+   already carry, and the panel's aria-label has the numbers. */
 @container cmd-split (max-width: 11rem) and (min-height: 5rem) and (max-height: 8rem) {
   .pp-cmd-split-wrap .pp-cmd-half {
-    flex-direction: row;
-    gap: var(--space-1);
+    gap: 0;
     padding-inline: var(--space-1);
   }
 
-  .pp-cmd-split-wrap .pp-cmd-half-name {
-    flex: 1 1 auto;
-    min-width: 0;
-    text-align: start;
+  .pp-cmd-split-wrap .pp-cmd-half-value {
+    font-size: var(--text-lg);
+    line-height: 1;
+  }
+
+  .pp-cmd-split-wrap .pp-cmd-half-hint {
+    display: none;
   }
 }
 
@@ -1011,8 +1034,11 @@
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  /* Ink on the ink's opposite (play-board.css), so the glyph reads on every
+     seat colour: a black glyph on a black plate was mud on the light seats. */
+  color: var(--pp-ink);
+  background: color-mix(in srgb, var(--pp-ink-plate) 40%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--pp-ink) 30%, transparent);
   font-size: var(--text-base);
   line-height: 1;
   -webkit-backdrop-filter: blur(4px);
@@ -1077,11 +1103,13 @@
 }
 
 /* "Up next" (board-timer program): a quiet cue, not a claimed designation
-   like Monarch/Initiative — fainter so it never reads as a third one. */
+   like Monarch/Initiative, so a fainter plate and a dashed ring, never a
+   fainter glyph. Its glyph once sat at 55% opacity, black on a dark plate:
+   about 1.5:1 on the light blue seats. At full ink it keeps the seat's own
+   ink contrast (4:1 or more, styles/play-numeral.test.ts). */
 .pp-designation-chip.is-next {
-  opacity: 0.55;
-  background: rgba(0, 0, 0, 0.25);
-  border-color: rgba(255, 255, 255, 0.22);
+  background: color-mix(in srgb, var(--pp-ink-plate) 22%, transparent);
+  border-style: dashed;
 }
 
 /* Gentle entrance — not mandatory, gated for reduced-motion */

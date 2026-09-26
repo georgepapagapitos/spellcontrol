@@ -96,8 +96,28 @@ describe('commander-damage focus: the bar never covers the numeral', () => {
     const selfBase = ruleBody('.player-panel.is-cmd-self');
     expect(selfBase).not.toContain('--life-scale');
     expect(css).not.toMatch(/is-cmd-self[^{]*\{[^}]*--life-scale:/);
-    // And no top inset: nothing is left above the numeral to clear.
-    expect(css).not.toMatch(/is-cmd-self[^{]*life-wrap\s*\{[^}]*\btop:/);
+    // No top inset for a name: nothing is left above the numeral. The only
+    // top inset is the seam keep-out below, which clears the hub and undo.
+    const topInsets = [...css.matchAll(/is-cmd-self[^{]*life-wrap\s*\{[^}]*\btop:\s*([^;]+);/g)];
+    expect(topInsets.map((m) => m[1].trim())).toEqual(['var(--cmd-self-top, 0px)']);
+  });
+
+  it('the focused total keeps clear of the seam satellites the bar pushes it toward', () => {
+    // The bar sits at the player's edge, so the numeral moves toward the far
+    // edge, which faces the seam: the undo covered 986px² of a 4p-sides
+    // focused total at 390px, the hub 1144px² on 2p-side. A sideways seat's
+    // far edge is always the column seam; an upright one only takes the
+    // keep-out when it is tall enough (12rem) to spare it.
+    expect(ruleBody('.player-panel.is-cmd-self[data-sideways]')).toMatch(
+      /--cmd-self-top:\s*calc\(var\(--seam-keepout\) \+ var\(--space-1\)\)/
+    );
+    expect(css).toMatch(
+      /@container \(min-height: 12rem\) \{\s*\.player-panel\.is-cmd-self:not\(\[data-sideways\]\) \{\s*--cmd-self-top:/
+    );
+    // The cap on the focused total counts the keep-out too.
+    expect(css).toContain(
+      'calc(100cqw - var(--cmd-focus-bar-h) - var(--cmd-self-top, 0px) - var(--space-2))'
+    );
   });
 
   it("the focused total is capped to the box above the bar, in the panel's own axes", () => {
@@ -185,5 +205,27 @@ describe('commander-damage focus: the bar never covers the numeral', () => {
       expect(block).toMatch(/\.pp-cmd-focus-done-full\s*\{\s*display:\s*none;/);
       expect(block).toMatch(/\.pp-cmd-focus-done-short\s*\{\s*display:\s*inline;/);
     }
+  });
+});
+
+describe('partner halves on the shortest seats', () => {
+  // A one-line half (name beside the value, the ± and "N to lethal") left the
+  // commander's name ~10px on a 10-player sideways seat at 320px: "P…", "T…".
+  // The short stacked half keeps the name on its own full-width line over a
+  // smaller value, and drops "N to lethal", which only restates the value.
+  const at = css.indexOf(
+    '@container cmd-split (max-width: 11rem) and (min-height: 5rem) and (max-height: 8rem) {'
+  );
+  const block = css.slice(at, css.indexOf('\n}\n', at));
+
+  it('keeps the name on its own line', () => {
+    expect(at).toBeGreaterThan(-1);
+    expect(block).not.toMatch(/flex-direction:\s*row/);
+    expect(block).toMatch(/\.pp-cmd-half-value \{\s*font-size: var\(--text-lg\);/);
+  });
+
+  it('drops "N to lethal" there, and only there', () => {
+    expect(block).toMatch(/\.pp-cmd-half-hint \{\s*display: none;/);
+    expect(css.match(/\.pp-cmd-half-hint \{\s*display: none;/g)).toHaveLength(1);
   });
 });

@@ -109,6 +109,9 @@
   color: #fff;
   /* Tabular figures so the digits don't jitter sideways once a second. */
   font-variant-numeric: tabular-nums;
+  /* Its own width, for the narrow tier below: the strip is the board's width,
+     which under keep-still is not the screen's. */
+  container: clock-strip / inline-size;
 }
 
 .game-clock-strip.is-paused {
@@ -243,6 +246,19 @@
     min-height: 2.75rem;
     min-width: 2.75rem;
     justify-content: center;
+  }
+}
+
+/* A phone-narrow strip (320-352px) gives its padding to the name: at 320px
+   "Player 10" read "Playe…'s turn", and "P…" once "(paused)" joined the
+   line. The Pause button keeps its 44px floor; Pass keeps its label. */
+@container clock-strip (max-width: 22rem) {
+  .game-clock-strip-text {
+    gap: 0.2em;
+  }
+
+  .game-clock-strip-btn {
+    padding-inline: var(--space-1);
   }
 }
 
