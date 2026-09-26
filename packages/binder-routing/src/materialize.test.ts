@@ -1378,6 +1378,43 @@ describe('Secret Lair drop sections + packSections', () => {
     }
   });
 
+  // The user's report (2026-09-26): both printings are Scryfall-dated
+  // 2024-06-24, in different drop sections. Same day, same set → printed order.
+  it('orders same-day Secret Lair sections by collector number, either direction', () => {
+    const cards = [
+      makeCard({
+        name: 'Soul Warden',
+        setCode: 'SLD',
+        setName: 'Secret Lair Drop',
+        collectorNumber: '1708',
+        releasedAt: '2024-06-24',
+        sldDrop: 'Featuring Julie Bell',
+        sldDropReleasedAt: '2024-07-10',
+      }),
+      makeCard({
+        name: 'Frilled Mystic',
+        setCode: 'SLD',
+        setName: 'Secret Lair Drop',
+        collectorNumber: '786',
+        releasedAt: '2024-06-24',
+      }),
+    ];
+    for (const dir of ['asc', 'desc'] as const) {
+      for (const packSections of [false, 'continuous'] as const) {
+        const binder = makeBinder({
+          filter: {},
+          sorts: [{ field: 'setReleaseDate', dir }],
+          packSections,
+        });
+        const { binders } = materializeBinders(cards, [binder], twelve);
+        expect(binders[0].sections.flatMap((s) => s.cards.map((c) => c.name))).toEqual([
+          'Frilled Mystic',
+          'Soul Warden',
+        ]);
+      }
+    }
+  });
+
   it('makes one section per drop, newest drop first', () => {
     const cards = [
       ...drop('Cats of Chaos', 5, '2026-06-16'),

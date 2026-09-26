@@ -22,10 +22,15 @@ export function getColorKey(card: EnrichedCard): string {
   return 'M';
 }
 
-/** True if the card is a land — used for slot styling, not for color grouping. */
+/**
+ * True if the card is a land. Reads the FRONT face only, like `getCardType`:
+ * the front is the face that sits in the pocket, and `getColorPalette` buckets
+ * lands by identity. Reading the whole type line filed Drowner of Truth //
+ * Drowned Jungle (a Devoid creature whose back is a land) under Multicolor.
+ */
 export function isLand(card: EnrichedCard): boolean {
-  const type = (card.typeLine || '').toLowerCase();
-  if (type.includes('land')) return true;
+  const front = (card.typeLine || '').toLowerCase().split(' // ')[0];
+  if (front.includes('land')) return true;
   return basicLandColorByName(card.name) !== null;
 }
 

@@ -24,6 +24,8 @@ import {
   sortCards,
   buildQtyByPrintingKey,
   withImplicitTiebreakers,
+  sameDaySetKey,
+  collectorNumberKey,
   getDisplaySorts,
   normalizeSorts,
   printingFinishKey,
@@ -486,9 +488,26 @@ function buildSections(
   // first" same-day drops in Z → A while the cards inside sorted A → Z.
   // Compared lowercase with `<`, exactly like `cardSortValue('setName')`, so
   // header order and card order can't disagree on punctuation or accents.
+  //
+  // A Release-date chain with no Set entry mirrors `sortCards` instead: same-day
+  // sections sort by their SET (a Secret Lair's drops are all one set), then by
+  // their lowest collector number, so the headers read in the same order as
+  // the cards under a packed page: same-day drops in printed order, not A → Z
+  // by drop name.
   const dirMult = primary.dir === 'desc' ? -1 : 1;
   const labelDir = fullSorts.find((s) => s?.field === 'setName')?.dir ?? 'asc';
   const labelMult = labelDir === 'desc' ? -1 : 1;
+  const bySetThenNumber =
+    primary.field === 'setReleaseDate' && fullSorts.some((s) => s?.field === 'setGroup');
+  const sameDayKey = new Map<SectionGroup, [string, string]>();
+  if (bySetThenNumber) {
+    for (const g of groups.values()) {
+      const numbers = g.cards.map((c) =>
+        c.collectorNumber ? collectorNumberKey(c.collectorNumber) : '￿'
+      );
+      sameDayKey.set(g, [sameDaySetKey(g.cards[0]), numbers.sort()[0]]);
+    }
+  }
   const ordered = [...groups.values()].sort((a, b) => {
     if (a.meta.order !== b.meta.order) {
       // Unknown-valued groups trail in both directions — a descending "newest
@@ -496,6 +515,12 @@ function buildSections(
       if (a.meta.order === UNKNOWN_ORDER) return 1;
       if (b.meta.order === UNKNOWN_ORDER) return -1;
       return (a.meta.order - b.meta.order) * dirMult;
+    }
+    if (bySetThenNumber) {
+      const [sa, na] = sameDayKey.get(a)!;
+      const [sb, nb] = sameDayKey.get(b)!;
+      if (sa !== sb) return sa < sb ? -1 : 1;
+      if (na !== nb) return na < nb ? -1 : 1;
     }
     const la = a.meta.label.toLowerCase();
     const lb = b.meta.label.toLowerCase();

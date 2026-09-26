@@ -42,7 +42,7 @@ const SORT_OPTIONS: SortMenuOption<SharedSortKey>[] = [
   { value: 'cmc', label: 'Mana value', dirLabels: ['Low → high', 'High → low'] },
   { value: 'price', label: 'Price', dirLabels: ['Cheapest', 'Priciest'] },
   { value: 'set', label: 'Set', dirLabels: ['A → Z', 'Z → A'] },
-  { value: 'rarity', label: 'Rarity', dirLabels: ['Common first', 'Mythic first'] },
+  { value: 'rarity', label: 'Rarity', dirLabels: ['Mythic first', 'Common first'] },
   { value: 'qty', label: 'Quantity', dirLabels: ['Fewest', 'Most'] },
 ];
 

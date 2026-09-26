@@ -160,6 +160,10 @@ export interface EnrichedCard {
 
 export type SortField =
   | 'none'
+  // Internal, never user-selectable: the set a printing belongs to, ignoring its
+  // Secret Lair drop (see `sameDaySetKey`). `withImplicitTiebreakers` splices it
+  // right after a Release-date entry so same-day sets stay contiguous.
+  | 'setGroup'
   | 'color'
   | 'type'
   | 'rarity'

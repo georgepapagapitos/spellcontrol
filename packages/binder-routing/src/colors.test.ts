@@ -173,4 +173,20 @@ describe('isLand', () => {
     expect(isLand(makeCard({ typeLine: 'Instant' }))).toBe(false);
     expect(isLand(makeCard({ typeLine: 'Creature — Bear' }))).toBe(false);
   });
+
+  // Real MH3 #253: a Devoid creature whose BACK face is a land. The front face
+  // is what sits in the pocket, and its rules text says it has no color.
+  it('reads the front face, so a colorless creature with a land back stays Colorless', () => {
+    const drowner = makeCard({
+      name: 'Drowner of Truth // Drowned Jungle',
+      typeLine: 'Creature — Eldrazi // Land',
+      colors: [],
+      colorIdentity: ['G', 'U'],
+    });
+    expect(isLand(drowner)).toBe(false);
+    expect(getColorKey(drowner)).toBe('C');
+    // A land-front MDFC (Hengegate Pathway // Mistgate Pathway) still goes by identity.
+    const pathway = makeCard({ typeLine: 'Land // Land', colors: [], colorIdentity: ['W', 'U'] });
+    expect(getColorKey(pathway)).toBe('M');
+  });
 });
