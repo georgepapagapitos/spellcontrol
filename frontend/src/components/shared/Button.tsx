@@ -125,6 +125,12 @@ export type ButtonProps = Look &
     iconEnd?: Icon;
     /** A surface modifier, appended after the variant's classes. */
     className?: string;
+    /**
+     * Added to `.btn-label` itself, e.g. `toolbar-label-compact`, which hides
+     * the label on phones. On the label element, not a span inside it, so a
+     * hidden label leaves no empty flex item behind to take the icon gap.
+     */
+    labelClassName?: string;
     /** The label. Always rendered inside `.btn-label`. */
     children: ReactNode;
   };
@@ -135,6 +141,7 @@ export function Button({
   icon,
   iconEnd,
   className,
+  labelClassName,
   children,
   ...rest
 }: ButtonProps) {
@@ -143,7 +150,7 @@ export function Button({
     rest as Target,
     <>
       {hidden(icon)}
-      <span className="btn-label">{children}</span>
+      <span className={join('btn-label', labelClassName)}>{children}</span>
       {hidden(iconEnd)}
     </>
   );

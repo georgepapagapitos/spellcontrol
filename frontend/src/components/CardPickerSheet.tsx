@@ -9,6 +9,7 @@ import { FoilBadge } from './FoilBadge';
 import { SearchPill } from './SearchPill';
 import { nameMatchesNormalized, printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   binderId: string;
@@ -112,14 +113,13 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
                     Added
                   </span>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn card-picker-add"
+                  <Button
                     onClick={() => handleAdd(card.copyId)}
                     aria-label={`Add ${card.name} to binder`}
+                    className="card-picker-add"
                   >
                     Add
-                  </button>
+                  </Button>
                 )}
               </li>
             );
@@ -129,9 +129,9 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
           )}
         </ul>
         <div className="card-picker-footer">
-          <button type="button" className="btn btn-primary" onClick={() => dismiss()}>
+          <Button variant="primary" onClick={() => dismiss()}>
             Done
-          </button>
+          </Button>
         </div>
       </div>
     </div>

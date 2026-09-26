@@ -11,6 +11,7 @@ import { SearchPill } from './SearchPill';
 import type { EnrichedCard } from '../types';
 import type { AvatarPatch } from '../lib/auth-api';
 import './AvatarPickerSheet.css';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   /** The currently-saved (or previously staged) avatar, if any — governs
@@ -251,16 +252,15 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
           </h2>
           <div className="avatar-picker-head-actions">
             {current && (
-              <button
-                type="button"
-                className="btn avatar-picker-remove"
+              <Button
                 onClick={() => {
                   onPick(null);
                   dismiss();
                 }}
+                className="avatar-picker-remove"
               >
                 Remove avatar
-              </button>
+              </Button>
             )}
             <button
               type="button"

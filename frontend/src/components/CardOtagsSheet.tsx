@@ -14,6 +14,7 @@ import { useEscapeKey } from '../lib/use-escape-key';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { EnrichedCard } from '../types';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   /** Needs only the name (tag lookup) plus set/collector for the Tagger deep link. */
@@ -135,9 +136,9 @@ export function CardOtagsSheet({ card, onClose }: Props) {
         </p>
 
         <div className="card-picker-footer">
-          <button type="button" className="btn btn-primary" onClick={() => dismiss()}>
+          <Button variant="primary" onClick={() => dismiss()}>
             Close
-          </button>
+          </Button>
         </div>
       </div>
     </div>

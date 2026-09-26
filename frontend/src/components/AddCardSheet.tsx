@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   /** When provided, the card is also pinned to this binder after being added to the collection. */
@@ -69,9 +70,7 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
         <AddCardSearchPanel binderId={binderId} onEscape={dismiss} />
 
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => dismiss()}>
-            Done
-          </button>
+          <Button onClick={() => dismiss()}>Done</Button>
         </div>
       </div>
     </div>

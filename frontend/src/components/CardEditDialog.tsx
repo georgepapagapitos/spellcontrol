@@ -12,6 +12,7 @@ import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from './PrintingPicker';
 import { Field, SegmentedControl, SwitchRow } from './shared/form';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 /** True when a printing's availability means the user owns at least one copy. */
 function isOwnedAvailability(a: ChangeOwnership): boolean {
   return a === 'owned' || a === 'in-other-deck' || a === 'in-cube';
@@ -513,9 +514,8 @@ export function CardEditDialog({
         {error && (
           <div className="card-edit-error" role="alert">
             {error}{' '}
-            <button
-              type="button"
-              className="btn-link"
+            <Button
+              variant="link"
               onClick={() => {
                 setError(null);
                 setLoadedFor(null);
@@ -523,7 +523,7 @@ export function CardEditDialog({
               }}
             >
               Retry
-            </button>
+            </Button>
           </div>
         )}
 
@@ -841,17 +841,10 @@ export function CardEditDialog({
       </div>
 
       <div className="modal-footer">
-        <button type="button" className="btn" onClick={onCancel}>
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!isDirty || !selectedCard}
-          onClick={handleConfirm}
-        >
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" disabled={!isDirty || !selectedCard} onClick={handleConfirm}>
           Save
-        </button>
+        </Button>
       </div>
     </Modal>
   );

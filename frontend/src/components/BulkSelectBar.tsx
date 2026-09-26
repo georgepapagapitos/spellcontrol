@@ -1,6 +1,7 @@
 import type { KeyboardEvent, ReactNode } from 'react';
 import { Check, CheckSquare } from 'lucide-react';
 import './BulkSelectBar.css';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Shared multi-select affordances for list/index surfaces (decks, binders,
@@ -14,9 +15,9 @@ import './BulkSelectBar.css';
 
 export function SelectToggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
   return (
-    <button
-      type="button"
-      className="pill-btn bulk-select-toggle"
+    <Button
+      placement="row"
+      className="bulk-select-toggle"
       aria-pressed={active}
       // On phones the idle label is hidden (`.toolbar-label-compact`, styles/
       // deck-builder-display.css) so the toolbar it sits in stays one row —
@@ -24,10 +25,11 @@ export function SelectToggle({ active, onToggle }: { active: boolean; onToggle: 
       aria-label={active ? 'Done selecting' : 'Select'}
       title={active ? 'Done selecting' : 'Select'}
       onClick={onToggle}
+      icon={<CheckSquare width={14} height={14} strokeWidth={2} />}
+      labelClassName="toolbar-label-compact"
     >
-      <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
-      <span className="toolbar-label-compact">{active ? 'Done' : 'Select'}</span>
-    </button>
+      {active ? 'Done' : 'Select'}
+    </Button>
   );
 }
 
@@ -69,18 +71,18 @@ export function BulkSelectBar({
       <span className="bulk-bar-count">
         {count > 0 ? `${count} ${noun}${count === 1 ? '' : 's'} selected` : 'Select items…'}
       </span>
-      <button type="button" className="pill-btn" onClick={onToggleAll}>
+      <Button placement="row" onClick={onToggleAll}>
         {allSelected ? 'Deselect all' : `Select all (${total})`}
-      </button>
+      </Button>
       {children}
       {count > 0 && !allSelected && (
-        <button type="button" className="pill-btn" onClick={onClear}>
+        <Button placement="row" onClick={onClear}>
           Clear
-        </button>
+        </Button>
       )}
-      <button type="button" className="pill-btn bulk-bar-done" onClick={onDone}>
+      <Button placement="row" onClick={onDone} className="bulk-bar-done">
         Done
-      </button>
+      </Button>
     </div>
   );
 }

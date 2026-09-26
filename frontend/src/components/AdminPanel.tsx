@@ -21,6 +21,7 @@ import { Modal } from './Modal';
 import { OverflowMenu } from './OverflowMenu';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 
 /** A 404 from a row action means another tab or admin already handled that
  *  row — the outcome the action wanted is what's true, so the panel drops
@@ -382,9 +383,8 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
           {spendError && (
             <div className="settings-row-hint" role="alert">
               {spendError}{' '}
-              <button
-                type="button"
-                className="btn-link"
+              <Button
+                variant="link"
                 onClick={() => {
                   setSpendError(null);
                   setSpend(null);
@@ -392,7 +392,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                 }}
               >
                 Retry
-              </button>
+              </Button>
             </div>
           )}
           {spend === null && !spendError && (
@@ -432,9 +432,9 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
           {error && (
             <div className="settings-row-hint" role="alert">
               {error}{' '}
-              <button type="button" className="btn-link" onClick={() => void refresh()}>
+              <Button variant="link" onClick={() => void refresh()}>
                 Retry
-              </button>
+              </Button>
             </div>
           )}
           {!loading && !error && users.length === 0 && (
@@ -557,22 +557,17 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               's synced collection, binders, decks, and game history. This can't be undone.
             </p>
             <div className="choice-dialog-actions admin-modal-actions">
-              <button
-                type="button"
-                className="pill-btn"
-                onClick={() => setPending(null)}
-                disabled={deleting}
-              >
+              <Button placement="row" onClick={() => setPending(null)} disabled={deleting}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                className="pill-btn pill-btn-danger"
+              </Button>
+              <Button
+                variant="danger"
+                placement="row"
                 onClick={() => void handleConfirmDelete()}
                 disabled={deleting}
               >
                 {deleting ? 'Deleting…' : 'Delete'}
-              </button>
+              </Button>
             </div>
           </Modal>
         )}
@@ -630,21 +625,17 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                 </div>
               </div>
               <div className="choice-dialog-actions admin-modal-actions">
-                <button
-                  type="button"
-                  className="pill-btn"
-                  onClick={() => setPendingAi(null)}
-                  disabled={savingAi}
-                >
+                <Button placement="row" onClick={() => setPendingAi(null)} disabled={savingAi}>
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  placement="row"
                   type="submit"
-                  className="pill-btn pill-btn-primary"
                   disabled={savingAi || !aiLimitValid}
                 >
                   {savingAi ? 'Saving…' : 'Save'}
-                </button>
+                </Button>
               </div>
             </form>
           </Modal>
@@ -674,21 +665,12 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               )}
             </p>
             <div className="choice-dialog-actions admin-modal-actions">
-              <button
-                type="button"
-                className="pill-btn"
-                onClick={() => setPendingRole(null)}
-                disabled={savingRole}
-              >
+              <Button placement="row" onClick={() => setPendingRole(null)} disabled={savingRole}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                className={
-                  pendingRole.role === 'admin'
-                    ? 'pill-btn pill-btn-danger'
-                    : 'pill-btn pill-btn-primary'
-                }
+              </Button>
+              <Button
+                variant={pendingRole.role === 'admin' ? 'danger' : 'primary'}
+                placement="row"
                 onClick={() => void handleConfirmRole()}
                 disabled={savingRole}
               >
@@ -697,7 +679,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                   : pendingRole.role === 'admin'
                     ? 'Revoke admin'
                     : 'Make admin'}
-              </button>
+              </Button>
             </div>
           </Modal>
         )}
@@ -716,22 +698,21 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               They can set a new profile any time. This only removes what's there now.
             </p>
             <div className="choice-dialog-actions admin-modal-actions">
-              <button
-                type="button"
-                className="pill-btn"
+              <Button
+                placement="row"
                 onClick={() => setPendingClear(null)}
                 disabled={clearingProfile}
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                className="pill-btn pill-btn-danger"
+              </Button>
+              <Button
+                variant="danger"
+                placement="row"
                 onClick={() => void handleConfirmClearProfile()}
                 disabled={clearingProfile}
               >
                 {clearingProfile ? 'Clearing…' : 'Clear profile'}
-              </button>
+              </Button>
             </div>
           </Modal>
         )}
@@ -751,9 +732,8 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
           {reportsError && (
             <div className="settings-row-hint" role="alert">
               {reportsError}{' '}
-              <button
-                type="button"
-                className="btn-link"
+              <Button
+                variant="link"
                 onClick={() => {
                   setReportsError(null);
                   setReports(null);
@@ -761,7 +741,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                 }}
               >
                 Retry
-              </button>
+              </Button>
             </div>
           )}
           {reports === null &&
@@ -792,22 +772,21 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                   <div className="settings-row-hint">{r.reason}</div>
                 </div>
                 <div className="settings-row-actions">
-                  <button
-                    type="button"
-                    className="pill-btn"
+                  <Button
+                    placement="row"
                     disabled={dismissing}
                     onClick={() => void handleDismiss(r)}
                   >
                     {dismissing ? 'Dismissing…' : 'Dismiss'}
-                  </button>
-                  <button
-                    type="button"
-                    className="pill-btn pill-btn-danger"
+                  </Button>
+                  <Button
+                    variant="danger"
+                    placement="row"
                     disabled={dismissing}
                     onClick={() => setPendingHide(r)}
                   >
                     Hide
-                  </button>
+                  </Button>
                 </div>
               </div>
             );
@@ -826,22 +805,17 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
           </h2>
           <p className="choice-dialog-body">{HIDE_BODY[pendingHide.kind]}</p>
           <div className="choice-dialog-actions admin-modal-actions">
-            <button
-              type="button"
-              className="pill-btn"
-              onClick={() => setPendingHide(null)}
-              disabled={hiding}
-            >
+            <Button placement="row" onClick={() => setPendingHide(null)} disabled={hiding}>
               Cancel
-            </button>
-            <button
-              type="button"
-              className="pill-btn pill-btn-danger"
+            </Button>
+            <Button
+              variant="danger"
+              placement="row"
               onClick={() => void handleConfirmHide()}
               disabled={hiding}
             >
               {hiding ? 'Hiding…' : 'Hide'}
-            </button>
+            </Button>
           </div>
         </Modal>
       )}

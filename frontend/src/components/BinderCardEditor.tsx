@@ -27,6 +27,7 @@ import { Tabs } from './Tabs';
 import type { BinderDef, EnrichedCard, MaterializedBinder } from '../types';
 import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   binder: MaterializedBinder;
@@ -228,19 +229,10 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
         </div>
 
         <div className="modal-footer">
-          {tab === 'cards' && (
-            <button type="button" className="btn" onClick={() => setPickerOpen(true)}>
-              + Add cards
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onClose}
-            autoFocus={tab !== 'cards'}
-          >
+          {tab === 'cards' && <Button onClick={() => setPickerOpen(true)}>+ Add cards</Button>}
+          <Button variant="primary" onClick={onClose} autoFocus={tab !== 'cards'}>
             Done
-          </button>
+          </Button>
         </div>
       </Modal>
 
@@ -341,13 +333,9 @@ function CardsTab({
                   <p className="binder-card-editor-pin-explain">
                     Pinned to this binder. Would otherwise file to{' '}
                     {nextMatch ? nextMatch.name : 'Uncategorized'}.{' '}
-                    <button
-                      type="button"
-                      className="btn-link"
-                      onClick={() => onRemove(card.copyId)}
-                    >
+                    <Button variant="link" onClick={() => onRemove(card.copyId)}>
                       Unpin
-                    </button>
+                    </Button>
                   </p>
                 )}
               </li>

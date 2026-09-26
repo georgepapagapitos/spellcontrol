@@ -15,6 +15,7 @@ import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
 import { Legend, LegendContent } from './Legend';
 import { ToolbarPopover } from './shared/ToolbarPopover';
 import { useMediaQuery } from '../lib/use-media-query';
+import { Button, buttonClass } from '@/components/shared/Button';
 
 export type BinderViewMode = 'pages' | 'list' | 'compact';
 
@@ -102,20 +103,21 @@ export function BinderSummaryBar({ binderName, onBrowsePages, sort, collapse, co
       {sort && <SortPopover {...sort} />}
       <div className="binder-summary-end">
         {collapse && (
-          <button
-            type="button"
-            className="toolbar-pill"
+          <Button
+            placement="toolbar"
             onClick={collapse.onToggle}
             aria-label={collapseLabel}
             title={collapseLabel}
+            icon={
+              collapse.allCollapsed ? (
+                <ChevronsUpDown width={14} height={14} strokeWidth={2} />
+              ) : (
+                <ChevronsDownUp width={14} height={14} strokeWidth={2} />
+              )
+            }
           >
-            {collapse.allCollapsed ? (
-              <ChevronsUpDown width={14} height={14} strokeWidth={2} aria-hidden />
-            ) : (
-              <ChevronsDownUp width={14} height={14} strokeWidth={2} aria-hidden />
-            )}
             {!narrow && <span>{collapseLabel}</span>}
-          </button>
+          </Button>
         )}
         {!narrow && (
           <ViewModeToggle<BinderViewMode>
@@ -138,7 +140,7 @@ export function BinderSummaryBar({ binderName, onBrowsePages, sort, collapse, co
                 )}
               </>
             }
-            triggerClassName="toolbar-pill binder-summary-view"
+            triggerClassName={`${buttonClass({ placement: 'toolbar' })} binder-summary-view`}
             triggerAriaLabel={changed > 0 ? `View options (${changed} changed)` : 'View options'}
             triggerTitle="View options"
             haspopup="dialog"

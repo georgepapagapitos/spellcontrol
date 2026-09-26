@@ -514,7 +514,7 @@ variant to launder one through. `SelectMenu`, `ToolbarPopover` and `Legend`
 render their own `.toolbar-pill` trigger and stay that way. When a call site
 restyles one of those triggers (`triggerClassName` on `OverflowMenu` or
 `ToolbarPopover`), it takes the class from `buttonClass({ variant, placement })`,
-the same vocabulary `Button` uses, rather than spelling out `btn …`.
+the same vocabulary `Button` uses, rather than spelling out `btn …`. A label that hides on phones (`.toolbar-label-compact`) takes that class through `labelClassName`, which lands on `.btn-label` itself: a span nested inside it would leave an empty flex item holding the icon gap.
 
 Guard: `src/test/control-primitives-usage.test.ts` counts raw control classes
 and glyph-only `<button>`s per file. Its allowlist is the migration still to
@@ -5897,7 +5897,7 @@ of scanning: a few cards from the mail (check each one) and a whole booster
 box (scan non-stop, fix the odd one).
 
 - **The camera shows the whole 4:3 frame, full width** (`object-fit:
-  contain`), like a phone's camera app. Filling the screen cropped a third of
+contain`), like a phone's camera app. Filling the screen cropped a third of
   the width off and read as zoomed in. Every control lives in the black bars
   above and below, so nothing covers the card.
 - **The camera screen is pinned dark** (`data-theme="obsidian"` on
@@ -5905,7 +5905,7 @@ box (scan non-stop, fix the odd one).
   last-scan panel read against the camera. **The sheets opened from it (the
   list, editing a card, settings) follow the app theme** like every other
   sheet: they're shared `<Modal>` sheets on `modal-backdrop--sheet
-  modal-backdrop--over-sheet`, and their menus portal to `<body>` anyway.
+modal-backdrop--over-sheet`, and their menus portal to `<body>` anyway.
 - **Anything opened from the scanner stacks above it.** The camera sits at
   `--z-overlay`, above the modal tier, so a sheet or confirm raised from it
   needs `--over-sheet` (`SCANNER_SHEET_BACKDROP`, or `useConfirm`'s

@@ -6,6 +6,7 @@ import { useEscapeKey } from '../lib/use-escape-key';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import type { EnrichedCard } from '../types';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   /** Physical copyIds to move into the chosen binder. */
@@ -166,15 +167,14 @@ export function BulkMoveToBinderSheet({ copyIds, cards, currentBinderByCopyId, o
                       {isMove ? 'Moved' : 'Added'}
                     </span>
                   ) : (
-                    <button
-                      type="button"
-                      className="btn add-to-binder-btn"
+                    <Button
                       onClick={() => handlePick(binder.id)}
                       aria-label={`${actionWord} ${count} ${count === 1 ? 'card' : 'cards'} to ${binder.name}`}
                       disabled={!!doneTo}
+                      className="add-to-binder-btn"
                     >
                       {actionWord}
-                    </button>
+                    </Button>
                   )}
                 </li>
               );
@@ -183,9 +183,7 @@ export function BulkMoveToBinderSheet({ copyIds, cards, currentBinderByCopyId, o
         )}
 
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => dismiss()}>
-            Cancel
-          </button>
+          <Button onClick={() => dismiss()}>Cancel</Button>
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../
 import { useEscapeKey } from '../lib/use-escape-key';
 import { FoilBadge } from './FoilBadge';
 import type { EnrichedCard } from '../types';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   card: EnrichedCard;
@@ -156,17 +157,16 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
                       Already here
                     </span>
                   ) : (
-                    <button
-                      type="button"
-                      className="btn add-to-binder-btn"
+                    <Button
                       onClick={() => handlePick(binder.id)}
                       aria-label={`${
                         currentBinderId ? 'Move' : 'Add'
                       } ${card.name} to ${binder.name}`}
                       disabled={!!addedTo}
+                      className="add-to-binder-btn"
                     >
                       {currentBinderId ? 'Move' : 'Add'}
-                    </button>
+                    </Button>
                   )}
                 </li>
               );
@@ -175,9 +175,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
         )}
 
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={() => dismiss()}>
-            Cancel
-          </button>
+          <Button onClick={() => dismiss()}>Cancel</Button>
         </div>
       </div>
     </div>

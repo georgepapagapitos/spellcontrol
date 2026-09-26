@@ -15,6 +15,7 @@ import {
   writeStoredCollectionExportFormat,
   type CollectionExportFormat,
 } from '../lib/collection-export';
+import { Button } from '@/components/shared/Button';
 
 const PREVIEW_LINES = 30;
 
@@ -112,33 +113,28 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
             {rowCount === 1 ? '' : 's'}
           </span>
           <div className="export-dialog-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
+            <Button
+              variant="primary"
               onClick={handleDownload}
               aria-label={`Download ${fileName}`}
+              icon={<Download width={14} height={14} strokeWidth={2} />}
             >
-              <Download width={14} height={14} strokeWidth={2} aria-hidden />
-              <span>Download</span>
-            </button>
-            <button
-              type="button"
-              className="btn"
+              Download
+            </Button>
+            <Button
               onClick={handleCopy}
               aria-label="Copy to clipboard"
+              icon={
+                copied ? (
+                  <Check width={14} height={14} strokeWidth={2.5} />
+                ) : (
+                  <Clipboard width={14} height={14} strokeWidth={2} />
+                )
+              }
             >
-              {copied ? (
-                <Check width={14} height={14} strokeWidth={2.5} aria-hidden />
-              ) : (
-                <Clipboard width={14} height={14} strokeWidth={2} aria-hidden />
-              )}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
-            {canShare() && (
-              <button type="button" className="btn" onClick={handleShare}>
-                Share…
-              </button>
-            )}
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+            {canShare() && <Button onClick={handleShare}>Share…</Button>}
           </div>
         </div>
         <p className="export-dialog-hint">

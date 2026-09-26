@@ -21,6 +21,7 @@ import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
 import { useCollectionStore } from '../store/collection';
+import { Button } from '@/components/shared/Button';
 
 /** The picker's registry groups this dialog actually sections by — every one
  *  except 'Advanced' (its one field, Scryfall query, renders under Text; see
@@ -859,13 +860,13 @@ function DialogBody({
             Clear
           </button>
           {canSaveAsBinder && (
-            <button
-              type="button"
-              className="btn-link collection-filters-dialog-save-as-binder"
+            <Button
+              variant="link"
               onClick={saveAsBinder}
+              className="collection-filters-dialog-save-as-binder"
             >
               Save as a binder…
-            </button>
+            </Button>
           )}
         </div>
         {draftMatchCount !== null && (

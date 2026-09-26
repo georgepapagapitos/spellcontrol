@@ -24,6 +24,7 @@ import type { MaterializedBinder } from '../types';
 import { InfoTip } from './InfoTip';
 import { formatRelativeTime } from '../lib/format-time';
 import { toast } from '../store/toasts';
+import { Button } from '@/components/shared/Button';
 
 /** Binder ids whose drift-cleared moment already played this app-open —
  *  mirrors `celebratedDeckComplete` in DeckDisplay.tsx's module-level-Set
@@ -272,9 +273,9 @@ export function BinderDriftBanner({ binder }: Props) {
           </span>
         </button>
         <span className="binder-drift-reviewed-wrap">
-          <button type="button" className="btn-link" onClick={handleMarkReviewed}>
+          <Button variant="link" onClick={handleMarkReviewed}>
             Mark reviewed
-          </button>
+          </Button>
           <InfoTip label="drift and Mark reviewed" text={DRIFT_TIP} wide />
         </span>
       </div>
@@ -401,25 +402,24 @@ function AddedGroupBlock({
           ({group.rows.length})
         </span>
         {isImport && (
-          <button
-            type="button"
-            className="btn-link binder-drift-rows-toggle"
+          <Button
+            variant="link"
             aria-expanded={showRows}
             aria-controls={listId}
             onClick={() => setShowRows((v) => !v)}
+            className="binder-drift-rows-toggle"
           >
             {showRows ? 'Hide cards' : `Show ${group.rows.length} cards`}
-          </button>
+          </Button>
         )}
         {group.rows.length > 1 && (
-          <button
-            type="button"
-            className="btn-link"
+          <Button
+            variant="link"
             aria-label={`Added all: ${formatSourceLabel(group.source)}`}
             onClick={() => onAcknowledgeAll(group.rows, group)}
           >
             {isImport ? 'Filed all' : 'Added all'}
-          </button>
+          </Button>
         )}
       </div>
       {isImport && (
@@ -479,14 +479,13 @@ function RemovedGroupBlock({
           ({group.rows.length})
         </span>
         {group.rows.length > 1 && (
-          <button
-            type="button"
-            className="btn-link"
+          <Button
+            variant="link"
             aria-label={`Moved all: ${formatDestinationLabel(group.destination)}`}
             onClick={() => onAcknowledgeAll(group.rows, group)}
           >
             Moved all
-          </button>
+          </Button>
         )}
       </div>
       <ul className="binder-drift-queue-list">
@@ -535,22 +534,16 @@ function QueueRow({
       )}
       <span className="binder-drift-card-reason"> · {formatDriftReason(row.reason)}</span>
       <span className="binder-drift-queue-actions">
-        <button
-          type="button"
-          className="btn-link"
+        <Button
+          variant="link"
           aria-label={`${acknowledgeLabel}: ${row.name}, ${acknowledgeRoute}`}
           onClick={onAcknowledge}
         >
           {acknowledgeLabel}
-        </button>
-        <button
-          type="button"
-          className="btn-link"
-          aria-label={`${primaryLabel}: ${row.name}`}
-          onClick={onPrimary}
-        >
+        </Button>
+        <Button variant="link" aria-label={`${primaryLabel}: ${row.name}`} onClick={onPrimary}>
           {primaryLabel}
-        </button>
+        </Button>
       </span>
     </li>
   );

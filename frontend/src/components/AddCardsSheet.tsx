@@ -12,6 +12,7 @@ import { ProductSearchPanel } from './ProductSearchPanel';
 import { Tabs } from './Tabs';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
 type Tab = 'search' | 'upload' | 'product' | 'scan';
@@ -228,24 +229,24 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
                   Point your camera at one card at a time. Each match is added straight to your
                   collection, no mode picker or re-import needed. For bulk file imports or paste,
                   use{' '}
-                  <button type="button" className="btn-link" onClick={() => setTab('upload')}>
+                  <Button variant="link" onClick={() => setTab('upload')}>
                     Add from list
-                  </button>
+                  </Button>
                   .
                 </p>
-                <button
-                  type="button"
-                  className="btn btn-primary scan-tab-launch"
+                <Button
+                  variant="primary"
                   onClick={() => {
                     setScanError(null);
                     setScanSuccess(null);
                     setScannerOpen(true);
                   }}
                   disabled={scanBusy}
+                  className="scan-tab-launch"
+                  icon={<Camera width={16} height={16} strokeWidth={1.8} />}
                 >
-                  <Camera width={16} height={16} strokeWidth={1.8} aria-hidden />
-                  <span>{scanBusy ? 'Importing…' : 'Start scanning'}</span>
-                </button>
+                  {scanBusy ? 'Importing…' : 'Start scanning'}
+                </Button>
                 {scanSuccess && (
                   <div className="success-banner scan-tab-banner">
                     <span>{scanSuccess}</span>
