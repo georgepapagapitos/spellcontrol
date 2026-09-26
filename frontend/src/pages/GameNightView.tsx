@@ -23,6 +23,7 @@ import { OverflowMenu } from '../components/OverflowMenu';
 import './GameNightView.css';
 
 import { userMessage } from '@/lib/user-error';
+import { Button, buttonClass } from '@/components/shared/Button';
 /** Mirrors the server's GRACE_MS (routes/game-nights.ts): a night takes
  *  replies until a day after it starts, then every write is refused with
  *  "This game night has already happened." The page used to keep offering
@@ -364,16 +365,15 @@ function NightBody({
           )}
           <div className="game-night-status-btns" role="group" aria-label="RSVP">
             {STATUS_LABELS.map(({ status, label }) => (
-              <button
+              <Button
                 key={status}
-                type="button"
-                className={`btn game-night-status-btn${myRsvp?.status === status ? ' is-selected' : ''}`}
+                className={`game-night-status-btn${myRsvp?.status === status ? ' is-selected' : ''}`}
                 aria-pressed={myRsvp?.status === status}
                 disabled={busy !== null}
                 onClick={() => void reply(status)}
               >
                 {busy === status ? 'Saving…' : label}
-              </button>
+              </Button>
             ))}
           </div>
           {formError && (
@@ -390,7 +390,7 @@ function NightBody({
           <div className="game-night-calendar-btns">
             <OverflowMenu
               ariaLabel="Add this game night to your calendar"
-              triggerClassName="btn game-night-cal-trigger"
+              triggerClassName={`${buttonClass()} game-night-cal-trigger`}
               align="left"
               trigger={
                 <>

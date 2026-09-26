@@ -34,6 +34,7 @@ import {
 } from '../lib/pods-client';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const POD_NAME_MAX = 60;
 
 type GamesFetch =
@@ -428,9 +429,9 @@ export function PodHubPage() {
           <p className="empty-state-hint">
             It may have been deleted, or you don't have access to it.
           </p>
-          <Link to="/pods" className="btn btn-primary">
+          <Button variant="primary" to="/pods">
             Back to pods
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -498,9 +499,9 @@ export function PodHubPage() {
                 maxLength={POD_NAME_MAX}
                 aria-label="Pod name"
               />
-              <button type="button" className="btn btn-primary" onClick={() => void commitRename()}>
+              <Button variant="primary" onClick={() => void commitRename()}>
                 Done
-              </button>
+              </Button>
             </span>
           ) : isOwner ? (
             <button
@@ -518,9 +519,7 @@ export function PodHubPage() {
         </h1>
         {isOwner && (
           <div className="pod-hub-header-actions">
-            <button type="button" className="btn" onClick={() => setInviteOpen(true)}>
-              Invite more people
-            </button>
+            <Button onClick={() => setInviteOpen(true)}>Invite more people</Button>
             <OverflowMenu
               ariaLabel={`Manage ${pod.name}`}
               items={[
@@ -545,22 +544,16 @@ export function PodHubPage() {
         <div className="pod-hub-invite-banner" role="status">
           <p className="pod-hub-invite-banner-text">You've been invited to this pod.</p>
           <div className="pod-hub-invite-banner-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
+            <Button
+              variant="primary"
               onClick={() => void handleAcceptInvite()}
               disabled={inviteRespondBusy}
             >
               {inviteRespondBusy ? 'Accepting…' : 'Accept'}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => void handleDeclineInvite()}
-              disabled={inviteRespondBusy}
-            >
+            </Button>
+            <Button onClick={() => void handleDeclineInvite()} disabled={inviteRespondBusy}>
               Decline
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -637,9 +630,9 @@ export function PodHubPage() {
               ) : gamesFetch.games.length === 0 ? (
                 <div className="pod-hub-stats-empty pod-hub-stats-empty-cta">
                   <p>No games yet.</p>
-                  <Link to="/play/nights" className="btn btn-primary">
+                  <Button variant="primary" to="/play/nights">
                     Plan a game night
-                  </Link>
+                  </Button>
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
@@ -936,12 +929,12 @@ function InviteMembersDialog({
         )}
 
         <div className="pod-hub-invite-actions">
-          <button type="button" className="btn" onClick={onClose} disabled={saving}>
+          <Button onClick={onClose} disabled={saving}>
             Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+          </Button>
+          <Button variant="primary" type="submit" disabled={saving}>
             {saving ? 'Inviting…' : 'Invite'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

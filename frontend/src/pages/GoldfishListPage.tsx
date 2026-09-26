@@ -10,6 +10,7 @@ import { toast } from '@/store/toasts';
 import type { Deck } from '@/store/decks';
 import '@/styles/playtest.css';
 import './GoldfishListPage.css';
+import { Button } from '@/components/shared/Button';
 
 type State =
   | { status: 'input' }
@@ -122,15 +123,10 @@ export function GoldfishListPage() {
       )}
 
       <div className="goldfish-actions">
-        <button type="button" className="btn" onClick={() => navigate('/decks')} disabled={busy}>
+        <Button onClick={() => navigate('/decks')} disabled={busy}>
           Back to decks
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={parse}
-          disabled={busy || text.trim().length === 0}
-        >
+        </Button>
+        <Button variant="primary" onClick={parse} disabled={busy || text.trim().length === 0}>
           {busy ? (
             <>
               <span className="spinner" aria-hidden="true" /> Reading the list…
@@ -138,7 +134,7 @@ export function GoldfishListPage() {
           ) : (
             'Play this list'
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

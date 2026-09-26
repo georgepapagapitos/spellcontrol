@@ -12,7 +12,7 @@ import '@/styles/play-counters-panel.css';
 import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { Check, Copy, Eye, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { useDecksStore, type Deck } from '../store/decks';
@@ -64,6 +64,7 @@ import { useStarterDeckCardNames } from '../lib/horde/starter-deck-cards';
 import { HORDE_CATALOG, type HordeLevel, type HordeSettings } from '@/lib/horde';
 import { useHordeGameStore, type HordeSurvivor } from '../store/horde-game';
 import { coopResultLabel } from '../lib/horde-records';
+import { Button } from '@/components/shared/Button';
 type Tab = 'home' | 'local' | 'online' | 'nights' | 'history';
 const TABS: ReadonlySet<string> = new Set(['home', 'local', 'online', 'nights', 'history']);
 
@@ -445,9 +446,9 @@ export function PlayPage() {
                 games work without an account.
               </p>
               <div className="empty-state-actions">
-                <Link to={signInHref} className="btn btn-primary">
+                <Button variant="primary" to={signInHref}>
                   Sign in
-                </Link>
+                </Button>
               </div>
             </div>
           ) : (
@@ -1112,16 +1113,16 @@ function LocalSetup({
           <div className="play-setup-pods" role="group" aria-label="Seat a pod">
             <span className="play-setup-pods-label">Seat a pod</span>
             {pods.map((pod) => (
-              <button
+              <Button
+                placement="row"
                 key={pod.id}
-                type="button"
-                className="pill-btn play-setup-pod-btn"
                 disabled={seatingPod !== null}
                 aria-busy={seatingPod === pod.id}
                 onClick={() => void seatPod(pod)}
+                className="play-setup-pod-btn"
               >
                 {pod.name}
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -1223,14 +1224,15 @@ function LocalSetup({
         </div>
       )}
 
-      <button
+      <Button
+        variant="primary"
         type="submit"
-        className="btn btn-primary play-setup-start"
         disabled={isHorde && hordeStatus === 'loading'}
+        className="play-setup-start"
+        icon={<Swords width={16} height={16} strokeWidth={2} />}
       >
-        <Swords width={16} height={16} strokeWidth={2} aria-hidden />
         {isHorde && hordeStatus === 'loading' ? 'Loading the horde…' : 'Start game'}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -1565,10 +1567,14 @@ function OnlineSetup({
             </ul>
           </section>
 
-          <button type="submit" className="btn btn-primary play-setup-start">
-            <Swords width={16} height={16} strokeWidth={2} aria-hidden />
+          <Button
+            variant="primary"
+            type="submit"
+            className="play-setup-start"
+            icon={<Swords width={16} height={16} strokeWidth={2} />}
+          >
             Create game
-          </button>
+          </Button>
         </form>
       ) : (
         <form
@@ -1637,27 +1643,27 @@ function OnlineSetup({
             </ul>
           </section>
 
-          <button
+          <Button
+            variant="primary"
             type="submit"
-            className="btn btn-primary play-setup-start"
             disabled={code.trim().length < 3}
+            className="play-setup-start"
+            icon={<Swords width={16} height={16} strokeWidth={2} />}
           >
-            <Swords width={16} height={16} strokeWidth={2} aria-hidden />
             Join game
-          </button>
+          </Button>
           {/* Watching needs the code and nothing else — no name, no deck, no
               seat. It only works on a table whose host switched watchers on;
               otherwise the read comes back as if the code were unknown, and
               the error says so. */}
-          <button
-            type="button"
-            className="btn play-setup-watch"
+          <Button
             disabled={code.trim().length < 3}
             onClick={() => onWatch(code.trim().toUpperCase())}
+            className="play-setup-watch"
+            icon={<Eye width={16} height={16} strokeWidth={2} />}
           >
-            <Eye width={16} height={16} strokeWidth={2} aria-hidden />
             Watch without a seat
-          </button>
+          </Button>
         </form>
       )}
     </div>
@@ -1764,12 +1770,13 @@ function OnlineBoardDoor({
           />
         </div>
       ) : (
-        <Link
+        <Button
           to={deckBoardPath(mine.deckId)}
-          className={`btn play-board-door-cta ${urgent ? 'btn-primary' : ''}`}
+          variant={urgent ? 'primary' : 'secondary'}
+          className="play-board-door-cta"
         >
           {myBoardOpen ? 'Back to your board' : 'Open your board'}
-        </Link>
+        </Button>
       )}
     </section>
   );
@@ -2080,14 +2087,14 @@ function HistoryTab({
             >
               {selected.size === droppable.length ? 'Clear' : 'Select all'}
             </button>
-            <button
-              type="button"
-              className="btn btn-danger play-history-bulk-drop"
+            <Button
+              variant="danger"
               disabled={selectedRecords.length === 0}
               onClick={() => setPendingDrop(selectedRecords)}
+              className="play-history-bulk-drop"
             >
               Remove
-            </button>
+            </Button>
           </div>
         )}
         {shown.length === 0 && history.length > 0 && (
@@ -2282,12 +2289,10 @@ function ResumeBanner({
         <span className="play-resume-banner-players">{summary}</span>
       </div>
       <div className="play-resume-banner-actions">
-        <button type="button" className="btn btn-primary" onClick={onResume}>
+        <Button variant="primary" onClick={onResume}>
           Resume
-        </button>
-        <button type="button" className="btn" onClick={onDiscard}>
-          Discard
-        </button>
+        </Button>
+        <Button onClick={onDiscard}>Discard</Button>
       </div>
     </section>
   );

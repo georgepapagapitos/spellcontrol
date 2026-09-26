@@ -6,6 +6,7 @@ import { useAwaitingFirstPull } from '@/lib/use-awaiting-first-pull';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { PlaytestSession } from '@/playtest/components/PlaytestSession';
 import '@/styles/playtest.css';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Playtest one of YOUR decks. Resolves the deck from the decks store, decides
@@ -50,9 +51,9 @@ export function PlaytestPage() {
         <p className="empty-state-tagline">Deck not found.</p>
         <p className="empty-state-hint">It may have been deleted. Pick another deck to playtest.</p>
         <div className="empty-state-actions">
-          <button type="button" className="btn btn-primary" onClick={() => navigate('/decks')}>
+          <Button variant="primary" onClick={() => navigate('/decks')}>
             Back to decks
-          </button>
+          </Button>
         </div>
       </div>
     );

@@ -22,6 +22,7 @@ import {
 } from '../lib/pods-client';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const POD_NAME_MAX = 60;
 
 /* Legacy useAnimatedNumber (no revealKey) — tweens changes while mounted,
@@ -204,9 +205,9 @@ function PodsIndexPageBody() {
           <p className="empty-state-hint">
             Create one to track games and trades with your regular table.
           </p>
-          <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
+          <Button variant="primary" onClick={() => setCreateOpen(true)}>
             Create pod
-          </button>
+          </Button>
         </div>
       ) : (
         <>
@@ -224,24 +225,21 @@ function PodsIndexPageBody() {
                       </span>
                     </div>
                     <div className="pods-invited-actions">
-                      <button
-                        type="button"
-                        className="btn btn-primary"
+                      <Button
+                        variant="primary"
                         onClick={() => void handleAccept(pod)}
                         disabled={busyIds.has(pod.id)}
                         aria-label={`Accept invite to ${pod.name}`}
                       >
                         {busyIds.has(pod.id) ? 'Accepting…' : 'Accept'}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
+                      </Button>
+                      <Button
                         onClick={() => void handleDecline(pod)}
                         disabled={busyIds.has(pod.id)}
                         aria-label={`Decline invite to ${pod.name}`}
                       >
                         Decline
-                      </button>
+                      </Button>
                     </div>
                   </li>
                 ))}
@@ -421,12 +419,12 @@ function CreatePodDialog({
         )}
 
         <div className="pods-dialog-actions">
-          <button type="button" className="btn" onClick={onClose} disabled={saving}>
+          <Button onClick={onClose} disabled={saving}>
             Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+          </Button>
+          <Button variant="primary" type="submit" disabled={saving}>
             {saving ? 'Creating…' : 'Create pod'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
