@@ -1,6 +1,13 @@
 import { ChevronRight, Pause, Play } from 'lucide-react';
-import type { GameAction, GameState } from '../../lib/game-state';
-import { clockView, describeClock, formatClock } from '../../lib/game-clock';
+import { isClockPaused, type GameAction, type GameState } from '../../lib/game-state';
+import {
+  clockView,
+  describeClock,
+  formatClock,
+  gameElapsed,
+  msToNextSecond,
+  turnElapsed,
+} from '../../lib/game-clock';
 import { haptics } from '../../lib/haptics';
 import { useNow } from '../../lib/use-now';
 
@@ -23,7 +30,7 @@ import { useNow } from '../../lib/use-now';
  * celebration (B7-01): how long the table has been playing is a fact about
  * the table, not about a seat.
  *
- * Ticks off the wall clock once a second so a table sitting untouched between
+ * Ticks off the wall clock every second so a table sitting untouched between
  * turns still sees the time move; a finished game freezes (`gameElapsed`
  * reads `endedAt`). Pausing is the one thing that stops it on purpose —
  * `clockView` already subtracts paused stretches from every reading, so this
@@ -56,7 +63,12 @@ export function GameClock({
   showTurn: boolean;
 }) {
   const finished = game.status === 'finished';
-  const now = useNow(!finished);
+  // Redraws on the readings' own second boundaries (see `msToNextSecond`), so
+  // the digit on screen is always the current one and a pause freezes it
+  // where the tap found it. Paused, nothing moves, so nothing ticks.
+  const now = useNow(!finished && !isClockPaused(game), (t) =>
+    msToNextSecond(gameElapsed(game, t), game.activeSeat != null ? turnElapsed(game, t) : null)
+  );
   const view = clockView(game, now);
   if (view.total == null || (!showTotal && !showTurn)) return null;
   const active = game.players.find((p) => p.seat === view.activeSeat) ?? null;

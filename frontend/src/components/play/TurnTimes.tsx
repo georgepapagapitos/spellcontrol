@@ -1,5 +1,5 @@
-import type { GameState } from '../../lib/game-state';
-import { describeClock, formatClock, seatTurnTotals } from '../../lib/game-clock';
+import { isClockPaused, type GameState } from '../../lib/game-state';
+import { describeClock, formatClock, msToNextSecond, seatTurnTotals } from '../../lib/game-clock';
 import { useNow } from '../../lib/use-now';
 
 /**
@@ -17,8 +17,11 @@ import { useNow } from '../../lib/use-now';
 export function TurnTimes({ game }: { game: GameState }) {
   // Keeps ticking while the menu is open: the active seat's total is still
   // accruing, and a list frozen at open would understate exactly the player
-  // anyone opened this to check on.
-  const now = useNow(game.status !== 'finished');
+  // anyone opened this to check on. A pause freezes every total, so nothing
+  // to redraw until it ends.
+  const now = useNow(game.status !== 'finished' && !isClockPaused(game), (t) =>
+    msToNextSecond(...Object.values(seatTurnTotals(game, t)))
+  );
   const totals = seatTurnTotals(game, now);
   const rows = game.players
     .map((p) => ({ player: p, ms: totals[p.seat] }))
