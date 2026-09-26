@@ -10,6 +10,7 @@ import { useSheetExit } from '../lib/use-sheet-exit';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { classifyFoil } from '../lib/foil-style';
 import { IconButton } from '@/components/shared/Button';
+import { FoilShimmer } from '@/components/shared/FoilShimmer';
 
 export interface InnerCardScope {
   cards: EnrichedCard[];
@@ -367,12 +368,7 @@ function Cell({
       ) : (
         <span className="binder-pages-cell-fallback">{card.name}</span>
       )}
-      {card.foil && (
-        <>
-          <div className="card-preview-foil-shine" aria-hidden="true" />
-          <div className="card-preview-foil-glare" aria-hidden="true" />
-        </>
-      )}
+      {card.foil && <FoilShimmer seed={card.copyId} />}
       {allocation && (
         <Link
           to={

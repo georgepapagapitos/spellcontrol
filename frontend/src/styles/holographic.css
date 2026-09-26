@@ -1,390 +1,413 @@
 /* Holographic foil engine.
-   Extracted from global.css (was a ~285-line block scattered mid-file).
-   Cursor-driven parallax rainbow + glare for CardPreview, plus the
-   collection-grid-item ambient-drift reuse. Imported AFTER global.css in
-   main.tsx so the reduced-motion overrides below still win over the
-   hover:none drift (source order matters — keep this file last-ish). */
+   Cursor-driven foil for the CardPreview hero, plus the ambient version on
+   every foil thumbnail (collection grid, deck tiles, binder pockets). Imported
+   AFTER global.css in main.tsx so the reduced-motion overrides below still win
+   over the ambient drift (source order matters — keep this file last-ish).
 
-/* Holographic foil — minimal recipe.
-   Just two things, both driven by cursor position (--mx/--my in 0..100%):
-     1. A parallax color gradient that shifts across the card as the cursor
-        moves. Each variant defines its own --foil-rainbow palette.
-     2. A soft white glare radial centered on the cursor for the wet-light
-        highlight.
-   --hyp (0 center → 1 corner) scales opacity so it's calm at rest. */
-.card-preview-image-frame.is-foil {
-  position: relative;
+   Three layers over the art (see components/shared/FoilShimmer.tsx):
+
+     .card-preview-foil-shine  spectrum (::before) × soft light-bars (::after),
+                               colour-dodged onto the art: bright ink lights
+                               up, dark ink stays dark. Metal, not tinted film.
+     .card-preview-foil-grain  sparkle, only for finishes that have texture
+     .card-preview-foil-glare  the specular hotspot that follows the cursor
+
+   ⚠️ GEOMETRY INVARIANT — every moving layer is a 200% canvas (::before /
+   ::after) that moves by `transform`, and its translate must stay inside
+   [−50%, 0] of its own size on both axes. Inside that range the canvas always
+   covers the card; outside it the canvas edge crosses the card as a
+   ruler-straight line and then the foil vanishes (the #1775 regression: a
+   3.2× canvas driven at 2×/2.5× parallax). `foil-geometry.test.ts` evaluates
+   every translate here at cursor 0% and 100% and fails on any escape.
+
+   Everything moves by transform, never background-position, so the ambient
+   drift and the cursor parallax are compositor-only (STYLE_GUIDE § Motion).
+
+   --active (written by useHolographic: 0 at rest, 1 while the cursor is on the
+   card) lifts the foil from its resting level to full strength. A foil card
+   always reads as foil, it just catches more light under the cursor. */
+
+/* Hosts: the preview frame and every thumbnail (all already positioned). */
+.is-foil {
   isolation: isolate;
+  --foil-lift: calc(var(--foil-rest, 0.45) + (1 - var(--foil-rest, 0.45)) * var(--active, 0));
 }
 
-/* Foil paints in TWO sibling elements (matches simey/pokemon-cards-css's
-   .card__shine + .card__glare structure) so each layer can have its own
-   mix-blend-mode independent of the other:
-
-     .card-preview-foil-shine  — the parallax rainbow, vignette-masked so
-                                 it concentrates toward the center (mimics
-                                 the Pokémon-style clipped art window on
-                                 our full-bleed cards)
-     .card-preview-foil-glare  — the cursor highlight, always overlay-blended
-                                 and unmasked so it can track to the edges
-
-   --active (written by useHolographic, 0 at rest, 1 during cursor
-   interaction) gates both so foil only appears while the cursor is on
-   the card.
-
-   Per-variant tuning knobs (set on the .foil-* class on the frame):
-     --foil-rainbow   — the gradient image (palette + cycle pattern)
-     --foil-strength  — opacity multiplier; higher = more splashy (default 0.35)
-     --foil-blend     — mix-blend-mode for the shine; overlay is gentle,
-                        color-dodge / screen are punchier (default overlay) */
 .card-preview-foil-shine,
+.card-preview-foil-grain,
 .card-preview-foil-glare {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  transition: opacity var(--motion-gentle) ease;
-}
-
-.card-preview-foil-shine {
-  /* The rainbow lives on ::before (a 3.2× canvas, below) and MOVES BY
-     TRANSFORM — cursor parallax and the ambient drift alike — so every update
-     is a compositor translate, never a main-thread repaint. The former
-     background-position version repainted each animating foil every frame:
-     a binder spread with 18 foil pockets was a permanent paint storm even at
-     rest, and the whole render window during a pan (#1772 follow-up). */
+  /* Square on purpose: every host already clips to the rounded card (the
+     preview face by clip-path, the tiles by overflow + radius). A rounded clip
+     on a blended layer whose canvas moves repaints the layer every frame —
+     measured ~290 paints per 2s cursor sweep with `border-radius: inherit`
+     here, 2 without. */
   overflow: hidden;
-  /* Parallax curve, unchanged: these are the old background-position values. */
-  --foil-x: calc((50% - var(--mx, 50%)) * 2 + 50%);
-  --foil-y: calc((50% - var(--my, 50%)) * 2.5 + 50%);
-  mix-blend-mode: var(--foil-blend, overlay);
-  opacity: calc(var(--active, 0) * var(--foil-strength, 0.35));
-  /* Inner vignette: foil at full strength across the central ~75% of the
-     card, fading to invisible at the corners. Without this the rainbow
-     covers art edge-to-edge and competes with frame/text/borders. */
-  -webkit-mask-image: radial-gradient(
-    ellipse 100% 100% at 50% 50%,
-    black 0%,
-    black 60%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 0%, black 60%, transparent 100%);
+  pointer-events: none;
 }
 
-/* background-size: 320% ≡ a canvas 3.2× the card; background-position P% ≡
-   translating that canvas by −P% × (3.2 − 1) / 3.2 = −0.6875 × P% of its own
-   size. Same picture, same stripe scale, but transform is compositor-only. */
-.card-preview-foil-shine::before {
+.card-preview-foil-shine::before,
+.card-preview-foil-shine::after,
+.card-preview-foil-grain::before,
+.card-preview-foil-glare::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
-  width: 320%;
-  height: 320%;
-  background-image: var(
-    --foil-rainbow,
-    repeating-linear-gradient(
-      110deg,
-      #c929f1,
-      #0dbde9,
-      #21e985,
-      #eedf10,
-      #f80e35,
-      #c929f1,
-      #0dbde9,
-      #21e985,
-      #eedf10,
-      #f80e35,
-      #c929f1,
-      #0dbde9,
-      #21e985,
-      #eedf10,
-      #f80e35,
-      #c929f1
-    )
-  );
-  transform: translate(calc(var(--foil-x) * -0.6875), calc(var(--foil-y) * -0.6875));
+  width: 200%;
+  height: 200%;
 }
 
-/* The cursor-tracked preview shine updates on every pointer move — keep it on
-   its own layer so those updates stay off the main thread too. */
-.card-preview-image-frame.is-foil .card-preview-foil-shine::before {
+/* ── Spectrum × light-bars ── */
+.card-preview-foil-shine {
+  mix-blend-mode: color-dodge;
+  opacity: calc(var(--foil-lift) * var(--foil-strength, 0.8));
+}
+
+/* Slightly curved bands (a far-off radial centre), not ruler-straight
+   stripes: diffraction bands on a real foil bow with the viewing geometry.
+   Dark, saturated stops because colour-dodge brightens by the blend colour;
+   explicit stop lengths so the gradient genuinely repeats. */
+.card-preview-foil-shine::before {
+  background: var(
+    --foil-spectrum,
+    repeating-radial-gradient(
+      circle at -40% -80%,
+      hsl(350 95% 27%) 0,
+      hsl(30 100% 29%) 3.4%,
+      hsl(60 95% 26%) 6.8%,
+      hsl(145 90% 23%) 10.2%,
+      hsl(192 100% 27%) 13.6%,
+      hsl(240 90% 31%) 17%,
+      hsl(290 90% 29%) 20.4%,
+      hsl(350 95% 27%) 23.8%
+    )
+  );
+  transform: translate(calc(var(--mx, 50%) * -0.5), calc(var(--my, 50%) * -0.5));
+}
+
+/* Soft light-bars at a crossing angle, moving the other way: where a bar
+   crosses the spectrum the foil flares, between bars it dims. That
+   interference is what reads as turning the card in the light. */
+.card-preview-foil-shine::after {
+  mix-blend-mode: multiply;
+  background: var(
+    --foil-bars,
+    repeating-linear-gradient(
+      -62deg,
+      hsl(0 0% 38%) 0,
+      hsl(0 0% 100%) 7%,
+      hsl(0 0% 62%) 12%,
+      hsl(0 0% 30%) 18%,
+      hsl(0 0% 38%) 24%
+    )
+  );
+  transform: translate(calc((100% - var(--mx, 50%)) * -0.5), calc((100% - var(--my, 50%)) * -0.5));
+}
+
+/* ── Sparkle (textured / galaxy / fracture / etched only) ── */
+.card-preview-foil-grain {
+  display: none;
+  mix-blend-mode: color-dodge;
+  opacity: calc(var(--foil-lift) * var(--foil-grain, 0.5));
+}
+
+.card-preview-foil-grain::before {
+  background-image: var(--foil-grain-img);
+  background-size: var(--foil-grain-size, 180px);
+  transform: translate(calc(var(--mx, 50%) * -0.12), calc(var(--my, 50%) * -0.12));
+}
+
+.foil-etched .card-preview-foil-grain,
+.foil-textured .card-preview-foil-grain,
+.foil-fracture .card-preview-foil-grain,
+.foil-galaxy .card-preview-foil-grain {
+  display: block;
+}
+
+/* ── Glare ── */
+.card-preview-foil-glare {
+  mix-blend-mode: overlay;
+  opacity: calc(0.18 + 0.62 * var(--active, 0));
+}
+
+/* The hotspot centre lands on the cursor. With no cursor it parks upper-left
+   like a room light (useHolographic eases back to the same 32% / 22%). The
+   canvas spans [m − 1, m + 1] card widths, so it always covers. Moves by
+   transform: the old `radial-gradient(circle at var(--mx) …)` repainted the
+   glare on every pointer frame. */
+.card-preview-foil-glare::before {
+  background: radial-gradient(
+    circle at 50% 50%,
+    hsl(0 0% 100% / 80%) 0,
+    hsl(0 0% 100% / 35%) 9%,
+    hsl(0 0% 100% / 8%) 22%,
+    transparent 34%
+  );
+  transform: translate(calc((var(--mx, 32%) - 100%) * 0.5), calc((var(--my, 22%) - 100%) * 0.5));
+}
+
+/* The cursor-tracked preview moves these on every pointer frame: their own
+   layers, so each move is a compositor translate rather than a repaint. (On
+   touch the drift animation layerizes them anyway.) */
+.card-preview-image-frame .card-preview-foil-shine::before,
+.card-preview-image-frame .card-preview-foil-shine::after,
+.card-preview-image-frame .card-preview-foil-glare::before {
   will-change: transform;
 }
 
-.card-preview-foil-glare {
-  background-image: radial-gradient(
-    circle at var(--mx, 50%) var(--my, 50%),
-    rgba(255, 255, 255, 0.5) 0%,
-    rgba(255, 255, 255, 0.15) 25%,
-    transparent 55%
-  );
-  mix-blend-mode: overlay;
-  opacity: calc(var(--active, 0) * 0.6);
-}
+/* ── Finishes ──
+   Grain textures live in public/foil/ rather than inline: this sheet is on
+   the render-blocking path, and a texture is only fetched once a card with
+   that finish renders. The noise is feTurbulence thresholded to sparse specks
+   in MID-GREY, never white — under color-dodge a white speck blows out any
+   pixel (static on black ink), a grey one only brightens ink that already
+   reflects. */
+/* Regular: the default spectrum and bars above. */
 
-/* Per-variant palettes — only --foil-rainbow (and sometimes mix-blend-mode)
-   change between variants. Same parallax + glare mechanics for all. */
-
-/* Regular: classic rainbow. Default strength + overlay blend. */
-.foil-regular {
-  --foil-rainbow: repeating-linear-gradient(
-    110deg,
-    #c929f1,
-    #0dbde9,
-    #21e985,
-    #eedf10,
-    #f80e35,
-    #c929f1,
-    #0dbde9,
-    #21e985,
-    #eedf10,
-    #f80e35,
-    #c929f1,
-    #0dbde9,
-    #21e985,
-    #eedf10,
-    #f80e35,
-    #c929f1
-  );
-}
-
-/* Etched: subtle warm gold/silver shimmer. Soft-light blend keeps it gentle. */
+/* Etched: a silver metallic, not gold. Low-chroma spectrum and a fine matte
+   grain for the etching. (Real etched foil sits on the frame only; there is no
+   per-card frame mask to paint that, so it covers the card, subtly.) */
 .foil-etched {
-  --foil-rainbow: repeating-linear-gradient(
-    110deg,
-    hsl(40, 60%, 65%),
-    hsl(48, 85%, 88%),
-    hsl(36, 55%, 55%),
-    hsl(40, 60%, 65%),
-    hsl(48, 85%, 88%),
-    hsl(36, 55%, 55%),
-    hsl(40, 60%, 65%),
-    hsl(48, 85%, 88%),
-    hsl(36, 55%, 55%),
-    hsl(40, 60%, 65%)
+  --foil-spectrum: repeating-radial-gradient(
+    circle at -40% -80%,
+    hsl(210 18% 34%) 0,
+    hsl(40 22% 36%) 4%,
+    hsl(180 20% 34%) 8%,
+    hsl(280 16% 34%) 12%,
+    hsl(210 18% 34%) 16%
   );
-  --foil-blend: soft-light;
-  --foil-strength: 0.45;
+  --foil-strength: 0.7;
+  --foil-grain: 0.28;
+  --foil-grain-img: url('/foil/noise-fine.svg');
+  --foil-grain-size: 120px;
 }
 
-/* Oil slick: dark moody iridescence. Slightly punchier than default. */
+/* Oil slick: black chrome with a hard rainbow in the highlights. */
 .foil-oilslick {
-  --foil-rainbow: repeating-linear-gradient(
-    110deg,
-    hsl(280, 80%, 30%),
-    hsl(310, 80%, 50%),
-    hsl(190, 75%, 50%),
-    hsl(330, 80%, 45%),
-    hsl(265, 80%, 25%),
-    hsl(280, 80%, 30%),
-    hsl(310, 80%, 50%),
-    hsl(190, 75%, 50%),
-    hsl(330, 80%, 45%),
-    hsl(265, 80%, 25%),
-    hsl(280, 80%, 30%),
-    hsl(310, 80%, 50%),
-    hsl(190, 75%, 50%),
-    hsl(330, 80%, 45%),
-    hsl(265, 80%, 25%),
-    hsl(280, 80%, 30%)
+  --foil-spectrum: repeating-radial-gradient(
+    circle at 130% -60%,
+    hsl(275 90% 26%) 0,
+    hsl(320 95% 34%) 3%,
+    hsl(20 95% 34%) 6%,
+    hsl(55 95% 34%) 8.5%,
+    hsl(170 90% 30%) 11.5%,
+    hsl(215 95% 34%) 14.5%,
+    hsl(275 90% 26%) 17.5%
   );
-  --foil-strength: 0.42;
+  --foil-strength: 0.85;
 }
 
-/* Gilded: warm gold-only, no rainbow. Stays subtle. */
+/* Gilded: warm gold only. */
 .foil-gilded {
-  --foil-rainbow: repeating-linear-gradient(
-    110deg,
-    hsl(36, 60%, 40%),
-    hsl(45, 90%, 75%),
-    hsl(36, 60%, 40%),
-    hsl(45, 90%, 75%),
-    hsl(36, 60%, 40%),
-    hsl(45, 90%, 75%),
-    hsl(36, 60%, 40%),
-    hsl(45, 90%, 75%),
-    hsl(36, 60%, 40%)
+  --foil-spectrum: repeating-radial-gradient(
+    circle at -40% -80%,
+    hsl(32 85% 22%) 0,
+    hsl(42 95% 40%) 5%,
+    hsl(50 90% 48%) 7%,
+    hsl(38 85% 30%) 11%,
+    hsl(32 85% 22%) 16%
   );
-  --foil-strength: 0.4;
+  --foil-strength: 0.75;
 }
 
-/* Textured: vibrant prismatic. Splashier — color-dodge and higher strength
-   to give it that "rough sparkly stock" punch. */
-.foil-textured {
-  --foil-rainbow: repeating-linear-gradient(
-    110deg,
-    hsl(330, 100%, 70%),
-    hsl(40, 100%, 70%),
-    hsl(110, 95%, 65%),
-    hsl(180, 95%, 70%),
-    hsl(220, 100%, 72%),
-    hsl(280, 95%, 72%),
-    hsl(330, 100%, 70%),
-    hsl(40, 100%, 70%),
-    hsl(110, 95%, 65%),
-    hsl(180, 95%, 70%),
-    hsl(220, 100%, 72%),
-    hsl(280, 95%, 72%),
-    hsl(330, 100%, 70%),
-    hsl(40, 100%, 70%),
-    hsl(110, 95%, 65%),
-    hsl(180, 95%, 70%),
-    hsl(220, 100%, 72%),
-    hsl(280, 95%, 72%),
-    hsl(330, 100%, 70%)
-  );
-  --foil-blend: color-dodge;
-  --foil-strength: 0.45;
-}
-
-/* Fracture: most splashy. High-saturation crystalline shards via dense color
-   cycles + color-dodge blend + the highest strength of any variant. The
-   "wow" foil for premium cards. */
-.foil-fracture {
-  --foil-rainbow: repeating-linear-gradient(
-    110deg,
-    hsl(310, 100%, 78%),
-    hsl(190, 100%, 78%),
-    hsl(280, 95%, 80%),
-    hsl(40, 100%, 78%),
-    hsl(150, 95%, 75%),
-    hsl(310, 100%, 78%),
-    hsl(190, 100%, 78%),
-    hsl(280, 95%, 80%),
-    hsl(40, 100%, 78%),
-    hsl(150, 95%, 75%),
-    hsl(310, 100%, 78%),
-    hsl(190, 100%, 78%),
-    hsl(280, 95%, 80%),
-    hsl(40, 100%, 78%),
-    hsl(150, 95%, 75%),
-    hsl(310, 100%, 78%)
-  );
-  --foil-blend: color-dodge;
-  --foil-strength: 0.55;
-}
-
-/* Halo / surge: bright cool glow. Screen blend for radiant feel. */
+/* Halo / surge: concentric rings around the card centre. */
 .foil-halo {
-  --foil-rainbow: repeating-linear-gradient(
-    110deg,
-    hsl(210, 70%, 55%),
-    hsl(200, 90%, 85%),
-    hsl(0, 0%, 95%),
-    hsl(220, 90%, 85%),
-    hsl(220, 70%, 55%),
-    hsl(210, 70%, 55%),
-    hsl(200, 90%, 85%),
-    hsl(0, 0%, 95%),
-    hsl(220, 90%, 85%),
-    hsl(220, 70%, 55%),
-    hsl(210, 70%, 55%),
-    hsl(200, 90%, 85%),
-    hsl(0, 0%, 95%),
-    hsl(220, 90%, 85%),
-    hsl(220, 70%, 55%),
-    hsl(210, 70%, 55%)
+  --foil-spectrum: repeating-radial-gradient(
+    circle at 50% 50%,
+    hsl(200 85% 30%) 0,
+    hsl(260 80% 36%) 2.5%,
+    hsl(320 80% 36%) 5%,
+    hsl(40 90% 36%) 7.5%,
+    hsl(160 80% 32%) 10%,
+    hsl(200 85% 30%) 12.5%
   );
-  --foil-blend: screen;
-  --foil-strength: 0.5;
+  --foil-strength: 0.7;
 }
 
-/* Touch-only devices: no cursor interaction to drive --active, so the foil
-   would be invisible. Instead we run a gentle ambient drift that slowly moves
-   the rainbow across the card like turning a foil in the light. The glare
-   gets a soft fixed glow at center rather than tracking a nonexistent cursor. */
-@media (hover: none) {
-  .card-preview-foil-shine {
-    opacity: var(--foil-strength, 0.35);
-    /* Android WebView silently drops mix-blend-mode when the same element
-       also carries a mask — the mask promotes the layer offscreen and the
-       blend then has no backdrop. Touch devices run
-       the ambient-drift mode where edge-to-edge rainbow is acceptable, so
-       drop the vignette mask here to let the blend composite normally. */
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-  .card-preview-foil-shine::before {
-    animation: foil-drift 8s ease-in-out infinite alternate;
-  }
-  .card-preview-foil-glare {
-    opacity: 0.25;
-    background-image: radial-gradient(
-      ellipse 70% 70% at 50% 50%,
-      rgba(255, 255, 255, 0.3) 0%,
-      transparent 70%
+/* Ripple: tight rings spreading from below the card, like a stone dropped
+   just past the bottom edge. */
+.foil-ripple {
+  --foil-spectrum: repeating-radial-gradient(
+    circle at 50% 115%,
+    hsl(195 90% 28%) 0,
+    hsl(230 85% 34%) 1.4%,
+    hsl(290 80% 32%) 2.8%,
+    hsl(340 85% 32%) 4.2%,
+    hsl(40 95% 32%) 5.6%,
+    hsl(150 85% 26%) 7%,
+    hsl(195 90% 28%) 8.4%
+  );
+  --foil-strength: 0.75;
+}
+
+/* Rainbow: the loudest plain foil — brighter, tighter bands. */
+.foil-rainbow {
+  --foil-spectrum: repeating-radial-gradient(
+    circle at -40% -80%,
+    hsl(350 100% 33%) 0,
+    hsl(30 100% 35%) 2.4%,
+    hsl(60 100% 31%) 4.8%,
+    hsl(140 95% 28%) 7.2%,
+    hsl(190 100% 32%) 9.6%,
+    hsl(235 95% 38%) 12%,
+    hsl(290 95% 35%) 14.4%,
+    hsl(350 100% 33%) 16.8%
+  );
+  --foil-strength: 0.95;
+}
+
+/* Textured / confetti / raised: coarse sparkle over the spectrum. */
+.foil-textured {
+  --foil-strength: 0.7;
+  --foil-grain: 0.45;
+  --foil-grain-img: url('/foil/noise-coarse.svg');
+  --foil-grain-size: 220px;
+}
+
+/* Galaxy: the regular spectrum plus a starfield. */
+.foil-galaxy {
+  --foil-grain: 0.95;
+  --foil-grain-img: url('/foil/stars.svg');
+  --foil-grain-size: 260px;
+}
+
+/* Fracture: crystalline facets — hard-stopped conic sectors, two of them
+   differenced so the shards interleave. */
+.foil-fracture {
+  --foil-spectrum:
+    conic-gradient(
+      from 12deg at 31% 27%,
+      hsl(300 90% 40%) 0 11%,
+      hsl(190 95% 38%) 0 23%,
+      hsl(45 95% 40%) 0 31%,
+      hsl(260 90% 42%) 0 44%,
+      hsl(150 90% 34%) 0 52%,
+      hsl(330 95% 40%) 0 63%,
+      hsl(200 95% 40%) 0 77%,
+      hsl(30 95% 40%) 0 88%,
+      hsl(280 90% 40%) 0
+    ),
+    conic-gradient(
+      from 70deg at 72% 70%,
+      hsl(190 95% 40%) 0 18%,
+      hsl(320 90% 40%) 0 39%,
+      hsl(60 95% 40%) 0 58%,
+      hsl(230 90% 44%) 0 79%,
+      hsl(160 90% 36%) 0
     );
+  --foil-strength: 0.7;
+  --foil-grain: 0.45;
+  --foil-grain-img: url('/foil/noise-fine.svg');
+  --foil-grain-size: 140px;
+}
+
+.foil-fracture .card-preview-foil-shine::before {
+  background-blend-mode: difference;
+}
+
+/* ── Ambient: thumbnails, and the preview on touch devices ──
+   No cursor to drive --mx / --my, so the two shine canvases drift instead:
+   11s and 7s, alternate, each card phase-shifted by --foil-seed (a stable hash
+   of its id, set by FoilShimmer) so a page of foils never pulses in lockstep
+   and the interference never visibly repeats. Transform-only: zero paint.
+   `.is-foil:not(.card-preview-image-frame)` is every thumbnail host (grid
+   tile, deck tile, binder pocket) at the same weight as naming them. */
+.is-foil:not(.card-preview-image-frame) {
+  --foil-rest: 0.8;
+}
+
+.is-foil:not(.card-preview-image-frame) .card-preview-foil-shine::before {
+  animation: foil-drift 11s ease-in-out infinite alternate;
+  animation-delay: calc(var(--foil-seed, 0) * -11s);
+}
+
+.is-foil:not(.card-preview-image-frame) .card-preview-foil-shine::after {
+  animation: foil-drift-bars 7s ease-in-out infinite alternate;
+  animation-delay: calc(var(--foil-seed, 0) * -7s);
+}
+
+.is-foil:not(.card-preview-image-frame) .card-preview-foil-glare {
+  opacity: 0.3;
+}
+
+@media (hover: none) {
+  .card-preview-image-frame.is-foil {
+    --foil-rest: 0.8;
+  }
+
+  .card-preview-image-frame.is-foil .card-preview-foil-shine::before {
+    animation: foil-drift 11s ease-in-out infinite alternate;
+  }
+
+  .card-preview-image-frame.is-foil .card-preview-foil-shine::after {
+    animation: foil-drift-bars 7s ease-in-out infinite alternate;
+  }
+
+  .card-preview-image-frame.is-foil .card-preview-foil-glare {
+    opacity: 0.3;
   }
 }
 
-/* Drift = translating the 3.2× canvas from its 0% to its 100% position
-   (see .card-preview-foil-shine::before). Transform-only: runs on the
-   compositor, zero paint per frame. */
+/* Both keyframes stay inside the [−50%, 0] coverage range (see the invariant
+   at the top); foil-geometry.test.ts checks them too. */
 @keyframes foil-drift {
-  0% {
+  from {
     transform: translate(0, 0);
   }
-  100% {
-    transform: translate(-68.75%, -68.75%);
+
+  to {
+    transform: translate(-50%, -50%);
   }
 }
 
-/* Reduced-motion override for the preview shine. Lives here (not in the
-   shared motion block in global.css) so it stays AFTER the hover:none
-   drift in cascade order and continues to win for RM + touch users. */
+@keyframes foil-drift-bars {
+  from {
+    transform: translate(-50%, 0);
+  }
+
+  to {
+    transform: translate(0, -50%);
+  }
+}
+
+/* Scroll-linked where the browser supports it: a thumbnail's foil turns as the
+   card travels through its scroller, the way a binder page catches the light
+   when you tilt it, and nothing runs while nothing scrolls. The grid and deck
+   tiles scroll vertically; binder pockets ride the flipbook's horizontal track.
+   Elsewhere (Firefox today) the clock drift above stays. */
+@supports (animation-timeline: view()) {
+  .collection-grid-item.is-foil,
+  .deck-card-grid-tile.is-foil {
+    view-timeline: --foil-view block;
+  }
+
+  .binder-pages-cell.is-foil {
+    view-timeline: --foil-view inline;
+  }
+
+  .is-foil:not(.card-preview-image-frame) .card-preview-foil-shine::before {
+    animation: foil-drift linear both;
+    animation-timeline: --foil-view;
+  }
+
+  .is-foil:not(.card-preview-image-frame) .card-preview-foil-shine::after {
+    animation: foil-drift-bars linear both;
+    animation-timeline: --foil-view;
+  }
+}
+
+/* Reduced motion: no drift, and the cursor no longer slides the spectrum —
+   both canvases park mid-range. `.is-foil.is-foil` matches every host at the
+   weight of the ambient rules above, and this block comes later, so it wins. */
 @media (prefers-reduced-motion: reduce) {
-  .card-preview-foil-shine::before {
+  .is-foil.is-foil .card-preview-foil-shine::before,
+  .is-foil.is-foil .card-preview-foil-shine::after {
     animation: none;
-    transform: translate(-34.375%, -34.375%); /* the old 50% 50% */
+    transform: translate(-25%, -25%);
   }
 }
 
-/* Foil thumbnails outside the full-screen preview — collection grid items and
-   deck-view card tiles (commander tile + every grid-view card tile). Neither
-   has cursor tracking to drive --active, so reuse the CardPreview shine/glare
-   layers (.card-preview-foil-shine + .card-preview-foil-glare) in the same
-   ambient-drift mode used on touch devices: force a constant opacity + slow
-   drift so an owned foil copy shimmers like it does in the full-screen preview.
-   Both contexts are identical, so they share one rule set. */
-.collection-grid-item.is-foil,
-.deck-card-grid-tile.is-foil,
-.binder-pages-cell.is-foil {
-  isolation: isolate;
-}
-
-.collection-grid-item.is-foil .card-preview-foil-shine,
-.deck-card-grid-tile.is-foil .card-preview-foil-shine,
-.binder-pages-cell.is-foil .card-preview-foil-shine {
-  opacity: var(--foil-strength, 0.35);
-}
-
-.collection-grid-item.is-foil .card-preview-foil-shine::before,
-.deck-card-grid-tile.is-foil .card-preview-foil-shine::before,
-.binder-pages-cell.is-foil .card-preview-foil-shine::before {
-  animation: foil-drift 8s ease-in-out infinite alternate;
-}
-
-.collection-grid-item.is-foil .card-preview-foil-glare,
-.deck-card-grid-tile.is-foil .card-preview-foil-glare,
-.binder-pages-cell.is-foil .card-preview-foil-glare {
-  opacity: 0.25;
-  background-image: radial-gradient(
-    ellipse 70% 70% at 50% 50%,
-    rgba(255, 255, 255, 0.3) 0%,
-    transparent 70%
-  );
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .collection-grid-item.is-foil .card-preview-foil-shine::before,
-  .deck-card-grid-tile.is-foil .card-preview-foil-shine::before,
-  .binder-pages-cell.is-foil .card-preview-foil-shine::before {
-    animation: none;
-    transform: translate(-34.375%, -34.375%);
-  }
-}
-
-/* The list-view foil pip moved to the shared `.foil-badge` component
-   (components/FoilBadge.css); it reuses the same `.foil-*` --foil-rainbow
-   palettes + `foil-drift` defined above. */
+/* The list-row foil chip is `.foil-badge` (components/FoilBadge.css): a static
+   per-finish fill, not this engine. */

@@ -642,8 +642,12 @@
    there is layer count: a non-active slide's foils get `animation: none`
    (no animation → no compositor layer) rather than `paused`. Selector depth
    is deliberate: it must outrank holographic.css's
-   `.binder-pages-cell.is-foil .card-preview-foil-shine::before`, which
-   loads later. */
+   `:is(….binder-pages-cell).is-foil .card-preview-foil-shine::before`, which
+   loads later. The shine drifts on both canvases (::before spectrum, ::after
+   light-bars), so every rule names both. Where the pockets are scroll-linked
+   (`animation-timeline`), pausing them mid-swipe would freeze exactly the
+   motion the swipe drives, so the binder's is-scrolling pause only applies
+   to the clock-drift fallback. */
 .card-preview-track.is-scrolling .card-preview-slide .card-preview-image-skeleton,
 .card-preview-track .card-preview-slide:not(.is-active) .card-preview-image-skeleton,
 .binder-pages-track.is-scrolling .binder-pages-cell .binder-pages-cell-skeleton,
@@ -652,12 +656,21 @@
 }
 
 .card-preview-track.is-scrolling .card-preview-slide .card-preview-foil-shine::before,
-.binder-pages-track.is-scrolling .binder-pages-cell .card-preview-foil-shine::before {
+.card-preview-track.is-scrolling .card-preview-slide .card-preview-foil-shine::after {
   animation-play-state: paused;
 }
 
+@supports not (animation-timeline: view()) {
+  .binder-pages-track.is-scrolling .binder-pages-cell .card-preview-foil-shine::before,
+  .binder-pages-track.is-scrolling .binder-pages-cell .card-preview-foil-shine::after {
+    animation-play-state: paused;
+  }
+}
+
 .card-preview-track .card-preview-slide:not(.is-active) .card-preview-foil-shine::before,
-.binder-pages-track .binder-pages-slide:not(.is-active) .card-preview-foil-shine::before {
+.card-preview-track .card-preview-slide:not(.is-active) .card-preview-foil-shine::after,
+.binder-pages-track .binder-pages-slide:not(.is-active) .card-preview-foil-shine::before,
+.binder-pages-track .binder-pages-slide:not(.is-active) .card-preview-foil-shine::after {
   animation: none;
 }
 

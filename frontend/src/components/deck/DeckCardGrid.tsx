@@ -29,7 +29,8 @@ import {
   type Row,
   type TypedGroup,
 } from './deck-display-rows';
-import { SectionIcon, FoilShimmer } from './deck-display-icons';
+import { SectionIcon } from './deck-display-icons';
+import { FoilShimmer } from '../shared/FoilShimmer';
 import { PartnerHeaderButton, LegalityBadge, RoleBadge } from './deck-display-icons';
 import { IconButton } from '@/components/shared/Button';
 
@@ -410,7 +411,7 @@ export function DeckCardGrid({
                   )}
                   {/* Foil is shown by the holographic overlay alone — no
                           text pip (keeps the corners free for status icons). */}
-                  {row.foil && row.imageNormal && <FoilShimmer />}
+                  {row.foil && row.imageNormal && <FoilShimmer seed={row.name} />}
                   {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
                   {row.status !== 'allocated' &&
                     (row.allocatedQty > 0 ? (

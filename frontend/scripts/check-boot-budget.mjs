@@ -15,13 +15,18 @@
 // mana-font + keyrune glyph sheets (13.7 KB gzipped between them, the two
 // largest items in the payload and neither one ours) moved off the critical
 // path into a dynamic import. 80 → 65 measured; 68 leaves the same slim margin
-// over the measurement that every other number here does.
+// over the measurement that every other number here does. CSS went 68 → 69 on
+// 2026-09-26 for the foil engine rebuild (holographic.css: three layers, ten
+// finishes, the seam guard's geometry): main measured 67.41, the rebuild 68.03,
+// i.e. +0.6 KB into a 0.59 KB margin. It cannot leave the critical path: the
+// foil layers render in the CardPreview chunk, which the entry modulepreloads.
+// Its grain textures already moved out to public/foil/*.svg to keep it at that.
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BUDGET_KB = { js: 410, css: 68 };
+export const BUDGET_KB = { js: 410, css: 69 };
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 // Vite emits multi-line <link> tags; a line-based scan misses them.

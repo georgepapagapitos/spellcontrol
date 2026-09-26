@@ -4821,21 +4821,63 @@ and on all slides while the track carries `is-scrolling` (set by
 inside a `.card-preview-slide` / `.binder-pages-slide` must join that selector
 list.
 
-**The foil rainbow moves by `transform`, never `background-position` (#1775).**
-The ambient `foil-drift` (grid tiles, deck tiles, binder pockets, touch-mode
-preview, the `.foil-badge` chip) and the preview's cursor parallax used to
-animate `background-position` on the shine — so even at rest a binder page
-with foil pockets repainted and re-rastered every frame (740 paint records
-/ 552 raster tasks per 3s of doing nothing; the whole browser felt laggy with
-the flipbook open). The gradient now lives on a 3.2× `::before` canvas and
-_translates_: `background-position: P%` ≡ `translate(P% × −0.6875)` of the
-canvas, `foil-drift` is `translate(0,0) → translate(-68.75%, -68.75%)`, and
-reduced-motion parks it at `-34.375%` (the old `50% 50%`). Result: 0 paint /
-0 raster at rest. Non-active carousel slides get `animation: none` (no
-animation → no compositor layer) rather than `paused`. Nothing may assume a
-`background-position` (or `background-size`, `box-shadow`, `filter`) animation
-is cheap because "it's just a gradient" — if it has to loop, it moves by
-`transform` or `opacity`.
+**The foil moves by `transform`, never `background-position` (#1775).**
+The ambient drift (grid tiles, deck tiles, binder pockets, touch-mode preview)
+and the preview's cursor parallax used to animate `background-position` on the
+shine — so even at rest a binder page with foil pockets repainted and
+re-rastered every frame (740 paint records / 552 raster tasks per 3s of doing
+nothing; the whole browser felt laggy with the flipbook open). Every foil layer
+now lives on a 200% `::before`/`::after` canvas that _translates_, so the drift
+and the parallax are compositor-only: 0 paint at rest, and a 2s cursor sweep
+over the preview costs single-digit paints. Non-active carousel slides get
+`animation: none` (no animation → no compositor layer) rather than `paused`.
+Nothing may assume a `background-position` (or `background-size`,
+`box-shadow`, `filter`) animation is cheap because "it's just a gradient" — if
+it has to loop, it moves by `transform` or `opacity`.
+
+**A foil canvas never shows its edge.** A canvas N% of the card covers it only
+while its translate stays inside `[−(N − 100)/N, 0]` of its own size — for the
+200% canvas, `[−50%, 0]`. #1775's first version paired a 3.2× canvas with a
+2×/2.5× cursor parallax, so outside the middle of the card the canvas edge cut
+across the art as a ruler-straight line and past ~75% the foil left the card
+entirely. `styles/foil-geometry.test.ts` evaluates every `translate` in
+`holographic.css` at cursor 0% and 100% and fails on any escape; a cursor var
+it cannot resolve fails too.
+
+**Foil layers are square; the host clips the corners.** The preview face
+clips by `clip-path`, the tiles by `overflow` + radius. A rounded clip on a
+blended layer whose canvas moves repaints that layer every frame (measured
+~290 paints per 2s sweep with `border-radius: inherit` on the layers, 2
+without), so the three layers carry no radius of their own.
+
+### Foil
+
+One engine (`styles/holographic.css`), three layers rendered by
+`components/shared/FoilShimmer`: a **spectrum × light-bars** shine
+colour-dodged onto the art (bright ink catches the colour, dark ink stays
+dark, which is what makes it read as metal rather than tinted film), an
+optional **grain** for finishes with texture, and a **glare** hotspot. Rules:
+
+- **A foil card always reads as foil.** The preview never hides the foil until
+  the cursor arrives: it rests at `--foil-rest` (0.45 on the hover preview,
+  0.8 on thumbnails and touch) and the cursor lifts it to full. With no cursor
+  the glare parks upper-left like a room light (`HOLO_REST`, 32% / 22%).
+- **Thumbnails never move in lockstep.** Each one's drift is phase-shifted by
+  `--foil-seed`, a stable hash of its id (`foilSeed`). Where the browser has
+  scroll-driven animations the thumbnail foil is tied to its scroller
+  (`view-timeline`: block for grids, inline for the binder flipbook) and does
+  nothing at rest; elsewhere it falls back to the 11s / 7s clock drift.
+- **Grain is mid-grey, never white.** Under `color-dodge` a white speck blows
+  out any pixel, black ink included (it reads as TV static); a grey one only
+  brightens ink that already reflects.
+- **One treatment per finish** (`classifyFoil` → `.foil-{style}`): regular,
+  etched (silver, not gold), oil slick, gilded, halo/surge, ripple, rainbow,
+  textured/confetti/raised, galaxy, fracture. A new finish is a `FoilStyle`, a
+  `FOIL_LABEL`, a `--foil-spectrum` (dark stops, since dodge brightens by the
+  blend colour) and a `.foil-badge.foil-{style}` chip fill.
+- **The list-row foil chip is static.** `.foil-badge` used to drift with the
+  card shimmer, which made every chip an infinitely animating layer (200 chips
+  = 404 layers) for a motion invisible at 15px.
 
 ## Color & spacing
 
