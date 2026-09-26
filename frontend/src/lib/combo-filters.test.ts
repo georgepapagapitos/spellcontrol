@@ -157,3 +157,21 @@ describe('countActiveFilters', () => {
     expect(countActiveFilters(filters({ colors: new Set(['U', 'B']), hostOnly: true }))).toBe(3);
   });
 });
+
+describe('filterCombos search folding', () => {
+  const combos = [
+    match({ id: 'j', names: ['Jötun Grunt', 'Other'] }),
+    match({ id: 'u', names: ["Urza's Saga", 'Other'] }),
+  ];
+  it('folds accents and apostrophes like every other card search', () => {
+    expect(filterCombos(combos, filters(), { search: 'jotun' }).map((m) => m.combo.id)).toEqual([
+      'j',
+    ]);
+    expect(
+      filterCombos(combos, filters(), { search: 'urzas saga' }).map((m) => m.combo.id)
+    ).toEqual(['u']);
+    expect(filterCombos(combos, filters(), { search: 'Urza’s' }).map((m) => m.combo.id)).toEqual([
+      'u',
+    ]);
+  });
+});

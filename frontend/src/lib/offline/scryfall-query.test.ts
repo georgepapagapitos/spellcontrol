@@ -197,3 +197,24 @@ describe('filterCards', () => {
     expect(out.map((c) => c.name)).toEqual(['Forest']);
   });
 });
+
+// The offline path is reachable on the web (Settings → Card data). Names fold
+// like every other card search, or "jotun" found Jötun Grunt everywhere but here.
+describe('matchesQuery name folding', () => {
+  const jotun = mkCard({ name: 'Jötun Grunt', oracleText: 'Cumulative upkeep' });
+  const vault = mkCard({ name: "Lim-Dûl's Vault", oracleText: 'Look at the top five cards' });
+  const fireIce = mkCard({ name: 'Fire // Ice', oracleText: 'Fire deals 2 damage' });
+
+  it('folds accents, apostrophes and punctuation in plain words', () => {
+    expect(matchesQuery(jotun, parseQuery('jotun'))).toBe(true);
+    expect(matchesQuery(jotun, parseQuery('t:creature jotun'))).toBe(true);
+    expect(matchesQuery(vault, parseQuery('"lim dul"'))).toBe(true);
+    expect(matchesQuery(vault, parseQuery('lim-duls'))).toBe(true);
+    expect(matchesQuery(fireIce, parseQuery('fire//ice'))).toBe(true);
+  });
+
+  it('folds exact-name matches the same way', () => {
+    expect(matchesQuery(vault, parseQuery('!"lim duls vault"'))).toBe(true);
+    expect(matchesQuery(vault, parseQuery('!"lim duls"'))).toBe(false);
+  });
+});

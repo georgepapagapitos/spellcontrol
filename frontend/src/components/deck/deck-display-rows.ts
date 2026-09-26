@@ -627,7 +627,14 @@ export function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[
   const sign = dir === 'asc' ? 1 : -1;
   switch (mode) {
     case 'cmc':
-      sorted.sort((a, b) => (a.cmc - b.cmc) * sign || byName(a, b));
+      // No mana value trails in both directions, like every other Mana value
+      // sort in the app (row.cmc folds it to 0, which led "Low → high").
+      sorted.sort((a, b) => {
+        const ua = a.card.cmc === undefined;
+        const ub = b.card.cmc === undefined;
+        if (ua !== ub) return ua ? 1 : -1;
+        return (a.cmc - b.cmc) * sign || byName(a, b);
+      });
       break;
     case 'price':
       sorted.sort((a, b) => (a.price - b.price) * sign || byName(a, b));

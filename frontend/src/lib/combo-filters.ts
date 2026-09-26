@@ -1,4 +1,5 @@
 import type { ComboMatch } from '../types/combos';
+import { normalizeForSearch } from './normalize-search';
 
 /**
  * Search + filter for the collection combos view. Pure and synchronous — the
@@ -95,20 +96,24 @@ function fitsColors(identity: string, selected: ReadonlySet<string>): boolean {
   return letters.every((ch) => selected.has(ch));
 }
 
-/** Case-insensitive match over the combo's card names and its result text. */
+/**
+ * Match over the combo's card names and its result text, folded like every
+ * other card search (normalizeForSearch), so "jotun" finds Jötun Grunt and
+ * "urzas saga" finds Urza's Saga here too. `needle` is already folded.
+ */
 function matchesSearch(m: ComboMatch, needle: string): boolean {
   if (!needle) return true;
   for (const c of m.combo.cards) {
-    if (c.cardName.toLowerCase().includes(needle)) return true;
+    if (normalizeForSearch(c.cardName).includes(needle)) return true;
   }
   for (const p of m.combo.produces) {
-    if (p.toLowerCase().includes(needle)) return true;
+    if (normalizeForSearch(p).includes(needle)) return true;
   }
   return false;
 }
 
 export interface FilterOptions {
-  /** Raw search text; trimmed + lowercased here so callers don't have to. */
+  /** Raw search text; folded here (normalizeForSearch) so callers don't have to. */
   search?: string;
   /**
    * True when at least one owned commander could host this combo. Required
@@ -123,7 +128,7 @@ export function filterCombos(
   f: ComboFilterState,
   opts: FilterOptions = {}
 ): ComboMatch[] {
-  const needle = (opts.search ?? '').trim().toLowerCase();
+  const needle = normalizeForSearch(opts.search ?? '');
 
   return matches.filter((m) => {
     if (!matchesSearch(m, needle)) return false;

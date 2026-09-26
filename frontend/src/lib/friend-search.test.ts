@@ -153,3 +153,11 @@ describe('buildFriendSearch — an enriched payload answers o: and f:', () => {
     expect(s.ignored).toEqual(['o:']);
   });
 });
+
+describe('buildFriendSearch — plain names fold', () => {
+  it('finds accented and apostrophed names from a plain query', () => {
+    expect(buildFriendSearch('jotun').match(card({ name: 'Jötun Grunt' }))).toBe(true);
+    expect(buildFriendSearch('urzas saga').match(card({ name: "Urza's Saga" }))).toBe(true);
+    expect(buildFriendSearch('jotun').match(card({ name: 'Lightning Bolt' }))).toBe(false);
+  });
+});
