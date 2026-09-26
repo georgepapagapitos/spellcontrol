@@ -297,6 +297,19 @@
   animation: pp-scale-in var(--motion-base) var(--ease-out-soft);
 }
 
+/* A phone on its side with the board kept still (play-board.css): the
+   keypad sits inside the counter-rotated board, whose own width is the
+   screen's HEIGHT, but vw/vh are still the physical landscape viewport. Sized
+   off them, a keypad for a sideways seat ran ~80px past the top and bottom
+   of an 844x390 screen. `.game-board` is the size container in exactly this
+   query, so its cq units give the board's own axes. */
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .game-board-rotator[data-board-rot] .life-keypad {
+    --keypad-w: min(94cqh, 26rem);
+    --keypad-h: min(78cqw, 32rem);
+  }
+}
+
 /* 90°/270°: the box is laid out in the swapped axes BEFORE rotating (its
    width becomes the rotated height and vice versa), the same trick
    `.player-panel[data-sideways]` uses, so it reads upright and un-clipped
@@ -361,14 +374,19 @@
   }
 }
 
+/* The individual `scale` property, not `transform: scale()`: a transform in
+   a keyframe REPLACES the element's own transform for the animation's
+   length, and the life keypad centres and rotates itself with its
+   transform, so for 200ms it popped in unrotated and off-centre, then
+   snapped to face its seat. `scale` composes with the transform instead. */
 @keyframes pp-scale-in {
   from {
     opacity: 0;
-    transform: scale(0.92);
+    scale: 0.92;
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    scale: 1;
   }
 }
 
@@ -381,11 +399,19 @@
 }
 
 .life-keypad-title {
+  min-width: 0;
+  overflow: hidden;
   font-size: var(--text-sm);
   color: rgba(255, 255, 255, 0.85);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .life-keypad-close {
+  /* Never shrinks: a long "Set life · <name>" beside it squeezed the ✕ to
+     24-28px wide on a rotated keypad, whose head is a ~72px column. The
+     title gives way instead. */
+  flex: 0 0 auto;
   background: var(--surface-raised);
   border: 1px solid var(--border);
   color: var(--text-secondary);

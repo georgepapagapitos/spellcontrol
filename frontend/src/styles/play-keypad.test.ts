@@ -86,4 +86,36 @@ describe('life keypad is a board-level dialog', () => {
     const grid = block('\n.life-keypad-grid {');
     expect(grid).toMatch(/grid-auto-rows:\s*minmax\(44px/);
   });
+  it('pops in facing its seat: the entrance animates `scale`, never `transform`', () => {
+    // A transform in a keyframe replaces the dialog's own translate+rotate
+    // for the animation's length: it opened unrotated and off-centre, then
+    // snapped to its seat.
+    const at = css.indexOf('@keyframes pp-scale-in');
+    const body = css.slice(at, css.indexOf('\n}\n', at));
+    expect(body).toMatch(/\bscale:\s*0\.92/);
+    expect(body).not.toContain('transform');
+  });
+
+  it('the close button never shrinks under a long title', () => {
+    expect(block('.life-keypad-close {')).toMatch(/flex:\s*0 0 auto/);
+    const title = block('.life-keypad-title {');
+    expect(title).toMatch(/text-overflow:\s*ellipsis/);
+    expect(title).toMatch(/min-width:\s*0/);
+  });
+  it("sized in the board's own axes when a phone on its side keeps the board still", () => {
+    // vw/vh stay the physical landscape viewport while the keypad sits in the
+    // counter-rotated board: a sideways seat's keypad ran ~80px off an
+    // 844x390 screen. .game-board is the size container in that same query.
+    const at = css.indexOf('.game-board-rotator[data-board-rot] .life-keypad {');
+    expect(at).toBeGreaterThan(-1);
+    expect(
+      css.lastIndexOf(
+        '@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse)',
+        at
+      )
+    ).toBeGreaterThan(-1);
+    const body = css.slice(at, css.indexOf('}', at));
+    expect(body).toMatch(/--keypad-w:\s*min\(94cqh/);
+    expect(body).toMatch(/--keypad-h:\s*min\(78cqw/);
+  });
 });

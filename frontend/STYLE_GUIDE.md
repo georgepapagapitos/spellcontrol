@@ -8288,6 +8288,18 @@ rotate(...)`, not flexbox, is load-bearing: CSS layout runs before a
   intrinsic-size one does; it shrinks the track instead, so the rotated
   layout's column split and the digit grid's row-span both needed real
   measurement, not just the spec on paper.
+- **The keypad opens already facing its seat, and fits a phone on its side
+  (2026-09-26).** Its entrance animates the individual `scale` property,
+  never `transform`: a transform in a keyframe replaces the dialog's own
+  translate + rotate for the animation's length, so it popped in unrotated
+  and off-centre, then snapped to its seat. With the board kept still in
+  landscape, the keypad sits inside the counter-rotated board, whose own
+  width is the screen's height, while vw/vh stay the physical viewport: a
+  sideways seat's keypad ran ~80px off an 844x390 screen. Under that same
+  media query it sizes from `.game-board`'s cq units (the board's own axes),
+  and measures fully on-screen with 44px keys on every seat tried. The ✕
+  holds its 44px width beside a long "Set life · <name>" title (it was
+  squeezed to 24-28px on a rotated keypad); the title ellipsises instead.
 - **Commander-damage focus mode's bar keeps its full copy — a fixed-height
   single line handles the space problem, not shorter words.** The bar used
   to wrap onto 2-4 lines on a short/narrow seat and cover the focused
