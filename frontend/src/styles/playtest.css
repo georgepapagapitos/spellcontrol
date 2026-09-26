@@ -4536,8 +4536,10 @@ button.playtest-card-pt__value--editable:focus-visible {
     min-width: 0;
   }
 
+  /* A floor, not a width: the menu tile is 44 square, but React, Hold and
+     "Release" are words, and a fixed 44px clipped them. */
   .playtest-corner-btn {
-    width: 44px;
+    min-width: 44px;
     padding: var(--space-1);
   }
 
@@ -4595,6 +4597,21 @@ button.playtest-card-pt__value--editable:focus-visible {
     display: block;
   }
 
+  /* The right edge is the tab's lane, top to bottom, and the corner stack
+     stands left of it. The stack has no fixed height: an online seat puts a
+     presence strip above it and Phase, React and Hold under the turn chip,
+     and there it grew down over the tab (E439). No spot on that edge is
+     clear of it at every table; a lane is. 44px is the tab's touch floor.
+     Below, the stack stops above the pile row (the table edge, the pile's
+     peek, its label and a gap) and wraps leftward instead: a 320px screen
+     has no room for an online seat's four controls AND the piles in one
+     column, and the width is what a phone on its side has to spare. */
+  .playtest-corner--tr {
+    right: calc(44px + var(--space-2));
+    flex-wrap: wrap-reverse;
+    max-height: calc(100% - var(--space-3) - var(--pt-table-edge) - var(--pt-card-h) * 0.35 - 2rem);
+  }
+
   .playtest-board--narrow .playtest-zones-panel {
     display: grid;
   }
@@ -4629,9 +4646,8 @@ button.playtest-card-pt__value--editable:focus-visible {
     position: static;
   }
 
-  /* Centred, the tab rose into the menu and TURN stack on a 340px screen.
-     It sits in the gap between that stack and the piles instead, anchored
-     just above the piles' labels. */
+  /* Low on its lane, just above the piles' labels, beside the two piles it
+     completes. (The corner stack stands clear of the lane, above.) */
   .playtest-zones-tab {
     top: auto;
     bottom: 4.5rem;

@@ -69,6 +69,7 @@ export function ReactionPicker() {
       <button
         ref={buttonRef}
         type="button"
+        className="playtest-corner-btn"
         title="Send a reaction"
         aria-haspopup="menu"
         aria-expanded={open}

@@ -60,6 +60,15 @@ describe('ReactionPicker', () => {
     expect(container.innerHTML).toBe('');
   });
 
+  // It stands in the corner stack, which is where its look and its 44px
+  // floor come from; bare, it drew as a 28px grey box.
+  it('is a corner pill', () => {
+    render(<ReactionPicker />);
+    expect(screen.getByRole('button', { name: 'React' }).classList).toContain(
+      'playtest-corner-btn'
+    );
+  });
+
   it('is collapsed until the trigger is clicked, then shows all six reactions', () => {
     render(<ReactionPicker />);
     expect(screen.queryByRole('menu')).toBeNull();

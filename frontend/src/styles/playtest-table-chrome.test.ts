@@ -251,6 +251,9 @@ describe('table chrome at the wide tier', () => {
 
   it('keeps every new control on the 44px floor and with a visible focus ring', () => {
     expect(block('.playtest-corner-btn {')).toContain('min-height: 44px');
+    // A fixed width clipped the corner's worded pills (React, Hold, Release)
+    // on a phone; the menu tile only needs the floor.
+    expect(css).not.toMatch(/^\s*\.playtest-corner-btn \{\s*width: 44px;/m);
     expect(block('.playtest-hand-menu-btn {')).toContain('min-height: 44px');
     expect(css).toContain('.playtest-corner-btn:focus-visible,');
     expect(css).toContain('.playtest-hand-menu-btn:focus-visible {');
@@ -326,6 +329,31 @@ describe('the narrow tier is the same board, sized for a thumb', () => {
     expect(phoneOnly).toContain('--pt-pile-span: calc(2 * var(--pt-card-w)');
     expect(phone).toContain('--pt-pile-span: calc(4 * var(--pt-card-w)');
     expect(phone).toContain('left: calc((100% - var(--pt-pile-span)) / 2)');
+  });
+
+  /* E439: a phone on its side at an online seat. The corner stack has no
+     fixed height (a presence strip above it, Phase, React and Hold under the
+     turn chip), and it grew down over the tab, which then took the taps
+     meant for React and Hold. A tab parked at some height is never safe
+     from a stack whose height the table decides; a lane is. */
+  it('gives the zones tab the right edge as its lane, and stands the corner stack left of it', () => {
+    const phoneBlock = phoneOnly.slice(0, phoneOnly.indexOf('\n}\n'));
+    const lane = /\.playtest-corner--tr \{\s*right: calc\((\d+)px \+ var\(--space-2\)\);/.exec(
+      phoneBlock
+    );
+    expect(lane, 'the phone block must stand the corner stack clear of the tab').not.toBeNull();
+    const tabFloor = /\.playtest-zones-tab \{\s*min-width: (\d+)px;/.exec(css);
+    expect(tabFloor).not.toBeNull();
+    expect(Number(lane![1])).toBeGreaterThanOrEqual(Number(tabFloor![1]));
+    // Nothing after the phone block puts the stack back on the edge.
+    expect(phoneOnly.slice(phoneBlock.length)).not.toMatch(/\.playtest-corner--tr \{[^}]*\bright:/);
+    // And it stops above the pile row, wrapping leftward, rather than
+    // running down into the graveyard on a 320px-tall screen. The cap is the
+    // pile's own peek, so a change to the peek has to come through here.
+    const corner = phoneBlock.slice(phoneBlock.indexOf('.playtest-corner--tr {'));
+    expect(corner).toContain('flex-wrap: wrap-reverse;');
+    expect(corner).toMatch(/max-height: calc\(100% - [^;]*var\(--pt-card-h\) \* 0\.35/);
+    expect(block('\n.playtest-pile__stack {')).toContain('height: calc(var(--pt-card-h) * 0.35);');
   });
 
   it('no longer hides the piles or carries an action bar', () => {
