@@ -1656,3 +1656,77 @@
   font-size: var(--text-sm);
   padding: var(--space-3) 0;
 }
+
+/* ---- shopping list (T150 W4 #11) ----
+   Rows reuse .cube-row/.cube-row-thumb/.cube-row-body/.cube-row-title/
+   .cube-row-name/.cube-row-reason verbatim (same primitives as the Cards tab
+   and Build-my-version's swap rows) — only the leading checkbox label and the
+   trailing price are new here. */
+.cube-shop-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+}
+.cube-shop-summary {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.cube-shop-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.cube-row-select {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cube-row-select:hover {
+    background: var(--surface-raised);
+  }
+}
+/* Plain `:focus-visible` branch is defensive (a <label> isn't itself
+   focusable) and is what the `:has(...)` branch mirrors — same pattern as
+   `.scan-row-main` in admin-scanner.css; the guard (focus-visible-rings.test)
+   reads the plain branch, the `:has()` branch is what actually rings. */
+.cube-row-select:focus-visible,
+.cube-row-select:has(.cube-row-select-input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.cube-row-select-input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.cube-row-price {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  /* Pushes to the far edge of `.cube-row-title` without touching the shared
+     `.cube-row-name`'s flex-basis (other surfaces reuse that class as-is). */
+  margin-left: auto;
+}
+.cube-row-price-unpriced {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--text-muted);
+}
+.cube-shop-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}

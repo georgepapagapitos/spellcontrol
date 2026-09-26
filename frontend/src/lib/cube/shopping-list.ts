@@ -1,6 +1,13 @@
 // Shopping list: cards you don't own that would most improve a saved cube if
-// bought, ranked by the score change from swapping each one in for the
-// cube's own weakest unlocked pick in the same color bucket.
+// bought, ranked by the score change from swapping each one in for one of the
+// cube's own weakest unlocked picks in the same color bucket.
+//
+// Each row proposes a DIFFERENT pick to replace: within a bucket, candidates
+// are matched one-to-one against unlocked picks, best candidate to weakest
+// pick, next-best to next-weakest, and so on (a bucket with more candidates
+// than unlocked picks leaves the extras unranked — there's nothing left for
+// them to replace). That makes the whole list the cost of a set of swaps that
+// could all happen together, rather than N takes on the same one slot.
 //
 // Read-only over the objective scorer — this module calls `createScorerState`
 // + `evalSwap` and NEVER `applySwap`, so ranking a few hundred candidates never
@@ -43,11 +50,11 @@ export interface ShoppingListOptions {
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 /**
- * Rank `candidates` by how much each would improve `cube` if it replaced the
- * weakest unlocked pick in its color bucket. A candidate whose bucket has no
- * unlocked pick (every pick there is locked, or the bucket is empty) is left
- * out — there's nothing for it to replace. Only positive improvements are
- * returned, best first (oracleId tiebreak for determinism).
+ * Rank `candidates` by how much each would improve `cube` if it replaced one
+ * of the weakest unlocked picks in its color bucket — each row a different
+ * pick, matched by descending candidate power against ascending pick power
+ * (see the module header). Only positive improvements are returned, best
+ * first (oracleId tiebreak for determinism).
  */
 export function buildShoppingList(
   candidates: CubeCard[],
@@ -71,24 +78,49 @@ export function buildShoppingList(
   const basis = computePowerBasis(pool);
   const state = createScorerState(cube.picks, pool, band, cube.size, basis, synergyLevel);
   const baseline = state.terms.total;
+  const power = (c: CubeCard) => rawPower(c, basis);
 
-  // The weakest unlocked pick per bucket (lowest raw power), computed once and
-  // reused for every candidate that lands in that bucket.
-  const weakest = new Map<ColorBucket, { index: number; power: number }>();
+  // Unlocked pick indices per bucket, weakest first — each is claimed by at
+  // most one candidate below.
+  const picksByBucket = new Map<ColorBucket, number[]>();
   cube.picks.forEach((p, index) => {
     if (locked.has(p.card.oracleId)) return;
     const bucket = bucketOf(p.card);
-    const power = rawPower(p.card, basis);
-    const cur = weakest.get(bucket);
-    if (!cur || power < cur.power) weakest.set(bucket, { index, power });
+    const list = picksByBucket.get(bucket);
+    if (list) list.push(index);
+    else picksByBucket.set(bucket, [index]);
   });
+  for (const list of picksByBucket.values()) {
+    list.sort(
+      (a, b) =>
+        power(cube.picks[a].card) - power(cube.picks[b].card) ||
+        cube.picks[a].card.oracleId.localeCompare(cube.picks[b].card.oracleId)
+    );
+  }
+
+  // Eligible candidates per bucket, strongest first.
+  const candidatesByBucket = new Map<ColorBucket, CubeCard[]>();
+  for (const c of eligible) {
+    const bucket = bucketOf(c);
+    const list = candidatesByBucket.get(bucket);
+    if (list) list.push(c);
+    else candidatesByBucket.set(bucket, [c]);
+  }
 
   const rows: ShoppingRow[] = [];
-  for (const card of eligible) {
-    const target = weakest.get(bucketOf(card));
-    if (!target) continue;
-    const improvement = evalSwap(state, target.index, card).terms.total - baseline;
-    if (improvement > 0) rows.push({ card, replaces: cube.picks[target.index], improvement });
+  for (const [bucket, bucketCandidates] of candidatesByBucket) {
+    const picks = picksByBucket.get(bucket);
+    if (!picks || picks.length === 0) continue;
+    const ordered = [...bucketCandidates].sort(
+      (a, b) => power(b) - power(a) || a.oracleId.localeCompare(b.oracleId)
+    );
+    const claimCount = Math.min(ordered.length, picks.length);
+    for (let i = 0; i < claimCount; i++) {
+      const pickIndex = picks[i];
+      const card = ordered[i];
+      const improvement = evalSwap(state, pickIndex, card).terms.total - baseline;
+      if (improvement > 0) rows.push({ card, replaces: cube.picks[pickIndex], improvement });
+    }
   }
 
   rows.sort(

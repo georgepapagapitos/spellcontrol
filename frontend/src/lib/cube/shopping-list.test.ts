@@ -50,21 +50,121 @@ const strongPick = card({
   oracleId: 'strong',
 });
 
+// A second trio, all Enchantments, for the one-to-one assignment tests: the
+// type term (creature share is far below its corpus target, enchantment share
+// far above) rewards an Enchantment→Creature swap independently of WHICH
+// enchantment index is replaced, so every assigned row in those tests gets a
+// real, non-zero delta — unlike the power term, which is a percentile over the
+// whole cube and only moves when the GLOBAL minimum is the one swapped out.
+const enchantA = card({
+  name: 'Enchant A',
+  colors: ['R'],
+  cmc: 6,
+  cubePop: 1,
+  typeLine: 'Enchantment',
+  oracleId: 'enchant-a',
+});
+const enchantB = card({
+  name: 'Enchant B',
+  colors: ['R'],
+  cmc: 6,
+  cubePop: 5,
+  typeLine: 'Enchantment',
+  oracleId: 'enchant-b',
+});
+const enchantC = card({
+  name: 'Enchant C',
+  colors: ['R'],
+  cmc: 6,
+  cubePop: 9,
+  typeLine: 'Enchantment',
+  oracleId: 'enchant-c',
+});
+const creatureBest = card({
+  name: 'Creature Best',
+  colors: ['R'],
+  cmc: 6,
+  cubePop: 99,
+  typeLine: 'Creature — Beast',
+});
+const creatureMid = card({
+  name: 'Creature Mid',
+  colors: ['R'],
+  cmc: 6,
+  cubePop: 60,
+  typeLine: 'Creature — Beast',
+});
+const creatureWorst = card({
+  name: 'Creature Worst',
+  colors: ['R'],
+  cmc: 6,
+  cubePop: 30,
+  typeLine: 'Creature — Beast',
+});
+// Includes `creatureBest` so the pool's popularity ceiling (popP80) sits at 99,
+// not 9 — otherwise every candidate's cube-pop would clip to the same ceiling
+// and tie, masking the best/mid/worst ordering the assignment test relies on.
+const enchantBasisPool = [enchantA, enchantB, enchantC, creatureBest];
+
 describe('buildShoppingList', () => {
-  it('ranks a clear improvement above baseline and orders by improvement', () => {
-    // A single-pick cube so the power term's percentile reads the candidate's
-    // OWN raw power directly (with more picks, a third untouched card can sit
-    // at the percentile floor on both sides and mask the difference).
+  it('ranks a clear improvement above baseline; a stronger replacement scores higher', () => {
+    // A single-pick cube: only one candidate can ever be assigned (one pick to
+    // replace), so ordering is compared across two separate calls rather than
+    // within one call's rows.
     const cube = cubeOf([weakPick]);
     const pool = [weakPick, midPick, strongPick];
     const good = card({ name: 'Good candidate', colors: ['R'], cmc: 6, cubePop: 25 });
     const best = card({ name: 'Best candidate', colors: ['R'], cmc: 6, cubePop: 55 });
 
-    const rows = buildShoppingList([good, best], cube, pool);
+    const [goodRow] = buildShoppingList([good], cube, pool);
+    const [bestRow] = buildShoppingList([best], cube, pool);
 
-    expect(rows.map((r) => r.card.name)).toEqual(['Best candidate', 'Good candidate']);
-    expect(rows[0].improvement).toBeGreaterThan(rows[1].improvement);
+    expect(goodRow.improvement).toBeGreaterThan(0);
+    expect(bestRow.improvement).toBeGreaterThan(goodRow.improvement);
+  });
+
+  it('matches candidates to picks one-to-one within a bucket, best to weakest', () => {
+    const cube = cubeOf([enchantA, enchantB, enchantC]);
+
+    const rows = buildShoppingList(
+      [creatureWorst, creatureBest, creatureMid],
+      cube,
+      enchantBasisPool
+    );
+
+    expect(rows).toHaveLength(3);
+    const targetOf = (name: string) =>
+      rows.find((r) => r.card.name === name)?.replaces.card.oracleId;
+    expect(targetOf('Creature Best')).toBe(enchantA.oracleId); // weakest pick
+    expect(targetOf('Creature Mid')).toBe(enchantB.oracleId); // next-weakest
+    expect(targetOf('Creature Worst')).toBe(enchantC.oracleId); // strongest pick left
     for (const r of rows) expect(r.improvement).toBeGreaterThan(0);
+  });
+
+  it('never lets two rows target the same pick', () => {
+    const cube = cubeOf([enchantA, enchantB, enchantC]);
+
+    const rows = buildShoppingList(
+      [creatureWorst, creatureBest, creatureMid],
+      cube,
+      enchantBasisPool
+    );
+
+    const targets = rows.map((r) => r.replaces.card.oracleId);
+    expect(new Set(targets).size).toBe(targets.length);
+  });
+
+  it('leaves a candidate unranked when its bucket has more candidates than unlocked picks', () => {
+    const cube = cubeOf([enchantA, enchantB]); // only 2 unlocked picks for 3 candidates
+
+    const rows = buildShoppingList(
+      [creatureWorst, creatureBest, creatureMid],
+      cube,
+      enchantBasisPool
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.card.name).sort()).toEqual(['Creature Best', 'Creature Mid']);
   });
 
   it('always names the weakest unlocked pick in the bucket as the replacement', () => {
