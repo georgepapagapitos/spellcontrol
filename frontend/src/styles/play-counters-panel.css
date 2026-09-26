@@ -302,6 +302,21 @@
   --cmd-offset: calc(var(--life-size) * 0.45 + 0.75rem);
 }
 
+/* Vertical tap areas (play-board.css) put the − where "N to lethal" sat, so
+   the hint moves below the − and the stack reserves its line at the bottom.
+   The focused seat has no name corner above its numeral (hidden in focus)
+   and reserves the focus bar below it. `.game-board` lifts both past the
+   7-10 player name tier, which sets --pp-v-top too. */
+.game-board .player-panel.is-vertical-taps.is-cmd-source:not(.is-cmd-split) {
+  --pp-v-bottom: 1.4rem;
+  --cmd-offset: calc(var(--life-v) * 0.74 + 0.7rem);
+}
+
+.game-board .player-panel.is-vertical-taps.is-cmd-self {
+  --pp-v-top: 0px;
+  --pp-v-bottom: var(--cmd-focus-bar-h);
+}
+
 /* "N to lethal" — mirrored below the numeral. */
 .pp-cmd-hint {
   position: absolute;
@@ -449,6 +464,48 @@
 
 .pp-cmd-half-zone:active {
   background: rgba(255, 255, 255, 0.06);
+}
+
+/* Vertical tap areas: a half's zones are its top (+) and bottom (−) halves,
+   like the panel's own, and its hints leave the value's row for the half's
+   far edge, + at the centre of the top zone and − at the centre of the
+   bottom one, so each glyph always sits in the zone it names whatever the
+   name and "to lethal" lines around the value do to the row's position. */
+.is-vertical-taps .pp-cmd-half {
+  padding-inline-end: var(--space-5);
+}
+
+.is-vertical-taps .pp-cmd-half-zone {
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 50%;
+}
+
+.is-vertical-taps .pp-cmd-half-zone.is-plus {
+  top: 0;
+  bottom: auto;
+}
+
+.is-vertical-taps .pp-cmd-half-zone.is-minus {
+  top: auto;
+  bottom: 0;
+}
+
+.is-vertical-taps .pp-cmd-half-row {
+  position: static;
+}
+
+.is-vertical-taps .pp-cmd-half-row > .pp-cmd-half-step {
+  position: absolute;
+  z-index: 2;
+  right: var(--space-1);
+  top: 75%;
+  transform: translateY(-50%);
+}
+
+.is-vertical-taps .pp-cmd-half-row > .pp-cmd-half-step:last-child {
+  top: 25%;
 }
 
 .pp-cmd-half-name,

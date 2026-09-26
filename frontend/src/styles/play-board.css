@@ -57,7 +57,7 @@
    resolve against the grid (position: relative above), so they stay on the
    real row/column boundary after centering. */
 @media (min-width: 1280px) {
-  .game-board-grid {
+  :where(.game-board-rotator:not([data-board-rot])) > .game-board-grid {
     max-width: 75rem;
     margin-inline: auto;
   }
@@ -296,11 +296,18 @@
   min-height: 0;
 }
 
-@media (min-width: 600px) {
-  .player-panel-content {
-    padding: var(--space-3) 0.9rem;
-  }
-}
+/* Board-internal sizing reads the BOARD, never the physical viewport. Under
+   "keep the board still" (`[data-board-rot]`, above) the board is turned 90°
+   inside a landscape screen, so its own width is the screen's height: an
+   844x390 phone lays the seats out in a 390-wide board, but a `min-width:
+   600px` media query still matched the 844px screen and gave the 7-10 player
+   seats desktop-sized names, which ran into their numerals (94 hits per
+   orientation in commander focus). A rotated board is always under 500px
+   wide (the keep-still query needs `max-height: 500px`), so every viewport
+   query inside the board is scoped to an unrotated board, and the rotated one
+   gets the phone values its own size calls for. Where a query's answer flips
+   under rotation (a width becomes a height), the rotated board gets the
+   swapped query. Guard: styles/play-board-viewport-queries.test.ts. */
 
 /* Corner overlays float on top of the centered life row. They sit at the
    panel edges and never compete with the headline number. */
@@ -413,6 +420,8 @@
 @container (max-height: 9.5rem) {
   .game-board:not(.game-board-2) .player-panel:not([data-sideways]) {
     --life-size: min(38cqh, 55cqw);
+    /* The condensed name's band, for vertical tap areas' stack (below). */
+    --pp-v-top: calc(var(--space-2) + var(--seam-keepout) + 0.6rem);
   }
 
   .game-board:not(.game-board-2) .player-panel:not([data-sideways]) .player-panel-name {
@@ -437,10 +446,10 @@
 }
 
 @media (min-width: 600px) {
-  .player-panel-corner {
+  :where(.game-board-rotator:not([data-board-rot])) .player-panel-corner {
     top: calc(0.7rem + var(--seam-keepout));
   }
-  .player-panel-corner.is-tl {
+  :where(.game-board-rotator:not([data-board-rot])) .player-panel-corner.is-tl {
     left: calc(0.85rem + var(--seam-keepout));
   }
 }
@@ -474,6 +483,7 @@
        more half-width than a 74-115px-tall cell has, and spilled the ±
        past the panel's edge (measured 3-6px). */
     --life-half: calc(var(--life-size) * 0.48);
+    --pp-v-top: calc(var(--space-2) + var(--seam-keepout) + 0.6rem);
   }
 
   .game-board:not(.game-board-2) .player-panel[data-sideways] .player-panel-name {
@@ -608,7 +618,7 @@
 }
 
 @media (min-width: 600px) {
-  .player-panel-name {
+  :where(.game-board-rotator:not([data-board-rot])) .player-panel-name {
     font-size: var(--text-md);
   }
 }
@@ -641,21 +651,22 @@
   text-overflow: ellipsis;
 }
 
+/* No subtitle on a narrow board of 3+ seats, or on any short board. A rotated
+   board's width is the screen's height and its height the screen's width. */
 @media (max-width: 480px) {
-  .game-board-3 .player-panel-subtitle,
-  .game-board-4 .player-panel-subtitle,
-  .game-board-5 .player-panel-subtitle,
-  .game-board-6 .player-panel-subtitle,
-  .game-board-7 .player-panel-subtitle,
-  .game-board-8 .player-panel-subtitle,
-  .game-board-9 .player-panel-subtitle,
-  .game-board-10 .player-panel-subtitle {
+  .game-board:not(.game-board-2)
+    :where(.game-board-rotator:not([data-board-rot]))
+    .player-panel-subtitle,
+  :where(.game-board-rotator[data-board-rot]) .player-panel-subtitle {
     display: none;
   }
 }
 
 @media (max-height: 480px) {
-  .player-panel-subtitle {
+  :where(.game-board-rotator:not([data-board-rot])) .player-panel-subtitle,
+  .game-board:not(.game-board-2)
+    :where(.game-board-rotator[data-board-rot])
+    .player-panel-subtitle {
     display: none;
   }
 }
@@ -730,10 +741,62 @@
   transform: translate(calc(100% + var(--life-half)), -50%) scale(0.92);
 }
 
-@media (min-width: 600px) {
-  .player-panel-life-wrap {
-    gap: 0.8rem;
-  }
+/* Vertical tap areas (`game.tapOrientation`): the zones are the top half (+)
+   and the bottom half (−), so the hints move with them, + above the numeral
+   and − below, in the seat's own axes. Left beside the numeral, the "+" sat
+   on the zone boundary and a long press on it gave −10 on 0° and 270° seats.
+   The stack (+, numeral, −) is centred in the box below the name corner's
+   band (--pp-v-top), so the + never lands on the name (147px² on every 5p/6p
+   seat at 320px when it was centred on the whole panel), and above whatever
+   a mode reserves at the bottom (--pp-v-bottom). The size the three share is
+   capped so the stack fits that box, in the panel's own axes (the cell's
+   height upright, its width sideways). Each glyph stays in its own zone: the
+   box's centre is never more than the band's half below the panel's. */
+.player-panel.is-vertical-taps {
+  --pp-v-top: calc(var(--space-2) + var(--seam-keepout) + 1.4rem);
+  --pp-v-bottom: 0px;
+  --life-v: min(var(--life-size), calc((100cqh - var(--pp-v-top) - var(--pp-v-bottom)) * 0.66));
+  --life-vhalf: calc(var(--life-v) * 0.45);
+}
+
+.player-panel.is-vertical-taps[data-sideways] {
+  --life-v: min(var(--life-size), calc((100cqw - var(--pp-v-top) - var(--pp-v-bottom)) * 0.66));
+}
+
+.player-panel.is-vertical-taps .player-panel-life-wrap {
+  top: var(--pp-v-top);
+  bottom: var(--pp-v-bottom);
+}
+
+.player-panel.is-vertical-taps .player-panel-life-wrap > .player-panel-life {
+  font-size: calc(var(--life-v) * var(--life-scale, 1));
+}
+
+.player-panel.is-vertical-taps .player-panel-life-wrap > .player-panel-step-btn {
+  left: 50%;
+  right: auto;
+  padding-block: 0;
+  font-size: calc(var(--life-v) * 0.32);
+}
+
+.player-panel.is-vertical-taps .player-panel-life-wrap > .player-panel-step-btn:first-of-type {
+  transform: translate(-50%, var(--life-vhalf));
+}
+
+.player-panel.is-vertical-taps .player-panel-life-wrap > .player-panel-step-btn:last-of-type {
+  transform: translate(-50%, calc(-100% - var(--life-vhalf)));
+}
+
+.player-panel.is-vertical-taps
+  .player-panel-life-wrap
+  > .player-panel-step-btn:first-of-type:active:not(:disabled) {
+  transform: translate(-50%, var(--life-vhalf)) scale(0.92);
+}
+
+.player-panel.is-vertical-taps
+  .player-panel-life-wrap
+  > .player-panel-step-btn:last-of-type:active:not(:disabled) {
+  transform: translate(-50%, calc(-100% - var(--life-vhalf))) scale(0.92);
 }
 
 .player-panel-life {
@@ -847,12 +910,6 @@
     min-width: 44px;
     height: 44px;
     transform: translate(-50%, -50%);
-  }
-}
-
-@media (max-height: 480px) {
-  .player-panel-content {
-    padding: 0.4rem 0.55rem;
   }
 }
 

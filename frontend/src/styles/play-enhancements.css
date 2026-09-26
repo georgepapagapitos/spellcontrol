@@ -60,7 +60,7 @@
 }
 
 @media (min-width: 600px) {
-  .game-board-undo-btn {
+  :where(.game-board-rotator:not([data-board-rot])) .game-board-undo-btn {
     width: 3rem;
     height: 3rem;
     /* At this breakpoint the hub and button are slightly larger, so the
@@ -71,7 +71,7 @@
       var(--undo-ty-lg, var(--undo-ty, -50%))
     );
   }
-  .game-board-undo-btn:active {
+  :where(.game-board-rotator:not([data-board-rot])) .game-board-undo-btn:active {
     transform: translate(
         var(--undo-tx-lg, var(--undo-tx, calc(-50% - 4rem))),
         var(--undo-ty-lg, var(--undo-ty, -50%))
@@ -113,6 +113,16 @@
 
 .game-clock-strip.is-paused {
   border-style: dashed;
+}
+
+/* Commander-damage focus hides the strip but keeps its space. Removing it
+   grew every seat by the strip's height, and on the 7-10 player boards that
+   carried a 145px cell across the 9.5rem name tier (play-board.css): names
+   jumped from ~7px to 17px on the way in and landed on the numerals.
+   `visibility: hidden` also takes its buttons out of the tab order and the
+   accessibility tree. */
+.game-board.is-cmd-focus .game-clock-strip {
+  visibility: hidden;
 }
 
 .game-clock-strip-text {
@@ -239,21 +249,21 @@
 /* ≥600px: the strip has room to breathe, so it widens back out instead of
    staying phone-tight. */
 @media (min-width: 600px) {
-  .game-clock-strip {
+  :where(.game-board-rotator:not([data-board-rot])) .game-clock-strip {
     gap: var(--space-3);
     padding: var(--space-2) var(--space-3);
   }
 
-  .game-clock-strip-text {
+  :where(.game-board-rotator:not([data-board-rot])) .game-clock-strip-text {
     gap: 0.4em;
     font-size: var(--text-sm);
   }
 
-  .game-clock-strip-actions {
+  :where(.game-board-rotator:not([data-board-rot])) .game-clock-strip-actions {
     gap: var(--space-2);
   }
 
-  .game-clock-strip-btn {
+  :where(.game-board-rotator:not([data-board-rot])) .game-clock-strip-btn {
     gap: 0.3em;
     font-size: var(--text-xs);
     padding: var(--space-2) var(--space-3);

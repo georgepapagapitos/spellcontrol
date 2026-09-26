@@ -42,15 +42,79 @@
 
 .pp-highroll-tiebreak {
   font-size: var(--text-sm);
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
 }
 
 .pp-highroll-caption {
   font-size: var(--text-sm);
+  line-height: 1.2;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   opacity: 0.85;
+}
+
+/* The overlay has to fit every seat, including the short axis of a sideways
+   one: a sideways 2p seat (148-183px across on a phone) pushed a tied
+   winner's caption 18px out of its panel. The number is capped by what the
+   die, the tiebreak line, the caption and the gaps leave of the seat's own
+   height, which is the cell's height upright and the cell's width sideways
+   (the panel is laid out in swapped axes before it rotates), hence each rule
+   twice, like the life keypad's. */
+.player-panel:not([data-sideways]) .pp-highroll-value {
+  font-size: min(var(--life-size), calc(100cqh - 4.75rem));
+}
+
+.player-panel[data-sideways] .pp-highroll-value {
+  font-size: min(var(--life-size), calc(100cqw - 4.75rem));
+}
+
+/* A short seat (the 7-10 player cells, 74-95px on a phone) drops the die,
+   which only decorates, and gives its room to the number. */
+@container (max-height: 8rem) {
+  .player-panel:not([data-sideways]) .pp-highroll-die {
+    display: none;
+  }
+
+  .player-panel:not([data-sideways]) .pp-highroll-value {
+    font-size: min(var(--life-size), calc(100cqh - 3rem));
+  }
+}
+
+@container (max-width: 8rem) {
+  .player-panel[data-sideways] .pp-highroll-die {
+    display: none;
+  }
+
+  .player-panel[data-sideways] .pp-highroll-value {
+    font-size: min(var(--life-size), calc(100cqw - 3rem));
+  }
+}
+
+/* A seat much longer than it is tall (2p-side's sideways seats, the 7-10
+   player wide rows) reads the roll along one line, die, number, tiebreak,
+   caption, so the number keeps its full size. */
+@container (min-aspect-ratio: 5 / 2) {
+  .player-panel:not([data-sideways]) .pp-highroll {
+    flex-direction: row;
+    gap: var(--space-3);
+  }
+
+  .player-panel:not([data-sideways]) .pp-highroll-value {
+    font-size: min(var(--life-size), calc(100cqh - var(--space-3)));
+  }
+}
+
+@container (max-aspect-ratio: 2 / 5) {
+  .player-panel[data-sideways] .pp-highroll {
+    flex-direction: row;
+    gap: var(--space-3);
+  }
+
+  .player-panel[data-sideways] .pp-highroll-value {
+    font-size: min(var(--life-size), calc(100cqw - var(--space-3)));
+  }
 }
 
 .pp-highroll.is-winner {
