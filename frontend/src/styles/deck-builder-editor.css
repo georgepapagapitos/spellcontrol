@@ -187,6 +187,18 @@
   }
 }
 
+/* The back link's lane on the art, sized for the link a coarse pointer
+   actually gets: its offset, its 44px floor, and the name's 0.22em slack above
+   its text (see .deck-editor-name). --space-7 alone let a deck whose meta
+   wraps push the name into the link, so the top strip of the name's rename
+   button opened "All decks" (nightly journey, E455). A short deck never
+   reaches the lane: the hero packs its content to the bottom. */
+@media (max-width: 599px) and (pointer: coarse) {
+  .deck-editor-hero--art {
+    padding-top: calc(var(--space-2) + var(--touch-target) + 0.22 * var(--text-2xl));
+  }
+}
+
 @media (min-width: 600px) {
   .deck-editor-hero--art {
     justify-content: flex-end;

@@ -107,6 +107,11 @@
   --space-7: 3rem;
   --space-8: 4rem;
 
+  /* The coarse-pointer touch floor (STYLE_GUIDE § Responsive). For a length
+     that has to make room for a 44px target it doesn't own, such as the deck
+     hero's back-link lane; a control's own floor still reads 44px. */
+  --touch-target: 44px;
+
   /* Between a button's icon and its label, in every button family (`.btn`,
      `.pill-btn`, `.toolbar-pill`): one value, owned here, not per surface.
      Between --space-1 and --space-2 because 4px crowds a 14px glyph against
