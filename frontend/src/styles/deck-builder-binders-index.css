@@ -517,3 +517,45 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Uncategorized (E471): the cards no binder takes, as the list's last tile.
+   Same geometry as a binder in every view so it sits in the grid, but a
+   dashed outline and a neutral band say it is not a binder: nothing to file
+   into, a pile to make a binder from. It is a button (it opens the
+   suggestions sheet), so it resets the native button chrome. */
+.binders-index-card--uncategorized {
+  --binder-color: var(--text-muted);
+  border-style: dashed;
+  /* No binder color to carry, so no 4px color edge: a dashed 4px rail read as
+     a heavy stitch in the list and compact rows. */
+  border-left-width: 1px;
+  box-shadow: none;
+  background: transparent;
+}
+
+.binders-index-card--uncategorized .binders-index-card-link {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.binders-index-card--uncategorized .binders-index-card-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+}
+
+.binders-index-list.is-grid .binders-index-card--uncategorized .binders-index-card-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.binders-index-card-unfiled {
+  color: var(--text-secondary);
+}

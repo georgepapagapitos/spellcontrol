@@ -3736,6 +3736,23 @@ never shows the chooser.
 - **A page's header is its door into the page viewer.** "Page 3" on the left,
   the book glyph "Browse pages" uses on the right, the whole row one button.
   It replaced an underlined mono "page 3" link floating centred above the page.
+- **The cards no binder takes are the index's last tile, "Uncategorized"**
+  (E471). One name for that pile everywhere: the collection filter, both pull
+  lists and the ownership lens already said Uncategorized, so the tile does too
+  (not "Unfiled", not "Matched no binder"). It sits after every binder because
+  it is below every binder in priority; it never displaces them. Same geometry
+  as a binder in grid, list and compact, with a dashed outline and a neutral
+  band, because it is not a binder. It renders nothing when every card has a
+  binder, and hides while searching or selecting. It is a button, not a link:
+  it opens one sheet (`UncategorizedSheet`) with up to three binders made from
+  the pile's biggest ideas (one per kind: card type, color, rarity, price, each
+  counted by the real rule engine), an "Everything else" catch-all, and "See
+  the cards". A suggestion opens the rules editor seeded, the same path as
+  Save as binder, so nothing is created without the user seeing "N cards land
+  here".
+- **An empty binder warns only where it does harm.** Above another binder it
+  takes that binder's cards: the amber banner. Last in line it is a catch-all:
+  a plain note saying what it does. Both open "This binder has no conditions".
 - **One control row for all three views** (`BinderSummaryBar`): Browse pages,
   the sort chip, then Collapse, layout, Key and View options at the end.
   Display preferences (layout, card images, Group printings, the symbol key)

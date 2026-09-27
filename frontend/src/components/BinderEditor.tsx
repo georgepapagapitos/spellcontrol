@@ -17,6 +17,7 @@ import {
 } from '../lib/binder-counts';
 import { STARTER_TEMPLATES } from '../lib/binder-templates';
 import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
+import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { cleanFilter } from '../lib/clean-filter';
 import { Modal } from './Modal';
 import { SelectMenu } from './SelectMenu';
@@ -474,12 +475,14 @@ export function BinderEditor() {
   // Over-capacity check uses the same estimate the editor shows: when
   // "keep all printings together" is on, count the printings it pulls in too,
   // so the warning doesn't silently under-count.
-  // Decorate with oracle tags so the live counts reflect a draft tag rule
-  // (gated on the *draft* groups, since the binder isn't committed yet). Feeds
-  // BOTH the over-capacity check below AND the per-group badge in
-  // FilterGroupList — passing the raw `cards` there left an oracle-tag rule's
-  // count stuck at 0 until the tagger snapshot finished loading.
-  const taggedCards = useCardsWithTags(cards, groupsUseTags(groups));
+  // BinderPage's inputs, so the other binders route here the way they do on
+  // their own pages: a tag-rule binder above the draft needs tagged cards too,
+  // or it catches nothing and its cards read as landing in the draft (a new
+  // "$1+" binder said 30 land here out of a 27-card pile). Tags are added
+  // again for the draft's own rules, since it isn't committed yet. Feeds BOTH
+  // the over-capacity check below AND the per-group badge in FilterGroupList.
+  const layout = useBinderLayoutInputs();
+  const taggedCards = useCardsWithTags(layout.cards, groupsUseTags(groups));
   const binderMatchCount = useMemo(() => {
     if (!isOpen || fixedCapacity === null) return 0;
     return countBinderMatches(taggedCards, groups, keepPrintingsTogether).total;
@@ -493,14 +496,20 @@ export function BinderEditor() {
   // where it was a full binder materialisation on every signed-in page (E276).
   const effectiveLanding = useMemo(() => {
     if (!isOpen || routingMode === 'manual') return null;
-    return countEffectiveLanding(taggedCards, binders, {
-      id: existing?.id ?? null,
-      groups,
-      keepPrintingsTogether,
-      mode: routingMode,
-      placeAboveId,
-    });
+    return countEffectiveLanding(
+      taggedCards,
+      binders,
+      {
+        id: existing?.id ?? null,
+        groups,
+        keepPrintingsTogether,
+        mode: routingMode,
+        placeAboveId,
+      },
+      layout
+    );
   }, [
+    layout,
     taggedCards,
     binders,
     groups,
@@ -749,6 +758,13 @@ export function BinderEditor() {
   // it is a blank form. The warning waits until the user has authored
   // something (a name, a rule edit, or a save attempt).
   const showEmptyWarning = allGroupsEmpty && (!isNew || touched || name.trim() !== '');
+  // Last in line, an empty binder is the catch-all the Uncategorized sheet
+  // offers ("Everything else"): worth saying what it does, not a mistake. Above
+  // other binders it takes the cards they were meant to get, which is.
+  const sitsLast =
+    !placeAboveId &&
+    (isNew ||
+      binders.every((b) => b.id === existing?.id || b.position < (existing?.position ?? 0)));
   const capacity = fixedCapacity ?? 0;
   // Suppress over-capacity warning when filters are empty — an unfiltered binder
   // would match every card by definition, which is never what the warning is
@@ -1055,12 +1071,19 @@ export function BinderEditor() {
                     </div>
                   )}
 
-                {showEmptyWarning && (
-                  <div className="warn-banner binder-editor-warn">
-                    This binder has no conditions, so it takes every card the binders above leave
-                    over. Add a condition, or move it near the bottom of your binder list.
-                  </div>
-                )}
+                {showEmptyWarning &&
+                  (sitsLast ? (
+                    <p className="binder-editor-note">
+                      This binder has no conditions, so it takes every card the binders above pass
+                      on.
+                    </p>
+                  ) : (
+                    <div className="warn-banner binder-editor-warn">
+                      This binder has no conditions, so it takes every card the binders below it
+                      were meant to get. Add a condition, or move it to the bottom of your binder
+                      list.
+                    </div>
+                  ))}
 
                 {overCapacity && (
                   <div className="warn-banner binder-editor-warn">

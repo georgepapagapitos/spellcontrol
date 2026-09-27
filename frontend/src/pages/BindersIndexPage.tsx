@@ -4,6 +4,7 @@ import {
   ArrowUp,
   LayoutGrid,
   List as ListIconLucide,
+  Inbox,
   Pencil,
   Plus,
   Trash2,
@@ -42,6 +43,7 @@ import {
 import { selectedCountLabel, useSelection } from '../lib/use-selection';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderExportDialog } from '../components/BinderExportDialog';
+import { UncategorizedSheet } from '../components/UncategorizedSheet';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { ProgressBar } from '../components/ProgressBar';
@@ -107,13 +109,19 @@ export function BindersIndexPage() {
 
   // Counts come from the materializer so they match what the binder
   // detail page would render (rules + capacity + dedupe applied).
-  const materialized = useMemo(() => {
-    if (binders.length === 0) return [];
-    return materializeBinders(cards, binders, {
+  const { materialized, uncategorizedCards } = useMemo(() => {
+    if (binders.length === 0) return { materialized: [], uncategorizedCards: [] };
+    const result = materializeBinders(cards, binders, {
       search: '',
       allocatedCopyIds,
       setMap,
-    }).binders;
+    });
+    return {
+      materialized: result.binders,
+      // The cards no binder takes, from the same pass, so the Uncategorized
+      // tile's count can never disagree with the binders' own totals.
+      uncategorizedCards: result.uncategorized.sections.flatMap((section) => section.cards),
+    };
   }, [cards, binders, allocatedCopyIds, setMap]);
 
   // Pending review work per binder ("N to review" chip) — same drift the
@@ -150,6 +158,7 @@ export function BindersIndexPage() {
     'grid'
   );
   const [exportOpen, setExportOpen] = useState(false);
+  const [uncategorizedOpen, setUncategorizedOpen] = useState(false);
   const [bulkExportOpen, setBulkExportOpen] = useState(false);
 
   const sorted = useMemo(() => {
@@ -591,8 +600,46 @@ export function BindersIndexPage() {
                 </li>
               );
             })}
+            {/* The cards no binder takes, as the last thing in the list: it is
+                below every binder in priority, and never above the binders it
+                follows. Hidden while searching or selecting (it is not a
+                binder), and absent when every card has a home. */}
+            {uncategorizedCards.length > 0 && !debouncedSearch.trim() && !sel.selectMode && (
+              <li className="binders-index-card binders-index-card--uncategorized">
+                <button
+                  type="button"
+                  className="binders-index-card-link"
+                  onClick={() => setUncategorizedOpen(true)}
+                  aria-haspopup="dialog"
+                >
+                  {view === 'grid' && (
+                    <span className="binders-index-card-banner" aria-hidden>
+                      <Inbox width={28} height={28} strokeWidth={1.5} />
+                    </span>
+                  )}
+                  <div className="binders-index-card-body">
+                    <div className="binders-index-card-name">Uncategorized</div>
+                    <div className="binders-index-card-meta">
+                      <span className="binders-index-card-stats">
+                        <span className="binders-index-card-unfiled">
+                          {uncategorizedCards.length.toLocaleString()}{' '}
+                          {uncategorizedCards.length === 1 ? 'card' : 'cards'} in no binder
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              </li>
+            )}
           </ul>
         </>
+      )}
+
+      {uncategorizedOpen && (
+        <UncategorizedSheet
+          cards={uncategorizedCards}
+          onClose={() => setUncategorizedOpen(false)}
+        />
       )}
 
       {exportOpen && (
