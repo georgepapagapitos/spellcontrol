@@ -13,7 +13,7 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { THEMES } from '../lib/themes';
 import { toast } from '../store/toasts';
-import { buildBackup, downloadBackup } from '../lib/backup';
+import { buildBackup, downloadBackup, parseBackup } from '../lib/backup';
 import { CollectionExportDialog } from '../components/CollectionExportDialog';
 import { Modal } from '../components/Modal';
 import { formatPricedDate, newestPricedAt } from '../lib/price-freshness';
@@ -100,6 +100,7 @@ export function YouPage() {
 
   const cards = useCollectionStore((s) => s.cards);
   const cardCount = cards.length;
+  const binders = useCollectionStore((s) => s.binders);
   const pricesUpdated = useMemo(() => formatPricedDate(newestPricedAt(cards)), [cards]);
   const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
   const refreshPrices = useCollectionStore((s) => s.refreshPrices);
@@ -107,6 +108,7 @@ export function YouPage() {
   const currency = useCurrencyStore((s) => s.currency);
   const setCurrency = useCurrencyStore((s) => s.setCurrency);
   const buildBackupSnapshot = useCollectionStore((s) => s.buildBackupSnapshot);
+  const restoreFromBackup = useCollectionStore((s) => s.restoreFromBackup);
 
   const decks = useDecksStore((s) => s.decks);
   const deckCount = decks.length;
@@ -118,6 +120,9 @@ export function YouPage() {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [resetCacheBusy, setResetCacheBusy] = useState(false);
+  const backupInputRef = useRef<HTMLInputElement>(null);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [restoreBusy, setRestoreBusy] = useState(false);
   // Sign-out confirmation. `signOutPending` snapshots the unsynced-change count
   // at the moment the dialog opens so the copy can warn about data loss.
   const [signOutOpen, setSignOutOpen] = useState(false);
@@ -366,6 +371,50 @@ export function YouPage() {
   }
 
   const [exportOpen, setExportOpen] = useState(false);
+
+  /**
+   * Restore backup (T153: moved out of the add-cards flow). Replacing a
+   * non-empty collection/binders/decks is destructive with no Undo — nag
+   * first. Nothing to lose on a blank account, so no nag there.
+   */
+  function handlePickRestore() {
+    if (cardCount > 0 || binders.length > 0 || deckCount > 0) {
+      setRestoreConfirmOpen(true);
+      return;
+    }
+    backupInputRef.current?.click();
+  }
+
+  async function applyBackupFile(file: File) {
+    setRestoreBusy(true);
+    try {
+      const text = await file.text();
+      const backup = parseBackup(text);
+      await restoreFromBackup(backup);
+      const parts: string[] = [];
+      if (backup.collection) {
+        parts.push(`${backup.collection.cards.length.toLocaleString()} cards`);
+      }
+      parts.push(`${backup.binders.length} binder${backup.binders.length === 1 ? '' : 's'}`);
+      if (backup.decks) {
+        parts.push(`${backup.decks.length} deck${backup.decks.length === 1 ? '' : 's'}`);
+      }
+      toast.show({ message: `Backup restored · ${parts.join(' · ')}`, tone: 'success' });
+    } catch (err) {
+      toast.show({
+        message: userMessage(err, "Couldn't restore that backup. Try again."),
+        tone: 'error',
+      });
+    } finally {
+      setRestoreBusy(false);
+    }
+  }
+
+  async function handleBackupFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (backupInputRef.current) backupInputRef.current.value = '';
+    if (file) await applyBackupFile(file);
+  }
 
   function openSignOut() {
     // Snapshot the unsynced-change count now so the dialog copy is accurate.
@@ -691,7 +740,7 @@ export function YouPage() {
                       rule-driven dynamic lists.
                       <br />
                       <br />
-                      The JSON backup includes binders, lists, and every deck; a re-import restores
+                      The JSON backup includes binders, lists, and every deck; restoring one returns
                       all of it. Export is cards only, one row per copy, as a SpellControl, Moxfield
                       or Archidekt CSV or an Arena text list.
                     </>
@@ -714,6 +763,16 @@ export function YouPage() {
                   Download backup
                 </Button>
               </div>
+            }
+          />
+
+          <SettingsRow
+            value="Restore from a backup file"
+            hint="Replaces your current collection, binders, and decks with a JSON backup's contents."
+            actions={
+              <Button onClick={handlePickRestore} disabled={restoreBusy}>
+                {restoreBusy ? 'Restoring…' : 'Restore…'}
+              </Button>
             }
           />
 
@@ -891,6 +950,29 @@ export function YouPage() {
       )}
 
       {exportOpen && <CollectionExportDialog cards={cards} onClose={() => setExportOpen(false)} />}
+
+      <input
+        type="file"
+        ref={backupInputRef}
+        accept="application/json,.json"
+        style={{ display: 'none' }}
+        onChange={(e) => void handleBackupFileChange(e)}
+        disabled={restoreBusy}
+      />
+
+      {restoreConfirmOpen && (
+        <ConfirmDialog
+          title="Restore backup?"
+          body="This replaces your current collection, binders, and decks with the backup's contents. This can't be undone."
+          confirmLabel="Restore"
+          danger
+          onConfirm={() => {
+            setRestoreConfirmOpen(false);
+            backupInputRef.current?.click();
+          }}
+          onCancel={() => setRestoreConfirmOpen(false)}
+        />
+      )}
 
       {signOutOpen && (
         <ConfirmDialog

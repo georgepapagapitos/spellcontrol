@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -184,5 +184,37 @@ describe('CollectionPage – AddCardsSheet deep-link (UX-333)', () => {
     // the sheet is not re-opened on subsequent renders (state is local).
     renderPage('/collection?add=list');
     expect(screen.getByTestId('add-cards-sheet')).toBeTruthy();
+  });
+});
+
+describe('CollectionPage – Import history moved to ⋮ (T153)', () => {
+  it('opens Import history from the ⋮ menu, not the add-cards flow', () => {
+    useCollectionStore.setState({
+      cards: [{ copyId: 'c1', scryfallId: 'sf1', name: 'Sol Ring' }] as never,
+      importHistory: [
+        { id: 'imp1', name: 'collection.csv', count: 5, format: 'manabox', addedAt: Date.now() },
+      ] as never,
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'More collection actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Import history' }));
+    expect(screen.getByRole('heading', { name: 'Import history' })).toBeTruthy();
+    expect(screen.getByText('collection.csv')).toBeTruthy();
+  });
+
+  it('deletes an import with a confirm that is honest about Undo, not "cannot be undone"', () => {
+    useCollectionStore.setState({
+      cards: [{ copyId: 'c1', scryfallId: 'sf1', name: 'Sol Ring', importId: 'imp1' }] as never,
+      importHistory: [
+        { id: 'imp1', name: 'collection.csv', count: 1, format: 'manabox', addedAt: Date.now() },
+      ] as never,
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'More collection actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Import history' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Select/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Delete selected/ }));
+    expect(screen.getByText(/You can undo from the toast/)).toBeTruthy();
+    expect(screen.queryByText(/This can't be undone/)).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { BarChart3, Download, Plus, Share2 } from 'lucide-react';
+import { BarChart3, Download, History, Plus, Share2 } from 'lucide-react';
 import { CollectionHubTabs } from '@/components/CollectionHubTabs';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -18,6 +18,7 @@ import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
 import { CollectionExportDialog } from '../components/CollectionExportDialog';
+import { ImportHistorySheet } from '../components/ImportHistorySheet';
 import { Button } from '@/components/shared/Button';
 
 export function CollectionPage() {
@@ -70,6 +71,8 @@ export function CollectionPage() {
   const [exportOpen, setExportOpen] = useState(false);
 
   const [statsOpen, setStatsOpen] = useState(false);
+
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const collectionCardCount = cards.length;
   const collectionValue = useMemo(
@@ -177,6 +180,13 @@ export function CollectionPage() {
                       title: 'Choose who can see your collection',
                       onClick: () => setShareOpen(true),
                     },
+                    {
+                      label: 'Import history',
+                      icon: History,
+                      menuOnly: true,
+                      opensDialog: true,
+                      onClick: () => setHistoryOpen(true),
+                    },
                   ]),
             ]}
             meta={
@@ -250,6 +260,7 @@ export function CollectionPage() {
             <CollectionExportDialog cards={cards} onClose={() => setExportOpen(false)} />
           )}
           {shareOpen && <CollectionVisibilityDialog onClose={() => setShareOpen(false)} />}
+          {historyOpen && <ImportHistorySheet onClose={() => setHistoryOpen(false)} />}
         </>
       )}
 

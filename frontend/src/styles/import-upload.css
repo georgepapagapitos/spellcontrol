@@ -192,10 +192,6 @@
   align-items: start;
 }
 
-.import-grid.has-history {
-  grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
-}
-
 /* Collection breakdown drawer — slides in from the right with the
    Colors / Types / Rarity sections. Triggered by the Stats button in
    the sticky collection toolbar. */
@@ -342,83 +338,9 @@
   gap: 0.85rem;
 }
 
-.import-history {
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4) 1.1rem;
-  max-height: 480px;
-}
-
-.import-history > .import-history-list {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.import-history-empty {
-  flex: 1;
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-.import-history-footer {
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.import-history-title {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0 0 0.65rem;
-  font-weight: 600;
-}
-
-.import-history-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.import-history-item {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-2) 0.65rem;
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-}
-
-.import-history-check {
-  display: flex;
-  align-items: center;
-  padding-top: 3px;
-  cursor: pointer;
-}
-@media (pointer: coarse) {
-  .import-history-check {
-    min-width: 44px;
-    min-height: 44px;
-    align-items: center;
-    padding-top: 0;
-  }
-}
-
+/* The app's one checkbox appearance. This sheet is global (main.tsx), so
+   Import history (ImportHistorySheet, T153) shares it from here too; its
+   list/row layout lives in ImportHistorySheet.css. */
 .import-history-check input[type='checkbox'],
 .field-checkbox input[type='checkbox'],
 .commander-owned-toggle input[type='checkbox'],
@@ -486,37 +408,6 @@
 .collection-group-checkbox:disabled {
   cursor: not-allowed;
   opacity: 0.4;
-}
-
-.import-history-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-
-.import-history-name {
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.import-history-name-label {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.import-history-meta {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
 }
 
 .import-card-header {
@@ -905,23 +796,6 @@
   background: var(--err-bg);
 }
 
-.delete-imports-list {
-  list-style: none;
-  margin: var(--space-2) 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.delete-imports-list li {
-  padding: 2px 0;
-}
-
 @media (max-width: 1024px) {
   .import-card {
     padding: var(--space-4);
@@ -939,14 +813,6 @@
 
   .import-card-footer .btn-primary {
     width: 100%;
-  }
-
-  .import-grid.has-history {
-    grid-template-columns: 1fr;
-  }
-
-  .import-history {
-    max-height: none;
   }
 }
 

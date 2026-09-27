@@ -39,15 +39,23 @@ vi.mock('../store/theme', () => ({
   useThemeStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({ theme: 'default', setTheme: vi.fn() }),
 }));
+// Mutable (not a fixed factory) like authState above — the restore-backup
+// tests need to flip cards/binders between empty and non-empty to exercise
+// both branches of the confirm gate.
+const { collectionState } = vi.hoisted(() => ({
+  collectionState: {
+    cards: [] as unknown[],
+    binders: [] as unknown[],
+    isRefreshingPrices: false,
+    refreshPrices: vi.fn(),
+    buildBackupSnapshot: vi.fn(() => ({ collection: null, binders: [] })),
+    clearCards: vi.fn(),
+    restoreFromBackup: vi.fn(),
+  },
+}));
 vi.mock('../store/collection', () => ({
   useCollectionStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      cards: [],
-      isRefreshingPrices: false,
-      refreshPrices: vi.fn(),
-      buildBackupSnapshot: vi.fn(() => ({ collection: null, binders: [] })),
-      clearCards: vi.fn(),
-    }),
+    selector(collectionState),
 }));
 vi.mock('../store/decks', () => ({
   useDecksStore: (selector: (s: Record<string, unknown>) => unknown) =>
@@ -81,6 +89,7 @@ vi.mock('../lib/pods-client', async (importOriginal) => {
 vi.mock('../lib/backup', () => ({
   buildBackup: vi.fn(),
   downloadBackup: vi.fn(),
+  parseBackup: vi.fn(),
 }));
 vi.mock('../lib/sync', () => ({ getPendingCount: () => 0 }));
 vi.mock('../lib/reset-app-cache', () => ({ resetAppCacheAndReload: vi.fn() }));
@@ -120,6 +129,9 @@ beforeAll(() => {
 beforeEach(() => {
   authState.user = null;
   authState.status = 'guest';
+  collectionState.cards = [];
+  collectionState.binders = [];
+  vi.mocked(collectionState.restoreFromBackup).mockClear();
 });
 
 afterEach(() => {
@@ -542,5 +554,54 @@ describe('T117 — Sign-in methods: Password and Email rows', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send verification link' }));
 
     await waitFor(() => expect(requestEmailChange).toHaveBeenCalledWith('alice@example.com'));
+  });
+});
+
+describe('T153 — restore backup and clear collection live in Settings', () => {
+  it('offers Restore from a backup file in the Collection section', () => {
+    renderYouPage('/');
+    expect(screen.getByText('Restore from a backup file')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Restore…' })).toBeTruthy();
+  });
+
+  it('nags before restoring over a non-empty collection', () => {
+    collectionState.cards = [{ copyId: 'c1' }];
+    renderYouPage('/');
+    fireEvent.click(screen.getByRole('button', { name: 'Restore…' }));
+    expect(screen.getByRole('heading', { name: 'Restore backup?' })).toBeTruthy();
+    expect(collectionState.restoreFromBackup).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('heading', { name: 'Restore backup?' })).toBeNull();
+  });
+
+  it('does not nag on an empty collection', () => {
+    renderYouPage('/');
+    fireEvent.click(screen.getByRole('button', { name: 'Restore…' }));
+    expect(screen.queryByRole('heading', { name: 'Restore backup?' })).toBeNull();
+  });
+
+  it('reads "Couldn\'t restore that backup", not the stale "import" copy, on failure', async () => {
+    const { parseBackup } = await import('../lib/backup');
+    vi.mocked(parseBackup).mockImplementationOnce(() => {
+      throw new Error('bad json');
+    });
+    const { toast } = await import('../store/toasts');
+    renderYouPage('/');
+    const fileInput = document.querySelector('input[type="file"][accept*="json"]') as HTMLElement;
+    const file = new File(['not json'], 'backup.json', { type: 'application/json' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Couldn't restore that backup. Try again." })
+      )
+    );
+  });
+
+  it('exists alongside "Delete entire collection" in the Danger zone (the old "Clear all")', () => {
+    collectionState.cards = [{ copyId: 'c1' }];
+    renderYouPage('/');
+    expect(screen.getByText('Delete entire collection')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Delete collection' })).toBeTruthy();
   });
 });
