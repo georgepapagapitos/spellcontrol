@@ -22,8 +22,9 @@ export type CardSearchResultsView = 'grid' | 'list' | 'compact';
 /** Imperative keyboard-nav surface for a host that owns a search input
  *  elsewhere in the tree (this component renders no input of its own). */
 export interface CardSearchResultsHandle {
-  /** Move the active row by one row (list/compact views only). */
-  moveActive: (delta: 1 | -1) => void;
+  /** Move the active row by one row (list/compact views only). 0 keeps the
+   *  row and just shows it as selected. */
+  moveActive: (delta: 1 | 0 | -1) => void;
   /** Add the active row's card, same as clicking its "+". */
   addActive: () => void;
 }

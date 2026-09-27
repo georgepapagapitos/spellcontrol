@@ -94,8 +94,14 @@ describe('useResultsKeys({ enterNeedsNav: true })', () => {
     expect(handle.addActive).not.toHaveBeenCalled();
 
     act(() => result.current.onKeyDown(keyEvent('ArrowDown').event));
+    // Nothing was selected yet, so the first arrow selects the top hit
+    // rather than skipping past it to row 1.
+    expect(handle.moveActive).toHaveBeenLastCalledWith(0);
     act(() => result.current.onKeyDown(keyEvent('Enter').event));
     expect(handle.addActive).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.onKeyDown(keyEvent('ArrowDown').event));
+    expect(handle.moveActive).toHaveBeenLastCalledWith(1);
   });
 
   it('re-requires an arrow press once resetKey changes (a new query)', () => {

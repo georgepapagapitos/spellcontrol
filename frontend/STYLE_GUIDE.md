@@ -2173,7 +2173,10 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   any ↑/↓) passes through instead of silently adding `CardSearchResults`'
   row-0 default to the collection — an add flow (the Add cards workbench,
   the list-add hosts) leaves this off, since a type-then-Enter quick add IS
-  the point there.
+  the point there. With the gate on, nothing is selected until an arrow, so
+  the first ↑/↓ selects the top hit in place (`moveActive(0)`) instead of
+  skipping past it to row 1; that is the "no automatic selection" combobox
+  model, where the add flows use "automatic selection".
 - **`CardPreview` is one layout function with two shapes (E421, 2026-09-25).**
   It replaced the 2026-08-18 ruling ("≥1024px is two panes"), which it keeps
   and extends. Every length comes from the viewport (the backdrop is the one

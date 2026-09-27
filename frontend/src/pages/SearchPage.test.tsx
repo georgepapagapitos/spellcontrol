@@ -138,8 +138,12 @@ describe('SearchPage keyboard nav', () => {
     await screen.findByTestId('results');
     act(() => h.onActiveChange?.({ id: 'a', name: 'Sol Ring' }));
 
+    // The first arrow selects the top hit in place; later ones move.
     fireEvent.keyDown(input, { key: 'ArrowDown' });
-    expect(h.moveActive).toHaveBeenCalledWith(1);
+    expect(h.moveActive).toHaveBeenLastCalledWith(0);
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(h.moveActive).toHaveBeenLastCalledWith(1);
 
     fireEvent.keyDown(input, { key: 'ArrowUp' });
     expect(h.moveActive).toHaveBeenCalledWith(-1);

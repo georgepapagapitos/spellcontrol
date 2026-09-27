@@ -57,14 +57,13 @@ export function useResultsKeys(opts: UseResultsKeysOptions = {}) {
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing || !hasActive) return;
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
+      // With Enter gated, nothing is selected yet, so the first arrow selects
+      // the row already underneath (the top hit) instead of skipping past it.
+      const step = enterNeedsNav && !navigated ? 0 : e.key === 'ArrowDown' ? 1 : -1;
       setNavigated(true);
-      resultsRef.current?.moveActive(1);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setNavigated(true);
-      resultsRef.current?.moveActive(-1);
+      resultsRef.current?.moveActive(step);
     } else if (e.key === 'Enter') {
       if (enterNeedsNav && !navigated) return;
       e.preventDefault();
