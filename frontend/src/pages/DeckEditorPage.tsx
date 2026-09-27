@@ -194,6 +194,7 @@ const fetchFixingLands = (identityKey: string): Promise<ScryfallCard[]> =>
 import { getSyncState, onSyncedChange } from '@/lib/sync';
 import { printedName } from '@spellcontrol/binder-routing';
 import { Button, IconButton } from '@/components/shared/Button';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 /** Functional role key → display label (the four roles the tagger classifies). */
 const ROLE_LABEL: Record<string, string> = {
@@ -3554,11 +3555,9 @@ export function DeckEditorPage() {
               formatConfig?.hasCommander && !deck.commander ? (
                 // Coach reads a deck against its commander; with none yet its
                 // feed would be empty and its "looks tuned" line untrue (E465).
-                <div className="empty-state">
-                  <p className="empty-state-tagline">
-                    Choose a commander and Coach reads the deck against it.
-                  </p>
-                  <div className="empty-state-actions">
+                <EmptyState
+                  tagline="Choose a commander and Coach reads the deck against it."
+                  actions={
                     <Button
                       variant="primary"
                       className="empty-state-action"
@@ -3566,8 +3565,8 @@ export function DeckEditorPage() {
                     >
                       Choose a commander
                     </Button>
-                  </div>
-                </div>
+                  }
+                />
               ) : formatConfig?.hasCommander ? (
                 <CoachFeed
                   gaps={deck.gapAnalysis ?? []}
