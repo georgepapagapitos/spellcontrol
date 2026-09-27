@@ -116,15 +116,15 @@ describe('the app shell is inert while the board is mounted', () => {
     expect(screen.getByTestId('toasts').inert).toBe(false);
   });
 
-  it("doesn't inert the board's own dialogs (game menu, restart confirm)", () => {
+  it("doesn't inert the board's own dialogs (a hub sheet, restart confirm)", () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
     // Rendered is not enough: a dialog inside an inert ancestor renders fine
     // and still can't be focused or clicked.
-    const menu = document.querySelector('.game-menu');
-    expect(menu).toBeTruthy();
-    expect(inertAncestor(menu)).toBeNull();
+    const sheet = document.querySelector('.board-sheet');
+    expect(sheet).toBeTruthy();
+    expect(inertAncestor(sheet)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));

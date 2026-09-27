@@ -112,10 +112,9 @@ describe('Win celebration', () => {
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll onLeave={vi.fn()} />);
     fireEvent.click(screen.getByRole('dialog', { name: 'Alice wins' }).parentElement!);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
-    expect(screen.getByRole('button', { name: 'Clear the table' })).toBeTruthy();
-    // Exactly one control named "Close" in the sheet — the ✕.
-    expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1);
+    // The dock's Leave says what it does on a finished table (T155).
+    expect(screen.getByRole('menuitem', { name: 'Clear the table' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: /Close/ })).toBeNull();
   });
 });
 
@@ -123,15 +122,15 @@ describe('Board overlays answer Escape', () => {
   // These render in place (the seat menu inherits its panel's rotation, the
   // game menu rises from the board's own edge) rather than through <Modal>,
   // and used to ignore Escape entirely — a keyboard user had to find the ✕.
-  it('closes the game menu', () => {
+  it('closes a hub sheet', () => {
     const game = makeTestState([makeTestPlayer()], { mode: 'local', status: 'active' });
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
-    expect(screen.getByRole('dialog', { name: 'Local game' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Dice' }));
+    expect(screen.getByRole('dialog', { name: 'Dice' })).toBeTruthy();
 
     fireEvent.keyDown(document.body, { key: 'Escape' });
-    expect(screen.queryByRole('dialog', { name: 'Local game' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Dice' })).toBeNull();
   });
 
   it('closes the hub ring on Escape and returns focus to the hub', () => {

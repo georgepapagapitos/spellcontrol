@@ -65,7 +65,7 @@ describe('overlay scroll containment', () => {
     ['components/play/GameNights.css', '.game-night-dialog-people-list'],
     ['components/play/GameRecap.css', '.game-recap-list'],
     ['styles/play-panel-menus.css', '.seat-menu-body'],
-    ['styles/play-panel-menus.css', '.game-menu-body'],
+    ['components/play/BoardSheets.css', '.board-sheet-body'],
     ['styles/playtest.css', '.playtest-zone-grid'],
     ['styles/playtest.css', '.playtest-zones-panel'],
     ['playtest/components/PlaytestLogSheet.css', '.playtest-log-body'],

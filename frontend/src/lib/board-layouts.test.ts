@@ -4,6 +4,7 @@ import {
   encodeCustomLayout,
   homeSlotIndex,
   isCustomLayout,
+  layoutName,
   layoutsForCount,
   resolveLayout,
   seamSatellite,
@@ -537,5 +538,29 @@ describe('clockwise seat order (T-tenplayers)', () => {
     expect(turnOrderOf({ turnOrder: undefined })).toBe('clockwise');
     expect(turnOrderOf({ turnOrder: 'clockwise' })).toBe('clockwise');
     expect(turnOrderOf({ turnOrder: 'counterclockwise' })).toBe('counterclockwise');
+  });
+});
+
+describe('layoutName', () => {
+  it('names every preset in words, never by its raw id', () => {
+    for (let count = 2; count <= 10; count++) {
+      for (const layout of layoutsForCount(count)) {
+        const name = layoutName(layout.id);
+        expect(name, layout.id).not.toMatch(/\dp-|^[a-z]+-[a-z]+$/);
+        expect(name.length, layout.id).toBeGreaterThan(2);
+      }
+    }
+  });
+
+  it('names a seat split by who faces whom', () => {
+    expect(layoutName('6p-4v2')).toBe('4 facing 2');
+    expect(layoutName('4p-sides')).toBe('Sides');
+  });
+
+  it('keeps names unique within one player count', () => {
+    for (let count = 2; count <= 10; count++) {
+      const names = layoutsForCount(count).map((l) => layoutName(l.id));
+      expect(new Set(names).size, `count ${count}: ${names.join(', ')}`).toBe(names.length);
+    }
   });
 });

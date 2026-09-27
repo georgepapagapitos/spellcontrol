@@ -1,11 +1,16 @@
 import {
+  BookOpen,
+  ChartLine,
   ChevronRight,
   CircleHelp,
   Compass,
   Crown,
   Dices,
+  LogOut,
   Menu,
+  Repeat,
   RotateCcw,
+  SlidersHorizontal,
   Swords,
   Undo2,
   Users,
@@ -49,7 +54,16 @@ import { hasSeenBoardGestures } from '../../lib/board-gestures-seen';
 import { BoardGestureHint } from './BoardGestureHint';
 import { BoardHubMenu, type HubPetal } from './BoardHubMenu';
 import { GameClock } from './GameClock';
-import { GameMenu } from './GameMenu';
+import {
+  HelpSheet,
+  HistorySheet,
+  LeaveSheet,
+  PlayersSheet,
+  SettingsSheet,
+  type BoardSheetId,
+} from './BoardSheets';
+import { DiceSheet } from './DiceSheet';
+import { useRulesReferenceStore } from '../../store/rules-reference';
 import { GameRecap } from './GameRecap';
 import './BoardHighRoll.css';
 import { IconButton } from '@/components/shared/Button';
@@ -110,12 +124,16 @@ export function GameBoard({
   // Resolve to a concrete layout (grid + per-seat slots). Unknown / legacy
   // layout ids fall back to the count's default.
   const board = resolveLayout(total, game.layout, turnOrderOf(game));
-  const [menuOpen, setMenuOpen] = useState(false);
+  // The one hub sheet open right now, if any (board T155): each ring key and
+  // dock item opens ONE focused sheet, not a tabbed catch-all menu.
+  const [sheet, setSheet] = useState<BoardSheetId | null>(null);
+  const closeSheet = useCallback(() => setSheet(null), []);
+  const openRules = useRulesReferenceStore((s) => s.open);
   const gameTimerEnabled = usePlayStore((st) => st.gameTimerEnabled);
   const turnTrackerEnabled = usePlayStore((st) => st.turnTrackerEnabled);
   const showClockStrip = gameTimerEnabled || turnTrackerEnabled;
   // Seats carry no buttons, so a shared board teaches its gestures once per
-  // device; the game menu brings the card back.
+  // device; the hub's Help sheet shows the same rows on demand.
   const [hintOpen, setHintOpen] = useState(
     () => isShared && canControlAll && game.status !== 'finished' && !hasSeenBoardGestures()
   );
@@ -150,13 +168,12 @@ export function GameBoard({
   const [hubOpen, setHubOpen] = useState(false);
   // How the ring's current open was triggered — a real pointer click's
   // synthesized `MouseEvent.detail` is >=1, a keyboard (Enter/Space)
-  // activation's is 0. Keyboard opening should focus the first petal with a
+  // activation's is 0. Keyboard opening should focus the first key with a
   // visible ring (WAI-ARIA menu behaviour); a pointer open shouldn't draw one
-  // (a tap on the hub is not "selecting" Restart) — see BoardHubMenu. State,
-  // not a ref: BoardHubMenu reads this during render.
+  // (a tap on the hub is not "selecting" High roll) — see BoardHubMenu.
+  // State, not a ref: BoardHubMenu reads this during render.
   const [hubOpenedByKeyboard, setHubOpenedByKeyboard] = useState(true);
   const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
-  const [menuInitialTab, setMenuInitialTab] = useState<'now' | 'setup'>('now');
   // The board-level "High Roll" table moment — a d20 per living seat at once.
   // Held here (not per panel) for the same reason commander-damage focus is:
   // it changes what every panel shows, not just one.
@@ -275,7 +292,7 @@ export function GameBoard({
   }, [highRollState, dismissHighRoll]);
 
   // Start a High Roll: one d20 per living seat, then record the winner
-  // exactly the way the quiet "First player" menu tool does (same two
+  // exactly the way the quiet "Pick first player" dice tool does (same two
   // actions, so both routes feed the same on-the-play stat).
   const startHighRoll = useCallback(() => {
     const result = rollHighRoll(
@@ -328,60 +345,97 @@ export function GameBoard({
       ? nextActiveSeat(game.players, game.activeSeat)
       : null;
 
-  // The hub ring's petals. Restart/Players mirror the game menu's own
-  // gating (host-only, meaningless once the game is over); High Roll is a
-  // table tool like the menu's coin/dice/first-player, open to any viewer
-  // while the game is live. Menu and Help are always reachable.
-  const canSetup = canControlAll && game.status !== 'finished';
-  const hubPetals: HubPetal[] = [
-    ...(canSetup
-      ? [
-          {
-            id: 'restart',
-            label: 'Restart',
-            icon: <RotateCcw width={16} height={16} strokeWidth={2} aria-hidden />,
-            onSelect: () => setRestartConfirmOpen(true),
-          },
-        ]
-      : []),
-    ...(game.status !== 'finished'
-      ? [
-          {
-            id: 'high-roll',
-            label: 'High roll',
-            icon: <Dices width={16} height={16} strokeWidth={2} aria-hidden />,
-            onSelect: startHighRoll,
-          },
-        ]
-      : []),
-    ...(canSetup
-      ? [
-          {
-            id: 'players',
-            label: 'Players',
-            icon: <Users width={16} height={16} strokeWidth={2} aria-hidden />,
-            onSelect: () => {
-              setMenuInitialTab('setup');
-              setMenuOpen(true);
-            },
-          },
-        ]
-      : []),
+  // The hub ring (board T155, Direction A): keys clockwise from the top, then
+  // the dock. High roll is first, so a pointer or keyboard open lands on the
+  // table moment and never on Restart, which is last. Players and Restart are
+  // host-only and mean nothing once the game is over. A finished board puts
+  // Rematch, the one filled key, where the ring starts, and the dock's Leave
+  // becomes Clear the table, which acts at once (the result is already in
+  // History).
+  const isFinished = game.status === 'finished';
+  const canSetup = canControlAll && !isFinished;
+  const keyIcon = { width: 22, height: 22, strokeWidth: 2, 'aria-hidden': true } as const;
+  const dockIcon = { width: 18, height: 18, strokeWidth: 2, 'aria-hidden': true } as const;
+  const diceKey: HubPetal = {
+    id: 'dice',
+    label: 'Dice',
+    icon: <Dices {...keyIcon} />,
+    onSelect: () => setSheet('dice'),
+  };
+  const settingsKey: HubPetal = {
+    id: 'settings',
+    label: 'Settings',
+    icon: <SlidersHorizontal {...keyIcon} />,
+    onSelect: () => setSheet('settings'),
+  };
+  const helpKey: HubPetal = {
+    id: 'help',
+    label: 'Help',
+    icon: <CircleHelp {...keyIcon} />,
+    onSelect: () => setSheet('help'),
+  };
+  const hubPetals: HubPetal[] = isFinished
+    ? [
+        ...(onRematch
+          ? [
+              {
+                id: 'rematch',
+                label: 'Rematch',
+                icon: <Repeat {...keyIcon} />,
+                onSelect: onRematch,
+                primary: true,
+              },
+            ]
+          : []),
+        diceKey,
+        settingsKey,
+        helpKey,
+      ]
+    : [
+        { id: 'high-roll', label: 'High roll', icon: <D20Icon />, onSelect: startHighRoll },
+        diceKey,
+        ...(canSetup
+          ? [
+              {
+                id: 'players',
+                label: 'Players',
+                icon: <Users {...keyIcon} />,
+                onSelect: () => setSheet('players'),
+              },
+            ]
+          : []),
+        settingsKey,
+        helpKey,
+        ...(canSetup
+          ? [
+              {
+                id: 'restart',
+                label: 'Restart',
+                icon: <RotateCcw {...keyIcon} />,
+                onSelect: () => setRestartConfirmOpen(true),
+              },
+            ]
+          : []),
+      ];
+  const canLeave = isFinished ? !!onLeave : !!(onEnd || onMinimize || onLeave);
+  const hubDock: HubPetal[] = [
     {
-      id: 'menu',
-      label: 'Menu',
-      icon: <Menu width={16} height={16} strokeWidth={2} aria-hidden />,
-      onSelect: () => {
-        setMenuInitialTab('now');
-        setMenuOpen(true);
-      },
+      id: 'history',
+      label: 'History',
+      icon: <ChartLine {...dockIcon} />,
+      onSelect: () => setSheet('history'),
     },
-    {
-      id: 'help',
-      label: 'Help',
-      icon: <CircleHelp width={16} height={16} strokeWidth={2} aria-hidden />,
-      onSelect: () => setHintOpen(true),
-    },
+    { id: 'rules', label: 'Rules', icon: <BookOpen {...dockIcon} />, onSelect: openRules },
+    ...(canLeave
+      ? [
+          {
+            id: 'leave',
+            label: isFinished ? 'Clear the table' : 'Leave',
+            icon: <LogOut {...dockIcon} />,
+            onSelect: isFinished ? () => onLeave?.() : () => setSheet('leave'),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -487,8 +541,7 @@ export function GameBoard({
             }}
             // In commander-damage mode the hub says so (Lotus's dagger) and is
             // the way back out, from the middle of the table where anyone can
-            // reach it. Otherwise it opens/closes the radial petal ring — the
-            // menu itself is one of the ring's petals now, not a direct tap.
+            // reach it. Otherwise it opens/closes the ring of keys.
             aria-label={cmdFocus ? 'Return to game' : hubOpen ? 'Close menu' : 'Game menu'}
             aria-haspopup={cmdFocus ? undefined : 'menu'}
             aria-expanded={cmdFocus ? undefined : hubOpen}
@@ -520,6 +573,7 @@ export function GameBoard({
               hubRef={hubBtnRef}
               onClose={() => setHubOpen(false)}
               petals={hubPetals}
+              dock={hubDock}
               openedByKeyboard={hubOpenedByKeyboard}
               boardRotation={boardRotation}
             />
@@ -530,9 +584,9 @@ export function GameBoard({
             sits beside the hub, over the gutter; on a column seam the hub is a
             four-corner crossing, so it takes the middle of an adjacent panel's
             edge instead — see `seamSatellite`. Hidden while the hub's ring is
-            open (the ring hides it rather than risk a petal landing on top of
-            it) — the clock strip below is NOT hidden for this: it moved out
-            of the seam entirely, so a petal can't reach it. */}
+            open (the ring hides it rather than risk a key landing on top of
+            it). The clock strip below stays: the ring's scrim dims it and the
+            dock covers it. */}
           {undoLabel && !hubOpen && (
             <IconButton
               className="game-board-undo-btn"
@@ -617,23 +671,42 @@ export function GameBoard({
           />
         )}
 
-        {menuOpen && (
-          <GameMenu
+        {sheet === 'dice' && (
+          <DiceSheet game={game} dispatch={dispatchTracked} onClose={closeSheet} />
+        )}
+        {sheet === 'players' && (
+          <PlayersSheet
             game={game}
-            canControlAll={canControlAll}
-            onClose={() => setMenuOpen(false)}
-            onMinimize={onMinimize}
-            onLeave={onLeave}
-            onEnd={onEnd}
-            onRematch={onRematch}
-            onUndo={onUndo}
-            undoLabel={undoLabel}
             dispatch={dispatchTracked}
-            onShowGestures={() => setHintOpen(true)}
-            initialTab={menuInitialTab}
+            onClose={closeSheet}
+            onRestart={() => setRestartConfirmOpen(true)}
+          />
+        )}
+        {sheet === 'settings' && (
+          <SettingsSheet
+            game={game}
+            dispatch={dispatchTracked}
+            onClose={closeSheet}
             fullscreenSupported={fullscreen.supported}
             isFullscreen={fullscreen.isFullscreen}
             onToggleFullscreen={fullscreen.toggle}
+          />
+        )}
+        {sheet === 'history' && <HistorySheet game={game} onClose={closeSheet} />}
+        {sheet === 'help' && (
+          <HelpSheet
+            vertical={(game.tapOrientation ?? 'horizontal') === 'vertical'}
+            showTurnTracker={turnTrackerEnabled}
+            onClose={closeSheet}
+          />
+        )}
+        {sheet === 'leave' && (
+          <LeaveSheet
+            game={game}
+            onClose={closeSheet}
+            onEnd={onEnd}
+            onMinimize={onMinimize}
+            onDiscard={onLeave}
           />
         )}
 
@@ -647,9 +720,9 @@ export function GameBoard({
       </div>
 
       {restartConfirmOpen && (
-        // Board-level restart, reached from the hub ring: same confirm copy
-        // and the same `reset` action as the game menu's own Reset (below the
-        // Setup tab) — `dispatchTracked` clears Undo and, for a local game,
+        // Board-level restart, reached from the ring's Restart key or the
+        // Players sheet's lock note: the one entry point for `reset`.
+        // `dispatchTracked` clears Undo and, for a local game,
         // `dispatchLocal` chains the `start` a local board needs to come back
         // live (store/play.ts) instead of stranding it in `lobby`.
         <ConfirmDialog
@@ -665,6 +738,30 @@ export function GameBoard({
         />
       )}
     </div>
+  );
+}
+
+/** A d20, for the ring's High roll key. App-invented, so it never appears
+ *  without its word (STYLE_GUIDE glyph literacy, rule b). */
+function D20Icon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 2 21 7v10l-9 5-9-5V7z" />
+      <path d="M12 7l5 8.5H7z" />
+      <path d="M12 2v5" />
+      <path d="M21 17l-4-1.5" />
+      <path d="M3 17l4-1.5" />
+    </svg>
   );
 }
 
@@ -1583,7 +1680,7 @@ const CONFETTI_COUNT = 28;
 /**
  * Full-board finished-game moment: a confetti burst plus the winner's name in
  * their own seat color, or (for a draw) a plain "no winner" notice — either
- * way followed by the game's recap. Dismissable (the game menu / history are
+ * way followed by the game's recap. Dismissable (the hub ring and its History sheet are
  * still reachable underneath). Resets when a new game finishes because the
  * parent only mounts it while `status === 'finished'`, and the keyed remount
  * on game id clears the dismissed state.

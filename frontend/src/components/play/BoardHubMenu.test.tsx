@@ -11,7 +11,18 @@ function petals(onSelect: (id: string) => void) {
   ];
 }
 
-function renderRing(onClose = vi.fn(), onSelect = vi.fn(), openedByKeyboard?: boolean) {
+function dock(onSelect: (id: string) => void) {
+  return [
+    { id: 'x', label: 'Away', icon: <span aria-hidden>X</span>, onSelect: () => onSelect('x') },
+  ];
+}
+
+function renderRing(
+  onClose = vi.fn(),
+  onSelect = vi.fn(),
+  openedByKeyboard?: boolean,
+  withDock = false
+) {
   const hubRef = createRef<HTMLButtonElement>();
   const utils = render(
     <div>
@@ -22,6 +33,7 @@ function renderRing(onClose = vi.fn(), onSelect = vi.fn(), openedByKeyboard?: bo
         hubRef={hubRef}
         onClose={onClose}
         petals={petals(onSelect)}
+        dock={withDock ? dock(onSelect) : undefined}
         openedByKeyboard={openedByKeyboard}
       />
     </div>
@@ -82,7 +94,7 @@ describe('BoardHubMenu', () => {
       fireEvent.keyDown(document, { key: 'Home' });
       const petalCalls = focus.mock.contexts
         .map((el, i) => [el, focus.mock.calls[i][0]] as const)
-        .filter(([el]) => (el as HTMLElement).classList.contains('board-hub-petal'));
+        .filter(([el]) => (el as HTMLElement).classList.contains('board-hub-key'));
       expect(petalCalls).toHaveLength(3);
       for (const [, opts] of petalCalls) expect(opts).toEqual({ preventScroll: true });
     } finally {
@@ -90,8 +102,65 @@ describe('BoardHubMenu', () => {
     }
   });
 
+  describe('the dock', () => {
+    it('is part of the same menu, after the keys', () => {
+      renderRing(vi.fn(), vi.fn(), true, true);
+      const ring = screen.getByRole('menu', { name: 'Board menu' });
+      expect(
+        [...ring.querySelectorAll('[role="menuitem"]')].map(
+          (el) => el.querySelector('[class$="-label"]')?.textContent
+        )
+      ).toEqual(['Alpha', 'Beta', 'Away']);
+      expect(ring.querySelector('.board-hub-dock [role="menuitem"]')?.textContent).toContain(
+        'Away'
+      );
+    });
+
+    it('is reached by arrowing past the last key, and End jumps to it', () => {
+      renderRing(vi.fn(), vi.fn(), true, true);
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      expect(screen.getByRole('menuitem', { name: 'Away' })).toBe(document.activeElement);
+      fireEvent.keyDown(document, { key: 'Home' });
+      fireEvent.keyDown(document, { key: 'End' });
+      expect(screen.getByRole('menuitem', { name: 'Away' })).toBe(document.activeElement);
+    });
+
+    it('selects and closes like a key', () => {
+      const { onClose, onSelect } = renderRing(vi.fn(), vi.fn(), true, true);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Away' }));
+      expect(onSelect).toHaveBeenCalledWith('x');
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  it('fills only the key marked primary', () => {
+    const hubRef = createRef<HTMLButtonElement>();
+    render(
+      <div>
+        <button ref={hubRef} type="button">
+          Hub
+        </button>
+        <BoardHubMenu
+          hubRef={hubRef}
+          onClose={vi.fn()}
+          petals={[
+            { id: 'r', label: 'Rematch', icon: null, onSelect: vi.fn(), primary: true },
+            { id: 'd', label: 'Dice', icon: null, onSelect: vi.fn() },
+          ]}
+        />
+      </div>
+    );
+    expect(screen.getByRole('menuitem', { name: 'Rematch' }).classList.contains('is-primary')).toBe(
+      true
+    );
+    expect(screen.getByRole('menuitem', { name: 'Dice' }).classList.contains('is-primary')).toBe(
+      false
+    );
+  });
+
   // F12a: opening the ring by pointer must not draw a focus ring on the
-  // first petal, even though focus still moves there; a keyboard open must.
+  // first key, even though focus still moves there; a keyboard open must.
   describe('the initial-focus ring, keyed to how the open was triggered', () => {
     it('is not suppressed on a keyboard open (the default)', () => {
       renderRing(vi.fn(), vi.fn(), true);

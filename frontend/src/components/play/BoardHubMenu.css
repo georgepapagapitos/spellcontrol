@@ -1,18 +1,20 @@
-/* The board hub's radial petal ring (Lotus fan-out). Co-located rather than
-   in styles/play-*.css — see BoardHubMenu.tsx's header comment. Sits above
-   the board's panels but below the hub button itself (z-index 10 in
-   play-panel-menus.css) so the hub stays visible and tappable to close the
-   ring, exactly like `.game-board-undo-btn`, which the ring's open state
-   hides outright. The table clock is no longer part of this: it moved out
-   of the seam into a full-width edge strip below the grid (see STYLE_GUIDE
-   "the table clock is an edge strip"), so it stays visible while the ring
-   is open — a petal can no longer reach it. */
+/* The board hub's ring (Lotus radial menu, board T155 Direction A).
+   Co-located rather than in styles/play-*.css, see BoardHubMenu.tsx's header
+   comment. The scrim and the ring sit above the board's panels and the clock
+   strip but below the hub button itself (z-index 10 in play-panel-menus.css),
+   so the hub stays visible and tappable as the ring's ✕. The undo satellite
+   hides outright while the ring is open (GameBoard.tsx).
+
+   The board is black in every theme, so everything here is always-dark board
+   chrome: white ink, white focus ring (STYLE_GUIDE § Accessibility). */
 
 .board-hub-backdrop {
   position: fixed;
   inset: 0;
   z-index: 9;
-  background: rgba(0, 0, 0, 0.35);
+  /* Seats dim to 38%: enough that the ring reads as one object on top of
+     the board, not chips scattered over the seat colours. */
+  background: rgba(0, 0, 0, 0.62);
 }
 
 .board-hub-ring {
@@ -22,66 +24,181 @@
   pointer-events: none;
 }
 
-.board-hub-petal {
+/* A dark disc behind the keys and a faint track through their centres: the
+   ring reads as one object, and the keys' words never sit on a seat's own
+   colour however bright it is. Both are decoration (aria-hidden). */
+.board-hub-disc,
+.board-hub-track {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+.board-hub-disc {
+  background: radial-gradient(
+    closest-side,
+    rgba(8, 10, 14, 0.72),
+    rgba(8, 10, 14, 0.55) 70%,
+    rgba(8, 10, 14, 0)
+  );
+}
+
+.board-hub-track {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* A key: icon over its word, a 6px rect (STYLE_GUIDE § Shape language; not
+   Lotus's circles). The box is px, not rem: BoardHubMenu.tsx places keys
+   from HUB_KEY / HUB_KEY_COMPACT, and the two must never disagree. */
+.board-hub-key {
   position: absolute;
   transform: translate(-50%, -50%);
   pointer-events: auto;
-  display: inline-flex;
+  width: 72px;
+  height: 64px;
+  padding: 0 var(--space-1);
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(18, 20, 26, 0.94);
+  justify-content: center;
+  gap: var(--space-1);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(18, 21, 28, 0.97);
   color: #fff;
   font: inherit;
   font-size: var(--text-sm);
-  white-space: nowrap;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  font-weight: 500;
+  line-height: 1.1;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 10%),
+    0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+.board-hub-key svg,
+.board-hub-dock-item svg {
+  flex-shrink: 0;
+}
+
+.board-hub-ring.is-compact .board-hub-key {
+  width: 66px;
+  height: 60px;
+  font-size: var(--text-xs);
+}
+
+/* The one filled key: Rematch on a finished board. */
+.board-hub-key.is-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* The dock: the places you go away from the table, along the board's bottom
+   edge over the clock strip. Full-height 56px items, one line of icon + word;
+   a compact board stacks the icon over the word so "Clear the table" fits. */
+.board-hub-dock {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: calc(var(--space-2) + var(--safe-bottom));
+  max-width: 30rem;
+  margin: 0 auto;
+  height: 56px;
+  pointer-events: auto;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(18, 21, 28, 0.97);
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.board-hub-dock-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.1;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.board-hub-dock-item + .board-hub-dock-item {
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.board-hub-ring.is-compact .board-hub-dock-item {
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .board-hub-petal:hover {
+  .board-hub-key:not(.is-primary):hover,
+  .board-hub-dock-item:hover {
     background: #1c222d;
+  }
+  .board-hub-key.is-primary:hover {
+    background: var(--accent-hover);
   }
 }
 
-.board-hub-petal:active {
+.board-hub-key:active {
   transform: translate(-50%, -50%) scale(0.94);
 }
 
-.board-hub-petal:focus-visible {
+.board-hub-dock-item:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.board-hub-key:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }
 
-/* F12a: a pointer-triggered open still moves focus into the first petal
-   (Restart), but that focus shouldn't read as "selected" — Chromium can
-   still match :focus-visible on a script-driven .focus() shortly after a
-   real click. Scoped to the panel and cleared on the first real keydown
-   (BoardHubMenu.tsx), so keyboard nav after a pointer-open still rings. */
-.board-hub-ring-pointer-opened .board-hub-petal:focus-visible {
+/* Inside the dock's clipped box an outset ring would be cut off. */
+.board-hub-dock-item:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: -4px;
+}
+
+/* F12a: a pointer-triggered open still moves focus to the first key (High
+   roll), but that focus shouldn't read as "selected": Chromium can match
+   :focus-visible on a script-driven .focus() shortly after a real click.
+   Scoped to the panel and cleared on the first real keydown
+   (BoardHubMenu.tsx), so keyboard nav after a pointer open still rings. */
+.board-hub-ring-pointer-opened .board-hub-key:focus-visible {
   outline: none;
 }
 
-@media (pointer: coarse) {
-  .board-hub-petal {
-    min-height: 44px;
-  }
-}
-
-/* No fan-out motion here at all: petals are placed at their final position on
-   mount, never animated from the hub outward, so there is nothing to gate
-   behind prefers-reduced-motion for the placement itself. A plain fade-in is
-   still worth the one keyframe, and reduced motion skips it outright rather
-   than getting a neutralized "fade to the same place" no-op. */
+/* Keys are placed, never flown out from the hub, so the only motion is the
+   fade, and reduced motion drops it outright. */
 @media (prefers-reduced-motion: no-preference) {
-  .board-hub-petal {
-    animation: board-hub-petal-in 140ms ease-out both;
+  .board-hub-backdrop,
+  .board-hub-disc,
+  .board-hub-track,
+  .board-hub-key,
+  .board-hub-dock {
+    animation: board-hub-in 140ms ease-out both;
   }
 }
 
-@keyframes board-hub-petal-in {
+@keyframes board-hub-in {
   from {
     opacity: 0;
   }

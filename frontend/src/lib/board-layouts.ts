@@ -664,6 +664,36 @@ export function layoutsForCount(count: number, turnOrder: TurnOrder = 'clockwise
   return turnOrder === 'clockwise' ? presets : presets.map((l) => applyTurnOrder(l, turnOrder));
 }
 
+/** Preset shapes in words, keyed by the id after its `Np-` count. */
+const SHAPE_NAMES: Record<string, string> = {
+  stacked: 'Stacked',
+  side: 'Side by side',
+  sides: 'Sides',
+  ends: 'Ends',
+  pod: 'Pod',
+  'wide-top-sides': 'Wide top, sides',
+  'wide-top': 'Wide top',
+  'wide-bottom': 'Wide bottom',
+  'wide-middle': 'Wide middle',
+  // The 3-player corner shapes are named for the corner left open.
+  'tt-bl': 'Open bottom right',
+  'tt-br': 'Open bottom left',
+  'tr-bb': 'Open top left',
+  'tl-bb': 'Open top right',
+};
+
+/**
+ * The visible name under a preset's thumbnail in the layout picker, so a
+ * layout is picked by a word and not only by a drawing ("4 facing 2" for
+ * `6p-4v2`). A custom layout is named by the picker itself.
+ */
+export function layoutName(id: GameLayout): string {
+  const shape = id.replace(/^\d+p-/, '');
+  const split = /^(\d+)v(\d+)$/.exec(shape);
+  if (split) return `${split[1]} facing ${split[2]}`;
+  return SHAPE_NAMES[shape] ?? shape;
+}
+
 /**
  * Index in `seats` of the slot the viewer should occupy on their own device
  * in an online game — their panel sits nearest them, like a seat at a real

@@ -20,10 +20,30 @@ describe('LayoutPicker (board layout, native radios)', () => {
     const radios = screen.getAllByRole('radio') as HTMLInputElement[];
     // 3 presets at 4 players ('4p-sides', '4p-pod', '4p-wide-middle').
     expect(radios).toHaveLength(3);
-    expect((screen.getByRole('radio', { name: 'Layout 4p-pod' }) as HTMLInputElement).checked).toBe(
-      true
-    );
+    expect((screen.getByRole('radio', { name: 'Pod' }) as HTMLInputElement).checked).toBe(true);
     expect(radios.filter((r) => r.checked)).toHaveLength(1);
+  });
+
+  // T155: a layout is picked by a word, not only by a drawing. The visible
+  // name under each thumbnail is also the radio's accessible name.
+  it('names every preset under its thumbnail, and that name is the radio name', () => {
+    render(
+      <LayoutPicker
+        total={4}
+        current="4p-pod"
+        shared={false}
+        onPick={() => {}}
+        onCustomize={() => {}}
+      />
+    );
+    const names = [...document.querySelectorAll('.layout-option-name')].map((el) => el.textContent);
+    expect(names).toEqual(['Sides', 'Pod', 'Wide middle']);
+    expect(screen.getAllByRole('radio').map((r) => r.getAttribute('value'))).toEqual([
+      '4p-sides',
+      '4p-pod',
+      '4p-wide-middle',
+    ]);
+    for (const name of names) expect(screen.getByRole('radio', { name: name! })).toBeTruthy();
   });
 
   it('calls onPick with the layout id when a preset is picked', () => {
@@ -37,7 +57,7 @@ describe('LayoutPicker (board layout, native radios)', () => {
         onCustomize={() => {}}
       />
     );
-    fireEvent.click(screen.getByRole('radio', { name: 'Layout 4p-sides' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Sides' }));
     expect(onPick).toHaveBeenCalledWith('4p-sides');
   });
 
