@@ -79,7 +79,7 @@ describe.each(PRESETS)('the %s table preset', (_name, columns) => {
               columns={columns}
               allocations={[]}
               menu={null}
-              pageNum={3}
+              location="p. 3 · slot 5"
               targetPriceSlot={<span>target</span>}
               onActivate={() => {}}
             />

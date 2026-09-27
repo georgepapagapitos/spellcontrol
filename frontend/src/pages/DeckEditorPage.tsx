@@ -25,7 +25,8 @@ import { useMediaQuery } from '../lib/use-media-query';
 import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
 import { haptics } from '../lib/haptics';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
-import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
+import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
+import { useBinderByCopyId } from '../lib/use-binder-by-copy';
 import { useLocation, useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import {
   useDecksStore,
@@ -51,7 +52,6 @@ import {
   bracketReasons,
   bracketBorderline,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { materializeBinders } from '../lib/materialize';
 import { formatMoney } from '../lib/format-money';
 import { deckValue } from '../lib/deck-value';
 import { useCurrency } from '../lib/currency';
@@ -257,12 +257,11 @@ export function DeckEditorPage() {
   // Physical cubes claim copies too — every allocation/ownership computation here
   // folds them in so a copy in a cube reads as committed (not free for a deck).
   const savedCubes = useCubeStore((s) => s.saved);
-  const rawCollectionCards = useCollectionStore((s) => s.cards);
-  const binderDefs = useCollectionStore((s) => s.binders);
   const importHistory = useCollectionStore((s) => s.importHistory);
-  // Decorate with oracle tags so the per-card binder badge respects tag rules
-  // (no-op unless a binder uses one).
-  const collectionCards = useCardsWithTags(rawCollectionCards, bindersUseTags(binderDefs));
+  // BinderPage's decorated cards (tags, Secret Lair drops, release dates, each
+  // only when a binder uses it), so every binder answer on this page agrees
+  // with the binder view.
+  const { cards: collectionCards, binders: binderDefs } = useBinderLayoutInputs();
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
@@ -855,32 +854,9 @@ export function DeckEditorPage() {
     [ownedFinishesByPrinting]
   );
 
-  // Which binder(s) each collection copy lives in — mirrors how the
-  // collection table derives `binders` per row (materialize, then map by
-  // copyId). Lets the deck grid show a binder badge for cards whose
-  // allocated copy is filed in a binder.
-  const binderByCopyId = useMemo(() => {
-    const map = new Map<string, BinderInfo[]>();
-    if (collectionCards.length === 0 || binderDefs.length === 0) return map;
-    const { binders: materialized } = materializeBinders(collectionCards, binderDefs, {
-      search: '',
-    });
-    for (const b of materialized) {
-      const info: BinderInfo = { id: b.def.id, name: b.def.name, color: b.def.color };
-      for (const section of b.sections) {
-        for (const c of section.cards) {
-          if (!c.copyId) continue;
-          const arr = map.get(c.copyId);
-          if (arr) {
-            if (!arr.some((x) => x.id === info.id)) arr.push(info);
-          } else {
-            map.set(c.copyId, [info]);
-          }
-        }
-      }
-    }
-    return map;
-  }, [collectionCards, binderDefs]);
+  // Which binder each collection copy lives in, laid out from BinderPage's
+  // own inputs, so the deck grid's badge names the binder the card is in.
+  const binderByCopyId = useBinderByCopyId();
 
   // Re-key binderByCopyId by card name — zero extra materializeBinders calls,
   // and reuses the same canonical routing computation the review queue uses,

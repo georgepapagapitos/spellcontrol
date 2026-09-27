@@ -26,7 +26,7 @@ import { ComboCollectionAside } from '../components/deck/ComboCollectionAside';
 import { useComboPreview } from '../components/deck/use-combo-preview';
 import { useMissingCardPrices } from '../components/deck/use-missing-prices';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { buildCardLocationIndex } from '../lib/card-locations';
+import { useCardLocations } from '../lib/card-locations';
 import {
   commandersForIdentity,
   hasHostForIdentity,
@@ -65,7 +65,6 @@ const PAGE_SIZE = 40;
  */
 export function CollectionCombosPage() {
   const collection = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
   const hydrating = useCollectionStore((s) => s.hydrating);
   const authStatus = useAuth((s) => s.status);
 
@@ -91,10 +90,7 @@ export function CollectionCombosPage() {
   // Both derivations are pure and local — computed once for the whole page,
   // not per row, so a few hundred combo rows add no requests and no rescans.
   const commanders = useMemo(() => ownedCommanders(collection), [collection]);
-  const locations = useMemo(
-    () => buildCardLocationIndex(collection, binders),
-    [collection, binders]
-  );
+  const locations = useCardLocations().byOracleId;
 
   const { data, loading, error, refetch } = useDeckCombos({
     deckOracleIds: [],

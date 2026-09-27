@@ -137,7 +137,7 @@ describe('settled note', () => {
     const note = screen.getByRole('status');
     expect(note.textContent).toContain('Rhystic Study');
     expect(note.textContent).toContain('Blue Staples');
-    expect(note.textContent).toContain('p.1');
+    expect(note.textContent).toContain('Blue Staples · p. 1');
     // The card name is the part you scan for while holding the pile.
     expect(note.querySelector('.trade-offer-filed-card')?.textContent).toBe('Rhystic Study');
   });

@@ -1,8 +1,6 @@
 import { useMemo } from 'react';
-import { useCollectionStore } from '../store/collection';
-import { useAllocations } from './allocations';
 import { materializeBinders } from './materialize';
-import { useSetMap } from './api';
+import { useBinderLayoutInputs } from './use-binder-layout-inputs';
 import type { BinderDef, EnrichedCard } from '../types';
 import type { SetMap } from './api';
 
@@ -32,7 +30,7 @@ export interface BinderRef {
 export function buildBinderByCopyId(
   cards: EnrichedCard[],
   defs: BinderDef[],
-  allocatedCopyIds: Set<string>,
+  allocatedCopyIds: ReadonlySet<string>,
   setMap: SetMap | undefined
 ): Map<string, BinderRef[]> {
   const byCopy = new Map<string, BinderRef[]>();
@@ -67,13 +65,12 @@ export function buildBinderByCopyId(
  * same reason.)
  */
 export function useBinderByCopyId(): Map<string, BinderRef[]> {
-  const cards = useCollectionStore((s) => s.cards);
-  const defs = useCollectionStore((s) => s.binders);
-  const allocations = useAllocations();
-  const setMap = useSetMap();
-
+  // BinderPage's own inputs: a raw-cards copy of this chain ignored tag,
+  // Secret Lair and release-date routing, so a badge could name a binder the
+  // card is not in.
+  const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
   return useMemo(
-    () => buildBinderByCopyId(cards, defs, new Set(allocations.keys()), setMap),
-    [cards, defs, allocations, setMap]
+    () => buildBinderByCopyId(cards, binders, allocatedCopyIds, setMap),
+    [cards, binders, allocatedCopyIds, setMap]
   );
 }

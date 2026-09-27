@@ -2,11 +2,8 @@ import { useMemo, useState } from 'react';
 import { Printer } from 'lucide-react';
 import type { SavedCube } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
-import { useCardsWithTags, bindersUseTags } from '../../lib/card-tags';
-import { useCardsWithSldDrops, bindersUseSldDrops } from '../../lib/sld-drops';
-import { useCardsWithReleaseDates, bindersUseReleaseDates } from '../../lib/card-release-dates';
-import { useAllocations } from '../../lib/allocations';
-import { useSetMap } from '../../lib/api';
+import { useBinderLayoutInputs } from '../../lib/use-binder-layout-inputs';
+import { formatLocation } from '../../lib/card-locations';
 import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 import { safeLocalStorage } from '../../lib/safe-local-storage';
 import {
@@ -228,14 +225,7 @@ export function CubePullList({ cube }: { cube: SavedCube }) {
   // sorting/routing by tag, Secret Lair drop, or per-printing release date
   // needs the same card fields those hooks stamp on, or its rows here would
   // disagree with what the Binders page shows for it.
-  const rawCards = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
-  const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
-  const droppedCards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
-  const cards = useCardsWithReleaseDates(droppedCards, bindersUseReleaseDates(binders));
-  const allocations = useAllocations();
-  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
-  const setMap = useSetMap();
+  const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
 
   // `attempt` is read into the returned value purely so it's a REAL
   // dependency — "Retry" bumps `buildAttempt`, and this memo has to
@@ -324,7 +314,10 @@ export function CubePullList({ cube }: { cube: SavedCube }) {
                     <span className="print-list-name">{row.name}</span>
                     <span className="print-list-printing">
                       {row.pageNum !== undefined
-                        ? `p.${row.pageNum} · slot ${row.slotNum}`
+                        ? formatLocation(
+                            { binderName: group.label, pageNum: row.pageNum, slot: row.slotNum },
+                            { binder: false }
+                          )
                         : (row.reason && REASON_TEXT[row.reason]) || ''}
                     </span>
                   </li>

@@ -170,12 +170,12 @@ describe('a binder list at tablet width and up', () => {
     expect(container.querySelectorAll('.collection-table-row')).toHaveLength(2);
   });
 
-  it('shows the physical page number in its own column', () => {
+  it('shows the physical page and pocket in its own column', () => {
     const { container } = renderBinder('compact');
     const pages = [...container.querySelectorAll('.collection-table-row [data-col="page"]')].map(
       (el) => el.textContent
     );
-    expect(pages).toEqual(['p.1', 'p.2']);
+    expect(pages).toEqual(['p. 1 · slot 1', 'p. 2 · slot 1']);
   });
 
   it('labels the columns without offering click-to-sort', () => {

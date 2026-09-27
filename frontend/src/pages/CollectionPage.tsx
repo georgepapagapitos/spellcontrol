@@ -7,9 +7,8 @@ import { useCollectionStore } from '../store/collection';
 import { useAuth } from '../store/auth';
 import { getSyncState, onSyncedChange } from '../lib/sync';
 import { materializeBinders } from '../lib/materialize';
-import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
+import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { useAllocations } from '../lib/allocations';
-import { useSetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { BrandMark } from '../components/shared/BrandMark';
 import { AddCardsSheet } from '../components/AddCardsSheet';
@@ -23,10 +22,9 @@ import { DeleteCollectionDialog } from '../components/DeleteCollectionDialog';
 import { Button } from '@/components/shared/Button';
 
 export function CollectionPage() {
-  const rawCards = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
-  // Decorate with Scryfall oracle tags (no-op unless a binder uses a tag rule).
-  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
+  // BinderPage's inputs (decorated cards, allocations, set data), so the
+  // table's binder column names the binder each card is actually in.
+  const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
   const hydrating = useCollectionStore((s) => s.hydrating);
   const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
   const priceRefreshProgress = useCollectionStore((s) => s.priceRefreshProgress);
@@ -116,7 +114,6 @@ export function CollectionPage() {
   });
 
   const allocations = useAllocations();
-  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
   // Copies reserved by a physical cube (unavailable to decks) — surfaced in the
   // hero so the "committed elsewhere" gap has a visible home on the collection.
   const cubeReservedCount = useMemo(() => {
@@ -124,7 +121,6 @@ export function CollectionPage() {
     for (const a of allocations.values()) if (a.ownerKind === 'cube') n += 1;
     return n;
   }, [allocations]);
-  const setMap = useSetMap();
 
   // Materialize without search — the collection table has its own local search.
   const { materialized } = useMemo(() => {

@@ -23,8 +23,9 @@ vi.mock('../store/auth', () => ({
 // radar. Per-test overrides go through `myCards`.
 let myCards: EnrichedCard[] = [];
 vi.mock('../store/collection', () => ({
-  useCollectionStore: (sel: (s: { lists: unknown[]; cards: EnrichedCard[] }) => unknown) =>
-    sel({ lists: [], cards: myCards }),
+  useCollectionStore: (
+    sel: (s: { lists: unknown[]; cards: EnrichedCard[]; binders: unknown[] }) => unknown
+  ) => sel({ lists: [], cards: myCards, binders: [] }),
 }));
 
 // The real hook subscribes to the persisted decks/cube stores; nothing here
@@ -94,6 +95,15 @@ vi.mock('../lib/trades-client', async () => {
 });
 // The composer's per-printing binder badges and tag search — not under test.
 vi.mock('../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+// Settled trades file into the viewer's binders; this suite has none.
+vi.mock('../lib/use-binder-layout-inputs', () => ({
+  useBinderLayoutInputs: () => ({
+    cards: [],
+    binders: [],
+    allocatedCopyIds: new Set(),
+    setMap: undefined,
+  }),
+}));
 vi.mock('../lib/card-tags', () => ({ getCardTags: () => [], useCardTagsReady: () => false }));
 
 import { FriendHubPage } from './FriendHubPage';

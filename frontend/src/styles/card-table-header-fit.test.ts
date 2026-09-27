@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { CARD_TABLE_COLUMNS } from '../components/shared/CardTable';
+import { formatLocation } from '../lib/card-locations';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, 'collection.css'), 'utf8');
@@ -91,6 +92,29 @@ describe('card table column tracks fit their own headers', () => {
       ).toBeGreaterThanOrEqual(needed);
     });
   }
+});
+
+/**
+ * The Location column holds a binder location, not a word, so its floor is
+ * its longest VALUE. It was a 3.5rem "Page" column sized for "p.12"; when the
+ * slot joined it ("p. 1 · slot 1", 98px measured in Chromium) the cell
+ * clipped to "p. 1 …". The value is the mono `--text-xs` chip, measured at
+ * 6.9px (0.43rem) a character; rounded up to 0.44 here. The worst case is a
+ * three-digit page and a two-digit pocket, worded by the real formatter so a
+ * change to the wording re-runs this check.
+ */
+const MONO_XS_PER_CHAR = 0.44;
+
+describe('the Location column fits the longest location', () => {
+  it('holds a three-digit page and a twelve-pocket slot without clipping', () => {
+    const widest = formatLocation({ binderName: '', pageNum: 999, slot: 12 }, { binder: false });
+    const needed = widest.length * MONO_XS_PER_CHAR + CELL_PADDING;
+    const value = /--ct-w-page:s*([^;]+);/.exec(baseBlock())?.[1] ?? '';
+    expect(
+      minRem('page', value),
+      `--ct-w-page (${value}) clips "${widest}"`
+    ).toBeGreaterThanOrEqual(needed);
+  });
 });
 
 describe('the sticky column header clears the hub tab strip', () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildBinderPlacement, buildPullList, isPullableKind } from './pull-list';
+import { formatLocationSpan } from './card-locations';
 import type { AllocationInfo } from './allocations';
 import type { Deck, DeckCard } from '../store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -155,6 +156,20 @@ describe('buildPullList', () => {
     expect(groups[0].rows).toHaveLength(1);
     expect(groups[0].rows[0].qty).toBe(2);
     expect(groups[0].rows[0].copyIds.sort()).toEqual(['c1', 'c2']);
+  });
+
+  it('names the pockets a pile fills, so it can be pulled without searching the page', () => {
+    const c1 = makeCopy({ copyId: 'c1', name: 'Forest', scryfallId: 'sf-forest' });
+    const c2 = makeCopy({ copyId: 'c2', name: 'Forest', scryfallId: 'sf-forest' });
+    const binder = makeBinder({ id: 'b', name: 'B', filter: {} });
+    const deck = makeDeck({
+      cards: [
+        slot(makeScry({ name: 'Forest', id: 'sf-forest' }), 'c1'),
+        slot(makeScry({ name: 'Forest', id: 'sf-forest' }), 'c2'),
+      ],
+    });
+    const [row] = buildPullList(deck, [c1, c2], [binder], noAlloc)[0].rows;
+    expect(formatLocationSpan(row.spots ?? [])).toBe('p. 1 · slots 1–2');
   });
 
   it('reports the physical page range when a pile spans pages', () => {

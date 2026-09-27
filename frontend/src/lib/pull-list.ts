@@ -19,6 +19,8 @@ export interface PullListRow {
   /** 1-based physical page range in the binder (binder groups only). */
   pageStart?: number;
   pageEnd?: number;
+  /** Every pocket this pile fills (binder groups only), for its location chip. */
+  spots?: { pageNum: number; slot: number }[];
   /** For 'elsewhere' rows: names of the decks/cubes holding every free copy. */
   owners?: string[];
 }
@@ -44,6 +46,8 @@ export interface BinderPlacement {
   binderId: string | null;
   order: number;
   page?: number;
+  /** 1-based pocket on that page. */
+  slot?: number;
 }
 
 /**
@@ -67,10 +71,15 @@ export function buildBinderPlacement(
   for (const b of materialized) {
     for (const section of b.sections) {
       for (const page of section.pages) {
-        for (const slot of page.slots) {
-          if (slot)
-            placement.set(slot.copyId, { binderId: b.def.id, order: order++, page: page.pageNum });
-        }
+        page.slots.forEach((card, i) => {
+          if (card)
+            placement.set(card.copyId, {
+              binderId: b.def.id,
+              order: order++,
+              page: page.pageNum,
+              slot: i + 1,
+            });
+        });
       }
     }
   }
@@ -187,6 +196,7 @@ export function buildPullList(
       if (p.page !== undefined) {
         row.pageStart = row.pageStart === undefined ? p.page : Math.min(row.pageStart, p.page);
         row.pageEnd = row.pageEnd === undefined ? p.page : Math.max(row.pageEnd, p.page);
+        if (p.slot !== undefined) (row.spots ??= []).push({ pageNum: p.page, slot: p.slot });
       }
     } else {
       rows.set(rowKey, {
@@ -197,6 +207,10 @@ export function buildPullList(
         copyIds: [copy.copyId],
         pageStart: p.page,
         pageEnd: p.page,
+        spots:
+          p.page !== undefined && p.slot !== undefined
+            ? [{ pageNum: p.page, slot: p.slot }]
+            : undefined,
         order: p.order,
       });
     }

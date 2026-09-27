@@ -1122,8 +1122,8 @@ i.ss.set-symbol--mythic {
   outline-offset: 2px;
 }
 
-/* Page-number chip — shown on binder list rows so the user can find a
-   card in physical storage without leaving the list. */
+/* Location chip ("p. 3 · slot 5") — shown on binder list and pull-list rows
+   so the user can find a card in physical storage without leaving the list. */
 .card-list-page {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -2198,7 +2198,7 @@ i.ss.set-symbol--mythic {
   --ct-w-lang: 3.5rem;
   --ct-w-binder: minmax(4.5rem, 1.5fr);
   --ct-w-notes: minmax(4rem, 2fr);
-  --ct-w-page: 3.5rem;
+  --ct-w-page: 8rem;
   --ct-w-target: 6.5rem;
   --ct-w-mana: 6rem;
   --ct-w-price: 4.75rem;

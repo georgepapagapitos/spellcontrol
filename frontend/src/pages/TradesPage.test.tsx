@@ -21,7 +21,8 @@ vi.mock('../store/auth', () => ({
 }));
 
 vi.mock('../store/collection', () => ({
-  useCollectionStore: (sel: (s: { cards: unknown[] }) => unknown) => sel({ cards: [] }),
+  useCollectionStore: (sel: (s: { cards: unknown[]; binders: unknown[] }) => unknown) =>
+    sel({ cards: [], binders: [] }),
 }));
 
 vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
