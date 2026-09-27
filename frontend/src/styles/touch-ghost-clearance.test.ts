@@ -126,32 +126,45 @@ describe('coarse-pointer ghosts stay off their neighbours', () => {
     ).toBeGreaterThanOrEqual(linkTop + linkFloor + slackEm * nameSize);
   });
 
-  it("the format link in the deck hero's meta line stays off the name above it (E465)", () => {
-    // The format is the meta line's first segment, straight under the name,
-    // whose rename button reaches 0.22em below its text. The line's content
-    // starts below that slack at the largest name size, and the link's coarse
-    // ghost never reaches up, only down into the hero column's own gap.
+  it("the deck hero's meta links stay off the name above and each other (E465)", () => {
+    // The format is the meta line's first segment, straight under the deck
+    // name (InlineRename's button, sized by `.deck-editor-name.binder-hero-name`),
+    // whose box reaches 0.22em below its text. The line's content starts below
+    // that slack at the largest name size.
     const deck = read('styles/deck-builder-editor.css');
-    const slack = parseFloat(decl(deck, '.deck-editor-name', 'padding')) * px('var(--text-3xl)');
+    const name = '.deck-editor-name.binder-hero-name';
+    const slack = parseFloat(decl(deck, name, 'padding')) * px(decl(deck, name, 'font-size'));
     const gap = px(decl(deck, '.deck-editor-hero-text', 'gap'));
     const pad = px(
       decl(deck, '.deck-editor-hero .binder-hero-meta:has(> .deck-format-link)', 'padding-top')
     );
     expect(
       gap + pad,
-      `line starts ${gap + pad}px under the name, slack is ${slack}px`
+      `meta line starts ${gap + pad}px under the name, its box reaches ${slack}px`
     ).toBeGreaterThanOrEqual(slack - 1e-6);
+    // InlineRename's own coarse ghost (44px, centred) stays inside the name's
+    // box because the box clips it.
+    expect(decl(deck, name, 'overflow')).toBe('hidden');
 
-    // inset: <top> <sides> <bottom>, the bottom possibly a calc().
-    const [, top, , bottom] = /^(\S+)\s+(\S+)\s+(.+)$/.exec(
-      decl(
-        deck,
-        '.deck-format-link::after',
-        'inset',
-        after(deck, '@media (pointer: coarse) {\n  .deck-format-link {')
-      )
-    )!;
-    expect(px(top), 'the ghost reaches up into the name').toBe(0);
-    expect(-px(bottom), 'the ghost reaches past the column gap').toBeLessThanOrEqual(gap);
+    // On a coarse pointer each link is as tall as its own 44px line box: the
+    // line sets the height, the link inherits it and adds no padding.
+    const lineHeight = decl(
+      deck,
+      '.deck-editor-hero .binder-hero-meta:has(> .deck-meta-link)',
+      'line-height',
+      after(deck, '@media (pointer: coarse) {\n  .deck-editor-hero .binder-hero-meta')
+    );
+    expect(px(lineHeight)).toBe(44);
+    expect(decl(deck, '.deck-meta-link', 'font')).toBe('inherit');
+    expect(decl(deck, '.deck-meta-link', 'padding')).toBe('0');
+
+    // So no meta link may grow a ghost: an inline link can't know which line
+    // it's on, and any reach past its line box lands on the name or on the
+    // other line's links.
+    for (const f of ['styles/deck-builder-editor.css', 'components/deck/DeckVisibilityChip.css']) {
+      expect(read(f), f).not.toMatch(
+        /\.(deck-meta-link|deck-format-link|deck-visibility-chip)[\w-]*::(after|before)/
+      );
+    }
   });
 });

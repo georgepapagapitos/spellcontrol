@@ -1,19 +1,6 @@
 /* Visibility status (deck header). The last segment of the hero's meta line
    (STYLE_GUIDE § Layout system: one meta line, nothing boxed under the
    title), drawn by the shared `.deck-meta-link` family in
-   deck-builder-editor.css. "Sharing:" stays on the face: a bare "Private"
-   never told a first-time user that this is where sharing lives. */
-
-/* An inline segment can't grow to 44px without breaking the line, so the
-   touch target grows invisibly around it instead. */
-@media (pointer: coarse) {
-  .deck-visibility-chip {
-    position: relative;
-  }
-
-  .deck-visibility-chip::after {
-    content: '';
-    position: absolute;
-    inset: -12px -4px;
-  }
-}
+   deck-builder-editor.css, which also owns its coarse-pointer height (the
+   meta line's 44px line box). "Sharing:" stays on the face: a bare
+   "Private" never told a first-time user that this is where sharing lives. */

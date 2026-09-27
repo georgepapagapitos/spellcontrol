@@ -7252,11 +7252,13 @@ sheet (E465).** Sharing opens ShareDialog from its status; the format opens
 `.deck-meta-link` family (`deck-builder-editor.css`): the line's voice, the
 accent on the value, underline on hover, and an accessible name that says the
 verb (`Format: Commander. Change format`). A fact that can't change there
-(the count, the value) stays plain text. Each link sizes its coarse hit area
-to the room around it: the format sits straight under the name, whose rename
-button owns the space above, so its ghost grows only sideways and into the
-column gap below, and the line starts below the name's 0.22em slack rather
-than letting the link take the name's bottom edge.
+(the count, the value) stays plain text. The line starts below the name's
+0.22em slack, so the format link never takes the name's bottom edge. On a
+coarse pointer the line's `line-height` is the 44px touch target and each
+link inherits it, so a link is exactly as tall as its own line box. No meta
+link grows a `::after` ghost: an inline link can't know which line it wrapped
+onto, and every pixel above or below its line belongs to the name or to the
+other line's links (`styles/touch-ghost-clearance.test.ts`).
 
 **A format switch shows what it does before it commits, and doesn't confirm.**
 The sheet lists the formats as a `ChoiceList`; picking one shows the lines
