@@ -4,7 +4,6 @@ import { X } from 'lucide-react';
 import { IconButton } from '@/components/shared/Button';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/use-sheet-exit';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { paletteForIndex } from '@/lib/seat-palette';
 import { Tabs, type TabItem } from '@/components/Tabs';
@@ -77,7 +76,6 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
 
   useLockBodyScroll();
   const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose, 'sheet-fall');
-  useEscapeKey(beginClose);
 
   // Pointing is online-only; `useOnlineSignals` is null in solo playtest, so
   // `point` below is a no-op there and the affordances never render.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSignInPath } from '../../lib/sign-in-path';
 import { Check, X } from 'lucide-react';
@@ -14,7 +14,6 @@ import {
 import { findSlotForCut, suggestionBlockedReason } from '../../lib/feedback-apply';
 import { formatRelativeTime } from '../../lib/format-time';
 import { canShare, openShareSheet } from '@/lib/web-share';
-import { useEscapeKey } from '../../lib/use-escape-key';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { useAuth } from '../../store/auth';
@@ -48,12 +47,11 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
   const removeCard = useDecksStore((s) => s.removeCard);
 
   useLockBodyScroll();
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   useEffect(() => {
     if (isGuest) return;
@@ -172,7 +170,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -249,7 +247,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                   </span>
                   <IconButton
                     variant="quiet"
-                    className="deck-feedback-dismiss"
+                    className="deck-feedback-beginClose"
                     onClick={() => handleDelete(response)}
                     label={`Delete response from ${response.authorName}`}
                     icon={<X width={14} height={14} strokeWidth={2} />}
@@ -328,7 +326,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
         )}
 
         <div className="card-picker-footer">
-          <Button variant="primary" onClick={() => dismiss()}>
+          <Button variant="primary" onClick={() => beginClose()}>
             Close
           </Button>
         </div>

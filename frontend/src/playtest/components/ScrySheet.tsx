@@ -24,7 +24,6 @@ import { ArrowLeft, ArrowRight, Hand, Minus, Plus, Undo2 } from 'lucide-react';
 import { SelectMenu } from '@/components/SelectMenu';
 import './ScrySheet.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { PlaytestCard, ScryMode } from '@/lib/playtest';
 import { Button, IconButton } from '@/components/shared/Button';
@@ -108,7 +107,6 @@ export function ScrySheet({
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
   const modeName = useId();
 
   const maxPeek = Math.min(MAX_PEEK, library.length);

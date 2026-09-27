@@ -1,8 +1,7 @@
 import './DeckSizePrompt.css';
-import { type JSX, type ReactNode, useCallback, useMemo, useState } from 'react';
+import { type JSX, type ReactNode, useMemo, useState } from 'react';
 import { ArrowLeftRight, Plus } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { WhyBreakdown } from './WhyBreakdown';
@@ -204,19 +203,18 @@ export function DeckSizePrompt({
   // panel with `animation: none` — exits stay instant there. Footer and
   // option actions are parent-owned callbacks (they act, then the parent
   // unmounts the prompt), so they aren't routed through the hook.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   return (
     <div
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >

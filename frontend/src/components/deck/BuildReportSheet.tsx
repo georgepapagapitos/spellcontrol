@@ -55,13 +55,12 @@ export function BuildReportSheet({
   comboSeedContext,
 }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  // The panel ref gives the sheet initial focus, which is what makes the
-  // `onKeyDown` below reachable at all — nothing inside this subtree was ever
-  // focused, so its Escape handler could not fire.
+  // The panel ref gives the sheet initial focus, so keyboard users land
+  // inside it; Escape is useSheetExit's.
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
     onClose,
     ['sheet-fall', 'modal-panel-out'],
-    sheetRef
+    { panelRef: sheetRef }
   );
 
   // Resolve commander art via CDN hook (no api.scryfall.com/format=image).
@@ -76,16 +75,11 @@ export function BuildReportSheet({
     if (e.target === e.currentTarget) beginClose();
   };
 
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') beginClose();
-  };
-
   return createPortal(
     <div
       className={`build-report-sheet-backdrop${isClosing ? ' is-closing' : ''}`}
       role="presentation"
       onMouseDown={handleBackdrop}
-      onKeyDown={handleKey}
     >
       <div
         ref={sheetRef}

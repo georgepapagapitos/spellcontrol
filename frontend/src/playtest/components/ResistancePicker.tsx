@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Check } from 'lucide-react';
 import './ResistancePicker.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import {
   loadLastResistanceLevel,
@@ -29,7 +28,6 @@ interface Props {
 export function ResistancePicker({ level, onSelect, onClose }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
   const [lastUsed] = useState(loadLastResistanceLevel);
 
   function select(next: ResistanceLevel) {

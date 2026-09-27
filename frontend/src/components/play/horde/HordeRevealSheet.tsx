@@ -21,7 +21,9 @@ interface Props {
  * other playtest sheet).
  */
 export function HordeRevealSheet({ revealed, toResolveIds, waveEndId, onConfirm }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onConfirm);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onConfirm, undefined, {
+    escape: false,
+  });
   useLockBodyScroll();
 
   const spells = revealed.filter((c) => toResolveIds.has(c.id));

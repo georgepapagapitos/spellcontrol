@@ -1,6 +1,5 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useEscapeKey } from '../../lib/use-escape-key';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { formatMoney } from '../../lib/format-money';
 import type { OwnershipLens } from '../../lib/ownership-lens';
@@ -31,12 +30,11 @@ interface BinderSummaryRow {
 export function OwnershipLensSheet({ id, lens, missingCardPrices, onClose }: Props) {
   useLockBodyScroll();
 
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   // Compact owned/binder summary: how many owned deck cards fall in each
   // binder (or own no binder at all) — grouped counts, not a full per-card
@@ -75,7 +73,7 @@ export function OwnershipLensSheet({ id, lens, missingCardPrices, onClose }: Pro
       role="presentation"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
     >
       <div
@@ -140,7 +138,7 @@ export function OwnershipLensSheet({ id, lens, missingCardPrices, onClose }: Pro
         )}
 
         <div className="card-picker-footer">
-          <Button variant="primary" onClick={() => dismiss()}>
+          <Button variant="primary" onClick={() => beginClose()}>
             Done
           </Button>
         </div>

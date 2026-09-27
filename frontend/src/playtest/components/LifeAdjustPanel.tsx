@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, Radiation, Skull, Ticket, Zap, type LucideIcon } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
 import { usePressRepeat } from '@/lib/use-press-repeat';
@@ -260,10 +259,17 @@ export function LifeAdjustPanel({
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
   const [counterText, setCounterText] = useState('');
   const [addingCounter, setAddingCounter] = useState(false);
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  // The floating variant has no exit keyframe (`isClosing` only styles the
+  // sheet), so every close there is immediate: 'all' always matches.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    {
+      instantAt: variant === 'floating' ? 'all' : undefined,
+    }
+  );
 
   useLockBodyScroll();
-  useEscapeKey(variant === 'sheet' ? beginClose : onClose);
 
   useEffect(() => {
     if (variant !== 'floating') return;

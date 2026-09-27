@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './DiceRoller.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { useOnlineSignals } from '../hooks/use-online-signals';
 import { Button } from '@/components/shared/Button';
@@ -29,7 +28,6 @@ const PENDING_TIMEOUT_MS = 6000;
 export function DiceRoller({ onClose }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
   const [history, setHistory] = useState<Roll[]>([]);
   const nextId = useRef(0);
   const linked = useOnlineSignals();

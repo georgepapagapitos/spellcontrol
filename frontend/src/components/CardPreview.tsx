@@ -425,7 +425,9 @@ export function CardPreview({
   const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(
     onClose,
     'sheet-fall',
-    sheetRef
+    // Escape stays with the capture-phase handler below: it defers to the
+    // share dialog and an open ⋮ menu, and stops the key at the window.
+    { panelRef: sheetRef, escape: false }
   );
 
   const current = cards[selected] as EnrichedCard | undefined;

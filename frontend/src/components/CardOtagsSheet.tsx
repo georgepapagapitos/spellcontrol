@@ -1,5 +1,4 @@
 import { ExternalLink } from 'lucide-react';
-import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import './CardOtagsSheet.css';
 import {
@@ -10,7 +9,6 @@ import {
   useCardTagsReady,
 } from '../lib/card-tags';
 import { describeOtag } from '../lib/otag-descriptions';
-import { useEscapeKey } from '../lib/use-escape-key';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { EnrichedCard } from '../types';
@@ -35,14 +33,15 @@ export function CardOtagsSheet({ card, onClose }: Props) {
 
   useLockBodyScroll();
 
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    // Desktop renders the shell as a centered panel with `animation: none`,
-    // so there is no exit keyframe to wait on — close immediately there.
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  // Desktop renders the shell as a centered panel with `animation: none`,
+  // so there is no exit keyframe to wait on: close immediately there.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    {
+      instantAt: '(min-width: 1024px)',
+    }
+  );
 
   const tags = ready ? getCardTags(card.name) : [];
   const taggerUrl =
@@ -57,7 +56,7 @@ export function CardOtagsSheet({ card, onClose }: Props) {
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -132,7 +131,7 @@ export function CardOtagsSheet({ card, onClose }: Props) {
         </p>
 
         <div className="card-picker-footer">
-          <Button variant="primary" onClick={() => dismiss()}>
+          <Button variant="primary" onClick={() => beginClose()}>
             Close
           </Button>
         </div>

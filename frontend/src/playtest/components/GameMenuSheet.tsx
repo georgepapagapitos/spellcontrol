@@ -1,7 +1,6 @@
 import { X, type LucideIcon } from 'lucide-react';
 import { useId } from 'react';
 import './GameMenuSheet.css';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { IconButton } from '@/components/shared/Button';
@@ -47,7 +46,6 @@ interface Props {
 export function GameMenuSheet({ sections, footer, onClose }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'playtest-game-menu-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
   const titleId = useId();
 
   // Close first, then act: a row that opens another sheet (Stats, Table

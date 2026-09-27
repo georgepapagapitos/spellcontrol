@@ -1,4 +1,3 @@
-import { useCallback, useEffect } from 'react';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
@@ -25,19 +24,11 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
   // plays the symmetric `binder-sheet-slide-out` before unmount. On desktop
   // it's a centered panel with `animation: none` — exits stay instant there,
   // symmetric with its entry.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismiss();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [dismiss]);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   const title = binderId ? `Add card to ${binderName ?? 'binder'}` : 'Add card to collection';
 
@@ -46,7 +37,7 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -67,10 +58,10 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
           )}
         </div>
 
-        <AddCardSearchPanel binderId={binderId} onEscape={dismiss} />
+        <AddCardSearchPanel binderId={binderId} onEscape={beginClose} />
 
         <div className="card-picker-footer">
-          <Button onClick={() => dismiss()}>Done</Button>
+          <Button onClick={() => beginClose()}>Done</Button>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -142,23 +142,15 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
 
   // Symmetric exit so every dismiss path (backdrop, ✕, Escape, a pick) plays
   // the shell's slide-out before unmount instead of teleport-vanishing.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
   // ≥1024px the shell renders as a centered panel with `animation: none`, so
   // `.is-closing` would never fire onAnimationEnd there — call onClose
   // directly rather than waiting on an exit that never plays (mirrors
   // CardPickerSheet/AddCardSheet's identical breakpoint check).
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismiss();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [dismiss]);
 
   // Focus moves to the search field on open (autoFocus below); return it to
   // whatever was focused before the sheet opened (the "Choose avatar"
@@ -191,7 +183,7 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
     void resolveAvatar(option).then((avatar) => {
       if (avatar) {
         onPick(avatar);
-        dismiss();
+        beginClose();
       }
     });
   };
@@ -203,12 +195,13 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
+      // A query clears first. preventDefault tells useSheetExit the key is
+      // handled, so the sheet closes on the next Escape, not this one.
       if (query) {
+        e.preventDefault();
         setQuery('');
         setActiveIndex(0);
-        return;
       }
-      dismiss();
       return;
     }
     if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
@@ -234,7 +227,7 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
       className="card-picker-root avatar-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -255,7 +248,7 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
               <Button
                 onClick={() => {
                   onPick(null);
-                  dismiss();
+                  beginClose();
                 }}
                 className="avatar-picker-remove"
               >
@@ -264,7 +257,7 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
             )}
             <IconButton
               variant="quiet"
-              onClick={() => dismiss()}
+              onClick={() => beginClose()}
               label="Close"
               icon={<X width={18} height={18} strokeWidth={2} />}
             />

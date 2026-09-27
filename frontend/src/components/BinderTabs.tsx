@@ -295,7 +295,15 @@ function BinderOverflowPanel({
   // exactly — a mismatch here would fire the sheet's slide-down exit
   // animation on what CSS is rendering as the plain desktop dropdown (or
   // vice versa), a mixed-mode animation glitch at exactly one pixel width.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  // Escape belongs to the menu layer (useMenuKeyboard below), which sits above
+  // this sheet's own layer.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    {
+      escape: false,
+    }
+  );
   const dismiss = useCallback(() => {
     if (window.matchMedia('(max-width: 1023px)').matches) beginClose();
     else onClose();

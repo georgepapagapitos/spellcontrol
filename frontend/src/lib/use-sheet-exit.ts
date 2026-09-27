@@ -38,11 +38,32 @@ import { useFocusTrap } from './use-focus-trap';
  * the scanner sheet's fade+nudge, the add-cards modal pop) pass their own
  * symmetric exit keyframe name so `onAnimationEnd` unmounts on the right
  * animation — everything else about the contract is identical.
+ *
+ * Escape is the hook's too (T147): every sheet closes on Escape through
+ * `beginClose`, but only while it is the topmost overlay layer and only if
+ * nothing above it already handled the key. Before this each sheet hand-rolled
+ * its own document listener with no topmost check, so Escape in a menu, picker
+ * or confirm dialog opened on top of a sheet closed the sheet underneath too.
+ * A sheet must not add its own Escape listener; `use-sheet-exit.escape.test`
+ * holds that for every consumer.
  */
+export interface SheetExitOptions {
+  /** The sheet's panel, for the focus trap (see use-focus-trap.ts). */
+  panelRef?: RefObject<HTMLElement | null>;
+  /** A media query at which the sheet has no exit animation (its CSS sets
+   *  `animation: none` there, as `.card-picker-sheet` does on desktop), so
+   *  every close is immediate instead of waiting out the fallback timer. */
+  instantAt?: string;
+  /** `false` when Escape must not close the sheet: it has to be answered
+   *  (Horde reveal), or the surface routes Escape itself (a menu shell whose
+   *  menu layer sits above it, CardPreview's capture-phase handler). */
+  escape?: boolean;
+}
+
 export function useSheetExit(
   onClose: () => void,
   exitAnimationName: string | string[] = 'sheet-fall',
-  panelRef?: RefObject<HTMLElement | null>
+  { panelRef, instantAt, escape = true }: SheetExitOptions = {}
 ) {
   const [isClosing, setIsClosing] = useState(false);
   const [exitFrom, setExitFrom] = useState(0);
@@ -58,10 +79,12 @@ export function useSheetExit(
   // listener swapped out mid-dispatch never fires (see use-escape-key.ts).
   const onCloseRef = useRef(onClose);
   const exitNamesRef = useRef(exitAnimationName);
+  const instantAtRef = useRef(instantAt);
   useEffect(() => {
     onCloseRef.current = onClose;
     exitNamesRef.current = exitAnimationName;
-  }, [onClose, exitAnimationName]);
+    instantAtRef.current = instantAt;
+  }, [onClose, exitAnimationName, instantAt]);
   // Some layouts neutralize the exit keyframe entirely via CSS instead of
   // playing a symmetric fall (e.g. `.card-picker-sheet`'s desktop centered
   // modal sets `animation: none` on `.is-closing` — see
@@ -79,10 +102,11 @@ export function useSheetExit(
   const beginClose = useCallback((fromY = 0) => {
     if (closingRef.current) return;
     closingRef.current = true;
-    // Reduced motion: there is no slide-down to wait on (the keyframe is
-    // neutralized in CSS), so the animationend below would never fire —
-    // close immediately instead of leaving the sheet stuck.
-    if (prefersReducedMotion()) {
+    // Reduced motion, or a layout with no exit keyframe (`instantAt`): there
+    // is no slide-down to wait on, so the animationend below would never fire.
+    // Close immediately instead of leaving the sheet up for the fallback.
+    const query = instantAtRef.current;
+    if (prefersReducedMotion() || (query && window.matchMedia?.(query).matches)) {
       onCloseRef.current();
       return;
     }
@@ -129,6 +153,21 @@ export function useSheetExit(
   // subtree never fired at all (nothing inside it had focus) — which is why
   // BuildReportSheet's Escape handler did nothing.
   useFocusTrap(isTopmost, panelRef);
+
+  // Escape closes the sheet only when it is the top layer and the key is
+  // still unhandled. The topmost check is what keeps Escape in a menu or
+  // dialog opened over the sheet from closing both. `defaultPrevented` covers
+  // what the stack can't see: an inline picker that handles Escape without
+  // being a layer, and a menu whose listener happens to run before this one.
+  useEffect(() => {
+    if (!escape) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || !isTopmost()) return;
+      beginClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [escape, isTopmost, beginClose]);
 
   // Spread onto the sheet element. While closing, pins sheet-fall's `from`
   // keyframe to the release offset so the exit continues from where the

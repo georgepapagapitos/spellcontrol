@@ -1,7 +1,6 @@
 import { Check } from 'lucide-react';
 import './TakebackModePicker.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { TAKEBACK_MODES, TAKEBACK_MODE_DESCRIPTION, TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import type { TakebackMode } from '../lib/takeback';
@@ -29,7 +28,6 @@ interface Props {
 export function TakebackModePicker({ mode, onSelect, onClose, online }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
 
   function select(next: TakebackMode) {
     onSelect(next);

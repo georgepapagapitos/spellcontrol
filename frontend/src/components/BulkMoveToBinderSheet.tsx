@@ -2,7 +2,6 @@ import { Check } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useEscapeKey } from '../lib/use-escape-key';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import type { EnrichedCard } from '../types';
@@ -59,19 +58,18 @@ export function BulkMoveToBinderSheet({ copyIds, cards, currentBinderByCopyId, o
   // the symmetric `binder-sheet-slide-out` before unmount. On desktop it's
   // a centered panel with `animation: none` — exits stay instant there,
   // symmetric with its entry.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   // Auto-close after showing confirmation feedback.
   useEffect(() => {
     if (!doneTo) return;
-    const t = setTimeout(dismiss, 900);
+    const t = setTimeout(beginClose, 900);
     return () => clearTimeout(t);
-  }, [doneTo, dismiss]);
+  }, [doneTo, beginClose]);
 
   const sorted = [...binders].sort((a, b) => a.position - b.position);
 
@@ -105,7 +103,7 @@ export function BulkMoveToBinderSheet({ copyIds, cards, currentBinderByCopyId, o
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -183,7 +181,7 @@ export function BulkMoveToBinderSheet({ copyIds, cards, currentBinderByCopyId, o
         )}
 
         <div className="card-picker-footer">
-          <Button onClick={() => dismiss()}>Cancel</Button>
+          <Button onClick={() => beginClose()}>Cancel</Button>
         </div>
       </div>
     </div>

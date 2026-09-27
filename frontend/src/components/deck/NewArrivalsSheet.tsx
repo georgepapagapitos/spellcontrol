@@ -85,10 +85,6 @@ export function NewArrivalsSheet({
   const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) beginClose();
   };
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') beginClose();
-  };
-
   const label = bucket ? TYPE_GROUP_PLURAL[bucket] : null;
   const heading = label ? `New arrivals · ${label}` : 'New arrivals';
 
@@ -97,7 +93,6 @@ export function NewArrivalsSheet({
       className={`new-arrivals-sheet-backdrop${isClosing ? ' is-closing' : ''}`}
       role="presentation"
       onMouseDown={handleBackdrop}
-      onKeyDown={handleKey}
     >
       <div
         className={`new-arrivals-sheet${isClosing ? ' is-closing' : ''}`}

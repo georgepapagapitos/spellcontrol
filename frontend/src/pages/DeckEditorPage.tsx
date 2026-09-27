@@ -132,7 +132,6 @@ import { useDeckCombos } from '../lib/use-deck-combos';
 import { partitionCombosByZone, toMainboardComboData } from '../lib/combo-zone-partition';
 import { buildWinConditionSummary } from '../lib/win-condition-summary';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
-import { useEscapeKey } from '../lib/use-escape-key';
 import { useUndoRedoKeyboard } from '../lib/use-undo-redo-keyboard';
 import { useRegisterShortcuts } from '../lib/shortcut-registry';
 import { useSheetExit } from '../lib/use-sheet-exit';
@@ -1411,17 +1410,6 @@ export function DeckEditorPage() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [openAnalysisTab, handleViewCombos]);
-
-  // Esc closes the Test hand sheet (the card-picker overlay has no built-in
-  // dismiss key — only backdrop tap / the close button).
-  useEffect(() => {
-    if (!showTestHand) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowTestHand(false);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [showTestHand]);
 
   // Hero totals — a quick at-a-glance summary above the deck composition.
   // The count/value reflect the *mainboard deck only* (commanders + main
@@ -4065,12 +4053,13 @@ function DeckEditorCardPickerSheet({
   onClose: () => void;
   children: (dismiss: () => void) => ReactNode;
 }) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  // Escape, the backdrop and every child close go through the hook's
+  // beginClose, which is instant on desktop (the panel has no exit keyframe).
+  const {
+    isClosing,
+    beginClose: dismiss,
+    onAnimationEnd,
+  } = useSheetExit(onClose, 'binder-sheet-slide-out', { instantAt: '(min-width: 1024px)' });
 
   return (
     <div

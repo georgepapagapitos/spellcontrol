@@ -54,7 +54,9 @@ export function HordeEndSheet({
   doneLabel = 'Done',
   playAgainHint,
 }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onDone);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onDone, undefined, {
+    escape: false,
+  });
   useLockBodyScroll();
   const history = usePlayStore((s) => s.history);
   const record = hideRecord

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { normalizeForSearch } from '@/lib/normalize-search';
@@ -105,7 +104,6 @@ export function ZoneViewerModal({
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
   const [filter, setFilter] = useState('');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // A phone's soft keyboard pops over the grid before the sheet finishes

@@ -1,7 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useEscapeKey } from '../lib/use-escape-key';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { normalizeForSearch } from '../lib/normalize-search';
 import type { EnrichedCard } from '../types';
@@ -31,12 +30,11 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
   // it's a centered panel with `animation: none` (and a centering transform
   // the fall keyframe would clobber) — exits stay instant there, symmetric
   // with its entry.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -73,7 +71,7 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -129,7 +127,7 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
           )}
         </ul>
         <div className="card-picker-footer">
-          <Button variant="primary" onClick={() => dismiss()}>
+          <Button variant="primary" onClick={() => beginClose()}>
             Done
           </Button>
         </div>
