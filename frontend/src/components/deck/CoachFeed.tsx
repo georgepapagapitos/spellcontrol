@@ -195,6 +195,7 @@ export interface CoachFeedProps {
    * `?plan=1` deep link opens it) and the bracket tools. Omit to hide it.
    */
   upgradePlan?: {
+    deckId: string;
     /** Null until the plan opens: building them runs the estimator. */
     tools: UpgradePlanTools | null;
     open: boolean;
@@ -681,9 +682,12 @@ export function CoachFeed({
       <ChevronRight width={18} height={18} aria-hidden />
     </button>
   );
+  const tierById = new Map(ranked.map((r) => [r.change.id, r.tier]));
   const planSheet = upgradePlan?.open && upgradePlan.tools && (
     <UpgradePlanSheet
+      deckId={upgradePlan.deckId}
       moves={ranked.filter((r) => r.change.type !== 'cut').map((r) => r.change)}
+      tierOf={(c) => tierById.get(c.id) ?? 3}
       cuts={allChanges.filter((c) => c.type === 'cut')}
       roleCounts={roleCounts ?? {}}
       roleTargets={roleTargets ?? {}}
@@ -736,11 +740,16 @@ export function CoachFeed({
     </details>
   );
 
+  // The plan sheet is portaled, but React events still bubble to this div,
+  // and its rows peek on their own layer above the sheet. While it's open the
+  // feed's peeks stand down, or both would fire (the feed's behind the modal).
+  const feedPeekHandlers = upgradePlan?.open
+    ? {}
+    : { ...hoverPeek.listHandlers, ...touchPeek.listHandlers };
+
   return (
-    <div className="coach-feed" {...hoverPeek.listHandlers} {...touchPeek.listHandlers}>
+    <div className="coach-feed" {...feedPeekHandlers}>
       {planEntry}
-      {/* Portaled, and React events still bubble to this div, but the peek
-          handlers act only on [data-peek-name] and the plan's rows set none. */}
       {planSheet}
       {/* Next best move headline — always at top when data is available */}
       {(nextBestMoves.length > 0 || combosLoading) && (

@@ -721,6 +721,7 @@ describe('CoachFeed', () => {
 
   describe('upgrade plan (E458)', () => {
     const plan = (open: boolean, onOpenChange = vi.fn()) => ({
+      deckId: 'd1',
       tools: {} as never,
       open,
       onOpenChange,

@@ -96,20 +96,8 @@
   gap: var(--space-4);
 }
 
-.upgrade-plan-preset {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.2;
-}
-
 .upgrade-plan-preset-amount {
   font-family: var(--font-mono);
-}
-
-.upgrade-plan-preset-count {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
 }
 
 .upgrade-plan-amount {
@@ -154,31 +142,6 @@
 
 .upgrade-plan-spend-of {
   color: var(--text-secondary);
-}
-
-.upgrade-plan-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.upgrade-plan-stats div {
-  padding: var(--space-2) var(--space-3);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.upgrade-plan-stats dt {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-.upgrade-plan-stats dd {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-lg);
 }
 
 .upgrade-plan-line {
@@ -259,10 +222,21 @@
   border-bottom: 0.5px solid var(--border);
 }
 
-.upgrade-plan-row > .deck-card-row {
+.upgrade-plan-row-main {
   flex: 1;
   min-width: 0;
+  padding-bottom: var(--space-1);
+}
+
+.upgrade-plan-row-main > .deck-card-row {
   border-bottom: 0;
+}
+
+/* "Keep {card}": the one control that protects a cut, under the row it cuts
+   from, aligned with the row's text. */
+.upgrade-plan-keep {
+  margin-left: var(--space-2);
+  font-size: var(--text-sm);
 }
 
 .upgrade-plan-check {
@@ -279,7 +253,7 @@
   background: var(--accent-light);
 }
 
-.upgrade-plan-row.is-dropped > .deck-card-row {
+.upgrade-plan-row.is-dropped .deck-card-row {
   opacity: 0.6;
 }
 
@@ -310,5 +284,133 @@
   .upgrade-plan-check {
     width: 24px;
     height: 24px;
+  }
+}
+
+/* The money split: what the budget buys, and what the collection gives free. */
+.upgrade-plan-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.upgrade-plan-block.is-owned {
+  padding-top: var(--space-3);
+  border-top: 0.5px dashed var(--border);
+}
+
+.upgrade-plan-block-label {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.upgrade-plan-spend-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+/* Left out: every card the plan skipped, each with its own reason. */
+.upgrade-plan-leftout {
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-2) var(--space-3);
+}
+
+.upgrade-plan-leftout > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.upgrade-plan-leftout > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.upgrade-plan-leftout-list {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+
+.upgrade-plan-leftout-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 0.5px solid var(--border);
+}
+
+.upgrade-plan-leftout-art {
+  flex-shrink: 0;
+  width: 32px;
+  height: 45px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.upgrade-plan-leftout-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.upgrade-plan-leftout-art:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.upgrade-plan-leftout-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.upgrade-plan-leftout-name {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.upgrade-plan-leftout-price {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.upgrade-plan-leftout-why {
+  color: var(--text-secondary);
+}
+
+/* The row peeks above the sheet: DeckHoverPeek's own layer is --z-panel,
+   which the modal covers. This layer is a stacking context above it. */
+.upgrade-plan-peek-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  pointer-events: none;
+}
+
+@media (pointer: coarse) {
+  .upgrade-plan-leftout-art {
+    width: 44px;
+    height: 62px;
   }
 }

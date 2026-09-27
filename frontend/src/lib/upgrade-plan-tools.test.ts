@@ -88,6 +88,28 @@ describe('buildUpgradePlanTools', () => {
     expect(tools.weakestCuts[0]).toMatchObject({ type: 'cut', typeLine: 'Land', inclusion: 5 });
   });
 
+  it('names why a card moves the bracket', () => {
+    const tools = buildUpgradePlanTools(input());
+    expect(tools.bracketReason(add('Cyclonic Rift'))).toBe('Game Changer');
+    expect(tools.bracketReason(add('Kiki-Jiki', { lane: 'combos' }))).toBe('Completes a combo');
+    expect(tools.bracketReason(add('Grizzly Bears'))).toBe('Raises the bracket');
+  });
+
+  it('counts the basics and the lands that fetch them', () => {
+    const tools = buildUpgradePlanTools(
+      input({
+        deckCards: [
+          card('Island', 'Basic Land — Island', 0),
+          card('Forest', 'Basic Land — Forest', 0),
+          card('Evolving Wilds', 'Land', 0),
+          card('Grizzly Bears'),
+        ],
+      })
+    );
+    expect(tools.basics).toBe(2);
+    expect(tools.fetchers).toBe(1);
+  });
+
   it('sees a combo the plan completes', () => {
     const match = {
       combo: {
