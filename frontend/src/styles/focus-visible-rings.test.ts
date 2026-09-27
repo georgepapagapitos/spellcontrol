@@ -48,6 +48,9 @@ const ALLOWLIST = new Set([
   // only reveals the card's ⋮, and .collection-grid-menu-btn:focus-visible
   // both rings and reveals it for keyboard users.
   '.collection-grid-cell',
+  // A binder pocket's cell, same shape: its hover only reveals the ⋮, whose
+  // .collection-grid-menu-btn:focus-visible rings and reveals it.
+  '.slot-cell',
   // element also carries .filter-chip (.filter-chip:focus-visible in
   // search-controls.css) — the "show more"/"show fewer" theme action chip.
   '.theme-chip-more',

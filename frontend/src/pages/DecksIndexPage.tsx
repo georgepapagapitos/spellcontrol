@@ -934,6 +934,9 @@ export function DecksIndexPage() {
                       className="decks-index-card-menu"
                       triggerClassName="decks-index-card-menu-btn"
                       ariaLabel={`Actions for ${deck.name}`}
+                      contextHost=".decks-index-card"
+                      itemHref={`/decks/${deck.id}`}
+                      itemName={deck.name}
                       items={[
                         ...(canRegenerate(deck)
                           ? [

@@ -308,6 +308,38 @@
   border: 0.5px dashed var(--border);
 }
 
+/* A filled pocket's cell (T162): the grid item, holding the pocket and its ⋮
+   side by side, since the pocket is itself role="button". The ⋮ is the
+   collection grid's corner button (.collection-grid-menu-btn), revealed the
+   same way: hover or focus under a fine pointer, always under a coarse one. */
+.slot-cell {
+  position: relative;
+  min-width: 0;
+}
+
+.slot-menu {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 3;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .slot-cell:hover .collection-grid-menu-btn {
+    opacity: 1;
+  }
+}
+
+/* The pocket its menu is open for wears the ring (T162). */
+.slot-cell[data-menu-open] {
+  outline: none;
+}
+
+.slot-cell[data-menu-open] > .slot {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .slot.mythic {
   background: linear-gradient(135deg, var(--rarity-mythic-from), var(--rarity-mythic-to));
   border: 0.5px solid var(--rarity-mythic-border);

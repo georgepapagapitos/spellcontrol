@@ -556,6 +556,9 @@ export function BindersIndexPage() {
                     className="binders-index-card-menu"
                     triggerClassName="binders-index-card-menu-btn"
                     ariaLabel={`Actions for ${b.def.name}`}
+                    contextHost=".binders-index-card"
+                    itemHref={`/collection/binders/${b.def.id}`}
+                    itemName={b.def.name}
                     items={[
                       // Suppress reorder unless sorted by position asc — moving
                       // wouldn't visibly change a name/count-sorted list.

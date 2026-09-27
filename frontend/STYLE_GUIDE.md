@@ -193,6 +193,10 @@ screen.
   hover or focus under a fine pointer and always shown under a coarse one,
   where there is no right-click. A grid tile keeps it top-right, where the
   deck and collection grids both put it.
+- **One card menu per place, whatever the view.** A binder's pockets carry
+  the menu its list view gives each row (`CardRowMenu variant="pocket"`, fed
+  through `CardPreviewContext.cardMenu`); the collection's grid tile carries
+  its list row's. The page flipbook is a viewer and has none.
 - **Surfaces without per-item actions keep the browser's menu.** Search
   results, shared and friend views and Discover tiles have no ⋮, so a
   right-click there is the browser's (on a link tile, that is Open in new

@@ -383,6 +383,9 @@ export function ListsPage() {
                     className="binders-index-card-menu"
                     triggerClassName="binders-index-card-menu-btn"
                     ariaLabel={`Actions for ${l.name}`}
+                    contextHost=".binders-index-card"
+                    itemHref={`/collection/lists/${l.id}`}
+                    itemName={l.name}
                     items={[
                       { label: 'Rename', icon: Pencil, onClick: () => handleRename(l.id) },
                       // Shares project a list's stored entries; a dynamic

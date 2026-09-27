@@ -84,3 +84,28 @@ describe('DecksIndexPage — single delete has no confirm (T157)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
+
+describe('DecksIndexPage — right-click on a deck tile (T162)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockDeleteDeck.mockClear();
+    mockDecks = [makeDeck('deck-1', 'Solo Deck')];
+  });
+
+  it('opens the tile’s own menu, with Open in new tab and Copy link above Delete', () => {
+    render(
+      <MemoryRouter>
+        <DecksIndexPage />
+      </MemoryRouter>
+    );
+    const tile = screen.getByRole('link', { name: /Solo Deck/ });
+    // Prevented: the right-click on the deck's own link is ours, since the
+    // menu carries what the browser's link menu offered.
+    expect(fireEvent.contextMenu(tile, { clientX: 40, clientY: 60 })).toBe(false);
+    const labels = screen.getAllByRole('menuitem').map((el) => el.textContent?.trim());
+    expect(labels.slice(-3)).toEqual(['Open in new tab', 'Copy link', 'Delete']);
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    expect(mockDeleteDeck).toHaveBeenCalledWith('deck-1');
+  });
+});

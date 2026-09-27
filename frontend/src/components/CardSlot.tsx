@@ -169,78 +169,88 @@ export function CardSlot({ card, showImage }: Props) {
   // the collection grid's qty pill so the affordance is consistent.
   const groupedQty = preview?.qtyByCopyId?.get(card.copyId) ?? 1;
 
+  const menu = preview?.cardMenu?.(card);
+
   return (
     <>
-      <div
-        ref={slotRef}
-        className={`slot ${cls}${card.foil ? ' foil' : ''}${allocation ? ' is-allocated' : ''}`}
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onFocus={show}
-        onBlur={hide}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        tabIndex={0}
-        role="button"
-        aria-label={`Open details for ${card.name}${card.foil ? ' (foil)' : ''}${
-          allocation
-            ? allocation.ownerKind === 'cube'
-              ? ` (in cube: ${allocation.ownerName})`
-              : ` (in deck: ${allocation.ownerName})`
-            : ''
-        }`}
-      >
-        {showImage && card.imageSmall ? (
-          <img
-            src={card.imageSmall}
-            alt={card.name}
-            className="slot-img"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <span className="slot-name">{displayName}</span>
-        )}
-        {allocation && (
-          <Link
-            to={
-              allocation.ownerKind === 'cube'
-                ? `/decks/cube/${allocation.ownerId}`
-                : `/decks/${allocation.ownerId}`
-            }
-            className="slot-deck-badge"
-            style={
-              {
-                '--deck-color':
-                  allocation.ownerKind === 'cube'
-                    ? 'var(--cube-color)'
-                    : allocation.ownerColor || 'var(--accent)',
-              } as React.CSSProperties
-            }
-            title={
-              allocation.ownerKind === 'cube'
-                ? `In cube: ${allocation.ownerName}`
-                : `In deck: ${allocation.ownerName}`
-            }
-            onClick={(e) => e.stopPropagation()}
-            aria-label={
-              allocation.ownerKind === 'cube'
-                ? `Open cube ${allocation.ownerName}`
-                : `Open deck ${allocation.ownerName}`
-            }
-          >
-            {allocation.ownerKind === 'cube' ? (
-              <Boxes width={9} height={9} strokeWidth={2.2} aria-hidden />
-            ) : (
-              <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
-            )}
-          </Link>
-        )}
-        {groupedQty > 1 && (
-          <span className="slot-qty-badge" aria-label={`${groupedQty} copies`}>
-            ×{groupedQty}
-          </span>
-        )}
+      {/* The pocket is itself role="button", so its ⋮ is a sibling rather
+          than a child; the cell is the grid item and the right-click host. */}
+      <div className={`slot-cell${menu ? ' has-menu' : ''}`}>
+        <div
+          ref={slotRef}
+          className={`slot ${cls}${card.foil ? ' foil' : ''}${allocation ? ' is-allocated' : ''}`}
+          onMouseEnter={show}
+          onMouseLeave={hide}
+          // Any press ends the glance: a click opens the card, a right-click its
+          // menu, and neither wants the tooltip floating beside it.
+          onPointerDown={hide}
+          onFocus={show}
+          onBlur={hide}
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+          role="button"
+          aria-label={`Open details for ${card.name}${card.foil ? ' (foil)' : ''}${
+            allocation
+              ? allocation.ownerKind === 'cube'
+                ? ` (in cube: ${allocation.ownerName})`
+                : ` (in deck: ${allocation.ownerName})`
+              : ''
+          }`}
+        >
+          {showImage && card.imageSmall ? (
+            <img
+              src={card.imageSmall}
+              alt={card.name}
+              className="slot-img"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <span className="slot-name">{displayName}</span>
+          )}
+          {allocation && (
+            <Link
+              to={
+                allocation.ownerKind === 'cube'
+                  ? `/decks/cube/${allocation.ownerId}`
+                  : `/decks/${allocation.ownerId}`
+              }
+              className="slot-deck-badge"
+              style={
+                {
+                  '--deck-color':
+                    allocation.ownerKind === 'cube'
+                      ? 'var(--cube-color)'
+                      : allocation.ownerColor || 'var(--accent)',
+                } as React.CSSProperties
+              }
+              title={
+                allocation.ownerKind === 'cube'
+                  ? `In cube: ${allocation.ownerName}`
+                  : `In deck: ${allocation.ownerName}`
+              }
+              onClick={(e) => e.stopPropagation()}
+              aria-label={
+                allocation.ownerKind === 'cube'
+                  ? `Open cube ${allocation.ownerName}`
+                  : `Open deck ${allocation.ownerName}`
+              }
+            >
+              {allocation.ownerKind === 'cube' ? (
+                <Boxes width={9} height={9} strokeWidth={2.2} aria-hidden />
+              ) : (
+                <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
+              )}
+            </Link>
+          )}
+          {groupedQty > 1 && (
+            <span className="slot-qty-badge" aria-label={`${groupedQty} copies`}>
+              ×{groupedQty}
+            </span>
+          )}
+        </div>
+        {menu}
       </div>
       {hovered &&
         createPortal(

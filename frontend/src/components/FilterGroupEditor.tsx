@@ -275,6 +275,7 @@ function FilterGroupCard({
         </span>
         <OverflowMenu
           ariaLabel={`Actions for rule: ${displayLabel}`}
+          contextHost=".filter-group"
           items={[
             { label: name ? 'Rename' : 'Name this rule', onClick: () => setRenaming(true) },
             { label: 'Duplicate', onClick: onDuplicate },

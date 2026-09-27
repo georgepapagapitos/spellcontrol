@@ -421,6 +421,7 @@ function NightCard({
           <OverflowMenu
             className="game-night-card-menu"
             ariaLabel={`Manage ${night.title}`}
+            contextHost=".game-night-card"
             items={hostItems}
           />
         )}
