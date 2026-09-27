@@ -1,35 +1,10 @@
 import type { ReactNode } from 'react';
-import type { ColorMatchMode } from '../../lib/colors';
 import { Chip } from '@/components/shared/Chip';
 
 export interface FilterChipDescriptor {
   id: string;
   label: string;
   onClear: () => void;
-}
-
-/**
- * Filter-facing colour names, matching the filter popovers' own option labels.
- * Deliberately not `COLOR_INFO` from binder-routing — that's the *grouping*
- * vocabulary ('C' reads "Colorless / Artifact", plus M/L/? buckets), too long
- * and too broad for a filter chip.
- */
-const FILTER_COLOR_LABELS: Record<string, string> = {
-  W: 'White',
-  U: 'Blue',
-  B: 'Black',
-  R: 'Red',
-  G: 'Green',
-  C: 'Colorless',
-};
-
-/**
- * "White, Blue" for a set of WUBRG(C) filter keys. In 'all' (AND) mode the
- * chip reads as an intersection — "White + Blue" — so the label itself says
- * which combine semantics are active.
- */
-export function colorChipLabel(keys: Iterable<string>, mode: ColorMatchMode = 'any'): string {
-  return [...keys].map((k) => FILTER_COLOR_LABELS[k] ?? k).join(mode === 'all' ? ' + ' : ', ');
 }
 
 /**

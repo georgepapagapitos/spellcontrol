@@ -1,0 +1,29 @@
+/* "Why it's here" (E470): the binder preview's lead section, in CardPreview's
+   meta slot. The panel is a fixed dark surface (not theme-driven), so this is
+   light-on-dark like .deck-card-preview-meta, the deck view's lead section. */
+.binder-card-why {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.binder-card-why-icon {
+  flex: 0 0 auto;
+  margin-top: 0.2em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.binder-card-why-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+}
+
+.binder-card-why-also {
+  color: rgba(255, 255, 255, 0.65);
+}

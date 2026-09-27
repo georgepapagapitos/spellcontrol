@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { FilterChipsRow, colorChipLabel } from './FilterChipsRow';
+import { FilterChipsRow } from './FilterChipsRow';
+import { colorChipLabel } from '../../lib/filter-summary';
 
 const chip = (id: string, onClear = () => {}) => ({ id, label: id, onClear });
 

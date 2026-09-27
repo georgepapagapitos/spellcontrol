@@ -16,11 +16,8 @@ import { CommanderTypeahead } from '../components/CommanderTypeahead';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { EmptyState } from '@/components/shared/EmptyState';
-import {
-  FilterChipsRow,
-  colorChipLabel,
-  type FilterChipDescriptor,
-} from '../components/shared/FilterChipsRow';
+import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
+import { colorChipLabel } from '../lib/filter-summary';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { listDiscoverDecks, type DiscoverDeck, type DiscoverSortKey } from '../lib/discover-client';
