@@ -95,7 +95,7 @@ describe('CardListTable — filterJump', () => {
     const applied = vi.fn();
     renderTable(cards, { kind: 'surplus' }, applied);
 
-    expect(screen.getByRole('button', { name: /common land/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^common land/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /solo card/i })).toBeNull();
     expect(applied).toHaveBeenCalledTimes(1);
   });
@@ -108,7 +108,7 @@ describe('CardListTable — filterJump', () => {
     const applied = vi.fn();
     renderTable(cards, { kind: 'color', key: 'W' }, applied);
 
-    expect(screen.getByRole('button', { name: /mono white/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^mono white/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /azorius card/i })).toBeNull();
   });
 
@@ -119,7 +119,7 @@ describe('CardListTable — filterJump', () => {
     ];
     renderTable(cards, { kind: 'type', key: 'creature' }, vi.fn());
 
-    expect(screen.getByRole('button', { name: /a creature/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^a creature/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /an instant/i })).toBeNull();
   });
 
@@ -130,7 +130,7 @@ describe('CardListTable — filterJump', () => {
     ];
     renderTable(cards, { kind: 'rarity', key: 'mythic' }, vi.fn());
 
-    expect(screen.getByRole('button', { name: /a mythic/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^a mythic/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /a common/i })).toBeNull();
   });
 
@@ -141,7 +141,7 @@ describe('CardListTable — filterJump', () => {
     ];
     renderTable(cards, { kind: 'set', code: 'lea' }, vi.fn());
 
-    expect(screen.getByRole('button', { name: /from lea/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^from lea/i })).toBeDefined();
     expect(screen.queryByRole('button', { name: /from m20/i })).toBeNull();
   });
 
@@ -149,7 +149,7 @@ describe('CardListTable — filterJump', () => {
     const cards = [mk({ name: 'Untouched' })];
     const applied = vi.fn();
     renderTable(cards, null, applied);
-    expect(screen.getByRole('button', { name: /untouched/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^untouched/i })).toBeDefined();
     expect(applied).not.toHaveBeenCalled();
   });
 });
