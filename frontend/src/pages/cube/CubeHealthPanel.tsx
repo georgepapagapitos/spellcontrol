@@ -28,9 +28,10 @@ import '../../components/deck/DeckCurvePhases.css';
  */
 export function CubeHealthPanel({ cube }: { cube: GeneratedCube }): JSX.Element {
   const [open, setOpen] = useState(false);
-  const health = computeCubeHealth(cube.picks, cube.size, cube.format ?? 'limited');
+  const rarity = cube.rarity ?? 'any';
+  const health = computeCubeHealth(cube.picks, cube.size, cube.format ?? 'limited', rarity);
   const summary = summarizeCubeHealth(health);
-  const corpus = corpusWord(cube.size, health.bandIsSizeSpecific);
+  const corpus = corpusWord(cube.size, health.bandIsSizeSpecific, rarity);
   const summaryLine = summary.allOk
     ? 'This cube sits inside the range everywhere.'
     : `Off target: ${summary.offLabels.join(', ')}.`;

@@ -153,7 +153,7 @@ export function CubeDetailPage() {
     const synergyLevel = latest.settings?.synergyLevel ?? 0;
     if (synergyLevel <= 0) return;
     const format = latest.cube.format ?? 'limited';
-    const band = targetsForSize(latest.size, format);
+    const band = targetsForSize(latest.size, format, latest.cube.rarity ?? 'any');
     const score = scoreCube(
       latest.cube.picks,
       builtPool,
@@ -332,6 +332,7 @@ export function CubeDetailPage() {
         {
           synergyLevel: target.settings?.synergyLevel ?? 0,
           format: target.cube.format ?? filters.format,
+          rarity: target.cube.rarity ?? filters.rarity,
           locked: lockedInCube.map((p) => p.card),
           banned: bannedIds,
         },

@@ -28,14 +28,41 @@ const ROOT = join(__dirname, '..');
 // `commander` play format gets its own corpus rather than the 360 band's. It is
 // keyed by name, not size — Commander cubes range 130–1,740 cards, so only the
 // size-free RATIOS are meaningful and `size` records the median mainboard.
-const BANDS = [360, 450, 540, 720, 'commander'];
+//
+// PAUPER and PEASANT bands (board E464, 2026-09-27): a pauper/peasant pool has
+// far fewer good nonbasic lands to draw from than a powered cube, so real
+// pauper/peasant cubes run a leaner manabase (10-13% nonbasic lands vs the 360
+// band's ~18%) and less colorless (fewer artifact staples at common), which in
+// turn leaves more room for mono-colored spells. Measured: the shared 360 band
+// sat outside the real pauper/peasant corpora's p25-p75 on land share,
+// colorless share, every mono color and creature share; role shares (removal/
+// ramp/wipe/draw) already matched, so they intentionally reuse the size band
+// (see targetsForSize) rather than getting their own. Same "keyed by name,
+// size-free ratios" shape as commander.
+const BANDS = [360, 450, 540, 720, 'commander', 'pauper', 'peasant'];
 const COMMANDER_QUERY = 'tag:commander';
 // `tag:commander` also matches a few cubes only loosely about the format (a set
 // cube tagged for a Commander night, Tiny Leaders); a Commander cube says so in
 // its name.
 const isCommanderCube = (name) => /commander|edh/i.test(name);
+// Pauper/peasant corpora (board E464): the same recipe as
+// refresh-cube-signal-budget.mjs's per-corpus mining — a `category:` search
+// plus a name-regex guard, so a set cube merely TAGGED Pauper doesn't count.
+// The peasant band UNIONS in the pauper cubes fetched below it (see the main
+// loop): every pauper card is peasant-legal, and peasant-tagged cubes alone
+// under-sample pure-common picks.
+const BAND_META = {
+  commander: { query: COMMANDER_QUERY, filter: (name) => isCommanderCube(name) },
+  pauper: { query: 'category:Pauper', filter: (name) => /pauper/i.test(name) },
+  peasant: { query: 'category:Peasant', filter: (name) => /peasant/i.test(name) },
+};
 const TARGET_PER_BAND = 20; // top-N popular public cubes to sample per band
 const MIN_LIKES = 10; // "well-regarded" floor — keeps the long tail of personal cubes out
+// Pauper/peasant have no size band to floor against (unlike 360/450/…), so
+// this is a flat card-count floor instead of `size * 0.8` — mirrors
+// refresh-cube-signal-budget.mjs's MIN_MAINBOARD, which exists because a
+// "top-N by likes" cut let a 10-card novelty cube ("Pets Peasant Cube") in.
+const MIN_MAINBOARD = 100;
 const UA = 'spellcontrol-cube-miner (github.com/spellcontrol)';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -75,21 +102,18 @@ const isFixingLand = (typeLine) => /land/i.test(typeLine) && !/basic/i.test(type
 async function listPopularCubes(size, want) {
   const out = [];
   let lastKey = null;
+  const meta = BAND_META[size];
+  const query = meta ? meta.query : `cards=${size}`;
   for (let page = 0; page < 5 && out.length < want * 2; page++) {
     const res = await fetch('https://cubecobra.com/search/getmoresearchitems', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
-      body: JSON.stringify({
-        query: size === 'commander' ? COMMANDER_QUERY : `cards=${size}`,
-        order: 'pop',
-        ascending: false,
-        lastKey,
-      }),
+      body: JSON.stringify({ query, order: 'pop', ascending: false, lastKey }),
     });
     if (!res.ok) throw new Error(`search ${size} page ${page}: HTTP ${res.status}`);
     const data = await res.json();
     for (const c of data.cubes ?? []) {
-      if (size === 'commander' && !isCommanderCube(c.name ?? '')) continue;
+      if (meta && !meta.filter(c.name ?? '')) continue;
       if (c.visibility === 'pu' && (c.likeCount ?? 0) >= MIN_LIKES) {
         out.push({ id: c.id, name: c.name, likes: c.likeCount ?? 0, decks: c.numDecks ?? 0 });
       }
@@ -261,6 +285,10 @@ function aggregateBand(dists) {
 // --- main ---
 const bands = {};
 const provBands = {};
+// Carries the pauper band's per-cube distributions/seeds forward so the
+// peasant band (mined right after it in BANDS) can union them in — see below.
+let pauperDists = null;
+let pauperUsed = null;
 for (const size of BANDS) {
   process.stderr.write(`\n[band ${size}] listing popular public cubes…\n`);
   const seeds = await listPopularCubes(size, TARGET_PER_BAND);
@@ -271,7 +299,13 @@ for (const size of BANDS) {
     try {
       const cube = await fetchCube(seed.id);
       const main = cube.cards?.mainboard || [];
-      if (size !== 'commander' && main.length < size * 0.8) {
+      const sizeFloorOk =
+        size === 'commander'
+          ? true
+          : size === 'pauper' || size === 'peasant'
+            ? main.length >= MIN_MAINBOARD
+            : main.length >= size * 0.8;
+      if (!sizeFloorOk) {
         process.stderr.write(`  skip ${seed.name} (mainboard ${main.length})\n`);
         continue;
       }
@@ -283,15 +317,29 @@ for (const size of BANDS) {
     }
     await sleep(700);
   }
+  if (size === 'pauper') {
+    pauperDists = dists;
+    pauperUsed = used;
+  }
+  if (size === 'peasant' && pauperUsed) {
+    const ownIds = new Set(used.map((u) => u.id));
+    for (let i = 0; i < pauperUsed.length; i++) {
+      if (!ownIds.has(pauperUsed[i].id)) {
+        used.push(pauperUsed[i]);
+        dists.push(pauperDists[i]);
+      }
+    }
+  }
   if (dists.length < 5) {
     process.stderr.write(
       `  ⚠ only ${dists.length} cubes for band ${size} — targets may be noisy\n`
     );
   }
-  // The commander band's `size` is the median mainboard of the cubes sampled —
-  // it only scales `fixingLands` (an absolute count) to the size being built.
+  // The commander/pauper/peasant bands' `size` is the median mainboard of the
+  // cubes sampled — it only scales `fixingLands` (an absolute count) to the
+  // size being built; the ratios themselves are size-free.
   const bandSize =
-    size === 'commander'
+    size === 'commander' || size === 'pauper' || size === 'peasant'
       ? Math.round(
           quantile(
             [...used.map((s) => s.main)].sort((a, b) => a - b),

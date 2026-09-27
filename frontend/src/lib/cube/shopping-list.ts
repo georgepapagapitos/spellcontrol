@@ -74,7 +74,7 @@ export function buildShoppingList(
   if (eligible.length === 0) return [];
 
   const format = cube.format ?? 'limited';
-  const band = targetsForSize(cube.size, format);
+  const band = targetsForSize(cube.size, format, cube.rarity ?? 'any');
   const basis = computePowerBasis(pool);
   const state = createScorerState(cube.picks, pool, band, cube.size, basis, synergyLevel);
   const baseline = state.terms.total;

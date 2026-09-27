@@ -8,6 +8,18 @@ import raw from './cube-targets.json';
 import type { CubeFormat } from './play-format';
 import type { ColorPair } from './core';
 
+/**
+ * Which corpus a cube's colour/curve/type/fixing shape is measured against —
+ * `'any'` reads the size band (the default); `'pauper'`/`'peasant'` read the
+ * corpus mined from real pauper/peasant cubes instead (board E464 — a pauper
+ * pool has far fewer good nonbasic lands to draw from than a powered cube, so
+ * real pauper/peasant cubes run a leaner manabase and less colorless than the
+ * all-cube size band assumes). Same three values as `./pool-filters`'s
+ * `RarityCap`, kept as its own type so this leaf module needs no import for a
+ * 3-value string union.
+ */
+export type BandRarity = 'any' | 'pauper' | 'peasant';
+
 /** A card's color bucket — the primary axis a cube is balanced on. */
 export type ColorBucket = 'W' | 'U' | 'B' | 'R' | 'G' | 'multicolor' | 'colorless' | 'land';
 /** Functional role, classified by the shared tagger (mirrors tagger `RoleKey`). */
@@ -102,18 +114,33 @@ export const provenance = data.provenance;
  * the closest mined one); `commander` reads the band mined from popular
  * CubeCobra Commander cubes, whose ratios are size-free — only `fixingLands`
  * (an absolute count) is rescaled from that band's median mainboard.
+ *
+ * `rarity` narrows a `limited` cube further: `'pauper'`/`'peasant'` swap the
+ * colour/curve/type/fixing shape for the mined pauper/peasant corpus band
+ * (also size-free, scaled the same way as commander), while `role` STAYS on
+ * the size band — measured 2026-09-27 (board E464): removal/ramp/wipe/draw
+ * shares in real pauper/peasant cubes already match the all-cube size band
+ * within noise, only colour/curve/type/fixing were off, so role doesn't need
+ * its own band. Has no effect on a `commander` cube (format wins).
  */
-export function targetsForSize(size: CubeSize, format: CubeFormat = 'limited'): BandTargets {
+export function targetsForSize(
+  size: CubeSize,
+  format: CubeFormat = 'limited',
+  rarity: BandRarity = 'any'
+): BandTargets {
   if (format === 'commander') return scaled(data.bands.commander, size);
   const exact = data.bands[String(size)];
-  if (exact) return exact;
   // Bands are mined for 360/450/540/720. Smaller pods (180/270) reuse the
   // closest mined band (360). Color/curve/role/type are size-free RATIOS, so they
   // apportion correctly to the smaller size as-is. `fixingLands` is the one
   // ABSOLUTE count, so it must scale with the cube — otherwise a 180-card cube is
   // judged against 360-card fixing counts (29 lands flagged "short of 39–70" even
   // though that's a healthy ~16% land density at either size).
-  return scaled(data.bands['360'], size);
+  const sizeBand = exact ?? scaled(data.bands['360'], size);
+  if (rarity === 'any') return sizeBand;
+  const corpus = data.bands[rarity];
+  if (!corpus) return sizeBand;
+  return { ...scaled(corpus, size), role: sizeBand.role };
 }
 
 const scaleStat = (s: Stat, k: number): Stat => ({

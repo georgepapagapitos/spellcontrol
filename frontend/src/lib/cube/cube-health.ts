@@ -6,7 +6,14 @@
 import type { Pick } from './generate';
 import { isLand, bucketOf, curveSlotOf } from './core';
 import { typeOf } from './objective';
-import { targetsForSize, type CubeSize, type CurveSlot, type Role, type Stat } from './targets';
+import {
+  targetsForSize,
+  type BandRarity,
+  type CubeSize,
+  type CurveSlot,
+  type Role,
+  type Stat,
+} from './targets';
 import type { CubeFormat } from './play-format';
 
 const CURVE_SLOTS: CurveSlot[] = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -87,9 +94,10 @@ function absoluteRow(key: string, label: string, count: number, stat: Stat): Hea
 export function computeCubeHealth(
   picks: Pick[],
   size: CubeSize,
-  format: CubeFormat = 'limited'
+  format: CubeFormat = 'limited',
+  rarity: BandRarity = 'any'
 ): CubeHealth {
-  const band = targetsForSize(size, format);
+  const band = targetsForSize(size, format, rarity);
   const cards = picks.map((p) => p.card);
   const nonland = cards.filter((c) => !isLand(c));
   const nlCount = Math.max(1, nonland.length);
@@ -123,8 +131,15 @@ export function computeCubeHealth(
   };
 }
 
-/** "real 360s" when the band was mined for this exact size, else "real cubes". */
-export function corpusWord(size: CubeSize, bandIsSizeSpecific: boolean): string {
+/** "real pauper cubes" / "real peasant cubes" when the cube is measured
+ *  against that corpus (board E464); else "real 360s" when the band was
+ *  mined for this exact size, else "real cubes". */
+export function corpusWord(
+  size: CubeSize,
+  bandIsSizeSpecific: boolean,
+  rarity: BandRarity = 'any'
+): string {
+  if (rarity === 'pauper' || rarity === 'peasant') return `real ${rarity} cubes`;
   return bandIsSizeSpecific ? `real ${size}s` : 'real cubes';
 }
 
