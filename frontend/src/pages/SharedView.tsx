@@ -14,10 +14,9 @@ import { SharedBinderView } from '../components/share/SharedBinderView';
 import { SharedDeckSurface } from '../components/share/SharedDeckSurface';
 import { SharedListView } from '../components/share/SharedListView';
 import { SharedCubeView } from '../components/share/SharedCubeView';
-import { NotFoundView, ErrorView } from '../components/share/SharedShell';
+import { NotFoundView, ErrorView, LoadingView } from '../components/share/SharedShell';
 import { DeckFeedbackView } from '../components/share/DeckFeedbackView';
 import { SharedGameSummaryView } from '../components/share/SharedGameSummaryView';
-import { BrandMark } from '../components/shared/BrandMark';
 import { CopyCubeButton } from '../components/share/CopyCubeButton';
 
 import { userMessage } from '@/lib/user-error';
@@ -108,12 +107,7 @@ function SharedViewInner({ token }: { token: string }) {
   );
 
   if (state.status === 'loading') {
-    return (
-      <div className="shared-view shared-view--loading" aria-busy="true">
-        <BrandMark size={64} motion="busy" aria-hidden />
-        <p>Loading…</p>
-      </div>
-    );
+    return <LoadingView />;
   }
   if (state.status === 'notFound') {
     return <NotFoundView />;

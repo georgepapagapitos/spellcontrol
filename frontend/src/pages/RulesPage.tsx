@@ -214,7 +214,7 @@ function RulesAsk({ seed }: { seed?: string }) {
   const [history, setHistory] = useState<RulesQuestionEntry[] | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   /** The question in flight / most recently sent — rendered as the answer's
-   *  title while streaming, and what Try again retries after the box cleared.
+   *  title while streaming, and what Retry retries after the box cleared.
    *  State, not a ref: it is read during render (react-hooks/refs is an ERROR
    *  here). */
   const [lastAsked, setLastAsked] = useState('');
@@ -422,7 +422,7 @@ function RulesAsk({ seed }: { seed?: string }) {
         {phase === 'error' && error && (
           <div className="deck-ai-error" role="alert">
             <span>{error}</span>
-            <Button onClick={() => ask(lastAsked)}>Try again</Button>
+            <Button onClick={() => ask(lastAsked)}>Retry</Button>
           </div>
         )}
 

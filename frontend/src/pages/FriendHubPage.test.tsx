@@ -430,7 +430,7 @@ describe('FriendHubPage — "They’re looking for" (the reciprocal radar)', () 
     const alert = await within(overview()).findByRole('alert');
     expect(alert.textContent).toMatch(/couldn.t check your collection/i);
 
-    fireEvent.click(within(alert).getByRole('button', { name: /try again/i }));
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('list', { name: /cards you own that .* wants/i })).toBeTruthy();
   });
 });

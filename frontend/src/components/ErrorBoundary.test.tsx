@@ -64,7 +64,7 @@ describe('ErrorBoundary', () => {
     Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
   });
 
-  it('"Try again" clears the error so the tree re-renders past a since-fixed cause', () => {
+  it('"Retry" clears the error so the tree re-renders past a since-fixed cause', () => {
     let shouldThrow = true;
     function Toggle() {
       return <Bomb shouldThrow={shouldThrow} />;
@@ -78,7 +78,7 @@ describe('ErrorBoundary', () => {
     expect(screen.getByRole('alert')).toBeTruthy();
 
     shouldThrow = false;
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(screen.getByText('All good')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();

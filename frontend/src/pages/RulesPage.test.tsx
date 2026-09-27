@@ -218,7 +218,7 @@ describe('RulesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     requestRulesAnswer.mockResolvedValue(ANSWER);
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() =>
       expect(requestRulesAnswer).toHaveBeenLastCalledWith('Will this fail?', expect.any(Function))
     );

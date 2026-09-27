@@ -89,7 +89,7 @@ export function CubeCardPickerSheet({
           <div className="cube-error" role="alert">
             {error}
             <Button variant="link" onClick={onRetry}>
-              Try again
+              Retry
             </Button>
           </div>
         )}

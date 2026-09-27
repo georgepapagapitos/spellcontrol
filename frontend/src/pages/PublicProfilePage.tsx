@@ -225,7 +225,7 @@ function ProfileCollection({
         <p className="public-profile-collection-note" role="alert">
           {current.error}{' '}
           <Button variant="link" onClick={() => setAttempt((n) => n + 1)}>
-            Try again
+            Retry
           </Button>
         </p>
       ) : (

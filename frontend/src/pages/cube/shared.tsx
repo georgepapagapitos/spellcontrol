@@ -409,7 +409,7 @@ export function CubeErrorBlock({ error, onRetry }: { error: string; onRetry: () 
     <div className="cube-error" role="alert">
       {error}
       <Button variant="link" onClick={onRetry}>
-        Try again
+        Retry
       </Button>
     </div>
   );

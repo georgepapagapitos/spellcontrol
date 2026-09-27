@@ -18,9 +18,17 @@
  *   APP_SUBJECT — never narrate the app ("SpellControl routes…", "we built…").
  *   TITLE_LONG  — a `title=` over 8 words hides detail from touch; use a
  *                 visible caption or InfoTip.
+ *   RETRY       — the retry action label is "Retry", everywhere (board T157).
+ *                 Only fires on a `<Button>`/`<button>` child's own JSX text
+ *                 or a `toast`/`actionLabel` value that reads exactly "Try
+ *                 again" — a full sentence in a message ("Couldn't load X.
+ *                 Try again.") is prose, not a label, and is untouched.
  *
  * Card names and oracle text are data, not copy: fixtures and tests are
  * excluded, and strings inside console/logger calls are ignored.
+ *
+ * A handful of files are mid-sweep in another lane and temporarily excluded
+ * from RETRY (see FILE_SKIP below) — swept after that lane merges.
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
@@ -32,8 +40,14 @@ const SKIP_FILE =
   /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|__snapshots__|\.stories\.|\/src\/test\/)/;
 
 const COPY_PROPS =
-  /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|emptyText|helper|text|summary|reason|note|alt|blurb)$/;
+  /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|actionLabel|emptyText|helper|text|summary|reason|note|alt|blurb)$/;
 const LOG_CALLEE = /^(console\.|logger?\.|debug\b|warn\b|log\b|trace\b|reportError\b)/;
+
+// components/deck/*, ProductSearchPanel, TagsPage and playtest/* are owned by
+// other T157 lanes; their remaining "Try again" labels are reported, not
+// fixed here. swept after those lanes merge.
+const RETRY_FILE_SKIP =
+  /^(components\/deck\/FillDeckSheet\.tsx|components\/deck\/DeckAiRefine\.tsx|components\/deck\/DeckAiReview\.tsx|components\/ProductSearchPanel\.tsx|pages\/TagsPage\.tsx|playtest\/)/;
 
 type Rule = [id: string, test: (text: string, kind: string) => boolean, why: string];
 const RULES: Rule[] = [
@@ -77,6 +91,13 @@ const RULES: Rule[] = [
     (s, kind) => kind === 'attr:title' && s.trim().split(/\s+/).length > 8,
     'title= over 8 words: move the detail to a visible caption or an InfoTip',
   ],
+  [
+    'RETRY',
+    (s, kind) =>
+      s.trim() === 'Try again' &&
+      (kind === 'jsx:button' || kind === 'prop:actionLabel' || kind === 'attr:actionLabel'),
+    'the retry action label is "Retry", not "Try again"',
+  ],
 ];
 
 function walk(dir: string, out: string[]): string[] {
@@ -112,6 +133,16 @@ function insideLogCall(n: ts.Node): boolean {
   return false;
 }
 
+// A JsxText's nearest enclosing element's tag name, so a RETRY-label check
+// can tell "Try again" as a <Button>/<button> child from the same words
+// inside unrelated prose (a <p>, a <span> reason line, …).
+function enclosingTag(n: ts.Node): string | null {
+  for (let p: ts.Node | undefined = n.parent; p; p = p.parent) {
+    if (ts.isJsxElement(p)) return p.openingElement.tagName.getText();
+  }
+  return null;
+}
+
 interface Violation {
   file: string;
   line: number;
@@ -134,6 +165,7 @@ function scan(file: string): Violation[] {
   const line = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
   const check = (n: ts.Node, kind: string, text: string) => {
     for (const [rule, test] of RULES) {
+      if (rule === 'RETRY' && RETRY_FILE_SKIP.test(rel)) continue;
       if (test(text, kind))
         out.push({
           file: rel,
@@ -147,7 +179,10 @@ function scan(file: string): Violation[] {
   const visit = (n: ts.Node) => {
     if (ts.isJsxText(n)) {
       const t = n.text.replace(/\s+/g, ' ').trim();
-      if (t.length >= 2 && /[a-zA-Z]/.test(t)) check(n, 'jsx', t);
+      if (t.length >= 2 && /[a-zA-Z]/.test(t)) {
+        const tag = enclosingTag(n);
+        check(n, tag === 'Button' || tag === 'button' ? 'jsx:button' : 'jsx', t);
+      }
     } else if (ts.isJsxAttribute(n) && n.initializer) {
       const name = n.name.getText(sf);
       let v: string | null = null;
