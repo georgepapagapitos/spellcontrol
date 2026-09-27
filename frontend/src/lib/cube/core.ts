@@ -45,6 +45,14 @@ export interface CubeCard {
    * Falls back to colorIdentity, then colors, when absent.
    */
   producedMana?: string[];
+  /**
+   * Full Oracle rules text. Optional — most of the pipeline never needs it
+   * (type_line + color_identity cover bucket/pair classification), so it's
+   * left off the pool's fast path; ./legend's `isLegendCandidate` is the one
+   * consumer that reads it (the "can be your commander" pattern backgrounds
+   * and a few planeswalkers use has no type_line or keyword to key off).
+   */
+  oracleText?: string;
 }
 
 export const COLORS = ['W', 'U', 'B', 'R', 'G'] as const;
@@ -52,8 +60,10 @@ export const COLORS = ['W', 'U', 'B', 'R', 'G'] as const;
 export const isLand = (c: CubeCard) => /\bland\b/i.test(c.typeLine);
 
 /** The card's color identity for pair classification, falling back through
- *  colorIdentity → colors, filtered to WUBRG (strips generic/colorless). */
-function identityColors(c: CubeCard): string[] {
+ *  colorIdentity → colors, filtered to WUBRG (strips generic/colorless).
+ *  Exported for ./legend, which classifies a legend's identity the same way
+ *  pairOf classifies a gold card's — mono/pair/3+ all read off this. */
+export function identityColors(c: CubeCard): string[] {
   return (c.colorIdentity ?? c.colors).filter((x) => COLORS.includes(x as (typeof COLORS)[number]));
 }
 
@@ -110,3 +120,21 @@ export function bucketOf(c: CubeCard): ColorBucket {
 export function curveSlotOf(cmc: number): CurveSlot {
   return String(Math.min(7, Math.max(0, Math.round(cmc || 0)))) as CurveSlot;
 }
+
+/** quality: the cube-native signal first — higher CubeCobra popularity (share
+ *  of cubes holding the card), then higher draft Elo — and EDHREC rank only for
+ *  cards CubeCobra has never seen, which sort after every cubed card (lower rank
+ *  = better; unknown last). EDHREC rank alone is Commander popularity: it put
+ *  Command Tower and Arcane Signet at the top of a draft cube's colorless
+ *  section (E288). oracleId breaks ties so every sort (and thus the whole cube,
+ *  or legend section — see ./legend) is deterministic regardless of the pool's
+ *  incoming order. Lives here (not ./generate) so ./legend can rank candidates
+ *  without importing back up into ./generate — the same cycle-avoidance rule
+ *  every other shared classifier in this file follows. Re-exported from
+ *  ./generate unchanged, so every existing `from './cube/generate'` import
+ *  site keeps working. */
+export const byQuality = (a: CubeCard, b: CubeCard) =>
+  (b.cubePop ?? -1) - (a.cubePop ?? -1) ||
+  (b.cubeElo ?? -1) - (a.cubeElo ?? -1) ||
+  (a.rank ?? Infinity) - (b.rank ?? Infinity) ||
+  a.oracleId.localeCompare(b.oracleId);
