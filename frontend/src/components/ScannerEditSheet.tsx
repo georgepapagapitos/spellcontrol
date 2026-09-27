@@ -4,20 +4,14 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
-import { SelectMenu } from './SelectMenu';
-import { SegmentedControl } from './shared/form';
+import { ConditionControl, FinishControl } from './CopyControls';
 import { Button, IconButton } from './shared/Button';
 import { conditionLabel } from './shared/CardRow';
 import { fetchPrintings } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { userMessage } from '../lib/user-error';
 import { useCollectionStore } from '../store/collection';
-import {
-  CONDITIONS,
-  FINISH_LABELS,
-  availableFinishes,
-  finishUnitPrice,
-} from '../lib/scanner-feedback';
+import { FINISH_LABELS, finishUnitPrice } from '../lib/scanner-feedback';
 import type { ScannedEntry } from '../lib/use-scan-queue';
 import { SCANNER_SHEET_BACKDROP } from './ScannerQueueSheet';
 
@@ -62,7 +56,6 @@ export function ScannerEditSheet({
   const [zoomed, setZoomed] = useState(false);
   const { card } = entry;
   const condition = entry.condition ?? 'nm';
-  const finishes = availableFinishes(card.finishes);
   const unit = finishUnitPrice(card.prices, entry.finish);
   const img = bigImage(card);
 
@@ -144,40 +137,8 @@ export function ScannerEditSheet({
               </button>
             </div>
 
-            {finishes.length > 1 && (
-              <div className="scanner-edit-field">
-                <span className="form-field-label">Finish</span>
-                <SegmentedControl<Finish>
-                  ariaLabel="Finish"
-                  value={entry.finish}
-                  options={finishes.map((f) => {
-                    const p = finishUnitPrice(card.prices, f);
-                    return {
-                      value: f,
-                      ariaLabel:
-                        p != null ? `${FINISH_LABELS[f]}, ${formatMoney(p)}` : FINISH_LABELS[f],
-                      label: (
-                        <span className="scanner-seg-price">
-                          {FINISH_LABELS[f]}
-                          {p != null && <small>{formatMoney(p)}</small>}
-                        </span>
-                      ),
-                    };
-                  })}
-                  onChange={onFinish}
-                />
-              </div>
-            )}
-
-            <div className="scanner-edit-field">
-              <span className="form-field-label">Condition</span>
-              <SelectMenu<string>
-                ariaLabel="Condition"
-                value={condition}
-                options={CONDITIONS.map((c) => ({ value: c, label: conditionLabel(c) }))}
-                onChange={(c) => onCondition(c as Condition)}
-              />
-            </div>
+            <FinishControl printing={card} value={entry.finish} onChange={onFinish} />
+            <ConditionControl value={condition} onChange={onCondition} />
 
             <div className="scanner-edit-field scanner-edit-qty">
               <span className="form-field-label" id="scanner-edit-qty-label">

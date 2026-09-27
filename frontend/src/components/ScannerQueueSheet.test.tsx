@@ -113,7 +113,7 @@ describe('ScannerQueueSheet', () => {
     expect(rowNames()).toEqual(['1× Lightning Greaves', '2× Lightning Bolt']);
     const boltRow = screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ });
     expect(within(boltRow).getByText('Limited Edition Alpha · #161')).toBeTruthy();
-    expect(within(boltRow).getByText('Normal')).toBeTruthy();
+    expect(within(boltRow).getByText('Non-foil')).toBeTruthy();
     expect(within(boltRow).getByText('NM')).toBeTruthy();
     // Two copies at $1.50: the row shows what the stack is worth.
     expect(within(boltRow).getByText('$3.00')).toBeTruthy();

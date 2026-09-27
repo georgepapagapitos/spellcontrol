@@ -73,7 +73,7 @@ describe('availableFinishes', () => {
 
 describe('FINISH_LABELS', () => {
   it('has a human label for every finish', () => {
-    expect(FINISH_LABELS.nonfoil).toBe('Normal');
+    expect(FINISH_LABELS.nonfoil).toBe('Non-foil');
     expect(FINISH_LABELS.foil).toBe('Foil');
     expect(FINISH_LABELS.etched).toBe('Etched');
   });

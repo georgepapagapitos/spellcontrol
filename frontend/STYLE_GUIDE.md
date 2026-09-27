@@ -3372,15 +3372,15 @@ never shows the chooser.
 
 **The kit, one job each:**
 
-| Piece              | Use it for                                                                                                        | Never                                                                   |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Section heading    | The heading over a block of fields. The ONLY uppercase role in a form (`.form-section-heading`).                  | Field labels or option text in uppercase.                               |
-| `Field`            | A sentence-case label, the control, a visible hint.                                                               | An InfoTip where one line of hint fits.                                 |
-| `SwitchRow`        | A setting that is on or off: full-width `role="switch"`, label, one-line hint, On / Off value (§ Table settings). | A checkbox for a setting. Checkboxes are for picking items from a list. |
-| `SegmentedControl` | Two or three short options: native radios in a track, raised chip.                                                | aria-pressed button pairs; options needing a sentence.                  |
-| `ChoiceList`       | One-of where each option needs a sentence.                                                                        | A single hint that rewrites itself per option.                          |
-| `Disclosure`       | A group of settings most people leave alone; summary while closed.                                                | Identity, or the dialog's main job.                                     |
-| `SelectMenu`       | Five or more options.                                                                                             | A native `<select>`.                                                    |
+| Piece              | Use it for                                                                                                                                         | Never                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Section heading    | The heading over a block of fields. The ONLY uppercase role in a form (`.form-section-heading`).                                                   | Field labels or option text in uppercase.                               |
+| `Field`            | A sentence-case label, the control, a visible hint.                                                                                                | An InfoTip where one line of hint fits.                                 |
+| `SwitchRow`        | A setting that is on or off: full-width `role="switch"`, label, one-line hint, On / Off value (§ Table settings).                                  | A checkbox for a setting. Checkboxes are for picking items from a list. |
+| `SegmentedControl` | Two or three short options: native radios in a track, raised chip. `fill` for a row of short tokens that must all stay in view (condition grades). | aria-pressed button pairs; options needing a sentence.                  |
+| `ChoiceList`       | One-of where each option needs a sentence.                                                                                                         | A single hint that rewrites itself per option.                          |
+| `Disclosure`       | A group of settings most people leave alone; summary while closed.                                                                                 | Identity, or the dialog's main job.                                     |
+| `SelectMenu`       | Five or more options. Inside a `Field` it draws as a field-width rect, not the toolbar pill.                                                       | A native `<select>`.                                                    |
 
 - **`.field label` never uppercases a checkbox.** The old descendant rule
   caught every label inside a field, so the binder editor's "Double-sided" and
@@ -6018,16 +6018,18 @@ above governs _passive_ display chips that summarize existing data; it
 doesn't apply to a control that's also the _only way to change_ the value.
 The scanner's finish and condition editors (`CardScanner`'s last-scan panel,
 `ScannerEditSheet` — E87) render at their default state too: finish always
-shows "Normal" selected, condition always reads "NM" — a control that goes
+shows "Non-foil" selected, condition always reads "NM" — a control that goes
 invisible at the default has no way to discover the deviation it exists to
 reach. They are form-kit pickers, never tap-to-cycle (§ Card scanner below).
 In the scanned list, where the row is a summary and editing is a tap away,
 the same two values are display tags, and only finish gets a color flourish
 (rainbow foil, gold etched): finish IS a value signal. Condition stays
 uncolored, matching `.card-list-condition`'s "quiet text, not a colored
-badge" ruling above. Finish is gated behind `finishes.length > 1` (only
-printings with a foil/etched variant get a choice); condition never is, since
-every physical card can be in any condition.
+badge" ruling above. The camera's last-scan panel gates finish behind
+`finishes.length > 1` to stay one line; every other copy editor shows the
+finish the printing lacks, disabled, with the reason under it (§ Copy details
+below). Condition is never gated, since every physical card can be in any
+condition.
 
 ### Card scanner (2026-09-25)
 
@@ -6053,8 +6055,8 @@ modal-backdrop--over-sheet`, and their menus portal to `<body>` anyway.
 - **Camera chrome is rect icon buttons** (T135), with torch, settings and the
   list grouped in one strip. The top bar always shows the card count; the
   value beside it is a setting.
-- **No tap-to-cycle.** Finish is a `SegmentedControl` (2–3 options) and
-  condition a `SelectMenu` (5 options): every option in view, HP one tap
+- **No tap-to-cycle.** Finish and condition are the shared copy controls
+  (§ Copy details): every option in view, HP one tap
   away instead of four blind ones.
 - **Rare actions live in the list's ⋮**: select, sort, and "Clear the list"
   last and red behind a confirm. The footer carries only Keep scanning and
@@ -6062,6 +6064,34 @@ modal-backdrop--over-sheet`, and their menus portal to `<body>` anyway.
 - **Repeat scans teach every time.** "Already added. Tap the screen to add
   another copy" shows whenever the matcher sees the card it just added, not
   once per session.
+
+### Copy details: finish, condition, language (T153, 2026-09-26)
+
+Every surface that makes or edits one physical copy picks its details with the
+same controls, from `components/CopyControls` plus the kit:
+
+- **Finish is `FinishControl`**: a `fill` `SegmentedControl` with each finish's
+  price under its name. Non-foil and foil always show (etched only when the
+  printing has it); a finish the printing was never made in stays, disabled,
+  with "Not printed in foil." under it.
+- **Condition is `ConditionControl`**: all five grades in view as the shorthand
+  collectors use (`NM LP MP HP DMG`, in the data face), a `fill` track, the
+  picked grade spelled out as the field hint so the codes have a path to their
+  meaning. This replaced a pill `SelectMenu` that hid four of the five, the
+  "select looks bad" report that opened the add-cards redesign. Five options
+  is past the kit's segmented limit on purpose: they are tokens, not words,
+  and fit one track at 320px.
+- **Language stays a `SelectMenu`** in a `Field` (12 options). At add time
+  English stands where "Not set" stood.
+- **The unmarked defaults record nothing.** Near Mint and English at add time
+  store no condition or language, the same meaning "Not set" had, so the card
+  row's "norms are unmarked" rule above holds.
+- **One finish vocabulary: Non-foil / Foil / Etched** (`FINISH_LABELS`), never
+  "Normal", which reads as a frame or a layout beside those fields. The CSV
+  export keeps "Normal" because that is what other tools import.
+- Labels are sentence-case `Field` labels above the control, never uppercase
+  side labels (§ Config surfaces). Two fields to a row once the container, not
+  the viewport, is 30rem wide.
 
 **Touch rule.** Hover-revealed information (titles/tooltips on glyphs, hover
 peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothing

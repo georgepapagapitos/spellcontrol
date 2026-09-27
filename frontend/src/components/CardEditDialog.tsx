@@ -3,12 +3,13 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
 import { currencySymbol, useCurrency } from '../lib/currency';
 import { formatMoney } from '../lib/format-money';
+import { FINISH_LABELS } from '../lib/scanner-feedback';
 import type { ChangeOwnership } from '../lib/deck-change';
 import type { Condition, Finish } from '../types';
 import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
-import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from './PrintingPicker';
+import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '../lib/copy-options';
 import { Field, SegmentedControl, SwitchRow } from './shared/form';
 
 import { userMessage } from '@/lib/user-error';
@@ -568,7 +569,7 @@ export function CardEditDialog({
                   value={selectedFinish}
                   onChange={setSelectedFinish}
                   options={offeredFinishes.map((f) => {
-                    const label = f === 'nonfoil' ? 'Non-foil' : f === 'foil' ? 'Foil' : 'Etched';
+                    const label = FINISH_LABELS[f];
                     const owned = ownedFinishes.includes(f);
                     return {
                       value: f,
