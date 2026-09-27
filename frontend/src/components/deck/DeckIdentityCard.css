@@ -308,38 +308,6 @@
   color: var(--text-primary);
 }
 
-/* The way to the fix, on the row that needs it: a link, not a chrome button. */
-.deck-identity-card-check-fix {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  font-size: var(--text-xs);
-  color: var(--accent);
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-identity-card-check-fix:hover {
-    text-decoration: underline;
-  }
-}
-
-.deck-identity-card-check-fix:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius);
-}
-
-@media (pointer: coarse) {
-  .deck-identity-card-check-fix {
-    min-height: 44px;
-  }
-}
-
 /* Build health: four scored meters, the 70 line marked on each. */
 .deck-identity-card-health {
   list-style: none;
@@ -399,30 +367,4 @@
   font-size: var(--text-sm);
   line-height: 1.4;
   color: var(--text-secondary);
-}
-
-/* Inline retry mid-sentence — matches the `.deck-builder-themes-retry` /
-   `.card-rulings-retry` family: a link-styled button, not a chrome button. */
-.deck-identity-card-retry-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.deck-identity-card-retry-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* Coarse-pointer floor: an inline link-button still needs a real tap target. */
-@media (pointer: coarse) {
-  .deck-identity-card-retry-btn {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-  }
 }

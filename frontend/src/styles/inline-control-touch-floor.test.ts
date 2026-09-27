@@ -12,14 +12,14 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * Controls that live inside a line of text (a sentence, a table cell, a
  * heading) can't take a `min-height` without pushing that line apart, so they
  * meet the coarse-pointer floor with a centred `::after` ghost instead
- * (STYLE_GUIDE § Responsive). Both of these shipped with no floor at all
- * (T152 W8d): the leaderboard's Retry / View / Hide link was the height of its
- * text, and the rename button that is the pod's name in the pod hub's heading
- * had `padding: 0`.
+ * (STYLE_GUIDE § Responsive). This shipped with no floor at all (T152 W8d):
+ * the rename button that is the pod's name in the pod hub's heading had
+ * `padding: 0`.
  */
 const CASES: Array<[file: string, selector: string]> = [
-  ['components/play/FriendsLeaderboard.css', '.link-button'],
   ['pages/PodHubPage.css', '.pod-hub-name-btn'],
+  // `variant="link"`: every link button, which by definition sits in text.
+  ['styles/forms-banners.css', '.btn-link'],
 ];
 
 describe('inline controls meet the coarse touch floor', () => {

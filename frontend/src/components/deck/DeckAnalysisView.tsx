@@ -18,6 +18,7 @@ import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVoc
 import type { ValidationResult } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { BuildReport } from '@/deck-builder/types';
 import { MeterBar } from '../shared/MeterBar';
+import { Button } from '@/components/shared/Button';
 import { BuildReportPanel } from './BuildReportPanel';
 import { BracketBreakdown } from './BracketBreakdown';
 import type { ClockCard } from '@/lib/opening-hand-sim';
@@ -361,13 +362,9 @@ export function DeckAnalysisView({
                     <p className="deck-stats-bracket-override-note">
                       Bracket set in Power level.{' '}
                       {onSetBracketOverride && (
-                        <button
-                          type="button"
-                          className="deck-stats-bracket-clear-btn"
-                          onClick={() => onSetBracketOverride(null)}
-                        >
+                        <Button variant="link" onClick={() => onSetBracketOverride(null)}>
                           Use the estimate
-                        </button>
+                        </Button>
                       )}
                     </p>
                   )}

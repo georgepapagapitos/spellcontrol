@@ -1022,13 +1022,13 @@ export function CommanderSearch({
           ))}
       </ul>
       {nameResults.length > PLAYSTYLE_PREVIEW_COUNT && (
-        <button
-          type="button"
+        <Button
+          variant="link"
           className="commander-playstyle-more"
           onClick={() => setShowAllNameResults((v) => !v)}
         >
           {showAllNameResults ? 'Show fewer' : `Show all ${nameResults.length}`}
-        </button>
+        </Button>
       )}
     </>
   );
@@ -1195,13 +1195,13 @@ export function CommanderSearch({
                       ))}
                     </ul>
                     {playstyleResults.length > PLAYSTYLE_PREVIEW_COUNT && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="link"
                         className="commander-playstyle-more"
                         onClick={() => setShowAllPlaystyle((v) => !v)}
                       >
                         {showAllPlaystyle ? 'Show fewer' : `Show all ${playstyleResults.length}`}
-                      </button>
+                      </Button>
                     )}
                   </>
                 )}
@@ -1287,13 +1287,13 @@ export function CommanderSearch({
                   })}
                 </ul>
                 {visibleTop.length > PLAYSTYLE_PREVIEW_COUNT && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="link"
                     className="commander-playstyle-more"
                     onClick={() => setShowAllTopCommanders((v) => !v)}
                   >
                     {showAllTopCommanders ? 'Show fewer' : `Show all ${visibleTop.length}`}
-                  </button>
+                  </Button>
                 )}
               </>
             )}

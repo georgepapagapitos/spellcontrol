@@ -77,13 +77,9 @@ export function CardOtagsSheet({ card, onClose }: Props) {
         {!ready && loadError ? (
           <div className="card-picker-empty" role="alert">
             Couldn't load the tag snapshot.{' '}
-            <button
-              type="button"
-              className="card-otags-retry"
-              onClick={() => void ensureCardTags()}
-            >
+            <Button variant="link" onClick={() => void ensureCardTags()}>
               Retry
-            </button>
+            </Button>
           </div>
         ) : !ready ? (
           <div className="card-picker-empty">Loading tags…</div>

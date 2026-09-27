@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fetchCardRulings, type Ruling } from '../lib/card-rulings';
+import { Button } from '@/components/shared/Button';
 import './CardRulings.css';
 
 /** How long a default-open disclosure waits before fetching (see below). */
@@ -97,9 +98,9 @@ export function CardRulings({
           {state === 'error' && (
             <p className="card-rulings-status">
               Couldn't load rulings.{' '}
-              <button type="button" className="card-rulings-retry" onClick={load}>
+              <Button variant="link" onClick={load}>
                 Retry
-              </button>
+              </Button>
             </p>
           )}
           {state === 'done' && rulings.length === 0 && (

@@ -390,25 +390,6 @@
   margin: 0;
 }
 
-/* Text button — relaxes the global "Owned only" toggle in one tap. */
-.coach-feed-show-unowned {
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--accent);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-@media (pointer: coarse) {
-  .coach-feed-show-unowned {
-    min-height: 36px;
-  }
-}
-
 /* Tuned-deck empty: no suggestions at all for this deck. Scoped under
    .coach-feed — the bare .empty-state family is the GLOBAL page-level pattern
    (global.css); redefining it unscoped would restyle every page's empty state. */

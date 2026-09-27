@@ -523,8 +523,16 @@ size.
 | `row`              | `.pill-btn` (+ `-primary` / `-danger`) | page heroes, action rows, the bulk bar | accent-tinted hover and focus, `flex-shrink: 0`, weight 500                 |
 | `toolbar`          | `.toolbar-pill` (+ `-danger`)          | toolbar control rows                   | the 999px toolbar-control pill (below); its `danger` is neutral until hover |
 
-`variant="link"` is `.btn-link` and exists only at `inline`. Combinations no
-stylesheet defines (`row` + `link`, `toolbar` + `primary`) don't compile.
+`variant="link"` is `.btn-link` and exists only at `inline`. Any link-styled
+text action — an inline "Retry", a "Show all"/"Show fewer" toggle, an
+underlined mid-sentence link — takes `variant="link"` rather than a one-off
+class re-implementing the same background/underline/coarse-floor rules (T152
+W8j retired nine of those: `.card-rulings-retry`, `.link-button`, and their
+kin). Because a link button sits inside text, its 44px touch floor is a
+centred `::after` ghost, never a `min-height` that would push the sentence or
+table row apart on a phone (`styles/inline-control-touch-floor.test.ts`).
+Combinations no stylesheet defines (`row` + `link`, `toolbar` + `primary`)
+don't compile.
 `.btn-sm`, `.btn-secondary` and `.btn-quiet` were never defined anywhere, so
 there is no `size` prop; a site that carried one painted as plain `.btn`.
 
