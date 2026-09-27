@@ -145,7 +145,7 @@
 
 /* Wrap the format/meta/actions onto two rows on narrow viewports so the
    buttons stay easy to hit and don't crash into the format picker. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .export-dialog {
     padding: var(--space-4) var(--space-4);
   }

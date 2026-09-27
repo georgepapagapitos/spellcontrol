@@ -45,7 +45,7 @@
    sheet is, and a centred dialog everywhere else. Opt in per dialog with
    `backdropClassName="modal-backdrop--sheet"`; confirmations stay centred
    at every width (an alert is read, a sheet is picked from). */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   /* Doubled class: the phone `.modal-backdrop` rule below this file's
      Pattern A block resets alignment/padding at the same specificity, and
      the sheet must win regardless of source order. */

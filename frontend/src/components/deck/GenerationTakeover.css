@@ -202,7 +202,7 @@
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .gen-takeover-hero {
     padding: var(--space-4) var(--space-4) 0;
   }

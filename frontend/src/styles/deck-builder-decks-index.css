@@ -88,7 +88,7 @@
   top: calc(var(--hub-tabs-sticky-h) - 1px);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .decks-index-search-row {
     padding: 0.35rem var(--page-gutter, var(--space-2)) 0.3rem;
     margin-bottom: var(--space-1);

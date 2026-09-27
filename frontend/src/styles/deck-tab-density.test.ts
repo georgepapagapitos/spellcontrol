@@ -52,14 +52,14 @@ describe('Deck tab, phone top', () => {
   });
 
   it('fits the glance strip on one line on a phone', () => {
-    const phone = lastBlock(read('deck-builder-analysis.css'), /@media \(max-width: 600px\)/);
+    const phone = lastBlock(read('deck-builder-analysis.css'), /@media \(max-width: 599px\)/);
     expect(rule(phone.trim(), '.deck-stat-strip')).toMatch(/flex-wrap:\s*nowrap/);
     expect(rule(phone.replace(/^\s+/gm, ''), '.deck-stat-label-long')).toMatch(/display:\s*none/);
   });
 
   it('packs Sort and View left with the ⋮ on the right', () => {
     // The last 600px block: an earlier one loses to the 1024px block below it.
-    const phone = lastBlock(read('deck-builder-responsive.css'), /@media \(max-width: 600px\)/);
+    const phone = lastBlock(read('deck-builder-responsive.css'), /@media \(max-width: 599px\)/);
     const flat = phone.replace(/^\s+/gm, '');
     expect(rule(flat, '.deck-toolbar-controls')).toMatch(/justify-content:\s*flex-start/);
     expect(rule(flat, '.deck-toolbar-more')).toMatch(/margin-left:\s*auto/);

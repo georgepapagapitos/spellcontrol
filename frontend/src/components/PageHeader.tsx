@@ -36,7 +36,7 @@ interface Props {
 }
 
 /** Same boundary as the CSS phone tier (binder-hero.css). */
-const PHONE = '(max-width: 600px)';
+const PHONE = '(max-width: 599px)';
 
 /**
  * The page header every hub and detail page shares (STYLE_GUIDE § Layout

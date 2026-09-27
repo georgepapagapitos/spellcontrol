@@ -95,7 +95,7 @@
   font-weight: 600;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .deck-new-format-section:not(.is-expanded) .format-pill-row,
   .deck-new-format-section:not(.is-expanded) .format-pill-hint {
     display: none;

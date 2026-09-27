@@ -29,7 +29,7 @@
    In one row the three controls measured 478px at 44px touch sizes against a
    374px row (390 wide), so the view toggle dropped onto a line of its own.
    The sort bar is in the nightly journey's NO_WRAP_AT_PHONE list. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .discover-toolbar > .commander-typeahead {
     flex-basis: 100%;
   }

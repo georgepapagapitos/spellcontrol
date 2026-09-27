@@ -106,7 +106,7 @@
 }
 
 .pp-counter-badge-name {
-  font-family: var(--font-sans);
+  font-family: var(--font-label);
   font-weight: 600;
   font-size: var(--text-xs, 0.72rem);
   opacity: 0.85;

@@ -106,7 +106,7 @@
 
 /* The phone board has no room beside the hand, so the list sits along the
    bottom edge instead, above the action bar. */
-@media (width <= 600px) {
+@media (width < 600px) {
   .trigger-reminder {
     top: auto;
     right: var(--space-2);

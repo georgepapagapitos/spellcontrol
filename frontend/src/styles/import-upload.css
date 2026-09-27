@@ -743,7 +743,7 @@
   background: var(--err-bg);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .import-card {
     padding: var(--space-4);
   }

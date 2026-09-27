@@ -22,7 +22,7 @@ import { ScanFab } from './ScanFab';
 
 function setPhone(phone: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: phone && query.includes('max-width: 600px'),
+    matches: phone && query.includes('max-width: 599px'),
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},

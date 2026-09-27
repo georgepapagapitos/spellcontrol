@@ -13,7 +13,7 @@ function installMatchMedia(matches: boolean): { setMatches: (m: boolean) => void
     get matches() {
       return current;
     },
-    media: '(pointer: coarse), (max-width: 1024px)',
+    media: '(pointer: coarse), (max-width: 1023px)',
     onchange: null,
     addListener: () => {},
     removeListener: () => {},

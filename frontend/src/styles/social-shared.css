@@ -29,7 +29,7 @@
   max-width: 760px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .social-page-shell {
     padding: var(--space-3);
   }

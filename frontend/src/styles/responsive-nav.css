@@ -9,7 +9,7 @@
    be pinned to exactly 16px on mobile. The `:not()` list keeps non-typing
    controls (checkbox/radio/range/file/color) out of it; textarea is included
    so the paste areas don't zoom either. */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   :where(select, textarea),
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not(
       [type='color']
@@ -79,7 +79,7 @@
 }
 
 /* Phone content density */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .upload-card {
     min-height: 160px;
     padding: 1.25rem var(--space-4);

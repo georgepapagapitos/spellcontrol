@@ -387,7 +387,7 @@
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 /* Phones: tighten the histogram and let the phase rollup wrap. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .deck-curve-phases {
     gap: 0.7rem;
   }

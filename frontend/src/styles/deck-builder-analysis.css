@@ -289,7 +289,7 @@
    width, never three and a straggler. With more than four stats (open slots,
    new arrivals) the line scrolls, and the edge with more behind it fades
    (`data-overflow`, set by useOverflowEdges). */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .deck-stat-strip {
     flex-wrap: nowrap;
     justify-content: space-between;

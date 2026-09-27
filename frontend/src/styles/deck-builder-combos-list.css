@@ -81,7 +81,7 @@
 
 /* Narrow mobile: pull max-width down further so 2-card combos fit on one
    line even on small phones. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .deck-combos-card-tile {
     max-width: 5.5rem;
   }
@@ -430,7 +430,7 @@
 /* Tablet & smaller: panel stacks under the deck (existing rule at 1024px).
    On true mobile the panel needs full-width breathing room and a tighter
    internal density so the rich detail still reads. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .deck-combos-panel {
     padding: 0.6rem;
   }

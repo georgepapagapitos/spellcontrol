@@ -84,7 +84,7 @@ describe('ListRuleEditor', () => {
     // so Cancel gives its width to the answer (same rule as the binder editor).
     const css = readFileSync(resolve(__dirname, 'ListRuleEditor.css'), 'utf8');
     expect(css).toMatch(
-      /@media \(max-width: 600px\)\s*\{\s*\.list-rule-editor-cancel\s*\{\s*display: none;/
+      /@media \(max-width: 599px\)\s*\{\s*\.list-rule-editor-cancel\s*\{\s*display: none;/
     );
   });
 

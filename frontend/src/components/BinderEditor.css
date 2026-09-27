@@ -57,7 +57,7 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-tooltip);
 }
 
 /* Two classes: the global input[type='text'] box rule outweighs one. The
@@ -333,7 +333,7 @@
 }
 
 /* ── Phone: a bottom sheet ──────────────────────────────────────────────── */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   /* The sheet backdrop pads the dialog for the home indicator; here the
      footer is the bottom edge, so it takes that inset instead. */
   .modal-backdrop.modal-backdrop--sheet > .modal.binder-editor {

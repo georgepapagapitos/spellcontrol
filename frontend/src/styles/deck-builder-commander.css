@@ -441,7 +441,7 @@
 }
 
 /* Tight tablets / phones: stack the card above the body. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .commander-pick {
     flex-wrap: wrap;
   }

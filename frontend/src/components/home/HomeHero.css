@@ -541,7 +541,7 @@ a.home-hero-step:focus-visible {
 }
 
 /* Sub-line is the first thing to go when the card column gets tight. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .home-hero-caption-sub {
     display: none;
   }
@@ -562,7 +562,7 @@ a.home-hero-step:focus-visible {
   display: none;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .home-hero-label-long {
     display: none;
   }

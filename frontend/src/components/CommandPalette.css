@@ -157,7 +157,7 @@
 
 /* Phones: the palette becomes a near-full-width sheet-ish panel, and the
    footer's keyboard legend is meaningless without a keyboard. */
-@media (width <= 600px) {
+@media (width < 600px) {
   .command-palette {
     max-height: min(70vh, 32rem);
   }

@@ -30,7 +30,7 @@ describe('Add cards sheet chrome', () => {
   });
 
   it('shares the width between the tabs on a phone instead of scrolling them', () => {
-    const phone = css.slice(css.indexOf('@media (max-width: 600px)'));
+    const phone = css.slice(css.indexOf('@media (max-width: 599px)'));
     const tab = ruleBody('.add-cards-tabs.sc-tabs--underline .sc-tab', phone);
     expect(tab).toMatch(/flex:\s*1 1 0/);
     expect(tab).toMatch(/min-width:\s*0/);

@@ -10,7 +10,7 @@
   border-left: 3px solid var(--binder-color, var(--accent));
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .binder-hero {
     margin: 0.15rem 0 0.4rem;
   }
@@ -42,7 +42,7 @@
   align-self: flex-end;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .page-header {
     align-items: stretch;
     /* The row gap becomes a VERTICAL gap once these stack, and 16px of empty
@@ -200,7 +200,7 @@
    the display controls are already in the View popover, so every other control
    here is the Browse button or a fixed-size icon (~215px of a 304px row at
    320). Between 601 and 640 the folded row fits without help. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .binder-summary {
     flex-wrap: nowrap;
   }

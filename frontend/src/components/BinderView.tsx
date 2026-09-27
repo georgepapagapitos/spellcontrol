@@ -365,7 +365,7 @@ function SectionList({
   // reconcile), so hiding tooltips a frame late is invisible. Closing clears
   // a frame later so tooltips re-enable just after it (the modal is unmounting,
   // nothing is animating, so the one-frame lag is imperceptible).
-  const phone = useMediaQuery('(max-width: 600px)');
+  const phone = useMediaQuery('(max-width: 599px)');
 
   const previewActive = preview !== null || pagesStartIndex !== null;
   const [gridPreviewOpen, setGridPreviewOpen] = useState(false);

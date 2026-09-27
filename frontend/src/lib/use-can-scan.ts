@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
  * component itself behind `React.lazy` — a visitor who never taps Scan pays
  * nothing.
  */
-const QUERY = '(pointer: coarse), (max-width: 1024px)';
+const QUERY = '(pointer: coarse), (max-width: 1023px)';
 
 export function useCanScan(): boolean {
   const [canScan, setCanScan] = useState(() => evaluate());

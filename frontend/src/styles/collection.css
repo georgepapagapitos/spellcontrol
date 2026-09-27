@@ -859,7 +859,7 @@
    Matches the binders/lists index ("only the search bar pins; the sort/view
    row scrolls away"). CardListTable's section-overlay pin line follows the
    lowest *pinned* bar, so grouped section labels still dock correctly. */
-@media (max-width: 600px), (max-height: 480px) {
+@media (max-width: 599px), (max-height: 480px) {
   .card-list-controls-sticky {
     position: static;
   }
@@ -2473,7 +2473,7 @@ i.ss.set-symbol--mythic {
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .collection-grid {
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
     gap: var(--space-2);
@@ -2623,7 +2623,7 @@ i.ss.set-symbol--mythic {
   padding-bottom: var(--space-4);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .list-entries-grid {
     --card-min: var(--card-min-mobile, 110px);
   }

@@ -170,7 +170,7 @@
 /* Phones: the name span holds qty/role/name + up to three trailing chips
    (allocation, synergy, inclusion). Let the chips wrap under the name rather
    than forcing the row wider than the viewport. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .deck-row-inclusion {
     margin-left: 0.3rem;
   }

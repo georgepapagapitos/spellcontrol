@@ -566,7 +566,7 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .option-grid-4,
   .option-grid-5 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -681,7 +681,7 @@ button.option-card:focus-visible,
   gap: 0.4rem;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .preset-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

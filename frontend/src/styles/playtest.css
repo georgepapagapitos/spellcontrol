@@ -4327,7 +4327,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   background: var(--surface-raised);
   border: 1px solid var(--accent);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.35));
+  box-shadow: var(--shadow-tooltip);
   font-size: var(--text-sm);
 }
 

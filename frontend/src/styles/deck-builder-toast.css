@@ -203,7 +203,7 @@
 }
 
 /* Below ~600px the price column eats the rest of the name; drop it. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .deck-row-price {
     display: none;
   }
