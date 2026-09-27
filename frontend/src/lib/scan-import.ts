@@ -8,11 +8,8 @@ import { importText } from './api';
 export const SCANNED_CARDS_LABEL = 'scanned-cards';
 /**
  * Label a batch touched by the Add-cards sheet's Search tab (a searched row,
- * or a mix of scanned and searched rows) is stamped with (T153). NOTE:
- * `lib/import-history-name.ts`'s `prettyImportName()` doesn't have a friendly
- * mapping for this one yet — it falls through to the raw string 'add-list' in
- * import history until that file gains one. That file is outside this lane's
- * contract, so this is flagged rather than fixed here.
+ * or a mix of scanned and searched rows) is stamped with (T153). Import
+ * history shows it as "Add list" (`prettyImportName`).
  */
 export const ADD_LIST_LABEL = 'add-list';
 

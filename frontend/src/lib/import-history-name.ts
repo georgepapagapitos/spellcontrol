@@ -13,6 +13,7 @@ export function prettyImportName(name: string, format: string): string {
     return name.slice(PRODUCT_IMPORT_LABEL.length + 1);
   }
   if (name === 'scanned-cards') return 'Scanned cards';
+  if (name === 'add-list') return 'Add list';
   if (name === 'retried-cards') return 'Retried cards';
   if (name !== 'pasted-list') return name;
   switch ((format || '').toLowerCase()) {

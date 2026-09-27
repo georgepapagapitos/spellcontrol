@@ -9,6 +9,7 @@ describe('prettyImportName', () => {
 
   it('keeps the other internal labels friendly and passes a filename through', () => {
     expect(prettyImportName('scanned-cards', '')).toBe('Scanned cards');
+    expect(prettyImportName('add-list', '')).toBe('Add list');
     expect(prettyImportName('pasted-list', 'mtga')).toBe('Pasted MTGA list');
     expect(prettyImportName('ManaBox_Collection.csv', 'manabox')).toBe('ManaBox_Collection.csv');
   });
