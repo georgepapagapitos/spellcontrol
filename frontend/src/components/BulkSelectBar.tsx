@@ -2,6 +2,8 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { Check, CheckSquare } from 'lucide-react';
 import './BulkSelectBar.css';
 import { Button } from '@/components/shared/Button';
+import type { OverflowMenuItem } from './OverflowMenu';
+import { selectedCountLabel } from '../lib/use-selection';
 
 /**
  * Shared multi-select affordances for list/index surfaces (decks, binders,
@@ -52,7 +54,13 @@ interface BulkSelectBarProps {
   onDone: () => void;
   /** Singular noun for the count label, e.g. "deck". Pluralized with "s". */
   noun: string;
-  /** Action buttons (Delete selected, Export, …). Disabled when count is 0. */
+  /**
+   * The selection's actions (Delete selected, Export, …), disabled while
+   * nothing is selected. The same list is what a right-click inside the
+   * selection offers (OverflowMenu `selection`), so pass it to both.
+   */
+  actions?: OverflowMenuItem[];
+  /** Anything that is not an action row (rare). */
   children?: ReactNode;
 }
 
@@ -64,16 +72,32 @@ export function BulkSelectBar({
   onClear,
   onDone,
   noun,
+  actions = [],
   children,
 }: BulkSelectBarProps) {
   return (
     <div className="bulk-bar" role="region" aria-label="Bulk actions">
       <span className="bulk-bar-count">
-        {count > 0 ? `${count} ${noun}${count === 1 ? '' : 's'} selected` : 'Select items…'}
+        {count > 0 ? selectedCountLabel(count, noun) : 'Select items…'}
       </span>
       <Button placement="row" onClick={onToggleAll}>
         {allSelected ? 'Deselect all' : `Select all (${total})`}
       </Button>
+      {actions.map((action, i) => {
+        const Icon = action.icon;
+        return (
+          <Button
+            key={`${i}-${action.label}`}
+            placement="row"
+            disabled={count === 0 || action.disabled}
+            onClick={action.onClick}
+            variant={action.danger ? 'danger' : undefined}
+            icon={Icon ? <Icon width={14} height={14} strokeWidth={1.8} /> : undefined}
+          >
+            {action.label}
+          </Button>
+        );
+      })}
       {children}
       {count > 0 && !allSelected && (
         <Button placement="row" onClick={onClear}>

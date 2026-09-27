@@ -21,7 +21,7 @@ import { useDebouncedValue } from '../lib/use-debounced-value';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
-import { OverflowMenu } from '../components/OverflowMenu';
+import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
 import { EmptyState } from '@/components/shared/EmptyState';
 import {
   SelectToggle,
@@ -29,7 +29,7 @@ import {
   SelectCheck,
   selectInteraction,
 } from '../components/BulkSelectBar';
-import { useSelection } from '../lib/use-selection';
+import { selectedCountLabel, useSelection } from '../lib/use-selection';
 import { ListEntriesView } from '../components/ListEntriesView';
 import { ShareDialog } from '../components/ShareDialog';
 import { NameInputDialog } from '../components/NameInputDialog';
@@ -235,6 +235,21 @@ export function ListsPage() {
     return <ListEntriesView list={activeList} />;
   }
 
+  // The selection's actions: the bulk bar's buttons and the menu a right-click
+  // inside the selection opens, from one list (T162).
+  const bulkActions: OverflowMenuItem[] = [
+    {
+      label: 'Delete selected',
+      icon: Trash2,
+      danger: true,
+      onClick: () => void handleBulkDelete(),
+    },
+  ];
+  const selectionMenu = (id: string) =>
+    sel.selectMode && sel.selected.has(id) && sel.selected.size > 1
+      ? { title: selectedCountLabel(sel.selected.size, 'list'), items: bulkActions }
+      : null;
+
   return (
     <div className="binders-index-page">
       <PageHeader
@@ -334,17 +349,8 @@ export function ListsPage() {
               onClear={sel.clear}
               onDone={sel.exit}
               noun="list"
-            >
-              <Button
-                placement="row"
-                disabled={sel.selected.size === 0}
-                onClick={() => void handleBulkDelete()}
-                variant="danger"
-                icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
-              >
-                Delete selected
-              </Button>
-            </BulkSelectBar>
+              actions={bulkActions}
+            />
           )}
           <ul className={`binders-index-list is-${view}`}>
             {sorted.map((l) => {
@@ -386,6 +392,7 @@ export function ListsPage() {
                     contextHost=".binders-index-card"
                     itemHref={`/collection/lists/${l.id}`}
                     itemName={l.name}
+                    selection={selectionMenu(l.id)}
                     items={[
                       { label: 'Rename', icon: Pencil, onClick: () => handleRename(l.id) },
                       // Shares project a list's stored entries; a dynamic

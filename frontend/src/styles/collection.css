@@ -1078,6 +1078,13 @@ i.ss.set-symbol--mythic {
   outline-offset: 1px;
 }
 
+/* Select mode: a tap toggles, so the ⋮ steps aside. It stays mounted (no
+   `has-menu` on the cell), because a right-click on a selected tile opens the
+   selection's actions through it. */
+.collection-grid-cell:not(.has-menu) > .collection-grid-menu {
+  display: none;
+}
+
 /* The ⋮ holds the corner, so the proxy / price / rarity chips sit beside it
    for good rather than jumping aside when it appears on hover. */
 .collection-grid-cell.has-menu .collection-grid-topright {

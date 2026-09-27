@@ -247,9 +247,11 @@ export function CardGridCell({
         )}
         {badges && <div className="collection-grid-badges">{badges}</div>}
       </div>
-      {/* Select mode turns a tap into a toggle, so the ⋮ steps aside rather
-          than sitting under a pointer that can no longer reach it. */}
-      {menu && !selectMode && menu}
+      {/* Select mode turns a tap into a toggle, so the ⋮ steps aside (CSS,
+          no `has-menu`) rather than sitting under a pointer that can no longer
+          reach it. It stays mounted: a right-click on a selected tile opens
+          the selection's actions through it. */}
+      {menu}
       {(caption !== null || setLabel !== null) && (
         <div className="collection-grid-captions" aria-hidden="true">
           {caption !== null && <div className="collection-grid-caption">{caption}</div>}

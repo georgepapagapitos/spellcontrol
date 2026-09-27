@@ -33,7 +33,7 @@ import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
-import { OverflowMenu } from '../components/OverflowMenu';
+import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
 import { PageHeader } from '../components/PageHeader';
 import { InfoTip } from '../components/InfoTip';
 import { EmptyState } from '../components/shared/EmptyState';
@@ -43,7 +43,7 @@ import {
   SelectCheck,
   selectInteraction,
 } from '../components/BulkSelectBar';
-import { useSelection } from '../lib/use-selection';
+import { selectedCountLabel, useSelection } from '../lib/use-selection';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderExportDialog } from '../components/BinderExportDialog';
 import { importText } from '../lib/api';
@@ -261,6 +261,22 @@ export function BindersIndexPage() {
     }
   }, [confirm, deleteBinders, sel]);
 
+  // The selection's actions: the bulk bar's buttons and the menu a right-click
+  // inside the selection opens, from one list (T162).
+  const bulkActions: OverflowMenuItem[] = [
+    { label: 'Export', icon: Upload, onClick: () => setBulkExportOpen(true) },
+    {
+      label: 'Delete selected',
+      icon: Trash2,
+      danger: true,
+      onClick: () => void handleBulkDelete(),
+    },
+  ];
+  const selectionMenu = (id: string) =>
+    sel.selectMode && sel.selected.has(id) && sel.selected.size > 1
+      ? { title: selectedCountLabel(sel.selected.size, 'binder'), items: bulkActions }
+      : null;
+
   return (
     <div className="binders-index-page">
       <PageHeader
@@ -410,25 +426,8 @@ export function BindersIndexPage() {
               onClear={sel.clear}
               onDone={sel.exit}
               noun="binder"
-            >
-              <Button
-                placement="row"
-                disabled={sel.selected.size === 0}
-                onClick={() => setBulkExportOpen(true)}
-                icon={<Upload width={14} height={14} strokeWidth={1.8} />}
-              >
-                Export
-              </Button>
-              <Button
-                placement="row"
-                disabled={sel.selected.size === 0}
-                onClick={() => void handleBulkDelete()}
-                variant="danger"
-                icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
-              >
-                Delete selected
-              </Button>
-            </BulkSelectBar>
+              actions={bulkActions}
+            />
           )}
           {sortField === 'position' && sortDir === 'asc' && (
             // Phones get the short form: the full sentence is permanent
@@ -559,6 +558,7 @@ export function BindersIndexPage() {
                     contextHost=".binders-index-card"
                     itemHref={`/collection/binders/${b.def.id}`}
                     itemName={b.def.name}
+                    selection={selectionMenu(b.def.id)}
                     items={[
                       // Suppress reorder unless sorted by position asc — moving
                       // wouldn't visibly change a name/count-sorted list.

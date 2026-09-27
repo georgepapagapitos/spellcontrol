@@ -134,6 +134,7 @@ import { DeckToolbar } from './DeckToolbar';
 import { DeckCardGrid } from './DeckCardGrid';
 import { CategorySection } from './DeckMainboardRow';
 import { DeckCardMenu } from './DeckCardMenu';
+import { DeckSelectionMenu, type DeckBulkAction } from './DeckSelectionMenu';
 import { hasCardActions, type DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
@@ -682,11 +683,34 @@ export function DeckDisplay({
     /** The row or tile the menu acts on; it wears the ring while it's open. */
     target: Element | null;
   } | null>(null);
+  // A right-click on a card that is part of a larger selection opens the
+  // selection's actions instead of the card's (T162, the playtest rule).
+  const [selectionMenu, setSelectionMenu] = useState<{
+    x: number;
+    y: number;
+    target: Element | null;
+  } | null>(null);
   const openCardMenu = (zone: DeckZone) => (row: Row, e: React.MouseEvent) => {
     // A field, selected text, a link or a Shift+right-click keeps the
     // browser's own menu (lib/context-menu), and so does a card with nothing
     // to do (a read-only shared deck).
     if (keepsBrowserMenu(e.nativeEvent)) return;
+    if (
+      selectMode &&
+      selection &&
+      isRowSelected(zone, row) &&
+      selection.keys.size > row.slotIds.length
+    ) {
+      e.preventDefault();
+      const target = e.currentTarget;
+      const kebab = target.querySelector('.deck-card-grid-menu, .deck-row-menu-trigger');
+      const rect = (kebab ?? target).getBoundingClientRect();
+      const at = isKeyboardContextMenu(e.nativeEvent)
+        ? { x: rect.left, y: rect.bottom }
+        : { x: e.clientX, y: e.clientY };
+      setSelectionMenu({ ...at, target });
+      return;
+    }
     if (!hasCardActions(cardMenuCtx(row, zone))) return;
     e.preventDefault();
     const target = e.currentTarget;
@@ -1440,6 +1464,63 @@ export function DeckDisplay({
   // (every DECK_FORMAT_CONFIGS entry does today, but the format config's own
   // sideboardSize gate is the single source). false → Considering alone.
   const hasSideboard = formatConfig.sideboardSize > 0;
+
+  // The selection's moves and Remove: the bulk bar's buttons and the menu a
+  // right-click on a selected card opens, from one list (T162). Tagging is the
+  // bar's Tag popover and the menu's two tag pages, over the same handler.
+  const bulkActions: DeckBulkAction[] = selection
+    ? [
+        ...(onBulkMove && selection.zone === 'cards' && hasSideboard
+          ? [
+              {
+                key: 'sideboard',
+                label: 'Move to sideboard',
+                run: () => {
+                  onBulkMove([...selection.keys], 'cards', 'sideboard');
+                  setSelection(null);
+                },
+              },
+            ]
+          : []),
+        ...(onBulkMove && selection.zone === 'cards'
+          ? [
+              {
+                key: 'considering',
+                label: 'Move to considering',
+                run: () => {
+                  onBulkMove([...selection.keys], 'cards', 'considering');
+                  setSelection(null);
+                },
+              },
+            ]
+          : []),
+        ...(onBulkMove && selection.zone !== 'cards'
+          ? [
+              {
+                key: 'mainboard',
+                label: 'Move to mainboard',
+                run: () => {
+                  onBulkMove([...selection.keys], selection.zone, 'cards');
+                  setSelection(null);
+                },
+              },
+            ]
+          : []),
+        ...(onBulkRemove
+          ? [
+              {
+                key: 'remove',
+                label: 'Remove',
+                danger: true,
+                run: () => setConfirmBulkRemove(true),
+              },
+            ]
+          : []),
+      ]
+    : [];
+  const selectionTitle = selection
+    ? `${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'} selected`
+    : '';
   const outzoneGroups = useMemo(
     () =>
       hasSideboard
@@ -1861,43 +1942,15 @@ export function DeckDisplay({
             {selectMode && (
               <div className="deck-bulk-bar" role="region" aria-label="Bulk actions">
                 <span className="deck-bulk-count">
-                  {selection
-                    ? `${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'} selected`
-                    : 'Select cards'}
+                  {selection ? selectionTitle : 'Select cards'}
                 </span>
-                {selection && onBulkMove && selection.zone === 'cards' && hasSideboard && (
-                  <Button
-                    onClick={() => {
-                      onBulkMove([...selection.keys], 'cards', 'sideboard');
-                      setSelection(null);
-                    }}
-                    className="deck-bulk-btn"
-                  >
-                    Move to sideboard
-                  </Button>
-                )}
-                {selection && onBulkMove && selection.zone === 'cards' && (
-                  <Button
-                    onClick={() => {
-                      onBulkMove([...selection.keys], 'cards', 'considering');
-                      setSelection(null);
-                    }}
-                    className="deck-bulk-btn"
-                  >
-                    Move to considering
-                  </Button>
-                )}
-                {selection && onBulkMove && selection.zone !== 'cards' && (
-                  <Button
-                    onClick={() => {
-                      onBulkMove([...selection.keys], selection.zone, 'cards');
-                      setSelection(null);
-                    }}
-                    className="deck-bulk-btn"
-                  >
-                    Move to mainboard
-                  </Button>
-                )}
+                {bulkActions
+                  .filter((a) => !a.danger)
+                  .map((a) => (
+                    <Button key={a.key} onClick={a.run} className="deck-bulk-btn">
+                      {a.label}
+                    </Button>
+                  ))}
                 {selection && onBulkEditTag && (
                   <ToolbarPopover
                     label="Tag"
@@ -1918,16 +1971,19 @@ export function DeckDisplay({
                     )}
                   </ToolbarPopover>
                 )}
-                {selection && onBulkRemove && (
-                  <Button
-                    variant="danger"
-                    onClick={() => setConfirmBulkRemove(true)}
-                    className="deck-bulk-btn"
-                    icon={<Trash2 width={14} height={14} strokeWidth={2} />}
-                  >
-                    Remove
-                  </Button>
-                )}
+                {bulkActions
+                  .filter((a) => a.danger)
+                  .map((a) => (
+                    <Button
+                      key={a.key}
+                      variant="danger"
+                      onClick={a.run}
+                      className="deck-bulk-btn"
+                      icon={<Trash2 width={14} height={14} strokeWidth={2} />}
+                    >
+                      {a.label}
+                    </Button>
+                  ))}
                 <Button onClick={exitSelectMode} className="deck-bulk-done">
                   Done
                 </Button>
@@ -2533,6 +2589,22 @@ export function DeckDisplay({
             deckTags={deckTags.map((t) => t.tag)}
             ctx={cardMenuCtx(cardMenu.row, cardMenu.zone)}
             onClose={() => setCardMenu(null)}
+          />
+        )}
+        {selectionMenu && selection && (
+          <DeckSelectionMenu
+            title={selectionTitle}
+            x={selectionMenu.x}
+            y={selectionMenu.y}
+            target={selectionMenu.target}
+            actions={bulkActions}
+            deckTags={deckTags.map((t) => t.tag)}
+            onTag={
+              onBulkEditTag
+                ? (tag, add) => onBulkEditTag(selection.zone, [...selection.keys], tag, add)
+                : undefined
+            }
+            onClose={() => setSelectionMenu(null)}
           />
         )}
       </div>

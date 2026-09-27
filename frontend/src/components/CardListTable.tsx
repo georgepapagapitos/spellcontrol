@@ -38,6 +38,7 @@ import type {
 } from '../types';
 import type { SetMap } from '../lib/api';
 import { CardRowMenu } from './CardRowMenu';
+import type { OverflowMenuItem } from './OverflowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { LANGUAGE_OPTIONS } from '../lib/copy-options';
@@ -1368,6 +1369,11 @@ export function CardListTable({
     <CardRowMenu
       card={r.card}
       variant={variant}
+      selection={
+        selectMode && selectedRowKeys.has(r.key) && selectedRowKeys.size > 1
+          ? { title: bulkCountLabel, items: bulkActions }
+          : null
+      }
       onEditCard={() => openEdit(r.card, !groupPrintings)}
       onSplitCopy={groupPrintings && r.qty >= 2 ? () => openEdit(r.card, true) : undefined}
       onDelete={() => handleDeleteRow(r)}
@@ -1946,6 +1952,18 @@ export function CardListTable({
     return sorted.filter((r) => selectedRowKeys.has(r.key)).reduce((sum, r) => sum + r.qty, 0);
   }, [sorted, selectedRowKeys]);
 
+  // The selection's actions: the bulk toolbar's buttons and the menu a
+  // right-click on a selected card opens, from one list (T162).
+  const bulkActions: OverflowMenuItem[] = [
+    { label: 'Move to…', onClick: () => setBulkMoveOpen(true) },
+    {
+      label: bulkProxyAllMarked ? 'Unmark proxy' : 'Mark as proxy',
+      onClick: handleBulkToggleProxy,
+    },
+    { label: 'Delete selected', danger: true, onClick: handleBulkDelete },
+  ];
+  const bulkCountLabel = `${selectedRowKeys.size} ${selectedRowKeys.size === 1 ? 'row' : 'rows'} · ${selectedCopiesCount} ${selectedCopiesCount === 1 ? 'copy' : 'copies'}`;
+
   return (
     <div className="card-list">
       {/* Sticky search row — pinned to the top of the list scroll.
@@ -2198,9 +2216,7 @@ export function CardListTable({
       {selectMode && (
         <div className="card-list-bulk-toolbar" role="region" aria-label="Bulk actions">
           <span className="card-list-bulk-count">
-            {selectedRowKeys.size > 0
-              ? `${selectedRowKeys.size} ${selectedRowKeys.size === 1 ? 'row' : 'rows'} · ${selectedCopiesCount} ${selectedCopiesCount === 1 ? 'copy' : 'copies'}`
-              : 'Select cards'}
+            {selectedRowKeys.size > 0 ? bulkCountLabel : 'Select cards'}
           </span>
           <Button
             placement="toolbar"
@@ -2208,28 +2224,17 @@ export function CardListTable({
           >
             {allSelected ? 'Deselect all' : `Select all (${sorted.length})`}
           </Button>
-          <Button
-            placement="toolbar"
-            disabled={selectedRowKeys.size === 0}
-            onClick={() => setBulkMoveOpen(true)}
-          >
-            Move to…
-          </Button>
-          <Button
-            placement="toolbar"
-            disabled={selectedRowKeys.size === 0}
-            onClick={handleBulkToggleProxy}
-          >
-            {bulkProxyAllMarked ? 'Unmark proxy' : 'Mark as proxy'}
-          </Button>
-          <Button
-            placement="toolbar"
-            variant="danger"
-            disabled={selectedRowKeys.size === 0}
-            onClick={handleBulkDelete}
-          >
-            Delete selected
-          </Button>
+          {bulkActions.map((action) => (
+            <Button
+              key={action.label}
+              placement="toolbar"
+              variant={action.danger ? 'danger' : undefined}
+              disabled={selectedRowKeys.size === 0}
+              onClick={action.onClick}
+            >
+              {action.label}
+            </Button>
+          ))}
           {selectedRowKeys.size > 0 && !allSelected && (
             <Button placement="toolbar" onClick={clearSelection}>
               Clear

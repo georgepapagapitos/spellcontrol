@@ -186,6 +186,15 @@ screen.
   its menu gains **Open in new tab** and **Copy link** above the destructive
   rows, so taking the right-click from its link loses nothing the browser
   offered. The rules live in `lib/context-menu.ts`.
+- **Inside a selection, a right-click acts on the selection** (the playtest
+  board's rule, app-wide). In select mode, a right-click on an item that is
+  one of two or more selected opens the selection's actions, headed by the
+  bulk bar's own count ("3 decks selected"). A right-click on an item outside
+  the selection opens that item's own menu and leaves the selection alone.
+  The selection menu's actions are the bulk bar's, from one list per surface
+  (`BulkSelectBar actions`, the collection's `bulkActions`, the deck's
+  `DeckBulkAction[]`), so the bar and the menu cannot offer different things.
+  The ⋮ always opens the item's own menu.
 - **A menu with nothing to do does not render.** No ⋮, and a right-click is
   the browser's. A read-only shared deck used to open a menu holding one
   disabled "Remove from deck".
