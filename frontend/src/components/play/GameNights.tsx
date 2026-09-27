@@ -56,6 +56,8 @@ import './GameNights.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button, buttonClass } from '@/components/shared/Button';
+import { CopyButton } from '@/components/shared/CopyButton';
+import { copyToClipboard } from '@/lib/clipboard';
 /** Loading placeholder — two `.game-night-card` shells (real chrome, so the
  *  silhouette can't drift from the loaded card) with shimmering bars standing
  *  in for the title/pill, when, meta, tally, and action-row lines. Mirrors the
@@ -377,26 +379,6 @@ function NightCard({
     }
   }
 
-  async function copyLink() {
-    try {
-      // An active series shares its stable link — pin it once, it always
-      // opens the upcoming night.
-      if (weekly) {
-        await navigator.clipboard.writeText(gameNightSeriesUrl(night.series!.token));
-        toast.show({ message: "Series link copied. It always opens next week's night." });
-      } else {
-        await navigator.clipboard.writeText(gameNightUrl(night.token));
-        toast.show({
-          message: night.inviteOnly
-            ? 'Link copied. Only invited people can reply.'
-            : 'Link copied. Anyone with it can RSVP.',
-        });
-      }
-    } catch {
-      toast.show({ message: "Couldn't copy the link.", tone: 'error' });
-    }
-  }
-
   const calendarEvent: CalendarEvent = {
     title: night.title,
     startsAt: night.startsAt,
@@ -549,7 +531,17 @@ function NightCard({
       )}
 
       <div className="game-night-card-actions">
-        <Button onClick={() => void copyLink()}>Copy link</Button>
+        <CopyButton
+          // An active series shares its stable link — pin it once, it always
+          // opens the upcoming night. Whether it's invite-only or open, and
+          // whether it repeats weekly, is already on the card (the pills
+          // above), so the copy confirmation doesn't repeat it.
+          value={() =>
+            weekly ? gameNightSeriesUrl(night.series!.token) : gameNightUrl(night.token)
+          }
+          what="the link"
+          label="Copy link"
+        />
         {!cancelled && !polling && (
           <OverflowMenu
             ariaLabel={`Add ${night.title} to your calendar`}
@@ -1157,8 +1149,12 @@ function NightDialog({
         await navigator.share(shareData);
         return;
       }
-      await navigator.clipboard.writeText(url);
-      toast.show({ message: `Invite link for ${label} copied. Send it to them.` });
+      const ok = await copyToClipboard(url);
+      toast.show(
+        ok
+          ? { message: `Copied the invite link for ${label}`, tone: 'success' }
+          : { message: `Couldn't copy the invite link for ${label}.`, tone: 'error' }
+      );
     } catch (err) {
       // A dismissed share sheet rejects; that's a choice, not a failure.
       if (err instanceof DOMException && err.name === 'AbortError') return;
@@ -1253,18 +1249,16 @@ function NightDialog({
           inviteOnly,
           ...(repeatWeekly ? { repeatsWeekly: true } : {}),
         });
-        try {
-          // A weekly night copies its stable series link — the one to pin.
-          if (created.series) {
-            await navigator.clipboard.writeText(gameNightSeriesUrl(created.series.token));
-            toast.show({ message: 'Weekly night created. Series link copied.' });
-          } else {
-            await navigator.clipboard.writeText(gameNightUrl(created.token));
-            toast.show({ message: 'Game night created. Link copied.' });
-          }
-        } catch {
-          toast.show({ message: 'Game night created.' });
-        }
+        // A weekly night copies its stable series link — the one to pin.
+        const createdLabel = created.series ? 'Weekly night' : 'Game night';
+        const createdUrl = created.series
+          ? gameNightSeriesUrl(created.series.token)
+          : gameNightUrl(created.token);
+        const copied = await copyToClipboard(createdUrl);
+        toast.show({
+          message: `${createdLabel} created.${copied ? ' Link copied.' : " Couldn't copy the link."}`,
+          tone: copied ? 'success' : 'warn',
+        });
       }
       onSaved();
     } catch (err) {

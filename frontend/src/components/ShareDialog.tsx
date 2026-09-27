@@ -18,10 +18,10 @@ import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
 import { listFriends, type Friend } from '../lib/friends-client';
 import { canShare, openShareSheet } from '@/lib/web-share';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
-import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { CopyButton } from '@/components/shared/CopyButton';
 
 /**
  * Who can see a resource: one choice, applied the moment it's picked.
@@ -229,15 +229,6 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         ? shareUrl(share.token)
         : '';
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.show({ message: 'Link copied to clipboard.', tone: 'success' });
-    } catch {
-      toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
-    }
-  };
-
   if (isGuest) {
     return (
       <Modal onClose={onClose} labelledBy="share-dialog-title" className="choice-dialog">
@@ -308,9 +299,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
               className="share-dialog-url"
               aria-label="Link"
             />
-            <Button variant="primary" onClick={() => void handleCopy()}>
-              Copy
-            </Button>
+            <CopyButton value={url} what="the link" variant="primary" />
             {canShare() && (
               <Button
                 onClick={() =>

@@ -41,27 +41,28 @@ primitives directory.
 
 ### Controls & chrome
 
-| Reach for                                     | Instead of                          | Ruling                                                        |
-| --------------------------------------------- | ----------------------------------- | ------------------------------------------------------------- |
-| `components/PageHeader`                       | a hand-built `.binder-hero`         | § Layout system                                               |
-| `components/shared/Button` (`Button`)         | a raw `className="btn …"`           | § Shape language — Buttons are a primitive                    |
-| `components/shared/Button` (`IconButton`)     | a `<button>` holding only a glyph   | § Shape language — Buttons are a primitive                    |
-| `components/shared/Chip`                      | a raw `className="…-chip"` element  | § Shape language — Chips are a primitive                      |
-| `components/SearchPill`                       | a bare `<input type="search">`      | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
-| `components/SelectMenu`                       | a restyled `<select>`               | § Toolbars & action rows                                      |
-| `components/OverflowMenu`                     | a hand-rolled `⋮` popover           | § Toolbars & action rows                                      |
-| `components/shared/CtxMenuShell`              | a hand-rolled right-click menu      | § Verbs (menus)                                               |
-| `lib/use-menu-keyboard`                       | a bespoke `role="menu"` key handler | § Verbs (menus)                                               |
-| `components/shared/ToolbarPopover`            | a second portal-popover impl        | § Toolbars & action rows                                      |
-| `components/shared/ViewPopoverPanel`          | letting a phone toolbar wrap rows   | § Toolbars & action rows                                      |
-| `components/Tabs`                             | bespoke tab markup                  | § Tabs / view switchers                                       |
-| `components/ViewModeToggle`                   | a bespoke layout switcher           | § View-mode toggle option order                               |
-| `components/shared/FilterChipsRow`            | a bespoke active-filter row         | § Tag chips                                                   |
-| `components/shared/form` (`SwitchRow`)        | a checkbox for an on/off setting    | § Config surfaces                                             |
-| `components/shared/form` (`SegmentedControl`) | a new segmented-pill CSS family     | § Config surfaces                                             |
-| `components/shared/form` (`ChoiceList`)       | a hint that rewrites per option     | § Config surfaces                                             |
-| `components/shared/form` (`Disclosure`)       | a hand-rolled collapsible group     | § Config surfaces                                             |
-| `components/shared/form` (`Field`)            | an uppercase `.field label`         | § Config surfaces                                             |
+| Reach for                                                      | Instead of                                      | Ruling                                                        |
+| -------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
+| `components/PageHeader`                                        | a hand-built `.binder-hero`                     | § Layout system                                               |
+| `components/shared/Button` (`Button`)                          | a raw `className="btn …"`                       | § Shape language — Buttons are a primitive                    |
+| `components/shared/Button` (`IconButton`)                      | a `<button>` holding only a glyph               | § Shape language — Buttons are a primitive                    |
+| `components/shared/CopyButton` (`CopyButton`/`CopyIconButton`) | a hand-rolled `Copied` label swap or copy toast | § Verbs (Copy)                                                |
+| `components/shared/Chip`                                       | a raw `className="…-chip"` element              | § Shape language — Chips are a primitive                      |
+| `components/SearchPill`                                        | a bare `<input type="search">`                  | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
+| `components/SelectMenu`                                        | a restyled `<select>`                           | § Toolbars & action rows                                      |
+| `components/OverflowMenu`                                      | a hand-rolled `⋮` popover                       | § Toolbars & action rows                                      |
+| `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                  | § Verbs (menus)                                               |
+| `lib/use-menu-keyboard`                                        | a bespoke `role="menu"` key handler             | § Verbs (menus)                                               |
+| `components/shared/ToolbarPopover`                             | a second portal-popover impl                    | § Toolbars & action rows                                      |
+| `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows               | § Toolbars & action rows                                      |
+| `components/Tabs`                                              | bespoke tab markup                              | § Tabs / view switchers                                       |
+| `components/ViewModeToggle`                                    | a bespoke layout switcher                       | § View-mode toggle option order                               |
+| `components/shared/FilterChipsRow`                             | a bespoke active-filter row                     | § Tag chips                                                   |
+| `components/shared/form` (`SwitchRow`)                         | a checkbox for an on/off setting                | § Config surfaces                                             |
+| `components/shared/form` (`SegmentedControl`)                  | a new segmented-pill CSS family                 | § Config surfaces                                             |
+| `components/shared/form` (`ChoiceList`)                        | a hint that rewrites per option                 | § Config surfaces                                             |
+| `components/shared/form` (`Disclosure`)                        | a hand-rolled collapsible group                 | § Config surfaces                                             |
+| `components/shared/form` (`Field`)                             | an uppercase `.field label`                     | § Config surfaces                                             |
 
 ### Overlays
 
@@ -159,11 +160,35 @@ screen.
   `SelectMenu`, `ToolbarPopover` or `CtxMenuShell`, which run on
   `useMenuKeyboard`; a hand-rolled menu fails `src/test` (menu keyboard guard).
 
+**Copy**
+
+- **A Copy control that stays on screen confirms in place.** Its label swaps
+  to `Copied` (plus a check icon, if the control has one) for one fixed
+  duration, then reverts; the swap is announced to a screen reader through a
+  visually-hidden `aria-live="polite"` node beside the control (the
+  label/icon change alone is not reliably announced) — no `role="status"` on
+  it, since a page can hold several Copy controls plus its own unrelated
+  status regions, and that role would make every one of them match a bare
+  `getByRole('status')` query. No toast — the control already shows the
+  confirmation. Built: `CopyButton`/`CopyIconButton`
+  (`components/shared/CopyButton.tsx`), or `useCopyFeedback`
+  (`lib/use-copy-feedback.ts`) directly for a bespoke non-`Button` trigger
+  (the join-code chip in `OnlineLobby`/`PlayPage`). One duration everywhere —
+  1500ms.
+- **A copy action whose trigger disappears on use** (a menu item that closes
+  the menu, a context-menu row) **confirms with a toast**: `Copied <what>`
+  (≤12 words, success tone, no trailing period).
+- **A failed copy always toasts an error** (`Couldn't copy <what>.`), in both
+  cases — a silent failure on a control that just showed "Copied" is worse
+  than the toast. Every clipboard-text write goes through `copyToClipboard`
+  (`lib/clipboard.ts`) or one of the two primitives above, which call it;
+  `src/test/no-direct-clipboard-write.test.ts` fails a `.tsx` file that calls
+  `navigator.clipboard.writeText` directly.
+
 **Still open (tracked on T157):** rename (inline for decks and pods, a modal
-for lists and cubes), copy feedback (inline `Copied` label vs a toast), and
-undo for server-side removals (trade decline, game-night RSVP, pods,
-friends). Until they are settled here, match the nearest surface that already
-does it and say which one in the PR.
+for lists and cubes), and undo for server-side removals (trade decline,
+game-night RSVP, pods, friends). Until they are settled here, match the
+nearest surface that already does it and say which one in the PR.
 
 ---
 
@@ -4090,7 +4115,7 @@ and `UnresolvedNameRow`:
   toggle that starts off every session), no in-binder search — since that's
   the only state nameable from outside the page. `summarizeImportRouting`
   takes this hook's result directly (`summarizeImportRouting(importIds,
-  layout)`) instead of separate `cards`/`binders`/options arguments.
+layout)`) instead of separate `cards`/`binders`/options arguments.
 - **A routing row also names the page(s) the cards landed on**: `pages` on
   each `ImportRoutingEntry`, read off the same materialize pass (walking
   `section.pages[].slots`, which carries `pageNum`, never `section.cards`).

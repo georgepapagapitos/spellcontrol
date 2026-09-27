@@ -8,11 +8,11 @@ import {
   type GameLogEntry,
   type LogEntryKind,
 } from '@/lib/playtest/game-log';
-import { toast } from '@/store/toasts';
 import type { TickerItem } from '@/store/play';
 import { TickerLine } from './TableTicker';
 import { TableChat } from './TableChat';
 import { IconButton } from '@/components/shared/Button';
+import { CopyIconButton } from '@/components/shared/CopyButton';
 
 interface Props {
   log: GameLogEntry[];
@@ -176,15 +176,6 @@ export function LogDock({
     setStuck(el.scrollHeight - el.scrollTop - el.clientHeight <= 40);
   }
 
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(formatLogForClipboard(log));
-      toast.show({ message: 'Game log copied to clipboard.', tone: 'success' });
-    } catch {
-      toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
-    }
-  }
-
   const groups = groupLogByTurn(log)
     .map((g) => ({
       ...g,
@@ -216,9 +207,10 @@ export function LogDock({
     >
       <div className="playtest-log-dock__header">
         <h2 className="playtest-log-dock__title">Log</h2>
-        <IconButton
+        <CopyIconButton
           className="playtest-log-dock__btn"
-          onClick={handleCopy}
+          value={() => formatLogForClipboard(log)}
+          what="the game log"
           disabled={log.length === 0}
           label="Copy log"
           icon={<Copy size={16} />}

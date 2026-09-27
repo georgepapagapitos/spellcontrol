@@ -2,6 +2,7 @@ import { Copy, ExternalLink, Link2, Search, Share2, Sparkles } from 'lucide-reac
 import { useNavigate } from 'react-router-dom';
 import { OverflowMenu, type OverflowMenuItem } from './OverflowMenu';
 import { toast } from '../store/toasts';
+import { copyToClipboard } from '@/lib/clipboard';
 
 /** One rule, keyword or glossary term, as the things you can do with it. */
 export interface RulesEntry {
@@ -39,13 +40,16 @@ export function openEntryMenu(e: React.MouseEvent<HTMLElement>) {
   trigger.click();
 }
 
-async function copyText(text: string, done: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.show({ message: done });
-  } catch {
-    toast.show({ message: "Couldn't copy that.", tone: 'error' });
-  }
+/** This menu closes on click, so a copy here confirms with a toast (STYLE
+ *  GUIDE § Verbs — Copy) — `what` names the thing copied for both the
+ *  success and failure wording. */
+async function copyText(text: string, what: string) {
+  const ok = await copyToClipboard(text);
+  toast.show(
+    ok
+      ? { message: `Copied ${what}`, tone: 'success' }
+      : { message: `Couldn't copy ${what}.`, tone: 'error' }
+  );
 }
 
 /**
@@ -66,7 +70,7 @@ export function RulesEntryMenu({ entry, onAsk, onLeave }: Props) {
     } catch (err) {
       // A dismissed share sheet rejects; that's a choice, not a failure.
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      await copyText(url, `Link to ${entry.label} copied.`);
+      await copyText(url, `link to ${entry.label}`);
     }
   };
 
@@ -78,14 +82,14 @@ export function RulesEntryMenu({ entry, onAsk, onLeave }: Props) {
     {
       label: 'Copy text',
       icon: Copy,
-      onClick: () => void copyText(entry.text, `${entry.label} copied.`),
+      onClick: () => void copyText(entry.text, entry.label),
     },
     canShare
       ? { label: 'Share link', icon: Share2, onClick: () => void share() }
       : {
           label: 'Copy link',
           icon: Link2,
-          onClick: () => void copyText(url, `Link to ${entry.label} copied.`),
+          onClick: () => void copyText(url, `link to ${entry.label}`),
         },
     ...(keywordQuery
       ? [

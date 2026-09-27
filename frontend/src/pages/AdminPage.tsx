@@ -27,6 +27,7 @@ import { formatRelativeTime } from '../lib/format-time';
 import { userMessage } from '../lib/user-error';
 import { toast } from '../store/toasts';
 import { Button } from '@/components/shared/Button';
+import { copyToClipboard } from '@/lib/clipboard';
 
 type Tab = 'analytics' | 'users' | 'overview' | 'decks' | 'storage' | 'raw';
 
@@ -754,16 +755,15 @@ function RawTab({
   importHistory: unknown[];
 }) {
   const copy = (label: string, value: unknown) => {
-    navigator.clipboard
-      .writeText(JSON.stringify(value, null, 2))
-      .then(() => {
+    void copyToClipboard(JSON.stringify(value, null, 2)).then((ok) => {
+      if (ok) {
         logger.debug(`[admin] copied ${label}:`, value);
         toast.show({ message: `Copied ${label}.`, tone: 'success' });
-      })
-      .catch((err: unknown) => {
-        logger.warn(`[admin] clipboard write failed for ${label}:`, err);
+      } else {
+        logger.warn(`[admin] clipboard write failed for ${label}`);
         toast.show({ message: "Couldn't copy to the clipboard.", tone: 'error' });
-      });
+      }
+    });
   };
   const download = (filename: string, value: unknown) => {
     const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });

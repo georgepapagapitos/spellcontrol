@@ -24,6 +24,7 @@ import { toast } from '../../store/toasts';
 
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
+import { CopyButton } from '@/components/shared/CopyButton';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -79,16 +80,6 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
       cancelled = true;
     };
   }, [deck.id, isGuest]);
-
-  const handleCopy = async () => {
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      toast.show({ message: 'Feedback link copied to clipboard.', tone: 'success' });
-    } catch {
-      toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
-    }
-  };
 
   // System share sheet — parity with ShareDialog's handleShare.
   const handleShare = async () => {
@@ -226,9 +217,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                   onFocus={(e) => e.currentTarget.select()}
                   aria-label="Feedback link"
                 />
-                <Button variant="primary" onClick={handleCopy}>
-                  Copy
-                </Button>
+                <CopyButton value={link} what="the feedback link" variant="primary" />
                 {canShare() && <Button onClick={handleShare}>Share…</Button>}
               </div>
             )}

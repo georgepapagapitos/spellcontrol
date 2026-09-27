@@ -35,6 +35,7 @@ import { useStarterDeckCardNames } from '@/lib/horde/starter-deck-cards';
 import './OnlineLobby.css';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { useCopyFeedback } from '@/lib/use-copy-feedback';
 
 /** Same cap as the create/join paths and the local setup's seat names. */
 const MAX_GUEST_NAME = 40;
@@ -759,18 +760,7 @@ function LobbyRail({
   mySeat: GamePlayer;
   dispatch: (action: GameAction) => void;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(game.code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard denied (an insecure origin, or a WebView that refuses): the
-      // code is on screen in full, so there is nothing to recover from.
-    }
-  };
+  const { copied, announcement, copy: copyCode } = useCopyFeedback({ what: 'the code' });
 
   const isHordeFormat = game.format === 'horde';
 
@@ -801,8 +791,8 @@ function LobbyRail({
         <button
           type="button"
           className="play-code-copy"
-          aria-label={copied ? 'Join code copied' : 'Copy join code'}
-          onClick={() => void copyCode()}
+          aria-label="Copy join code"
+          onClick={() => copyCode(game.code)}
         >
           {copied ? (
             <>
@@ -814,6 +804,9 @@ function LobbyRail({
             </>
           )}
         </button>
+        <span className="sr-only copy-feedback-announce" aria-live="polite">
+          {announcement}
+        </span>
         <span className="play-code-hint">Share this code so others can join.</span>
       </div>
 

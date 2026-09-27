@@ -35,6 +35,7 @@ import { CubeCardPickerSheet } from './CubeCardPickerSheet';
 import { CubeShoppingList } from './CubeShoppingList';
 import { CubePullList } from './CubePullList';
 import { Button, IconButton } from '../../components/shared/Button';
+import { copyToClipboard } from '@/lib/clipboard';
 
 type DetailTab = 'cards' | 'shopping' | 'pull';
 
@@ -197,11 +198,15 @@ export function CubeDetailPage() {
   }
 
   const copyList = async () => {
-    await navigator.clipboard.writeText(toCubeCobraList(target.cube.picks));
-    pushToast({
-      message: `Copied ${target.cube.picks.length} cards. Paste into CubeCobra's Add Cards.`,
-      tone: 'success',
-    });
+    const ok = await copyToClipboard(toCubeCobraList(target.cube.picks));
+    pushToast(
+      ok
+        ? {
+            message: `Copied ${target.cube.picks.length} cards for CubeCobra's Add Cards`,
+            tone: 'success',
+          }
+        : { message: "Couldn't copy the cube list.", tone: 'error' }
+    );
   };
 
   const handleRename = (name: string) => {

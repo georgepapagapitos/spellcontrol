@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
-import { Check, Clipboard, Download, Printer, X } from 'lucide-react';
+import { useMemo } from 'react';
+import { Download, Printer, X } from 'lucide-react';
 import { canShare, openShareSheet } from '@/lib/web-share';
 import { Modal } from '../Modal';
 import { SelectMenu } from '../SelectMenu';
 import type { ExportFormat } from '@/lib/deck-export';
 import { Button, IconButton } from '@/components/shared/Button';
+import { CopyButton } from '@/components/shared/CopyButton';
 
 const EXPORT_FORMAT_LABEL: Record<ExportFormat, string> = {
   mtga: 'MTGA',
@@ -38,18 +39,8 @@ interface Props {
  * internally so no caller re-implements that logic.
  */
 export function DeckExportDialog({ text, format, onFormatChange, title, onClose }: Props) {
-  const [copied, setCopied] = useState(false);
   const lineCount = useMemo(() => text.split('\n').filter(Boolean).length, [text]);
 
-  const handleCopyClick = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      /* ignore */
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
   const handleDownload = () => {
     const blob = new Blob([text], { type: format === 'mtgo' ? 'application/xml' : 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -111,20 +102,13 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
             >
               Download
             </Button>
-            <Button
+            <CopyButton
+              value={text}
+              what="the decklist"
+              icon
               variant="primary"
-              onClick={handleCopyClick}
               aria-label="Copy to clipboard"
-              icon={
-                copied ? (
-                  <Check width={14} height={14} strokeWidth={2.5} />
-                ) : (
-                  <Clipboard width={14} height={14} strokeWidth={2} />
-                )
-              }
-            >
-              {copied ? 'Copied' : 'Copy'}
-            </Button>
+            />
             {canShare() && <Button onClick={handleShare}>Share…</Button>}
             {!canShare() && (
               <Button

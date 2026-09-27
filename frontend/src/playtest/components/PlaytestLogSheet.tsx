@@ -5,12 +5,12 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { formatLogForClipboard, groupLogByTurn, type GameLogEntry } from '@/lib/playtest/game-log';
-import { toast } from '@/store/toasts';
 import { Tabs } from '@/components/Tabs';
 import type { TickerItem } from '@/store/play';
 import { TickerLine } from './TableTicker';
 import { TableChat } from './TableChat';
 import { Button } from '@/components/shared/Button';
+import { CopyButton } from '@/components/shared/CopyButton';
 
 interface Props {
   log: GameLogEntry[];
@@ -32,15 +32,6 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
   const [view, setView] = useState<'you' | 'table'>(table ? 'table' : 'you');
 
   const groups = [...groupLogByTurn(log)].reverse(); // newest turn first
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(formatLogForClipboard(log));
-      toast.show({ message: 'Game log copied to clipboard.', tone: 'success' });
-    } catch {
-      toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
-    }
-  }
 
   const showTable = table !== undefined && view === 'table';
 
@@ -125,9 +116,13 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
 
         <div className="card-picker-footer">
           {!showTable && (
-            <Button variant="primary" onClick={handleCopy} disabled={log.length === 0}>
-              Copy log
-            </Button>
+            <CopyButton
+              value={() => formatLogForClipboard(log)}
+              what="the game log"
+              label="Copy log"
+              variant="primary"
+              disabled={log.length === 0}
+            />
           )}
           <Button onClick={() => beginClose()}>Close</Button>
         </div>

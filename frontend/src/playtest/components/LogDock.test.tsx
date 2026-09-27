@@ -91,14 +91,25 @@ describe('LogDock', () => {
     expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('copies the log and says so', async () => {
-    render(<LogDock log={log} onClose={() => {}} />);
+  it('copies the log and announces it in place, with no toast', async () => {
+    const { container } = render(<LogDock log={log} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Copy log' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
     expect(writeText.mock.calls[0][0]).toContain('Drew 7 cards');
     await waitFor(() =>
-      expect(useToastsStore.getState().toasts[0]?.message).toBe('Game log copied to clipboard.')
+      expect(container.querySelector('.copy-feedback-announce')?.textContent).toBe('Copied')
     );
+    expect(useToastsStore.getState().toasts).toHaveLength(0);
+  });
+
+  it('toasts an error when the copy fails, and does not announce Copied', async () => {
+    writeText.mockRejectedValueOnce(new Error('denied'));
+    const { container } = render(<LogDock log={log} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy log' }));
+    await waitFor(() =>
+      expect(useToastsStore.getState().toasts[0]?.message).toBe("Couldn't copy the game log.")
+    );
+    expect(container.querySelector('.copy-feedback-announce')?.textContent).toBe('');
   });
 
   it('closes from the close button', () => {
