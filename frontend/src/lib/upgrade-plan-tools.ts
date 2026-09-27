@@ -4,13 +4,20 @@
  * Changers, and the Estimate with a plan applied.
  */
 import { HARDCODED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
-import { estimateBracket } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import {
+  estimateBracket,
+  isFastMana,
+  isMassLandDenialFloor,
+  isStaxPiece,
+  isTutor,
+} from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { isPowerSignal } from '@/deck-builder/services/deckBuilder/bracketFit';
-import { getCardRole } from '@/deck-builder/services/tagger/client';
+import { getCardRole, isExtraTurn } from '@/deck-builder/services/tagger/client';
 import { comboMatchesToDetected } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatch, ComboMatchResponse } from '@/types/combos';
 import type { Change } from './deck-change';
+import { isBasicFetcher, isBasicName } from './upgrade-plan';
 
 export interface UpgradePlanToolsInput {
   /** The mainboard, commanders excluded. */
@@ -45,6 +52,11 @@ export interface UpgradePlanTools {
    * left a budget plan with money and nowhere to put it; these come after it.
    */
   weakestCuts: Change[];
+  /** Why a card moves the bracket, in the player's words ("Tutor"). */
+  bracketReason: (c: Change) => string;
+  /** Basic lands in the list, and lands in it that fetch a basic. */
+  basics: number;
+  fetchers: number;
 }
 
 const GAME_CHANGERS = new Set<string>(HARDCODED_GAME_CHANGERS);
@@ -122,6 +134,26 @@ export function buildUpgradePlanTools(input: UpgradePlanToolsInput): UpgradePlan
     raisesBracket: (c) =>
       c.isGameChanger === true || c.lane === 'combos' || isPowerSignal(c.name, GAME_CHANGERS),
     weakestCuts,
+    bracketReason: (c) =>
+      c.isGameChanger || isGameChanger(c.name)
+        ? 'Game Changer'
+        : c.lane === 'combos'
+          ? 'Completes a combo'
+          : isTutor(c.name)
+            ? 'Tutor'
+            : isFastMana(c.name)
+              ? 'Fast mana'
+              : isExtraTurn(c.name)
+                ? 'Extra turns'
+                : isMassLandDenialFloor(c.name)
+                  ? 'Mass land denial'
+                  : isStaxPiece(c.name)
+                    ? 'Stax'
+                    : 'Raises the bracket',
+    basics: deckCards.filter((c) => isBasicName(c.name)).length,
+    fetchers: deckCards.filter((c) =>
+      isBasicFetcher({ id: c.name, type: 'add', lane: 'lands', name: c.name, card: c })
+    ).length,
     estimateAfter: (addNames, cutNames) =>
       Math.min(5, Math.max(1, input.estimate + raw(addNames, cutNames) - base)),
   };

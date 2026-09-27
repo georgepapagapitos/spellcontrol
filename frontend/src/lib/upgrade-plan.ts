@@ -1,16 +1,25 @@
 /**
- * Upgrade plan (E458): spend a budget on the best swaps for a Commander deck.
+ * Upgrade plan (E458, v2 E467): spend a budget on the best swaps for a
+ * Commander deck.
  *
  * Pure and synchronous over the Coach feed's own `Change` list
- * (`buildCoachChanges` → `rankCoachMoves`), so a plan is "the Coach's top
- * moves that fit your money" and never disagrees with the feed. Re-planning on
- * every tap is free: no AI, no network.
+ * (`buildCoachChanges` → `rankCoachMoves`), so the plan and the feed never
+ * disagree about what a deck could use. Re-planning on every tap is free: no
+ * AI, no network.
  *
- * Walk the ranked moves in order. Each one needs a slot (an empty one first,
- * then a paired cut) and must fit what's left of the budget; a move that
- * doesn't fit is skipped and the next is tried. Pairing keeps the deck's
- * shape: land for land, nonland for nonland, same role first, and a role is
- * never cut below its target unless the add replaces it in kind.
+ * Moves are taken by VALUE FOR MONEY. Value is the Coach tier, plus how much
+ * better the new card is than the one it replaces (play-rate over the cut, a
+ * land's fixing score, a completed combo), plus a short role filled; a price
+ * divides it (`PRICE_SCALE`), so a $27 fetch land has to be far better than
+ * a $0.30 staple to go first. A move that doesn't fit what's left is skipped
+ * and the next is tried. An owned card costs nothing but still has to earn
+ * its slot: a swap that isn't a clear gain over its cut is a sidegrade and
+ * isn't proposed, owned or not.
+ *
+ * Pairing keeps the deck's shape: an empty slot first, then land for land and
+ * nonland for nonland, same role first, a role never cut below its target
+ * unless the add fills it, basics never below what the fetch lands need, and a
+ * fetch land never replaces a basic.
  *
  * Price, the bracket predicates and the re-estimate are injected, so this file
  * carries no card data and no I/O (the deck-metrics `TagLookup` pattern).
@@ -29,12 +38,14 @@ export interface UpgradePlanOptions {
   ownedFree: boolean;
   /** Incoming card names the player unticked. */
   excluded?: ReadonlySet<string>;
+  /** Deck cards the player chose to keep: never cut. */
+  kept?: ReadonlySet<string>;
 }
 
 export interface UpgradePlanContext {
   /** Add and swap candidates in Coach rank order. Other types are ignored. */
   moves: readonly Change[];
-  /** Cut candidates, weakest first (the optimizer's own order). */
+  /** Cut candidates, weakest first. */
   cuts: readonly Change[];
   roleCounts: Record<string, number>;
   roleTargets: Record<string, number>;
@@ -52,6 +63,28 @@ export interface UpgradePlanContext {
   ceiling: number;
   /** Re-estimate the bracket with the plan applied. Absent → no verify. */
   estimate?: (addNames: string[], cutNames: string[]) => number;
+  /** The Coach tier of a move (1 structural … 3 polish). Default 3. */
+  tierOf?: (c: Change) => 1 | 2 | 3;
+  /** Basic lands in the list, and lands in it that fetch a basic. */
+  basics?: number;
+  fetchers?: number;
+}
+
+export type LeftOutReason =
+  /** Raises the bracket past the goal. */
+  | 'bracket'
+  /** A Game Changer past the goal bracket's allowance. */
+  | 'game-changer-limit'
+  /** The re-estimate read the deck's power past the goal with it in. */
+  | 'power'
+  /** No price today. Never counted as free. */
+  | 'no-price';
+
+export interface LeftOut {
+  change: Change;
+  reason: LeftOutReason;
+  /** Its cost, when known. */
+  cost: number | null;
 }
 
 export interface PlannedMove {
@@ -62,6 +95,8 @@ export interface PlannedMove {
   /** The cut's own Change when it came from the cut pool (role, inclusion, why). */
   cut?: Change;
   cost: number;
+  /** Upgrade value the plan ranked it by. */
+  value: number;
 }
 
 export interface UpgradePlan {
@@ -69,11 +104,9 @@ export interface UpgradePlan {
   spent: number;
   /** Picks that cost nothing because a free copy is owned. */
   fromCollection: number;
-  /** Would have fit the budget but would raise the bracket past the goal. */
-  leftOutForBracket: Change[];
-  /** No price today. Never counted as free. */
-  unpriced: Change[];
-  /** The best move the budget couldn't reach, with its cost. */
+  /** Cards the plan would have taken, and why it didn't. */
+  leftOut: LeftOut[];
+  /** The most valuable move the budget couldn't reach, with its cost. */
   nextOverBudget: { change: Change; cost: number } | null;
   /** Role counts with the plan applied. */
   rolesAfter: Record<string, number>;
@@ -85,48 +118,130 @@ export interface UpgradePlan {
  *  and the carousel's audition rows. */
 const IGNORED_LANES = new Set<Change['lane']>(['budget', 'similar']);
 
+/** Value a Coach tier adds on its own: a structural gap outranks polish. */
+const TIER_VALUE = { 1: 40, 2: 20, 3: 0 } as const;
+/** A gain below this over the cut is a sidegrade, not an upgrade. */
+export const MIN_GAIN = 10;
+/** Filling a role that's short of its target. */
+const SHORT_ROLE_GAIN = 15;
+/** Completing a combo already half in the deck. */
+const COMBO_GAIN = 50;
+/** Dollars at which a card's priority halves: value ÷ (1 + price ÷ this).
+ *  The live check on an imported precon put a $27 Prismatic Vista, a modest
+ *  fixing gain, ahead of a dozen strong cards under a dollar; this is the knob. */
+const PRICE_SCALE = 10;
+/** Play-rate assumed for a card EDHREC has none for (an off-meta synergy pick,
+ *  an owned stand-in): enough to beat a dead card, not a staple. */
+const UNRATED_INCLUSION = 20;
+
+const BASIC = /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest)$|^Wastes$/;
+/** Lands that fetch a basic, by name when the Change carries no card text.
+ *  ponytail: a fixed list; the oracle-text check below covers any card with text. */
+const FETCH_NAMES = new Set([
+  'Evolving Wilds',
+  'Terramorphic Expanse',
+  'Fabled Passage',
+  'Prismatic Vista',
+  'Escape Tunnel',
+  'Ash Barrens',
+  'Myriad Landscape',
+  'Warped Landscape',
+  'Shire Terrace',
+  'Promising Vein',
+  'Brokers Hideout',
+  'Cabaretti Courtyard',
+  'Maestros Theater',
+  'Obscura Storefront',
+  'Riveteers Overlook',
+]);
+
 const isLand = (c: Change) => c.role === 'land' || /\bLand\b/.test(c.typeLine ?? '');
 const key = (name: string) => name.toLowerCase();
+export const isBasicName = (name: string) => BASIC.test(name);
+/** "a basic land card", or a land type a basic has ("a Forest or Island card",
+ *  the sacrifice fetches). Either way it needs a basic to find. */
+const FETCH_TEXT =
+  /search your library for (?:a|an|up to \w+) (?:basic|(?:plains|island|swamp|mountain|forest)(?:,? (?:or )?(?:plains|island|swamp|mountain|forest))* card)/i;
+export function isBasicFetcher(c: Change): boolean {
+  if (FETCH_NAMES.has(c.name)) return true;
+  return FETCH_TEXT.test(c.card?.oracle_text ?? '');
+}
 
 export function planUpgrades(ctx: UpgradePlanContext, opts: UpgradePlanOptions): UpgradePlan {
   const excluded = new Set([...(opts.excluded ?? [])].map(key));
+  const kept = new Set([...(opts.kept ?? [])].map(key));
   const counts = { ...ctx.roleCounts };
   // A role with no target (lands, roleless filler) is never protected.
   const short = (role: string) => (counts[role] ?? 0) < (ctx.roleTargets[role] ?? -Infinity);
   const cuttable = (role: string) => (counts[role] ?? 0) > (ctx.roleTargets[role] ?? -Infinity);
+  let basics = ctx.basics ?? Infinity;
+  let fetchers = ctx.fetchers ?? 0;
 
   // Candidates: one row per incoming card, highest rank wins. A Your-decks move
   // brings a copy committed elsewhere, so it is priced like one.
   const seen = new Set<string>();
-  let candidates = ctx.moves
+  const rankOf = new Map<Change, number>();
+  const candidates = ctx.moves
     .filter((c) => (c.type === 'add' || c.type === 'swap') && !IGNORED_LANES.has(c.lane))
     .map((c): Change => (c.lane === 'decks' ? { ...c, ownership: 'in-other-deck' } : c))
     .filter((c) => {
       const k = key(c.name);
       if (seen.has(k)) return false;
       seen.add(k);
+      rankOf.set(c, rankOf.size);
       return true;
     });
-  // Moving up: Game Changers are the point of the goal, so they go first,
-  // then the other bracket raisers, then everything else in rank order.
-  if (opts.goal === 'up') {
-    const rank = (c: Change) => (ctx.isGameChanger(c) ? 0 : ctx.raisesBracket(c) ? 1 : 2);
-    candidates = candidates
-      .map((c, i) => ({ c, i }))
-      .sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i)
-      .map((x) => x.c);
+
+  /** What a move is worth against a given cut (or an empty slot). */
+  function gainOver(c: Change, cut: Change | undefined): number {
+    let gain: number;
+    if (c.lane === 'combos') gain = COMBO_GAIN;
+    else if (c.lane === 'lands' && c.deltaScore != null) gain = c.deltaScore;
+    else gain = (c.inclusion ?? UNRATED_INCLUSION) - (cut?.inclusion ?? 0);
+    if (c.role && short(c.role)) gain += SHORT_ROLE_GAIN;
+    return gain;
   }
+  const valueOf = (c: Change, cut: Change | undefined) =>
+    TIER_VALUE[ctx.tierOf?.(c) ?? 3] + gainOver(c, cut);
+
+  const costOf = (c: Change): number | null => {
+    if (opts.ownedFree && c.ownership === 'owned') return 0;
+    const price = ctx.priceOf(c.name);
+    if (price != null) return price;
+    return c.type === 'add' && c.deltaPrice != null && c.deltaPrice > 0 ? c.deltaPrice : null;
+  };
+
+  // Best value for money first (value scored against an empty slot, the best
+  // case), owned only as a tie-break, then the Coach's own order. Moving up
+  // puts Game Changers first: they are the point of that goal.
+  const upRank = (c: Change) =>
+    opts.goal !== 'up' ? 0 : ctx.isGameChanger(c) ? 0 : ctx.raisesBracket(c) ? 1 : 2;
+  const priority = (c: Change) => valueOf(c, undefined) / (1 + (costOf(c) ?? 0) / PRICE_SCALE);
+  const ordered = [...candidates].sort(
+    (a, b) =>
+      upRank(a) - upRank(b) ||
+      priority(b) - priority(a) ||
+      Number(b.ownership === 'owned') - Number(a.ownership === 'owned') ||
+      rankOf.get(a)! - rankOf.get(b)!
+  );
 
   const cutPool = ctx.cuts.filter((c) => c.type === 'cut' && c.lane !== 'bracket-fit');
   const usedCuts = new Set<string>();
-  const freeCut = (c: Change) => !usedCuts.has(key(c.name)) && !excluded.has(key(c.name));
+  const freeCut = (name: string) => !usedCuts.has(key(name)) && !kept.has(key(name));
 
-  // A cut that keeps the deck's shape: same kind (land/nonland), and a role
-  // never falls below its target unless the add is that role too.
+  // A cut that keeps the deck's shape. Basics stay at or above the fetch
+  // lands that need them, and a fetch land never takes a basic's slot.
+  function basicAllowed(add: Change, cutName: string): boolean {
+    if (!isBasicName(cutName)) return true;
+    if (isBasicFetcher(add)) return false;
+    return basics - 1 >= fetchers;
+  }
   function pickCut(add: Change): Change | undefined {
     const land = isLand(add);
     const role = add.role;
-    const eligible = cutPool.filter((c) => freeCut(c) && isLand(c) === land);
+    const eligible = cutPool.filter(
+      (c) => freeCut(c.name) && isLand(c) === land && basicAllowed(add, c.name)
+    );
     const safe = (c: Change) => !c.role || c.role === role || cuttable(c.role);
     // Filling a short role only helps when the cut comes from outside it.
     if (role && short(role)) {
@@ -136,87 +251,102 @@ export function planUpgrades(ctx: UpgradePlanContext, opts: UpgradePlanOptions):
     return (role ? eligible.find((c) => c.role === role) : undefined) ?? eligible.find(safe);
   }
 
-  const costOf = (c: Change): number | null => {
-    if (opts.ownedFree && c.ownership === 'owned') return 0;
-    const price = ctx.priceOf(c.name);
-    if (price != null) return price;
-    return c.type === 'add' && c.deltaPrice != null && c.deltaPrice > 0 ? c.deltaPrice : null;
-  };
-
   const picks: PlannedMove[] = [];
-  const leftOutForBracket: Change[] = [];
-  const unpriced: Change[] = [];
+  const leftOut: LeftOut[] = [];
   let nextOverBudget: UpgradePlan['nextOverBudget'] = null;
   let spent = 0;
   let slots = Math.max(0, ctx.openSlots);
   let gcRoom = opts.goal === 'up' ? ctx.gameChangerRoom : Infinity;
 
-  for (const c of candidates) {
+  for (const c of ordered) {
     if (excluded.has(key(c.name))) continue;
     const cost = costOf(c);
     if (cost == null) {
-      unpriced.push(c);
+      leftOut.push({ change: c, reason: 'no-price', cost: null });
       continue;
     }
     const remaining = opts.budget - spent;
-    const raises = ctx.raisesBracket(c);
-    if (opts.goal === 'hold' && raises) {
-      if (cost <= remaining) leftOutForBracket.push(c);
+    if (opts.goal === 'hold' && ctx.raisesBracket(c)) {
+      if (cost <= remaining) leftOut.push({ change: c, reason: 'bracket', cost });
       continue;
     }
     if (ctx.isGameChanger(c) && gcRoom <= 0) {
-      if (cost <= remaining) leftOutForBracket.push(c);
-      continue;
-    }
-    if (cost > remaining) {
-      nextOverBudget ??= { change: c, cost };
+      if (cost <= remaining) leftOut.push({ change: c, reason: 'game-changer-limit', cost });
       continue;
     }
 
+    // Find its slot: a pre-paired swap brings its own cut unless the player
+    // kept that card, then an empty slot, then the pool.
     let cutName: string | null = null;
     let cut: Change | undefined;
-    if (c.type === 'swap' && c.inName) {
-      // A pre-paired swap brings its own cut; it can't be cut twice.
-      if (usedCuts.has(key(c.inName)) || excluded.has(key(c.inName))) continue;
+    if (c.type === 'swap' && c.inName && freeCut(c.inName) && basicAllowed(c, c.inName)) {
       cutName = c.inName;
       cut = cutPool.find((p) => key(p.name) === key(c.inName!));
     } else if (slots > 0) {
-      slots--;
+      cutName = null;
     } else {
       cut = pickCut(c);
       if (!cut) continue;
       cutName = cut.name;
     }
+    // A pre-paired swap was already judged against its cut by its own engine.
+    const prePaired = c.type === 'swap' && cutName === c.inName;
+    if (!prePaired && cutName && gainOver(c, cut) < MIN_GAIN) continue;
 
-    if (cutName) usedCuts.add(key(cutName));
+    if (cost > remaining) {
+      nextOverBudget ??= { change: c, cost };
+      continue;
+    }
+
+    if (cutName === null) slots--;
+    else usedCuts.add(key(cutName));
+    if (cutName && isBasicName(cutName)) basics--;
+    if (isBasicFetcher(c)) fetchers++;
     if (c.role) counts[c.role] = (counts[c.role] ?? 0) + 1;
     if (cut?.role) counts[cut.role] = (counts[cut.role] ?? 0) - 1;
     if (ctx.isGameChanger(c)) gcRoom--;
     spent += cost;
-    picks.push({ change: c, cutName, cut, cost });
+    picks.push({ change: c, cutName, cut, cost, value: valueOf(c, cut) });
   }
 
-  // Verify with the real estimator: drop the latest bracket raiser (else the
-  // latest pick) until the deck is back under the ceiling.
-  // ponytail: dropped moves free budget that isn't re-spent; re-run the walk
-  // with the drops excluded if a plan ever leaves visible money on the table.
+  // Verify with the real estimator. While the deck reads past the ceiling,
+  // drop the pick whose removal lowers the Estimate most: the card actually
+  // responsible, never a bystander that happened to be picked last.
+  // ponytail: one estimator call per pick per drop (≈ picks² worst case); fine
+  // at plan sizes, memoize by pick set if plans grow past a few dozen swaps.
   let estimateAfter: number | null = null;
   if (ctx.estimate && opts.goal !== 'any') {
-    const run = () =>
+    const run = (list: PlannedMove[]) =>
       ctx.estimate!(
-        picks.map((p) => p.change.name),
-        picks.flatMap((p) => (p.cutName ? [p.cutName] : []))
+        list.map((p) => p.change.name),
+        list.flatMap((p) => (p.cutName ? [p.cutName] : []))
       );
-    estimateAfter = run();
+    estimateAfter = run(picks);
     while (estimateAfter > ctx.ceiling && picks.length > 0) {
-      let i = picks.map((p) => ctx.raisesBracket(p.change)).lastIndexOf(true);
-      if (i < 0) i = picks.length - 1;
-      const [dropped] = picks.splice(i, 1);
+      let best = -1;
+      let bestEstimate = Infinity;
+      for (let i = picks.length - 1; i >= 0; i--) {
+        const without = run(picks.filter((_, j) => j !== i));
+        const raiser = ctx.raisesBracket(picks[i].change);
+        // Lower is better; on a tie prefer a known raiser, then the latest pick.
+        if (
+          without < bestEstimate ||
+          (without === bestEstimate && raiser && !ctx.raisesBracket(picks[best].change))
+        ) {
+          best = i;
+          bestEstimate = without;
+        }
+      }
+      const [dropped] = picks.splice(best, 1);
       spent -= dropped.cost;
       if (dropped.change.role) counts[dropped.change.role]--;
       if (dropped.cut?.role) counts[dropped.cut.role]++;
-      leftOutForBracket.push(dropped.change);
-      estimateAfter = run();
+      leftOut.push({
+        change: dropped.change,
+        reason: ctx.raisesBracket(dropped.change) ? 'bracket' : 'power',
+        cost: dropped.cost,
+      });
+      estimateAfter = bestEstimate;
     }
   }
 
@@ -224,8 +354,7 @@ export function planUpgrades(ctx: UpgradePlanContext, opts: UpgradePlanOptions):
     picks,
     spent: Math.round(spent * 100) / 100,
     fromCollection: picks.filter((p) => p.cost === 0 && p.change.ownership === 'owned').length,
-    leftOutForBracket,
-    unpriced,
+    leftOut,
     nextOverBudget,
     rolesAfter: counts,
     estimateAfter,

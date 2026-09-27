@@ -3550,6 +3550,7 @@ export function DeckEditorPage() {
                   upgradePlan={
                     planAvailable
                       ? {
+                          deckId: deck.id,
                           tools: upgradePlanTools,
                           open: planOpen,
                           onOpenChange: setPlanOpen,

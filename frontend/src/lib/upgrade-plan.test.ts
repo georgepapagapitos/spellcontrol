@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { planUpgrades, type UpgradePlanContext, type UpgradePlanOptions } from './upgrade-plan';
+import {
+  isBasicFetcher,
+  isBasicName,
+  planUpgrades,
+  type UpgradePlanContext,
+  type UpgradePlanOptions,
+} from './upgrade-plan';
 import type { Change } from './deck-change';
 
 const add = (name: string, extra: Partial<Change> = {}): Change => ({
@@ -8,6 +14,7 @@ const add = (name: string, extra: Partial<Change> = {}): Change => ({
   lane: 'fill-gaps',
   name,
   ownership: 'unowned',
+  inclusion: 50,
   ...extra,
 });
 const cut = (name: string, extra: Partial<Change> = {}): Change => ({
@@ -15,8 +22,11 @@ const cut = (name: string, extra: Partial<Change> = {}): Change => ({
   type: 'cut',
   lane: 'upgrade',
   name,
+  inclusion: 0,
   ...extra,
 });
+const landSwap = (name: string, out: string, deltaScore = 20, extra: Partial<Change> = {}) =>
+  add(name, { type: 'swap', lane: 'lands', inName: out, role: 'land', deltaScore, ...extra });
 
 function ctx(over: Partial<UpgradePlanContext> & { prices?: Record<string, number> } = {}) {
   const { prices = {}, ...rest } = over;
@@ -41,164 +51,338 @@ const opts = (o: Partial<UpgradePlanOptions> = {}): UpgradePlanOptions => ({
   ...o,
 });
 const names = (plan: ReturnType<typeof planUpgrades>) => plan.picks.map((p) => p.change.name);
+const leftOut = (plan: ReturnType<typeof planUpgrades>) =>
+  plan.leftOut.map((l) => `${l.change.name}:${l.reason}`);
 
 describe('planUpgrades', () => {
-  it('takes moves in rank order, skips what does not fit, and keeps spending', () => {
-    const plan = planUpgrades(
-      ctx({
-        moves: [add('Pricey'), add('Mid'), add('Cheap')],
-        prices: { Pricey: 60, Mid: 30, Cheap: 15 },
-      }),
-      opts()
-    );
-    expect(names(plan)).toEqual(['Mid', 'Cheap']);
-    expect(plan.spent).toBe(45);
-    expect(plan.nextOverBudget).toEqual({
-      change: expect.objectContaining({ name: 'Pricey' }),
-      cost: 60,
+  describe('ranking', () => {
+    it('takes the most valuable swaps first, not the Coach order', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Fine', { inclusion: 30 }), add('Staple', { inclusion: 80 })],
+          cuts: [cut('Only Slot')],
+          prices: { Fine: 1, Staple: 1 },
+        }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Staple']);
+    });
+
+    it('lets a free owned sidegrade lose to a paid upgrade', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [
+            add('Owned Sidegrade', { ownership: 'owned', inclusion: 25 }),
+            add('Real Upgrade', { inclusion: 70 }),
+          ],
+          cuts: [cut('Weak', { inclusion: 20 }), cut('Also Weak', { inclusion: 20 })],
+          prices: { 'Real Upgrade': 3 },
+        }),
+        opts()
+      );
+      // 25 over 20 is a +5 sidegrade: not proposed at all.
+      expect(names(plan)).toEqual(['Real Upgrade']);
+    });
+
+    it('puts a strong cheap card ahead of a pricey modest one', () => {
+      // The live Zimone check: a $27 Prismatic Vista with a fixing gain took
+      // half of $50 ahead of staples under a dollar.
+      const plan = planUpgrades(
+        ctx({
+          moves: [
+            landSwap('Prismatic Vista', 'Temple of the False God', 40),
+            add('Staple', { inclusion: 60, typeLine: 'Enchantment' }),
+            add('Other Staple', { inclusion: 55, typeLine: 'Instant' }),
+          ],
+          prices: { 'Prismatic Vista': 27.35, Staple: 0.34, 'Other Staple': 0.3 },
+        }),
+        opts({ budget: 27 })
+      );
+      expect(names(plan)).toEqual(['Staple', 'Other Staple']);
+      expect(plan.nextOverBudget?.change.name).toBe('Prismatic Vista');
+    });
+
+    it('lets ownership break a tie', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [
+            add('Bought', { inclusion: 60 }),
+            add('Owned', { ownership: 'owned', inclusion: 60 }),
+          ],
+          cuts: [cut('One Slot')],
+          prices: { Bought: 1, Owned: 1 },
+        }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Owned']);
+    });
+
+    it('ranks a structural Coach tier above polish at the same gain', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Polish'), add('Structural')],
+          cuts: [cut('One Slot')],
+          prices: { Polish: 1, Structural: 1 },
+          tierOf: (c) => (c.name === 'Structural' ? 1 : 3),
+        }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Structural']);
+    });
+
+    it('values a completed combo and a filled short role', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [
+            add('Staple', { inclusion: 40 }),
+            add('Combo Piece', { lane: 'combos', inclusion: undefined }),
+            add('Ramp', { role: 'ramp', inclusion: 30 }),
+          ],
+          cuts: [cut('A'), cut('B')],
+          roleCounts: { ramp: 8 },
+          roleTargets: { ramp: 10 },
+          prices: { Staple: 1, 'Combo Piece': 1, Ramp: 1 },
+        }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Combo Piece', 'Ramp']);
     });
   });
 
-  it('pairs every add with its own cut, weakest first', () => {
-    const plan = planUpgrades(ctx({ moves: [add('A'), add('B')], prices: { A: 1, B: 1 } }), opts());
-    expect(plan.picks.map((p) => p.cutName)).toEqual(['Filler A', 'Filler B']);
+  describe('money', () => {
+    it('skips what does not fit and keeps spending', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Pricey', { inclusion: 90 }), add('Mid', { inclusion: 60 }), add('Cheap')],
+          prices: { Pricey: 60, Mid: 30, Cheap: 15 },
+        }),
+        opts()
+      );
+      // Cheap first: the same kind of gain for less money.
+      expect(names(plan)).toEqual(['Cheap', 'Mid']);
+      expect(plan.spent).toBe(45);
+      expect(plan.nextOverBudget).toEqual({
+        change: expect.objectContaining({ name: 'Pricey' }),
+        cost: 60,
+      });
+    });
+
+    it('counts a free owned copy as $0 and a copy committed elsewhere as bought', () => {
+      const moves = [
+        add('Mine', { ownership: 'owned' }),
+        add('Elsewhere', { ownership: 'in-other-deck' }),
+        add('Moved', { lane: 'decks', ownership: 'owned' }),
+      ];
+      const prices = { Mine: 10, Elsewhere: 10, Moved: 10 };
+      const on = planUpgrades(ctx({ moves, prices }), opts());
+      expect(on.picks.map((p) => p.cost)).toEqual([0, 10, 10]);
+      expect(on.fromCollection).toBe(1);
+      const off = planUpgrades(ctx({ moves, prices }), opts({ ownedFree: false }));
+      expect(off.picks.map((p) => p.cost)).toEqual([10, 10, 10]);
+    });
+
+    it('never treats a card with no price as free', () => {
+      const plan = planUpgrades(
+        ctx({ moves: [add('Unknown'), add('Known')], prices: { Known: 2 } }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Known']);
+      expect(leftOut(plan)).toEqual(['Unknown:no-price']);
+    });
+
+    it("falls back to the row's own acquire price", () => {
+      const plan = planUpgrades(ctx({ moves: [add('Gap', { deltaPrice: 3 })] }), opts());
+      expect(plan.picks[0].cost).toBe(3);
+    });
   });
 
-  it('fills empty slots before cutting anything', () => {
-    const plan = planUpgrades(
-      ctx({ moves: [add('A'), add('B')], prices: { A: 1, B: 1 }, openSlots: 1 }),
-      opts()
-    );
-    expect(plan.picks.map((p) => p.cutName)).toEqual([null, 'Filler A']);
+  describe('slots', () => {
+    it('fills empty slots before cutting anything', () => {
+      const plan = planUpgrades(
+        ctx({ moves: [add('A'), add('B')], prices: { A: 1, B: 1 }, openSlots: 1 }),
+        opts()
+      );
+      expect(plan.picks.map((p) => p.cutName)).toEqual([null, 'Filler A']);
+    });
+
+    it('swaps land for land and nonland for nonland', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Dual', { typeLine: 'Land' }), add('Spell', { typeLine: 'Instant' })],
+          cuts: [cut('Weak spell', { typeLine: 'Sorcery' }), cut('Tapland', { typeLine: 'Land' })],
+          prices: { Dual: 1, Spell: 1 },
+        }),
+        opts()
+      );
+      expect(plan.picks.map((p) => [p.change.name, p.cutName])).toEqual([
+        ['Dual', 'Tapland'],
+        ['Spell', 'Weak spell'],
+      ]);
+    });
+
+    it('never cuts a role below its target unless the add fills that role', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Threat'), add('Rampant Growth', { role: 'ramp' })],
+          cuts: [cut('Only Removal', { role: 'removal' }), cut('Old Ramp', { role: 'ramp' })],
+          roleCounts: { removal: 5, ramp: 10 },
+          roleTargets: { removal: 5, ramp: 10 },
+          prices: { Threat: 1, 'Rampant Growth': 1 },
+        }),
+        opts()
+      );
+      expect(plan.picks.map((p) => [p.change.name, p.cutName])).toEqual([
+        ['Rampant Growth', 'Old Ramp'],
+      ]);
+      expect(plan.rolesAfter).toEqual({ removal: 5, ramp: 10 });
+    });
+
+    it('fills a short role from outside it so the count actually rises', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Swords', { role: 'removal' })],
+          cuts: [cut('Weak Removal', { role: 'removal' }), cut('Vanilla')],
+          roleCounts: { removal: 4 },
+          roleTargets: { removal: 6 },
+          prices: { Swords: 1 },
+        }),
+        opts()
+      );
+      expect(plan.picks[0].cutName).toBe('Vanilla');
+      expect(plan.rolesAfter.removal).toBe(5);
+    });
+
+    it('keeps a pre-paired swap with its own cut, once', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [
+            landSwap('Breeding Pool', 'Tapland', 30),
+            landSwap('Hinterland Harbor', 'Tapland'),
+          ],
+          cuts: [],
+          prices: { 'Breeding Pool': 5, 'Hinterland Harbor': 2 },
+        }),
+        opts()
+      );
+      expect(plan.picks.map((p) => [p.change.name, p.cutName])).toEqual([
+        ['Breeding Pool', 'Tapland'],
+      ]);
+    });
+
+    it('skips a move with nowhere to go', () => {
+      const plan = planUpgrades(ctx({ moves: [add('A')], cuts: [], prices: { A: 1 } }), opts());
+      expect(plan.picks).toEqual([]);
+    });
+
+    it('ignores cheaper-copy and audition lanes, other change types and duplicates', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [
+            add('Cheaper', { type: 'swap', lane: 'budget', inName: 'Filler A' }),
+            add('Audition', { lane: 'similar' }),
+            cut('Some cut'),
+            add('Twice'),
+            add('Twice', { lane: 'upgrade' }),
+          ],
+          prices: { Cheaper: 1, Audition: 1, Twice: 1 },
+        }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Twice']);
+    });
+
+    it('skips unticked cards', () => {
+      const plan = planUpgrades(
+        ctx({ moves: [add('A'), add('B')], prices: { A: 1, B: 1 } }),
+        opts({ excluded: new Set(['a']) })
+      );
+      expect(names(plan)).toEqual(['B']);
+    });
   });
 
-  it('counts a free owned copy as $0 and a copy committed elsewhere as bought', () => {
-    const moves = [
-      add('Mine', { ownership: 'owned' }),
-      add('Elsewhere', { ownership: 'in-other-deck' }),
-      add('Moved', { lane: 'decks', ownership: 'owned' }),
-    ];
-    const prices = { Mine: 10, Elsewhere: 10, Moved: 10 };
-    const on = planUpgrades(ctx({ moves, prices }), opts());
-    expect(on.picks.map((p) => p.cost)).toEqual([0, 10, 10]);
-    expect(on.fromCollection).toBe(1);
-    const off = planUpgrades(ctx({ moves, prices }), opts({ ownedFree: false }));
-    expect(off.picks.map((p) => p.cost)).toEqual([10, 10, 10]);
+  describe('keeping a card', () => {
+    it('never cuts a kept card and finds another slot', () => {
+      const plan = planUpgrades(
+        ctx({ moves: [add('A')], prices: { A: 1 } }),
+        opts({ kept: new Set(['Filler A']) })
+      );
+      expect(plan.picks[0].cutName).toBe('Filler B');
+    });
+
+    it("moves a pre-paired swap off a kept card onto the pool's next land", () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [landSwap('Breeding Pool', 'Tapland', 30)],
+          cuts: [cut('Tapland', { typeLine: 'Land' }), cut('Other Tapland', { typeLine: 'Land' })],
+          prices: { 'Breeding Pool': 5 },
+        }),
+        opts({ kept: new Set(['Tapland']) })
+      );
+      expect(plan.picks.map((p) => p.cutName)).toEqual(['Other Tapland']);
+    });
   });
 
-  it('never treats a card with no price as free', () => {
-    const plan = planUpgrades(
-      ctx({ moves: [add('Unknown'), add('Known')], prices: { Known: 2 } }),
-      opts()
-    );
-    expect(names(plan)).toEqual(['Known']);
-    expect(plan.unpriced.map((c) => c.name)).toEqual(['Unknown']);
-  });
+  describe('basic lands', () => {
+    it('never lets a fetch land take a basic', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [landSwap('Escape Tunnel', 'Plains', 25, { ownership: 'owned' })],
+          cuts: [cut('Plains', { typeLine: 'Basic Land — Plains' })],
+          basics: 20,
+          fetchers: 0,
+        }),
+        opts()
+      );
+      expect(plan.picks).toEqual([]);
+    });
 
-  it("falls back to the row's own acquire price", () => {
-    const plan = planUpgrades(ctx({ moves: [add('Gap', { deltaPrice: 3 })] }), opts());
-    expect(plan.picks[0].cost).toBe(3);
-  });
+    it('keeps basics at or above the fetch lands that need them', () => {
+      const plan = planUpgrades(
+        ctx({
+          moves: [
+            landSwap('Breeding Pool', 'Forest', 30),
+            landSwap('Hinterland Harbor', 'Island', 30),
+          ],
+          cuts: [],
+          prices: { 'Breeding Pool': 5, 'Hinterland Harbor': 2 },
+          basics: 3,
+          fetchers: 2,
+        }),
+        opts()
+      );
+      expect(names(plan)).toEqual(['Hinterland Harbor']);
+    });
 
-  it('swaps land for land and nonland for nonland', () => {
-    const plan = planUpgrades(
-      ctx({
-        moves: [add('Dual', { typeLine: 'Land' }), add('Spell', { typeLine: 'Instant' })],
-        cuts: [cut('Weak spell', { typeLine: 'Sorcery' }), cut('Tapland', { typeLine: 'Land' })],
-        prices: { Dual: 1, Spell: 1 },
-      }),
-      opts()
-    );
-    expect(plan.picks.map((p) => [p.change.name, p.cutName])).toEqual([
-      ['Dual', 'Tapland'],
-      ['Spell', 'Weak spell'],
-    ]);
-  });
-
-  it('never cuts a role below its target unless the add fills that role', () => {
-    const plan = planUpgrades(
-      ctx({
-        moves: [add('Threat'), add('Rampant Growth', { role: 'ramp' })],
-        cuts: [cut('Only Removal', { role: 'removal' }), cut('Old Ramp', { role: 'ramp' })],
-        roleCounts: { removal: 5, ramp: 10 },
-        roleTargets: { removal: 5, ramp: 10 },
-        prices: { Threat: 1, 'Rampant Growth': 1 },
-      }),
-      opts()
-    );
-    // Threat can't take the removal slot (at target) or the ramp slot (at target).
-    expect(plan.picks.map((p) => [p.change.name, p.cutName])).toEqual([
-      ['Rampant Growth', 'Old Ramp'],
-    ]);
-    expect(plan.rolesAfter).toEqual({ removal: 5, ramp: 10 });
-  });
-
-  it('fills a short role from outside it so the count actually rises', () => {
-    const plan = planUpgrades(
-      ctx({
-        moves: [add('Swords', { role: 'removal' })],
-        cuts: [cut('Weak Removal', { role: 'removal' }), cut('Vanilla')],
-        roleCounts: { removal: 4 },
-        roleTargets: { removal: 6 },
-        prices: { Swords: 1 },
-      }),
-      opts()
-    );
-    expect(plan.picks[0].cutName).toBe('Vanilla');
-    expect(plan.rolesAfter.removal).toBe(5);
-  });
-
-  it('keeps a pre-paired swap with its own cut, once', () => {
-    const plan = planUpgrades(
-      ctx({
-        moves: [
-          add('Breeding Pool', { type: 'swap', lane: 'lands', inName: 'Tapland' }),
-          add('Hinterland Harbor', { type: 'swap', lane: 'lands', inName: 'Tapland' }),
-        ],
-        prices: { 'Breeding Pool': 5, 'Hinterland Harbor': 2 },
-      }),
-      opts()
-    );
-    expect(plan.picks.map((p) => [p.change.name, p.cutName])).toEqual([
-      ['Breeding Pool', 'Tapland'],
-    ]);
-  });
-
-  it('skips a move with nowhere to go', () => {
-    const plan = planUpgrades(ctx({ moves: [add('A')], cuts: [], prices: { A: 1 } }), opts());
-    expect(plan.picks).toEqual([]);
-  });
-
-  it('ignores cheaper-copy and audition lanes, other change types and duplicates', () => {
-    const plan = planUpgrades(
-      ctx({
-        moves: [
-          add('Cheaper', { type: 'swap', lane: 'budget', inName: 'Filler A' }),
-          add('Audition', { lane: 'similar' }),
-          cut('Some cut'),
-          add('Twice'),
-          add('Twice', { lane: 'upgrade' }),
-        ],
-        prices: { Cheaper: 1, Audition: 1, Twice: 1 },
-      }),
-      opts()
-    );
-    expect(names(plan)).toEqual(['Twice']);
-  });
-
-  it('skips unticked cards on both sides of a swap', () => {
-    const plan = planUpgrades(
-      ctx({
-        moves: [add('A'), add('B'), add('C', { type: 'swap', lane: 'lands', inName: 'Filler D' })],
-        prices: { A: 1, B: 1, C: 1 },
-      }),
-      opts({ excluded: new Set(['a', 'Filler D']) })
-    );
-    expect(names(plan)).toEqual(['B']);
+    it('knows the basics and the fetch lands', () => {
+      expect(isBasicName('Snow-Covered Island')).toBe(true);
+      expect(isBasicName('Wastes')).toBe(true);
+      expect(isBasicName('Island Sanctuary')).toBe(false);
+      expect(isBasicFetcher(add('Fabled Passage'))).toBe(true);
+      expect(
+        isBasicFetcher(
+          add('New Fetch', {
+            card: { oracle_text: 'Search your library for a basic land card.' } as never,
+          })
+        )
+      ).toBe(true);
+      // The sacrifice fetches name land types, not "basic" (the live
+      // Misty Rainforest-for-an-Island miss).
+      const fetchText = (text: string) =>
+        isBasicFetcher(add('Some Land', { card: { oracle_text: text } as never }));
+      expect(
+        fetchText(
+          'Pay 1 life, Sacrifice this land: Search your library for a Forest or Island card.'
+        )
+      ).toBe(true);
+      expect(fetchText('Search your library for a Plains, Island, or Swamp card.')).toBe(true);
+      expect(fetchText('Search your library for a creature card.')).toBe(false);
+      expect(isBasicFetcher(add('Breeding Pool'))).toBe(false);
+    });
   });
 
   describe('bracket', () => {
-    const gc = (name: string) => add(name, { isGameChanger: true });
+    const gc = (name: string, extra: Partial<Change> = {}) =>
+      add(name, { isGameChanger: true, ...extra });
 
     it('holding leaves out raisers that would have fit, and only those', () => {
       const plan = planUpgrades(
@@ -209,7 +393,7 @@ describe('planUpgrades', () => {
         opts()
       );
       expect(names(plan)).toEqual(['Fine']);
-      expect(plan.leftOutForBracket.map((c) => c.name)).toEqual(['Rift']);
+      expect(leftOut(plan)).toEqual(['Rift:bracket']);
     });
 
     it('moving up takes Game Changers first, up to the room left', () => {
@@ -223,10 +407,28 @@ describe('planUpgrades', () => {
         opts({ goal: 'up' })
       );
       expect(names(plan)).toEqual(['Rift', 'Muse', 'Fine']);
-      expect(plan.leftOutForBracket.map((c) => c.name)).toEqual(['Tutor']);
+      expect(leftOut(plan)).toEqual(['Tutor:game-changer-limit']);
     });
 
-    it('drops the latest raiser until the re-estimate is back under the ceiling', () => {
+    it('drops the card that actually moves the Estimate, not the latest pick', () => {
+      // The Blessed Wind case: the planner used to drop the latest picks and
+      // blame the bracket. The culprit here sits first in the plan.
+      const plan = planUpgrades(
+        ctx({
+          moves: [add('Culprit', { inclusion: 90 }), add('Blessed Wind'), add('Bladewing')],
+          prices: { Culprit: 1, 'Blessed Wind': 1, Bladewing: 1 },
+          raisesBracket: () => false,
+          ceiling: 3,
+          estimate: (adds) => (adds.includes('Culprit') ? 4 : 3),
+        }),
+        opts({ goal: 'up' })
+      );
+      expect(names(plan)).toEqual(['Blessed Wind', 'Bladewing']);
+      expect(leftOut(plan)).toEqual(['Culprit:power']);
+      expect(plan.estimateAfter).toBe(3);
+    });
+
+    it('names a known raiser as the bracket reason when it is the culprit', () => {
       const plan = planUpgrades(
         ctx({
           moves: [add('Fine'), add('Combo Piece', { lane: 'combos' }), add('Also Fine')],
@@ -238,23 +440,8 @@ describe('planUpgrades', () => {
         opts({ goal: 'up' })
       );
       expect(names(plan)).toEqual(['Fine', 'Also Fine']);
-      expect(plan.estimateAfter).toBe(3);
       expect(plan.spent).toBe(2);
-      expect(plan.leftOutForBracket.map((c) => c.name)).toEqual(['Combo Piece']);
-    });
-
-    it('drops the latest pick when no raiser explains the overshoot', () => {
-      const plan = planUpgrades(
-        ctx({
-          moves: [add('A', { role: 'ramp' }), add('B')],
-          cuts: [cut('Old Ramp', { role: 'ramp' }), cut('Filler')],
-          prices: { A: 1, B: 1 },
-          estimate: (a) => (a.length > 1 ? 3 : 2),
-        }),
-        opts()
-      );
-      expect(names(plan)).toEqual(['A']);
-      expect(plan.estimateAfter).toBe(2);
+      expect(leftOut(plan)).toEqual(['Combo Piece:bracket']);
     });
 
     it('any bracket skips the gate and the verify', () => {

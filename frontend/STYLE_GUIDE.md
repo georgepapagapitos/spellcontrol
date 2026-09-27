@@ -4010,15 +4010,25 @@ below it) but differs on the one point that matters most:
   settle only once it has advanced since baseline. `use-build-time-nudge.ts`
   is the reference implementation.
 
-## Upgrade plan (E458, 2026-09-27)
+## Upgrade plan (E458, v2 E467, 2026-09-27)
 
 A budget and a goal in, the best swaps that fit out, for any Commander deck
 (imported, hand-built, generated). `components/deck/UpgradePlanSheet.tsx` over
 the pure `lib/upgrade-plan.ts`.
 
-- **It spends over the Coach feed's own ranked list** (`buildCoachChanges` →
-  `rankCoachMoves`), so the plan is "the Coach's top moves that fit your
-  money" and the two can never disagree. No AI call, no new data source.
+- **It spends over the Coach feed's own list** (`buildCoachChanges` →
+  `rankCoachMoves`), so the plan and the feed never disagree about what a
+  deck could use. No AI call, no new data source.
+- **Value for money decides, ownership breaks ties.** A swap's value is the
+  Coach tier plus its gain over the card it replaces (play-rate over the cut, a
+  land's fixing score, a completed combo, a short role filled), divided by its
+  price (`PRICE_SCALE`: $10 halves it), so a $27 fetch land has to be far
+  better than a $0.30 staple to go first. Below the minimum gain it's a
+  sidegrade and isn't proposed, owned or not. An owned card costs nothing but
+  still earns its slot: a plan of free sidegrades that left the budget
+  untouched is the failure this rules out.
+- **Basics are protected:** a fetch land never replaces a basic, and basics
+  stay at or above the fetch lands that need them.
 - **Entry is one 48px row at the top of Coach** (`.upgrade-plan-entry`), never a
   panel above the feed (§ Index-page insight strips). A precon added to the
   collection offers "Plan upgrades" beside "Open deck", which lands on
@@ -4027,26 +4037,39 @@ the pure `lib/upgrade-plan.ts`.
   above: settings and the answer left, the plan right, actions in the footer.
   On a phone the settings fold into one `Disclosure` that states all three
   values, and Copy shopping list and Apply to a copy move into ⋮.
-- **Settings use the kit:** Budget is a `SegmentedControl` of presets whose
-  second line is the swap count each one buys, plus Custom. Goal is a
-  `ChoiceList` (Stay at Bracket N, Move up to Bracket N+1 disabled with its
-  reason at the top bracket, Any bracket). "Use my cards first" is a
-  `SwitchRow`.
+- **Settings use the kit:** Budget is a `SegmentedControl` of amounts plus
+  Custom (no per-preset swap count: it could fall as the budget rose). Goal is
+  a `ChoiceList` (Stay at Bracket N, Move up to Bracket N+1 disabled with its
+  reason at the top bracket, Any bracket). "Use cards I own" is a
+  `SwitchRow` whose hint says they're free and don't use the budget. All
+  three are remembered per deck on this device.
 - **Rows are `DeckCardRow`**, read-only, behind a checkbox (picking items from a
   list, so a checkbox, not a switch). Every row names its cut as "Replaces X: …"
-  and shows the swap art. A free owned copy shows the Available badge and no
+  and shows the swap art. **Both thumbnails open the one card preview** (a
+  carousel over the whole plan, cuts included), with the desktop hover peek and
+  the touch long-press on the plan's own layer above the sheet. Under each row,
+  "Keep {card}" protects the cut: the plan finds another slot, the note names
+  it, and kept cards sit in a "Kept in the deck" group that gives them back. A free owned copy shows the Available badge and no
   price. Unticking re-plans; the note names what left and what took its place,
   and the newcomer is marked once. Unticked rows stay in a "Left out by you"
   group so they can come back.
-- **Honest money:** a copy committed to another deck is priced (counting it
-  free would strip that deck). A card with no price is left out and counted,
-  never free. "Next" names the best move the budget didn't reach.
+- **Honest money:** the summary splits "To buy · $X of $Y · N cards" from "From
+  your collection · N cards · free, no budget used". Money left over always
+  says why ("Nothing else worth buying fits the $12 left. Next: …"). A copy
+  committed to another deck is priced (counting it free would strip that
+  deck); a card with no price is left out, never free.
+- **Left out is a list, not a sentence.** Every card the plan skipped sits in
+  one `<details>` with its own reason: "Game Changer. Moves the deck past
+  Bracket 2.", "Tutor…", "Pushes the deck's power past Bracket 3.", "Next pick.
+  $9.90 over what's left.", "No price today." Its art opens the preview. When
+  the re-estimate overshoots, the card dropped is the one whose removal lowers
+  it most, never the latest pick, so a bystander is never blamed.
 - **Bracket words follow § Bracket:** "Stay at Bracket N" holds the stated
   bracket, or the Estimate when the list already reads higher (adding cards
   can't promise a 2 to a deck that estimates 4). The summary reports the
   Estimate ("Stays Bracket 2 · Core" or "Bracket 2 · Core → Bracket 3 ·
   Upgraded"), and the plan waits for the combo check before it shows one.
-  Holding names what it left out and offers "Plan for Bracket N+1" as the fix;
+  Holding offers "Plan for Bracket N+1" under the left-out list as the fix;
   from Bracket 4 up nothing is pre-filtered, and the re-estimate alone stops a
   move to 5.
 - **Apply in place is the primary action** (one store write, one Undo, a toast
