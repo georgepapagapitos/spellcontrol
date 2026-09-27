@@ -122,6 +122,12 @@ describe('Players', () => {
     expect(screen.getByText('A game needs at least 2 players.')).toBeTruthy();
   });
 
+  it('drops Add player at ten seats, and says why', () => {
+    players(activeGame([], 10));
+    expect(screen.queryByRole('button', { name: 'Add player' })).toBeNull();
+    expect(screen.getByText('A table seats up to 10 players.')).toBeTruthy();
+  });
+
   it('locks the roster once life moves, and the lock note offers Restart', () => {
     const onRestart = vi.fn();
     const game = activeGame([{ type: 'life', seat: 1, delta: -3, actorSeat: 1 }]);

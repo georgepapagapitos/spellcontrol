@@ -304,6 +304,9 @@ function PlayerRoster({
       ) : (
         <>
           {atMin && <p className="board-sheet-hint">A game needs at least 2 players.</p>}
+          {players.length >= MAX_PLAYERS && (
+            <p className="board-sheet-hint">A table seats up to 10 players.</p>
+          )}
           {canAdd && (
             <Button
               className="board-roster-add"
