@@ -92,6 +92,10 @@ vi.mock('../lib/backup', () => ({
   parseBackup: vi.fn(),
 }));
 vi.mock('../lib/sync', () => ({ getPendingCount: () => 0 }));
+vi.mock('../lib/ai-review', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/ai-review')>()),
+  fetchAiStatus: vi.fn(() => Promise.reject(new Error('offline'))),
+}));
 vi.mock('../lib/reset-app-cache', () => ({ resetAppCacheAndReload: vi.fn() }));
 vi.mock('../components/OfflineModeSettings', () => ({
   OfflineModeSettings: () => null,
@@ -110,7 +114,7 @@ vi.mock('../lib/themes', () => ({
   THEMES: [{ id: 'default', name: 'Default', guild: 'None', swatch: ['#000', '#fff'] }],
 }));
 
-import { YouPage } from './YouPage';
+import { SECTION_HEADING_IDS, YouPage } from './YouPage';
 
 function renderYouPage(initialPath = '/') {
   return render(
@@ -250,6 +254,31 @@ describe('you-page — hero copy', () => {
 });
 
 describe('you-page — every door lands its promised heading', () => {
+  // The hand-written list below checks focus for a few doors; this checks
+  // that every door in the map has a heading to land on at all. `admin`
+  // pointed at a heading the page never rendered, so the link did nothing.
+  it.each(Object.entries(SECTION_HEADING_IDS))(
+    '?section=%s has a rendered target (#%s)',
+    async (_section, id) => {
+      // Two cards render only once their fetch answers.
+      const { fetchIdentities } = await import('../lib/auth-api');
+      vi.mocked(fetchIdentities).mockResolvedValueOnce({
+        password: true,
+        google: null,
+        email: null,
+        emailVerified: false,
+        pendingEmail: null,
+        notifyEmail: true,
+      });
+      const { fetchAiStatus } = await import('../lib/ai-review');
+      vi.mocked(fetchAiStatus).mockResolvedValueOnce({ optIn: false, used: 0, limit: 10 });
+      authState.user = { username: 'alice', id: 'u1' };
+      authState.status = 'authed';
+      renderYouPage();
+      await waitFor(() => expect(document.getElementById(id)).not.toBeNull());
+    }
+  );
+
   const signedInDoors: Array<[string, string]> = [
     ['profile', 'Profile'],
     ['account', 'Account'],

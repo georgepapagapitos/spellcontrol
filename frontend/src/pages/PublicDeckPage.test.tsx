@@ -4,7 +4,7 @@
  * profile) has to land on your deck page, not the stranger's-eye `/d/:slug`
  * view — that URL reads as somebody else's deck.
  */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -97,5 +97,16 @@ describe('PublicDeckPage — the owner never sees the visitor view', () => {
     signIn('someone-else');
     renderPage();
     expect(await screen.findByText('public deck surface')).toBeTruthy();
+  });
+});
+
+describe('PublicDeckPage — a failed load is not a dead end', () => {
+  it('Retry fetches again and shows the deck', async () => {
+    signIn('someone-else');
+    fetchPublicDeckPageMock.mockRejectedValueOnce(new Error('network down'));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('public deck surface')).toBeTruthy();
+    expect(fetchPublicDeckPageMock).toHaveBeenCalledTimes(2);
   });
 });

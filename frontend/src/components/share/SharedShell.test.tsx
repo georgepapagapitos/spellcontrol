@@ -7,9 +7,9 @@
  * what a bookmark of it kept. The titles live in these two shared views so every
  * caller gets one, so they are tested here.
  */
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorView, NotFoundView } from './SharedShell';
 
 const SHELL_TITLE = 'SpellControl — Organize MTG binders, build decks & track games';
@@ -35,7 +35,7 @@ describe('public dead-end states name themselves in the tab', () => {
   });
 
   it('titles the error state', () => {
-    renderIn(<ErrorView message="The network dropped." />);
+    renderIn(<ErrorView message="The network dropped." onRetry={() => {}} />);
     expect(document.title).toBe('Something went wrong · SpellControl');
   });
 
@@ -44,5 +44,15 @@ describe('public dead-end states name themselves in the tab', () => {
     expect(document.title).toBe('Profile not found · SpellControl');
     unmount();
     expect(document.title).toBe(SHELL_TITLE);
+  });
+});
+
+describe('the public error state offers a way to ask again', () => {
+  it('Retry calls back, and the way out stays', () => {
+    const onRetry = vi.fn();
+    renderIn(<ErrorView message="The network dropped." onRetry={onRetry} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalledOnce();
+    expect(screen.getByRole('link', { name: 'Go to SpellControl' })).toBeTruthy();
   });
 });

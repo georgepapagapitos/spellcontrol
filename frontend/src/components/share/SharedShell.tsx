@@ -86,19 +86,28 @@ export function NotFoundView({
 
 interface ErrorViewProps {
   message: string;
+  /** Required: a failed fetch on a public link is usually a dropped
+   *  connection, and a stranger with no app to fall back on needs a way to
+   *  ask again that is not "go somewhere else". */
+  onRetry: () => void;
 }
 
 /** Shared network/unexpected-error state for any `SharedShell`-wrapped public
  *  page. Same reuse rationale as `NotFoundView` above. */
-export function ErrorView({ message }: ErrorViewProps) {
+export function ErrorView({ message, onRetry }: ErrorViewProps) {
   useDocumentTitle('Something went wrong');
   return (
     <div className="shared-view shared-view--error">
       <h1>Something went wrong</h1>
       <p>{message}</p>
-      <Button variant="primary" to="/" className="shared-copy-btn">
-        Go to SpellControl
-      </Button>
+      <div className="shared-view-actions">
+        <Button variant="primary" onClick={onRetry} className="shared-copy-btn">
+          Retry
+        </Button>
+        <Button to="/" className="shared-copy-btn">
+          Go to SpellControl
+        </Button>
+      </div>
     </div>
   );
 }

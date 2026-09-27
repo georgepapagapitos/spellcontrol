@@ -57,7 +57,7 @@ import { Button } from '@/components/shared/Button';
 // is where it starts. Every heading here must exist in the render below (a
 // missing id makes the link a silent no-op — `profile`, `account`,
 // `collection` and `danger` shipped that way once).
-const SECTION_HEADING_IDS: Record<string, string> = {
+export const SECTION_HEADING_IDS: Record<string, string> = {
   profile: 'settings-profile-title',
   account: 'settings-account-title',
   'sign-in': 'settings-signin-title',
@@ -69,7 +69,6 @@ const SECTION_HEADING_IDS: Record<string, string> = {
   sharing: 'settings-profile-title',
   data: 'settings-data-group-title',
   ai: 'settings-ai-group-title',
-  admin: 'settings-admin-group-title',
   danger: 'settings-danger-title',
 };
 

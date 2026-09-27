@@ -63,6 +63,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
     | { status: 'error'; message: string }
     | { status: 'ready'; payload: PublicDeckPageData }
   >({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +85,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, attempt]);
 
   // View beacon: fires at most once per tab session per slug (sessionStorage
   // dedupe, so a refresh doesn't double-count), and never for the deck's own
@@ -151,7 +152,15 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
     );
   }
   if (state.status === 'error') {
-    return <ErrorView message={state.message} />;
+    return (
+      <ErrorView
+        message={state.message}
+        onRetry={() => {
+          setState({ status: 'loading' });
+          setAttempt((n) => n + 1);
+        }}
+      />
+    );
   }
 
   const { payload } = state;

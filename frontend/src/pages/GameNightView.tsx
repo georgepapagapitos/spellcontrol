@@ -89,6 +89,7 @@ function GameNightViewInner({ token }: { token: string }) {
     | { status: 'error'; message: string }
     | { status: 'ready'; payload: PublicGameNight }
   >({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,7 +112,7 @@ function GameNightViewInner({ token }: { token: string }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, attempt]);
 
   if (state.status === 'loading') {
     return (
@@ -133,7 +134,13 @@ function GameNightViewInner({ token }: { token: string }) {
   if (state.status === 'error') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <ErrorView message={state.message} />
+        <ErrorView
+          message={state.message}
+          onRetry={() => {
+            setState({ status: 'loading' });
+            setAttempt((n) => n + 1);
+          }}
+        />
       </SharedShell>
     );
   }

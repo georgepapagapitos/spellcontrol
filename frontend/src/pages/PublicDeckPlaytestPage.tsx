@@ -54,6 +54,7 @@ export function PublicDeckPlaytestPage() {
 
 function PublicDeckPlaytestInner({ sourceKey, isSlug }: { sourceKey: string; isSlug: boolean }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +86,7 @@ function PublicDeckPlaytestInner({ sourceKey, isSlug }: { sourceKey: string; isS
     return () => {
       cancelled = true;
     };
-  }, [sourceKey, isSlug]);
+  }, [sourceKey, isSlug, attempt]);
 
   useDocumentTitle(state.status === 'ready' ? `Playtest: ${state.deck.name}` : undefined);
 
@@ -123,7 +124,15 @@ function PublicDeckPlaytestInner({ sourceKey, isSlug }: { sourceKey: string; isS
     );
   }
   if (state.status === 'error') {
-    return <ErrorView message={state.message} />;
+    return (
+      <ErrorView
+        message={state.message}
+        onRetry={() => {
+          setState({ status: 'loading' });
+          setAttempt((n) => n + 1);
+        }}
+      />
+    );
   }
 
   return (
