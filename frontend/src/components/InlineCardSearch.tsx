@@ -38,6 +38,8 @@ interface Props {
    * once its search produces a match.
    */
   onAdded?: (card: ScryfallCard, finish?: Finish) => void;
+  /** Pass-through to {@link CardSearchResults} — see its own doc comment. */
+  onActiveChange?: (card: ScryfallCard | null) => void;
 }
 
 const RESULT_LIMIT = 60;
@@ -53,12 +55,17 @@ const PAGE_SIZE = 10;
  * drift apart.
  *
  * Renders no input of its own — a host with one on screen (SearchPage,
- * TagsPage, ListAddCardSheet, ...) can drive keyboard navigation through the
- * forwarded ref (`moveActive` / `addActive`); none currently wires this up,
- * since each owns a separate `SearchPill` this lane doesn't touch.
+ * ListAddCardSheet, ListDetailView's Scryfall panel, the import review's
+ * unresolved-name repair row, ...) drives keyboard navigation through the
+ * forwarded ref (`moveActive` / `addActive`) and `onActiveChange`, typically
+ * via the shared `useResultsKeys` hook. TagsPage's own search box queries
+ * tags, not these card results, so it leaves the ref unwired.
  */
 export const InlineCardSearch = forwardRef<CardSearchResultsHandle, Props>(
-  function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded }, ref) {
+  function InlineCardSearch(
+    { query, view = 'list', onClose, onAdd, onAdded, onActiveChange },
+    ref
+  ) {
     const q = query.trim();
     const { results, loading, error, total } = useSearchCards(query, RESULT_LIMIT);
 
@@ -90,6 +97,7 @@ export const InlineCardSearch = forwardRef<CardSearchResultsHandle, Props>(
           total={total}
           onAdd={onAdd}
           onAdded={onAdded}
+          onActiveChange={onActiveChange}
         />
       </div>
     );

@@ -7,6 +7,7 @@ import { SearchPill } from '../components/SearchPill';
 import { InlineCardSearch, type InlineCardSearchView } from '../components/InlineCardSearch';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useCollapsedPref } from '../lib/use-collapsed-pref';
+import { useResultsKeys } from '../lib/use-results-keys';
 import { useStoredView } from '../lib/use-stored-view';
 import { offlineDataAvailable, useOfflineStore } from '../store/offline';
 
@@ -94,6 +95,17 @@ export function SearchPage() {
   // which only understands a subset of operators; surface the "online" notes.
   const offlineActive = useOfflineStore(offlineDataAvailable);
   const inputRef = useRef<HTMLInputElement>(null);
+  // A lookup page, not an add flow — Enter out of habit right after typing
+  // must not silently add the top hit (CardSearchResults starts active on
+  // row 0), so this requires an explicit arrow press first.
+  const {
+    resultsRef,
+    onActiveChange,
+    onKeyDown: resultsKeyDown,
+  } = useResultsKeys({
+    enterNeedsNav: true,
+    resetKey: query,
+  });
 
   const insertExample = (snippet: string) => {
     const next = query.trim() ? `${query.replace(/\s+$/, '')} ${snippet}` : snippet;
@@ -122,6 +134,7 @@ export function SearchPage() {
         onChange={commitQuery}
         ariaLabel="Search any card"
         autoFocus={autoFocusSearch}
+        inputProps={{ onKeyDown: resultsKeyDown }}
       />
       <div className="search-syntax">
         <button
@@ -192,7 +205,12 @@ export function SearchPage() {
               ]}
             />
           </div>
-          <InlineCardSearch query={query} view={view} />
+          <InlineCardSearch
+            ref={resultsRef}
+            query={query}
+            view={view}
+            onActiveChange={onActiveChange}
+          />
         </>
       ) : (
         <div className="empty-state">

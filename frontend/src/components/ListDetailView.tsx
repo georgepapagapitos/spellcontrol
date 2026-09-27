@@ -19,6 +19,7 @@ import { cardTagLabel } from '../lib/card-tags';
 import { useCardsWithTags } from '../lib/card-tags';
 import type { EnrichedListRow } from '../lib/use-enriched-list-entries';
 import { ownedCountForEntry, isTrackingList } from '../lib/lists';
+import { useResultsKeys } from '../lib/use-results-keys';
 import { useCollectionStore } from '../store/collection';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SearchPill } from './SearchPill';
@@ -219,6 +220,7 @@ export function ListDetailView({
   // Filter state — the card-attribute subset that's meaningful for unowned
   // cards. Mirrors the collection filter dialog's controlled props.
   const [search, setSearch] = useState('');
+  const { resultsRef, onActiveChange, onKeyDown: resultsKeyDown } = useResultsKeys();
   const [supertypeExpr, setSupertypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [typesExpr, setTypesExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
@@ -620,6 +622,10 @@ export function ListDetailView({
           onChange={setSearch}
           placeholder="Search this list"
           ariaLabel="Search this list"
+          // Only steer these keys into the Scryfall results below while that
+          // panel is actually open — otherwise this box just filters the
+          // owned-row table above, which has no arrow-key nav of its own.
+          inputProps={scryfallOpen ? { onKeyDown: resultsKeyDown } : undefined}
           trailing={
             <CollectionFiltersDialog
               supertypeExpr={supertypeExpr}
@@ -835,9 +841,11 @@ export function ListDetailView({
         search.trim().length >= 2 &&
         (scryfallOpen ? (
           <InlineCardSearch
+            ref={resultsRef}
             query={search.trim()}
             onClose={() => setScryfallOpen(false)}
             onAdd={addToList}
+            onActiveChange={onActiveChange}
           />
         ) : (
           <button

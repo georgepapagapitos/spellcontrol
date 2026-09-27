@@ -2158,6 +2158,25 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   printing (decision B), unaffected by whatever the inspector's picker has
   selected. Other tabs (Add from list, Products, Scan) are unchanged and use
   the full width at every tier.
+- **Every host with its own query input beside `CardSearchResults` (directly,
+  or through `InlineCardSearch`'s forwarded ref) wires the same ↑/↓/Enter nav
+  through the shared `lib/use-results-keys.ts` hook (T159/E457) — `AddCardSearchPanel`,
+  `/search`, the list "Add card" sheet, a list's own Scryfall panel, and the
+  import review's per-name repair search all use it.** ↑/↓ moves the active
+  row, Enter adds its own shown printing (decision B); both pass through
+  untouched during IME composition and until a row has actually gone active,
+  so a query too short to search yet, or a panel that isn't open, never
+  swallows the keys of whatever the host's input does with them otherwise. A
+  new host follows this pattern rather than hand-rolling its own keydown
+  handler. A lookup page is the one exception: `/search` passes
+  `enterNeedsNav: true`, so Enter right after typing (out of habit, before
+  any ↑/↓) passes through instead of silently adding `CardSearchResults`'
+  row-0 default to the collection — an add flow (the Add cards workbench,
+  the list-add hosts) leaves this off, since a type-then-Enter quick add IS
+  the point there. With the gate on, nothing is selected until an arrow, so
+  the first ↑/↓ selects the top hit in place (`moveActive(0)`) instead of
+  skipping past it to row 1; that is the "no automatic selection" combobox
+  model, where the add flows use "automatic selection".
 - **`CardPreview` is one layout function with two shapes (E421, 2026-09-25).**
   It replaced the 2026-08-18 ruling ("≥1024px is two panes"), which it keeps
   and extends. Every length comes from the viewport (the backdrop is the one
