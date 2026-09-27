@@ -179,7 +179,7 @@
     border: 0.5px solid var(--border-strong);
     border-radius: 999px;
     padding: 0.7rem var(--space-4);
-    box-shadow: 0 4px 16px color-mix(in srgb, black 20%, transparent);
+    box-shadow: var(--shadow-tooltip);
     color: var(--text-primary);
     font-size: var(--text-sm);
     font-weight: 600;

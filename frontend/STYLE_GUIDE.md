@@ -906,7 +906,7 @@ a hero CTA.
   raised chip, never an accent fill.** The track is a padded, bordered
   container (`--surface`, `var(--radius-lg)` or `999px`, `var(--space-1)`
   padding + gap); the selected segment lifts onto `--surface-raised` with
-  `box-shadow: inset 0 0 0 1px var(--border-strong), 0 1px 2px rgb(0 0 0 / 0.08)`
+  `box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-raised)`
   and `--text-primary` text at weight 600, while the rest stay
   `--text-secondary` on transparent. **The ring and the weight are part of the
   chip (revised 2026-09-24, E410).** The chip alone read faint on the light
@@ -5099,8 +5099,16 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   | `--muted`                                  | `--text-muted`                                |
   | `--motion-slow`                            | `--motion-base` / `--motion-gentle`           |
 
-- **Elevation tiers:** `--shadow-card` (lightest — centered auth/welcome cards),
-  `--shadow-tooltip`, `--shadow-sheet`, `--shadow-modal`.
+- **Elevation tiers (T157 W5 — one scale, five steps, by role not by pixel
+  guess):** `--shadow-raised` (a chip/badge lifted a hair off its surface),
+  `--shadow-card` (a resting card-like surface — auth/welcome panels, a
+  thumbnail off its grid), `--shadow-tooltip` (a popover/menu/dropdown/flyout),
+  `--shadow-sheet` (a bottom sheet or dock rising from a screen edge),
+  `--shadow-modal` (a dialog/takeover that suspends the page). Rings
+  (`0 0 0 Npx var(...)`), insets and meaningful glows (turn ring, damage
+  flash, foil) are never elevation and stay as literals.
+  `styles/elevation-ratchet.test.ts` freezes every remaining raw elevation
+  box-shadow per file and fails if the count rises.
 - **On-art scrims are an intentional non-themed exception:** elements that sit on
   card images (qty/set badges on grid tiles) use `--art-scrim` /
   `--art-scrim-text`, not inline `rgba`. Card art is theme-invariant, so these

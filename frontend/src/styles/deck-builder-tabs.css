@@ -534,7 +534,7 @@
   border: 0.5px solid var(--border);
   /* The card art looks slightly washed against the row's tinted background
      when the row is expanded — a soft shadow re-establishes depth. */
-  box-shadow: 0 1px 2px color-mix(in srgb, black 18%, transparent);
+  box-shadow: var(--shadow-card);
   transition:
     box-shadow 0.15s ease,
     transform 0.15s ease;

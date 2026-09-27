@@ -293,7 +293,7 @@
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-lg);
   background: linear-gradient(150deg, #3f4a5c 0%, #1b1f28 100%);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--shadow-modal);
   animation: pp-scale-in var(--motion-base) var(--ease-out-soft);
 }
 

@@ -75,7 +75,7 @@
   touch-action: manipulation;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 10%),
-    0 6px 18px rgba(0, 0, 0, 0.55);
+    var(--shadow-tooltip);
 }
 
 .board-hub-key svg,
@@ -116,7 +116,7 @@
   border-radius: var(--radius-lg);
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(18, 21, 28, 0.97);
-  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-sheet);
 }
 
 .board-hub-dock-item {

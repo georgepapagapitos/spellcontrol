@@ -435,7 +435,7 @@
   padding: var(--space-1) var(--space-2);
   border-radius: 999px;
   line-height: 1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
 }
 
 /* ── Checklist list view — dense rows, the grid's sibling layout ── */

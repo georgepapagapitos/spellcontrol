@@ -41,5 +41,5 @@
 .collection-grid-price-override {
   width: 1.1rem;
   height: 1.1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
 }

@@ -517,7 +517,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: 0 14px 44px rgb(0 0 0 / 60%);
+  box-shadow: var(--shadow-modal);
   transform-style: preserve-3d;
   transition: transform 0.65s var(--ease-out-soft);
 }
@@ -716,7 +716,7 @@
   background: #14151d;
   border-top: 1px solid rgb(255 255 255 / 12%);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  box-shadow: 0 -10px 36px rgb(0 0 0 / 45%);
+  box-shadow: var(--shadow-sheet);
   color: #fff;
   text-align: left;
   transform: translateY(calc(var(--pv-full) - var(--pv-peek)));
@@ -1620,7 +1620,7 @@
   background: rgb(20 20 22);
   border: 0.5px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-tooltip);
 }
 
 .binder-pages-cell {
