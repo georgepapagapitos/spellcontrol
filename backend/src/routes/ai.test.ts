@@ -8,8 +8,10 @@ const mockState = {
   enabled: true,
   generate: vi.fn(),
 };
-vi.mock('../ai/client', () => ({
+vi.mock('../ai/client', async (importOriginal) => ({
   AI_MODEL: 'test-model',
+  // Real pricing math: the global spend cap reads it.
+  estimateUsd: (await importOriginal<typeof import('../ai/client')>()).estimateUsd,
   aiEnabled: () => mockState.enabled,
   generateReview: (
     system: string,
@@ -492,6 +494,40 @@ describe('POST /api/ai/deck-review', () => {
       .send(reviewBody());
     expect(rehit.status).toBe(200);
     expect(parseStream(rehit.text).done).toMatchObject({ cached: true });
+  });
+
+  it('429s every account once the global daily spend cap is reached; cache hits still work', async () => {
+    const cookie = await makeUser('ai-review-global-cap');
+    await optIn(cookie);
+    const first = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody({ commander: 'Global Cap Commander' }));
+    expect(first.status).toBe(200);
+
+    // Whatever has been spent today is now over the cap.
+    process.env.AI_DAILY_USD_CAP = '0';
+    try {
+      mockState.generate.mockClear();
+      const other = await makeUser('ai-review-global-cap-2');
+      await optIn(other);
+      const refused = await request(app)
+        .post('/api/ai/deck-review')
+        .set('Cookie', other)
+        .send(reviewBody({ commander: 'Another Commander' }));
+      expect(refused.status).toBe(429);
+      expect(refused.body.error).toMatch(/limit for today/);
+      expect(mockState.generate).not.toHaveBeenCalled();
+
+      const rehit = await request(app)
+        .post('/api/ai/deck-review')
+        .set('Cookie', cookie)
+        .send(reviewBody({ commander: 'Global Cap Commander' }));
+      expect(rehit.status).toBe(200);
+      expect(parseStream(rehit.text).done).toMatchObject({ cached: true });
+    } finally {
+      delete process.env.AI_DAILY_USD_CAP;
+    }
   });
 
   it('502s when generation fails before a single byte is streamed', async () => {

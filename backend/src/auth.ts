@@ -84,14 +84,88 @@ export function signSession(user: AuthedUser): string {
   });
 }
 
-export function verifySession(token: string): AuthedUser | null {
+// Pinned so a token can never pick its own verification algorithm. Every
+// token this app mints is HS256; nothing else should ever verify.
+const JWT_ALGORITHMS: jwt.Algorithm[] = ['HS256'];
+
+function decodeSession(token: string): { user: AuthedUser; iat: number } | null {
   try {
-    const payload = jwt.verify(token, getJwtSecret()) as jwt.JwtPayload;
+    const payload = jwt.verify(token, getJwtSecret(), {
+      algorithms: JWT_ALGORITHMS,
+    }) as jwt.JwtPayload;
     if (typeof payload.sub !== 'string' || typeof payload.username !== 'string') return null;
-    return { id: payload.sub, username: payload.username, role: asRole(payload.role as string) };
+    return {
+      user: { id: payload.sub, username: payload.username, role: asRole(payload.role as string) },
+      iat: typeof payload.iat === 'number' ? payload.iat : 0,
+    };
   } catch {
     return null;
   }
+}
+
+/** Signature + expiry only. Request paths use `checkSession`, which also honours revocation. */
+export function verifySession(token: string): AuthedUser | null {
+  return decodeSession(token)?.user ?? null;
+}
+
+// Session revocation. A session JWT is stateless, so on its own a stolen
+// cookie outlives a password reset by up to TOKEN_TTL. `users.sessions_valid_after`
+// (epoch seconds) is the floor: a token whose `iat` is older is rejected.
+// The floor is read once per user per minute, not once per request (the DB is
+// a network hop away). `revokeSessions` writes the cache in the same breath as
+// the row, so on this single-machine deploy a revocation is immediate.
+// ponytail: per-process cache; if the app ever runs >1 machine, a revocation
+// reaches the other machines within SESSION_FLOOR_TTL_MS, not instantly.
+const SESSION_FLOOR_TTL_MS = 60_000;
+const sessionFloors = new Map<string, { exists: boolean; validAfter: number | null; at: number }>();
+
+async function sessionFloor(
+  userId: string
+): Promise<{ exists: boolean; validAfter: number | null }> {
+  const hit = sessionFloors.get(userId);
+  if (hit && Date.now() - hit.at < SESSION_FLOOR_TTL_MS) return hit;
+  const rows = await getDb()
+    .select({ validAfter: users.sessionsValidAfter })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const floor = {
+    exists: rows.length > 0,
+    validAfter: rows[0]?.validAfter ?? null,
+    at: Date.now(),
+  };
+  sessionFloors.set(userId, floor);
+  return floor;
+}
+
+/**
+ * Sign out every session the user holds, on every device. Call it when the
+ * password changes, then mint the caller a fresh cookie: a token issued in the
+ * same second as the floor still passes (`iat` is whole seconds, the check is
+ * strictly-older), so the device that made the change stays signed in.
+ */
+export async function revokeSessions(userId: string): Promise<void> {
+  const validAfter = Math.floor(Date.now() / 1000);
+  await getDb().update(users).set({ sessionsValidAfter: validAfter }).where(eq(users.id, userId));
+  sessionFloors.set(userId, { exists: true, validAfter, at: Date.now() });
+}
+
+/** Call right after deleting an account, so its cookies stop working now, not at the next cache refresh. */
+export function forgetDeletedUser(userId: string): void {
+  sessionFloors.set(userId, { exists: false, validAfter: null, at: Date.now() });
+}
+
+/**
+ * The request-path session check: signature, expiry, the account still
+ * existing, and the token not predating a revocation.
+ */
+export async function checkSession(token: string): Promise<AuthedUser | null> {
+  const decoded = decodeSession(token);
+  if (!decoded) return null;
+  const floor = await sessionFloor(decoded.user.id);
+  if (!floor.exists) return null;
+  if (floor.validAfter !== null && decoded.iat < floor.validAfter) return null;
+  return decoded.user;
 }
 
 export function setSessionCookie(res: Response, token: string): void {
@@ -117,13 +191,13 @@ export function readSessionCookie(req: Request): string | null {
  * Middleware that requires a valid session. Populates req.user, otherwise
  * responds with 401.
  */
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const token = readSessionCookie(req);
   if (!token) {
     res.status(401).json({ error: 'Authentication required.' });
     return;
   }
-  const user = verifySession(token);
+  const user = await checkSession(token);
   if (!user) {
     res.status(401).json({ error: 'Invalid or expired session.' });
     return;
@@ -139,10 +213,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
  * when audience='link' but friends-only when audience='friends'. The handler
  * decides what an absent req.user means.
  */
-export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+export async function optionalAuth(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
   const token = readSessionCookie(req);
   if (token) {
-    const user = verifySession(token);
+    const user = await checkSession(token);
     if (user) req.user = user;
   }
   next();
@@ -157,7 +235,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
  * admin route checks rely on requireAdmin, which also hits the DB.)
  */
 export async function loadAuthedUser(token: string): Promise<AuthedUser | null> {
-  const claims = verifySession(token);
+  const claims = await checkSession(token);
   if (!claims) return null;
   return loadUserById(claims.id);
 }
@@ -439,6 +517,7 @@ export function verifyOAuthState(token: string): OAuthState | null {
   try {
     const payload = jwt.verify(token, getJwtSecret(), {
       audience: OAUTH_STATE_AUDIENCE,
+      algorithms: JWT_ALGORITHMS,
     }) as jwt.JwtPayload;
     return {
       nonce: typeof payload.nonce === 'string' ? payload.nonce : '',
@@ -478,6 +557,7 @@ export function verifySignupToken(token: string): SignupToken | null {
   try {
     const p = jwt.verify(token, getJwtSecret(), {
       audience: SIGNUP_TOKEN_AUDIENCE,
+      algorithms: JWT_ALGORITHMS,
     }) as jwt.JwtPayload;
     if (p.provider !== 'google' || typeof p.sub !== 'string') return null;
     return {

@@ -62,6 +62,24 @@ const MAX_BATCH_SIZE = 5000;
 
 type Kind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list' | 'cube';
 
+/**
+ * Per-account storage ceiling, so one account (a bug, or someone scripting
+ * the API) can't grow the database bill without bound. Sized from prod: the
+ * largest real account is ~25 MB, and a full 200k-card import (MAX_TOTAL_CARDS)
+ * lands around 330 MB. Env-overridable so the test can hit it.
+ */
+export function storageCapBytes(): number {
+  const raw = Number(process.env.USER_STORAGE_CAP_BYTES);
+  return Number.isFinite(raw) && raw > 0 ? raw : 512 * 1024 * 1024;
+}
+/**
+ * What every row costs beyond its data: tuple header, primary key and rev
+ * index entries. Tombstones are kept forever and a deletion of an unknown id
+ * still inserts one, so rows are charged even when `data` is NULL; without
+ * this, deletions alone could fill the disk.
+ */
+const ROW_OVERHEAD_BYTES = 200;
+
 const KIND_TO_TABLE: Record<Kind, string> = {
   import: 'user_imports',
   card: 'user_cards',
@@ -279,6 +297,50 @@ syncRouter.get('/', requireAuth, syncLimiter, async (req: Request, res: Response
   res.json({ rows: out, cursor, hasMore, ...(counts ? { counts } : {}) });
 });
 
+/**
+ * Bytes the account occupies across every user-data table, tombstones
+ * included. Measuring it is a scan of the account's rows, so it is cached and
+ * advanced by an over-estimate of each batch, and only re-measured when the
+ * estimate goes stale or would cross the cap.
+ * ponytail: per-process cache; with >1 machine each one estimates separately,
+ * which is still bounded (every machine re-measures before refusing).
+ */
+const STORAGE_USAGE_TTL_MS = 10 * 60_000;
+const storageUsage = new Map<string, { bytes: number; at: number }>();
+
+async function measureStorageBytes(userId: string): Promise<number> {
+  const parts = Object.values(KIND_TO_TABLE).map(
+    (t) =>
+      `SELECT COALESCE(SUM(COALESCE(pg_column_size(data), 0) + $2), 0) AS b FROM ${t} WHERE user_id = $1`
+  );
+  const { rows } = await getPool().query<{ b: string }>(
+    `SELECT SUM(b)::text AS b FROM (${parts.join(' UNION ALL ')}) s`,
+    [userId, ROW_OVERHEAD_BYTES]
+  );
+  const bytes = Number(rows[0]?.b ?? 0);
+  storageUsage.set(userId, { bytes, at: Date.now() });
+  return bytes;
+}
+
+/** Upper bound on what a batch adds: JSON text is never smaller than its stored jsonb. */
+function batchBytes(upserts: UpsertOp[], deletionCount: number): number {
+  let bytes = (upserts.length + deletionCount) * ROW_OVERHEAD_BYTES;
+  for (const u of upserts) {
+    if (u.data !== undefined) bytes += Buffer.byteLength(JSON.stringify(u.data));
+  }
+  return bytes;
+}
+
+/** False when the batch would take the account past its cap, after an exact re-measure. */
+async function fitsStorageCap(userId: string, incoming: number): Promise<boolean> {
+  const cap = storageCapBytes();
+  const hit = storageUsage.get(userId);
+  const fresh = hit && Date.now() - hit.at < STORAGE_USAGE_TTL_MS;
+  let used = fresh ? hit.bytes : await measureStorageBytes(userId);
+  if (used + incoming > cap && fresh) used = await measureStorageBytes(userId);
+  return used + incoming <= cap;
+}
+
 /** Live (non-tombstoned) row count per kind, in one round trip. */
 async function liveCountsByKind(userId: string): Promise<Record<Kind, number>> {
   const { rows } = await getPool().query<{ kind: Kind; n: string }>(
@@ -332,6 +394,14 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
   if (upserts.value.length + deletions.value.length > MAX_BATCH_SIZE) {
     return res.status(413).json({
       error: `Batch too large; max ${MAX_BATCH_SIZE} operations per request.`,
+    });
+  }
+
+  const incomingBytes = batchBytes(upserts.value, deletions.value.length);
+  if (!(await fitsStorageCap(userId, incomingBytes))) {
+    const mb = Math.round(storageCapBytes() / (1024 * 1024));
+    return res.status(413).json({
+      error: `This account has reached its ${mb} MB storage limit. Delete something to make room.`,
     });
   }
 
@@ -692,6 +762,9 @@ syncRouter.post('/', requireAuth, syncLimiter, async (req: Request, res: Respons
   // Fire-and-forget: keeps deck_publications' denormalized listing columns in
   // sync with any published deck this batch touched. Never awaited, so it can
   // never add latency to or fail the client's sync response (see sync-hook.ts).
+  const usage = storageUsage.get(userId);
+  if (usage) usage.bytes += incomingBytes;
+
   refreshDeckPublications(userId, applied).catch((err) =>
     logger.warn(`[sync] publications refresh failed user=${userId}`, err)
   );
@@ -746,6 +819,7 @@ syncRouter.post('/clear-collection', requireAuth, syncLimiter, async (req, res) 
       for (const r of rows) cursor = Math.max(cursor, Number(r.rev));
     }
     await client.query('COMMIT');
+    storageUsage.delete(userId); // it shrank; re-measure on the next push
     logger.debug(
       `[sync] clear-collection user=${userId} cards=${cleared.card} ` +
         `imports=${cleared.import} lists=${cleared.list} cursor=${cursor}`

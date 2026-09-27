@@ -909,5 +909,9 @@ export async function ensureSchema(): Promise<void> {
     -- public. Both statements are idempotent on every boot.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS collection_visibility TEXT;
     ALTER TABLE users ALTER COLUMN collection_visibility SET DEFAULT 'public';
+    -- Session revocation: a session token issued (JWT iat, seconds) before
+    -- this moment is rejected. Bumped on password reset/change so a stolen
+    -- cookie dies with the old password. NULL = never revoked.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS sessions_valid_after BIGINT;
   `);
 }

@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vites
 import request from 'supertest';
 import type { Server } from 'node:http';
 import type { Pool } from 'pg';
+import type { Request } from 'express';
+import jwt from 'jsonwebtoken';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
+import { loginAccountKey, mailTargetKey } from './auth';
 
 // The route hands the raw token to sendMail() inside a `.../reset-password?
 // token=…` link — capturing the call is how these tests recover a token
@@ -500,5 +503,99 @@ describe('POST /api/auth/register — the recovery address', () => {
       email: 'shared-pending@example.com',
     });
     expect(second.status).toBe(201);
+  });
+});
+
+describe('session revocation', () => {
+  // A cookie minted a minute ago: stands in for one an attacker lifted before
+  // the owner noticed. (Minting it now would share the revocation's second.)
+  function staleCookie(user: { id: string; username: string }): string {
+    const token = jwt.sign(
+      {
+        sub: user.id,
+        username: user.username,
+        role: 'user',
+        iat: Math.floor(Date.now() / 1000) - 60,
+      },
+      process.env.JWT_SECRET!
+    );
+    return `spellcontrol_session=${token}`;
+  }
+
+  it('changing the password signs out older sessions and keeps this device signed in', async () => {
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'rv-alice',
+      password: 'correct horse battery',
+      email: 'rv-alice@example.test',
+    });
+    const cookie = extractSessionCookie(register.headers['set-cookie']);
+    const stolen = staleCookie(register.body.user);
+    expect((await request(app).get('/api/sync').set('Cookie', stolen)).status).toBe(200);
+
+    const change = await request(app).post('/api/auth/me/password').set('Cookie', cookie!).send({
+      currentPassword: 'correct horse battery',
+      newPassword: 'a totally different password',
+    });
+    expect(change.status).toBe(200);
+    const fresh = extractSessionCookie(change.headers['set-cookie']);
+    expect(fresh).toBeTruthy();
+
+    expect((await request(app).get('/api/sync').set('Cookie', stolen)).status).toBe(401);
+    expect((await request(app).get('/api/sync').set('Cookie', fresh!)).status).toBe(200);
+  });
+
+  it('a password reset signs out older sessions', async () => {
+    const cookie = await registerAndVerify('rv-bob', 'rv-bob@example.com');
+    const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
+    const stolen = staleCookie(me.body.user);
+    expect((await request(app).get('/api/sync').set('Cookie', stolen)).status).toBe(200);
+
+    mockSendMail.mockClear();
+    await request(app).post('/api/auth/forgot-password').send({ email: 'rv-bob@example.com' });
+    const reset = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: tokenFromLastMail(), password: 'a brand new password' });
+    expect(reset.status).toBe(200);
+
+    expect((await request(app).get('/api/sync').set('Cookie', stolen)).status).toBe(401);
+    const fresh = extractSessionCookie(reset.headers['set-cookie']);
+    expect((await request(app).get('/api/sync').set('Cookie', fresh!)).status).toBe(200);
+  });
+
+  it("a deleted account's cookie stops working at once", async () => {
+    const register = await request(app).post('/api/auth/register').send({
+      username: 'rv-carol',
+      password: 'correct horse battery',
+      email: 'rv-carol@example.test',
+    });
+    const cookie = extractSessionCookie(register.headers['set-cookie']);
+    expect((await request(app).get('/api/sync').set('Cookie', cookie!)).status).toBe(200);
+    expect((await request(app).delete('/api/auth/me').set('Cookie', cookie!)).status).toBe(200);
+    expect((await request(app).get('/api/sync').set('Cookie', cookie!)).status).toBe(401);
+  });
+});
+
+describe('per-target rate-limit keys', () => {
+  const req = (body: unknown, ip = '203.0.113.7') => ({ body, ip }) as unknown as Request;
+
+  it('counts sign-in failures per username, whatever the IP', () => {
+    expect(loginAccountKey(req({ username: ' Alice ' }, '1.1.1.1'))).toBe('login:alice');
+    expect(loginAccountKey(req({ username: 'alice' }, '2.2.2.2'))).toBe('login:alice');
+  });
+
+  it('counts mail per recipient address, whatever the IP', () => {
+    expect(mailTargetKey(req({ email: 'Victim@Example.com' }, '1.1.1.1'))).toBe(
+      'mail:victim@example.com'
+    );
+    expect(mailTargetKey(req({ email: 'victim@example.com' }, '2.2.2.2'))).toBe(
+      'mail:victim@example.com'
+    );
+  });
+
+  it('falls back to the IP, never one shared bucket, when the body has no usable target', () => {
+    expect(loginAccountKey(req({}, '1.1.1.1'))).not.toBe(loginAccountKey(req({}, '2.2.2.2')));
+    expect(mailTargetKey(req({ email: 'nope' }, '1.1.1.1'))).not.toBe(
+      mailTargetKey(req({ email: 'nope' }, '2.2.2.2'))
+    );
   });
 });
