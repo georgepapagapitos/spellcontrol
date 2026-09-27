@@ -83,6 +83,29 @@ describe('CardSearchResults grid view', () => {
     fireEvent.click(add);
     await vi.waitFor(() => expect(addCard).toHaveBeenCalledTimes(1));
   });
+
+  // A "+" drawn on the art grew to 44px on touch and covered the card's mana
+  // cost (E453). The "+", the printing and the owned count live in a caption
+  // under the art; nothing but the image sits inside the preview button.
+  it('keeps the add button and the counts in a caption, off the art', async () => {
+    useCollectionStore.setState({
+      cards: [
+        { copyId: 'a', name: 'Sol Ring' },
+        { copyId: 'b', name: 'Sol Ring' },
+      ] as never,
+    });
+    const { container } = render(<CardSearchResults results={[RESULT]} view="grid" />);
+    await act(async () => {});
+
+    const art = screen.getByRole('button', { name: 'Preview Sol Ring' });
+    const caption = container.querySelector('.inline-card-search-tile-caption');
+    expect(caption).toBeTruthy();
+    expect(art.contains(screen.getByRole('button', { name: 'Add Sol Ring' }))).toBe(false);
+    expect(caption!.contains(screen.getByRole('button', { name: 'Add Sol Ring' }))).toBe(true);
+    expect(caption!.textContent).toContain('LTR #123');
+    expect(caption!.textContent).toContain('You own 2');
+    expect(art.textContent).toBe('');
+  });
 });
 
 describe('CardSearchResults keyboard nav handle', () => {

@@ -6169,6 +6169,11 @@ same controls, from `components/CopyControls` plus the kit:
 - **One finish vocabulary: Non-foil / Foil / Etched** (`FINISH_LABELS`), never
   "Normal", which reads as a frame or a layout beside those fields. The CSV
   export keeps "Normal" because that is what other tools import.
+- **A search result tile carries nothing on its art** (E453, 2026-09-27). The
+  printing, the "You own N" / "Added ×N" count and the "+" (a kit
+  `IconButton`, 44px on touch) sit in a caption under the card, the way the
+  collection grid captions price and set. A scrim "+" on the art covered the
+  mana cost once it grew to its touch size.
 - Labels are sentence-case `Field` labels above the control, never uppercase
   side labels (§ Config surfaces). Two fields to a row once the container, not
   the viewport, is 30rem wide.
