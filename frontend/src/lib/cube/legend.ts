@@ -183,9 +183,9 @@ export function distributeLegendQuota(
   return out;
 }
 
-/** "W" / "WU" / "3+ colour" — plain enough for a reason string; PR3 owns the
+/** "W" / "WU" / "3+ color" — plain enough for a reason string; PR3 owns the
  *  user-facing copy for the coverage readout. */
-const labelFor = (b: LegendIdentity): string => (b === 'other' ? '3+ colour' : b);
+const labelFor = (b: LegendIdentity): string => (b === 'other' ? '3+ color' : b);
 
 /**
  * The legend section for a Commander cube: every `isLegendCandidate` card in

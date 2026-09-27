@@ -629,6 +629,46 @@ describe('play format', () => {
   });
 });
 
+describe('legend shortfall gap (board #12, PR3)', () => {
+  it('adds a "short" gap when the commander cube has fewer legends than LEGEND_TARGET, and never for limited', () => {
+    // richPool() has no legendary creatures at all, so a Commander build's
+    // legend section is empty — well short of any size's target.
+    const pool = richPool();
+    const commander = generateCube(pool, 360, { format: 'commander' });
+    expect(commander.legends).toEqual([]);
+    const shortGap = commander.gaps.find((g) => /legendary creatures are eligible/.test(g.text));
+    expect(shortGap).toBeDefined();
+    expect(shortGap!.severity).toBe('short');
+    expect(shortGap!.text).toBe(
+      'Only 0 legendary creatures are eligible, 100 short of the 100-commander target. Own more legends to fill it out.'
+    );
+
+    // The same pool built as limited never mentions legends at all.
+    const limited = generateCube(pool, 360);
+    expect(limited.gaps.some((g) => /legendary creatures are eligible/.test(g.text))).toBe(false);
+  });
+
+  it('adds no shortfall gap once the pool supplies at least the target', () => {
+    // richPool() alone already fills every spell bucket (90 cards/colour vs.
+    // a ~36-card target at 180), so 125 ADDITIONAL legendary creatures,
+    // ranked worse than anything richPool already offers, are never needed
+    // as spells and stay free for the legend section.
+    const pool = richPool();
+    const colors: CubeCard['colors'][] = [['W'], ['U'], ['B'], ['R'], ['G']];
+    for (const c of colors) {
+      for (let i = 0; i < 25; i++) {
+        pool.push(
+          card({ colors: c, typeLine: 'Legendary Creature — Test', cmc: 3, rank: 90000 + i })
+        );
+      }
+    }
+    // 125 legends comfortably covers 180's target (60).
+    const commander = generateCube(pool, 180, { format: 'commander' });
+    expect(commander.legends!.length).toBe(60);
+    expect(commander.gaps.some((g) => /legendary creatures are eligible/.test(g.text))).toBe(false);
+  });
+});
+
 describe('apportion', () => {
   it('sums bucket targets to exactly `size`, for every band and every offered size (E454)', () => {
     for (const format of ['limited', 'commander'] as const) {
