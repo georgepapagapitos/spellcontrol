@@ -6086,6 +6086,16 @@ same controls, from `components/CopyControls` plus the kit:
 - **The unmarked defaults record nothing.** Near Mint and English at add time
   store no condition or language, the same meaning "Not set" had, so the card
   row's "norms are unmarked" rule above holds.
+- **The Edit card dialog (`CardEditDialog`) reuses both controls.**
+  `ConditionControl` takes a nullable `value` and an overridable `hint` for
+  this one caller: an unset copy shows Near Mint selected (same "unmarked
+  reads as NM" rule as above) but writes nothing unless the user actually
+  picks a grade, and a grouped stack whose copies disagree shows no grade
+  selected behind a "Mixed: …. Pick one to set them all." hint — picking one
+  writes it across the group, matching a mixed field's placeholder-select
+  convention below. Language keeps its own SelectMenu, now in a `Field` like
+  the add picker's, with the same touched-tracking so an edit never rewrites
+  a stored language the user didn't touch.
 - **One finish vocabulary: Non-foil / Foil / Etched** (`FINISH_LABELS`), never
   "Normal", which reads as a frame or a layout beside those fields. The CSV
   export keeps "Normal" because that is what other tools import.

@@ -168,6 +168,91 @@ describe('CardEditDialog card flags (Altered/Proxy/Misprint)', () => {
   });
 });
 
+describe('CardEditDialog condition (ConditionControl, T153)', () => {
+  beforeEach(() => {
+    fetchPrintingsMock.mockReset();
+    fetchPrintingsMock.mockResolvedValue([current]);
+  });
+
+  it('shows all five grades at once, none of them a dropdown', async () => {
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        details={{ condition: 'lp' }}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    await screen.findByText('#270');
+    for (const name of ['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played']) {
+      expect(screen.getByRole('radio', { name })).toBeTruthy();
+    }
+    expect(screen.getByRole('radio', { name: 'Damaged' })).toBeTruthy();
+  });
+
+  it('an unset condition reads as Near Mint but saving without touching it leaves the copy unset', async () => {
+    const onConfirm = vi.fn();
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        quantity={2}
+        details={{}}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    const nm = await screen.findByRole('radio', { name: 'Near Mint' });
+    expect((nm as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.condition).toBeUndefined();
+  });
+
+  it('picking a grade on an unset copy writes it', async () => {
+    const onConfirm = vi.fn();
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        details={{}}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    fireEvent.click(await screen.findByRole('radio', { name: 'Lightly Played' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.condition).toBe('lp');
+  });
+
+  it('leaving an already-set condition untouched resends it (a sibling-field edit does not clear it)', async () => {
+    const onConfirm = vi.fn();
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        quantity={2}
+        details={{ condition: 'lp' }}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    await screen.findByRole('radio', { name: 'Lightly Played' });
+    fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.condition).toBe('lp');
+  });
+});
+
 describe('CardEditDialog mixed condition/language (E131)', () => {
   beforeEach(() => {
     fetchPrintingsMock.mockReset();
@@ -190,14 +275,18 @@ describe('CardEditDialog mixed condition/language (E131)', () => {
     return onConfirm;
   }
 
-  it("shows a Mixed placeholder for the non-uniform field instead of pre-filling one copy's value", async () => {
+  it('shows no grade selected for the non-uniform field, with a hint naming the split', async () => {
     renderMixedDialog();
-    expect(await screen.findByText('Mixed (3 NM, 1 HP)')).toBeTruthy();
+    await screen.findByText('#270');
+    expect(screen.getByText('Mixed: 3 NM, 1 HP. Pick one to set them all.')).toBeTruthy();
+    for (const name of ['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played']) {
+      expect((screen.getByRole('radio', { name }) as HTMLInputElement).checked).toBe(false);
+    }
   });
 
   it('bumping quantity alone leaves the mixed field untouched (no per-copy overwrite signaled)', async () => {
     const onConfirm = renderMixedDialog();
-    await screen.findByText('Mixed (3 NM, 1 HP)');
+    await screen.findByText('Mixed: 3 NM, 1 HP. Pick one to set them all.');
     fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -209,9 +298,8 @@ describe('CardEditDialog mixed condition/language (E131)', () => {
 
   it('explicitly picking a value for the mixed field marks it touched and sends the value', async () => {
     const onConfirm = renderMixedDialog();
-    await screen.findByText('Mixed (3 NM, 1 HP)');
-    fireEvent.click(screen.getByRole('button', { name: /Condition/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Heavily Played' }));
+    await screen.findByText('Mixed: 3 NM, 1 HP. Pick one to set them all.');
+    fireEvent.click(screen.getByRole('radio', { name: 'Heavily Played' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onConfirm).toHaveBeenCalledWith(
@@ -219,6 +307,55 @@ describe('CardEditDialog mixed condition/language (E131)', () => {
         details: expect.objectContaining({ condition: 'hp', conditionTouched: true }),
       })
     );
+  });
+});
+
+describe('CardEditDialog language (SelectMenu in a Field, T153)', () => {
+  beforeEach(() => {
+    fetchPrintingsMock.mockReset();
+    fetchPrintingsMock.mockResolvedValue([current]);
+  });
+
+  it('leaving language untouched never rewrites a stored value', async () => {
+    const onConfirm = vi.fn();
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        quantity={2}
+        details={{ condition: 'nm', language: 'en' }}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    await screen.findByText('#270');
+    fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.language).toBe('en');
+  });
+
+  it('shows a Mixed placeholder for a disagreeing stack and leaves it alone until picked', async () => {
+    const onConfirm = vi.fn();
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        quantity={2}
+        details={{ condition: 'nm' }}
+        mixedDetails={{ language: '1 EN, 1 JA' }}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(await screen.findByText('Mixed (1 EN, 1 JA)')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.languageTouched).toBe(false);
+    expect(details.language).toBeUndefined();
   });
 });
 

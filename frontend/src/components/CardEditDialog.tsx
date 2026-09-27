@@ -9,7 +9,8 @@ import type { Condition, Finish } from '../types';
 import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
-import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '../lib/copy-options';
+import { ConditionControl } from './CopyControls';
+import { LANGUAGE_OPTIONS } from '../lib/copy-options';
 import { Field, SegmentedControl, SwitchRow } from './shared/form';
 
 import { userMessage } from '@/lib/user-error';
@@ -249,16 +250,23 @@ export function CardEditDialog({
     setPrevQty(qty);
     setQtyText(String(qty));
   }
-  // '' = "not set" (mirrors CONDITION_OPTIONS / LANGUAGE_OPTIONS sentinels).
-  // A mixed field starts at the MIXED sentinel instead of the representative
-  // copy's value — silently pre-filling one copy's condition/language across
-  // a stack that disagrees is exactly the homogenization this prop exists to
-  // prevent.
+  // Condition has no "not set" grade in ConditionControl — every option is a
+  // real grade, always in view (T153) — so an unset copy displays as Near
+  // Mint, matching the app-wide "undefined condition = NM" norm, and only
+  // `conditionTouched` decides whether that display gets written. Language
+  // keeps its own '' = "not set" sentinel (mirrors LANGUAGE_OPTIONS), since
+  // its SelectMenu still offers that option directly. A mixed field starts
+  // unresolved (no selection / the MIXED sentinel) instead of the
+  // representative copy's value — silently pre-filling one copy's
+  // condition/language across a stack that disagrees is exactly the
+  // homogenization this prop exists to prevent.
   const conditionMixed = !!mixedDetails?.condition;
   const languageMixed = !!mixedDetails?.language;
-  const [condition, setCondition] = useState<string>(
-    conditionMixed ? MIXED : (details?.condition ?? '')
-  );
+  const [condition, setCondition] = useState<Condition>(details?.condition ?? 'nm');
+  const [conditionTouched, setConditionTouched] = useState(false);
+  // No selection until a mixed stack is touched; otherwise the current pick
+  // (defaulting to Near Mint for an unset field).
+  const conditionValue: Condition | null = conditionMixed && !conditionTouched ? null : condition;
   const [language, setLanguage] = useState<string>(
     languageMixed ? MIXED : (details?.language ?? '')
   );
@@ -429,13 +437,23 @@ export function CardEditDialog({
     }
   }
 
+  // Mixed: only an explicit pick counts as a change — the no-selection
+  // display isn't one. Uniform: compare against the effective original,
+  // treating an unset field as Near Mint the same way the control displays
+  // it, so leaving the default grade untouched is a no-op.
+  const conditionChanged = conditionMixed
+    ? conditionTouched
+    : conditionTouched && condition !== (details?.condition ?? 'nm');
+  // Whether to actually send a condition value: a touched pick always
+  // counts; an untouched field only resends when it already had a real
+  // value, so an untouched-and-unset field stays unset rather than being
+  // stamped with the Near Mint default the control shows for it.
+  const conditionWasSet = details?.condition !== undefined;
+  const includeCondition = conditionMixed ? conditionTouched : conditionWasSet || conditionTouched;
   // For a mixed field there's no single "original" value to diff against —
   // any move off the MIXED placeholder (including explicitly picking "not
   // set") is itself the meaningful change. A uniform field keeps the old
   // diff-against-`details` check untouched.
-  const conditionChanged = conditionMixed
-    ? condition !== MIXED
-    : condition !== (details?.condition ?? '');
   const languageChanged = languageMixed
     ? language !== MIXED
     : language !== (details?.language ?? '');
@@ -477,7 +495,7 @@ export function CardEditDialog({
       ...(details !== undefined
         ? {
             details: {
-              ...(condition && condition !== MIXED ? { condition: condition as Condition } : {}),
+              ...(includeCondition ? { condition } : {}),
               ...(language && language !== MIXED ? { language } : {}),
               ...(notesText.trim() ? { notes: notesText.trim() } : {}),
               ...(flags.altered ? { altered: true } : {}),
@@ -488,7 +506,7 @@ export function CardEditDialog({
               // Only ever sent when the field is mixed — a uniform field omits
               // these keys entirely, so buildEditedCards' `?? true` default
               // keeps its always-write behavior byte-identical to before.
-              ...(conditionMixed ? { conditionTouched: conditionChanged } : {}),
+              ...(conditionMixed ? { conditionTouched } : {}),
               ...(languageMixed ? { languageTouched: languageChanged } : {}),
               ...(notesMixed ? { notesTouched: notesChanged } : {}),
               ...(acquiredMixed ? { acquiredPriceTouched: acquiredChanged } : {}),
@@ -589,22 +607,27 @@ export function CardEditDialog({
 
               {details !== undefined && (
                 <div className="card-edit-details">
-                  <SelectMenu
-                    label="Condition"
-                    value={condition}
-                    options={CONDITION_OPTIONS}
-                    onChange={setCondition}
-                    className="card-edit-details-select"
-                    placeholder={conditionMixed ? `Mixed (${mixedDetails?.condition})` : undefined}
+                  <ConditionControl
+                    value={conditionValue}
+                    onChange={(next) => {
+                      setCondition(next);
+                      setConditionTouched(true);
+                    }}
+                    hint={
+                      conditionMixed && !conditionTouched
+                        ? `Mixed: ${mixedDetails?.condition}. Pick one to set them all.`
+                        : undefined
+                    }
                   />
-                  <SelectMenu
-                    label="Language"
-                    value={language}
-                    options={LANGUAGE_OPTIONS}
-                    onChange={setLanguage}
-                    className="card-edit-details-select"
-                    placeholder={languageMixed ? `Mixed (${mixedDetails?.language})` : undefined}
-                  />
+                  <Field label="Language">
+                    <SelectMenu
+                      ariaLabel="Language"
+                      value={language}
+                      options={LANGUAGE_OPTIONS}
+                      onChange={setLanguage}
+                      placeholder={languageMixed ? `Mixed (${mixedDetails?.language})` : undefined}
+                    />
+                  </Field>
                   <Field
                     label="Notes"
                     htmlFor="card-edit-notes-input"

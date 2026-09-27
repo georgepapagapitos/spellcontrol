@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 import { Field, SegmentedControl } from './shared/form';
@@ -76,21 +77,30 @@ export function FinishControl({
  * Condition as the grading shorthand collectors already use (NM LP MP HP DMG),
  * all five in view; the hint spells out the one that's picked, so the codes
  * have a path to their meaning (§ Glyph literacy).
+ *
+ * `value` is nullable and `hint` overridable for the edit dialog's group-edit
+ * case: a stack whose copies disagree on condition shows no grade selected
+ * (`value={null}`) behind a caller-supplied "Mixed: …" hint, rather than
+ * silently pre-picking one copy's grade for the whole stack.
  */
 export function ConditionControl({
   value,
   onChange,
+  hint,
 }: {
-  value: Condition;
+  value: Condition | null;
   onChange: (next: Condition) => void;
+  hint?: ReactNode;
 }) {
   return (
-    <Field label="Condition" hint={conditionLabel(value)}>
-      <SegmentedControl<Condition>
+    <Field label="Condition" hint={hint ?? conditionLabel(value ?? 'nm')}>
+      <SegmentedControl<Condition | ''>
         fill
         ariaLabel="Condition"
-        value={value}
-        onChange={onChange}
+        value={value ?? ''}
+        onChange={(next) => {
+          if (next !== '') onChange(next);
+        }}
         options={CONDITIONS.map((c) => ({
           value: c,
           label: <span className="copy-condition">{conditionShort(c)}</span>,
