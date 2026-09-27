@@ -119,6 +119,13 @@ const ROLE_NAME: Record<Role, string> = {
   ramp: 'ramp',
   cardDraw: 'card draw',
 };
+const QUOTA_LABEL: Record<Quota, string> = {
+  removal: 'Removal',
+  boardwipe: 'Board wipe',
+  ramp: 'Ramp',
+  cardDraw: 'Card draw',
+  creature: 'Creature',
+};
 
 const isBasic = (c: CubeCard) => /basic/i.test(c.typeLine) && isLand(c);
 
@@ -286,25 +293,87 @@ function distributeQuota(
   return out;
 }
 
+/** Which field of `byQuality` actually decided winner over loser, in the same
+ *  priority order the comparator itself checks — or null when every field
+ *  tied and the comparator fell back to oracleId (nothing meaningful to name). */
+function decidingFactor(winner: CubeCard, loser: CubeCard): string | null {
+  if ((winner.cubePop ?? -1) !== (loser.cubePop ?? -1)) return 'cube popularity';
+  if ((winner.cubeElo ?? -1) !== (loser.cubeElo ?? -1)) return 'Elo';
+  if ((winner.rank ?? Infinity) !== (loser.rank ?? Infinity)) return 'EDHREC rank';
+  return null;
+}
+
+/** Append "beat X on Y" to a reason when a genuine runner-up existed — a card
+ *  that competed for the same slot and never made the cube at all (not just
+ *  lost this one mechanism to win it another way). Silent when there wasn't
+ *  one (the last eligible card has nothing to have beaten). */
+function withRunnerUp(base: string, winner: CubeCard, runnerUp: CubeCard | null): string {
+  if (!runnerUp) return base;
+  const factor = decidingFactor(winner, runnerUp);
+  return factor ? `${base} · beat ${runnerUp.name} on ${factor}` : base;
+}
+
+/**
+ * For every card in `ranked` (already in quality order), the nearest LATER
+ * card in that same order whose oracleId is in `deferredIds` — the best
+ * candidate that shared this exact ranking and genuinely never entered the
+ * cube. One backward O(n) pass regardless of how many entries need an answer,
+ * so a bucket's worth of runner-up lookups stays linear instead of the O(n^2)
+ * a per-pick rescan would cost.
+ */
+function nextDeferredMap(
+  ranked: CubeCard[],
+  deferredIds: ReadonlySet<string>
+): Map<string, CubeCard | null> {
+  const out = new Map<string, CubeCard | null>();
+  let next: CubeCard | null = null;
+  for (let i = ranked.length - 1; i >= 0; i--) {
+    const c = ranked[i];
+    if (deferredIds.has(c.oracleId)) {
+      next = c;
+    } else {
+      out.set(c.oracleId, next);
+    }
+  }
+  return out;
+}
+
 /** Select up to `target` cards from a bucket pool: quota cards (roles, creatures)
  *  are reserved as they come in rank order; filler is admitted only while enough
  *  slots remain for the quotas still unmet, shaped toward the curve targets.
  *  `seed` (locked cards already assigned to this bucket) is taken unconditionally
  *  first and counts toward `target`, the curve caps, and the quotas — `target`
  *  itself is never allowed to fall below the seed count, so a locked card is
- *  never dropped even if it overflows the bucket's normal share. */
+ *  never dropped even if it overflows the bucket's normal share.
+ *
+ *  Also returns `reasons`: the true reason each non-seed pick entered (a quota,
+ *  a curve slot, or backfill after curve caps), plus the best card that
+ *  competed for the same slot and lost, if there was one. The caller assigns
+ *  seed cards their own "Locked" reason instead of reading this map for them. */
+type BucketPickMeta =
+  | { kind: 'quota'; key: Quota; n: number }
+  | { kind: 'curve'; slot: CurveSlot }
+  | { kind: 'backfill' };
+
 function selectBucket(
   pool: CubeCard[],
   target: number,
   band: BandTargets,
   quota: Record<Quota, number>,
+  bucket: ColorBucket,
   seed: CubeCard[] = []
-): { picks: CubeCard[]; deferred: CubeCard[] } {
+): { picks: CubeCard[]; deferred: CubeCard[]; reasons: Map<string, string> } {
+  const colorLabel = COLOR_NAME[bucket];
+  const reasons = new Map<string, string>();
   const effectiveTarget = Math.max(target, seed.length);
   const sorted = [...pool].sort(byQuality);
   if (sorted.length + seed.length <= effectiveTarget) {
     const need = Math.max(0, effectiveTarget - seed.length);
-    return { picks: [...seed, ...sorted.slice(0, need)], deferred: sorted.slice(need) };
+    const picked = sorted.slice(0, need);
+    // Nothing was excluded (the whole pool fits), so there's no competitor to
+    // have beaten — every pick here is simply the next-best owned card.
+    for (const c of picked) reasons.set(c.oracleId, `${colorLabel} · filler by quality`);
+    return { picks: [...seed, ...picked], deferred: sorted.slice(need), reasons };
   }
 
   const curveCap: Record<CurveSlot, number> = {} as Record<CurveSlot, number>;
@@ -324,12 +393,17 @@ function selectBucket(
 
   const picks: CubeCard[] = [];
   const deferred: CubeCard[] = [];
-  const take = (card: CubeCard) => {
-    picks.push(card);
+  const meta = new Map<string, BucketPickMeta>();
+  const bumpFill = (card: CubeCard) => {
     curveFill[curveSlotOf(card.cmc)]++;
     for (const k of quotasOf(card)) fill[k]++;
   };
-  for (const c of seed) take(c);
+  const admit = (card: CubeCard, m?: (fillAfter: Record<Quota, number>) => BucketPickMeta) => {
+    picks.push(card);
+    bumpFill(card);
+    if (m) meta.set(card.oracleId, m(fill));
+  };
+  for (const c of seed) admit(c); // reasoned "Locked" by the caller, not here
 
   // Fill slots by quality: a card owed by an unmet quota is always taken;
   // anything else only while the slots left exceed what the quotas still need
@@ -341,10 +415,13 @@ function selectBucket(
       deferred.push(card);
       continue;
     }
-    const wanted = !overCap(card) && quotasOf(card).some((k) => fill[k] < quota[k]);
-    const fillsCurve = curveFill[curveSlotOf(card.cmc)] < curveCap[curveSlotOf(card.cmc)];
-    if (wanted || (fillsCurve && !overCap(card) && effectiveTarget - picks.length > deficit())) {
-      take(card);
+    const quotaKey = !overCap(card) ? quotasOf(card).find((k) => fill[k] < quota[k]) : undefined;
+    const slot = curveSlotOf(card.cmc);
+    const fillsCurve = curveFill[slot] < curveCap[slot];
+    if (quotaKey !== undefined) {
+      admit(card, (f) => ({ kind: 'quota', key: quotaKey, n: f[quotaKey] }));
+    } else if (fillsCurve && !overCap(card) && effectiveTarget - picks.length > deficit()) {
+      admit(card, () => ({ kind: 'curve', slot }));
     } else {
       deferred.push(card);
     }
@@ -353,6 +430,7 @@ function selectBucket(
   // anything under its role ceiling first, capped role cards only as a last
   // resort — otherwise the highest-signal deferred cards, which are exactly the
   // capped ones, would walk straight back in.
+  const preBackfillDeferred = deferred.slice();
   for (const allowCapped of [false, true]) {
     for (let i = 0; i < deferred.length && picks.length < effectiveTarget;) {
       const c = deferred[i];
@@ -360,11 +438,56 @@ function selectBucket(
         i++;
         continue;
       }
-      take(c);
+      admit(c, () => ({ kind: 'backfill' }));
       deferred.splice(i, 1);
     }
   }
-  return { picks, deferred };
+
+  // Reason text, built once picks/deferred are final — the runner-up needs to
+  // know who genuinely never made the cube, not just who lost THIS mechanism.
+  const deferredIds = new Set(deferred.map((c) => c.oracleId));
+  const byQuotaKey = new Map<Quota, CubeCard[]>();
+  for (const k of QUOTAS)
+    byQuotaKey.set(
+      k,
+      sorted.filter((c) => fills(c, k))
+    );
+  const runnerUpByQuota = new Map<Quota, Map<string, CubeCard | null>>();
+  for (const k of QUOTAS) runnerUpByQuota.set(k, nextDeferredMap(byQuotaKey.get(k)!, deferredIds));
+  const byCurveSlot = new Map<CurveSlot, CubeCard[]>();
+  for (let s = 0; s <= 7; s++) {
+    const slot = String(s) as CurveSlot;
+    byCurveSlot.set(
+      slot,
+      sorted.filter((c) => curveSlotOf(c.cmc) === slot)
+    );
+  }
+  const runnerUpByCurve = new Map<CurveSlot, Map<string, CubeCard | null>>();
+  for (let s = 0; s <= 7; s++) {
+    const slot = String(s) as CurveSlot;
+    runnerUpByCurve.set(slot, nextDeferredMap(byCurveSlot.get(slot)!, deferredIds));
+  }
+  const runnerUpBackfill = nextDeferredMap(preBackfillDeferred, deferredIds);
+
+  for (const c of picks) {
+    const m = meta.get(c.oracleId);
+    if (!m) continue; // a seed (locked) card — the caller supplies its reason
+    if (m.kind === 'quota') {
+      const runnerUp = runnerUpByQuota.get(m.key)!.get(c.oracleId) ?? null;
+      const base = `${QUOTA_LABEL[m.key]} quota (${m.n} of ${Math.round(quota[m.key])})`;
+      reasons.set(c.oracleId, withRunnerUp(base, c, runnerUp));
+    } else if (m.kind === 'curve') {
+      const runnerUp = runnerUpByCurve.get(m.slot)!.get(c.oracleId) ?? null;
+      const slotLabel = m.slot === '7' ? '7+' : m.slot;
+      const base = `${colorLabel} · ${slotLabel}-drop`;
+      reasons.set(c.oracleId, withRunnerUp(base, c, runnerUp));
+    } else {
+      const runnerUp = runnerUpBackfill.get(c.oracleId) ?? null;
+      const base = `${colorLabel} · backfill after curve caps`;
+      reasons.set(c.oracleId, withRunnerUp(base, c, runnerUp));
+    }
+  }
+  return { picks, deferred, reasons };
 }
 
 /**
@@ -389,11 +512,14 @@ function selectFixingLands(
   target: number,
   band: BandTargets,
   seed: CubeCard[] = []
-): { picks: CubeCard[]; deferred: CubeCard[] } {
+): { picks: CubeCard[]; deferred: CubeCard[]; reasons: Map<string, string> } {
+  const reasons = new Map<string, string>();
   const effectiveTarget = Math.max(target, seed.length);
   const sorted = [...pool].sort(byQuality);
   if (sorted.length + seed.length <= effectiveTarget) {
-    return { picks: [...seed, ...sorted], deferred: [] };
+    // Nothing was excluded, so there's no runner-up to name.
+    for (const c of sorted) reasons.set(c.oracleId, 'Fixing / utility land');
+    return { picks: [...seed, ...sorted], deferred: [], reasons };
   }
 
   const picked: CubeCard[] = [...seed];
@@ -407,6 +533,10 @@ function selectFixingLands(
   const order = [...COLOR_PAIRS].sort(
     (a, b) => pairTarget[b] - pairTarget[a] || COLOR_PAIRS.indexOf(a) - COLOR_PAIRS.indexOf(b)
   );
+  // Which pair (if any) each non-seed land was admitted FOR in pass 1, and
+  // that pair's fill count right after — the land bucket's version of the
+  // quota "(n of target)" bookkeeping.
+  const admittedFor = new Map<string, { pair: ColorPair; n: number }>();
   for (const p of order) {
     for (const c of sorted) {
       if (picked.length >= effectiveTarget || pairCount[p] >= pairTarget[p]) break;
@@ -414,6 +544,7 @@ function selectFixingLands(
       picked.push(c);
       pickedIds.add(c.oracleId);
       for (const pp of pairsFixedBy(c)) pairCount[pp]++;
+      admittedFor.set(c.oracleId, { pair: p, n: pairCount[p] });
     }
   }
   for (const c of sorted) {
@@ -423,7 +554,29 @@ function selectFixingLands(
     pickedIds.add(c.oracleId);
   }
   const deferred = sorted.filter((c) => !pickedIds.has(c.oracleId));
-  return { picks: picked, deferred };
+  const deferredIds = new Set(deferred.map((c) => c.oracleId));
+
+  const byPair = new Map<ColorPair, CubeCard[]>();
+  for (const p of COLOR_PAIRS)
+    byPair.set(
+      p,
+      sorted.filter((c) => pairsFixedBy(c).includes(p))
+    );
+  const runnerUpByPair = new Map<ColorPair, Map<string, CubeCard | null>>();
+  for (const p of COLOR_PAIRS) runnerUpByPair.set(p, nextDeferredMap(byPair.get(p)!, deferredIds));
+
+  for (const c of picked) {
+    const forPair = admittedFor.get(c.oracleId);
+    if (!forPair) {
+      if (!seed.some((s) => s.oracleId === c.oracleId))
+        reasons.set(c.oracleId, 'Fixing / utility land');
+      continue; // seed: reasoned "Locked" by the caller
+    }
+    const runnerUp = runnerUpByPair.get(forPair.pair)!.get(c.oracleId) ?? null;
+    const base = `Fixes ${forPair.pair} (${forPair.n} of ${Math.round(pairTarget[forPair.pair])})`;
+    reasons.set(c.oracleId, withRunnerUp(base, c, runnerUp));
+  }
+  return { picks: picked, deferred, reasons };
 }
 
 function reasonFor(c: CubeCard, bucket: ColorBucket): string {
@@ -432,6 +585,15 @@ function reasonFor(c: CubeCard, bucket: ColorBucket): string {
   if (c.role) return `${base} · ${ROLE_NAME[c.role]}`;
   const slot = curveSlotOf(c.cmc);
   return `${base} · ${slot === '7' ? '7+' : slot}-drop`;
+}
+
+/** The cube overall came up short of `size`, so a slot was filled from a
+ *  DIFFERENT bucket's leftovers instead of this one's own supply — a distinct
+ *  reason from every in-bucket kind above, since nothing here competed for
+ *  this specific slot. */
+function crossBackfillReasonFor(bucket: ColorBucket): string {
+  if (bucket === 'land') return 'Fixing / utility land · added to reach the full cube';
+  return `${COLOR_NAME[bucket]} · added because another color came up short`;
 }
 
 export function generateCube(
@@ -506,12 +668,20 @@ export function generateCube(
     // (usually the archetype's own leaning pair) and gives it to a fairness
     // target instead. Removed; the pair-band guards in generate.live.test.ts
     // are the tripwire if a pool ever leaves a well-supported pair starved.
-    const { picks: sel, deferred } =
-      b === 'land'
-        ? selectFixingLands(buckets[b], want, band, lockedInBucket)
-        : selectBucket(buckets[b], want, band, quota, lockedInBucket);
+    const {
+      picks: sel,
+      deferred,
+      reasons,
+    } = b === 'land'
+      ? selectFixingLands(buckets[b], want, band, lockedInBucket)
+      : selectBucket(buckets[b], want, band, quota, b, lockedInBucket);
     byBucket[b] = sel.length;
-    for (const c of sel) picks.push({ card: c, bucket: b, reason: reasonFor(c, b) });
+    for (const c of sel) {
+      const reason = lockedIds.has(c.oracleId)
+        ? 'Locked'
+        : (reasons.get(c.oracleId) ?? reasonFor(c, b));
+      picks.push({ card: c, bucket: b, reason });
+    }
     leftovers.push(...deferred);
   }
 
@@ -543,7 +713,7 @@ export function generateCube(
     for (const c of extra) {
       const b = bucketOf(c);
       byBucket[b]++;
-      picks.push({ card: c, bucket: b, reason: reasonFor(c, b) });
+      picks.push({ card: c, bucket: b, reason: crossBackfillReasonFor(b) });
     }
     shortfall = Math.max(0, size - picks.length);
   }
