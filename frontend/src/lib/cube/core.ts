@@ -69,8 +69,7 @@ export type ColorPair = (typeof COLOR_PAIRS)[number];
 const PAIR_BY_KEY = new Map<string, ColorPair>(COLOR_PAIRS.map((p) => [[...p].sort().join(''), p]));
 
 /** A card's exactly-two-color identity as a canonical `ColorPair`, or null for
- *  a mono/colorless card (nothing to pair) or a 3+ color card (its own slice
- *  — see `generate.ts`'s multicolor split). */
+ *  a mono/colorless card or a 3+ color card (neither is a pair). */
 export function pairOf(c: CubeCard): ColorPair | null {
   const colors = [...new Set(identityColors(c))];
   if (colors.length !== 2) return null;
