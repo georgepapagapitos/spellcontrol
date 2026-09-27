@@ -61,6 +61,8 @@ const MATERIALIZE_ALLOWLIST: Record<string, string> = {
   'lib/import-routing.ts': 'takes BinderLayoutInputs whole',
   'lib/use-binder-by-copy.ts': 'its hook reads useBinderLayoutInputs',
   'lib/ownership-lens.ts': 'fed by use-ownership-lens, which reads useBinderLayoutInputs',
+  'lib/collection-insights.ts':
+    "fed by StatsBar, whose cards/binders come from CollectionPage's useBinderLayoutInputs",
   'lib/pull-list.ts': 'fed by DeckEditorPage and DecksIndexPage from useBinderLayoutInputs',
   'lib/cube/pull-list.ts': 'fed by CubePullList from useBinderLayoutInputs',
   'lib/binder-moves.ts': "the store's price-refresh move notice, outside React",

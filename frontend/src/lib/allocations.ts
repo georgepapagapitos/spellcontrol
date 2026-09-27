@@ -10,7 +10,6 @@ import {
   buildAllocationMap,
   pickCollectionCopy,
   compareCopyPreference,
-  isBasicLandName,
   type AllocationInfo,
 } from './allocations-core';
 
@@ -33,45 +32,12 @@ export function useAllocations(): Map<string, AllocationInfo> {
   return useMemo(() => buildAllocationMap(decks, cubes), [decks, cubes]);
 }
 
-/**
- * Copies kept aside before the rest of a card's unallocated stock counts as
- * tradeable surplus. 1 is the simplest defensible default: decks here are
- * predominantly Commander (singleton), so a card only ever needs one
- * "working" copy — anything past that, once nothing has claimed it, is free
- * to trade. Constructed playsets (up to 4) would need per-format awareness
- * this collection doesn't track, so the floor stays flat and card-agnostic.
- */
-export const SURPLUS_KEEP_COPIES = 1;
-
-/**
- * Map<cardName, surplus count> for the "tradeable surplus" collection
- * filter — physical copies bound to no deck or cube, beyond the first kept
- * copy, excluding basic lands (fungible, never worth flagging as spare).
- * Names with zero surplus are omitted, so `.has(name)` doubles as the
- * per-row predicate.
- *
- * Computed over the FULL collection, not a scoped subset (e.g. a
- * single-binder view's `cards` prop) — a surplus copy sitting in a
- * different binder than the one currently displayed still counts, since
- * allocation is a collection-wide fact.
- */
-export function computeSurplusByName(
-  cards: EnrichedCard[],
-  allocations: Map<string, AllocationInfo>
-): Map<string, number> {
-  const unallocated = new Map<string, number>();
-  for (const c of cards) {
-    if (isBasicLandName(c.name)) continue;
-    if (allocations.has(c.copyId)) continue;
-    unallocated.set(c.name, (unallocated.get(c.name) ?? 0) + 1);
-  }
-  const surplus = new Map<string, number>();
-  for (const [name, count] of unallocated) {
-    const over = count - SURPLUS_KEEP_COPIES;
-    if (over > 0) surplus.set(name, over);
-  }
-  return surplus;
-}
+// SURPLUS_KEEP_COPIES / computeSurplusByName moved to ./allocations-core (pure,
+// store-free) so lib/collection-insights.ts can compute the same tradeable-
+// surplus predicate without pulling this module's store imports. Re-exported
+// above via `export * from './allocations-core'` — this module's own call
+// sites (`import { computeSurplusByName } from '@/lib/allocations'`) are
+// unaffected.
 
 /**
  * Picks which `count` of a stacked row's slots to release for a quantity
