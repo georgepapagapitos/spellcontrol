@@ -1,5 +1,5 @@
 import { ChevronRight, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
@@ -158,13 +158,17 @@ interface InsightRowProps {
   detail: string;
   onClick?: () => void;
   to?: string;
+  /** A thin value/share bar under the text — only "In decks vs idle" carries
+   *  one today. Renders in both the button and static row shapes. */
+  bar?: ReactNode;
 }
 
-function InsightRow({ label, detail, onClick, to }: InsightRowProps) {
+function InsightRow({ label, detail, onClick, to, bar }: InsightRowProps) {
   const text = (
     <span className="collection-insight-row-text">
       <span className="collection-insight-row-label">{label}</span>
       <span className="collection-insight-row-detail">{detail}</span>
+      {bar}
     </span>
   );
 
@@ -586,8 +590,31 @@ function StatsDrawer({
               <div className="collection-insights-list">
                 {allocationSplit && (
                   <InsightRow
-                    label="In decks vs idle"
-                    detail={`In decks: ${allocationSplit.boundCount.toLocaleString()} cards · ${formatMoney(allocationSplit.boundValue, { wholeDollars: true })}. Idle: ${allocationSplit.idleCount.toLocaleString()} cards · ${formatMoney(allocationSplit.idleValue, { wholeDollars: true })}.`}
+                    label="Idle cards"
+                    detail={`${formatMoney(allocationSplit.idleValue, { wholeDollars: true })} in ${allocationSplit.idleCount.toLocaleString()} cards no deck uses · ${formatMoney(allocationSplit.boundValue, { wholeDollars: true })} in decks`}
+                    bar={
+                      allocationSplit.idleValue + allocationSplit.boundValue > 0 ? (
+                        <StackedBar
+                          size="sm"
+                          className="collection-insight-row-bar"
+                          max={allocationSplit.idleValue + allocationSplit.boundValue}
+                          segments={[
+                            {
+                              key: 'idle',
+                              value: allocationSplit.idleValue,
+                              color: 'var(--accent)',
+                              title: `Idle: ${formatMoney(allocationSplit.idleValue, { wholeDollars: true })}`,
+                            },
+                            {
+                              key: 'in-deck',
+                              value: allocationSplit.boundValue,
+                              color: 'var(--border-strong)',
+                              title: `In decks: ${formatMoney(allocationSplit.boundValue, { wholeDollars: true })}`,
+                            },
+                          ]}
+                        />
+                      ) : undefined
+                    }
                   />
                 )}
                 {sparesSummary && (

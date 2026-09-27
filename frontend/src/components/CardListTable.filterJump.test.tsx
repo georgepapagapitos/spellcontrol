@@ -9,7 +9,7 @@
  * filter tests (e.g. CardListTable.language-filter.test.tsx).
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import type { CollectionFilterJump } from '../lib/collection-insights';
@@ -62,16 +62,12 @@ function mk(o: Partial<EnrichedCard> = {}): EnrichedCard {
   } as EnrichedCard;
 }
 
-function renderTable(
+function tableTree(
   cards: EnrichedCard[],
   filterJump: CollectionFilterJump | null,
   onFilterJumpApplied: () => void
 ) {
-  // The tradeable-surplus predicate reads the FULL collection store, not
-  // this component's `cards` prop (a binder-scoped view can be narrower) —
-  // see CardListTable.tsx's `allCards` / `surplusByName` comment.
-  useCollectionStore.setState({ cards });
-  return render(
+  return (
     <ShortcutRegistryProvider>
       <MemoryRouter>
         <CardListTable
@@ -83,6 +79,18 @@ function renderTable(
       </MemoryRouter>
     </ShortcutRegistryProvider>
   );
+}
+
+function renderTable(
+  cards: EnrichedCard[],
+  filterJump: CollectionFilterJump | null,
+  onFilterJumpApplied: () => void
+) {
+  // The tradeable-surplus predicate reads the FULL collection store, not
+  // this component's `cards` prop (a binder-scoped view can be narrower) —
+  // see CardListTable.tsx's `allCards` / `surplusByName` comment.
+  useCollectionStore.setState({ cards });
+  return render(tableTree(cards, filterJump, onFilterJumpApplied));
 }
 
 describe('CardListTable — filterJump', () => {
@@ -151,5 +159,28 @@ describe('CardListTable — filterJump', () => {
     renderTable(cards, null, applied);
     expect(screen.getByRole('button', { name: /^untouched/i })).toBeDefined();
     expect(applied).not.toHaveBeenCalled();
+  });
+
+  it('a jump clears a pre-existing search term first, not just adds to it', () => {
+    const cards = [
+      mk({ name: 'Common Land', scryfallId: 'sf-a1' }),
+      mk({ name: 'Common Land', scryfallId: 'sf-a1', copyId: 'copy-a2' }),
+      mk({ name: 'Solo Card', scryfallId: 'sf-b' }),
+    ];
+    useCollectionStore.setState({ cards });
+    const applied = vi.fn();
+    const { rerender } = render(tableTree(cards, null, applied));
+
+    const search = screen.getByRole('textbox', { name: 'Search cards' });
+    fireEvent.change(search, { target: { value: 'Solo' } });
+    expect(search).toHaveProperty('value', 'Solo');
+
+    rerender(tableTree(cards, { kind: 'surplus' }, applied));
+
+    // The search box itself is cleared — not left active alongside the jump,
+    // which would otherwise narrow "Common Land"'s count below what the
+    // Breakdown row that triggered this jump actually reported.
+    expect(search).toHaveProperty('value', '');
+    expect(screen.getByRole('button', { name: /^common land/i })).toBeDefined();
   });
 });

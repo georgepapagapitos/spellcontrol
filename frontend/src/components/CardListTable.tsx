@@ -534,40 +534,6 @@ export function CardListTable({
     joiners: [],
   });
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
-  // A jump from an external surface (currently the Breakdown drawer — see
-  // `filterJump`'s doc on Props) sets the matching filter state directly,
-  // unlike the `?binder=` deep link above which only ever reads at mount.
-  // Runs on every change (not mount-only) since drawer and table are mounted
-  // siblings for the whole page's lifetime.
-  useEffect(() => {
-    if (!filterJump) return;
-    switch (filterJump.kind) {
-      case 'binder':
-        setBinderExpr({ chips: [{ value: filterJump.name, negate: false }], joiners: [] });
-        break;
-      case 'color':
-        // 'all' (exact match) mirrors the breakdown bucket's semantics — see
-        // lib/collection-insights.ts's colorFilterJump doc.
-        setColorFilter(new Set([filterJump.key]));
-        setColorMode('all');
-        break;
-      case 'rarity':
-        setRarityExpr({ chips: [{ value: filterJump.key, negate: false }], joiners: [] });
-        break;
-      case 'type':
-        setTypesExpr({ chips: [{ value: filterJump.key, negate: false }], joiners: [] });
-        break;
-      case 'set':
-        setSetFilter(new Set([filterJump.code]));
-        break;
-      case 'surplus':
-        setSurplusOnly(true);
-        break;
-    }
-    onFilterJumpApplied?.();
-    // Only the jump's identity should retrigger this — the setters are stable.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterJump]);
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [oracleTagExpr, setOracleTagExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [scryfallQuery, setScryfallQuery] = useState<ScryfallQueryRule | undefined>(undefined);
@@ -1707,6 +1673,50 @@ export function CardListTable({
     setCmcMin(undefined);
     setCmcMax(undefined);
   }, [EMPTY_EXPR]);
+
+  // A jump from an external surface (currently the Breakdown drawer — see
+  // `filterJump`'s doc on Props) clears every other active filter first, then
+  // sets only the matching one — otherwise a search term or another chip
+  // still in effect would narrow the result below the count the row itself
+  // showed ("Blue · 854" landing on fewer than 854 cards). Declared after
+  // `clearAllFilters` so it can call it directly with no use-before-define
+  // hazard. Unlike the `?binder=` deep link above (which only ever reads at
+  // mount), this runs on every change: the drawer and this table are mounted
+  // siblings for the whole page's lifetime, not separate navigations.
+  useEffect(() => {
+    if (!filterJump) return;
+    clearAllFilters();
+    switch (filterJump.kind) {
+      case 'binder':
+        setBinderExpr({ chips: [{ value: filterJump.name, negate: false }], joiners: [] });
+        break;
+      case 'color':
+        // 'all' (exact match) mirrors the breakdown bucket's semantics — see
+        // lib/collection-insights.ts's colorFilterJump doc.
+        setColorFilter(new Set([filterJump.key]));
+        setColorMode('all');
+        break;
+      case 'rarity':
+        setRarityExpr({ chips: [{ value: filterJump.key, negate: false }], joiners: [] });
+        break;
+      case 'type':
+        setTypesExpr({ chips: [{ value: filterJump.key, negate: false }], joiners: [] });
+        break;
+      case 'set':
+        setSetFilter(new Set([filterJump.code]));
+        break;
+      case 'surplus':
+        setSurplusOnly(true);
+        break;
+    }
+    onFilterJumpApplied?.();
+    // Only the jump's identity should retrigger this — clearAllFilters and
+    // the setters are stable-enough (clearAllFilters is itself a useCallback
+    // keyed on the stable EMPTY_EXPR constant); onFilterJumpApplied is the
+    // caller's inline prop and must stay out or a parent re-render would
+    // re-fire this and re-clear filters the user has since changed by hand.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterJump, clearAllFilters]);
 
   // Build the active-filter chip descriptors — one per non-empty filter group.
   // Each chip knows how to clear its own slice so × on a chip is surgical.

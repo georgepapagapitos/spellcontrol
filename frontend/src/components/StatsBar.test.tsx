@@ -133,6 +133,30 @@ describe('StatsBar — Insights section', () => {
     expect(onFilterJump).toHaveBeenCalledWith({ kind: 'surplus' });
   });
 
+  it('Idle cards leads with the idle value, is static, and carries a share bar', () => {
+    const deck = makeDeck({
+      cards: [
+        {
+          slotId: 's1',
+          card: scryfallCard({ name: 'Bound Card' }),
+          allocatedCopyId: 'bound-copy',
+        },
+      ],
+    });
+    renderDrawer(
+      [
+        mk({ name: 'Bound Card', copyId: 'bound-copy', purchasePrice: 3 }),
+        mk({ name: 'Idle Card', purchasePrice: 8 }),
+      ],
+      [deck]
+    );
+    const row = screen.getByText('Idle cards').closest('.collection-insight-row');
+    expect(row?.tagName).toBe('DIV'); // static, never a button/link
+    expect(row?.textContent).toContain('$8 in 1 cards no deck uses');
+    expect(row?.textContent).toContain('$3 in decks');
+    expect(row?.querySelector('.meterbar')).toBeTruthy();
+  });
+
   it('a shared-copies shortfall opens a sheet listing the wanting decks', () => {
     // Two decks want Sol Ring, only one copy is owned — a real shortfall
     // (shortfall = demand - owned = 2 - 1 = 1 > 0).
