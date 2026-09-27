@@ -63,11 +63,16 @@ describe('CubeDetailPage — found', () => {
     await waitFor(() => expect(screen.getByText('Color balance')).toBeTruthy());
   });
 
-  it('switches to the Shopping list and Pull list tabs, each with a designed empty state', () => {
+  it('switches to the Shopping list and Pull list tabs', () => {
     useCubeStore.setState({ saved: [saved({ id: 'x' })] });
     renderAt('/decks/cube/x');
+    // CubeShoppingList.test.tsx covers the Shopping list tab's own states
+    // (loading/empty/error/ready) with proper cube-signal/oracle mocks; here
+    // only the tab switch itself is under test.
     fireEvent.click(screen.getByRole('tab', { name: 'Shopping list' }));
-    expect(screen.getByText('Not tracked yet.')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Shopping list' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
     fireEvent.click(screen.getByRole('tab', { name: 'Pull list by binder' }));
     expect(screen.getByText('Mark this cube physical first.')).toBeTruthy();
   });

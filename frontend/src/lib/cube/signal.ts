@@ -29,6 +29,8 @@ const SIGNAL_URL = '/cube-signal.json';
 
 let cards: Map<string, CubeSignal> | null = null;
 let loading: Promise<void> | null = null;
+/** Memoized `[...cards]` sorted by popularity — built once per load, not per call. */
+let ranked: string[] | null = null;
 
 /** Fetch the snapshot once; safe to call repeatedly (deduplicates in flight). */
 export function loadCubeSignal(): Promise<void> {
@@ -68,8 +70,25 @@ export function hasCubeSignal(): boolean {
   return cards !== null;
 }
 
+/**
+ * Every known card name, most-popular first (ties broken by Elo) — the
+ * shopping list's candidate source: names a real cube builder would reach
+ * for, walked in popularity order until enough survive ownership/format
+ * filtering. Empty until the snapshot loads.
+ */
+export function rankedCubeSignalNames(): string[] {
+  if (!cards) return [];
+  if (!ranked) {
+    ranked = [...cards.entries()]
+      .sort(([, a], [, b]) => b.cubePop - a.cubePop || b.cubeElo - a.cubeElo)
+      .map(([name]) => name);
+  }
+  return ranked;
+}
+
 /** Test-only: forget the loaded snapshot. */
 export function resetCubeSignalForTests(): void {
   cards = null;
   loading = null;
+  ranked = null;
 }

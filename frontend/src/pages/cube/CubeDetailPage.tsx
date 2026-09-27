@@ -32,6 +32,7 @@ import { userMessage } from '@/lib/user-error';
 import { useOwnershipFor, CubeLoadingBlock, CubeErrorBlock } from './shared';
 import { CubeResult, SavedCubeMeta, type CubeEditHandlers } from './CubeResult';
 import { CubeCardPickerSheet } from './CubeCardPickerSheet';
+import { CubeShoppingList } from './CubeShoppingList';
 import { Button, IconButton } from '../../components/shared/Button';
 
 type DetailTab = 'cards' | 'shopping' | 'pull';
@@ -445,16 +446,7 @@ export function CubeDetailPage() {
             </Button>
           </div>
         )}
-        {tab === 'shopping' && (
-          <div className="empty-state">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">Not tracked yet.</p>
-            <p className="empty-state-hint">
-              The cards that would raise this cube's draftability most, ranked by price, so you know
-              what to buy next.
-            </p>
-          </div>
-        )}
+        {tab === 'shopping' && <CubeShoppingList target={target} loadPool={loadPool} />}
         {tab === 'pull' && target.isPhysical && (
           <div className="empty-state">
             <EmptyStateMark />

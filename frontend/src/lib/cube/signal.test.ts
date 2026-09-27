@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cubeSignalOf, hasCubeSignal, loadCubeSignal, resetCubeSignalForTests } from './signal';
+import {
+  cubeSignalOf,
+  hasCubeSignal,
+  loadCubeSignal,
+  rankedCubeSignalNames,
+  resetCubeSignalForTests,
+} from './signal';
 
 const snapshot = {
   generatedAt: '2026-09-11T00:00:00.000Z',
@@ -55,5 +61,21 @@ describe('loadCubeSignal', () => {
     expect(hasCubeSignal()).toBe(false);
     await loadCubeSignal();
     expect(hasCubeSignal()).toBe(true);
+  });
+});
+
+describe('rankedCubeSignalNames', () => {
+  it('is empty until the snapshot loads', () => {
+    expect(rankedCubeSignalNames()).toEqual([]);
+  });
+
+  it('sorts by popularity, then Elo, once loaded', async () => {
+    stubFetch(async () => ({ ok: true, json: async () => snapshot }));
+    await loadCubeSignal();
+    expect(rankedCubeSignalNames()).toEqual([
+      'Lightning Bolt',
+      'Bonecrusher Giant',
+      'Arcane Signet',
+    ]);
   });
 });
