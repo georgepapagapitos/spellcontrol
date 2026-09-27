@@ -63,6 +63,6 @@ describe('BindersIndexPage — single delete has no confirm (T157)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
 
     const toast = useToastsStore.getState().toasts.find((t) => t.actionLabel === 'Undo');
-    expect(toast?.message).toBe('Deleted Solo Binder. Its cards moved to other binders.');
+    expect(toast?.message).toBe('Deleted Solo Binder and moved its cards to other binders');
   });
 });

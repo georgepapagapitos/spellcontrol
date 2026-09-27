@@ -1847,7 +1847,7 @@ export const useCollectionStore = create<CollectionState>()(
         // confirm dialog used to state — its cards fall back to your other
         // binders, not just that the binder is gone.
         toast.show({
-          message: `Deleted ${removed.name}. Its cards moved to other binders.`,
+          message: `Deleted ${removed.name} and moved its cards to other binders`,
           tone: 'success',
           actionLabel: 'Undo',
           onAction: () => restoreBinders([removed]),
