@@ -194,6 +194,35 @@ export function similarityScore(
  */
 const isLandLine = (typeLine?: string): boolean => /\bLand\b/.test(typeLine ?? '');
 
+/** Tags that make a ramp card a ramp piece in its own right. */
+const RAMP_SPECIFIC = new Set(['mana-dork', 'mana-rock', 'cost-reducer', 'land-tutor']);
+/** Tags naming a different main job for the card. */
+const OTHER_JOB = new Set([
+  'counterspell',
+  'protection',
+  'removal',
+  'spot-removal',
+  'bounce',
+  'boardwipe',
+]);
+
+/**
+ * E460: Scryfall's generic `ramp` tag is broad. Mana Drain (it adds mana a
+ * turn later) and Sword of Feast and Famine (it untaps your lands) both carry
+ * it, so the role gate offered a counterspell as the stand-in for a missing
+ * Rampant Growth ("Mana Drain fills the Ramp slot"). A card whose only ramp
+ * evidence is that generic tag, and whose tags name another job, makes mana on
+ * the side: it isn't a ramp piece to seat in a ramp slot.
+ */
+export function isIncidentalRamp(cardName: string): boolean {
+  const tags = getCardTags(cardName);
+  return (
+    tags.includes('ramp') &&
+    !tags.some((t) => RAMP_SPECIFIC.has(t)) &&
+    tags.some((t) => OTHER_JOB.has(t))
+  );
+}
+
 function rankCandidates(
   missing: GapAnalysisCard,
   ownedPool: readonly SubstituteCandidate[],
@@ -220,6 +249,7 @@ function rankCandidates(
     // for Dark Ritual, live). Lands substitute only for lands, and vice versa.
     if (isLandLine(card.typeLine) !== isLandLine(missing.typeLine)) continue;
     if (!cardMatchesRole(card.name, role)) continue; // wrong role
+    if (role === 'ramp' && isIncidentalRamp(card.name)) continue; // makes mana on the side
 
     const subtypeMatch = wantedSubtype != null && getCardSubtype(card.name) === wantedSubtype;
     const cmcDelta =
@@ -255,7 +285,10 @@ function toRow(
   roleLabel: string,
   cand: RankedCandidate
 ): SubstituteRow {
-  const usedSubtype = getCardSubtype(cand.card.name);
+  // A subtype that's just the role's own generic tag ("ramp") names nothing
+  // like-for-like: "Owned, same ramp" read as a stutter.
+  const subtype = getCardSubtype(cand.card.name);
+  const usedSubtype = subtype === role ? null : subtype;
   return {
     wantedName: missing.name,
     wantedRole: role,
