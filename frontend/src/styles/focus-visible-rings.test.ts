@@ -29,7 +29,6 @@ const INTERACTIVE =
 const ALLOWLIST = new Set([
   '.btn-danger', // element also carries .btn (.btn:focus-visible in tabs.css)
   '.btn-primary', // element also carries .btn
-  '.upload-action-danger', // element also carries .upload-action
   '.deck-row-menu-item--danger', // element also carries .deck-row-menu-item
   '.life-keypad-confirm--minus', // element also carries .life-keypad-confirm
   '.life-keypad-confirm--plus', // element also carries .life-keypad-confirm

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { BrandMark } from '../components/shared/BrandMark';
+import { Button } from '@/components/shared/Button';
 
 // Mirrors the backend USERNAME_REGEX.
 const USERNAME_RE = /^[a-z0-9_-]{3,32}$/;
@@ -133,9 +134,14 @@ export default function ChooseUsernamePage() {
             </div>
           ) : null}
 
-          <button type="submit" className="auth-submit" disabled={submitting || !valid}>
+          <Button
+            type="submit"
+            variant="primary"
+            className="auth-submit"
+            disabled={submitting || !valid}
+          >
             {submitting ? 'Creating account…' : 'Create account'}
-          </button>
+          </Button>
         </form>
 
         {showLinkPanel ? (
@@ -159,13 +165,14 @@ export default function ChooseUsernamePage() {
                   required
                 />
               </label>
-              <button
+              <Button
                 type="submit"
+                variant="primary"
                 className="auth-submit"
                 disabled={linking || linkPassword.length === 0}
               >
                 {linking ? 'Linking…' : `Link Google to ${takenName}`}
-              </button>
+              </Button>
             </form>
           </>
         ) : null}

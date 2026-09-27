@@ -9,6 +9,7 @@ import { markEverVisited } from '../lib/first-run';
 import { toast } from '../store/toasts';
 import { Tabs } from '../components/Tabs';
 import { BrandMark } from '../components/shared/BrandMark';
+import { Button } from '@/components/shared/Button';
 
 type Mode = 'login' | 'register';
 
@@ -193,15 +194,14 @@ export default function AuthPage() {
 
         {googleEnabled ? (
           <>
-            <button
-              type="button"
+            <Button
               className="auth-google"
               onClick={handleGoogle}
               disabled={googleBusy}
+              icon={<GoogleMark />}
             >
-              <GoogleMark />
               {googleBusy ? 'Opening Google…' : 'Continue with Google'}
-            </button>
+            </Button>
             <div className="auth-divider">or</div>
           </>
         ) : null}
@@ -337,9 +337,9 @@ export default function AuthPage() {
             </p>
           ) : null}
 
-          <button type="submit" className="auth-submit" disabled={submitting}>
+          <Button type="submit" variant="primary" className="auth-submit" disabled={submitting}>
             {submitting ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}
-          </button>
+          </Button>
 
           {mode === 'login' ? (
             <Link to="/forgot-password" className="auth-forgot-link">

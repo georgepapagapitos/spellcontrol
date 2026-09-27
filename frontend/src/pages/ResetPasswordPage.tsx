@@ -5,6 +5,7 @@ import { useAuth } from '../store/auth';
 import { preventFocusSteal } from '../lib/keyboard';
 import { toast } from '../store/toasts';
 import { BrandMark } from '../components/shared/BrandMark';
+import { Button } from '@/components/shared/Button';
 
 /** Mirrors AuthPage's register-mode password rules. */
 export default function ResetPasswordPage() {
@@ -64,9 +65,9 @@ export default function ResetPasswordPage() {
           <p className="auth-subtitle">
             This reset link is missing its token. Request a new one to continue.
           </p>
-          <Link to="/forgot-password" className="auth-submit auth-submit-link">
+          <Button variant="primary" to="/forgot-password" className="auth-submit">
             Request a new link
-          </Link>
+          </Button>
         </div>
       </main>
     );
@@ -163,9 +164,9 @@ export default function ResetPasswordPage() {
             </div>
           ) : null}
 
-          <button type="submit" className="auth-submit" disabled={submitting}>
+          <Button type="submit" variant="primary" className="auth-submit" disabled={submitting}>
             {submitting ? 'Resetting…' : 'Reset password'}
-          </button>
+          </Button>
         </form>
 
         {error ? (
