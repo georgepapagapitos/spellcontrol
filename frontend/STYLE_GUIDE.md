@@ -2110,7 +2110,7 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   and Escape handling come for free (see § Motion).
 - **An overlay that can't portal still answers Escape.**
   The game board's in-panel covers (seat menu, counters, life keypad), its
-  bottom-sheet game menu and the custom layout editor render in place —
+  hub sheets and the custom layout editor render in place —
   the seat menu inherits its panel's rotation, the menu rises from the
   board's own edge — so they can't be a `<Modal>`. They use
   `lib/use-overlay-dismiss.ts` (`useOverlayDismiss(onClose, panelRef)`):
@@ -2210,9 +2210,9 @@ works for the bottom seat and is backwards for the top one.
   **Rematch** (re-seats the same players). The result is already in History
   by then, so leaving a finished table never asks for confirmation; only an
   in-progress game's Discard does. Tapping outside the recap still dismisses
-  to the final board for anyone who wants to keep looking; the game menu's
-  exit there is "Clear the table" / "Leave the table", never "Close" (the
-  sheet's ✕ owns that name). The recap's dismissal is remembered per game id
+  to the final board for anyone who wants to keep looking; the hub dock's
+  exit there is "Clear the table", never "Close" (a sheet's ✕ owns that
+  name). The recap's dismissal is remembered per game id
   so it doesn't replay on every return to /play.
 - **A lobby names what it is waiting for.** Online games start on an
   explicit host action (`start` is host-only server-side): the host sees a
@@ -5359,9 +5359,10 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   correction followed a screenshot check after a sweep had assumed both
   boards were always-dark and shipped 18 white rings across `playtest.css`
   - 3 co-located component stylesheets that were only ever verified in dark
-    theme.) The `.game-menu` sheet (End game / rules / roster / layout picker)
-    is also themed, not always-dark, and correctly keeps the accent ring —
-    don't "fix" it back to white.
+    theme.) The hub's `.board-sheet` sheets (Dice, Players, Settings, History,
+    Help, Leave) are also themed, not always-dark, and correctly keep the
+    accent ring — don't "fix" them back to white. The ring's keys and dock
+    are always-dark board chrome and take the white ring.
 - **A zone-viewer tile carries one primary action plus an overflow, never a
   stacked destination list.** `ZoneViewerModal`'s card tiles (library,
   graveyard, exile, command) each get exactly one contextual primary button
@@ -7966,8 +7967,8 @@ besides. Every other pixel is a −1/+1.
   gold with the dagger; the hub is then the way back out, from the middle of the
   table where anyone can reach it.
 - **The board teaches its gestures once per device** (`BoardGestureHint`),
-  screen-relative, and the game menu brings the card back ("How the board
-  works"). A board with no buttons owes its players that.
+  screen-relative, and the hub's Help key shows the same rows on demand
+  ("How the board works", one list: `boardGestures`). A board with no buttons owes its players that.
 
 ## Play board: 7-10 players, and seat order is clockwise (2026-09-24)
 
@@ -7981,7 +7982,7 @@ correctness bug the capacity work exposed.
   through `LAYOUTS[9]`). 8p and 10p (even) are fully populated 4- and 5-row
   grids, each with two far/near split variants (`8p-4v4`/`8p-2v6`,
   `10p-6v4`/`10p-4v6`), mirroring 4p/6p's own pair of splits. `MAX_LOCAL_PLAYERS`
-  (setup roster), the in-game roster (`GameMenu.tsx`'s `MAX_PLAYERS`) and the
+  (setup roster), the in-game roster (`BoardSheets.tsx`'s `MAX_PLAYERS`) and the
   backend's recorded-local-result cap (`local-result.ts`'s `MAX_PLAYERS`) all
   moved to 10 together. **Online seats moved to 10 too** (game-core's
   `MAX_ONLINE_SEATS`, shared by `routes/games.ts` and `OnlineLobby.tsx` — was
@@ -8096,6 +8097,13 @@ Lotus parity group 2 (`BoardHubMenu.tsx`, `GameBoard.tsx`'s High Roll section,
 `lib/use-fullscreen.ts`). The hub was a direct shortcut to the game menu;
 tapping it now opens a fan of labelled petals first, Lotus's radial menu.
 
+⛔ **Superseded in part by "the hub ring's keys, dock and sheets" below
+(2026-09-26, T155):** the five pill petals, the Menu petal and the tabbed game
+menu are gone. What still stands from this section: the ring is
+`useMenuKeyboard` over a `role="menu"`, the full-circle-first geometry of
+`hubPetalPositions`, High Roll as a seat-level moment, Restart's confirm copy,
+and the fullscreen rulings (the manual toggle is now a Settings switch).
+
 - **The hub opens a ring, not the menu.** Tapping `.game-board-menu-btn`
   outside commander-damage mode fans out five screen-relative petals —
   Restart, High roll, Players, Menu, Help — and the hub itself becomes ✕.
@@ -8192,6 +8200,109 @@ e.currentTarget`, mirrors the win celebration's backdrop) so a
   `fullscreenchange`, never assumed the instant `enter()` is called — the
   request is async and can be silently rejected — so a fullscreen the user
   entered some other way is never yanked out from under them on the way out.
+
+## Play board: the hub ring's keys, dock and sheets (2026-09-26, T155)
+
+Board T155, E442/E443, Direction A of the mockup. The pill petals read as
+five chips scattered over the seat colours, the Menu petal led to a tabbed
+catch-all, and Players was the same sheet at another tab. Now the hub opens
+one object, and every key opens one focused sheet. `BoardHubMenu.tsx`,
+`BoardSheets.tsx` (shell + Players, Settings, History, Help, Leave),
+`DiceSheet.tsx`.
+
+- **The ring is six labelled rect keys on one circle round the ✕**, over a
+  scrim that takes the seats to 38%, with a dark disc behind the keys and a
+  faint track through their centres. Clockwise from the top: High roll, Dice,
+  Players, Settings, Help, Restart. High roll is first so a pointer or
+  keyboard open lands on the table moment; Restart is last so focus never
+  lands on it first. Keys are 72×64 (66×60 on a grid under 359px wide), a
+  6px rect with the icon over its word: never a pill, never Lotus's circle.
+  The hub stays round (existing board chrome). The d20 glyph is
+  app-invented, so it never appears without "High roll" (glyph literacy b).
+- **A dock along the board's bottom edge holds the places you go away from
+  the table:** History · Rules · Leave. It sits over the clock strip, and the
+  ring's geometry is bounded to the seat grid AND above the dock, so with the
+  clock strip turned off a key still can't land under it. The dock caps at
+  30rem wide and centres on a tablet. A compact board stacks each dock
+  item's icon over its word.
+- **Keys and dock are one menu, one order.** `useMenuKeyboard`
+  (`preventScroll: true`) over `role="menu"`: keys clockwise, then the dock;
+  Arrow/Home/End walk that list, Escape and an outside tap close and return
+  focus to the hub. A pointer open still moves focus to High roll without
+  drawing its ring (state on the panel, not a classList edit: the panel's
+  className re-renders when the compact size applies). Undo hides while the
+  ring is open.
+- **Gating.** Players and Restart are host-only and drop once the game is
+  finished. A finished board shows Rematch (the one filled key, where the
+  ring starts), Dice, Settings, Help, and the dock's Leave becomes **Clear
+  the table**, which acts at once: the result is already in History.
+- **Placement is `hubPetalPositions`, unchanged**, fed the key's box. Its
+  bounding-circle floor is conservative; on a hub high on a short board the
+  full circle at the room available still clears (measured below).
+- **Reduced motion:** keys are placed, never flown out; the fade is the only
+  motion and reduced motion drops it.
+
+**Every sheet is one shell (`BoardSheet`):** grabber, a title with one meta
+line (its `aria-describedby`), a 44px rect ✕, ONE scroll region, and a footer
+only when there is something to commit. Corners are `--radius-lg`, top only
+on a phone; a centred dialog on a roomy unrotated board; `90cqw` tall on a
+board kept still in landscape. It renders inside `.game-board-rotator`, so it
+rotates with the board, and takes `useOverlayDismiss` (Escape, the Tab trap,
+focus back to the hub). Focus lands on the first control that does something,
+the `data-autofocus` one when a sheet names it, never on the ✕; a sheet with
+nothing to act on focuses itself. Buttons are the `Button` tiers, at most one
+primary per sheet, and every button keeps 44px at every pointer (touch-first
+surface). Section headings are `.form-section-heading`.
+
+- **Dice** is one control: a count stepper (1 to 20) and six die keys whose
+  labels are what a tap rolls (`3d6`), rolling at once; **Other…** opens a
+  sides field and the sheet's one primary, Roll (disabled with "A die has 2 to
+  1000 sides." when the field can't be a die). The result slot is always
+  there, `aria-live`, and before a roll it shows the unknown-value dash and
+  "No roll yet". Flip a coin and Pick first player land in the same slot.
+  First player stays separate from High roll (the ceremony vs the quiet
+  pick); a finished table keeps only the coin.
+- **Players**: Seats (roster, remove keys, Add player; at two seats remove
+  stays visible and disabled with the reason), then Layout (the picker, now
+  with each preset's name under its thumbnail as its accessible name, the
+  default-for-N switch, Custom… for the editor). Once life moves the roster
+  locks and the lock note carries its fix as a link: "Restart…", the board's
+  one Restart confirm. No primary: a layout applies at once.
+- **Settings**: Taps, Clock strip, Seats, This device. **Full screen is a
+  switch** in This device (it's a state), hidden where `useFullscreen` is
+  unsupported. No Save; a finished table drops Taps.
+- **History**: the rules as the meta line, then time on turn, this game's
+  stats, life over time and the log. Before anything has happened it is one
+  two-part empty state, not four empty sections.
+- **Help**: `boardGestures` rows (the first-run card's own list) with a
+  small seat diagram each; "Got it" is the footer's primary.
+- **Leave**: End game… (primary, the winner picker follows), Minimize
+  (secondary), then Discard game in the danger tier below a divider, which
+  still confirms. Each row carries a one-line hint.
+- **The two confirms are unchanged.** Restart (from its key, or the Players
+  lock note) and Discard (from Leave) are today's `ConfirmDialog` copy
+  through the app-wide `Modal`: a full-board dim, screen-relative even when
+  the board is kept still.
+- **Removed as duplicates:** the menu's Reset (= Restart), "How the board
+  works" (= Help), the menu's Undo (the seam undo is the one Undo), the
+  Menu petal. The online-only branches (voice link, "Leave the table", the
+  game code title) were dead: `GameMenu` only ever rendered on the local
+  board.
+
+Measured with `life-board-probe.mjs HUB=1` (keys vs viewport, grid, dock and
+each other, real touch on the hub) on all 33 presets at 320x568, 390x844,
+430x932, 820x1180 and the landscape keep-still board (844x390, both
+landscapePrimary and landscapeSecondary), 198 runs, every one picked and
+applied: zero key overlaps, zero keys off-screen, on the hub or on the dock,
+zero clipped labels, keys 72×64 (66×60 compact) and dock items 54px tall
+inside the 56px dock. Closest keys 21.5px apart and ≥35.5px inside the grid
+everywhere but one: `8p-2v6` at 320x568, the hub highest on the shortest
+grid, where the circle shrinks to the room there is and the closest keys sit
+5.4px apart, 8px inside the grid. The dock clears the lowest key by ≥46.7px
+(`4p-wide-middle` at 320). Guards:
+`BoardHubMenu.test.tsx`, `GameBoard.hub.test.tsx`, `BoardSheets.test.tsx`,
+`DiceSheet.test.tsx`, `board-hub-layout.test.ts`, and the ring's px floors in
+`styles/play-touch-targets.test.ts`.
 
 ## Play board: the table clock is pausable and optional at setup (2026-09-24)
 
@@ -8370,7 +8481,7 @@ direction.
   `routes/games.ts`). It is picked once on the **local setup form**, next to
   Game timer / Turn tracker (a `SwitchRow`, "Counterclockwise seating") — a
   fact decided before the game starts, unlike the device-level board display
-  prefs above (which live in the game menu's Setup tab instead).
+  prefs above (which live in the hub's Settings sheet instead).
   - **The reducer's own turn order never changes.** Seat index + 1 is still
     the whole rule. What changes is which SEAT sits in which CELL:
     `board-layouts.ts`'s `layoutsForCount`/`resolveLayout` take a `turnOrder`
@@ -8385,7 +8496,7 @@ direction.
     already IS the order the user set by dragging seats into place, and
     reversing it out from under them would be the surprise, not the feature.
   - **The layout picker's previews carry `turnOrder` through** (`LayoutPicker`
-    now takes it, `GameMenu` passes `turnOrderOf(game)`), so a picker shown
+    now takes it, the Players sheet passes `turnOrderOf(game)`), so a picker shown
     for a counterclockwise table shows counterclockwise thumbnails — the seat
     numbers printed on each preview cell are what actually prove it at a
     glance.
@@ -8463,7 +8574,7 @@ accidental bump change what's rendered.
   true viewport) to `localRectRelativeTo()` (an `offsetParent`-chain walk,
   transform-agnostic by construction) when `boardRotation !== 0`. The
   ordinary (untransformed) path is completely unchanged.
-- **`GameMenu`, `BoardGestureHint`, `GameClock` and `WinCelebration` all
+- **The hub sheets, `BoardGestureHint`, `GameClock` and `WinCelebration` all
   rotate with the board too** — they're plain nested JSX inside
   `.game-board-rotator`, no portal, so this needs no extra code: the clock
   strip staying at the device's physical bottom edge and the menu reading in
