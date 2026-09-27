@@ -3932,6 +3932,28 @@ and `UnresolvedNameRow`:
   When the action also built a deck, the card adds an "Open deck" button
   instead of navigating away mid-summary, so "where did my cards go?" is
   answered before the sheet closes.
+- **A routing row also names the page(s) the cards landed on** (E457,
+  2026-09-27): `formatBinderPages` renders "p. 3" / "pp. 3, 7" / "pp. 3-5" (a
+  contiguous run collapses; the rest stay comma-separated) as a quieter,
+  smaller trailing detail after the binder name (`.import-routing-pages`),
+  never a second fact competing with it. `summarizeImportRouting`'s `pages`
+  answer for the binder's default Pages view (group-printings off — what a
+  binder opens in until the user toggles it) because that's the only state a
+  caller outside `BinderPage` can name; a caller that can source
+  `allocatedCopyIds`/`setMap` (the two materialize inputs besides cards/
+  binders that can shift a page number — deck-allocation hiding and
+  release-date sorts) passes them so the page numbers agree with the real
+  layout exactly, not approximately.
+- **The Add list predicts each row's destination before commit** (E457): a
+  quiet line under a scan/search row (`.scan-row-binder` in
+  `ScannerQueueSheet.tsx`) shows the binder pip + name `nextBinderMatch`
+  would route that exact copy to (finish/condition/language included, since a
+  binder rule can filter on finish), or "Matched no binder" — the same
+  wording the post-import summary uses for its own unrouted row, so the two
+  moments read as one vocabulary. Hidden entirely when the user has no
+  binders. Filters are compiled once per render pass
+  (`compileBinderCandidates` + `nextBinderMatchCompiled`), not once per row,
+  since the list can hold a booster box.
 
 **Import admin left the add flow (T153, 2026-09-26).** `UploadPanel` used to
 mix adding cards with collection administration — an import-history aside

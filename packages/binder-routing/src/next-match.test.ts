@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nextBinderMatch } from './next-match.js';
+import { compileBinderCandidates, nextBinderMatch, nextBinderMatchCompiled } from './next-match.js';
 import type { EnrichedCard, BinderDef, BinderFilter, BinderFilterGroup } from './types.js';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -106,5 +106,54 @@ describe('nextBinderMatch', () => {
 
   it('returns null for an empty binder list', () => {
     expect(nextBinderMatch(makeCard(), [])).toBeNull();
+  });
+});
+
+describe('compileBinderCandidates + nextBinderMatchCompiled', () => {
+  it('agrees with nextBinderMatch for every case above, compiled once and reused per card', () => {
+    const red = makeBinder({
+      id: 'red',
+      position: 0,
+      filter: { colors: { chips: [{ value: 'U', negate: false }], joiners: [] } },
+    });
+    const green = makeBinder({
+      id: 'green',
+      position: 1,
+      filter: { colors: { chips: [{ value: 'R', negate: false }], joiners: [] } },
+    });
+    const compiled = compileBinderCandidates([red, green]);
+    const redCard = makeCard({ colors: ['U'] });
+    const greenCard = makeCard({ colors: ['R'] });
+    const unmatched = makeCard({ colors: ['G'] });
+    // The SAME compiled candidates answer for several different cards —
+    // this is the point: a caller with many rows compiles once per render
+    // pass, not once per row.
+    expect(nextBinderMatchCompiled(redCard, compiled)?.id).toBe('red');
+    expect(nextBinderMatchCompiled(greenCard, compiled)?.id).toBe('green');
+    expect(nextBinderMatchCompiled(unmatched, compiled)).toBeNull();
+  });
+
+  it('a Foils binder only claims a foil copy — finish is read off the card, not the printing', () => {
+    const foilsOnly = makeBinder({
+      id: 'foils',
+      position: 0,
+      filter: { finishes: { chips: [{ value: 'foil', negate: false }], joiners: [] } },
+    });
+    const compiled = compileBinderCandidates([foilsOnly]);
+    const foilCopy = makeCard({ finish: 'foil', foil: true, finishes: ['nonfoil', 'foil'] });
+    const nonfoilCopy = makeCard({ finish: 'nonfoil', foil: false, finishes: ['nonfoil', 'foil'] });
+    expect(nextBinderMatchCompiled(foilCopy, compiled)?.id).toBe('foils');
+    expect(nextBinderMatchCompiled(nonfoilCopy, compiled)).toBeNull();
+  });
+
+  it('honors pins and excludeBinderId exactly like nextBinderMatch', () => {
+    const rulesMatch = makeBinder({ id: 'rules', position: 0, filter: {} });
+    const pinner = makeBinder({ id: 'pinner', position: 1, filter: {}, pinnedCopyIds: ['c1'] });
+    const card = makeCard({ copyId: 'c1' });
+    const compiled = compileBinderCandidates([rulesMatch, pinner]);
+    expect(nextBinderMatchCompiled(card, compiled)?.id).toBe('pinner');
+
+    const excluded = compileBinderCandidates([rulesMatch, pinner], { excludeBinderId: 'pinner' });
+    expect(nextBinderMatchCompiled(card, excluded)?.id).toBe('rules');
   });
 });

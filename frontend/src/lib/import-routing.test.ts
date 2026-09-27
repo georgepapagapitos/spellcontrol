@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeImportRouting } from './import-routing';
+import type { SetMap } from '@spellcontrol/binder-routing';
+import { formatBinderPages, summarizeImportRouting } from './import-routing';
+import { materializeBinders } from './materialize';
 import type { BinderDef, BinderFilter, BinderFilterGroup, EnrichedCard } from '../types';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -164,5 +166,153 @@ describe('summarizeImportRouting', () => {
     expect(result.entries.every((e) => typeof e.binderId === 'string')).toBe(true);
     expect(result.totalRouted).toBe(1);
     expect(result.unroutedCount).toBe(1);
+  });
+
+  describe('page numbers (E457)', () => {
+    it('agrees with a direct materializeBinders call — the same layout BinderPage renders', () => {
+      const binder = makeBinder({
+        id: 'b',
+        name: 'Binder',
+        filter: {},
+        sorts: [{ field: 'name', dir: 'asc' }],
+      });
+      // 9 filler cards fill page 1 exactly (default pocket size); the imported
+      // card sorts after all of them by name, landing alone on page 2.
+      const filler = Array.from({ length: 9 }, (_, i) => makeCard({ name: `Filler ${i}` }));
+      const imported = makeCard({ importId: 'imp-1', name: 'Zzzz Imported' });
+      const cards = [...filler, imported];
+
+      const result = summarizeImportRouting(new Set(['imp-1']), cards, [binder]);
+
+      const direct = materializeBinders(cards, [binder], { search: '' });
+      const directBinder = direct.binders.find((mb) => mb.def.id === 'b')!;
+      const expectedPages = new Set<number>();
+      for (const section of directBinder.sections) {
+        for (const page of section.pages) {
+          for (const c of page.slots) {
+            if (c?.importId === 'imp-1') expectedPages.add(page.pageNum);
+          }
+        }
+      }
+      expect(result.entries[0].pages).toEqual([...expectedPages].sort((a, b) => a - b));
+      expect(result.entries[0].pages).toEqual([2]);
+    });
+
+    it('a hideDeckAllocated:false binder swallows an allocated copy only when allocatedCopyIds is passed', () => {
+      const binder = makeBinder({
+        id: 'b',
+        name: 'Binder',
+        filter: {},
+        hideDeckAllocated: false,
+      });
+      const allocated = makeCard({ importId: 'imp-1', copyId: 'allocated-copy' });
+      const owned = makeCard({ importId: 'imp-1', copyId: 'owned-copy' });
+      const cards = [allocated, owned];
+
+      // Without allocatedCopyIds, both cards route normally — this would
+      // DISAGREE with BinderPage, which always passes its live allocation map.
+      const withoutOpt = summarizeImportRouting(new Set(['imp-1']), cards, [binder]);
+      expect(withoutOpt.entries[0].count).toBe(2);
+
+      // With it, the allocated copy is swallowed (routed nowhere), matching
+      // what BinderPage actually shows.
+      const withOpt = summarizeImportRouting(new Set(['imp-1']), cards, [binder], {
+        allocatedCopyIds: new Set(['allocated-copy']),
+      });
+      expect(withOpt.entries[0].count).toBe(1);
+    });
+
+    it('a setReleaseDate-sorted binder pages differently once setMap resolves each printing’s date', () => {
+      const binder = makeBinder({
+        id: 'b',
+        name: 'Binder',
+        filter: {},
+        sorts: [{ field: 'setReleaseDate', dir: 'asc' }],
+      });
+      // 9 filler cards from an OLD-looking set name fill one page; the import
+      // is a lone card from a differently-named set.
+      const filler = Array.from({ length: 9 }, (_, i) =>
+        makeCard({ name: `Filler ${i}`, setCode: 'AAA', setName: 'AAA Set' })
+      );
+      const imported = makeCard({
+        importId: 'imp-1',
+        name: 'Imported',
+        setCode: 'ZZZ',
+        setName: 'ZZZ Set',
+      });
+      const cards = [...filler, imported];
+
+      // No setMap: both sets are release-date UNKNOWN, so sections tie and
+      // fall back to alphabetical — AAA's full page goes first, ZZZ (the
+      // import) lands alone on page 2.
+      const noSetMap = summarizeImportRouting(new Set(['imp-1']), cards, [binder]);
+      expect(noSetMap.entries[0].pages).toEqual([2]);
+
+      // With setMap giving ZZZ a much earlier real release date than AAA, the
+      // chronological sort reorders the sections: ZZZ (the import) now leads,
+      // landing alone on page 1 instead.
+      const setMap: SetMap = {
+        AAA: { code: 'AAA', name: 'AAA Set', iconSvgUri: '', releasedAt: '2020-01-01' },
+        ZZZ: { code: 'ZZZ', name: 'ZZZ Set', iconSvgUri: '', releasedAt: '2000-01-01' },
+      };
+      const withSetMap = summarizeImportRouting(new Set(['imp-1']), cards, [binder], { setMap });
+      expect(withSetMap.entries[0].pages).toEqual([1]);
+
+      // And this agrees with calling materializeBinders directly the same way
+      // BinderPage does, with the same setMap.
+      const direct = materializeBinders(cards, [binder], { search: '', setMap });
+      const directBinder = direct.binders.find((mb) => mb.def.id === 'b')!;
+      const directPages = new Set<number>();
+      for (const section of directBinder.sections) {
+        for (const page of section.pages) {
+          for (const c of page.slots) {
+            if (c?.importId === 'imp-1') directPages.add(page.pageNum);
+          }
+        }
+      }
+      expect(withSetMap.entries[0].pages).toEqual([...directPages]);
+    });
+
+    it("reports the binder's default (group-printings off) page layout, not the grouped one", () => {
+      // BinderPage's "group printings" toggle collapses duplicate printings
+      // before materializing, which changes page numbers — but it defaults to
+      // OFF and isn't observable from here, so the summary always answers for
+      // the OFF state (the layout the binder actually opens in).
+      const binder = makeBinder({ id: 'b', name: 'Binder', filter: {} });
+      const dupe1 = makeCard({ importId: 'imp-1', scryfallId: 'dupe', finish: 'nonfoil' });
+      const dupe2 = makeCard({ importId: 'imp-1', scryfallId: 'dupe', finish: 'nonfoil' });
+      const cards = [dupe1, dupe2];
+
+      const result = summarizeImportRouting(new Set(['imp-1']), cards, [binder]);
+      // Ungrouped: both copies occupy their own pocket on page 1.
+      expect(result.entries[0].count).toBe(2);
+      expect(result.entries[0].pages).toEqual([1]);
+    });
+  });
+});
+
+describe('formatBinderPages', () => {
+  it('formats a single page', () => {
+    expect(formatBinderPages([3])).toBe('p. 3');
+  });
+
+  it('formats a few non-adjacent pages', () => {
+    expect(formatBinderPages([7, 3])).toBe('pp. 3, 7');
+  });
+
+  it('collapses a run of adjacent pages into a range', () => {
+    expect(formatBinderPages([3, 4, 5])).toBe('pp. 3-5');
+  });
+
+  it('mixes a range with loose pages', () => {
+    expect(formatBinderPages([1, 2, 3, 9])).toBe('pp. 1-3, 9');
+  });
+
+  it('dedupes and sorts before formatting', () => {
+    expect(formatBinderPages([5, 3, 5, 3])).toBe('pp. 3, 5');
+  });
+
+  it('returns empty string for an empty list', () => {
+    expect(formatBinderPages([])).toBe('');
   });
 });

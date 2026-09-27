@@ -10,6 +10,10 @@ import {
 } from '../lib/import-routing';
 import { formatMoney } from '../lib/format-money';
 import { useCollectionStore } from '../store/collection';
+import { useDecksStore } from '../store/decks';
+import { useCubeStore } from '../store/cube';
+import { buildAllocationMap } from '../lib/allocations';
+import { getSetMap } from '../lib/api';
 import { rekeyedId, useScanQueue } from '../lib/use-scan-queue';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { AddCardInspector } from './AddCardInspector';
@@ -113,6 +117,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
 
   const importCards = useCollectionStore((s) => s.importCards);
   const deleteImports = useCollectionStore((s) => s.deleteImports);
+  const binders = useCollectionStore((s) => s.binders);
   const labelId = useId();
 
   // Desktop Search workbench (T153 phase 4): a live inspector pane tracks
@@ -188,9 +193,20 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
       if (fetchErrors > 0)
         parts.push(fetchErrorMessage(fetchErrors, 'Retry from the import page.'));
       const s = useCollectionStore.getState();
+      // Match BinderPage's own materialize inputs (minus qtyByPrintingKey,
+      // which BinderPage also omits by default — see summarizeImportRouting's
+      // doc comment) so the routing summary's page numbers are the ones the
+      // user will actually find the cards on.
+      const allocatedCopyIds = new Set(
+        buildAllocationMap(useDecksStore.getState().decks, useCubeStore.getState().saved).keys()
+      );
+      const setMap = await getSetMap().catch(() => undefined);
       setCommitSummary({
         importId,
-        routing: summarizeImportRouting(new Set([importId]), s.cards, s.binders),
+        routing: summarizeImportRouting(new Set([importId]), s.cards, s.binders, {
+          allocatedCopyIds,
+          setMap,
+        }),
         successLine: parts.join(' · '),
       });
     } catch (err) {
@@ -504,6 +520,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
         <Suspense fallback={null}>
           <ScannerQueueSheet
             entries={addListQueue}
+            binders={binders}
             heading={`${addListCount} card${addListCount === 1 ? '' : 's'}`}
             onClose={() => setReviewOpen(false)}
             onEdit={setAddListEditingId}

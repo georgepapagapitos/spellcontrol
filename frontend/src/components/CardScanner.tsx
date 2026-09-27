@@ -42,6 +42,7 @@ import { ScannerQueueSheet } from './ScannerQueueSheet';
 import { ScannerEditSheet } from './ScannerEditSheet';
 import { ScannerSettingsSheet } from './ScannerSettingsSheet';
 import { rekeyedId, useScanQueue, useScanQueueStore } from '../lib/use-scan-queue';
+import { useCollectionStore } from '../store/collection';
 import { entriesToImportCsv } from '../lib/scan-import';
 import { useScannerSettings } from '../lib/scanner-settings';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -176,6 +177,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     changeCondition,
     changeLanguage,
   } = useScanQueue();
+  const binders = useCollectionStore((s) => s.binders);
 
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -1207,6 +1209,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       {sheetOpen && (
         <ScannerQueueSheet
           entries={queue}
+          binders={binders}
           onClose={() => setSheetOpen(false)}
           onEdit={setEditingId}
           onRemove={handleRemove}

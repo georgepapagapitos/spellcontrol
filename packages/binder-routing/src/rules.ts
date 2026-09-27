@@ -20,7 +20,7 @@ import { getFinishKey } from './sorting.js';
  * struct does that work once per filter so the inner loop is just
  * comparisons.
  */
-interface CompiledFilter {
+export interface CompiledFilter {
   legalities?: CompiledExpression;
   colors?: CompiledExpression;
   colorIdentity?: { colors: Set<string>; mode: ColorMatchMode };

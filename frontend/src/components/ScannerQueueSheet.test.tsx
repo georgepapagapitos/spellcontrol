@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ScannerQueueSheet } from './ScannerQueueSheet';
 import type { ScannedEntry } from '../lib/use-scan-queue';
+import type { BinderDef, BinderFilter } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 const searchCardsMock = vi.fn();
@@ -64,9 +65,28 @@ const greaves: ScannedEntry = {
   addedAt: 2000,
 };
 
-function renderSheet(entries: ScannedEntry[] = [bolt, greaves]) {
+function makeBinderDef(overrides: Partial<BinderDef> & { filter?: BinderFilter } = {}): BinderDef {
+  const { filter, ...rest } = overrides;
+  return {
+    id: 'binder-1',
+    name: 'Test Binder',
+    position: 0,
+    filterGroups: [{ filter: filter ?? {} }],
+    sorts: [],
+    pocketSize: null,
+    doubleSided: false,
+    fixedCapacity: null,
+    color: '#4ade80',
+    createdAt: 0,
+    updatedAt: 0,
+    ...rest,
+  };
+}
+
+function renderSheet(entries: ScannedEntry[] = [bolt, greaves], binders: BinderDef[] = []) {
   const props = {
     entries,
+    binders,
     onClose: vi.fn(),
     onEdit: vi.fn(),
     onRemove: vi.fn(),
@@ -133,6 +153,7 @@ describe('ScannerQueueSheet', () => {
     render(
       <ScannerQueueSheet
         entries={[bolt, greaves]}
+        binders={[]}
         onClose={vi.fn()}
         onEdit={vi.fn()}
         onRemove={vi.fn()}
@@ -294,6 +315,56 @@ describe('ScannerQueueSheet', () => {
         target: { value: 'zzzznotacard' },
       });
       await waitFor(() => expect(screen.getByText(/No cards match/)).toBeTruthy());
+    });
+  });
+
+  describe('predicted binder destination (E457)', () => {
+    it('hides the routing line entirely when the user has no binders', () => {
+      renderSheet([bolt], []);
+      const boltRow = screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ });
+      expect(within(boltRow).queryByText('Matched no binder')).toBeNull();
+      expect(boltRow.querySelector('.scan-row-binder')).toBeNull();
+    });
+
+    it('names the binder a row would route to, by rules alone', () => {
+      const reds = makeBinderDef({
+        id: 'reds',
+        name: 'Red Deck Wins',
+        color: '#ef4444',
+        filter: { colorIdentity: { colors: ['R'], mode: 'any' } },
+      });
+      renderSheet([bolt], [reds]);
+      const boltRow = screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ });
+      expect(within(boltRow).getByText('Red Deck Wins')).toBeTruthy();
+      const pip = boltRow.querySelector('.scan-row-binder-pip');
+      expect(pip).toBeTruthy();
+      expect((pip as HTMLElement).style.background).toBe('#ef4444');
+    });
+
+    it('a Foils binder only claims a foil row', () => {
+      const foils = makeBinderDef({
+        id: 'foils',
+        name: 'Foils',
+        filter: { finishes: { chips: [{ value: 'foil', negate: false }], joiners: [] } },
+      });
+      const foilBolt: ScannedEntry = { ...bolt, id: 'card-1::foil', finish: 'foil' };
+      renderSheet([foilBolt, greaves], [foils]);
+      const foilRow = screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ });
+      expect(within(foilRow).getByText('Foils')).toBeTruthy();
+      const nonfoilRow = screen.getByRole('button', { name: /Edit 1 Lightning Greaves/ });
+      expect(within(nonfoilRow).getByText('Matched no binder')).toBeTruthy();
+    });
+
+    it('says "Matched no binder" — the same wording the post-import summary uses — when nothing matches', () => {
+      const blueOnly = makeBinderDef({
+        name: 'Blue',
+        filter: { colorIdentity: { colors: ['U'], mode: 'any' } },
+      });
+      renderSheet([bolt], [blueOnly]);
+      const boltRow = screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ });
+      expect(within(boltRow).getByText('Matched no binder')).toBeTruthy();
+      const pip = boltRow.querySelector('.scan-row-binder-pip');
+      expect(pip?.className).toContain('scan-row-binder-pip--empty');
     });
   });
 });

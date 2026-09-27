@@ -1007,6 +1007,28 @@
 .scan-row-tag.finish-etched {
   background: rgba(212, 175, 55, 0.2);
 }
+/* Predicted binder destination (E457) — quiet, same visual language as
+   `.import-routing-pip`/`.import-routing-name` in feedback-spinner.css. */
+.scan-row-binder {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+.scan-row-binder-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 0.5px solid var(--pip-border);
+}
+.scan-row-binder-pip--empty {
+  background: none;
+  border: 1px dashed var(--text-muted);
+}
 .scan-row-price {
   flex: none;
   margin-left: auto;

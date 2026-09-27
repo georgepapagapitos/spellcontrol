@@ -1,3 +1,4 @@
+import type { SetMap } from '@spellcontrol/binder-routing';
 import type { BinderDef, EnrichedCard } from '../types';
 import { materializeBinders } from './materialize';
 
@@ -11,6 +12,41 @@ export interface ImportRoutingEntry {
   binderName: string;
   binderColor?: string;
   count: number;
+  /**
+   * 1-based physical page numbers (within this binder's default Pages view —
+   * group-printings off, the state a binder opens in until the user toggles
+   * it) that at least one of the imported cards landed on. Ascending,
+   * deduped, never empty when `count > 0` — see `summarizeImportRouting`'s
+   * doc comment for exactly which inputs this needs to agree with BinderPage.
+   */
+  pages: number[];
+}
+
+/**
+ * Formats a page-number list the way a physical binder is discussed:
+ * "p. 3" for one page, "pp. 3, 7" for a few, "pp. 3-5" for a run — a mix of
+ * both when some are adjacent and some aren't. Returns '' for an empty list
+ * so a caller can treat it as "nothing to show" without a special case.
+ */
+export function formatBinderPages(pages: number[]): string {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  if (sorted.length === 0) return '';
+  const runs: string[] = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i <= sorted.length; i++) {
+    const cur = sorted[i];
+    if (cur === prev + 1) {
+      prev = cur;
+      continue;
+    }
+    runs.push(start === prev ? `${start}` : `${start}-${prev}`);
+    if (cur !== undefined) {
+      start = cur;
+      prev = cur;
+    }
+  }
+  return sorted.length === 1 ? `p. ${runs[0]}` : `pp. ${runs.join(', ')}`;
 }
 
 export interface ImportRoutingSummary {
@@ -48,29 +84,53 @@ export interface ImportRoutingSummary {
  * promotion, and any other routing quirks the materializer applies. The
  * naive approach (re-running rule matching here) would silently disagree
  * with materializeBinders when those edge cases kick in.
+ *
+ * Each entry's `pages` is read off the SAME materialize pass, walking
+ * `section.pages[].slots` (not `section.cards`, which carries no page
+ * number). For this to equal what `BinderPage` actually renders, `opts`
+ * must carry the same `allocatedCopyIds`/`setMap` BinderPage does — those are
+ * the two materialize inputs (besides the cards/binders every caller already
+ * passes) that can shift a card onto a different page: `allocatedCopyIds`
+ * for a `hideDeckAllocated: false` binder, `setMap` for a binder sorted by
+ * release date. (`qtyByPrintingKey` is deliberately never passed: omitting it
+ * makes materialize fall back to counting quantities from `cards` itself,
+ * which is exactly BinderPage's own default "group printings" off state —
+ * passing a grouped count here would answer a view this summary never
+ * renders.) A caller that can't source `allocatedCopyIds`/`setMap` gets
+ * `pages` computed anyway; it's exactly right for every binder that isn't
+ * using one of those two narrow features, and BinderPage itself opens in
+ * that same "group printings off" state by default.
  */
 export function summarizeImportRouting(
   importIds: ReadonlySet<string>,
   cards: EnrichedCard[],
-  binderDefs: BinderDef[]
+  binderDefs: BinderDef[],
+  opts: { allocatedCopyIds?: ReadonlySet<string>; setMap?: SetMap } = {}
 ): ImportRoutingSummary {
   if (importIds.size === 0) return { entries: [], totalRouted: 0, unroutedCount: 0 };
 
-  // Run the same routing the BinderView uses. We don't care about pocket size
-  // or sorts here — only which cards landed where — but we still go through
-  // the official path so quirks like deck-allocation hiding and printing
-  // promotion stay consistent with the user-visible layout.
+  // Run the same routing the BinderView uses. We don't care about sorts here
+  // — only which cards landed where and on which page — but we still go
+  // through the official path so quirks like deck-allocation hiding and
+  // printing promotion stay consistent with the user-visible layout.
   const { binders, uncategorized } = materializeBinders(cards, binderDefs, {
-    globalPocketSize: 9,
     search: '',
+    allocatedCopyIds: opts.allocatedCopyIds,
+    setMap: opts.setMap,
   });
 
   const entries: ImportRoutingEntry[] = [];
   for (const b of binders) {
     let n = 0;
+    const pages = new Set<number>();
     for (const section of b.sections) {
-      for (const c of section.cards) {
-        if (c.importId && importIds.has(c.importId)) n++;
+      for (const page of section.pages) {
+        for (const c of page.slots) {
+          if (c?.importId && importIds.has(c.importId)) {
+            n++;
+            pages.add(page.pageNum);
+          }
+        }
       }
     }
     if (n > 0) {
@@ -79,6 +139,7 @@ export function summarizeImportRouting(
         binderName: b.def.name,
         binderColor: b.def.color,
         count: n,
+        pages: [...pages].sort((a, b) => a - b),
       });
     }
   }
