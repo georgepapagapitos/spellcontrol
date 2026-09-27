@@ -1,20 +1,10 @@
-import {
-  Camera,
-  ChevronDown,
-  ChevronRight,
-  Cloud,
-  Link2,
-  RotateCcw,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+import { Camera, ChevronDown, ChevronRight, Cloud, Link2, Upload } from 'lucide-react';
 import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
 import { usePushProgress } from '../lib/use-push-progress';
 import type { PushProgress } from '../lib/sync';
 import { useCollectionStore, type ImportMode } from '../store/collection';
-import { useDecksStore } from '../store/decks';
 import {
   fetchImportLink,
   importFile,
@@ -24,14 +14,13 @@ import {
 } from '../lib/api';
 import type { UploadResponse } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
 import {
   findPriorImports,
   findContentReimportMatch,
   type ContentReimportMatch,
 } from '../lib/reimport';
-import type { ImportHistoryEntry } from '../lib/local-cards';
+import { prettyImportName } from '../lib/import-history-name';
 import { summarizeImportRouting } from '../lib/import-routing';
 import {
   mergeImportResults,
@@ -50,7 +39,7 @@ import { StagedFileList } from './StagedFileList';
 import { ImportRoutingSummary } from './ImportRoutingSummary';
 import { InlineCardSearch } from './InlineCardSearch';
 import { InfoTip } from './InfoTip';
-import { SwitchRow } from './shared/form';
+import { ChoiceList, Disclosure, Field, SwitchRow } from './shared/form';
 import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 import {
@@ -140,7 +129,6 @@ interface UploadPanelProps {
 
 export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const backupInputRef = useRef<HTMLInputElement>(null);
   const [pasteText, setPasteText] = useState('');
   /** Google Sheets / Drive share link, fetched server-side and staged as a file. */
   const [linkUrl, setLinkUrl] = useState('');
@@ -162,7 +150,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   // Raw lines the parser couldn't turn into a row at all (bad column count, no
   // name, …) from the most recent import. Session-local like the other import
-  // banners' toggle state — cleared on the next import or Clear all.
+  // banners' toggle state — cleared on the next import.
   const [malformedRows, setMalformedRows] = useState<string[]>([]);
   const [showMalformed, setShowMalformed] = useState(false);
   // Completion moment — the seal blooms once when an import lands (the
@@ -173,40 +161,66 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
    *  post-import "where did my cards go?" panel. Cleared whenever the user
    *  starts a new import or dismisses the panel. */
   const [recentImportIds, setRecentImportIds] = useState<Set<string>>(new Set());
-  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [pendingReimportGate, setPendingReimportGate] = useState<PendingReimportGate | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgressState | null>(null);
   /** Parsing is done and the cards are being written to the device. */
   const [savingLocally, setSavingLocally] = useState(false);
   /** Slice progress of the background server push, once the panel has let go. */
   const pushProgress = usePushProgress();
-  const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
-  const [confirmingDeleteImports, setConfirmingDeleteImports] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const canScan = useCanScan();
   /** "These are all proxies" toggle — applies to paste + file-drop, NOT the scan path. */
   const [markAsProxies, setMarkAsProxies] = useState(false);
+  // How this import lands — default is a plain add; the rarer choices live in
+  // the "Options" disclosure below so a click on Import never stops for a
+  // dialog (D, board T153).
+  const [importMode, setImportMode] = useState<ImportMode>('merge');
+  const [binderName, setBinderName] = useState('');
+  const binderNameId = useId();
 
   const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
   // Decorate with oracle tags so "where did my import go?" respects tag rules
   // (no-op unless a binder uses one).
   const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
-  const decks = useDecksStore((s) => s.decks);
   const isLoading = useCollectionStore((s) => s.isLoading);
   const error = useCollectionStore((s) => s.error);
   const unresolvedNames = useCollectionStore((s) => s.unresolvedNames);
   const fetchErrors = useCollectionStore((s) => s.fetchErrors);
   const importHistory = useCollectionStore((s) => s.importHistory);
   const importCards = useCollectionStore((s) => s.importCards);
-  const deleteImports = useCollectionStore((s) => s.deleteImports);
-  const clearCards = useCollectionStore((s) => s.clearCards);
   const setLoading = useCollectionStore((s) => s.setLoading);
   const setError = useCollectionStore((s) => s.setError);
-  const restoreFromBackup = useCollectionStore((s) => s.restoreFromBackup);
 
   const hasCollection = cards.length > 0;
+  const missingBinderName = importMode === 'binder' && !binderName.trim();
   const { confirm, dialog: confirmDialog } = useConfirm();
+
+  // Disclosure summary (STYLE_GUIDE § Config surfaces): states the current
+  // choice while closed, so a non-default pick is never hidden.
+  const modeSummary =
+    importMode === 'replace'
+      ? 'Replace collection'
+      : importMode === 'binder'
+        ? binderName.trim()
+          ? `New binder "${binderName.trim()}"`
+          : 'Add as new binder'
+        : 'Add to collection';
+  const optionsSummary = markAsProxies ? `${modeSummary} · Proxies on` : modeSummary;
+
+  // Soft, name-based re-import signal (lib/reimport.ts): an incoming staged
+  // file shares a name with something already in history. Paste/scan use
+  // synthetic labels the matcher ignores, so this only ever fires for a real
+  // file. The strong, content-based signal is `findContentReimportMatch`,
+  // which still hard-gates a merge import below.
+  const priorFilenameMatches = useMemo(
+    () =>
+      findPriorImports(
+        stagedFiles.map((f) => f.name),
+        importHistory
+      ),
+    [stagedFiles, importHistory]
+  );
 
   const routingSummary = useMemo(
     () => summarizeImportRouting(recentImportIds, cards, binders),
@@ -306,8 +320,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   };
 
   const handleImportStaged = () => {
-    if (stagedFiles.length === 0 || isLoading) return;
-    queueImport({
+    if (stagedFiles.length === 0 || isLoading || missingBinderName) return;
+    void startImport({
       files: stagedFiles,
       label: `${stagedFiles.length} files`,
       preview: `${stagedFiles.length} file${stagedFiles.length === 1 ? '' : 's'}`,
@@ -317,9 +331,9 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
 
   const handlePasteImport = () => {
     const text = pasteText.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || missingBinderName) return;
     const lineCount = text.split('\n').filter((l) => l.trim()).length;
-    queueImport({
+    void startImport({
       fn: (onProgress) => importText(text, onProgress, markAsProxies),
       label: 'pasted-list',
       preview: `${lineCount} line${lineCount === 1 ? '' : 's'}`,
@@ -327,8 +341,19 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     });
   };
 
-  function queueImport(p: PendingImport) {
-    setPendingImport(p);
+  /**
+   * Runs the currently-selected import mode (the "Options" disclosure) right
+   * away — Add to collection is the default and needs no confirmation.
+   * Replace is the one choice that still nags (its own confirm + Undo, D,
+   * board T153: the per-import mode dialog no longer blocks every import).
+   */
+  async function startImport(p: PendingImport) {
+    if (isLoading || missingBinderName) return;
+    if (importMode === 'replace') {
+      const ok = await confirmReplaceCollection();
+      if (!ok) return;
+    }
+    await runImport(p, importMode, importMode === 'binder' ? binderName.trim() : undefined);
   }
 
   /**
@@ -468,7 +493,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     binderName?: string,
     skipReimportGate = false
   ) {
-    setPendingImport(null);
     setLoading(true);
     setError(null);
     setSuccessMsg(null);
@@ -611,95 +635,12 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     }));
   };
 
-  const handleClearAll = async () => {
-    const ok = await confirm({
-      title: 'Clear your collection?',
-      body: "All cards will be removed. You'll need to re-import them.",
-      confirmLabel: 'Clear all',
-      danger: true,
-    });
-    if (!ok) return;
-    await clearCards();
-    setShowUnresolved(false);
-    setMalformedRows([]);
-    setShowMalformed(false);
-    setSuccessMsg(null);
-    setSelectedHistoryIds(new Set());
-  };
-
-  const toggleHistorySelection = (id: string) => {
-    setSelectedHistoryIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const handleDeleteSelected = async () => {
-    const ids = Array.from(selectedHistoryIds);
-    if (ids.length === 0) return;
-    await deleteImports(ids);
-    setSelectedHistoryIds(new Set());
-    setConfirmingDeleteImports(false);
-    // deleteImports() already surfaces a "Removed N cards" toast with Undo —
-    // clear any stale import banner rather than double-confirming inline.
-    setSuccessMsg(null);
-  };
-
-  const handlePickBackup = async () => {
-    if (isLoading) return;
-    if (cards.length > 0 || binders.length > 0 || decks.length > 0) {
-      const ok = await confirm({
-        title: 'Restore backup?',
-        body: "This will replace your current collection, binders, and decks. This can't be undone.",
-        confirmLabel: 'Restore',
-        danger: true,
-      });
-      if (!ok) return;
-    }
-    backupInputRef.current?.click();
-  };
-
-  const applyBackupFile = async (file: File) => {
-    setLoading(true);
-    setError(null);
-    setSuccessMsg(null);
-    setShowUnresolved(false);
-    setMalformedRows([]);
-    setShowMalformed(false);
-    try {
-      const text = await file.text();
-      const backup = parseBackup(text);
-      await restoreFromBackup(backup);
-      const parts: string[] = [];
-      if (backup.collection) {
-        parts.push(`${backup.collection.cards.length.toLocaleString()} cards`);
-      }
-      parts.push(`${backup.binders.length} binder${backup.binders.length === 1 ? '' : 's'}`);
-      if (backup.decks) {
-        parts.push(`${backup.decks.length} deck${backup.decks.length === 1 ? '' : 's'}`);
-      }
-      setSuccessMsg(`Backup restored · ${parts.join(' · ')}`);
-    } catch (err) {
-      setError(userMessage(err, "Couldn't restore that import. Try again."));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBackupChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (backupInputRef.current) backupInputRef.current.value = '';
-    if (file) await applyBackupFile(file);
-  };
-
   return (
     <div className="upload-panel">
       {confirmDialog}
       {/* A progress strip at the top of the panel for each phase of an import:
           1. Parsing — determinate per batch when the file was big enough to
-             be chunked, otherwise (small upload, backup restore) indeterminate.
+             be chunked, otherwise (a small upload) indeterminate.
           2. Saving to the device — indeterminate; short.
           3. Saving to the account — the server push. The panel has already
              let go by then (the store returns once the rows are on the
@@ -841,7 +782,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         </div>
       )}
 
-      <div className={`import-grid${hasCollection ? ' has-history' : ''}`}>
+      <div className="import-grid">
         <div
           className={`import-card file-dropzone${isDragging ? ' is-dragging' : ''}`}
           {...dropProps}
@@ -926,6 +867,24 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 {stageNote ??
                   'Each file is imported as a separate entry in your import history. Upload more to add to this list.'}
               </p>
+              {priorFilenameMatches.length > 0 && (
+                <p className="import-reimport-warning" role="alert">
+                  {priorFilenameMatches.length === 1 ? (
+                    <>
+                      You already imported <strong>{priorFilenameMatches[0].name}</strong> (
+                      {priorFilenameMatches[0].count.toLocaleString()} cards,{' '}
+                      {formatRelative(priorFilenameMatches[0].addedAt)}). Adding it again stacks a
+                      second copy of every card. Open Options below to replace instead.
+                    </>
+                  ) : (
+                    <>
+                      <strong>{priorFilenameMatches.length}</strong> of these were imported before:{' '}
+                      {priorFilenameMatches.map((r) => r.name).join(', ')}. Adding them again stacks
+                      a second copy of every card. Open Options below to replace instead.
+                    </>
+                  )}
+                </p>
+              )}
             </>
           ) : (
             <textarea
@@ -994,13 +953,54 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             </div>
           )}
 
-          <SwitchRow
-            label="Mark all as proxies"
-            hint="Proxy copies count as owned in your collection and binders, but carry no market value. Their cost, if any, still counts toward what you paid."
-            checked={markAsProxies}
-            onChange={setMarkAsProxies}
-            disabled={isLoading}
-          />
+          <Disclosure title="Options" summary={optionsSummary}>
+            <ChoiceList<ImportMode>
+              ariaLabel="How to import these cards"
+              value={importMode}
+              onChange={setImportMode}
+              options={[
+                {
+                  value: 'merge',
+                  label: 'Add to collection',
+                  hint:
+                    binders.length > 0
+                      ? 'Cards are routed through your binder rules.'
+                      : 'Cards go straight into your collection.',
+                },
+                {
+                  value: 'binder',
+                  label: 'Add as a new binder',
+                  hint: 'Creates a new binder with these cards, in the order they were listed. Cards are also added to your collection.',
+                },
+                {
+                  value: 'replace',
+                  label: 'Replace my collection',
+                  hint: 'Wipes your current collection and loads this import fresh, with no duplicates.',
+                },
+              ]}
+            />
+            {importMode === 'binder' && (
+              <Field label="Binder name" htmlFor={binderNameId}>
+                <input
+                  id={binderNameId}
+                  type="text"
+                  className="binder-name-input"
+                  placeholder="Binder name"
+                  value={binderName}
+                  onChange={(e) => setBinderName(e.target.value)}
+                  disabled={isLoading}
+                  maxLength={60}
+                />
+              </Field>
+            )}
+            <SwitchRow
+              label="Mark all as proxies"
+              hint="Proxy copies count as owned in your collection and binders, but carry no market value. Their cost, if any, still counts toward what you paid."
+              checked={markAsProxies}
+              onChange={setMarkAsProxies}
+              disabled={isLoading}
+            />
+          </Disclosure>
 
           <div className="import-card-footer">
             <span className="import-card-hint">
@@ -1036,7 +1036,11 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
               />
             </span>
             {stagedFiles.length > 0 ? (
-              <Button variant="primary" onClick={handleImportStaged} disabled={isLoading}>
+              <Button
+                variant="primary"
+                onClick={handleImportStaged}
+                disabled={isLoading || missingBinderName}
+              >
                 {isLoading
                   ? 'Importing…'
                   : `Import ${stagedFiles.length} file${stagedFiles.length === 1 ? '' : 's'}`}
@@ -1045,111 +1049,14 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
               <Button
                 variant="primary"
                 onClick={handlePasteImport}
-                disabled={isLoading || !pasteText.trim()}
+                disabled={isLoading || !pasteText.trim() || missingBinderName}
               >
                 {isLoading ? 'Importing…' : 'Import'}
               </Button>
             )}
           </div>
         </div>
-
-        {hasCollection && (
-          <aside className="import-history" aria-label="Import history">
-            <h3 className="import-history-title">Import history</h3>
-            {importHistory.length > 0 ? (
-              <ul className="import-history-list">
-                {[...importHistory]
-                  .map((h, originalIdx) => ({ h, originalIdx }))
-                  .reverse()
-                  .map(({ h, originalIdx }) => {
-                    const selectable = !!h.id;
-                    const checked = !!h.id && selectedHistoryIds.has(h.id);
-                    return (
-                      <li key={originalIdx} className="import-history-item">
-                        <label
-                          className="import-history-check"
-                          title={
-                            selectable
-                              ? 'Select this import to delete'
-                              : 'This import predates the per-import delete feature and can only be removed via Clear all'
-                          }
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={!selectable || isLoading}
-                            onChange={() => h.id && toggleHistorySelection(h.id)}
-                            aria-label={`Select ${prettyImportName(h.name, h.format)}`}
-                          />
-                        </label>
-                        <div className="import-history-text">
-                          <div className="import-history-name">
-                            <span className="import-history-name-label">
-                              {prettyImportName(h.name, h.format)}
-                            </span>
-                          </div>
-                          <div className="import-history-meta">
-                            {h.count.toLocaleString()} card{h.count === 1 ? '' : 's'} ·{' '}
-                            {formatRelative(h.addedAt)}
-                            {h.format ? ` · ${h.format}` : ''}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-              </ul>
-            ) : (
-              <p className="import-history-empty">No imports recorded for this collection.</p>
-            )}
-            <div className="import-history-footer">
-              {selectedHistoryIds.size > 0 ? (
-                <button
-                  type="button"
-                  className="upload-action upload-action-danger"
-                  onClick={() => setConfirmingDeleteImports(true)}
-                  disabled={isLoading}
-                  title="Remove the selected imports"
-                >
-                  <Trash2 width={14} height={14} strokeWidth={1.6} aria-hidden />
-                  <span>Delete selected ({selectedHistoryIds.size})</span>
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="upload-action"
-                    onClick={handlePickBackup}
-                    disabled={isLoading}
-                    title="Restore from backup"
-                  >
-                    <RotateCcw width={14} height={14} strokeWidth={1.6} aria-hidden />
-                    <span>Restore</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="upload-action upload-action-danger"
-                    onClick={handleClearAll}
-                    disabled={isLoading}
-                    title="Clear all cards from your collection"
-                  >
-                    <Trash2 width={14} height={14} strokeWidth={1.6} aria-hidden />
-                    <span>Clear all</span>
-                  </button>
-                </>
-              )}
-            </div>
-          </aside>
-        )}
       </div>
-
-      <input
-        type="file"
-        ref={backupInputRef}
-        accept="application/json,.json"
-        style={{ display: 'none' }}
-        onChange={handleBackupChange}
-        disabled={isLoading}
-      />
 
       {error && (
         <div className="error-banner">
@@ -1171,37 +1078,18 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             onClose={() => setScannerOpen(false)}
             onConfirm={(text, count) => {
               setScannerOpen(false);
-              queueImport({
+              void startImport({
                 fn: (onProgress) => importText(text, onProgress),
                 label: 'scanned-cards',
                 preview: `${count} scanned card${count === 1 ? '' : 's'}`,
               });
-              // Only staged: the import-mode dialog can still be cancelled,
-              // so the scanner keeps its list.
+              // Never claim the add succeeded here: a Replace-mode import can
+              // still be declined at its confirm, and the scanner keeps its
+              // list until an import actually lands.
               return false;
             }}
           />
         </Suspense>
-      )}
-
-      {pendingImport && (
-        <ImportModeDialog
-          existingCount={cards.length}
-          hasBinders={binders.length > 0}
-          incomingPreview={pendingImport.preview}
-          priorImports={findPriorImports(
-            pendingImport.files ? pendingImport.files.map((f) => f.name) : [pendingImport.label],
-            importHistory
-          )}
-          onPick={async (mode, binderName) => {
-            if (mode === 'replace') {
-              const ok = await confirmReplaceCollection();
-              if (!ok) return;
-            }
-            void runImport(pendingImport, mode, binderName);
-          }}
-          onCancel={() => setPendingImport(null)}
-        />
       )}
 
       {pendingReimportGate && (
@@ -1210,14 +1098,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           onReplace={() => void resolveReimportGate('replace')}
           onMergeAnyway={() => void resolveReimportGate('merge')}
           onCancel={() => void resolveReimportGate('cancel')}
-        />
-      )}
-
-      {confirmingDeleteImports && (
-        <DeleteImportsDialog
-          imports={importHistory.filter((h) => selectedHistoryIds.has(h.id))}
-          onConfirm={handleDeleteSelected}
-          onCancel={() => setConfirmingDeleteImports(false)}
         />
       )}
     </div>
@@ -1309,187 +1189,6 @@ function UnresolvedNameRow({ name, disabled, onResolved }: UnresolvedNameRowProp
   );
 }
 
-interface DeleteImportsDialogProps {
-  imports: Array<{ id: string; name: string; format: string; count: number }>;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDialogProps) {
-  const totalCards = imports.reduce((sum, h) => sum + h.count, 0);
-  return (
-    <Modal onClose={onCancel} labelledBy="delete-imports-title">
-      <h2 id="delete-imports-title" className="choice-dialog-title">
-        Delete {imports.length} import{imports.length === 1 ? '' : 's'}?
-      </h2>
-      <p className="choice-dialog-body">
-        This removes the {totalCards.toLocaleString()} card
-        {totalCards === 1 ? '' : 's'} added by:
-      </p>
-      <ul className="delete-imports-list">
-        {imports.map((h, i) => (
-          <li key={i}>
-            {prettyImportName(h.name, h.format)} · {h.count.toLocaleString()} cards
-          </li>
-        ))}
-      </ul>
-      <p className="choice-dialog-body">Other cards stay where they are. This can't be undone.</p>
-      <div className="choice-dialog-actions">
-        <button type="button" className="upload-action" onClick={onCancel}>
-          Cancel
-        </button>
-        <Button variant="danger" onClick={onConfirm} autoFocus>
-          Delete
-        </Button>
-      </div>
-    </Modal>
-  );
-}
-
-interface ImportModeDialogProps {
-  /** Whether any binder exists yet — a first import has no rules to route through. */
-  hasBinders: boolean;
-  existingCount: number;
-  incomingPreview?: string;
-  /** Prior imports whose name matches an incoming source — a likely re-import. */
-  priorImports?: ImportHistoryEntry[];
-  onPick: (mode: ImportMode, binderName?: string) => void;
-  onCancel: () => void;
-}
-
-function ImportModeDialog({
-  existingCount,
-  hasBinders,
-  incomingPreview,
-  priorImports,
-  onPick,
-  onCancel,
-}: ImportModeDialogProps) {
-  const [binderName, setBinderName] = useState('');
-  const [showBinderInput, setShowBinderInput] = useState(false);
-
-  // A re-import only stacks duplicates when there's already a collection to
-  // stack onto; with an empty collection "Add" behaves like "Replace" anyway.
-  const reimports = existingCount > 0 ? (priorImports ?? []) : [];
-  const isReimport = reimports.length > 0;
-
-  const handleBinderSubmit = () => {
-    const name = binderName.trim();
-    if (!name) return;
-    onPick('binder', name);
-  };
-
-  return (
-    <Modal onClose={onCancel} labelledBy="import-mode-title">
-      <h2 id="import-mode-title" className="choice-dialog-title">
-        How should these cards be imported?
-      </h2>
-      {existingCount > 0 && (
-        <p className="choice-dialog-body">
-          You already have {existingCount.toLocaleString()} card{existingCount === 1 ? '' : 's'}{' '}
-          loaded
-          {incomingPreview ? ` and you're importing ${incomingPreview}` : ''}.
-        </p>
-      )}
-      {isReimport && (
-        <p className="choice-dialog-warning" role="alert">
-          {reimports.length === 1 ? (
-            <>
-              You already imported <strong>{reimports[0].name}</strong> (
-              {reimports[0].count.toLocaleString()} cards, {formatRelative(reimports[0].addedAt)}
-              ).{' '}
-            </>
-          ) : (
-            <>
-              <strong>{reimports.length}</strong> of these were imported before:{' '}
-              {reimports.map((r) => r.name).join(', ')}.{' '}
-            </>
-          )}
-          “Add to collection” adds a <strong>second copy of every card</strong>. To refresh it
-          instead, choose <strong>Replace collection</strong>.
-        </p>
-      )}
-      <div className="choice-dialog-options">
-        <button
-          type="button"
-          className="choice-dialog-option"
-          onClick={() => onPick(existingCount > 0 ? 'merge' : 'replace')}
-          autoFocus={!showBinderInput && !isReimport}
-        >
-          <span className="choice-dialog-option-title">Add to collection</span>
-          <span className="choice-dialog-option-desc">
-            {existingCount > 0
-              ? isReimport
-                ? 'Keep the existing cards and add another full copy of this import. Duplicates will stack.'
-                : 'Keep existing cards and append the new ones. Duplicates will stack.'
-              : hasBinders
-                ? 'Import these cards into your collection. They will be routed through your binder rules.'
-                : 'Import these cards into your collection.'}
-          </span>
-        </button>
-        {!showBinderInput ? (
-          <button
-            type="button"
-            className="choice-dialog-option"
-            onClick={() => setShowBinderInput(true)}
-          >
-            <span className="choice-dialog-option-title">Import as binder</span>
-            <span className="choice-dialog-option-desc">
-              Create a new binder with these cards in the order they were listed.
-            </span>
-          </button>
-        ) : (
-          <div className="choice-dialog-option choice-dialog-option-active">
-            <span className="choice-dialog-option-title">Import as binder</span>
-            <div className="binder-name-input-row">
-              <input
-                type="text"
-                className="binder-name-input"
-                placeholder="Binder name"
-                value={binderName}
-                onChange={(e) => setBinderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleBinderSubmit();
-                }}
-                autoFocus
-                maxLength={60}
-              />
-              <Button variant="primary" onClick={handleBinderSubmit} disabled={!binderName.trim()}>
-                Import
-              </Button>
-            </div>
-            <span className="choice-dialog-option-desc binder-import-note">
-              Cards will also be added to your collection.
-            </span>
-          </div>
-        )}
-        {existingCount > 0 && (
-          <button
-            type="button"
-            className="choice-dialog-option choice-dialog-option-danger"
-            onClick={() => onPick('replace')}
-            autoFocus={isReimport && !showBinderInput}
-          >
-            <span className="choice-dialog-option-title">
-              Replace collection{isReimport ? ' (recommended)' : ''}
-            </span>
-            <span className="choice-dialog-option-desc">
-              {isReimport
-                ? 'Wipe the current collection and load this import fresh, with no duplicates.'
-                : 'Wipe the current collection and start fresh with the imported cards.'}
-            </span>
-          </button>
-        )}
-      </div>
-      <div className="choice-dialog-actions">
-        <button type="button" className="upload-action" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
 interface ReimportGateDialogProps {
   match: ContentReimportMatch;
   onReplace: () => void;
@@ -1536,34 +1235,6 @@ function ReimportGateDialog({
       </div>
     </Modal>
   );
-}
-
-/**
- * Replace the internal 'pasted-list' label with a friendlier name that names
- * the detected text format ("Pasted MTGA list", "Pasted Moxfield CSV", etc).
- */
-function prettyImportName(name: string, format: string): string {
-  if (name === 'scanned-cards') return 'Scanned cards';
-  if (name === 'retried-cards') return 'Retried cards';
-  if (name !== 'pasted-list') return name;
-  switch ((format || '').toLowerCase()) {
-    case 'mtga':
-      return 'Pasted MTGA list';
-    case 'plain':
-      return 'Pasted text';
-    case 'manabox':
-      return 'Pasted ManaBox CSV';
-    case 'archidekt':
-      return 'Pasted Archidekt CSV';
-    case 'moxfield':
-      return 'Pasted Moxfield CSV';
-    case 'deckbox':
-      return 'Pasted Deckbox CSV';
-    case 'generic-csv':
-      return 'Pasted CSV';
-    default:
-      return 'Pasted list';
-  }
 }
 
 function formatImportProgressMessage(p: ImportProgressState): string {

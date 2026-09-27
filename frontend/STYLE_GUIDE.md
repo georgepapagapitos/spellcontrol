@@ -3856,6 +3856,36 @@ and `UnresolvedNameRow`:
   search fallback if suggestions miss), collapse into a resolved state once
   the fix lands. Don't open a second overlay for a fix that fits inline.
 
+**Import admin left the add flow (T153, 2026-09-26).** `UploadPanel` used to
+mix adding cards with collection administration — an import-history aside
+with per-import delete, a "Restore backup" file picker, and a "Clear all"
+that wiped the whole collection. None of those are about the import in
+progress, so they moved off the panel entirely:
+
+- **Import history** is `components/ImportHistorySheet.tsx`, a card-picker
+  sheet reachable from Collection's ⋮ menu ("Import history"), not the add
+  flow. Its delete confirm states the truth about Undo — `deleteImports()`
+  always follows with a toast offering one, so the old copy ("This can't be
+  undone.") directly contradicted the toast a moment later. The confirm now
+  reads "Other cards stay where they are. You can undo from the toast."
+- **Restore from a backup file** and **Delete entire collection** (the
+  former "Clear all") live in the You page's Collection section and Danger
+  zone respectively — Settings, not an import surface. Restoring a backup has
+  no Undo (unlike history-delete and collection-clear, both of which do), so
+  its confirm's "This can't be undone" stays accurate; its error copy no
+  longer says "Couldn't restore that import" for an operation that isn't one.
+- **The mode dialog no longer blocks every import.** Importing adds to the
+  collection straight away (identical in effect to the old replace-into-empty
+  on a blank collection, since `importCards` treats an empty collection's
+  merge and replace the same). The rarer choices — add as a new binder (with
+  its name field) and replace the whole collection (still its own confirm +
+  Undo) — live in a closed `Disclosure` labelled "Options" beside "Mark all
+  as proxies", so a one-line paste is one click, not a dialog every time. The
+  filename-based re-import warning (`findPriorImports`) still fires inline
+  once a staged file's name matches prior history, pointing at Options rather
+  than blocking; the content-based re-import gate (`findContentReimportMatch`)
+  still hard-stops a probable duplicate regardless of the chosen mode.
+
 ## Deck view — one fact, one place (2026-09-08)
 
 The deck editor is three tabs (Deck · Power · Coach) under one hero; Stats

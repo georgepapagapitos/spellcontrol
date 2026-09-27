@@ -69,11 +69,8 @@ interface MockState {
   fetchErrors: FetchErrorRow[];
   importHistory: ImportHistoryEntry[];
   importCards: ReturnType<typeof vi.fn>;
-  deleteImports: ReturnType<typeof vi.fn>;
-  clearCards: ReturnType<typeof vi.fn>;
   setLoading: ReturnType<typeof vi.fn>;
   setError: ReturnType<typeof vi.fn>;
-  restoreFromBackup: ReturnType<typeof vi.fn>;
   addCard: ReturnType<typeof vi.fn>;
   replaceAllCards: ReturnType<typeof vi.fn>;
 }
@@ -90,11 +87,8 @@ const mockState: MockState = {
   fetchErrors: [],
   importHistory: [],
   importCards: importCardsMock,
-  deleteImports: vi.fn(),
-  clearCards: vi.fn(),
   setLoading: vi.fn(),
   setError: vi.fn(),
-  restoreFromBackup: vi.fn(),
   addCard: addCardMock,
   replaceAllCards: vi.fn(),
 };
@@ -159,13 +153,25 @@ const PRIOR: ImportHistoryEntry = {
   addedAt: Date.now() - 1_000_000,
 };
 
-async function paste(text = '1 Forest') {
+// Importing adds straight away by default (D, board T153) — there is no
+// per-click mode dialog to wait for anymore. Callers that need the rarer
+// modes open "Options" first (see openOptions/pickMode below).
+function paste(text = '1 Forest') {
   // Named query: the Google-link field is a textbox in this card too.
   fireEvent.change(screen.getByRole('textbox', { name: /card list to import/i }), {
     target: { value: text },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-  await screen.findByText('How should these cards be imported?');
+}
+
+/** Opens the "Options" disclosure (binder/replace mode, proxies) — closed by default. */
+function openOptions() {
+  fireEvent.click(screen.getByRole('button', { name: /^Options/ }));
+}
+
+/** Picks a mode from the Options ChoiceList. Caller opens Options first. */
+function pickMode(name: RegExp) {
+  fireEvent.click(screen.getByRole('radio', { name }));
 }
 
 beforeEach(() => {
@@ -190,8 +196,7 @@ describe('UploadPanel reimport gate (content-based)', () => {
     importTextMock.mockResolvedValue(mkResponse(Array.from({ length: 20 }, (_, i) => card(i))));
 
     render(<UploadPanel />);
-    await paste();
-    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+    paste();
 
     await screen.findByText('This looks like a re-import');
     expect(importCardsMock).not.toHaveBeenCalled();
@@ -203,8 +208,7 @@ describe('UploadPanel reimport gate (content-based)', () => {
     importTextMock.mockResolvedValue(mkResponse(Array.from({ length: 20 }, (_, i) => card(i))));
 
     render(<UploadPanel />);
-    await paste();
-    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+    paste();
     await screen.findByText('This looks like a re-import');
 
     fireEvent.click(screen.getByRole('button', { name: 'Merge anyway' }));
@@ -220,8 +224,7 @@ describe('UploadPanel reimport gate (content-based)', () => {
     importTextMock.mockResolvedValue(mkResponse(Array.from({ length: 20 }, (_, i) => card(i))));
 
     render(<UploadPanel />);
-    await paste();
-    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+    paste();
     await screen.findByText('This looks like a re-import');
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -236,8 +239,7 @@ describe('UploadPanel reimport gate (content-based)', () => {
     importTextMock.mockResolvedValue(mkResponse(Array.from({ length: 20 }, (_, i) => card(i))));
 
     render(<UploadPanel />);
-    await paste();
-    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+    paste();
     await screen.findByText('This looks like a re-import');
 
     fireEvent.click(screen.getByRole('button', { name: 'Replace instead' }));
@@ -260,8 +262,7 @@ describe('UploadPanel reimport gate (content-based)', () => {
     );
 
     render(<UploadPanel />);
-    await paste();
-    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+    paste();
 
     await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
     expect(importCardsMock.mock.calls[0][2]).toBe('merge');
@@ -291,8 +292,11 @@ describe('UploadPanel background save progress', () => {
 });
 
 describe('UploadPanel "mark all as proxies" toggle', () => {
+  // Moved inside the "Options" disclosure alongside the rarer import modes
+  // (D, board T153) — closed by default, so every query here opens it first.
   it('is a switch row with a visible hint, not a checkbox with a nested InfoTip', () => {
     render(<UploadPanel />);
+    openOptions();
     const row = screen.getByRole('switch', { name: 'Mark all as proxies' });
     expect(row.getAttribute('aria-checked')).toBe('false');
     // The explainer is always-visible text (Field/SwitchRow contract), not an
@@ -308,9 +312,9 @@ describe('UploadPanel "mark all as proxies" toggle', () => {
     importTextMock.mockResolvedValue(mkResponse([card(1)]));
 
     render(<UploadPanel />);
+    openOptions();
     fireEvent.click(screen.getByRole('switch', { name: /mark all as proxies/i }));
-    await paste();
-    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+    paste();
 
     await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
     expect(importTextMock).toHaveBeenCalledWith('1 Forest', expect.anything(), true);
@@ -320,35 +324,57 @@ describe('UploadPanel "mark all as proxies" toggle', () => {
     importTextMock.mockResolvedValue(mkResponse([card(1)]));
 
     render(<UploadPanel />);
-    await paste();
-    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+    paste();
 
     await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
     expect(importTextMock).toHaveBeenCalledWith('1 Forest', expect.anything(), false);
   });
 });
 
-describe('UploadPanel replace-mode confirm', () => {
-  it('requires a confirm before replacing a NON-EMPTY collection', async () => {
+describe('UploadPanel — import with no mode dialog (D, board T153)', () => {
+  it('adds to the collection straight away — no dialog blocks the click', async () => {
+    importTextMock.mockResolvedValue(mkResponse([card(1)]));
+
+    render(<UploadPanel />);
+    paste();
+
+    // Nothing to confirm or click through — the default mode commits at once.
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    expect(importCardsMock.mock.calls[0][2]).toBe('merge');
+    expect(screen.queryByText('How should these cards be imported?')).toBeNull();
+  });
+
+  it('names the routing once a binder exists, in the Options hint, not a dialog', () => {
+    (mockState as { binders: unknown[] }).binders = [{ id: 'b1', name: 'Bulk', filterGroups: [] }];
+    render(<UploadPanel />);
+    openOptions();
+    expect(screen.getByText(/routed through your binder rules/)).toBeTruthy();
+    (mockState as { binders: unknown[] }).binders = [];
+  });
+});
+
+describe('UploadPanel Options — replace my collection', () => {
+  it('requires a confirm before replacing a NON-EMPTY collection, with Undo', async () => {
     mockState.cards = Array.from({ length: 5 }, (_, i) => card(i, 'imp1'));
     importTextMock.mockResolvedValue(mkResponse([card(999)]));
 
     render(<UploadPanel />);
-    await paste();
-    fireEvent.click(screen.getByRole('button', { name: /Replace collection/ }));
+    openOptions();
+    pickMode(/Replace my collection/);
+    paste();
 
     const confirmHeading = await screen.findByText('Replace your collection?');
     expect(importCardsMock).not.toHaveBeenCalled();
+    // The confirm names the Undo the store's replace path offers.
+    expect(screen.getByText(/You can undo it right after/)).toBeTruthy();
 
     const confirmDialog = confirmHeading.closest('[role="dialog"]') as HTMLElement;
-    // Cancelling the confirm aborts — the mode dialog is still up underneath.
     fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByText('Replace your collection?')).toBeNull();
     expect(importCardsMock).not.toHaveBeenCalled();
-    expect(screen.getByText('How should these cards be imported?')).toBeTruthy();
 
     // Try again and confirm this time.
-    fireEvent.click(screen.getByRole('button', { name: /Replace collection/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     const confirmHeading2 = await screen.findByText('Replace your collection?');
     const confirmDialog2 = confirmHeading2.closest('[role="dialog"]') as HTMLElement;
     fireEvent.click(within(confirmDialog2).getByRole('button', { name: 'Replace' }));
@@ -362,13 +388,39 @@ describe('UploadPanel replace-mode confirm', () => {
     importTextMock.mockResolvedValue(mkResponse([card(1)]));
 
     render(<UploadPanel />);
-    await paste();
-    // With an empty collection, "Add to collection" itself resolves to replace mode.
-    fireEvent.click(screen.getByRole('button', { name: /Add to collection/ }));
+    openOptions();
+    pickMode(/Replace my collection/);
+    paste();
 
     await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
     expect(importCardsMock.mock.calls[0][2]).toBe('replace');
     expect(screen.queryByText('Replace your collection?')).toBeNull();
+  });
+});
+
+describe('UploadPanel Options — add as a new binder', () => {
+  it('is disabled until a binder name is entered, then imports as binder', async () => {
+    importTextMock.mockResolvedValue(mkResponse([card(1)]));
+
+    render(<UploadPanel />);
+    fireEvent.change(screen.getByRole('textbox', { name: /card list to import/i }), {
+      target: { value: '1 Forest' },
+    });
+    openOptions();
+    pickMode(/Add as a new binder/);
+
+    const importBtn = screen.getByRole('button', { name: 'Import' }) as HTMLButtonElement;
+    expect(importBtn.disabled).toBe(true);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Binder name' }), {
+      target: { value: 'My cube' },
+    });
+    expect(importBtn.disabled).toBe(false);
+    fireEvent.click(importBtn);
+
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    expect(importCardsMock.mock.calls[0][2]).toBe('binder');
+    expect(importCardsMock.mock.calls[0][3]).toMatchObject({ binderName: 'My cube' });
   });
 });
 
@@ -511,6 +563,21 @@ describe('UploadPanel Google Drive picker', () => {
 
     await waitFor(() => expect(mockState.setError).toHaveBeenCalledWith('Couldn’t reach Google.'));
   });
+
+  it('warns inline when a staged file name matches prior import history (the filename re-import signal)', async () => {
+    mockState.importHistory = [PRIOR];
+    pickFromDriveMock.mockResolvedValue([
+      new File(['Name\nSol Ring\n'], PRIOR.name, { type: 'text/csv' }),
+    ]);
+    render(<UploadPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /Google Drive/ }));
+
+    const warning = await screen.findByText(/You already imported/);
+    expect(warning.closest('.import-reimport-warning')?.textContent).toContain(PRIOR.name);
+    expect(warning.closest('.import-reimport-warning')?.textContent).toContain(
+      'Open Options below to replace instead'
+    );
+  });
 });
 
 describe('UploadPanel Google-link import', () => {
@@ -561,19 +628,14 @@ describe('UploadPanel Google-link import', () => {
   });
 });
 
-describe('UploadPanel — import-mode copy on a first import', () => {
-  it('does not mention binder rules when no binder exists yet', async () => {
+describe('UploadPanel no longer renders import admin (D, board T153)', () => {
+  it('renders no import-history list, Restore, or Clear all — those moved to Collection ⋮ / Settings', () => {
+    mockState.cards = [card(1)];
+    mockState.importHistory = [PRIOR];
     render(<UploadPanel />);
-    await paste();
-    expect(screen.getByText('Import these cards into your collection.')).toBeTruthy();
-    expect(screen.queryByText(/routed through your binder rules/)).toBeNull();
-  });
-
-  it('names the routing once a binder exists', async () => {
-    (mockState as { binders: unknown[] }).binders = [{ id: 'b1', name: 'Bulk', filterGroups: [] }];
-    render(<UploadPanel />);
-    await paste();
-    expect(screen.getByText(/routed through your binder rules/)).toBeTruthy();
-    (mockState as { binders: unknown[] }).binders = [];
+    expect(screen.queryByText('Import history')).toBeNull();
+    expect(screen.queryByText(PRIOR.name)).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Restore/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Clear all/ })).toBeNull();
   });
 });
