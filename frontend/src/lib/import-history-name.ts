@@ -1,3 +1,5 @@
+import { PRODUCT_IMPORT_LABEL } from './product-import';
+
 /**
  * Replace an internal import-history label ('pasted-list', 'scanned-cards',
  * 'retried-cards') with a friendlier name that names the detected text
@@ -6,6 +8,10 @@
  * ImportHistorySheet's list rows.
  */
 export function prettyImportName(name: string, format: string): string {
+  // A sealed product imports as "product-import:{name}"; show the product.
+  if (name.startsWith(`${PRODUCT_IMPORT_LABEL}:`)) {
+    return name.slice(PRODUCT_IMPORT_LABEL.length + 1);
+  }
   if (name === 'scanned-cards') return 'Scanned cards';
   if (name === 'retried-cards') return 'Retried cards';
   if (name !== 'pasted-list') return name;

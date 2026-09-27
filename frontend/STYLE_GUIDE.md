@@ -3855,6 +3855,16 @@ and `UnresolvedNameRow`:
   place, prefill the query with the item's own text (doubling as the manual-
   search fallback if suggestions miss), collapse into a resolved state once
   the fix lands. Don't open a second overlay for a fix that fits inline.
+- **A one-off add reuses the review card too, not a lone banner.**
+  `ProductSearchPanel`'s "add to collection" (T153) stays on screen after the
+  import and renders the same `.import-review` + `ImportRoutingSummary` shape
+  as the list importer, with its own one-line success sentence in place of
+  `importReviewHeadline()` (there is no fetch-error/unresolved-name bucket to
+  escalate to `Import needs a look` in this flow, since those already have
+  their own warning above the footer, from resolving the product itself).
+  When the action also built a deck, the card adds an "Open deck" button
+  instead of navigating away mid-summary, so "where did my cards go?" is
+  answered before the sheet closes.
 
 **Import admin left the add flow (T153, 2026-09-26).** `UploadPanel` used to
 mix adding cards with collection administration — an import-history aside
