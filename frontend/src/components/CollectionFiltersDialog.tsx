@@ -497,6 +497,8 @@ function DialogBody({
   const saveAsBinderInput = {
     colorFilter: draftColor,
     colorMode: draftColorMode,
+    proxyOnly: showProxy && draftProxyOnly,
+    surplusOnly: showSurplus && draftSurplusOnly,
     supertypeExpr: draftSuper,
     typesExpr: draftTypes,
     subtypeExpr: draftSubtype,

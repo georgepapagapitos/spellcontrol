@@ -1517,6 +1517,8 @@ export function CardListTable({
     const filterInput = {
       colorFilter,
       colorMode,
+      proxyOnly,
+      surplusOnly,
       supertypeExpr,
       typesExpr,
       subtypeExpr,
@@ -1545,6 +1547,8 @@ export function CardListTable({
   }, [
     colorFilter,
     colorMode,
+    proxyOnly,
+    surplusOnly,
     supertypeExpr,
     typesExpr,
     subtypeExpr,

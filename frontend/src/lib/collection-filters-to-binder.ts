@@ -32,6 +32,10 @@ export interface CollectionFilterInput {
   cmcMin: number | undefined;
   cmcMax: number | undefined;
   search: string;
+  /** "Proxies only": carried as the binder's Proxy rule. */
+  proxyOnly?: boolean;
+  /** "Tradeable surplus only": depends on decks and cubes, so no rule can hold it; flagged. */
+  surplusOnly?: boolean;
 }
 
 /**
@@ -58,7 +62,8 @@ export function hasStructuredFilter(input: CollectionFilterInput): boolean {
     input.priceMin !== undefined ||
     input.priceMax !== undefined ||
     input.cmcMin !== undefined ||
-    input.cmcMax !== undefined
+    input.cmcMax !== undefined ||
+    !!input.proxyOnly
   );
 }
 
@@ -67,12 +72,12 @@ export function hasStructuredFilter(input: CollectionFilterInput): boolean {
  * flag keys for fields that were dropped or differ in meaning.
  *
  * Flagged keys:
- *   'color'     — color filter carried best-effort (binders use exact color key, collection uses identity-any-of)
  *   'condition' — condition filter dropped (physical-copy only, no binder equivalent)
  *   'language'  — language filter dropped (physical-copy only, no binder equivalent)
- *   'binder'    — binder membership filter dropped (circular — a binder can't filter by binder)
+ *   'binder'    — binder-membership filter dropped (circular)
+ *   'surplus'   — tradeable-surplus filter dropped (depends on deck and cube allocation)
  *
- * Price, CMC, and name are now faithfully mapped — not flagged.
+ * Everything else, color included, is carried so the binder matches the same cards.
  */
 export function collectionFiltersToFilterGroup(input: CollectionFilterInput): {
   group: BinderFilterGroup;
@@ -182,6 +187,13 @@ export function collectionFiltersToFilterGroup(input: CollectionFilterInput): {
     flagged.push('language');
   }
 
+  // Proxies only — the binder Proxy rule is the same test (card.proxy truthy).
+  if (input.proxyOnly) filter.proxy = true;
+
+  // Tradeable surplus — dropped: it reads deck and cube allocations, which a
+  // card-level rule can't see. Flagged so the editor says so.
+  if (input.surplusOnly) flagged.push('surplus');
+
   // Binder membership — dropped (circular)
   if (!isExpressionEmpty(input.binderExpr)) {
     flagged.push('binder');
@@ -276,6 +288,8 @@ export function deriveBinderName(input: CollectionFilterInput): string {
   if (input.scryfallQuery && parts.length < 3) {
     parts.push(input.scryfallQuery.query);
   }
+
+  if (input.proxyOnly) parts.push('Proxies');
 
   if (parts.length === 0) return 'Filtered binder';
   return parts.slice(0, 4).join(' · ');
