@@ -406,6 +406,7 @@ export function HomeHero() {
                       {chip.text}
                     </span>
                   )}
+                  {chip.changes && <span className="home-hero-value-changes">{chip.changes}</span>}
                 </div>
               )
             )}

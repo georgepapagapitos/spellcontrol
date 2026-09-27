@@ -6039,6 +6039,16 @@ stat-tile delta convention:
 - **Be honest about the window.** "this week" only when the data actually
   spans ~a week and is current; a gappy or stale log names the baseline date
   instead ("since Jun 7" via `lib/value-history.ts` `formatDayKey`).
+- **A collection change is not a market move.** When cards were added or
+  removed inside the window, the headline delta speaks for prices alone
+  ("+$45 from prices this week") and the cards part follows as its own phrase
+  ("+$1,058 from cards added"), in `--text-secondary`, never the direction
+  colors: an import is not a gain. `formatValueDeltaChip` is the one place
+  that decides this; a log that predates the split (no `market` on a point)
+  shows the combined total and never a guessed breakdown.
+- **Movers read in total impact.** A mover's headline figure is what it did to
+  this collection (per-copy move × copies, the order the list is sorted in);
+  the per-copy move is secondary detail ("×8 at −$0.31 each").
 - **Trend sparklines** are decorative reinforcement: small inline SVG
   polyline, line in the accent at reduced opacity with the latest point as a
   solid accent dot, `aria-hidden` with the delta text (plus an `.sr-only`

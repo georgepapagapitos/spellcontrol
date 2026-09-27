@@ -160,6 +160,13 @@
   color: var(--err-text);
 }
 
+/* What cards added or removed did over the same window. Neutral, not the
+   direction colors: an import is not a gain (STYLE_GUIDE § Money deltas). */
+.home-hero-value-changes {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 /* ── Scale line ────────────────────────────────────────────────────────────
    Three plates: what the collection IS, each a door. Print voice, matching
    the app's table tier — a tracked `--font-label` caption over a tabular

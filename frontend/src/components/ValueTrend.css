@@ -10,6 +10,20 @@
   margin: 0 0 var(--space-2);
 }
 
+.value-trend-delta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  align-items: baseline;
+}
+
+/* What cards added or removed did. Neutral on purpose: an import is not a
+   gain, so it never takes the direction colors (STYLE_GUIDE § Money deltas). */
+.value-trend-delta-changes {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 .value-trend-delta-text {
   font-size: var(--text-sm);
   color: var(--text-secondary);

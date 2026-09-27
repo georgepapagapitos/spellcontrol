@@ -6,6 +6,7 @@ import {
   dayKey,
   daysBetween,
   formatDayKey,
+  formatValueDeltaChip,
   getLatestMovers,
   getValueHistory,
   type MoverRecord,
@@ -231,17 +232,9 @@ export function ValueTrend() {
       ? data.movers
       : null;
 
-  const amount = Math.round(delta.amount);
-  // "this week" only when the log actually covers a recent ~week; a gappy or
-  // stale log names the baseline date instead of implying a weekly read.
-  const isCurrent = daysBetween(delta.latestDay, data.today) <= 2;
-  const period =
-    isCurrent && delta.spanDays <= 8 ? 'this week' : `since ${formatDayKey(delta.baselineDay)}`;
-  const text =
-    amount === 0
-      ? `Steady ${period}`
-      : `${amount > 0 ? '+' : '−'}${formatMoney(Math.abs(amount), { wholeDollars: true })} ${period}`;
-  const direction = amount > 0 ? 'up' : amount < 0 ? 'down' : 'flat';
+  // The same chip the Home hero shows (one formatter, so the two never
+  // disagree), including the prices-vs-cards split after an import.
+  const chip = formatValueDeltaChip(delta, data.today);
   const first = points[0];
   const latest = points[points.length - 1];
 
@@ -249,8 +242,11 @@ export function ValueTrend() {
     <section className="breakdown-card value-trend" aria-label="Collection value over time">
       <h3 className="breakdown-title">Value</h3>
       <p className="value-trend-delta">
-        <span className={`value-trend-delta-text value-trend-delta-text--${direction}`}>
-          {text}
+        <span className="value-trend-delta-line">
+          <span className={`value-trend-delta-text value-trend-delta-text--${chip.direction}`}>
+            {chip.text}
+          </span>
+          {chip.changes && <span className="value-trend-delta-changes">{chip.changes}</span>}
         </span>
         <span className="value-trend-delta-sub">
           One point per day, on this device (last 90 days)
@@ -271,8 +267,11 @@ export function ValueTrend() {
           </h4>
           <ul className="value-movers-list">
             {moversRecord.movers.slice(0, 6).map((m) => {
-              const moveAmount = m.after - m.before;
-              const up = moveAmount > 0;
+              // Total impact on this collection (what the list is sorted by);
+              // the per-copy move is the secondary fact, only when it differs.
+              const perCopy = m.after - m.before;
+              const impact = perCopy * m.copies;
+              const up = perCopy > 0;
               return (
                 <li key={`${m.scryfallId}:${m.finish}`} className="value-movers-row">
                   <span className="value-movers-card">
@@ -281,20 +280,23 @@ export function ValueTrend() {
                       {m.setCode.toUpperCase()}
                       {m.finish === 'foil' && ' · Foil'}
                       {m.finish === 'etched' && ' · Etched'}
-                      {m.copies > 1 && ` · ×${m.copies}`}
+                      {m.copies > 1 &&
+                        ` · ×${m.copies} at ${up ? '+' : '−'}${formatMoney(Math.abs(perCopy))} each`}
                     </span>
                   </span>
                   <span className={`value-movers-delta value-movers-delta--${up ? 'up' : 'down'}`}>
                     <span aria-hidden="true">{up ? '▲' : '▼'}</span>
                     <span className="sr-only">{up ? 'up' : 'down'}</span>
                     {up ? '+' : '−'}
-                    {formatMoney(Math.abs(moveAmount))}
+                    {formatMoney(Math.abs(impact))}
                   </span>
                 </li>
               );
             })}
           </ul>
-          <p className="value-movers-sub">Per copy, vs the previous refresh on this device</p>
+          <p className="value-movers-sub">
+            Across all your copies, vs the previous refresh on this device
+          </p>
         </div>
       )}
     </section>

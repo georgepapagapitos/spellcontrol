@@ -29,6 +29,15 @@ export interface ValuePoint {
    * the active currency rather than ever mixing them in one trend.
    */
   currency?: string;
+  /**
+   * Net market move logged this day: the sum, over every price refresh that
+   * day, of (new price − old price) across the copies priced on both sides.
+   * It is what lets a delta tell a price change from a collection change, since
+   * `value` alone can't say whether it rose because prices rose or because an
+   * import landed. Collection-only writes carry 0. Absent on points that
+   * predate the split: those days are "unknown", never "no move".
+   */
+  market?: number;
 }
 
 export interface ValueDelta {
@@ -40,6 +49,13 @@ export interface ValueDelta {
   latestDay: string;
   /** Whole days between baseline and latest. */
   spanDays: number;
+  /**
+   * The part of `amount` that came from price moves. `amount − market` is
+   * what cards added or removed did. Null when any point after the baseline
+   * predates the split, so an old log still shows its total and never a
+   * guessed breakdown.
+   */
+  market: number | null;
 }
 
 const DB_NAME = 'spellcontrol-value-history';
@@ -111,13 +127,26 @@ function notifyValueHistoryChange(): void {
 
 /**
  * Upsert today's point (last write per day wins) and trim the log to the
- * newest MAX_POINTS. Stamped with the active display currency. `at` is
- * injectable for tests.
+ * newest MAX_POINTS. Stamped with the active display currency. `marketMove` is
+ * this write's price-driven change (the refresh tick passes it; collection
+ * writes pass nothing) and accumulates into the day's `market`. A day first
+ * written in the other currency starts its market over: a $ move and a € move
+ * are different snapshots and never add. `at` is injectable for tests.
  */
-export async function recordValueSnapshot(value: number, at = Date.now()): Promise<void> {
+export async function recordValueSnapshot(
+  value: number,
+  at = Date.now(),
+  marketMove = 0
+): Promise<void> {
   const db = await getDB();
   const tx = db.transaction(STORE, 'readwrite');
-  await tx.store.put({ day: dayKey(at), value, at, currency: getCurrency() } satisfies ValuePoint);
+  const day = dayKey(at);
+  const currency = getCurrency();
+  const existing = (await tx.store.get(day)) as ValuePoint | undefined;
+  const carried =
+    existing && (existing.currency ?? 'USD') === currency ? (existing.market ?? 0) : 0;
+  const market = Math.round((carried + marketMove) * 100) / 100;
+  await tx.store.put({ day, value, at, currency, market } satisfies ValuePoint);
   // Day keys are YYYY-MM-DD, so IDB's ascending key order IS chronological —
   // getAllKeys()[0..excess] are the oldest points.
   const keys = await tx.store.getAllKeys();
@@ -253,6 +282,28 @@ export function computeMovers(before: PricedCardLike[], after: PricedCardLike[])
 }
 
 /**
+ * The whole market move of one refresh: Σ (after − before) over every copy
+ * priced on both sides, uncapped and unthresholded (computeMovers keeps only
+ * the top moves for display; this is the total they are a sample of). First
+ * pricings (0 → x) are excluded for the same reason they aren't movers: new
+ * data is not a market move. Pure.
+ */
+export function computeMarketMove(before: PricedCardLike[], after: PricedCardLike[]): number {
+  const prior = new Map<string, number>();
+  for (const c of before) {
+    if ((c.purchasePrice ?? 0) > 0) prior.set(moverKey(c), c.purchasePrice as number);
+  }
+  let move = 0;
+  for (const c of after) {
+    const price = c.purchasePrice ?? 0;
+    if (price <= 0) continue;
+    const was = prior.get(moverKey(c));
+    if (was !== undefined) move += price - was;
+  }
+  return Math.round(move * 100) / 100;
+}
+
+/**
  * Upsert today's movers. A later same-day refresh MERGES per key — earliest
  * `before`, latest `after` — so a midday re-refresh can't erase the morning's
  * real moves; an empty diff writes nothing at all. Trimmed to the newest
@@ -319,16 +370,28 @@ export async function clearMovers(): Promise<void> {
 export function computeValueDelta(points: ValuePoint[]): ValueDelta | null {
   if (points.length < 2) return null;
   const latest = points[points.length - 1];
-  let baseline = points[0];
-  for (const p of points) {
-    if (daysBetween(p.day, latest.day) >= 7) baseline = p;
+  let baselineIdx = 0;
+  for (let i = 0; i < points.length; i++) {
+    if (daysBetween(points[i].day, latest.day) >= 7) baselineIdx = i;
     else break;
+  }
+  const baseline = points[baselineIdx];
+  // The baseline's own market is already inside its value; only the moves
+  // logged after it explain the change.
+  let market: number | null = 0;
+  for (const p of points.slice(baselineIdx + 1)) {
+    if (p.market === undefined) {
+      market = null;
+      break;
+    }
+    market += p.market;
   }
   return {
     amount: latest.value - baseline.value,
     baselineDay: baseline.day,
     latestDay: latest.day,
     spanDays: daysBetween(baseline.day, latest.day),
+    market: market === null ? null : Math.round(market * 100) / 100,
   };
 }
 
@@ -337,33 +400,57 @@ export interface ValueDeltaChip {
    *  nothing rather than a placeholder chip. */
   text: string;
   direction: 'up' | 'down' | 'flat';
+  /**
+   * What cards added or removed did to the value over the same window, as its
+   * own phrase ("+$1,058 from cards added"). Present only when the log can
+   * split the change and the collection part rounds to at least a dollar;
+   * `text` then speaks for prices alone. Rendered neutral, never in the
+   * direction colors: adding cards is not a gain.
+   */
+  changes?: string;
 }
+
+const signedDollars = (amount: number) =>
+  `${amount > 0 ? '+' : '−'}${formatMoney(Math.abs(amount), { wholeDollars: true })}`;
 
 /**
  * Renders a `ValueDelta` into the headline chip's text + direction, per
  * STYLE_GUIDE "Money deltas & value sparklines": "this week" only when the
  * latest point is fresh and the span is short, otherwise the honest
- * baseline date; a zero delta reads as "Steady", never "+$0". Shared by
- * every surface that shows this headline delta (the Home hero's value chip,
- * and any later restatement of it) — see STYLE_GUIDE's "color every
- * rendering of the same delta" — so they can't drift out of sync with each
- * other over independent edits.
+ * baseline date; a zero delta reads as "Steady", never "+$0". When the window
+ * held a collection change (an import, a deletion), the chip says how much of
+ * the move was prices and how much was cards, so an import never reads as the
+ * market going up. Shared by every surface that shows this headline delta
+ * (the Home hero's value chip, the Breakdown drawer's Value section) — see
+ * STYLE_GUIDE's "color every rendering of the same delta" — so they can't
+ * drift out of sync with each other over independent edits.
  */
 export function formatValueDeltaChip(
   delta: ValueDelta | null,
   today: string,
   freshnessDays = 2
 ): ValueDeltaChip {
-  const direction: ValueDeltaChip['direction'] =
-    delta && delta.amount > 0 ? 'up' : delta && delta.amount < 0 ? 'down' : 'flat';
-  if (!delta) return { text: '', direction };
-  const amount = Math.round(delta.amount);
+  if (!delta) return { text: '', direction: 'flat' };
   const isCurrent = daysBetween(delta.latestDay, today) <= freshnessDays;
   const period =
     isCurrent && delta.spanDays <= 8 ? 'this week' : `since ${formatDayKey(delta.baselineDay)}`;
-  const text =
-    amount === 0
-      ? `Steady ${period}`
-      : `${amount > 0 ? '+' : '−'}${formatMoney(Math.abs(amount), { wholeDollars: true })} ${period}`;
-  return { text, direction };
+  const directionOf = (n: number): ValueDeltaChip['direction'] =>
+    n > 0 ? 'up' : n < 0 ? 'down' : 'flat';
+
+  const collection = delta.market === null ? 0 : Math.round(delta.amount - delta.market);
+  if (delta.market !== null && collection !== 0) {
+    const market = Math.round(delta.market);
+    return {
+      text:
+        market === 0 ? `Prices steady ${period}` : `${signedDollars(market)} from prices ${period}`,
+      direction: directionOf(market),
+      changes: `${signedDollars(collection)} from cards ${collection > 0 ? 'added' : 'removed'}`,
+    };
+  }
+
+  const amount = Math.round(delta.amount);
+  return {
+    text: amount === 0 ? `Steady ${period}` : `${signedDollars(amount)} ${period}`,
+    direction: directionOf(amount),
+  };
 }
