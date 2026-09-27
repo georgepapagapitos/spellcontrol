@@ -48,10 +48,6 @@ const ALLOWLIST: Record<string, string> = {
   // ViewPopoverPanel), so the hook lives in THEIR file, not this one.
   'components/shared/CardGridCell.tsx':
     'body-only content wrapped in a ToolbarPopover by every caller, never by this file',
-  // Owned by a different T157 lane (menu keyboard parity is this lane's;
-  // BinderTabs' own dropdown is another's). Drop this entry once that lane
-  // converts it to useMenuKeyboard directly.
-  'components/BinderTabs.tsx': 'a parallel T157 lane is converting this file; remove once it lands',
 };
 
 describe('every role="menu" container runs on the shared keyboard hook', () => {

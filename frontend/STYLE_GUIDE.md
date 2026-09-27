@@ -41,25 +41,27 @@ primitives directory.
 
 ### Controls & chrome
 
-| Reach for                                     | Instead of                         | Ruling                                                        |
-| --------------------------------------------- | ---------------------------------- | ------------------------------------------------------------- |
-| `components/PageHeader`                       | a hand-built `.binder-hero`        | § Layout system                                               |
-| `components/shared/Button` (`Button`)         | a raw `className="btn …"`          | § Shape language — Buttons are a primitive                    |
-| `components/shared/Button` (`IconButton`)     | a `<button>` holding only a glyph  | § Shape language — Buttons are a primitive                    |
-| `components/shared/Chip`                      | a raw `className="…-chip"` element | § Shape language — Chips are a primitive                      |
-| `components/SearchPill`                       | a bare `<input type="search">`     | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
-| `components/SelectMenu`                       | a restyled `<select>`              | § Toolbars & action rows                                      |
-| `components/OverflowMenu`                     | a hand-rolled `⋮` popover          | § Toolbars & action rows                                      |
-| `components/shared/ToolbarPopover`            | a second portal-popover impl       | § Toolbars & action rows                                      |
-| `components/shared/ViewPopoverPanel`          | letting a phone toolbar wrap rows  | § Toolbars & action rows                                      |
-| `components/Tabs`                             | bespoke tab markup                 | § Tabs / view switchers                                       |
-| `components/ViewModeToggle`                   | a bespoke layout switcher          | § View-mode toggle option order                               |
-| `components/shared/FilterChipsRow`            | a bespoke active-filter row        | § Tag chips                                                   |
-| `components/shared/form` (`SwitchRow`)        | a checkbox for an on/off setting   | § Config surfaces                                             |
-| `components/shared/form` (`SegmentedControl`) | a new segmented-pill CSS family    | § Config surfaces                                             |
-| `components/shared/form` (`ChoiceList`)       | a hint that rewrites per option    | § Config surfaces                                             |
-| `components/shared/form` (`Disclosure`)       | a hand-rolled collapsible group    | § Config surfaces                                             |
-| `components/shared/form` (`Field`)            | an uppercase `.field label`        | § Config surfaces                                             |
+| Reach for                                     | Instead of                          | Ruling                                                        |
+| --------------------------------------------- | ----------------------------------- | ------------------------------------------------------------- |
+| `components/PageHeader`                       | a hand-built `.binder-hero`         | § Layout system                                               |
+| `components/shared/Button` (`Button`)         | a raw `className="btn …"`           | § Shape language — Buttons are a primitive                    |
+| `components/shared/Button` (`IconButton`)     | a `<button>` holding only a glyph   | § Shape language — Buttons are a primitive                    |
+| `components/shared/Chip`                      | a raw `className="…-chip"` element  | § Shape language — Chips are a primitive                      |
+| `components/SearchPill`                       | a bare `<input type="search">`      | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
+| `components/SelectMenu`                       | a restyled `<select>`               | § Toolbars & action rows                                      |
+| `components/OverflowMenu`                     | a hand-rolled `⋮` popover           | § Toolbars & action rows                                      |
+| `components/shared/CtxMenuShell`              | a hand-rolled right-click menu      | § Verbs (menus)                                               |
+| `lib/use-menu-keyboard`                       | a bespoke `role="menu"` key handler | § Verbs (menus)                                               |
+| `components/shared/ToolbarPopover`            | a second portal-popover impl        | § Toolbars & action rows                                      |
+| `components/shared/ViewPopoverPanel`          | letting a phone toolbar wrap rows   | § Toolbars & action rows                                      |
+| `components/Tabs`                             | bespoke tab markup                  | § Tabs / view switchers                                       |
+| `components/ViewModeToggle`                   | a bespoke layout switcher           | § View-mode toggle option order                               |
+| `components/shared/FilterChipsRow`            | a bespoke active-filter row         | § Tag chips                                                   |
+| `components/shared/form` (`SwitchRow`)        | a checkbox for an on/off setting    | § Config surfaces                                             |
+| `components/shared/form` (`SegmentedControl`) | a new segmented-pill CSS family     | § Config surfaces                                             |
+| `components/shared/form` (`ChoiceList`)       | a hint that rewrites per option     | § Config surfaces                                             |
+| `components/shared/form` (`Disclosure`)       | a hand-rolled collapsible group     | § Config surfaces                                             |
+| `components/shared/form` (`Field`)            | an uppercase `.field label`         | § Config surfaces                                             |
 
 ### Overlays
 
@@ -82,19 +84,20 @@ primitives directory.
 
 ### Feedback, state & identity
 
-| Reach for                                    | Instead of                          | Ruling                                          |
-| -------------------------------------------- | ----------------------------------- | ----------------------------------------------- |
-| `components/shared/MeterBar`                 | a hand-rolled bar track             | § Bars & meters — **never hand-roll a track**   |
-| `components/InfoTip`                         | inline hand-holding prose           | § Info tooltips                                 |
-| `components/shared/EmptyStateMark`           | a bare "nothing here" line          | § Empty states                                  |
-| `components/share/SharedEmptyState`          | a bare `<p>` in a share/friend view | § Empty states                                  |
-| `components/shared/ThinDataNote`             | inventing a sample-size caveat      | § Deck-analysis band words                      |
-| `components/deck/VerdictBadge`               | a bespoke pass/fail pill            | § Verdict badges · § One scoring vocabulary     |
-| `components/shared/SealBurst` / `SealMoment` | confetti                            | § Completion moments (the seal)                 |
-| `components/shared/BrandMark`                | an inline logo SVG                  | § Brand mark motion                             |
-| `components/UserAvatar`                      | a bespoke initials circle           | § Icon scale                                    |
-| `playtest/components/OpponentRail`           | a bespoke multiplayer sidebar       | § Opponent rail — never hide a seat             |
-| `playtest/components/OpponentQuadrant`       | a bespoke opponent board panel      | § Desktop table with opponents: 2x2, not a rail |
+| Reach for                                                   | Instead of                                            | Ruling                                          |
+| ----------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------- |
+| `components/shared/MeterBar`                                | a hand-rolled bar track                               | § Bars & meters — **never hand-roll a track**   |
+| `components/InfoTip`                                        | inline hand-holding prose                             | § Info tooltips                                 |
+| `components/shared/EmptyStateMark`                          | a bare "nothing here" line                            | § Empty states                                  |
+| `components/share/SharedEmptyState`                         | a bare `<p>` in a share/friend view                   | § Empty states                                  |
+| `components/share/SharedShell` (`LoadingView`, `ErrorView`) | a bare `Loading…` / a dead-end error on a public page | § Verbs (loading, empty, error)                 |
+| `components/shared/ThinDataNote`                            | inventing a sample-size caveat                        | § Deck-analysis band words                      |
+| `components/deck/VerdictBadge`                              | a bespoke pass/fail pill                              | § Verdict badges · § One scoring vocabulary     |
+| `components/shared/SealBurst` / `SealMoment`                | confetti                                              | § Completion moments (the seal)                 |
+| `components/shared/BrandMark`                               | an inline logo SVG                                    | § Brand mark motion                             |
+| `components/UserAvatar`                                     | a bespoke initials circle                             | § Icon scale                                    |
+| `playtest/components/OpponentRail`                          | a bespoke multiplayer sidebar                         | § Opponent rail — never hide a seat             |
+| `playtest/components/OpponentQuadrant`                      | a bespoke opponent board panel                        | § Desktop table with opponents: 2x2, not a rail |
 
 **Adding a primitive?** Add its row here _and_ its ruling to the relevant section
 below. A primitive nobody can find gets re-implemented — that is what this table
