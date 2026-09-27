@@ -306,20 +306,31 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                     ) : (
                       <span className="collection-grid-placeholder">{c.name}</span>
                     )}
-                    {badge && <span className="inline-card-search-tile-badge">{badge}</span>}
                   </button>
-                  <IconButton
-                    className="inline-card-search-tile-add"
-                    onClick={() => void quickAdd(c)}
-                    label={added > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
-                    icon={
-                      added > 0 ? (
-                        <Check width={14} height={14} strokeWidth={2.5} />
-                      ) : (
-                        <Plus width={14} height={14} strokeWidth={2.5} />
-                      )
-                    }
-                  />
+                  {/* The caption carries the printing, the owned/added count and the
+                      "+" under the art, never over it: on a touch screen a 44px "+"
+                      on the art covered the mana cost (E453). */}
+                  <div className="inline-card-search-tile-caption">
+                    <span className="inline-card-search-tile-meta">
+                      <span className="inline-card-search-tile-printing">
+                        {c.set.toUpperCase()} #{c.collector_number}
+                      </span>
+                      {badge && <span className="inline-card-search-tile-owned">{badge}</span>}
+                    </span>
+                    <IconButton
+                      variant="secondary"
+                      className="inline-card-search-tile-add"
+                      onClick={() => void quickAdd(c)}
+                      label={added > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
+                      icon={
+                        added > 0 ? (
+                          <Check width={14} height={14} strokeWidth={2.5} />
+                        ) : (
+                          <Plus width={14} height={14} strokeWidth={2.5} />
+                        )
+                      }
+                    />
+                  </div>
                 </li>
               );
             })}
