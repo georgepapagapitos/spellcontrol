@@ -42,7 +42,13 @@ import {
   TYPE_SLOTS,
   type CubeScore,
 } from './objective';
-import { applySwap, createScorerState, evalSwap, type ScorerState } from './scorer-state';
+import {
+  applySwap,
+  createScorerState,
+  evalSwap,
+  type ScorerState,
+  type SwapEval,
+} from './scorer-state';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 
 /** How many top candidates to try per focus per iteration (bounds per-iteration cost). */
@@ -83,10 +89,34 @@ const FOCUS_REASON: Record<'curve' | 'type' | 'interaction' | 'power', string> =
   interaction: 'Interaction density',
   power: 'Power upgrade',
 };
-const reasonFor = (focus: SwapFocus, draftableSet: ReadonlySet<AxisKey>): string =>
-  draftableSet.has(focus as AxisKey)
-    ? `${AXIS_LABEL.get(focus as AxisKey) ?? focus} support`
+
+const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** What this axis's post-swap enabler/payoff depth looks like — "Deepens
+ *  Reanimator (5 enablers, 3 payoffs)". Falls back to the plain axis label if
+ *  the swap somehow didn't touch the axis (defensive; `insForFocus` always
+ *  hands back candidates that do). */
+function archetypeReason(axis: AxisKey, ev: SwapEval): string {
+  const label = AXIS_LABEL.get(axis) ?? axis;
+  const agg = ev.axisUpdates.get(axis)?.agg;
+  if (!agg) return `${label} support`;
+  return `Deepens ${label} (${plural(agg.e, 'enabler')}, ${plural(agg.y, 'payoff')})`;
+}
+
+/** What a swap improved, plus what it cost: the archetype it deepened (with
+ *  the axis's real post-swap depth) or the environment term it fit, and always
+ *  the card it replaced. */
+const reasonFor = (
+  focus: SwapFocus,
+  draftableSet: ReadonlySet<AxisKey>,
+  outCard: CubeCard,
+  ev: SwapEval
+): string => {
+  const base = draftableSet.has(focus as AxisKey)
+    ? archetypeReason(focus as AxisKey, ev)
     : FOCUS_REASON[focus as 'curve' | 'type' | 'interaction' | 'power'];
+  return `${base} · replaced ${outCard.name}`;
+};
 
 /**
  * Cards the refiner is allowed to cut: pure goodstuff with no archetype role,
@@ -277,7 +307,7 @@ function bestMoveForFocus(
         outCard: chosen.p.card,
         inCard,
         newScore: ev.terms.total,
-        reason: reasonFor(focus, draftableSet),
+        reason: reasonFor(focus, draftableSet, chosen.p.card, ev),
         ev,
       };
     }
@@ -392,7 +422,12 @@ export function refineCube(
     // costless tie and gets waved through while actually eroding power.
     if (best) {
       const ev = evalSwap(state, best.outIdx, best.inCard);
-      best = { ...best, ev, newScore: ev.terms.total };
+      best = {
+        ...best,
+        ev,
+        newScore: ev.terms.total,
+        reason: reasonFor(best.focus, draftableSet, best.outCard, ev),
+      };
     }
     const v = iter % historyLen;
     if (best && (best.newScore >= state.terms.total - EPS || best.newScore >= history[v] - EPS)) {

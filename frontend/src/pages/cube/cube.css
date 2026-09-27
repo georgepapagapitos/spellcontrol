@@ -990,13 +990,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Wraps to 2 lines instead of hard-truncating — the runner-up clause ("beat
+   X on cube popularity") is the part that explains the pick, and a single
+   nowrap-ellipsis line was cutting it off on a phone. */
 .cube-row-reason {
   color: var(--text-muted);
   font-size: var(--text-sm);
   min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
 /* ---- import ---- */
@@ -1132,19 +1138,26 @@
   gap: 2px;
 }
 /* No-match rows share the plain `.cube-row` shape with other cube card
-   lists, but those lists intentionally truncate a single-line name — the
-   no-match row's whole point is the name plus why it didn't match, so both
-   need to wrap here. Scoped to this list only: `.cube-row-name`/
-   `.cube-row-reason` stay a nowrap-ellipsis single line everywhere else
+   lists, but those lists intentionally truncate a single-line name (and
+   clamp the reason to 2 lines elsewhere) — the no-match row's whole point is
+   the name plus why it didn't match, so both need to wrap WITHOUT a cap
+   here. Scoped to this list only: `.cube-row-name` stays a nowrap-ellipsis
+   single line and `.cube-row-reason` stays 2-line-clamped everywhere else
    (their fixed `content-visibility` row-height estimate depends on it). */
 .cube-mv-nomatch-rows .cube-row {
   content-visibility: visible;
 }
-.cube-mv-nomatch-rows .cube-row-name,
-.cube-mv-nomatch-rows .cube-row-reason {
+.cube-mv-nomatch-rows .cube-row-name {
   overflow: visible;
   text-overflow: unset;
   white-space: normal;
+  overflow-wrap: break-word;
+}
+.cube-mv-nomatch-rows .cube-row-reason {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
   overflow-wrap: break-word;
 }
 

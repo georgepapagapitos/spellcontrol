@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCubeStore, type SavedCube } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
+import { useToastsStore } from '../../store/toasts';
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import type { CubeCard } from '../../lib/cube/core';
 
@@ -109,6 +110,7 @@ beforeEach(() => {
   useCubeStore.setState({ size: 540, result: null, loadedId: null, saved: [] });
   useCollectionStore.setState({ cards: [] });
   useDecksStore.setState({ decks: [] });
+  useToastsStore.setState({ toasts: [] });
   localStorage.clear();
   writeText.mockClear();
   generateCubeAsyncMock.mockReset();
@@ -207,6 +209,8 @@ describe('CubeDetailPage — rebuild', () => {
     await waitFor(() => expect(screen.getByText('Color balance')).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'Rebuild the rest' }));
+    // Singular: exactly one locked card in the cube.
+    expect(screen.getByText('Rebuild 1 unlocked cards? Your locked card stay.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Rebuild' }));
 
     await waitFor(() => expect(generateCubeAsyncMock).toHaveBeenCalled());
@@ -220,6 +224,43 @@ describe('CubeDetailPage — rebuild', () => {
     await waitFor(() => {
       const names = useCubeStore.getState().saved[0].cube.picks.map((p) => p.card.name);
       expect(names).toContain('Fresh Pick');
+    });
+    await waitFor(() => {
+      const toasts = useToastsStore.getState().toasts;
+      expect(
+        toasts.some((t) => t.message === 'Rebuilt "Vintage 540". Your locked card stayed.')
+      ).toBe(true);
+    });
+  });
+
+  it('pluralizes the locked-card count when rebuilding with more than one locked', async () => {
+    generateCubeAsyncMock.mockImplementation(
+      async (_pool: CubeCard[], _size: number, options: { locked: CubeCard[]; banned: string[] }) =>
+        makeCube([
+          ...options.locked
+            .map((c) => pick(c.name).card)
+            .map((c) => ({ card: c, bucket: 'R' as const, reason: 'kept' })),
+          pick('Fresh Pick'),
+        ])
+    );
+    const cube = saved({
+      cube: makeCube([pick('Lightning Bolt'), pick('Goblin Guide'), pick('Third Card')]),
+      locked: ['oracle-Lightning Bolt', 'oracle-Goblin Guide'],
+    });
+    useCubeStore.setState({ saved: [cube] });
+    renderAt('/decks/cube/cube-1');
+    await waitFor(() => expect(screen.getByText('Color balance')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rebuild the rest' }));
+    expect(screen.getByText('Rebuild 1 unlocked cards? Your 2 locked cards stay.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Rebuild' }));
+
+    await waitFor(() => expect(generateCubeAsyncMock).toHaveBeenCalled());
+    await waitFor(() => {
+      const toasts = useToastsStore.getState().toasts;
+      expect(
+        toasts.some((t) => t.message === 'Rebuilt "Vintage 540". Your 2 locked cards stayed.')
+      ).toBe(true);
     });
   });
 });
