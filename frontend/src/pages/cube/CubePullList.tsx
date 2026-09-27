@@ -220,18 +220,19 @@ export function CubePullList({ cube }: { cube: SavedCube }) {
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
   const setMap = useSetMap();
 
+  // `attempt` is read into the returned value purely so it's a REAL
+  // dependency — "Try again" bumps `buildAttempt`, and this memo has to
+  // actually depend on it to run again, not just list it for eslint's sake.
   const { groups, buildError } = useMemo(() => {
     try {
       return {
         groups: buildCubePullList(cube.picks, cards, binders, { allocatedCopyIds, setMap }),
         buildError: false,
+        attempt: buildAttempt,
       };
     } catch {
-      return { groups: [] as CubePullGroup[], buildError: true };
+      return { groups: [] as CubePullGroup[], buildError: true, attempt: buildAttempt };
     }
-    // buildAttempt isn't read above — it's a manual retry trigger, listed
-    // only so clicking "Try again" forces this memo to run again.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cube.picks, cards, binders, allocatedCopyIds, setMap, buildAttempt]);
 
   if (hydrating || awaitingFirstPull) {
