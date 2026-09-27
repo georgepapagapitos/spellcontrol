@@ -109,6 +109,70 @@ describe('finality copy matches reality', () => {
   });
 });
 
+/**
+ * T157 — a SINGLE-item undoable action doesn't confirm first at all (not just
+ * "doesn't claim finality"): Gmail/Linear precedent, decided on the board.
+ * Bulk and delete-all variants (deleteDecks, deleteAllDecks, deleteBinders,
+ * deleteAllBinders, deleteLists, deleteAllLists) are OUT of scope and keep
+ * their confirm — the toast there only shows a count, so the blast radius
+ * still warrants asking first. The regex below requires the call parenthesis
+ * immediately after the bare name, so it can't match a plural/All sibling.
+ */
+const SINGLE_ITEM_UNDOABLE = ['deleteDeck', 'deleteBinder', 'deleteList', 'removeSaved'];
+
+describe('a single-item undoable action never confirms first', () => {
+  it('no <ConfirmDialog> onConfirm, and no useConfirm() confirm() gate, reaches deleteDeck/deleteBinder/deleteList/removeSaved', () => {
+    const calls = new RegExp(`\\b(${SINGLE_ITEM_UNDOABLE.join('|')})\\s*\\(`);
+    const offenders: string[] = [];
+
+    for (const file of sourceFiles(SRC)) {
+      // Comments blanked in place (line numbers survive), same as the guard above.
+      const blank = (m: string) => m.replace(/[^\n]/g, ' ');
+      const src = readFileSync(file, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, blank)
+        .replace(/^\s*\/\/.*$/gm, blank);
+
+      // Every <ConfirmDialog>'s onConfirm target, named handler or inline.
+      for (const m of src.matchAll(/<ConfirmDialog\b/g)) {
+        const open = m.index ?? 0;
+        const close = src.indexOf('/>', open);
+        if (close === -1) continue;
+        const element = src.slice(open, close + 2);
+        const named = element.match(/onConfirm=\{\s*(\w+)\s*\}/);
+        const body = named
+          ? (() => {
+              const def = src.search(new RegExp(`(const|function)\\s+${named[1]}\\b`));
+              return def === -1 ? '' : bracedBody(src, def);
+            })()
+          : element;
+        const hit = body.match(calls);
+        if (hit) {
+          const line = src.slice(0, open).split('\n').length;
+          offenders.push(`${file.replace(SRC, 'src')}:${line} → ${hit[1]} (via <ConfirmDialog>)`);
+        }
+      }
+
+      // The useConfirm() promise form: `const ok = await confirm({…}); if (ok) action(...)`.
+      for (const m of src.matchAll(/\bawait\s+confirm\s*\(/g)) {
+        const at = m.index ?? 0;
+        const rest = src.slice(at, at + 800);
+        const hit = rest.match(calls);
+        if (hit) {
+          const line = src.slice(0, at).split('\n').length;
+          offenders.push(`${file.replace(SRC, 'src')}:${line} → ${hit[1]} (via useConfirm())`);
+        }
+      }
+    }
+
+    expect(
+      offenders,
+      'A single-item delete is undoable from the toast, so it must not confirm first ' +
+        '(T157 — Gmail/Linear precedent). Call the store action directly.\n  ' +
+        offenders.join('\n  ')
+    ).toEqual([]);
+  });
+});
+
 /** The code a finality clause's confirm leads to. */
 function reachedFrom(src: string, at: number): string {
   const open = src.lastIndexOf('<ConfirmDialog', at);

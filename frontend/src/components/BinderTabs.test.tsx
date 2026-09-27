@@ -139,3 +139,77 @@ describe('BinderTabs — a11y (E206)', () => {
     expect(screen.queryAllByRole('button', { name: 'Binder actions' })).toHaveLength(1);
   });
 });
+
+// The overflow menu used to hand-roll its own mousedown+Escape listeners with
+// no arrow-key support — it now runs on the shared `useMenuKeyboard` hook
+// (same as every other overflow menu in the app).
+describe('BinderTabs — overflow menu keyboard parity', () => {
+  beforeEach(() => {
+    activeTab = 'a';
+    deleteBinder.mockClear();
+  });
+
+  const openOverflow = () => {
+    const trigger = screen.getByRole('button', { name: 'Binder actions' });
+    // A real click focuses the button first (native browser behavior); a bare
+    // `fireEvent.click` doesn't simulate that, which matters here because the
+    // panel's `useSheetExit` captures the pre-open focus target and restores
+    // it on close — without this the capture sees nothing focused and Escape
+    // ends up parking focus on <body> instead of back on the trigger.
+    trigger.focus();
+    fireEvent.click(trigger);
+  };
+
+  it('focuses the first enabled menuitem on open, skipping disabled "Move up"', () => {
+    renderTabs();
+    openOverflow();
+    // Alpha is first in sort order, so "Move up" is disabled.
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Move down' }));
+  });
+
+  it('moves focus with ArrowDown/ArrowUp across the enabled items, wrapping at both ends', () => {
+    renderTabs();
+    openOverflow();
+
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Edit binder' }));
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Delete binder' }));
+    // wraps past the last item back to the first enabled one
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Move down' }));
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Delete binder' }));
+  });
+
+  it('jumps to the first/last enabled item with Home/End', () => {
+    renderTabs();
+    openOverflow();
+
+    fireEvent.keyDown(document, { key: 'End' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Delete binder' }));
+    fireEvent.keyDown(document, { key: 'Home' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Move down' }));
+  });
+
+  it('closes on Escape and returns focus to the trigger', () => {
+    renderTabs();
+    openOverflow();
+    expect(screen.getByRole('menu')).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Binder actions' }));
+  });
+
+  it('deletes without a confirm dialog and returns focus to the trigger', () => {
+    renderTabs();
+    openOverflow();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete binder' }));
+
+    expect(deleteBinder).toHaveBeenCalledWith('a');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Binder actions' }));
+  });
+});

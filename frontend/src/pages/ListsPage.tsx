@@ -184,14 +184,10 @@ export function ListsPage() {
     setNameDialog(null);
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    const ok = await confirm({
-      title: `Delete "${name}"?`,
-      body: `This list and all of its entries will be removed. You can undo from the toast.`,
-      confirmLabel: 'Delete list',
-      danger: true,
-    });
-    if (ok) deleteList(id);
+  // Undoable from the toast, so it doesn't confirm first (T157) — deleteList
+  // shows the Undo toast itself.
+  const handleDelete = (id: string) => {
+    deleteList(id);
   };
 
   const handleDeleteAll = async () => {
@@ -418,7 +414,7 @@ export function ListsPage() {
                         label: 'Delete',
                         icon: Trash2,
                         danger: true,
-                        onClick: () => void handleDelete(l.id, l.name),
+                        onClick: () => handleDelete(l.id),
                       },
                     ]}
                   />

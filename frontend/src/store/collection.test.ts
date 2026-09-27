@@ -1657,7 +1657,9 @@ describe('binder / list delete — Undo restores exact state', () => {
 
     const t = undoToast();
     expect(t?.actionLabel).toBe('Undo');
-    expect(t?.message).toBe('Deleted Pinned two');
+    // Carries the consequence a confirm dialog used to state (T157 dropped
+    // the confirm for a single delete, so the toast says where the cards go).
+    expect(t?.message).toBe('Deleted Pinned two. Its cards moved to other binders.');
 
     t!.onAction!();
     const restored = useCollectionStore.getState().binders;
