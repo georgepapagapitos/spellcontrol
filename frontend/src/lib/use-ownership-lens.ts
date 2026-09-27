@@ -4,6 +4,7 @@ import { useAuth } from '../store/auth';
 import { useAwaitingFirstPull } from './use-awaiting-first-pull';
 import { getCurrency } from './currency';
 import { loadCard } from './card-thumbs';
+import { useBinderLayoutInputs } from './use-binder-layout-inputs';
 import { computeOwnershipLens, type OwnershipLens } from './ownership-lens';
 import type { PublicDeckCard } from './shared-types';
 
@@ -38,8 +39,8 @@ interface ResolvedPricing {
 export function useOwnershipLens(deckCards: PublicDeckCard[]): UseOwnershipLensResult {
   const authed = useAuth((s) => s.status === 'authed');
   const hydrating = useCollectionStore((s) => s.hydrating);
-  const cards = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
+  const layout = useBinderLayoutInputs();
+  const { cards, binders } = layout;
 
   // Still hydrating the collection/binders from IndexedDB counts as loading
   // too — computing against an empty just-booted store would flash a false
@@ -53,8 +54,8 @@ export function useOwnershipLens(deckCards: PublicDeckCard[]): UseOwnershipLensR
   const ready = authed && !hydrating && !(awaitingFirstPull && cards.length === 0);
 
   const lens = useMemo(
-    () => (ready ? computeOwnershipLens(deckCards, cards, binders) : null),
-    [ready, deckCards, cards, binders]
+    () => (ready ? computeOwnershipLens(deckCards, cards, binders, layout) : null),
+    [ready, deckCards, cards, binders, layout]
   );
 
   // Price resolution tagged with the lens it was resolved for (mirrors

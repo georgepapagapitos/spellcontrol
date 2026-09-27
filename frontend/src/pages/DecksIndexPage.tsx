@@ -62,7 +62,7 @@ import { useCollectionStore } from '../store/collection';
 import { MIN_COLLECTION_SIZE } from '../lib/commander-readiness';
 import { useAllocations } from '../lib/allocations';
 import { useSetMap } from '../lib/api';
-import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
+import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { buildBinderPlacement, buildPullList, isPullableKind } from '../lib/pull-list';
 import { deckValue } from '../lib/deck-value';
 import { useCurrency } from '../lib/currency';
@@ -196,8 +196,9 @@ export function DecksIndexPage() {
   const navigate = useNavigate();
 
   const rawCollectionCards = useCollectionStore((s) => s.cards);
-  const binderDefs = useCollectionStore((s) => s.binders);
-  const collectionCards = useCardsWithTags(rawCollectionCards, bindersUseTags(binderDefs));
+  // BinderPage's inputs, so a deck's "pullable" count reads the same binders
+  // (and the same Secret Lair / release-date routing) the pull list shows.
+  const { cards: collectionCards, binders: binderDefs } = useBinderLayoutInputs();
   const allocations = useAllocations();
   const setMap = useSetMap();
   // Each deck's value, once per render of the list: the Value sort orders by

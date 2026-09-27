@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCollectionStore } from '../../store/collection';
-import { useAllocations } from '../../lib/allocations';
-import { useSetMap } from '../../lib/api';
-import { useCardsWithTags, bindersUseTags } from '../../lib/card-tags';
+import { useBinderLayoutInputs } from '../../lib/use-binder-layout-inputs';
 import { materializeBinders } from '../../lib/materialize';
 import { aggregateBinderReviewCount } from '../../lib/home-signals';
 
@@ -26,17 +24,12 @@ export interface BinderReview {
  * paint never waits on it.
  */
 export function useBinderReviewCount(): BinderReview | null {
-  const rawCards = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
+  // BinderPage's inputs: this count used to decorate with tags only, so a
+  // Secret Lair or release-date binder could read a different number here
+  // than its own "N to review" chip.
+  const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
   const hydrating = useCollectionStore((s) => s.hydrating);
   const importHistory = useCollectionStore((s) => s.importHistory);
-  // Decorate with Scryfall oracle tags (no-op unless a binder uses a tag
-  // rule) — same prep BindersIndexPage runs, so a tag-ruled binder's count
-  // agrees between the two surfaces.
-  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
-  const allocations = useAllocations();
-  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
-  const setMap = useSetMap();
 
   const [result, setResult] = useState<BinderReview | null>(null);
 

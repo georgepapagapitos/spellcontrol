@@ -1,5 +1,6 @@
 import { Image as ImageIcon, ImageOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { formatLocationSpan } from '../lib/card-locations';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview, type CardPreviewAction } from './CardPreview';
@@ -61,6 +62,8 @@ interface Row {
   qty: number;
   /** First page number this card lands on inside its section. */
   pageNum: number;
+  /** Every pocket this row's copies fill, for its location chip. */
+  spots: { pageNum: number; slot: number }[];
 }
 
 /**
@@ -183,17 +186,20 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
     const qtyByCopy = new Map<string, number>();
     const sectionRows: { sectionKey: string; rows: Row[] }[] = [];
     for (const section of binder.sections) {
-      const cardToPage = new Map<EnrichedCard, number>();
+      const cardToSpot = new Map<EnrichedCard, { pageNum: number; slot: number }>();
       for (const page of section.pages) {
-        for (const slot of page.slots) {
-          if (slot && !cardToPage.has(slot)) cardToPage.set(slot, page.pageNum);
-        }
+        page.slots.forEach((slot, i) => {
+          if (slot && !cardToSpot.has(slot))
+            cardToSpot.set(slot, { pageNum: page.pageNum, slot: i + 1 });
+        });
       }
       const rows: Row[] = [];
       section.cards.forEach((card, idx) => {
         const prev = rows[rows.length - 1];
+        const spot = cardToSpot.get(card);
         if (!qtyByCopyId && prev && printingFinishKey(prev.card) === printingFinishKey(card)) {
           prev.qty += 1;
+          if (spot) prev.spots.push(spot);
           return;
         }
         rows.push({
@@ -202,7 +208,8 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
           key: card.copyId ?? `${section.key}-${idx}`,
           card,
           qty: qtyByCopyId?.get(card.copyId) ?? 1,
-          pageNum: cardToPage.get(card) ?? 0,
+          pageNum: spot?.pageNum ?? 0,
+          spots: spot ? [spot] : [],
         });
       });
       sectionRows.push({ sectionKey: section.key, rows });
@@ -405,7 +412,7 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
                       }
                       columns={isTable ? columns : undefined}
                       allocations={allocationsFor(r.card, r.qty)}
-                      pageNum={r.pageNum}
+                      location={formatLocationSpan(r.spots)}
                       pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
                       onActivate={() => {
                         const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);

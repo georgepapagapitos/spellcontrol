@@ -237,6 +237,17 @@ vi.mock('../lib/use-commander-bracket-analysis', () => ({
   useCommanderBracketAnalysis: () => ({ status: 'ready', retry: () => {} }),
 }));
 vi.mock('../lib/use-undo-redo-keyboard', () => ({ useUndoRedoKeyboard: () => {} }));
+// The binder chain (tags, Secret Lair drops, release dates, allocations, set
+// data) reads the same empty collection as the store mock above.
+vi.mock('../lib/use-binder-layout-inputs', () => ({
+  useBinderLayoutInputs: () => ({
+    cards: [],
+    binders: [],
+    allocatedCopyIds: new Set(),
+    setMap: undefined,
+  }),
+}));
+vi.mock('../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
 vi.mock('../lib/allocations', () => ({
   buildAllocationMap: () => new Map(),
   pickCollectionCopy: () => null,

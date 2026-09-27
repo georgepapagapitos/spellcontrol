@@ -17,16 +17,12 @@ import { useStoredView } from '../lib/use-stored-view';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
-import { useAllocations } from '../lib/allocations';
 import { materializeBinders } from '../lib/materialize';
 import { diffMembershipByDefs } from '../lib/binder-moves';
 import { computeDrift } from '../lib/binder-drift';
 import { binderCoverArt } from '../lib/binder-cover';
-import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
-import { useCardsWithSldDrops, bindersUseSldDrops } from '../lib/sld-drops';
-import { useCardsWithReleaseDates, bindersUseReleaseDates } from '../lib/card-release-dates';
+import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { formatMoney } from '../lib/format-money';
-import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
 import { Modal } from '../components/Modal';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
@@ -75,18 +71,11 @@ const SORT_DEFAULT_DIR: Record<BinderSortField, SortDir> = {
 };
 
 export function BindersIndexPage() {
-  const rawCards = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
+  // BinderPage's inputs, so every count and page total here matches the
+  // binder it opens.
+  const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
   const awaitingFirstPull = useAwaitingFirstPull();
   const importHistory = useCollectionStore((s) => s.importHistory);
-  // Decorate with Scryfall oracle tags (no-op unless a binder uses a tag rule).
-  const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
-  // Secret Lair drop decoration, same as BinderPage — without it a drop-sectioned
-  // binder's page count here would disagree with the detail page's.
-  const droppedCards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
-  // Per-printing release dates, same as BinderPage — without it a
-  // date-sectioned binder's page count here would disagree with the detail page's.
-  const cards = useCardsWithReleaseDates(droppedCards, bindersUseReleaseDates(binders));
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteBinders = useCollectionStore((s) => s.deleteBinders);
@@ -115,10 +104,6 @@ export function BindersIndexPage() {
       setLoadingSamples(false);
     }
   };
-
-  const allocations = useAllocations();
-  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
-  const setMap = useSetMap();
 
   // Counts come from the materializer so they match what the binder
   // detail page would render (rules + capacity + dedupe applied).

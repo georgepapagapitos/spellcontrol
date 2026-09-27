@@ -5,7 +5,7 @@ import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { toast } from '../../store/toasts';
 import type { EnrichedCard } from '../../types';
 import type { ComboCardRef } from '../../types/combos';
-import type { CardLocation } from '../../lib/card-locations';
+import { formatLocation, type CardLocation } from '../../lib/card-locations';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
@@ -27,7 +27,7 @@ interface Props {
   produces: string[];
   /** Commanders in the collection whose identity can host this combo. */
   hosts: EnrichedCard[];
-  /** oracleId → binder page, from `buildCardLocationIndex`. */
+  /** oracleId → where it sits, from `useCardLocations().byOracleId`. */
   locations: Map<string, CardLocation>;
 }
 
@@ -147,7 +147,7 @@ export function ComboCollectionAside({ cards, produces, hosts, locations }: Prop
               <Link className="combo-aside-binder" to={`/collection/binders/${at.binderId}`}>
                 {at.binderName}
               </Link>
-              <span className="combo-aside-page">, page {at.pageNum}</span>
+              <span className="combo-aside-page"> · {formatLocation(at, { binder: false })}</span>
             </li>
           ))}
         </ul>

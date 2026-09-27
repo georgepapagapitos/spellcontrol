@@ -72,8 +72,9 @@ interface CardRowProps {
    * nothing (no badge clutter outside that filter state).
    */
   surplusCount?: number;
-  /** Physical binder page chip (binder views only). */
-  pageNum?: number;
+  /** Where this row sits in a binder, already worded by `formatLocationSpan`
+   *  ("p. 3 · slot 5"). Binder list and pull list only. */
+  location?: string;
   /** Set name for the symbol tooltip; defaults to `card.setName`. */
   setName?: string;
   isLastRow?: boolean;
@@ -141,7 +142,7 @@ export function CardRow({
   onActivate,
   binders,
   surplusCount,
-  pageNum,
+  location,
   setName,
   isLastRow = false,
   selectMode = false,
@@ -247,15 +248,7 @@ export function CardRow({
       ),
       // Same chip the flow row uses, same "only when the copy carries it"
       // guard — a binder page number is a real location or it is nothing.
-      page: (
-        <div>
-          {pageNum !== undefined && pageNum > 0 && (
-            <span className="card-list-page" title={`Page ${pageNum}`}>
-              p.{pageNum}
-            </span>
-          )}
-        </div>
-      ),
+      page: <div>{location && <span className="card-list-page">{location}</span>}</div>,
       notes: (
         <div className="collection-table-notes" title={card.notes}>
           {card.notes}
@@ -335,11 +328,7 @@ export function CardRow({
             </span>
           )}
           {card.collectorNumber && <span className="card-list-cn">#{card.collectorNumber}</span>}
-          {pageNum !== undefined && pageNum > 0 && (
-            <span className="card-list-page" title={`Page ${pageNum}`}>
-              p.{pageNum}
-            </span>
-          )}
+          {location && <span className="card-list-page">{location}</span>}
           {/* Deviations only — NM is the unmarked norm (imports stamp nm on
               nearly every copy; an always-on chip is noise, not signal), the
               same way English never renders a language chip. */}

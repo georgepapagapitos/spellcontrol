@@ -70,7 +70,7 @@ export const CARD_TABLE_COLUMNS: Record<CardTableCol, ColumnSpec> = {
   cond: { label: 'Cond', tier: 1 },
   lang: { label: 'Lang', tier: 2 },
   binder: { label: 'Binder', tier: 3 },
-  page: { label: 'Page', tier: 3 },
+  page: { label: 'Location', tier: 3 },
   notes: { label: 'Notes', tier: 2 },
   target: { label: 'Target', tier: 2 },
   mana: { label: 'Mana', tier: 3, sortable: true },

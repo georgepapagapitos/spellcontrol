@@ -1,58 +1,121 @@
-import type { BinderDef, EnrichedCard } from '../types';
+import { useMemo } from 'react';
+import type { MaterializedBinder } from '../types';
 import { materializeBinders } from './materialize';
+import { formatBinderPages } from './import-routing';
+import { useBinderLayoutInputs, type BinderLayoutInputs } from './use-binder-layout-inputs';
 
-/** Where a card physically sits: which binder, and which page of it. */
+/** Where a card physically sits: which binder, which page, which pocket. */
 export interface CardLocation {
   binderId: string;
   binderName: string;
   binderColor?: string;
   /** 1-based page number within the binder, as shown in the binder view. */
   pageNum: number;
+  /** 1-based pocket on that page, counted left to right, top to bottom. */
+  slot: number;
 }
 
+export interface CardLocationIndex {
+  /** Every copy filed in a binder, by `copyId`. */
+  byCopyId: Map<string, CardLocation>;
+  /** The first copy of each card, by `oracleId`, in binder priority order. */
+  byOracleId: Map<string, CardLocation>;
+}
+
+const EMPTY_INDEX: CardLocationIndex = { byCopyId: new Map(), byOracleId: new Map() };
+
 /**
- * Index every card in the collection by oracle id → the binder page it sits on.
+ * Reads every filled pocket out of an already-materialized binder list.
  *
- * Answers "where do I actually find this card?" — the question a physical
- * binder app exists to answer, and the one a combo list is useless without: a
- * combo you can build is only actionable if you can pull its pieces.
- *
- * Like `summarizeImportRouting`, this goes through `materializeBinders` rather
- * than re-running rule matching, so the answer agrees with what the user sees
- * when they open the binder — including deck-allocation hiding, pinned-card
- * promotion, and printing selection. Re-deriving membership here would
- * silently disagree the moment one of those quirks applies.
- *
- * First match wins: a card whose copies span several binders reports the first
- * by binder position, mirroring the routing engine's own first-match-wins rule.
+ * `binders` must be in priority order (materialize's own output is), so
+ * `byOracleId` keeps the FIRST binder's copy, mirroring the routing engine's
+ * first-match-wins rule.
  */
-export function buildCardLocationIndex(
-  cards: EnrichedCard[],
-  binderDefs: BinderDef[]
-): Map<string, CardLocation> {
-  const byOracle = new Map<string, CardLocation>();
-  if (cards.length === 0 || binderDefs.length === 0) return byOracle;
-
-  const { binders } = materializeBinders(cards, binderDefs, {
-    globalPocketSize: 9,
-    search: '',
-  });
-
+export function indexCardLocations(binders: MaterializedBinder[]): CardLocationIndex {
+  const byCopyId = new Map<string, CardLocation>();
+  const byOracleId = new Map<string, CardLocation>();
   for (const b of binders) {
     for (const section of b.sections) {
       for (const page of section.pages) {
-        for (const slot of page.slots) {
-          if (!slot?.oracleId || byOracle.has(slot.oracleId)) continue;
-          byOracle.set(slot.oracleId, {
+        page.slots.forEach((card, i) => {
+          if (!card) return;
+          const at: CardLocation = {
             binderId: b.def.id,
             binderName: b.def.name,
             binderColor: b.def.color,
             pageNum: page.pageNum,
-          });
-        }
+            slot: i + 1,
+          };
+          if (card.copyId) byCopyId.set(card.copyId, at);
+          if (card.oracleId && !byOracleId.has(card.oracleId)) byOracleId.set(card.oracleId, at);
+        });
       }
     }
   }
+  return { byCopyId, byOracleId };
+}
 
-  return byOracle;
+/**
+ * Where every card sits, laid out from `useBinderLayoutInputs()`, the chain
+ * BinderPage renders from. Taking the inputs as one object (rather than raw
+ * cards + defs) is the point: a caller cannot hand this a collection that
+ * skipped the tag, Secret Lair or release-date decoration, or the deck
+ * allocations, and so cannot report a page the binder view disagrees with.
+ */
+export function buildCardLocationIndex(layout: BinderLayoutInputs): CardLocationIndex {
+  if (layout.cards.length === 0 || layout.binders.length === 0) return EMPTY_INDEX;
+  const { binders } = materializeBinders(layout.cards, layout.binders, {
+    search: '',
+    allocatedCopyIds: layout.allocatedCopyIds,
+    setMap: layout.setMap,
+  });
+  return indexCardLocations(binders);
+}
+
+/**
+ * Hook form of {@link buildCardLocationIndex}. Pass `enabled: false` on a
+ * surface that only sometimes needs locations, so it doesn't materialize the
+ * whole collection for nothing. Call it once per surface and pass the index
+ * down, never per row.
+ */
+export function useCardLocations(enabled = true): CardLocationIndex {
+  const layout = useBinderLayoutInputs();
+  return useMemo(() => (enabled ? buildCardLocationIndex(layout) : EMPTY_INDEX), [enabled, layout]);
+}
+
+/**
+ * One way to say where a card is, everywhere: "Mana rocks · p. 3 · slot 5".
+ * `binder: false` drops the name for a surface that already shows it (a row
+ * under its binder's heading, or next to a binder pill). Leave `slot` out
+ * when the pocket isn't known for THIS copy (a location looked up by card
+ * rather than by copy): "Mana rocks · p. 3" is true, a borrowed slot is not.
+ */
+export function formatLocation(
+  at: Pick<CardLocation, 'binderName' | 'pageNum'> & { slot?: number },
+  { binder = true }: { binder?: boolean } = {}
+): string {
+  const page = formatBinderPages([at.pageNum]);
+  const where = at.slot ? `${page} · slot ${at.slot}` : page;
+  return binder ? `${at.binderName} · ${where}` : where;
+}
+
+/**
+ * The same idea for a pile of copies (a pull-list row): one pocket reads like
+ * {@link formatLocation}, a run on one page reads "p. 3 · slots 4–6", and a
+ * pile that crosses pages falls back to its pages, "pp. 3–4".
+ */
+export function formatLocationSpan(spots: Pick<CardLocation, 'pageNum' | 'slot'>[]): string {
+  if (spots.length === 0) return '';
+  const pages = [...new Set(spots.map((s) => s.pageNum))];
+  if (pages.length > 1) return formatBinderPages(pages);
+  const slots = [...new Set(spots.map((s) => s.slot))].sort((a, b) => a - b);
+  const first = slots[0];
+  const last = slots[slots.length - 1];
+  const slotText =
+    slots.length === 1
+      ? `slot ${first}`
+      : last - first === slots.length - 1
+        ? `slots ${first}–${last}`
+        : `slots ${slots.join(', ')}`;
+  return `${formatBinderPages(pages)} · ${slotText}`;
 }

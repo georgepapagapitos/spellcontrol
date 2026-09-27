@@ -27,7 +27,7 @@ import {
 import { settleTrade } from '../../lib/use-trade-settlement';
 import { resolveTradePreview } from '../../lib/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
-import { buildCardLocationIndex, type CardLocation } from '../../lib/card-locations';
+import { formatLocation, useCardLocations, type CardLocation } from '../../lib/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
 import { Button, IconButton } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -111,7 +111,6 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
   // Grouped ONCE for the whole list rather than per card: a real collection is
   // ~11.5k rows, and every offer in a group asks the same question of it.
   const cards = useCollectionStore((s) => s.cards);
-  const binderDefs = useCollectionStore((s) => s.binders);
   const ownedByKey = useMemo(() => {
     const map = new Map<string, OwnedTradeLine>();
     for (const line of groupOwnedForTrade(cards)) {
@@ -132,11 +131,11 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
    * Built only when an offer in this list can use it — it materializes the
    * whole collection, which a list of unsettled offers must not pay for.
    */
-  const locations = useMemo(() => {
-    const needed = offers.some((o) => o.status === 'accepted' && o.settled && o.receive.length > 0);
-    // No binders defined → nothing to file into, and the note falls back.
-    return needed && binderDefs?.length ? buildCardLocationIndex(cards, binderDefs) : null;
-  }, [offers, cards, binderDefs]);
+  const locationsNeeded = offers.some(
+    (o) => o.status === 'accepted' && o.settled && o.receive.length > 0
+  );
+  // Empty when no binders exist: nothing to file into, and the note falls back.
+  const locations = useCardLocations(locationsNeeded).byOracleId;
 
   if (offers.length === 0) {
     return (
@@ -180,7 +179,7 @@ function TradeOfferCard({
   linkCounterparty?: boolean;
   ownedByKey: Map<string, OwnedTradeLine>;
   /** Oracle id → binder + page, built once per list; null when no row needs it. */
-  locations: Map<string, CardLocation> | null;
+  locations: Map<string, CardLocation>;
 }) {
   const [busy, setBusy] = useState(false);
   // Non-null while the viewer is choosing which copies to hand over.
@@ -460,13 +459,11 @@ function SettledNote({
   locations,
 }: {
   cards: TradeCard[];
-  locations: Map<string, CardLocation> | null;
+  locations: Map<string, CardLocation>;
 }) {
-  const filed = locations
-    ? cards
-        .map((card) => ({ card, where: card.oracleId ? locations.get(card.oracleId) : undefined }))
-        .filter((row): row is { card: TradeCard; where: CardLocation } => row.where !== undefined)
-    : [];
+  const filed = cards
+    .map((card) => ({ card, where: card.oracleId ? locations.get(card.oracleId) : undefined }))
+    .filter((row): row is { card: TradeCard; where: CardLocation } => row.where !== undefined);
 
   if (filed.length === 0) {
     return (
@@ -488,8 +485,9 @@ function SettledNote({
       {shown.map(({ card, where }, i) => (
         <span key={card.oracleId || card.name}>
           {i > 0 && ', '}
-          <strong className="trade-offer-filed-card">{card.name}</strong> in {where.binderName} p.
-          {where.pageNum}
+          <strong className="trade-offer-filed-card">{card.name}</strong> in{' '}
+          {/* Looked up by card, not by the copy that arrived: page, not pocket. */}
+          {formatLocation({ binderName: where.binderName, pageNum: where.pageNum })}
         </span>
       ))}
       {rest > 0 && `, and ${rest} more`}.

@@ -149,6 +149,18 @@ vi.mock('../store/collection', () => ({
     sel({ cards: [], binders: [], importHistory: [] }),
 }));
 
+// The binder chain (tags, Secret Lair drops, release dates, allocations, set
+// data) reads the same empty collection as the store mock above.
+vi.mock('../lib/use-binder-layout-inputs', () => ({
+  useBinderLayoutInputs: () => ({
+    cards: [],
+    binders: [],
+    allocatedCopyIds: new Set(),
+    setMap: undefined,
+  }),
+}));
+vi.mock('../lib/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+
 vi.mock('../store/toasts', () => ({
   useToastsStore: (sel: (s: { push: () => void }) => unknown) => sel({ push: vi.fn() }),
 }));

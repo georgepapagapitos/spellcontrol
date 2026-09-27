@@ -4,6 +4,7 @@ import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { useSetMap } from '../../lib/api';
 import { buildPullList, isPullableKind, type PullListGroup } from '../../lib/pull-list';
+import { formatLocationSpan } from '../../lib/card-locations';
 import type { AllocationInfo } from '../../lib/allocations';
 import type { Deck } from '../../store/decks';
 import type { BinderDef, EnrichedCard } from '../../types';
@@ -214,7 +215,7 @@ export function PullListSheet({
                             allocations={[]}
                             menu={null}
                             binders={[]}
-                            pageNum={r.pageStart}
+                            location={r.spots ? formatLocationSpan(r.spots) : undefined}
                             selectMode
                             selected={checked.has(rowKey(g, r.key))}
                             onActivate={() => toggle(rowKey(g, r.key))}

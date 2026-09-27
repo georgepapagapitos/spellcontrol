@@ -13,6 +13,7 @@
  */
 import type { PublicDeckCard } from './shared-types';
 import { materializeBinders } from './materialize';
+import type { BinderLayoutInputs } from './use-binder-layout-inputs';
 import type { BinderDef, EnrichedCard } from '../types';
 import type { BinderInfo } from '../components/BinderBadge';
 
@@ -42,7 +43,13 @@ function oracleIdOf(card: PublicDeckCard['card']): string | undefined {
 export function computeOwnershipLens(
   deckCards: PublicDeckCard[],
   viewerCards: EnrichedCard[],
-  viewerBinders: BinderDef[]
+  viewerBinders: BinderDef[],
+  /** The rest of `useBinderLayoutInputs()`, so a binder that hides deck
+   *  cards, or sorts by release date, routes here the way BinderPage shows it. */
+  layout: Pick<BinderLayoutInputs, 'allocatedCopyIds' | 'setMap'> = {
+    allocatedCopyIds: new Set(),
+    setMap: undefined,
+  }
 ): OwnershipLens {
   const byOracle = new Map<string, EnrichedCard[]>();
   const byName = new Map<string, EnrichedCard[]>();
@@ -61,7 +68,11 @@ export function computeOwnershipLens(
   // copyId -> the one binder that routed it. materializeBinders routes each
   // physical copy to at most one binder — the exact same construction as
   // CardListTable.tsx's cardToBinder.
-  const { binders } = materializeBinders(viewerCards, viewerBinders, { search: '' });
+  const { binders } = materializeBinders(viewerCards, viewerBinders, {
+    search: '',
+    allocatedCopyIds: layout.allocatedCopyIds,
+    setMap: layout.setMap,
+  });
   const cardToBinder = new Map<string, BinderInfo>();
   for (const b of binders) {
     const info: BinderInfo = { id: b.def.id, name: b.def.name, color: b.def.color };
