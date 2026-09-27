@@ -14,22 +14,8 @@ import { useTouchPeek } from '@/lib/use-touch-peek';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { classifyInclusion } from '@/lib/inclusion-label';
-import {
-  fromGapCard,
-  fromOptimizeCard,
-  fromSynergySuggestion,
-  fromSubstituteRow,
-  fromBracketFitMove,
-  fromCostSwapRow,
-  fromComboCompletion,
-  fromLandUpgradeMove,
-  fromCrossDeckMove,
-  isOffMetaChange,
-  mergeMisfitCuts,
-  mergeImprove,
-  type Change,
-  type ChangeOwnership,
-} from '@/lib/deck-change';
+import { buildCoachChanges } from '@/lib/coach-changes';
+import { isOffMetaChange, type Change, type ChangeOwnership } from '@/lib/deck-change';
 import { rankCoachMoves, type CoachContext, diversifyRankedMoves } from '@/lib/coach-rank';
 import { useRegisterShortcuts, isTypingTarget } from '@/lib/shortcut-registry';
 import type { GapAnalysisCard } from '@/deck-builder/types';
@@ -404,106 +390,39 @@ export function CoachFeed({
 
   // ── Build all changes ────────────────────────────────────────────────────
 
-  const allChanges = useMemo<Change[]>(() => {
-    const adds: Change[] = [
-      ...gaps.map((g) => fromGapCard(g, resolveOwnership(g.name))),
-      ...(optimize?.additions ?? []).map((o) =>
-        fromOptimizeCard(o, 'add', resolveOwnership(o.name))
+  const allChanges = useMemo<Change[]>(
+    () =>
+      buildCoachChanges(
+        {
+          gaps,
+          optimize,
+          misfits,
+          synergy,
+          substitutes,
+          costPlan,
+          bracketFit,
+          landUpgrades,
+          oneAwayCombos,
+          crossDeckMoves,
+        },
+        resolveOwnership,
+        deckNames
       ),
-      ...synergy.map((s) => fromSynergySuggestion(s, resolveOwnership(s.cardName))),
-      ...substitutes.map(fromSubstituteRow),
-    ];
-
-    const allCostRows = [...(costPlan?.spellRows ?? []), ...(costPlan?.landRows ?? [])];
-
-    const costChanges: Change[] = allCostRows.map((row) =>
-      fromCostSwapRow(row, resolveOwnership(row.suggestionName))
-    );
-
-    const bracketChanges: Change[] = (bracketFit?.moves ?? []).map((m) => {
-      if (m.type === 'swap' && m.inName) {
-        return fromBracketFitMove(m, resolveOwnership(m.inName));
-      }
-      return fromBracketFitMove(m, m.type === 'cut' ? undefined : resolveOwnership(m.name));
-    });
-
-    const validOneAway = (oneAwayCombos ?? []).filter(
-      (match) => match.missingOracleIds.length === 1
-    );
-    const comboChanges: Change[] = validOneAway
-      .map((match) => {
-        const missingId = match.missingOracleIds[0];
-        const missingCard = match.combo.cards.find((c) => c.oracleId === missingId);
-        if (!missingCard) return null;
-        return fromComboCompletion(
-          match,
-          missingCard.cardName,
-          resolveOwnership(missingCard.cardName)
-        );
-      })
-      .filter((c): c is Change => c !== null);
-
-    // Merge add-type changes (dedup by name, keep higher-signal row).
-    const mergedAdds = mergeImprove(adds);
-
-    // Swaps/cuts from cost + bracket-fit (have specific target slots, skip dedup),
-    // plus the optimizer's "consider cutting" rows (ownership-blind — the card is
-    // already in the deck).
-    const landChanges: Change[] = (landUpgrades ?? []).map((m) =>
-      fromLandUpgradeMove(m, resolveOwnership(m.inName))
-    );
-
-    // E222: cardFit misfits folded into the optimizer's cut rows — enriching
-    // the ones it already flagged, adding rows for the ones it skips.
-    const optimizeCuts = mergeMisfitCuts(
-      (optimize?.removals ?? []).map((o) => fromOptimizeCard(o, 'cut')),
-      misfits ?? []
-    );
-
-    const swapsAndCuts = [
-      ...costChanges,
-      ...bracketChanges.filter((c) => c.type === 'swap' || c.type === 'cut'),
-      ...landChanges,
-      ...optimizeCuts,
-    ];
-
-    // Bracket adds (not swaps/cuts).
-    const bracketAdds = bracketChanges.filter((c) => c.type === 'add');
-
-    // A card another lane would add from scratch, when it already sits idle in
-    // a sibling deck, shows once: as the move, which brings the physical copy
-    // and patches the deck it leaves. The plain add would list it unowned.
-    const moveChanges = (crossDeckMoves ?? []).map(fromCrossDeckMove);
-    const moved = new Set(moveChanges.map((c) => c.name.toLowerCase()));
-    const notMoved = (c: Change) => c.type !== 'add' || !moved.has(c.name.toLowerCase());
-
-    // Ground-truth filter against the live deck list (see the deckNames prop
-    // doc): applied rows drop out, undone applies come back, and a swap whose
-    // target slot is gone can no longer be offered.
-    const inDeck = (n: string) => deckNames.has(n.toLowerCase());
-    return [
-      ...moveChanges,
-      ...[...mergedAdds, ...bracketAdds, ...comboChanges].filter(notMoved),
-      ...swapsAndCuts,
-    ].filter((c) => {
-      if (c.type === 'add') return !inDeck(c.name);
-      if (c.type === 'cut') return inDeck(c.name);
-      return c.inName ? inDeck(c.inName) && !inDeck(c.name) : false;
-    });
-  }, [
-    gaps,
-    optimize,
-    misfits,
-    synergy,
-    substitutes,
-    costPlan,
-    bracketFit,
-    landUpgrades,
-    oneAwayCombos,
-    crossDeckMoves,
-    resolveOwnership,
-    deckNames,
-  ]);
+    [
+      gaps,
+      optimize,
+      misfits,
+      synergy,
+      substitutes,
+      costPlan,
+      bracketFit,
+      landUpgrades,
+      oneAwayCombos,
+      crossDeckMoves,
+      resolveOwnership,
+      deckNames,
+    ]
+  );
 
   // ── Rank ─────────────────────────────────────────────────────────────────
 
