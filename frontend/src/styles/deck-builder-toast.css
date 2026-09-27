@@ -111,35 +111,8 @@
 }
 
 .toast-action {
+  /* A primary Button: look and floor come from `.btn-primary`. */
   flex: 0 0 auto;
-  /* Commit-tier follow-up CTA (Undo/Retry) — standing accent fill at rest;
-     the old outline-until-hover never read as primary on touch. */
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-  font-size: var(--text-sm);
-  padding: var(--space-1) 0.6rem;
-  border-radius: var(--radius);
-  cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 14%),
-    0 1px 0 rgb(0 0 0 / 12%);
-}
-
-.toast-action:focus-visible {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-  color: var(--on-accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .toast-action:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-    color: var(--on-accent);
-  }
 }
 
 .toast-close {
@@ -212,7 +185,6 @@
 /* Coarse-pointer floors: the toast's Undo/Retry commits a state change and
    the ✕ is its only dismiss, so both take the full 44px on touch. */
 @media (pointer: coarse) {
-  .toast-action,
   .toast-close {
     min-height: 44px;
   }

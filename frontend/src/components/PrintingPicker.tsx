@@ -13,6 +13,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 const PRINTING_PAGE_SIZE = 8;
 
 /**
@@ -211,13 +212,12 @@ export function PrintingPicker({
             })}
           </ul>
           {printings.length > pVisible && (
-            <button
-              type="button"
+            <Button
               className="inline-card-search-more inline-card-search-more--printings"
               onClick={() => setPVisible((v) => v + PRINTING_PAGE_SIZE)}
             >
               Show {Math.min(PRINTING_PAGE_SIZE, printings.length - pVisible)} more printings
-            </button>
+            </Button>
           )}
           {selected && (
             <div className="inline-card-search-copy">

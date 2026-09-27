@@ -13,7 +13,7 @@ import { availableFinishes } from '../lib/scanner-feedback';
 import { haptics } from '../lib/haptics';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
-import { IconButton } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /** Result layouts: `list` (thumbnail rows, the default), `grid` (card-image
  *  tiles, preview-first), `compact` (text-only rows). */
@@ -513,13 +513,12 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
         )}
 
         {pageSize !== undefined && results.length > shown.length && (
-          <button
-            type="button"
+          <Button
             className="inline-card-search-more"
             onClick={() => setVisible((v) => v + (pageSize ?? DEFAULT_PAGE))}
           >
             Show {Math.min(pageSize ?? DEFAULT_PAGE, results.length - shown.length)} more
-          </button>
+          </Button>
         )}
         {/* The stack holds at most `results.length` (the fetcher's own cap), so
             when the search matched more than that it has to say so — a count

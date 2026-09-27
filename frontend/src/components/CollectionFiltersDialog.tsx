@@ -849,14 +849,9 @@ function DialogBody({
 
       <footer className="collection-filters-dialog-footer">
         <div className="collection-filters-dialog-footer-start">
-          <button
-            type="button"
-            className="collection-filters-dialog-clear"
-            onClick={clearDraft}
-            disabled={!draftHasAny}
-          >
+          <Button onClick={clearDraft} disabled={!draftHasAny}>
             Clear
-          </button>
+          </Button>
           {canSaveAsBinder && (
             <Button
               variant="link"
@@ -877,9 +872,9 @@ function DialogBody({
               : `${draftMatchCount.toLocaleString()} ${draftMatchCount === 1 ? 'card' : 'cards'}`}
           </span>
         )}
-        <button type="button" className="collection-filters-dialog-done" onClick={apply}>
+        <Button variant="primary" onClick={apply}>
           Apply
-        </button>
+        </Button>
       </footer>
     </Modal>
   );

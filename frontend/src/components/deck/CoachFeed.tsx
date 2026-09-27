@@ -49,6 +49,7 @@ import type {
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import type { DeckView } from './DeckDisplay';
 import { Chip } from '@/components/shared/Chip';
+import { Button } from '@/components/shared/Button';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -855,9 +856,9 @@ export function CoachFeed({
 
               {/* Apply all drop-ins — budget filter only */}
               {activeFilter === 'budget' && dropInChanges.length > 0 && (
-                <button
-                  type="button"
-                  className="coach-feed-apply-all"
+                <Button
+                  variant="primary"
+                  icon={<Check width={14} height={14} />}
                   onClick={() =>
                     void onApplyAllDropIns(
                       dropInChanges
@@ -869,16 +870,15 @@ export function CoachFeed({
                     )
                   }
                 >
-                  <Check width={14} height={14} aria-hidden />
                   Apply all {dropInChanges.length} drop-in{dropInChanges.length > 1 ? 's' : ''}
-                </button>
+                </Button>
               )}
 
               {/* Converge to target — bracket-fit filter, swap moves only */}
               {activeFilter === 'bracket-fit' && bracketSwaps.length > 0 && (
-                <button
-                  type="button"
-                  className="coach-feed-apply-all"
+                <Button
+                  variant="primary"
+                  icon={<Check width={14} height={14} />}
                   onClick={() =>
                     void onConvergeBracket(
                       bracketSwaps.map((r) => ({
@@ -888,9 +888,8 @@ export function CoachFeed({
                     )
                   }
                 >
-                  <Check width={14} height={14} aria-hidden />
                   Apply all {bracketSwaps.length} swap{bracketSwaps.length > 1 ? 's' : ''}
-                </button>
+                </Button>
               )}
             </div>
 

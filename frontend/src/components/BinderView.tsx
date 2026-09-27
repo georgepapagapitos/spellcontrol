@@ -573,13 +573,9 @@ const PageRun = memo(function PageRun({
         ))}
       </div>
       {hiddenCount > 0 && (
-        <button
-          type="button"
-          className="binder-section-show-more"
-          onClick={() => setExpanded(true)}
-        >
+        <Button className="binder-section-show-more" onClick={() => setExpanded(true)}>
           +{hiddenCount} more page{hiddenCount !== 1 ? 's' : ''}
-        </button>
+        </Button>
       )}
     </CardPreviewContext.Provider>
   );
@@ -674,13 +670,9 @@ const SectionBlock = memo(function SectionBlock({
             ))}
           </div>
           {!pagesExpanded && hiddenCount > 0 && (
-            <button
-              type="button"
-              className="binder-section-show-more"
-              onClick={() => setPagesExpanded(true)}
-            >
+            <Button className="binder-section-show-more" onClick={() => setPagesExpanded(true)}>
               +{hiddenCount} more page{hiddenCount !== 1 ? 's' : ''}
-            </button>
+            </Button>
           )}
         </CardPreviewContext.Provider>
       )}
