@@ -12,6 +12,8 @@ import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { CUBE_SIZES, sizeInfo, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
 import type { GeneratedCube } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
+import { isLegendCandidate, LEGEND_TARGET } from '../../lib/cube/legend';
+import type { CubeFormat } from '../../lib/cube/play-format';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import type { CubeProgress } from '../../lib/cube/generate-async';
@@ -265,10 +267,51 @@ export function CubeEmptyState({
   );
 }
 
-/** The cube-size picker plus its note on who the size is for. Every build is a
- *  draft cube: the Commander format was taken out of the UI (board T150) because
- *  it only swapped the corpus targets and knew nothing about commanders, so it
- *  promised a Commander cube it could not build.
+/** "a 4-player pod" / "an 8-player pod" — the only two player counts a cube
+ *  size ever carries (see `sizeInfo`), so a lookup beats a spoken-number rule. */
+const POD_ARTICLE: Record<number, string> = { 4: 'a', 6: 'a', 8: 'an' };
+
+/** Draft/Commander (board #12, PR2) — a `SegmentedControl` (2 short options,
+ *  STYLE_GUIDE § Config surfaces "by option count") with its own note, same
+ *  shape as `CardPrioritySegmented` below. Sits above `CubeSizePicker` as one
+ *  paired config block; the size picker's OWN note is format-aware too (see
+ *  below), so between the two the format's shape and the chosen size's math
+ *  are both stated. Reachable only once PR1's legend quota backs it — a
+ *  Commander cube here always builds a real, colour-spread legend section
+ *  (never the T150 mistake: a format picker with nothing behind it). */
+const FORMAT_LABEL: Record<CubeFormat, string> = { limited: 'Draft', commander: 'Commander' };
+const FORMAT_NOTE: Record<CubeFormat, string> = {
+  limited: '40-card decks, two players a game. 3 packs of 15 per drafter.',
+  commander:
+    "60-card decks with a commander, multiplayer. A separate pool of legendary creatures supplies each drafter's commander.",
+};
+export function CubeFormatPicker({
+  format,
+  onFormat,
+}: {
+  format: CubeFormat;
+  onFormat: (f: CubeFormat) => void;
+}) {
+  return (
+    <div className="cube-format">
+      <span className="form-field-label">Format</span>
+      <SegmentedControl<CubeFormat>
+        ariaLabel="Format"
+        value={format}
+        onChange={onFormat}
+        options={(['limited', 'commander'] as const).map((f) => ({
+          value: f,
+          label: FORMAT_LABEL[f],
+        }))}
+      />
+      <p className="cube-format-note">{FORMAT_NOTE[format]}</p>
+    </div>
+  );
+}
+
+/** The cube-size picker plus its note on who the size is for and, for
+ *  Commander, what the legend section adds on top (board #12 PR2 — legends
+ *  are ADDITIONAL to `size`, never carved out of it).
  *
  *  Six sizes is "five or more options" (STYLE_GUIDE § Config surfaces kit
  *  table) — `SelectMenu`, never the mockup's tile grid; each option states how
@@ -277,12 +320,20 @@ export function CubeSizePicker({
   size,
   onSize,
   shortfallFor,
+  format = 'limited',
 }: {
   size: CubeSize;
   onSize: (s: CubeSize) => void;
   /** Returns how many cards short the filtered pool is of a given size (0 = fits). */
   shortfallFor?: (s: CubeSize) => number;
+  /** Which format's note to show (see `CubeFormatPicker`). */
+  format?: CubeFormat;
 }) {
+  const info = sizeInfo(size);
+  const note =
+    format === 'commander'
+      ? `${size} spells + ${LEGEND_TARGET[size]} commanders · ${POD_ARTICLE[info.players] ?? 'a'} ${info.players}-player pod, everyone builds a 60-card deck with a commander.`
+      : info.note;
   return (
     <div className="cube-size">
       <SelectMenu<CubeSize>
@@ -300,9 +351,30 @@ export function CubeSizePicker({
         })}
         onChange={onSize}
       />
-      <p className="cube-size-note">{sizeInfo(size).note}</p>
+      <p className="cube-size-note">{note}</p>
     </div>
   );
+}
+
+/** How many of `names` (already filtered/deduped — e.g. `useOwnedCubePool`'s
+ *  `uniqueNames`) are commander-eligible legends, read straight off the
+ *  collection cache (`typeLine` + `oracleText`, when present). No oracle
+ *  fetch, so this updates live as the format/size controls change, same as
+ *  the plain spell count next to it — an approximation only in the rare case
+ *  a collection row's cached `oracleText` predates that field, which never
+ *  changes a plain `Legendary Creature` type-line match. */
+export function countEligibleLegends(
+  names: readonly string[],
+  collectionCards: readonly EnrichedCard[]
+): number {
+  const byName = new Map<string, EnrichedCard>();
+  for (const c of collectionCards) if (c.name && !byName.has(c.name)) byName.set(c.name, c);
+  let n = 0;
+  for (const name of names) {
+    const c = byName.get(name);
+    if (c && isLegendCandidate(c)) n++;
+  }
+  return n;
 }
 
 /** Card priority: Power (best cards, synergyLevel 0) / Balanced (0.5) / Themed

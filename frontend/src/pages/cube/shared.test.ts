@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
-import { ownershipIndex } from './shared';
+import { ownershipIndex, countEligibleLegends } from './shared';
 import type { AllocationInfo } from '@/lib/allocations';
 import type { EnrichedCard } from '@/types';
 
@@ -62,5 +62,33 @@ describe('ownershipIndex', () => {
 
   it('unknown name is unowned', () => {
     expect(ownershipIndex(cards, new Map()).ownershipFor('Ghost')).toBe('unowned');
+  });
+});
+
+describe('countEligibleLegends (board #12, PR2)', () => {
+  const row = (name: string, over: Partial<EnrichedCard> = {}): EnrichedCard =>
+    ({ copyId: name, name, ...over }) as EnrichedCard;
+
+  it('counts legendary creatures and the oracle-text "can be your commander" pattern, nothing else', () => {
+    const collection = [
+      row('Meren of Clan Nel Toth', { typeLine: 'Legendary Creature — Human Shaman' }),
+      row('Sol Ring', { typeLine: 'Artifact' }),
+      row('Daretti, Scrap Savant', {
+        typeLine: 'Legendary Planeswalker — Daretti',
+        oracleText: 'Daretti, Scrap Savant can be your commander.',
+      }),
+      row('Jace, the Mind Sculptor', { typeLine: 'Legendary Planeswalker — Jace' }),
+    ];
+    const names = collection.map((c) => c.name);
+    expect(countEligibleLegends(names, collection)).toBe(2);
+  });
+
+  it('only counts names actually in the filtered list, and dedupes by name', () => {
+    const collection = [
+      row('Selvala, Heart of the Wild', { typeLine: 'Legendary Creature — Elf Druid' }),
+      row('Selvala, Heart of the Wild', { typeLine: 'Legendary Creature — Elf Druid' }),
+    ];
+    expect(countEligibleLegends(['Selvala, Heart of the Wild'], collection)).toBe(1);
+    expect(countEligibleLegends([], collection)).toBe(0);
   });
 });
