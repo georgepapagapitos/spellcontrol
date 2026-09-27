@@ -1368,6 +1368,9 @@ async function webPushInner(
     for (const [kind, rows] of restoreByKind) await estore.putMany(kind, rows);
     if (reverted > 0) await rehydrateStoresFromIdb();
     const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+    // 413 is the account's storage cap: the server's message says what to do,
+    // and a Retry would only hit the same wall.
+    const overCap = (err as { status?: number })?.status === 413;
     if (kept > 0) {
       const what = kept === 1 ? '1 change' : `${kept.toLocaleString()} changes`;
       toast.show(
@@ -1376,18 +1379,22 @@ async function webPushInner(
               message: `You're offline. ${what} saved on this device, will sync when you reconnect.`,
               tone: 'info',
             }
-          : {
-              message: `Couldn't save ${what}. Kept on this device.`,
-              tone: 'error',
-              actionLabel: 'Retry',
-              onAction: () => void pushUnsyncedRows(),
-            }
+          : overCap
+            ? { message: `${(err as Error).message} ${what} kept on this device.`, tone: 'error' }
+            : {
+                message: `Couldn't save ${what}. Kept on this device.`,
+                tone: 'error',
+                actionLabel: 'Retry',
+                onAction: () => void pushUnsyncedRows(),
+              }
       );
     } else {
       toast.show({
         message: offline
           ? "You're offline. Changes can't be saved."
-          : "Couldn't save that change. Try again.",
+          : overCap
+            ? (err as Error).message
+            : "Couldn't save that change. Try again.",
         tone: 'error',
       });
     }

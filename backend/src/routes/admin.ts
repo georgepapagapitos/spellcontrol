@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { eq } from 'drizzle-orm';
-import { requireAdmin } from '../auth';
+import { forgetDeletedUser, requireAdmin } from '../auth';
 import { testAwareLimiter } from '../route-utils';
 import { getDb, getPool } from '../db';
 import { users } from '../db/schema';
@@ -303,6 +303,7 @@ adminRouter.delete(
     // Before the cascade takes the slugs and tokens with it.
     await purgeUserPublicCaches(id);
     await db.delete(users).where(eq(users.id, id));
+    forgetDeletedUser(id);
     res.json({ ok: true });
   }
 );

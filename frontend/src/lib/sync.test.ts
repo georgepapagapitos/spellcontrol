@@ -1636,6 +1636,24 @@ describe('web write-through (no durable outbox)', () => {
     expect(kept?.actionLabel).toBe('Retry');
   });
 
+  it('over the storage cap, says so and offers no Retry that would fail the same way', async () => {
+    const { useToastsStore } = await import('../store/toasts');
+    useToastsStore.getState().clear();
+    const capped = Object.assign(
+      new Error(
+        'This account has reached its 512 MB storage limit. Delete something to make room.'
+      ),
+      { status: 413 }
+    );
+    mockPush.mockRejectedValueOnce(capped);
+    await recordUpsert('binder', 'b-cap', { id: 'b-cap' });
+    expect(await estore.getById('binder', 'b-cap')).toMatchObject({ rev: 0 }); // still kept
+    const { toasts } = useToastsStore.getState();
+    const shown = toasts.find((t) => /storage limit/.test(t.message));
+    expect(shown?.message).toMatch(/1 change kept on this device.$/);
+    expect(shown?.actionLabel).toBeUndefined();
+  });
+
   it('a failed write keeps an optimistically-added new row and re-sends it on retry', async () => {
     mockPush.mockRejectedValueOnce(new Error('offline'));
     await recordUpsert('binder', 'b-new', { id: 'b-new' });

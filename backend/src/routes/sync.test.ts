@@ -390,6 +390,40 @@ describe('live row counts on the pull (E291 drift detection)', () => {
   });
 });
 
+describe('per-account storage cap', () => {
+  it('refuses a push that would take the account past its cap, tombstones included', async () => {
+    const cookie = await registerAndGetCookie('storage_cap');
+    process.env.USER_STORAGE_CAP_BYTES = '20000';
+    try {
+      await push(cookie, { upserts: [cardRow('sc-1', 'cccccccc-0000-0000-0000-000000000001')] });
+
+      const big = await request(app)
+        .post('/api/sync')
+        .set('Cookie', cookie)
+        .send({ upserts: [{ kind: 'deck', id: 'd-big', data: { notes: 'x'.repeat(30_000) } }] });
+      expect(big.status).toBe(413);
+      expect(big.body.error).toMatch(/storage limit/);
+
+      // Deleting ids the server never had still writes a tombstone row each,
+      // so a flood of them counts against the cap too.
+      const flood = await request(app)
+        .post('/api/sync')
+        .set('Cookie', cookie)
+        .send({
+          deletions: Array.from({ length: 200 }, (_, i) => ({ kind: 'card', id: `ghost-${i}` })),
+        });
+      expect(flood.status).toBe(413);
+
+      // Nothing above landed, and ordinary use still fits.
+      await push(cookie, { upserts: [cardRow('sc-2', 'cccccccc-0000-0000-0000-000000000001')] });
+      const live = (await pull(cookie)).rows.filter((r) => r.deletedAt == null).map((r) => r.id);
+      expect(live.sort()).toEqual(['sc-1', 'sc-2']);
+    } finally {
+      delete process.env.USER_STORAGE_CAP_BYTES;
+    }
+  });
+});
+
 describe('POST /api/sync/clear-collection', () => {
   const SID = 'bbbbbbbb-0000-0000-0000-000000000001';
 

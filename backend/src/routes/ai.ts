@@ -7,7 +7,7 @@ import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import type { PriceCeiling } from '../cache';
-import { aiEnabled, generateReview, AI_MODEL } from '../ai/client';
+import { aiEnabled, estimateUsd, generateReview, AI_MODEL } from '../ai/client';
 import {
   checkBracketTool,
   lookupCardsTool,
@@ -107,6 +107,7 @@ function commanderIdentity(
 export const aiRouter: Router = Router();
 
 export const DEFAULT_DAILY_LIMIT = 10;
+export const DEFAULT_DAILY_USD_CAP = 5;
 
 const reviewLimiter = testAwareLimiter({ windowMs: 60_000, max: 10 });
 const optInLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
@@ -166,6 +167,59 @@ async function usedToday(userId: string): Promise<number> {
     [userId, dayStartMs]
   );
   return Number(res.rows[0]?.n ?? 0);
+}
+
+/**
+ * Global backstop on Anthropic spend, across every account, per UTC day.
+ * The per-user limit bounds one account; this bounds all of them together, so
+ * a flood of new accounts (or AI_PUBLIC=1 going viral) can't run up the bill.
+ * Estimated from the stored token counts at list price (estimateUsd), which
+ * is what the admin spend readout shows too. `AI_DAILY_USD_CAP` overrides it.
+ */
+export function aiDailyUsdCap(): number {
+  const raw = process.env.AI_DAILY_USD_CAP;
+  const n = raw ? Number(raw) : NaN;
+  // 0 is a valid setting: it pauses fresh generations (cached replays still serve).
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_DAILY_USD_CAP;
+}
+
+async function spentTodayUsd(): Promise<number> {
+  const dayStartMs = new Date().setUTCHours(0, 0, 0, 0);
+  const res = await getPool().query<{
+    input_tokens: string;
+    output_tokens: string;
+    cache_write_tokens: string;
+    cache_read_tokens: string;
+  }>(
+    `SELECT COALESCE(SUM(input_tokens), 0)::text AS input_tokens,
+            COALESCE(SUM(output_tokens), 0)::text AS output_tokens,
+            COALESCE(SUM(cache_write_tokens), 0)::text AS cache_write_tokens,
+            COALESCE(SUM(cache_read_tokens), 0)::text AS cache_read_tokens
+       FROM ai_reviews WHERE created_at >= $1`,
+    [dayStartMs]
+  );
+  const r = res.rows[0];
+  return estimateUsd({
+    inputTokens: Number(r?.input_tokens ?? 0),
+    outputTokens: Number(r?.output_tokens ?? 0),
+    cacheWriteTokens: Number(r?.cache_write_tokens ?? 0),
+    cacheReadTokens: Number(r?.cache_read_tokens ?? 0),
+  });
+}
+
+/** Why a fresh generation can't run right now, or null when it can. */
+async function dailyQuotaError(userId: string, userLimit: number | null): Promise<string | null> {
+  const limit = userLimit ?? DEFAULT_DAILY_LIMIT;
+  if ((await usedToday(userId)) >= limit) {
+    return `Daily limit reached (${limit} per day). It resets at midnight UTC.`;
+  }
+  if ((await spentTodayUsd()) >= aiDailyUsdCap()) {
+    logger.warn(
+      '[ai] global daily spend cap reached; refusing fresh generations until UTC midnight'
+    );
+    return 'AI is at its limit for today. It resets at midnight UTC.';
+  }
+  return null;
 }
 
 // ────────────────────────────────────────────────
@@ -343,13 +397,8 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     return res.end();
   }
 
-  const limit = user.ai_daily_limit ?? DEFAULT_DAILY_LIMIT;
-  const used = await usedToday(userId);
-  if (used >= limit) {
-    return res.status(429).json({
-      error: `Daily limit reached (${limit} per day). It resets at midnight UTC.`,
-    });
-  }
+  const quotaError = await dailyQuotaError(userId, user.ai_daily_limit);
+  if (quotaError) return res.status(429).json({ error: quotaError });
 
   // Oracle-text hydration is cache-only by design: a miss means the model
   // reasons without that card's text (the prompt tells it how), never a live
@@ -799,13 +848,8 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     return res.end();
   }
 
-  const limit = user.ai_daily_limit ?? DEFAULT_DAILY_LIMIT;
-  const used = await usedToday(userId);
-  if (used >= limit) {
-    return res.status(429).json({
-      error: `Daily limit reached (${limit} per day). It resets at midnight UTC.`,
-    });
-  }
+  const quotaError = await dailyQuotaError(userId, user.ai_daily_limit);
+  if (quotaError) return res.status(429).json({ error: quotaError });
 
   // The engine's suggestions need hydrating too — the model can't judge a
   // candidate it only knows the name of. Cards it looks up arrive with their
@@ -1076,13 +1120,8 @@ aiRouter.post(
         .json({ error: 'The rules database is still loading. Try again in a minute.' });
     }
 
-    const limit = user.ai_daily_limit ?? DEFAULT_DAILY_LIMIT;
-    const used = await usedToday(userId);
-    if (used >= limit) {
-      return res.status(429).json({
-        error: `Daily limit reached (${limit} per day). It resets at midnight UTC.`,
-      });
-    }
+    const quotaError = await dailyQuotaError(userId, user.ai_daily_limit);
+    if (quotaError) return res.status(429).json({ error: quotaError });
 
     // TWO PASSES, exactly like the deck review (#1660): research with tools
     // whose prose is discarded wholesale, then a tool-free writing pass that

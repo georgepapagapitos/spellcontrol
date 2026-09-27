@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
+import { ipKeyGenerator } from 'express-rate-limit';
 import { testAwareLimiter } from '../route-utils';
 import { promoteIfSeededAdmin } from '../admin/bootstrap';
 import { refreshGameResultUsernames, renameUser } from '../username/rename';
@@ -22,6 +23,8 @@ import {
   normalizeUsername,
   readSessionCookie,
   requireAuth,
+  revokeSessions,
+  forgetDeletedUser,
   setSessionCookie,
   signSession,
   signOAuthState,
@@ -78,6 +81,44 @@ const passwordChangeLimiter = testAwareLimiter({ windowMs: 60 * 60 * 1000, max: 
 // Renaming is cooldown-limited in the database; this only stops a client
 // hammering the validation path.
 const usernameChangeLimiter = testAwareLimiter({ windowMs: 60 * 60 * 1000, max: 10 });
+
+// The limiters above count per IP, which an attacker with many IPs walks
+// straight past. These count per TARGET: the account being guessed at, and
+// the inbox being mailed. A body without a usable username/email falls back to
+// the IP, so it can never share one global bucket.
+const byIp = (req: Request): string => ipKeyGenerator(req.ip ?? '');
+export function loginAccountKey(req: Request): string {
+  const username = normalizeUsername(req.body?.username);
+  return username ? `login:${username}` : byIp(req);
+}
+export function mailTargetKey(req: Request): string {
+  const email = normalizeEmail(req.body?.email);
+  return email ? `mail:${email}` : byIp(req);
+}
+// Failed sign-ins per username. Successful ones don't count, so the owner only
+// ever meets this after 20 wrong passwords in 15 minutes, and a reset link
+// (which signs them in) still works while it is in force.
+const loginAccountLimiter = testAwareLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  skipSuccessfulRequests: true,
+  keyGenerator: loginAccountKey,
+});
+// Emails sent to one address, whoever asks. Stops a botnet using sign-up,
+// forgot-password or add-email to flood a stranger's inbox (and spend our
+// Resend quota doing it).
+const mailTargetLimiter = testAwareLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: mailTargetKey,
+});
+// Resend mails the account's own pending address, which isn't in the body,
+// so it counts per account instead. Mounted after requireAuth.
+const mailResendAccountLimiter = testAwareLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => (req.user ? `resend:${req.user.id}` : byIp(req)),
+});
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -186,114 +227,127 @@ export const authRouter: Router = Router();
  * ever adding it. Until then the account has an email on the way and no
  * recovery yet, which is what the unverified-email banner is for.
  */
-authRouter.post('/register', registerLimiter, async (req: Request, res: Response) => {
-  const username = normalizeUsername(req.body?.username);
-  const password = validatePassword(req.body?.password);
-  const email = normalizeEmail(req.body?.email);
-  if (!username) {
-    return res.status(400).json({
-      error: 'Username must be 3–32 characters and use only lowercase letters, digits, _ and -.',
-    });
+authRouter.post(
+  '/register',
+  registerLimiter,
+  mailTargetLimiter,
+  async (req: Request, res: Response) => {
+    const username = normalizeUsername(req.body?.username);
+    const password = validatePassword(req.body?.password);
+    const email = normalizeEmail(req.body?.email);
+    if (!username) {
+      return res.status(400).json({
+        error: 'Username must be 3–32 characters and use only lowercase letters, digits, _ and -.',
+      });
+    }
+    if (!password) {
+      return res
+        .status(400)
+        .json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+    }
+    if (!email) {
+      return res.status(400).json({ error: 'Enter a valid email address.' });
+    }
+    if (isReservedUsername(username)) {
+      return res.status(400).json({ error: 'That username is reserved.' });
+    }
+
+    const db = getDb();
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'That username is already taken.' });
+    }
+    // Same generic refusal `POST /me/email` gives, and for the same reason: a
+    // message that distinguished "in use" from "not in use" would turn this
+    // open endpoint into a way to ask whether an address has an account here.
+    const emailOwners = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.email, email), eq(users.emailVerified, true)))
+      .limit(1);
+    if (emailOwners.length > 0) {
+      return res.status(409).json({ error: 'That email is already in use.' });
+    }
+
+    const id = crypto.randomUUID();
+    const passwordHash = await hashPassword(password);
+    const now = Date.now();
+    // Always 'user'. A password signup has no verified email yet, and admin is
+    // seeded from VERIFIED addresses only (`ADMIN_EMAILS`), so there is nothing
+    // to promote on at this point — `promoteIfSeededAdmin` fires later, when
+    // the address is actually verified.
+    const role: UserRole = 'user';
+    await db.insert(users).values({ id, username, passwordHash, role, createdAt: now });
+    // Password signup is anonymous (no email) and open to the public internet, so
+    // log the source IP + UA to tell real users from endpoint-probing bots.
+    // `trust proxy` (server.ts) makes req.ip the real client, not the Fly edge.
+    logger.info(
+      `[auth] register "${username}" (${id}) ip=${req.ip} ua=${req.get('user-agent') ?? '?'}`
+    );
+    // No initial user-data row to create: per-entity tables are empty by default
+    // and become populated by the first POST /api/sync from the client.
+
+    // Best-effort: `sendMail` never throws, and the token is already issued, so
+    // a mail outage costs the user a Resend click rather than the account.
+    const verifyToken = await issueAuthToken(id, 'verify', email);
+    const verifyLink = `${publicWebOrigin()}/verify-email?token=${encodeURIComponent(verifyToken)}`;
+    await sendMail({ to: email, ...verifyEmailContent(verifyLink) });
+
+    const token = signSession({ id, username, role });
+    setSessionCookie(res, token);
+    res.status(201).json({ user: { id, username, role }, pendingEmail: email });
   }
-  if (!password) {
-    return res
-      .status(400)
-      .json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+);
+
+authRouter.post(
+  '/login',
+  loginLimiter,
+  loginAccountLimiter,
+  async (req: Request, res: Response) => {
+    const username = normalizeUsername(req.body?.username);
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    // Generic error message on every failure path so we never leak whether the
+    // account exists.
+    const failure = () => res.status(401).json({ error: 'Invalid username or password.' });
+
+    if (!username || !password) return failure();
+
+    const db = getDb();
+    const rows = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        passwordHash: users.passwordHash,
+        role: users.role,
+      })
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+    const user = rows[0];
+    if (!user || !user.passwordHash) {
+      // No such user, or an SSO-only account with no password. Run a dummy hash
+      // compare to keep timing roughly constant, and return the same generic
+      // error either way so we never leak that the account exists or how it
+      // authenticates.
+      await verifyPassword(
+        password,
+        '$2a$12$abcdefghijklmnopqrstuvCwVlH7bC/uHKRkEy0eOxn3oS2WfXm6Vu'
+      );
+      return failure();
+    }
+    const ok = await verifyPassword(password, user.passwordHash);
+    if (!ok) return failure();
+
+    const role: UserRole = user.role === 'admin' ? 'admin' : 'user';
+    const token = signSession({ id: user.id, username: user.username, role });
+    setSessionCookie(res, token);
+    res.json({ user: { id: user.id, username: user.username, role } });
   }
-  if (!email) {
-    return res.status(400).json({ error: 'Enter a valid email address.' });
-  }
-  if (isReservedUsername(username)) {
-    return res.status(400).json({ error: 'That username is reserved.' });
-  }
-
-  const db = getDb();
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.username, username))
-    .limit(1);
-  if (existing.length > 0) {
-    return res.status(409).json({ error: 'That username is already taken.' });
-  }
-  // Same generic refusal `POST /me/email` gives, and for the same reason: a
-  // message that distinguished "in use" from "not in use" would turn this
-  // open endpoint into a way to ask whether an address has an account here.
-  const emailOwners = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.email, email), eq(users.emailVerified, true)))
-    .limit(1);
-  if (emailOwners.length > 0) {
-    return res.status(409).json({ error: 'That email is already in use.' });
-  }
-
-  const id = crypto.randomUUID();
-  const passwordHash = await hashPassword(password);
-  const now = Date.now();
-  // Always 'user'. A password signup has no verified email yet, and admin is
-  // seeded from VERIFIED addresses only (`ADMIN_EMAILS`), so there is nothing
-  // to promote on at this point — `promoteIfSeededAdmin` fires later, when
-  // the address is actually verified.
-  const role: UserRole = 'user';
-  await db.insert(users).values({ id, username, passwordHash, role, createdAt: now });
-  // Password signup is anonymous (no email) and open to the public internet, so
-  // log the source IP + UA to tell real users from endpoint-probing bots.
-  // `trust proxy` (server.ts) makes req.ip the real client, not the Fly edge.
-  logger.info(
-    `[auth] register "${username}" (${id}) ip=${req.ip} ua=${req.get('user-agent') ?? '?'}`
-  );
-  // No initial user-data row to create: per-entity tables are empty by default
-  // and become populated by the first POST /api/sync from the client.
-
-  // Best-effort: `sendMail` never throws, and the token is already issued, so
-  // a mail outage costs the user a Resend click rather than the account.
-  const verifyToken = await issueAuthToken(id, 'verify', email);
-  const verifyLink = `${publicWebOrigin()}/verify-email?token=${encodeURIComponent(verifyToken)}`;
-  await sendMail({ to: email, ...verifyEmailContent(verifyLink) });
-
-  const token = signSession({ id, username, role });
-  setSessionCookie(res, token);
-  res.status(201).json({ user: { id, username, role }, pendingEmail: email });
-});
-
-authRouter.post('/login', loginLimiter, async (req: Request, res: Response) => {
-  const username = normalizeUsername(req.body?.username);
-  const password = typeof req.body?.password === 'string' ? req.body.password : '';
-  // Generic error message on every failure path so we never leak whether the
-  // account exists.
-  const failure = () => res.status(401).json({ error: 'Invalid username or password.' });
-
-  if (!username || !password) return failure();
-
-  const db = getDb();
-  const rows = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      passwordHash: users.passwordHash,
-      role: users.role,
-    })
-    .from(users)
-    .where(eq(users.username, username))
-    .limit(1);
-  const user = rows[0];
-  if (!user || !user.passwordHash) {
-    // No such user, or an SSO-only account with no password. Run a dummy hash
-    // compare to keep timing roughly constant, and return the same generic
-    // error either way so we never leak that the account exists or how it
-    // authenticates.
-    await verifyPassword(password, '$2a$12$abcdefghijklmnopqrstuvCwVlH7bC/uHKRkEy0eOxn3oS2WfXm6Vu');
-    return failure();
-  }
-  const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) return failure();
-
-  const role: UserRole = user.role === 'admin' ? 'admin' : 'user';
-  const token = signSession({ id: user.id, username: user.username, role });
-  setSessionCookie(res, token);
-  res.json({ user: { id: user.id, username: user.username, role } });
-});
+);
 
 /**
  * Request a password reset. ALWAYS 200 with the same body — never reveal
@@ -302,30 +356,35 @@ authRouter.post('/login', loginLimiter, async (req: Request, res: Response) => {
  * unverified/non-existent branch runs a dummy password hash so the two
  * paths take roughly the same time, same trick `POST /login` already uses.
  */
-authRouter.post('/forgot-password', forgotPasswordLimiter, async (req: Request, res: Response) => {
-  const email = normalizeEmail(req.body?.email);
-  const respond = (): void => {
-    res.json({ ok: true, message: "If an account uses that email, we've sent a reset link." });
-  };
-  if (!email) return respond();
+authRouter.post(
+  '/forgot-password',
+  forgotPasswordLimiter,
+  mailTargetLimiter,
+  async (req: Request, res: Response) => {
+    const email = normalizeEmail(req.body?.email);
+    const respond = (): void => {
+      res.json({ ok: true, message: "If an account uses that email, we've sent a reset link." });
+    };
+    if (!email) return respond();
 
-  const db = getDb();
-  const rows = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.email, email), eq(users.emailVerified, true)))
-    .limit(1);
-  const user = rows[0];
-  if (user) {
-    const token = await issueAuthToken(user.id, 'reset');
-    const link = `${publicWebOrigin()}/reset-password?token=${encodeURIComponent(token)}`;
-    const content = resetPasswordContent(link);
-    await sendMail({ to: email, ...content });
-  } else {
-    await hashPassword('reset-timing-equalizer');
+    const db = getDb();
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.email, email), eq(users.emailVerified, true)))
+      .limit(1);
+    const user = rows[0];
+    if (user) {
+      const token = await issueAuthToken(user.id, 'reset');
+      const link = `${publicWebOrigin()}/reset-password?token=${encodeURIComponent(token)}`;
+      const content = resetPasswordContent(link);
+      await sendMail({ to: email, ...content });
+    } else {
+      await hashPassword('reset-timing-equalizer');
+    }
+    respond();
   }
-  respond();
-});
+);
 
 /**
  * Finish a password reset: validates the token, sets the new password, and
@@ -364,6 +423,10 @@ authRouter.post('/reset-password', resetPasswordLimiter, async (req: Request, re
         isNull(authTokens.usedAt)
       )
     );
+
+  // A reset is what someone does after a break-in: every other device,
+  // including whoever held a stolen cookie, is signed out.
+  await revokeSessions(result.userId);
 
   const user = await loadUserById(result.userId);
   if (!user) return expired();
@@ -596,80 +659,88 @@ authRouter.post('/google/complete-signup', oauthLimiter, async (req: Request, re
  * signs them in (instead of creating a new account). The password is the
  * ownership proof; we never link on email alone.
  */
-authRouter.post('/google/link-with-password', oauthLimiter, async (req: Request, res: Response) => {
-  const signupToken = typeof req.body?.signupToken === 'string' ? req.body.signupToken : '';
-  const identity = verifySignupToken(signupToken);
-  if (!identity) {
-    return res
-      .status(401)
-      .json({ error: 'Your sign-up link expired. Please sign in with Google again.' });
-  }
+authRouter.post(
+  '/google/link-with-password',
+  oauthLimiter,
+  loginAccountLimiter,
+  async (req: Request, res: Response) => {
+    const signupToken = typeof req.body?.signupToken === 'string' ? req.body.signupToken : '';
+    const identity = verifySignupToken(signupToken);
+    if (!identity) {
+      return res
+        .status(401)
+        .json({ error: 'Your sign-up link expired. Please sign in with Google again.' });
+    }
 
-  // Race: if the Google identity got linked between this screen rendering
-  // and the user submitting (another tab, a retry), just sign them in.
-  const alreadyLinked = await findGoogleUser(identity.sub);
-  if (alreadyLinked) {
-    setSessionCookie(res, signSession(alreadyLinked));
-    return res.json({ user: alreadyLinked });
-  }
+    // Race: if the Google identity got linked between this screen rendering
+    // and the user submitting (another tab, a retry), just sign them in.
+    const alreadyLinked = await findGoogleUser(identity.sub);
+    if (alreadyLinked) {
+      setSessionCookie(res, signSession(alreadyLinked));
+      return res.json({ user: alreadyLinked });
+    }
 
-  const username = normalizeUsername(req.body?.username);
-  const password = typeof req.body?.password === 'string' ? req.body.password : '';
-  // Generic error on every credential-related failure so we never leak
-  // whether the username exists or how it authenticates.
-  const failure = () => res.status(401).json({ error: 'Invalid username or password.' });
-  if (!username || !password) return failure();
-  if (isReservedUsername(username)) {
-    return res.status(400).json({ error: 'That username is reserved.' });
-  }
+    const username = normalizeUsername(req.body?.username);
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    // Generic error on every credential-related failure so we never leak
+    // whether the username exists or how it authenticates.
+    const failure = () => res.status(401).json({ error: 'Invalid username or password.' });
+    if (!username || !password) return failure();
+    if (isReservedUsername(username)) {
+      return res.status(400).json({ error: 'That username is reserved.' });
+    }
 
-  const db = getDb();
-  const rows = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      passwordHash: users.passwordHash,
-      role: users.role,
-    })
-    .from(users)
-    .where(eq(users.username, username))
-    .limit(1);
-  const user = rows[0];
-  if (!user || !user.passwordHash) {
-    // Dummy compare keeps timing roughly constant for unknown users and
-    // SSO-only accounts (no password).
-    await verifyPassword(password, '$2a$12$abcdefghijklmnopqrstuvCwVlH7bC/uHKRkEy0eOxn3oS2WfXm6Vu');
-    return failure();
-  }
-  const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) return failure();
+    const db = getDb();
+    const rows = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        passwordHash: users.passwordHash,
+        role: users.role,
+      })
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+    const user = rows[0];
+    if (!user || !user.passwordHash) {
+      // Dummy compare keeps timing roughly constant for unknown users and
+      // SSO-only accounts (no password).
+      await verifyPassword(
+        password,
+        '$2a$12$abcdefghijklmnopqrstuvCwVlH7bC/uHKRkEy0eOxn3oS2WfXm6Vu'
+      );
+      return failure();
+    }
+    const ok = await verifyPassword(password, user.passwordHash);
+    if (!ok) return failure();
 
-  // Refuse a second Google link on the same account — the user should sign
-  // in with the one already attached.
-  const existing = await db
-    .select({ providerSubject: authIdentities.providerSubject })
-    .from(authIdentities)
-    .where(and(eq(authIdentities.userId, user.id), eq(authIdentities.provider, 'google')))
-    .limit(1);
-  if (existing.length > 0) {
-    return res.status(409).json({
-      error: 'This account already has a Google account linked. Sign in with that one.',
+    // Refuse a second Google link on the same account — the user should sign
+    // in with the one already attached.
+    const existing = await db
+      .select({ providerSubject: authIdentities.providerSubject })
+      .from(authIdentities)
+      .where(and(eq(authIdentities.userId, user.id), eq(authIdentities.provider, 'google')))
+      .limit(1);
+    if (existing.length > 0) {
+      return res.status(409).json({
+        error: 'This account already has a Google account linked. Sign in with that one.',
+      });
+    }
+
+    await db.insert(authIdentities).values({
+      provider: 'google',
+      providerSubject: identity.sub,
+      userId: user.id,
+      createdAt: Date.now(),
     });
+    await adoptVerifiedGoogleEmail(user.id, identity);
+
+    const role: UserRole = user.role === 'admin' ? 'admin' : 'user';
+    const authed = { id: user.id, username: user.username, role };
+    setSessionCookie(res, signSession(authed));
+    res.json({ user: authed });
   }
-
-  await db.insert(authIdentities).values({
-    provider: 'google',
-    providerSubject: identity.sub,
-    userId: user.id,
-    createdAt: Date.now(),
-  });
-  await adoptVerifiedGoogleEmail(user.id, identity);
-
-  const role: UserRole = user.role === 'admin' ? 'admin' : 'user';
-  const authed = { id: user.id, username: user.username, role };
-  setSessionCookie(res, signSession(authed));
-  res.json({ user: authed });
-});
+);
 
 // Limited like every other session route. Logout is cheap and unauthenticated,
 // but 'cheap' is not 'unbounded' — and an unlimited route is the one this
@@ -852,6 +923,7 @@ authRouter.delete('/me', requireAuth, profileLimiter, async (req: Request, res: 
   // pages indexable, raising the stakes on a stale-cache window post-deletion.
   await purgeUserPublicCaches(userId);
   await db.delete(users).where(eq(users.id, userId));
+  forgetDeletedUser(userId);
 
   clearSessionCookie(res);
   res.json({ ok: true });
@@ -975,6 +1047,7 @@ authRouter.patch(
 authRouter.post(
   '/me/email',
   emailChangeLimiter,
+  mailTargetLimiter,
   requireAuth,
   async (req: Request, res: Response) => {
     const email = normalizeEmail(req.body?.email);
@@ -1043,6 +1116,7 @@ authRouter.post(
   '/me/email/resend',
   emailResendLimiter,
   requireAuth,
+  mailResendAccountLimiter,
   async (req: Request, res: Response) => {
     const pending = await latestPendingVerify(req.user!.id);
     if (!pending) {
@@ -1093,6 +1167,14 @@ authRouter.post(
 
     const passwordHash = await hashPassword(newPassword);
     await db.update(users).set({ passwordHash }).where(eq(users.id, req.user!.id));
+    // A CHANGE signs out every other session (a first password on an SSO-only
+    // account is not a security event, so it leaves them alone). This device
+    // gets a fresh cookie so the person changing it stays signed in here.
+    if (existingHash) {
+      await revokeSessions(req.user!.id);
+      const fresh = await loadUserById(req.user!.id);
+      if (fresh) setSessionCookie(res, signSession(fresh));
+    }
     res.json({ ok: true });
   }
 );

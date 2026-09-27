@@ -95,6 +95,12 @@ export const users = pgTable('users', {
    * this shipped): friends see which cards, never quantities or prices.
    */
   collectionVisibility: text('collection_visibility').default('public'),
+  /**
+   * Epoch SECONDS (JWT `iat` units). A session token issued before it is
+   * rejected — bumped on password reset/change (see auth.ts
+   * `revokeSessions`). NULL = never revoked.
+   */
+  sessionsValidAfter: bigint('sessions_valid_after', { mode: 'number' }),
 });
 
 /**
