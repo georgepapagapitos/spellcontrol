@@ -20,10 +20,10 @@
  *     declined.", "Game night deleted." before this sweep) is out of scope:
  *     this guard only holds the two fixed verb-first openings to their shape,
  *     it doesn't detect every synonym for a deletion.
- *   - test files are skipped; `playtest/*`, `components/deck/*`, `pages/DeckEditorPage.tsx`,
- *     `components/ProductSearchPanel.tsx` and `pages/TagsPage.tsx` are owned by other
- *     T157 lanes and skipped here too (swept after those lanes merge), though
- *     every instance in them already conforms as of this sweep.
+ *   - test files are skipped, and so are `components/deck/*` and
+ *     `components/ProductSearchPanel.tsx` while the T152 sessions hold them.
+ *   - a trailing period is allowed after a second sentence ("Deleted Rares.
+ *     Its cards moved to other binders."); only the lone fragment is held.
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
@@ -32,7 +32,7 @@ import ts from 'typescript';
 
 const ROOT = path.resolve(__dirname, '..');
 const SKIP_FILE =
-  /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|\/playtest\/|\/components\/deck\/|\/pages\/DeckEditorPage\.tsx$|\/components\/ProductSearchPanel\.tsx$|\/pages\/TagsPage\.tsx$)/;
+  /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|\/components\/deck\/|\/components\/ProductSearchPanel\.tsx$)/;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -88,7 +88,10 @@ function scan(file: string): Violation[] {
               toneText = prop.initializer.text;
           }
           if (messageText != null && /^(Deleted|Removed)\b/.test(messageText)) {
-            if (messageText.trimEnd().endsWith('.'))
+            // A fragment takes no period; a second sentence ("Deleted Rares. Its
+            // cards moved to other binders.") ends the way any sentence does.
+            const text = messageText.trimEnd();
+            if (text.endsWith('.') && !/\.\s/.test(text.slice(0, -1)))
               out.push({
                 file: rel,
                 line: line(n),
