@@ -715,7 +715,7 @@
 
 /* Points down when open, right when shut. */
 .deck-section-collapse-icon {
-  transition: transform 0.15s ease;
+  transition: transform var(--motion-fast) ease;
 }
 
 .deck-section-collapse[aria-expanded='false'] .deck-section-collapse-icon {

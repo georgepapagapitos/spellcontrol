@@ -58,7 +58,7 @@
 }
 
 .player-panel-life-num.is-pop {
-  animation: pp-pop 180ms ease-out;
+  animation: pp-pop 180ms var(--ease-pop);
 }
 
 @keyframes pp-pop {

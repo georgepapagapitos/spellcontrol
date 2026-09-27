@@ -152,7 +152,7 @@
   position: absolute;
   inset: 0;
   background: var(--overlay-sheet);
-  animation: binder-sheet-fade 160ms ease-out;
+  animation: binder-sheet-fade 160ms var(--ease-out-soft);
 }
 
 .stats-drawer {
@@ -200,7 +200,7 @@
 }
 
 .stats-drawer-backdrop.is-closing {
-  animation: fade-out var(--motion-base) ease-out forwards;
+  animation: fade-out var(--motion-base) var(--ease-out-soft) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -771,8 +771,8 @@
   cursor: pointer;
   background: var(--surface);
   transition:
-    border-color 0.15s,
-    background 0.15s;
+    border-color var(--motion-fast),
+    background var(--motion-fast);
   display: flex;
   flex-direction: column;
   align-items: center;

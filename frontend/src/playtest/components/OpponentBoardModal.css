@@ -15,7 +15,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  animation: fade-in 0.25s var(--ease-drawer) backwards;
+  animation: fade-in 0.3s var(--ease-drawer) backwards;
 }
 
 .opponent-board-backdrop.is-closing {
@@ -33,7 +33,7 @@
   border: 0.5px solid var(--border);
   border-bottom: none;
   padding-bottom: max(var(--space-3), var(--safe-bottom));
-  animation: sheet-rise 0.4s var(--ease-drawer) backwards;
+  animation: sheet-rise var(--motion-drawer) var(--ease-drawer) backwards;
   overflow: hidden;
 }
 
@@ -61,7 +61,7 @@
     max-height: min(84dvh, 100%);
     border-radius: var(--radius-lg);
     border-bottom: 0.5px solid var(--border);
-    animation: fade-in 0.25s var(--ease-drawer) backwards;
+    animation: fade-in 0.3s var(--ease-drawer) backwards;
   }
 }
 
@@ -254,7 +254,7 @@
    `transform`, and an entrance `transform` here would fight it for a
    permanent that arrives already tapped. */
 .opponent-board-card.is-entering {
-  animation: opponent-board-card-enter 200ms var(--ease-out-soft);
+  animation: opponent-board-card-enter var(--motion-base) var(--ease-out-soft);
 }
 
 @keyframes opponent-board-card-enter {
@@ -350,7 +350,7 @@
      at this floor rather than 0 — an affordance nobody can reveal is an
      affordance that does not exist on a phone. */
   opacity: 0.45;
-  transition: opacity 120ms var(--ease-out-soft);
+  transition: opacity var(--motion-fast) var(--ease-out-soft);
 }
 
 /* Keyboard focus is ungated — a tab-through must reveal the control on every

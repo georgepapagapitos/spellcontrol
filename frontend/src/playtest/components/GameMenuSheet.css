@@ -15,11 +15,11 @@
   position: absolute;
   inset: 0;
   background: var(--overlay-sheet);
-  animation: playtest-game-menu-fade var(--motion-base) ease-out;
+  animation: playtest-game-menu-fade var(--motion-base) var(--ease-out-soft);
 }
 
 .playtest-game-menu-scrim.is-closing {
-  animation: playtest-game-menu-fade-out var(--motion-base) ease-out forwards;
+  animation: playtest-game-menu-fade-out var(--motion-base) var(--ease-out-soft) forwards;
 }
 
 .playtest-game-menu {

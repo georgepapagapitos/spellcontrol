@@ -4856,6 +4856,12 @@ TableMoments.tsx` / `TableSignals.tsx` for the reference shape.
 | `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, numeric pops   |
 | `linear`          |                                   | spinners, progress, confetti        |
 
+**`motion-tokens.test.ts` ratchets raw durations (T157 W5).** A per-file count
+of raw (non-token) `transition`/`animation` durations outside `@keyframes` may
+not rise — snap a new one to the matching `--motion-*`/`--ease-*` token or a
+canonical pattern below, or lock in a genuine improvement with
+`UPDATE_MOTION_BASELINE=1 npm test -- src/styles/motion-tokens.test.ts`.
+
 Don't invent a new bezier — if none of these reads right, that's a
 STYLE_GUIDE discussion, not an inline constant.
 

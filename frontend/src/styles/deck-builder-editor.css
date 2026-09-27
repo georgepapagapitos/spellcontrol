@@ -426,8 +426,8 @@
 .decks-index-card-menu-item,
 .deck-editor-overflow-item {
   transition:
-    background 100ms ease,
-    color 100ms ease;
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .binders-index-card-menu-item:focus-visible,

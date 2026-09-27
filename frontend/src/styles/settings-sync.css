@@ -218,7 +218,7 @@
   line-height: 1.5;
   white-space: nowrap;
   box-shadow: var(--shadow-tooltip);
-  animation: price-refresh-pop 160ms ease-out;
+  animation: price-refresh-pop var(--motion-fast) var(--ease-out-soft);
 }
 
 @keyframes price-refresh-pop {

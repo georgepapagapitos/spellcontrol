@@ -33,7 +33,7 @@
   cursor: pointer;
   overflow: hidden;
   text-align: left;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--motion-fast) ease;
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -331,7 +331,7 @@
    rotate, and an entrance `transform` here would fight it for a permanent
    that arrives already tapped. */
 .opponent-mini-card.is-entering {
-  animation: opponent-card-enter 200ms var(--ease-out-soft);
+  animation: opponent-card-enter var(--motion-base) var(--ease-out-soft);
 }
 
 @keyframes opponent-card-enter {

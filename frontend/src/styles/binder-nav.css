@@ -127,7 +127,7 @@
     inset: 0;
     background: var(--overlay-sheet);
     z-index: var(--z-sheet-bg);
-    animation: binder-sheet-fade 160ms ease-out;
+    animation: binder-sheet-fade 160ms var(--ease-out-soft);
   }
 
   .binder-overflow-panel {
@@ -177,7 +177,7 @@
   }
 
   .binder-overflow-backdrop.is-closing {
-    animation: fade-out var(--motion-gentle) ease-out forwards;
+    animation: fade-out var(--motion-gentle) var(--ease-out-soft) forwards;
   }
 }
 
@@ -276,7 +276,7 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background var(--motion-fast);
   font-family: var(--font-serif);
 }
 

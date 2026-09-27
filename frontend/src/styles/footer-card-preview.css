@@ -264,8 +264,8 @@
   justify-content: center;
   cursor: pointer;
   transition:
-    background 0.15s,
-    opacity 0.15s,
+    background var(--motion-fast),
+    opacity var(--motion-fast),
     transform var(--motion-fast);
 }
 
@@ -996,8 +996,8 @@
   font-weight: 500;
   cursor: pointer;
   transition:
-    background 160ms ease,
-    transform 160ms ease;
+    background var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 
 .card-preview-action--icon {
@@ -1250,7 +1250,7 @@
   color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
   border-bottom: 1px dotted rgba(255, 255, 255, 0.35);
-  transition: color 0.15s;
+  transition: color var(--motion-fast);
 }
 
 @media (hover: hover) and (pointer: fine) {

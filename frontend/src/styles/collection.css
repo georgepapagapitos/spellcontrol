@@ -489,8 +489,8 @@
   cursor: pointer;
   opacity: 0.55;
   transition:
-    opacity 0.15s,
-    transform 0.15s;
+    opacity var(--motion-fast),
+    transform var(--motion-fast);
 }
 
 @media (hover: hover) and (pointer: fine) {

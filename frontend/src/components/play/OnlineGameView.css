@@ -251,7 +251,7 @@
   border: 1px solid color-mix(in srgb, var(--ogv-base) 45%, var(--border));
   border-left: 3px solid var(--ogv-base);
   border-radius: var(--radius-lg);
-  animation: ogv-hold-in var(--motion-base) ease-out;
+  animation: ogv-hold-in var(--motion-base) var(--ease-out-soft);
 }
 
 @keyframes ogv-hold-in {
@@ -342,7 +342,7 @@
 }
 
 .ogv-life-num.is-pop {
-  animation: ogv-pop 180ms ease-out;
+  animation: ogv-pop 180ms var(--ease-pop);
 }
 
 @keyframes ogv-pop {

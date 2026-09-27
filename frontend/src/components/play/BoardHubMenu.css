@@ -194,7 +194,7 @@
   .board-hub-track,
   .board-hub-key,
   .board-hub-dock {
-    animation: board-hub-in 140ms ease-out both;
+    animation: board-hub-in var(--motion-fast) var(--ease-out-soft) both;
   }
 }
 

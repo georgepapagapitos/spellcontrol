@@ -338,8 +338,8 @@ hr {
   border-radius: 999px;
   opacity: 0.45;
   transition:
-    opacity 0.15s,
-    color 0.15s;
+    opacity var(--motion-fast),
+    color var(--motion-fast);
 }
 
 .empty-state-binder-remove:focus-visible {
@@ -362,7 +362,7 @@ hr {
   font-size: var(--text-sm);
   color: var(--text-muted);
   background: transparent;
-  transition: color 0.15s;
+  transition: color var(--motion-fast);
 }
 
 .empty-state-link-warn:focus-visible {

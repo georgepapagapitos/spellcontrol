@@ -38,7 +38,7 @@
   touch-action: manipulation;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  animation: pp-fade-in 160ms ease-out;
+  animation: pp-fade-in 160ms var(--ease-out-soft);
 }
 
 /* Rotate the Undo2 icon SVG for col-seam (sideways) layouts so the curved
@@ -566,7 +566,7 @@
   justify-content: center;
   padding: var(--space-4);
   background: rgba(0, 0, 0, 0.6);
-  animation: pp-fade-in 160ms ease-out;
+  animation: pp-fade-in 160ms var(--ease-out-soft);
 }
 
 .board-hint {
