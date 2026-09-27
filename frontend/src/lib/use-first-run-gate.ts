@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { hasEverVisited } from './first-run';
+import { useLocation } from 'react-router-dom';
+import { hasEverVisited, markEverVisited } from './first-run';
 import type { AuthStatus } from '../store/auth';
 
 /**
- * Paths reachable without first satisfying the first-run gate: the root
- * landing page itself (and its /welcome alias), the auth flow, account
+ * Paths that don't count as entering the app, so arriving on one leaves a
+ * first-time guest's landing intact: the root landing page itself (and its
+ * /welcome alias), the auth flow, account
  * recovery (/forgot-password, /reset-password, /verify-email — reached from
  * an emailed link, which can land before any first-run choice was ever
  * made), OAuth landing pages, and every public/share route App.tsx renders
@@ -38,24 +39,30 @@ export function isFirstRunExempt(pathname: string): boolean {
 }
 
 /**
- * First-run gate: on a brand-new install, route the user to the root landing
- * page before dropping them into the app. The landing offers three doors:
- * import, try samples, or sign in. The gate is one-shot — markEverVisited() from
- * `./first-run` is called when the user chooses a door (import/samples) or
- * when any auth choice completes (login, register, Google, "Continue without
- * an account"), after which this hook no-ops forever.
+ * First-run arrival: the root landing (`/`) greets a never-visited guest with
+ * its doors (import, try samples, sign in), but a guest who arrives anywhere
+ * else in the app lands where the link pointed, and that arrival counts as
+ * their first visit, so `/` takes them into the app from then on.
  *
- * Only fires once auth status has resolved to 'guest'; bootstrap's
- * 'loading' / 'unknown' phase is intentionally ignored so we don't
- * flash-redirect a user who's about to come back authed.
+ * This used to redirect a never-visited guest from any in-app path to `/`, so
+ * someone following a search result or a friend's link to /rules or
+ * /search?q= landed on the storefront with the destination lost (E344). A
+ * crawler got the same bounce. The public/share routes above stay exempt: a
+ * stranger opening a shared deck hasn't entered the app, so `/` still shows
+ * them the landing afterwards.
+ *
+ * markEverVisited() from `./first-run` is also called when the user picks a
+ * landing door or completes any auth choice.
+ *
+ * Only acts once auth status has resolved to 'guest'; bootstrap's 'loading' /
+ * 'unknown' phase is ignored so a user about to come back authed isn't marked.
  */
 export function useFirstRunGate(status: AuthStatus): void {
-  const navigate = useNavigate();
   const location = useLocation();
   useEffect(() => {
     if (status !== 'guest') return;
     if (hasEverVisited()) return;
     if (isFirstRunExempt(location.pathname)) return;
-    navigate('/', { replace: true });
-  }, [status, location.pathname, navigate]);
+    markEverVisited();
+  }, [status, location.pathname]);
 }

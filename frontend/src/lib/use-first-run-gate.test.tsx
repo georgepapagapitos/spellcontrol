@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { isFirstRunExempt, useFirstRunGate } from './use-first-run-gate';
-import { markEverVisited } from './first-run';
+import { hasEverVisited, markEverVisited } from './first-run';
 import type { AuthStatus } from '../store/auth';
 
 beforeEach(() => {
@@ -59,9 +59,27 @@ describe('isFirstRunExempt', () => {
 });
 
 describe('useFirstRunGate', () => {
-  it('redirects a never-visited guest from /collection to the root landing', () => {
-    const { getByTestId } = render(<Harness status="guest" initialPath="/collection" />);
-    expect(getByTestId('path').textContent).toBe('/');
+  // E344: a first-time guest following a link into the app (a search result
+  // to /rules, a friend's /search?q=) used to be bounced to `/` with the
+  // destination lost. They land where the link pointed, and that arrival is
+  // their first visit, so `/` takes them into the app from then on.
+  it.each(['/collection', '/rules', '/search', '/tags'])(
+    'lands a never-visited guest on %s and counts it as the first visit',
+    (path) => {
+      const { getByTestId } = render(<Harness status="guest" initialPath={path} />);
+      expect(getByTestId('path').textContent).toBe(path);
+      expect(hasEverVisited()).toBe(true);
+    }
+  );
+
+  it('a shared link does not count as entering the app, so `/` still greets them', () => {
+    render(<Harness status="guest" initialPath="/d/some-deck-slug" />);
+    expect(hasEverVisited()).toBe(false);
+  });
+
+  it('marks nothing before auth resolves', () => {
+    render(<Harness status="loading" initialPath="/rules" />);
+    expect(hasEverVisited()).toBe(false);
   });
 
   it('does not redirect when the ever-visited flag is set', () => {
