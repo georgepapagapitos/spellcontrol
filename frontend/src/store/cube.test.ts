@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushSync } from '../lib/sync';
 import { useCubeStore, type CubePickSlot, type SavedCube } from './cube';
+import { useToastsStore } from './toasts';
 import { migrateLegacyCubes } from '../lib/sync';
 import {
   bucketOf,
@@ -235,6 +236,53 @@ describe('useCubeStore — saved cubes', () => {
     expect(useCubeStore.getState().saved[0].name).toBe('New name');
     useCubeStore.getState().removeSaved(id);
     expect(useCubeStore.getState().saved).toHaveLength(0);
+  });
+
+  it('removeSaved: toast carries Undo, which restores the exact cube (id, picks, isPhysical)', () => {
+    useToastsStore.setState({ toasts: [] });
+    const cube = cubeWithPicks([cardOf('o1'), cardOf('o2')]);
+    useCubeStore.getState().setResult(360, cube);
+    useCubeStore.getState().saveCurrent('Legacy Cube');
+    const id = useCubeStore.getState().saved[0].id;
+    const picks: CubePickSlot[] = [
+      {
+        slotId: '0',
+        card: cardOf('o1'),
+        allocatedCopyId: 'copy-x',
+        printingFinishKey: 'sf1:nonfoil',
+      },
+      { slotId: '1', card: cardOf('o2'), allocatedCopyId: null, printingFinishKey: null },
+    ];
+    useCubeStore.getState().setPhysical(id, true, picks);
+    const before = useCubeStore.getState().saved[0];
+
+    useCubeStore.getState().removeSaved(id);
+    expect(useCubeStore.getState().saved).toHaveLength(0);
+
+    const t = useToastsStore.getState().toasts.find((x) => x.actionLabel === 'Undo');
+    expect(t?.actionLabel).toBe('Undo');
+    expect(t?.message).toBe('Deleted Legacy Cube');
+    t!.onAction!();
+
+    const restored = useCubeStore.getState().saved;
+    expect(restored).toHaveLength(1);
+    expect(restored[0]).toEqual(before);
+  });
+
+  it('removeSaved: Undo of the cube on screen also restores the working result and loadedId', () => {
+    useToastsStore.setState({ toasts: [] });
+    useCubeStore.getState().setResult(360, makeCube(360));
+    useCubeStore.getState().saveCurrent('On screen');
+    const id = useCubeStore.getState().saved[0].id;
+
+    useCubeStore.getState().removeSaved(id);
+    expect(useCubeStore.getState().result).toBeNull();
+    expect(useCubeStore.getState().loadedId).toBeNull();
+
+    useToastsStore.getState().toasts.find((x) => x.actionLabel === 'Undo')!.onAction!();
+
+    expect(useCubeStore.getState().loadedId).toBe(id);
+    expect(useCubeStore.getState().result).not.toBeNull();
   });
 
   it('releaseCubePick nulls the matching pick (leave-gap) and leaves others intact', () => {

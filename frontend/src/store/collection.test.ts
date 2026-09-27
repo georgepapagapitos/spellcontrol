@@ -24,7 +24,7 @@ import { _resetForTests as resetPriceCache } from '../lib/card-prices';
 import { useCurrencyStore } from '../lib/currency';
 import { captureCollectionSnapshot } from '../lib/collection-snapshot';
 import { clearValueHistory, getValueHistory, recordValueSnapshot } from '../lib/value-history';
-import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
+import type { BinderDef, BinderInput, EnrichedCard, ListEntry, UploadResponse } from '../types';
 
 function enriched(
   overrides: Partial<EnrichedCard> & { copyId: string; scryfallId: string }
@@ -1628,6 +1628,125 @@ describe('binder CRUD', () => {
     useCollectionStore.getState().moveBinderAbove('a', 'ghost');
     useCollectionStore.getState().moveBinderAbove('a', 'a');
     expect(order()).toEqual(['c0', 'a1', 'b2']);
+  });
+});
+
+describe('binder / list delete — Undo restores exact state', () => {
+  const undoToast = () => useToastsStore.getState().toasts.find((t) => t.actionLabel === 'Undo');
+
+  beforeEach(() => {
+    useToastsStore.setState({ toasts: [] });
+  });
+
+  it('deleteBinder: toast carries Undo, which restores the exact binder — id, position, and cascaded pins', () => {
+    useCollectionStore.setState({
+      binders: [
+        makeBinder({ id: 'b1', position: 0 }),
+        makeBinder({
+          id: 'b2',
+          position: 1,
+          name: 'Pinned two',
+          pinnedCopyIds: ['c1'],
+          pinnedKeys: ['k1'],
+        }),
+        makeBinder({ id: 'b3', position: 2 }),
+      ],
+    });
+    useCollectionStore.getState().deleteBinder('b2');
+    expect(useCollectionStore.getState().binders.map((b) => b.id)).toEqual(['b1', 'b3']);
+
+    const t = undoToast();
+    expect(t?.actionLabel).toBe('Undo');
+    expect(t?.message).toBe('Deleted Pinned two');
+
+    t!.onAction!();
+    const restored = useCollectionStore.getState().binders;
+    expect(restored.map((b) => b.id)).toEqual(['b1', 'b2', 'b3']);
+    const b2 = restored.find((b) => b.id === 'b2')!;
+    expect(b2.position).toBe(1);
+    expect(b2.pinnedCopyIds).toEqual(['c1']);
+    expect(b2.pinnedKeys).toEqual(['k1']);
+  });
+
+  it('deleteBinders (bulk): Undo restores every removed binder at its original position', () => {
+    useCollectionStore.setState({
+      binders: [
+        makeBinder({ id: 'b1', position: 0 }),
+        makeBinder({ id: 'b2', position: 1 }),
+        makeBinder({ id: 'b3', position: 2 }),
+      ],
+    });
+    useCollectionStore.getState().deleteBinders(['b1', 'b2']);
+    const t = undoToast();
+    expect(t?.message).toBe('Deleted 2 binders');
+    t!.onAction!();
+    const restored = useCollectionStore.getState().binders;
+    expect(restored.map((b) => b.id)).toEqual(['b1', 'b2', 'b3']);
+    expect(restored.map((b) => b.position)).toEqual([0, 1, 2]);
+  });
+
+  it('deleteAllBinders: Undo restores every binder', () => {
+    useCollectionStore.setState({
+      binders: [makeBinder({ id: 'b1', position: 0 }), makeBinder({ id: 'b2', position: 1 })],
+    });
+    useCollectionStore.getState().deleteAllBinders();
+    expect(useCollectionStore.getState().binders).toEqual([]);
+    undoToast()!.onAction!();
+    expect(useCollectionStore.getState().binders.map((b) => b.id)).toEqual(['b1', 'b2']);
+  });
+
+  it('deleteList: toast carries Undo, which restores the exact list — id, order, and its entries', () => {
+    const id = useCollectionStore.getState().createList('Wants');
+    useCollectionStore.getState().createList('Trade pile');
+    const entry: ListEntry = {
+      id: 'e1',
+      name: 'Sol Ring',
+      scryfallId: 'sf1',
+      setCode: 'CMR',
+      collectorNumber: '1',
+      finish: 'nonfoil',
+      quantity: 2,
+    };
+    useCollectionStore.setState({
+      lists: useCollectionStore
+        .getState()
+        .lists.map((l) => (l.id === id ? { ...l, entries: [entry] } : l)),
+    });
+
+    useCollectionStore.getState().deleteList(id);
+    expect(useCollectionStore.getState().lists.map((l) => l.id)).not.toContain(id);
+
+    const t = undoToast();
+    expect(t?.actionLabel).toBe('Undo');
+    expect(t?.message).toBe('Deleted Wants');
+    t!.onAction!();
+
+    const restored = useCollectionStore.getState().lists;
+    const wants = restored.find((l) => l.id === id)!;
+    expect(wants).toBeDefined();
+    expect(wants.order).toBe(0);
+    expect(wants.entries).toEqual([entry]);
+  });
+
+  it('deleteLists (bulk): Undo restores every removed list at its original order', () => {
+    const a = useCollectionStore.getState().createList('A');
+    const b = useCollectionStore.getState().createList('B');
+    useCollectionStore.getState().createList('C');
+    useCollectionStore.getState().deleteLists([a, b]);
+    const t = undoToast();
+    expect(t?.message).toBe('Deleted 2 lists');
+    t!.onAction!();
+    const restored = useCollectionStore.getState().lists;
+    expect(restored.map((l) => l.name)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('deleteAllLists: Undo restores every list', () => {
+    useCollectionStore.getState().createList('A');
+    useCollectionStore.getState().createList('B');
+    useCollectionStore.getState().deleteAllLists();
+    expect(useCollectionStore.getState().lists).toEqual([]);
+    undoToast()!.onAction!();
+    expect(useCollectionStore.getState().lists.map((l) => l.name)).toEqual(['A', 'B']);
   });
 });
 

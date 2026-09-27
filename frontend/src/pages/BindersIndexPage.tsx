@@ -28,6 +28,7 @@ import { useCardsWithReleaseDates, bindersUseReleaseDates } from '../lib/card-re
 import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
+import { BINDER_DELETE_CONFIRM_BODY } from '../lib/binder-copy';
 import { Modal } from '../components/Modal';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -204,7 +205,7 @@ export function BindersIndexPage() {
     async (id: string, name: string) => {
       const ok = await confirm({
         title: `Delete "${name}"?`,
-        body: `Its cards route to your other binders. Anything that no longer matches falls back to the Collection view. This can't be undone.`,
+        body: BINDER_DELETE_CONFIRM_BODY,
         confirmLabel: 'Delete binder',
         danger: true,
       });
@@ -216,7 +217,7 @@ export function BindersIndexPage() {
   const handleDeleteAll = useCallback(async () => {
     const ok = await confirm({
       title: `Delete all ${binders.length} binders?`,
-      body: `Every binder definition will be removed. Your cards fall back to the Uncategorized view. This can't be undone.`,
+      body: `Every binder definition will be removed. Your cards fall back to the Uncategorized view. You can undo from the toast.`,
       confirmLabel: 'Delete all binders',
       danger: true,
     });
@@ -254,7 +255,7 @@ export function BindersIndexPage() {
     const ids = Array.from(sel.selected);
     const ok = await confirm({
       title: `Delete ${ids.length} selected binder${ids.length === 1 ? '' : 's'}?`,
-      body: `Their cards route to your other binders. Anything that no longer matches falls back to the Collection view. This can't be undone.`,
+      body: `Their cards route to your other binders. Anything that no longer matches falls back to the Collection view. You can undo from the toast.`,
       confirmLabel: 'Delete binders',
       danger: true,
     });

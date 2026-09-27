@@ -72,37 +72,48 @@ describe('finality copy matches reality', () => {
     // Guard the guard: an empty list would pass everything below vacuously.
     expect(undoable.length).toBeGreaterThan(0);
     expect(undoable).toContain('deleteDeck');
+    expect(undoable).toContain('deleteBinder');
+    expect(undoable).toContain('deleteList');
+    expect(undoable).toContain('removeSaved');
   });
 
-  it.each(['deleteDeck'])(
-    'no ConfirmDialog that calls %s claims "This can\'t be undone."',
-    (action) => {
-      const offenders: string[] = [];
-      for (const file of sourceFiles(SRC)) {
-        const src = readFileSync(file, 'utf8');
-        if (!src.includes(FINALITY)) continue;
-        if (!new RegExp(`\\b${action}\\s*\\(`).test(src)) continue;
-        // Narrow it to the dialog that actually triggers this action: the
-        // handler and the finality string must both be present, and the
-        // dialog's confirm path must reach the action.
-        const handler = src.match(
-          new RegExp(`const (handle\\w*)\\s*=\\s*\\(\\)\\s*=>\\s*\\{[^}]*${action}\\(`)
-        );
-        if (!handler) continue;
-        const dialog = src.match(
-          new RegExp(`<ConfirmDialog[\\s\\S]{0,400}?onConfirm=\\{${handler[1]}\\}`)
-        );
-        if (dialog && dialog[0].includes(FINALITY)) {
-          offenders.push(`${file.replace(SRC, 'src')} — ConfirmDialog → ${action}`);
-        }
+  it.each([
+    'deleteDeck',
+    'deleteBinder',
+    'deleteBinders',
+    'deleteAllBinders',
+    'deleteList',
+    'deleteLists',
+    'deleteAllLists',
+    'removeSaved',
+    'removeListEntry',
+    'moveListEntryToCollection',
+  ])('no ConfirmDialog that calls %s claims "This can\'t be undone."', (action) => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      const src = readFileSync(file, 'utf8');
+      if (!src.includes(FINALITY)) continue;
+      if (!new RegExp(`\\b${action}\\s*\\(`).test(src)) continue;
+      // Narrow it to the dialog that actually triggers this action: the
+      // handler and the finality string must both be present, and the
+      // dialog's confirm path must reach the action.
+      const handler = src.match(
+        new RegExp(`const (handle\\w*)\\s*=\\s*\\(\\)\\s*=>\\s*\\{[^}]*${action}\\(`)
+      );
+      if (!handler) continue;
+      const dialog = src.match(
+        new RegExp(`<ConfirmDialog[\\s\\S]{0,400}?onConfirm=\\{${handler[1]}\\}`)
+      );
+      if (dialog && dialog[0].includes(FINALITY)) {
+        offenders.push(`${file.replace(SRC, 'src')} — ConfirmDialog → ${action}`);
       }
-      expect(
-        offenders,
-        `${action} shows an Undo toast, so a confirm dialog for it must not say ` +
-          `"${FINALITY}". The /decks index already words this correctly: ` +
-          `"The selected decks will be removed. You can undo from the toast."\n  ` +
-          offenders.join('\n  ')
-      ).toEqual([]);
     }
-  );
+    expect(
+      offenders,
+      `${action} shows an Undo toast, so a confirm dialog for it must not say ` +
+        `"${FINALITY}". The /decks index already words this correctly: ` +
+        `"The selected decks will be removed. You can undo from the toast."\n  ` +
+        offenders.join('\n  ')
+    ).toEqual([]);
+  });
 });
