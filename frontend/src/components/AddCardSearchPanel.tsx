@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { SearchPill } from './SearchPill';
-import { CardSearchResults, type CardSearchResultsHandle } from './CardSearchResults';
+import { CardSearchResults } from './CardSearchResults';
 import { useSearchCards } from '../lib/use-search-cards';
+import { useResultsKeys } from '../lib/use-results-keys';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 interface Props {
@@ -46,7 +47,7 @@ export function AddCardSearchPanel({
 }: Props) {
   const [query, setQuery] = useState(initialQuery ?? '');
   const { results, loading, error } = useSearchCards(query);
-  const resultsRef = useRef<CardSearchResultsHandle>(null);
+  const { resultsRef, onActiveChange: trackActive, onKeyDown: navKeyDown } = useResultsKeys();
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
@@ -57,19 +58,7 @@ export function AddCardSearchPanel({
       onEscape?.();
       return;
     }
-    if (e.key === 'ArrowDown') {
-      if (results.length === 0) return;
-      e.preventDefault();
-      resultsRef.current?.moveActive(1);
-    } else if (e.key === 'ArrowUp') {
-      if (results.length === 0) return;
-      e.preventDefault();
-      resultsRef.current?.moveActive(-1);
-    } else if (e.key === 'Enter') {
-      if (results.length === 0) return;
-      e.preventDefault();
-      resultsRef.current?.addActive();
-    }
+    navKeyDown(e);
   };
 
   return (
@@ -99,7 +88,10 @@ export function AddCardSearchPanel({
           results={results}
           binderId={binderId}
           addToList={addToList}
-          onActiveChange={onActiveChange}
+          onActiveChange={(card) => {
+            trackActive(card);
+            onActiveChange?.(card);
+          }}
           hideRowDisclosure={hideRowDisclosure}
         />
       </div>

@@ -42,6 +42,7 @@ import { InfoTip } from './InfoTip';
 import { ChoiceList, Disclosure, Field, SwitchRow } from './shared/form';
 import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
+import { useResultsKeys } from '../lib/use-results-keys';
 import {
   googlePickerAvailable,
   isCancelled,
@@ -1130,6 +1131,7 @@ function UnresolvedNameRow({ name, disabled, onResolved }: UnresolvedNameRowProp
   const [query, setQuery] = useState(name);
   const [resolvedAs, setResolvedAs] = useState<string | null>(null);
   const inputId = useId();
+  const { resultsRef, onActiveChange, onKeyDown: resultsKeyDown } = useResultsKeys();
 
   if (resolvedAs) {
     return (
@@ -1177,14 +1179,17 @@ function UnresolvedNameRow({ name, disabled, onResolved }: UnresolvedNameRowProp
             placeholder="Search card name…"
             disabled={disabled}
             autoFocus
+            onKeyDown={resultsKeyDown}
           />
           <InlineCardSearch
+            ref={resultsRef}
             query={query}
             view="compact"
             onAdded={(card: ScryfallCard) => {
               setResolvedAs(card.name);
               onResolved(name);
             }}
+            onActiveChange={onActiveChange}
           />
         </div>
       )}

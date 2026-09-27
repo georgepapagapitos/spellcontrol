@@ -6,6 +6,7 @@ import { InlineCardSearch } from './InlineCardSearch';
 import { useCollectionStore } from '../store/collection';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useResultsKeys } from '../lib/use-results-keys';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { Button } from '@/components/shared/Button';
 
@@ -26,6 +27,7 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
   useLockBodyScroll();
   const addListEntry = useCollectionStore((s) => s.addListEntry);
   const [query, setQuery] = useState(initialQuery);
+  const { resultsRef, onActiveChange, onKeyDown: resultsKeyDown } = useResultsKeys();
 
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   const dismiss = useCallback(() => {
@@ -76,12 +78,18 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
             placeholder="Search Scryfall to add a card…"
             ariaLabel="Search Scryfall to add a card"
             autoFocus
+            inputProps={{ onKeyDown: resultsKeyDown }}
           />
         </div>
 
         <div className="add-card-sheet-body">
           {query.trim().length >= 2 ? (
-            <InlineCardSearch query={query.trim()} onAdd={addToList} />
+            <InlineCardSearch
+              ref={resultsRef}
+              query={query.trim()}
+              onAdd={addToList}
+              onActiveChange={onActiveChange}
+            />
           ) : (
             <p className="card-picker-empty">Type at least two characters to search.</p>
           )}

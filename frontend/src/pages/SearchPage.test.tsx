@@ -1,13 +1,31 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SearchPage } from './SearchPage';
 
+const h = vi.hoisted(() => ({
+  moveActive: vi.fn(),
+  addActive: vi.fn(),
+  onActiveChange: undefined as ((card: unknown) => void) | undefined,
+}));
+
 // The results block drags in the whole card-search stack (stores, carousel,
-// scryfall client) — the syntax helper under test doesn't need any of it.
+// scryfall client) — the syntax helper under test doesn't need any of it. The
+// keyboard-nav tests below need the ref handle and onActiveChange forwarded
+// the same way the real component does, so the mock wires those through too.
 vi.mock('../components/InlineCardSearch', () => ({
-  InlineCardSearch: () => <div data-testid="results" />,
+  InlineCardSearch: forwardRef(function MockInlineCardSearch(
+    props: { onActiveChange?: (card: unknown) => void },
+    ref
+  ) {
+    useImperativeHandle(ref, () => ({ moveActive: h.moveActive, addActive: h.addActive }));
+    useEffect(() => {
+      h.onActiveChange = props.onActiveChange;
+    }, [props.onActiveChange]);
+    return <div data-testid="results" />;
+  }),
 }));
 
 function renderPage(initialEntry = '/search') {
@@ -100,5 +118,45 @@ describe('SearchPage query box', () => {
 
     await router.navigate(-1);
     await waitFor(() => expect(input.value).toBe('sol ring'));
+  });
+});
+
+// T159/E457: SearchPage owns its own input and drives InlineCardSearch's
+// results through the shared useResultsKeys wiring — see use-results-keys.ts
+// for the composing/no-active-row guard, proved once there.
+describe('SearchPage keyboard nav', () => {
+  afterEach(() => {
+    h.moveActive.mockClear();
+    h.addActive.mockClear();
+    h.onActiveChange = undefined;
+  });
+
+  it('moves the active result on Arrow keys and adds it on Enter once a result has gone active', async () => {
+    renderPage();
+    const input = screen.getByRole('textbox', { name: 'Search any card' });
+    fireEvent.change(input, { target: { value: 'sol ring' } });
+    await screen.findByTestId('results');
+    act(() => h.onActiveChange?.({ id: 'a', name: 'Sol Ring' }));
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(h.moveActive).toHaveBeenCalledWith(1);
+
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(h.moveActive).toHaveBeenCalledWith(-1);
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(h.addActive).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the keys alone before any result has gone active', () => {
+    renderPage();
+    const input = screen.getByRole('textbox', { name: 'Search any card' });
+    fireEvent.change(input, { target: { value: 'sol ring' } });
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(h.moveActive).not.toHaveBeenCalled();
+    expect(h.addActive).not.toHaveBeenCalled();
   });
 });
