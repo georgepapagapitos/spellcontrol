@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Ban, Boxes, Copy, Pencil, Plus, Share2, Trash2, X } from 'lucide-react';
 import './cube.css';
 import { BackLink } from '../../components/BackLink';
 import { PageHeader } from '../../components/PageHeader';
 import { Tabs } from '../../components/Tabs';
-import { NameInputDialog } from '../../components/NameInputDialog';
+import { InlineRename } from '../../components/shared/InlineRename';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ShareDialog } from '../../components/ShareDialog';
 import { Modal } from '../../components/Modal';
@@ -48,6 +48,7 @@ type DetailTab = 'cards' | 'shopping' | 'pull';
 export function CubeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const cubeStore = useCubeStore();
   const saved = cubeStore.saved;
   const awaitingFirstPull = useAwaitingFirstPull();
@@ -57,7 +58,19 @@ export function CubeDetailPage() {
   const target = saved.find((c) => c.id === id) ?? null;
 
   const [tab, setTab] = useState<DetailTab>('cards');
-  const [renameOpen, setRenameOpen] = useState(false);
+  // The index row's "Rename" menu item is a shortcut that navigates here and
+  // puts the title straight into edit mode (STYLE_GUIDE § Verbs — Rename).
+  const [renameOpen, setRenameOpen] = useState(
+    () => !!(location.state as { autoRename?: boolean } | null)?.autoRename
+  );
+  // Consume the hand-off once, then drop it from history.
+  useEffect(() => {
+    if ((location.state as { autoRename?: boolean } | null)?.autoRename) {
+      navigate(location.pathname, { replace: true });
+    }
+    // Only ever consume the hand-off once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [shareOpen, setShareOpen] = useState(false);
   const [physicalConfirmOpen, setPhysicalConfirmOpen] = useState(false);
   const [bannedOpen, setBannedOpen] = useState(false);
@@ -207,10 +220,7 @@ export function CubeDetailPage() {
     );
   };
 
-  const handleRename = (name: string) => {
-    cubeStore.renameSaved(target.id, name);
-    setRenameOpen(false);
-  };
+  const handleRename = (name: string) => cubeStore.renameSaved(target.id, name);
   // Undoable from the toast, so it doesn't confirm first (T157) —
   // removeSaved shows the Undo toast itself.
   // Back to the cube list, like the deck editor after a delete: staying here
@@ -368,7 +378,19 @@ export function CubeDetailPage() {
     <div className="cube-page">
       <BackLink to="/decks/cube" label="Cubes" />
       <PageHeader
-        title={target.name}
+        title={
+          // renameLabel carries the cube's own name (not a bare "Rename
+          // cube") so a screen-reader user tabbing straight to this button
+          // hears which cube, not just the verb.
+          <InlineRename
+            value={target.name}
+            onCommit={handleRename}
+            editing={renameOpen}
+            onEditingChange={setRenameOpen}
+            label="Cube name"
+            renameLabel={`Rename ${target.name}`}
+          />
+        }
         meta={<SavedCubeMeta sc={target} />}
         actions={[
           {
@@ -386,7 +408,7 @@ export function CubeDetailPage() {
             icon: Boxes,
             onClick: handleTogglePhysical,
           },
-          { label: 'Rename', icon: Pencil, opensDialog: true, onClick: () => setRenameOpen(true) },
+          { label: 'Rename', icon: Pencil, onClick: () => setRenameOpen(true) },
           ...(bannedIds.length > 0
             ? [
                 {
@@ -475,16 +497,6 @@ export function CubeDetailPage() {
         )}
       </div>
 
-      {renameOpen && (
-        <NameInputDialog
-          title="Rename cube"
-          label="Cube name"
-          initialValue={target.name}
-          confirmLabel="Rename"
-          onSubmit={handleRename}
-          onCancel={() => setRenameOpen(false)}
-        />
-      )}
       {shareOpen && (
         <ShareDialog
           kind="cube"

@@ -1,5 +1,6 @@
 import { Plus, SlidersHorizontal } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { ListDef } from '../types';
 import { useEnrichedListEntries } from '../lib/use-enriched-list-entries';
 import { dynamicListRows, isRuleEmpty } from '../lib/dynamic-list';
@@ -14,6 +15,7 @@ import { InfoTip } from './InfoTip';
 import { ListDetailView } from './ListDetailView';
 import { ListAddCardSheet } from './ListAddCardSheet';
 import { ListRuleEditor } from './ListRuleEditor';
+import { InlineRename } from './shared/InlineRename';
 
 interface Props {
   list: ListDef;
@@ -49,6 +51,24 @@ export function ListEntriesView({ list }: Props) {
   // yet) so creation flows straight into defining what belongs here.
   const [ruleOpen, setRuleOpen] = useState(() => isDynamic && isRuleEmpty(rule));
   const [addOpen, setAddOpen] = useState(false);
+  const renameList = useCollectionStore((s) => s.renameList);
+
+  // The index row's "Rename" menu item is a shortcut that navigates here and
+  // puts the title straight into edit mode (STYLE_GUIDE § Verbs — Rename),
+  // instead of a modal. Consume the hand-off once, then drop it from history
+  // so a back-nav or refresh doesn't reopen the editor.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [renaming, setRenaming] = useState(
+    () => !!(location.state as { autoRename?: boolean } | null)?.autoRename
+  );
+  useEffect(() => {
+    if ((location.state as { autoRename?: boolean } | null)?.autoRename) {
+      navigate(location.pathname, { replace: true });
+    }
+    // Only ever consume the hand-off once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const ownedCards = useCollectionStore((s) => s.cards);
   // Static lists resolve their stored printings; dynamic lists never fetch —
@@ -85,7 +105,19 @@ export function ListEntriesView({ list }: Props) {
     <div className="binders-index-page">
       <BackLink to="/collection/lists" label="All lists" />
       <PageHeader
-        title={list.name}
+        title={
+          // renameLabel carries the list's own name (not a bare "Rename
+          // list") so a screen-reader user tabbing straight to this button
+          // hears which list, not just the verb.
+          <InlineRename
+            value={list.name}
+            onCommit={(name) => renameList(list.id, name)}
+            editing={renaming}
+            onEditingChange={setRenaming}
+            label="List name"
+            renameLabel={`Rename ${list.name}`}
+          />
+        }
         actions={[
           isDynamic
             ? {

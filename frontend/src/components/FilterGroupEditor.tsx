@@ -198,6 +198,15 @@ function FilterGroupCard({
   // an always-editable name field, which made every rule look like a form to
   // fill in before it could do anything.
   const [renaming, setRenaming] = useState(false);
+  // This is a LIVE field, not InlineRename (STYLE_GUIDE § Verbs — Rename):
+  // onSetName writes straight into the binder editor's own uncommitted
+  // draft on every keystroke (the whole rule set only lands on the dialog's
+  // Save), so there is no separate committed value to fall back to on blur —
+  // blur is not a save here, the draft already has whatever was typed. The
+  // one piece InlineRename would otherwise give for free is Escape-reverts,
+  // so this captures the name as it was when renaming opened and restores
+  // it by hand.
+  const nameBeforeRenameRef = useRef('');
 
   // A freshly added rule hands focus to its "Add condition" button, which is
   // the next thing anyone does with an empty rule.
@@ -208,7 +217,12 @@ function FilterGroupCard({
   }, [autofocus, onAutofocusHandled]);
 
   useEffect(() => {
-    if (renaming) nameRef.current?.select();
+    if (renaming) {
+      nameBeforeRenameRef.current = group.name ?? '';
+      nameRef.current?.select();
+    }
+    // Captured once, at the moment renaming opens — not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renaming]);
 
   const summary = autoSummary(group.filter);
@@ -229,9 +243,12 @@ function FilterGroupCard({
             onBlur={() => setRenaming(false)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === 'Escape') {
-                // Escape here closes the field, not the dialog around it.
+                // Escape here closes the field, not the dialog around it,
+                // and reverts the live-written draft back to the name the
+                // field opened with (STYLE_GUIDE § Verbs — Rename).
                 e.stopPropagation();
                 e.preventDefault();
+                if (e.key === 'Escape') onSetName(nameBeforeRenameRef.current);
                 setRenaming(false);
               }
             }}

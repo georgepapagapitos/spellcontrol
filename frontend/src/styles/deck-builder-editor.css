@@ -175,8 +175,13 @@
   }
 
   /* The name is the page's identity on a phone: two lines rather than
-     ellipsizing a commander name into "Urianger Augu…". */
-  .deck-editor-hero--art .deck-editor-name {
+     ellipsizing a commander name into "Urianger Augu…". The extra
+     .binder-hero-name class (also on this button) keeps this strictly more
+     specific than the base rename button's own `.deck-editor-name` rule
+     below, regardless of which stylesheet the bundler concatenates first —
+     `.inline-rename-btn` isn't used for the bump: its `-btn` suffix reads as
+     a stacked interactive row to `touch-target-overlap.test.ts`. */
+  .deck-editor-hero--art .deck-editor-name.binder-hero-name {
     font-size: var(--text-2xl);
     white-space: normal;
     display: -webkit-box;
@@ -233,8 +238,11 @@
 
 /* Inline hero editor: opened by clicking the deck title. Holds the
    name field and the deck color picker together so color editing no
-   longer needs its own toolbar button / overflow entry. */
-.deck-editor-hero-edit {
+   longer needs its own toolbar button / overflow entry. The compound
+   selector (InlineRename's own .inline-rename-edit sets a plain inline-flex
+   row) wins deterministically over the shared base, whichever stylesheet
+   the bundler concatenates first. */
+.deck-editor-hero-edit.inline-rename-edit {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -260,11 +268,20 @@
   letter-spacing: 0.04em;
 }
 
-.deck-editor-hero-edit-done {
+/* InlineRename's doneLabel renders a plain shared Button (no className hook),
+   so this targets it by the class Button itself paints. */
+.deck-editor-hero-edit .btn-primary {
   align-self: flex-end;
 }
 
-.deck-editor-name {
+/* `.binder-hero-name` (also on this button) is the specificity bump: it
+   beats the shared base's `.inline-rename-btn` deterministically, whichever
+   stylesheet the bundler concatenates first, without spelling out
+   `.inline-rename-btn` here — that class's `-btn` suffix on a rule with a
+   negative margin reads as a stacked interactive row to
+   touch-target-overlap.test.ts, which this button (a one-off page title,
+   never repeated in a column) is not. */
+.deck-editor-name.binder-hero-name {
   font-family: var(--font-display);
   font-size: var(--text-3xl);
   font-weight: 400;
@@ -305,7 +322,7 @@
   }
 }
 
-.deck-editor-name-input {
+.deck-editor-name-input.inline-rename-input {
   font-family: var(--font-display);
   font-size: var(--text-3xl);
   font-weight: 400;

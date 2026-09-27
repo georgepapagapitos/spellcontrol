@@ -34,6 +34,7 @@ vi.mock('@/lib/edhrec-combo-overlay', async (importOriginal) => ({
 
 // ── Store stubs ─────────────────────────────────────────────────────────────
 const mockDeleteDeck = vi.fn();
+const mockRenameDeck = vi.fn();
 const mockDeck = {
   id: 'deck-1',
   name: 'Test Deck',
@@ -90,7 +91,7 @@ vi.mock('../store/decks', () => ({
       hydrated: mockHydrated,
       deleteDeck: mockDeleteDeck,
       updateDeck: vi.fn(),
-      renameDeck: vi.fn(),
+      renameDeck: mockRenameDeck,
       addCard: vi.fn(),
       removeCard: vi.fn(),
       addSideboardCard: vi.fn(),
@@ -777,5 +778,51 @@ describe('DeckEditorPage — the zone toggle reaches the search panel', () => {
     fireEvent.click(screen.getAllByRole('radio', { name: 'Considering' })[0]);
 
     expect(latestProps().addZone).toBe('considering');
+  });
+});
+
+describe('DeckEditorPage — rename (STYLE_GUIDE § Verbs — Rename)', () => {
+  afterEach(() => {
+    mockRenameDeck.mockClear();
+  });
+
+  it('renames in place: the title stays a heading, Enter saves', async () => {
+    renderEditor();
+    const hero = document.querySelector('header.deck-editor-hero')!;
+    expect(hero.querySelector('h1.deck-editor-title')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Test Deck' }));
+    const input = screen.getByLabelText('Deck name');
+    fireEvent.change(input, { target: { value: 'New name' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(mockRenameDeck).toHaveBeenCalledWith('deck-1', 'New name');
+  });
+
+  it('Escape reverts without renaming, and the title is still a heading', () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Test Deck' }));
+    const input = screen.getByLabelText('Deck name');
+    fireEvent.change(input, { target: { value: 'Discarded' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(mockRenameDeck).not.toHaveBeenCalled();
+    const hero = document.querySelector('header.deck-editor-hero')!;
+    expect(hero.querySelector('h1.deck-editor-title')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Rename Test Deck' }).textContent).toContain(
+      'Test Deck'
+    );
+  });
+
+  it('the color picker stays open beside the name and Done commits both', () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Test Deck' }));
+    expect(screen.getByLabelText('Deck color')).toBeTruthy();
+
+    const input = screen.getByLabelText('Deck name');
+    fireEvent.change(input, { target: { value: 'Renamed via Done' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    expect(mockRenameDeck).toHaveBeenCalledWith('deck-1', 'Renamed via Done');
   });
 });
