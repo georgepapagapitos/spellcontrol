@@ -119,6 +119,29 @@ const ROLE_NAME: Record<Role, string> = {
   ramp: 'ramp',
   cardDraw: 'card draw',
 };
+/** Lower-case, mid-sentence form of a color bucket's name — "Fills white's
+ *  2-drops", "Best remaining colorless card". `COLOR_NAME` above stays for
+ *  sentence-initial use ("Blue ran out of on-curve cards"). */
+const LOWER_COLOR_NAME: Record<ColorBucket, string> = {
+  W: 'white',
+  U: 'blue',
+  B: 'black',
+  R: 'red',
+  G: 'green',
+  multicolor: 'multicolor',
+  colorless: 'colorless',
+  land: 'land',
+};
+/** "white's" for a named color, plain "multicolor"/"colorless" for the other two. */
+const possessiveColor = (b: ColorBucket): string =>
+  b === 'multicolor' || b === 'colorless' ? LOWER_COLOR_NAME[b] : `${LOWER_COLOR_NAME[b]}'s`;
+
+/** "red", "red and green", "red, green and blue" — English list join. */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
 const QUOTA_LABEL: Record<Quota, string> = {
   removal: 'Removal',
   boardwipe: 'Board wipe',
@@ -352,7 +375,7 @@ function nextDeferredMap(
  *  seed cards their own "Locked" reason instead of reading this map for them. */
 type BucketPickMeta =
   | { kind: 'quota'; key: Quota; n: number }
-  | { kind: 'curve'; slot: CurveSlot }
+  | { kind: 'curve'; slot: CurveSlot; n: number }
   | { kind: 'backfill' };
 
 function selectBucket(
@@ -372,7 +395,8 @@ function selectBucket(
     const picked = sorted.slice(0, need);
     // Nothing was excluded (the whole pool fits), so there's no competitor to
     // have beaten — every pick here is simply the next-best owned card.
-    for (const c of picked) reasons.set(c.oracleId, `${colorLabel} · filler by quality`);
+    for (const c of picked)
+      reasons.set(c.oracleId, `Best remaining ${LOWER_COLOR_NAME[bucket]} card`);
     return { picks: [...seed, ...picked], deferred: sorted.slice(need), reasons };
   }
 
@@ -421,7 +445,9 @@ function selectBucket(
     if (quotaKey !== undefined) {
       admit(card, (f) => ({ kind: 'quota', key: quotaKey, n: f[quotaKey] }));
     } else if (fillsCurve && !overCap(card) && effectiveTarget - picks.length > deficit()) {
-      admit(card, () => ({ kind: 'curve', slot }));
+      // curveFill[slot] is already bumped by the time this runs (admit bumps
+      // before calling this), so it's this card's own 1-indexed position.
+      admit(card, () => ({ kind: 'curve', slot, n: curveFill[slot] }));
     } else {
       deferred.push(card);
     }
@@ -479,11 +505,11 @@ function selectBucket(
     } else if (m.kind === 'curve') {
       const runnerUp = runnerUpByCurve.get(m.slot)!.get(c.oracleId) ?? null;
       const slotLabel = m.slot === '7' ? '7+' : m.slot;
-      const base = `${colorLabel} · ${slotLabel}-drop`;
+      const base = `Fills ${possessiveColor(bucket)} ${slotLabel}-drops (${m.n} of ${curveCap[m.slot]})`;
       reasons.set(c.oracleId, withRunnerUp(base, c, runnerUp));
     } else {
       const runnerUp = runnerUpBackfill.get(c.oracleId) ?? null;
-      const base = `${colorLabel} · backfill after curve caps`;
+      const base = `${colorLabel} ran out of on-curve cards · best remaining`;
       reasons.set(c.oracleId, withRunnerUp(base, c, runnerUp));
     }
   }
@@ -518,7 +544,7 @@ function selectFixingLands(
   const sorted = [...pool].sort(byQuality);
   if (sorted.length + seed.length <= effectiveTarget) {
     // Nothing was excluded, so there's no runner-up to name.
-    for (const c of sorted) reasons.set(c.oracleId, 'Fixing / utility land');
+    for (const c of sorted) reasons.set(c.oracleId, 'Land by quality');
     return { picks: [...seed, ...sorted], deferred: [], reasons };
   }
 
@@ -564,12 +590,19 @@ function selectFixingLands(
     );
   const runnerUpByPair = new Map<ColorPair, Map<string, CubeCard | null>>();
   for (const p of COLOR_PAIRS) runnerUpByPair.set(p, nextDeferredMap(byPair.get(p)!, deferredIds));
+  // Pass 2's plain quality catch-all competes across the WHOLE land pool, not
+  // one pair, so its runner-up is ranked the same way.
+  const runnerUpGeneric = nextDeferredMap(sorted, deferredIds);
 
   for (const c of picked) {
     const forPair = admittedFor.get(c.oracleId);
     if (!forPair) {
-      if (!seed.some((s) => s.oracleId === c.oracleId))
-        reasons.set(c.oracleId, 'Fixing / utility land');
+      if (!seed.some((s) => s.oracleId === c.oracleId)) {
+        const runnerUp = runnerUpGeneric.get(c.oracleId) ?? null;
+        // "Fixing / utility land" would claim knowledge of what this land
+        // fixes that pass 2 never checked — it only ever compared quality.
+        reasons.set(c.oracleId, withRunnerUp('Land by quality', c, runnerUp));
+      }
       continue; // seed: reasoned "Locked" by the caller
     }
     const runnerUp = runnerUpByPair.get(forPair.pair)!.get(c.oracleId) ?? null;
@@ -580,20 +613,23 @@ function selectFixingLands(
 }
 
 function reasonFor(c: CubeCard, bucket: ColorBucket): string {
-  if (bucket === 'land') return 'Fixing / utility land';
+  if (bucket === 'land') return 'Land by quality';
   const base = COLOR_NAME[bucket];
   if (c.role) return `${base} · ${ROLE_NAME[c.role]}`;
   const slot = curveSlotOf(c.cmc);
   return `${base} · ${slot === '7' ? '7+' : slot}-drop`;
 }
 
-/** The cube overall came up short of `size`, so a slot was filled from a
- *  DIFFERENT bucket's leftovers instead of this one's own supply — a distinct
- *  reason from every in-bucket kind above, since nothing here competed for
- *  this specific slot. */
-function crossBackfillReasonFor(bucket: ColorBucket): string {
-  if (bucket === 'land') return 'Fixing / utility land · added to reach the full cube';
-  return `${COLOR_NAME[bucket]} · added because another color came up short`;
+/** The cube overall came up short of `size`, so a slot was filled from
+ *  whichever bucket(s) actually fell short — not necessarily this card's own
+ *  bucket, and the card's own color is already on the row, so the reason
+ *  names what ran short instead of restating the card. `shortBuckets` is
+ *  computed once for the whole backfill pass (every extra card addresses the
+ *  same shortfall), sentence-cased for the one bucket that's mid-sentence. */
+function crossBackfillReason(shortBuckets: ColorBucket[]): string {
+  if (shortBuckets.length === 0) return 'Fills a gap in your collection';
+  const names = shortBuckets.map((b) => LOWER_COLOR_NAME[b]);
+  return `Fills a gap: ${joinNames(names)} ran short in your collection`;
 }
 
 export function generateCube(
@@ -691,6 +727,10 @@ export function generateCube(
   const filled = picks.length;
   if (filled < size) {
     const need = size - filled;
+    // Which color(s) actually came up short of their own target — computed
+    // BEFORE this backfill touches byBucket, so it reflects the real cause.
+    const shortBuckets = BUCKETS.filter((b) => b !== 'land' && byBucket[b] < targetByBucket[b]);
+    const backfillReason = crossBackfillReason(shortBuckets);
     // Cube-level ceilings hold here too: the best leftovers are exactly the
     // role cards the buckets just capped, so take anything under its ceiling
     // first and capped role cards only as a last resort.
@@ -713,7 +753,7 @@ export function generateCube(
     for (const c of extra) {
       const b = bucketOf(c);
       byBucket[b]++;
-      picks.push({ card: c, bucket: b, reason: crossBackfillReasonFor(b) });
+      picks.push({ card: c, bucket: b, reason: backfillReason });
     }
     shortfall = Math.max(0, size - picks.length);
   }

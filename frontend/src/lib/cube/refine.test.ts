@@ -102,6 +102,24 @@ describe('refineCube', () => {
     expect(tokenCount(r.picks)).toBeGreaterThan(tokenCount(seed.picks));
   });
 
+  it('names the real post-swap depth and the replaced card on each swapped-in pick', () => {
+    const { seed, pool } = tokensScenario();
+    const seedIds = new Set(seed.picks.map((p) => p.card.oracleId));
+    const r = refineCube(seed, pool, band360, 360);
+    const swappedIn = r.picks.filter((p) => !seedIds.has(p.card.oracleId));
+    expect(swappedIn.length).toBeGreaterThan(0);
+    for (const p of swappedIn) {
+      expect(p.reason).toMatch(/ · replaced .+$/);
+    }
+    // At least one of these swaps deepened the tokens axis (the scenario's
+    // only draftable one), so at least one reason names it with real counts.
+    expect(
+      swappedIn.some((p) =>
+        /^Deepens Tokens \/ go-wide \(\d+ enablers?, \d+ payoffs?\) · replaced /.test(p.reason)
+      )
+    ).toBe(true);
+  });
+
   it('is deterministic — identical output across runs, and pool order never matters', () => {
     const { seed, pool } = tokensScenario();
     const r1 = refineCube(seed, pool, band360, 360);

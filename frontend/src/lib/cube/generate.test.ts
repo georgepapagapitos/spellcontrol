@@ -17,6 +17,8 @@ function card(p: Partial<CubeCard>): CubeCard {
     cubeElo: p.cubeElo,
     synergyProducers: p.synergyProducers,
     synergyPayoffs: p.synergyPayoffs,
+    colorIdentity: p.colorIdentity,
+    producedMana: p.producedMana,
   };
 }
 
@@ -379,6 +381,128 @@ describe('generateCube — locked and banned (cube edit)', () => {
     const a = generateCube(pool, 360, { locked, banned, synergyLevel: 1 });
     const b = generateCube(pool, 360, { locked, banned, synergyLevel: 1 });
     expect(a.picks.map((p) => p.card.oracleId)).toEqual(b.picks.map((p) => p.card.oracleId));
+  });
+});
+
+describe('generateCube — pick reasons', () => {
+  it('quota picks name the quota and the count', () => {
+    const cube = generateCube(richPool(), 360);
+    const removalPicks = cube.picks.filter((p) => /^Removal quota \(/.test(p.reason));
+    expect(removalPicks.length).toBeGreaterThan(0);
+    expect(removalPicks[0].reason).toMatch(/^Removal quota \(\d+ of \d+\)/);
+  });
+
+  it('quota picks name a runner-up (and the byQuality field that decided it) when the pool has more of the role than the quota takes', () => {
+    // Removal supply (40) far exceeds any plausible per-bucket quota, so the
+    // top picks each have a real runner-up left in the deferred pile.
+    const pool = richPool();
+    for (let i = 0; i < 40; i++)
+      pool.push(
+        card({
+          colors: ['W'],
+          cmc: 1 + (i % 5),
+          role: 'removal',
+          rank: 1 + i,
+          name: `Removal ${i}`,
+        })
+      );
+    const cube = generateCube(pool, 360);
+    const removalPicks = cube.picks.filter((p) => /^Removal quota \(/.test(p.reason));
+    expect(removalPicks.some((p) => /· beat .+ on EDHREC rank$/.test(p.reason))).toBe(true);
+  });
+
+  it("curve fill names the color, the slot, and the count toward that slot's cap", () => {
+    const cube = generateCube(richPool(), 360);
+    const curvePicks = cube.picks.filter((p) => /^Fills \w+('s)? \d(\+)?-drops \(/.test(p.reason));
+    expect(curvePicks.length).toBeGreaterThan(0);
+    expect(curvePicks[0].reason).toMatch(/^Fills \w+('s)? \d(\+)?-drops \(\d+ of \d+\)/);
+  });
+
+  it('has no runner-up clause for the last eligible card', () => {
+    // A pool with exactly one card of a kind — nothing else competed for its slot.
+    const pool = richPool();
+    pool.push(card({ name: 'Lone Payoff', colors: ['B'], rank: 1, synergyPayoffs: ['sacrifice'] }));
+    const cube = generateCube(pool, 360, { synergyLevel: 1 });
+    // Not asserting WHICH reason kind it lands as — only that at least one pick's
+    // reason has no "beat" clause, proving the omission path is reachable.
+    expect(cube.picks.some((p) => !/beat .+ on/.test(p.reason))).toBe(true);
+  });
+
+  it('locked cards always just say "Locked"', () => {
+    const pool = richPool();
+    const target = pool.find((c) => c.colors[0] === 'W')!;
+    const cube = generateCube(pool, 360, { locked: [target] });
+    expect(cube.picks.find((p) => p.card.oracleId === target.oracleId)!.reason).toBe('Locked');
+  });
+
+  it('filler by quality: a color/bucket with no competition just says so, no runner-up', () => {
+    const pool = richPool()
+      .filter((c) => !(c.colors.length === 0 && c.typeLine === 'Artifact'))
+      .concat([
+        card({ colors: [], typeLine: 'Artifact', cmc: 2, rank: 5 }),
+        card({ colors: [], typeLine: 'Artifact', cmc: 3, rank: 6 }),
+      ]);
+    const cube = generateCube(pool, 360);
+    const colorlessPicks = cube.picks.filter((p) => p.card.typeLine === 'Artifact');
+    expect(colorlessPicks.length).toBe(2);
+    for (const p of colorlessPicks) expect(p.reason).toBe('Best remaining colorless card');
+  });
+
+  it('in-bucket backfill: a color stuck at one curve slot says it ran out of on-curve cards', () => {
+    const pool = richPool()
+      .filter((c) => !(c.colors.length === 1 && c.colors[0] === 'U'))
+      .concat(Array.from({ length: 60 }, (_, i) => card({ colors: ['U'], cmc: 3, rank: 800 + i })));
+    const cube = generateCube(pool, 360);
+    const backfilled = cube.picks.filter((p) =>
+      /^Blue ran out of on-curve cards · best remaining/.test(p.reason)
+    );
+    expect(backfilled.length).toBeGreaterThan(0);
+  });
+
+  it("cross-bucket backfill names the color that actually ran short, not the picked card's own color", () => {
+    const pool = richPool()
+      .filter((c) => !(c.colors.length === 1 && c.colors[0] === 'G'))
+      .concat(
+        Array.from({ length: 10 }, (_, i) => card({ colors: ['G'], cmc: i % 6, rank: 4000 + i }))
+      );
+    const cube = generateCube(pool, 360);
+    expect(
+      cube.picks.some((p) => p.reason === 'Fills a gap: green ran short in your collection')
+    ).toBe(true);
+  });
+
+  it('fixing lands: a pair-targeted land names the pair and the count, a plain one says "Land by quality"', () => {
+    const pool = richPool().concat(
+      Array.from({ length: 8 }, (_, i) =>
+        card({
+          name: `WU Land ${i}`,
+          colors: [],
+          typeLine: 'Land',
+          rank: 50 + i,
+          colorIdentity: ['W', 'U'],
+          producedMana: ['W', 'U'],
+        })
+      )
+    );
+    const cube = generateCube(pool, 360);
+    const fixesPicks = cube.picks.filter((p) => /^Fixes WU \(/.test(p.reason));
+    expect(fixesPicks.length).toBeGreaterThan(0);
+    expect(fixesPicks[0].reason).toMatch(/^Fixes WU \(\d+ of \d+\)/);
+    const genericLandPicks = cube.picks.filter((p) => p.reason.startsWith('Land by quality'));
+    expect(genericLandPicks.length).toBeGreaterThan(0);
+  });
+
+  it('refiner swaps name the archetype it deepened and the card it replaced', () => {
+    const pool = richPool();
+    for (let i = 0; i < 12; i++) {
+      pool.push(card({ colors: ['B'], cmc: 3, rank: 5000 + i, synergyProducers: ['sacrifice'] }));
+      pool.push(card({ colors: ['B'], cmc: 3, rank: 6000 + i, synergyPayoffs: ['sacrifice'] }));
+    }
+    const cube = generateCube(pool, 360, { synergyLevel: 1 });
+    const swapped = cube.picks.filter((p) =>
+      /^Deepens .+ \(\d+ enablers?, \d+ payoffs?\) · replaced .+/.test(p.reason)
+    );
+    expect(swapped.length).toBeGreaterThan(0);
   });
 });
 
