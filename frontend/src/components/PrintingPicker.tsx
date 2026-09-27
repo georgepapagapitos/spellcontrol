@@ -20,7 +20,7 @@ const PRINTING_PAGE_SIZE = 8;
  * "Not set" stood and adds nothing to the stored copy, exactly as before; the
  * separate "English" code isn't offered twice.
  */
-const ADD_LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter((o) => o.value !== 'en').map((o) =>
+export const ADD_LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter((o) => o.value !== 'en').map((o) =>
   o.value === '' ? { ...o, label: 'English' } : o
 );
 

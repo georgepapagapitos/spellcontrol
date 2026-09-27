@@ -10,7 +10,11 @@ import type { ScryfallCard } from '@/deck-builder/types';
 beforeEach(() => {
   localStorage.clear();
   useScanQueueStore.setState({ queue: [] });
-  useScannerSettings.setState({ defaultFinish: 'nonfoil', defaultCondition: 'nm' });
+  useScannerSettings.setState({
+    defaultFinish: 'nonfoil',
+    defaultCondition: 'nm',
+    defaultLanguage: '',
+  });
 });
 
 // Row identity is printing id + finish; scans land as nonfoil.
@@ -477,6 +481,133 @@ describe('useScanQueue', () => {
     });
   });
 
+  describe('changeLanguage', () => {
+    it('leaves a fresh scan undefined (English default)', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard());
+      });
+      expect(result.current.queue[0].language).toBeUndefined();
+    });
+
+    it('sets the language for the targeted entry', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard());
+      });
+      act(() => {
+        result.current.changeLanguage(NONFOIL_1, 'ja');
+      });
+      expect(result.current.queue[0].language).toBe('ja');
+    });
+
+    it("clears back to the unmarked default on ''", () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard());
+        result.current.changeLanguage(NONFOIL_1, 'ja');
+        result.current.changeLanguage(NONFOIL_1, '');
+      });
+      expect(result.current.queue[0].language).toBeUndefined();
+    });
+
+    it('never re-keys or merges rows — language is not part of row identity', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard({ finishes: ['nonfoil', 'foil'] }));
+      });
+      const idBefore = result.current.queue[0].id;
+      act(() => {
+        result.current.changeLanguage(NONFOIL_1, 'de');
+      });
+      expect(result.current.queue).toHaveLength(1);
+      expect(result.current.queue[0].id).toBe(idBefore);
+    });
+
+    it('applies to several rows at once', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addManual(makeCard({ id: 'print-a', oracle_id: 'oracle-a' }));
+        result.current.addManual(makeCard({ id: 'print-b', oracle_id: 'oracle-b' }));
+      });
+      act(() => {
+        result.current.changeLanguage(
+          [entryKey('print-a', 'nonfoil'), entryKey('print-b', 'nonfoil')],
+          'ko'
+        );
+      });
+      expect(result.current.queue.map((e) => e.language)).toEqual(['ko', 'ko']);
+    });
+  });
+
+  describe('addManual with explicit AddOptions (T153 Add-list)', () => {
+    it('adds a new row with the given finish, condition, language and quantity', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addManual(makeCard({ finishes: ['nonfoil', 'foil'] }), {
+          finish: 'foil',
+          condition: 'lp',
+          language: 'ja',
+          qty: 3,
+          source: 'searched',
+        });
+      });
+      expect(result.current.queue).toHaveLength(1);
+      expect(result.current.queue[0]).toMatchObject({
+        id: entryKey('print-1', 'foil'),
+        finish: 'foil',
+        condition: 'lp',
+        language: 'ja',
+        qty: 3,
+        source: 'searched',
+      });
+    });
+
+    it('falls back to the Add settings default for any field left out', () => {
+      useScannerSettings.setState({ defaultCondition: 'mp', defaultLanguage: 'de' });
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addManual(makeCard(), { source: 'searched' });
+      });
+      expect(result.current.queue[0]).toMatchObject({ condition: 'mp', language: 'de', qty: 1 });
+    });
+
+    it('clamps the requested finish to one the printing actually offers', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addManual(makeCard({ finishes: ['nonfoil'] }), { finish: 'foil' });
+      });
+      expect(result.current.queue[0].finish).toBe('nonfoil');
+    });
+
+    it('increments an existing row by the given qty, keeping its own condition/language', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addManual(makeCard(), {
+          condition: 'lp',
+          language: 'ja',
+          source: 'searched',
+        });
+      });
+      act(() => {
+        // A second, differently-detailed add of the same printing+finish is
+        // still "N more of this row" — it must not silently rewrite the
+        // condition/language of copies already queued.
+        result.current.addManual(makeCard(), { condition: 'hp', language: 'de', qty: 2 });
+      });
+      expect(result.current.queue).toHaveLength(1);
+      expect(result.current.queue[0]).toMatchObject({ qty: 3, condition: 'lp', language: 'ja' });
+    });
+
+    it('defaults an omitted source to scanned (the scanner "Add by name" case)', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addManual(makeCard());
+      });
+      expect(result.current.queue[0].source).toBe('scanned');
+    });
+  });
+
   describe('totalPrice', () => {
     it('sums qty × usd across the queue', () => {
       const { result } = renderHook(() => useScanQueue());
@@ -585,6 +716,7 @@ describe('useScanQueue', () => {
         changePrinting: result.current.changePrinting,
         changeFinish: result.current.changeFinish,
         changeCondition: result.current.changeCondition,
+        changeLanguage: result.current.changeLanguage,
       };
       rerender();
       expect(result.current.addScan).toBe(first.addScan);
@@ -595,6 +727,7 @@ describe('useScanQueue', () => {
       expect(result.current.changePrinting).toBe(first.changePrinting);
       expect(result.current.changeFinish).toBe(first.changeFinish);
       expect(result.current.changeCondition).toBe(first.changeCondition);
+      expect(result.current.changeLanguage).toBe(first.changeLanguage);
     });
   });
 });

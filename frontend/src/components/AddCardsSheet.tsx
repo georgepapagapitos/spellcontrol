@@ -3,12 +3,20 @@ import { Suspense, lazy, useEffect, useId, useState, type ReactNode } from 'reac
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { useCanScan } from '../lib/use-can-scan';
-import { importScannedCards } from '../lib/scan-import';
+import { useOverlayLayer } from '../lib/overlay-layer';
+import { importEntries, importScannedCards } from '../lib/scan-import';
 import { fetchErrorMessage } from '../lib/import-review';
+import {
+  summarizeImportRouting,
+  type ImportRoutingSummary as RoutingSummary,
+} from '../lib/import-routing';
+import { formatMoney } from '../lib/format-money';
 import { useCollectionStore } from '../store/collection';
+import { rekeyedId, useScanQueue } from '../lib/use-scan-queue';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { UploadPanel } from './UploadPanel';
 import { ProductSearchPanel } from './ProductSearchPanel';
+import { ImportRoutingSummary } from './ImportRoutingSummary';
 import { Tabs } from './Tabs';
 
 import { userMessage } from '@/lib/user-error';
@@ -18,6 +26,14 @@ const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m
 // (css-chunk-ownership.test.ts) — the sheet carries that stylesheet itself.
 const ScannerSettingsSheet = lazy(() =>
   import('./ScannerSettingsSheet').then((m) => ({ default: m.ScannerSettingsSheet }))
+);
+// Same reason: the Add-list review reuses the scanner's own sheets, whose
+// classes live in admin-scanner.css too.
+const ScannerQueueSheet = lazy(() =>
+  import('./ScannerQueueSheet').then((m) => ({ default: m.ScannerQueueSheet }))
+);
+const ScannerEditSheet = lazy(() =>
+  import('./ScannerEditSheet').then((m) => ({ default: m.ScannerEditSheet }))
 );
 
 type Tab = 'search' | 'upload' | 'product' | 'scan';
@@ -64,7 +80,34 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
   const [scanSuccess, setScanSuccess] = useState<string | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
 
+  // T153 Add list: the scanner's queue, generalized. Search "+" and the
+  // printing picker fill the same persisted list the Scan tab does, reviewed
+  // (ScannerQueueSheet, reused) and added at once.
+  const {
+    queue: addListQueue,
+    totalCount: addListCount,
+    totalPrice: addListValue,
+    addManual: addToAddList,
+    removeFromQueue: removeFromAddList,
+    clearQueue: clearAddList,
+    changeQty: changeAddListQty,
+    changePrinting: changeAddListPrinting,
+    changeFinish: changeAddListFinish,
+    changeCondition: changeAddListCondition,
+    changeLanguage: changeAddListLanguage,
+  } = useScanQueue();
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [addListEditingId, setAddListEditingId] = useState<string | null>(null);
+  const [committing, setCommitting] = useState(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
+  const [commitSummary, setCommitSummary] = useState<{
+    importId: string;
+    routing: RoutingSummary;
+    successLine: string;
+  } | null>(null);
+
   const importCards = useCollectionStore((s) => s.importCards);
+  const deleteImports = useCollectionStore((s) => s.deleteImports);
   const labelId = useId();
 
   useLockBodyScroll();
@@ -75,17 +118,26 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
   // dialog entrance/exit, UX-201) — we wait on its `modal-panel-out`.
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'modal-panel-out');
 
+  // Registers this sheet in the shared overlay-layer stack (the same one
+  // <Modal> and CardScanner use) so its Escape only fires when nothing —
+  // the Add-list review, a row edit, the scanner, its settings — is stacked
+  // on top of it. Without this, Escape closed the whole sheet out from under
+  // whatever was open above it.
+  const { isTopmost } = useOverlayLayer();
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') beginClose();
+      if (e.key === 'Escape' && isTopmost()) beginClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [beginClose]);
+  }, [beginClose, isTopmost]);
 
   /** Resolves true once the cards are in the collection, so the scanner takes
    *  those rows off its list (it used to keep them, ready to add twice). A
-   *  failed import keeps them for a retry. */
+   *  failed import keeps them for a retry. Commits through the same
+   *  `importEntries` path as the Add-list bar below — one function, one
+   *  history entry shape, for either trigger. */
   const handleScanConfirm = async (text: string, count: number): Promise<boolean> => {
     setScannerOpen(false);
     setScanError(null);
@@ -122,6 +174,46 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
       setScanBusy(false);
     }
   };
+
+  /**
+   * Commit the Add list ("Add N" from the bar, or the review sheet's
+   * footer): one `importEntries` call for the given rows (or the whole list),
+   * then clear exactly what landed and show the routing summary + an Undo
+   * that removes exactly this import (`deleteImports` already carries its own
+   * toast + Undo, so this just calls it).
+   */
+  const handleCommitAddList = async (ids?: string[]) => {
+    const rows = ids ? addListQueue.filter((e) => ids.includes(e.id)) : addListQueue;
+    if (rows.length === 0) return;
+    setCommitting(true);
+    setCommitError(null);
+    try {
+      const { added, requested, unresolved, fetchErrors, importId } = await importEntries(
+        rows,
+        importCards
+      );
+      removeFromAddList(rows.map((e) => e.id));
+      setReviewOpen(false);
+      const parts = [
+        `Added ${added.toLocaleString()}${added === requested ? '' : ` of ${requested.toLocaleString()}`} card${added === 1 ? '' : 's'}`,
+      ];
+      if (unresolved > 0) parts.push(`${unresolved} unresolved`);
+      if (fetchErrors > 0)
+        parts.push(fetchErrorMessage(fetchErrors, 'Retry from the import page.'));
+      const s = useCollectionStore.getState();
+      setCommitSummary({
+        importId,
+        routing: summarizeImportRouting(new Set([importId]), s.cards, s.binders),
+        successLine: parts.join(' · '),
+      });
+    } catch (err) {
+      setCommitError(userMessage(err, "Couldn't add those cards."));
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  const addListEditing = addListQueue.find((e) => e.id === addListEditingId) ?? null;
 
   const tabs: Array<{ id: Tab; label: string; icon: ReactNode; available: boolean }> = [
     {
@@ -214,6 +306,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
               autoFocus={activeTab === 'search'}
               initialQuery={initialQuery}
               onEscape={beginClose}
+              addToList
             />
           </div>
 
@@ -302,6 +395,85 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             </div>
           )}
         </div>
+
+        {commitSummary && (
+          <div className="import-review add-cards-commit-review" role="status" aria-live="polite">
+            <div className="import-review-header">
+              <span className="import-review-title">Added to your collection</span>
+              <button
+                type="button"
+                className="banner-dismiss"
+                onClick={() => setCommitSummary(null)}
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+            <p className="import-review-line">{commitSummary.successLine}</p>
+            {(commitSummary.routing.entries.length > 0 ||
+              commitSummary.routing.unroutedCount > 0) && (
+              <div className="import-review-section import-review-section--routing">
+                <ImportRoutingSummary summary={commitSummary.routing} />
+              </div>
+            )}
+            <div className="import-review-section add-cards-commit-undo">
+              <Button
+                onClick={() => {
+                  void deleteImports([commitSummary.importId]);
+                  setCommitSummary(null);
+                }}
+              >
+                Undo
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {commitError && (
+          <div className="error-banner add-cards-commit-error" role="alert">
+            <span>{commitError}</span>
+            <button
+              type="button"
+              className="banner-dismiss"
+              onClick={() => setCommitError(null)}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {addListCount > 0 && (
+          <div className="modal-footer add-cards-list-bar">
+            <span className="add-cards-list-bar-thumbs" aria-hidden="true">
+              {[...addListQueue]
+                .sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0))
+                .slice(0, 3)
+                .map((e) => {
+                  const img = e.card.image_uris?.small || e.card.card_faces?.[0]?.image_uris?.small;
+                  return (
+                    <span key={e.id} className="add-cards-list-bar-thumb">
+                      {img && <img src={img} alt="" loading="lazy" />}
+                    </span>
+                  );
+                })}
+            </span>
+            <span className="add-cards-list-bar-summary">
+              <b>
+                {addListCount} card{addListCount === 1 ? '' : 's'}
+              </b>
+              <span>{formatMoney(addListValue)}</span>
+            </span>
+            <Button onClick={() => setReviewOpen(true)}>Review</Button>
+            <Button
+              variant="primary"
+              disabled={committing}
+              onClick={() => void handleCommitAddList()}
+            >
+              {committing ? 'Adding…' : `Add ${addListCount}`}
+            </Button>
+          </div>
+        )}
       </div>
 
       {scannerOpen && (
@@ -315,6 +487,48 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
           <ScannerSettingsSheet
             onClose={() => setSettingsOpen(false)}
             showScannerSection={canScan}
+          />
+        </Suspense>
+      )}
+
+      {reviewOpen && (
+        <Suspense fallback={null}>
+          <ScannerQueueSheet
+            entries={addListQueue}
+            heading={`${addListCount} card${addListCount === 1 ? '' : 's'}`}
+            onClose={() => setReviewOpen(false)}
+            onEdit={setAddListEditingId}
+            onRemove={removeFromAddList}
+            onClearAll={clearAddList}
+            onChangeFinish={changeAddListFinish}
+            onChangeCondition={changeAddListCondition}
+            onChangeLanguage={changeAddListLanguage}
+            onAddCard={(card) => addToAddList(card, { source: 'searched' })}
+            onConfirm={(ids) => void handleCommitAddList(ids)}
+          />
+        </Suspense>
+      )}
+
+      {addListEditing && (
+        <Suspense fallback={null}>
+          <ScannerEditSheet
+            entry={addListEditing}
+            onClose={() => setAddListEditingId(null)}
+            onFinish={(f) => {
+              changeAddListFinish(addListEditing.id, f);
+              setAddListEditingId(rekeyedId(addListEditing.card, f));
+            }}
+            onCondition={(c) => changeAddListCondition(addListEditing.id, c)}
+            onLanguage={(l) => changeAddListLanguage(addListEditing.id, l)}
+            onQty={(d) => changeAddListQty(addListEditing.id, d)}
+            onPrinting={(card) => {
+              changeAddListPrinting(addListEditing.id, card);
+              setAddListEditingId(rekeyedId(card, addListEditing.finish));
+            }}
+            onRemove={() => {
+              removeFromAddList(addListEditing.id);
+              setAddListEditingId(null);
+            }}
           />
         </Suspense>
       )}

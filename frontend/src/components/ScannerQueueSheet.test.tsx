@@ -73,6 +73,7 @@ function renderSheet(entries: ScannedEntry[] = [bolt, greaves]) {
     onClearAll: vi.fn(),
     onChangeFinish: vi.fn(),
     onChangeCondition: vi.fn(),
+    onChangeLanguage: vi.fn(),
     onAddCard: vi.fn(),
     onConfirm: vi.fn(),
   };
@@ -117,6 +118,34 @@ describe('ScannerQueueSheet', () => {
     expect(within(boltRow).getByText('NM')).toBeTruthy();
     // Two copies at $1.50: the row shows what the stack is worth.
     expect(within(boltRow).getByText('$3.00')).toBeTruthy();
+  });
+
+  it('shows a language tag only when one is set', () => {
+    renderSheet([{ ...greaves, language: 'ja' }, bolt]);
+    const greavesRow = screen.getByRole('button', { name: /Edit 1 Lightning Greaves/ });
+    expect(within(greavesRow).getByText('JA')).toBeTruthy();
+    expect(within(greavesRow).getAllByText(/./, { selector: '.scan-row-tag' })).toHaveLength(3);
+    const boltRow = screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ });
+    expect(within(boltRow).getAllByText(/./, { selector: '.scan-row-tag' })).toHaveLength(2);
+  });
+
+  it('overrides the non-empty heading via the heading prop (the Add-cards sheet review context)', () => {
+    render(
+      <ScannerQueueSheet
+        entries={[bolt, greaves]}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+        onClearAll={vi.fn()}
+        onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
+        onChangeLanguage={vi.fn()}
+        onAddCard={vi.fn()}
+        onConfirm={vi.fn()}
+        heading="3 cards"
+      />
+    );
+    expect(screen.getByRole('heading', { name: '3 cards' })).toBeTruthy();
   });
 
   it('opens a row for editing and removes one with its own button', () => {
@@ -208,6 +237,22 @@ describe('ScannerQueueSheet', () => {
       expect(props.onChangeFinish).toHaveBeenCalledWith(
         ['card-1::nonfoil', 'card-2::nonfoil'],
         'foil'
+      );
+    });
+
+    it('sets a language on the selection', () => {
+      const props = renderSheet();
+      enterSelect();
+      screen.getAllByRole('checkbox').forEach((b) => fireEvent.click(b));
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      const dialog = screen.getByRole('dialog', { name: 'Edit 3 cards' });
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'Language for the selected cards' })
+      );
+      fireEvent.click(screen.getByRole('option', { name: 'Japanese' }));
+      expect(props.onChangeLanguage).toHaveBeenCalledWith(
+        ['card-1::nonfoil', 'card-2::nonfoil'],
+        'ja'
       );
     });
 

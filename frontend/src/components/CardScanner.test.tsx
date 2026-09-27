@@ -2,8 +2,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CardScanner } from './CardScanner';
-import { useScanQueueStore } from '../lib/use-scan-queue';
+import { useScanQueueStore, type ScannedEntry } from '../lib/use-scan-queue';
 import { useScannerSettings } from '../lib/scanner-settings';
+import { entriesToImportCsv } from '../lib/scan-import';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 // The scanner pulls in the opencv/WASM loader, which can't run under
@@ -207,6 +208,22 @@ describe('CardScanner', () => {
   });
 
   describe('with the camera live', () => {
+    const boltEntry: ScannedEntry = {
+      id: 'card-1::nonfoil',
+      card: makeCard(),
+      qty: 2,
+      finish: 'nonfoil',
+      rawText: 'Lightning Bolt',
+    };
+    const counterspellEntry: ScannedEntry = {
+      id: 'card-2::nonfoil',
+      card: makeCard({ id: 'card-2', name: 'Counterspell', collector_number: '54' }),
+      qty: 1,
+      finish: 'nonfoil',
+      condition: 'lp',
+      rawText: 'Counterspell',
+    };
+
     function liveScanner(onConfirm: (text: string, count: number) => boolean | Promise<boolean>) {
       const track = {
         getCapabilities: () => ({}),
@@ -221,25 +238,7 @@ describe('CardScanner', () => {
         writable: true,
         value: null,
       });
-      useScanQueueStore.setState({
-        queue: [
-          {
-            id: 'card-1::nonfoil',
-            card: makeCard(),
-            qty: 2,
-            finish: 'nonfoil',
-            rawText: 'Lightning Bolt',
-          },
-          {
-            id: 'card-2::nonfoil',
-            card: makeCard({ id: 'card-2', name: 'Counterspell', collector_number: '54' }),
-            qty: 1,
-            finish: 'nonfoil',
-            condition: 'lp',
-            rawText: 'Counterspell',
-          },
-        ],
-      });
+      useScanQueueStore.setState({ queue: [boltEntry, counterspellEntry] });
       render(<CardScanner onClose={vi.fn()} onConfirm={onConfirm} />);
     }
 
@@ -253,10 +252,7 @@ describe('CardScanner', () => {
       liveScanner(onConfirm);
       const list = await openList();
       fireEvent.click(within(list).getByRole('button', { name: 'Add 3 cards' }));
-      expect(onConfirm).toHaveBeenCalledWith(
-        '2 Lightning Bolt (LEA) 161\n1 Counterspell *LP* (LEA) 54',
-        3
-      );
+      expect(onConfirm).toHaveBeenCalledWith(entriesToImportCsv([boltEntry, counterspellEntry]), 3);
       // Before this, one caller never cleared the list, so the same cards
       // were still there to be added a second time.
       await waitFor(() => expect(useScanQueueStore.getState().queue).toEqual([]));
@@ -281,7 +277,7 @@ describe('CardScanner', () => {
         .find((b) => b.closest('.scan-row')?.textContent?.includes('Counterspell'));
       fireEvent.click(counterspellBox!);
       fireEvent.click(within(list).getByRole('button', { name: 'Add 1 card' }));
-      expect(onConfirm).toHaveBeenCalledWith('1 Counterspell *LP* (LEA) 54', 1);
+      expect(onConfirm).toHaveBeenCalledWith(entriesToImportCsv([counterspellEntry]), 1);
       await waitFor(() =>
         expect(useScanQueueStore.getState().queue.map((e) => e.id)).toEqual(['card-1::nonfoil'])
       );

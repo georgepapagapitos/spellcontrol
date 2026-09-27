@@ -3,9 +3,10 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'r
 import { ManaCost } from './ManaCost';
 import { CardPreview } from './CardPreview';
 import { PrintingPicker, type AddExtras } from './PrintingPicker';
-import { addedCardMessage } from '../lib/add-card-message';
+import { addedCardMessage, landedFinish } from '../lib/add-card-message';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
+import { entryKey, useScanQueue } from '../lib/use-scan-queue';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { imageFromCard } from '../lib/card-thumbs';
 import { availableFinishes } from '../lib/scanner-feedback';
@@ -46,6 +47,14 @@ interface Props {
   onAdd?: (card: ScryfallCard, finish?: Finish) => Promise<void> | void;
   /** Fires after any successful add, on top of whatever `onAdd` does. */
   onAdded?: (card: ScryfallCard, finish?: Finish) => void;
+  /**
+   * Retarget every add into the device-local Add list (T153) instead of the
+   * collection — the unified Add-cards sheet's Search tab. Takes priority
+   * over `onAdd`/`binderId` (they aren't both passed in practice). A row
+   * already in the list shows a −/+ stepper instead of "+"; there's no
+   * collection toast, only a polite live-region announcement.
+   */
+  addToList?: boolean;
 }
 
 const DEFAULT_PAGE = 10;
@@ -68,7 +77,7 @@ function ownedLabel(count: number): string {
  */
 export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
   function CardSearchResults(
-    { results, view = 'list', pageSize, total = null, binderId, onAdd, onAdded },
+    { results, view = 'list', pageSize, total = null, binderId, onAdd, onAdded, addToList },
     ref
   ) {
     const addCard = useCollectionStore((s) => s.addCard);
@@ -77,6 +86,11 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
     const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
     const collection = useCollectionStore((s) => s.cards);
     const pushToast = useToastsStore((s) => s.push);
+    const {
+      queue: addListQueue,
+      addManual: addToAddList,
+      changeQty: changeAddListQty,
+    } = useScanQueue();
 
     const [activeIndex, setActiveIndex] = useState(0);
     // Row 0 is the logical active row from the start (Enter with no arrow
@@ -94,6 +108,10 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
     // bump `addedCounts` only.
     const [addedCounts, setAddedCounts] = useState<Record<string, number>>({});
     const [addedCopyIds, setAddedCopyIds] = useState<Record<string, string[]>>({});
+    // addToList mode only: a polite live-region announcement in place of the
+    // collection toast (there's no toast — the row's own stepper is the
+    // confirmation, this is just the screen-reader equivalent of it).
+    const [addListAnnouncement, setAddListAnnouncement] = useState('');
 
     // Reset per-result UI state whenever the result set changes. Deferred to a
     // microtask so a render immediately followed by a click (tests) doesn't
@@ -119,11 +137,18 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
 
     const previewCards = useMemo(() => results.map((c) => scryfallToEnrichedCard(c)), [results]);
 
+    // T153 Add-list target: qty already queued for the printing+finish a
+    // quick add (no picker) or an explicit picker pick would land in.
+    const listQtyFor = (card: ScryfallCard, finish?: Finish): number => {
+      const f = finish ?? landedFinish(card, undefined, true);
+      return addListQueue.find((e) => e.id === entryKey(card.id, f))?.qty ?? 0;
+    };
+
     // Context line under the art: what this session added, else what the
     // collection already holds — the same wording as the row and the grid
     // badge, so the preview never contradicts what the list just said.
     const previewLabels = results.map((c) => {
-      const added = addedCounts[c.id] ?? 0;
+      const added = addToList ? listQtyFor(c) : (addedCounts[c.id] ?? 0);
       if (added > 0) return `Added ×${added}`;
       return ownedLabel(ownedCounts.get(c.name) ?? 0);
     });
@@ -181,8 +206,18 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       });
     };
 
+    const announceListAdd = (name: string, newQty: number) => {
+      setAddListAnnouncement(
+        `Added ${name} to the add list, ${newQty} card${newQty === 1 ? '' : 's'}`
+      );
+    };
+
     const quickAdd = async (card: ScryfallCard) => {
-      if (onAdd) {
+      if (addToList) {
+        const newQty = listQtyFor(card) + 1;
+        addToAddList(card, { source: 'searched' });
+        announceListAdd(card.name, newQty);
+      } else if (onAdd) {
         await onAdd(card);
         confirm(card.id);
       } else {
@@ -191,13 +226,29 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       onAdded?.(card);
     };
 
+    // Stepper "−": drop one copy from an already-queued row.
+    const decrementListEntry = (card: ScryfallCard, finish?: Finish) => {
+      const f = finish ?? landedFinish(card, undefined, true);
+      changeAddListQty(entryKey(card.id, f), -1);
+    };
+
     const addPrinting = async (
       card: ScryfallCard,
       printing: ScryfallCard,
       finish: Finish,
       extras: AddExtras
     ) => {
-      if (onAdd) {
+      if (addToList) {
+        const newQty = listQtyFor(printing, finish) + (extras.quantity ?? 1);
+        addToAddList(printing, {
+          finish,
+          condition: extras.condition,
+          language: extras.language,
+          qty: extras.quantity,
+          source: 'searched',
+        });
+        announceListAdd(printing.name, newQty);
+      } else if (onAdd) {
         await onAdd(printing, finish);
         confirm(card.id);
       } else {
@@ -279,6 +330,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
               const owned = ownedCounts.get(c.name) ?? 0;
               const added = addedCounts[c.id] ?? 0;
               const canUndo = (addedCopyIds[c.id]?.length ?? 0) > 0;
+              const listQty = addToList ? listQtyFor(c) : 0;
               const printingsOpen = openPrintingsId === c.id;
               const finishes = availableFinishes(c.finishes);
               const active = idx === activeIndex;
@@ -295,18 +347,40 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                   }}
                 >
                   <div className={`inline-card-search-row${active && navigated ? ' active' : ''}`}>
-                    <IconButton
-                      className="inline-card-search-add"
-                      onClick={() => void quickAdd(c)}
-                      label={added > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
-                      icon={
-                        added > 0 ? (
-                          <Check width={12} height={12} strokeWidth={2.5} />
-                        ) : (
-                          <Plus width={12} height={12} strokeWidth={2.5} />
-                        )
-                      }
-                    />
+                    {listQty > 0 ? (
+                      <span
+                        className="inline-card-search-stepper"
+                        role="group"
+                        aria-label={`${c.name} in the add list`}
+                      >
+                        <IconButton
+                          className="inline-card-search-stepper-btn"
+                          onClick={() => decrementListEntry(c)}
+                          label={`One fewer ${c.name}`}
+                          icon={<Minus width={12} height={12} strokeWidth={2.5} />}
+                        />
+                        <output aria-hidden>{listQty}</output>
+                        <IconButton
+                          className="inline-card-search-stepper-btn"
+                          onClick={() => void quickAdd(c)}
+                          label={`One more ${c.name}`}
+                          icon={<Plus width={12} height={12} strokeWidth={2.5} />}
+                        />
+                      </span>
+                    ) : (
+                      <IconButton
+                        className="inline-card-search-add"
+                        onClick={() => void quickAdd(c)}
+                        label={added > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
+                        icon={
+                          added > 0 ? (
+                            <Check width={12} height={12} strokeWidth={2.5} />
+                          ) : (
+                            <Plus width={12} height={12} strokeWidth={2.5} />
+                          )
+                        }
+                      />
+                    )}
                     <button
                       type="button"
                       className="inline-card-search-preview-trigger"
@@ -342,10 +416,10 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                         <span className="inline-card-search-owned">
                           {c.set.toUpperCase()} #{c.collector_number}
                         </span>
-                        {added > 0 && (
+                        {!addToList && added > 0 && (
                           <span className="inline-card-search-added">Added ×{added}</span>
                         )}
-                        {canUndo && (
+                        {!addToList && canUndo && (
                           <IconButton
                             className="inline-card-search-undo"
                             onClick={() => undoAdd(c.id)}
@@ -378,7 +452,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                     <PrintingPicker
                       cardName={c.name}
                       fallback={c}
-                      showExtras={!onAdd}
+                      showExtras={addToList || !onAdd}
                       onAdd={(printing, finish, extras) =>
                         void addPrinting(c, printing, finish, extras)
                       }
@@ -388,6 +462,11 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
               );
             })}
           </ul>
+        )}
+        {addToList && (
+          <div role="status" aria-live="polite" className="inline-card-search-sr-only">
+            {addListAnnouncement}
+          </div>
         )}
 
         {pageSize !== undefined && results.length > shown.length && (
@@ -427,7 +506,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
             getActions={(i) => {
               const card = results[i];
               if (!card) return [];
-              const added = addedCounts[card.id] ?? 0;
+              const added = addToList ? listQtyFor(card) : (addedCounts[card.id] ?? 0);
               return [
                 {
                   key: 'add',
@@ -456,7 +535,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                   <PrintingPicker
                     cardName={card.name}
                     fallback={card}
-                    showExtras={!onAdd}
+                    showExtras={addToList || !onAdd}
                     onAdd={(printing, finish, extras) =>
                       void addPrinting(card, printing, finish, extras)
                     }

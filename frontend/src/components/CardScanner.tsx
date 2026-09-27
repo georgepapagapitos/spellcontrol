@@ -42,6 +42,7 @@ import { ScannerQueueSheet } from './ScannerQueueSheet';
 import { ScannerEditSheet } from './ScannerEditSheet';
 import { ScannerSettingsSheet } from './ScannerSettingsSheet';
 import { rekeyedId, useScanQueue, useScanQueueStore } from '../lib/use-scan-queue';
+import { entriesToImportCsv } from '../lib/scan-import';
 import { useScannerSettings } from '../lib/scanner-settings';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
@@ -73,11 +74,14 @@ function computeDisplayRect(
 interface Props {
   onClose: () => void;
   /**
-   * Called when the user adds cards to the collection. Emits a text list
-   * compatible with the `importText()` pipeline ("1 Name (SET) collector").
-   * Resolve `true` once the cards are really in the collection: the scanner
-   * then takes exactly those rows off its list. `false` (a failed import, or
-   * a caller that only stages the text for review) leaves them in place.
+   * Called when the user adds cards to the collection. Emits a generic-CSV
+   * text compatible with the `importText()` pipeline (`entriesToImportCsv`),
+   * with a Scryfall ID column for exact-printing resolution and per-row
+   * finish/condition/language — the MTGA-style line this used to emit had no
+   * language column. Resolve `true` once the cards are really in the
+   * collection: the scanner then takes exactly those rows off its list.
+   * `false` (a failed import, or a caller that only stages the text for
+   * review) leaves them in place.
    */
   onConfirm: (importText: string, count: number) => boolean | Promise<boolean>;
 }
@@ -170,6 +174,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     changePrinting,
     changeFinish,
     changeCondition,
+    changeLanguage,
   } = useScanQueue();
 
   const [status, setStatus] = useState<ScanStatus>('idle');
@@ -860,10 +865,10 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
   /**
    * Add rows to the collection: every row, or the ones picked in select mode.
-   * Emits MTGA-style lines with a finish token, then a condition token, both
-   * *before* the (SET) group, which is where the text parser's cleanName()
-   * looks for them, so the chosen finish and condition round-trip to the
-   * collection (E87). NM is never emitted: it's the unmarked default.
+   * Emits a generic-CSV text (`entriesToImportCsv`) carrying the exact
+   * Scryfall ID plus finish/condition/language per row, so a chosen finish,
+   * condition and language all round-trip to the collection (E87, T153) —
+   * the old MTGA-style line had no language column.
    *
    * The caller reports whether the add went through. Only then are exactly
    * these rows taken off the list, read from the store directly because the
@@ -874,17 +879,8 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     async (ids?: string[]) => {
       const rows = ids ? queue.filter((e) => ids.includes(e.id)) : queue;
       if (rows.length === 0) return;
-      const lines = rows.map(({ card, qty, finish, condition }) => {
-        const finishToken = finish === 'foil' ? ' *F*' : finish === 'etched' ? ' *ETCHED*' : '';
-        const conditionValue = condition ?? 'nm';
-        const conditionToken =
-          conditionValue !== 'nm' ? ` *${conditionShort(conditionValue)}*` : '';
-        return `${qty} ${card.name}${finishToken}${conditionToken} (${card.set.toUpperCase()}) ${
-          card.collector_number ?? ''
-        }`.trim();
-      });
       const count = rows.reduce((n, e) => n + e.qty, 0);
-      const added = await onConfirm(lines.join('\n'), count);
+      const added = await onConfirm(entriesToImportCsv(rows), count);
       if (added) useScanQueueStore.getState().remove(rows.map((e) => e.id));
     },
     [queue, onConfirm]
@@ -1217,6 +1213,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           onClearAll={handleClearAll}
           onChangeFinish={handleBulkFinish}
           onChangeCondition={changeCondition}
+          onChangeLanguage={changeLanguage}
           onAddCard={handleAddManual}
           onConfirm={(ids) => void handleConfirm(ids)}
         />
@@ -1231,6 +1228,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             followRow(editing.id, rekeyedId(editing.card, f), editing.card);
           }}
           onCondition={(c) => changeCondition(editing.id, c)}
+          onLanguage={(l) => changeLanguage(editing.id, l)}
           onQty={(d) => changeQty(editing.id, d)}
           onPrinting={(card) => {
             changePrinting(editing.id, card);

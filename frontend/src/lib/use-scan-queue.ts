@@ -7,6 +7,15 @@ import type { Condition, Finish } from '../types';
 import { availableFinishes, finishUnitPrice } from './scanner-feedback';
 import { useScannerSettings } from './scanner-settings';
 
+/**
+ * Where a row came from: the camera matcher/scanner's own "Add by name", or
+ * the Add-cards sheet's Search tab / printing picker (T153). Only used to
+ * decide the commit's import-history label (see `scan-import.ts`) — the two
+ * origins share one list and one commit path. Missing on a queue persisted
+ * before this field existed, which reads as 'scanned' (its only origin then).
+ */
+export type EntrySource = 'scanned' | 'searched';
+
 export interface ScannedEntry {
   /** Stable row id = printing id + finish (see {@link entryKey}), so a foil
    *  and a nonfoil copy of the same card are distinct rows, and so are two
@@ -26,6 +35,15 @@ export interface ScannedEntry {
    * collection via the import text.
    */
   condition?: Condition;
+  /**
+   * Scryfall printed-language code (T153), e.g. 'ja'. Undefined means
+   * English, the unmarked default (§ Copy details) — matches `condition`'s
+   * convention. Round-trips to the collection via the import CSV.
+   */
+  language?: string;
+  /** Where this row came from (see {@link EntrySource}). Undefined on a
+   *  queue persisted before this field existed. */
+  source?: EntrySource;
   /** The card's name when the row was made. Kept for queues persisted before
    *  the redesign; nothing reads it. */
   rawText: string;
@@ -42,6 +60,18 @@ export interface ScannedEntry {
 interface NewRowDefaults {
   finish: Finish;
   condition: Condition;
+  language: string;
+}
+
+/** Explicit overrides for one add, e.g. the printing picker's chosen finish,
+ *  condition, language and quantity. Any field left out falls back to the
+ *  Add settings default, exactly like a quick add. */
+export interface AddOptions {
+  finish?: Finish;
+  condition?: Condition;
+  language?: string;
+  qty?: number;
+  source?: EntrySource;
 }
 
 /**
@@ -75,28 +105,50 @@ export function rekeyedId(card: ScryfallCard, finish: Finish): string {
 }
 
 /**
- * Add-or-increment a scanned card into the queue. The matcher can't read
- * finish from a photo, so a new row lands as the settings' default finish,
- * clamped to one the printing offers (a Foil default on a nonfoil-only card
- * lands nonfoil), and the default condition. Incrementing an existing row
- * keeps its condition and bumps it to newest. Pure: the dedupe-cursor
- * bookkeeping lives in the callers.
+ * Add-or-increment a card into the queue. A field left unset in `opts` falls
+ * back to the Add settings default — the camera matcher can't read finish
+ * from a photo, so its scans always land this way, clamped to one the
+ * printing offers (a Foil default on a nonfoil-only card lands nonfoil).
+ * Incrementing an existing row only bumps its qty and `addedAt`: it keeps
+ * whatever condition/language/source it already had, never the new call's
+ * (an explicit picker re-add of an already-queued printing+finish is still
+ * just "one more", not a retroactive edit — use `patch`/`setCondition`/
+ * `setLanguage` for that). Pure: the dedupe-cursor bookkeeping lives in the
+ * callers.
  */
 function upsertCard(
   queue: ScannedEntry[],
   card: ScryfallCard,
+  opts: AddOptions,
   defaults: NewRowDefaults,
   now: number
 ): ScannedEntry[] {
   const allowed = availableFinishes(card.finishes);
-  const finish = allowed.includes(defaults.finish) ? defaults.finish : allowed[0];
+  const requestedFinish = opts.finish ?? defaults.finish;
+  const finish = allowed.includes(requestedFinish) ? requestedFinish : allowed[0];
   const id = entryKey(card.id, finish);
+  const qty = opts.qty ?? 1;
   const existing = queue.find((e) => e.id === id);
   if (existing) {
-    return queue.map((e) => (e.id === id ? { ...e, qty: e.qty + 1, addedAt: now } : e));
+    return queue.map((e) => (e.id === id ? { ...e, qty: e.qty + qty, addedAt: now } : e));
   }
-  const condition = defaults.condition === 'nm' ? undefined : defaults.condition;
-  return [...queue, { id, card, qty: 1, finish, condition, rawText: card.name, addedAt: now }];
+  const conditionRaw = opts.condition ?? defaults.condition;
+  const condition = conditionRaw === 'nm' ? undefined : conditionRaw;
+  const language = (opts.language ?? defaults.language) || undefined;
+  return [
+    ...queue,
+    {
+      id,
+      card,
+      qty,
+      finish,
+      condition,
+      language,
+      rawText: card.name,
+      addedAt: now,
+      source: opts.source,
+    },
+  ];
 }
 
 /**
@@ -132,12 +184,13 @@ function applyEntryPatch(
 
 interface ScanQueueState {
   queue: ScannedEntry[];
-  upsert: (card: ScryfallCard) => void;
+  upsert: (card: ScryfallCard, opts?: AddOptions) => void;
   patch: (id: string, patch: { card?: ScryfallCard; finish?: Finish }) => void;
   /** Set one finish on several rows (select mode). Each row clamps to what its
    *  printing offers and may merge, exactly as a single `patch` would. */
   patchMany: (ids: string[], finish: Finish) => void;
   setCondition: (ids: string[], condition: Condition) => void;
+  setLanguage: (ids: string[], language: string) => void;
   remove: (ids: string[]) => void;
   clear: () => void;
   changeQty: (id: string, delta: number) => void;
@@ -147,7 +200,7 @@ interface ScanQueueState {
  *  after the user changes a default should already use the new one. */
 function currentDefaults(): NewRowDefaults {
   const s = useScannerSettings.getState();
-  return { finish: s.defaultFinish, condition: s.defaultCondition };
+  return { finish: s.defaultFinish, condition: s.defaultCondition, language: s.defaultLanguage };
 }
 
 /**
@@ -165,8 +218,10 @@ export const useScanQueueStore = create<ScanQueueState>()(
   persist(
     (set) => ({
       queue: [],
-      upsert: (card) =>
-        set((s) => ({ queue: upsertCard(s.queue, card, currentDefaults(), Date.now()) })),
+      upsert: (card, opts) =>
+        set((s) => ({
+          queue: upsertCard(s.queue, card, opts ?? {}, currentDefaults(), Date.now()),
+        })),
       patch: (id, p) => set((s) => ({ queue: applyEntryPatch(s.queue, id, p) })),
       patchMany: (ids, finish) =>
         set((s) => ({
@@ -182,6 +237,15 @@ export const useScanQueueStore = create<ScanQueueState>()(
         set((s) => ({
           queue: s.queue.map((e) =>
             ids.includes(e.id) ? { ...e, condition: condition === 'nm' ? undefined : condition } : e
+          ),
+        })),
+      // Same shape as setCondition: language isn't part of row identity either,
+      // so this is a plain in-place update. English ('') is stored as absent,
+      // the unmarked default.
+      setLanguage: (ids, language) =>
+        set((s) => ({
+          queue: s.queue.map((e) =>
+            ids.includes(e.id) ? { ...e, language: language || undefined } : e
           ),
         })),
       remove: (ids) => set((s) => ({ queue: s.queue.filter((e) => !ids.includes(e.id)) })),
@@ -234,7 +298,7 @@ export interface UseScanQueueResult {
    * intentional add — and it clears the auto-scan dedupe cursor so the live
    * matcher starts fresh on the next physical card.
    */
-  addManual: (card: ScryfallCard) => void;
+  addManual: (card: ScryfallCard, opts?: AddOptions) => void;
   /** Remove one entry or several (select mode). Also clears the dedupe cursor. */
   removeFromQueue: (ids: string | string[]) => void;
   /** Wipe the queue and clear the dedupe cursor. */
@@ -258,6 +322,13 @@ export interface UseScanQueueResult {
    * so this never re-keys or merges rows.
    */
   changeCondition: (ids: string | string[], condition: Condition) => void;
+  /**
+   * Set the owned printed-language for one entry or several (T153). Like
+   * {@link changeCondition}, language isn't part of row identity, so this
+   * never re-keys or merges rows. '' clears it back to the unmarked English
+   * default.
+   */
+  changeLanguage: (ids: string | string[], language: string) => void;
 }
 
 /**
@@ -283,6 +354,7 @@ export function useScanQueue(): UseScanQueueResult {
   const patch = useScanQueueStore((s) => s.patch);
   const patchMany = useScanQueueStore((s) => s.patchMany);
   const setConditionAction = useScanQueueStore((s) => s.setCondition);
+  const setLanguageAction = useScanQueueStore((s) => s.setLanguage);
   const remove = useScanQueueStore((s) => s.remove);
   const clear = useScanQueueStore((s) => s.clear);
   const changeQtyAction = useScanQueueStore((s) => s.changeQty);
@@ -310,18 +382,18 @@ export function useScanQueue(): UseScanQueueResult {
     (card: ScryfallCard, force = false): AddScanResult => {
       if (!force && lastIdRef.current === card.id) return 'duplicate';
       lastIdRef.current = card.id;
-      upsert(card);
+      upsert(card, { source: 'scanned' });
       return 'accepted';
     },
     [upsert]
   );
 
   const addManual = useCallback(
-    (card: ScryfallCard) => {
+    (card: ScryfallCard, opts?: AddOptions) => {
       // A manual add interleaves with live scanning; clear the cursor so the
       // matcher's "same card still in frame" dedupe restarts cleanly.
       lastIdRef.current = null;
-      upsert(card);
+      upsert(card, { source: 'scanned', ...opts });
     },
     [upsert]
   );
@@ -359,6 +431,11 @@ export function useScanQueue(): UseScanQueueResult {
     [setConditionAction]
   );
 
+  const changeLanguage = useCallback(
+    (ids: string | string[], language: string) => setLanguageAction(toIds(ids), language),
+    [setLanguageAction]
+  );
+
   return {
     queue,
     totalCount,
@@ -371,5 +448,6 @@ export function useScanQueue(): UseScanQueueResult {
     changePrinting,
     changeFinish,
     changeCondition,
+    changeLanguage,
   };
 }

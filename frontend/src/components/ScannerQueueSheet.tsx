@@ -1,4 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
+// This sheet is now also its own lazy chunk (the Add-cards sheet's Add-list
+// review, T153), not only reached via CardScanner's chunk — so it needs its
+// own stylesheet import rather than relying on a parent chunk to have loaded
+// it (css-chunk-ownership.test.ts). Importing it twice (here and from
+// CardScanner.tsx) is a no-op; Vite dedupes the CSS module.
+import '@/styles/admin-scanner.css';
 import {
   ArrowDownWideNarrow,
   Camera,
@@ -16,6 +22,7 @@ import { Modal } from './Modal';
 import { OverflowMenu } from './OverflowMenu';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
+import { ADD_LANGUAGE_OPTIONS } from './PrintingPicker';
 import { SegmentedControl } from './shared/form';
 import { Button, IconButton } from './shared/Button';
 import { conditionLabel, conditionShort } from './shared/CardRow';
@@ -41,10 +48,17 @@ interface Props {
   onClearAll: () => void;
   onChangeFinish: (ids: string[], finish: Finish) => void;
   onChangeCondition: (ids: string[], condition: Condition) => void;
+  onChangeLanguage: (ids: string[], language: string) => void;
   /** Add a card found by name. Goes through the same list as a scan. */
   onAddCard: (card: ScryfallCard) => void;
   /** Add rows to the collection: the given ids, or every row when omitted. */
   onConfirm: (ids?: string[]) => void;
+  /**
+   * Overrides the non-empty-state heading (default: "{N} cards scanned").
+   * The Add-cards sheet's Review button (T153) passes "{N} cards" — this same
+   * list can hold rows added from search, not just camera scans.
+   */
+  heading?: string;
 }
 
 type Mode = 'list' | 'search' | 'select';
@@ -74,8 +88,10 @@ export function ScannerQueueSheet({
   onClearAll,
   onChangeFinish,
   onChangeCondition,
+  onChangeLanguage,
   onAddCard,
   onConfirm,
+  heading,
 }: Props) {
   const [mode, setMode] = useState<Mode>('list');
   const [sort, setSort] = useState<Sort>('newest');
@@ -150,7 +166,7 @@ export function ScannerQueueSheet({
     mode === 'select'
       ? `${countLabel(selectedCount)} selected`
       : totalCount > 0
-        ? `${countLabel(totalCount)} scanned`
+        ? (heading ?? `${countLabel(totalCount)} scanned`)
         : 'Scanned cards';
 
   return (
@@ -308,6 +324,7 @@ export function ScannerQueueSheet({
           count={selectedCount}
           onFinish={(f) => onChangeFinish(selectedIds, f)}
           onCondition={(c) => onChangeCondition(selectedIds, c)}
+          onLanguage={(l) => onChangeLanguage(selectedIds, l)}
           onClose={() => setBulkEditOpen(false)}
         />
       )}
@@ -359,6 +376,11 @@ function ScanRow({
           <span className="scan-row-tag" title={conditionLabel(condition)}>
             {conditionShort(condition)}
           </span>
+          {entry.language && (
+            <span className="scan-row-tag" title="Language">
+              {entry.language.toUpperCase()}
+            </span>
+          )}
         </span>
         {entry.addedAt ? (
           <span className="scan-row-meta">{capitalize(formatRelativeTime(entry.addedAt))}</span>
@@ -517,15 +539,18 @@ function BulkEdit({
   count,
   onFinish,
   onCondition,
+  onLanguage,
   onClose,
 }: {
   count: number;
   onFinish: (finish: Finish) => void;
   onCondition: (condition: Condition) => void;
+  onLanguage: (language: string) => void;
   onClose: () => void;
 }) {
   const [finish, setFinish] = useState<Finish | ''>('');
   const [condition, setCondition] = useState<Condition | ''>('');
+  const [language, setLanguage] = useState('');
   return (
     <Modal
       onClose={onClose}
@@ -570,6 +595,19 @@ function BulkEdit({
             onChange={(c) => {
               setCondition(c as Condition);
               onCondition(c as Condition);
+            }}
+          />
+        </div>
+        <div className="scanner-edit-field">
+          <span className="form-field-label">Language</span>
+          <SelectMenu
+            ariaLabel="Language for the selected cards"
+            value={language}
+            placeholder="Choose a language"
+            options={ADD_LANGUAGE_OPTIONS.filter((o) => o.value !== '')}
+            onChange={(l) => {
+              setLanguage(l);
+              onLanguage(l);
             }}
           />
         </div>
