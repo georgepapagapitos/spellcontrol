@@ -536,8 +536,8 @@
      when the row is expanded — a soft shadow re-establishes depth. */
   box-shadow: var(--shadow-card);
   transition:
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 
 .deck-combos-card-art:active {

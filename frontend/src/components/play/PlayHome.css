@@ -74,8 +74,8 @@
   color: var(--text-primary);
   cursor: pointer;
   transition:
-    border-color 0.15s ease,
-    transform 0.15s ease;
+    border-color var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 
 /* Hover only where a hover exists — a touch tap must not leave the door

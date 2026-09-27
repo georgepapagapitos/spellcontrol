@@ -35,7 +35,7 @@
   box-shadow: var(--shadow-tooltip);
   font-size: var(--text-sm);
   pointer-events: auto;
-  animation: playtest-hold-fade-in 200ms ease;
+  animation: playtest-hold-fade-in var(--motion-base) ease;
 }
 
 .playtest-hold-banner__icon {

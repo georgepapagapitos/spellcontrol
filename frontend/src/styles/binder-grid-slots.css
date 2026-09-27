@@ -85,7 +85,7 @@
   color: var(--text-muted);
   width: 14px;
   text-align: center;
-  transition: transform 0.15s ease;
+  transition: transform var(--motion-fast) ease;
 }
 
 .section-header-toggle.collapsed .section-chevron {

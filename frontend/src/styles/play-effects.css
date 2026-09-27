@@ -58,6 +58,8 @@
 }
 
 .player-panel-life-num.is-pop {
+  /* ease-out, not --ease-pop: the keyframes already overshoot to 1.12, and an
+     overshooting curve on each segment would bounce the total below 1. */
   animation: pp-pop 180ms ease-out;
 }
 

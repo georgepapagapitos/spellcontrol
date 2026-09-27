@@ -73,8 +73,8 @@
   text-align: left;
   cursor: pointer;
   transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .deck-picker-row:focus-visible {

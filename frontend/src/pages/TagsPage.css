@@ -100,7 +100,7 @@
 }
 
 .tags-browse-chevron {
-  transition: transform 120ms ease;
+  transition: transform var(--motion-fast) ease;
 }
 
 .tags-browse-chevron.is-open {

@@ -145,8 +145,8 @@
   border: 0.5px solid var(--border);
   box-shadow: var(--shadow-card);
   transition:
-    transform 160ms ease,
-    box-shadow 160ms ease;
+    transform var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
 }
 
 /* Newly-drawn cards (not initial-deal cards) slide in from the right. We
@@ -154,7 +154,7 @@
    animation property can't cause the card to fade out. The opacity stays
    1 throughout. */
 .deck-test-hand-card-art.is-newly-drawn {
-  animation: deck-test-hand-slide-in 260ms ease-out;
+  animation: deck-test-hand-slide-in 260ms var(--ease-out-soft);
 }
 
 @keyframes deck-test-hand-slide-in {

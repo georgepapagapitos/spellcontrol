@@ -279,7 +279,7 @@ body:has(.playtest-page, .horde-table-page) {
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: 600;
-  animation: playtest-takeback-fade-in 200ms ease;
+  animation: playtest-takeback-fade-in var(--motion-base) ease;
 }
 
 .playtest-takeback-pending__message {
@@ -342,7 +342,7 @@ body:has(.playtest-page, .horde-table-page) {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-tooltip);
   color: var(--text-primary);
-  animation: playtest-takeback-fade-in 200ms ease;
+  animation: playtest-takeback-fade-in var(--motion-base) ease;
 }
 
 /* A hold and a takeback request can be live at once, and both are centred

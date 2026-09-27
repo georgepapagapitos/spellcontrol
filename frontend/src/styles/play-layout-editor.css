@@ -102,7 +102,7 @@
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  animation: pp-fade-in 160ms ease-out;
+  animation: pp-fade-in 160ms var(--ease-out-soft);
 }
 
 .cle {
@@ -121,7 +121,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
-  animation: pp-scale-in 160ms ease-out;
+  animation: pp-scale-in 160ms var(--ease-out-soft);
 }
 
 .cle-head {

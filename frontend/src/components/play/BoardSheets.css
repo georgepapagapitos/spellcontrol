@@ -13,7 +13,7 @@
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  animation: pp-fade-in 160ms ease-out;
+  animation: pp-fade-in 160ms var(--ease-out-soft);
 }
 
 /* Bottom sheet on a phone: the shell's corners are --radius-lg, top only. */
