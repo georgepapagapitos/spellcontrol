@@ -74,11 +74,23 @@
     gap: var(--space-3) var(--space-4);
   }
 }
-/* Picker + its per-size note travel together so the note stays under the
-   options it describes when the controls become a row. Format is a
-   SegmentedControl (2 short options), size a SelectMenu (6 options) — both
-   from components/shared/form / components/SelectMenu (STYLE_GUIDE § Config
-   surfaces, "by option count"). */
+/* Picker + its own note travel together so the note stays under the options
+   it describes when the controls become a row. Format is a SegmentedControl
+   (2 short options), size a SelectMenu (6 options) — both from
+   components/shared/form / components/SelectMenu (STYLE_GUIDE § Config
+   surfaces, "by option count"). Format sits first (board #12 PR2): a paired
+   config block, size's own note reads differently once Commander is picked
+   (see CubeSizePicker). */
+.cube-format {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cube-format-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
 .cube-size {
   display: flex;
   flex-direction: column;

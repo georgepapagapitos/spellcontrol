@@ -43,14 +43,23 @@ export interface LegendPick {
 
 const CAN_BE_COMMANDER_RE = /can be your commander/i;
 
+/** The two fields the classifier actually reads — narrower than `CubeCard` so
+ *  the build page can call it straight on a collection-cache `EnrichedCard`
+ *  row (typeLine optional there) for a live, no-network eligible-legend
+ *  count, not just on a fully built pool card. */
+interface LegendClassifiable {
+  typeLine?: string;
+  oracleText?: string;
+}
+
 /** Commander-eligible: a legendary creature, or oracle text carrying the
  *  "can be your commander" pattern (backgrounds, and the few planeswalkers/
  *  battles Wizards made commander-legal — Daretti, Freyalise, Minsc & Boo).
  *  Pure and oracle-data-only, same shape as `formatExclusion` — testable
  *  without a live pool. `format === 'commander'` never excludes anything
  *  (see ./play-format), so no exclusion check is needed here. */
-export function isLegendCandidate(c: CubeCard): boolean {
-  const typeLine = c.typeLine;
+export function isLegendCandidate(c: LegendClassifiable): boolean {
+  const typeLine = c.typeLine ?? '';
   if (/\blegendary\b/i.test(typeLine) && /\bcreature\b/i.test(typeLine)) return true;
   return CAN_BE_COMMANDER_RE.test(c.oracleText ?? '');
 }

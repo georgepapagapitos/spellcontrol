@@ -154,6 +154,49 @@ describe('CubeBuildPage — size', () => {
   });
 });
 
+describe('CubeBuildPage — format (board #12, PR2)', () => {
+  it('defaults to Draft, and switching to Commander updates the size note and pool line', () => {
+    renderPage();
+    const draft = screen.getByRole('radio', { name: 'Draft' });
+    const commander = screen.getByRole('radio', { name: 'Commander' });
+    expect((draft as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText(/two players a game/)).toBeTruthy();
+
+    fireEvent.click(commander);
+    expect((commander as HTMLInputElement).checked).toBe(true);
+    // Size note switches from the draft-pod note to its own spells +
+    // commanders math — one fact, one place: the deck-size fact ("60-card
+    // deck with a commander") lives only in the format note above, not here.
+    expect(screen.getByText(/540 spells \+ \d+ commanders · an 8-player pod/)).toBeTruthy();
+    expect(screen.getByText(/60-card decks with a commander, multiplayer/)).toBeTruthy();
+    // Footer pool line grows a legend-eligibility count.
+    expect(screen.getByText(/legendary creatures eligible/)).toBeTruthy();
+  });
+
+  it('warns when the owned collection is short on eligible legends, without disabling Build', () => {
+    // None of the 3 default cards is a legendary creature — every size is short.
+    renderPage();
+    fireEvent.click(screen.getByRole('radio', { name: 'Commander' }));
+    expect(screen.getByText(/Only 0 legendary creatures are eligible/)).toBeTruthy();
+    expect(screen.getByText(/fewer commander choices than usual/)).toBeTruthy();
+    const buildButton = screen.getByRole('button', { name: /Build cube/ }) as HTMLButtonElement;
+    expect(buildButton.disabled).toBe(false);
+  });
+
+  it('no warning once the owned collection covers the size’s legend target', () => {
+    // A big bench of distinct legendary creatures easily covers 180's target (60).
+    useCollectionStore.setState({
+      cards: Array.from({ length: 70 }, (_, i) =>
+        card(`Legend ${i}`, { typeLine: 'Legendary Creature — Test', colors: ['G'] })
+      ),
+    });
+    useCubeStore.setState({ size: 180, result: null, loadedId: null, saved: [] });
+    renderPage();
+    fireEvent.click(screen.getByRole('radio', { name: 'Commander' }));
+    expect(screen.queryByText(/legendary creatures are eligible/)).toBeNull();
+  });
+});
+
 describe('CubeBuildPage — Draw from', () => {
   it('the closed Disclosure states the current pool setting', () => {
     renderPage();

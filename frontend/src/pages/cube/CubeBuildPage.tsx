@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './cube.css';
 import { BackLink } from '../../components/BackLink';
@@ -29,12 +29,15 @@ import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 import {
   useOwnershipFor,
   CubeEmptyState,
+  CubeFormatPicker,
   CubeSizePicker,
   CardPrioritySegmented,
   CubeLoadingBlock,
   CubeErrorBlock,
+  countEligibleLegends,
   type CardPriority,
 } from './shared';
+import { LEGEND_TARGET } from '../../lib/cube/legend';
 import {
   mergePools,
   filterFriendCards,
@@ -272,6 +275,13 @@ export function CubeBuildPage() {
   const cube = cubeStore.result;
   const { ownershipFor, committedFor } = useOwnershipFor();
   const { uniqueNames, hidden, load: loadPool } = useOwnedCubePool(filters);
+  // Commander only: how many of the currently filtered names are eligible
+  // legends, live off the collection cache (no oracle fetch) — feeds both the
+  // footer pool note and the not-enough-legends warning below.
+  const legendCount = useMemo(
+    () => (filters.format === 'commander' ? countEligibleLegends(uniqueNames, collectionCards) : 0),
+    [filters.format, uniqueNames, collectionCards]
+  );
 
   // This route is always a fresh build — if the store still carries a
   // PREVIOUSLY SAVED cube as the working result (e.g. from a Rebuild elsewhere,
@@ -454,10 +464,15 @@ export function CubeBuildPage() {
       ) : (
         <div className="cube-build">
           <div className="cube-controls">
+            <CubeFormatPicker
+              format={filters.format}
+              onFormat={(format) => setFilters({ ...filters, format })}
+            />
             <CubeSizePicker
               size={size}
               onSize={setSize}
               shortfallFor={(s) => Math.max(0, s - uniqueNames.length)}
+              format={filters.format}
             />
             <CardPrioritySegmented value={priority} onChange={setPriority} />
             <PoolFilterRow
@@ -479,6 +494,17 @@ export function CubeBuildPage() {
                     : `Couldn't load ${issue.username}'s collection. Their cards were excluded.`}
                 </p>
               ))}
+            </div>
+          )}
+
+          {filters.format === 'commander' && legendCount < LEGEND_TARGET[size] && (
+            <div className="cube-collab-warn-banner" role="status">
+              <p className="cube-collab-warn-line">
+                Only {legendCount.toLocaleString()} legendary creatures are eligible,{' '}
+                {(LEGEND_TARGET[size] - legendCount).toLocaleString()} short of the{' '}
+                {LEGEND_TARGET[size]}-commander target. The cube will build with fewer commander
+                choices than usual. Own more legends to fill it out.
+              </p>
             </div>
           )}
 
@@ -508,6 +534,9 @@ export function CubeBuildPage() {
                   {hidden.unpriced.toLocaleString()} without a price yet (
                   <Link to="/collection">refresh prices</Link>)
                 </span>
+              )}
+              {filters.format === 'commander' && (
+                <span> · {legendCount.toLocaleString()} legendary creatures eligible</span>
               )}
             </p>
             <Button variant="primary" onClick={generate} disabled={status === 'working'}>
