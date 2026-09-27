@@ -981,6 +981,7 @@ export function BinderEditor() {
                       .map((key) => {
                         if (key === 'condition') return 'condition';
                         if (key === 'binder') return 'binder membership';
+                        if (key === 'surplus') return 'tradeable surplus';
                         return key;
                       })
                       .join(', ')}

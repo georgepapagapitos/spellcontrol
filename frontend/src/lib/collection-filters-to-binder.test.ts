@@ -5,7 +5,8 @@ import {
   hasStructuredFilter,
   type CollectionFilterInput,
 } from './collection-filters-to-binder';
-import type { ChipExpression, EnrichedCard } from '../types';
+import type { BinderFilter, ChipExpression, EnrichedCard } from '../types';
+import type { CollectionFilterCriteria } from './collection-filter';
 import { cardMatchesFilter } from './rules';
 import { colorSelectionMatches, getColorKey } from './colors';
 
@@ -407,5 +408,62 @@ describe('deriveBinderName', () => {
   it('supertype chips included in name', () => {
     const name = deriveBinderName(makeInput({ supertypeExpr: chip('legendary') }));
     expect(name).toContain('legendary');
+  });
+});
+
+// Every check the collection's filter runs (CollectionFilterCriteria), and what
+// Save as binder does with it: carry it into a rule or flag it as dropped.
+// "Proxies only" and "Tradeable surplus only" were neither: the binder silently
+// held real cards and every copy. Typed over the criteria keys, so a new
+// collection filter fails typecheck here until it answers the same question.
+// (matchFilter is the rule-engine half, mapped field by field above; colorMode
+// travels with colors; surplusByName is data, not a filter.)
+const SAVE_AS_BINDER: Record<
+  Exclude<keyof CollectionFilterCriteria, 'matchFilter' | 'colorMode' | 'surplusByName'>,
+  { input: Partial<CollectionFilterInput>; carried?: (f: BinderFilter) => boolean; flag?: string }
+> = {
+  binder: { input: { binderExpr: chip('Trade box') }, flag: 'binder' },
+  colors: { input: { colorFilter: new Set(['W']) }, carried: (f) => !!f.colorIdentity },
+  condition: { input: { conditionExpr: chip('nm') }, flag: 'condition' },
+  language: { input: { languageExpr: chip('ja') }, flag: 'language' },
+  surplusOnly: { input: { surplusOnly: true }, flag: 'surplus' },
+  proxyOnly: { input: { proxyOnly: true }, carried: (f) => f.proxy === true },
+};
+
+describe('Save as binder accounts for every collection filter', () => {
+  for (const [key, spec] of Object.entries(SAVE_AS_BINDER)) {
+    it(`${key} is ${spec.flag ? 'flagged as not carried' : 'carried into the rule'}`, () => {
+      const { group, flagged } = collectionFiltersToFilterGroup(makeInput(spec.input));
+      if (spec.flag) expect(flagged).toContain(spec.flag);
+      else expect(spec.carried!(group.filter)).toBe(true);
+    });
+  }
+
+  it('a proxies-only binder holds the proxies and nothing else, and can be saved on its own', () => {
+    const input = makeInput({ proxyOnly: true });
+    expect(hasStructuredFilter(input)).toBe(true);
+    const { group } = collectionFiltersToFilterGroup(input);
+    const base = {
+      setCode: 'TST',
+      setName: 'Test',
+      collectorNumber: '1',
+      rarity: 'rare',
+      purchasePrice: 1,
+      sourceCategory: '',
+      sourceFormat: 'plain' as const,
+      foil: false,
+      finish: 'nonfoil' as const,
+    };
+    const proxy = {
+      ...base,
+      copyId: 'p',
+      scryfallId: 'p',
+      name: 'Proxy Sol Ring',
+      proxy: true,
+    } as EnrichedCard;
+    const real = { ...base, copyId: 'r', scryfallId: 'r', name: 'Sol Ring' } as EnrichedCard;
+    expect(cardMatchesFilter(proxy, group.filter)).toBe(true);
+    expect(cardMatchesFilter(real, group.filter)).toBe(false);
+    expect(deriveBinderName(input)).toBe('Proxies');
   });
 });
