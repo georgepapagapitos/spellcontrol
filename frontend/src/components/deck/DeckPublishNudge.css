@@ -39,43 +39,9 @@
   }
 }
 
+/* Look comes from .icon-btn now — the actions row already floors its Button
+   sibling at 44px on coarse pointer (above), so this one grows its own box
+   too rather than ghosting. */
 .deck-publish-nudge-dismiss {
-  position: relative;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-publish-nudge-dismiss:hover {
-    background: var(--surface);
-    color: var(--text-primary);
-  }
-}
-
-.deck-publish-nudge-dismiss:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* 44px touch target without inflating the visible glyph — mirrors
-   .set-filter-chip-x. */
-@media (pointer: coarse) {
-  .deck-publish-nudge-dismiss::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
 }

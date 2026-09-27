@@ -151,6 +151,7 @@ export function PullListSheet({
             </Button>
           )}
           <IconButton
+            variant="quiet"
             className="pull-list-close"
             onClick={() => dismiss()}
             label="Close"

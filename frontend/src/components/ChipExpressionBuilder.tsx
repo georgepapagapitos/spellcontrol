@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import type { ChipExpression, NegatableChip } from '../types';
 import { SelectMenu } from './SelectMenu';
+import { IconButton } from './shared/Button';
 
 const MAX_SUGGESTIONS = 8;
 
@@ -167,17 +169,15 @@ export function ChipExpressionBuilder(props: Props) {
                 {c.negate ? 'IS NOT' : 'IS'}
               </button>
               <span className="chip-builder-value">{labelFor(c.value, props)}</span>
-              <button
-                type="button"
+              <IconButton
                 className="chip-builder-remove"
                 // Was a bare "Remove". Tabbing a row of six rarity chips
                 // announced the same word six times with nothing to tell them
                 // apart.
-                aria-label={`Remove ${labelFor(c.value, props)}`}
+                label={`Remove ${labelFor(c.value, props)}`}
                 onClick={() => removeChip(i)}
-              >
-                ×
-              </button>
+                icon={<X width={14} height={14} strokeWidth={2} />}
+              />
             </span>
           </span>
         ))}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronLeft } from 'lucide-react';
+import { ChevronDown, ChevronLeft, X } from 'lucide-react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { importFile, importText, type ImportProgressCallback } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
@@ -916,6 +916,7 @@ export function BinderEditor() {
             <>
               {isNew && (
                 <IconButton
+                  variant="quiet"
                   className="binder-editor-back"
                   onClick={() => setStep('start')}
                   disabled={saving}
@@ -950,9 +951,12 @@ export function BinderEditor() {
               )}
             </>
           )}
-          <button className="modal-close" onClick={close} aria-label="Close">
-            ×
-          </button>
+          <IconButton
+            variant="quiet"
+            onClick={close}
+            label="Close"
+            icon={<X width={20} height={20} strokeWidth={1.8} />}
+          />
         </div>
 
         <div className="modal-body binder-editor-body">
@@ -1207,8 +1211,7 @@ export function BinderEditor() {
                             />
                             <span className="binder-import-row-file">{f.name}</span>
                           </div>
-                          <button
-                            type="button"
+                          <IconButton
                             className="staged-files-remove"
                             onClick={() =>
                               applyStagedFiles(
@@ -1217,11 +1220,10 @@ export function BinderEditor() {
                               )
                             }
                             disabled={saving}
-                            aria-label={`Remove ${f.name}`}
+                            label={`Remove ${f.name}`}
                             title="Remove"
-                          >
-                            ×
-                          </button>
+                            icon={<X width={14} height={14} strokeWidth={2} />}
+                          />
                         </li>
                       ))}
                     </ul>

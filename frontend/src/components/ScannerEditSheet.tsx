@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 // Also its own lazy chunk now (the Add-cards sheet's Add-list row edit,
 // T153) — see the matching note in ScannerQueueSheet.tsx.
 import '@/styles/admin-scanner.css';
-import { ChevronLeft, ChevronRight, Minus, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Minus, Plus, Trash2, X } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 import { Modal } from './Modal';
@@ -98,9 +98,12 @@ export function ScannerEditSheet({
               <h2 id="scanner-edit-title">{card.name}</h2>
               <span className="scanner-sheet-sub">{card.type_line}</span>
             </div>
-            <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-              ×
-            </button>
+            <IconButton
+              variant="quiet"
+              onClick={onClose}
+              label="Close"
+              icon={<X width={20} height={20} strokeWidth={1.8} />}
+            />
           </div>
 
           <div className="modal-body scanner-edit-body">

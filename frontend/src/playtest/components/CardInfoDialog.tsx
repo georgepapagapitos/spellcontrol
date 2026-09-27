@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from 'react';
-import { ExternalLink, RotateCw } from 'lucide-react';
+import { ExternalLink, RotateCw, X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { ManaCost } from '@/components/ManaCost';
 import { CardLegalities, CardText } from '@/components/CardDetails';
@@ -11,7 +11,7 @@ import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardStatusStrip, type CardStatusStripProps } from './CardStatusStrip';
 import './CardInfoDialog.css';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /** Scryfall card UUID — gates the rulings fetch to real printings. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -85,9 +85,12 @@ export function CardInfoDialog({
     <Modal onClose={onClose} className="modal card-info-dialog" labelledBy={titleId}>
       <header className="modal-header">
         <h2 id={titleId}>{card.name}</h2>
-        <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
+        <IconButton
+          variant="quiet"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </header>
 
       <div className="modal-body card-info-body">

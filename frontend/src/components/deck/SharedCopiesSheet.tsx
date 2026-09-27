@@ -63,7 +63,7 @@ export function SharedCopiesSheet({
             </p>
           </div>
           <IconButton
-            className="shared-copies-close"
+            variant="quiet"
             onClick={onClose}
             label="Close"
             icon={<X width={18} height={18} strokeWidth={2} />}

@@ -92,7 +92,7 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
           {binderName ? `Export binder: ${binderName}` : 'Export collection'}
         </h2>
         <IconButton
-          className="export-dialog-close"
+          variant="quiet"
           onClick={onClose}
           label="Close"
           icon={<X width={18} height={18} strokeWidth={2} />}

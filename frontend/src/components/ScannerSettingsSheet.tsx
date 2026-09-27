@@ -1,4 +1,6 @@
+import { X } from 'lucide-react';
 import { Modal } from './Modal';
+import { IconButton } from './shared/Button';
 import { SelectMenu } from './SelectMenu';
 import { Field, SegmentedControl, SwitchRow } from './shared/form';
 import { ConditionControl } from './CopyControls';
@@ -52,9 +54,12 @@ export function ScannerSettingsSheet({
         <div className="scanner-sheet-heading">
           <h2 id="scanner-settings-title">Add settings</h2>
         </div>
-        <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
+        <IconButton
+          variant="quiet"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </div>
       <div className="modal-body scanner-edit-body">
         <h3 className="form-section-heading">New copies</h3>

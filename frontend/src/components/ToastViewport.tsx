@@ -1,7 +1,8 @@
 import { type CSSProperties, useCallback, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { useToastsStore, type Toast } from '../store/toasts';
 import { useToastExits } from '../lib/use-toast-exits';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 export function ToastViewport() {
   const toasts = useToastsStore((s) => s.toasts);
@@ -107,9 +108,12 @@ function ToastItem({
           {toast.actionLabel}
         </Button>
       )}
-      <button type="button" className="toast-close" onClick={handleDismiss} aria-label="Dismiss">
-        ×
-      </button>
+      <IconButton
+        className="toast-close"
+        onClick={handleDismiss}
+        label="Dismiss"
+        icon={<X width={14} height={14} strokeWidth={2} />}
+      />
     </li>
   );
 }

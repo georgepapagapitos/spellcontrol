@@ -191,6 +191,50 @@
   cursor: not-allowed;
 }
 
+/* Quiet icon button (IconButton variant="quiet", T152 W8m): the one shared
+   look for a one-off icon-only action — close, back, dismiss. A rect per
+   STYLE_GUIDE § Shape language (circles are retired outside the camera
+   button and avatars), transparent until hover so it reads as chrome, not a
+   button, until touched. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive), same as .modal-close. */
+@media (pointer: coarse) {
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
 .tab:focus-visible {
   outline: 2px solid var(--accent);

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { WifiOff } from 'lucide-react';
+import { WifiOff, X } from 'lucide-react';
 import { Modal } from '../Modal';
 // Reuses AppendDeckDialog's offline / nothing-to-add notes by name.
 import './AppendDeckDialog.css';
@@ -27,7 +27,7 @@ import { useOnline } from './import-deck-shared';
 import './BulkEditDeckDialog.css';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -206,15 +206,13 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
         <h2 id="bulk-edit-deck-title">
           {mode === 'resync' ? `Resync ${deck.name}` : `Bulk edit ${deck.name}`}
         </h2>
-        <button
-          type="button"
-          className="modal-close"
+        <IconButton
+          variant="quiet"
           onClick={onClose}
-          aria-label="Close"
           disabled={isLoading}
-        >
-          ×
-        </button>
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </div>
 
       <div className="modal-body">
@@ -247,13 +245,13 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
             {fetchError && (
               <div className="error-banner">
                 <span>{fetchError}</span>
-                <button
+                <IconButton
+                  variant="quiet"
                   className="banner-dismiss"
                   onClick={() => setFetchError(null)}
-                  aria-label="Dismiss"
-                >
-                  ×
-                </button>
+                  label="Dismiss"
+                  icon={<X width={16} height={16} strokeWidth={2} />}
+                />
               </div>
             )}
             {emptyError && (
@@ -262,13 +260,13 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
                   Nothing to save. The list is empty. Add a commander or a card, or close this
                   dialog.
                 </span>
-                <button
+                <IconButton
+                  variant="quiet"
                   className="banner-dismiss"
                   onClick={() => setEmptyError(false)}
-                  aria-label="Dismiss"
-                >
-                  ×
-                </button>
+                  label="Dismiss"
+                  icon={<X width={16} height={16} strokeWidth={2} />}
+                />
               </div>
             )}
             <textarea

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   playerName: string;
@@ -130,9 +132,12 @@ export function LifeKeypad({ playerName, currentLife, onConfirm, onClose, rotati
           <span className="life-keypad-title">
             {mode === 'set' ? `Set life · ${playerName}` : `Change life · ${playerName}`}
           </span>
-          <button type="button" className="life-keypad-close" aria-label="Close" onClick={onClose}>
-            ✕
-          </button>
+          <IconButton
+            className="life-keypad-close"
+            label="Close"
+            onClick={onClose}
+            icon={<X width={16} height={16} strokeWidth={2} />}
+          />
         </div>
         <div className="life-keypad-display" aria-live="polite">
           {mode === 'set' ? displayValue : buffer === '' ? String(currentLife) : String(bufferNum)}

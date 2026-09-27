@@ -1,5 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
+import { IconButton } from '@/components/shared/Button';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { useEscapeKey } from '@/lib/use-escape-key';
@@ -258,14 +260,12 @@ export function OpponentBoardModal({ opp, active, onClose, onArrowTarget }: Prop
               Point
             </button>
           )}
-          <button
-            type="button"
+          <IconButton
             className="opponent-board-close"
             onClick={() => beginClose()}
-            aria-label="Close board view"
-          >
-            ✕
-          </button>
+            label="Close board view"
+            icon={<X width={18} height={18} strokeWidth={2} />}
+          />
         </header>
 
         {pending ? (

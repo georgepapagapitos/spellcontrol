@@ -15,6 +15,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  X,
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { compileBinderCandidates, nextBinderMatchCompiled } from '@spellcontrol/binder-routing';
@@ -250,9 +251,12 @@ export function ScannerQueueSheet({
                 ]}
               />
             )}
-            <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-              ×
-            </button>
+            <IconButton
+              variant="quiet"
+              onClick={onClose}
+              label="Close"
+              icon={<X width={20} height={20} strokeWidth={1.8} />}
+            />
           </>
         )}
       </div>
@@ -622,9 +626,12 @@ function BulkEdit({
           <h2 id="scanner-bulk-title">Edit {countLabel(count)}</h2>
           <span className="scanner-sheet-sub">Changes apply to every selected card</span>
         </div>
-        <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
+        <IconButton
+          variant="quiet"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </div>
       <div className="modal-body scanner-edit-body">
         <div className="scanner-edit-field">

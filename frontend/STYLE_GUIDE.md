@@ -616,6 +616,15 @@ squeeze its icon gap to fit.
 `placement` it adds no shared class and the surface's own `className` carries
 the look: most icon-only buttons are one-off close, step and menu controls. A button whose only child is card art (a deck-row or trade thumbnail that opens the preview) is not an icon button: it stays a bespoke `<button>`, and the guard lists it as a permanent entry with that reason. A drag handle is an icon button like any other: `IconButton` forwards dnd-kit's `attributes` and `listeners` untouched, and one whose name is a long keyboard instruction sets `title={false}` so the hover tooltip stays short.
 
+**`variant="quiet"` (T152 W8m) is the shared look for a one-off icon-only
+action** — close, back, dismiss — replacing every surface's own ad hoc rect or
+circle CSS. It renders `.icon-btn`: a `var(--radius)` rect (never a circle —
+circles are retired outside the camera button and avatars), 2rem square,
+transparent until hover, with the usual focus ring and a 44px floor on
+coarse pointers. It takes no `placement`: `<IconButton variant="quiet" label="Close" icon={<X />} />`. A bespoke icon-only control that isn't a close/back/dismiss
+action (a stepper, a menu trigger with its own shape, board chrome) keeps its
+own `className` instead.
+
 A surface modifier goes in `className`, appended after the variant's classes,
 exactly as `btn btn-primary shared-copy-btn` was. **Intent is the `variant`,
 never a class.** A modifier that restates it (`upload-action-danger`,

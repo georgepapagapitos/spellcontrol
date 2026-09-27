@@ -1,9 +1,11 @@
+import { X } from 'lucide-react';
 import {
   formatSessionSummaryLine,
   sessionHeadline,
   type PlaytestSessionRecord,
 } from '@/lib/playtest/session-record';
 import { hordeLevelLabel } from '@/playtest/lib/horde-view';
+import { IconButton } from '@/components/shared/Button';
 
 /** "Beat the Zombies horde (Standard)" / "Overrun by the Zombies horde
  *  (Standard)" / "Fought the Zombies horde (Standard)" — the one line a
@@ -36,14 +38,12 @@ export function PlaytestSessionSummary({ record, onDismiss }: Props) {
     <div className="playtest-session-summary" role="status">
       <div className="playtest-session-summary__header">
         <span className="playtest-session-summary__title">{sessionHeadline(record)}</span>
-        <button
-          type="button"
+        <IconButton
           className="playtest-session-summary__dismiss"
-          aria-label="Dismiss session summary"
+          label="Dismiss session summary"
           onClick={onDismiss}
-        >
-          ×
-        </button>
+          icon={<X width={14} height={14} strokeWidth={2} />}
+        />
       </div>
       <p className="playtest-session-summary__line">{formatSessionSummaryLine(record)}</p>
       {hordeLine && <p className="playtest-session-summary__line">{hordeLine}</p>}

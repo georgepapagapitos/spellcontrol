@@ -11,6 +11,7 @@ import {
   Swords,
   Trash2,
   Users,
+  X,
 } from 'lucide-react';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
@@ -190,9 +191,12 @@ export function SeatMenu({
       <div className="seat-menu-sheet">
         <header className="seat-menu-head" {...closeSwipe(0)}>
           <span>{player.name}</span>
-          <button type="button" className="seat-menu-close" aria-label="Close" onClick={onClose}>
-            ✕
-          </button>
+          <IconButton
+            className="seat-menu-close"
+            label="Close"
+            onClick={onClose}
+            icon={<X width={16} height={16} strokeWidth={2} />}
+          />
         </header>
         <div
           ref={bodyRef}

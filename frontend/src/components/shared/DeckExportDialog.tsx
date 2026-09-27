@@ -80,7 +80,7 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
           Export deck
         </h2>
         <IconButton
-          className="export-dialog-close"
+          variant="quiet"
           onClick={onClose}
           label="Close"
           icon={<X width={18} height={18} strokeWidth={2} />}

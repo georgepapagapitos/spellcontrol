@@ -745,7 +745,7 @@ function DialogBody({
       <header className="collection-filters-dialog-header">
         <span className="collection-filters-dialog-title">Filters</span>
         <IconButton
-          className="collection-filters-dialog-close"
+          variant="quiet"
           onClick={onClose}
           title="Close without applying"
           label="Close filters without applying"

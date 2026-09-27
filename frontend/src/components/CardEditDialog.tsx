@@ -14,7 +14,8 @@ import { LANGUAGE_OPTIONS } from '../lib/copy-options';
 import { Field, SegmentedControl, SwitchRow } from './shared/form';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
+import { X } from 'lucide-react';
 /** True when a printing's availability means the user owns at least one copy. */
 function isOwnedAvailability(a: ChangeOwnership): boolean {
   return a === 'owned' || a === 'in-other-deck' || a === 'in-cube';
@@ -525,9 +526,12 @@ export function CardEditDialog({
     >
       <div className="modal-header">
         <h2>{details !== undefined ? 'Edit card' : 'Edit printing'}</h2>
-        <button type="button" className="modal-close" aria-label="Close" onClick={onCancel}>
-          ×
-        </button>
+        <IconButton
+          variant="quiet"
+          onClick={onCancel}
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </div>
 
       <div className="modal-body card-edit-body">

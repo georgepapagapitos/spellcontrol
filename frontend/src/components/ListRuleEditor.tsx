@@ -9,7 +9,8 @@ import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-ca
 import { Modal } from './Modal';
 import { FilterGroupList, cloneChips, validateGroups } from './FilterGroupEditor';
 import './ListRuleEditor.css';
-import { Button } from '@/components/shared/Button';
+import { X } from 'lucide-react';
+import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {
   list: ListDef;
@@ -110,9 +111,12 @@ export function ListRuleEditor({ list, onClose }: Props) {
     >
       <div className="modal-header">
         <h2 id="list-rule-editor-title">Rule for {list.name}</h2>
-        <button className="modal-close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
+        <IconButton
+          variant="quiet"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </div>
 
       <div className="modal-body">

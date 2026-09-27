@@ -1,6 +1,8 @@
 import './CommanderTypeahead.css';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { X } from 'lucide-react';
 import { SearchPill } from './SearchPill';
+import { IconButton } from './shared/Button';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { searchCommanders } from '@/lib/discover-client';
 
@@ -146,15 +148,12 @@ export function CommanderTypeahead({ value, onChange, trailing }: Props) {
         trailing={
           <>
             {value && (
-              <button
-                type="button"
+              <IconButton
                 className="search-pill-clear"
                 onClick={clear}
-                aria-label="Clear commander filter"
-                title="Clear commander filter"
-              >
-                ×
-              </button>
+                label="Clear commander filter"
+                icon={<X width={14} height={14} strokeWidth={2} />}
+              />
             )}
             {trailing}
           </>

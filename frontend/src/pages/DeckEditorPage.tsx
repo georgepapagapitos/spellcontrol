@@ -3666,7 +3666,7 @@ export function DeckEditorPage() {
               <div className="deck-test-hand-sheet-header">
                 <h2 className="deck-test-hand-sheet-title">Test hand</h2>
                 <IconButton
-                  className="deck-test-hand-sheet-close"
+                  variant="quiet"
                   onClick={dismiss}
                   label="Close test hand"
                   icon={<X width={18} height={18} strokeWidth={2} />}

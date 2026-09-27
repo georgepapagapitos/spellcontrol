@@ -41,18 +41,6 @@
   color: var(--text-secondary);
 }
 
-.trigger-reminder__close {
-  display: grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
 .trigger-reminder__group + .trigger-reminder__group {
   margin-top: var(--space-2);
 }
@@ -85,7 +73,6 @@
 }
 
 /* Ungated on purpose: a keyboard ring is not conditional on a pointer. */
-.trigger-reminder__close:focus-visible,
 .trigger-reminder__card:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -94,11 +81,6 @@
 /* Hover is gated: Samsung WebViews report (hover: hover) on touch, so an
    ungated hover rule sticks after a tap. */
 @media (hover: hover) and (pointer: fine) {
-  .trigger-reminder__close:hover {
-    background: var(--surface);
-    color: var(--text-primary);
-  }
-
   .trigger-reminder__card:hover {
     background: var(--surface);
   }

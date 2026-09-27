@@ -1,4 +1,6 @@
+import { X } from 'lucide-react';
 import { Modal } from './Modal';
+import { IconButton } from './shared/Button';
 
 interface Shortcut {
   keys: string[];
@@ -32,14 +34,12 @@ export function KeyboardShortcutsOverlay({ groups, onClose }: Props) {
         <h2 id="shortcuts-overlay-title" className="shortcuts-overlay-title">
           Keyboard shortcuts
         </h2>
-        <button
-          type="button"
+        <IconButton
           className="shortcuts-overlay-close"
           onClick={onClose}
-          aria-label="Close"
-        >
-          ×
-        </button>
+          label="Close"
+          icon={<X width={18} height={18} strokeWidth={2} />}
+        />
       </header>
       <div className="shortcuts-overlay-body">
         {groups.map((g) => (

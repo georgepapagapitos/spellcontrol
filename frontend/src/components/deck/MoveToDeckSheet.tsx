@@ -109,7 +109,7 @@ export function MoveToDeckSheet({
         <header className="move-deck-head">
           {target && (
             <IconButton
-              className="move-deck-back"
+              variant="quiet"
               onClick={() => {
                 setTargetId(null);
                 setReplacement(null);
@@ -129,7 +129,7 @@ export function MoveToDeckSheet({
             </p>
           </div>
           <IconButton
-            className="move-deck-close"
+            variant="quiet"
             onClick={dismiss}
             label="Cancel"
             icon={<X width={18} height={18} strokeWidth={2} />}

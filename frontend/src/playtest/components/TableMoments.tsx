@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
+import { IconButton } from '@/components/shared/Button';
 import { usePlayStore } from '@/store/play';
 import { paletteForIndex } from '@/lib/seat-palette';
 import { haptics } from '@/lib/haptics';
@@ -153,14 +155,12 @@ function WinCeremony() {
         <p className="table-win-ceremony__title">
           {ceremony.winnerName ? `${ceremony.winnerName} wins` : 'Game over'}
         </p>
-        <button
-          type="button"
+        <IconButton
           className="table-win-ceremony__close"
           onClick={beginClose}
-          aria-label="Dismiss"
-        >
-          ✕
-        </button>
+          label="Dismiss"
+          icon={<X width={16} height={16} strokeWidth={2} />}
+        />
       </div>
     </div>,
     document.body

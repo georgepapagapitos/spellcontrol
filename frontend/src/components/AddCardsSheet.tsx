@@ -258,10 +258,10 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
         <div className="modal-header add-cards-modal-header">
           <h2 id={labelId}>Add cards</h2>
           <div className="add-cards-header-actions">
-            {/* Reuses .modal-close's round icon-button look — a header glyph
-                button, not literally a close action. */}
+            {/* Reuses the quiet icon-button look — a header glyph button, not
+                literally a close action. */}
             <IconButton
-              className="modal-close"
+              variant="quiet"
               label="Add settings"
               icon={<Settings width={18} height={18} strokeWidth={1.8} />}
               onClick={() => setSettingsOpen(true)}
@@ -269,7 +269,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             {/* A dialog's own close button unmounts directly — Modal reserves
                 its animated exit for Escape/backdrop dismissal. */}
             <IconButton
-              className="modal-close"
+              variant="quiet"
               onClick={onClose}
               label="Close"
               icon={<X width={20} height={20} strokeWidth={1.8} />}
@@ -389,27 +389,25 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
                 {scanSuccess && (
                   <div className="success-banner scan-tab-banner">
                     <span>{scanSuccess}</span>
-                    <button
-                      type="button"
+                    <IconButton
+                      variant="quiet"
                       className="banner-dismiss"
                       onClick={() => setScanSuccess(null)}
-                      aria-label="Dismiss"
-                    >
-                      ×
-                    </button>
+                      label="Dismiss"
+                      icon={<X width={16} height={16} strokeWidth={2} />}
+                    />
                   </div>
                 )}
                 {scanError && (
                   <div className="error-banner scan-tab-banner">
                     <span>{scanError}</span>
-                    <button
-                      type="button"
+                    <IconButton
+                      variant="quiet"
                       className="banner-dismiss"
                       onClick={() => setScanError(null)}
-                      aria-label="Dismiss"
-                    >
-                      ×
-                    </button>
+                      label="Dismiss"
+                      icon={<X width={16} height={16} strokeWidth={2} />}
+                    />
                   </div>
                 )}
               </div>
@@ -421,14 +419,13 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
           <div className="import-review add-cards-commit-review" role="status" aria-live="polite">
             <div className="import-review-header">
               <span className="import-review-title">Added to your collection</span>
-              <button
-                type="button"
+              <IconButton
+                variant="quiet"
                 className="banner-dismiss"
                 onClick={() => setCommitSummary(null)}
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
+                label="Dismiss"
+                icon={<X width={16} height={16} strokeWidth={2} />}
+              />
             </div>
             <p className="import-review-line">{commitSummary.successLine}</p>
             {(commitRouting.entries.length > 0 || commitRouting.unroutedCount > 0) && (
@@ -452,14 +449,13 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
         {commitError && (
           <div className="error-banner add-cards-commit-error" role="alert">
             <span>{commitError}</span>
-            <button
-              type="button"
+            <IconButton
+              variant="quiet"
               className="banner-dismiss"
               onClick={() => setCommitError(null)}
-              aria-label="Dismiss"
-            >
-              ×
-            </button>
+              label="Dismiss"
+              icon={<X width={16} height={16} strokeWidth={2} />}
+            />
           </div>
         )}
 

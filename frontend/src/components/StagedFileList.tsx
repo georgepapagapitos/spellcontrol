@@ -1,5 +1,6 @@
+import { X } from 'lucide-react';
 import { MAX_STAGED_FILES } from '../lib/staged-files';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {
   files: File[];
@@ -36,16 +37,14 @@ export function StagedFileList({
         {files.map((f, i) => (
           <li key={f.name}>
             <span className="staged-files-name">{f.name}</span>
-            <button
-              type="button"
+            <IconButton
               className="staged-files-remove"
               onClick={() => onRemove(i)}
               disabled={disabled}
-              aria-label={`Remove ${f.name}`}
+              label={`Remove ${f.name}`}
               title="Remove"
-            >
-              ×
-            </button>
+              icon={<X width={14} height={14} strokeWidth={2} />}
+            />
           </li>
         ))}
       </ul>

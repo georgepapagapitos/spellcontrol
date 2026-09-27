@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { WifiOff, Download } from 'lucide-react';
+import { WifiOff, Download, X } from 'lucide-react';
 import { Modal } from '../Modal';
 import { ProgressBar } from '../ProgressBar';
 import { importDeckText } from '../../lib/api';
@@ -21,7 +21,7 @@ import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import './AppendDeckDialog.css';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 interface Props {
   deck: Deck;
   onClose: () => void;
@@ -148,15 +148,13 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
     >
       <div className="modal-header">
         <h2 id="append-deck-title">Paste cards into {deck.name}</h2>
-        <button
-          type="button"
-          className="modal-close"
+        <IconButton
+          variant="quiet"
           onClick={onClose}
-          aria-label="Close"
           disabled={isLoading}
-        >
-          ×
-        </button>
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </div>
 
       <div className="modal-body">
@@ -170,9 +168,13 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
         {error && (
           <div className="error-banner" role="alert">
             <span>{error}</span>
-            <button className="banner-dismiss" onClick={() => setError(null)} aria-label="Dismiss">
-              ×
-            </button>
+            <IconButton
+              variant="quiet"
+              className="banner-dismiss"
+              onClick={() => setError(null)}
+              label="Dismiss"
+              icon={<X width={16} height={16} strokeWidth={2} />}
+            />
           </div>
         )}
 

@@ -87,9 +87,13 @@ function strings(node: ts.Node, out: string[] = []): string[] {
   return out;
 }
 
+/** Text glyphs a button renders standing in for an icon — never a real word. */
+const GLYPH_CHARS = new Set(['×', '✕', '✖', '+', '−', '-', '‹', '›', '⋮']);
+
 const isGlyph = (node: ts.JsxChild, sf: ts.SourceFile): boolean =>
   (ts.isJsxSelfClosingElement(node) && /^[A-Z]/.test(node.tagName.getText(sf))) ||
-  (ts.isJsxElement(node) && node.openingElement.tagName.getText(sf) === 'svg');
+  (ts.isJsxElement(node) && node.openingElement.tagName.getText(sf) === 'svg') ||
+  (ts.isJsxText(node) && GLYPH_CHARS.has(node.text.trim()));
 
 /** A class that names an intent the `variant` prop owns. */
 const INTENT_CLASS = /(^|-)(primary|danger)$/;
@@ -171,7 +175,8 @@ const BLOCKS_WHILE_BUSY =
   'PERMANENT: disabled while the list is being read, so leaving mid-parse is blocked; a link cannot be disabled';
 const BOARD_CHROME =
   'PERMANENT: playtest and live-table board chrome is a bespoke control (E435 scope ruling)';
-
+const STEPPER =
+  'PERMANENT: a labeled -/+ quantity stepper, same genre as trade-stepper-btn / printing-choice-step / deck-row-qty-step (E435 scope ruling), not a menu-triggering icon action';
 /** Files still to migrate, with their current counts. Lower as each wave lands. */
 const ALLOWED: Record<Shape, Record<string, number | { count: number; why: string }>> = {
   rawClass: {
@@ -186,6 +191,16 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/trade/TradeAcceptDialog.tsx': { count: 1, why: CARD_ART },
     'components/trade/TradeComposer.tsx': { count: 2, why: CARD_ART },
     'playtest/components/CardCounters.tsx': { count: 1, why: BOARD_CHROME },
+    'components/CardEditDialog.tsx': { count: 2, why: STEPPER },
+    'components/PrintingPicker.tsx': { count: 2, why: STEPPER },
+    'components/ProductSearchPanel.tsx': { count: 2, why: STEPPER },
+    'components/RemoveCopiesDialog.tsx': { count: 2, why: STEPPER },
+    'components/play/GameBoard.tsx': { count: 2, why: BOARD_CHROME },
+    'components/play/horde/HordeDamageSheet.tsx': { count: 2, why: BOARD_CHROME },
+    'components/play/LayoutEditor.tsx': { count: 3, why: BOARD_CHROME },
+    'components/play/OnlineGameView.tsx': { count: 4, why: BOARD_CHROME },
+    'components/play/SeatMenu.tsx': { count: 2, why: BOARD_CHROME },
+    'components/play/SetupControls.tsx': { count: 2, why: BOARD_CHROME },
   },
   rawChip: {
     'components/CardOtagsSheet.tsx': { count: 1, why: NAV_LINK },

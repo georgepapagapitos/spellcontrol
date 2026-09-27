@@ -85,6 +85,7 @@ export function DeckPrimerSheet({ deck, onClose }: Props): JSX.Element {
             Primer
           </h2>
           <IconButton
+            variant="quiet"
             className="deck-primer-sheet-close"
             onClick={dismiss}
             label="Close"

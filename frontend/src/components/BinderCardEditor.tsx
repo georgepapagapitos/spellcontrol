@@ -1,4 +1,4 @@
-import { GripVertical } from 'lucide-react';
+import { GripVertical, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
@@ -157,9 +157,12 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
       <Modal className="modal" label={`Edit cards: ${binder.def.name}`} onClose={onClose}>
         <div className="modal-header">
           <h2>Edit cards: {binder.def.name}</h2>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-            ×
-          </button>
+          <IconButton
+            variant="quiet"
+            onClick={onClose}
+            label="Close"
+            icon={<X width={20} height={20} strokeWidth={1.8} />}
+          />
         </div>
 
         {binder.def.mode === 'manual' && (
@@ -321,14 +324,12 @@ function CardsTab({
                     </span>
                   ) : null}
                 </span>
-                <button
-                  type="button"
+                <IconButton
                   className="binder-card-editor-remove"
-                  aria-label={isPinned ? `Unpin ${card.name}` : `Remove ${card.name}`}
+                  label={isPinned ? `Unpin ${card.name}` : `Remove ${card.name}`}
                   onClick={() => onRemove(card.copyId)}
-                >
-                  ×
-                </button>
+                  icon={<X width={16} height={16} strokeWidth={2} />}
+                />
                 {showPinExplain && (
                   <p className="binder-card-editor-pin-explain">
                     Pinned to this binder. Would otherwise file to{' '}

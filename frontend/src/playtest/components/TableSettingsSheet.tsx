@@ -1,8 +1,9 @@
 import { useId, type CSSProperties } from 'react';
+import { X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { SwitchRow } from '@/components/shared/form';
 import { FELTS, type SkinOption } from '../lib/table-skin';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 /** One preference that owns its own picker: this row states where it stands
  *  and opens that picker. Keeps each existing picker untouched while giving
@@ -114,14 +115,12 @@ export function TableSettingsSheet({ zoom, skin, toggles = [], links, onClose }:
         <h2 id="playtest-settings-title" className="shortcuts-overlay-title">
           Table settings
         </h2>
-        <button
-          type="button"
+        <IconButton
           className="shortcuts-overlay-close"
           onClick={onClose}
-          aria-label="Close"
-        >
-          ✕
-        </button>
+          label="Close"
+          icon={<X width={18} height={18} strokeWidth={2} />}
+        />
       </header>
       <div className="shortcuts-overlay-body">
         <div className="playtest-settings__row">

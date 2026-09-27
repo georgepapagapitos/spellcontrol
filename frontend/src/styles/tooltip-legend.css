@@ -412,42 +412,18 @@ hr {
   flex: 1;
 }
 
+/* Look comes from .icon-btn now (24px circle rounded up to the shared 32px
+   rect); this keeps the dismiss tinted to its banner's own text color
+   (error red, success green) instead of the icon button's neutral default. */
 .banner-dismiss {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: transparent;
   color: inherit;
-  font-size: var(--text-xl);
-  line-height: 1;
-  cursor: pointer;
-  border-radius: 50%;
   opacity: 0.6;
-}
-
-/* Coarse-pointer floor (STYLE_GUIDE § Responsive): 24px is the smallest
-   dismiss target in the app. Keep the visual circle by growing the hit box
-   only — the glyph stays centered by the existing inline-flex centering. */
-@media (pointer: coarse) {
-  .banner-dismiss {
-    width: 44px;
-    height: 44px;
-  }
-}
-
-.banner-dismiss:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .banner-dismiss:hover {
     opacity: 1;
-    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
   }
 }
 

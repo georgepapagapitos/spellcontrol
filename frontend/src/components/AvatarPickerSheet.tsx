@@ -263,7 +263,7 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
               </Button>
             )}
             <IconButton
-              className="avatar-picker-close"
+              variant="quiet"
               onClick={() => dismiss()}
               label="Close"
               icon={<X width={18} height={18} strokeWidth={2} />}

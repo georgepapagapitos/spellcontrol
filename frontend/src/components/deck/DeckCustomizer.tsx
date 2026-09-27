@@ -1,4 +1,4 @@
-import { Check, ChevronDown, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, RotateCcw, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type {
   BudgetOption,
@@ -19,6 +19,7 @@ import { InfoTip } from '../InfoTip';
 import { StackedBar } from '../shared/MeterBar';
 import { Field, SwitchRow, ChoiceList, Disclosure } from '../shared/form';
 import { SelectMenu } from '../SelectMenu';
+import { IconButton } from '../shared/Button';
 import { useSearchCards } from '../../lib/use-search-cards';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../../store/collection';
@@ -1146,14 +1147,12 @@ function CardListGroup({
               <span className="card-name-chip-text" title={name}>
                 {name}
               </span>
-              <button
-                type="button"
+              <IconButton
                 className="deck-customizer-pill-remove"
-                aria-label={`Remove ${name}`}
+                label={`Remove ${name}`}
                 onClick={() => onChange(values.filter((v) => v !== name))}
-              >
-                ×
-              </button>
+                icon={<X width={14} height={14} strokeWidth={2} />}
+              />
             </li>
           ))}
         </ul>

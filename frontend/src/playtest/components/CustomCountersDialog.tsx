@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import {
   COUNTER_CATALOG,
@@ -82,9 +82,12 @@ export function CustomCountersDialog({ cardName, counters, onApply, onClose }: P
     >
       <header className="modal-header">
         <h2 id={`${id}-title`}>Custom counters</h2>
-        <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
+        <IconButton
+          variant="quiet"
+          onClick={onClose}
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </header>
       <div className="modal-body counters-dialog__body">
         <p className="counters-dialog__card">{cardName}</p>

@@ -96,6 +96,7 @@ export function GuestActionPopover({ open, onClose, anchorRef, message }: Props)
           Sign in
         </Button>
         <IconButton
+          variant="quiet"
           className="guest-action-popover-close"
           onClick={onClose}
           label="Dismiss"
