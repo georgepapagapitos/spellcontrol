@@ -44,6 +44,10 @@ const ALLOWLIST = new Set([
   // tile's kebab. That button carries .deck-card-grid-menu:focus-visible,
   // which is also what reveals it for keyboard users.
   '.deck-card-grid-cell',
+  // The collection grid's twin (T162): the cell is not focusable, its hover
+  // only reveals the card's ⋮, and .collection-grid-menu-btn:focus-visible
+  // both rings and reveals it for keyboard users.
+  '.collection-grid-cell',
   // element also carries .filter-chip (.filter-chip:focus-visible in
   // search-controls.css) — the "show more"/"show fewer" theme action chip.
   '.theme-chip-more',

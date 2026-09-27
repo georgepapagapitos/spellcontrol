@@ -135,6 +135,13 @@ interface CardGridCellProps {
   /** Appended to the tile's aria-label (e.g. surplus copies). */
   ariaExtra?: string;
   /**
+   * The card's ⋮ (a `CardRowMenu variant="tile"`). A sibling of the tile, not
+   * a child: the tile is itself role="button". Revealed on hover or focus
+   * under a fine pointer and always shown under a coarse one; a right-click
+   * on the cell opens the same menu (STYLE_GUIDE § Verbs — Menus).
+   */
+  menu?: ReactNode;
+  /**
    * Say nothing about how many copies this tile stands for: no ×qty chip, and
    * no "quantity N" in the accessible name. A friend's collection withholds
    * quantity by contract, and the aria-label states it unconditionally — so
@@ -165,6 +172,7 @@ export function CardGridCell({
   badges,
   ariaExtra,
   hideQty = false,
+  menu,
 }: CardGridCellProps) {
   const foilStyle = classifyFoil(card);
   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
@@ -174,7 +182,7 @@ export function CardGridCell({
   const art = card.imageNormal ?? thumb;
 
   return (
-    <div className="collection-grid-cell">
+    <div className={`collection-grid-cell${menu && !selectMode ? ' has-menu' : ''}`}>
       <div
         role="button"
         tabIndex={0}
@@ -239,6 +247,9 @@ export function CardGridCell({
         )}
         {badges && <div className="collection-grid-badges">{badges}</div>}
       </div>
+      {/* Select mode turns a tap into a toggle, so the ⋮ steps aside rather
+          than sitting under a pointer that can no longer reach it. */}
+      {menu && !selectMode && menu}
       {(caption !== null || setLabel !== null) && (
         <div className="collection-grid-captions" aria-hidden="true">
           {caption !== null && <div className="collection-grid-caption">{caption}</div>}

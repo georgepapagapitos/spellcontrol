@@ -24,20 +24,11 @@ interface Props {
   onAsk?: (question: string) => void;
   /** Called before the menu navigates away (the sheet closes itself). */
   onLeave?: () => void;
-}
-
-/**
- * Opens the entry's menu from a right-click, the Context Menu key or
- * Shift+F10 on the row. The ⋮ kebab is the visible affordance on every
- * pointer; this is the accelerator. Stops at the row so a subrule inside an
- * open keyword card doesn't also open the card's own menu.
- */
-export function openEntryMenu(e: React.MouseEvent<HTMLElement>) {
-  const trigger = e.currentTarget.querySelector<HTMLButtonElement>('.overflow-menu-trigger');
-  if (!trigger) return;
-  e.preventDefault();
-  e.stopPropagation();
-  trigger.click();
+  /** The row this menu belongs to. A right-click, the Context Menu key or
+   *  Shift+F10 on it opens this menu (OverflowMenu `contextHost`); a subrule
+   *  inside an open keyword card answers first, so the card's own menu stays
+   *  shut. The ⋮ is the visible affordance on every pointer. */
+  contextHost: string;
 }
 
 /** This menu closes on click, so a copy here confirms with a toast (STYLE
@@ -59,7 +50,7 @@ async function copyText(text: string, what: string) {
  * actions ("Destroy", "Exile") get no card searches: `keyword:` matches
  * abilities, and an empty Scryfall page answers nothing.
  */
-export function RulesEntryMenu({ entry, onAsk, onLeave }: Props) {
+export function RulesEntryMenu({ entry, onAsk, onLeave, contextHost }: Props) {
   const navigate = useNavigate();
   const canShare = typeof navigator.share === 'function';
   const url = `${window.location.origin}${entry.href}`;
@@ -124,6 +115,7 @@ export function RulesEntryMenu({ entry, onAsk, onLeave }: Props) {
       className="rules-ref-entry-menu"
       items={items}
       ariaLabel={`Actions for ${entry.label}`}
+      contextHost={contextHost}
     />
   );
 }

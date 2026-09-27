@@ -18,6 +18,10 @@ interface Props {
    *  "Move to binder" vs "Add to binder" label and the disabled row in the
    *  sheet. */
   currentBinder?: { id: string; name: string; color: string | null } | null;
+  /** `row` (default) is the list/table kebab; `tile` is the grid tile's
+   *  corner ⋮. Same items either way: only where it sits and what a
+   *  right-click on it belongs to differ. */
+  variant?: 'row' | 'tile';
 }
 
 /**
@@ -27,7 +31,14 @@ interface Props {
  * the "Add to binder" sheet. `.deck-row-menu` keeps the fixed-width column
  * sizing; `card-edit-btn` keeps the ghost-kebab trigger look.
  */
-export function CardRowMenu({ card, onEditCard, onSplitCopy, onDelete, currentBinder }: Props) {
+export function CardRowMenu({
+  card,
+  onEditCard,
+  onSplitCopy,
+  onDelete,
+  currentBinder,
+  variant = 'row',
+}: Props) {
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
   const [otagsSheetOpen, setOtagsSheetOpen] = useState(false);
 
@@ -50,9 +61,10 @@ export function CardRowMenu({ card, onEditCard, onSplitCopy, onDelete, currentBi
   return (
     <>
       <OverflowMenu
-        className="deck-row-menu"
-        triggerClassName="card-edit-btn"
-        ariaLabel="Card actions"
+        className={variant === 'tile' ? 'collection-grid-menu' : 'deck-row-menu'}
+        triggerClassName={variant === 'tile' ? 'collection-grid-menu-btn' : 'card-edit-btn'}
+        ariaLabel={variant === 'tile' ? `Actions for ${card.name}` : 'Card actions'}
+        contextHost={variant === 'tile' ? '.collection-grid-cell' : '.collection-list-row'}
         items={items}
         header={
           currentBinder ? (

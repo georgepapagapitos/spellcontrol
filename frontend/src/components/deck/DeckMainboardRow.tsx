@@ -15,6 +15,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { DeckCardMenuBody, type DeckCardMenuPage } from './DeckCardMenuBody';
+import { hasCardActions, type DeckCardActionCtx } from './deck-card-actions';
 import {
   DndContext,
   DragOverlay,
@@ -109,6 +110,7 @@ export function CategorySection({
   deckTags,
   onSetRowTags,
   onRowContextMenu,
+  menuCtx,
 }: {
   title: string;
   icon: string;
@@ -154,6 +156,11 @@ export function CategorySection({
   deckTags?: string[];
   onSetRowTags?: (slotIds: string[], tags: string[]) => void;
   onRowContextMenu?: (row: Row, e: React.MouseEvent) => void;
+  /** The card menu's actions for a row, from the host. When given, the row's
+   *  ⋮ builds its menu from it rather than from the props above, so the ⋮ and
+   *  a right-click (which the host builds from the same function) can never
+   *  offer different things. DeckDisplay passes it for every zone. */
+  menuCtx?: (row: Row) => DeckCardActionCtx;
   synergyByName?: Map<string, string[]>;
   cardInclusionMap?: Record<string, number>;
   /** Every combo each in-deck card participates in, keyed by oracle id — see
@@ -241,6 +248,7 @@ export function CategorySection({
           deckTags={deckTags}
           onSetRowTags={entry.leaving ? undefined : onSetRowTags}
           onRowContextMenu={entry.leaving ? undefined : onRowContextMenu}
+          menuCtx={menuCtx}
           onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
           moveZone={onMoveToSideboard ? 'sideboard' : onMoveToMainboard ? 'mainboard' : undefined}
           onMoveToConsidering={entry.leaving ? undefined : onMoveToConsidering}
@@ -378,6 +386,7 @@ function DeckCardRow({
   deckTags,
   onSetRowTags,
   onRowContextMenu,
+  menuCtx,
   onMoveToConsidering,
   onMakeCommander,
   canMakeCommander,
@@ -422,6 +431,8 @@ function DeckCardRow({
   /** Right-click anywhere on the row. The host owns the menu and the guard
    *  that keeps a native context menu over inputs and links. */
   onRowContextMenu?: (row: Row, e: React.MouseEvent) => void;
+  /** See CategorySection's `menuCtx`. */
+  menuCtx?: (row: Row) => DeckCardActionCtx;
   /** The destination zone — names the move menu items. */
   moveZone?: 'sideboard' | 'mainboard';
   /** Mainboard-only extra move action: park copies in Considering (E122),
@@ -553,6 +564,28 @@ function DeckCardRow({
   // Role-filter lens: non-matching rows dim in place (layout preserved) so the
   // matching cards pop and the eye can jump between them.
   const roleDimmed = !!roleFilter && countedRoleOf(row.card) !== roleFilter;
+
+  // One action list for the ⋮ and the host's right-click menu (`menuCtx`);
+  // a row with nothing to do (a read-only shared deck) gets no ⋮ at all.
+  const menuContext: DeckCardActionCtx = menuCtx?.(row) ?? {
+    row,
+    isSingleton,
+    moveZone,
+    onEditCard,
+    onSetQty,
+    onRemoveCard,
+    onMoveToZone,
+    onMoveToConsidering,
+    onUseOwnCopy,
+    onMoveToAnotherDeck,
+    onReleaseCopy,
+    onMakeCommander,
+    canMakeCommander,
+    onMakePartner,
+    canMakePartner,
+    onSetRowTags,
+  };
+  const hasMenu = !leaving && hasCardActions(menuContext);
 
   const rowClass =
     `deck-row` +
@@ -852,52 +885,41 @@ function DeckCardRow({
             // aligned across rows (mirrors the empty mana-cost placeholder).
             <span className="deck-row-price" aria-hidden />
           ))}
-        <ToolbarPopover
-          wrapperClassName="deck-row-menu"
-          triggerClassName="deck-row-menu-trigger"
-          triggerAriaLabel="Card actions"
-          haspopup="menu"
-          panelClassName="deck-row-menu-popover toolbar-popover-panel--fixed"
-          panelRole="menu"
-          panelAriaLabel={`Actions for ${row.name}`}
-          triggerContent={
-            <MoreVertical
-              className="deck-row-menu-icon"
-              width={14}
-              height={14}
-              strokeWidth={2}
-              aria-hidden
-            />
-          }
-        >
-          {(close) => (
-            <DeckCardMenuBody
-              row={row}
-              deckTags={deckTags ?? []}
-              page={menuPage}
-              onPageChange={setMenuPage}
-              onClose={close}
-              ctx={{
-                row,
-                isSingleton,
-                moveZone,
-                onEditCard,
-                onSetQty,
-                onRemoveCard,
-                onMoveToZone,
-                onMoveToConsidering,
-                onUseOwnCopy,
-                onMoveToAnotherDeck,
-                onReleaseCopy,
-                onMakeCommander,
-                canMakeCommander,
-                onMakePartner,
-                canMakePartner,
-                onSetRowTags,
-              }}
-            />
-          )}
-        </ToolbarPopover>
+        {hasMenu ? (
+          <ToolbarPopover
+            wrapperClassName="deck-row-menu"
+            triggerClassName="deck-row-menu-trigger"
+            triggerAriaLabel="Card actions"
+            haspopup="menu"
+            panelClassName="deck-row-menu-popover toolbar-popover-panel--fixed"
+            panelRole="menu"
+            panelAriaLabel={`Actions for ${row.name}`}
+            itemHost=".deck-row"
+            triggerContent={
+              <MoreVertical
+                className="deck-row-menu-icon"
+                width={14}
+                height={14}
+                strokeWidth={2}
+                aria-hidden
+              />
+            }
+          >
+            {(close) => (
+              <DeckCardMenuBody
+                row={row}
+                deckTags={deckTags ?? []}
+                page={menuPage}
+                onPageChange={setMenuPage}
+                onClose={close}
+                ctx={menuContext}
+              />
+            )}
+          </ToolbarPopover>
+        ) : (
+          // Keeps the menu column so a read-only deck's rows stay aligned.
+          <span className="deck-row-menu" aria-hidden />
+        )}
       </li>
       {multiPrinting && expanded && !leaving && (
         <li className="deck-row-printings-wrap">

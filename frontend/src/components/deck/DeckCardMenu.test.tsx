@@ -257,8 +257,13 @@ describe('deck card menu', () => {
       expect(onSetCardTags).toHaveBeenCalledWith('cards', ['s0'], ['Combo', 'Blink']);
     });
 
-    it('offers no tag actions when the deck is read-only', () => {
-      const { container, getByRole } = renderDeck({ onSetCardTags: undefined });
+    it('offers no tag actions when tags are read-only', () => {
+      // Another action keeps the menu alive: a card with nothing to do has no
+      // menu at all (see "has no menu when the deck is read-only").
+      const { container, getByRole } = renderDeck({
+        onSetCardTags: undefined,
+        onRemoveCard: vi.fn(),
+      });
       fireEvent.contextMenu(rowFor(container, 'Brago'));
       const menu = getByRole('menu', { name: 'Brago' });
       expect(within(menu).queryByRole('menuitem', { name: /Move to tag/ })).toBeNull();
@@ -281,6 +286,63 @@ describe('deck card menu', () => {
     fireEvent.click(kebab);
     const fromKebab = getAllByRole('menuitem').map((el) => el.textContent?.trim());
 
+    expect(fromKebab).toEqual(fromPointer);
+  });
+
+  // ── T162: one menu, one mark, no dead ends ────────────────────────────
+  it('has no menu when the deck is read-only: no ⋮, and right-click is the browser’s', () => {
+    // A shared deck passes no card handlers; its menu used to open on a lone
+    // disabled "Remove from deck".
+    const { container, queryByRole } = renderDeck({ onSetCardTags: undefined });
+    const row = rowFor(container, 'Bear');
+    expect(within(row).queryByRole('button', { name: 'Card actions' })).toBeNull();
+    expect(fireEvent.contextMenu(row)).toBe(true);
+    expect(queryByRole('menu')).toBeNull();
+  });
+
+  it('marks the card its menu is open for, and clears it on close', () => {
+    const { container } = renderDeck({ onRemoveCard: vi.fn() });
+    const row = rowFor(container, 'Bear');
+    fireEvent.contextMenu(row);
+    expect(row.hasAttribute('data-menu-open')).toBe(true);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(row.hasAttribute('data-menu-open')).toBe(false);
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Card actions' }));
+    expect(row.hasAttribute('data-menu-open')).toBe(true);
+  });
+
+  it('keeps a stacked card open while its menu is: the tile is marked', () => {
+    localStorage.setItem('mtg-decks-view-mode', 'stacks');
+    const { container } = renderDeck({ onRemoveCard: vi.fn() });
+    const cell = container
+      .querySelector('.deck-card-grid-tile[data-peek-name="Bear"]')!
+      .closest('li') as HTMLElement;
+    fireEvent.contextMenu(cell, { clientX: 20, clientY: 20 });
+    // styles/deck-builder-card-list.css holds the tail open on this attribute.
+    expect(cell.hasAttribute('data-menu-open')).toBe(true);
+  });
+
+  it('gives sideboard and considering rows the same menu from ⋮ and right-click', () => {
+    // List mode's out-zone rows had a ⋮ but no right-click, and their ⋮ built
+    // its actions from a narrower prop set than stacks mode's menu did.
+    const sb = [{ slotId: 'sb1', card: card('Naturalize', 'Instant') }];
+    const { container, getByRole, getAllByRole } = renderDeck({
+      sideboard: sb,
+      onRemoveCard: vi.fn(),
+      onRemoveSideboardCard: vi.fn(),
+      onMoveToMainboard: vi.fn(),
+    });
+    const row = rowFor(container, 'Naturalize');
+    expect(fireEvent.contextMenu(row)).toBe(false);
+    const fromPointer = within(getByRole('menu', { name: 'Naturalize' }))
+      .getAllByRole('menuitem')
+      .map((el) => el.textContent?.trim());
+    expect(fromPointer).toContain('Move to mainboard');
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Card actions' }));
+    const fromKebab = getAllByRole('menuitem').map((el) => el.textContent?.trim());
     expect(fromKebab).toEqual(fromPointer);
   });
 });

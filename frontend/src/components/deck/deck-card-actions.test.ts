@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
   deckCardActions,
+  hasCardActions,
   tagPickActions,
   tagToggleActions,
   SECTION_ORDER,
@@ -228,5 +229,20 @@ describe('tagPickActions', () => {
   it('matches the current group case-insensitively', () => {
     const picks = tagPickActions(row({ tags: ['blink'] }), ['Blink'], vi.fn());
     expect(picks[0].checked).toBe(true);
+  });
+});
+
+describe('hasCardActions', () => {
+  it('is false for a read-only deck: a menu of one disabled row is a dead end', () => {
+    expect(hasCardActions({ row: row() })).toBe(false);
+  });
+
+  it('is false for a commander row with nothing it can do', () => {
+    expect(hasCardActions({ row: row({ slotIds: [] }), onRemoveCard: vi.fn() })).toBe(false);
+  });
+
+  it('is true once any action is live', () => {
+    expect(hasCardActions({ row: row(), onRemoveCard: vi.fn() })).toBe(true);
+    expect(hasCardActions({ row: row(), onSetRowTags: vi.fn() })).toBe(true);
   });
 });

@@ -5,6 +5,7 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
+import { markMenuTarget } from '@/lib/context-menu';
 import { Button } from '@/components/shared/Button';
 
 /** Every role a row inside this shell can carry — a plain action, a toggle,
@@ -35,6 +36,11 @@ export interface CtxMenuShellProps {
    *  for a pointer-opened menu (a right-click has no button to return to);
    *  focus then returns to whatever was focused before the menu opened. */
   triggerRef?: RefObject<HTMLElement | null>;
+  /** The item the menu acts on (a card's row or tile). It carries
+   *  `data-menu-open` while the menu is up: the ring that says which card this
+   *  is, and in the deck's stacks the reason the card stays fanned out once
+   *  the backdrop takes the pointer's hover away from it. */
+  target?: Element | null;
   onClose(): void;
   children: ReactNode;
 }
@@ -68,9 +74,12 @@ export function CtxMenuShell({
   variant,
   contentKey,
   triggerRef,
+  target,
   onClose,
   children,
 }: CtxMenuShellProps) {
+  useEffect(() => markMenuTarget(target), [target]);
+
   const menuRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const itemsRef = useRef<HTMLDivElement | null>(null);

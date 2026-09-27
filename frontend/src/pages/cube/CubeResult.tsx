@@ -486,6 +486,7 @@ export function CubeResult({
                               <OverflowMenu
                                 triggerClassName="card-edit-btn"
                                 ariaLabel={`More actions for ${p.card.name}`}
+                                contextHost=".cube-row"
                                 items={[
                                   {
                                     label: 'Remove from cube',

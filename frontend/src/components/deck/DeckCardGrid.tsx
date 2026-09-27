@@ -126,6 +126,7 @@ export function DeckCardGrid({
   onToggleSection,
   onRowContextMenu,
   onRowMenu,
+  rowHasMenu,
 }: {
   groups: TypedGroup[];
   onRowClick: (name: string) => void;
@@ -158,10 +159,12 @@ export function DeckCardGrid({
   onToggleSection?: (title: string) => void;
   /** Right-click on a tile. The host owns the menu and its input/link guard. */
   onRowContextMenu?: (row: Row, e: React.MouseEvent) => void;
-  /** Opens the same menu from the tile's kebab, anchored to the button's
-   *  rect. Right-click alone would leave touch and keyboard users with no
-   *  way in, which is why this is not optional in practice. */
-  onRowMenu?: (row: Row, rect: DOMRect) => void;
+  /** Opens the same menu from the tile's kebab, anchored to the button.
+   *  Right-click alone would leave touch and keyboard users with no way in,
+   *  which is why this is not optional in practice. */
+  onRowMenu?: (row: Row, trigger: HTMLElement) => void;
+  /** False for a card with nothing to do (a read-only shared deck): no ⋮. */
+  rowHasMenu?: (row: Row) => boolean;
 }) {
   const stacks = layout === 'stacks';
   const [containerRef, containerWidth] = useElementWidth<HTMLDivElement>();
@@ -448,13 +451,13 @@ export function DeckCardGrid({
                       ) : null;
                     })()}
                   </button>
-                  {onRowMenu && (
+                  {onRowMenu && (rowHasMenu?.(row) ?? true) && (
                     <IconButton
                       className="deck-card-grid-menu"
                       aria-haspopup="menu"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onRowMenu(row, e.currentTarget.getBoundingClientRect());
+                        onRowMenu(row, e.currentTarget);
                       }}
                       label={`Actions for ${row.name}`}
                       icon={<MoreVertical width={14} height={14} strokeWidth={2} />}
