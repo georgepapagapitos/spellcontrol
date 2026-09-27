@@ -18,17 +18,33 @@ export function stackCopies(
   return allCards.filter((c) => c.scryfallId === card.scryfallId && c.finish === card.finish);
 }
 
-/** Human summary of a non-uniform field across a stack, e.g. "3 NM, 1 HP" — `undefined` when every copy agrees (nothing to flag). */
-function mixedSummary(values: (string | undefined)[]): string | undefined {
+/**
+ * Human summary of a non-uniform field across a stack, e.g. "3 NM, 1 HP" —
+ * `undefined` when every copy agrees (nothing to flag). `order` lists labels in
+ * the order they should read; anything unlisted follows in first-seen order.
+ */
+function mixedSummary(
+  values: (string | undefined)[],
+  label: (v: string) => string = (v) => v.toUpperCase(),
+  order: readonly string[] = []
+): string | undefined {
   const counts = new Map<string, number>();
   for (const v of values) {
-    const label = v ? v.toUpperCase() : 'Not set';
-    counts.set(label, (counts.get(label) ?? 0) + 1);
+    const key = v ? label(v) : 'Not set';
+    counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-  return counts.size > 1
-    ? [...counts.entries()].map(([label, n]) => `${n} ${label}`).join(', ')
-    : undefined;
+  if (counts.size <= 1) return undefined;
+  const rank = (k: string) => (order.includes(k) ? order.indexOf(k) : order.length);
+  return [...counts.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b))
+    .map(([k, n]) => `${n} ${k}`)
+    .join(', ');
 }
+
+/** Condition reads in grade order with the same codes as the Condition
+ *  control ("DMG", not "DAMAGED"); a copy with no grade recorded comes last. */
+const CONDITION_ORDER = ['NM', 'LP', 'MP', 'HP', 'DMG', 'Not set'] as const;
+const conditionCode = (v: string) => (v === 'damaged' ? 'DMG' : v.toUpperCase());
 
 /**
  * Which per-copy fields disagree across a printing+finish stack, summarized
@@ -43,7 +59,11 @@ export function stackDetailMix(copies: EnrichedCard[]): {
   priceOverride?: string;
 } {
   return {
-    condition: mixedSummary(copies.map((c) => c.condition)),
+    condition: mixedSummary(
+      copies.map((c) => c.condition),
+      conditionCode,
+      CONDITION_ORDER
+    ),
     language: mixedSummary(copies.map((c) => c.language)),
     // Notes are free text, so the per-value tally that reads well for
     // "3 NM, 1 HP" would print the notes themselves; a count of distinct

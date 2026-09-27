@@ -87,6 +87,20 @@ describe('stackDetailMix', () => {
     expect(stackDetailMix(copies).condition).toBe('1 NM, 1 Not set');
   });
 
+  // The edit dialog's Condition control reads NM LP MP HP DMG; the "Mixed: …"
+  // hint under it listed grades as first met and spelled Damaged out, so the
+  // hint and the buttons above it disagreed ("2 HP, 5 Not set, 1 LP").
+  it('lists mixed conditions in grade order with the control’s codes', () => {
+    const copies = [
+      enriched({ copyId: 'a', condition: 'hp' }),
+      enriched({ copyId: 'b', condition: undefined }),
+      enriched({ copyId: 'c', condition: 'damaged' }),
+      enriched({ copyId: 'd', condition: 'lp' }),
+      enriched({ copyId: 'e', condition: 'hp' }),
+    ];
+    expect(stackDetailMix(copies).condition).toBe('1 LP, 2 HP, 1 DMG, 1 Not set');
+  });
+
   it('summarizes a cost basis that disagrees across the stack, in each copy’s currency', () => {
     const copies = [
       enriched({ copyId: 'a', acquiredPrice: 4 }),
