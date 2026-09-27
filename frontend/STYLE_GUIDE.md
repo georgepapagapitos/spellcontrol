@@ -4093,12 +4093,19 @@ progress, so they moved off the panel entirely:
   always follows with a toast offering one, so the old copy ("This can't be
   undone.") directly contradicted the toast a moment later. The confirm now
   reads "Other cards stay where they are. You can undo from the toast."
-- **Restore from a backup file** and **Delete entire collection** (the
-  former "Clear all") live in the You page's Collection section and Danger
-  zone respectively — Settings, not an import surface. Restoring a backup has
-  no Undo (unlike history-delete and collection-clear, both of which do), so
-  its confirm's "This can't be undone" stays accurate; its error copy no
-  longer says "Couldn't restore that import" for an operation that isn't one.
+- **Restore from a backup file** lives in the You page's Collection
+  section — Settings, not an import surface. Restoring a backup has no Undo
+  (unlike history-delete and collection-clear, both of which do), so its
+  confirm's "This can't be undone" stays accurate; its error copy no longer
+  says "Couldn't restore that import" for an operation that isn't one.
+- **Delete entire collection** (the former "Clear all") has two doors, one
+  flow: the last, `danger` item in Collection's ⋮ (the collection is its own
+  index, so this is the whole-library rule's "one home"; it hides with the
+  other admin items on an empty collection) and Settings → Danger zone. Both
+  render `components/DeleteCollectionDialog.tsx`: two steps, because a bulk
+  wipe of thousands of rows is not the one-item delete that skips its
+  confirm. The final step names the Undo toast instead of "This can't be
+  undone", since `clearCards()` always offers one.
 - **The mode dialog no longer blocks every import.** Importing adds to the
   collection straight away (identical in effect to the old replace-into-empty
   on a blank collection, since `importCards` treats an empty collection's
