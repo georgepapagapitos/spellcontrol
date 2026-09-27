@@ -220,6 +220,43 @@ describe('CubePullList — loaded', () => {
   });
 });
 
+describe('CubePullList — print checklist', () => {
+  it('gives every pullable row a tick box, and no box to an unreserved row', () => {
+    const copy = makeCopy({ copyId: 'c1', name: 'Sol Ring', scryfallId: 'sf-sol' });
+    const binder = makeBinder({ id: 'b1', name: 'Rares', position: 0 });
+    useCollectionStore.setState({ cards: [copy], binders: [binder], hydrating: false });
+    const cube = makeSavedCube({
+      picks: [
+        makePick({
+          slotId: 'p1',
+          card: makeCubeCard({ name: 'Sol Ring', oracleId: 'o1' }),
+          allocatedCopyId: 'c1',
+        }),
+        makePick({
+          slotId: 'p2',
+          card: makeCubeCard({ name: 'Ghost', oracleId: 'o2' }),
+          allocatedCopyId: null,
+        }),
+      ],
+    });
+    const { container } = render(<CubePullList cube={cube} />);
+    const printList = container.querySelector('.print-list') as HTMLElement;
+    expect(printList).toBeTruthy();
+    // One box for the located "Rares" row...
+    const rowsWithBox = printList.querySelectorAll('.print-list-box');
+    expect(rowsWithBox).toHaveLength(1);
+    // ...and the box sits in the pullable row, not the "Not reserved" one.
+    const raresSection = [...printList.querySelectorAll('.print-list-section')].find((s) =>
+      s.textContent?.includes('Rares')
+    );
+    const notReservedSection = [...printList.querySelectorAll('.print-list-section')].find((s) =>
+      s.textContent?.includes('Not reserved')
+    );
+    expect(raresSection?.querySelectorAll('.print-list-box')).toHaveLength(1);
+    expect(notReservedSection?.querySelectorAll('.print-list-box')).toHaveLength(0);
+  });
+});
+
 describe('CubePullList — all uncategorized (no binders)', () => {
   it('files every located pick under Uncategorized when the user has no binders', () => {
     const copy = makeCopy({ copyId: 'c1', name: 'Loner', scryfallId: 'sf-loner' });
@@ -269,9 +306,9 @@ describe('CubePullList — not reserved', () => {
 });
 
 describe('CubePullList — already out of your binders', () => {
-  it('surfaces a copy a hideDeckAllocated binder swallows from its own view, with the explanatory line', () => {
+  it('surfaces a copy a hideDeckAllocated binder swallows from its own view, naming that binder', () => {
     const copy = makeCopy({ copyId: 'c1', name: 'Force of Will', scryfallId: 'sf-fow' });
-    const binder = makeBinder({ id: 'b1', hideDeckAllocated: false });
+    const binder = makeBinder({ id: 'b1', name: 'Consignment', hideDeckAllocated: false });
     useCollectionStore.setState({ cards: [copy], binders: [binder], hydrating: false });
     const cube = makeSavedCube({
       picks: [
@@ -289,9 +326,59 @@ describe('CubePullList — already out of your binders', () => {
     const { container } = render(<CubePullList cube={cube} />);
     const scope = interactive(container);
     expect(scope.getByText('Already out of your binders')).toBeTruthy();
-    expect(scope.getByText(/hides cards held by a deck or a cube/)).toBeTruthy();
+    expect(
+      scope.getByText(
+        'Consignment leaves out cards held by a deck or cube, so these are likely already pulled.'
+      )
+    ).toBeTruthy();
     expect(scope.getByText('Force of Will')).toBeTruthy();
     expect(scope.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('names every swallowing binder, pluralized, when more than one hides cards', () => {
+    const copyA = makeCopy({ copyId: 'a', name: 'Alpha', scryfallId: 'sf-a', rarity: 'common' });
+    const copyB = makeCopy({ copyId: 'b', name: 'Beta', scryfallId: 'sf-b', rarity: 'rare' });
+    const consignment = makeBinder({
+      id: 'consignment',
+      name: 'Consignment',
+      position: 0,
+      hideDeckAllocated: false,
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+    });
+    const trades = makeBinder({
+      id: 'trades',
+      name: 'Trades',
+      position: 1,
+      hideDeckAllocated: false,
+      filter: { rarities: { chips: [{ value: 'common', negate: false }], joiners: [] } },
+    });
+    useCollectionStore.setState({
+      cards: [copyA, copyB],
+      binders: [consignment, trades],
+      hydrating: false,
+    });
+    const cube = makeSavedCube({
+      picks: [
+        makePick({
+          slotId: 'p1',
+          card: makeCubeCard({ name: 'Alpha', oracleId: 'o1' }),
+          allocatedCopyId: 'a',
+        }),
+        makePick({
+          slotId: 'p2',
+          card: makeCubeCard({ name: 'Beta', oracleId: 'o2' }),
+          allocatedCopyId: 'b',
+        }),
+      ],
+    });
+    useCubeStore.setState({ saved: [cube] });
+    const { container } = render(<CubePullList cube={cube} />);
+    const scope = interactive(container);
+    expect(
+      scope.getByText(
+        'Consignment and Trades leave out cards held by a deck or cube, so these are likely already pulled.'
+      )
+    ).toBeTruthy();
   });
 });
 

@@ -19,8 +19,25 @@ import {
 import { CubeErrorBlock } from './shared';
 import { Button } from '../../components/shared/Button';
 
-const OUT_HINT =
-  'This binder hides cards held by a deck or a cube from its own view, so this copy is likely already pulled.';
+/** "A" / "A and B" / "A, B and C" — for naming the binder(s) that swallowed
+ *  an 'out' group's copies. */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/** The 'out' group's explanatory line, naming the binder(s) responsible —
+ *  falls back to a generic phrasing on the (shouldn't-happen) case where
+ *  `pull-list.ts` couldn't identify one. */
+function outHint(binderNames: string[] | undefined): string {
+  if (!binderNames || binderNames.length === 0) {
+    return 'This binder hides cards held by a deck or a cube from its own view, so this copy is likely already pulled.';
+  }
+  const verb = binderNames.length === 1 ? 'leaves' : 'leave';
+  return `${joinNames(binderNames)} ${verb} out cards held by a deck or cube, so these are likely already pulled.`;
+}
+
 const REASON_TEXT: Record<CubePullUnreservedReason, string> = {
   'not-owned': 'Not owned',
   'copy-missing': 'The reserved copy is no longer in your collection',
@@ -130,7 +147,7 @@ function CubePullGroupBlock({
           {group.rows.length} {group.rows.length === 1 ? 'card' : 'cards'}
         </span>
       </div>
-      {group.kind === 'out' && <p className="cube-pull-group-hint">{OUT_HINT}</p>}
+      {group.kind === 'out' && <p className="cube-pull-group-hint">{outHint(group.binderNames)}</p>}
       {group.kind === 'binder' ? (
         pagesOf(group.rows).map((page) => (
           <div key={page.pageNum} className="cube-pull-page">
@@ -294,23 +311,27 @@ export function CubePullList({ cube }: { cube: SavedCube }) {
           row's page/slot stands in for the printing column those use. */}
       <div className="print-list" aria-hidden>
         <h1 className="print-list-title">{cube.name} · Pull list</h1>
-        {groups.map((group) => (
-          <section key={group.key} className="print-list-section">
-            <h2 className="print-list-section-title">{group.label}</h2>
-            <ul>
-              {group.rows.map((row) => (
-                <li key={row.key}>
-                  <span className="print-list-name">{row.name}</span>
-                  <span className="print-list-printing">
-                    {row.pageNum !== undefined
-                      ? `p.${row.pageNum} · slot ${row.slotNum}`
-                      : (row.reason && REASON_TEXT[row.reason]) || ''}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+        {groups.map((group) => {
+          const pullable = isPullableGroupKind(group.kind);
+          return (
+            <section key={group.key} className="print-list-section">
+              <h2 className="print-list-section-title">{group.label}</h2>
+              <ul>
+                {group.rows.map((row) => (
+                  <li key={row.key}>
+                    {pullable && <span className="print-list-box" aria-hidden="true" />}
+                    <span className="print-list-name">{row.name}</span>
+                    <span className="print-list-printing">
+                      {row.pageNum !== undefined
+                        ? `p.${row.pageNum} · slot ${row.slotNum}`
+                        : (row.reason && REASON_TEXT[row.reason]) || ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
       </div>
     </div>
   );

@@ -1871,3 +1871,16 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
+
+/* The printed checklist's tick box — pen-and-paper, not the on-screen
+   checkbox. Fixed size and first in the row's flex order (print.css's
+   `.print-list-section li { display: flex }`), so every box in a section
+   lines up in one column regardless of name length. Omitted on 'out'/
+   'unreserved' rows, which have nothing to physically pull (see
+   `isPullableGroupKind`). */
+.print-list-box {
+  width: 10pt;
+  height: 10pt;
+  border: 1pt solid #000;
+  flex-shrink: 0;
+}

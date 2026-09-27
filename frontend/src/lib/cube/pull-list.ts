@@ -64,6 +64,11 @@ export interface CubePullGroup {
   /** Binder accent color (binder groups only). */
   color?: string;
   rows: CubePullRow[];
+  /** Binder(s) whose `hideDeckAllocated: false` swallowed these copies from
+   *  their own view — 'out' groups only, in the user's binder order,
+   *  de-duplicated. Empty if the swallowing binder couldn't be identified
+   *  (shouldn't happen, but the caller's copy should have a generic fallback). */
+  binderNames?: string[];
 }
 
 export interface BuildCubePullListOptions {
@@ -103,6 +108,28 @@ export function buildCubePullList(
     allocatedCopyIds: options.allocatedCopyIds,
     setMap: options.setMap,
   });
+
+  // A second, unswallowed pass — no `allocatedCopyIds`, so nothing reads as
+  // "checked out" and `hideDeckAllocated: false` can't swallow anything. Used
+  // ONLY to name which binder's rules would have claimed a copy the real pass
+  // swallowed, so the 'out' group isn't stuck saying "this binder" anonymously.
+  const { binders: unswallowedBinders } = materializeBinders(collection, binderDefs, {
+    search: '',
+    setMap: options.setMap,
+  });
+  const wouldBeBinder = new Map<string, { id: string; name: string }>();
+  for (const b of unswallowedBinders) {
+    for (const section of b.sections) {
+      for (const page of section.pages) {
+        for (const slot of page.slots) {
+          if (slot && !wouldBeBinder.has(slot.copyId)) {
+            wouldBeBinder.set(slot.copyId, { id: b.def.id, name: b.def.name });
+          }
+        }
+      }
+    }
+  }
+  const outBinderIds = new Set<string>();
 
   const placement = new Map<string, Placement>();
   for (const b of binders) {
@@ -173,6 +200,8 @@ export function buildCubePullList(
     // The card is still physically in that binder until the user pulls it,
     // but the app has no page/slot to point at — surface it distinctly
     // rather than mislabel it "Uncategorized" (it IS categorized, just hidden).
+    const wouldBe = wouldBeBinder.get(pick.allocatedCopyId);
+    if (wouldBe) outBinderIds.add(wouldBe.id);
     pushRow('out', { key: pick.slotId, name, card: copy });
   }
 
@@ -203,11 +232,16 @@ export function buildCubePullList(
   }
   const out = byGroupKey.get('out');
   if (out) {
+    const binderNames = [...binderDefs]
+      .sort((a, b) => a.position - b.position)
+      .filter((d) => outBinderIds.has(d.id))
+      .map((d) => d.name);
     groups.push({
       key: 'out',
       kind: 'out',
       label: 'Already out of your binders',
       rows: out.sort(byName),
+      binderNames,
     });
   }
   const unreserved = byGroupKey.get('unreserved');

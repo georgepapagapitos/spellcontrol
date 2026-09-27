@@ -248,11 +248,16 @@ describe('buildCubePullList', () => {
     expect(groups[0].rows.map((r) => r.name)).toEqual(['Alpha', 'Zeta']);
   });
 
-  it('surfaces a copy swallowed by a binder that hides allocated cards as "out", not uncategorized', () => {
+  it('surfaces a copy swallowed by a binder that hides allocated cards as "out", not uncategorized, and names the binder', () => {
     const copy = makeCopy({ copyId: 'c1', name: 'Reserved Card', scryfallId: 'sf-r' });
     // hideDeckAllocated: false means an allocated copy this binder's rules
     // would otherwise claim is dropped from its view entirely.
-    const binder = makeBinder({ id: 'b', position: 0, hideDeckAllocated: false });
+    const binder = makeBinder({
+      id: 'b',
+      name: 'Consignment',
+      position: 0,
+      hideDeckAllocated: false,
+    });
     const picks = [
       makePick({
         slotId: 'p1',
@@ -266,8 +271,54 @@ describe('buildCubePullList', () => {
       allocatedCopyIds: new Set(['c1']),
     });
     expect(groups).toHaveLength(1);
-    expect(groups[0]).toMatchObject({ key: 'out', kind: 'out' });
+    expect(groups[0]).toMatchObject({ key: 'out', kind: 'out', binderNames: ['Consignment'] });
     expect(groups[0].rows[0]).toMatchObject({ name: 'Reserved Card', card: copy });
+  });
+
+  it('names every swallowing binder, in binder order, de-duplicated', () => {
+    const cardA = makeCopy({ copyId: 'a', name: 'Alpha', scryfallId: 'sf-a', rarity: 'common' });
+    const cardB = makeCopy({ copyId: 'b', name: 'Beta', scryfallId: 'sf-b', rarity: 'rare' });
+    const cardC = makeCopy({ copyId: 'c', name: 'Gamma', scryfallId: 'sf-c', rarity: 'common' });
+    // "Trades" (position 1) claims commons; "Consignment" (position 0) claims
+    // rares — reversed from binder order on purpose, to prove the name list
+    // comes back in POSITION order, not the order copies were visited.
+    const consignment = makeBinder({
+      id: 'consignment',
+      name: 'Consignment',
+      position: 0,
+      hideDeckAllocated: false,
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+    });
+    const trades = makeBinder({
+      id: 'trades',
+      name: 'Trades',
+      position: 1,
+      hideDeckAllocated: false,
+      filter: { rarities: { chips: [{ value: 'common', negate: false }], joiners: [] } },
+    });
+    const picks = [
+      makePick({
+        slotId: 'p1',
+        card: makeCubeCard({ name: 'Alpha', oracleId: 'o1' }),
+        allocatedCopyId: 'a',
+      }),
+      makePick({
+        slotId: 'p2',
+        card: makeCubeCard({ name: 'Beta', oracleId: 'o2' }),
+        allocatedCopyId: 'b',
+      }),
+      makePick({
+        slotId: 'p3',
+        card: makeCubeCard({ name: 'Gamma', oracleId: 'o3' }),
+        allocatedCopyId: 'c',
+      }),
+    ];
+    const groups = buildCubePullList(picks, [cardA, cardB, cardC], [trades, consignment], {
+      allocatedCopyIds: new Set(['a', 'b', 'c']),
+    });
+    expect(groups).toHaveLength(1);
+    expect(groups[0].binderNames).toEqual(['Consignment', 'Trades']);
+    expect(groups[0].rows.map((r) => r.name)).toEqual(['Alpha', 'Beta', 'Gamma']);
   });
 
   it('does NOT swallow the copy when allocatedCopyIds omits it (e.g. excluded on purpose)', () => {
