@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { CardThumb } from './CardThumb';
 import { PrintingPicker, type AddExtras } from './PrintingPicker';
 import { imageFromCard } from '../lib/card-thumbs';
@@ -18,10 +19,9 @@ interface Props {
  * leaving the keyboard. Mirrors the per-row "Printing & finish" disclosure
  * {@link CardSearchResults} hides at this width — same picker, one place.
  *
- * The header art always shows the ACTIVE ROW's own printing (decision B:
- * "+" adds exactly the printing the row displays), not whatever the picker
- * below has selected — same as the row's thumbnail, which doesn't change
- * when its disclosure is open either.
+ * The header shows the printing the picker's Add will add: the row's own
+ * printing to start, then whichever tile is picked. An inspector showing one
+ * printing above a different selected tile misstates what Add does.
  */
 export function AddCardInspector({ card, onAdd }: Props) {
   if (!card) {
@@ -31,16 +31,21 @@ export function AddCardInspector({ card, onAdd }: Props) {
       </div>
     );
   }
+  // Keyed by card: moving to another row starts from that row's printing.
+  return <InspectorBody key={card.id} card={card} onAdd={onAdd} />;
+}
 
-  const art = imageFromCard(card, 'normal');
+function InspectorBody({ card, onAdd }: { card: ScryfallCard; onAdd: Props['onAdd'] }) {
+  const [shown, setShown] = useState<ScryfallCard>(card);
+  const art = imageFromCard(shown, 'normal');
 
   return (
-    <div className="add-card-inspector" key={card.id}>
+    <div className="add-card-inspector">
       <div className="add-card-inspector-top">
         {art ? (
           <CardThumb
             src={art}
-            alt={card.name}
+            alt={`${card.name}, ${shown.set_name}`}
             className="collection-grid-item add-card-inspector-art"
           />
         ) : (
@@ -52,9 +57,18 @@ export function AddCardInspector({ card, onAdd }: Props) {
         <div className="add-card-inspector-heading">
           <h3 className="add-card-inspector-name">{card.name}</h3>
           <p className="add-card-inspector-type">{card.type_line}</p>
+          <p className="add-card-inspector-type">
+            {shown.set_name} · {shown.set.toUpperCase()} #{shown.collector_number}
+          </p>
         </div>
       </div>
-      <PrintingPicker cardName={card.name} fallback={card} showExtras onAdd={onAdd} />
+      <PrintingPicker
+        cardName={card.name}
+        fallback={card}
+        showExtras
+        onAdd={onAdd}
+        onSelectedChange={setShown}
+      />
     </div>
   );
 }

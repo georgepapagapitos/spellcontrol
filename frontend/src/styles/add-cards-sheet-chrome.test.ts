@@ -58,6 +58,17 @@ describe('Add cards desktop workbench + sheet breakpoint', () => {
     expect(css).toMatch(/@media \(max-width: 1023px\) \{\s*\.modal-backdrop\.add-cards-backdrop/);
   });
 
+  // It opened at half height and grew as results arrived, jumping under the
+  // thumb on every keystroke. The sheet has a fixed height, not a content one.
+  it('opens the phone sheet at a fixed height, never sized to its content', () => {
+    const selector = ".modal-backdrop.add-cards-backdrop > [role='dialog'] {";
+    const phone = css.slice(css.indexOf('@media (max-width: 1023px)'));
+    const start = phone.indexOf(selector);
+    expect(start).toBeGreaterThan(-1);
+    const dialog = phone.slice(start, phone.indexOf('}', start));
+    expect(dialog).toMatch(/(^|\s)height:\s*calc\(var\(--vh-safe\)/);
+  });
+
   it('declares the desktop workbench grid, in the min-width block AFTER its base padding rule', () => {
     const baseAt = css.indexOf(
       '.add-cards-panel-search,\n.add-cards-panel-upload,\n.add-cards-panel-product'

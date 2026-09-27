@@ -764,6 +764,10 @@
   .modal-backdrop.add-cards-backdrop > [role='dialog'] {
     max-width: none;
     width: 100%;
+    /* A fixed height, not a content height: a search sheet that opened at
+       half height and grew as results arrived jumped under the thumb on every
+       keystroke. It opens at its full height and scrolls inside. */
+    height: calc(var(--vh-safe) - 3rem - var(--keyboard-inset));
     max-height: calc(var(--vh-safe) - 3rem - var(--keyboard-inset));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     /* Belt and braces alongside .add-cards-list-bar's own safe-bottom pad

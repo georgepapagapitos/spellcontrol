@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { fetchPrintings } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { imageFromCard } from '../lib/card-thumbs';
@@ -49,6 +49,9 @@ interface Props {
    */
   showExtras?: boolean;
   onAdd: (printing: ScryfallCard, finish: Finish, extras: AddExtras) => void;
+  /** Told which printing is selected (the loaded default, then each pick), so
+   *  a host can show the printing that "Add" will add. */
+  onSelectedChange?: (printing: ScryfallCard) => void;
 }
 
 /**
@@ -62,7 +65,13 @@ interface Props {
  * number can't distinguish a retro frame from a borderless showcase, which is
  * precisely the call this control exists to make.
  */
-export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }: Props) {
+export function PrintingPicker({
+  cardName,
+  fallback,
+  showExtras = false,
+  onAdd,
+  onSelectedChange,
+}: Props) {
   const [printings, setPrintings] = useState<ScryfallCard[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +128,17 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
   }, [cardName, fallback]);
 
   const selected = printings?.find((p) => p.id === selectedId) ?? null;
+  // `selected` is the same array element until the list or the pick changes,
+  // so this fires once per real selection. The callback lives in a ref (the
+  // style guide's latest-callback rule) so an inline host function doesn't
+  // re-fire it every render.
+  const onSelectedRef = useRef(onSelectedChange);
+  useEffect(() => {
+    onSelectedRef.current = onSelectedChange;
+  });
+  useEffect(() => {
+    if (selected) onSelectedRef.current?.(selected);
+  }, [selected]);
   const finishes = useMemo<Finish[]>(
     () => (selected ? availableFinishes(selected.finishes) : ['nonfoil']),
     [selected]
