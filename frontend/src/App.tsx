@@ -2,7 +2,7 @@ import { logger } from '@/lib/logger';
 import { BrandMark } from '@/components/shared/BrandMark';
 import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { EmptyStateMark } from '@/components/shared/EmptyStateMark';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { Layout } from './components/Layout';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
 // Eager pages — the entry surfaces a first paint lands on. WelcomePage is the
@@ -148,16 +148,17 @@ function SettingsRedirect() {
 function NotFoundPage({ homePath }: { homePath: string }) {
   const homeLabel = homePath === '/home' ? 'Home' : 'Collection';
   return (
-    <div className="empty-state">
-      <EmptyStateMark />
-      <h1 className="empty-state-tagline">Page not found.</h1>
-      <p className="empty-state-hint">That link is broken or the page has moved.</p>
-      <div className="empty-state-actions">
-        <Button variant="primary" to={homePath} className="empty-state-action">
+    <EmptyState
+      mark
+      taglineAs="h1"
+      tagline="Page not found."
+      hint="That link is broken or the page has moved."
+      actions={
+        <Button variant="primary" to={homePath}>
           Go to {homeLabel}
         </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }
 

@@ -1,4 +1,4 @@
-import { EmptyStateMark } from '../shared/EmptyStateMark';
+import { EmptyState } from '../shared/EmptyState';
 import { Button } from '@/components/shared/Button';
 
 interface Props {
@@ -25,11 +25,10 @@ interface Props {
 /**
  * Shared zero-result state for every /s/:token and /d/:slug card list
  * (SharedBinderView, SharedCollectionView, SharedListView, SharedCubeView,
- * SharedDeckView) — replaces the bare `<p className="shared-empty">` each of
- * these hand-rolled, which skipped the app's two-part empty-state pattern
- * (tagline + hint, `EmptyStateMark` for a genuine primary empty — see
- * STYLE_GUIDE "Voice & copy" / "Empty states") and left a filtered-to-zero
- * search with no way back except manually clearing the search pill.
+ * SharedDeckView) — a thin wrapper over the shared `EmptyState` primitive
+ * that keeps this surface's own two-branch shape (genuinely empty vs
+ * filtered-to-zero) and its "Reset search" naming rule (see the prop docs
+ * above and STYLE_GUIDE "Voice & copy" / "Empty states").
  */
 export function SharedEmptyState({
   empty,
@@ -39,27 +38,23 @@ export function SharedEmptyState({
   onClearSearch,
 }: Props) {
   if (empty) {
-    return (
-      <div className="empty-state">
-        <EmptyStateMark />
-        <p className="empty-state-tagline">{emptyTagline}</p>
-        <p className="empty-state-hint">{emptyHint}</p>
-      </div>
-    );
+    return <EmptyState mark tagline={emptyTagline} hint={emptyHint} />;
   }
   return (
-    <div className="empty-state">
-      <p className="empty-state-tagline">{filteredTagline}</p>
-      {onClearSearch && (
-        // "Reset search", not "Clear search" — the SearchPill above already
-        // renders its own inline × with that exact accessible name whenever
-        // the box has text, i.e. in every case this button can also show;
-        // two on-page buttons sharing one name is a real a11y/cohesion smell
-        // (caught by this component's own test), not just a naming nit.
-        <Button onClick={onClearSearch} className="empty-state-action shared-empty-clear-btn">
-          Reset search
-        </Button>
-      )}
-    </div>
+    <EmptyState
+      tagline={filteredTagline}
+      actions={
+        onClearSearch && (
+          // "Reset search", not "Clear search" — the SearchPill above already
+          // renders its own inline × with that exact accessible name whenever
+          // the box has text, i.e. in every case this button can also show;
+          // two on-page buttons sharing one name is a real a11y/cohesion smell
+          // (caught by this component's own test), not just a naming nit.
+          <Button onClick={onClearSearch} className="shared-empty-clear-btn">
+            Reset search
+          </Button>
+        )
+      }
+    />
   );
 }

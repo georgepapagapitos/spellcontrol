@@ -30,6 +30,7 @@ import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCaro
 import { buildCardLocationIndex, type CardLocation } from '../../lib/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
 import { Button, IconButton } from '@/components/shared/Button';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 const STATUS_LABEL: Record<TradeOffer['status'], string> = {
   proposed: 'Waiting',
@@ -139,12 +140,11 @@ export function TradeOfferList({ offers, onChanged, onCounter, linkCounterparty,
 
   if (offers.length === 0) {
     return (
-      <div className="empty-state trade-offers-empty">
-        <p className="empty-state-tagline">No trades yet.</p>
-        <p className="empty-state-hint">
-          Propose one and it shows up here for both of you, until it's answered.
-        </p>
-      </div>
+      <EmptyState
+        className="trade-offers-empty"
+        tagline="No trades yet."
+        hint="Propose one and it shows up here for both of you, until it's answered."
+      />
     );
   }
 

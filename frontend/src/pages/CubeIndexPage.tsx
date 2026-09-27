@@ -9,7 +9,7 @@ import { OverflowMenu } from '../components/OverflowMenu';
 import { NameInputDialog } from '../components/NameInputDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ShareDialog } from '../components/ShareDialog';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '../components/shared/EmptyState';
 import { VerdictBadge } from '../components/deck/VerdictBadge';
 import { useCubeStore, SavedCube } from '../store/cube';
 import { useCollectionStore } from '../store/collection';
@@ -84,24 +84,20 @@ export function CubeIndexPage() {
           <span className="sr-only">Loading your cubes…</span>
         </div>
       ) : saved.length === 0 ? (
-        <div className="empty-state">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">Build your first cube.</p>
-          <p className="empty-state-hint">
-            A cube is a draft-sized pool pulled from your collection: best cards, an
-            archetype-leaning build, or a mix.
-          </p>
-          <div className="empty-state-actions">
+        <EmptyState
+          mark
+          tagline="Build your first cube."
+          hint="A cube is a draft-sized pool pulled from your collection: best cards, an archetype-leaning build, or a mix."
+          actions={
             <Button
               to="/decks/cube/new"
               variant="primary"
-              className="empty-state-action"
               icon={<Plus width={14} height={14} strokeWidth={2} />}
             >
               New cube
             </Button>
-          </div>
-        </div>
+          }
+        />
       ) : (
         <section className="cube-index-section" aria-label="My cubes">
           <div className="section-head-rule">

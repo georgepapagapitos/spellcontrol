@@ -16,7 +16,7 @@ import { gradeCurve, type CurveGrading } from '@/deck-builder/services/deckBuild
 import { useCurrency } from '@/lib/currency';
 import { formatMoney } from '@/lib/format-money';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '@/components/shared/Button';
 
 // Totals are computed by diffDecks in the active display currency, and
@@ -396,13 +396,11 @@ export function DeckComparePage() {
           </div>
 
           {!diff || !deckA || !deckB || !manaA || !manaB || !phasesA || !phasesB ? (
-            <div className="empty-state">
-              <EmptyStateMark />
-              <p className="empty-state-tagline">Pick two decks to compare.</p>
-              <p className="empty-state-hint">
-                Select decks above, or open any deck and tap Compare from its menu.
-              </p>
-            </div>
+            <EmptyState
+              mark
+              tagline="Pick two decks to compare."
+              hint="Select decks above, or open any deck and tap Compare from its menu."
+            />
           ) : (
             <CompareBody
               deckA={deckA}

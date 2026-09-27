@@ -13,7 +13,7 @@ import {
 } from '../components/DiscoverDeckTile';
 import { useAuth } from '../store/auth';
 import { listBookmarkedDecks, type DiscoverDeck } from '../lib/discover-client';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '../components/shared/EmptyState';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
@@ -77,17 +77,15 @@ export function SavedDecksPage() {
         <DecksHubTabs />
 
         {!isAuthed ? (
-          <div className="empty-state">
-            <p className="empty-state-tagline">Saved decks need an account.</p>
-            <p className="empty-state-hint">
-              Sign in to bookmark decks from Discover and find them here later.
-            </p>
-            <div className="empty-state-actions">
+          <EmptyState
+            tagline="Saved decks need an account."
+            hint="Sign in to bookmark decks from Discover and find them here later."
+            actions={
               <Button variant="primary" to={`/auth?returnTo=${encodeURIComponent('/decks/saved')}`}>
                 Sign in
               </Button>
-            </div>
-          </div>
+            }
+          />
         ) : loading ? (
           <>
             <p role="status" aria-live="polite" className="sr-only">
@@ -107,13 +105,16 @@ export function SavedDecksPage() {
             </Button>
           </div>
         ) : decks.length === 0 ? (
-          <div className="empty-state">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">Nothing saved yet.</p>
-            <p className="empty-state-hint">
-              Bookmark a deck from <Link to="/decks/discover">Discover</Link> to find it here later.
-            </p>
-          </div>
+          <EmptyState
+            mark
+            tagline="Nothing saved yet."
+            hint={
+              <>
+                Bookmark a deck from <Link to="/decks/discover">Discover</Link> to find it here
+                later.
+              </>
+            }
+          />
         ) : (
           <ul className="decks-index-list is-grid" aria-label="Saved decks">
             {decks.map((deck) => (

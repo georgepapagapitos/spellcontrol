@@ -7,7 +7,7 @@ import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { SearchPill } from '../components/SearchPill';
 import { TradeOfferList } from '../components/trade/TradeOfferList';
 import {
@@ -230,17 +230,17 @@ function TradesPageBody() {
       {loading && <TradesSkeleton />}
 
       {isEmpty && (
-        <div className="empty-state" role="status">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">No trades yet.</p>
-          <p className="empty-state-hint">
-            Open a friend's hub to see what they have and propose one. It shows up here for both of
-            you until it's answered.
-          </p>
-          <Button variant="primary" to="/friends">
-            Find a friend to trade with
-          </Button>
-        </div>
+        <EmptyState
+          mark
+          status
+          tagline="No trades yet."
+          hint="Open a friend's hub to see what they have and propose one. It shows up here for both of you until it's answered."
+          actions={
+            <Button variant="primary" to="/friends">
+              Find a friend to trade with
+            </Button>
+          }
+        />
       )}
 
       {searchable && (
@@ -254,9 +254,9 @@ function TradesPageBody() {
       )}
 
       {noMatches && (
-        <p className="trades-group-empty trades-no-matches" role="status">
+        <EmptyState compact status className="trades-group-empty trades-no-matches">
           No trades match “{query.trim()}”.
-        </p>
+        </EmptyState>
       )}
 
       {showGroups &&
@@ -291,7 +291,9 @@ function TradesPageBody() {
                 // Per-group empty — text only, no brand mark. The page-level
                 // empty state above owns that treatment (STYLE_GUIDE § Empty
                 // states: micro/in-panel placeholders stay text-only).
-                <p className="trades-group-empty">{group.empty}</p>
+                <EmptyState compact className="trades-group-empty">
+                  {group.empty}
+                </EmptyState>
               ) : (
                 <TradeOfferList
                   offers={rows}

@@ -9,7 +9,7 @@ import { NameInputDialog } from '../../components/NameInputDialog';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ShareDialog } from '../../components/ShareDialog';
 import { Modal } from '../../components/Modal';
-import { EmptyStateMark } from '../../components/shared/EmptyStateMark';
+import { EmptyState } from '../../components/shared/EmptyState';
 import { useCubeStore } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -182,17 +182,15 @@ export function CubeDetailPage() {
       <div className="cube-page">
         <BackLink to="/decks/cube" label="Cubes" />
         <PageHeader title="Cube not found" />
-        <div className="empty-state">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">
-            This cube doesn't exist, or you don't have access to it.
-          </p>
-          <div className="empty-state-actions">
-            <Button to="/decks/cube" variant="primary" className="empty-state-action">
+        <EmptyState
+          mark
+          tagline="This cube doesn't exist, or you don't have access to it."
+          actions={
+            <Button to="/decks/cube" variant="primary">
               Back to cubes
             </Button>
-          </div>
-        </div>
+          }
+        />
       </div>
     );
   }
@@ -463,18 +461,16 @@ export function CubeDetailPage() {
         {tab === 'shopping' && <CubeShoppingList target={target} loadPool={loadPool} />}
         {tab === 'pull' && target.isPhysical && <CubePullList cube={target} />}
         {tab === 'pull' && !target.isPhysical && (
-          <div className="empty-state">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">Mark this cube physical first.</p>
-            <p className="empty-state-hint">
-              A pull list only makes sense once a cube's cards are reserved from your binders.
-            </p>
-            <div className="empty-state-actions">
+          <EmptyState
+            mark
+            tagline="Mark this cube physical first."
+            hint="A pull list only makes sense once a cube's cards are reserved from your binders."
+            actions={
               <Button variant="primary" onClick={handleTogglePhysical}>
                 Mark physical
               </Button>
-            </div>
-          </div>
+            }
+          />
         )}
       </div>
 

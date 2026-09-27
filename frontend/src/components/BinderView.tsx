@@ -14,7 +14,7 @@ import { PageGrid } from './PageGrid';
 import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
 import { ColorPip } from './shared/ManaSymbol';
-import { EmptyStateMark } from './shared/EmptyStateMark';
+import { EmptyState } from './shared/EmptyState';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import {
   buildEditedCards,
@@ -80,28 +80,26 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
 
   if (!active) {
     return (
-      <div className="empty-state">
-        <EmptyStateMark />
-        <p className="empty-state-tagline">No binder selected.</p>
-        <p className="empty-state-hint">Pick a binder above, or create one with New binder.</p>
-      </div>
+      <EmptyState
+        mark
+        tagline="No binder selected."
+        hint="Pick a binder above, or create one with New binder."
+      />
     );
   }
 
   if (active.totalCards === 0) {
     return (
-      <div className="empty-state">
-        <EmptyStateMark />
-        <p className="empty-state-tagline">No cards match this binder's rules.</p>
-        <p className="empty-state-hint">
-          Loosen a rule or add another match group, and cards from your collection file in here.
-        </p>
-        <div className="empty-state-actions">
+      <EmptyState
+        mark
+        tagline="No cards match this binder's rules."
+        hint="Loosen a rule or add another match group, and cards from your collection file in here."
+        actions={
           <Button variant="primary" onClick={() => setEditingBinder(active.def.id)}>
             Binder rules
           </Button>
-        </div>
-      </div>
+        }
+      />
     );
   }
 

@@ -30,6 +30,7 @@ import {
   type LegalityIssue,
 } from '../../lib/deck-validation';
 import { useSealMoment } from '../shared/SealMoment';
+import { EmptyState } from '../shared/EmptyState';
 import { DeckExportDialog } from '../shared/DeckExportDialog';
 import {
   buildExport,
@@ -2220,7 +2221,9 @@ export function DeckDisplay({
                               />
                             ))
                           ) : (
-                            <p className="deck-outzone-empty">No sideboard cards yet</p>
+                            <EmptyState compact className="deck-outzone-empty">
+                              No sideboard cards yet
+                            </EmptyState>
                           )
                         ) : visibleConsideringGroups.length > 0 ? (
                           visibleConsideringGroups.map((g) => (
@@ -2251,9 +2254,9 @@ export function DeckDisplay({
                             />
                           ))
                         ) : (
-                          <p className="deck-outzone-empty">
+                          <EmptyState compact className="deck-outzone-empty">
                             Nothing parked here yet. Move a card here when you're unsure about it.
-                          </p>
+                          </EmptyState>
                         )}
                       </div>
                     </div>

@@ -7,7 +7,7 @@ import { Button, IconButton } from '../shared/Button';
 import { CopyButton } from '../shared/CopyButton';
 import { copyToClipboard } from '@/lib/clipboard';
 import { MeterBar } from '../shared/MeterBar';
-import { EmptyStateMark } from '../shared/EmptyStateMark';
+import { EmptyState } from '../shared/EmptyState';
 import { ChoiceList, Disclosure, Field, SegmentedControl, SwitchRow } from '../shared/form';
 import { DeckCardRow } from './DeckCardRow';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
@@ -434,20 +434,21 @@ export function UpgradePlanSheet({
     body = <DeckAnalysisSkeleton status="pending" />;
   } else if (plan.picks.length === 0) {
     body = (
-      <div className="empty-state upgrade-plan-empty">
-        <EmptyStateMark />
-        <p className="empty-state-tagline">Nothing fits {budgetLabel}.</p>
-        <p className="empty-state-hint">
-          {ownedFree
-            ? 'Raise the budget to see swaps.'
-            : 'Raise the budget or use your cards first.'}
-        </p>
-        {!ownedFree && (
-          <Button variant="secondary" onClick={() => setOwnedFree(true)}>
-            Use my cards first
-          </Button>
-        )}
-      </div>
+      <EmptyState
+        mark
+        className="upgrade-plan-empty"
+        tagline={`Nothing fits ${budgetLabel}.`}
+        hint={
+          ownedFree ? 'Raise the budget to see swaps.' : 'Raise the budget or use your cards first.'
+        }
+        actions={
+          !ownedFree && (
+            <Button variant="secondary" onClick={() => setOwnedFree(true)}>
+              Use my cards first
+            </Button>
+          )
+        }
+      />
     );
   } else {
     const newNames = new Set(swapIn.map((p) => p.change.name));

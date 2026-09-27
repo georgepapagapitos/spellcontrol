@@ -16,6 +16,7 @@ import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
 import { useNarrowViewport } from '@/playtest/hooks/use-narrow-viewport';
 import { usePrintedBodies } from '@/playtest/hooks/use-printed-bodies';
 import { Button } from '@/components/shared/Button';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 export interface PlaytestBackTarget {
   label: string;
@@ -166,38 +167,40 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
 
   if (deck.cards.length === 0) {
     return (
-      <div className="empty-state">
-        <p className="empty-state-tagline">Nothing to playtest yet.</p>
-        <p className="empty-state-hint">{emptyHint}</p>
-        <div className="empty-state-actions">
+      <EmptyState
+        tagline="Nothing to playtest yet."
+        hint={emptyHint}
+        actions={
           <Button variant="primary" to={back.to}>
             {back.label}
           </Button>
-        </div>
-      </div>
+        }
+      />
     );
   }
   if (initFailed) {
     return (
-      <div className="empty-state">
-        <p className="empty-state-tagline">Couldn't start this playtest.</p>
-        <p className="empty-state-hint">Something in this deck couldn't be dealt into a game.</p>
-        <div className="empty-state-actions">
-          <Button
-            variant="primary"
-            onClick={() => {
-              // Clear any snapshot that might itself be the problem, and let
-              // the effect re-run from scratch for this deck.
-              clearPlaytestSnapshot(deck.id);
-              promptingForRef.current = null;
-              setInitFailed(false);
-            }}
-          >
-            Retry
-          </Button>
-          <Button to={back.to}>{back.label}</Button>
-        </div>
-      </div>
+      <EmptyState
+        tagline="Couldn't start this playtest."
+        hint="Something in this deck couldn't be dealt into a game."
+        actions={
+          <>
+            <Button
+              variant="primary"
+              onClick={() => {
+                // Clear any snapshot that might itself be the problem, and let
+                // the effect re-run from scratch for this deck.
+                clearPlaytestSnapshot(deck.id);
+                promptingForRef.current = null;
+                setInitFailed(false);
+              }}
+            >
+              Retry
+            </Button>
+            <Button to={back.to}>{back.label}</Button>
+          </>
+        }
+      />
     );
   }
   if (!state) {

@@ -1,6 +1,6 @@
 import './RoomBrowser.css';
 import { useCallback, useEffect, useState } from 'react';
-import { EmptyStateMark } from '../shared/EmptyStateMark';
+import { EmptyState } from '../shared/EmptyState';
 import { listGames, type GameListing } from '../../lib/games-api';
 import { gameFormatLabel } from '../../lib/game-formats';
 import { userMessage } from '../../lib/user-error';
@@ -67,18 +67,16 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
 
   if (games.length === 0) {
     return (
-      <div className="empty-state">
-        <EmptyStateMark />
-        <p className="empty-state-tagline">No public games right now.</p>
-        <p className="empty-state-hint">
-          Host a table and set it to public, or ask the host for a join code.
-        </p>
-        <div className="empty-state-actions">
+      <EmptyState
+        mark
+        tagline="No public games right now."
+        hint="Host a table and set it to public, or ask the host for a join code."
+        actions={
           <Button variant="primary" onClick={onHostInstead}>
             Host a table
           </Button>
-        </div>
-      </div>
+        }
+      />
     );
   }
 

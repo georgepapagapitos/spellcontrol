@@ -1,4 +1,4 @@
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '../components/shared/EmptyState';
 import { AlignJustify, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -213,13 +213,15 @@ export function SearchPage() {
           />
         </>
       ) : (
-        <div className="empty-state">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">Every card, one search away.</p>
-          <p className="empty-state-hint">
-            Type a card name, or use Scryfall syntax like “t:dragon cmc&lt;4” or “o:landfall c:g”.
-          </p>
-        </div>
+        <EmptyState
+          mark
+          tagline="Every card, one search away."
+          hint={
+            <>
+              Type a card name, or use Scryfall syntax like “t:dragon cmc&lt;4” or “o:landfall c:g”.
+            </>
+          }
+        />
       )}
     </div>
   );

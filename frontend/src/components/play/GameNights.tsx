@@ -1,4 +1,4 @@
-import { EmptyStateMark } from '../shared/EmptyStateMark';
+import { EmptyState } from '../shared/EmptyState';
 import {
   useCallback,
   useEffect,
@@ -133,18 +133,15 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
 
   if (isGuest) {
     return (
-      <div className="empty-state">
-        <p className="empty-state-tagline">Game nights need an account.</p>
-        <p className="empty-state-hint">
-          Sign in to plan a night and invite friends. Anyone you send the link to can RSVP without
-          an account.
-        </p>
-        <div className="empty-state-actions">
+      <EmptyState
+        tagline="Game nights need an account."
+        hint="Sign in to plan a night and invite friends. Anyone you send the link to can RSVP without an account."
+        actions={
           <Button variant="primary" to={signInHref}>
             Sign in
           </Button>
-        </div>
-      </div>
+        }
+      />
     );
   }
 
@@ -166,19 +163,16 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
   return (
     <div className="game-nights">
       {nights.length === 0 ? (
-        <div className="empty-state">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">No game nights planned.</p>
-          <p className="empty-state-hint">
-            Pick a date or let the group vote, then share the link. Anyone can RSVP, no account
-            needed.
-          </p>
-          <div className="empty-state-actions">
+        <EmptyState
+          mark
+          tagline="No game nights planned."
+          hint="Pick a date or let the group vote, then share the link. Anyone can RSVP, no account needed."
+          actions={
             <Button variant="primary" onClick={() => setDialog('create')}>
               Plan a game night
             </Button>
-          </div>
-        </div>
+          }
+        />
       ) : (
         <>
           <header className="play-setup-header game-nights-header">
