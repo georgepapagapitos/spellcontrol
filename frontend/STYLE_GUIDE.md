@@ -3962,11 +3962,43 @@ reference fix (`.deck-empty-state` in `DeckDisplay.tsx` +
   the toolbar's own Add-cards button opens — one entry point, not a second
   one).
 - **Branch the copy when the _reason_ for emptiness differs, not just the
-  count.** A Commander-format deck with no commander yet needs different
-  guidance than a deck that simply has no cards — suggestions, color
-  identity, and legality all key off the commander, so "add a card" is the
-  wrong next step until one exists. Only branch when the underlying cause is
-  genuinely different; don't multiply copy variants for cosmetic reasons.
+  count.** Only branch when the underlying cause is genuinely different;
+  don't multiply copy variants for cosmetic reasons.
+- **An empty state never gates on a prerequisite the user can supply later
+  (E465, 2026-09-27).** This section used to branch a Commander-format deck
+  with no commander to "This deck needs a commander first." with one
+  "Choose a commander" button. That button opened a "Pick a commander first"
+  interstitial whose button only switched back to the Deck view: a loop, and
+  a gate on the one thing a "just start a deck" user wants to do. Now the
+  deck is simply empty: "This deck is empty." / "Add cards, or choose a
+  commander first." with **Add cards as the one primary** and **Choose a
+  commander as a secondary `Button` beside it** (two doors to two real
+  places is still one primary CTA). Search shows every color until a
+  commander exists; the deck checks flag off-color cards once one does.
+- **An unfilled required slot is an open slot in its own place, not a
+  banner.** A commander deck with cards and no commander renders its
+  Commander section where the commander will sit, holding one dashed row
+  (`CommanderOpenSlot`: "No commander yet" / "Choose one when you're ready.
+  Until then, every color shows." with a primary Choose button; phones take
+  the shorter "Every color shows until you choose."). Dashed is the app's
+  "not filled yet" idiom, the same as BinderStartChooser's Blank tile. It
+  leads the list view's command zone and the grid/stacks tiles alike, so no
+  view is without the way in. The copy says what's true now instead of
+  warning: an unfinished deck isn't a broken one, and no "missing commander"
+  deck check exists.
+- **A tab whose whole reading depends on a missing prerequisite says so in
+  place of its content.** Coach with no commander renders an `.empty-state`
+  ("Choose a commander and Coach reads the deck against it." + the Choose a
+  commander button), never its feed's success-shaped "looks tuned" line.
+- **Every door to one choice opens one surface.** The open slot, the empty
+  state's secondary button, the Coach empty state and the commander row's
+  "Change commander" menu item all open the same `CommanderPickerSheet`
+  (Pattern B sheet: the commander-eligible cards already in the deck, then
+  `CommanderSearch`). A pick is one store write and one Undo; replacing a
+  seated commander goes through the existing keep/remove confirm. A deck
+  still named "Untitled deck" takes the commander's short name on a pick
+  (`withCommander` in the decks store; a typed name is never touched, and a
+  server pull never renames).
 - **Compute the condition from the same derived state the list already
   renders from** (`visibleGroups.length === 0`), not a re-derived proxy
   (`cards.length === 0`) that can drift from what the grouping logic actually

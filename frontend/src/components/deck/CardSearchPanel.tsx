@@ -59,15 +59,27 @@ import { printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+/** Legal in the deck's format (`legalityKey`), or no legality data to say otherwise. */
+function isFormatLegal(c: EnrichedCard, legalityKey: string): boolean {
+  const legality = c.legalities?.[legalityKey];
+  return !legality || legality === 'legal' || legality === 'restricted';
+}
+
 /**
  * Can this owned card go in the mainboard of a commander deck? The two rules
  * the mainboard enforces and the out-of-deck zones don't: the commander's
- * colour identity, and legality in the format.
+ * colour identity, and legality in the format. `commanderCI` is null while
+ * the command zone is still empty: every colour is allowed until there is an
+ * identity to check against. Null and not `[]`, because `[]` is a real
+ * identity (a colorless commander) that must keep hiding coloured cards.
  */
-function isMainboardLegal(c: EnrichedCard, commanderCI: string[]): boolean {
-  if (!(c.colorIdentity ?? []).every((k) => commanderCI.includes(k))) return false;
-  const legality = c.legalities?.commander;
-  return !legality || legality === 'legal' || legality === 'restricted';
+function isMainboardLegal(
+  c: EnrichedCard,
+  commanderCI: string[] | null,
+  legalityKey: string
+): boolean {
+  if (commanderCI && !(c.colorIdentity ?? []).every((k) => commanderCI.includes(k))) return false;
+  return isFormatLegal(c, legalityKey);
 }
 
 function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolean {
@@ -178,6 +190,20 @@ interface Props {
    * mainboard's stricter rules.
    */
   addZone?: 'main' | 'side' | 'considering';
+  /**
+   * The deck format's Scryfall legality key (`DECK_FORMAT_CONFIGS[f].legalityKey`)
+   * the mainboard is judged against: 'paupercommander' for a PDH deck, 'brawl'
+   * for Brawl. Defaults to 'commander'.
+   */
+  legalityKey?: string;
+  /**
+   * The format has a command zone but nothing sits in it yet (E465). Adding is
+   * allowed before a commander: the format's legality still applies, colour
+   * identity doesn't (there is none yet), and one quiet line says so.
+   * Suggestions stay off (`enableSuggestions`), since they are read against a
+   * commander.
+   */
+  noCommanderYet?: boolean;
 }
 
 type Mode = 'collection' | 'scryfall' | 'suggestions';
@@ -436,9 +462,14 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     aiSlot,
     commanderNames,
     addZone = 'main',
+    legalityKey = 'commander',
+    noCommanderYet = false,
   },
   ref
 ) {
+  // A commander format's deckbuilding rules apply whether or not the command
+  // zone is filled yet; only suggestions wait for a commander.
+  const commanderFormat = !!enableSuggestions || noCommanderYet;
   // Keyed on the joined names so a parent re-render with an equal array
   // doesn't churn every result memo below.
   const commanderNamesKey = (commanderNames ?? []).join('\u0000');
@@ -785,6 +816,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         id="card-search-tabpanel"
         aria-labelledby={`sc-tab-${activeMode}`}
       >
+        {noCommanderYet && mainboardRules && (
+          <p className="card-search-tag-note card-search-tag-note--quiet">
+            No commander yet, so every color shows.
+          </p>
+        )}
         {activeMode === 'collection' &&
           !binderHintDismissed &&
           shouldShowBinderHint(hasBinderMatch) && (
@@ -833,7 +869,9 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             topCardCounts={effectiveTopCardCounts}
             sort={sort}
             binderByCardName={binderByCardName}
-            commanderRules={!enableSuggestions ? 'off' : mainboardRules ? 'filter' : 'badge'}
+            commanderRules={!commanderFormat ? 'off' : mainboardRules ? 'filter' : 'badge'}
+            anyColor={noCommanderYet}
+            legalityKey={legalityKey}
             onSearchScryfall={() => setMode('scryfall')}
           />
         ) : activeMode === 'suggestions' ? (
@@ -943,6 +981,10 @@ interface CollectionResultsProps extends ResultsProps, FitProps {
    * a format with no commander to check against.
    */
   commanderRules: 'filter' | 'badge' | 'off';
+  /** No commander yet: the colour-identity half of the rule is off, legality stays. */
+  anyColor: boolean;
+  /** The deck format's legality key — see the panel's own `legalityKey` prop. */
+  legalityKey: string;
   /** Jump to the Scryfall tab keeping the query (zero-result escape hatch). */
   onSearchScryfall: () => void;
   // Optional pre-compiled chip expressions + the color/set sets.
@@ -994,6 +1036,8 @@ function CollectionResults({
   binderByCardName,
   sort,
   commanderRules,
+  anyColor,
+  legalityKey,
   onSearchScryfall,
   excludeNames,
 }: CollectionResultsProps) {
@@ -1031,7 +1075,9 @@ function CollectionResults({
       // Mainboard-illegal cards are held back rather than dropped, so the
       // panel can say how many its own rule hid instead of leaving an owned
       // card silently missing from a search that should have found it.
-      const blockedByRules = commanderRules === 'filter' && !isMainboardLegal(c, colorIdentity);
+      const blockedByRules =
+        commanderRules === 'filter' &&
+        !isMainboardLegal(c, anyColor ? null : colorIdentity, legalityKey);
       const m = search.match(c);
       if (!m.hit) continue;
 
@@ -1093,6 +1139,8 @@ function CollectionResults({
     collection,
     colorIdentity,
     commanderRules,
+    anyColor,
+    legalityKey,
     excludeNames,
     search,
     sort,
@@ -1241,12 +1289,7 @@ function CollectionResults({
           // Only ever true in the badge state: the filter state removed these
           // rows upstream, and 'off' has no commander to measure against.
           const offColor = commanderRules !== 'off' && isOffColor(c.colorIdentity, colorIdentity);
-          const legality = c.legalities?.commander;
-          const notLegal =
-            commanderRules !== 'off' &&
-            !!legality &&
-            legality !== 'legal' &&
-            legality !== 'restricted';
+          const notLegal = commanderRules !== 'off' && !isFormatLegal(c, legalityKey);
           const flagNote = offColor ? ' (off-color)' : notLegal ? ' (not legal)' : '';
           return (
             <SearchResultRow

@@ -60,6 +60,9 @@ export interface DeckCardActionCtx {
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
   canMakePartner?: (card: ScryfallCard) => boolean;
+  /** Opens the commander picker to replace the seated commander (E465).
+   *  Offered on the commander row only. */
+  onChangeCommander?: () => void;
   /** Already bound to this row's zone by the caller, so the action list never
    *  needs to know which zone it is in. Absent means no tag actions. */
   onSetRowTags?: (slotIds: string[], tags: string[]) => void;
@@ -82,6 +85,7 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
     canMakeCommander,
     onMakePartner,
     canMakePartner,
+    onChangeCommander,
     onSetRowTags,
   } = ctx;
 
@@ -227,6 +231,15 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
       label: 'Make partner',
       section: 'commander',
       run: () => onMakePartner(row.slotIds[0], row.card),
+    });
+  }
+  // The commander row is the one row with no slot that isn't the partner.
+  if (onChangeCommander && !hasSlots && !row.isPartner) {
+    out.push({
+      key: 'change-commander',
+      label: 'Change commander',
+      section: 'commander',
+      run: onChangeCommander,
     });
   }
 

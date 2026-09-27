@@ -519,7 +519,26 @@ interface DecksState {
    *  whole stack shares one index, written in one write. */
   setCardSortIndex(deckId: string, zone: DeckZone, slotIds: string[], sortIndex: number): void;
 
+  /**
+   * Seat `card` in the command zone (or clear it with null). A deck still
+   * called "Untitled deck" takes the new commander's short name — see
+   * {@link withCommander}; a name the user typed is never touched.
+   */
   setCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
+  /**
+   * Seat `card` as the commander in ONE write (E465): pull `fromSlotId` out of
+   * the mainboard or sideboard when the card is already in the deck, and, with
+   * `keepPrevious`, drop the outgoing commander into the mainboard with its
+   * copy claim. The one-write form of what the editor used to do as a remove
+   * plus a set (plus an add), so a pick is one sync push and one undo entry.
+   * Renames an "Untitled deck" the same way `setCommander` does.
+   */
+  chooseCommander(
+    deckId: string,
+    card: ScryfallCard,
+    allocated: string | null,
+    opts?: { fromSlotId?: string | null; keepPrevious?: boolean }
+  ): void;
   setPartnerCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
 
   /**
@@ -1028,10 +1047,27 @@ export const useDecksStore = create<DecksState>()(
       setCommander: (deckId, card, allocated = null) =>
         set((s) => ({
           decks: s.decks.map((d) =>
-            d.id === deckId
-              ? touch({ ...d, commander: card, commanderAllocatedCopyId: allocated })
-              : d
+            d.id === deckId ? touch(withCommander(d, card, allocated)) : d
           ),
+        })),
+
+      chooseCommander: (deckId, card, allocated, opts = {}) =>
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            const { fromSlotId, keepPrevious } = opts;
+            const cards = fromSlotId ? d.cards.filter((c) => c.slotId !== fromSlotId) : d.cards;
+            const sideboard = fromSlotId
+              ? d.sideboard.filter((c) => c.slotId !== fromSlotId)
+              : d.sideboard;
+            const previous =
+              keepPrevious && d.commander
+                ? [newDeckCard(d.commander, d.commanderAllocatedCopyId ?? null)]
+                : [];
+            return touch(
+              withCommander({ ...d, cards: [...cards, ...previous], sideboard }, card, allocated)
+            );
+          }),
         })),
 
       setPartnerCommander: (deckId, card, allocated = null) =>
@@ -1489,11 +1525,40 @@ export function newDeckCard(card: ScryfallCard, allocatedCopyId: string | null =
   return { slotId: genId('slot'), card, allocatedCopyId, addedAt: Date.now() };
 }
 
-function defaultDeckName(commander: ScryfallCard | null): string {
-  if (!commander) return 'Untitled deck';
-  // Take everything before the first comma for two-name commanders ("Korvold,
-  // Fae-Cursed King" → "Korvold").
+/** The name a deck gets when it's created with no name and no commander. */
+export const UNTITLED_DECK_NAME = 'Untitled deck';
+
+/**
+ * A commander's short name: everything before the first comma for two-name
+ * commanders ("Korvold, Fae-Cursed King" → "Korvold"). What a new deck is
+ * named after, and what the editor calls the commander in a toast.
+ */
+export function commanderShortName(commander: ScryfallCard): string {
   return commander.name.split(',')[0].trim();
+}
+
+function defaultDeckName(commander: ScryfallCard | null): string {
+  return commander ? commanderShortName(commander) : UNTITLED_DECK_NAME;
+}
+
+/**
+ * The deck with `card` in the command zone. A deck still carrying the
+ * placeholder name takes the incoming commander's short name, the same rule
+ * `createDeck` uses, so a deck started empty and given a commander later reads
+ * the same as one created with it (E465). Only a CHANGE of commander renames:
+ * re-seating the same card (releasing its copy claim, a cross-deck move) is
+ * not a pick. Only the store's own mutators call this. A server pull or an
+ * undo writes the whole row through `setState`/`replaceDeck` and never passes
+ * here, so a commander arriving from another device can't rename anything.
+ */
+function withCommander(d: Deck, card: ScryfallCard | null, allocated: string | null): Deck {
+  const rename = !!card && d.name === UNTITLED_DECK_NAME && d.commander?.name !== card.name;
+  return {
+    ...d,
+    ...(rename ? { name: defaultDeckName(card) } : {}),
+    commander: card,
+    commanderAllocatedCopyId: allocated,
+  };
 }
 
 /** Look up a deck by id (selector helper). */

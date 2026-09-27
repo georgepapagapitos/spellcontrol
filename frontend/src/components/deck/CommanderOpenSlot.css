@@ -1,0 +1,71 @@
+/* The empty command zone (E465): the Commander section's header over one open
+   slot. Dashed like `.binder-start-tile--alt`, the app's "not filled yet"
+   idiom: a slot that is waiting, not an error. */
+.commander-open-slot-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+/* A card-shaped outline where the commander's card will sit. */
+.commander-open-slot-ghost {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 34px;
+  aspect-ratio: 63 / 88;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.commander-open-slot-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.commander-open-slot-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.commander-open-slot-detail {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.commander-open-slot-detail-short {
+  display: none;
+}
+
+.commander-open-slot-choose {
+  flex: 0 0 auto;
+}
+
+/* Grid and stacks views render the slot above the tiles, which have no
+   list gap of their own to separate them. */
+.deck-body-main > .commander-open-slot {
+  margin-bottom: var(--space-4);
+}
+
+@media (pointer: coarse) {
+  .commander-open-slot-choose {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 599px) {
+  .commander-open-slot-detail-long {
+    display: none;
+  }
+
+  .commander-open-slot-detail-short {
+    display: inline;
+  }
+}

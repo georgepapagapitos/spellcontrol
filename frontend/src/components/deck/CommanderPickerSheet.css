@@ -1,0 +1,18 @@
+/* The editor's commander picker (E465). The shell is the shared `.modal`
+   (720px, one scrolling `.modal-body`); the search inside is CommanderSearch
+   with its own styles. This file only labels the two groups. */
+
+/* "In this deck" / "Or search": group labels, the same idiom as the deck
+   editor's overflow-menu section labels. */
+.commander-picker-label {
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.commander-picker-body > section:first-child > .commander-picker-label {
+  margin-top: 0;
+}

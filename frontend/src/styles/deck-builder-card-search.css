@@ -88,35 +88,6 @@
   overflow-y: visible;
 }
 
-/* "Pick a commander first" interstitial — shown when Add cards is opened on a
-   Commander deck that has no commander yet. Sizes to its content (not the tall
-   search sheet). */
-.deck-add-needs-commander-body {
-  padding: var(--space-2) 1.25rem var(--space-5);
-  text-align: center;
-}
-
-.deck-add-needs-commander-title {
-  margin: var(--space-2) 0 0.4rem;
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.deck-add-needs-commander-hint {
-  margin: 0 auto 1.1rem;
-  max-width: 30rem;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.deck-add-needs-commander-actions {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-2);
-}
-
 /* Test-hand sheet: the shared card-picker sheet hosts the embedded
    DeckTestHandPanel. A pinned header (title + close) sits above a scrolling
    body. Content-sized on mobile (capped by the sheet's base max-height). On
@@ -203,6 +174,12 @@
   color: var(--warn-text);
   margin: 0;
   padding: 0 0.1rem 0.2rem;
+}
+
+/* A fact about the search, not a warning: "No commander yet, so every color
+   shows." (E465). An unfinished deck is not a problem to flag. */
+.card-search-tag-note--quiet {
+  color: var(--text-secondary);
 }
 
 /* Zero-result escape hatches — jump to another source keeping the query. */
