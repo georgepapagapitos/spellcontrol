@@ -507,9 +507,9 @@ export function UpgradePlanSheet({
           <h2 id={titleId}>Upgrade plan</h2>
         </div>
         <IconButton
-          className="modal-close"
+          variant="quiet"
           label="Close"
-          icon={<X size={20} />}
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
           onClick={onClose}
         />
       </div>
