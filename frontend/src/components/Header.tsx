@@ -33,10 +33,12 @@ export function Header() {
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        <NavLink viewTransition className="site-brand" to="/collection" aria-label="SpellControl">
+        {/* The mark goes where the first nav item goes, Home. A plain Link: a
+            NavLink here marked itself aria-current beside the real Home link. */}
+        <Link viewTransition className="site-brand" to="/home" aria-label="SpellControl">
           <BrandMark size={28} aria-hidden className="site-brand-mark" />
           <span className="site-brand-text">SpellControl</span>
-        </NavLink>
+        </Link>
         <nav className="site-nav-links" aria-label="Primary">
           <NavLink
             viewTransition

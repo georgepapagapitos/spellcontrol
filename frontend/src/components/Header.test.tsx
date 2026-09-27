@@ -220,3 +220,16 @@ describe('Header — authed avatar menu', () => {
     expect(authState.logout).toHaveBeenCalledOnce();
   });
 });
+
+describe('Header — the brand mark', () => {
+  it('goes Home, like the first nav item, and never claims to be the current page', () => {
+    render(
+      <MemoryRouter initialEntries={['/home']}>
+        <Header />
+      </MemoryRouter>
+    );
+    const brand = screen.getByRole('link', { name: 'SpellControl' });
+    expect(brand.getAttribute('href')).toBe('/home');
+    expect(brand.getAttribute('aria-current')).toBeNull();
+  });
+});
