@@ -369,9 +369,9 @@ export function FriendsManagement() {
           Create an account or sign in to send friend requests, track your friends' collections, and
           more.
         </p>
-        <Link to={signInHref} className="friends-signin-btn">
+        <Button variant="primary" to={signInHref}>
           Sign in
-        </Link>
+        </Button>
       </div>
     );
   }
@@ -412,14 +412,15 @@ export function FriendsManagement() {
             ariaLabel="Search users by username"
             inputProps={{ autoComplete: 'off', autoCapitalize: 'none', spellCheck: false }}
           />
-          <button
+          <Button
             type="submit"
+            variant="primary"
             className="friends-search-btn"
             disabled={searching || !query.trim()}
             aria-label="Search"
           >
             {searching ? 'Searching…' : 'Search'}
-          </button>
+          </Button>
         </form>
 
         {searchError && (
@@ -457,15 +458,15 @@ export function FriendsManagement() {
                         <span className="friends-identity-handle">{identity.secondary}</span>
                       )}
                     </span>
-                    <button
-                      type="button"
-                      className={`friends-action-btn${isPrimary ? ' is-primary' : ''}`}
+                    <Button
+                      placement="row"
+                      variant={isPrimary ? 'primary' : 'secondary'}
                       onClick={() => void handleSearchAction(user)}
                       disabled={!actionable || busyIds.has(user.id)}
                       aria-label={`${label} ${identity.primary}`}
                     >
                       {busyIds.has(user.id) ? busyLabel : label}
-                    </button>
+                    </Button>
                   </li>
                 );
               })
@@ -526,22 +527,22 @@ export function FriendsManagement() {
                         Friends since {formatRelativeTime(friend.friendedAt)}
                       </div>
                     </div>
-                    <Link
+                    <Button
+                      placement="row"
                       to={`/friends/${friend.id}`}
-                      className="friends-action-btn"
                       aria-label={`View what ${identity.primary} shared with friends`}
                     >
                       View shared
-                    </Link>
-                    <button
-                      type="button"
-                      className="friends-action-btn is-danger"
+                    </Button>
+                    <Button
+                      placement="row"
+                      variant="danger"
                       onClick={() => void handleRemoveFriend(friend)}
                       disabled={busyIds.has(friend.id)}
                       aria-label={`Remove ${identity.primary} from friends`}
                     >
                       {busyIds.has(friend.id) ? 'Removing…' : 'Remove'}
-                    </button>
+                    </Button>
                   </li>
                 );
               })}
@@ -589,24 +590,23 @@ export function FriendsManagement() {
                             )}
                           </span>
                           <div className="friends-request-actions">
-                            <button
-                              type="button"
-                              className="friends-action-btn is-primary"
+                            <Button
+                              placement="row"
+                              variant="primary"
                               onClick={() => void handleAccept(req)}
                               disabled={busyIds.has(req.requesterId)}
                               aria-label={`Accept friend request from ${identity.primary}`}
                             >
                               {busyIds.has(req.requesterId) ? 'Accepting…' : 'Accept'}
-                            </button>
-                            <button
-                              type="button"
-                              className="friends-action-btn"
+                            </Button>
+                            <Button
+                              placement="row"
                               onClick={() => void handleDecline(req)}
                               disabled={busyIds.has(req.requesterId)}
                               aria-label={`Decline friend request from ${identity.primary}`}
                             >
                               Decline
-                            </button>
+                            </Button>
                           </div>
                         </li>
                       );
@@ -635,15 +635,14 @@ export function FriendsManagement() {
                             )}
                           </span>
                           <div className="friends-request-actions">
-                            <button
-                              type="button"
-                              className="friends-action-btn"
+                            <Button
+                              placement="row"
                               onClick={() => void handleCancel(req)}
                               disabled={busyIds.has(req.addresseeId)}
                               aria-label={`Cancel friend request to ${identity.primary}`}
                             >
                               {busyIds.has(req.addresseeId) ? 'Cancelling…' : 'Cancel'}
-                            </button>
+                            </Button>
                           </div>
                         </li>
                       );
@@ -691,13 +690,14 @@ export function FriendsManagement() {
                       </div>
                       <div className="friends-inbox-time">{formatRelativeTime(item.createdAt)}</div>
                     </div>
-                    <Link
+                    <Button
+                      placement="row"
+                      variant="primary"
                       to={`/s/${item.token}`}
-                      className="friends-action-btn is-primary"
                       aria-label={`View ${item.label} shared by ${fromName}`}
                     >
                       View
-                    </Link>
+                    </Button>
                   </li>
                 );
               })}

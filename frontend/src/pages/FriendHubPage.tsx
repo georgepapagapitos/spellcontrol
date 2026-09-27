@@ -563,9 +563,9 @@ export function FriendHubPage() {
           <p className="friends-signin-body">
             Sign in to see what your friends have shared with you.
           </p>
-          <Link to={signInHref} className="friends-signin-btn">
+          <Button variant="primary" to={signInHref}>
             Sign in
-          </Link>
+          </Button>
         </div>
       </div>
     );
