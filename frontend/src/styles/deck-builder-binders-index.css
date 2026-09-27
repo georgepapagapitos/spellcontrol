@@ -461,23 +461,42 @@
   }
 }
 
-/* Grid mode: the button sits on the colored header band, where the
-   default muted gray washes out. White icon + shadow keeps it visible
-   on any binder color; hover/open uses a dark scrim chip instead of
-   the light surface (which disappeared on pale banners). */
+/* Grid mode: the ⋮ sits on the tile's art or colour band, where no bare
+   glyph colour reads on every crop: a white glyph with a shadow vanished on
+   pale and busy art (user reports, E466). A solid surface square reads on
+   anything, the deck editor hero's answer for the same problem
+   (.deck-editor-hero--art .deck-editor-overflow-btn). Under a coarse pointer
+   the square keeps its size and a centred ghost carries the 44px target, so
+   each tile isn't capped by a 44px block. */
 .binders-index-list.is-grid .binders-index-card-menu-btn {
-  color: #fff;
-  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5));
+  background: var(--surface);
+  color: var(--text-primary);
+  border-radius: var(--radius);
 }
 
 .binders-index-list.is-grid .binders-index-card-menu-btn[aria-expanded='true'] {
-  background: rgba(0, 0, 0, 0.25);
-  color: #fff;
+  background: var(--surface-raised);
 }
 @media (hover: hover) and (pointer: fine) {
   .binders-index-list.is-grid .binders-index-card-menu-btn:hover {
-    background: rgba(0, 0, 0, 0.25);
-    color: #fff;
+    background: var(--surface-raised);
+  }
+}
+@media (pointer: coarse) {
+  .binders-index-list.is-grid .binders-index-card-menu-btn {
+    position: relative;
+    width: 1.9rem;
+    height: 1.9rem;
+  }
+
+  .binders-index-list.is-grid .binders-index-card-menu-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 }
 
