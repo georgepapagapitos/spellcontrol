@@ -119,6 +119,11 @@ export function UpgradePlanSheet({
   );
   const { prices, loaded: pricesLoaded } = useCardPriceLookup(priceNames, MAX_PRICED);
 
+  // The feed's own cuts first, then the deck's weakest cards by play-rate.
+  const allCuts = useMemo(() => {
+    const seen = new Set(cuts.map((c) => c.name));
+    return [...cuts, ...tools.weakestCuts.filter((c) => !seen.has(c.name))];
+  }, [cuts, tools]);
   const canMoveUp = tools.current <= 3;
   const upTarget = tools.current + 1;
   const planFor = useCallback(
@@ -126,20 +131,22 @@ export function UpgradePlanSheet({
       planUpgrades(
         {
           moves,
-          cuts,
+          cuts: allCuts,
           roleCounts,
           roleTargets,
           openSlots,
           priceOf: (n) => prices.get(n.toLowerCase()) ?? null,
-          raisesBracket: tools.raisesBracket,
+          // From Bracket 4 up, Game Changers and tutors are allowed, so holding
+          // needs no pre-filter: the re-estimate below still stops a move to 5.
+          raisesBracket: g === 'hold' && tools.current >= 4 ? () => false : tools.raisesBracket,
           isGameChanger: (c) => c.isGameChanger === true || tools.isGameChanger(c.name),
           gameChangerRoom: upTarget >= 4 ? Infinity : Math.max(0, 3 - tools.gameChangersInDeck),
-          ceiling: g === 'up' ? upTarget : tools.estimate,
+          ceiling: g === 'up' ? upTarget : tools.current,
           estimate: tools.estimateAfter,
         },
         { budget: b, goal: g, ownedFree, excluded: drop }
       ),
-    [moves, cuts, roleCounts, roleTargets, openSlots, prices, tools, upTarget, ownedFree]
+    [moves, allCuts, roleCounts, roleTargets, openSlots, prices, tools, upTarget, ownedFree]
   );
 
   const plan = useMemo(() => planFor(budget, goal, excluded), [planFor, budget, goal, excluded]);
@@ -244,7 +251,6 @@ export function UpgradePlanSheet({
               label: (
                 <span className="upgrade-plan-preset">
                   <span className="upgrade-plan-preset-amount">Custom</span>
-                  <span className="upgrade-plan-preset-count">Any amount</span>
                 </span>
               ),
             },
@@ -284,7 +290,7 @@ export function UpgradePlanSheet({
               label: canMoveUp ? `Move up to Bracket ${upTarget}` : 'Move up a bracket',
               hint: canMoveUp
                 ? 'Game Changers go in first, then the rest.'
-                : 'This deck already plays at the top bracket.',
+                : 'Bracket 4 is the highest a plan builds to.',
               disabled: !canMoveUp,
             },
             { value: 'any', label: 'Any bracket', hint: 'The strongest cards the money buys.' },
@@ -386,9 +392,11 @@ export function UpgradePlanSheet({
       p.cutName && p.change.type !== 'swap' ? toSwapAgainst(p.change, p.cutName) : p.change;
     const display: Change = {
       ...base,
-      reason: p.cutName
-        ? `Replaces ${p.cutName}${base.reason ? `: ${base.reason}` : ''}`
-        : (base.reason ?? 'Fills an empty slot'),
+      // A land upgrade's own reason already names the land it replaces.
+      reason:
+        p.cutName && !base.reason?.includes(p.cutName)
+          ? `Replaces ${p.cutName}${base.reason ? `: ${base.reason}` : ''}`
+          : (base.reason ?? 'Fills an empty slot'),
       isGameChanger: base.isGameChanger || tools.isGameChanger(base.name) || undefined,
       deltaPrice: p.cost > 0 ? p.cost : undefined,
     };

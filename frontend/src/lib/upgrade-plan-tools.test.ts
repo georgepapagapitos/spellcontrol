@@ -31,9 +31,10 @@ function input(over: Partial<UpgradePlanToolsInput> = {}): UpgradePlanToolsInput
 }
 
 describe('buildUpgradePlanTools', () => {
-  it('names the stated bracket when one is set, else the Estimate', () => {
+  it('holds the stated bracket, unless the list already estimates higher', () => {
     expect(buildUpgradePlanTools(input()).current).toBe(2);
-    expect(buildUpgradePlanTools(input({ stated: 1 })).current).toBe(1);
+    expect(buildUpgradePlanTools(input({ stated: 3 })).current).toBe(3);
+    expect(buildUpgradePlanTools(input({ stated: 2, estimate: 4 })).current).toBe(4);
   });
 
   it('counts Game Changers already in the list', () => {
@@ -58,6 +59,33 @@ describe('buildUpgradePlanTools', () => {
     expect(tools.estimateAfter([], [])).toBe(2);
     expect(tools.estimateAfter(['Grizzly Bears'], ['Hill Giant'])).toBe(2);
     expect(tools.estimateAfter(['Cyclonic Rift'], ['Hill Giant'])).toBe(3);
+  });
+
+  it('offers the weakest cards as cuts, never a basic or a combo piece', () => {
+    const match = {
+      combo: {
+        id: 'c',
+        cards: [{ cardName: 'Hill Giant', oracleId: 'h' }],
+        produces: [],
+        templateQueries: [],
+      },
+      missingOracleIds: [],
+    } as unknown as ComboMatch;
+    const tools = buildUpgradePlanTools(
+      input({
+        deckCards: [
+          card('Island', 'Basic Land — Island', 0),
+          card('Grizzly Bears'),
+          card('Hill Giant'),
+          card('Staple'),
+          card('Tapland', 'Land', 0),
+        ],
+        combos: { inDeck: [match], oneAway: [] },
+        cardInclusionMap: { 'Grizzly Bears': 20, Staple: 80, Tapland: 5, 'Hill Giant': 0 },
+      })
+    );
+    expect(tools.weakestCuts.map((c) => c.name)).toEqual(['Tapland', 'Grizzly Bears']);
+    expect(tools.weakestCuts[0]).toMatchObject({ type: 'cut', typeLine: 'Land', inclusion: 5 });
   });
 
   it('sees a combo the plan completes', () => {

@@ -1125,6 +1125,7 @@ export function DeckEditorPage() {
       // this fallback is never read as the deck's bracket.
       estimate: deck.bracketEstimation?.bracket ?? 2,
       stated: deck.bracketOverride,
+      cardInclusionMap: deck.cardInclusionMap,
     });
   }, [planOpen, deck, mainboardComboData, liveRoleCounts]);
 

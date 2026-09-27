@@ -3859,10 +3859,14 @@ the pure `lib/upgrade-plan.ts`.
 - **Honest money:** a copy committed to another deck is priced (counting it
   free would strip that deck). A card with no price is left out and counted,
   never free. "Next" names the best move the budget didn't reach.
-- **Bracket words follow § Bracket:** "Stay at Bracket N" uses the stated
-  bracket (else the Estimate), and the summary reports the Estimate ("Stays
-  Bracket 2 · Core" or "Bracket 2 · Core → Bracket 3 · Upgraded"). Holding
-  names what it left out and offers "Plan for Bracket N+1" as the fix.
+- **Bracket words follow § Bracket:** "Stay at Bracket N" holds the stated
+  bracket, or the Estimate when the list already reads higher (adding cards
+  can't promise a 2 to a deck that estimates 4). The summary reports the
+  Estimate ("Stays Bracket 2 · Core" or "Bracket 2 · Core → Bracket 3 ·
+  Upgraded"), and the plan waits for the combo check before it shows one.
+  Holding names what it left out and offers "Plan for Bracket N+1" as the fix;
+  from Bracket 4 up nothing is pre-filtered, and the re-estimate alone stops a
+  move to 5.
 - **Apply in place is the primary action** (one store write, one Undo, a toast
   with Undo). Apply to a copy saves "<name> (upgraded)" and leaves the list as
   it was.

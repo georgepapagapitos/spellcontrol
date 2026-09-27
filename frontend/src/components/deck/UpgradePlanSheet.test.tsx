@@ -41,6 +41,7 @@ const tools: UpgradePlanTools = {
   isGameChanger: (n) => n === 'Cyclonic Rift',
   raisesBracket: (c) => c.name === 'Cyclonic Rift',
   estimateAfter: (adds) => (adds.includes('Cyclonic Rift') ? 3 : 2),
+  weakestCuts: [],
 };
 
 function props(over: Partial<UpgradePlanSheetProps> = {}): UpgradePlanSheetProps {
@@ -190,6 +191,30 @@ describe('UpgradePlanSheet', () => {
     );
     expect(screen.queryByRole('button', { name: 'Apply to a copy' })).toBeNull();
     expect(screen.getByRole('button', { name: 'More plan actions' })).toBeTruthy();
+  });
+
+  it('holds Bracket 4 without leaving out Game Changers, and cannot move up', () => {
+    render(
+      <UpgradePlanSheet
+        {...props({ tools: { ...tools, estimate: 4, current: 4, estimateAfter: () => 4 } })}
+      />
+    );
+    expect(planRows()).toContain('Cyclonic Rift');
+    expect(screen.queryByText(/Left out Cyclonic Rift/)).toBeNull();
+    const up = screen.getByRole('radio', { name: /Move up a bracket/ }) as HTMLInputElement;
+    expect(up.disabled).toBe(true);
+    expect(screen.getByText('Bracket 4 is the highest a plan builds to.')).toBeTruthy();
+  });
+
+  it("reaches past the feed's cuts into the deck's weakest cards", () => {
+    const weakestCuts = [cut('Body of Knowledge'), cut('Weak One'), cut('Weak Two')];
+    render(
+      <UpgradePlanSheet
+        {...props({ cuts: [cut('Kefnet the Mindful')], tools: { ...tools, weakestCuts } })}
+      />
+    );
+    expect(planRows()).toHaveLength(4);
+    expect(screen.getByText(/Replaces Weak Two/)).toBeTruthy();
   });
 
   it('closes from the header', () => {

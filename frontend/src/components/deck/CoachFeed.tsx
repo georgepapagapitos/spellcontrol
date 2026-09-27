@@ -689,7 +689,8 @@ export function CoachFeed({
       openSlots={Math.max(0, deckTarget - deckSize)}
       tools={upgradePlan.tools}
       commanderName={commanderName}
-      analysisState={analysisState}
+      // The plan's bracket reads the combos too, so it waits for them.
+      analysisState={combosLoading ? 'pending' : analysisState}
       edhrecMissing={edhrecMissing}
       onRetry={onRetryAnalysis}
       onApply={upgradePlan.onApply}

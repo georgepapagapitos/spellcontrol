@@ -20,8 +20,13 @@ vi.mock('./use-deck-hover-peek', () => ({
 // The plan's own behaviour lives in UpgradePlanSheet.test.tsx; here only what
 // the feed hands it.
 vi.mock('./UpgradePlanSheet', () => ({
-  UpgradePlanSheet: (p: { moves: { name: string }[]; cuts: unknown[]; openSlots: number }) => (
-    <div role="dialog" aria-label="Upgrade plan">
+  UpgradePlanSheet: (p: {
+    moves: { name: string }[];
+    cuts: unknown[];
+    openSlots: number;
+    analysisState?: string;
+  }) => (
+    <div role="dialog" aria-label="Upgrade plan" data-state={p.analysisState}>
       {p.moves.map((m) => m.name).join(',')}|{p.cuts.length}|{p.openSlots}
     </div>
   ),
@@ -752,6 +757,15 @@ describe('CoachFeed', () => {
         />
       );
       expect(screen.getByRole('dialog', { name: 'Upgrade plan' })).toBeTruthy();
+    });
+
+    it('waits for the combo check, which its bracket reads', () => {
+      render(
+        <CoachFeed
+          {...makeProps({ upgradePlan: plan(true), analysisState: 'ready', combosLoading: true })}
+        />
+      );
+      expect(screen.getByRole('dialog', { name: 'Upgrade plan' }).dataset.state).toBe('pending');
     });
 
     it('is absent without plan tools', () => {
