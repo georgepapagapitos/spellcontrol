@@ -390,13 +390,13 @@ export function BinderRanking({
         {(showAll ? list : list.slice(0, PREVIEW_COUNT)).map(renderRow)}
       </ul>
       {list.length > PREVIEW_COUNT && (
-        <button
-          type="button"
+        <Button
+          variant="link"
           className="commander-playstyle-more"
           onClick={() => setShowAll((v) => !v)}
         >
           {showAll ? 'Show fewer' : `Show all ${list.length}`}
-        </button>
+        </Button>
       )}
     </>
   );

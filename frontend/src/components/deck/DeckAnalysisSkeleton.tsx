@@ -1,4 +1,5 @@
 import type { JSX } from 'react';
+import { Button } from '@/components/shared/Button';
 import './DeckAnalysisSkeleton.css';
 
 export interface DeckAnalysisSkeletonProps {
@@ -36,9 +37,9 @@ export function DeckAnalysisSkeleton({ status, onRetry }: DeckAnalysisSkeletonPr
           {onRetry && (
             <>
               {' '}
-              <button type="button" className="deck-analysis-skeleton-retry" onClick={onRetry}>
+              <Button variant="link" onClick={onRetry}>
                 Retry
-              </button>
+              </Button>
             </>
           )}
         </p>

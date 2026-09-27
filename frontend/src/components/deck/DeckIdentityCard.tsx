@@ -19,6 +19,7 @@ import type { LaneId } from '@/lib/deck-change';
 import { InfoTip } from '@/components/InfoTip';
 import { SelectMenu, type SelectOption } from '@/components/SelectMenu';
 import { MeterBar } from '@/components/shared/MeterBar';
+import { Button } from '@/components/shared/Button';
 import type { Archetype } from '@/deck-builder/types';
 import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
 import {
@@ -267,15 +268,14 @@ export function DeckIdentityCard({
                     <span className="deck-identity-card-check-label">{check.label}</span>
                     <span className="deck-identity-card-check-detail">{check.detail}</span>
                     {lane && onNavigate && (
-                      <button
-                        type="button"
-                        className="deck-identity-card-check-fix"
+                      <Button
+                        variant="link"
                         onClick={() => onNavigate(lane)}
                         aria-label={`${check.label} ${check.detail}, fix in Coach`}
+                        iconEnd={<ArrowRight width={12} height={12} />}
                       >
                         Fix in Coach
-                        <ArrowRight aria-hidden={true} width={12} height={12} />
-                      </button>
+                      </Button>
                     )}
                   </li>
                 );
@@ -317,13 +317,9 @@ export function DeckIdentityCard({
                   {onRetryAnalysis && (
                     <>
                       {' '}
-                      <button
-                        type="button"
-                        className="deck-identity-card-retry-btn"
-                        onClick={onRetryAnalysis}
-                      >
+                      <Button variant="link" onClick={onRetryAnalysis}>
                         Retry
-                      </button>
+                      </Button>
                     </>
                   )}
                 </p>
@@ -336,13 +332,9 @@ export function DeckIdentityCard({
                   {onRetryAnalysis && (
                     <>
                       {' '}
-                      <button
-                        type="button"
-                        className="deck-identity-card-retry-btn"
-                        onClick={onRetryAnalysis}
-                      >
+                      <Button variant="link" onClick={onRetryAnalysis}>
                         Retry
-                      </button>
+                      </Button>
                     </>
                   )}
                 </p>

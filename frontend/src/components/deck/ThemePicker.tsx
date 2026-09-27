@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchCommanderThemes } from '@/deck-builder/services/edhrec/client';
 import type { EDHRECTheme } from '@/deck-builder/types';
+import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 
 const COLLAPSED_COUNT = 6;
@@ -66,13 +67,9 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
         <h2 className="deck-builder-section-title">Themes</h2>
         <p className="deck-builder-themes-status">
           Couldn't load themes.{' '}
-          <button
-            type="button"
-            className="deck-builder-themes-retry"
-            onClick={() => setReloadKey((k) => k + 1)}
-          >
+          <Button variant="link" onClick={() => setReloadKey((k) => k + 1)}>
             Retry
-          </button>
+          </Button>
         </p>
       </section>
     );

@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { StackedBar } from '../shared/MeterBar';
+import { Button } from '../shared/Button';
 import { formatIdentity } from '../../lib/display-name';
 import { H2HSummary } from './H2HSummary';
 import {
@@ -49,9 +50,9 @@ export function FriendsLeaderboard() {
         <h2 className="play-records-title">Friends leaderboard</h2>
         <p className="leaderboard-error" role="alert">
           Couldn't load friend records.{' '}
-          <button type="button" className="link-button" onClick={load}>
+          <Button variant="link" onClick={load}>
             Retry
-          </button>
+          </Button>
         </p>
       </section>
     );
@@ -123,14 +124,13 @@ export function FriendsLeaderboard() {
                   </td>
                   <td>{new Date(e.lastPlayedAt).toLocaleDateString()}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="link-button"
+                    <Button
+                      variant="link"
                       aria-expanded={isOpen}
                       onClick={() => setExpanded(isOpen ? null : e.friendId)}
                     >
                       {isOpen ? 'Hide' : 'View'}
-                    </button>
+                    </Button>
                   </td>
                 </tr>
                 {isOpen && (

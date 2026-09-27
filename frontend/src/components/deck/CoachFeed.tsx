@@ -12,6 +12,7 @@ import type { PlanStep } from '@/lib/apply-upgrade-plan';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { VerdictBadge } from './VerdictBadge';
 import { InfoTip } from '../InfoTip';
+import { Button } from '@/components/shared/Button';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useTouchPeek } from '@/lib/use-touch-peek';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
@@ -38,7 +39,6 @@ import type {
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import type { DeckView } from './DeckDisplay';
 import { Chip } from '@/components/shared/Chip';
-import { Button } from '@/components/shared/Button';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1011,13 +1011,9 @@ export function CoachFeed({
                     suggestion{hiddenByOwned === 1 ? ' is a card' : 's are cards'} you don't own
                     yet.
                   </p>
-                  <button
-                    type="button"
-                    className="coach-feed-show-unowned"
-                    onClick={() => onOwnedOnlyChange(false)}
-                  >
+                  <Button variant="link" onClick={() => onOwnedOnlyChange(false)}>
                     Show unowned too
-                  </button>
+                  </Button>
                 </div>
               ) : isOffMetaEmpty ? (
                 <div className="coach-feed-empty-filter coach-feed-empty-owned">
@@ -1025,13 +1021,9 @@ export function CoachFeed({
                     No off-meta {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}
                     picks right now. This lane's suggestions are all played staples.
                   </p>
-                  <button
-                    type="button"
-                    className="coach-feed-show-unowned"
-                    onClick={() => setOffMetaOnly(false)}
-                  >
+                  <Button variant="link" onClick={() => setOffMetaOnly(false)}>
                     Show all suggestions
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <p className="coach-feed-empty-filter">

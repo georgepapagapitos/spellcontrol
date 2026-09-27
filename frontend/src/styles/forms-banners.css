@@ -40,6 +40,7 @@
 }
 
 .btn-link {
+  position: relative;
   background: none;
   border: none;
   color: var(--accent);
@@ -63,11 +64,20 @@
   transform: scale(0.97);
 }
 
+/* A link button sits inside text: a sentence, a table cell, a card line. A
+   min-height would push that line apart on a phone, so the 44px floor is a
+   centred ghost instead (STYLE_GUIDE § Responsive, `.set-filter-chip-x`),
+   the same as the other inline controls in inline-control-touch-floor.test. */
 @media (pointer: coarse) {
-  .btn-link {
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
+  .btn-link::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    min-width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 }
 
