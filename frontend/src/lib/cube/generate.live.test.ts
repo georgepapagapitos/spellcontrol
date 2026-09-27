@@ -464,6 +464,48 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
         }
       });
     }
+
+    // Pauper/peasant target band (board E464): before this band existed, a
+    // pauper/peasant pool was still shaped toward the powered all-cube 360
+    // band, which runs a heavier manabase, more colorless and fewer
+    // creatures than real pauper/peasant cubes — measured against the mined
+    // corpora, the generated cube sat outside the real corpus's p25-p75 on
+    // land (17.9% vs 10-13%), colorless (8.6% vs 4.4-6.9%) and creature share
+    // in 6/8 (rarity x size x synergy) combinations (board T3 lane report).
+    // These guards read the SAME measures against the now-scoped band, with
+    // a small tolerance for what this stand-in pool can actually supply (it
+    // is not the exact cubes the corpus was mined from).
+    const SHAPE_TOLERANCE = 0.02;
+    for (const rarity of ['pauper', 'peasant'] as const) {
+      for (const size of [180, 360] as const) {
+        for (const level of [0, 1] as const) {
+          it(`${rarity} @ ${size} @ synergy ${level}: land/colorless/creature share track the ${rarity} corpus, not the powered all-cube band`, () => {
+            const all = new Set(collection.map((c) => c.name));
+            const filtered = filterPool(collection, all, {
+              ...DEFAULT_POOL_FILTERS,
+              source: 'all',
+              rarity,
+            });
+            const sub = namesToCubePool(filtered.names, collection, facts, rarity);
+            const band = targetsForSize(size, 'limited', rarity);
+            const cube = generateCube(sub, size, { synergyLevel: level, rarity });
+            expect(cube.shortfall).toBe(0);
+            const cards = cube.picks.map((p) => p.card);
+            const landShare =
+              cards.filter((c) => /\bland\b/i.test(c.typeLine)).length / cards.length;
+            const colorlessShare =
+              cards.filter((c) => !/\bland\b/i.test(c.typeLine) && c.colors.length === 0).length /
+              cards.length;
+            const creatureShare_ =
+              cards.filter((c) => /\bcreature\b/i.test(c.typeLine)).length / cards.length;
+            expect(landShare).toBeGreaterThanOrEqual(band.type.land.p25 - SHAPE_TOLERANCE);
+            expect(landShare).toBeLessThanOrEqual(band.type.land.p75 + SHAPE_TOLERANCE);
+            expect(colorlessShare).toBeLessThanOrEqual(band.color.colorless.p75 + SHAPE_TOLERANCE);
+            expect(creatureShare_).toBeGreaterThanOrEqual(band.type.creature.p25 - SHAPE_TOLERANCE);
+          });
+        }
+      }
+    }
   });
 
   // Budget-aware power signal (#5): a pauper/peasant pool's "good card" should
