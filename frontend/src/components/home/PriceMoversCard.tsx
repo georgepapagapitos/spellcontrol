@@ -129,7 +129,12 @@ export function PriceMoversCard() {
               <MoverThumb name={m.name} owned={ownedArt.get(m.scryfallId)} />
               <span className="home-movers-info">
                 <span className="home-movers-name">{m.name}</span>
-                <span className="home-movers-price">{formatMoney(m.after)}</span>
+                <span className="home-movers-price">
+                  {formatMoney(m.after)}
+                  {/* Ranked by total impact, so name the copies that make a
+                      small per-copy move rank high. */}
+                  {m.copies > 1 && ` · ×${m.copies}`}
+                </span>
               </span>
               <span className={`home-movers-delta home-movers-delta--${up ? 'up' : 'down'}`}>
                 <span aria-hidden="true">{up ? '▲' : '▼'}</span>

@@ -41,6 +41,7 @@ import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/bin
 import { acknowledgeInSnapshot, referencedLegalityFormats } from '../lib/binder-drift';
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
 import {
+  computeMarketMove,
   computeMovers,
   recordDailyMovers,
   recordCollectionSnapshot,
@@ -1101,9 +1102,13 @@ export const useCollectionStore = create<CollectionState>()(
           // history (one point per day, never synced). Piggybacks this tick
           // because prices move at most daily — never a server cron. Best
           // effort: a missing/blocked IndexedDB must not fail the refresh.
-          recordValueSnapshot(afterCards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0)).catch(
-            () => {}
-          );
+          // The refresh's own market move rides along, so the day's point can
+          // tell a price change from an import (the headline delta splits them).
+          recordValueSnapshot(
+            afterCards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0),
+            Date.now(),
+            computeMarketMove(beforeCards, afterCards)
+          ).catch(() => {});
           // E133 value movers: same tick, same before/after pair the binder
           // diff uses — per-card deltas into the device-local movers log.
           recordDailyMovers(computeMovers(beforeCards, afterCards)).catch(() => {});

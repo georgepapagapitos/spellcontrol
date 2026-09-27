@@ -4,6 +4,7 @@ import { useCurrencyStore } from './currency';
 import {
   clearMovers,
   clearValueHistory,
+  computeMarketMove,
   computeMovers,
   computeValueDelta,
   dayKey,
@@ -72,7 +73,7 @@ describe('recordValueSnapshot / getValueHistory', () => {
   it('records a point keyed by its local day, stamped with the active currency', async () => {
     await recordValueSnapshot(120.5, atDay(0));
     expect(await getValueHistory()).toEqual([
-      { day: dayKey(atDay(0)), value: 120.5, at: atDay(0), currency: 'USD' },
+      { day: dayKey(atDay(0)), value: 120.5, at: atDay(0), currency: 'USD', market: 0 },
     ]);
   });
 
@@ -267,6 +268,7 @@ describe('computeValueDelta', () => {
       baselineDay: dayKey(atDay(3)),
       latestDay: dayKey(atDay(10)),
       spanDays: 7,
+      market: null,
     });
   });
 
@@ -277,6 +279,7 @@ describe('computeValueDelta', () => {
       baselineDay: dayKey(atDay(0)),
       latestDay: dayKey(atDay(3)),
       spanDays: 3,
+      market: null,
     });
   });
 
@@ -287,7 +290,41 @@ describe('computeValueDelta', () => {
       baselineDay: dayKey(atDay(0)),
       latestDay: dayKey(atDay(30)),
       spanDays: 30,
+      market: null,
     });
+  });
+
+  it('sums the market moves logged after the baseline, not the baseline itself', () => {
+    const points: ValuePoint[] = [
+      { ...point(0, 100), market: 40 },
+      { ...point(2, 110), market: 10 },
+      { ...point(4, 1110), market: 0 },
+      { ...point(5, 1105), market: -5 },
+    ];
+    expect(computeValueDelta(points)?.market).toBe(5);
+  });
+
+  it('is null on market when a point after the baseline predates the split', () => {
+    const points: ValuePoint[] = [point(0, 100), point(2, 110), { ...point(4, 120), market: 10 }];
+    expect(computeValueDelta(points)?.market).toBeNull();
+  });
+
+  it('accepts a baseline that predates the split, since its market is never read', () => {
+    const points: ValuePoint[] = [point(0, 100), { ...point(3, 130), market: 30 }];
+    expect(computeValueDelta(points)?.market).toBe(30);
+  });
+});
+
+describe('computeMarketMove', () => {
+  it('sums every copy priced on both sides, with no display threshold', () => {
+    const before = [card('a', 10), card('a', 10), card('b', 1), card('c', 5, 'foil')];
+    const after = [card('a', 12), card('a', 12), card('b', 1.1), card('c', 4, 'foil')];
+    // a: +2 × 2 copies, b: +0.10 (under the movers threshold, still real), c: −1.
+    expect(computeMarketMove(before, after)).toBe(3.1);
+  });
+
+  it('leaves out first pricings and cards that lost their price', () => {
+    expect(computeMarketMove([card('a', 0), card('b', 3)], [card('a', 9), card('b', 0)])).toBe(0);
   });
 });
 
@@ -302,6 +339,7 @@ describe('formatValueDeltaChip', () => {
       baselineDay: dayKey(atDay(0)),
       latestDay: dayKey(atDay(7)),
       spanDays: 7,
+      market: null,
     };
     expect(formatValueDeltaChip(delta, dayKey(atDay(7)))).toEqual({
       text: '+$30 this week',
@@ -315,6 +353,7 @@ describe('formatValueDeltaChip', () => {
       baselineDay: dayKey(atDay(0)),
       latestDay: dayKey(atDay(7)),
       spanDays: 7,
+      market: null,
     };
     // "today" is 5 days after the latest point — past the freshness window.
     expect(formatValueDeltaChip(delta, dayKey(atDay(12)))).toEqual({
@@ -329,6 +368,7 @@ describe('formatValueDeltaChip', () => {
       baselineDay: dayKey(atDay(0)),
       latestDay: dayKey(atDay(30)),
       spanDays: 30,
+      market: null,
     };
     expect(formatValueDeltaChip(delta, dayKey(atDay(30)))).toEqual({
       text: `+$60 since ${formatDayKey(dayKey(atDay(0)))}`,
@@ -342,10 +382,95 @@ describe('formatValueDeltaChip', () => {
       baselineDay: dayKey(atDay(0)),
       latestDay: dayKey(atDay(7)),
       spanDays: 7,
+      market: null,
     };
     expect(formatValueDeltaChip(delta, dayKey(atDay(7)))).toEqual({
       text: 'Steady this week',
       direction: 'flat',
     });
+  });
+});
+
+describe('prices vs cards split', () => {
+  const week = (market: number | null, amount: number): ValueDelta => ({
+    amount,
+    market,
+    baselineDay: dayKey(atDay(0)),
+    latestDay: dayKey(atDay(7)),
+    spanDays: 7,
+  });
+  const today = dayKey(atDay(7));
+
+  it('credits an import to cards, not to the market', () => {
+    expect(formatValueDeltaChip(week(45, 1103), today)).toEqual({
+      text: '+$45 from prices this week',
+      direction: 'up',
+      changes: '+$1,058 from cards added',
+    });
+  });
+
+  it('says cards were removed when the collection shrank', () => {
+    expect(formatValueDeltaChip(week(-12, -312), today)).toEqual({
+      text: '−$12 from prices this week',
+      direction: 'down',
+      changes: '−$300 from cards removed',
+    });
+  });
+
+  it('reads flat prices as a word even when cards moved the total', () => {
+    expect(formatValueDeltaChip(week(0.3, 500), today)).toEqual({
+      text: 'Prices steady this week',
+      direction: 'flat',
+      changes: '+$500 from cards added',
+    });
+  });
+
+  it('keeps the single chip when the collection part rounds to nothing', () => {
+    expect(formatValueDeltaChip(week(30.2, 30.4), today)).toEqual({
+      text: '+$30 this week',
+      direction: 'up',
+    });
+  });
+
+  it('never guesses a split on a log that predates it', () => {
+    expect(formatValueDeltaChip(week(null, 1103), today)).toEqual({
+      text: '+$1,103 this week',
+      direction: 'up',
+    });
+  });
+});
+
+describe('recordValueSnapshot market accumulation', () => {
+  it('adds each refresh of the day into its market; a collection write adds nothing', async () => {
+    await recordValueSnapshot(100, atDay(0), 3);
+    await recordValueSnapshot(1100, atDay(0));
+    await recordValueSnapshot(1098, atDay(0), -2);
+    const [p] = await getValueHistory();
+    expect(p.value).toBe(1098);
+    expect(p.market).toBe(1);
+  });
+
+  it('starts the market over when the day was first written in the other currency', async () => {
+    useCurrencyStore.setState({ currency: 'EUR' });
+    try {
+      await recordValueSnapshot(90, atDay(0), 7);
+    } finally {
+      useCurrencyStore.setState({ currency: 'USD' });
+    }
+    await recordValueSnapshot(100, atDay(0), 2);
+    const [p] = await getValueHistory();
+    expect(p.market).toBe(2);
+  });
+
+  // The guard for the defect this split fixes: a week with a small real price
+  // move and a big import used to report the import as "+$1,103 this week".
+  it('an import between two refreshes never reads as a price gain', async () => {
+    await recordValueSnapshot(10_000, atDay(0), 0);
+    await recordValueSnapshot(10_020, atDay(3), 20); // refresh: prices up $20
+    await recordCollectionSnapshot(11_020, atDay(5)); // import: +$1,000 of cards
+    await recordValueSnapshot(11_045, atDay(7), 25); // refresh: prices up $25
+    const chip = formatValueDeltaChip(computeValueDelta(await getValueHistory()), dayKey(atDay(7)));
+    expect(chip.text).toBe('+$45 from prices this week');
+    expect(chip.changes).toBe('+$1,000 from cards added');
   });
 });

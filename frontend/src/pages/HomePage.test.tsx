@@ -287,6 +287,25 @@ describe('HomePage', () => {
       expect(screen.getByText('Today')).toBeTruthy();
     });
 
+    it('tells prices apart from cards added after an import', async () => {
+      mockGetValueHistory.mockImplementation(() =>
+        Promise.resolve([
+          { day: dayKey(Date.now() - 7 * 86400000), value: 10_000, at: Date.now() - 7 * 86400000 },
+          {
+            day: dayKey(Date.now() - 86400000),
+            value: 11_000,
+            at: Date.now() - 86400000,
+            market: 0,
+          },
+          { day: dayKey(Date.now()), value: 11_045, at: Date.now(), market: 45 },
+        ])
+      );
+      const { container } = renderPage();
+      expect(await screen.findByText('+$45 from prices this week')).toBeTruthy();
+      const changes = container.querySelector('.home-hero-value-changes');
+      expect(changes?.textContent).toBe('+$1,000 from cards added');
+    });
+
     it('steps the readout with the arrow keys and clears it with Escape', async () => {
       mockGetValueHistory.mockImplementation(() =>
         Promise.resolve([
