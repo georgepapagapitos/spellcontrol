@@ -37,7 +37,15 @@ import {
   type GeneratedCube,
   type Pick,
 } from './generate';
-import { isLegendCandidate, legendIdentityOf, LEGEND_TARGET, type LegendIdentity } from './legend';
+import {
+  isLegendCandidate,
+  legendIdentityOf,
+  isChooseABackgroundLegend,
+  isBackground,
+  isPartnerLegend,
+  LEGEND_TARGET,
+  type LegendIdentity,
+} from './legend';
 import { namesToCubePool } from './pool';
 import {
   filterPool,
@@ -160,6 +168,11 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     size: CubeSize;
     target: number;
     achievedCount: number;
+    /** Board E462: how many of `achievedCount` are choose-a-Background
+     *  legends, their paired Backgrounds, and any Partner-family legend. */
+    chooserCount: number;
+    backgroundCount: number;
+    partnerCount: number;
     report: Record<string, { supply: number; achieved: number }>;
   }[] = [];
 
@@ -355,10 +368,17 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     const ALL_IDENTITIES: LegendIdentity[] = [...COLORS, ...COLOR_PAIRS, 'other'];
 
     for (const size of CUBE_SIZES) {
-      it(`${size}: legend count matches LEGEND_TARGET, additional to the spell size`, () => {
+      it(`${size}: legend count matches LEGEND_TARGET (plus any Backgrounds), additional to the spell size`, () => {
         const cube = generateCube(commanderPool, size, { synergyLevel: 0, format: 'commander' });
         expect(cube.legends).toBeDefined();
-        expect(cube.legends!.length).toBe(LEGEND_TARGET[size]);
+        // Backgrounds APPEND to the legend section (board E462) rather than
+        // displacing a normal quota pick, so the count can run a little past
+        // LEGEND_TARGET when the pool has choose-a-Background legends — on
+        // this collection, up to +3 (6 choosers, only 3 Backgrounds owned).
+        // Never under target, never past it by more than the pool's whole
+        // Background supply (selectBackgrounds' own 1-per-chooser cap).
+        expect(cube.legends!.length).toBeGreaterThanOrEqual(LEGEND_TARGET[size]);
+        expect(cube.legends!.length).toBeLessThanOrEqual(LEGEND_TARGET[size] + 10);
         // Additional to size (open question 3) — the spell section is its own,
         // unaffected full-size cube.
         expect(cube.picks.length).toBe(size);
@@ -391,6 +411,9 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           size,
           target: LEGEND_TARGET[size],
           achievedCount: cube.legends!.length,
+          chooserCount: cube.legends!.filter((l) => isChooseABackgroundLegend(l.card)).length,
+          backgroundCount: cube.legends!.filter((l) => isBackground(l.card)).length,
+          partnerCount: cube.legends!.filter((l) => isPartnerLegend(l.card)).length,
           report,
         });
       });

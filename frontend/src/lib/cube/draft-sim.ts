@@ -23,6 +23,12 @@
 // forked into a new file — the two models share more machinery (packs, seed,
 // axis snowball, RNG) than they differ, and a second `draft-sim-*.ts` leaf
 // would just be that machinery copy-pasted.
+//
+// Board E462 teaches the commander pod about Partner/Background: a bot whose
+// commander has a Partner-family keyword or can choose a Background may draft
+// a second, compatible legend and use both, with the combined colour identity
+// (see `isCompatiblePartnerCard`) — at most one pairing, same as the real
+// rules allow.
 
 import { COLORS, isLand, identityColors, COLOR_PAIRS, type ColorPair, type CubeCard } from './core';
 import { sizeInfo, type CubeSize } from './targets';
@@ -33,7 +39,16 @@ import {
   AXIS_LABEL,
   type PowerBasis,
 } from './objective';
-import { isLegendCandidate, legendIdentityOf, LEGEND_BUCKETS, type LegendIdentity } from './legend';
+import {
+  isLegendCandidate,
+  legendIdentityOf,
+  partnerKindOf,
+  partnerNameOf,
+  isChooseABackgroundLegend,
+  isBackground,
+  LEGEND_BUCKETS,
+  type LegendIdentity,
+} from './legend';
 import { mulberry32, shuffle } from '../playtest/rng';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 
@@ -422,8 +437,15 @@ interface CommanderDrafterState {
   commander: CubeCard | null;
   /** Set once `commander` is, from `identityColors(commander)` — kept
    *  alongside `commander` (rather than re-derived) so a hybrid/colour-
-   *  indicator commander's identity is fixed at commit time. */
+   *  indicator commander's identity is fixed at commit time. Merged with the
+   *  partner/Background's own colours the moment one is drafted (see
+   *  `isCompatiblePartnerCard`), so every legality check downstream of that
+   *  pick already sees the combined identity for free. */
   identity: string[] | null;
+  /** A Partner/Background legend drafted alongside `commander` (board E462) —
+   *  at most one; a second is scored as an ordinary card, same as real
+   *  Commander rules allow only a pair, never three. */
+  partnerCard: CubeCard | null;
 }
 
 function newCommanderDrafterState(): CommanderDrafterState {
@@ -434,7 +456,30 @@ function newCommanderDrafterState(): CommanderDrafterState {
     legendCandidates: [],
     commander: null,
     identity: null,
+    partnerCard: null,
   };
+}
+
+/**
+ * Is `card` a legal second commander alongside `commander` (board E462)? Only
+ * the shapes `simulateCommanderDraft` can check without a full rules engine:
+ * plain Partner pairs with any other plain Partner, Friends forever the same
+ * way with its own keyword, Partner with `<Name>` requires that EXACT card,
+ * and a choose-a-Background legend pairs with any Background. Doctor's
+ * companion is deliberately excluded — correctly requires one side to be a
+ * Doctor-typed creature, which is real rules work this pure heuristic sim
+ * doesn't do (see legend.ts's own doc on why it's still LABEL-only there).
+ */
+function isCompatiblePartnerCard(commander: CubeCard, card: CubeCard): boolean {
+  if (card.oracleId === commander.oracleId) return false;
+  const kind = partnerKindOf(commander);
+  if (kind === 'partner' || kind === 'friends-forever') return partnerKindOf(card) === kind;
+  if (kind === 'partner-with') {
+    const name = partnerNameOf(commander);
+    return name != null && card.name.toLowerCase() === name.toLowerCase();
+  }
+  if (isChooseABackgroundLegend(commander)) return isBackground(card);
+  return false;
 }
 
 /**
@@ -442,7 +487,10 @@ function newCommanderDrafterState(): CommanderDrafterState {
  * that clears `qualityBar` (see `commanderQualityBar`) gets a strong bonus —
  * "takes a commander when a good one appears," not the first legend seen
  * regardless of power. Once locked, an off-identity card is nearly worthless
- * (it is a dead card in a singleton, colour-identity-restricted deck) and an
+ * (it is a dead card in a singleton, colour-identity-restricted deck) — UNLESS
+ * it's a still-unclaimed legal Partner/Background for this exact commander, in
+ * which case it's worth exactly as much as an on-identity card (drafting it
+ * legally expands the identity, so it's never actually a dead pick). An
  * on-identity card gets the same synergy snowball the limited pod's bots use.
  */
 function scoreCommanderCard(
@@ -459,12 +507,15 @@ function scoreCommanderCard(
   if (!state.commander) {
     return isLegendCandidate(card) && power >= qualityBar ? power + COMMANDER_BONUS : power;
   }
-  if (!isIdentityLegal(card, state.identity!)) return -1;
-  let score = power;
-  for (const ax of axesOf(card)) {
-    score += Math.min(state.axisCounts.get(ax) ?? 0, 6) * 0.05;
+  if (isIdentityLegal(card, state.identity!)) {
+    let score = power;
+    for (const ax of axesOf(card)) {
+      score += Math.min(state.axisCounts.get(ax) ?? 0, 6) * 0.05;
+    }
+    return score;
   }
-  return score;
+  if (!state.partnerCard && isCompatiblePartnerCard(state.commander, card)) return power;
+  return -1;
 }
 
 function takeCommanderPick(
@@ -493,6 +544,11 @@ function takeCommanderPick(
   if (!state.commander && isLegendCandidate(card) && rawPower(card, basis) >= qualityBar) {
     state.commander = card;
     state.identity = identityColors(card);
+    // A compatible partner/Background may already sit in `state.picks` from
+    // BEFORE this commit (nothing flagged it at pick time, since there was no
+    // commander yet to check it against) — look for one now, not just on
+    // future picks.
+    attachPartnerIfPresent(state);
   } else if (
     !state.commander &&
     state.pickCount >= COMMANDER_COMMIT_DEADLINE &&
@@ -503,6 +559,31 @@ function takeCommanderPick(
     );
     state.commander = best;
     state.identity = identityColors(best);
+    attachPartnerIfPresent(state);
+  } else if (
+    state.commander &&
+    !state.partnerCard &&
+    isCompatiblePartnerCard(state.commander, card)
+  ) {
+    state.partnerCard = card;
+    state.identity = [...new Set([...state.identity!, ...identityColors(card)])];
+  }
+}
+
+/** Scans everything already drafted for a legal Partner/Background match to
+ *  the just-committed `state.commander` — the commit can land well after a
+ *  compatible card was already picked up as an ordinary card (nothing could
+ *  flag it before there was a commander to check it against), so this is the
+ *  retroactive half of the same pairing the post-commit branch above handles
+ *  for future picks. */
+function attachPartnerIfPresent(state: CommanderDrafterState): void {
+  const commander = state.commander!;
+  const match = state.picks.find(
+    (c) => c.oracleId !== commander.oracleId && isCompatiblePartnerCard(commander, c)
+  );
+  if (match) {
+    state.partnerCard = match;
+    state.identity = [...new Set([...state.identity!, ...identityColors(match)])];
   }
 }
 
@@ -620,7 +701,10 @@ export function simulateCommanderDraft(
       identityCounts.set(identity, (identityCounts.get(identity) ?? 0) + 1);
 
       const nonland = state.picks.filter(
-        (c) => !isLand(c) && c.oracleId !== state.commander!.oracleId
+        (c) =>
+          !isLand(c) &&
+          c.oracleId !== state.commander!.oracleId &&
+          c.oracleId !== state.partnerCard?.oracleId
       );
       const eligible = nonland
         .filter((c) => isIdentityLegal(c, state.identity!))

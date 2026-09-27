@@ -1234,6 +1234,22 @@
   white-space: nowrap;
   flex: none;
 }
+/* A legend's Partner/Background mechanic (board E462) — same pill shape as
+   the identity chip right next to it, accent-tinted so it reads as a
+   different KIND of fact (a rules keyword, not a colour), plain text either
+   way (never colour alone). */
+.cube-row-kind {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  background: var(--accent-light);
+  border: 1px solid transparent;
+  font-size: var(--text-xs);
+  color: var(--accent);
+  white-space: nowrap;
+  flex: none;
+}
 /* Wraps to 2 lines instead of hard-truncating — the runner-up clause ("beat
    X on cube popularity") is the part that explains the pick, and a single
    nowrap-ellipsis line was cutting it off on a phone. */

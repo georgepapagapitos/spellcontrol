@@ -669,6 +669,59 @@ describe('legend shortfall gap (board #12, PR3)', () => {
   });
 });
 
+describe('gap copy — fixing lands and corpus naming (board E462)', () => {
+  /** Same shape as richPool() minus every land card, so the fixing gap always
+   *  fires with a real (zero) count instead of a synthetic one. */
+  function poolNoLands(): CubeCard[] {
+    const pool: CubeCard[] = [];
+    const colors: CubeCard['colors'][] = [['W'], ['U'], ['B'], ['R'], ['G']];
+    for (const c of colors) {
+      for (let i = 0; i < 90; i++) {
+        pool.push(card({ colors: c, cmc: i % 8, rank: i * 10 + c[0].charCodeAt(0) }));
+      }
+    }
+    for (let i = 0; i < 60; i++) pool.push(card({ colors: ['W', 'U'], cmc: 3, rank: 500 + i }));
+    return pool;
+  }
+
+  it('says "No fixing lands" — never "Only 0" — when the cube has none', () => {
+    const cube = generateCube(poolNoLands(), 360);
+    const fixingGap = cube.gaps.find((g) => /fixing lands/i.test(g.text));
+    expect(fixingGap).toBeDefined();
+    expect(fixingGap!.text.startsWith('No fixing lands.')).toBe(true);
+    expect(fixingGap!.text).not.toMatch(/Only 0/);
+  });
+
+  it('still says "Only N fixing lands" when the count is nonzero', () => {
+    const pool = poolNoLands();
+    for (let i = 0; i < 3; i++) {
+      pool.push(card({ colors: [], typeLine: 'Land', cmc: 0, rank: 900 + i }));
+    }
+    const cube = generateCube(pool, 360);
+    const fixingGap = cube.gaps.find((g) => /fixing lands/i.test(g.text))!;
+    expect(fixingGap.text.startsWith('Only 3 fixing lands.')).toBe(true);
+  });
+
+  it('names the size-band corpus with "Real ... run" phrasing for a limited cube', () => {
+    const cube = generateCube(poolNoLands(), 360);
+    const fixingGap = cube.gaps.find((g) => /fixing lands/i.test(g.text))!;
+    expect(fixingGap.text).toMatch(/Real 360-card cubes run \d+–\d+\./);
+  });
+
+  it('names the Commander corpus, not the generic size band, for a Commander cube', () => {
+    const cube = generateCube(poolNoLands(), 360, { format: 'commander' });
+    const fixingGap = cube.gaps.find((g) => /fixing lands/i.test(g.text))!;
+    expect(fixingGap.text).toMatch(/Real Commander cubes run \d+–\d+\./);
+    expect(fixingGap.text).not.toMatch(/360-card cubes/);
+  });
+
+  it('still names the pauper/peasant corpus for a rarity-shaped limited cube (unaffected by this fix)', () => {
+    const cube = generateCube(poolNoLands(), 360, { rarity: 'pauper' });
+    const fixingGap = cube.gaps.find((g) => /fixing lands/i.test(g.text))!;
+    expect(fixingGap.text).toMatch(/Real pauper cubes run/);
+  });
+});
+
 describe('apportion', () => {
   it('sums bucket targets to exactly `size`, for every band and every offered size (E454)', () => {
     for (const format of ['limited', 'commander'] as const) {

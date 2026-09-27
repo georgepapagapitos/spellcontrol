@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { CommanderCoveragePanel } from './CubeCommanders';
+import { CommanderCoveragePanel, CubeCommandersSection } from './CubeCommanders';
 import { simulateCommanderDraftAsync } from '../../lib/cube/generate-async';
 import type { CommanderDraftSimResult } from '../../lib/cube/draft-sim';
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
@@ -257,5 +257,39 @@ describe('CommanderCoveragePanel — cache', () => {
     render(<CommanderCoveragePanel cube={cubeB} />);
     openToggle();
     expect(mockSimulate).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('CubeCommandersSection — Partner/Background labels (board E462)', () => {
+  const enrichedMap = new Map();
+
+  it('gallery: a Partner legend gets a "Partner" caption, an ordinary legend gets none', () => {
+    const legends = [
+      legendPick({ oracleText: 'Partner (You can have two commanders if both have partner.)' }),
+      legendPick(), // no keyword — an ordinary legend
+    ];
+    render(
+      <CubeCommandersSection cube={cubeOf(60, legends)} view="gallery" enrichedMap={enrichedMap} />
+    );
+    expect(document.querySelectorAll('.collection-grid-caption')).toHaveLength(1);
+    expect(document.querySelector('.collection-grid-caption')!.textContent).toBe('Partner');
+  });
+
+  it('gallery: a choose-a-Background legend gets a "Background" caption', () => {
+    const legends = [legendPick({ oracleText: 'Choose a Background (…)' })];
+    render(
+      <CubeCommandersSection cube={cubeOf(60, legends)} view="gallery" enrichedMap={enrichedMap} />
+    );
+    expect(document.querySelector('.collection-grid-caption')!.textContent).toBe('Background');
+  });
+
+  it('list: the same labels render as a plain-text row chip, never colour alone', () => {
+    const legends = [legendPick({ oracleText: "Doctor's companion (…)" }), legendPick()];
+    render(
+      <CubeCommandersSection cube={cubeOf(60, legends)} view="list" enrichedMap={enrichedMap} />
+    );
+    const kinds = document.querySelectorAll('.cube-row-kind');
+    expect(kinds).toHaveLength(1);
+    expect(kinds[0].textContent).toBe('Partner');
   });
 });

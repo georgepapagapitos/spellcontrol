@@ -17,6 +17,8 @@ function card(p: Partial<CubeCard>): CubeCard {
     cubeElo: p.cubeElo,
     synergyProducers: p.synergyProducers,
     synergyPayoffs: p.synergyPayoffs,
+    colorIdentity: p.colorIdentity,
+    oracleText: p.oracleText,
   };
 }
 
@@ -383,5 +385,113 @@ describe('simulateCommanderDraft — a mono-identity-starved cube', () => {
     ];
     const result = simulateCommanderDraft(spells, legends, SIZE_360_CMDR, { runs: 10, seed: 13 });
     expect(result.unbuildableIdentities).toContain('BG');
+  });
+});
+
+// ── Partner / Background combining (board E462) ─────────────────────────────
+
+const PARTNER_TEXT = 'Partner (You can have two commanders if both have partner.)';
+const PARTNER_WITH_TEXT = (name: string) => `Partner with ${name} (When this creature enters…)`;
+const CHOOSE_BACKGROUND_TEXT =
+  'Choose a Background (You can have a Background as a second commander.)';
+
+/**
+ * A single-player pod (combined pool kept under `players * 45` = 45 for a
+ * 180-size cube, so `floor(combined/45)` is 0 and `players` floors to 1) —
+ * the cleanest way to make a partner/Background pairing deterministic: with
+ * no other drafter competing for anything, the one bot ends up owning the
+ * WHOLE pool (every pack it holds empties into its own picks before passing
+ * would matter), so both halves of a pairing are always drafted by the same
+ * seat, in a fixed order, on a fixed seed. 15 nonland playables in each of
+ * two colours alone is short of `COMMANDER_PLAYABLE_TARGET` (23); only
+ * combining both colours' spells clears it.
+ */
+function pairedPool(secondOracleText: string | undefined, commanderOracleText: string | undefined) {
+  const spells: CubeCard[] = [];
+  for (let i = 0; i < 15; i++) {
+    spells.push(card({ colors: ['W'], cmc: 1 + (i % 5), rank: i, cubePop: 0.5 }));
+  }
+  for (let i = 0; i < 15; i++) {
+    spells.push(card({ colors: ['U'], cmc: 1 + (i % 5), rank: 100 + i, cubePop: 0.5 }));
+  }
+  for (let i = 0; i < 11; i++) {
+    spells.push(card({ colors: [], typeLine: 'Land', cmc: 0, rank: 900 + i }));
+  }
+  const legends = [
+    legend({
+      name: 'Wilhelmina, First Ward',
+      colors: ['W'],
+      cubePop: 0.9,
+      rank: 5,
+      oracleText: commanderOracleText,
+    }),
+    legend({ colors: ['U'], cubePop: 0.85, rank: 6, oracleText: secondOracleText }),
+  ];
+  return { spells, legends };
+}
+
+describe('simulateCommanderDraft — Partner combining', () => {
+  it('two ordinary legends never combine: identity stays mono, short of the bar', () => {
+    const { spells, legends } = pairedPool(undefined, undefined);
+    const result = simulateCommanderDraft(spells, legends, SIZE_180_CMDR, { runs: 5, seed: 1 });
+    expect(result.noCommanderShare).toBe(0); // one of the two always qualifies as commander
+    expect(result.builtDeckShare).toBe(0); // 15 of one colour alone never reaches 23
+  });
+
+  it('two plain-Partner legends combine into a WU identity and clear the bar', () => {
+    const { spells, legends } = pairedPool(PARTNER_TEXT, PARTNER_TEXT);
+    const result = simulateCommanderDraft(spells, legends, SIZE_180_CMDR, { runs: 5, seed: 1 });
+    expect(result.builtDeckShare).toBe(1);
+  });
+
+  it('Partner with <Name> only combines with the exact named card, not any Partner', () => {
+    // The W legend requires ITS named partner; the U legend is plain Partner,
+    // not a match — no combining, same as the "never combine" control.
+    const { spells, legends } = pairedPool(
+      PARTNER_TEXT,
+      PARTNER_WITH_TEXT('Some Other Card, Not This One')
+    );
+    const result = simulateCommanderDraft(spells, legends, SIZE_180_CMDR, { runs: 5, seed: 1 });
+    expect(result.builtDeckShare).toBe(0);
+  });
+
+  it('Partner with <Name> combines when the exact named card is present', () => {
+    // Real "Partner with" pairs name each other (Pako <-> Haldan style), so
+    // whichever of the two happens to draft first and become the commander,
+    // `isCompatiblePartnerCard` finds its exact match in the other.
+    const wName = 'Wilhelmina, First Ward'; // pairedPool's fixed W-legend name
+    const uName = 'Rin and Seri, Inseparable';
+    const { spells, legends } = pairedPool(PARTNER_WITH_TEXT(wName), PARTNER_WITH_TEXT(uName));
+    legends[1] = { ...legends[1], name: uName };
+    const result = simulateCommanderDraft(spells, legends, SIZE_180_CMDR, { runs: 5, seed: 1 });
+    expect(result.builtDeckShare).toBe(1);
+  });
+
+  it('a choose-a-Background legend plus a Background combine, and the Background is not double-counted as a playable', () => {
+    const spells: CubeCard[] = [];
+    for (let i = 0; i < 15; i++) {
+      spells.push(card({ colors: ['W'], cmc: 1 + (i % 5), rank: i, cubePop: 0.5 }));
+    }
+    for (let i = 0; i < 15; i++) {
+      spells.push(card({ colors: ['U'], cmc: 1 + (i % 5), rank: 100 + i, cubePop: 0.5 }));
+    }
+    for (let i = 0; i < 10; i++) {
+      spells.push(card({ colors: [], typeLine: 'Land', cmc: 0, rank: 900 + i }));
+    }
+    const background = card({
+      typeLine: 'Legendary Enchantment — Background',
+      colors: ['U'],
+      cubePop: 0.6,
+      rank: 50,
+    });
+    spells.push(background);
+    const chooser = legend({
+      colors: ['W'],
+      cubePop: 0.9,
+      rank: 5,
+      oracleText: CHOOSE_BACKGROUND_TEXT,
+    });
+    const result = simulateCommanderDraft(spells, [chooser], SIZE_180_CMDR, { runs: 5, seed: 2 });
+    expect(result.builtDeckShare).toBe(1);
   });
 });

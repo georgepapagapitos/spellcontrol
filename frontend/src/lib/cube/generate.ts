@@ -820,7 +820,7 @@ export function generateCube(
   // slider made this cube), and only show once the user engages synergy — so
   // the default goodstuff experience stays unchanged.
   const poolAxes = synergyLevel > 0 ? countAxes(pool) : null;
-  const gaps = buildGaps(byBucket, band, size, pool.length, shortfall, poolAxes, rarity);
+  const gaps = buildGaps(byBucket, band, size, pool.length, shortfall, poolAxes, rarity, format);
 
   // Engaging the slider turns on the objective-driven refiner: hill-climb the
   // greedy seed toward a better cube, and attach the objective score so the UI
@@ -901,14 +901,23 @@ function buildGaps(
   poolSize: number,
   shortfall: number,
   poolAxes?: Map<AxisKey, AxisCount> | null,
-  rarity: BandRarity = 'any'
+  rarity: BandRarity = 'any',
+  format: CubeFormat = 'limited'
 ): Gap[] {
   const gaps: Gap[] = [];
   // "real pauper cubes"/"real peasant cubes" when the cube is shaped toward
-  // that corpus (board E464) — never the generic "real 360-card cubes" phrase,
-  // which used to be printed even when the cube was measured against the
-  // pauper/peasant band instead of the plain size band.
-  const corpusPhrase = rarity === 'any' ? `${size}-card cubes` : `${rarity} cubes`;
+  // that corpus (board E464), "real Commander cubes" when it's shaped toward
+  // that format's own band (board E462 — a Commander cube was judged against
+  // the Commander band already, but every gap still named the generic
+  // "N-card cubes" phrase, as if it'd been measured against the plain size
+  // band) — never the generic "real N-card cubes" phrase when the cube was
+  // actually measured against a different corpus.
+  const corpusPhrase =
+    format === 'commander'
+      ? 'Commander cubes'
+      : rarity === 'any'
+        ? `${size}-card cubes`
+        : `${rarity} cubes`;
 
   if (shortfall > 0) {
     gaps.push({
@@ -932,11 +941,14 @@ function buildGaps(
     }
   }
 
-  // Fixing: nonbasic land count vs corpus.
+  // Fixing: nonbasic land count vs corpus. "No fixing lands" (never "Only 0")
+  // when the count is zero, and "real ... cubes run" — the same phrasing the
+  // color gap above uses — rather than "Good ... cubes run" (board E462).
   if (got.land < band.fixingLands.p25) {
+    const landPhrase = got.land === 0 ? 'No fixing lands.' : `Only ${got.land} fixing lands.`;
     gaps.push({
       severity: 'short',
-      text: `Only ${got.land} fixing lands. Good ${corpusPhrase} run ${Math.round(
+      text: `${landPhrase} Real ${corpusPhrase} run ${Math.round(
         band.fixingLands.p25
       )}–${Math.round(band.fixingLands.p75)}. Drafters may struggle to cast multicolor cards.`,
     });
