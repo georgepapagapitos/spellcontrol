@@ -412,8 +412,9 @@
   font-weight: 600;
 }
 
-/* Suggestions tab — availability filter toggles (multi-select pills, per
-   STYLE_GUIDE "Rectangles act, pills label"). aria-pressed drives the tint. */
+/* Suggestions tab — availability filter toggles. Shape/size/resting/pressed
+   come from the shared `.filter-chip` (styles/search-controls.css); this
+   file only adds the count badge's own colors. */
 .card-search-filters {
   display: flex;
   flex-wrap: wrap;
@@ -422,45 +423,14 @@
   padding: 0.1rem 0.1rem 0.35rem;
 }
 
-.card-search-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.6rem;
-  /* Actionable filter toggle = rect (role decides shape). */
-  border-radius: var(--radius);
-  border: 0.5px solid var(--border);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background var(--motion-fast) ease,
-    color var(--motion-fast) ease,
-    border-color var(--motion-fast) ease;
-}
-
-.card-search-filter-chip[aria-pressed='true'] {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 .card-search-filter-count {
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
 
-.card-search-filter-chip[aria-pressed='true'] .card-search-filter-count {
-  color: var(--accent);
-}
-
-@media (pointer: coarse) {
-  .card-search-filter-chip {
-    min-height: 36px;
-  }
+.filter-chip[aria-pressed='true'] .card-search-filter-count {
+  color: var(--on-accent);
 }
 
 /* Suggestions tab — per-row availability badge. "Available" = a free copy you

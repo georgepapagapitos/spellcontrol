@@ -44,6 +44,9 @@ const ALLOWLIST = new Set([
   // tile's kebab. That button carries .deck-card-grid-menu:focus-visible,
   // which is also what reveals it for keyboard users.
   '.deck-card-grid-cell',
+  // element also carries .filter-chip (.filter-chip:focus-visible in
+  // search-controls.css) — the "show more"/"show fewer" theme action chip.
+  '.theme-chip-more',
 ]);
 
 function cssFiles(dir: string): string[] {

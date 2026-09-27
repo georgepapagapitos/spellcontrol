@@ -1554,7 +1554,7 @@ function SuggestionsResults({
         {filters.map((f) => (
           <Chip
             key={f.key}
-            className="card-search-filter-chip"
+            className="filter-chip"
             pressed={show[f.key]}
             onClick={() => setShow((s) => ({ ...s, [f.key]: !s[f.key] }))}
             trailing={<span className="card-search-filter-count">{f.count}</span>}

@@ -108,7 +108,7 @@ export function DeckFiltersPopover({
                   return (
                     <Chip
                       key={key}
-                      className={`deck-filter-chip${active ? ' is-active' : ''}`}
+                      className="filter-chip"
                       onClick={() => toggleFormat(key)}
                       pressed={active}
                     >
@@ -127,7 +127,7 @@ export function DeckFiltersPopover({
                   return (
                     <Chip
                       key={s.key}
-                      className={`deck-filter-chip${active ? ' is-active' : ''}`}
+                      className="filter-chip"
                       onClick={() => toggleSource(s.key)}
                       pressed={active}
                     >

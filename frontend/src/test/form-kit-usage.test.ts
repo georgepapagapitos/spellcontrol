@@ -63,6 +63,7 @@ const ALLOWED: Record<Pattern, Record<string, { count: number; why: string }>> =
   },
   pressedChoice: {
     'components/deck/CoachFeed.tsx': { count: 1, why: FILTER_CHIPS },
+    'components/deck/DeckCombosPanel.tsx': { count: 3, why: FILTER_CHIPS },
     'components/deck/DeckDisplay.tsx': { count: 1, why: FILTER_CHIPS },
     'playtest/components/LogDock.tsx': { count: 1, why: FILTER_CHIPS },
     'components/ProductSearchPanel.tsx': { count: 1, why: FILTER_CHIPS },

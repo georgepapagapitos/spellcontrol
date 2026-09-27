@@ -108,7 +108,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                     checked={filters.format === null}
                     onChange={() => setFormat(null)}
                   />
-                  <span>Any</span>
+                  <span className="filter-chip">Any</span>
                 </label>
                 {formatEntries.map(([key, cfg]) => (
                   <label key={key} className="discover-filter-chip">
@@ -118,7 +118,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                       checked={filters.format === key}
                       onChange={() => setFormat(key)}
                     />
-                    <span>{cfg.label}</span>
+                    <span className="filter-chip">{cfg.label}</span>
                   </label>
                 ))}
               </div>
@@ -155,7 +155,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                       checked={filters.brackets.includes(n)}
                       onChange={() => toggleBracket(n)}
                     />
-                    <span>{BRACKET_LABELS[n]}</span>
+                    <span className="filter-chip">{BRACKET_LABELS[n]}</span>
                   </label>
                 ))}
               </div>
@@ -172,7 +172,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                       checked={filters.budget === null}
                       onChange={() => setBudget(null)}
                     />
-                    <span>Any</span>
+                    <span className="filter-chip">Any</span>
                   </label>
                   {BUDGET_OPTIONS.map((b) => (
                     <label key={b.key} className="discover-filter-chip">
@@ -182,7 +182,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                         checked={filters.budget === b.key}
                         onChange={() => setBudget(b.key)}
                       />
-                      <span>{b.label}</span>
+                      <span className="filter-chip">{b.label}</span>
                     </label>
                   ))}
                 </div>

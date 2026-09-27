@@ -293,16 +293,29 @@
   gap: 0.3rem;
 }
 
-.deck-filter-chip {
+/* Shared actionable filter-chip look (T152 W8k, board). One shape/size/
+   pressed treatment for every "toggle a filter" chip in the app — deck and
+   combo Format/Source/Result/Pieces, the Coach feed lanes, the card-search
+   suggestion toggles, the deck role bar, theme picker, product type, and the
+   combos ownership filters. Pressed state reads `aria-pressed` (native on
+   every `Chip` with `pressed`, STYLE_GUIDE "Chips are a primitive") — never a
+   class, so a family stopped painting its own `.is-active`/`.active` twin
+   once its chip moved onto `Chip`. A family's own class keeps only what's
+   genuinely its own: an icon color, a dashed sub-state, an italic "show
+   more". `DiscoverFiltersPopover`'s label+checkbox chips paint this class
+   too but read `:checked` instead, since a `<label>` wrapping a hidden input
+   is a choice control, not a `Chip`. */
+.filter-chip {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-1);
   padding: var(--space-1) 0.65rem;
   font-size: var(--text-xs);
   font-weight: 500;
   color: var(--text-secondary);
   background: var(--surface-raised);
   border: 0.5px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius);
   cursor: pointer;
   transition:
     background var(--motion-fast),
@@ -311,27 +324,35 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .deck-filter-chip:hover {
+  .filter-chip:hover {
     background: var(--accent-light);
     color: var(--accent);
     border-color: var(--accent);
   }
+
+  .filter-chip[aria-pressed='true']:hover {
+    background: var(--accent-hover);
+  }
 }
 
-.deck-filter-chip.is-active {
+.filter-chip[aria-pressed='true'] {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
 }
 
-/* These chips WRAP inside a popover panel that has room to grow, so they take
-   the floor on their real boxes — a ghost would overlap the neighbouring chip
-   and toggle the wrong format. Discover's equivalent chips already had this;
-   the deck and combo popovers that copy this class did not. */
+.filter-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* These chips WRAP inside a popover or row that has room to grow, so they
+   take the floor on their real box — a ghost would overlap the neighbouring
+   chip and toggle the wrong filter. */
 @media (pointer: coarse) {
-  .deck-filter-chip {
+  .filter-chip {
     min-height: 44px;
-    padding-inline: var(--space-3);
+    min-width: 44px;
   }
 }
 
@@ -471,7 +492,7 @@ input[type='url']:focus {
 }
 
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
-.deck-filter-chip:focus-visible {
+.filter-chip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
