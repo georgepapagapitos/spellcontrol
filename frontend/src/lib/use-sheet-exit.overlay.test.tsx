@@ -29,7 +29,7 @@ describe('useSheetExit — focus containment', () => {
     const ref = createRef<HTMLElement>();
     (ref as { current: HTMLElement | null }).current = panel;
 
-    const { unmount } = renderHook(() => useSheetExit(vi.fn(), 'sheet-fall', ref));
+    const { unmount } = renderHook(() => useSheetExit(vi.fn(), 'sheet-fall', { panelRef: ref }));
     await act(async () => {});
     expect(document.activeElement?.id).toBe('a');
 
@@ -56,7 +56,7 @@ describe('useSheetExit — focus containment', () => {
     const ref = createRef<HTMLElement>();
     (ref as { current: HTMLElement | null }).current = panel;
 
-    const { unmount } = renderHook(() => useSheetExit(vi.fn(), 'sheet-fall', ref));
+    const { unmount } = renderHook(() => useSheetExit(vi.fn(), 'sheet-fall', { panelRef: ref }));
     await act(async () => {});
     expect(document.activeElement?.id).toBe('a');
 

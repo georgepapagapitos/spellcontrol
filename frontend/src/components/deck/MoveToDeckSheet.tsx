@@ -1,8 +1,7 @@
-import { type JSX, useCallback, useId, useState } from 'react';
+import { type JSX, useId, useState } from 'react';
 import { X, ChevronLeft } from 'lucide-react';
 import './MoveToDeckSheet.css';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useEscapeKey } from '../../lib/use-escape-key';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { ColorPip } from '../shared/ManaSymbol';
 import { effectiveDeckColors } from '@/lib/deck-validation';
@@ -71,13 +70,9 @@ export function MoveToDeckSheet({
   // the sheet), so it isn't routed through the hook.
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
     onCancel,
-    'binder-sheet-slide-out'
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
   );
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onCancel();
-    else beginClose();
-  }, [beginClose, onCancel]);
-  useEscapeKey(dismiss);
 
   const others = decks.filter((d) => d.id !== currentDeck.id);
   const target = targetId ? (others.find((d) => d.id === targetId) ?? null) : null;
@@ -94,7 +89,7 @@ export function MoveToDeckSheet({
       className="card-picker-root move-deck-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -130,7 +125,7 @@ export function MoveToDeckSheet({
           </div>
           <IconButton
             variant="quiet"
-            onClick={dismiss}
+            onClick={() => beginClose()}
             label="Cancel"
             icon={<X width={18} height={18} strokeWidth={2} />}
           />

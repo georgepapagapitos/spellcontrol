@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { usePressRepeat } from '@/lib/use-press-repeat';
 import { PlaytestCardFace } from '@/playtest/components/PlaytestCardFace';
@@ -39,7 +38,6 @@ export function HordeDamageSheet({ libraryCount, result, onConfirm, onDone, onCl
   const [draft, setDraft] = useState(() => String(Math.min(1, libraryCount)));
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(result ? onDone : onClose);
   useLockBodyScroll();
-  useEscapeKey(() => beginClose());
 
   const clamped = clampDraft(draft, libraryCount);
   const after = Math.max(0, libraryCount - clamped);

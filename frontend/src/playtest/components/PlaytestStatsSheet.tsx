@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import './PlaytestStatsSheet.css';
 import { Hourglass, Loader2 } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { PlaytestState } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -722,7 +721,6 @@ function HistorySection({ deck }: { deck: Deck | undefined }) {
 export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onClose }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
   const [activeTab, setActiveTab] = useState<StatsTab>('hand');
 
   return (

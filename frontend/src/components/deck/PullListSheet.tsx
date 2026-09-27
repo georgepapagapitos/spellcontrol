@@ -1,7 +1,6 @@
 import { type JSX, useCallback, useId, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useEscapeKey } from '../../lib/use-escape-key';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { useSetMap } from '../../lib/api';
 import { buildPullList, isPullableKind, type PullListGroup } from '../../lib/pull-list';
@@ -86,12 +85,11 @@ export function PullListSheet({
 }): JSX.Element {
   const titleId = useId();
   useLockBodyScroll();
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
   const setMap = useSetMap();
 
   const groups = useMemo(
@@ -125,7 +123,7 @@ export function PullListSheet({
       className="card-picker-root pull-list-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -154,7 +152,7 @@ export function PullListSheet({
           <IconButton
             variant="quiet"
             className="pull-list-close"
-            onClick={() => dismiss()}
+            onClick={() => beginClose()}
             label="Close"
             icon={<X width={18} height={18} strokeWidth={2} />}
           />

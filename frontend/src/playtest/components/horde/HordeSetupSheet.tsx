@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 // `HordeSetupFields` reuses the Local setup form's `Stepper`/`RulePill`
 // (`.play-stepper`/`.play-rule-pill`) — an explicit import so the playtest
@@ -39,7 +38,6 @@ export function HordeSetupSheet({ horde, hordeLoad, cardNames, resistanceOn, onC
   const retryHordeLoad = usePlaytestStore((s) => s.retryHordeLoad);
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose);
   useLockBodyScroll();
-  useEscapeKey(() => beginClose());
 
   const [hordeId, setHordeId] = useState(horde?.config.hordeId ?? 'zombies');
   const [level, setLevel] = useState<HordeLevel>(horde?.config.level ?? 'standard');

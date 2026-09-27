@@ -1,4 +1,4 @@
-import { type JSX, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { type JSX, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LayoutGrid, Rows3, X } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
@@ -76,11 +76,9 @@ export function CardGroupSheet({
   // Symmetric slide-down exit so every dismiss path (✕, Escape, backdrop,
   // swipe) plays `sheet-fall` and continues from the finger's release offset
   // instead of vanishing — same contract as the CardPreview carousel.
-  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(
-    onClose,
-    'sheet-fall',
-    sheetRef
-  );
+  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose, 'sheet-fall', {
+    panelRef: sheetRef,
+  });
 
   // Swipe-down-to-dismiss. The gesture spans the whole sheet but is GATED to
   // when the grid/list body is scrolled to the top (iOS-style): short buckets
@@ -100,14 +98,6 @@ export function CardGroupSheet({
     const sheet = sheetRef.current;
     if (sheet) sheet.style.transform = '';
   }, [isDragging, isClosing]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') beginClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [beginClose]);
 
   const chooseLayout = (next: GroupLayout) => {
     setLayout(next);

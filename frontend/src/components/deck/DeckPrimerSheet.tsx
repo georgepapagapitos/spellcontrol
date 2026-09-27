@@ -1,7 +1,6 @@
-import { type JSX, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { type JSX, useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
-import { useEscapeKey } from '../../lib/use-escape-key';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { useDecksStore, type Deck } from '../../store/decks';
 import './DeckPrimerSheet.css';
@@ -35,12 +34,11 @@ export function DeckPrimerSheet({ deck, onClose }: Props): JSX.Element {
   const counterId = useId();
 
   useLockBodyScroll();
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   // Cursor at the end on open, whether the primer is empty or pre-filled —
   // a controlled textarea's default autoFocus lands the caret at position 0.
@@ -69,7 +67,7 @@ export function DeckPrimerSheet({ deck, onClose }: Props): JSX.Element {
       role="presentation"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
     >
       <div
@@ -87,7 +85,7 @@ export function DeckPrimerSheet({ deck, onClose }: Props): JSX.Element {
           <IconButton
             variant="quiet"
             className="deck-primer-sheet-close"
-            onClick={dismiss}
+            onClick={() => beginClose()}
             label="Close"
             icon={<X width={18} height={18} strokeWidth={2} />}
           />

@@ -1,9 +1,8 @@
 import { Trash2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import './ImportHistorySheet.css';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useEscapeKey } from '../lib/use-escape-key';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { formatRelativeTime } from '../lib/format-time';
 import { prettyImportName } from '../lib/import-history-name';
@@ -30,12 +29,11 @@ export function ImportHistorySheet({ onClose }: Props) {
   const [confirming, setConfirming] = useState(false);
 
   useLockBodyScroll();
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -59,7 +57,7 @@ export function ImportHistorySheet({ onClose }: Props) {
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -134,7 +132,7 @@ export function ImportHistorySheet({ onClose }: Props) {
               Delete selected ({selected.size})
             </Button>
           ) : (
-            <Button variant="primary" onClick={() => dismiss()}>
+            <Button variant="primary" onClick={() => beginClose()}>
               Done
             </Button>
           )}

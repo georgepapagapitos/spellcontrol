@@ -75,7 +75,15 @@ export function CtxMenuShell({
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const itemsRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  // Escape belongs to the menu layer (useMenuKeyboard below), which sits above
+  // this sheet's own layer.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    {
+      escape: false,
+    }
+  );
 
   useLockBodyScroll();
 

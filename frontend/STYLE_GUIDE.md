@@ -2354,6 +2354,18 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   the same shared layer stack, topmost-only Escape, Tab trap and focus
   restoration, no exit animation. A new in-place overlay
   takes this hook; it never hand-rolls a keydown listener again.
+- **A sheet's Escape is `useSheetExit`'s.** The hook closes the sheet on
+  Escape through `beginClose`, only while it is the topmost layer and only if
+  nothing already `preventDefault`ed the key, so Escape in a menu, picker or
+  confirm dialog opened over a sheet closes just that (T147; every sheet used
+  to add its own ungated `document` listener, and one press closed both
+  layers). A sheet never adds its own Escape listener
+  (`use-sheet-exit.escape.test.tsx` fails if it does). Options instead:
+  `instantAt` for a layout with no exit keyframe (the card-picker panel's
+  desktop `animation: none`), `escape: false` for a sheet that must be
+  answered or whose menu layer owns the key. An inner control that handles
+  Escape first, like a search field that clears its query, calls
+  `preventDefault`.
 - **Document key listeners subscribe once; the latest callback lives in a
   ref.** `Modal`, `useSheetExit`, `useEscapeKey`, `useOverlayDismiss` and
   `useMenuKeyboard` all keep `onClose` in a ref and register their

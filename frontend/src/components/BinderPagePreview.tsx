@@ -124,16 +124,6 @@ export function BinderPagePreview({
   // unmounts — same treatment as the inner CardPreview.
   const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose);
 
-  // Escape closes; arrow keys live in the carousel (off while CardPreview owns them).
-  useEffect(() => {
-    if (innerCard) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') beginClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [beginClose, innerCard]);
-
   const { isDragging, touchHandlers } = useSwipeDownDismiss({
     onDismiss: beginClose,
     sheetRef,

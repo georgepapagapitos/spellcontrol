@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { summarizeCostBasis } from '../lib/cost-basis';
 import { useCurrency } from '../lib/currency';
@@ -155,14 +155,6 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
   // the right) so every dismiss path — backdrop, ✕, Escape — plays
   // `stats-drawer-slide-out` before unmount instead of vanishing.
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'stats-drawer-slide-out');
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') beginClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [beginClose]);
 
   // Unique printings (by scryfallId) — breakdowns count one per unique printing,
   // matching the reference UI where 3,365 unique sums to 6,440 total copies.

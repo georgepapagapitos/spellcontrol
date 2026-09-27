@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Swords } from 'lucide-react';
 import './PlaytestLogSheet.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { formatLogForClipboard, groupLogByTurn, type GameLogEntry } from '@/lib/playtest/game-log';
 import { Tabs } from '@/components/Tabs';
@@ -26,7 +25,6 @@ interface Props {
 export function PlaytestLogSheet({ log, table, onClose }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
   // Online, the Table feed is the whole game (every seat's plays and the
   // chat), so it is the tab the sheet opens on; the same default as LogDock.
   const [view, setView] = useState<'you' | 'table'>(table ? 'table' : 'you');

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish, ListDef } from '../types';
 import { SearchPill } from './SearchPill';
@@ -29,19 +29,11 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
   const [query, setQuery] = useState(initialQuery);
   const { resultsRef, onActiveChange, onKeyDown: resultsKeyDown } = useResultsKeys();
 
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismiss();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [dismiss]);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   const addToList = (card: ScryfallCard, finish?: Finish) =>
     addListEntry(list.id, scryfallToEnrichedCard(card, finish ?? 'nonfoil'), 1);
@@ -53,7 +45,7 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -96,7 +88,7 @@ export function ListAddCardSheet({ list, initialQuery = '', onClose }: Props) {
         </div>
 
         <div className="card-picker-footer">
-          <Button onClick={() => dismiss()}>Done</Button>
+          <Button onClick={() => beginClose()}>Done</Button>
         </div>
       </div>
     </div>

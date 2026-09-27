@@ -1,5 +1,5 @@
 import { Sparkles, X } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
@@ -45,14 +45,6 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
 
   useLockBodyScroll();
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'modal-panel-out');
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') beginClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [beginClose]);
 
   return (
     <div

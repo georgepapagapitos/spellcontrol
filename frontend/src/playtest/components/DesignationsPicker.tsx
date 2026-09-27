@@ -1,7 +1,6 @@
 import { Check } from 'lucide-react';
 import './DesignationsPicker.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { Designation } from '@/lib/playtest';
 import { Button } from '@/components/shared/Button';
@@ -61,7 +60,6 @@ const ROWS: Row[] = [
 export function DesignationsPicker({ monarch, initiative, citysBlessing, onSet, onClose }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
 
   const held: Record<Designation, boolean> = { monarch, initiative, citysBlessing };
 

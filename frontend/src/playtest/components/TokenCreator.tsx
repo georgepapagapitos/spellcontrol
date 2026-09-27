@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
@@ -53,7 +52,6 @@ const SEARCH_DEBOUNCE_MS = 300;
 export function TokenCreator({ deckCards, onCreate, onClose }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(beginClose);
   const [query, setQuery] = useState('');
   // Results carry the term they are FOR, which is what lets "still
   // searching" be derived rather than tracked: if the landed term is not the

@@ -1,9 +1,8 @@
 import './FillDeckSheet.css';
-import { type JSX, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { type JSX, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { imageFromCard } from '@/lib/card-thumbs';
 import { buildFill, type FillResult } from '@/lib/fill-deck';
@@ -105,12 +104,11 @@ export function FillDeckSheet({
     };
   }, []);
 
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
-    else beginClose();
-  }, [beginClose, onClose]);
-  useEscapeKey(dismiss);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'binder-sheet-slide-out',
+    { instantAt: '(min-width: 1024px)' }
+  );
 
   const run = async () => {
     setPhase({ kind: 'building', message: 'Reading your deck…', percent: 2 });
@@ -151,7 +149,7 @@ export function FillDeckSheet({
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
+        if (e.target === e.currentTarget) beginClose();
       }}
       role="presentation"
     >
@@ -277,16 +275,16 @@ export function FillDeckSheet({
         <div className="card-picker-footer">
           {phase.kind === 'setup' && (
             <>
-              <Button onClick={dismiss}>Cancel</Button>
+              <Button onClick={() => beginClose()}>Cancel</Button>
               <Button variant="primary" onClick={() => void run()}>
                 Find {open} {open === 1 ? 'card' : 'cards'}
               </Button>
             </>
           )}
-          {phase.kind === 'building' && <Button onClick={dismiss}>Cancel</Button>}
+          {phase.kind === 'building' && <Button onClick={() => beginClose()}>Cancel</Button>}
           {phase.kind === 'error' && (
             <>
-              <Button onClick={dismiss}>Close</Button>
+              <Button onClick={() => beginClose()}>Close</Button>
               <Button variant="primary" onClick={() => void run()}>
                 Try again
               </Button>
