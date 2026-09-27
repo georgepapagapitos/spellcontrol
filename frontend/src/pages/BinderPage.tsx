@@ -15,11 +15,8 @@ const BinderCardEditor = lazy(() =>
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { findRedundantPins } from '../lib/binder-pin-dissolve';
-import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
-import { useCardsWithSldDrops, bindersUseSldDrops } from '../lib/sld-drops';
-import { useCardsWithReleaseDates, bindersUseReleaseDates } from '../lib/card-release-dates';
+import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { buildQtyByPrintingKey } from '../lib/sorting';
-import { useAllocations } from '../lib/allocations';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderTabs } from '../components/BinderTabs';
 import { BinderDriftBanner } from '../components/BinderDriftBanner';
@@ -28,7 +25,6 @@ import { BinderListView } from '../components/BinderListView';
 import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { type BinderViewControls, type BinderViewMode } from '../components/BinderSummaryBar';
-import { useSetMap } from '../lib/api';
 import { useStoredView } from '../lib/use-stored-view';
 import { ShareDialog } from '../components/ShareDialog';
 import { CardName } from '@/components/shared/CardName';
@@ -36,19 +32,11 @@ import { Button } from '@/components/shared/Button';
 
 export function BinderPage() {
   const { id: routeId } = useParams<{ id: string }>();
-  const rawCards = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
-  // Decorate with Scryfall oracle tags so "tag IS mana-rock" rules resolve.
-  // No-op (returns rawCards by reference) unless a binder uses a tag rule.
-  const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
-  // Decorate with the Secret Lair drop each printing came from, so the set sorts
-  // can section by drop. Same deal: no-op unless a binder sorts by set.
-  const droppedCards = useCardsWithSldDrops(taggedCards, bindersUseSldDrops(binders));
-  // Decorate with each printing's OWN release date, so a Release-date sort
-  // dates a rolling container set (SLD/PLST/PRM/SLP/SLC) per printing instead
-  // of from the set. No-op unless a binder sorts by release date, or until the
-  // price refresh has cached dates for this device.
-  const cards = useCardsWithReleaseDates(droppedCards, bindersUseReleaseDates(binders));
+  // Decorated cards (tags/Secret Lair drops/release dates) + binders +
+  // allocatedCopyIds + setMap — the exact chain this page materializes from,
+  // shared with the Add-list row prediction and the post-import routing
+  // summary so neither can drift from what this page actually renders.
+  const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
   const hydrating = useCollectionStore((s) => s.hydrating);
   // A signed-in device that has never cached this account still has an EMPTY
   // local store when `hydrating` flips false — that flag only covers reading
@@ -148,10 +136,6 @@ export function BinderPage() {
       qtyByPrintingKey: buildQtyByPrintingKey(cards),
     };
   }, [cards, groupPrintings]);
-
-  const allocations = useAllocations();
-  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
-  const setMap = useSetMap();
 
   const materialized = useMemo(() => {
     if (effectiveCards.length === 0) return [];

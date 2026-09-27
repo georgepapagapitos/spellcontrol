@@ -1,4 +1,4 @@
-import type { BinderDef, EnrichedCard } from '../types';
+import type { BinderLayoutInputs } from './use-binder-layout-inputs';
 import { materializeBinders } from './materialize';
 
 /**
@@ -11,6 +11,43 @@ export interface ImportRoutingEntry {
   binderName: string;
   binderColor?: string;
   count: number;
+  /**
+   * 1-based physical page numbers (within this binder's default Pages view —
+   * group-printings off, the state a binder opens in until the user toggles
+   * it) that at least one of the imported cards landed on. Ascending,
+   * deduped, never empty when `count > 0` — see `summarizeImportRouting`'s
+   * doc comment for exactly which inputs this needs to agree with BinderPage.
+   */
+  pages: number[];
+}
+
+/**
+ * Formats a page-number list the way a physical binder is discussed:
+ * "p. 3" for one page, "pp. 3, 7" for a few, "pp. 3–5" for a run — a mix of
+ * both when some are adjacent and some aren't. A run uses an en dash, the
+ * same glyph every other range in the app uses ("A–Z", "1–5"). Returns '' for
+ * an empty list so a caller can treat it as "nothing to show" without a
+ * special case.
+ */
+export function formatBinderPages(pages: number[]): string {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  if (sorted.length === 0) return '';
+  const runs: string[] = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i <= sorted.length; i++) {
+    const cur = sorted[i];
+    if (cur === prev + 1) {
+      prev = cur;
+      continue;
+    }
+    runs.push(start === prev ? `${start}` : `${start}–${prev}`);
+    if (cur !== undefined) {
+      start = cur;
+      prev = cur;
+    }
+  }
+  return sorted.length === 1 ? `p. ${runs[0]}` : `pp. ${runs.join(', ')}`;
 }
 
 export interface ImportRoutingSummary {
@@ -48,29 +85,53 @@ export interface ImportRoutingSummary {
  * promotion, and any other routing quirks the materializer applies. The
  * naive approach (re-running rule matching here) would silently disagree
  * with materializeBinders when those edge cases kick in.
+ *
+ * `layout` is a `useBinderLayoutInputs()` result — the exact chain
+ * `BinderPage` itself decorates/materializes from (tags → Secret Lair drops →
+ * release dates, plus its `allocatedCopyIds`/`setMap`), at BinderPage's
+ * DEFAULT view (group-printings off, no in-binder search). Every caller of
+ * this function reads the SAME hook, so a tag rule, a release-date sort, or
+ * a `hideDeckAllocated: false` binder can no longer make this summary
+ * disagree with what the user actually sees when they open the binder —
+ * three real call sites each supplying their own ad hoc subset of these
+ * inputs is exactly how that drift happened before.
+ *
+ * Each entry's `pages` is read off the SAME materialize pass, walking
+ * `section.pages[].slots` (not `section.cards`, which carries no page
+ * number). `qtyByPrintingKey` is deliberately never passed to
+ * `materializeBinders`: omitting it makes materialize fall back to counting
+ * quantities from `layout.cards` itself, which is exactly BinderPage's own
+ * default "group printings off" state — passing a grouped count here would
+ * answer a view this summary never renders.
  */
 export function summarizeImportRouting(
   importIds: ReadonlySet<string>,
-  cards: EnrichedCard[],
-  binderDefs: BinderDef[]
+  layout: BinderLayoutInputs
 ): ImportRoutingSummary {
   if (importIds.size === 0) return { entries: [], totalRouted: 0, unroutedCount: 0 };
 
-  // Run the same routing the BinderView uses. We don't care about pocket size
-  // or sorts here — only which cards landed where — but we still go through
-  // the official path so quirks like deck-allocation hiding and printing
-  // promotion stay consistent with the user-visible layout.
-  const { binders, uncategorized } = materializeBinders(cards, binderDefs, {
-    globalPocketSize: 9,
+  // Run the same routing the BinderView uses. We don't care about sorts here
+  // — only which cards landed where and on which page — but we still go
+  // through the official path so quirks like deck-allocation hiding and
+  // printing promotion stay consistent with the user-visible layout.
+  const { binders, uncategorized } = materializeBinders(layout.cards, layout.binders, {
     search: '',
+    allocatedCopyIds: layout.allocatedCopyIds,
+    setMap: layout.setMap,
   });
 
   const entries: ImportRoutingEntry[] = [];
   for (const b of binders) {
     let n = 0;
+    const pages = new Set<number>();
     for (const section of b.sections) {
-      for (const c of section.cards) {
-        if (c.importId && importIds.has(c.importId)) n++;
+      for (const page of section.pages) {
+        for (const c of page.slots) {
+          if (c?.importId && importIds.has(c.importId)) {
+            n++;
+            pages.add(page.pageNum);
+          }
+        }
       }
     }
     if (n > 0) {
@@ -79,6 +140,7 @@ export function summarizeImportRouting(
         binderName: b.def.name,
         binderColor: b.def.color,
         count: n,
+        pages: [...pages].sort((a, b) => a - b),
       });
     }
   }

@@ -17,7 +17,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { Condition, Finish } from '../types';
+import { compileBinderCandidates, nextBinderMatchCompiled } from '@spellcontrol/binder-routing';
+import type { BinderDef, Condition, Finish } from '../types';
 import { Modal } from './Modal';
 import { OverflowMenu } from './OverflowMenu';
 import { SearchPill } from './SearchPill';
@@ -31,6 +32,8 @@ import { useConfirm } from '../lib/use-confirm';
 import { formatMoney } from '../lib/format-money';
 import { formatRelativeTime } from '../lib/format-time';
 import { CONDITIONS, FINISH_LABELS, finishUnitPrice } from '../lib/scanner-feedback';
+import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
+import { bindersUseTags, useCardsWithTags } from '../lib/card-tags';
 import type { ScannedEntry } from '../lib/use-scan-queue';
 
 /** Every scanner sheet sits over the full-screen camera, which is above the
@@ -40,6 +43,9 @@ export const SCANNER_SHEET_BACKDROP = 'modal-backdrop--sheet modal-backdrop--ove
 
 interface Props {
   entries: ScannedEntry[];
+  /** For the per-row "where will this go" prediction (E457). Rows show no
+   *  routing line at all when this is empty. */
+  binders: BinderDef[];
   onClose: () => void;
   /** Open the edit sheet for one row. The parent owns it so the camera's
    *  last-scan panel can open the same sheet. */
@@ -68,6 +74,22 @@ function unitPrice(e: ScannedEntry): number | null {
   return finishUnitPrice(e.card.prices, e.finish);
 }
 
+/**
+ * The row as the binder engine would see it, for `nextBinderMatchCompiled`
+ * prediction only — never stored. Carries the row's own finish, condition and
+ * language (not the printing's defaults) since a binder rule can filter on
+ * them (a Foils binder on `finish`); a brand-new copy has no pins, exclusions
+ * or deck allocation, which is exactly what `nextBinderMatch`'s semantics
+ * assume for a fresh card.
+ */
+function entryToEnrichedCard(entry: ScannedEntry) {
+  return {
+    ...scryfallToEnrichedCard(entry.card, { finish: entry.finish }),
+    condition: entry.condition,
+    language: entry.language,
+  };
+}
+
 const countLabel = (n: number) => `${n} card${n === 1 ? '' : 's'}`;
 
 /**
@@ -82,6 +104,7 @@ const countLabel = (n: number) => `${n} card${n === 1 ? '' : 's'}`;
  */
 export function ScannerQueueSheet({
   entries,
+  binders,
   onClose,
   onEdit,
   onRemove,
@@ -99,6 +122,24 @@ export function ScannerQueueSheet({
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirm();
+
+  // Compile every binder's filters ONCE per render pass (not once per row —
+  // the list can hold a booster box), then predict each row's destination
+  // against the compiled candidates. Recomputes only when the queue or the
+  // binder set actually changes, not on filter/sort/select-mode churn.
+  // Tag-decorated the same way BinderPage's cards are, so a "tag IS …" rule
+  // predicts the binder the card will actually land in.
+  const rowCards = useCardsWithTags(
+    useMemo(() => entries.map(entryToEnrichedCard), [entries]),
+    bindersUseTags(binders)
+  );
+  const binderMatches = useMemo(() => {
+    const matches = new Map<string, BinderDef | null>();
+    if (binders.length === 0) return matches;
+    const compiled = compileBinderCandidates(binders);
+    entries.forEach((e, i) => matches.set(e.id, nextBinderMatchCompiled(rowCards[i], compiled)));
+    return matches;
+  }, [entries, rowCards, binders]);
 
   const totalCount = entries.reduce((sum, e) => sum + e.qty, 0);
   const totalPrice = entries.reduce((sum, e) => sum + (unitPrice(e) ?? 0) * e.qty, 0);
@@ -262,6 +303,8 @@ export function ScannerQueueSheet({
                   <ScanRow
                     key={e.id}
                     entry={e}
+                    showBinderRouting={binders.length > 0}
+                    binderMatch={binderMatches.get(e.id) ?? null}
                     selecting={mode === 'select'}
                     selected={selected.has(e.id)}
                     onToggle={() => toggle(e.id)}
@@ -335,6 +378,8 @@ export function ScannerQueueSheet({
 
 function ScanRow({
   entry,
+  showBinderRouting,
+  binderMatch,
   selecting,
   selected,
   onToggle,
@@ -342,6 +387,10 @@ function ScanRow({
   onRemove,
 }: {
   entry: ScannedEntry;
+  /** False when the user has no binders at all — hides the routing line. */
+  showBinderRouting: boolean;
+  /** The binder this row would route to, or null for "matched no binder". */
+  binderMatch: BinderDef | null;
   selecting: boolean;
   selected: boolean;
   onToggle: () => void;
@@ -382,6 +431,16 @@ function ScanRow({
             </span>
           )}
         </span>
+        {showBinderRouting && (
+          <span className="scan-row-binder">
+            <span
+              className={`scan-row-binder-pip${binderMatch ? '' : ' scan-row-binder-pip--empty'}`}
+              style={binderMatch ? { background: binderMatch.color } : undefined}
+              aria-hidden="true"
+            />
+            {binderMatch ? binderMatch.name : 'Matched no binder'}
+          </span>
+        )}
         {entry.addedAt ? (
           <span className="scan-row-meta">{capitalize(formatRelativeTime(entry.addedAt))}</span>
         ) : null}

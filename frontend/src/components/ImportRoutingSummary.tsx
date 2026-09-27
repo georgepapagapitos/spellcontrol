@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
-import type { ImportRoutingSummary as Summary } from '../lib/import-routing';
+import { formatBinderPages, type ImportRoutingSummary as Summary } from '../lib/import-routing';
 
 interface Props {
   summary: Summary;
@@ -22,6 +22,11 @@ interface Props {
  * The whole section hides only when the import produced no routing story at
  * all (nothing matched a binder AND nothing fell through) — the review
  * surface's success line already confirms the import landed.
+ *
+ * Each row also names the physical page(s) the cards landed on (E457,
+ * `entry.pages` via `formatBinderPages`) when `summarizeImportRouting` was
+ * able to compute them — absent only for a caller passing an empty
+ * `ImportRoutingEntry.pages` (never guessed).
  */
 export function ImportRoutingSummary({ summary }: Props) {
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
@@ -53,7 +58,12 @@ export function ImportRoutingSummary({ summary }: Props) {
                 style={{ background: entry.binderColor ?? 'var(--text-muted)' }}
                 aria-hidden="true"
               />
-              <span className="import-routing-name">{entry.binderName}</span>
+              <span className="import-routing-name">
+                {entry.binderName}
+                {entry.pages.length > 0 && (
+                  <span className="import-routing-pages"> · {formatBinderPages(entry.pages)}</span>
+                )}
+              </span>
               <span className="import-routing-count">
                 {entry.count} card{entry.count === 1 ? '' : 's'}
               </span>

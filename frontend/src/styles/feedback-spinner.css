@@ -65,6 +65,13 @@
   font-size: var(--text-sm);
 }
 
+/* The page(s) an entry's cards landed on (E457) — a quieter, smaller detail
+   trailing the binder name, not a second fact competing with it. */
+.import-routing-pages {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .import-routing-count {
   font-size: var(--text-sm);
   color: var(--text-muted);

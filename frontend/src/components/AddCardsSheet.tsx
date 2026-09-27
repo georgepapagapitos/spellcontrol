@@ -1,13 +1,11 @@
 import { Camera, Package, Search, Settings, Upload, X } from 'lucide-react';
-import { Suspense, lazy, useId, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useId, useMemo, useState, type ReactNode } from 'react';
 import { useCanScan } from '../lib/use-can-scan';
 import { useMediaQuery } from '../lib/use-media-query';
 import { importEntries, importScannedCards } from '../lib/scan-import';
 import { fetchErrorMessage } from '../lib/import-review';
-import {
-  summarizeImportRouting,
-  type ImportRoutingSummary as RoutingSummary,
-} from '../lib/import-routing';
+import { summarizeImportRouting } from '../lib/import-routing';
+import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { formatMoney } from '../lib/format-money';
 import { useCollectionStore } from '../store/collection';
 import { rekeyedId, useScanQueue } from '../lib/use-scan-queue';
@@ -105,15 +103,31 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
   const [addListEditingId, setAddListEditingId] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
+  // Only the committed import's id + its success sentence are state; the
+  // routing summary itself is derived below from `layout`, which decorates
+  // and updates as tags/setMap load — never a stale imperative snapshot.
   const [commitSummary, setCommitSummary] = useState<{
     importId: string;
-    routing: RoutingSummary;
     successLine: string;
   } | null>(null);
 
   const importCards = useCollectionStore((s) => s.importCards);
   const deleteImports = useCollectionStore((s) => s.deleteImports);
+  // Same inputs BinderPage materializes from — shared so the Add-list row
+  // prediction and this commit's routing summary can't drift from what a
+  // binder actually shows (E457).
+  const layout = useBinderLayoutInputs();
+  const { binders } = layout;
   const labelId = useId();
+
+  const commitImportIds = useMemo(
+    () => (commitSummary ? new Set([commitSummary.importId]) : new Set<string>()),
+    [commitSummary]
+  );
+  const commitRouting = useMemo(
+    () => summarizeImportRouting(commitImportIds, layout),
+    [commitImportIds, layout]
+  );
 
   // Desktop Search workbench (T153 phase 4): a live inspector pane tracks
   // the active result row instead of each row's own printing disclosure.
@@ -187,12 +201,10 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
       if (unresolved > 0) parts.push(`${unresolved} unresolved`);
       if (fetchErrors > 0)
         parts.push(fetchErrorMessage(fetchErrors, 'Retry from the import page.'));
-      const s = useCollectionStore.getState();
-      setCommitSummary({
-        importId,
-        routing: summarizeImportRouting(new Set([importId]), s.cards, s.binders),
-        successLine: parts.join(' · '),
-      });
+      // The routing summary itself is derived from `layout` above, which
+      // picks up the just-imported cards (and any tags/setMap still loading)
+      // as soon as it re-renders — no imperative snapshot to go stale.
+      setCommitSummary({ importId, successLine: parts.join(' · ') });
     } catch (err) {
       setCommitError(userMessage(err, "Couldn't add those cards."));
     } finally {
@@ -419,10 +431,9 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
               </button>
             </div>
             <p className="import-review-line">{commitSummary.successLine}</p>
-            {(commitSummary.routing.entries.length > 0 ||
-              commitSummary.routing.unroutedCount > 0) && (
+            {(commitRouting.entries.length > 0 || commitRouting.unroutedCount > 0) && (
               <div className="import-review-section import-review-section--routing">
-                <ImportRoutingSummary summary={commitSummary.routing} />
+                <ImportRoutingSummary summary={commitRouting} />
               </div>
             )}
             <div className="import-review-section add-cards-commit-undo">
@@ -504,6 +515,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
         <Suspense fallback={null}>
           <ScannerQueueSheet
             entries={addListQueue}
+            binders={binders}
             heading={`${addListCount} card${addListCount === 1 ? '' : 's'}`}
             onClose={() => setReviewOpen(false)}
             onEdit={setAddListEditingId}

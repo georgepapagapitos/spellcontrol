@@ -1,10 +1,68 @@
 import type { BinderDef, EnrichedCard } from './types.js';
-import { compileFilterGroups, cardMatchesAnyGroup } from './rules.js';
+import { compileFilterGroups, cardMatchesAnyGroup, type CompiledFilter } from './rules.js';
 
 export interface NextBinderMatchOptions {
   /** Binder to pretend doesn't exist — e.g. the binder currently being edited,
    *  so the caller can ask "where would this card go if it left this binder." */
   excludeBinderId?: string;
+}
+
+/** One binder, in position order, with its filter groups pre-compiled. */
+export interface CompiledBinderCandidate {
+  def: BinderDef;
+  compiled: CompiledFilter[];
+}
+
+/** Opaque result of {@link compileBinderCandidates} — pass to {@link nextBinderMatchCompiled}. */
+export interface CompiledBinderCandidates {
+  ordered: CompiledBinderCandidate[];
+}
+
+/**
+ * Pre-compiles every binder's filter groups once, in the position/exclusion
+ * order `nextBinderMatch` itself uses. Callers predicting a match for MANY
+ * cards against the SAME binder list (e.g. one row per scanned card) should
+ * compile once per render pass with this, then call
+ * {@link nextBinderMatchCompiled} per card — `nextBinderMatch` alone
+ * recompiles every binder's filters on every call, which is wasted work
+ * repeated once per row.
+ */
+export function compileBinderCandidates(
+  binderDefs: BinderDef[],
+  opts: NextBinderMatchOptions = {}
+): CompiledBinderCandidates {
+  const ordered = [...binderDefs]
+    .sort((a, b) => a.position - b.position)
+    .filter((d) => d.id !== opts.excludeBinderId)
+    .map((def) => ({
+      def,
+      compiled: def.mode === 'manual' ? [] : compileFilterGroups(def.filterGroups),
+    }));
+  return { ordered };
+}
+
+/**
+ * Same semantics as {@link nextBinderMatch}, against an already-compiled
+ * candidate list from {@link compileBinderCandidates}.
+ */
+export function nextBinderMatchCompiled(
+  card: EnrichedCard,
+  candidates: CompiledBinderCandidates
+): BinderDef | null {
+  const { ordered } = candidates;
+
+  // Pins beat rules, in position order — mirrors materialize.ts's pre-claim pass.
+  for (const { def } of ordered) {
+    if (def.pinnedCopyIds?.includes(card.copyId)) return def;
+  }
+
+  for (const { def, compiled } of ordered) {
+    if (def.mode === 'manual') continue;
+    if (def.excludedCopyIds?.includes(card.copyId)) continue;
+    if (cardMatchesAnyGroup(card, compiled)) return def;
+  }
+
+  return null;
 }
 
 /**
@@ -36,21 +94,5 @@ export function nextBinderMatch(
   binderDefs: BinderDef[],
   opts: NextBinderMatchOptions = {}
 ): BinderDef | null {
-  const orderedDefs = [...binderDefs]
-    .sort((a, b) => a.position - b.position)
-    .filter((d) => d.id !== opts.excludeBinderId);
-
-  // Pins beat rules, in position order — mirrors materialize.ts's pre-claim pass.
-  for (const def of orderedDefs) {
-    if (def.pinnedCopyIds?.includes(card.copyId)) return def;
-  }
-
-  for (const def of orderedDefs) {
-    if (def.mode === 'manual') continue;
-    if (def.excludedCopyIds?.includes(card.copyId)) continue;
-    const compiled = compileFilterGroups(def.filterGroups);
-    if (cardMatchesAnyGroup(card, compiled)) return def;
-  }
-
-  return null;
+  return nextBinderMatchCompiled(card, compileBinderCandidates(binderDefs, opts));
 }
