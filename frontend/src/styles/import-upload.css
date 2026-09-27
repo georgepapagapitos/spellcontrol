@@ -338,11 +338,10 @@
   gap: 0.85rem;
 }
 
-/* Import history's own list/checkbox/row classes moved to
-   ImportHistorySheet.css (T153: import history left the add-cards flow for
-   its own sheet). The shared checkbox appearance below is still used here
-   by .field-checkbox / .commander-owned-toggle / .filter-popover-row /
-   .collection-group-checkbox. */
+/* The app's one checkbox appearance. This sheet is global (main.tsx), so
+   Import history (ImportHistorySheet, T153) shares it from here too; its
+   list/row layout lives in ImportHistorySheet.css. */
+.import-history-check input[type='checkbox'],
 .field-checkbox input[type='checkbox'],
 .commander-owned-toggle input[type='checkbox'],
 .filter-popover-row input[type='checkbox'],
@@ -364,6 +363,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .import-history-check input[type='checkbox']:hover:not(:disabled),
   .field-checkbox input[type='checkbox']:hover:not(:disabled),
   .commander-owned-toggle input[type='checkbox']:hover:not(:disabled),
   .filter-popover-row input[type='checkbox']:hover:not(:disabled),
@@ -372,6 +372,7 @@
   }
 }
 
+.import-history-check input[type='checkbox']:checked,
 .field-checkbox input[type='checkbox']:checked,
 .commander-owned-toggle input[type='checkbox']:checked,
 .filter-popover-row input[type='checkbox']:checked,
@@ -380,6 +381,7 @@
   border-color: var(--accent);
 }
 
+.import-history-check input[type='checkbox']:checked::after,
 .field-checkbox input[type='checkbox']:checked::after,
 .commander-owned-toggle input[type='checkbox']:checked::after,
 .filter-popover-row input[type='checkbox']:checked::after,
@@ -391,6 +393,7 @@
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
 }
 
+.import-history-check input[type='checkbox']:focus-visible,
 .field-checkbox input[type='checkbox']:focus-visible,
 .commander-owned-toggle input[type='checkbox']:focus-visible,
 .filter-popover-row input[type='checkbox']:focus-visible,
@@ -399,6 +402,7 @@
   outline-offset: 2px;
 }
 
+.import-history-check input[type='checkbox']:disabled,
 .field-checkbox input[type='checkbox']:disabled,
 .commander-owned-toggle input[type='checkbox']:disabled,
 .collection-group-checkbox:disabled {
