@@ -93,7 +93,7 @@ export function BinderDriftBanner({ binder }: Props) {
   const binderDefs = useCollectionStore((s) => s.binders);
   const markBinderReviewed = useCollectionStore((s) => s.markBinderReviewed);
   const acknowledgeBinderCard = useCollectionStore((s) => s.acknowledgeBinderCard);
-  const keepCardInBinder = useCollectionStore((s) => s.keepCardInBinder);
+  const pinCardToBinder = useCollectionStore((s) => s.pinCardToBinder);
   const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
   const [expanded, setExpanded] = useState(false);
 
@@ -201,7 +201,7 @@ export function BinderDriftBanner({ binder }: Props) {
   };
 
   const handleKeepHere = (row: ReviewQueueRow) => {
-    for (const copyId of row.copyIds) keepCardInBinder(binderId, copyId);
+    for (const copyId of row.copyIds) pinCardToBinder(binderId, copyId);
     toast.show({
       message:
         row.copyIds.length > 1

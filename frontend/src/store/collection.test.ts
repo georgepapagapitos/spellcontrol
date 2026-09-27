@@ -23,6 +23,7 @@ import { saveCollection, loadCollection, clearCollection } from '../lib/local-ca
 import { _resetForTests as resetPriceCache } from '../lib/card-prices';
 import { useCurrencyStore } from '../lib/currency';
 import { captureCollectionSnapshot } from '../lib/collection-snapshot';
+import { materializeBinders } from '../lib/materialize';
 import { clearValueHistory, getValueHistory, recordValueSnapshot } from '../lib/value-history';
 import type { BinderDef, BinderInput, EnrichedCard, ListEntry, UploadResponse } from '../types';
 
@@ -1235,20 +1236,29 @@ describe('binder card customization', () => {
     expect(b.pinnedCopyIds).toEqual(['c1']);
   });
 
-  it('pinCardToBinder flips a rules binder to manual when the card breaks its rules', () => {
+  // Guard for the rules → manual flip. Pinning a card that broke a rules
+  // binder's rules used to switch the binder to manual, which paused its rules
+  // and sent every rule-matched card out: one commander moved into "Mana
+  // rocks" and the eight mana rocks left. A pin must add the card and nothing else.
+  it('pinCardToBinder keeps a rules binder on its rules when the card breaks them', () => {
+    const mythics = { rarities: { chips: [{ value: 'mythic', negate: false }], joiners: [] } };
     useCollectionStore.setState({
-      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1', rarity: 'uncommon' })],
-      binders: [
-        makeBinder({
-          mode: 'rules',
-          filterGroups: [
-            { filter: { rarities: { chips: [{ value: 'mythic', negate: false }], joiners: [] } } },
-          ],
-        }),
+      cards: [
+        enriched({ copyId: 'm1', scryfallId: 'sfm1', name: 'Mana Crypt', rarity: 'mythic' }),
+        enriched({ copyId: 'm2', scryfallId: 'sfm2', name: 'Chrome Mox', rarity: 'mythic' }),
+        enriched({ copyId: 'c1', scryfallId: 'sf1', rarity: 'uncommon' }),
       ],
+      binders: [makeBinder({ mode: 'rules', filterGroups: [{ filter: mythics }] })],
     });
-    useCollectionStore.getState().pinCardToBinder('b1', 'c1');
-    expect(useCollectionStore.getState().binders[0].mode).toBe('manual');
+    expect(useCollectionStore.getState().pinCardToBinder('b1', 'c1')).toBe(true);
+    expect(useCollectionStore.getState().pinCardToBinder('nope', 'c1')).toBe(false);
+
+    const { cards, binders } = useCollectionStore.getState();
+    expect(binders[0].mode).toBe('rules');
+    expect(binders[0].pinnedCopyIds).toEqual(['c1']);
+    const [binder] = materializeBinders(cards, binders, { search: '' }).binders;
+    const held = binder.sections.flatMap((s) => s.cards.map((c) => c.copyId)).sort();
+    expect(held).toEqual(['c1', 'm1', 'm2']);
   });
 
   it('removeCardFromBinder excludes a rule-matched card, idempotently', () => {
@@ -1329,38 +1339,6 @@ describe('binder card customization', () => {
     useCollectionStore.getState().setBinderMode('nope', 'manual');
     useCollectionStore.getState().setBinderManualOrder('nope', ['c1']);
     useCollectionStore.getState().seedManualOrder('nope', ['c1']);
-    expect(useCollectionStore.getState().binders[0]).toEqual(before);
-  });
-
-  it('keepCardInBinder pins a card WITHOUT flipping a rules binder to manual (E88)', () => {
-    useCollectionStore.setState({
-      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1', rarity: 'uncommon' })],
-      binders: [
-        makeBinder({
-          mode: 'rules',
-          filterGroups: [
-            { filter: { rarities: { chips: [{ value: 'mythic', negate: false }], joiners: [] } } },
-          ],
-        }),
-      ],
-    });
-    useCollectionStore.getState().keepCardInBinder('b1', 'c1');
-    const b = useCollectionStore.getState().binders[0];
-    expect(b.pinnedCopyIds).toEqual(['c1']);
-    expect(b.mode).toBe('rules'); // no auto-flip, unlike pinCardToBinder
-  });
-
-  it('keepCardInBinder is idempotent and no-ops on an unknown binder', () => {
-    useCollectionStore.setState({
-      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })],
-      binders: [makeBinder()],
-    });
-    useCollectionStore.getState().keepCardInBinder('b1', 'c1');
-    useCollectionStore.getState().keepCardInBinder('b1', 'c1');
-    expect(useCollectionStore.getState().binders[0].pinnedCopyIds).toEqual(['c1']);
-
-    const before = useCollectionStore.getState().binders[0];
-    useCollectionStore.getState().keepCardInBinder('nope', 'c1');
     expect(useCollectionStore.getState().binders[0]).toEqual(before);
   });
 

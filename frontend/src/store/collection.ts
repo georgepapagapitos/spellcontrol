@@ -37,7 +37,6 @@ import { landedFinish } from '../lib/add-card-message';
 import { useScannerSettings } from '../lib/scanner-settings';
 import { fetchWithAbortTimeout } from '../lib/fetch-utils';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
-import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
 import { acknowledgeInSnapshot, referencedLegalityFormats } from '../lib/binder-drift';
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
@@ -251,12 +250,10 @@ interface CollectionState {
   restoreCollectionSnapshot: (snap: CollectionSnapshot) => Promise<void>;
 
   // Binder card customization actions
-  /** Add a card to a binder's pinned list. No-op if already pinned. Returns true if added. */
+  /** Add a card to a binder's pinned list. No-op if already pinned. Returns true if added.
+   *  Never changes the binder's mode: pins are claimed before rules run, so a
+   *  card outside the rules joins a rules binder without pausing them. */
   pinCardToBinder: (binderId: string, copyId: string) => boolean;
-  /** Review-queue "Keep it here": pins a card to a binder like `pinCardToBinder`,
-   *  but never auto-flips the binder into manual mode — this is a targeted
-   *  "deny this one removal", not an editing action on the whole binder. */
-  keepCardInBinder: (binderId: string, copyId: string) => void;
   /** Remove a card from a binder. If the card is pinned, removes from pinnedCopyIds.
    *  If rule-matched, adds to excludedCopyIds so it stays hidden even if rules still match. */
   removeCardFromBinder: (binderId: string, copyId: string, isRuleMatched: boolean) => void;
@@ -1374,7 +1371,6 @@ export const useCollectionStore = create<CollectionState>()(
       pinCardToBinder: (binderId, copyId) => {
         let added = false;
         const cards = get().cards;
-        const card = cards.find((c) => c.copyId === copyId);
         set((s) => ({
           binders: s.binders.map((b) => {
             if (b.id !== binderId) return b;
@@ -1385,38 +1381,14 @@ export const useCollectionStore = create<CollectionState>()(
             // re-derive ids. Never reconstructs keys from ids, so an existing
             // orphan-retained pin survives this mutation (the keysForIds bug).
             const { keys, ids } = addRef(b.pinnedKeys, existing, copyId, cards);
-            const updated = {
-              ...b,
-              pinnedCopyIds: ids,
-              pinnedKeys: keys,
-              updatedAt: Date.now(),
-            };
-            if (b.mode !== 'manual' && card && !areAllGroupsEmpty(b.filterGroups)) {
-              const compiled = compileFilterGroups(b.filterGroups);
-              if (!cardMatchesAnyGroup(card, compiled)) {
-                updated.mode = 'manual';
-              }
-            }
-            return updated;
-          }),
-        }));
-        return added;
-      },
-
-      keepCardInBinder: (binderId, copyId) => {
-        const cards = get().cards;
-        set((s) => ({
-          binders: s.binders.map((b) => {
-            if (b.id !== binderId) return b;
-            const existing = b.pinnedCopyIds ?? [];
-            if (existing.includes(copyId)) return b;
-            // Same durable-key mechanics as pinCardToBinder, but deliberately
-            // skips its manual-mode auto-flip: "Keep it here" is denying one
-            // removal, not a signal that the binder's rules no longer fit.
-            const { keys, ids } = addRef(b.pinnedKeys, existing, copyId, cards);
+            // No mode change here. This used to flip a rules binder to manual
+            // when the card broke its rules, which paused the rules and sent
+            // every rule-matched card out of the binder (8 mana rocks left
+            // "Mana rocks" to make room for one commander).
             return { ...b, pinnedCopyIds: ids, pinnedKeys: keys, updatedAt: Date.now() };
           }),
         }));
+        return added;
       },
 
       removeCardFromBinder: (binderId, copyId, isRuleMatched) => {
