@@ -177,12 +177,19 @@ export const byQuality = (a: CubeCard, b: CubeCard) =>
   (a.rank ?? Infinity) - (b.rank ?? Infinity) ||
   a.oracleId.localeCompare(b.oracleId);
 
-/** Largest-remainder apportionment so bucket targets sum exactly to `size`. */
+/** Largest-remainder apportionment so bucket targets sum exactly to `size`.
+ *  Normalizes `shares` to sum to 1 first — the mined per-band shares are each
+ *  an independent median across a corpus, so they land a hair off 1 (720
+ *  limited measured 0.9875), and largest-remainder only guarantees an exact
+ *  sum to `size` when its input shares already sum to exactly 1. Unnormalized,
+ *  the shortfall silently fell through to the cross-bucket backfill instead of
+ *  every bucket getting its true share (E454). */
 export function apportion(
   shares: Record<ColorBucket, number>,
   size: number
 ): Record<ColorBucket, number> {
-  const exact = BUCKETS.map((b) => ({ b, v: shares[b] * size }));
+  const shareSum = BUCKETS.reduce((s, b) => s + shares[b], 0) || 1;
+  const exact = BUCKETS.map((b) => ({ b, v: (shares[b] / shareSum) * size }));
   const floored = exact.map((e) => ({ ...e, f: Math.floor(e.v), r: e.v - Math.floor(e.v) }));
   let used = floored.reduce((s, e) => s + e.f, 0);
   const out = {} as Record<ColorBucket, number>;
