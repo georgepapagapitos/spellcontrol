@@ -37,12 +37,16 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
+import { ICON_SCALE } from '../lib/icon-scale';
 
 const ROOT = path.resolve(__dirname, '..');
 const SKIP_FILE = /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|__snapshots__|\.stories\.)/;
 
-// size -> canonical strokeWidth (STYLE_GUIDE § Icon scale).
-const SCALE: Record<string, string> = { '12': '2', '14': '1.8', '16': '2', '18': '2', '20': '1.8' };
+// size -> canonical strokeWidth, read from the one home of the scale so the
+// guard and lib/icon-scale.ts cannot disagree.
+const SCALE: Record<string, string> = Object.fromEntries(
+  Object.values(ICON_SCALE).map(({ size, stroke }) => [String(size), String(stroke)])
+);
 
 // Whole files/directories another session owns right now (T157 brief's
 // "do not touch" list). Re-run this guard once each lane lands and drop its
