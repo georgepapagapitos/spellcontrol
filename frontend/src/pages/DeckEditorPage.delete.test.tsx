@@ -461,6 +461,31 @@ describe('DeckEditorPage — the hero meta owns the out-zone jump (2026-09-20)',
   });
 });
 
+// E465: the format can change after a deck is made. Its door is the format in
+// the meta line, the way sharing opens from its own status.
+describe('DeckEditorPage — the format in the hero meta', () => {
+  afterEach(() => {
+    mockDeck.format = 'commander';
+  });
+
+  it('is a link that opens the format sheet', () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Format: Commander. Change format' }));
+    expect(screen.getByRole('dialog', { name: 'Format' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /^Commander/ })).toHaveProperty('checked', true);
+  });
+
+  it('shows a bracket only while the format has a commander', () => {
+    // effectiveBracket is stubbed to 3: a switched deck can still carry one.
+    const { container, unmount } = renderEditor();
+    expect(container.querySelector('.deck-hero-bracket')).not.toBeNull();
+    unmount();
+    mockDeck.format = 'modern';
+    const modern = renderEditor();
+    expect(modern.container.querySelector('.deck-hero-bracket')).toBeNull();
+  });
+});
+
 describe('DeckEditorPage — Delete in ⋮ overflow (UX-316)', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());

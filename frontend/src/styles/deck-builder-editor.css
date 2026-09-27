@@ -60,6 +60,62 @@
   color: var(--text-secondary);
 }
 
+/* A value in the meta line that opens its own sheet: the format
+   (DeckFormatLink) and sharing (DeckVisibilityChip). It wears the line's
+   voice and marks itself as tappable with the accent on its value. `font:
+   inherit` carries the line's line-height too, so each link is exactly as
+   tall as the line box it sits in (the coarse-pointer rule below). */
+.deck-meta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  vertical-align: bottom;
+  cursor: pointer;
+}
+
+.deck-meta-link-value {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-meta-link:hover .deck-meta-link-value {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+.deck-meta-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* The format opens the meta line, straight under the name. The rename button
+   (.deck-editor-name.binder-hero-name) keeps 0.22em of slack below its text,
+   which reaches past the 4px column gap into the meta line, so a link there
+   would take the name's bottom edge. The line's content starts below that
+   slack instead, at the largest name size (3xl). */
+.deck-editor-hero .binder-hero-meta:has(> .deck-format-link) {
+  padding-top: calc(0.22 * var(--text-3xl) - var(--space-1));
+}
+
+/* On a coarse pointer the meta line's links reach the 44px floor by making
+   each line box 44px tall: a link fills its own line and nothing else, so it
+   can't take the name's pixels above or a wrapped second line's below. A
+   ghost can't do that here: an inline link doesn't know which line it's on,
+   and every pixel above and below the line belongs to a neighbour. */
+@media (pointer: coarse) {
+  .deck-editor-hero .binder-hero-meta:has(> .deck-meta-link) {
+    line-height: var(--touch-target);
+  }
+}
+
 .deck-editor-hero-art {
   position: absolute;
   object-fit: cover;
@@ -163,7 +219,7 @@
     color: rgb(255 255 255 / 86%);
   }
 
-  .deck-editor-hero--art .deck-visibility-chip-state {
+  .deck-editor-hero--art .deck-meta-link-value {
     color: #fff;
   }
 
