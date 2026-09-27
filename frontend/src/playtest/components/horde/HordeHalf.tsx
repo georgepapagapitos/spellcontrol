@@ -64,7 +64,7 @@ export function HordeHalf({
         {hordeLoad.status === 'error' ? (
           <p className="horde-half-message">
             {hordeLoad.error ?? "Couldn't load the horde."}{' '}
-            <Button onClick={() => retryLoad()}>Try again</Button>
+            <Button onClick={() => retryLoad()}>Retry</Button>
           </p>
         ) : (
           <p className="horde-half-message">Loading the horde…</p>

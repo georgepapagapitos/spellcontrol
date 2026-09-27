@@ -193,7 +193,7 @@ export function TagsPage() {
               <p className="empty-state-hint">
                 The tag snapshot ships with the app, so this is usually a one-off.{' '}
                 <button type="button" className="tags-retry" onClick={() => void ensureCardTags()}>
-                  Try again
+                  Retry
                 </button>
               </p>
             </div>

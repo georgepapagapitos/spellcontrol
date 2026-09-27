@@ -88,7 +88,7 @@ export function HordeSetupSheet({ horde, hordeLoad, cardNames, resistanceOn, onC
           {hordeLoad.status === 'error' && (
             <p className="horde-setup-sheet__error" role="alert">
               {hordeLoad.error ?? "Couldn't load that horde."}{' '}
-              <Button onClick={() => retryHordeLoad()}>Try again</Button>
+              <Button onClick={() => retryHordeLoad()}>Retry</Button>
             </p>
           )}
         </div>

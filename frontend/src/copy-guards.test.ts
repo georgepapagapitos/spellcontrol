@@ -43,11 +43,10 @@ const COPY_PROPS =
   /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|actionLabel|emptyText|helper|text|summary|reason|note|alt|blurb)$/;
 const LOG_CALLEE = /^(console\.|logger?\.|debug\b|warn\b|log\b|trace\b|reportError\b)/;
 
-// components/deck/*, ProductSearchPanel, TagsPage and playtest/* are owned by
-// other T157 lanes; their remaining "Try again" labels are reported, not
-// fixed here. swept after those lanes merge.
+// Three deck files and ProductSearchPanel are mid-edit in the T152 component
+// library sessions; their "Try again" labels are swept once those land.
 const RETRY_FILE_SKIP =
-  /^(components\/deck\/FillDeckSheet\.tsx|components\/deck\/DeckAiRefine\.tsx|components\/deck\/DeckAiReview\.tsx|components\/ProductSearchPanel\.tsx|pages\/TagsPage\.tsx|playtest\/)/;
+  /^(components\/deck\/FillDeckSheet\.tsx|components\/deck\/DeckAiRefine\.tsx|components\/deck\/DeckAiReview\.tsx|components\/ProductSearchPanel\.tsx)/;
 
 type Rule = [id: string, test: (text: string, kind: string) => boolean, why: string];
 const RULES: Rule[] = [

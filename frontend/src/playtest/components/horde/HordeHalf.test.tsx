@@ -89,10 +89,10 @@ describe('HordeHalf', () => {
     expect(screen.getByText(/Loading the horde/)).toBeTruthy();
   });
 
-  it('shows an error line with Try again, which calls retryHordeLoad', () => {
+  it('shows an error line with Retry, which calls retryHordeLoad', () => {
     renderHalf({ horde: null, hordeLoad: { status: 'error', error: "Couldn't load that horde." } });
     expect(screen.getByText("Couldn't load that horde.")).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(usePlaytestStore.getState().retryHordeLoad).toHaveBeenCalledTimes(1);
   });
 
