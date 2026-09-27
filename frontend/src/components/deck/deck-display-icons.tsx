@@ -1,7 +1,9 @@
 // JSX-returning presentational helpers for DeckDisplay, split out alongside
 // deck-display-rows.ts purely to shrink DeckDisplay.tsx — no logic changes.
 import {
+  ArrowLeftRight,
   Bomb,
+  Bookmark,
   BookOpen,
   Boxes,
   Crosshair,
@@ -47,14 +49,25 @@ const CATEGORY_ICON_COMPONENTS: Partial<
   utility: Wrench,
 };
 
+// Section icons that are not a card type or a category: a tag lens section,
+// and the two piles outside the deck (the sideboard swaps in and out between
+// games; Considering holds cards kept for later).
+const SECTION_ICON_COMPONENTS: Record<string, typeof TagIcon> = {
+  tag: TagIcon,
+  sideboard: ArrowLeftRight,
+  considering: Bookmark,
+};
+
 // Section-header icon renderer shared by CategorySection and DeckCardGrid.
 // `icon` is a mana-font token ('land'/'creature'/'commander'/…) for
 // groupByType or a category-view lucide token for groupByCategory's 6
 // non-type buckets — CATEGORY_ICON_COMPONENTS decides which.
+
 export function SectionIcon({ icon }: { icon: string }) {
-  if (icon === 'tag') {
+  const Glyph = SECTION_ICON_COMPONENTS[icon];
+  if (Glyph) {
     return (
-      <TagIcon
+      <Glyph
         width={14}
         height={14}
         strokeWidth={1.8}

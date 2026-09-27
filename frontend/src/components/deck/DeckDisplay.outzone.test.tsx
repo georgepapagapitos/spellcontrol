@@ -5,6 +5,7 @@ import { render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
+import { COLLAPSED_SECTIONS_STORAGE_KEY } from './deck-display-rows';
 
 // Stub the thumbnail network leaf so nested DeckCardRows don't reach out
 // (avoids the post-teardown fetch flake — same stub as the other DeckDisplay
@@ -37,7 +38,9 @@ function slots(names: string[], cmc?: number): DeckDisplayCard[] {
 function renderDeck(opts: {
   sideboard?: string[];
   considering?: string[];
-  view?: 'list' | 'grid';
+  view?: 'list' | 'grid' | 'stacks';
+  onMoveToMainboard?: (slotIds: string[]) => void;
+  onMoveFromConsidering?: (slotIds: string[]) => void;
 }) {
   localStorage.setItem('mtg-decks-view-mode', opts.view ?? 'grid');
   return render(
@@ -49,9 +52,15 @@ function renderDeck(opts: {
         cards={slots(['Mainboard Card'])}
         sideboard={slots(opts.sideboard ?? [])}
         considering={slots(opts.considering ?? [], 5)}
+        onMoveToMainboard={opts.onMoveToMainboard}
+        onMoveFromConsidering={opts.onMoveFromConsidering}
       />
     </MemoryRouter>
   );
+}
+
+function pileTitles(outzone: Element): string[] {
+  return [...outzone.querySelectorAll('.deck-section-title')].map((t) => t.textContent ?? '');
 }
 
 describe('DeckDisplay "Not in the deck" zone (E176)', () => {
@@ -59,34 +68,104 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
     localStorage.clear();
   });
 
-  it('renders sideboard + considering rows in grid view (the hoisted defect)', () => {
+  // The piles used to be rows in a tabbed panel in every view, so under a grid
+  // of card art they read as another app. Each view now draws them the way it
+  // draws the deck.
+  it('draws both piles as tiles in grid view, like the deck above them', () => {
     const { container } = renderDeck({
       sideboard: ['Sideboard Card'],
       considering: ['Considering Card'],
       view: 'grid',
     });
-
-    // The zone exists and holds a compact row list, not thumbnail tiles.
-    const outzone = container.querySelector('.deck-outzone');
-    expect(outzone).not.toBeNull();
-    expect(outzone!.querySelector('.deck-card-grid-tile')).toBeNull();
-    expect(outzone!.textContent).toContain('Sideboard Card');
+    const outzone = container.querySelector('.deck-outzone')!;
+    expect(outzone.querySelectorAll('.deck-grid-section')).toHaveLength(2);
+    expect(outzone.querySelectorAll('.deck-card-grid-tile')).toHaveLength(2);
+    expect(outzone.querySelector('.deck-row')).toBeNull();
+    expect(pileTitles(outzone)).toEqual(['Sideboard (1)', 'Considering (1)']);
   });
 
-  it('switches between Sideboard and Considering via the segmented tabs', () => {
-    const { container, getByRole } = renderDeck({
+  it('draws both piles as rows in list view', () => {
+    const { container } = renderDeck({
+      sideboard: ['Sideboard Card'],
+      considering: ['Considering Card'],
+      view: 'list',
+    });
+    const outzone = container.querySelector('.deck-outzone')!;
+    expect(outzone.querySelectorAll('.deck-section')).toHaveLength(2);
+    expect(outzone.querySelectorAll('.deck-row')).toHaveLength(2);
+    expect(outzone.querySelector('.deck-card-grid-tile')).toBeNull();
+    // On the deck's own column grid, one pile per column.
+    expect(outzone.querySelectorAll('.deck-card-columns > .deck-card-column')).toHaveLength(2);
+  });
+
+  it('shows both piles at once, with no tab strip between them', () => {
+    const { container } = renderDeck({
       sideboard: ['Sideboard Card'],
       considering: ['Considering Card'],
     });
     const outzone = container.querySelector('.deck-outzone')!;
-
+    expect(outzone.querySelector('[role="tablist"]')).toBeNull();
     expect(outzone.textContent).toContain('Sideboard Card');
-    expect(outzone.textContent).not.toContain('Considering Card');
-
-    fireEvent.click(getByRole('tab', { name: /Considering/ }));
-
-    expect(outzone.textContent).not.toContain('Sideboard Card');
     expect(outzone.textContent).toContain('Considering Card');
+  });
+
+  it.each(['grid', 'stacks', 'list'] as const)(
+    'keeps an empty pile on the page as its header and one line (%s)',
+    (view) => {
+      const { container } = renderDeck({ view });
+      const outzone = container.querySelector('.deck-outzone')!;
+      expect(pileTitles(outzone)).toEqual(['Sideboard (0)', 'Considering (0)']);
+      expect(
+        [...outzone.querySelectorAll('.deck-section-empty')].map((p) => p.textContent)
+      ).toEqual([
+        'No sideboard cards yet',
+        "Nothing parked here yet. Move a card here when you're unsure about it.",
+      ]);
+      // An empty pile has no price to state.
+      expect(outzone.querySelector('.deck-section-subtotal')).toBeNull();
+    }
+  );
+
+  it('hides a pile a search empties, rather than calling it empty', () => {
+    const { container, getAllByPlaceholderText } = renderDeck({
+      sideboard: ['Sideboard Card'],
+      considering: ['Considering Card'],
+      view: 'list',
+    });
+    fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'Considering' } });
+    const outzone = container.querySelector('.deck-outzone')!;
+    expect(pileTitles(outzone)).toEqual(['Considering (1)']);
+    expect(outzone.querySelector('.deck-section-empty')).toBeNull();
+  });
+
+  it('collapses a pile under every lens, and remembers it', () => {
+    const { container, getByRole } = renderDeck({ sideboard: ['Sideboard Card'], view: 'list' });
+    fireEvent.click(getByRole('button', { name: 'Collapse Sideboard' }));
+    const rows = container.querySelector('.deck-outzone .deck-section-rows')!;
+    expect(rows.hasAttribute('hidden')).toBe(true);
+    expect(localStorage.getItem(COLLAPSED_SECTIONS_STORAGE_KEY)).toContain('outzone:Sideboard');
+  });
+
+  // The grid reports a tile's row, not its pile; the menu has to find the pile
+  // itself, or "Move to mainboard" on a Considering card runs the sideboard's.
+  it("a tile's menu acts on the pile the card is in", () => {
+    const onMoveToMainboard = vi.fn();
+    const onMoveFromConsidering = vi.fn();
+    const { getByRole } = renderDeck({
+      sideboard: ['Sideboard Card'],
+      considering: ['Considering Card'],
+      view: 'grid',
+      onMoveToMainboard,
+      onMoveFromConsidering,
+    });
+    fireEvent.click(getByRole('button', { name: 'Actions for Considering Card' }));
+    fireEvent.click(getByRole('menuitem', { name: 'Move to mainboard' }));
+    expect(onMoveFromConsidering).toHaveBeenCalledWith(['slot-Considering Card-0']);
+    expect(onMoveToMainboard).not.toHaveBeenCalled();
+
+    fireEvent.click(getByRole('button', { name: 'Actions for Sideboard Card' }));
+    fireEvent.click(getByRole('menuitem', { name: 'Move to mainboard' }));
+    expect(onMoveToMainboard).toHaveBeenCalledWith(['slot-Sideboard Card-0']);
   });
 
   it('always mounts the zone, even at 0 sideboard and 0 considering', () => {
@@ -95,12 +174,12 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
     expect(container.querySelector('#deck-outzone')).not.toBeNull();
   });
 
-  it('the jump-target heading carries id + tabIndex=-1 on the SAME element', () => {
+  it('the jump target is focusable and names the zone', () => {
     const { container } = renderDeck({ sideboard: ['Sideboard Card'] });
     const target = container.querySelector('#deck-outzone');
     expect(target).not.toBeNull();
-    expect(target!.tagName).toBe('H3');
     expect(target!.getAttribute('tabindex')).toBe('-1');
+    expect(target!.getAttribute('aria-label')).toBe('Not in the deck');
   });
 
   // The toolbar's own "Not in deck N" chip is gone (2026-09-20): it restated a

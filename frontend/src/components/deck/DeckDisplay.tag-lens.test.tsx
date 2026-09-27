@@ -44,14 +44,18 @@ function renderDeck(cards: DeckDisplayCard[], props: Partial<DeckDisplayProps> =
   );
 }
 
+// The deck's own sections only: Sideboard and Considering are sections too,
+// but they sit under every lens unchanged, in `.deck-outzone`.
 function sectionTitles(container: HTMLElement): string[] {
-  return Array.from(container.querySelectorAll('.deck-section-title')).map((el) => {
-    const countEl = el.querySelector('.deck-section-count');
-    const withoutCount = countEl
-      ? el.textContent?.replace(countEl.textContent ?? '', '')
-      : el.textContent;
-    return withoutCount?.replace(/\s+/g, ' ').trim() ?? '';
-  });
+  return Array.from(container.querySelectorAll('.deck-section-title'))
+    .filter((el) => !el.closest('.deck-outzone'))
+    .map((el) => {
+      const countEl = el.querySelector('.deck-section-count');
+      const withoutCount = countEl
+        ? el.textContent?.replace(countEl.textContent ?? '', '')
+        : el.textContent;
+      return withoutCount?.replace(/\s+/g, ' ').trim() ?? '';
+    });
 }
 
 describe('DeckDisplay tag lens', () => {

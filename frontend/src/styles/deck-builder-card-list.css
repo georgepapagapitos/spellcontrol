@@ -46,7 +46,8 @@
 }
 
 .deck-card-grid-sections--packed > .deck-grid-section > .deck-section-header,
-.deck-card-grid-sections--packed > .deck-grid-section > .deck-card-grid {
+.deck-card-grid-sections--packed > .deck-grid-section > .deck-card-grid,
+.deck-card-grid-sections--packed > .deck-grid-section > .deck-section-empty {
   grid-column: 1 / -1;
   min-width: 0;
 }
