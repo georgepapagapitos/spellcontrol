@@ -510,24 +510,39 @@
   }
 }
 
-/* Grid mode: the button sits on the commander art / colored banner, where
-   the default muted gray washes out against arbitrary art colors. White
-   icon + shadow keeps it visible on any header; hover/open uses a dark
-   scrim chip instead of the light surface (which disappeared on pale art).
-   Mirrors the binders-index grid treatment. */
+/* Grid mode: the ⋮ sits on the commander art or colour band. A solid surface
+   square reads on any crop where a white glyph with a shadow vanished on pale
+   and busy art (E466); a centred ghost carries the coarse 44px target. Mirrors
+   the binders-index grid treatment, which says why. */
 .decks-index-list.is-grid .decks-index-card-menu-btn {
-  color: #fff;
-  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5));
+  background: var(--surface);
+  color: var(--text-primary);
+  border-radius: var(--radius);
 }
 
 .decks-index-list.is-grid .decks-index-card-menu-btn[aria-expanded='true'] {
-  background: rgba(0, 0, 0, 0.25);
-  color: #fff;
+  background: var(--surface-raised);
 }
 @media (hover: hover) and (pointer: fine) {
   .decks-index-list.is-grid .decks-index-card-menu-btn:hover {
-    background: rgba(0, 0, 0, 0.25);
-    color: #fff;
+    background: var(--surface-raised);
+  }
+}
+@media (pointer: coarse) {
+  .decks-index-list.is-grid .decks-index-card-menu-btn {
+    position: relative;
+    width: 1.9rem;
+    height: 1.9rem;
+  }
+
+  .decks-index-list.is-grid .decks-index-card-menu-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 }
 
