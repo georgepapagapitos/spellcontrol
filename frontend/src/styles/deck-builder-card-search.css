@@ -295,51 +295,6 @@
   display: block;
 }
 
-.card-search-row.add-card-row {
-  grid-template-columns: 1.6rem minmax(0, 1fr) auto auto;
-}
-
-.card-search-row.add-card-row .card-search-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* …and with a thumbnail it needs the extra art column too — the generic
-   .has-thumb rule below is only 4 columns, one short for this variant's
-   toggle. */
-.card-search-row.add-card-row.has-thumb {
-  grid-template-columns: 1.6rem 2.45rem minmax(0, 1fr) auto auto;
-}
-
-.card-search-row.add-card-row.has-thumb .card-search-meta {
-  grid-column: 3 / -1;
-}
-
-/* Narrow phones: five columns on one line would squeeze the card NAME — the
-   row's whole point — down to a couple of characters. The "Printing & finish"
-   disclosure is the widest non-essential item, so it drops to the second line
-   beside the meta text and gives the name the full width back. (Declared before
-   the coarse-pointer block below so that one's 44px add-track still wins; the
-   then-unused fifth track just collapses to zero.) */
-@media (max-width: 480px) {
-  .card-search-row.add-card-row.has-thumb {
-    grid-template-columns: 1.6rem 2.45rem minmax(0, 1fr) auto;
-  }
-
-  .card-search-row.add-card-row.has-thumb .inline-card-search-printings-toggle {
-    grid-column: 3;
-    grid-row: 2;
-    justify-self: start;
-    padding-left: 0;
-  }
-
-  .card-search-row.add-card-row.has-thumb .card-search-meta {
-    grid-column: 4 / -1;
-    grid-row: 2;
-  }
-}
-
 /* Toolbar row under the search pill: syntax/keyboard ⓘ · sort, right-aligned.
    (The old always-on "↑ ↓ to navigate…" text row moved into the ⓘ tip — it
    was a permanent line of chrome burying the content below it.) */
@@ -417,16 +372,8 @@
     grid-template-columns: 44px minmax(0, 1fr) auto;
   }
 
-  .card-search-row.add-card-row {
-    grid-template-columns: 44px minmax(0, 1fr) auto auto;
-  }
-
   .card-search-row.has-thumb {
     grid-template-columns: 44px 2.45rem minmax(0, 1fr) auto;
-  }
-
-  .card-search-row.add-card-row.has-thumb {
-    grid-template-columns: 44px 2.45rem minmax(0, 1fr) auto auto;
   }
 }
 
