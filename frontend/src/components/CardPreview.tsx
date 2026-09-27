@@ -38,7 +38,7 @@ import { PriceOverrideBadge } from './shared/PriceOverrideBadge';
 import { CardShareDialog } from './CardShareDialog';
 import { OverflowMenu } from './OverflowMenu';
 import { foilFinishLabel } from '../lib/foil-style';
-import { LANGUAGE_OPTIONS } from './PrintingPicker';
+import { LANGUAGE_OPTIONS } from '../lib/copy-options';
 import { ManaCost } from './ManaCost';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SnapCarousel, type SnapCarouselHandle } from './SnapCarousel';

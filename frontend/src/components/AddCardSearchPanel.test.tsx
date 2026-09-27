@@ -132,6 +132,30 @@ describe('AddCardSearchPanel', () => {
     expect(options[0].getAttribute('aria-selected')).toBe('false');
   });
 
+  // The picker's details were pill dropdowns showing "Not set" (T153). Now each
+  // is the shared kit control, every option in view, and the unmarked defaults
+  // (Near Mint, English) still record nothing on the stored copy.
+  it('picks condition from grades in view; Near Mint and English stay unrecorded', async () => {
+    h.fetchPrintings.mockResolvedValue([card('a', { finishes: ['nonfoil'] })]);
+    await mount();
+    fireEvent.click(screen.getByRole('button', { name: /Printing/ }));
+    await screen.findByRole('radio', { name: 'Near Mint' });
+    expect((screen.getByRole('radio', { name: 'Near Mint' }) as HTMLInputElement).checked).toBe(
+      true
+    );
+    expect((screen.getByRole('radio', { name: 'Foil' }) as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByText('Not printed in foil.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Add LTR #123/ }));
+    await waitFor(() => expect(h.addCard).toHaveBeenCalledTimes(1));
+    expect(h.addCard.mock.calls[0][2]).toEqual({ quantity: 1 });
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Lightly Played' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Add LTR #123/ }));
+    await waitFor(() => expect(h.addCard).toHaveBeenCalledTimes(2));
+    expect(h.addCard.mock.calls[1][2]).toEqual({ quantity: 1, condition: 'lp' });
+  });
+
   it("undoing from the toast drops that add's whole batch, not just the last copy", async () => {
     h.fetchPrintings.mockResolvedValue([card('a')]);
     h.addCard.mockResolvedValue(['c1', 'c2', 'c3']);

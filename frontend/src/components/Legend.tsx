@@ -11,7 +11,7 @@ import { DeckBadge } from './DeckBadge';
 import { makeDeckAllocationInfo } from '@/lib/allocations';
 import { BinderBadge } from './BinderBadge';
 import { ConditionChip } from './shared/CardRow';
-import { CONDITION_OPTIONS } from './PrintingPicker';
+import { CONDITION_OPTIONS } from '../lib/copy-options';
 import type { Condition } from '@/types';
 import { Chip } from '@/components/shared/Chip';
 

@@ -1,12 +1,6 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
-import { availableFinishes } from './scanner-feedback';
-
-export const FINISH_LABEL: Record<Finish, string> = {
-  nonfoil: 'Non-foil',
-  foil: 'Foil',
-  etched: 'Etched',
-};
+import { FINISH_LABELS, availableFinishes } from './scanner-feedback';
 
 /**
  * The confirmation every collection add shows: exactly what landed, down to
@@ -22,7 +16,7 @@ export function addedCardMessage(
   const landed = finish ?? availableFinishes(card.finishes)[0];
   const detail = [
     `${card.set.toUpperCase()} #${card.collector_number}`,
-    FINISH_LABEL[landed],
+    FINISH_LABELS[landed],
     ...(pinned ? ['pinned to this binder'] : []),
   ];
   return `Added ${qty > 1 ? `${qty} × ` : ''}${card.name} · ${detail.join(' · ')}`;

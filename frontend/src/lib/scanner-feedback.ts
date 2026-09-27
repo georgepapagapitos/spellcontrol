@@ -23,9 +23,14 @@ export function priceTier(card: Pick<ScryfallCard, 'prices'> | null | undefined)
   return 0;
 }
 
-/** Human-facing label for each tracked finish. */
+/**
+ * Human-facing label for each tracked finish: the ONE vocabulary for finish in
+ * the UI. "Non-foil", not "Normal": this row sits beside frame and layout
+ * fields where "normal" means something else. (The CSV export keeps "Normal",
+ * which is what other tools read.)
+ */
 export const FINISH_LABELS: Record<Finish, string> = {
-  nonfoil: 'Normal',
+  nonfoil: 'Non-foil',
   foil: 'Foil',
   etched: 'Etched',
 };

@@ -549,8 +549,8 @@ function BulkEdit({
             ariaLabel="Finish for the selected cards"
             value={finish}
             options={[
-              { value: 'nonfoil', label: 'Normal' },
-              { value: 'foil', label: 'Foil' },
+              { value: 'nonfoil', label: FINISH_LABELS.nonfoil },
+              { value: 'foil', label: FINISH_LABELS.foil },
             ]}
             onChange={(f) => {
               if (!f) return;

@@ -41,7 +41,7 @@ import type { SetMap } from '../lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
-import { LANGUAGE_OPTIONS } from './PrintingPicker';
+import { LANGUAGE_OPTIONS } from '../lib/copy-options';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
 import { BulkMoveToBinderSheet } from './BulkMoveToBinderSheet';
 import { useConfirm } from '../lib/use-confirm';

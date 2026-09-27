@@ -16,7 +16,7 @@ import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
 import { ManaCost } from '../ManaCost';
 import { TypeIcon } from './ManaSymbol';
-import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '../PrintingPicker';
+import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '../../lib/copy-options';
 import { getCardType } from '../../lib/card-types';
 import { getColorKey, COLOR_INFO } from '../../lib/colors';
 import { formatMoney } from '../../lib/format-money';

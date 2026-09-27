@@ -101,15 +101,19 @@ export function SegmentedControl<T extends string | number | boolean>({
   value,
   options,
   onChange,
+  fill = false,
 }: {
   ariaLabel: string;
   value: T;
   options: Option<T>[];
   onChange: (next: T) => void;
+  /** Span the container, options sharing it equally. For a row of short
+   *  tokens (condition grades) whose full set must stay in view on a phone. */
+  fill?: boolean;
 }) {
   const name = useId();
   return (
-    <fieldset className="segmented" aria-label={ariaLabel}>
+    <fieldset className={`segmented${fill ? ' segmented--fill' : ''}`} aria-label={ariaLabel}>
       {options.map((o) => (
         <label
           key={String(o.value)}

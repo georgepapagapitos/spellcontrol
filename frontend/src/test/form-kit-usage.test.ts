@@ -66,7 +66,6 @@ const ALLOWED: Record<Pattern, Record<string, { count: number; why: string }>> =
     'components/deck/DeckDisplay.tsx': { count: 1, why: FILTER_CHIPS },
     'playtest/components/LogDock.tsx': { count: 1, why: FILTER_CHIPS },
     'components/ProductSearchPanel.tsx': { count: 1, why: FILTER_CHIPS },
-    'components/PrintingPicker.tsx': { count: 1, why: FILTER_CHIPS },
     'components/deck/PlaystyleGrid.tsx': { count: 1, why: FILTER_CHIPS },
     'components/home/AroundTheTable.tsx': { count: 1, why: RSVP },
     'components/play/GameNights.tsx': { count: 1, why: RSVP },

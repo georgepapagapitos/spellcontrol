@@ -11,6 +11,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { BinderFilter, ChipExpression, ScryfallQueryRule } from '../types';
 import { SUPERTYPES, TYPES } from '../lib/card-types';
+import { FINISH_LABELS } from '../lib/scanner-feedback';
 import { cardTagLabel, listCardTags, useCardTagsReady } from '../lib/card-tags';
 import { searchCardsLive } from '@/deck-builder/services/scryfall/client';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
@@ -76,9 +77,9 @@ const SHARED_BORDER_OPTIONS = [
 ];
 
 const SHARED_FINISH_OPTIONS = [
-  { value: 'nonfoil', label: 'Normal' },
-  { value: 'foil', label: 'Foil' },
-  { value: 'etched', label: 'Etched' },
+  { value: 'nonfoil', label: FINISH_LABELS.nonfoil },
+  { value: 'foil', label: FINISH_LABELS.foil },
+  { value: 'etched', label: FINISH_LABELS.etched },
 ];
 
 /**

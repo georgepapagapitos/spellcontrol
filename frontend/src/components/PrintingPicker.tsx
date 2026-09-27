@@ -1,16 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { fetchPrintings } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { imageFromCard } from '../lib/card-thumbs';
-import { availableFinishes } from '../lib/scanner-feedback';
-import { FINISH_LABEL } from '../lib/add-card-message';
+import { FINISH_LABELS, availableFinishes } from '../lib/scanner-feedback';
+import { LANGUAGE_OPTIONS } from '../lib/copy-options';
 import { CardThumb } from './CardThumb';
-import { SelectMenu, type SelectOption } from './SelectMenu';
+import { ConditionControl, FinishControl } from './CopyControls';
+import { SelectMenu } from './SelectMenu';
+import { Field } from './shared/form';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
 
 import { userMessage } from '@/lib/user-error';
 const PRINTING_PAGE_SIZE = 8;
+
+/**
+ * Language at add time. English is the unmarked default, so it stands where
+ * "Not set" stood and adds nothing to the stored copy, exactly as before; the
+ * separate "English" code isn't offered twice.
+ */
+const ADD_LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter((o) => o.value !== 'en').map((o) =>
+  o.value === '' ? { ...o, label: 'English' } : o
+);
 
 /** Per-copy inventory details chosen at add time. */
 export interface AddExtras {
@@ -18,33 +29,6 @@ export interface AddExtras {
   condition?: Condition;
   language?: string;
 }
-
-/** '' means "not set" — the field is left off the stored copy. */
-export const CONDITION_OPTIONS: SelectOption<string>[] = [
-  { value: '', label: 'Not set' },
-  { value: 'nm', label: 'Near Mint' },
-  { value: 'lp', label: 'Lightly Played' },
-  { value: 'mp', label: 'Moderately Played' },
-  { value: 'hp', label: 'Heavily Played' },
-  { value: 'damaged', label: 'Damaged' },
-];
-
-/** Scryfall printed-language codes. '' means "not set". */
-export const LANGUAGE_OPTIONS: SelectOption<string>[] = [
-  { value: '', label: 'Not set' },
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' },
-  { value: 'it', label: 'Italian' },
-  { value: 'pt', label: 'Portuguese' },
-  { value: 'ja', label: 'Japanese' },
-  { value: 'ko', label: 'Korean' },
-  { value: 'ru', label: 'Russian' },
-  { value: 'zhs', label: 'Chinese (Simplified)' },
-  { value: 'zht', label: 'Chinese (Traditional)' },
-  { value: 'ph', label: 'Phyrexian' },
-];
 
 function priceForFinish(card: ScryfallCard, finish: Finish): number {
   const p = card.prices;
@@ -95,8 +79,11 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
     setPrevQty(qty);
     setQtyText(String(qty));
   }
-  const [condition, setCondition] = useState('');
+  // Near Mint is the unmarked default (a copy with no condition reads as NM),
+  // so picking it adds nothing to the stored copy, same as before.
+  const [condition, setCondition] = useState<Condition>('nm');
   const [language, setLanguage] = useState('');
+  const qtyId = useId();
 
   // cardName is fixed for this picker's lifetime (a different row mounts a
   // fresh picker), so the initial loading/error state is correct and we
@@ -138,7 +125,7 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
     if (!selected) return;
     onAdd(selected, effectiveFinish, {
       quantity: qty,
-      ...(condition ? { condition: condition as Condition } : {}),
+      ...(condition !== 'nm' ? { condition } : {}),
       ...(language ? { language } : {}),
     });
     // Quantity resets so a follow-up tap can't silently re-add a whole stack;
@@ -205,79 +192,68 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
               Show {Math.min(PRINTING_PAGE_SIZE, printings.length - pVisible)} more printings
             </button>
           )}
-          {selected && showExtras && (
-            <div className="inline-card-search-extras">
-              <div className="card-edit-qty-controls">
-                <button
-                  type="button"
-                  className="card-edit-qty-btn"
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  aria-label="Decrease quantity"
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  className="card-edit-qty-input inline-card-search-qty-input"
-                  min={1}
-                  max={99}
-                  value={qtyText}
-                  onChange={(e) => setQtyText(e.target.value)}
-                  onBlur={() => {
-                    const n = Math.floor(Number(qtyText));
-                    const next = Number.isFinite(n) ? Math.max(1, Math.min(99, n)) : 1;
-                    setQty(next);
-                    setQtyText(String(next));
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.currentTarget.blur();
-                  }}
-                  aria-label="Quantity to add"
-                />
-                <button
-                  type="button"
-                  className="card-edit-qty-btn"
-                  onClick={() => setQty((q) => Math.min(99, q + 1))}
-                  aria-label="Increase quantity"
-                >
-                  +
-                </button>
-              </div>
-              <SelectMenu
-                label="Condition"
-                value={condition}
-                options={CONDITION_OPTIONS}
-                onChange={setCondition}
-              />
-              <SelectMenu
-                label="Language"
-                value={language}
-                options={LANGUAGE_OPTIONS}
-                onChange={setLanguage}
-              />
+          {selected && (
+            <div className="inline-card-search-copy">
+              <FinishControl printing={selected} value={effectiveFinish} onChange={setFinish} />
+              {showExtras && (
+                <>
+                  <ConditionControl value={condition} onChange={setCondition} />
+                  <Field label="Language">
+                    <SelectMenu
+                      ariaLabel="Language"
+                      value={language}
+                      options={ADD_LANGUAGE_OPTIONS}
+                      onChange={setLanguage}
+                    />
+                  </Field>
+                  <Field label="Quantity" htmlFor={qtyId}>
+                    <div className="card-edit-qty-controls">
+                      <button
+                        type="button"
+                        className="card-edit-qty-btn"
+                        onClick={() => setQty((q) => Math.max(1, q - 1))}
+                        aria-label="Decrease quantity"
+                      >
+                        −
+                      </button>
+                      <input
+                        id={qtyId}
+                        type="number"
+                        className="card-edit-qty-input inline-card-search-qty-input"
+                        min={1}
+                        max={99}
+                        value={qtyText}
+                        onChange={(e) => setQtyText(e.target.value)}
+                        onBlur={() => {
+                          const n = Math.floor(Number(qtyText));
+                          const next = Number.isFinite(n) ? Math.max(1, Math.min(99, n)) : 1;
+                          setQty(next);
+                          setQtyText(String(next));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="card-edit-qty-btn"
+                        onClick={() => setQty((q) => Math.min(99, q + 1))}
+                        aria-label="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </Field>
+                </>
+              )}
             </div>
           )}
           {selected && (
             <div className="inline-card-search-finish-bar">
-              <div className="inline-card-search-finishes" role="group" aria-label="Finish">
-                {finishes.map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    className={`inline-card-search-finish${
-                      effectiveFinish === f ? ' is-active' : ''
-                    }`}
-                    aria-pressed={effectiveFinish === f}
-                    onClick={() => setFinish(f)}
-                  >
-                    {FINISH_LABEL[f]}
-                  </button>
-                ))}
-              </div>
               <button type="button" className="inline-card-search-add-printing" onClick={handleAdd}>
                 Add {qty > 1 ? `${qty} × ` : ''}
                 {selected.set.toUpperCase()} #{selected.collector_number} ·{' '}
-                {FINISH_LABEL[effectiveFinish]} ·{' '}
+                {FINISH_LABELS[effectiveFinish]} ·{' '}
                 {formatMoney(priceForFinish(selected, effectiveFinish) * qty, {
                   zeroAsDash: true,
                 })}

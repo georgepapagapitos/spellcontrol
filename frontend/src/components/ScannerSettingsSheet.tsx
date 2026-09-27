@@ -3,7 +3,7 @@ import { Modal } from './Modal';
 import { SelectMenu } from './SelectMenu';
 import { SegmentedControl, SwitchRow } from './shared/form';
 import { conditionLabel } from './shared/CardRow';
-import { CONDITIONS } from '../lib/scanner-feedback';
+import { CONDITIONS, FINISH_LABELS } from '../lib/scanner-feedback';
 import { useScannerSettings } from '../lib/scanner-settings';
 import { SCANNER_SHEET_BACKDROP } from './ScannerQueueSheet';
 
@@ -37,8 +37,8 @@ export function ScannerSettingsSheet({ onClose }: { onClose: () => void }) {
             ariaLabel="Finish for new cards"
             value={s.defaultFinish}
             options={[
-              { value: 'nonfoil', label: 'Normal' },
-              { value: 'foil', label: 'Foil' },
+              { value: 'nonfoil', label: FINISH_LABELS.nonfoil },
+              { value: 'foil', label: FINISH_LABELS.foil },
             ]}
             onChange={(defaultFinish) => s.set({ defaultFinish })}
           />

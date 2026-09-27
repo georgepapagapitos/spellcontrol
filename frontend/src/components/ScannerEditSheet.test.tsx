@@ -83,14 +83,33 @@ describe('ScannerEditSheet', () => {
   it('offers each finish the printing has, with its price, and applies a pick at once', () => {
     const props = renderEdit();
     const foil = screen.getByRole('radio', { name: 'Foil, $28.60' });
-    expect(screen.getByRole('radio', { name: 'Normal, $2.25' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Non-foil, $2.25' })).toBeTruthy();
     fireEvent.click(foil);
     expect(props.onFinish).toHaveBeenCalledWith('foil');
   });
 
-  it('hides the finish choice for a printing with only one', () => {
+  // A finish the printing was never made in stays in view, disabled, with the
+  // reason under it (§ Config surfaces): hiding it taught that foil wasn't a
+  // thing you could record at all.
+  it('shows a finish the printing lacks as disabled, and says why', () => {
     renderEdit({ ...entry, card: makeCard({ finishes: ['nonfoil'] }) });
-    expect(screen.queryByRole('radio', { name: /Foil/ })).toBeNull();
+    expect((screen.getByRole('radio', { name: 'Foil' }) as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByText('Not printed in foil.')).toBeTruthy();
+  });
+
+  // Condition was a pill dropdown that hid four of the five grades.
+  it('offers every condition grade in view, spelled out, and applies a pick at once', () => {
+    const props = renderEdit();
+    for (const name of [
+      'Near Mint',
+      'Lightly Played',
+      'Moderately Played',
+      'Heavily Played',
+      'Damaged',
+    ])
+      expect(screen.getByRole('radio', { name })).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'Heavily Played' }));
+    expect(props.onCondition).toHaveBeenCalledWith('hp');
   });
 
   it('steps the quantity, never below one', () => {
