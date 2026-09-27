@@ -9,7 +9,15 @@
 // Pure & deterministic: same pool + size → same cube. UI adapts the collection
 // into CubeCard[]; this module does the selection and the explanation.
 
-import { CubeSize, ColorBucket, CurveSlot, Role, targetsForSize, BandTargets } from './targets';
+import {
+  CubeSize,
+  ColorBucket,
+  CurveSlot,
+  Role,
+  targetsForSize,
+  BandTargets,
+  type BandRarity,
+} from './targets';
 import type { CubeFormat } from './play-format';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CubeScore } from './objective';
@@ -60,6 +68,15 @@ export interface GeneratedCube {
   size: CubeSize;
   /** Play format the cube was shaped for (see ./play-format). Absent on cubes saved before formats = limited. */
   format?: CubeFormat;
+  /**
+   * Which corpus band the cube's colour/curve/type/fixing shape was measured
+   * against — see `./targets`'s `BandRarity`. Absent (or `'any'`) is the
+   * all-cube size band; a saved cube built before this shipped has no value
+   * here, which reads the same as `'any'`. Persisted so a later rescore/
+   * rebuild/shopping-list pass judges the cube against the SAME band it was
+   * built toward, not whatever the pool filter happens to be set to now.
+   */
+  rarity?: BandRarity;
   picks: Pick[];
   /** Achieved count per color bucket (what we actually selected). */
   byBucket: Record<ColorBucket, number>;
@@ -98,6 +115,14 @@ export interface CubeGenOptions {
    * (filterPool leaves the ineligible cards out before they get here).
    */
   format?: CubeFormat;
+  /**
+   * Which corpus the cube's colour/curve/type/fixing shape is measured
+   * against — `'any'` (the size band, the default) or `'pauper'`/`'peasant'`
+   * (see `./targets`'s `targetsForSize`). No effect on a `commander` cube.
+   * Role targets always stay on the size band regardless of this value —
+   * they're measured to already match the pauper/peasant corpora (E464).
+   */
+  rarity?: BandRarity;
   /**
    * Per-pass progress from the refiner (only fires when `synergyLevel > 0`).
    * A side channel for the loading UI — never affects the generated cube.
@@ -660,7 +685,8 @@ export function generateCube(
   options?: CubeGenOptions
 ): GeneratedCube {
   const format: CubeFormat = options?.format ?? 'limited';
-  const band = targetsForSize(size, format);
+  const rarity: BandRarity = options?.rarity ?? 'any';
+  const band = targetsForSize(size, format, rarity);
   const synergyLevel = Math.max(0, Math.min(1, options?.synergyLevel ?? 0));
 
   // Banned cards leave the pool before anything else runs. Bans win over locks
@@ -794,7 +820,7 @@ export function generateCube(
   // slider made this cube), and only show once the user engages synergy — so
   // the default goodstuff experience stays unchanged.
   const poolAxes = synergyLevel > 0 ? countAxes(pool) : null;
-  const gaps = buildGaps(byBucket, band, size, pool.length, shortfall, poolAxes);
+  const gaps = buildGaps(byBucket, band, size, pool.length, shortfall, poolAxes, rarity);
 
   // Engaging the slider turns on the objective-driven refiner: hill-climb the
   // greedy seed toward a better cube, and attach the objective score so the UI
@@ -844,6 +870,7 @@ export function generateCube(
   return {
     size,
     format,
+    rarity,
     picks: finalPicks,
     byBucket: finalByBucket,
     targetByBucket,
@@ -861,9 +888,15 @@ function buildGaps(
   size: number,
   poolSize: number,
   shortfall: number,
-  poolAxes?: Map<AxisKey, AxisCount> | null
+  poolAxes?: Map<AxisKey, AxisCount> | null,
+  rarity: BandRarity = 'any'
 ): Gap[] {
   const gaps: Gap[] = [];
+  // "real pauper cubes"/"real peasant cubes" when the cube is shaped toward
+  // that corpus (board E464) — never the generic "real 360-card cubes" phrase,
+  // which used to be printed even when the cube was measured against the
+  // pauper/peasant band instead of the plain size band.
+  const corpusPhrase = rarity === 'any' ? `${size}-card cubes` : `${rarity} cubes`;
 
   if (shortfall > 0) {
     gaps.push({
@@ -880,7 +913,7 @@ function buildGaps(
         severity: 'short',
         text: `Light on ${COLOR_NAME[c]} (${Math.round(share * 100)}% vs the ${Math.round(
           band.color[c].p25 * 100
-        )}–${Math.round(band.color[c].p75 * 100)}% real ${size}-card cubes run). You own fewer good ${COLOR_NAME[
+        )}–${Math.round(band.color[c].p75 * 100)}% real ${corpusPhrase} run). You own fewer good ${COLOR_NAME[
           c
         ].toLowerCase()} cards than the template wants.`,
       });
@@ -891,7 +924,7 @@ function buildGaps(
   if (got.land < band.fixingLands.p25) {
     gaps.push({
       severity: 'short',
-      text: `Only ${got.land} fixing lands. Good ${size}-card cubes run ${Math.round(
+      text: `Only ${got.land} fixing lands. Good ${corpusPhrase} run ${Math.round(
         band.fixingLands.p25
       )}–${Math.round(band.fixingLands.p75)}. Drafters may struggle to cast multicolor cards.`,
     });
@@ -937,7 +970,7 @@ function buildGaps(
       } else if (n.producers < enablerFloor || n.payoffs < payoffFloor) {
         gaps.push({
           severity: 'short',
-          text: `${label}: ${n.producers} enablers / ${n.payoffs} payoffs, thin for a draftable archetype (good ${size}-card cubes want ~${enablerFloor} / ~${payoffFloor}). More in your collection would deepen it.`,
+          text: `${label}: ${n.producers} enablers / ${n.payoffs} payoffs, thin for a draftable archetype (good ${corpusPhrase} want ~${enablerFloor} / ~${payoffFloor}). More in your collection would deepen it.`,
         });
         reported++;
       }

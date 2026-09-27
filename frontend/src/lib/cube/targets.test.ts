@@ -27,6 +27,40 @@ describe('targetsForSize', () => {
     expect(base.role.ramp.median).toBeGreaterThan(draft.role.ramp.median);
     expect(base.role.removal.median).toBeLessThan(draft.role.removal.median);
   });
+
+  it('pauper/peasant read the mined corpus for colour/curve/type/fixing, but role STAYS on the size band (E464)', () => {
+    const sizeBand = targetsForSize(360);
+    for (const rarity of ['pauper', 'peasant'] as const) {
+      const b = targetsForSize(360, 'limited', rarity);
+      expect(b.size).toBe(360);
+      // Role is measured to already match the size band — it's not its own band.
+      expect(b.role).toEqual(sizeBand.role);
+      // The rest is the SCOPED corpus, which genuinely differs from the
+      // all-cube size band (see mine-cube-targets.mjs's E464 comment).
+      expect(b.color).not.toEqual(sizeBand.color);
+      expect(b.type.creature.median).not.toBe(sizeBand.type.creature.median);
+    }
+    // The two corpora are mined separately and differ from each other too.
+    expect(targetsForSize(360, 'limited', 'pauper').color).not.toEqual(
+      targetsForSize(360, 'limited', 'peasant').color
+    );
+  });
+
+  it('pauper/peasant fixing lands rescale with size like every other band', () => {
+    const at360 = targetsForSize(360, 'limited', 'pauper');
+    const at180 = targetsForSize(180, 'limited', 'pauper');
+    expect(at180.size).toBe(180);
+    expect(at180.color).toEqual(at360.color);
+    expect(at180.fixingLands.median).toBeCloseTo(at360.fixingLands.median / 2, 6);
+  });
+
+  it('rarity has no effect on a commander cube — format wins', () => {
+    expect(targetsForSize(360, 'commander', 'pauper')).toEqual(targetsForSize(360, 'commander'));
+  });
+
+  it('rarity defaults to "any" (today\'s behavior) when omitted', () => {
+    expect(targetsForSize(360, 'limited')).toEqual(targetsForSize(360, 'limited', 'any'));
+  });
 });
 
 describe('sizeInfo', () => {

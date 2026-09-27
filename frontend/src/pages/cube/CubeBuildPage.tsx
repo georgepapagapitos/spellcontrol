@@ -386,7 +386,7 @@ export function CubeBuildPage() {
       const newCube = await generateCubeAsync(
         pool,
         size,
-        { synergyLevel: priority, format: filters.format },
+        { synergyLevel: priority, format: filters.format, rarity: filters.rarity },
         { onProgress: setRefineProgress, signal: controller.signal }
       );
       cubeStore.setResult(size, newCube);

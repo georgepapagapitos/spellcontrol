@@ -464,6 +464,72 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
         }
       });
     }
+
+    // Pauper/peasant target band (board E464): before this band existed, a
+    // pauper/peasant pool was still shaped toward the powered all-cube 360
+    // band, which runs a heavier manabase, more colorless and fewer
+    // creatures than real pauper/peasant cubes — measured against the mined
+    // corpora, the generated cube sat outside the real corpus's p25-p75 on
+    // land (17.9% vs 10-13%), colorless (8.6% vs 4.4-6.9%) and creature share
+    // in 6/8 (rarity x size x synergy) combinations (board T3 lane report).
+    // These guards read the SAME measures against the now-scoped band, with
+    // a small tolerance for what this stand-in pool can actually supply (it
+    // is not the exact cubes the corpus was mined from).
+    const SHAPE_TOLERANCE = 0.02;
+    // Refinement (synergy > 0) is measured to erode creature share further
+    // below the seed than the flat SHAPE_TOLERANCE at the smallest pauper
+    // pod (180) — up to ~3.3pt on this stand-in pool — so the creature FLOOR
+    // (vs. the seed, not the corpus) gets its own, slightly wider margin.
+    const CREATURE_EROSION_TOLERANCE = 0.04;
+    const landShareOf = (cards: CubeCard[]) =>
+      cards.filter((c) => /\bland\b/i.test(c.typeLine)).length / cards.length;
+    const colorlessShareOf = (cards: CubeCard[]) =>
+      cards.filter((c) => !/\bland\b/i.test(c.typeLine) && c.colors.length === 0).length /
+      cards.length;
+    const pauperPeasantCreatureShare = (cards: CubeCard[]) =>
+      cards.filter((c) => /\bcreature\b/i.test(c.typeLine)).length / cards.length;
+    for (const rarity of ['pauper', 'peasant'] as const) {
+      for (const size of [180, 360] as const) {
+        for (const level of [0, 1] as const) {
+          it(`${rarity} @ ${size} @ synergy ${level}: land/colorless/creature share track the ${rarity} corpus, not the powered all-cube band`, () => {
+            // `collection`/`facts` are only populated once `beforeAll` runs,
+            // which is AFTER this describe body's own top-level code — so the
+            // pool/band/seed all have to be built inside each `it`, not once
+            // per (rarity, size) outside the `it` loop.
+            const all = new Set(collection.map((c) => c.name));
+            const filtered = filterPool(collection, all, {
+              ...DEFAULT_POOL_FILTERS,
+              source: 'all',
+              rarity,
+            });
+            const sub = namesToCubePool(filtered.names, collection, facts, rarity);
+            const band = targetsForSize(size, 'limited', rarity);
+            const cube = generateCube(sub, size, { synergyLevel: level, rarity });
+            expect(cube.shortfall).toBe(0);
+            const cards = cube.picks.map((p) => p.card);
+            expect(landShareOf(cards)).toBeGreaterThanOrEqual(band.type.land.p25 - SHAPE_TOLERANCE);
+            expect(landShareOf(cards)).toBeLessThanOrEqual(band.type.land.p75 + SHAPE_TOLERANCE);
+            expect(colorlessShareOf(cards)).toBeLessThanOrEqual(
+              band.color.colorless.p75 + SHAPE_TOLERANCE
+            );
+            // The unrefined goodstuff seed's own creature share — refinement
+            // (the archetype hill-climber) is allowed to trade a couple
+            // points of it away for synergy value, same idiom as the #1521
+            // guard on the plain size band (creature share >= min(p25, seed)
+            // - tolerance): a floor that erodes below the SEED is a real
+            // regression, but demanding the refined cube match the raw
+            // corpus p25 exactly re-litigates a trade-off this project
+            // already accepted elsewhere.
+            const seedCreatureShare = pauperPeasantCreatureShare(
+              generateCube(sub, size, { synergyLevel: 0, rarity }).picks.map((p) => p.card)
+            );
+            const creatureFloor =
+              Math.min(band.type.creature.p25, seedCreatureShare) - CREATURE_EROSION_TOLERANCE;
+            expect(pauperPeasantCreatureShare(cards)).toBeGreaterThanOrEqual(creatureFloor);
+          });
+        }
+      }
+    }
   });
 
   // Budget-aware power signal (#5): a pauper/peasant pool's "good card" should
