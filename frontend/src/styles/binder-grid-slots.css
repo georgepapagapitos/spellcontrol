@@ -363,12 +363,17 @@
   pointer-events: none;
 }
 
-/* Coarse-pointer floor: the page header is a full-width row ~20px tall with
-   the section gap above it, so it ghosts to 44px rather than growing every
-   page on a phone. */
+/* Coarse-pointer floor: the page header is a full-width row with a button on
+   both sides of it, the section header above and the page's card slots below,
+   so a 44px ghost on the bare ~19px row reached into both and stole the
+   section header's bottom strip (nightly journey, E455). The row grows just
+   enough that the centred ghost's reach, (44 - min-height) / 2, fits in the
+   section header's bottom margin and in the gap + page padding below;
+   touch-ghost-clearance.test.ts holds that arithmetic. */
 @media (pointer: coarse) {
   .page-num-link {
     position: relative;
+    min-height: 26px;
   }
 
   .page-num-link::after {
