@@ -10,7 +10,6 @@ import { useCurrency } from '../lib/currency';
 import { formatMoney } from '../lib/format-money';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
-import { useEscapeKey } from '../lib/use-escape-key';
 import type { BinderDef, EnrichedCard } from '../types';
 import { ColorPip, ManaSymbol, TypeIcon } from './shared/ManaSymbol';
 import { MeterBar, StackedBar } from './shared/MeterBar';
@@ -231,9 +230,10 @@ function closeToDoneDetail(row: CloseToDoneRow): string {
  */
 function SharedCopiesSheet({ rows, onClose }: { rows: SharedCopyRow[]; onClose: () => void }) {
   useLockBodyScroll();
+  // Escape is useSheetExit's own (T147) — no separate useEscapeKey call; see
+  // that hook's doc and src/lib/use-sheet-exit.escape.test.tsx.
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   const dismiss = () => beginClose();
-  useEscapeKey(dismiss);
 
   return (
     <div
@@ -286,9 +286,9 @@ function SharedCopiesSheet({ rows, onClose }: { rows: SharedCopyRow[]; onClose: 
  *  `SharedCopiesSheet`, listing decks instead of cards. */
 function CloseToDoneSheet({ rows, onClose }: { rows: CloseToDoneRow[]; onClose: () => void }) {
   useLockBodyScroll();
+  // Escape is useSheetExit's own (T147) — see SharedCopiesSheet's note above.
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   const dismiss = () => beginClose();
-  useEscapeKey(dismiss);
 
   return (
     <div
