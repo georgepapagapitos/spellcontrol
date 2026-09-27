@@ -68,8 +68,8 @@ export function typeOf(c: CubeCard): string | null {
 /** Term weights — sum to 1.0. Archetype (+ its pair-concentration sibling) is
  *  the lens the greedy ignores entirely. */
 const W = {
-  archetype: 0.38,
-  pairConcentration: 0.02,
+  archetype: 0.39,
+  pairConcentration: 0.01,
   glue: 0.12,
   color: 0.13,
   curve: 0.13,

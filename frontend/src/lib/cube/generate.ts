@@ -21,7 +21,6 @@ import {
   isLand,
   bucketOf,
   curveSlotOf,
-  pairOf,
   pairsFixedBy,
   type ColorPair,
   type CubeCard,
@@ -389,39 +388,38 @@ function selectBucket(
   return { picks, deferred };
 }
 
-/** Sub-buckets the 'multicolor' bucket splits into for pair-aware selection:
- *  the ten color pairs, plus 'x' for a 3+ color gold card — its own small
- *  slice (the corpus's `multiXColor` share), never folded into a pair since it
- *  doesn't belong to exactly one. */
-const PAIR_SLICES = [...COLOR_PAIRS, 'x'] as const;
-type PairSlice = (typeof PAIR_SLICES)[number];
-const sliceOf = (c: CubeCard): PairSlice => pairOf(c) ?? 'x';
-
 /**
- * Fill the multicolor bucket with a SOFT pull toward the corpus's per-pair
- * gold shape (item 1 of the pair-aware program), not a hard per-pair target.
+ * Fill the multicolor bucket (item 1 of the pair-aware program).
  *
- * An earlier version split the bucket's whole target across the ten pairs +
- * the 'x' slice up front and ran each slice through `selectBucket`
- * independently. Measured against a real collection that cost archetype depth
- * badly (0.07-0.15 at 180-360, occasionally worse) and roughly doubled the
- * refiner's iteration cost: forcing the cube's single BEST-supported pair down
- * to its "fair" 1-in-11 share, evenly with nine other pairs the pool may barely
- * support, starves exactly the gold cards a real archetype leans on and hands
- * the refiner a much bigger hole to climb out of with the same iteration
- * budget — while the guard this was built for (no pair left at zero) only
- * needs a FLOOR, not a full even split.
+ * Three designs were measured against a real collection, in order:
+ *  1. Split the bucket's whole target evenly across the ten pairs + 'x' up
+ *     front. Cost archetype depth badly (0.07-0.15 at 180-360) and roughly
+ *     doubled the refiner's iteration cost: forcing the cube's single
+ *     BEST-supported pair down to a "fair" 1-in-11 share hands the refiner a
+ *     much bigger hole to climb with the same iteration budget.
+ *  2. A small per-pair FLOOR (1 role-less card per corpus-supported pair,
+ *     capped and rotated) with the REST filled by the plain, pair-blind
+ *     `selectBucket`. Cheaper, but still cost archetype at every size tested
+ *     EXCEPT the smallest (180, where `selectBucket`'s own guard threshold
+ *     doesn't even ask for pair coverage): a peasant-filtered 360 and a full
+ *     720 pool both regressed archetype 0.03-0.08 with EVERY pair still
+ *     comfortably supplied (13+ cards). The mechanism itself is why: a floor
+ *     for pair X takes a bucket SLOT that pure quality would have spent on
+ *     the pool's actual best card — usually from whichever pair an archetype
+ *     already leans on — and gives it to X instead. Fairness necessarily
+ *     costs the cube's best-supported pair depth, which is exactly what
+ *     archetype scores.
  *
- * So: reserve a small per-pair FLOOR first — 1 card for every pair the corpus
- * actually runs (`p25 > 0`), not a p25-sized target — taking each pair's
- * best-quality cards up to its floor. That is the cheapest floor that still
- * keeps a corpus-supported pair off zero in the seed; a p25-sized floor
- * (even capped) measurably cost more archetype for no guard benefit past
- * "not zero". Whatever's left of the bucket's target is filled by the
- * ORIGINAL, pair-blind `selectBucket` (curve caps, role/creature quotas,
- * quality order) over the remaining pool — the same mechanism every other
- * bucket uses, so the cube's naturally deepest pair(s) still shape most of
- * the section, exactly like before this program.
+ * So: no floor. `selectBucket` — the same mechanism every other bucket
+ * uses — decides the whole section by quality, curve caps, and role/creature
+ * quotas, exactly as it did before this program. Pair-aware LANDS (item 2,
+ * `selectFixingLands`) are unaffected — a land purchase doesn't compete with
+ * archetype depth the way a gold pick does, and that mechanism cost nothing
+ * measured. `generate.live.test.ts`'s pair-band guards on the goodstuff seed
+ * hold on this pool without a floor; if a future collection's popularity
+ * ranking manages to leave a well-supported pair at zero, that is the guard
+ * failing and the signal to revisit this — not a reason to pre-pay archetype
+ * depth for a defect this pool doesn't exhibit.
  */
 function selectMulticolorBucket(
   pool: CubeCard[],
@@ -430,83 +428,7 @@ function selectMulticolorBucket(
   quota: Record<Quota, number>,
   seed: CubeCard[] = []
 ): { picks: CubeCard[]; deferred: CubeCard[] } {
-  const effectiveTarget = Math.max(target, seed.length);
-  const sliceSeedCount = {} as Record<PairSlice, number>;
-  for (const s of PAIR_SLICES) sliceSeedCount[s] = 0;
-  for (const c of seed) sliceSeedCount[sliceOf(c)]++;
-
-  const picks: CubeCard[] = [...seed];
-  const pickedIds = new Set(picks.map((c) => c.oracleId));
-  const sorted = [...pool].sort(byQuality);
-
-  // The floor only needs to keep a corpus-supported pair off zero in the
-  // seed — it does not need to reach the corpus's own p25 count. A p25-sized
-  // floor measurably cost archetype depth for no guard benefit past "not
-  // zero". One card per pair the corpus actually runs (p25 > 0) is the
-  // cheapest floor that still satisfies it.
-  //
-  // Role-less filler ONLY — never a removal/boardwipe/ramp/draw card. A role
-  // card is exactly what the quota-aware bulk phase below hits its cube-level
-  // counts with; spending one on a quality-only floor crowds that phase.
-  //
-  // At most ten cards total (one per pair) is a small reservation at every
-  // offered size EXCEPT the smallest (180): a ~18-card bucket there can be
-  // half-eaten by ten floors, which shrinks the bulk phase's own target enough
-  // that `selectBucket`'s single quality-ordered pass can fill up on the
-  // (deep, always-open) creature quota before ever reaching interaction cards
-  // further down in quality order — a real cost measured on the interaction
-  // guard (0.81-0.90 vs the corpus's 0.9), not a bug in the split itself. Cap
-  // the floor total at 30% of the bucket to leave the bulk phase enough room,
-  // water-filled via `apportionOver` — with a ROTATING pair order (not the
-  // fixed COLOR_PAIRS one) so a bound cap doesn't always sacrifice the same
-  // one or two pairs (an earlier fixed-order attempt always dropped GU/RW).
-  const rawFloor = {} as Record<ColorPair, number>;
-  for (const p of COLOR_PAIRS) rawFloor[p] = band.pairs[p].gold.p25 > 0 ? 1 : 0;
-  const rawFloorSum = COLOR_PAIRS.reduce((s, p) => s + rawFloor[p], 0);
-  const floorCap = Math.max(1, Math.floor(effectiveTarget * 0.3));
-  // Pool-derived, not size-derived: `effectiveTarget` alone repeats for every
-  // call at a given size, which would just swap "always GU/RW" for "always
-  // whichever pair this size's rotation lands on" — no fairer.
-  const rotation =
-    pool.reduce((s, c) => s + (c.oracleId.charCodeAt(0) || 0), 0) % COLOR_PAIRS.length;
-  const rotatedPairs = [...COLOR_PAIRS.slice(rotation), ...COLOR_PAIRS.slice(0, rotation)];
-  const floorShares = {} as Record<ColorPair, number>;
-  for (const p of COLOR_PAIRS) floorShares[p] = rawFloorSum > 0 ? rawFloor[p] / rawFloorSum : 0;
-  const floorTotal = Math.min(rawFloorSum, floorCap);
-  const cappedFloor = apportionOver(floorShares, floorTotal, rotatedPairs);
-
-  for (const p of COLOR_PAIRS) {
-    const floor = cappedFloor[p];
-    let have = sliceSeedCount[p];
-    if (have >= floor) continue;
-    for (const c of sorted) {
-      if (have >= floor || picks.length >= effectiveTarget) break;
-      if (pickedIds.has(c.oracleId) || pairOf(c) !== p) continue;
-      if (c.role != null) continue;
-      picks.push(c);
-      pickedIds.add(c.oracleId);
-      have++;
-    }
-  }
-
-  // The floor picks are quality-only (no role/creature quota awareness — that's
-  // what keeps them cheap), so credit whatever quota they happen to satisfy
-  // before handing the bulk phase its target: otherwise the bulk's quota-aware
-  // `selectBucket` still aims for the FULL cube-level count (e.g. interaction)
-  // inside a now-SMALLER target, systematically undershooting it (measured:
-  // the seed's interaction term dropped from >=0.9 to 0.82-0.90 once floors
-  // took slots quality alone doesn't reliably fill with removal).
-  const floorQuotaFilled = {} as Record<Quota, number>;
-  for (const k of QUOTAS) floorQuotaFilled[k] = 0;
-  for (const c of picks) for (const k of quotasOf(c)) floorQuotaFilled[k]++;
-  const bulkQuota = {} as Record<Quota, number>;
-  for (const k of QUOTAS) bulkQuota[k] = Math.max(0, quota[k] - floorQuotaFilled[k]);
-
-  const bulkPool = pool.filter((c) => !pickedIds.has(c.oracleId));
-  const bulkTarget = effectiveTarget - picks.length;
-  const { picks: bulk, deferred } = selectBucket(bulkPool, bulkTarget, band, bulkQuota, []);
-  picks.push(...bulk);
-  return { picks, deferred };
+  return selectBucket(pool, Math.max(target, seed.length), band, quota, seed);
 }
 
 /**
