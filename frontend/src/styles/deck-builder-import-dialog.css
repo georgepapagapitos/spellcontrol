@@ -345,7 +345,6 @@
 .import-deck-modal .modal-footer .btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
 }
 
 .import-deck-modal .modal-footer .btn svg {

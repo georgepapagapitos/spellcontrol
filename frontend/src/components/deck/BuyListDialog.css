@@ -149,7 +149,6 @@
 .buy-list-actions .btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
   text-decoration: none;
 }
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive) — Download/Copy/Buy on TCGPlayer. */

@@ -28,7 +28,6 @@
 .deck-ai-invite-dismiss {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
 }
 
 /* ── Inline consent (T102): the grant happens where the feature is, not in a

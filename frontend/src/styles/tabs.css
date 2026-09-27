@@ -130,6 +130,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--icon-gap);
   padding: 6px 14px;
   border-radius: var(--radius);
   /* Material buttons (T53 Phase 4): a firm 1px edge — the 0.5px hairline

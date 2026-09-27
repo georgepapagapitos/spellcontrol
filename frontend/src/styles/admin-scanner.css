@@ -825,10 +825,6 @@
 .scanner-sheet-add {
   flex: 1;
 }
-.scanner-sheet-foot .btn,
-.scanner-sheet-tools .btn {
-  gap: 0.4rem;
-}
 @media (pointer: coarse) {
   .scanner-sheet-foot .btn,
   .scanner-sheet-tools .btn,
@@ -1083,7 +1079,6 @@
 }
 .scan-result-add {
   flex: none;
-  gap: 0.3rem;
 }
 .scan-result-add.is-added {
   color: var(--success);

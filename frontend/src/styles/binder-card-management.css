@@ -882,7 +882,6 @@
 .scan-tab-launch {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
   margin-top: var(--space-2);
 }
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the tab's one CTA. */

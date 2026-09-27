@@ -318,10 +318,6 @@
   gap: var(--space-2);
 }
 
-.home-quiet-actions .btn {
-  gap: var(--space-2);
-}
-
 @media (pointer: coarse) {
   .home-quiet-actions .btn {
     min-height: 44px;

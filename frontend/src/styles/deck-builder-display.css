@@ -86,7 +86,7 @@
 .toolbar-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--icon-gap);
   font-family: inherit;
   font-size: var(--text-sm);
   color: var(--text-primary);

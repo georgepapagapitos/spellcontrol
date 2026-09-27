@@ -509,19 +509,29 @@ They add what a class name can't enforce:
 Two props choose the class. **`variant` is intent** (the fill-vs-outline tiers
 below): `secondary` (default), `primary`, `danger`, `link`. **`placement` is
 where the button lives**, which is what really separates the three families:
-they differ in hover, weight, icon gap and whether they shrink, not only in
+they differ in hover, weight and whether they shrink, not only in
 size.
 
-| `placement`        | Class                                  | Lives in                               | Differs by                                                                     |
-| ------------------ | -------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------ |
-| `inline` (default) | `.btn` (+ `-primary` / `-danger`)      | dialogs, panels, inline actions        | grey hover, no icon gap, may shrink                                            |
-| `row`              | `.pill-btn` (+ `-primary` / `-danger`) | page heroes, action rows, the bulk bar | accent-tinted hover and focus, `0.4rem` icon gap, `flex-shrink: 0`, weight 500 |
-| `toolbar`          | `.toolbar-pill` (+ `-danger`)          | toolbar control rows                   | the 999px toolbar-control pill (below); its `danger` is neutral until hover    |
+| `placement`        | Class                                  | Lives in                               | Differs by                                                                  |
+| ------------------ | -------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
+| `inline` (default) | `.btn` (+ `-primary` / `-danger`)      | dialogs, panels, inline actions        | grey hover, may shrink                                                      |
+| `row`              | `.pill-btn` (+ `-primary` / `-danger`) | page heroes, action rows, the bulk bar | accent-tinted hover and focus, `flex-shrink: 0`, weight 500                 |
+| `toolbar`          | `.toolbar-pill` (+ `-danger`)          | toolbar control rows                   | the 999px toolbar-control pill (below); its `danger` is neutral until hover |
 
 `variant="link"` is `.btn-link` and exists only at `inline`. Combinations no
 stylesheet defines (`row` + `link`, `toolbar` + `primary`) don't compile.
 `.btn-sm`, `.btn-secondary` and `.btn-quiet` were never defined anywhere, so
 there is no `size` prop; a site that carried one painted as plain `.btn`.
+
+**The icon gap is one value.** `--icon-gap` (tokens.css, `0.4rem`) sits
+between a button's icon and its label in all three families, set by `.btn`,
+`.pill-btn` and `.toolbar-pill` themselves. A surface never sets its own:
+before T152 W8e, 26 did (from `0.2rem` to `--space-2`), and a dozen `.btn`
+icons that no surface covered touched their label.
+`styles/icon-gap-ownership.test.ts` fails on a rule that lands on a family
+class and sets `gap`. When a row of labelled buttons stops fitting a narrow
+phone, it wraps (the public deck's Playtest and Copy do at 360px); it doesn't
+squeeze its icon gap to fit.
 
 `IconButton` takes a `label` (the accessible name, and the hover tooltip unless
 `title` overrides it or `title={false}` turns it off). With no `variant` or
