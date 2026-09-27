@@ -19,6 +19,9 @@ vi.mock('../lib/use-search-cards', () => ({ useSearchCards: () => searchState })
 let aiState: { optIn: boolean; used: number; limit: number } | null = null;
 vi.mock('../lib/use-ai-status', () => ({ useAiStatus: () => aiState }));
 
+let canScanState = false;
+vi.mock('../lib/use-can-scan', () => ({ useCanScan: () => canScanState }));
+
 const opened: { entries: { name: string }[]; tapped: string }[] = [];
 vi.mock('./deck/useCardCarousel', () => ({
   useCardCarousel: () => ({
@@ -72,6 +75,7 @@ beforeEach(() => {
   searchState.loading = false;
   searchState.error = null;
   aiState = null;
+  canScanState = false;
   opened.length = 0;
 });
 
@@ -116,6 +120,28 @@ describe('the Cards lane', () => {
     renderPalette();
     type('zzzzzz');
     expect(screen.getByText(/No matches for/).textContent).toContain('zzzzzz');
+  });
+});
+
+describe('the Add cards commands (T153)', () => {
+  it('lists Add cards, and hides Scan cards on a device that cannot scan', () => {
+    renderPalette();
+    type('add');
+    expect(screen.getByRole('option', { name: 'Add cards' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'Scan cards' })).toBeNull();
+  });
+
+  it('lists Import a list', () => {
+    renderPalette();
+    type('import a list');
+    expect(screen.getByRole('option', { name: 'Import a list' })).toBeTruthy();
+  });
+
+  it('offers Scan cards when the device can scan', () => {
+    canScanState = true;
+    renderPalette();
+    type('scan');
+    expect(screen.getByRole('option', { name: 'Scan cards' })).toBeTruthy();
   });
 });
 

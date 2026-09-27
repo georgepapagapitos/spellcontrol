@@ -1523,6 +1523,35 @@ own table.
   scroll. A surface with a deeper stack (Collection: tabs + search + controls)
   measures its own offset and passes `top` inline, which wins over the CSS.
 
+## Collection search hands off to Add cards (T153 decision C, 2026-09-27)
+
+Collection search is about **your collection**, never a second live search.
+Once the collection search box reaches 2 characters — whether or not any
+local rows match, since owning one printing is not a reason to hide a route
+to another — the list's trailing position (a grid tile in grid view, a row
+below the list/compact table) offers **one hand-off**, never a second inline
+results panel: "Add “{query}” to your collection…" (curly quotes, the
+picker-action `…`). Clicking it opens the Add cards sheet on the Search tab
+with the query pre-filled; the sheet runs its own search. This replaced an
+inline `<InlineCardSearch>` panel that duplicated the Add cards sheet's Search
+tab on the same screen — `InlineCardSearch` itself stays the shared
+results-and-add engine for the surfaces that still own their own input
+(`/search`, `/tags`, a list's add panel, the import Fix row); only
+`CardListTable`'s second-search duplicate was removed.
+
+A local zero-match state never competes with the hand-off: the plain
+"No matches" empty state is gated on the same "query too short" condition
+that gates the hand-off, so once the hand-off can show, it is the only thing
+in that space.
+
+**Reachable four ways**, all landing on the same sheet: the hand-off above;
+`/collection?add=search|list|scan|products` (`&q=` seeds the Search tab),
+which `?add=list` already used pre-T153 and keeps working; the ⌘K commands
+"Add cards", "Import a list" and "Scan cards" (the last gated on
+`useCanScan()`, the same gate the sheet's own Scan tab uses); and the `A` key
+on a collection page (guarded like every other single-letter shortcut here —
+suppressed while typing, listed in the `?` overlay).
+
 ## Card-name chips
 
 Card-name chips render the name on **one line with ellipsis truncation** and

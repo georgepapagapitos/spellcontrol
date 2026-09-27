@@ -193,6 +193,15 @@ describe('HomePage', () => {
       expect(screen.getByRole('menuitem', { name: 'Friends' })).toBeTruthy();
     });
 
+    // T153 lane G: Home's "Add cards" used an Upload glyph while Collection's
+    // used Plus — the same action reading as two different icons app-wide.
+    it('uses the Plus glyph, matching the Collection page Add cards button', () => {
+      renderPage();
+      const add = screen.getByRole('button', { name: 'Add cards' });
+      expect(add.querySelector('.lucide-plus')).toBeTruthy();
+      expect(add.querySelector('.lucide-upload')).toBeNull();
+    });
+
     it('has no search box or scope toggle of its own — each list carries its own search', () => {
       renderPage();
       expect(screen.queryByRole('radio')).toBeNull();

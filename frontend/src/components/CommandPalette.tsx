@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { Modal } from './Modal';
 import { useDecksStore } from '../store/decks';
 import { useAiStatus } from '../lib/use-ai-status';
+import { useCanScan } from '../lib/use-can-scan';
 import { useSearchCards } from '../lib/use-search-cards';
 import { useCardCarousel } from './deck/useCardCarousel';
 import {
@@ -43,6 +44,7 @@ export function CommandPalette({ onClose }: Props): JSX.Element {
   const location = useLocation();
   const decks = useDecksStore((s) => s.decks);
   const aiStatus = useAiStatus();
+  const canScan = useCanScan();
   const carousel = useCardCarousel('Card search');
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -63,12 +65,13 @@ export function CommandPalette({ onClose }: Props): JSX.Element {
         decks,
         aiAvailable: !!aiStatus,
         deckPage,
+        canScan,
         go: (path, state) => {
           onClose();
           navigate(path, state ? { state } : undefined);
         },
       }),
-    [decks, aiStatus, deckPage, navigate, onClose]
+    [decks, aiStatus, deckPage, canScan, navigate, onClose]
   );
 
   const groups = useMemo(() => matchCommands(commands, query), [commands, query]);

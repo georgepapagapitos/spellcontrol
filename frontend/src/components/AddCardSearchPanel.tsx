@@ -8,6 +8,8 @@ interface Props {
   binderId?: string;
   /** Focus the search input on mount. Default true. */
   autoFocus?: boolean;
+  /** Seeds the query on mount — the collection-search hand-off (T153). */
+  initialQuery?: string;
   /** Escape behavior: clear the query, then bubble up to the caller. The caller
    *  decides what bubbling means (close the dialog, switch tab, etc.). */
   onEscape?: () => void;
@@ -21,8 +23,8 @@ interface Props {
  * live in {@link CardSearchResults}, shared with {@link InlineCardSearch} so
  * the two surfaces can't drift apart again.
  */
-export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Props) {
-  const [query, setQuery] = useState('');
+export function AddCardSearchPanel({ binderId, autoFocus = true, initialQuery, onEscape }: Props) {
+  const [query, setQuery] = useState(initialQuery ?? '');
   const { results, loading, error } = useSearchCards(query);
   const resultsRef = useRef<CardSearchResultsHandle>(null);
 

@@ -12,7 +12,6 @@ import {
   List as ListIconLucide,
   ListPlus,
   Plus,
-  Search,
 } from 'lucide-react';
 import {
   useCallback,
@@ -72,7 +71,6 @@ import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SaveToListDialog } from './SaveToListDialog';
 import { useCardsWithTags, cardTagLabel } from '../lib/card-tags';
 import { useCardsWithReleaseDates } from '../lib/card-release-dates';
-import { InlineCardSearch } from './InlineCardSearch';
 import { SortMenu, type SortMenuOption } from './SortMenu';
 import { useMediaQuery } from '../lib/use-media-query';
 import { useDebouncedValue } from '../lib/use-debounced-value';
@@ -138,12 +136,13 @@ interface Props {
    */
   hideBinderFilter?: boolean;
   /**
-   * Opens the Add cards sheet. Wired by the Collection page so the
-   * empty-collection state can offer an inline "Add cards" CTA without this
-   * component needing to know how the sheet is mounted. Omitted in scoped
-   * views (e.g. a single binder) that never render the empty-collection state.
+   * Opens the Add cards sheet, optionally seeded with a search query. Wired
+   * by the Collection page so the empty-collection CTA (no query) and the
+   * search hand-off row/tile below (current query) share one entry point
+   * without this component needing to know how the sheet is mounted. Omitted
+   * in scoped views (e.g. a single binder) that never render either.
    */
-  onAddCards?: () => void;
+  onAddCards?: (query?: string) => void;
 }
 
 interface Row {
@@ -166,12 +165,16 @@ type ViewMode = 'grid' | 'list' | 'compact';
 const COLLECTION_VIEW_KEY = 'mtg-collection-view-mode';
 const GRID_SIZE_KEY = 'mtg-collection-grid-size';
 
-/** Shortcut items contributed to the registry under the "Collection" section. */
+/** Shortcut items contributed to the registry under the "Collection" section.
+ *  "Add cards" is a no-op on a scoped view (a single binder) where the caller
+ *  doesn't pass `onAddCards` — same as the view toggles above it, which apply
+ *  everywhere this table renders regardless of whether that's useful there. */
 const COLLECTION_SHORTCUTS = [
   { keys: ['/'], description: 'Focus search' },
   { keys: ['g'], description: 'Switch to grid view' },
   { keys: ['l'], description: 'Switch to list view' },
   { keys: ['c'], description: 'Switch to compact list' },
+  { keys: ['a'], description: 'Add cards' },
 ];
 
 function readStoredCollectionView(): ViewMode {
@@ -335,7 +338,6 @@ export function CardListTable({
 }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
-  const [scryfallOpen, setScryfallOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [groupKey, setGroupKey] = useState<GroupKey>('none');
@@ -633,10 +635,15 @@ export function CardListTable({
         setView('compact');
         return;
       }
+      if (e.key === 'a') {
+        e.preventDefault();
+        onAddCards?.();
+        return;
+      }
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [onAddCards]);
 
   // Register the Collection shortcut section while this table is mounted.
   // The `?` overlay is owned by Layout; we contribute our shortcuts to the
@@ -856,7 +863,7 @@ export function CardListTable({
   // grouping composes with sorting. Applies to all three views — list/compact
   // render headers inline in the boundary row's measured cell, grid renders them
   // as full-width rows via `gridLayout` below. Everything downstream (the
-  // carousel, the Scryfall trigger index, the virtualizers) indexes off
+  // carousel, the add-handoff trigger index, the virtualizers) indexes off
   // `displayRows`, never `sorted`.
   const groupField: SortField | null = groupKey !== 'none' ? GROUP_KEY_TO_FIELD[groupKey] : null;
   const { displayRows, sectionHeaders } = useMemo<{
@@ -975,13 +982,13 @@ export function CardListTable({
   }, [view]);
   const gridCols = gridWidth > 0 ? zoomCols(effectiveZoom, zoomTier(gridWidth), gridWidth) : 4;
 
-  // Offer Scryfall add whenever there's a real query — even with zero
-  // collection matches (then the trigger is the only card/row).
+  // Offer the "Add cards" hand-off whenever there's a real query — even with
+  // zero collection matches (then the hand-off is the only card/row): a user
+  // may own one printing and want another, so a local match is never a
+  // reason to hide it. It opens the Add cards sheet on Search with the query
+  // pre-filled (C153) rather than a second live-search panel here.
   const showScryfall = debouncedSearch.trim().length >= 2;
-  // The trigger box only exists to *open* the live results panel — once that
-  // panel is open it's redundant, so hide it and let the results take its
-  // place (the grid/list reflows as if the trigger were never there).
-  const showScryfallTrigger = showScryfall && !scryfallOpen;
+  const handoffQuery = debouncedSearch.trim();
   const triggerIndex = displayRows.length;
   // Shared with the zoom column math (lib/grid-zoom.ts) and with the deck /
   // list grids' CSS `gap` — the three must agree or the same zoom step
@@ -989,7 +996,7 @@ export function CardListTable({
   const GRID_GAP = GRID_GAP_PX;
 
   // Heterogeneous grid row list: full-width section headers interleaved with
-  // chunked card rows. The Scryfall "add" trigger rides as one trailing item.
+  // chunked card rows. The "Add cards" hand-off rides as one trailing item.
   const gridLayout = useMemo<GridLayoutRow[]>(
     () =>
       view === 'grid'
@@ -997,11 +1004,11 @@ export function CardListTable({
             displayRows.length,
             gridCols,
             sectionHeaders,
-            showScryfallTrigger ? 1 : 0,
+            showScryfall ? 1 : 0,
             collapsedKeys
           )
         : [],
-    [view, displayRows.length, gridCols, sectionHeaders, showScryfallTrigger, collapsedKeys]
+    [view, displayRows.length, gridCols, sectionHeaders, showScryfall, collapsedKeys]
   );
 
   // List/compact mirror of `gridLayout`: header rows interleaved with one row
@@ -1013,13 +1020,6 @@ export function CardListTable({
       view === 'grid' ? [] : buildListLayout(displayRows.length, sectionHeaders, collapsedKeys),
     [view, displayRows.length, sectionHeaders, collapsedKeys]
   );
-
-  // When the query is cleared (or drops below the 2-char threshold), leave
-  // search mode so the next real query starts from the trigger box again
-  // rather than silently reopening the results panel.
-  useEffect(() => {
-    if (!showScryfall) setScryfallOpen(false);
-  }, [showScryfall]);
 
   // Per-index height estimate: section headers are a fixed short row, card rows
   // derive from the live column width (exact aspect ratio), so the grid stays
@@ -2281,7 +2281,7 @@ export function CardListTable({
           {onAddCards && (
             <Button
               variant="primary"
-              onClick={onAddCards}
+              onClick={() => onAddCards()}
               className="empty-state-action"
               icon={<Plus width={16} height={16} strokeWidth={1.8} />}
             >
@@ -2347,21 +2347,19 @@ export function CardListTable({
               >
                 {Array.from({ length: layoutRow.end - layoutRow.start }, (_, colIdx) => {
                   const idx = layoutRow.start + colIdx;
-                  if (idx === triggerIndex && showScryfallTrigger) {
+                  if (idx === triggerIndex && showScryfall) {
                     return (
                       <button
-                        key="scryfall-trigger"
+                        key="add-handoff"
                         type="button"
                         className="collection-grid-item collection-grid-scryfall"
-                        onClick={() => setScryfallOpen(true)}
-                        aria-expanded={false}
-                        aria-label={`Search Scryfall for ${debouncedSearch.trim()}`}
+                        onClick={() => onAddCards?.(handoffQuery)}
+                        aria-haspopup="dialog"
+                        aria-label={`Add “${handoffQuery}” to your collection…`}
                       >
-                        <Search width={26} height={26} strokeWidth={1.6} aria-hidden />
-                        <span className="collection-grid-scryfall-title">Search Scryfall</span>
-                        <span className="collection-grid-scryfall-sub">
-                          for “{debouncedSearch.trim()}”
-                        </span>
+                        <Plus width={26} height={26} strokeWidth={1.6} aria-hidden />
+                        <span className="collection-grid-scryfall-title">Add “{handoffQuery}”</span>
+                        <span className="collection-grid-scryfall-sub">to your collection…</span>
                       </button>
                     );
                   }
@@ -2529,26 +2527,22 @@ export function CardListTable({
         </CardTableFrame>
       )}
 
-      {view !== 'grid' && showScryfallTrigger && (
+      {view !== 'grid' && showScryfall && (
         <button
           type="button"
           className="collection-list-scryfall collection-list-scryfall--standalone"
-          aria-expanded={false}
-          aria-label={`Search Scryfall for ${debouncedSearch.trim()}`}
-          onClick={() => setScryfallOpen(true)}
+          aria-haspopup="dialog"
+          aria-label={`Add “${handoffQuery}” to your collection…`}
+          onClick={() => onAddCards?.(handoffQuery)}
         >
           <span className="collection-list-scryfall-icon">
-            <Search width={18} height={18} strokeWidth={1.7} aria-hidden />
+            <Plus width={18} height={18} strokeWidth={1.7} aria-hidden />
           </span>
           <span className="collection-list-scryfall-text">
-            <span className="collection-list-scryfall-title">Search Scryfall</span>
-            <span className="collection-list-scryfall-sub">for “{debouncedSearch.trim()}”</span>
+            <span className="collection-list-scryfall-title">Add “{handoffQuery}”</span>
+            <span className="collection-list-scryfall-sub">to your collection…</span>
           </span>
         </button>
-      )}
-
-      {scryfallOpen && showScryfall && (
-        <InlineCardSearch query={debouncedSearch.trim()} onClose={() => setScryfallOpen(false)} />
       )}
 
       {editingCard && (

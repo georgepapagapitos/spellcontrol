@@ -26,6 +26,8 @@ interface Props {
   onClose: () => void;
   /** Optional initial tab. Defaults to 'search'. */
   initialTab?: Tab;
+  /** Seeds the Search tab's query — the collection-search hand-off (T153). */
+  initialQuery?: string;
 }
 
 /**
@@ -44,7 +46,7 @@ interface Props {
  * for file/paste flows that might be "import as binder" or "replace
  * collection".
  */
-export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
+export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: Props) {
   const canScan = useCanScan();
   // If the requested initial tab isn't available on this device, fall back
   // to search rather than rendering an empty body.
@@ -208,7 +210,11 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
             hidden={activeTab !== 'search'}
             className="add-cards-panel add-cards-panel-search"
           >
-            <AddCardSearchPanel autoFocus={activeTab === 'search'} onEscape={beginClose} />
+            <AddCardSearchPanel
+              autoFocus={activeTab === 'search'}
+              initialQuery={initialQuery}
+              onEscape={beginClose}
+            />
           </div>
 
           <div
