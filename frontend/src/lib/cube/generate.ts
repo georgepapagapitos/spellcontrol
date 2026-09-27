@@ -970,7 +970,7 @@ function buildGaps(
       } else if (n.producers < enablerFloor || n.payoffs < payoffFloor) {
         gaps.push({
           severity: 'short',
-          text: `${label}: ${n.producers} enablers / ${n.payoffs} payoffs, thin for a draftable archetype (good ${size}-card cubes want ~${enablerFloor} / ~${payoffFloor}). More in your collection would deepen it.`,
+          text: `${label}: ${n.producers} enablers / ${n.payoffs} payoffs, thin for a draftable archetype (good ${corpusPhrase} want ~${enablerFloor} / ~${payoffFloor}). More in your collection would deepen it.`,
         });
         reported++;
       }
