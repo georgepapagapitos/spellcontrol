@@ -176,7 +176,7 @@ export function ChipExpressionBuilder(props: Props) {
                 // apart.
                 label={`Remove ${labelFor(c.value, props)}`}
                 onClick={() => removeChip(i)}
-                icon={<X width={14} height={14} strokeWidth={2} />}
+                icon={<X width={14} height={14} strokeWidth={1.8} />}
               />
             </span>
           </span>

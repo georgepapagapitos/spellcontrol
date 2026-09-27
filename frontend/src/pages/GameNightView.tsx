@@ -397,9 +397,9 @@ function NightBody({
               align="left"
               trigger={
                 <>
-                  <CalendarPlus width={15} height={15} strokeWidth={1.7} aria-hidden />
+                  <CalendarPlus width={16} height={16} strokeWidth={2} aria-hidden />
                   Add to calendar
-                  <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
+                  <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
                 </>
               }
               items={[

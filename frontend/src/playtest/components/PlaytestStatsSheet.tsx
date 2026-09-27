@@ -613,7 +613,7 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
             {batch.clock ? (
               <>
                 <p className="playtest-stats-row" style={{ flexWrap: 'wrap' }}>
-                  <Hourglass width={13} height={13} aria-hidden />
+                  <Hourglass width={14} height={14} strokeWidth={1.8} aria-hidden />
                   <span>
                     Predicted: win condition kills ~turn <strong>{batch.clock.typicalTurn}</strong>{' '}
                     (median) / <strong>{batch.clock.p90Turn}</strong> (p90)

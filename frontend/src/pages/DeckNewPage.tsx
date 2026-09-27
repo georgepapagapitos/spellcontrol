@@ -444,7 +444,7 @@ export function DeckNewPage() {
           aria-label="Building around a combo"
         >
           <p className="combo-seed-banner-label">
-            <Zap width={13} height={13} aria-hidden />
+            <Zap width={14} height={14} strokeWidth={1.8} aria-hidden />
             Building around a combo
           </p>
           <p className="combo-seed-banner-pieces">{prefill.comboContext.pieceNames.join(' + ')}</p>
@@ -561,7 +561,7 @@ export function DeckNewPage() {
           <Button
             to="/decks/new/brew"
             state={commander ? { commander } : undefined}
-            iconEnd={<ArrowRight width={14} height={14} />}
+            iconEnd={<ArrowRight width={14} height={14} strokeWidth={1.8} />}
           >
             Start brewing
           </Button>
@@ -665,7 +665,7 @@ export function DeckNewPage() {
                 <Button
                   to="/decks/new/brew"
                   state={commander ? { commander } : undefined}
-                  iconEnd={<ArrowRight width={14} height={14} />}
+                  iconEnd={<ArrowRight width={14} height={14} strokeWidth={1.8} />}
                 >
                   Start brewing
                 </Button>

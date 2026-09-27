@@ -643,7 +643,7 @@ export function CardPreview({
           onClick={onClose}
           title={`Open binder ${b.name}`}
         >
-          <Notebook width={11} height={11} strokeWidth={2.2} aria-hidden />
+          <Notebook width={12} height={12} strokeWidth={2} aria-hidden />
           <span>{b.name}</span>
         </Link>
       )),
@@ -657,7 +657,7 @@ export function CardPreview({
           title={`In deck: ${d.deckName}`}
           aria-label={`In deck: ${d.deckName}`}
         >
-          <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
+          <Layers width={12} height={12} strokeWidth={2} aria-hidden />
           <span>{d.deckName}</span>
         </Link>
       )),
@@ -671,7 +671,7 @@ export function CardPreview({
           title={`In cube: ${c.ownerName}`}
           aria-label={`In cube: ${c.ownerName}`}
         >
-          <Boxes width={11} height={11} strokeWidth={2.2} aria-hidden />
+          <Boxes width={12} height={12} strokeWidth={2} aria-hidden />
           <span>{c.ownerName}</span>
         </Link>
       )),
@@ -803,7 +803,7 @@ export function CardPreview({
           <ExternalLink
             width={12}
             height={12}
-            strokeWidth={2.4}
+            strokeWidth={2}
             aria-hidden
             className="card-preview-ext-link-icon"
           />
@@ -819,7 +819,7 @@ export function CardPreview({
             <ExternalLink
               width={12}
               height={12}
-              strokeWidth={2.4}
+              strokeWidth={2}
               aria-hidden
               className="card-preview-ext-link-icon"
             />
@@ -891,7 +891,7 @@ export function CardPreview({
             beginClose();
           }}
           label="Close preview"
-          icon={<X width={20} height={20} strokeWidth={2} />}
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
         />
 
         <div className="card-preview-stage" ref={stageRef}>

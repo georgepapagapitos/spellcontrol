@@ -182,7 +182,7 @@ export function CardRow({
   };
   const check = selectMode && (
     <span className="collection-list-check" data-checked={selected} aria-hidden>
-      {selected && <Check width={13} height={13} strokeWidth={3} />}
+      {selected && <Check width={14} height={14} strokeWidth={1.8} />}
     </span>
   );
 

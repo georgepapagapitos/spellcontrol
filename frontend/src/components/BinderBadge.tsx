@@ -57,7 +57,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
         title={label}
         aria-label={label}
       >
-        <Notebook width={11} height={11} strokeWidth={2} aria-hidden />
+        <Notebook width={12} height={12} strokeWidth={2} aria-hidden />
       </span>
     );
   }
@@ -80,7 +80,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
           else navigate(`/collection/binders/${b.id}`);
         }}
         label={label}
-        icon={<Notebook width={11} height={11} strokeWidth={2} />}
+        icon={<Notebook width={12} height={12} strokeWidth={2} />}
       />
     );
   }
@@ -91,7 +91,7 @@ export function BinderBadge({ binders, onSelect, nonInteractive }: Props) {
       title={label}
       aria-label={label}
     >
-      <Notebook width={11} height={11} strokeWidth={2} aria-hidden />
+      <Notebook width={12} height={12} strokeWidth={2} aria-hidden />
       <span className="card-list-deck-badge-count" aria-hidden>
         {unique.length}
       </span>

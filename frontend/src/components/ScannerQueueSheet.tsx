@@ -276,7 +276,7 @@ export function ScannerQueueSheet({
                 ariaLabel="Filter scanned cards"
               />
               <Button
-                icon={<Plus width={14} height={14} strokeWidth={2} />}
+                icon={<Plus width={14} height={14} strokeWidth={1.8} />}
                 onClick={() => setMode('search')}
               >
                 Add by name
@@ -293,7 +293,7 @@ export function ScannerQueueSheet({
                   Point the camera at a card. Each one you scan lands here.
                 </p>
                 <Button
-                  icon={<Plus width={14} height={14} strokeWidth={2} />}
+                  icon={<Plus width={14} height={14} strokeWidth={1.8} />}
                   onClick={() => setMode('search')}
                 >
                   Add by name
@@ -341,7 +341,7 @@ export function ScannerQueueSheet({
                 <Button
                   variant="primary"
                   className="scanner-sheet-add"
-                  icon={<Plus width={14} height={14} strokeWidth={2} />}
+                  icon={<Plus width={14} height={14} strokeWidth={1.8} />}
                   disabled={selectedIds.length === 0}
                   onClick={() => onConfirm(selectedIds)}
                 >
@@ -354,7 +354,7 @@ export function ScannerQueueSheet({
                 <Button
                   variant="primary"
                   className="scanner-sheet-add"
-                  icon={<Plus width={14} height={14} strokeWidth={2} />}
+                  icon={<Plus width={14} height={14} strokeWidth={1.8} />}
                   disabled={totalCount === 0}
                   onClick={() => onConfirm()}
                 >
@@ -411,7 +411,7 @@ function ScanRow({
         {img ? <img src={img} alt="" loading="lazy" /> : <span>{card.name}</span>}
         {selecting && (
           <span className={`scan-row-check${selected ? ' is-on' : ''}`} aria-hidden>
-            {selected && <Check width={16} height={16} strokeWidth={3} />}
+            {selected && <Check width={16} height={16} strokeWidth={2} />}
           </span>
         )}
       </span>
@@ -480,13 +480,13 @@ function ScanRow({
         aria-label={`Edit ${entry.qty} ${card.name}, ${card.set_name}`}
       >
         {body}
-        <Pencil className="scan-row-pencil" width={16} height={16} strokeWidth={1.8} aria-hidden />
+        <Pencil className="scan-row-pencil" width={16} height={16} strokeWidth={2} aria-hidden />
       </button>
       <IconButton
         className="scan-row-remove"
         label={`Remove ${card.name}`}
         title={false}
-        icon={<Trash2 width={17} height={17} strokeWidth={1.8} />}
+        icon={<Trash2 width={18} height={18} strokeWidth={2} />}
         onClick={onRemove}
       />
     </li>
@@ -568,9 +568,9 @@ function AddByName({
                     className={isAdded ? 'scan-result-add is-added' : 'scan-result-add'}
                     icon={
                       isAdded ? (
-                        <Check width={14} height={14} strokeWidth={2.5} />
+                        <Check width={14} height={14} strokeWidth={1.8} />
                       ) : (
-                        <Plus width={14} height={14} strokeWidth={2} />
+                        <Plus width={14} height={14} strokeWidth={1.8} />
                       )
                     }
                     onClick={() => {

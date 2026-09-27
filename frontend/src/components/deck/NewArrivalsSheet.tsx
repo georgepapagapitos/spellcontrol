@@ -182,12 +182,12 @@ function ArrivalRowItem({
       >
         {added ? (
           <>
-            <Check width={14} height={14} strokeWidth={2.4} aria-hidden />
+            <Check width={14} height={14} strokeWidth={1.8} aria-hidden />
             Added
           </>
         ) : (
           <>
-            <Plus width={14} height={14} strokeWidth={2.2} aria-hidden />
+            <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
             {adding ? 'Adding…' : 'Add'}
           </>
         )}

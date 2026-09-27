@@ -274,7 +274,7 @@ export function TableContextMenu({ x, y, origin, items, title, header, openId, o
             <span>{item.label}</span>
             <span className="playtest-ctx-action__end">
               {item.shortcut && <kbd className="playtest-ctx-key">{item.shortcut}</kbd>}
-              <ChevronRight width={14} height={14} aria-hidden />
+              <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
             </span>
           </button>
         );

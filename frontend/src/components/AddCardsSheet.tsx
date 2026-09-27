@@ -218,25 +218,25 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
     {
       id: 'search',
       label: 'Search',
-      icon: <Search width={14} height={14} aria-hidden />,
+      icon: <Search width={14} height={14} strokeWidth={1.8} aria-hidden />,
       available: true,
     },
     {
       id: 'upload',
       label: 'Add from list',
-      icon: <Upload width={14} height={14} aria-hidden />,
+      icon: <Upload width={14} height={14} strokeWidth={1.8} aria-hidden />,
       available: true,
     },
     {
       id: 'product',
       label: 'Products',
-      icon: <Package width={14} height={14} aria-hidden />,
+      icon: <Package width={14} height={14} strokeWidth={1.8} aria-hidden />,
       available: true,
     },
     {
       id: 'scan',
       label: 'Scan',
-      icon: <Camera width={14} height={14} aria-hidden />,
+      icon: <Camera width={14} height={14} strokeWidth={1.8} aria-hidden />,
       available: canScan,
     },
   ];
@@ -263,7 +263,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             <IconButton
               variant="quiet"
               label="Add settings"
-              icon={<Settings width={18} height={18} strokeWidth={1.8} />}
+              icon={<Settings width={18} height={18} strokeWidth={2} />}
               onClick={() => setSettingsOpen(true)}
             />
             {/* A dialog's own close button unmounts directly — Modal reserves
@@ -382,7 +382,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
                   }}
                   disabled={scanBusy}
                   className="scan-tab-launch"
-                  icon={<Camera width={16} height={16} strokeWidth={1.8} />}
+                  icon={<Camera width={16} height={16} strokeWidth={2} />}
                 >
                   {scanBusy ? 'Importing…' : 'Start scanning'}
                 </Button>

@@ -80,9 +80,9 @@ export function SharedCopiesSheet({
                   <span className="shared-copies-row-name">{c.cardName}</span>
                   <span className="shared-copies-row-where">
                     {c.donorKind === 'cube' ? (
-                      <Boxes width={13} height={13} strokeWidth={2} aria-hidden />
+                      <Boxes width={14} height={14} strokeWidth={1.8} aria-hidden />
                     ) : (
-                      <Layers width={13} height={13} strokeWidth={2} aria-hidden />
+                      <Layers width={14} height={14} strokeWidth={1.8} aria-hidden />
                     )}
                     You own {c.owned} · also in {c.donorKind === 'cube' ? 'cube' : 'deck'}{' '}
                     <span

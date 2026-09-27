@@ -100,7 +100,7 @@ export function GuestActionPopover({ open, onClose, anchorRef, message }: Props)
           className="guest-action-popover-close"
           onClick={onClose}
           label="Dismiss"
-          icon={<X width={14} height={14} strokeWidth={2} />}
+          icon={<X width={14} height={14} strokeWidth={1.8} />}
         />
       </div>
     </div>,

@@ -27,7 +27,7 @@ export function CopyCubeButton({ data }: Props) {
       variant="primary"
       onClick={handleCopy}
       className="shared-copy-btn"
-      icon={<Copy width={14} height={14} strokeWidth={2} />}
+      icon={<Copy width={14} height={14} strokeWidth={1.8} />}
     >
       Copy cube
     </Button>

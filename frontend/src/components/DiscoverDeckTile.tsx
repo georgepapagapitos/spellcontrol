@@ -245,7 +245,7 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
             aria-hidden="true"
             tabIndex={-1}
           >
-            <ArrowUpRight width={12} height={12} strokeWidth={2.5} aria-hidden />
+            <ArrowUpRight width={12} height={12} strokeWidth={2} aria-hidden />
             Open
           </Link>
         )}

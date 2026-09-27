@@ -100,7 +100,7 @@ export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: P
         <Button
           onClick={handleDownload}
           aria-label="Download as text file"
-          icon={<Download width={14} height={14} strokeWidth={2} />}
+          icon={<Download width={14} height={14} strokeWidth={1.8} />}
         >
           Download
         </Button>
@@ -110,7 +110,7 @@ export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: P
           href={tcgplayerMassEntryUrl(tally)}
           target="_blank"
           rel="noopener noreferrer"
-          iconEnd={<ExternalLink width={14} height={14} strokeWidth={2} />}
+          iconEnd={<ExternalLink width={14} height={14} strokeWidth={1.8} />}
         >
           Buy on TCGPlayer
         </Button>

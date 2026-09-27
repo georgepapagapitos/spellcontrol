@@ -136,7 +136,7 @@ export function SortEditor({ sorts, valueOrders, onSortsChange, onValueOrdersCha
                       sorts.length === 1 ? 'A binder needs at least one sort' : 'Remove this sort'
                     }
                     label={`Remove the ${fieldLabel} sort`}
-                    icon={<X width={13} height={13} strokeWidth={2.2} />}
+                    icon={<X width={14} height={14} strokeWidth={1.8} />}
                   />
                 </div>
                 {isCustomizable && (

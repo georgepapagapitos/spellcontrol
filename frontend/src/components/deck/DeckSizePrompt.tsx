@@ -185,9 +185,9 @@ export function DeckSizePrompt({
         key: 'pick',
         icon:
           actionVerb === 'Add' ? (
-            <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />
+            <Plus width={18} height={18} strokeWidth={2} aria-hidden />
           ) : (
-            <ArrowLeftRight width={18} height={18} strokeWidth={2.2} aria-hidden />
+            <ArrowLeftRight width={18} height={18} strokeWidth={2} aria-hidden />
           ),
         label: actionVerb,
         onClick: () => {

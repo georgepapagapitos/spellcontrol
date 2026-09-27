@@ -27,7 +27,7 @@ export function SelectToggle({ active, onToggle }: { active: boolean; onToggle: 
       aria-label={active ? 'Done selecting' : 'Select'}
       title={active ? 'Done selecting' : 'Select'}
       onClick={onToggle}
-      icon={<CheckSquare width={14} height={14} strokeWidth={2} />}
+      icon={<CheckSquare width={14} height={14} strokeWidth={1.8} />}
       labelClassName="toolbar-label-compact"
     >
       {active ? 'Done' : 'Select'}
@@ -38,7 +38,7 @@ export function SelectToggle({ active, onToggle }: { active: boolean; onToggle: 
 export function SelectCheck({ checked }: { checked: boolean }) {
   return (
     <span className="bulk-check" data-checked={checked} aria-hidden>
-      {checked && <Check width={14} height={14} strokeWidth={3} />}
+      {checked && <Check width={14} height={14} strokeWidth={1.8} />}
     </span>
   );
 }

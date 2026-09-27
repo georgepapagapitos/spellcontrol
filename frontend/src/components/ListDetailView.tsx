@@ -111,17 +111,17 @@ const VIEW_OPTIONS = [
   {
     value: 'grid' as const,
     label: 'Grid view',
-    icon: <LayoutGrid width={15} height={15} aria-hidden />,
+    icon: <LayoutGrid width={16} height={16} aria-hidden />,
   },
   {
     value: 'list' as const,
     label: 'List view',
-    icon: <LayoutList width={15} height={15} aria-hidden />,
+    icon: <LayoutList width={16} height={16} aria-hidden />,
   },
   {
     value: 'compact' as const,
     label: 'Compact view',
-    icon: <AlignJustify width={15} height={15} aria-hidden />,
+    icon: <AlignJustify width={16} height={16} aria-hidden />,
   },
 ];
 
@@ -703,7 +703,7 @@ export function ListDetailView({
           {!isNarrow && view === 'grid' && (
             <ToolbarPopover
               label="Details"
-              icon={<Captions width={14} height={14} strokeWidth={2} aria-hidden />}
+              icon={<Captions width={14} height={14} strokeWidth={1.8} aria-hidden />}
             >
               {() => <GridCaptionList prefs={captionPrefs} onChange={setCaptionPrefs} />}
             </ToolbarPopover>
@@ -719,7 +719,7 @@ export function ListDetailView({
           {isNarrow && (
             <ToolbarPopover
               label="View"
-              icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
+              icon={<Eye width={14} height={14} strokeWidth={1.8} aria-hidden />}
               haspopup="dialog"
               panelRole="dialog"
               panelAriaLabel="View options"
@@ -864,7 +864,7 @@ export function ListDetailView({
             onClick={() => setScryfallOpen(true)}
           >
             <span className="collection-list-scryfall-icon">
-              <Search width={18} height={18} strokeWidth={1.7} aria-hidden />
+              <Search width={18} height={18} strokeWidth={2} aria-hidden />
             </span>
             <span className="collection-list-scryfall-text">
               <span className="collection-list-scryfall-title">Search Scryfall</span>

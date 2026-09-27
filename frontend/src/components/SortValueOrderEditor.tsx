@@ -71,7 +71,7 @@ export function SortValueOrderEditor({ field, value, onChange }: Props) {
                   className="sort-value-order-reset"
                   onClick={() => onChange(undefined)}
                   label="Reset to default order"
-                  icon={<RotateCcw width={14} height={14} strokeWidth={2} />}
+                  icon={<RotateCcw width={14} height={14} strokeWidth={1.8} />}
                 />
               </li>
             )}

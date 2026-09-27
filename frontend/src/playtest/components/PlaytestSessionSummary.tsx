@@ -42,7 +42,7 @@ export function PlaytestSessionSummary({ record, onDismiss }: Props) {
           className="playtest-session-summary__dismiss"
           label="Dismiss session summary"
           onClick={onDismiss}
-          icon={<X width={14} height={14} strokeWidth={2} />}
+          icon={<X width={14} height={14} strokeWidth={1.8} />}
         />
       </div>
       <p className="playtest-session-summary__line">{formatSessionSummaryLine(record)}</p>

@@ -56,9 +56,9 @@ export function CopyButton({
         icon={
           icon ? (
             copied ? (
-              <Check width={14} height={14} strokeWidth={2.5} />
+              <Check width={14} height={14} strokeWidth={1.8} />
             ) : (
-              <Clipboard width={14} height={14} strokeWidth={2} />
+              <Clipboard width={14} height={14} strokeWidth={1.8} />
             )
           ) : undefined
         }

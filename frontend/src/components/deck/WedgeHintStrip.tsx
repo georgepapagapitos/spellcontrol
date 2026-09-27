@@ -57,7 +57,7 @@ export function WedgeHintStrip({
         className="wedge-hint-strip-dismiss"
         onClick={onDismiss}
         label="Dismiss hint"
-        icon={<X width={14} height={14} />}
+        icon={<X width={14} height={14} strokeWidth={1.8} />}
       />
     </div>
   );

@@ -120,7 +120,7 @@ export function InfoTip({
         onFocus={place}
         onBlur={close}
       >
-        {icon ?? <Info width={13} height={13} aria-hidden />}
+        {icon ?? <Info width={14} height={14} strokeWidth={1.8} aria-hidden />}
       </button>
       {pos &&
         createPortal(

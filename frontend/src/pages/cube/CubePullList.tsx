@@ -284,7 +284,7 @@ export function CubePullList({ cube }: { cube: SavedCube }) {
           )}
           <Button
             placement="row"
-            icon={<Printer width={14} height={14} strokeWidth={2} />}
+            icon={<Printer width={14} height={14} strokeWidth={1.8} />}
             onClick={() => window.print()}
           >
             Print

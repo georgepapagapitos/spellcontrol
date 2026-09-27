@@ -92,7 +92,7 @@ export function CubeIndexPage() {
             <Button
               to="/decks/cube/new"
               variant="primary"
-              icon={<Plus width={14} height={14} strokeWidth={2} />}
+              icon={<Plus width={14} height={14} strokeWidth={1.8} />}
             >
               New cube
             </Button>

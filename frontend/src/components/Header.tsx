@@ -128,7 +128,7 @@ export function Header() {
             }
             aria-label="Card search"
           >
-            <Search width={18} height={18} strokeWidth={1.6} aria-hidden />
+            <Search width={18} height={18} strokeWidth={2} aria-hidden />
             <span className="site-nav-settings-label">Search</span>
           </NavLink>
           {/* Rules is a utility, not a hub — a lookup you reach for from any
@@ -144,7 +144,7 @@ export function Header() {
             }
             aria-label="Rules"
           >
-            <BookOpen width={18} height={18} strokeWidth={1.6} aria-hidden />
+            <BookOpen width={18} height={18} strokeWidth={2} aria-hidden />
             <span className="site-nav-settings-label">Rules</span>
           </NavLink>
           {isAuthed ? (
@@ -202,7 +202,7 @@ export function Header() {
                 }
                 aria-label="Settings"
               >
-                <Settings width={18} height={18} strokeWidth={1.6} aria-hidden />
+                <Settings width={18} height={18} strokeWidth={2} aria-hidden />
                 <span className="site-nav-settings-label">Settings</span>
               </NavLink>
               <Link

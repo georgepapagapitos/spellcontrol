@@ -612,7 +612,7 @@ export function GameBoard({
                 onUndo();
               }}
               label={`Undo ${undoLabel}`}
-              icon={<Undo2 width={18} height={18} strokeWidth={2.2} />}
+              icon={<Undo2 width={18} height={18} strokeWidth={2} />}
             />
           )}
         </div>
@@ -1392,7 +1392,7 @@ function PlayerPanel({
             <div className="pp-designation-chips">
               {isMonarch && (
                 <span className="pp-designation-chip is-monarch" role="img" aria-label="Monarch">
-                  <Crown width={14} height={14} aria-hidden />
+                  <Crown width={14} height={14} strokeWidth={1.8} aria-hidden />
                 </span>
               )}
               {isInitiative && (
@@ -1401,12 +1401,12 @@ function PlayerPanel({
                   role="img"
                   aria-label="Initiative"
                 >
-                  <Compass width={14} height={14} aria-hidden />
+                  <Compass width={14} height={14} strokeWidth={1.8} aria-hidden />
                 </span>
               )}
               {isNextTurn && (
                 <span className="pp-designation-chip is-next" role="img" aria-label="Up next">
-                  <ChevronRight width={14} height={14} aria-hidden />
+                  <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
                 </span>
               )}
             </div>
@@ -1424,7 +1424,7 @@ function PlayerPanel({
               onUndo();
             }}
           >
-            <Undo2 width={16} height={16} strokeWidth={2.2} aria-hidden />
+            <Undo2 width={16} height={16} strokeWidth={2} aria-hidden />
             Undo
           </button>
         )}
@@ -1447,7 +1447,7 @@ function PlayerPanel({
             }}
           >
             <span className="pp-highroll-die" aria-hidden="true">
-              <Dices width={20} height={20} strokeWidth={2} />
+              <Dices width={20} height={20} strokeWidth={1.8} />
             </span>
             <span className="pp-highroll-value" aria-live="polite">
               {numeralDigits(highRollRolls[0], underlineSixNine)}

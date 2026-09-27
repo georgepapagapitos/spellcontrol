@@ -222,12 +222,12 @@ export function DiceSheet({
 
       <SheetSection title={live ? 'Coin and first player' : 'Coin'}>
         <div className="dice-pair">
-          <Button icon={<Coins width={17} height={17} strokeWidth={2} />} onClick={onCoin}>
+          <Button icon={<Coins width={18} height={18} strokeWidth={2} />} onClick={onCoin}>
             Flip a coin
           </Button>
           {live && (
             <Button
-              icon={<Target width={17} height={17} strokeWidth={2} />}
+              icon={<Target width={18} height={18} strokeWidth={2} />}
               onClick={onFirstPlayer}
             >
               Pick first player

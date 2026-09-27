@@ -103,7 +103,7 @@ export function SortMenu<T extends string>({
             // button's job is to say what happens if you press it.
             aria-label={`Reverse sort order: ${nextDirLabel}`}
           >
-            <ArrowDownUp width={14} height={14} strokeWidth={2} aria-hidden />
+            <ArrowDownUp width={14} height={14} strokeWidth={1.8} aria-hidden />
             <span className="sort-menu-reverse-label">Reverse</span>
             <span className="sort-menu-reverse-dir" aria-hidden>
               {nextDirLabel}

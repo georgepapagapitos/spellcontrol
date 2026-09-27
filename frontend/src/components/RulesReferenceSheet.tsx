@@ -107,7 +107,7 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
               );
             }}
           >
-            <Sparkles width={14} height={14} aria-hidden />
+            <Sparkles width={14} height={14} strokeWidth={1.8} aria-hidden />
             <span className="rules-ref-ask-ai-text">Ask a rules question</span>
             <span className="rules-ref-ask-ai-hint">AI · cites the rules</span>
           </button>

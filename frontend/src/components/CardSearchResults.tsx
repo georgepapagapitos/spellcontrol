@@ -355,9 +355,9 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                       label={added > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
                       icon={
                         added > 0 ? (
-                          <Check width={14} height={14} strokeWidth={2.5} />
+                          <Check width={14} height={14} strokeWidth={1.8} />
                         ) : (
-                          <Plus width={14} height={14} strokeWidth={2.5} />
+                          <Plus width={14} height={14} strokeWidth={1.8} />
                         )
                       }
                     />
@@ -399,14 +399,14 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                           className="inline-card-search-stepper-btn"
                           onClick={() => decrementListEntry(c)}
                           label={`One fewer ${c.name}`}
-                          icon={<Minus width={12} height={12} strokeWidth={2.5} />}
+                          icon={<Minus width={12} height={12} strokeWidth={2} />}
                         />
                         <output aria-hidden>{listQty}</output>
                         <IconButton
                           className="inline-card-search-stepper-btn"
                           onClick={() => void quickAdd(c)}
                           label={`One more ${c.name}`}
-                          icon={<Plus width={12} height={12} strokeWidth={2.5} />}
+                          icon={<Plus width={12} height={12} strokeWidth={2} />}
                         />
                       </span>
                     ) : (
@@ -416,9 +416,9 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                         label={added > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
                         icon={
                           added > 0 ? (
-                            <Check width={12} height={12} strokeWidth={2.5} />
+                            <Check width={12} height={12} strokeWidth={2} />
                           ) : (
-                            <Plus width={12} height={12} strokeWidth={2.5} />
+                            <Plus width={12} height={12} strokeWidth={2} />
                           )
                         }
                       />
@@ -466,7 +466,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                             className="inline-card-search-undo"
                             onClick={() => undoAdd(c.id)}
                             label={`Remove last added copy of ${c.name}`}
-                            icon={<Minus width={12} height={12} strokeWidth={2.5} />}
+                            icon={<Minus width={12} height={12} strokeWidth={2} />}
                           />
                         )}
                         {owned > 0 && (
@@ -555,9 +555,9 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                   key: 'add',
                   icon:
                     added > 0 ? (
-                      <Check width={18} height={18} strokeWidth={2.4} aria-hidden />
+                      <Check width={18} height={18} strokeWidth={2} aria-hidden />
                     ) : (
-                      <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />
+                      <Plus width={18} height={18} strokeWidth={2} aria-hidden />
                     ),
                   label: added > 0 ? `Added ×${added}` : 'Add',
                   onClick: () => void quickAdd(card),

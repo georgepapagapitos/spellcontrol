@@ -174,7 +174,7 @@ export function BinderTabs({ binders }: Props) {
         disabled={binders.length === 0}
         title="Export binders or your collection"
       >
-        <Download width={14} height={14} strokeWidth={1.6} aria-hidden />
+        <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
         <span>Export</span>
       </button>
 
@@ -236,7 +236,7 @@ function BinderOverflowMenu({
         aria-expanded={open}
         onClick={handleToggle}
         label="Binder actions"
-        icon={<MoreHorizontal width={18} height={18} strokeWidth={2.2} />}
+        icon={<MoreHorizontal width={18} height={18} strokeWidth={2} />}
       />
       {open && panelPos && (
         <BinderOverflowPanel
@@ -352,7 +352,7 @@ function BinderOverflowPanel({
             onMoveUp();
           }}
         >
-          <ChevronUp width={14} height={14} strokeWidth={1.6} aria-hidden />
+          <ChevronUp width={14} height={14} strokeWidth={1.8} aria-hidden />
           <span>Move up</span>
         </button>
         <button
@@ -365,7 +365,7 @@ function BinderOverflowPanel({
             onMoveDown();
           }}
         >
-          <ChevronDown width={14} height={14} strokeWidth={1.6} aria-hidden />
+          <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
           <span>Move down</span>
         </button>
         <button
@@ -377,7 +377,7 @@ function BinderOverflowPanel({
             onEdit();
           }}
         >
-          <Pencil width={14} height={14} strokeWidth={1.6} aria-hidden />
+          <Pencil width={14} height={14} strokeWidth={1.8} aria-hidden />
           <span>Edit binder</span>
         </button>
         <button

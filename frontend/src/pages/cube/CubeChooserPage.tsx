@@ -34,7 +34,7 @@ export function CubeChooserPage() {
             className="cube-chooser-icon"
             width={20}
             height={20}
-            strokeWidth={1.6}
+            strokeWidth={1.8}
             aria-hidden
           />
           <span className="cube-chooser-title">From my collection</span>
@@ -53,7 +53,7 @@ export function CubeChooserPage() {
             className="cube-chooser-icon"
             width={20}
             height={20}
-            strokeWidth={1.6}
+            strokeWidth={1.8}
             aria-hidden
           />
           <span className="cube-chooser-title">Import a cube</span>

@@ -127,7 +127,7 @@ export function ImportHistorySheet({ onClose }: Props) {
               variant="danger"
               onClick={() => setConfirming(true)}
               disabled={isLoading}
-              icon={<Trash2 width={14} height={14} strokeWidth={1.6} aria-hidden />}
+              icon={<Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />}
             >
               Delete selected ({selected.size})
             </Button>

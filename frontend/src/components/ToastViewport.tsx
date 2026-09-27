@@ -112,7 +112,7 @@ function ToastItem({
         className="toast-close"
         onClick={handleDismiss}
         label="Dismiss"
-        icon={<X width={14} height={14} strokeWidth={2} />}
+        icon={<X width={14} height={14} strokeWidth={1.8} />}
       />
     </li>
   );

@@ -124,7 +124,7 @@ export function GenerationModePicker({
 
           {!online && (
             <p className="gen-mode-offline" role="status">
-              <WifiOff width={14} height={14} strokeWidth={2} aria-hidden /> The Scryfall-powered
+              <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden /> The Scryfall-powered
               modes need a connection. They'll switch on when you're back online.
             </p>
           )}

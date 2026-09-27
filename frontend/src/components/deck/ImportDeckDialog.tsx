@@ -718,7 +718,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                         disabled={isLoading}
                         label={`Remove ${f.name}`}
                         title="Remove"
-                        icon={<X width={14} height={14} strokeWidth={2} />}
+                        icon={<X width={14} height={14} strokeWidth={1.8} />}
                       />
                     </li>
                   ))}

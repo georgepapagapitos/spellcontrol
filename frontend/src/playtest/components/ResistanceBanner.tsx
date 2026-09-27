@@ -35,7 +35,7 @@ export function ResistanceBanner({ message, onDismiss }: Props) {
         className="playtest-resistance-banner__dismiss"
         label="Dismiss opponent announcement"
         onClick={onDismiss}
-        icon={<X width={14} height={14} strokeWidth={2} />}
+        icon={<X width={14} height={14} strokeWidth={1.8} />}
       />
     </div>
   );

@@ -14,7 +14,7 @@ interface Props {
 export function BackLink({ to, label }: Props) {
   return (
     <Link to={to} className="back-link">
-      <ArrowLeft width={14} height={14} strokeWidth={1.6} aria-hidden />
+      <ArrowLeft width={14} height={14} strokeWidth={1.8} aria-hidden />
       <span>{label}</span>
     </Link>
   );

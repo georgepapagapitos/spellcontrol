@@ -152,7 +152,7 @@ export function CommanderTypeahead({ value, onChange, trailing }: Props) {
                 className="search-pill-clear"
                 onClick={clear}
                 label="Clear commander filter"
-                icon={<X width={14} height={14} strokeWidth={2} />}
+                icon={<X width={14} height={14} strokeWidth={1.8} />}
               />
             )}
             {trailing}

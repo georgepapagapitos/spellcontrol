@@ -320,6 +320,7 @@ function KeywordList({
                   aria-hidden
                   width={14}
                   height={14}
+                  strokeWidth={1.8}
                 />
                 <span className="rules-ref-keyword-name">{k.name}</span>
                 <span className={`rules-ref-badge rules-ref-badge-${k.kind}`}>{k.kind}</span>

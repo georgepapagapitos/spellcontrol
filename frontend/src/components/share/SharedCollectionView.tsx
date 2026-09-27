@@ -160,17 +160,17 @@ export function SharedCollectionView({ data, embedded = false }: Props) {
             {
               value: 'grid',
               label: 'Grid view',
-              icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+              icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
             },
             {
               value: 'list',
               label: 'List view',
-              icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
+              icon: <ListIcon width={14} height={14} strokeWidth={1.8} aria-hidden />,
             },
             {
               value: 'compact',
               label: 'Compact list (text only)',
-              icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+              icon: <AlignJustify width={14} height={14} strokeWidth={1.8} aria-hidden />,
             },
           ]}
         />

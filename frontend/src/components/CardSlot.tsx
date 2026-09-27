@@ -319,9 +319,9 @@ export function CardSlot({ card, showImage }: Props) {
                     aria-hidden="true"
                   >
                     {allocation.ownerKind === 'cube' ? (
-                      <Boxes width={14} height={14} strokeWidth={2.2} aria-hidden />
+                      <Boxes width={14} height={14} strokeWidth={1.8} aria-hidden />
                     ) : (
-                      <Layers width={14} height={14} strokeWidth={2.2} aria-hidden />
+                      <Layers width={14} height={14} strokeWidth={1.8} aria-hidden />
                     )}
                   </span>
                 )}

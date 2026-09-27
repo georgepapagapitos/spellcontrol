@@ -58,7 +58,7 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
         title={description}
         onClick={toggle}
       >
-        <ArrowUpDown width={13} height={13} strokeWidth={2} aria-hidden />
+        <ArrowUpDown width={14} height={14} strokeWidth={1.8} aria-hidden />
         <span className="sort-popover-label">{breadcrumb || 'Sort'}</span>
       </button>
       {open &&

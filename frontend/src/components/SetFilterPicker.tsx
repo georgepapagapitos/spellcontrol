@@ -195,7 +195,7 @@ export function SetFilterPicker({ options, value, onChange }: Props) {
               inputRef.current?.focus();
             }}
             label="Clear all sets"
-            icon={<X width={14} height={14} strokeWidth={2} />}
+            icon={<X width={14} height={14} strokeWidth={1.8} />}
           />
         )}
       </div>

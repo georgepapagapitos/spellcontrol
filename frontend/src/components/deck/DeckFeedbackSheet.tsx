@@ -250,7 +250,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                     className="deck-feedback-beginClose"
                     onClick={() => handleDelete(response)}
                     label={`Delete response from ${response.authorName}`}
-                    icon={<X width={14} height={14} strokeWidth={2} />}
+                    icon={<X width={14} height={14} strokeWidth={1.8} />}
                   />
                 </header>
                 {response.comment && <p className="deck-feedback-comment">{response.comment}</p>}
@@ -294,7 +294,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                                   className="deck-feedback-verdict deck-feedback-verdict--accept"
                                   onClick={() => handleVerdict(response, suggestion, 'accepted')}
                                 >
-                                  <Check width={13} height={13} strokeWidth={2.2} aria-hidden />
+                                  <Check width={14} height={14} strokeWidth={1.8} aria-hidden />
                                   Accept
                                 </button>
                                 <button
@@ -302,7 +302,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                                   className="deck-feedback-verdict"
                                   onClick={() => handleVerdict(response, suggestion, 'rejected')}
                                 >
-                                  <X width={13} height={13} strokeWidth={2.2} aria-hidden />
+                                  <X width={14} height={14} strokeWidth={1.8} aria-hidden />
                                   Reject
                                 </button>
                               </span>

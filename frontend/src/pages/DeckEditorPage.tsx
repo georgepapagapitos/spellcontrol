@@ -3171,7 +3171,7 @@ export function DeckEditorPage() {
                   disabled={!canUndoEdit}
                   title={canUndoEdit ? `Undo: ${undoEditLabel} (Ctrl/Cmd+Z)` : 'Nothing to undo'}
                   label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
-                  icon={<Undo2 width={14} height={14} strokeWidth={2} />}
+                  icon={<Undo2 width={14} height={14} strokeWidth={1.8} />}
                 />
                 <IconButton
                   variant="secondary"
@@ -3182,7 +3182,7 @@ export function DeckEditorPage() {
                     canRedoEdit ? `Redo: ${redoEditLabel} (Ctrl/Cmd+Shift+Z)` : 'Nothing to redo'
                   }
                   label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
-                  icon={<Redo2 width={14} height={14} strokeWidth={2} />}
+                  icon={<Redo2 width={14} height={14} strokeWidth={1.8} />}
                 />
               </>
             )}
@@ -3190,7 +3190,7 @@ export function DeckEditorPage() {
               <Button
                 to={`/decks/${deck.id}/playtest`}
                 className="deck-editor-action-btn"
-                icon={<Play width={14} height={14} strokeWidth={2} />}
+                icon={<Play width={14} height={14} strokeWidth={1.8} />}
               >
                 Playtest
               </Button>
@@ -3203,9 +3203,9 @@ export function DeckEditorPage() {
               className="deck-editor-action-btn deck-editor-add-btn"
               icon={
                 showAddPanel ? (
-                  <X width={14} height={14} strokeWidth={2} />
+                  <X width={14} height={14} strokeWidth={1.8} />
                 ) : (
-                  <Plus width={14} height={14} strokeWidth={2} />
+                  <Plus width={14} height={14} strokeWidth={1.8} />
                 )
               }
             >
@@ -4230,7 +4230,7 @@ function DeckEditorOverflowMenu({
         aria-expanded={open}
         onClick={handleToggle}
         label="Deck actions"
-        icon={<MoreVertical width={20} height={20} strokeWidth={2.2} />}
+        icon={<MoreVertical width={20} height={20} strokeWidth={1.8} />}
       />
       {open &&
         panelPos &&

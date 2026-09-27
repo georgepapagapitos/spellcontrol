@@ -23,17 +23,17 @@ const VIEW_OPTIONS: Array<ViewModeOption<BinderViewMode>> = [
   {
     value: 'pages',
     label: 'Pages view',
-    icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+    icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
   },
   {
     value: 'list',
     label: 'List view (with thumbnails)',
-    icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
+    icon: <ListIcon width={14} height={14} strokeWidth={1.8} aria-hidden />,
   },
   {
     value: 'compact',
     label: 'Compact list (text only)',
-    icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+    icon: <AlignJustify width={14} height={14} strokeWidth={1.8} aria-hidden />,
   },
 ];
 
@@ -96,7 +96,7 @@ export function BinderSummaryBar({ binderName, onBrowsePages, sort, collapse, co
           onClick={onBrowsePages}
           aria-label={`Browse pages of ${binderName}`}
         >
-          <BookOpen width={14} height={14} strokeWidth={2} aria-hidden />
+          <BookOpen width={14} height={14} strokeWidth={1.8} aria-hidden />
           <span>Browse pages</span>
         </button>
       )}
@@ -110,9 +110,9 @@ export function BinderSummaryBar({ binderName, onBrowsePages, sort, collapse, co
             title={collapseLabel}
             icon={
               collapse.allCollapsed ? (
-                <ChevronsUpDown width={14} height={14} strokeWidth={2} />
+                <ChevronsUpDown width={14} height={14} strokeWidth={1.8} />
               ) : (
-                <ChevronsDownUp width={14} height={14} strokeWidth={2} />
+                <ChevronsDownUp width={14} height={14} strokeWidth={1.8} />
               )
             }
           >
@@ -132,7 +132,7 @@ export function BinderSummaryBar({ binderName, onBrowsePages, sort, collapse, co
           <ToolbarPopover
             triggerContent={
               <>
-                <Eye width={14} height={14} strokeWidth={2} aria-hidden />
+                <Eye width={14} height={14} strokeWidth={1.8} aria-hidden />
                 {changed > 0 && (
                   <span className="collection-filters-badge" aria-hidden>
                     {changed}
@@ -185,7 +185,7 @@ function ViewPanel({
           className="toolbar-popover-item view-popover-back"
           onClick={() => setKeyOpen(false)}
         >
-          <ChevronLeft width={14} height={14} strokeWidth={2} aria-hidden />
+          <ChevronLeft width={14} height={14} strokeWidth={1.8} aria-hidden />
           <span>Back</span>
         </button>
         <LegendContent context="binder" />

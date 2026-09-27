@@ -37,14 +37,14 @@ export function ZoomControl({ zoom, width, max, onChange }: Props) {
         disabled={smaller === zoom}
         onClick={() => onChange(smaller)}
         label="Smaller cards"
-        icon={<ZoomOut width={14} height={14} strokeWidth={2} />}
+        icon={<ZoomOut width={14} height={14} strokeWidth={1.8} />}
       />
       <IconButton
         className="toolbar-viewmode-btn"
         disabled={bigger === zoom}
         onClick={() => onChange(bigger)}
         label="Bigger cards"
-        icon={<ZoomIn width={14} height={14} strokeWidth={2} />}
+        icon={<ZoomIn width={14} height={14} strokeWidth={1.8} />}
       />
     </div>
   );

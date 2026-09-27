@@ -62,7 +62,7 @@ function PageNum({ pageNum, pageIndex }: { pageNum: number; pageIndex: number })
       title={`Open page ${pageNum}`}
     >
       <span>Page {pageNum}</span>
-      <BookOpen width={14} height={14} strokeWidth={2} aria-hidden />
+      <BookOpen width={14} height={14} strokeWidth={1.8} aria-hidden />
     </button>
   );
 }

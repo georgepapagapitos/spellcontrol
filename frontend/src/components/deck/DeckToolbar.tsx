@@ -142,9 +142,9 @@ function RoleBadgeLegend() {
         onClick={() => setOpen((v) => !v)}
       >
         {open ? (
-          <ChevronDown width={13} height={13} strokeWidth={2} aria-hidden />
+          <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
         ) : (
-          <ChevronRight width={13} height={13} strokeWidth={2} aria-hidden />
+          <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
         )}
         What do the role badges mean?
       </button>
@@ -237,7 +237,7 @@ function DeckViewPopoverPanel({
           className="toolbar-popover-item view-popover-back"
           onClick={() => setKeyOpen(false)}
         >
-          <ChevronLeft width={14} height={14} strokeWidth={2} aria-hidden />
+          <ChevronLeft width={14} height={14} strokeWidth={1.8} aria-hidden />
           <span>Back</span>
         </button>
         <LegendContent context="deck" />
@@ -356,7 +356,7 @@ export function DeckToolbar({
       aria-pressed
       onClick={onToggleSelectMode}
       className="deck-toolbar-select-toggle"
-      icon={<CheckSquare width={14} height={14} strokeWidth={2} />}
+      icon={<CheckSquare width={14} height={14} strokeWidth={1.8} />}
     >
       Done
     </Button>
@@ -397,7 +397,7 @@ export function DeckToolbar({
               stays a single row and the card list clears the fold. */}
           <ToolbarPopover
             label="View"
-            icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
+            icon={<Eye width={14} height={14} strokeWidth={1.8} aria-hidden />}
             haspopup="dialog"
             panelRole="dialog"
             panelAriaLabel="View options"
@@ -466,7 +466,7 @@ export function DeckToolbar({
               aria-pressed={selectMode}
               onClick={onToggleSelectMode}
               className="deck-toolbar-select-toggle"
-              icon={<CheckSquare width={14} height={14} strokeWidth={2} />}
+              icon={<CheckSquare width={14} height={14} strokeWidth={1.8} />}
             >
               {selectMode ? 'Done' : 'Select'}
             </Button>
@@ -475,7 +475,7 @@ export function DeckToolbar({
 
           <ToolbarPopover
             triggerClassName={`${buttonClass({ placement: 'toolbar' })} deck-toolbar-more-btn`}
-            triggerContent={<MoreHorizontal width={18} height={18} strokeWidth={3} aria-hidden />}
+            triggerContent={<MoreHorizontal width={18} height={18} strokeWidth={2} aria-hidden />}
             triggerAriaLabel="More list options"
             haspopup="dialog"
             panelRole="dialog"
@@ -527,17 +527,17 @@ function DeckViewModeToggle({
         {
           value: 'grid',
           label: 'Grid view',
-          icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+          icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
         },
         {
           value: 'stacks',
           label: 'Stacks view',
-          icon: <GalleryVerticalEnd width={14} height={14} strokeWidth={2} aria-hidden />,
+          icon: <GalleryVerticalEnd width={14} height={14} strokeWidth={1.8} aria-hidden />,
         },
         {
           value: 'list',
           label: 'List view',
-          icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+          icon: <ListIconLucide width={14} height={14} strokeWidth={1.8} aria-hidden />,
         },
       ]}
     />
@@ -587,7 +587,7 @@ function DeckGroupByMenu({
       value={value}
       options={GROUP_BY_ORDER.map((g) => ({ value: g, label: GROUP_BY_LABEL[g] }))}
       onChange={onChange}
-      leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
+      leadingIcon={<Layers width={14} height={14} strokeWidth={1.8} aria-hidden />}
     />
   );
 }

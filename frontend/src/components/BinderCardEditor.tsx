@@ -477,7 +477,7 @@ function SortableCardRow({ card }: { card: EnrichedCard }) {
       <IconButton
         className="binder-card-editor-drag"
         label="Drag to reorder"
-        icon={<GripVertical width={14} height={14} strokeWidth={1.6} />}
+        icon={<GripVertical width={14} height={14} strokeWidth={1.8} />}
         {...attributes}
         {...listeners}
       />

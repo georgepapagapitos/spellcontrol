@@ -138,7 +138,7 @@ function WinConEvidenceItem({
           onClick={() => onToggleTag(name)}
           label={tagged ? `Untag ${name} as Wincon` : `Tag ${name} as Wincon`}
           icon={
-            <Tag width={13} height={13} strokeWidth={2} fill={tagged ? 'currentColor' : 'none'} />
+            <Tag width={14} height={14} strokeWidth={1.8} fill={tagged ? 'currentColor' : 'none'} />
           }
         />
       )}
@@ -164,7 +164,9 @@ function WinConRow({
   return (
     <div className={`win-con-row${primary ? ' win-con-row--primary' : ''}`}>
       <div className="win-con-row-head">
-        {primary && <Trophy className="win-con-trophy" width={13} height={13} aria-hidden />}
+        {primary && (
+          <Trophy className="win-con-trophy" width={14} height={14} strokeWidth={1.8} aria-hidden />
+        )}
         <span className="win-con-label">{wincon.label}</span>
         {primary && <span className="win-con-tag">Primary</span>}
       </div>
@@ -230,7 +232,7 @@ export function WinConditionPanel({
   const taggedSection = tagOnly.length > 0 && (
     <div className="win-con-row win-con-row--tagged">
       <div className="win-con-row-head">
-        <Tag className="win-con-tagged-icon" width={13} height={13} aria-hidden />
+        <Tag className="win-con-tagged-icon" width={14} height={14} strokeWidth={1.8} aria-hidden />
         <span className="win-con-label">Tagged by you</span>
       </div>
       <p className="win-con-summary">
@@ -276,7 +278,13 @@ export function WinConditionPanel({
     return (
       <section className="win-con-panel" aria-label="Win condition analysis">
         <p className="win-con-headline win-con-headline--warn">
-          <AlertTriangle className="win-con-warn-icon" width={14} height={14} aria-hidden />
+          <AlertTriangle
+            className="win-con-warn-icon"
+            width={14}
+            height={14}
+            strokeWidth={1.8}
+            aria-hidden
+          />
           No clear win condition detected
         </p>
         <p className="win-con-empty">{emptyCopy}</p>
@@ -300,7 +308,13 @@ export function WinConditionPanel({
       {clock && analysis.primary && (
         <div className="win-con-clock">
           <p className="win-con-clock-line">
-            <Hourglass className="win-con-clock-icon" width={13} height={13} aria-hidden />
+            <Hourglass
+              className="win-con-clock-icon"
+              width={14}
+              height={14}
+              strokeWidth={1.8}
+              aria-hidden
+            />
             <span>{assemblyClockSentence(clock, analysis.primary.category)}</span>
             <InfoTip
               label="the assembly estimate"

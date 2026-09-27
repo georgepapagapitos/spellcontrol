@@ -114,7 +114,7 @@ export function DeckCardInspector({
           title={pinned ? 'Unpin' : 'Pin this card'}
           onClick={onTogglePin}
           label={pinned ? `Unpin ${row.name}` : `Pin ${row.name}`}
-          icon={<Pin width={14} height={14} strokeWidth={2} />}
+          icon={<Pin width={14} height={14} strokeWidth={1.8} />}
         />
       </div>
 

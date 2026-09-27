@@ -78,7 +78,7 @@ export function CardRulings({
         <ChevronDown
           width={14}
           height={14}
-          strokeWidth={2.2}
+          strokeWidth={1.8}
           aria-hidden
           className={`card-rulings-chevron${open ? ' is-open' : ''}`}
         />

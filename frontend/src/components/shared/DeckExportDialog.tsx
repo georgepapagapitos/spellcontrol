@@ -98,7 +98,7 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
             <Button
               onClick={handleDownload}
               aria-label="Download as text file"
-              icon={<Download width={14} height={14} strokeWidth={2} />}
+              icon={<Download width={14} height={14} strokeWidth={1.8} />}
             >
               Download
             </Button>
@@ -114,7 +114,7 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
               <Button
                 onClick={handlePrint}
                 aria-label="Print this decklist as a checklist"
-                icon={<Printer width={14} height={14} strokeWidth={2} />}
+                icon={<Printer width={14} height={14} strokeWidth={1.8} />}
               >
                 Print list
               </Button>

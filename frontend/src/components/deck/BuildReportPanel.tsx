@@ -277,10 +277,17 @@ export function BuildReportPanel({
               className="build-report-combo-seed-icon"
               width={14}
               height={14}
+              strokeWidth={1.8}
               aria-hidden
             />
           ) : (
-            <Sparkles className="build-report-combo-seed-icon" width={14} height={14} aria-hidden />
+            <Sparkles
+              className="build-report-combo-seed-icon"
+              width={14}
+              height={14}
+              strokeWidth={1.8}
+              aria-hidden
+            />
           )}
           <span>
             <strong>

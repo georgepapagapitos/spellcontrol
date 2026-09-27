@@ -142,7 +142,7 @@ function ColorDot({
         aria-expanded={open}
         onClick={toggle}
         label={label}
-        icon={<ChevronDown width={10} height={10} strokeWidth={2.5} />}
+        icon={<ChevronDown width={12} height={12} strokeWidth={2} />}
       />
       {open &&
         panelStyle &&
@@ -1245,7 +1245,7 @@ export function BinderEditor() {
                             disabled={saving}
                             label={`Remove ${f.name}`}
                             title="Remove"
-                            icon={<X width={14} height={14} strokeWidth={2} />}
+                            icon={<X width={14} height={14} strokeWidth={1.8} />}
                           />
                         </li>
                       ))}

@@ -121,7 +121,7 @@ export function GameClock({
               dispatch({ type: 'pass-turn', actorSeat: null, toSeat: startSeat });
             }}
           >
-            <Play width={13} height={13} strokeWidth={2.4} aria-hidden />
+            <Play width={14} height={14} strokeWidth={1.8} aria-hidden />
             Start
           </button>
         )}
@@ -136,9 +136,9 @@ export function GameClock({
             }}
           >
             {view.paused ? (
-              <Play width={13} height={13} strokeWidth={2.4} aria-hidden />
+              <Play width={14} height={14} strokeWidth={1.8} aria-hidden />
             ) : (
-              <Pause width={13} height={13} strokeWidth={2.4} aria-hidden />
+              <Pause width={14} height={14} strokeWidth={1.8} aria-hidden />
             )}
           </button>
         )}
@@ -153,7 +153,7 @@ export function GameClock({
             }}
           >
             Pass
-            <ChevronRight width={14} height={14} strokeWidth={2.6} aria-hidden />
+            <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
           </button>
         )}
       </div>

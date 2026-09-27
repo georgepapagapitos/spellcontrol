@@ -149,7 +149,7 @@ export function TagsPage() {
                   className="tags-selected-chip"
                   onClick={() => toggleTag(slug)}
                   aria-label={`Remove ${cardTagLabel(slug)} from the selection`}
-                  trailing={<X width={12} height={12} strokeWidth={2.5} aria-hidden />}
+                  trailing={<X width={12} height={12} strokeWidth={2} aria-hidden />}
                 >
                   {cardTagLabel(slug)}
                 </Chip>
@@ -176,9 +176,9 @@ export function TagsPage() {
         >
           <ChevronDown
             className={`tags-browse-chevron${browseOpen ? ' is-open' : ''}`}
-            width={13}
-            height={13}
-            strokeWidth={2}
+            width={14}
+            height={14}
+            strokeWidth={1.8}
             aria-hidden
           />
           {browseOpen ? 'Hide tags' : 'Add another tag'}
@@ -255,12 +255,12 @@ export function TagsPage() {
                 {
                   value: 'grid',
                   label: 'Grid view',
-                  icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+                  icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
                 },
                 {
                   value: 'list',
                   label: 'List view',
-                  icon: <List width={14} height={14} strokeWidth={2} aria-hidden />,
+                  icon: <List width={14} height={14} strokeWidth={1.8} aria-hidden />,
                 },
               ]}
             />

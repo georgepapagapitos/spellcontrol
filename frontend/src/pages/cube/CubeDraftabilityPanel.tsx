@@ -108,7 +108,13 @@ export function CubeDraftabilityPanel({ cube }: { cube: GeneratedCube }): JSX.El
           aria-controls={open ? 'cube-draft-sim-body' : undefined}
           onClick={() => setOpen((v) => !v)}
         >
-          <ChevronDown className="cube-group-chevron" width={14} height={14} aria-hidden />
+          <ChevronDown
+            className="cube-group-chevron"
+            width={14}
+            height={14}
+            strokeWidth={1.8}
+            aria-hidden
+          />
           Draftability
         </button>
       </h3>

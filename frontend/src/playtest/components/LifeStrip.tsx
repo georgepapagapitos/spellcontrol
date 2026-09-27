@@ -527,9 +527,9 @@ function TableLifePanel({
         aria-label={isOpen ? `Close ${detailsLabel.toLowerCase()}` : detailsLabel}
       >
         {isOpen ? (
-          <ChevronUp aria-hidden width={14} height={14} />
+          <ChevronUp aria-hidden width={14} height={14} strokeWidth={1.8} />
         ) : (
-          <ChevronDown aria-hidden width={14} height={14} />
+          <ChevronDown aria-hidden width={14} height={14} strokeWidth={1.8} />
         )}
       </button>
       {children}

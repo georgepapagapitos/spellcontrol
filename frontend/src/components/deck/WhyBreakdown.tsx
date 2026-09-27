@@ -44,8 +44,9 @@ export function WhyBreakdown({
           className="why-breakdown-chevron"
           data-open={open}
           aria-hidden
-          width={13}
-          height={13}
+          width={14}
+          height={14}
+          strokeWidth={1.8}
         />
         {open ? 'Hide reasoning' : label}
       </button>

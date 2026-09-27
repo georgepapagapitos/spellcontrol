@@ -68,7 +68,7 @@ export function CubeCardPickerSheet({
         {subtitle && <p className="cube-picker-subtitle">{subtitle}</p>}
         {search && (
           <label className="cube-picker-search">
-            <Search width={14} height={14} strokeWidth={2} aria-hidden />
+            <Search width={14} height={14} strokeWidth={1.8} aria-hidden />
             <span className="sr-only">{search.placeholder}</span>
             <input
               type="search"

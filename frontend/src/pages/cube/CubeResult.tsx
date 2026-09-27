@@ -302,7 +302,13 @@ export function CubeResult({
             aria-controls={packOpen ? 'cube-sample-pack-body' : undefined}
             onClick={togglePack}
           >
-            <ChevronDown className="cube-group-chevron" width={14} height={14} aria-hidden />
+            <ChevronDown
+              className="cube-group-chevron"
+              width={14}
+              height={14}
+              strokeWidth={1.8}
+              aria-hidden
+            />
             Sample pack
           </button>
         </h3>
@@ -346,12 +352,12 @@ export function CubeResult({
               {
                 value: 'gallery',
                 label: 'Gallery view',
-                icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+                icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
               },
               {
                 value: 'list',
                 label: 'List view (with reasons)',
-                icon: <LayoutList width={14} height={14} strokeWidth={2} aria-hidden />,
+                icon: <LayoutList width={14} height={14} strokeWidth={1.8} aria-hidden />,
               },
             ]}
           />
@@ -371,7 +377,13 @@ export function CubeResult({
                   aria-expanded={!isCollapsed}
                   onClick={() => toggleBucket(bucket)}
                 >
-                  <ChevronDown className="cube-group-chevron" width={14} height={14} aria-hidden />
+                  <ChevronDown
+                    className="cube-group-chevron"
+                    width={14}
+                    height={14}
+                    strokeWidth={1.8}
+                    aria-hidden
+                  />
                   <span
                     className="cube-swatch"
                     style={{ background: BUCKET_COLOR[bucket] }}
@@ -400,7 +412,7 @@ export function CubeResult({
                                   title='Locked, stays on "Rebuild the rest"'
                                   aria-label='Locked, stays on "Rebuild the rest"'
                                 >
-                                  <Lock width={11} height={11} strokeWidth={2} aria-hidden />
+                                  <Lock width={12} height={12} strokeWidth={2} aria-hidden />
                                 </span>
                               )}
                               <DeckBadge allocations={committedFor(p.card.name)} />
@@ -447,7 +459,7 @@ export function CubeResult({
                                 <span className="cube-row-name">{p.card.name}</span>
                                 {isLocked && (
                                   <span className="cube-row-locked-tag">
-                                    <Lock width={10} height={10} strokeWidth={2} aria-hidden />
+                                    <Lock width={12} height={12} strokeWidth={2} aria-hidden />
                                     Locked
                                   </span>
                                 )}
@@ -485,9 +497,9 @@ export function CubeResult({
                                 }
                                 icon={
                                   isLocked ? (
-                                    <Lock width={15} height={15} strokeWidth={2} />
+                                    <Lock width={16} height={16} strokeWidth={2} />
                                   ) : (
-                                    <LockOpen width={15} height={15} strokeWidth={2} />
+                                    <LockOpen width={16} height={16} strokeWidth={2} />
                                   )
                                 }
                                 onClick={() => edit.onToggleLock(p.card.oracleId, p.card.name)}
@@ -496,7 +508,7 @@ export function CubeResult({
                                 className="card-edit-btn"
                                 label={`Swap ${p.card.name}`}
                                 title="Swap for a ranked replacement"
-                                icon={<ArrowLeftRight width={15} height={15} strokeWidth={2} />}
+                                icon={<ArrowLeftRight width={16} height={16} strokeWidth={2} />}
                                 onClick={() => edit.onSwap(flatIndex)}
                               />
                               <OverflowMenu

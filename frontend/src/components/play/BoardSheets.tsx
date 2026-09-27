@@ -112,7 +112,7 @@ export function BoardSheet({
           <IconButton
             className="board-sheet-close"
             label="Close"
-            icon={<X width={20} height={20} strokeWidth={2} />}
+            icon={<X width={20} height={20} strokeWidth={1.8} />}
             onClick={onClose}
           />
         </header>
@@ -293,7 +293,7 @@ function PlayerRoster({
       </ul>
       {locked ? (
         <div className="board-sheet-note">
-          <Lock width={17} height={17} strokeWidth={2} aria-hidden />
+          <Lock width={18} height={18} strokeWidth={2} aria-hidden />
           <p>
             Roster locks once the game starts. Restart to change seats.{' '}
             <Button variant="link" className="board-sheet-note-fix" onClick={onRestart}>
@@ -310,7 +310,7 @@ function PlayerRoster({
           {canAdd && (
             <Button
               className="board-roster-add"
-              icon={<Plus width={17} height={17} strokeWidth={2} />}
+              icon={<Plus width={18} height={18} strokeWidth={2} />}
               onClick={addPlayer}
             >
               Add player
@@ -661,7 +661,7 @@ export function LeaveSheet({
           <Button
             variant="primary"
             className="board-leave-btn"
-            icon={<Flag width={17} height={17} strokeWidth={2} />}
+            icon={<Flag width={18} height={18} strokeWidth={2} />}
             onClick={run(onEnd)}
           >
             End game…
@@ -673,7 +673,7 @@ export function LeaveSheet({
         <div className="board-leave-item">
           <Button
             className="board-leave-btn"
-            icon={<Minimize2 width={17} height={17} strokeWidth={2} />}
+            icon={<Minimize2 width={18} height={18} strokeWidth={2} />}
             onClick={run(onMinimize)}
           >
             Minimize
@@ -688,7 +688,7 @@ export function LeaveSheet({
             <Button
               variant="danger"
               className="board-leave-btn"
-              icon={<Trash2 width={17} height={17} strokeWidth={2} />}
+              icon={<Trash2 width={18} height={18} strokeWidth={2} />}
               onClick={run(onDiscard)}
             >
               Discard game

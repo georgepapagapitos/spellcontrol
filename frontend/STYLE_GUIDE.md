@@ -46,6 +46,7 @@ primitives directory.
 | `components/PageHeader`                                        | a hand-built `.binder-hero`                     | § Layout system                                               |
 | `components/shared/Button` (`Button`)                          | a raw `className="btn …"`                       | § Shape language — Buttons are a primitive                    |
 | `components/shared/Button` (`IconButton`)                      | a `<button>` holding only a glyph               | § Shape language — Buttons are a primitive                    |
+| `lib/icon-scale` (`ICON_SCALE`)                                | a one-off `lucide-react` size/strokeWidth pair  | § Icon scale                                                  |
 | `components/shared/CopyButton` (`CopyButton`/`CopyIconButton`) | a hand-rolled `Copied` label swap or copy toast | § Verbs (Copy)                                                |
 | `components/shared/Chip`                                       | a raw `className="…-chip"` element              | § Shape language — Chips are a primitive                      |
 | `components/SearchPill`                                        | a bare `<input type="search">`                  | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
@@ -981,19 +982,37 @@ this exception is scoped to person-identity avatars only.
 
 ## Icon scale
 
-App-wide `lucide-react` usage has ranged 11–18px / 1.6–3 stroke width with no
-stated rule. These are the **defaults for new usage** — not a retrofit
-obligation on existing icons:
+App-wide `lucide-react` usage ranged over 16 sizes (11–22px, plus a handful of
+much larger illustrative marks) and 11 stroke widths with no stated rule
+(board T157, 2026-09-27). Five (size, stroke) pairs are now **the** scale —
+every new icon uses one of these, and existing call sites were migrated to
+match in the same pass:
 
 | Context                                                           | Size | Stroke |
 | ----------------------------------------------------------------- | ---- | ------ |
-| Inline-with-text (leading glyph beside a label/word)              | 14px | 1.8    |
+| Micro (a badge/tag glyph, or a no-prose control in a dense row)   | 12px | 2      |
+| Inline-with-text (a glyph beside a rendered word/phrase)          | 14px | 1.8    |
 | Standalone trigger (a tappable icon-only or icon+chevron control) | 16px | 2      |
 | Hero-adjacent (next to a page-hero heading/CTA)                   | 18px | 2      |
+| Large control (a bigger dismiss/primary standalone icon)          | 20px | 1.8    |
 
 Pick by the icon's role, not the surface it happens to sit on — a leading
 icon inside a button label is "inline-with-text" even if the button itself is
 a hero CTA.
+
+The scale's canonical home is `lib/icon-scale.ts` (`ICON_SCALE`) — reach for it
+when a size needs to travel through code; a JSX call site stays a plain
+`width={14} height={14} strokeWidth={1.8}` literal, lucide's own idiomatic
+shape. `src/test/icon-scale.test.ts` is the guard: it walks every non-test
+source file, resolves each `lucide-react` import (aliases included), and fails
+on a literal `size`/`width`/`height`/`strokeWidth` whose (size, stroke) pair
+isn't one of the five above. `Button`/`IconButton` (`components/shared/
+Button.tsx`) never size the glyph themselves — they just mark it
+`aria-hidden` — so the size lives at the call site, which is what the guard
+checks. A handful of sites are deliberately off-scale (a miniature preview
+badge, an empty/error-state mark, a live-game touch target, a scanner/camera
+CTA) and are named in the guard's own allowlist with the reason; anything else
+the guard flags is a real regression to fix, not a value to allowlist.
 
 ## Tabs / view switchers
 

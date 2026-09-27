@@ -62,9 +62,21 @@ function readLayout(): PreconLayout {
 }
 
 const LAYOUT_OPTIONS: ViewModeOption<PreconLayout>[] = [
-  { value: 'grid', label: 'Grid', icon: <LayoutGrid width={14} height={14} aria-hidden /> },
-  { value: 'list', label: 'List', icon: <Rows3 width={14} height={14} aria-hidden /> },
-  { value: 'compact', label: 'Compact', icon: <AlignJustify width={14} height={14} aria-hidden /> },
+  {
+    value: 'grid',
+    label: 'Grid',
+    icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
+  },
+  {
+    value: 'list',
+    label: 'List',
+    icon: <Rows3 width={14} height={14} strokeWidth={1.8} aria-hidden />,
+  },
+  {
+    value: 'compact',
+    label: 'Compact',
+    icon: <AlignJustify width={14} height={14} strokeWidth={1.8} aria-hidden />,
+  },
 ];
 
 interface ResultRowProps {

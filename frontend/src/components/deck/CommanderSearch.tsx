@@ -1310,7 +1310,7 @@ export function CommanderSearch({
                     className="commander-surprise-icon"
                     width={14}
                     height={14}
-                    strokeWidth={2}
+                    strokeWidth={1.8}
                   />
                 }
               >

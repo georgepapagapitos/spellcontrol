@@ -1079,7 +1079,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
       {cameraLive && (hint || firstCard) && (
         <div className="scanner-hint" role="status" aria-live="polite">
-          <Lightbulb width={14} height={14} strokeWidth={2} aria-hidden />
+          <Lightbulb width={14} height={14} strokeWidth={1.8} aria-hidden />
           {hint ?? 'Hold a card flat inside the frame'}
         </div>
       )}
@@ -1164,7 +1164,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
                   className="scanner-card-panel-chevron"
                   width={18}
                   height={18}
-                  strokeWidth={1.8}
+                  strokeWidth={2}
                   aria-hidden
                 />
               </button>
@@ -1198,7 +1198,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
                     onClick={incrementLastScan}
                     aria-label={`Add another ${card.name}`}
                   >
-                    <Plus width={14} height={14} strokeWidth={2.4} aria-hidden />1
+                    <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />1
                   </button>
                 </div>
               )}
