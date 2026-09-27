@@ -292,7 +292,9 @@ describe('CardScanner', () => {
       await screen.findByRole('button', { name: 'Scanned cards, 3' });
       expect(document.querySelector('.scanner-tally')?.textContent).toBe('$4.503 cards');
       fireEvent.click(screen.getByRole('button', { name: 'Scanner settings' }));
-      const settings = screen.getByRole('dialog', { name: 'Scanner settings' });
+      // The sheet is now the shared "Add settings" (T153) — see
+      // ScannerSettingsSheet.test.tsx for its own coverage.
+      const settings = screen.getByRole('dialog', { name: 'Add settings' });
       fireEvent.click(within(settings).getByRole('switch', { name: 'Show the running total' }));
       expect(useScannerSettings.getState().showTotal).toBe(false);
       expect(document.querySelector('.scanner-tally')?.textContent).toBe('3 cards');

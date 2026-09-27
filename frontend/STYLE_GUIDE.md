@@ -6142,6 +6142,14 @@ same controls, from `components/CopyControls` plus the kit:
 - Labels are sentence-case `Field` labels above the control, never uppercase
   side labels (§ Config surfaces). Two fields to a row once the container, not
   the viewport, is 30rem wide.
+- **Sticky defaults are one settings sheet ("Add settings"), not per-surface
+  state.** `ScannerSettingsSheet` (`lib/scanner-settings.ts`'s persisted store)
+  holds `defaultFinish` / `defaultCondition` / `defaultLanguage`, opened from
+  the scanner's gear and from a matching gear in the Add cards sheet header.
+  A quick add ("+" with no picker) applies these three; an explicit picker add
+  is used exactly as chosen and never re-defaulted. Set Foil + LP + Japanese
+  once and both entry points, and every future quick add, start there — the
+  whole point is that nothing asks "Not set" twice.
 
 **Touch rule.** Hover-revealed information (titles/tooltips on glyphs, hover
 peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothing

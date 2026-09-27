@@ -18,6 +18,7 @@ vi.mock('../lib/local-cards', async (importActual) => {
 import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
 import { useToastsStore } from './toasts';
+import { useScannerSettings } from '../lib/scanner-settings';
 import { saveCollection, loadCollection, clearCollection } from '../lib/local-cards';
 import { _resetForTests as resetPriceCache } from '../lib/card-prices';
 import { useCurrencyStore } from '../lib/currency';
@@ -118,6 +119,15 @@ beforeEach(async () => {
   await clearCollection();
   useDecksStore.setState({ decks: [], hydrated: true });
   useCollectionStore.setState({ ...RESET });
+  // Add settings is a persisted singleton — reset so a test that changes a
+  // default (foil/LP/Japanese) can't leak into the next one.
+  useScannerSettings.setState({
+    defaultFinish: 'nonfoil',
+    defaultCondition: 'nm',
+    defaultLanguage: '',
+    sound: true,
+    showTotal: true,
+  });
 });
 
 afterEach(async () => {
@@ -369,6 +379,86 @@ describe('updateCard / replaceAllCards / addCard', () => {
     expect(fo?.finish).toBe('foil');
     expect(fo?.purchasePrice).toBe(7.81);
     expect(cards.find((c) => c.copyId === both)?.finish).toBe('nonfoil');
+  });
+
+  // Add settings (T153) — the "no dropdown, no 'Not set' asks twice" store
+  // shared with the scanner. A quick add is exactly the call above (no
+  // finish, no extras); it picks up the saved defaults instead of always
+  // landing NM/English/whatever finish the printing happens to fall back to.
+  it('addCard applies the Add settings defaults on a quick add', async () => {
+    useScannerSettings.setState({
+      defaultFinish: 'foil',
+      defaultCondition: 'lp',
+      defaultLanguage: 'ja',
+    });
+    const [id] = await useCollectionStore.getState().addCard({
+      id: 'q1',
+      name: 'Quick',
+      set: 'tst',
+      set_name: 'Test Set',
+      collector_number: '9',
+      rarity: 'common',
+      finishes: ['nonfoil', 'foil'],
+    } as never);
+    const card = useCollectionStore.getState().cards.find((c) => c.copyId === id);
+    expect(card?.finish).toBe('foil');
+    expect(card?.condition).toBe('lp');
+    expect(card?.language).toBe('ja');
+  });
+
+  it('addCard leaves an explicit extras object from the picker exactly as given', async () => {
+    useScannerSettings.setState({
+      defaultFinish: 'foil',
+      defaultCondition: 'lp',
+      defaultLanguage: 'ja',
+    });
+    const [id] = await useCollectionStore.getState().addCard(
+      {
+        id: 'q2',
+        name: 'Explicit',
+        set: 'tst',
+        set_name: 'Test Set',
+        collector_number: '10',
+        rarity: 'common',
+        finishes: ['nonfoil', 'foil'],
+      } as never,
+      'nonfoil',
+      { quantity: 1, condition: 'mp', language: 'de' }
+    );
+    const card = useCollectionStore.getState().cards.find((c) => c.copyId === id);
+    expect(card?.finish).toBe('nonfoil');
+    expect(card?.condition).toBe('mp');
+    expect(card?.language).toBe('de');
+  });
+
+  it('addCard records nothing for the unmarked NM/English defaults', async () => {
+    const [id] = await useCollectionStore.getState().addCard({
+      id: 'q3',
+      name: 'Unmarked',
+      set: 'tst',
+      set_name: 'Test Set',
+      collector_number: '11',
+      rarity: 'common',
+      finishes: ['nonfoil', 'foil'],
+    } as never);
+    const card = useCollectionStore.getState().cards.find((c) => c.copyId === id);
+    expect(card?.condition).toBeUndefined();
+    expect(card?.language).toBeUndefined();
+  });
+
+  it('addCard: a foil default on a nonfoil-only printing lands nonfoil', async () => {
+    useScannerSettings.setState({ defaultFinish: 'foil' });
+    const [id] = await useCollectionStore.getState().addCard({
+      id: 'q4',
+      name: 'NonfoilOnly',
+      set: 'tst',
+      set_name: 'Test Set',
+      collector_number: '12',
+      rarity: 'common',
+      finishes: ['nonfoil'],
+    } as never);
+    const card = useCollectionStore.getState().cards.find((c) => c.copyId === id);
+    expect(card?.finish).toBe('nonfoil');
   });
 
   it('addCard sets an honest error when the local save fails', async () => {

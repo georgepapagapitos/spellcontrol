@@ -168,6 +168,26 @@ describe('AddCardsSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('opens Add settings from the header gear', async () => {
+    render(<AddCardsSheet onClose={() => {}} />);
+    fireEvent.click(screen.getByLabelText('Add settings'));
+    // The sheet is lazy-loaded (its stylesheet stays out of this page's
+    // eager chunk — css-chunk-ownership.test.ts).
+    expect(
+      await screen.findByRole('heading', { name: 'Add settings' }, { timeout: 5000 })
+    ).toBeTruthy();
+  });
+
+  it('hides the Scanner section of Add settings on a device that cannot scan', async () => {
+    vi.mocked(useCanScan).mockReturnValue(false);
+    render(<AddCardsSheet onClose={() => {}} />);
+    fireEvent.click(screen.getByLabelText('Add settings'));
+    expect(
+      await screen.findByRole('heading', { name: 'Add settings' }, { timeout: 5000 })
+    ).toBeTruthy();
+    expect(screen.queryByText('Sound on each scan')).toBeNull();
+  });
+
   it('dismisses via the ✕ button and the backdrop through the same exit', () => {
     const onClose = vi.fn();
     const { container } = render(<AddCardsSheet onClose={onClose} />);

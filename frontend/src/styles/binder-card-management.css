@@ -752,6 +752,14 @@
   padding-bottom: 0.85rem;
 }
 
+/* Groups the settings gear with the close × as one flex item, so
+   `.modal-header`'s space-between still reads as [title] … [actions]. */
+.add-cards-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .add-cards-tabs {
   flex-shrink: 0;
 }

@@ -34,6 +34,7 @@ import { getCurrency } from '../lib/currency';
 import type { Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { availableFinishes } from '../lib/scanner-feedback';
+import { useScannerSettings } from '../lib/scanner-settings';
 import { fetchWithAbortTimeout } from '../lib/fetch-utils';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
@@ -791,15 +792,25 @@ export const useCollectionStore = create<CollectionState>()(
       addCard: async (card, finish, extras) => {
         const qty = Math.max(1, Math.floor(extras?.quantity ?? 1));
         const now = Date.now();
-        // A quick add names no finish. Non-foil was the blind default, so a
-        // printing that only exists in foil landed as a non-foil copy that
-        // can't exist, priced off the wrong column. Take the printing's own
-        // first finish instead, the same call SetsPage already made.
-        const landed = finish ?? availableFinishes(card.finishes)[0];
+        // A quick add (no extras object at all — the "+" on a search result)
+        // gets the Add settings defaults; a picker add always passes its own
+        // extras, even an empty-looking one for NM/English, so it's used
+        // exactly as given and never re-defaulted here.
+        const isQuickAdd = extras === undefined;
+        const defaults = isQuickAdd ? useScannerSettings.getState() : null;
+        // An explicit finish is used exactly as given, same as before. With no
+        // finish, take the quick-add default if this printing actually has it,
+        // else the printing's own first finish (the scanner-fallback fix).
+        const made = availableFinishes(card.finishes);
+        const landed =
+          finish ??
+          (defaults && made.includes(defaults.defaultFinish) ? defaults.defaultFinish : made[0]);
+        const condition = extras?.condition ?? defaults?.defaultCondition;
+        const language = extras?.language ?? defaults?.defaultLanguage;
         const rows = Array.from({ length: qty }, () => {
           const enriched = { ...scryfallToEnrichedCard(card, landed), updatedAt: now };
-          if (extras?.condition) enriched.condition = extras.condition;
-          if (extras?.language) enriched.language = extras.language;
+          if (condition && condition !== 'nm') enriched.condition = condition;
+          if (language) enriched.language = language;
           return enriched;
         });
         set({ cards: [...get().cards, ...rows] });

@@ -1,4 +1,4 @@
-import { Camera, Package, Search, Upload, X } from 'lucide-react';
+import { Camera, Package, Search, Settings, Upload, X } from 'lucide-react';
 import { Suspense, lazy, useEffect, useId, useState, type ReactNode } from 'react';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
@@ -14,6 +14,11 @@ import { Tabs } from './Tabs';
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
+// Lazy so its admin-scanner.css classes stay out of this page's eager chunk
+// (css-chunk-ownership.test.ts) — the sheet carries that stylesheet itself.
+const ScannerSettingsSheet = lazy(() =>
+  import('./ScannerSettingsSheet').then((m) => ({ default: m.ScannerSettingsSheet }))
+);
 
 type Tab = 'search' | 'upload' | 'product' | 'scan';
 
@@ -52,6 +57,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
   // filters out the Scan tab via the `available` flag.
   const activeTab: Tab = tab === 'scan' && !canScan ? 'search' : tab;
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanSuccess, setScanSuccess] = useState<string | null>(null);
   const [scanBusy, setScanBusy] = useState(false);
@@ -160,12 +166,22 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
       >
         <div className="modal-header add-cards-modal-header">
           <h2 id={labelId}>Add cards</h2>
-          <IconButton
-            className="modal-close"
-            onClick={() => beginClose()}
-            label="Close"
-            icon={<X width={20} height={20} strokeWidth={1.8} />}
-          />
+          <div className="add-cards-header-actions">
+            {/* Reuses .modal-close's round icon-button look — a header glyph
+                button, not literally a close action. */}
+            <IconButton
+              className="modal-close"
+              label="Add settings"
+              icon={<Settings width={18} height={18} strokeWidth={1.8} />}
+              onClick={() => setSettingsOpen(true)}
+            />
+            <IconButton
+              className="modal-close"
+              onClick={() => beginClose()}
+              label="Close"
+              icon={<X width={20} height={20} strokeWidth={1.8} />}
+            />
+          </div>
         </div>
 
         <Tabs
@@ -285,6 +301,15 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
       {scannerOpen && (
         <Suspense fallback={null}>
           <CardScanner onClose={() => setScannerOpen(false)} onConfirm={handleScanConfirm} />
+        </Suspense>
+      )}
+
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <ScannerSettingsSheet
+            onClose={() => setSettingsOpen(false)}
+            showScannerSection={canScan}
+          />
         </Suspense>
       )}
     </div>
