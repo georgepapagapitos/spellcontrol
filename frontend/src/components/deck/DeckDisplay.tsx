@@ -67,6 +67,7 @@ import { type BracketEstimation } from '@/deck-builder/services/deckBuilder/brac
 import type { LaneId, ChangeOwnership } from '@/lib/deck-change';
 import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { NewArrivalsSheet } from './NewArrivalsSheet';
+import { CommanderOpenSlot } from './CommanderOpenSlot';
 import type { ArrivalsByType } from '@/lib/new-arrivals';
 import type { ComboMatch } from '@/types/combos';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
@@ -296,6 +297,9 @@ export interface DeckDisplayProps {
   /** Predicate that gates the "Make partner" menu item per card (e.g. the card
    *  is a legal partner for the current commander). */
   canMakePartner?: (card: ScryfallCard) => boolean;
+  /** When provided, the commander row's menu offers "Change commander",
+   *  which opens the commander picker (E465). */
+  onChangeCommander?: () => void;
   /** When provided, the Commander section header shows an "Add/Edit partner"
    *  control that opens the partner picker. Pass only when the commander can
    *  actually have a partner. */
@@ -397,6 +401,12 @@ export interface DeckDisplayProps {
   onShowTestHand?: () => void;
   /** Opens the add-cards sheet — used by the empty-deck state's CTA (E182). */
   onAddCards?: () => void;
+  /**
+   * Opens the commander picker (E465). Commander formats only: the empty
+   * command zone renders as an open slot whose Choose button calls this, and
+   * the empty-deck state offers it beside Add cards.
+   */
+  onChooseCommander?: () => void;
   /**
    * UX-310: whether the async commander-deck analysis is still in-flight for
    * the first time. When 'pending', the Coach and Power tabs render skeleton
@@ -539,6 +549,7 @@ export function DeckDisplay({
   canMakeCommander,
   onMakePartner,
   canMakePartner,
+  onChangeCommander,
   onEditPartner,
   onMoveToAnotherDeck,
   onReleaseCopy,
@@ -562,6 +573,7 @@ export function DeckDisplay({
   tabbed = true,
   onShowTestHand,
   onAddCards,
+  onChooseCommander,
   analysisState = 'ready',
   onNavigateToTune,
   onRetryAnalysis,
@@ -587,6 +599,9 @@ export function DeckDisplay({
   onReorder,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
+  // The format has a command zone and it's empty, and this host can fill it
+  // (E465). Drives the open-slot row and the empty state's second door.
+  const chooseCommander = formatConfig.hasCommander && !commander ? onChooseCommander : undefined;
   const currency: CurrencyCode = useCurrency();
   // New-arrivals review (E140): whether the (single, all-category) sheet is open.
   const [arrivalsOpen, setArrivalsOpen] = useState(false);
@@ -1543,6 +1558,7 @@ export function DeckDisplay({
     canMakeCommander,
     onMakePartner,
     canMakePartner,
+    onChangeCommander: zone === 'cards' ? onChangeCommander : undefined,
     onSetRowTags: onSetCardTags ? (slotIds, tags) => onSetCardTags(zone, slotIds, tags) : undefined,
   });
 
@@ -1581,6 +1597,7 @@ export function DeckDisplay({
       canMakeCommander={canMakeCommander}
       onMakePartner={onMakePartner}
       canMakePartner={canMakePartner}
+      onChangeCommander={onChangeCommander}
       onMoveToAnotherDeck={onMoveToAnotherDeck}
       onReleaseCopy={onReleaseCopy}
       onUseOwnCopy={onUseOwnCopy}
@@ -2011,41 +2028,35 @@ export function DeckDisplay({
                     impression, so it needs its own state rather than empty
                     space. Reuses the insight-strip idiom (one row,
                     --surface-raised) instead of a bespoke illustration.
-                    Commander-format decks with no commander yet get distinct
-                    copy — everything downstream (suggestions, identity)
-                    depends on the commander, so that's the actual next step. */}
+                    A commander-format deck with no commander yet (E465) is
+                    not blocked on one: adding comes first (it's the primary),
+                    and choosing the commander is the second door beside it,
+                    opening the same picker as the command zone's open slot. */}
                 {visibleGroups.length === 0 && (
                   <div className="deck-empty-state">
                     <span className="deck-empty-state-icon" aria-hidden>
                       <Search width={18} height={18} strokeWidth={2} />
                     </span>
                     <div className="deck-empty-state-body">
-                      {formatConfig.hasCommander && !commander ? (
-                        <>
-                          <p className="deck-empty-state-headline">
-                            This deck needs a commander first.
-                          </p>
-                          <p className="deck-empty-state-detail">
-                            Add a commander to get started. Suggestions and legality checks follow
-                            from it.
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="deck-empty-state-headline">This deck is empty.</p>
-                          <p className="deck-empty-state-detail">
-                            Open Add cards to search for cards and start your list.
-                          </p>
-                        </>
-                      )}
+                      <p className="deck-empty-state-headline">This deck is empty.</p>
+                      <p className="deck-empty-state-detail">
+                        {chooseCommander
+                          ? 'Add cards, or choose a commander first.'
+                          : 'Open Add cards to search for cards and start your list.'}
+                      </p>
                     </div>
                     <Button
                       variant="primary"
                       onClick={() => onAddCards?.()}
                       className="deck-empty-state-action"
                     >
-                      {formatConfig.hasCommander && !commander ? 'Choose a commander' : 'Add cards'}
+                      Add cards
                     </Button>
+                    {chooseCommander && (
+                      <Button onClick={chooseCommander} className="deck-empty-state-action">
+                        Choose a commander
+                      </Button>
+                    )}
                   </div>
                 )}
                 {/* The Roles lens is a strict PARTITION: `classifyCardCategory`
@@ -2137,10 +2148,12 @@ export function DeckDisplay({
                           interactions are identical. It never occupies a column: a
                           1-row section at the top of a column stranded a 30-row hole
                           under it. Its rows align to the column grid below. */}
-                          {commandGroups.length > 0 && (
+                          {commandGroups.length > 0 ? (
                             <div className="deck-command-zone">
                               {commandGroups.map(renderListSection)}
                             </div>
+                          ) : (
+                            chooseCommander && <CommanderOpenSlot onChoose={chooseCommander} />
                           )}
                           <div className="deck-card-columns">
                             {listColumns.map((column, i) => (
@@ -2151,28 +2164,35 @@ export function DeckDisplay({
                           </div>
                         </div>
                       ) : (
-                        <DeckCardGrid
-                          layout={viewMode}
-                          groups={visibleGroups}
-                          currency={currency}
-                          showPrice={showPrefs.price}
-                          collapsedTitles={collapsedTitlesForLens}
-                          onToggleSection={toggleSection}
-                          onRowContextMenu={openCardMenu('cards')}
-                          onRowMenu={openCardMenuAt('cards')}
-                          rowHasMenu={(row) => hasCardActions(cardMenuCtx(row, 'cards'))}
-                          onRowClick={openPreview}
-                          legalityBySlot={legalityBySlot}
-                          gridZoom={effectiveGridZoom}
-                          gridRef={gridRef}
-                          gridWidth={gridWidth}
-                          showRoles={showPrefs.roles}
-                          roleFilter={activeRoleFilter}
-                          synergyByName={synergyByName}
-                          binderByCopyId={binderByCopyId}
-                          hasPartner={!!partnerCommander}
-                          onEditPartner={onEditPartner}
-                        />
+                        <>
+                          {/* Grid and stacks have no command-zone strip of their
+                            own (the commander is a group among the tiles), so
+                            the open slot leads them the same way it leads the
+                            list: no view is left without a way in. */}
+                          {chooseCommander && <CommanderOpenSlot onChoose={chooseCommander} />}
+                          <DeckCardGrid
+                            layout={viewMode}
+                            groups={visibleGroups}
+                            currency={currency}
+                            showPrice={showPrefs.price}
+                            collapsedTitles={collapsedTitlesForLens}
+                            onToggleSection={toggleSection}
+                            onRowContextMenu={openCardMenu('cards')}
+                            onRowMenu={openCardMenuAt('cards')}
+                            rowHasMenu={(row) => hasCardActions(cardMenuCtx(row, 'cards'))}
+                            onRowClick={openPreview}
+                            legalityBySlot={legalityBySlot}
+                            gridZoom={effectiveGridZoom}
+                            gridRef={gridRef}
+                            gridWidth={gridWidth}
+                            showRoles={showPrefs.roles}
+                            roleFilter={activeRoleFilter}
+                            synergyByName={synergyByName}
+                            binderByCopyId={binderByCopyId}
+                            hasPartner={!!partnerCommander}
+                            onEditPartner={onEditPartner}
+                          />
+                        </>
                       ))}
 
                     {/* "Not in the deck" (E176): Sideboard and Considering as two

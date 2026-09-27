@@ -439,6 +439,45 @@ describe('pull', () => {
     expect(useDecksStore.getState().decks.some((d) => d.id === 'd-server')).toBe(true);
     expect(getLocalMutationToken('d-server')).toBe(0);
   });
+
+  // E465: a local pick renames an "Untitled deck" after its commander. A row
+  // pulled from the server is mirrored as-is: the commander it carries is not
+  // a pick on this device, and a rename here would push back and overwrite
+  // whatever name the other device chose.
+  it('mirrors a pulled commander without renaming an "Untitled deck"', async () => {
+    const { useDecksStore } = await import('../store/decks');
+    await estore.putMany('deck', [
+      {
+        id: 'd-1',
+        data: { id: 'd-1', name: 'Untitled deck', commander: null },
+        rev: 1,
+        syncedRev: 1,
+        deletedAt: null,
+      },
+    ]);
+    mockPull.mockResolvedValueOnce({
+      rows: [
+        {
+          kind: 'deck',
+          id: 'd-1',
+          data: {
+            id: 'd-1',
+            name: 'Untitled deck',
+            commander: { id: 'sf-k', name: 'Krenko, Tin Street Kingpin' },
+          },
+          rev: 2,
+          deletedAt: null,
+        },
+      ],
+      cursor: 2,
+      hasMore: false,
+    });
+    await startSync('user-1');
+
+    const deck = useDecksStore.getState().decks.find((d) => d.id === 'd-1');
+    expect(deck?.commander?.name).toBe('Krenko, Tin Street Kingpin');
+    expect(deck?.name).toBe('Untitled deck');
+  });
 });
 
 describe('pull-side deck conflict signal (E174)', () => {

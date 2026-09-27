@@ -29,6 +29,7 @@ import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { useLocation, useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
 import {
   useDecksStore,
+  commanderShortName,
   effectiveBracket,
   withAllocationHealDeferred,
   type Deck,
@@ -88,6 +89,7 @@ import { PowerHero } from '../components/deck/PowerHero';
 import { TableRecordPanel } from '../components/deck/TableRecordPanel';
 import { BracketTableRead } from '../components/deck/BracketTableRead';
 import { CoachFeed } from '../components/deck/CoachFeed';
+import { CommanderPickerSheet } from '../components/deck/CommanderPickerSheet';
 import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
 import { FillDeckSheet } from '../components/deck/FillDeckSheet';
 import { filterCostPlanByOwnership } from '@/deck-builder/services/deckBuilder/costAnalyzer';
@@ -150,7 +152,7 @@ import {
   type StealableCopy,
 } from '../lib/allocations';
 import { planQtyChange } from '../lib/deck-qty';
-import { getMaxCopies } from '../lib/deck-validation';
+import { deckColorIdentity, fitsColorIdentity, getMaxCopies } from '../lib/deck-validation';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
 import { DeckFeedbackSheet } from '../components/deck/DeckFeedbackSheet';
@@ -248,6 +250,7 @@ export function DeckEditorPage() {
   const addConsideringCard = useDecksStore((s) => s.addConsideringCard);
   const removeConsideringCard = useDecksStore((s) => s.removeConsideringCard);
   const setCommander = useDecksStore((s) => s.setCommander);
+  const chooseCommander = useDecksStore((s) => s.chooseCommander);
   const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
   const decks = useDecksStore((s) => s.decks);
@@ -380,12 +383,18 @@ export function DeckEditorPage() {
     swap: { returnCopyId: string; returnCard: ScryfallCard; returnSetName: string } | null;
   } | null>(null);
   const [renaming, setRenaming] = useState(false);
+  // The card about to replace the current commander, waiting on "keep the old
+  // one or remove it". `slotId` is the mainboard/sideboard slot it moves out
+  // of, or null when it came from the commander picker's search (not in the deck).
   const [makeCommanderTarget, setMakeCommanderTarget] = useState<{
-    slotId: string;
+    slotId: string | null;
     card: ScryfallCard;
-    zone: 'main' | 'side';
     allocatedCopyId: string | null;
   } | null>(null);
+  // The commander picker (E465): the open slot, the empty state and the Coach
+  // tab open it when there's no commander; the commander row's menu opens it
+  // to change one.
+  const [showCommanderPicker, setShowCommanderPicker] = useState(false);
   const [makePartnerTarget, setMakePartnerTarget] = useState<{
     slotId: string;
     card: ScryfallCard;
@@ -1611,7 +1620,11 @@ export function DeckEditorPage() {
         oneAwayCombos={mainboardComboData?.oneAway}
         hiddenGems={deck.hiddenGems}
         ownershipFor={ownershipFor}
-        enableSuggestions={!!formatConfig?.hasCommander}
+        // Suggestions are read against a commander, so they wait for one; the
+        // format's own rules (legality, and identity once there is one) don't.
+        enableSuggestions={!!formatConfig?.hasCommander && !!deck.commander}
+        noCommanderYet={!!formatConfig?.hasCommander && !deck.commander}
+        legalityKey={formatConfig?.legalityKey}
         suggestionsPending={analysisState === 'pending'}
         suggestionsFailed={analysisState === 'error'}
         onRetrySuggestions={analysisState === 'error' ? bracketAnalysis.retry : undefined}
@@ -2554,23 +2567,16 @@ export function DeckEditorPage() {
   };
 
   const handleMakeCommanderClick = (slotId: string, card: ScryfallCard) => {
-    const mainSlot = deck.cards.find((c) => c.slotId === slotId);
-    const sideSlot = mainSlot ? null : deck.sideboard.find((c) => c.slotId === slotId);
-    const slot = mainSlot ?? sideSlot;
+    const slot =
+      deck.cards.find((c) => c.slotId === slotId) ??
+      deck.sideboard.find((c) => c.slotId === slotId);
     if (!slot) return;
-    const target = {
-      slotId,
-      card,
-      zone: (mainSlot ? 'main' : 'side') as 'main' | 'side',
-      allocatedCopyId: slot.allocatedCopyId,
-    };
+    const target = { slotId, card, allocatedCopyId: slot.allocatedCopyId ?? null };
     // No current commander → just set it directly, no dialog needed.
     if (!deck.commander) {
-      recordEdit(deck.id, `make ${card.name} commander`, () => {
-        if (target.zone === 'main') removeCard(deck.id, slotId);
-        else removeSideboardCard(deck.id, slotId);
-        setCommander(deck.id, card, target.allocatedCopyId);
-      });
+      recordEdit(deck.id, `make ${card.name} commander`, () =>
+        chooseCommander(deck.id, card, target.allocatedCopyId, { fromSlotId: slotId })
+      );
       pushToast({ message: `${card.name} is now the commander.`, tone: 'success' });
       return;
     }
@@ -2581,23 +2587,69 @@ export function DeckEditorPage() {
     const target = makeCommanderTarget;
     if (!target) return;
     const oldCommander = deck.commander;
-    const oldAllocated = deck.commanderAllocatedCopyId;
     setMakeCommanderTarget(null);
 
-    recordEdit(deck.id, `make ${target.card.name} commander`, () => {
-      if (target.zone === 'main') removeCard(deck.id, target.slotId);
-      else removeSideboardCard(deck.id, target.slotId);
-
-      if (keepOldInDeck && oldCommander) {
-        addCard(deck.id, oldCommander, oldAllocated);
-      }
-      setCommander(deck.id, target.card, target.allocatedCopyId);
-    });
+    recordEdit(deck.id, `make ${target.card.name} commander`, () =>
+      chooseCommander(deck.id, target.card, target.allocatedCopyId, {
+        fromSlotId: target.slotId,
+        keepPrevious: keepOldInDeck,
+      })
+    );
     pushToast({
       message: `${target.card.name} is now the commander${
         keepOldInDeck && oldCommander ? ` · ${oldCommander.name} moved to the deck` : ''
       }.`,
       tone: 'success',
+    });
+  };
+
+  // Commander picker (E465). Mirrors the partner picker below: a card already
+  // in the deck moves into the command zone with its copy claim; one that
+  // isn't claims a free owned copy if there is one. Either way it's ONE store
+  // write and one undo entry. Replacing an existing commander goes through
+  // the same keep/remove confirm as Make commander.
+  const handleSelectCommanderFromPicker = (card: ScryfallCard) => {
+    setShowCommanderPicker(false);
+    if (card.name === deck.commander?.name || card.name === deck.partnerCommander?.name) return;
+    const slot =
+      deck.cards.find((c) => c.card.name === card.name) ??
+      deck.sideboard.find((c) => c.card.name === card.name);
+    let allocated: string | null;
+    if (slot) {
+      allocated = slot.allocatedCopyId ?? null;
+    } else {
+      const allocations = buildAllocationMap(
+        useDecksStore.getState().decks,
+        useCubeStore.getState().saved
+      );
+      allocated =
+        pickCollectionCopy(card.name, collectionCards, allocations, card.id)?.copyId ?? null;
+    }
+    if (deck.commander) {
+      setMakeCommanderTarget({ slotId: slot?.slotId ?? null, card, allocatedCopyId: allocated });
+      return;
+    }
+    recordEdit(deck.id, `make ${card.name} commander`, () =>
+      chooseCommander(deck.id, card, allocated, { fromSlotId: slot?.slotId })
+    );
+    // Off-color cards are flagged by the deck checks, never removed; the toast
+    // counts them so the pick's consequence is said once, where it happened.
+    const after = useDecksStore.getState().decks.find((d) => d.id === deck.id);
+    const identity = deckColorIdentity(card, after?.partnerCommander ?? null);
+    const offColor = (after?.cards ?? []).filter(
+      (c) => !fitsColorIdentity(c.card, identity)
+    ).length;
+    pushToast({
+      message: `${commanderShortName(card)} is the commander.${
+        offColor === 0
+          ? ''
+          : offColor === 1
+            ? ' 1 card is off color.'
+            : ` ${offColor} cards are off color.`
+      }`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => undoEdit(deck.id),
     });
   };
 
@@ -3308,6 +3360,11 @@ export function DeckEditorPage() {
             canMakePartner={
               formatConfig?.hasCommander && deck.commander ? canMakePartner : undefined
             }
+            onChangeCommander={
+              formatConfig?.hasCommander && deck.commander
+                ? () => setShowCommanderPicker(true)
+                : undefined
+            }
             onEditPartner={
               formatConfig?.hasCommander && deck.commander && canHavePartner(deck.commander)
                 ? () => setShowPartnerPicker(true)
@@ -3368,6 +3425,9 @@ export function DeckEditorPage() {
             tabbed={viewTabs.length > 1}
             onShowTestHand={() => setShowTestHand(true)}
             onAddCards={handleToggleAddPanel}
+            onChooseCommander={
+              formatConfig?.hasCommander ? () => setShowCommanderPicker(true) : undefined
+            }
             analysisState={analysisState}
             scoreRevealKey={scoreRevealKey}
             onNavigateToTune={
@@ -3491,7 +3551,24 @@ export function DeckEditorPage() {
               ) : undefined
             }
             coachFeedSlot={
-              formatConfig?.hasCommander ? (
+              formatConfig?.hasCommander && !deck.commander ? (
+                // Coach reads a deck against its commander; with none yet its
+                // feed would be empty and its "looks tuned" line untrue (E465).
+                <div className="empty-state">
+                  <p className="empty-state-tagline">
+                    Choose a commander and Coach reads the deck against it.
+                  </p>
+                  <div className="empty-state-actions">
+                    <Button
+                      variant="primary"
+                      className="empty-state-action"
+                      onClick={() => setShowCommanderPicker(true)}
+                    >
+                      Choose a commander
+                    </Button>
+                  </div>
+                </div>
+              ) : formatConfig?.hasCommander ? (
                 <CoachFeed
                   gaps={deck.gapAnalysis ?? []}
                   optimize={deck.optimizeSwaps}
@@ -3632,46 +3709,12 @@ export function DeckEditorPage() {
         </DeckEditorCardPickerSheet>
       )}
 
-      {/* Add cards on a Commander deck with no commander yet: card suggestions
-          and color-identity filtering both key off the commander, so we can't
-          meaningfully add to the mainboard. Show an interstitial that points at
-          the commander picker instead of silently no-opping. */}
-      {showAddPanel && formatConfig?.hasCommander && !deck.commander && (
-        <DeckEditorCardPickerSheet
-          label="Pick a commander first"
-          className="deck-add-needs-commander"
-          onClose={() => setShowAddPanel(false)}
-        >
-          {(dismiss) => (
-            <>
-              <div className="card-picker-handle" aria-hidden />
-              <div className="deck-add-needs-commander-body">
-                <p className="deck-add-needs-commander-title">Pick a commander first</p>
-                <p className="deck-add-needs-commander-hint">
-                  This is a Commander deck. Choose a commander before adding cards so suggestions
-                  and color identity stay in sync.
-                </p>
-                <div className="deck-add-needs-commander-actions">
-                  <Button onClick={dismiss}>Cancel</Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      setShowAddPanel(false);
-                      openView('deck');
-                    }}
-                  >
-                    Choose commander
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </DeckEditorCardPickerSheet>
-      )}
-
       {/* Add cards — a breakpoint-aware overlay (bottom sheet on mobile,
-          centered modal ≥1024px) via the shared card-picker sheet. */}
-      {showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
+          centered modal ≥1024px) via the shared card-picker sheet. Open in
+          every format, commander or not (E465): a commander deck can take
+          cards before it has a commander, and the search shows every color
+          until it does. */}
+      {showAddPanel && (
         <DeckEditorCardPickerSheet
           label="Add cards"
           className="deck-add-sheet"
@@ -3794,6 +3837,16 @@ export function DeckEditorPage() {
             </Button>
           </div>
         </Modal>
+      )}
+
+      {showCommanderPicker && formatConfig?.hasCommander && (
+        <CommanderPickerSheet
+          format={deck.format}
+          deckCards={[...deck.cards, ...deck.sideboard].map((c) => c.card)}
+          exclude={commanderNames}
+          onPick={handleSelectCommanderFromPicker}
+          onClose={() => setShowCommanderPicker(false)}
+        />
       )}
 
       {showPartnerPicker && deck.commander && (

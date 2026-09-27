@@ -42,6 +42,23 @@ describe('deckCardActions', () => {
     expect(byKey(many, 'remove-all')!.label).toBe('Remove all 3 copies');
   });
 
+  // E465: the commander picker is how a seated commander gets replaced, and
+  // the commander row (the one slotless row that isn't the partner) is its door.
+  it('offers "Change commander" on the commander row only', () => {
+    const onChangeCommander = vi.fn();
+    const commanderRow = row({ slotIds: [] });
+    const action = byKey({ row: commanderRow, onChangeCommander }, 'change-commander');
+    expect(action?.label).toBe('Change commander');
+    expect(action?.section).toBe('commander');
+    action!.run!();
+    expect(onChangeCommander).toHaveBeenCalledTimes(1);
+
+    expect(keys({ row: row(), onChangeCommander })).not.toContain('change-commander');
+    expect(keys({ row: row({ slotIds: [], isPartner: true }), onChangeCommander })).not.toContain(
+      'change-commander'
+    );
+  });
+
   it('never offers "remove all" on a single copy', () => {
     expect(keys({ row: row({ qty: 1 }) })).not.toContain('remove-all');
   });

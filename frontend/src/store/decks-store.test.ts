@@ -1,5 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useDecksStore, newDeckCard, selectDeck, effectiveBracket, type DeckCard } from './decks';
+import {
+  useDecksStore,
+  newDeckCard,
+  selectDeck,
+  effectiveBracket,
+  commanderShortName,
+  UNTITLED_DECK_NAME,
+  type DeckCard,
+} from './decks';
+import { useDeckHistoryStore } from './deck-history';
 import { useToastsStore } from './toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -493,6 +502,123 @@ describe('useDecksStore — commander setters', () => {
     const d = store().decks[0];
     expect(d.partnerCommander?.name).toBe('Tymna');
     expect(d.partnerCommanderAllocatedCopyId).toBe('copy-p');
+  });
+});
+
+// E465: a deck can start with no commander and get one later. It should then
+// read the same as a deck created with that commander, which createDeck names
+// after the commander's short name.
+describe('useDecksStore — a commander chosen later names an untitled deck (E465)', () => {
+  let id: string;
+  beforeEach(() => {
+    id = store().createDeck({ source: 'manual', commander: null });
+  });
+
+  it('renames "Untitled deck" to the commander short name, the same rule createDeck uses', () => {
+    expect(store().decks[0].name).toBe(UNTITLED_DECK_NAME);
+    store().setCommander(id, sfCard('Krenko, Tin Street Kingpin'), null);
+    expect(store().decks[0].name).toBe('Krenko');
+  });
+
+  it('never touches a name the user typed', () => {
+    store().renameDeck(id, 'Goblin pile');
+    store().setCommander(id, sfCard('Krenko, Tin Street Kingpin'), null);
+    expect(store().decks[0].name).toBe('Goblin pile');
+  });
+
+  it('only renames on a change of commander, not when the same card is re-seated', () => {
+    // A deck the user named "Untitled deck" on purpose, commander already set.
+    id = store().createDeck({
+      source: 'manual',
+      name: UNTITLED_DECK_NAME,
+      commander: sfCard('Atraxa, Praetors’ Voice'),
+    });
+    // Releasing the commander's copy claim re-sets the same card.
+    store().setCommander(id, sfCard('Atraxa, Praetors’ Voice'), null);
+    expect(selectDeck(id)(store())?.name).toBe(UNTITLED_DECK_NAME);
+  });
+
+  it('does not rename when the commander is cleared', () => {
+    store().setCommander(id, null);
+    expect(store().decks[0].name).toBe(UNTITLED_DECK_NAME);
+  });
+
+  it('renames through chooseCommander too', () => {
+    store().chooseCommander(id, sfCard('Korvold, Fae-Cursed King'), null);
+    expect(store().decks[0].name).toBe('Korvold');
+  });
+
+  it('commanderShortName is the text before the first comma', () => {
+    expect(commanderShortName(sfCard('Korvold, Fae-Cursed King'))).toBe('Korvold');
+    expect(commanderShortName(sfCard('Sol Ring'))).toBe('Sol Ring');
+  });
+});
+
+describe('useDecksStore — chooseCommander (E465)', () => {
+  let id: string;
+  beforeEach(() => {
+    useDeckHistoryStore.getState().clear();
+    id = store().createDeck({ source: 'manual', commander: null });
+  });
+
+  it('moves an in-deck card into the command zone with its copy claim, in ONE write, undoably', () => {
+    const krenko = newDeckCard(sfCard('Krenko, Tin Street Kingpin', 'sf-k'), 'copy-k');
+    const bolt = newDeckCard(sfCard('Lightning Bolt', 'sf-b'), 'copy-b');
+    store().replaceDeck(id, { ...store().decks[0], cards: [krenko, bolt] });
+
+    let writes = 0;
+    const unsub = useDecksStore.subscribe((s, prev) => {
+      if (s.decks !== prev.decks) writes++;
+    });
+    useDeckHistoryStore.getState().record(id, 'make Krenko commander', () =>
+      store().chooseCommander(id, krenko.card, krenko.allocatedCopyId, {
+        fromSlotId: krenko.slotId,
+      })
+    );
+    unsub();
+
+    const d = store().decks[0];
+    expect(writes).toBe(1);
+    expect(d.commander?.name).toBe('Krenko, Tin Street Kingpin');
+    expect(d.commanderAllocatedCopyId).toBe('copy-k');
+    expect(d.cards.map((c) => c.card.name)).toEqual(['Lightning Bolt']);
+    expect(d.name).toBe('Krenko');
+
+    // One undo restores all of it: the card back in the 99 with its claim,
+    // the command zone empty, the placeholder name back.
+    expect(useDeckHistoryStore.getState().undo(id)).toBe(true);
+    const back = store().decks[0];
+    expect(back.commander).toBeNull();
+    expect(back.name).toBe(UNTITLED_DECK_NAME);
+    expect(back.cards.find((c) => c.slotId === krenko.slotId)?.allocatedCopyId).toBe('copy-k');
+  });
+
+  it('moves a sideboard card the same way', () => {
+    const krenko = newDeckCard(sfCard('Krenko, Tin Street Kingpin', 'sf-k'), 'copy-k');
+    store().replaceDeck(id, { ...store().decks[0], sideboard: [krenko] });
+    store().chooseCommander(id, krenko.card, 'copy-k', { fromSlotId: krenko.slotId });
+    const d = store().decks[0];
+    expect(d.sideboard).toEqual([]);
+    expect(d.commanderAllocatedCopyId).toBe('copy-k');
+  });
+
+  it('seats a card that was not in the deck without touching the 99', () => {
+    const bolt = newDeckCard(sfCard('Lightning Bolt', 'sf-b'));
+    store().replaceDeck(id, { ...store().decks[0], cards: [bolt] });
+    store().chooseCommander(id, sfCard('Krenko, Mob Boss', 'sf-m'), 'copy-m');
+    const d = store().decks[0];
+    expect(d.cards).toEqual([bolt]);
+    expect(d.commander?.name).toBe('Krenko, Mob Boss');
+    expect(d.commanderAllocatedCopyId).toBe('copy-m');
+  });
+
+  it('keepPrevious drops the outgoing commander into the 99 with its copy claim', () => {
+    store().setCommander(id, sfCard('Muxus, Goblin Grandee', 'sf-x'), 'copy-x');
+    store().chooseCommander(id, sfCard('Krenko, Mob Boss', 'sf-m'), null, { keepPrevious: true });
+    const d = store().decks[0];
+    expect(d.commander?.name).toBe('Krenko, Mob Boss');
+    const kept = d.cards.find((c) => c.card.name === 'Muxus, Goblin Grandee');
+    expect(kept?.allocatedCopyId).toBe('copy-x');
   });
 });
 

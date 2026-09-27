@@ -90,6 +90,7 @@ export function CategorySection({
   canMakeCommander,
   onMakePartner,
   canMakePartner,
+  onChangeCommander,
   onMoveToAnotherDeck,
   onReleaseCopy,
   onUseOwnCopy,
@@ -140,6 +141,7 @@ export function CategorySection({
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
   canMakePartner?: (card: ScryfallCard) => boolean;
+  onChangeCommander?: () => void;
   onMoveToAnotherDeck?: (card: ScryfallCard) => void;
   onReleaseCopy?: (card: ScryfallCard) => void;
   onUseOwnCopy?: (card: ScryfallCard) => void;
@@ -256,6 +258,7 @@ export function CategorySection({
           canMakeCommander={canMakeCommander}
           onMakePartner={entry.leaving ? undefined : onMakePartner}
           canMakePartner={canMakePartner}
+          onChangeCommander={entry.leaving ? undefined : onChangeCommander}
           onMoveToAnotherDeck={entry.leaving ? undefined : onMoveToAnotherDeck}
           onReleaseCopy={entry.leaving ? undefined : onReleaseCopy}
           onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
@@ -392,6 +395,7 @@ function DeckCardRow({
   canMakeCommander,
   onMakePartner,
   canMakePartner,
+  onChangeCommander,
   onMoveToAnotherDeck,
   onReleaseCopy,
   onUseOwnCopy,
@@ -442,6 +446,7 @@ function DeckCardRow({
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
   canMakePartner?: (card: ScryfallCard) => boolean;
+  onChangeCommander?: () => void;
   onMoveToAnotherDeck?: (card: ScryfallCard) => void;
   onReleaseCopy?: (card: ScryfallCard) => void;
   onUseOwnCopy?: (card: ScryfallCard) => void;
@@ -583,6 +588,7 @@ function DeckCardRow({
     canMakeCommander,
     onMakePartner,
     canMakePartner,
+    onChangeCommander,
     onSetRowTags,
   };
   const hasMenu = !leaving && hasCardActions(menuContext);
