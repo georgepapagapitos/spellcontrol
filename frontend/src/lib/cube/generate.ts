@@ -625,9 +625,19 @@ function reasonFor(c: CubeCard, bucket: ColorBucket): string {
  *  bucket, and the card's own color is already on the row, so the reason
  *  names what ran short instead of restating the card. `shortBuckets` is
  *  computed once for the whole backfill pass (every extra card addresses the
- *  same shortfall), sentence-cased for the one bucket that's mid-sentence. */
-function crossBackfillReason(shortBuckets: ColorBucket[]): string {
-  if (shortBuckets.length === 0) return 'Fills a gap in your collection';
+ *  same shortfall). When nothing is actually short (the mined corpus shares
+ *  for this band don't quite sum to 1, so `apportion()` itself lands the
+ *  bucket targets a hair under `size` — not a collection problem), that isn't
+ *  true to say, so this names the mechanism instead, with the usual
+ *  runner-up. */
+function crossBackfillReason(
+  shortBuckets: ColorBucket[],
+  card: CubeCard,
+  runnerUp: CubeCard | null
+): string {
+  if (shortBuckets.length === 0) {
+    return withRunnerUp('Fills the last open slots · best remaining card', card, runnerUp);
+  }
   const names = shortBuckets.map((b) => LOWER_COLOR_NAME[b]);
   return `Fills a gap: ${joinNames(names)} ran short in your collection`;
 }
@@ -730,7 +740,6 @@ export function generateCube(
     // Which color(s) actually came up short of their own target — computed
     // BEFORE this backfill touches byBucket, so it reflects the real cause.
     const shortBuckets = BUCKETS.filter((b) => b !== 'land' && byBucket[b] < targetByBucket[b]);
-    const backfillReason = crossBackfillReason(shortBuckets);
     // Cube-level ceilings hold here too: the best leftovers are exactly the
     // role cards the buckets just capped, so take anything under its ceiling
     // first and capped role cards only as a last resort.
@@ -750,10 +759,19 @@ export function generateCube(
         if (c.role) roleCount[c.role]++;
       }
     }
+    // Runner-up for the "nothing's actually short" fallback: the next-best
+    // leftover (by the same quality order `extra` was chosen from) that
+    // genuinely never made the cube.
+    const chosenIds = new Set([...chosen].map((c) => c.oracleId));
+    const neverChosenIds = new Set(
+      ordered.filter((c) => !chosenIds.has(c.oracleId)).map((c) => c.oracleId)
+    );
+    const runnerUpForExtra = nextDeferredMap(ordered, neverChosenIds);
     for (const c of extra) {
       const b = bucketOf(c);
       byBucket[b]++;
-      picks.push({ card: c, bucket: b, reason: backfillReason });
+      const runnerUp = runnerUpForExtra.get(c.oracleId) ?? null;
+      picks.push({ card: c, bucket: b, reason: crossBackfillReason(shortBuckets, c, runnerUp) });
     }
     shortfall = Math.max(0, size - picks.length);
   }
