@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Link } from 'react-router-dom';
 import {
   DndContext,
   KeyboardSensor,
@@ -60,6 +59,7 @@ import { CardPreview } from '../CardPreview';
 import { InfoTip } from '../InfoTip';
 import { assemblyClockTip, isKillClock } from './WinConditionPanel';
 import { Chip } from '@/components/shared/Chip';
+import { Button } from '@/components/shared/Button';
 
 export interface DeckTestHandPanelHandle {
   reveal(): void;
@@ -466,30 +466,32 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
               </div>
 
               <div className="deck-test-hand-actions">
-                <button
-                  type="button"
-                  className="deck-test-hand-action"
+                <Button
+                  placement="row"
                   onClick={handleDraw}
                   disabled={!canDraw}
                   title={canDraw ? 'Draw one more card from the library' : 'Library is empty'}
+                  icon={<Plus width={14} height={14} />}
                 >
-                  <Plus width={14} height={14} aria-hidden /> Draw
-                </button>
-                <button
-                  type="button"
-                  className="deck-test-hand-action is-primary"
+                  Draw
+                </Button>
+                <Button
+                  placement="row"
+                  variant="primary"
                   onClick={handleDeal}
                   title="Reshuffle and deal a fresh opening hand"
+                  icon={<Shuffle width={14} height={14} />}
                 >
-                  <Shuffle width={14} height={14} aria-hidden /> Deal another hand
-                </button>
-                <Link
+                  Deal another hand
+                </Button>
+                <Button
+                  placement="row"
                   to={`/decks/${deckId}/playtest`}
-                  className="deck-test-hand-action deck-test-hand-action-bridge"
                   title="Open the full playtest board"
+                  icon={<Play width={14} height={14} />}
                 >
-                  <Play width={14} height={14} aria-hidden /> Play this out
-                </Link>
+                  Play this out
+                </Button>
               </div>
 
               <ul className="deck-test-hand-chips" aria-label="Hand breakdown">
@@ -565,16 +567,15 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     Opening-hand odds
                     <span className="deck-test-hand-sim-heading-sub">across 1,000 shuffles</span>
                   </span>
-                  <button
-                    type="button"
-                    className="deck-test-hand-action deck-test-hand-sim-run"
+                  <Button
+                    placement="row"
                     onClick={handleSimulate}
                     disabled={simulating}
                     title="Re-sample: deal a fresh 1,000 hands"
+                    icon={<Dices width={14} height={14} />}
                   >
-                    <Dices width={14} height={14} aria-hidden />
                     {simulating ? 'Simulating…' : 'Re-run'}
-                  </button>
+                  </Button>
                 </div>
 
                 {sim && (

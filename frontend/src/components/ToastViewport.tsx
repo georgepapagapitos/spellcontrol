@@ -1,6 +1,7 @@
 import { type CSSProperties, useCallback, useEffect } from 'react';
 import { useToastsStore, type Toast } from '../store/toasts';
 import { useToastExits } from '../lib/use-toast-exits';
+import { Button } from '@/components/shared/Button';
 
 export function ToastViewport() {
   const toasts = useToastsStore((s) => s.toasts);
@@ -102,9 +103,9 @@ function ToastItem({
         </span>
       )}
       {toast.actionLabel && toast.onAction && (
-        <button type="button" className="toast-action" onClick={handleAction}>
+        <Button variant="primary" className="toast-action" onClick={handleAction}>
           {toast.actionLabel}
-        </button>
+        </Button>
       )}
       <button type="button" className="toast-close" onClick={handleDismiss} aria-label="Dismiss">
         ×

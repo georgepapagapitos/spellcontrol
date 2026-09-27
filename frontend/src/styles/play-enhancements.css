@@ -465,26 +465,6 @@
   }
 }
 
-/* ── History "Rematch" affordance ── */
-.play-history-rematch {
-  background: var(--accent-light);
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  border-radius: var(--radius);
-  padding: 0.2rem 0.7rem;
-  font-size: var(--text-xs, 0.72rem);
-  font-weight: 700;
-  cursor: pointer;
-  transition: background var(--motion-fast) ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .play-history-rematch:hover {
-    background: var(--accent);
-    color: var(--on-accent);
-  }
-}
-
 /* Reduced-motion: keep info, drop the decorative motion. */
 @media (prefers-reduced-motion: reduce) {
   .game-board-undo-btn,
@@ -512,10 +492,6 @@
 .game-board-undo-btn:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
-}
-.play-history-rematch:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 /* ── Time on turn (game menu) ──

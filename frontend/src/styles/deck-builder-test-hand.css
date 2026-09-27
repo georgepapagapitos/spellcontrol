@@ -223,83 +223,6 @@
   padding-top: var(--space-1);
 }
 
-.deck-test-hand-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem var(--space-4);
-  /* Action buttons use the 8px rounded-rect (--radius); pills are reserved for
-     non-actionable chips/badges (.deck-test-hand-chip) and round icon buttons. */
-  border-radius: var(--radius);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  text-decoration: none;
-  cursor: pointer;
-  transition:
-    background var(--motion-fast) ease,
-    border-color var(--motion-fast) ease,
-    color var(--motion-fast) ease;
-  min-height: 2.25rem;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-test-hand-action:hover:not([disabled]) {
-    background: var(--surface);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-}
-
-.deck-test-hand-action:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.deck-test-hand-action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.deck-test-hand-action.is-primary {
-  /* The row's declared primary ("Deal another hand") — true fill tier, not
-     a translucent tint (intent inversion fix, T53 Phase 4), stamped. */
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 14%),
-    0 1px 0 rgb(0 0 0 / 12%);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-test-hand-action.is-primary:hover:not([disabled]) {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-    color: var(--on-accent);
-  }
-}
-
-/* Bridge into the full Playtest board — a quieter, ghosted variant so it reads
-   as "escalate to the real thing" without competing with Deal for the eye. */
-.deck-test-hand-action-bridge {
-  background: transparent;
-  border-color: var(--border);
-  color: var(--text-secondary);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-test-hand-action-bridge:hover:not([disabled]) {
-    background: var(--surface-raised);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-}
-
 /* Hand-breakdown chip row — small pills showing the actually-dealt hand
    composition (lands, ramp, removal, draw) so players can read it at a
    glance instead of squinting at the cards. */
@@ -483,12 +406,6 @@
    would wrongly read as a healthy result. */
 .deck-test-hand-sim-curve .deck-curve-bar:empty {
   background: color-mix(in srgb, var(--text-muted) 35%, transparent);
-}
-
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
-.deck-test-hand-action-bridge:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 /* ── Assembly clock — "typically online by turn N" (E75) ─────────────────── */

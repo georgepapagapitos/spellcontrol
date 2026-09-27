@@ -2128,14 +2128,13 @@ function HistoryTab({
                   <span className="play-history-format">{rec.format}</span>
                   <span className="play-history-mode">{rec.mode}</span>
                   <span className="play-history-date">{when}</span>
-                  <button
-                    type="button"
-                    className="play-history-rematch"
+                  <Button
+                    placement="row"
                     aria-label={`Rematch: ${when}`}
                     onClick={() => onRematch(rec)}
                   >
                     Rematch
-                  </button>
+                  </Button>
                   {menuItems.length > 0 && (
                     <OverflowMenu items={menuItems} ariaLabel={`Game options: ${when}`} />
                   )}
@@ -2203,13 +2202,9 @@ function HistoryTab({
                       <span className="play-history-date">
                         {new Date(rec.endedAt).toLocaleString()}
                       </span>
-                      <button
-                        type="button"
-                        className="play-history-rematch"
-                        onClick={() => void setHistoryHidden(rec.id, false)}
-                      >
+                      <Button placement="row" onClick={() => void setHistoryHidden(rec.id, false)}>
                         Bring back
-                      </button>
+                      </Button>
                     </div>
                     <div className="play-history-winner">
                       {rec.players.map((p) => p.name).join(' · ')}

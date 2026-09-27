@@ -798,23 +798,6 @@ body:has(.game-board) .modal-backdrop {
   gap: var(--space-1);
 }
 
-.table-profiles-confirm-yes,
-.table-profiles-confirm-no {
-  min-height: 2.75rem;
-  padding-inline: var(--space-3);
-  border-radius: var(--radius);
-  border: 0.5px solid var(--border);
-  background: var(--surface);
-  color: inherit;
-  font-size: var(--text-sm);
-  cursor: pointer;
-}
-
-.table-profiles-confirm-yes {
-  border-color: var(--err-border);
-  color: var(--err-text);
-}
-
 .table-profiles-save {
   display: flex;
   align-items: flex-end;
@@ -895,8 +878,6 @@ body:has(.game-board) .modal-backdrop {
 .play-setup-counter-input:focus-visible,
 .table-profiles-load:focus-visible,
 .table-profiles-delete:focus-visible,
-.table-profiles-confirm-yes:focus-visible,
-.table-profiles-confirm-no:focus-visible,
 .table-profiles-save-input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

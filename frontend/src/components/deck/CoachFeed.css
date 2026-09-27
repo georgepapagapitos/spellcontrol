@@ -120,26 +120,6 @@
   }
 }
 
-/* "Apply all N drop-ins" — rect action button, accent fill. */
-.coach-feed-apply-all {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem var(--space-3);
-  border-radius: var(--radius);
-  border: none;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity var(--motion-fast) ease;
-}
-
-.coach-feed-apply-all:active {
-  opacity: 0.8;
-}
-
 /* ── Bracket strip ──────────────────────────────────────────────────────── */
 
 /* Slim contextual header for the bracket-fit filter state (direction ≠ aligned). */

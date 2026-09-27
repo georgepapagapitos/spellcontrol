@@ -106,20 +106,22 @@ function OptionRow({
           <WhyBreakdown factors={option.factors} label={`Why cut ${option.name}?`} />
         )}
       </span>
-      <button
-        type="button"
+      <Button
+        variant="primary"
         className="deck-size-prompt-act"
         onClick={option.onPick}
         disabled={busy}
         aria-label={`${verb} ${option.name}`}
+        icon={
+          verb === 'Add' ? (
+            <Plus width={14} height={14} strokeWidth={1.8} />
+          ) : (
+            <ArrowLeftRight width={14} height={14} strokeWidth={1.8} />
+          )
+        }
       >
-        {verb === 'Add' ? (
-          <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-        ) : (
-          <ArrowLeftRight width={14} height={14} strokeWidth={1.8} aria-hidden />
-        )}
         {verb}
-      </button>
+      </Button>
     </li>
   );
 }

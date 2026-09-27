@@ -70,23 +70,19 @@ export function TableProfiles({
               </button>
               {confirmingId === profile.id ? (
                 <span className="table-profiles-confirm">
-                  <button
-                    type="button"
-                    className="table-profiles-confirm-yes"
+                  <Button
+                    placement="row"
+                    variant="danger"
                     onClick={() => {
                       deleteTableProfile(profile.id);
                       setConfirmingId(null);
                     }}
                   >
                     Delete
-                  </button>
-                  <button
-                    type="button"
-                    className="table-profiles-confirm-no"
-                    onClick={() => setConfirmingId(null)}
-                  >
+                  </Button>
+                  <Button placement="row" onClick={() => setConfirmingId(null)}>
                     Keep
-                  </button>
+                  </Button>
                 </span>
               ) : (
                 <IconButton

@@ -275,34 +275,9 @@
 
 /* "+N more pages" expander at the bottom of a section's inline grid. */
 .binder-section-show-more {
-  display: block;
+  /* A Button, stretched across the section it extends. */
   width: 100%;
-  padding: var(--space-2) var(--space-3);
   margin-top: var(--space-1);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  cursor: pointer;
-  text-align: center;
-  transition:
-    background var(--motion-fast),
-    color var(--motion-fast);
-}
-
-.binder-section-show-more:focus-visible {
-  background: var(--surface);
-  color: var(--text-primary);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .binder-section-show-more:hover {
-    background: var(--surface);
-    color: var(--text-primary);
-    outline: none;
-  }
 }
 
 /* Drift banner — informational tone, same accent-light palette as
