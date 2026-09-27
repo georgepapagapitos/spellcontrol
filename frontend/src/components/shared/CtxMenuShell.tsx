@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { flushSync } from 'react-dom';
 import './CtxMenuShell.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/use-escape-key';
+import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
 import { Button } from '@/components/shared/Button';
+
+/** Every role a row inside this shell can carry — a plain action, a toggle,
+ *  or the tag page's exclusive pick. */
+const ITEM_SELECTOR = '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]';
 
 const MENU_MARGIN = 8;
 
@@ -27,6 +31,10 @@ export interface CtxMenuShellProps {
    *  drilling into a submenu page): the floating variant re-clamps to the new
    *  height, and focus moves to the new content's first control. */
   contentKey?: string;
+  /** The control that opened this menu — Escape/Tab return focus there. Omit
+   *  for a pointer-opened menu (a right-click has no button to return to);
+   *  focus then returns to whatever was focused before the menu opened. */
+  triggerRef?: RefObject<HTMLElement | null>;
   onClose(): void;
   children: ReactNode;
 }
@@ -42,6 +50,15 @@ export interface CtxMenuShellProps {
  * moved to `components/shared/` rather than being copied. Its CSS came with
  * it (see CtxMenuShell.css) because playtest.css is a page-chunk stylesheet
  * the deck view never loads.
+ *
+ * Arrow keys, Home/End and Escape run on the same `useMenuKeyboard` hook
+ * every other menu in the app uses (2026-09-27, T157) — this shell used to be
+ * the one place that had none of it (a plain card menu) or its own
+ * hand-rolled copy (the table's flyouts). `scopeSelector: '[data-menu-panel]'`
+ * keeps a caller's own panel-scoped navigation (TableContextMenu's flyouts:
+ * Up/Down walk only the open submenu, never the root behind it) working
+ * without this shell knowing anything about submenus; a flat menu (DeckCardMenu)
+ * has no such attribute, so navigation spans the whole panel as normal.
  */
 export function CtxMenuShell({
   x,
@@ -50,16 +67,40 @@ export function CtxMenuShell({
   title,
   variant,
   contentKey,
+  triggerRef,
   onClose,
   children,
 }: CtxMenuShellProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
   const itemsRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
 
   useLockBodyScroll();
-  useEscapeKey(variant === 'sheet' ? beginClose : onClose);
+
+  // A right-click (or a table/pile menu) opens with no trigger button to
+  // return focus to on close — fall back to whatever had focus beforehand,
+  // the same as a modal would. useRef's argument is read once, on the first
+  // render only, which by then is after the click that opened the menu, so
+  // document.activeElement is still the opener's.
+  const fallbackTriggerRef = useRef<HTMLElement | null>(
+    document.activeElement instanceof HTMLElement ? document.activeElement : null
+  );
+
+  useMenuKeyboard({
+    open: true,
+    onClose: variant === 'sheet' ? beginClose : onClose,
+    panelRef: variant === 'floating' ? menuRef : sheetRef,
+    triggerRef: triggerRef ?? fallbackTriggerRef,
+    itemSelector: ITEM_SELECTOR,
+    scopeSelector: '[data-menu-panel]',
+    // The sheet is a real modal (aria-modal="true"): Tab should stay inside
+    // it, never close it. The floating popover is role="menu", not a dialog,
+    // so Tab closing and handing focus back to the trigger is the right menu
+    // behaviour (matches OverflowMenu et al).
+    dialog: variant === 'sheet',
+  });
 
   useEffect(() => {
     if (variant !== 'floating') return;
@@ -95,6 +136,7 @@ export function CtxMenuShell({
             root — is what a "click outside the sheet" actually lands on. */}
         <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
         <div
+          ref={sheetRef}
           className={`card-picker-sheet ctx-menu-sheet${isClosing ? ' is-closing' : ''}`}
           role="dialog"
           aria-modal="true"
