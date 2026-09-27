@@ -26,11 +26,15 @@ import ts from 'typescript';
 
 const PAGES_DIR = path.resolve(__dirname, '../pages');
 
-/** file (relative to pages/) : line — reason it's not the page's whole
- *  loading state, so it stays text rather than growing a skeleton. */
-const ALLOWLIST: Record<string, string> = {
-  'PlayPage.tsx:2187':
-    'the hidden-games sub-list inside an already-loaded history panel, not the page load — a small inline sub-panel placeholder (STYLE_GUIDE § Empty states)',
+/** file (relative to pages/) → how many bare "Loading…" nodes it may keep,
+ *  and why none is the page's whole loading state. Keyed by file and count,
+ *  not line: a line key broke on every unrelated edit above it. */
+const ALLOWLIST: Record<string, { count: number; reason: string }> = {
+  'PlayPage.tsx': {
+    count: 1,
+    reason:
+      'the hidden-games sub-list inside an already-loaded history panel, not the page load — a small inline sub-panel placeholder (STYLE_GUIDE § Empty states)',
+  },
 };
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -50,13 +54,12 @@ function scan(file: string): Array<{ file: string; line: number }> {
   const out: Array<{ file: string; line: number }> = [];
   const visit = (n: ts.Node) => {
     if (ts.isJsxText(n) && n.text.replace(/\s+/g, ' ').trim() === 'Loading…') {
-      const l = line(n);
-      if (!ALLOWLIST[`${rel}:${l}`]) out.push({ file: rel, line: l });
+      out.push({ file: rel, line: line(n) });
     }
     ts.forEachChild(n, visit);
   };
   visit(sf);
-  return out;
+  return out.length > (ALLOWLIST[rel]?.count ?? 0) ? out : [];
 }
 
 describe('no bare "Loading…" as a page\'s whole loading state', () => {
