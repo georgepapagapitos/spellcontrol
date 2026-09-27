@@ -654,7 +654,9 @@ export function UpgradePlanSheet({
         mark
         className="upgrade-plan-empty"
         tagline={`Nothing fits ${budgetLabel}.`}
-        hint={ownedFree ? 'Raise the budget to see swaps.' : 'Raise the budget or use cards you own.'}
+        hint={
+          ownedFree ? 'Raise the budget to see swaps.' : 'Raise the budget or use cards you own.'
+        }
         actions={
           !ownedFree && (
             <Button variant="secondary" onClick={() => setOwnedFree(true)}>
