@@ -72,37 +72,64 @@ describe('finality copy matches reality', () => {
     // Guard the guard: an empty list would pass everything below vacuously.
     expect(undoable.length).toBeGreaterThan(0);
     expect(undoable).toContain('deleteDeck');
+    expect(undoable).toContain('deleteBinder');
+    expect(undoable).toContain('deleteList');
+    expect(undoable).toContain('removeSaved');
   });
 
-  it.each(['deleteDeck'])(
-    'no ConfirmDialog that calls %s claims "This can\'t be undone."',
-    (action) => {
-      const offenders: string[] = [];
-      for (const file of sourceFiles(SRC)) {
-        const src = readFileSync(file, 'utf8');
-        if (!src.includes(FINALITY)) continue;
-        if (!new RegExp(`\\b${action}\\s*\\(`).test(src)) continue;
-        // Narrow it to the dialog that actually triggers this action: the
-        // handler and the finality string must both be present, and the
-        // dialog's confirm path must reach the action.
-        const handler = src.match(
-          new RegExp(`const (handle\\w*)\\s*=\\s*\\(\\)\\s*=>\\s*\\{[^}]*${action}\\(`)
-        );
-        if (!handler) continue;
-        const dialog = src.match(
-          new RegExp(`<ConfirmDialog[\\s\\S]{0,400}?onConfirm=\\{${handler[1]}\\}`)
-        );
-        if (dialog && dialog[0].includes(FINALITY)) {
-          offenders.push(`${file.replace(SRC, 'src')} — ConfirmDialog → ${action}`);
-        }
+  // Every finality clause in the source, traced to what its confirm reaches:
+  // a <ConfirmDialog>'s onConfirm (a named handler resolved to its body), or,
+  // for the useConfirm() promise form, the code right after the clause. The
+  // first version of this guard only followed handlers named `handle…`, so
+  // /decks kept "This can't be undone." on a single delete and on delete-all,
+  // both of which show Undo.
+  it('no confirm that reaches an undoable action claims finality', () => {
+    const calls = new RegExp(`\\b(${undoable.join('|')})\\s*\\(`);
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      // Comments blanked in place (line numbers survive): a note explaining
+      // why the clause was dropped is not a dialog.
+      const blank = (m: string) => m.replace(/[^\n]/g, ' ');
+      const src = readFileSync(file, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, blank)
+        .replace(/^\s*\/\/.*$/gm, blank);
+      for (let at = src.indexOf(FINALITY); at !== -1; at = src.indexOf(FINALITY, at + 1)) {
+        const hit = reachedFrom(src, at).match(calls);
+        if (!hit) continue;
+        const line = src.slice(0, at).split('\n').length;
+        offenders.push(`${file.replace(SRC, 'src')}:${line} → ${hit[1]}`);
       }
-      expect(
-        offenders,
-        `${action} shows an Undo toast, so a confirm dialog for it must not say ` +
-          `"${FINALITY}". The /decks index already words this correctly: ` +
-          `"The selected decks will be removed. You can undo from the toast."\n  ` +
-          offenders.join('\n  ')
-      ).toEqual([]);
     }
-  );
+    expect(
+      offenders,
+      `These actions show an Undo toast, so their confirm must not say "${FINALITY}". ` +
+        `Say "You can undo from the toast." as the /decks bulk delete does.\n  ` +
+        offenders.join('\n  ')
+    ).toEqual([]);
+  });
 });
+
+/** The code a finality clause's confirm leads to. */
+function reachedFrom(src: string, at: number): string {
+  const open = src.lastIndexOf('<ConfirmDialog', at);
+  const close = open === -1 ? -1 : src.indexOf('/>', open);
+  if (open !== -1 && close > at) {
+    const element = src.slice(open, close + 2);
+    const named = element.match(/onConfirm=\{\s*(\w+)\s*\}/);
+    if (!named) return element;
+    const def = src.search(new RegExp(`(const|function)\\s+${named[1]}\\b`));
+    return def === -1 ? '' : bracedBody(src, def);
+  }
+  return src.slice(at, at + 800);
+}
+
+/** From `from`, the first {…} block with its braces balanced. */
+function bracedBody(src: string, from: number): string {
+  const open = src.indexOf('{', from);
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}' && --depth === 0) return src.slice(open, i + 1);
+  }
+  return src.slice(open);
+}

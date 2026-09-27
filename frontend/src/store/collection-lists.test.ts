@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { flushSync } from '../lib/sync';
 import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
+import { useToastsStore } from './toasts';
 import { clearCollection, loadCollection } from '../lib/local-cards';
 import type { EnrichedCard } from '../types';
 
@@ -168,6 +169,73 @@ describe('list entries', () => {
     expect(useCollectionStore.getState().lists[0].entries).toHaveLength(0);
     const stored = await loadCollection();
     expect(stored?.cards.filter((c) => c.scryfallId === 'sf1')).toHaveLength(3);
+  });
+
+  describe('undo', () => {
+    const undoToast = () => useToastsStore.getState().toasts.find((t) => t.actionLabel === 'Undo');
+
+    beforeEach(() => {
+      useToastsStore.setState({ toasts: [] });
+    });
+
+    it('removeListEntry: toast carries Undo, which restores the exact entry at its original position', async () => {
+      const id = useCollectionStore.getState().createList('Wants');
+      await useCollectionStore.getState().addListEntry(id, enriched('c1', 'sf1'), 1);
+      await useCollectionStore.getState().addListEntry(id, enriched('c2', 'sf2'), 2);
+      await useCollectionStore.getState().addListEntry(id, enriched('c3', 'sf3'), 1);
+      const [first, middle, last] = useCollectionStore.getState().lists[0].entries;
+
+      await useCollectionStore.getState().removeListEntry(id, middle.id);
+      expect(useCollectionStore.getState().lists[0].entries.map((e) => e.id)).toEqual([
+        first.id,
+        last.id,
+      ]);
+
+      const t = undoToast();
+      expect(t?.actionLabel).toBe('Undo');
+      expect(t?.message).toBe('Removed Sol Ring');
+      t!.onAction!();
+
+      const entries = useCollectionStore.getState().lists[0].entries;
+      expect(entries.map((e) => e.id)).toEqual([first.id, middle.id, last.id]);
+      expect(entries[1]).toEqual(middle);
+    });
+
+    it('moveListEntryToCollection: Undo removes exactly the minted copies and restores the entry, re-deriving deck allocations', async () => {
+      const id = useCollectionStore.getState().createList('Wants');
+      await useCollectionStore.getState().addListEntry(id, enriched('c1', 'sf1'), 1);
+      await useCollectionStore.getState().addListEntry(id, enriched('c2', 'sf2'), 2);
+      const entry = useCollectionStore.getState().lists[0].entries[1];
+      const prevCards = useCollectionStore.getState().cards;
+
+      const remapAllocations = vi.fn();
+      useDecksStore.setState({ decks: [{ id: 'd1' } as never], remapAllocations } as never);
+
+      await useCollectionStore.getState().moveListEntryToCollection(id, entry.id);
+      expect(
+        useCollectionStore.getState().cards.filter((c) => c.scryfallId === 'sf2')
+      ).toHaveLength(2);
+      expect(useCollectionStore.getState().lists[0].entries).toHaveLength(1);
+      expect(remapAllocations).toHaveBeenCalledTimes(1);
+
+      const t = undoToast();
+      expect(t?.actionLabel).toBe('Undo');
+      expect(t?.message).toBe('Moved Sol Ring to your collection');
+      t!.onAction!();
+
+      // Exactly the minted copies are gone; nothing else in the collection moved.
+      expect(
+        useCollectionStore
+          .getState()
+          .cards.map((c) => c.copyId)
+          .sort()
+      ).toEqual(prevCards.map((c) => c.copyId).sort());
+      const entries = useCollectionStore.getState().lists[0].entries;
+      expect(entries).toHaveLength(2);
+      expect(entries[1]).toEqual(entry);
+      // Deck allocations were re-derived against the reverted collection too.
+      expect(remapAllocations).toHaveBeenCalledTimes(2);
+    });
   });
 });
 

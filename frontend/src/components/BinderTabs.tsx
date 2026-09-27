@@ -6,6 +6,7 @@ import { useCollectionStore } from '../store/collection';
 import type { MaterializedBinder } from '../types';
 import { BinderExportDialog } from './BinderExportDialog';
 import { useConfirm } from '../lib/use-confirm';
+import { BINDER_DELETE_CONFIRM_BODY } from '../lib/binder-copy';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { IconButton } from '@/components/shared/Button';
@@ -93,7 +94,7 @@ export function BinderTabs({ binders }: Props) {
   const handleDelete = async (id: string, name: string) => {
     const ok = await confirm({
       title: `Delete "${name}"?`,
-      body: `Its cards route to your other binders. Anything that no longer matches falls back to the Collection view. This can't be undone.`,
+      body: BINDER_DELETE_CONFIRM_BODY,
       confirmLabel: 'Delete binder',
       danger: true,
     });

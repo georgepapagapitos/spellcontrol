@@ -432,6 +432,26 @@ function remapBinderRefs(prevCards: EnrichedCard[], newCards: EnrichedCard[]): v
 }
 
 /**
+ * Undo for deleteBinder/deleteBinders/deleteAllBinders: reinsert each removed
+ * binder — pins, exclusions, manual order and every other field intact, since
+ * the whole `BinderDef` was captured before the delete — at its captured
+ * `position` among the CURRENT binders (which may have changed since the
+ * toast fired: a new binder created, others reordered), then renumber
+ * 0..n-1. Same "insert at position, renumber" shape `deleteBinder` itself
+ * already uses going forward.
+ */
+function restoreBinders(removed: BinderDef[]): void {
+  const sorted = [...useCollectionStore.getState().binders].sort((a, b) => a.position - b.position);
+  for (const b of [...removed].sort((a, c) => a.position - c.position)) {
+    sorted.splice(Math.min(b.position, sorted.length), 0, b);
+  }
+  const now = Date.now();
+  useCollectionStore.setState({
+    binders: sorted.map((b, i) => (b.position === i ? b : { ...b, position: i, updatedAt: now })),
+  });
+}
+
+/**
  * Call both remap helpers in the correct order whenever the collection
  * cards array changes wholesale (import / delete / restore / clear).
  * `prev` is the cards array BEFORE the mutation; `next` is after.
@@ -519,6 +539,45 @@ async function persistListsOnly(lists: ReadonlyArray<{ id: string }>): Promise<v
   } catch (err) {
     logger.warn('[store] Failed to persist lists:', err);
   }
+}
+
+/**
+ * Undo for deleteList/deleteLists/deleteAllLists: same "insert at captured
+ * `order` among the current lists, renumber 0..n-1" shape as `restoreBinders`.
+ * Each `ListDef` was captured whole before the delete, so its entries are
+ * restored with it.
+ */
+function restoreLists(removed: ListDef[]): void {
+  const sorted = [...useCollectionStore.getState().lists].sort((a, b) => a.order - b.order);
+  for (const l of [...removed].sort((a, c) => a.order - c.order)) {
+    sorted.splice(Math.min(l.order, sorted.length), 0, l);
+  }
+  useCollectionStore.setState({ lists: sorted.map((l, i) => ({ ...l, order: i })) });
+  void persistListsOnly(useCollectionStore.getState().lists);
+}
+
+/**
+ * Undo for removeListEntry (and the list-entry half of moveListEntryToCollection):
+ * reinsert `entry` at its captured index within its list — clamped, since the
+ * list may have gained/lost entries since the toast fired. `cards`, when
+ * given, replaces the collection in the same `setState` (moveListEntryToCollection's
+ * undo needs cards and the entry restored atomically).
+ */
+function restoreListEntry(
+  listId: string,
+  entry: ListEntry,
+  entryIndex: number,
+  cards?: EnrichedCard[]
+): void {
+  const lists = useCollectionStore.getState().lists.map((l) => {
+    if (l.id !== listId) return l;
+    const entries = [...l.entries];
+    const at = entryIndex < 0 ? entries.length : Math.min(entryIndex, entries.length);
+    entries.splice(at, 0, entry);
+    return { ...l, entries, updatedAt: Date.now() };
+  });
+  useCollectionStore.setState(cards !== undefined ? { lists, cards } : { lists });
+  void persistListsOnly(useCollectionStore.getState().lists);
 }
 
 export const useCollectionStore = create<CollectionState>()(
@@ -1533,25 +1592,49 @@ export const useCollectionStore = create<CollectionState>()(
         void persistListsOnly(get().lists);
       },
       deleteList: (id) => {
+        const removed = get().lists.find((l) => l.id === id);
+        if (!removed) return;
         set({
           lists: get()
             .lists.filter((l) => l.id !== id)
             .map((l, i) => ({ ...l, order: i })),
         });
         void persistListsOnly(get().lists);
+        toast.show({
+          message: `Deleted ${removed.name}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => restoreLists([removed]),
+        });
       },
       deleteLists: (ids) => {
         const idSet = new Set(ids);
+        const removed = get().lists.filter((l) => idSet.has(l.id));
+        if (removed.length === 0) return;
         set({
           lists: get()
             .lists.filter((l) => !idSet.has(l.id))
             .map((l, i) => ({ ...l, order: i })),
         });
         void persistListsOnly(get().lists);
+        toast.show({
+          message: `Deleted ${removed.length} list${removed.length === 1 ? '' : 's'}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => restoreLists(removed),
+        });
       },
       deleteAllLists: () => {
+        const removed = get().lists;
+        if (removed.length === 0) return;
         set({ lists: [] });
         void persistListsOnly([]);
+        toast.show({
+          message: `Deleted ${removed.length} list${removed.length === 1 ? '' : 's'}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => restoreLists(removed),
+        });
       },
       addListEntry: async (listId, card, quantity) => {
         const entry = makeListEntry(card, quantity);
@@ -1607,6 +1690,10 @@ export const useCollectionStore = create<CollectionState>()(
         await persistListsOnly(get().lists);
       },
       removeListEntry: async (listId, entryId) => {
+        const list = get().lists.find((l) => l.id === listId);
+        const entryIndex = list?.entries.findIndex((e) => e.id === entryId) ?? -1;
+        const entry = entryIndex === -1 ? undefined : list!.entries[entryIndex];
+        if (!entry) return;
         set({
           lists: get().lists.map((l) =>
             l.id === listId
@@ -1615,12 +1702,20 @@ export const useCollectionStore = create<CollectionState>()(
           ),
         });
         await persistListsOnly(get().lists);
+        toast.show({
+          message: `Removed ${entry.name}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => restoreListEntry(listId, entry, entryIndex),
+        });
       },
       moveListEntryToCollection: async (listId, entryId) => {
         const list = get().lists.find((l) => l.id === listId);
-        const entry = list?.entries.find((e) => e.id === entryId);
+        const entryIndex = list?.entries.findIndex((e) => e.id === entryId) ?? -1;
+        const entry = entryIndex === -1 ? undefined : list!.entries[entryIndex];
         if (!entry) return;
         const newOwned = entryToCards(entry);
+        const newIds = new Set(newOwned.map((c) => c.copyId));
         const cards = [...get().cards, ...newOwned];
         set({
           cards,
@@ -1632,6 +1727,25 @@ export const useCollectionStore = create<CollectionState>()(
         });
         remapDeckAllocations(cards);
         await get().persistCollection();
+        toast.show({
+          message: `Moved ${entry.name} to your collection`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => {
+            // The move minted brand-new copyIds (lib/lists.ts:entryToCards), so
+            // undo can drop exactly those — unambiguous even if the user has
+            // since done other things to the collection. Re-running the same
+            // remap this action ran forward re-resolves any deck/cube slot
+            // that bound to one of them back to its prior state (the remap is
+            // a pure re-resolve against the live collection, not a ratchet).
+            const revertedCards = useCollectionStore
+              .getState()
+              .cards.filter((c) => !newIds.has(c.copyId));
+            restoreListEntry(listId, entry, entryIndex, revertedCards);
+            remapDeckAllocations(revertedCards);
+            void useCollectionStore.getState().persistCollection();
+          },
+        });
       },
       persistCollection: async () => {
         try {
@@ -1717,6 +1831,8 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       deleteBinder: (id) => {
+        const removed = get().binders.find((b) => b.id === id);
+        if (!removed) return;
         set((s) => {
           const now = Date.now();
           const remaining = s.binders
@@ -1726,10 +1842,18 @@ export const useCollectionStore = create<CollectionState>()(
           const newActive = s.activeTab === id ? remaining[0]?.id || 'uncategorized' : s.activeTab;
           return { binders: remaining, activeTab: newActive };
         });
+        toast.show({
+          message: `Deleted ${removed.name}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => restoreBinders([removed]),
+        });
       },
 
       deleteBinders: (ids) => {
         const idSet = new Set(ids);
+        const removed = get().binders.filter((b) => idSet.has(b.id));
+        if (removed.length === 0) return;
         set((s) => {
           const now = Date.now();
           const remaining = s.binders
@@ -1741,10 +1865,24 @@ export const useCollectionStore = create<CollectionState>()(
             : s.activeTab;
           return { binders: remaining, activeTab: newActive };
         });
+        toast.show({
+          message: `Deleted ${removed.length} binder${removed.length === 1 ? '' : 's'}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => restoreBinders(removed),
+        });
       },
 
       deleteAllBinders: () => {
+        const removed = get().binders;
+        if (removed.length === 0) return;
         set({ binders: [], activeTab: 'uncategorized' });
+        toast.show({
+          message: `Deleted ${removed.length} binder${removed.length === 1 ? '' : 's'}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => restoreBinders(removed),
+        });
       },
 
       moveBinder: (id, direction) => {

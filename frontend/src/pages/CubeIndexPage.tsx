@@ -163,7 +163,7 @@ export function CubeIndexPage() {
       {deleteTarget && (
         <ConfirmDialog
           title="Delete cube?"
-          body={`"${deleteTarget.name}" will be removed. This can't be undone.`}
+          body={`"${deleteTarget.name}" will be removed. You can undo from the toast.`}
           confirmLabel="Delete"
           danger
           onConfirm={handleDelete}

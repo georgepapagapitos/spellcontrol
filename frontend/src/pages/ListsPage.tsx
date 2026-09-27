@@ -187,7 +187,7 @@ export function ListsPage() {
   const handleDelete = async (id: string, name: string) => {
     const ok = await confirm({
       title: `Delete "${name}"?`,
-      body: `This list and all of its entries will be removed. This can't be undone.`,
+      body: `This list and all of its entries will be removed. You can undo from the toast.`,
       confirmLabel: 'Delete list',
       danger: true,
     });
@@ -197,7 +197,7 @@ export function ListsPage() {
   const handleDeleteAll = async () => {
     const ok = await confirm({
       title: `Delete all ${lists.length} lists?`,
-      body: `Every list and all of its entries will be removed. This can't be undone.`,
+      body: `Every list and all of its entries will be removed. You can undo from the toast.`,
       confirmLabel: 'Delete all lists',
       danger: true,
     });
@@ -210,7 +210,7 @@ export function ListsPage() {
     const ids = Array.from(sel.selected);
     const ok = await confirm({
       title: `Delete ${ids.length} selected list${ids.length === 1 ? '' : 's'}?`,
-      body: `Every selected list and all of its entries will be removed. This can't be undone.`,
+      body: `Every selected list and all of its entries will be removed. You can undo from the toast.`,
       confirmLabel: 'Delete lists',
       danger: true,
     });

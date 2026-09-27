@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { safeLocalStorage } from '@/lib/safe-local-storage';
 import { isApplyingServer } from '../lib/applying-server';
+import { toast } from './toasts';
 // `bucketOf` from the leaf module, never `./cube/generate`: this store loads at
 // boot, and a value import of the generator drags it (targets, refiner,
 // objective) into the entry's boot graph.
@@ -263,11 +264,31 @@ export const useCubeStore = create<CubeState>()(
       // Deleting the cube on screen takes the view with it — a result that
       // claims to be a cube that no longer exists would be the same confusion
       // loadedId exists to end.
-      removeSaved: (id) =>
+      removeSaved: (id) => {
+        // Whole synced row, same as deleteDeck (store/decks.ts) — undo is a
+        // compensating re-insert under LWW.
+        const before = useCubeStore.getState();
+        const removed = before.saved.find((c) => c.id === id);
+        if (!removed) return;
+        const clearedView = before.loadedId === id;
+        const prevResult = before.result;
+        const prevLoadedId = before.loadedId;
         set((s) => ({
           saved: s.saved.filter((c) => c.id !== id),
           ...(s.loadedId === id ? { result: null, loadedId: null } : {}),
-        })),
+        }));
+        toast.show({
+          message: `Deleted ${removed.name}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => {
+            useCubeStore.setState((s) => ({
+              saved: [removed, ...s.saved],
+              ...(clearedView ? { result: prevResult, loadedId: prevLoadedId } : {}),
+            }));
+          },
+        });
+      },
       setPhysical: (id, isPhysical, picks) =>
         set((s) => ({
           saved: s.saved.map((c) =>

@@ -623,7 +623,7 @@ export function DecksIndexPage() {
         {pendingDelete && (
           <ConfirmDialog
             title={`Delete "${pendingDelete.name}"?`}
-            body="This can't be undone."
+            body="The deck will be removed. You can undo from the toast."
             confirmLabel="Delete"
             danger
             onConfirm={confirmDelete}
@@ -649,7 +649,7 @@ export function DecksIndexPage() {
         {confirmDeleteAll && (
           <ConfirmDialog
             title={`Delete all ${decks.length} decks?`}
-            body="Every deck will be permanently removed. This can't be undone."
+            body="Every deck will be removed. You can undo from the toast."
             confirmLabel="Delete all decks"
             danger
             onConfirm={confirmDeleteAllDecks}

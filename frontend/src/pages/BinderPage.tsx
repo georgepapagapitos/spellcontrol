@@ -30,6 +30,7 @@ import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { type BinderViewControls, type BinderViewMode } from '../components/BinderSummaryBar';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
+import { BINDER_DELETE_CONFIRM_BODY } from '../lib/binder-copy';
 import { useStoredView } from '../lib/use-stored-view';
 import { ShareDialog } from '../components/ShareDialog';
 import { CardName } from '@/components/shared/CardName';
@@ -331,7 +332,7 @@ export function BinderPage() {
               onClick: async () => {
                 const ok = await confirm({
                   title: `Delete "${active.def.name}"?`,
-                  body: `Its cards route to your other binders. Anything that no longer matches falls back to the Collection view. This can't be undone.`,
+                  body: BINDER_DELETE_CONFIRM_BODY,
                   confirmLabel: 'Delete binder',
                   danger: true,
                 });
