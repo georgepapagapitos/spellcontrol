@@ -14,6 +14,10 @@ vi.mock('@/deck-builder/services/tagger/client', () => {
     'Swords to Plowshares': ['removal'],
     'Wrath of God': ['boardwipe'],
     'Mystic Confluence': ['cardDraw', 'removal'], // multi-role; primary is cardDraw
+    // E460: the generic ramp tag on cards whose job is something else.
+    'Mana Drain': ['ramp'],
+    'Sword of Feast and Famine': ['ramp'],
+    'Rampant Growth': ['ramp'],
   };
   const subtypes: Record<string, string | null> = {
     // wanted (missing) staples — only their subtype is consulted
@@ -25,6 +29,9 @@ vi.mock('@/deck-builder/services/tagger/client', () => {
     'Worn Powerstone': 'mana-rock',
     'Llanowar Elves': 'mana-producer',
     Cultivate: 'ramp',
+    'Mana Drain': 'ramp',
+    'Sword of Feast and Famine': 'ramp',
+    'Rampant Growth': 'ramp',
   };
   // Functional fingerprints for the similarity Jaccard. Cards omitted here fall
   // back to their role list (so existing fixtures keep a sensible overlap).
@@ -35,6 +42,9 @@ vi.mock('@/deck-builder/services/tagger/client', () => {
     'Worn Powerstone': ['mana-rock', 'ramp'],
     'Llanowar Elves': ['mana-dork', 'ramp'],
     Cultivate: ['ramp', 'mana-fix'],
+    'Mana Drain': ['ramp', 'counterspell'],
+    'Sword of Feast and Famine': ['ramp', 'protection'],
+    'Rampant Growth': ['ramp', 'land-tutor'],
   };
   return {
     cardMatchesRole: (name: string, role: string) => (roles[name] ?? []).includes(role),
@@ -87,6 +97,34 @@ describe('findOwnedSubstitute', () => {
       usedSubtypeMatch: true,
     });
     expect(row!.reason).toBe('Mind Stone fills the 2-mana Ramp slot. Owned, same mana rock.');
+  });
+
+  it('never seats a card that only makes mana on the side in a ramp slot (E460)', () => {
+    const row = findOwnedSubstitute(
+      missing({ name: 'Farseek', role: 'ramp', roleLabel: 'Ramp', cmc: 2, typeLine: 'Sorcery' }),
+      [
+        owned({ name: 'Mana Drain', cmc: 2, typeLine: 'Instant' }),
+        owned({ name: 'Sword of Feast and Famine', cmc: 3, typeLine: 'Artifact — Equipment' }),
+      ],
+      new Set(),
+      ['G', 'U']
+    );
+    expect(row).toBeNull();
+  });
+
+  it('keeps real ramp, and never calls the generic ramp tag "same ramp"', () => {
+    const row = findOwnedSubstitute(
+      missing({ name: 'Farseek', role: 'ramp', roleLabel: 'Ramp', cmc: 2, typeLine: 'Sorcery' }),
+      [
+        owned({ name: 'Mana Drain', cmc: 2, typeLine: 'Instant' }),
+        owned({ name: 'Rampant Growth', cmc: 2, typeLine: 'Sorcery' }),
+      ],
+      new Set(),
+      ['G', 'U']
+    );
+    expect(row?.usedName).toBe('Rampant Growth');
+    expect(row!.reason).toBe('Rampant Growth fills the 2-mana Ramp slot. Owned, same role.');
+    expect(row!.whyFactors?.map((f) => f.text).join(' ')).not.toMatch(/Same ramp/);
   });
 
   it('returns null when nothing owned fills the role (a genuine buy)', () => {
