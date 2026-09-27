@@ -438,9 +438,9 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
     addAsDeckOnly(resp);
   };
 
-  const openBuiltDeck = (deckId: string) => {
+  const openBuiltDeck = (deckId: string, plan = false) => {
     onClose();
-    navigate(`/decks/${deckId}`);
+    navigate(plan ? `/decks/${deckId}?view=tune&plan=1` : `/decks/${deckId}`);
   };
 
   // ---- Detail view ----------------------------------------------------------
@@ -600,13 +600,22 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
                   </div>
                 )}
               {result.deckId && (
-                <Button
-                  variant="primary"
-                  onClick={() => openBuiltDeck(result.deckId as string)}
-                  icon={<Layers width={16} height={16} />}
-                >
-                  Open deck
-                </Button>
+                <div className="product-review-actions">
+                  <Button
+                    variant="primary"
+                    onClick={() => openBuiltDeck(result.deckId as string)}
+                    icon={<Layers width={16} height={16} />}
+                  >
+                    Open deck
+                  </Button>
+                  {/* E458: straight into the deck's upgrade plan. */}
+                  <Button
+                    variant="secondary"
+                    onClick={() => openBuiltDeck(result.deckId as string, true)}
+                  >
+                    Plan upgrades
+                  </Button>
+                </div>
               )}
             </div>
           )}

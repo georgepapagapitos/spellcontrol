@@ -169,6 +169,9 @@ import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
+import { buildUpgradePlanTools } from '@/lib/upgrade-plan-tools';
+import { applyUpgradePlan, type PlanStep } from '@/lib/apply-upgrade-plan';
+import { logger } from '@/lib/logger';
 import { useSearchCards } from '@/lib/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
@@ -486,13 +489,17 @@ export function DeckEditorPage() {
   // empty searchParams. Hoisted (rather than owned by DeckDisplay) so the
   // mobile action sheet can open Export without rendering a duplicate button.
   const [exportOpen, setExportOpen] = useState(() => searchParams.get('export') === '1');
+  // E458: same one-shot pattern for the upgrade plan ("Plan upgrades" on a
+  // freshly added precon lands on `?view=tune&plan=1`).
+  const [planOpen, setPlanOpen] = useState(() => searchParams.get('plan') === '1');
 
   useEffect(() => {
-    if (searchParams.get('export') === '1') {
-      // Strip the param from the URL without adding a history entry so a
+    if (searchParams.get('export') === '1' || searchParams.get('plan') === '1') {
+      // Strip the params from the URL without adding a history entry so a
       // refresh — or a later bookmarked visit — doesn't re-open the dialog.
       const next = new URLSearchParams(searchParams);
       next.delete('export');
+      next.delete('plan');
       setSearchParams(next, { replace: true });
     }
     // Run only once on mount — the param value is already captured in state.
@@ -1099,6 +1106,27 @@ export function DeckEditorPage() {
         : deck?.roleCounts,
     [deck, taggerReady]
   );
+
+  // E458: the upgrade plan's bracket side. Built only while the plan is open:
+  // it runs the estimator, which a closed sheet has no use for.
+  const planAvailable = !!deck?.commander && !!formatConfig?.hasCommander;
+  const upgradePlanTools = useMemo(() => {
+    if (!planOpen || !deck?.commander || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) {
+      return null;
+    }
+    return buildUpgradePlanTools({
+      deckCards: deck.cards.map((c) => c.card),
+      commanderNames: [deck.commander.name, deck.partnerCommander?.name].filter(
+        (n): n is string => !!n
+      ),
+      combos: mainboardComboData,
+      roleCounts: liveRoleCounts ?? {},
+      // Before the first analysis lands the sheet shows its loading state, so
+      // this fallback is never read as the deck's bracket.
+      estimate: deck.bracketEstimation?.bracket ?? 2,
+      stated: deck.bracketOverride,
+    });
+  }, [planOpen, deck, mainboardComboData, liveRoleCounts]);
 
   // "Next best move" — the single highest-leverage change, derived from the
   // live PlanScore + role gaps + near-miss combos.
@@ -2380,6 +2408,43 @@ export function DeckEditorPage() {
     }
   };
 
+  // E458: apply the plan in place (one undo entry) or to a fresh copy, which
+  // leaves this list as it was. A copy the plan never reached is removed again.
+  const handleApplyPlan = async (steps: PlanStep[], toCopy: boolean) => {
+    if (!deck) return;
+    const upgradedName = `${deck.name} (upgraded)`;
+    const targetId = toCopy ? duplicateDeck(deck.id) : deck.id;
+    if (!targetId) return;
+    if (toCopy) renameDeck(targetId, upgradedName);
+    let done = 0;
+    try {
+      done = await applyUpgradePlan(targetId, steps);
+    } catch (err) {
+      logger.warn('[UpgradePlan] apply failed', err);
+    }
+    if (done === 0) {
+      if (toCopy) deleteDeck(targetId);
+      pushToast({ message: "Couldn't apply the plan. Try again.", tone: 'error' });
+      return;
+    }
+    setPlanOpen(false);
+    if (toCopy) {
+      pushToast({
+        message: `Saved as ${upgradedName}`,
+        tone: 'success',
+        actionLabel: 'Open',
+        onAction: () => navigate(`/decks/${targetId}`),
+      });
+    } else {
+      pushToast({
+        message: `Applied ${done} ${done === 1 ? 'swap' : 'swaps'}`,
+        tone: 'success',
+        actionLabel: 'Undo',
+        onAction: () => undoEdit(deck.id),
+      });
+    }
+  };
+
   const handleRemoveSideboardCard = (slotId: string) => {
     const slot = deck.sideboard.find((c) => c.slotId === slotId);
     if (!slot) return;
@@ -3528,6 +3593,16 @@ export function DeckEditorPage() {
                   ownedOnly={ownedOnly}
                   onOwnedOnlyChange={handleOwnedOnlyChange}
                   aiAgrees={aiAgrees ?? undefined}
+                  upgradePlan={
+                    planAvailable
+                      ? {
+                          tools: upgradePlanTools,
+                          open: planOpen,
+                          onOpenChange: setPlanOpen,
+                          onApply: handleApplyPlan,
+                        }
+                      : undefined
+                  }
                   nextBestMoves={nextBestMoves}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
                   onNbmNavigate={handleNbmNavigate}

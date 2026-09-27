@@ -22,6 +22,18 @@ const MAX_PRICED = 60;
 const EMPTY: Map<string, number> = new Map();
 
 export function useMissingCardPrices(names: readonly string[]): Map<string, number> {
+  return useCardPriceLookup(names).prices;
+}
+
+/**
+ * Prices keyed by lowercased name, plus whether this list's lookup has
+ * finished, so a caller that treats "no price" as meaningful (the upgrade
+ * plan leaves unpriced cards out) can wait instead of reading a miss.
+ */
+export function useCardPriceLookup(
+  names: readonly string[],
+  max = MAX_PRICED
+): { prices: Map<string, number>; loaded: boolean } {
   // Keyed by the request it belongs to, so switching lists yields nothing
   // rather than briefly showing the previous list's prices — and so the empty
   // and stale cases are DERIVED on the way out instead of needing a
@@ -40,10 +52,10 @@ export function useMissingCardPrices(names: readonly string[]): Map<string, numb
       if (seen.has(key)) continue;
       seen.add(key);
       out.push(n);
-      if (out.length >= MAX_PRICED) break;
+      if (out.length >= max) break;
     }
     return out;
-  }, [names]);
+  }, [names, max]);
   const key = wanted.join('|').toLowerCase();
 
   useEffect(() => {
@@ -75,5 +87,6 @@ export function useMissingCardPrices(names: readonly string[]): Map<string, numb
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  return state.key === key ? state.prices : EMPTY;
+  const loaded = wanted.length === 0 || state.key === key;
+  return { prices: state.key === key ? state.prices : EMPTY, loaded };
 }

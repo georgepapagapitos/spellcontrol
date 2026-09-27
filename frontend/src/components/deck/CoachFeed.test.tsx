@@ -17,6 +17,15 @@ vi.mock('./useCardCarousel', () => ({
 vi.mock('./use-deck-hover-peek', () => ({
   useDeckHoverPeek: () => ({ listHandlers: {}, peek: null }),
 }));
+// The plan's own behaviour lives in UpgradePlanSheet.test.tsx; here only what
+// the feed hands it.
+vi.mock('./UpgradePlanSheet', () => ({
+  UpgradePlanSheet: (p: { moves: { name: string }[]; cuts: unknown[]; openSlots: number }) => (
+    <div role="dialog" aria-label="Upgrade plan">
+      {p.moves.map((m) => m.name).join(',')}|{p.cuts.length}|{p.openSlots}
+    </div>
+  ),
+}));
 
 const gap: GapAnalysisCard = {
   name: 'Cultivate',
@@ -702,6 +711,52 @@ describe('CoachFeed', () => {
         />
       );
       expect(screen.queryByRole('button', { name: 'Move in Cultivate' })).toBeNull();
+    });
+  });
+
+  describe('upgrade plan (E458)', () => {
+    const plan = (open: boolean, onOpenChange = vi.fn()) => ({
+      tools: {} as never,
+      open,
+      onOpenChange,
+      onApply: vi.fn(),
+    });
+
+    it('offers the plan as one row that opens it', () => {
+      const onOpenChange = vi.fn();
+      render(<CoachFeed {...makeProps({ upgradePlan: plan(false, onOpenChange) })} />);
+      expect(screen.queryByRole('dialog')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: /Upgrade plan/ }));
+      expect(onOpenChange).toHaveBeenCalledWith(true);
+    });
+
+    it("hands the sheet the feed's ranked moves, its cuts and the open slots", () => {
+      render(
+        <CoachFeed {...makeProps({ upgradePlan: plan(true), deckSize: 97, deckTarget: 100 })} />
+      );
+      const sheet = screen.getByRole('dialog', { name: 'Upgrade plan' });
+      expect(sheet.textContent).toContain('Cultivate');
+      expect(sheet.textContent).toMatch(/|0|3$/);
+    });
+
+    it('opens even while the analysis is still running', () => {
+      render(
+        <CoachFeed
+          {...makeProps({
+            upgradePlan: plan(true),
+            gaps: [],
+            costPlan: undefined,
+            oneAwayCombos: [],
+            analysisState: 'pending',
+          })}
+        />
+      );
+      expect(screen.getByRole('dialog', { name: 'Upgrade plan' })).toBeTruthy();
+    });
+
+    it('is absent without plan tools', () => {
+      render(<CoachFeed {...makeProps()} />);
+      expect(screen.queryByRole('button', { name: /Upgrade plan/ })).toBeNull();
     });
   });
 });

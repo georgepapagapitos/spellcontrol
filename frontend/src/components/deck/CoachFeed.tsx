@@ -1,11 +1,14 @@
 import './CoachFeed.css';
 import { type JSX, useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
 import { SubstituteOptions } from './SubstituteOptions';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { NextBestMove as NextBestMoveComponent } from './NextBestMove';
+import { UpgradePlanSheet } from './UpgradePlanSheet';
+import type { UpgradePlanTools } from '@/lib/upgrade-plan-tools';
+import type { PlanStep } from '@/lib/apply-upgrade-plan';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { VerdictBadge } from './VerdictBadge';
 import { InfoTip } from '../InfoTip';
@@ -185,6 +188,18 @@ export interface CoachFeedProps {
    * sees, so it costs nothing (see `hashRefineInput`).
    */
   aiAgrees?: ReadonlyMap<string, string>;
+  /**
+   * E458: the upgrade plan. The feed hosts it because the plan spends a
+   * budget over this feed's own ranked list; the page owns the open flag (a
+   * `?plan=1` deep link opens it) and the bracket tools. Omit to hide it.
+   */
+  upgradePlan?: {
+    /** Null until the plan opens: building them runs the estimator. */
+    tools: UpgradePlanTools | null;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onApply: (steps: PlanStep[], toCopy: boolean) => Promise<void>;
+  };
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -236,6 +251,7 @@ export function CoachFeed({
   ownedOnly,
   onOwnedOnlyChange,
   aiAgrees,
+  upgradePlan,
 }: CoachFeedProps): JSX.Element {
   const busy = busyNames ?? new Set<string>();
   // "In 71% of Sram decks": the rows read the commander by its short name, so
@@ -646,9 +662,46 @@ export function CoachFeed({
           ? 'edhrec-missing'
           : null;
 
+  // E458: one row that opens the plan, and the plan itself. Both render in
+  // the skeleton branch too, so a deep link opened while the analysis runs
+  // shows the plan loading instead of nothing.
+  const planEntry = upgradePlan && (
+    <button
+      type="button"
+      className="upgrade-plan-entry"
+      onClick={() => upgradePlan.onOpenChange(true)}
+    >
+      <span className="upgrade-plan-entry-text">
+        <span className="upgrade-plan-entry-title">Upgrade plan</span>
+        <span className="upgrade-plan-entry-hint">
+          Spend a budget on the best swaps for this deck
+        </span>
+      </span>
+      <ChevronRight width={18} height={18} aria-hidden />
+    </button>
+  );
+  const planSheet = upgradePlan?.open && upgradePlan.tools && (
+    <UpgradePlanSheet
+      moves={ranked.filter((r) => r.change.type !== 'cut').map((r) => r.change)}
+      cuts={allChanges.filter((c) => c.type === 'cut')}
+      roleCounts={roleCounts ?? {}}
+      roleTargets={roleTargets ?? {}}
+      openSlots={Math.max(0, deckTarget - deckSize)}
+      tools={upgradePlan.tools}
+      commanderName={commanderName}
+      analysisState={analysisState}
+      edhrecMissing={edhrecMissing}
+      onRetry={onRetryAnalysis}
+      onApply={upgradePlan.onApply}
+      onClose={() => upgradePlan.onOpenChange(false)}
+    />
+  );
+
   if (skeletonStatus && allChanges.length === 0) {
     return (
       <div className="coach-feed">
+        {planEntry}
+        {planSheet}
         {(nextBestMoves.length > 0 || combosLoading) && (
           <NextBestMoveComponent
             moves={nextBestMoves}
@@ -683,6 +736,10 @@ export function CoachFeed({
 
   return (
     <div className="coach-feed" {...hoverPeek.listHandlers} {...touchPeek.listHandlers}>
+      {planEntry}
+      {/* Portaled, and React events still bubble to this div, but the peek
+          handlers act only on [data-peek-name] and the plan's rows set none. */}
+      {planSheet}
       {/* Next best move headline — always at top when data is available */}
       {(nextBestMoves.length > 0 || combosLoading) && (
         <NextBestMoveComponent
