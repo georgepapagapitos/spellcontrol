@@ -28,12 +28,16 @@
 }
 
 /* The shell's landmark: a flex column so its .shared-view child's `flex: 1`
-   still fills the space between the brand bar and the footer. */
+   still fills the space between the brand bar and the footer. It must not
+   shrink below its content: .shared-shell is the scroll root, and a
+   `min-height: 0` here let a long game night squeeze main to the viewport, so
+   the view overflowed it and the footer (placed after main's box) painted over
+   the Going list at phone width (E440). With the default min-height main keeps
+   its content height, the footer lands below it, and the shell scrolls. */
 .shared-shell-main {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 0;
 }
 
 /* Brand bar — sticky so the Copy button stays reachable while scrolling. */
