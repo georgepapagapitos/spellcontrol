@@ -37,6 +37,7 @@ import {
 } from './shared';
 import { CubeHealthPanel } from './CubeHealthPanel';
 import { CubeDraftabilityPanel } from './CubeDraftabilityPanel';
+import { CubeCommandersSection, CommanderCoveragePanel, CommanderBadge } from './CubeCommanders';
 import { Button, IconButton } from '../../components/shared/Button';
 import { CubeSuppliers } from './CubeSuppliers';
 import { Chip } from '@/components/shared/Chip';
@@ -158,9 +159,17 @@ export function CubeResult({
     setPackSeed((s) => nextSeed(s ?? Date.now()));
     setDealCount((n) => n + 1);
   };
+  // Legends fall in at NATURAL odds (board #12 PR1 open question 5: no
+  // guaranteed-slot pack templating) — drawing from the spells + legends
+  // pool together already gives that for free; `cube.legends` is undefined
+  // for a limited cube, so this is exactly the old pool there.
+  const packPool = useMemo(
+    () => [...cube.picks, ...(cube.legends ?? [])],
+    [cube.picks, cube.legends]
+  );
   const pack = useMemo(
-    () => (packSeed === null ? null : samplePack(cube.picks, packSeed)),
-    [cube.picks, packSeed]
+    () => (packSeed === null ? null : samplePack(packPool, packSeed)),
+    [packPool, packSeed]
   );
   const packPreviewCards = useMemo<EnrichedCard[]>(
     () => (pack ? pack.map((p) => pickToPreviewCard(p.card, enrichedMap)) : []),
@@ -234,6 +243,8 @@ export function CubeResult({
         <CubeSuppliers cube={cube} supplierMap={supplierMap} myUsername={myUsername} />
       )}
 
+      <CubeCommandersSection cube={cube} view={view} enrichedMap={enrichedMap} />
+
       <div className="cube-balance">
         <h3>Color balance</h3>
         <StackedBar segments={segments} size="md" />
@@ -251,7 +262,11 @@ export function CubeResult({
       <CubeArchetypes score={cube.score} />
 
       <CubeHealthPanel cube={cube} />
-      <CubeDraftabilityPanel cube={cube} />
+      {cube.format === 'commander' ? (
+        <CommanderCoveragePanel cube={cube} />
+      ) : (
+        <CubeDraftabilityPanel cube={cube} />
+      )}
 
       <div className="cube-gaps">
         <h3>Where your collection lands</h3>
@@ -309,6 +324,7 @@ export function CubeResult({
                   qty={1}
                   size="1x"
                   onActivate={() => setPackPreviewIndex(i)}
+                  badges={'identity' in p ? <CommanderBadge /> : undefined}
                 />
               ))}
             </div>

@@ -34,7 +34,7 @@ import {
   type ColorPair,
   type CubeCard,
 } from './core';
-import { selectLegends, type LegendPick } from './legend';
+import { selectLegends, LEGEND_TARGET, type LegendPick } from './legend';
 
 // The card shape and the pure classifiers live in ./core so `objective` and
 // `refine` can reach them without importing back up into this module — that
@@ -866,6 +866,18 @@ export function generateCube(
     format === 'commander'
       ? selectLegends(pool, size, new Set(finalPicks.map((p) => p.card.oracleId)))
       : undefined;
+
+  // Same "short" severity and phrasing as the build page's live warning
+  // (board #12 PR2) — the saved/previewed cube's own gap report just states
+  // it once more, alongside every other shortfall, instead of a bespoke
+  // banner (board #12 PR3, "short" state).
+  if (legends && legends.length < LEGEND_TARGET[size]) {
+    const target = LEGEND_TARGET[size];
+    gaps.push({
+      severity: 'short',
+      text: `Only ${legends.length} legendary creatures are eligible, ${target - legends.length} short of the ${target}-commander target. Own more legends to fill it out.`,
+    });
+  }
 
   return {
     size,

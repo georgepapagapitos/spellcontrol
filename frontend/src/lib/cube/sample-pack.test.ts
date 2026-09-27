@@ -49,3 +49,39 @@ describe('samplePack', () => {
     expect(samplePack(CUBE_PICKS, 1, 5)).toHaveLength(5);
   });
 });
+
+describe('samplePack — natural odds over a mixed pool (board #12, PR3)', () => {
+  // A Commander cube's page draws from [...cube.picks, ...(cube.legends ?? [])]
+  // — samplePack itself stays generic and format-blind; this just proves a
+  // combined pool shuffles as one, with no special-cased legend slot.
+  interface Legend {
+    card: { name: string; oracleId: string };
+    identity: string;
+  }
+  const legend = (i: number): Legend => ({
+    card: { name: `Legend ${i}`, oracleId: `legend-oracle-${i}` },
+    identity: 'G',
+  });
+
+  it('draws from spells and legends together, and both kinds can appear', () => {
+    const spells = Array.from({ length: 40 }, (_, i) => pick(i));
+    const legends = Array.from({ length: 40 }, (_, i) => legend(i));
+    const pool = [...spells, ...legends];
+    // Over many seeds, a 15-card pack from a 50/50 pool draws both kinds.
+    let sawSpell = false;
+    let sawLegend = false;
+    for (let seed = 0; seed < 20 && !(sawSpell && sawLegend); seed++) {
+      const pack = samplePack(pool, seed);
+      expect(pack).toHaveLength(15);
+      if (pack.some((p) => 'identity' in p)) sawLegend = true;
+      if (pack.some((p) => !('identity' in p))) sawSpell = true;
+    }
+    expect(sawSpell).toBe(true);
+    expect(sawLegend).toBe(true);
+  });
+
+  it('degrades to the old spells-only behaviour when there are no legends', () => {
+    const pack = samplePack(CUBE_PICKS, 1);
+    expect(pack.every((p) => !('identity' in p))).toBe(true);
+  });
+});
