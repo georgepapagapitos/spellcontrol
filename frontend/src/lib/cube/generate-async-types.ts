@@ -10,16 +10,27 @@
 import type { CubeCard } from './core';
 import type { CubeSize } from './targets';
 import type { CubeGenOptions, GeneratedCube } from './generate';
-import type { DraftSimOptions, DraftSimResult } from './draft-sim';
+import type { DraftSimOptions, DraftSimResult, CommanderDraftSimResult } from './draft-sim';
 
+// A Commander cube's draft sim (board E461) rides the SAME 'draft-sim'
+// request/response kind as the limited pod, distinguished only by an optional
+// `legends` array on the request: present → simulateCommanderDraft, absent →
+// simulateDraft (see generate.worker.ts). One worker path, one message pair,
+// two pure functions behind it — not a parallel 'commander-draft-sim' kind.
 export type CubeWorkerRequest =
   | { kind: 'generate'; pool: CubeCard[]; size: CubeSize; options?: CubeGenOptions }
-  | { kind: 'draft-sim'; cube: CubeCard[]; size: CubeSize; options?: DraftSimOptions };
+  | {
+      kind: 'draft-sim';
+      cube: CubeCard[];
+      size: CubeSize;
+      options?: DraftSimOptions;
+      legends?: CubeCard[];
+    };
 
 export type CubeWorkerResponse =
   | { type: 'progress'; pass: number; maxIter: number }
   | { type: 'result'; cube: GeneratedCube }
-  | { type: 'draft-sim-result'; result: DraftSimResult }
+  | { type: 'draft-sim-result'; result: DraftSimResult | CommanderDraftSimResult }
   | { type: 'error'; message: string };
 
 /** Refiner progress relayed to the loading UI (generate only — a draft sim

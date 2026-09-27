@@ -1,5 +1,5 @@
 import { generateCube } from './generate';
-import { simulateDraft } from './draft-sim';
+import { simulateDraft, simulateCommanderDraft } from './draft-sim';
 import type { CubeWorkerRequest, CubeWorkerResponse } from './generate-async-types';
 
 /**
@@ -14,7 +14,9 @@ self.onmessage = (e: MessageEvent<CubeWorkerRequest>) => {
   const req = e.data;
   try {
     if (req.kind === 'draft-sim') {
-      const result = simulateDraft(req.cube, req.size, req.options);
+      const result = req.legends
+        ? simulateCommanderDraft(req.cube, req.legends, req.size, req.options)
+        : simulateDraft(req.cube, req.size, req.options);
       self.postMessage({ type: 'draft-sim-result', result } satisfies CubeWorkerResponse);
       return;
     }

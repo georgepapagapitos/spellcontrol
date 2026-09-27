@@ -48,7 +48,7 @@ import {
 import type { OracleFacts } from './oracle';
 import { CUBE_SIZES, targetsForSize, type CubeSize } from './targets';
 import { draftablePoolAxes, scoreCube, type CubeScore } from './objective';
-import { simulateDraft } from './draft-sim';
+import { simulateDraft, simulateCommanderDraft } from './draft-sim';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const POOL_PATH = process.env.LIVE_CUBE_POOL;
@@ -894,4 +894,160 @@ describe.skipIf(!POOL_PATH)('draft simulation (real collection, reported only)',
       });
     });
   }
+});
+
+// Commander draft simulation stress report (board E461, PR4) — REPORTED, not
+// gating, mirroring the limited pod's own block immediately above (same
+// self-contained pool load, own JSON report). Measures the three metrics the
+// UI surfaces (`CommanderCoveragePanel`): the share of drafters who end with
+// a commander AND enough identity-legal playables to build, how often each
+// colour identity got drafted as a commander, and which supported identities
+// never got built by anyone.
+describe.skipIf(!POOL_PATH)('commander draft simulation (real collection, reported only)', () => {
+  let commanderPool: CubeCard[];
+  const draftRows: {
+    size: CubeSize;
+    ms: number;
+    runs: number;
+    playersPerRun: number;
+    totalDecks: number;
+    shortCube: boolean;
+    /** Own picks per drafter — `packsPerPlayer * cardsPerPack` (45) unless
+     *  the combined spells+legends pool is too small for the pod (shortCube),
+     *  in which case it's the floor of what's actually available per seat. */
+    picksPerDrafter: number;
+    builtDeckSharePct: number;
+    noCommanderSharePct: number;
+    topIdentities: { identity: string; sharePct: number }[];
+    unbuildableIdentities: string[];
+  }[] = [];
+
+  beforeAll(async () => {
+    const taggerData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'tagger-tags.json'), 'utf8')
+    ) as unknown;
+    const signalData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'cube-signal.json'), 'utf8')
+    ) as unknown;
+    const otagData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'otag-index.json'), 'utf8')
+    ) as unknown;
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith('/tagger-tags.json')) {
+        return { ok: true, status: 200, json: async () => taggerData } as Response;
+      }
+      if (url.endsWith('/cube-signal.json')) {
+        return { ok: true, status: 200, json: async () => signalData } as Response;
+      }
+      if (url.endsWith('/otag-index.json')) {
+        return { ok: true, status: 200, json: async () => otagData } as Response;
+      }
+      throw new Error(`[live-cube] unexpected fetch ${url}`);
+    });
+    await Promise.all([loadTaggerData(), loadCubeSignal(), ensureCardTags()]);
+    const file = JSON.parse(readFileSync(resolve(POOL_PATH!), 'utf8')) as {
+      cards: EnrichedCard[];
+      facts: OracleFacts[];
+    };
+    const facts = new Map(file.facts.map((f) => [f.name, f]));
+    const allNames = new Set(file.cards.map((c) => c.name));
+    commanderPool = namesToCubePool(
+      filterPool(file.cards, allNames, { ...DEFAULT_POOL_FILTERS, format: 'commander' }).names,
+      file.cards,
+      facts
+    );
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+    mkdirSync(OUT_DIR, { recursive: true });
+    const out = join(OUT_DIR, 'commander-draft-sim-stress.json');
+    writeFileSync(out, JSON.stringify(draftRows, null, 2));
+  });
+
+  for (const size of CUBE_SIZES) {
+    it(`${size}: commander draftability over 50 seeded pods`, () => {
+      const cube = generateCube(commanderPool, size, { synergyLevel: 1, format: 'commander' });
+      const t = Date.now();
+      const result = simulateCommanderDraft(
+        cube.picks.map((p) => p.card),
+        cube.legends!.map((l) => l.card),
+        size,
+        { runs: 50 }
+      );
+      const ms = Date.now() - t;
+
+      // Sanity only — this block reports, it doesn't gate a generator change.
+      expect(result.totalDecks).toBe(result.runs * result.playersPerRun);
+      expect(result.builtDeckShare).toBeGreaterThanOrEqual(0);
+      expect(result.builtDeckShare).toBeLessThanOrEqual(1);
+      const identitySum = result.identityShares.reduce((s, r) => s + r.share, 0);
+      if (result.totalDecks > 0) {
+        expect(identitySum + result.noCommanderShare).toBeCloseTo(1, 5);
+      }
+
+      const combinedSize = cube.picks.length + cube.legends!.length;
+      const picksPerDrafter = Math.min(
+        result.packsPerPlayer * result.cardsPerPack,
+        Math.floor(combinedSize / result.playersPerRun)
+      );
+
+      draftRows.push({
+        size,
+        ms,
+        runs: result.runs,
+        playersPerRun: result.playersPerRun,
+        totalDecks: result.totalDecks,
+        shortCube: result.shortCube,
+        picksPerDrafter,
+        builtDeckSharePct: Math.round(result.builtDeckShare * 1000) / 10,
+        noCommanderSharePct: Math.round(result.noCommanderShare * 1000) / 10,
+        topIdentities: result.identityShares
+          .filter((s) => s.share > 0)
+          .slice(0, 6)
+          .map((s) => ({ identity: s.identity, sharePct: Math.round(s.share * 1000) / 10 })),
+        unbuildableIdentities: result.unbuildableIdentities,
+      });
+    });
+  }
+
+  // The real sanity guard (board E461, PR4 brief): a well-supplied Commander
+  // cube (the full owned legend section) reaches a meaningfully higher
+  // buildable share than the SAME cube with its commander candidates
+  // artificially starved down to a couple — proving the metric actually
+  // responds to legend supply, not a constant regardless of input.
+  //
+  // The starved arm must ALSO strip legendary creatures out of the ordinary
+  // spell pool, not just slice `legends` — `isLegendCandidate` is checked
+  // against every card a bot drafts, spell bucket included (a real drafter
+  // can commander ANY legendary creature they drafted, not only the ones the
+  // generator's curated legend section happened to pick; see draft-sim.ts's
+  // module doc). On this collection the spell buckets alone carry 36
+  // legendary creatures at 360 — slicing only `legends` left the "starved"
+  // arm just as commander-rich as the control and this guard measured no
+  // real difference (caught 2026-09-27 running this exact harness).
+  it('a well-supplied Commander cube reaches a materially higher buildable share than a legend-starved one', () => {
+    const size: CubeSize = 360;
+    const richCube = generateCube(commanderPool, size, { synergyLevel: 1, format: 'commander' });
+    expect(richCube.legends!.length).toBeGreaterThan(10); // genuinely well-supplied, not a fluke
+
+    const richResult = simulateCommanderDraft(
+      richCube.picks.map((p) => p.card),
+      richCube.legends!.map((l) => l.card),
+      size,
+      { runs: 50 }
+    );
+
+    const starvedSpells = richCube.picks.map((p) => p.card).filter((c) => !isLegendCandidate(c));
+    const starvedResult = simulateCommanderDraft(
+      starvedSpells,
+      richCube.legends!.slice(0, 2).map((l) => l.card), // almost no commanders left anywhere
+      size,
+      { runs: 50 }
+    );
+
+    expect(richResult.builtDeckShare).toBeGreaterThan(starvedResult.builtDeckShare);
+    expect(starvedResult.noCommanderShare).toBeGreaterThan(richResult.noCommanderShare);
+  });
 });

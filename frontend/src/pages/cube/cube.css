@@ -437,6 +437,103 @@
   color: var(--warn-text);
 }
 
+/* Commander coverage's simulation half (board E461): the panel keeps its
+   static grid above (`.cube-coverage-grid`) and gains these once a draft has
+   been simulated — same shapes/tokens as `.cube-draft-sim-*` (the limited
+   pod's own report) so the two disclosures read as one family, just scoped
+   under this panel's own class prefix since they're a different component. */
+.cube-commander-coverage-running {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.cube-commander-coverage-sim-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.cube-commander-coverage-label {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.cube-commander-coverage-caption {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cube-commander-coverage-sim-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cube-commander-coverage-sim-stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.cube-commander-coverage-sim-stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.cube-commander-coverage-sim-identities,
+.cube-commander-coverage-sim-unbuildable {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cube-commander-coverage-identity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cube-commander-coverage-identity-row {
+  display: grid;
+  grid-template-columns: minmax(2.4rem, auto) 1fr 2.6rem;
+  align-items: center;
+  gap: var(--space-2);
+}
+.cube-commander-coverage-identity-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cube-commander-coverage-identity-meter {
+  min-width: 0;
+}
+.cube-commander-coverage-identity-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: right;
+}
+.cube-commander-coverage-pill-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.cube-commander-coverage-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
 .cube-pct {
   display: flex;
   flex-direction: column;
