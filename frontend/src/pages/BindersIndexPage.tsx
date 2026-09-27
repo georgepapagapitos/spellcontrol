@@ -285,6 +285,18 @@ export function BindersIndexPage() {
                 },
               ]
             : []),
+          ...(binders.length > 1
+            ? [
+                {
+                  label: 'Delete all binders',
+                  icon: Trash2,
+                  danger: true,
+                  menuOnly: true,
+                  opensDialog: true,
+                  onClick: () => void handleDeleteAll(),
+                },
+              ]
+            : []),
         ]}
       />
       <CollectionHubTabs />
@@ -581,18 +593,6 @@ export function BindersIndexPage() {
             })}
           </ul>
         </>
-      )}
-
-      {binders.length > 1 && (
-        <div className="binders-index-danger">
-          <Button
-            variant="link"
-            onClick={() => void handleDeleteAll()}
-            className="binders-index-danger-btn"
-          >
-            Delete all binders
-          </Button>
-        </div>
       )}
 
       {exportOpen && (

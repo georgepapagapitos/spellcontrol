@@ -3711,9 +3711,16 @@ never shows the chooser.
   view — the earlier "Group printings" toggle collapsed copies BEFORE
   materializing and so reported 452 cards in a 591-card binder; it now
   applies to the page grid only, where fewer pockets is the point.
-- **A whole-library destructive action has one home: the index, below the
-  list, as a danger link.** "Delete all binders" used to sit in every binder
-  page's tab strip as a peer of "+ New binder" and "Export".
+- **A whole-library destructive action has one home: the last, `danger`
+  item in the index page's header ⋮.** "Delete all binders" / "decks" /
+  "lists" and Collection's "Delete collection" all sit there, after the
+  divider `OverflowMenu` draws before its first danger item. It is offered
+  only when there is more than one item (one item deletes from its own card
+  or row). "Delete all binders" first sat in every binder page's tab strip
+  as a peer of "+ New binder" and "Export", then under each index as a small
+  red text link, which read as an afterthought and put the same verb in a
+  different place on each page. Every other page-level destructive action
+  (Delete binder, Delete pod) was already a ⋮ item.
 - **A page is shown at a size you can read.** The page grid is a fluid grid
   whose track floor is 5rem per pocket column (`.page-row--p4/--p9/--p12`:
   10 / 15 / 20rem), so a pocket is the same size whatever the pocket count: a

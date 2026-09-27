@@ -60,7 +60,7 @@ function renderPage() {
 }
 
 function openDeckMenu() {
-  fireEvent.click(screen.getByRole('button', { name: 'More ways to start a deck' }));
+  fireEvent.click(screen.getByRole('button', { name: 'More deck actions' }));
 }
 
 // The door is one of the header's secondary actions, so it lives in the ⋮
