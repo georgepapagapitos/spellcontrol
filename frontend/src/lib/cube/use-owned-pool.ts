@@ -62,7 +62,7 @@ export function useOwnedCubePool(filters: PoolFilters) {
         // resolved, and the memo above won't reflect that until the next render.
         const { names } = filterPool(collectionCards, availableNames, filters);
         const enriched = await fetchCubeOracle(names, collectionCards, onFetchProgress);
-        const built = namesToCubePool(names, collectionCards, enriched);
+        const built = namesToCubePool(names, collectionCards, enriched, filters.rarity);
         setPool(built);
         setLoadedKey(key);
         return built;

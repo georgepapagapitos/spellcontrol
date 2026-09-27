@@ -482,10 +482,6 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
       cube.picks.filter((p) => corpus.has(p.card.name) || corpus.has(frontFace(p.card.name)))
         .length / cube.picks.length;
 
-    afterAll(async () => {
-      await loadCubeSignal(); // leave the module scoped to 'any' for any later test
-    });
-
     for (const scope of ['pauper', 'peasant'] as const) {
       for (const level of [0, 1] as const) {
         it(`${scope} @ ${level}: the scoped signal raises corpus-play share over the all-cube signal`, async () => {
@@ -497,14 +493,16 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           });
           const corpus = corpusOf[scope]();
 
-          await loadCubeSignal(); // scope 'any' — today's behavior
-          const subOld = namesToCubePool(filtered.names, collection, facts);
-          const cubeOld = generateCube(subOld, 360, { synergyLevel: level });
-          const shareOld = corpusPlayShare(cubeOld, corpus);
-
+          // Scope is an explicit argument now (signal.ts carries no "current
+          // scope" global), so the 'any' and scoped pools need no ordering
+          // between them — loadCubeSignal(scope) only needs to have resolved
+          // once before namesToCubePool is passed that scope.
           await loadCubeSignal(scope);
-          const subNew = namesToCubePool(filtered.names, collection, facts);
+          const subOld = namesToCubePool(filtered.names, collection, facts); // scope 'any' — today's behavior
+          const subNew = namesToCubePool(filtered.names, collection, facts, scope);
+          const cubeOld = generateCube(subOld, 360, { synergyLevel: level });
           const cubeNew = generateCube(subNew, 360, { synergyLevel: level });
+          const shareOld = corpusPlayShare(cubeOld, corpus);
           const shareNew = corpusPlayShare(cubeNew, corpus);
 
           console.log(

@@ -152,7 +152,9 @@ export async function fetchFriendCollection(friendId: string): Promise<FriendCol
 export function mergePools(
   myCards: CubeCard[],
   myUsername: string,
-  friendCollections: Array<{ username: string; cards: FriendCard[] }>
+  friendCollections: Array<{ username: string; cards: FriendCard[] }>,
+  /** Same pauper/peasant scope the build is using — see signal.ts. */
+  scope: RarityCap = 'any'
 ): { pool: CubeCard[]; supplierMap: Map<string, string[]> } {
   // Working map: oracleId → { card, suppliers }
   const byOracle = new Map<string, { card: CubeCard; suppliers: string[] }>();
@@ -184,7 +186,7 @@ export function mergePools(
         rank: fc.edhrecRank,
         colorIdentity: fc.colorIdentity,
         oracleText: fc.oracleText,
-        ...cubeSignalOf(fc.name),
+        ...cubeSignalOf(fc.name, scope),
         synergyProducers: fc.synergyProducers,
         synergyPayoffs: fc.synergyPayoffs,
       };
@@ -229,7 +231,9 @@ export function mergePools(
 export function namesToCubePool(
   names: string[],
   collectionCards: EnrichedCard[],
-  enriched: Map<string, OracleFacts>
+  enriched: Map<string, OracleFacts>,
+  /** Same pauper/peasant scope the pool's filters used — see signal.ts. */
+  scope: RarityCap = 'any'
 ): CubeCard[] {
   const ownedByName = new Map<string, EnrichedCard>();
   for (const c of collectionCards)
@@ -248,7 +252,7 @@ export function namesToCubePool(
       colorIdentity: s?.color_identity ?? card?.colorIdentity,
       producedMana: s?.produced_mana,
       oracleText: s?.oracle_text,
-      ...cubeSignalOf(name),
+      ...cubeSignalOf(name, scope),
       ...synergyTags(s ?? { name }),
     };
   });

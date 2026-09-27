@@ -367,7 +367,7 @@ export function CubeBuildPage() {
             };
           }),
         }));
-        const merged = mergePools(myPool, myUsername, enrichedFriendCollections);
+        const merged = mergePools(myPool, myUsername, enrichedFriendCollections, filters.rarity);
         pool = merged.pool;
         sm = merged.supplierMap;
       }

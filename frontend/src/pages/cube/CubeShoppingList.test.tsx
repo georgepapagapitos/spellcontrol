@@ -10,6 +10,7 @@ import { useCollectionStore } from '../../store/collection';
 import { useCurrencyStore } from '@/lib/currency';
 import { pending } from '../../test/pending';
 import type { SavedCube } from '../../store/cube';
+import { DEFAULT_POOL_FILTERS } from '../../lib/cube/pool-filters';
 
 // Mutable snapshot-readiness state the mocks below close over. Real
 // `loadCubeSignal`/`ensureCardTags` gate their reads the same way (empty/[]
@@ -31,6 +32,11 @@ vi.mock('../../lib/cube/shopping-list', () => ({
 vi.mock('../../lib/cube/signal', () => ({
   rankedCubeSignalNames: vi.fn(() =>
     snapshotState.signalLoaded ? ['Ragavan, Nimble Pilferer', 'Solitude'] : []
+  ),
+  // A distinct fixture so a test can prove a pauper/peasant cube's candidates
+  // come from THIS list, never the all-cube one above.
+  rankedScopedSignalNames: vi.fn((scope: string) =>
+    snapshotState.signalLoaded && scope === 'pauper' ? ['Mulldrifter'] : []
   ),
   cubeSignalOf: vi.fn(() => ({})),
   hasCubeSignal: vi.fn(() => snapshotState.signalLoaded),
@@ -536,5 +542,40 @@ describe('CubeShoppingList', () => {
     const names = (candidates as CubeCard[]).map((c) => c.name);
     expect(names).toContain('Ragavan, Nimble Pilferer');
     expect(names).not.toContain('Solitude');
+  });
+
+  it("a pauper cube's candidates come only from the pauper corpus, never the all-cube signal", async () => {
+    const loadPool = vi.fn(async () => []);
+    buildShoppingListMock.mockReturnValue([]);
+    const pauperCube = saved({
+      settings: { synergyLevel: 0, filters: { ...DEFAULT_POOL_FILTERS, rarity: 'pauper' } },
+    });
+
+    render(<CubeShoppingList target={pauperCube} loadPool={loadPool} />);
+    await waitFor(() => expect(buildShoppingListMock).toHaveBeenCalled());
+
+    const [candidates] = buildShoppingListMock.mock.calls[0];
+    const names = (candidates as CubeCard[]).map((c) => c.name);
+    // Only the pauper-corpus mock's card, never the all-cube mock's names.
+    expect(names).toEqual(['Mulldrifter']);
+    expect(names).not.toContain('Ragavan, Nimble Pilferer');
+    expect(names).not.toContain('Solitude');
+  });
+
+  it("an 'any' cube's candidates are unaffected by the scoped ranking (all-cube signal, as before)", async () => {
+    const loadPool = vi.fn(async () => []);
+    buildShoppingListMock.mockReturnValue([]);
+    const anyCube = saved({
+      settings: { synergyLevel: 0, filters: { ...DEFAULT_POOL_FILTERS, rarity: 'any' } },
+    });
+
+    render(<CubeShoppingList target={anyCube} loadPool={loadPool} />);
+    await waitFor(() => expect(buildShoppingListMock).toHaveBeenCalled());
+
+    const [candidates] = buildShoppingListMock.mock.calls[0];
+    const names = (candidates as CubeCard[]).map((c) => c.name);
+    expect(names).toContain('Ragavan, Nimble Pilferer');
+    expect(names).toContain('Solitude');
+    expect(names).not.toContain('Mulldrifter');
   });
 });

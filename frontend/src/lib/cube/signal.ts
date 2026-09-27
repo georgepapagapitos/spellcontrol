@@ -19,10 +19,18 @@
 // it should by the all-cube number alone. `public/cube-signal-{pauper,peasant}.json`
 // (scripts/refresh-cube-signal-budget.mjs) hold a per-card play-share WITHIN a
 // ~2,300-2,700-card mined corpus of well-regarded public pauper/peasant cubes.
-// A scoped load substitutes that corpus share for `cubePop` when the card is
+// A scoped read substitutes that corpus share for `cubePop` when the card is
 // in the corpus; a card the corpus never saw keeps the all-cube number instead
 // of looking unranked, and `cubeElo` (the all-cube "polish" tiebreak) is
 // untouched either way — there's no per-scope Elo to duplicate it with.
+//
+// Scope is an explicit parameter everywhere, never module-level state: a page
+// can have two consumers wanting different scopes at once (the Cards tab's
+// pool vs the Shopping tab's candidate walk, or two build sheets), and a
+// shared "current scope" would let whichever call ran last silently decide
+// how the other reads. `loadCubeSignal(scope)` only fetches; every reader
+// (`cubeSignalOf`, `hasCubeSignal`, the ranked-name walks) takes its own
+// `scope` argument instead.
 import { logger } from '@/lib/logger';
 import type { RarityCap } from './pool-filters';
 
@@ -57,11 +65,11 @@ let loading: Promise<void> | null = null;
 /** Memoized `[...cards]` sorted by popularity — built once per load, not per call. */
 let ranked: string[] | null = null;
 
-/** Which scope `cubeSignalOf` currently reads — set by the last `loadCubeSignal` call. */
-let activeScope: RarityCap = 'any';
 /** Loaded corpus snapshots, one per scope, kept for the session once fetched. */
 const scoped = new Map<Scope, Map<string, number>>();
 const scopedLoading = new Map<Scope, Promise<void>>();
+/** Memoized `[...scoped]` sorted by corpus play-share, one per scope. */
+const rankedScoped = new Map<Scope, string[]>();
 
 /** CubeCobra keys a double-faced card by its front face. */
 const frontFace = (name: string) => name.split(' // ')[0].trim();
@@ -119,12 +127,10 @@ function loadScopedSignal(scope: Scope): Promise<void> {
 
 /**
  * Fetch the snapshot(s) for `scope` once; safe to call repeatedly (dedupes in
- * flight, and a previously loaded scope resolves immediately). `scope` also
- * sets which scope `cubeSignalOf` reads until the next call — 'any' (the
- * default) is the plain all-cube signal, unchanged.
+ * flight, and a previously loaded scope resolves immediately). Loading only —
+ * it does not change how any reader below behaves; each takes its own `scope`.
  */
 export function loadCubeSignal(scope: RarityCap = 'any'): Promise<void> {
-  activeScope = scope;
   const base = loadAllCubeSignal();
   if (scope === 'any') return base;
   return Promise.all([base, loadScopedSignal(scope)]).then(() => {});
@@ -134,20 +140,24 @@ export function loadCubeSignal(scope: RarityCap = 'any'): Promise<void> {
  * The card's cube signal, or an empty object when unknown or not yet loaded —
  * spread it onto a CubeCard. CubeCobra names a double-faced card by its front
  * face, so `Bonecrusher Giant // Stomp` is looked up as `Bonecrusher Giant`.
- * Under a pauper/peasant scope, a card the mined corpus has seen gets its
+ * Under a pauper/peasant `scope`, a card the mined corpus has seen gets its
  * corpus play-share in place of `cubePop`; a card the corpus never saw keeps
- * the all-cube number.
+ * the all-cube number. `scope` defaults to 'any' (the plain all-cube signal)
+ * so an unscoped call site is unchanged.
  */
-export function cubeSignalOf(name: string): Partial<CubeSignal> {
+export function cubeSignalOf(name: string, scope: RarityCap = 'any'): Partial<CubeSignal> {
   const base = cards?.get(name) ?? cards?.get(frontFace(name));
-  if (activeScope === 'any') return base ?? {};
-  const corpus = scoped.get(activeScope);
+  if (scope === 'any') return base ?? {};
+  const corpus = scoped.get(scope);
   const corpusPop = corpus?.get(name) ?? corpus?.get(frontFace(name));
   return corpusPop != null ? { ...base, cubePop: corpusPop } : (base ?? {});
 }
 
-export function hasCubeSignal(): boolean {
-  return cards !== null;
+/** Whether `scope`'s signal has loaded — 'any' checks the all-cube snapshot,
+ *  a pauper/peasant scope checks that corpus specifically (it can fail to
+ *  load independently of the all-cube signal). */
+export function hasCubeSignal(scope: RarityCap = 'any'): boolean {
+  return scope === 'any' ? cards !== null : scoped.has(scope);
 }
 
 /**
@@ -166,12 +176,29 @@ export function rankedCubeSignalNames(): string[] {
   return ranked;
 }
 
-/** Test-only: forget the loaded snapshot(s) and reset the active scope. */
+/**
+ * `rankedCubeSignalNames`'s pauper/peasant counterpart — candidate names from
+ * the mined corpus ONLY, most-played first, so a pauper cube's shopping list
+ * suggests pauper staples rather than the all-cube signal's rares/mythics.
+ * Empty until `loadCubeSignal(scope)` has loaded that corpus.
+ */
+export function rankedScopedSignalNames(scope: Scope): string[] {
+  const corpus = scoped.get(scope);
+  if (!corpus) return [];
+  let names = rankedScoped.get(scope);
+  if (!names) {
+    names = [...corpus.entries()].sort(([, a], [, b]) => b - a).map(([name]) => name);
+    rankedScoped.set(scope, names);
+  }
+  return names;
+}
+
+/** Test-only: forget the loaded snapshot(s). */
 export function resetCubeSignalForTests(): void {
   cards = null;
   loading = null;
   ranked = null;
-  activeScope = 'any';
   scoped.clear();
   scopedLoading.clear();
+  rankedScoped.clear();
 }

@@ -294,3 +294,64 @@ describe('cube signal on the pool', () => {
     expect(signet).toMatchObject({ cubePop: 4.25, cubeElo: 1655, rank: 3 });
   });
 });
+
+describe('scoped cube signal on the pool', () => {
+  beforeEach(async () => {
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : String(input);
+      if (url.endsWith('/cube-signal.json')) {
+        return {
+          ok: true,
+          json: async () => ({
+            generatedAt: '2026-09-11T00:00:00.000Z',
+            cards: { 'Arcane Signet': [4.25, 1655], 'Lightning Bolt': [26.41, 1658] },
+          }),
+        };
+      }
+      if (url.endsWith('/cube-signal-pauper.json')) {
+        return {
+          ok: true,
+          json: async () => ({
+            generatedAt: '2026-09-27T00:00:00.000Z',
+            cards: { Mulldrifter: 90 },
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    await loadCubeSignal('pauper');
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetCubeSignalForTests();
+  });
+
+  it("namesToCubePool reads the given scope's corpus share instead of the all-cube number", () => {
+    const [mulldrifter, signet] = namesToCubePool(
+      ['Mulldrifter', 'Arcane Signet'],
+      [],
+      new Map(),
+      'pauper'
+    );
+    // In the pauper corpus, not the all-cube snapshot: corpus share wins.
+    expect(mulldrifter.cubePop).toBe(90);
+    // Not in the pauper corpus: falls back to the all-cube number.
+    expect(signet).toMatchObject({ cubePop: 4.25, cubeElo: 1655 });
+  });
+
+  it('namesToCubePool with no scope argument is unaffected by a loaded scope', () => {
+    const [mulldrifter] = namesToCubePool(['Mulldrifter'], [], new Map());
+    expect(mulldrifter.cubePop).toBeUndefined();
+  });
+
+  it('mergePools threads scope to a friend card the same way', () => {
+    const { pool } = mergePools(
+      [],
+      'me',
+      [{ username: 'pal', cards: [makeFriendCard('o1', 'Mulldrifter')] }],
+      'pauper'
+    );
+    expect(pool[0]).toMatchObject({ cubePop: 90 });
+  });
+});
