@@ -22,7 +22,7 @@
     height: calc(var(--vh-safe) - 3rem - var(--keyboard-inset));
     max-height: calc(var(--vh-safe) - 3rem - var(--keyboard-inset));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    animation: sheet-panel-in 220ms var(--ease-out-soft);
+    animation: sheet-panel-in var(--motion-base) var(--ease-out-soft);
   }
 
   .modal-backdrop.upgrade-plan-backdrop.is-closing > [role='dialog'] {
