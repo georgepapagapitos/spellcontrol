@@ -1,7 +1,7 @@
 {
   "$schema": "derived — do not hand-edit; regenerate via frontend/scripts/mine-cube-targets.mjs",
   "provenance": {
-    "generatedAt": "2026-09-27T17:23:27.052Z",
+    "generatedAt": "2026-09-26T18:53:23.466Z",
     "source": "CubeCobra /search/getmoresearchitems (order=pop, public cubes); cube cards via /cube/api/cubeJSON/:id",
     "method": "top 20 popularity-ranked public cubes per size band with >= 10 likes",
     "taggerGeneratedAt": "2026-09-01T22:03:33.453Z",
@@ -12,7 +12,7 @@
           {
             "id": "aa4ef3f9-0b4f-4bf0-9fbc-5cc3d3ec5e37",
             "name": "100 Ornithopters",
-            "likes": 1568,
+            "likes": 1567,
             "decks": 184,
             "main": 360
           },
@@ -47,14 +47,14 @@
           {
             "id": "613d81be1de8d5027f16ba32",
             "name": "Data Generated Vintage Cube",
-            "likes": 539,
+            "likes": 537,
             "decks": 546,
             "main": 360
           },
           {
             "id": "5e8c9f60a0c28578ee03de2d",
             "name": "Jank Diver Peasant Cube",
-            "likes": 438,
+            "likes": 437,
             "decks": 729,
             "main": 360
           },
@@ -75,7 +75,7 @@
           {
             "id": "616f6b81302701102974518b",
             "name": "Standard Cube - Peasant Edition",
-            "likes": 261,
+            "likes": 259,
             "decks": 313,
             "main": 360
           },
@@ -110,14 +110,14 @@
           {
             "id": "63924837bceae738e0db06cb",
             "name": "Triangularity",
-            "likes": 228,
+            "likes": 229,
             "decks": 29,
             "main": 360
           },
           {
             "id": "ec2a20db-4131-4dcc-8e94-4539db2fc49a",
             "name": "Take Five",
-            "likes": 212,
+            "likes": 213,
             "decks": 7,
             "main": 360
           },
@@ -143,10 +143,10 @@
             "main": 360
           },
           {
-            "id": "5e53d7ce66a3546e863abc67",
-            "name": "Matignon's Cube, 360 unpowered",
-            "likes": 171,
-            "decks": 528,
+            "id": "60e45ef46d34d9567d6a2946",
+            "name": "Mad Max",
+            "likes": 172,
+            "decks": 8,
             "main": 360
           }
         ]
@@ -157,8 +157,8 @@
           {
             "id": "5d617ac6c2a85f3b75fe95a4",
             "name": "The Pauper Cube",
-            "likes": 3383,
-            "decks": 13205,
+            "likes": 3381,
+            "decks": 13204,
             "main": 450
           },
           {
@@ -220,7 +220,7 @@
           {
             "id": "5d3ed83247586d63776acbf6",
             "name": "Sammich's Peasant Cube",
-            "likes": 216,
+            "likes": 214,
             "decks": 348,
             "main": 450
           },
@@ -302,14 +302,14 @@
           {
             "id": "5d2cb3f44153591614458e5d",
             "name": "MTGO Vintage Cube",
-            "likes": 4043,
+            "likes": 4044,
             "decks": 139704,
             "main": 540
           },
           {
             "id": "5d3f7245d1bbf667dd9d4286",
             "name": "The Peasant Cube 2026",
-            "likes": 1505,
+            "likes": 1504,
             "decks": 10527,
             "main": 540
           },
@@ -323,7 +323,7 @@
           {
             "id": "5d8cdc9ddabc762f670c1d2a",
             "name": "The Innistrad Anthology Cube",
-            "likes": 612,
+            "likes": 611,
             "decks": 558,
             "main": 540
           },
@@ -393,7 +393,7 @@
           {
             "id": "60b65de720a67b104d4f8393",
             "name": "Pauper MenguCube",
-            "likes": 251,
+            "likes": 250,
             "decks": 469,
             "main": 540
           },
@@ -592,7 +592,7 @@
           {
             "id": "5ee1ac60516bcd40db036790",
             "name": "Tom's Commander Cube",
-            "likes": 1048,
+            "likes": 1047,
             "decks": 1784,
             "main": 960
           },
@@ -1162,13 +1162,13 @@
       "n": 20,
       "color": {
         "W": {
-          "median": 0.1333,
+          "median": 0.1292,
           "p25": 0.1028,
           "p75": 0.1396
         },
         "U": {
           "median": 0.1347,
-          "p25": 0.1243,
+          "p25": 0.1187,
           "p75": 0.1424
         },
         "B": {
@@ -1178,60 +1178,60 @@
         },
         "R": {
           "median": 0.125,
-          "p25": 0.1181,
+          "p25": 0.1139,
           "p75": 0.1424
         },
         "G": {
           "median": 0.125,
-          "p25": 0.1153,
+          "p25": 0.1021,
           "p75": 0.1389
         },
         "multicolor": {
-          "median": 0.0847,
+          "median": 0.0833,
           "p25": 0.0715,
           "p75": 0.1097
         },
         "colorless": {
           "median": 0.0861,
           "p25": 0.0576,
-          "p75": 0.1167
+          "p75": 0.1333
         },
         "land": {
-          "median": 0.1625,
+          "median": 0.1792,
           "p25": 0.1083,
-          "p75": 0.1924
+          "p75": 0.1979
         }
       },
       "curve": {
         "0": {
-          "median": 0.0085,
+          "median": 0.0056,
           "p25": 0,
-          "p75": 0.0233
+          "p75": 0.022
         },
         "1": {
-          "median": 0.1962,
-          "p25": 0.159,
-          "p75": 0.2364
+          "median": 0.1859,
+          "p25": 0.1526,
+          "p75": 0.2311
         },
         "2": {
-          "median": 0.3034,
-          "p25": 0.2648,
-          "p75": 0.3267
+          "median": 0.3018,
+          "p25": 0.258,
+          "p75": 0.3205
         },
         "3": {
-          "median": 0.2197,
-          "p25": 0.1973,
+          "median": 0.223,
+          "p25": 0.2061,
           "p75": 0.2331
         },
         "4": {
-          "median": 0.1233,
-          "p25": 0.0976,
-          "p75": 0.142
+          "median": 0.1289,
+          "p25": 0.1032,
+          "p75": 0.1514
         },
         "5": {
-          "median": 0.0691,
-          "p25": 0.0534,
-          "p75": 0.0803
+          "median": 0.0712,
+          "p25": 0.0575,
+          "p75": 0.0816
         },
         "6": {
           "median": 0.0372,
@@ -1239,46 +1239,46 @@
           "p75": 0.0474
         },
         "7": {
-          "median": 0.0259,
-          "p25": 0.0209,
+          "median": 0.0246,
+          "p25": 0.0163,
           "p75": 0.0351
         }
       },
       "type": {
         "creature": {
           "median": 0.4583,
-          "p25": 0.4021,
+          "p25": 0.3694,
           "p75": 0.5097
         },
         "instant": {
-          "median": 0.1347,
-          "p25": 0.1146,
+          "median": 0.1264,
+          "p25": 0.1076,
           "p75": 0.15
         },
         "sorcery": {
           "median": 0.1167,
-          "p25": 0.0972,
+          "p25": 0.0944,
           "p75": 0.1285
         },
         "artifact": {
           "median": 0.0792,
           "p25": 0.0472,
-          "p75": 0.1139
+          "p75": 0.1146
         },
         "enchantment": {
-          "median": 0.0528,
+          "median": 0.05,
           "p25": 0.0382,
           "p75": 0.0729
         },
         "planeswalker": {
           "median": 0,
           "p25": 0,
-          "p75": 0.0208
+          "p75": 0.0194
         },
         "land": {
-          "median": 0.1611,
+          "median": 0.1778,
           "p25": 0.0979,
-          "p75": 0.1889
+          "p75": 0.1903
         },
         "battle": {
           "median": 0,
@@ -1293,25 +1293,25 @@
           "p75": 0.28
         },
         "boardwipe": {
-          "median": 0.0242,
+          "median": 0.0232,
           "p25": 0.0184,
           "p75": 0.0347
         },
         "ramp": {
-          "median": 0.0807,
-          "p25": 0.0645,
-          "p75": 0.1045
+          "median": 0.0782,
+          "p25": 0.0544,
+          "p75": 0.1008
         },
         "cardDraw": {
-          "median": 0.2226,
-          "p25": 0.1836,
+          "median": 0.2209,
+          "p25": 0.1767,
           "p75": 0.26
         }
       },
       "fixingLands": {
-        "median": 58.5,
+        "median": 64.5,
         "p25": 39,
-        "p75": 69.25
+        "p75": 70.75
       },
       "pairs": {
         "WU": {
@@ -1321,7 +1321,7 @@
             "p75": 0.0139
           },
           "fixingLands": {
-            "median": 6.5,
+            "median": 6,
             "p25": 4,
             "p75": 8.25
           }
@@ -1329,11 +1329,11 @@
         "UB": {
           "gold": {
             "median": 0.0111,
-            "p25": 0.0076,
+            "p25": 0.0056,
             "p75": 0.0139
           },
           "fixingLands": {
-            "median": 6.5,
+            "median": 6,
             "p25": 4,
             "p75": 9
           }
@@ -1345,19 +1345,19 @@
             "p75": 0.0139
           },
           "fixingLands": {
-            "median": 6.5,
+            "median": 6,
             "p25": 4,
             "p75": 8.25
           }
         },
         "RG": {
           "gold": {
-            "median": 0.0125,
-            "p25": 0.0083,
+            "median": 0.0111,
+            "p25": 0.0076,
             "p75": 0.0139
           },
           "fixingLands": {
-            "median": 6.5,
+            "median": 6,
             "p25": 4,
             "p75": 7.5
           }
@@ -1381,19 +1381,19 @@
             "p75": 0.0139
           },
           "fixingLands": {
-            "median": 6.5,
+            "median": 6,
             "p25": 4,
             "p75": 8.25
           }
         },
         "UR": {
           "gold": {
-            "median": 0.0111,
-            "p25": 0.0076,
+            "median": 0.0097,
+            "p25": 0.0056,
             "p75": 0.0139
           },
           "fixingLands": {
-            "median": 6.5,
+            "median": 6,
             "p25": 4,
             "p75": 8.25
           }
@@ -1405,7 +1405,7 @@
             "p75": 0.0146
           },
           "fixingLands": {
-            "median": 6.5,
+            "median": 5.5,
             "p25": 4,
             "p75": 7.5
           }
@@ -1414,10 +1414,10 @@
           "gold": {
             "median": 0.0111,
             "p25": 0.0083,
-            "p75": 0.0146
+            "p75": 0.0167
           },
           "fixingLands": {
-            "median": 6.5,
+            "median": 6,
             "p25": 4,
             "p75": 8.25
           }
@@ -1429,14 +1429,14 @@
             "p75": 0.0111
           },
           "fixingLands": {
-            "median": 6.5,
-            "p25": 4.75,
+            "median": 5.5,
+            "p25": 4,
             "p75": 8.25
           }
         }
       },
       "multiXColor": {
-        "median": 0.0069,
+        "median": 0.0056,
         "p25": 0,
         "p75": 0.0111
       }
@@ -2382,7 +2382,7 @@
       },
       "type": {
         "creature": {
-          "median": 0.4962,
+          "median": 0.4957,
           "p25": 0.4388,
           "p75": 0.5388
         },
