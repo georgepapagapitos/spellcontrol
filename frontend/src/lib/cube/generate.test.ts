@@ -428,11 +428,13 @@ describe('generateCube — pick reasons', () => {
     expect(cube.picks.some((p) => !/beat .+ on/.test(p.reason))).toBe(true);
   });
 
-  it('locked cards always just say "Locked"', () => {
+  it('locked cards say what the row\'s "Locked" pill does not', () => {
     const pool = richPool();
     const target = pool.find((c) => c.colors[0] === 'W')!;
     const cube = generateCube(pool, 360, { locked: [target] });
-    expect(cube.picks.find((p) => p.card.oracleId === target.oracleId)!.reason).toBe('Locked');
+    expect(cube.picks.find((p) => p.card.oracleId === target.oracleId)!.reason).toBe(
+      'Kept through rebuilds'
+    );
   });
 
   it('filler by quality: a color/bucket with no competition just says so, no runner-up', () => {

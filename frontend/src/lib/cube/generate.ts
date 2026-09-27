@@ -723,8 +723,10 @@ export function generateCube(
       : selectBucket(buckets[b], want, band, quota, b, lockedInBucket);
     byBucket[b] = sel.length;
     for (const c of sel) {
+      // The row already shows a "Locked" pill next to the name (CubeResult.tsx)
+      // — this line adds what the pill doesn't say.
       const reason = lockedIds.has(c.oracleId)
-        ? 'Locked'
+        ? 'Kept through rebuilds'
         : (reasons.get(c.oracleId) ?? reasonFor(c, b));
       picks.push({ card: c, bucket: b, reason });
     }

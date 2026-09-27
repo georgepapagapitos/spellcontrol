@@ -300,6 +300,9 @@ export function CubeDetailPage() {
   };
   const lockedInCube = target.cube.picks.filter((p) => lockedSet.has(p.card.oracleId));
   const unlockedCount = target.cube.picks.length - lockedInCube.length;
+  /** "Your locked card stayed." / "Your 3 locked cards stayed." */
+  const lockedCardsPhrase = (n: number, verb: string): string =>
+    n === 1 ? `Your locked card ${verb}.` : `Your ${n.toLocaleString()} locked cards ${verb}.`;
 
   const runRebuild = async () => {
     setRebuildConfirmOpen(false);
@@ -332,7 +335,7 @@ export function CubeDetailPage() {
       pushToast({
         message:
           lockedInCube.length > 0
-            ? `Rebuilt "${target.name}". Your ${lockedInCube.length} locked cards stayed.`
+            ? `Rebuilt "${target.name}". ${lockedCardsPhrase(lockedInCube.length, 'stayed')}`
             : `Rebuilt "${target.name}".`,
         tone: 'success',
       });
@@ -507,7 +510,7 @@ export function CubeDetailPage() {
           title="Rebuild the rest?"
           body={
             lockedInCube.length > 0
-              ? `Rebuild ${unlockedCount.toLocaleString()} unlocked cards? Your ${lockedInCube.length.toLocaleString()} locked cards stay.`
+              ? `Rebuild ${unlockedCount.toLocaleString()} unlocked cards? ${lockedCardsPhrase(lockedInCube.length, 'stay')}`
               : `Rebuild all ${unlockedCount.toLocaleString()} cards in "${target.name}"?`
           }
           confirmLabel="Rebuild"
