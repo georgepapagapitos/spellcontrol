@@ -462,8 +462,16 @@ export function computeGroupedBreakdown(
   if (groupBy === 'binder') {
     // Same construction as CardListTable's cardToBinder / ownership-lens's
     // materializeBinders call: route every physical copy to at most one
-    // binder, via the shared binder-routing engine.
-    const { binders } = materializeBinders(cards, ctx.binderDefs ?? [], { search: '' });
+    // binder, via the shared binder-routing engine. `allocatedCopyIds`
+    // matches BinderPage's own chain (a hideDeckAllocated=false binder skips
+    // those copies entirely) — `cards` itself must already be the DECORATED
+    // list `useBinderLayoutInputs()` produces (tags/SLD drops/release
+    // dates), which is the caller's job; see this module's allowlist entry
+    // in src/test/one-binder-layout-chain.test.ts.
+    const { binders } = materializeBinders(cards, ctx.binderDefs ?? [], {
+      search: '',
+      allocatedCopyIds: ctx.allocations ? new Set(ctx.allocations.keys()) : undefined,
+    });
     const copyToBinder = new Map<string, { name: string }>();
     for (const b of binders) {
       for (const section of b.sections) {

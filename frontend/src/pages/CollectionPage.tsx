@@ -291,6 +291,8 @@ export function CollectionPage() {
           />
           <StatsBar
             open={statsOpen}
+            cards={cards}
+            binderDefs={binders}
             onClose={() => setStatsOpen(false)}
             onFilterJump={setFilterJump}
           />

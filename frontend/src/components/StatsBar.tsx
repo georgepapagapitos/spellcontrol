@@ -37,6 +37,12 @@ import {
 
 interface Props {
   open: boolean;
+  /** Decorated with oracle tags, Secret Lair drops and per-printing release
+   *  dates (`lib/use-binder-layout-inputs.ts`'s `cards`) — the Breakdown
+   *  card's Binder grouping routes copies with the same inputs BinderPage
+   *  renders from, per `src/test/one-binder-layout-chain.test.ts`. */
+  cards: EnrichedCard[];
+  binderDefs: BinderDef[];
   onClose: () => void;
   /** A row asked to filter the collection table to a dimension this drawer
    *  just computed (a surplus toggle, a color/type/rarity/set/binder bucket).
@@ -45,10 +51,8 @@ interface Props {
   onFilterJump: (jump: CollectionFilterJump) => void;
 }
 
-export function StatsBar({ open, onClose, onFilterJump }: Props) {
-  const cards = useCollectionStore((s) => s.cards);
+export function StatsBar({ open, cards, binderDefs, onClose, onFilterJump }: Props) {
   const scryfallMisses = useCollectionStore((s) => s.scryfallMisses);
-  const binderDefs = useCollectionStore((s) => s.binders);
 
   // True if any rule references the post-v1 filter fields (legalities /
   // oracle / layouts / finishes / manaCost).

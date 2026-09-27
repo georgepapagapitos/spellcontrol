@@ -84,14 +84,17 @@ function makeDeck(overrides: Partial<Deck> = {}): Deck {
 }
 
 function renderDrawer(cards: EnrichedCard[], decks: Deck[] = []) {
-  useCollectionStore.setState({ cards, binders: [], scryfallMisses: 0 });
+  // StatsBar takes cards/binderDefs as props now (fed by CollectionPage's
+  // useBinderLayoutInputs, decorated cards) rather than reading the store
+  // itself — scryfallMisses is the one field it still reads directly.
+  useCollectionStore.setState({ scryfallMisses: 0 });
   useDecksStore.setState({ decks });
   useCubeStore.setState({ saved: [] });
   const onClose = vi.fn();
   const onFilterJump = vi.fn();
   const { unmount } = render(
     <MemoryRouter>
-      <StatsBar open onClose={onClose} onFilterJump={onFilterJump} />
+      <StatsBar open cards={cards} binderDefs={[]} onClose={onClose} onFilterJump={onFilterJump} />
     </MemoryRouter>
   );
   return { onClose, onFilterJump, unmount };
