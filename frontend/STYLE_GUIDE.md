@@ -722,8 +722,8 @@ back, it is a `SegmentedControl` above the size, with its own note.
 
 **Segmented options carry the 44px coarse floor on the SPAN, not the label.**
 The label-wrapping-a-hidden-radio pattern (`.binder-mode-pill`,
-`.rule-segmented-pill`, `.playtest-scry-mode`, `.settings-currency-option`)
-puts padding and text in an inner `<span>`. A `min-height: 44px` on the label wrapper grows the pill
+`.rule-segmented-pill`, `.playtest-scry-mode`, `SegmentedControl`'s own
+`.segmented-option`) puts padding and text in an inner `<span>`. A `min-height: 44px` on the label wrapper grows the pill
 but leaves the span text-height and top-aligned inside it — the Private /
 Public toggle shipped that way on phones. The span is a centering flex box
 (`align-items: center`) and the coarse floor sits on it; the
@@ -893,8 +893,9 @@ a hero CTA.
   `<input type="radio">`s stretched over styled label spans — not `Tabs.tsx`
   (`role=tablist` advertises panels that don't exist) and not `aria-pressed`
   button pairs (radios give exclusivity + arrow-key group nav for free). Same
-  family as the Settings theme picker. Reference: `.settings-currency-toggle`
-  in `styles/settings-sync.css` / SettingsPage's Price currency row.
+  family as the Settings theme picker. Reference: the shared `SegmentedControl`
+  (`components/shared/form.tsx`), which is exactly this pattern packaged as a
+  primitive — SettingsPage's Price currency row is one of its ~11 call sites.
   **Never hand-roll the ARIA instead** (`role="radiogroup"` + `role="radio"`
   buttons). Sixteen components did, and every one shipped with no roving
   tabindex and no arrow-key handling — a 7-swatch colour picker ate 7 tab
@@ -4398,8 +4399,8 @@ re-deriving diff markup a second time.
 **Paste-and-diff flows skip a source picker when the parser already
 auto-detects the layout.** E173's resync considered a Moxfield/Archidekt/
 Other picker before pasting, styled on `.settings-theme-grid`'s wrap
-pattern (`.settings-currency-toggle` doesn't reach 44px and clips at 320px,
-so it wasn't eligible either way). It was dropped: the bulk-edit parser
+pattern (the price-currency toggle of the time didn't reach 44px and clipped
+at 320px, so it wasn't eligible either way). It was dropped: the bulk-edit parser
 (`parseBulkEditText`) already auto-detects both sites' export layout
 (section headers, Moxfield's `*F*`/`*E*` finish tags) with no format
 selection needed, and neither site's identity is otherwise actionable — the
