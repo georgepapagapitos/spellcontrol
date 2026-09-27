@@ -118,6 +118,20 @@ describe('corpusWord', () => {
   it('falls back to a generic word for a reused/scaled band', () => {
     expect(corpusWord(180, false)).toBe('real cubes');
   });
+
+  it('names pauper/peasant cubes when the cube is measured against that corpus', () => {
+    expect(corpusWord(360, true, 'pauper')).toBe('real pauper cubes');
+    expect(corpusWord(360, true, 'peasant')).toBe('real peasant cubes');
+  });
+
+  it('names Commander cubes, not the generic "real cubes" fallback (board E462)', () => {
+    // bandIsSizeSpecific is always false for a Commander cube (computeCubeHealth
+    // never mines a Commander band per-size), which used to fall all the way
+    // through to the generic "real cubes" — same defect the color/fixing gaps
+    // had (generate.ts's buildGaps).
+    expect(corpusWord(360, false, 'any', 'commander')).toBe('real Commander cubes');
+    expect(corpusWord(180, false, 'any', 'commander')).toBe('real Commander cubes');
+  });
 });
 
 describe('summarizeCubeHealth', () => {

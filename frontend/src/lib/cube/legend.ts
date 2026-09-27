@@ -52,6 +52,79 @@ interface LegendClassifiable {
   oracleText?: string;
 }
 
+// ── Partner / Background (board E462) ───────────────────────────────────────
+// Real cubes carry these often (measured: 7 of 8 sampled real Commander cubes
+// have Partner legends, 5 of 8 have Backgrounds) — Partner legends already
+// pass `isLegendCandidate` unmarked (they're ordinary legendary creatures);
+// Backgrounds are the real gap, since a Background is a "Legendary
+// Enchantment — Background", never a creature and never "can be your
+// commander" text, so `isLegendCandidate` alone never finds them.
+
+/** "Partner with <Name> (reminder text)" — captures the exact required
+ *  partner's name, since (unlike plain Partner) it can ONLY pair with that
+ *  one named card. */
+const PARTNER_WITH_RE = /Partner with ([^(\n]+?)\s*\(/i;
+/** Plain "Partner (reminder text)" as its own line/clause — deliberately NOT
+ *  matched by the "Partner with" case above (checked first). */
+const PARTNER_PLAIN_RE = /(?:^|\n)\s*Partner\s*\(/im;
+const FRIENDS_FOREVER_RE = /Friends forever/i;
+/** Included for the tile/row LABEL only (see `legendKindLabel`) — matching
+ *  the brief's "if simple": correctly enforcing that one half must be a
+ *  Doctor-typed creature is real rules work `simulateCommanderDraft` doesn't
+ *  do, so this kind is never treated as combinable there (see draft-sim.ts). */
+const DOCTORS_COMPANION_RE = /Doctor's companion/i;
+
+export type PartnerKind = 'partner' | 'partner-with' | 'friends-forever' | 'doctors-companion';
+
+/** Which Partner-family keyword this legend has, if any. Checked in order of
+ *  specificity: "Partner with" before plain "Partner" (its reminder text
+ *  also contains the word "Partner", so the specific form must win first). */
+export function partnerKindOf(c: LegendClassifiable): PartnerKind | null {
+  const text = c.oracleText ?? '';
+  if (PARTNER_WITH_RE.test(text)) return 'partner-with';
+  if (PARTNER_PLAIN_RE.test(text)) return 'partner';
+  if (FRIENDS_FOREVER_RE.test(text)) return 'friends-forever';
+  if (DOCTORS_COMPANION_RE.test(text)) return 'doctors-companion';
+  return null;
+}
+
+/** The exact card name a "Partner with" legend requires, or null for every
+ *  other case (including plain Partner, which pairs with ANY Partner card). */
+export function partnerNameOf(c: LegendClassifiable): string | null {
+  const m = (c.oracleText ?? '').match(PARTNER_WITH_RE);
+  return m ? m[1].trim() : null;
+}
+
+export function isPartnerLegend(c: LegendClassifiable): boolean {
+  return partnerKindOf(c) !== null;
+}
+
+/** A legendary creature (or commander-legal planeswalker) that can choose a
+ *  Background as its second commander — the OTHER half of the pairing is
+ *  `isBackground`, a different card entirely. */
+export function isChooseABackgroundLegend(c: LegendClassifiable): boolean {
+  return /choose a background/i.test(c.oracleText ?? '');
+}
+
+/** A Background itself: a "Legendary Enchantment — Background", never a
+ *  creature, so it never satisfies `isLegendCandidate` on its own — it only
+ *  ever enters the legend section via `selectBackgrounds`, paired to a
+ *  chooser already selected there. */
+export function isBackground(c: LegendClassifiable): boolean {
+  const t = c.typeLine ?? '';
+  return /\blegendary\b/i.test(t) && /\benchantment\b/i.test(t) && /\bbackground\b/i.test(t);
+}
+
+/** The small text label a legend/background tile or row carries (never colour
+ *  alone) — "Partner" for any Partner-family keyword (including Doctor's
+ *  companion, label-only per the module doc above), "Background" for either
+ *  half of the choose-a-Background pairing. null for an ordinary legend. */
+export function legendKindLabel(c: LegendClassifiable): 'Partner' | 'Background' | null {
+  if (isPartnerLegend(c)) return 'Partner';
+  if (isChooseABackgroundLegend(c) || isBackground(c)) return 'Background';
+  return null;
+}
+
 /** Commander-eligible: a legendary creature, or oracle text carrying the
  *  "can be your commander" pattern (backgrounds, and the few planeswalkers/
  *  battles Wizards made commander-legal — Daretti, Freyalise, Minsc & Boo).
@@ -219,6 +292,92 @@ export function selectLegends(
     const chosen = supply[b].slice(0, quota[b]);
     chosen.forEach((card, i) => {
       picks.push({ card, identity: b, reason: `${labelFor(b)} legend (${i + 1} of ${quota[b]})` });
+    });
+  }
+
+  const backgroundPicks = selectBackgrounds(picks, pool, alreadyPickedIds);
+  if (backgroundPicks.length === 0) return picks;
+
+  // Backgrounds join the section WITHIN the target, not on top of it (board
+  // E462): make room by dropping the lowest-quality ordinary legends. Never a
+  // chooser (it's the reason a Background got added), never a Partner-family
+  // legend (dropping one would silently orphan its other half — legends have
+  // no "locked" concept of their own to protect otherwise, see the module
+  // doc), and never the LAST pick left in its identity bucket (the coverage
+  // guarantee `distributeLegendQuota`'s own floors exist for — a Background
+  // slot shouldn't zero out an identity the pool genuinely supports).
+  const identityCounts = new Map<LegendIdentity, number>();
+  for (const p of picks) identityCounts.set(p.identity, (identityCounts.get(p.identity) ?? 0) + 1);
+  const protectedIds = new Set<string>();
+  for (const p of picks) {
+    if (
+      isChooseABackgroundLegend(p.card) ||
+      isPartnerLegend(p.card) ||
+      identityCounts.get(p.identity) === 1
+    ) {
+      protectedIds.add(p.card.oracleId);
+    }
+  }
+  const droppable = picks
+    .filter((p) => !protectedIds.has(p.card.oracleId))
+    .sort((a, b) => byQuality(a.card, b.card)); // best first, same order supply[b] was built in
+  const dropIds = new Set(droppable.slice(-backgroundPicks.length).map((p) => p.card.oracleId));
+  const kept = picks.filter((p) => !dropIds.has(p.card.oracleId));
+  return [...kept, ...backgroundPicks];
+}
+
+/** Roughly one Background per choose-a-Background legend already selected —
+ *  a real ceiling only for a degenerate pool (real cubes carry far fewer
+ *  choosers than this; see the module's Finding note), never a normal limit. */
+const MAX_BACKGROUNDS = 10;
+
+/**
+ * Backgrounds for the legend section's own choose-a-Background legends
+ * (board E462) — a Background is never independently draftable (it isn't a
+ * creature, so `isLegendCandidate` never finds it on its own), so it only
+ * ever enters here, one per chooser, best quality first, preferring a
+ * colour-identity overlap with its chooser and falling back to the next-best
+ * Background when no match is left. `selectLegends` makes room for these
+ * WITHIN the target by dropping an equal number of its weakest ordinary
+ * picks (see there) — Backgrounds are part of the legend count, never a
+ * second array added on top of it. No supply → returns `[]`, same "nothing
+ * to add" shape every other legend helper uses when a pool has nothing to
+ * offer.
+ */
+export function selectBackgrounds(
+  legendPicks: readonly LegendPick[],
+  pool: CubeCard[],
+  alreadyPickedIds: ReadonlySet<string>
+): LegendPick[] {
+  const choosers = legendPicks
+    .filter((p) => isChooseABackgroundLegend(p.card))
+    .map((p) => p.card)
+    .sort(byQuality);
+  if (choosers.length === 0) return [];
+
+  const usedIds = new Set<string>(alreadyPickedIds);
+  for (const p of legendPicks) usedIds.add(p.card.oracleId);
+
+  const backgrounds = pool
+    .filter((c) => isBackground(c) && !usedIds.has(c.oracleId))
+    .sort(byQuality);
+  if (backgrounds.length === 0) return [];
+
+  const cap = Math.min(choosers.length, backgrounds.length, MAX_BACKGROUNDS);
+  const remaining = [...backgrounds];
+  const picks: LegendPick[] = [];
+  for (let i = 0; i < cap; i++) {
+    const chooser = choosers[i];
+    const chooserColors = identityColors(chooser);
+    let idx = remaining.findIndex((bg) =>
+      identityColors(bg).some((c) => chooserColors.includes(c))
+    );
+    if (idx === -1) idx = 0; // no colour match left — take the next-best Background anyway
+    const [background] = remaining.splice(idx, 1);
+    picks.push({
+      card: background,
+      identity: legendIdentityOf(background),
+      reason: `Background for ${chooser.name}`,
     });
   }
   return picks;

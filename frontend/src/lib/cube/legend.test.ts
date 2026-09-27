@@ -4,8 +4,16 @@ import {
   legendIdentityOf,
   distributeLegendQuota,
   selectLegends,
+  selectBackgrounds,
+  partnerKindOf,
+  partnerNameOf,
+  isPartnerLegend,
+  isChooseABackgroundLegend,
+  isBackground,
+  legendKindLabel,
   LEGEND_TARGET,
   type LegendIdentity,
+  type LegendPick,
 } from './legend';
 import { COLOR_PAIRS } from './core';
 import type { CubeCard } from './core';
@@ -188,5 +196,246 @@ describe('selectLegends', () => {
   it('is a no-op (empty) when the pool has no legend candidates', () => {
     const p = Array.from({ length: 50 }, (_, i) => card({ typeLine: 'Instant', rank: i }));
     expect(selectLegends(p, 360, new Set())).toEqual([]);
+  });
+});
+
+// ── Partner / Background (board E462) ───────────────────────────────────────
+
+describe('partnerKindOf / partnerNameOf / isPartnerLegend', () => {
+  it('recognizes plain Partner', () => {
+    const c = card({ oracleText: 'First strike, menace\nPartner (You can have two commanders…)' });
+    expect(partnerKindOf(c)).toBe('partner');
+    expect(isPartnerLegend(c)).toBe(true);
+    expect(partnerNameOf(c)).toBeNull();
+  });
+
+  it('recognizes Partner with <Name> and captures the exact name', () => {
+    const c = card({
+      oracleText: 'Partner with Haldan, Avid Arcanist (When this creature enters…)',
+    });
+    expect(partnerKindOf(c)).toBe('partner-with');
+    expect(partnerNameOf(c)).toBe('Haldan, Avid Arcanist');
+  });
+
+  it("recognizes Friends forever and Doctor's companion", () => {
+    expect(partnerKindOf(card({ oracleText: 'Friends forever (…)' }))).toBe('friends-forever');
+    expect(partnerKindOf(card({ oracleText: "Doctor's companion (…)" }))).toBe('doctors-companion');
+  });
+
+  it('is null for an ordinary legend with no Partner keyword', () => {
+    const c = card({ oracleText: 'Flying, vigilance' });
+    expect(partnerKindOf(c)).toBeNull();
+    expect(isPartnerLegend(c)).toBe(false);
+  });
+});
+
+describe('isChooseABackgroundLegend / isBackground / legendKindLabel', () => {
+  it('recognizes a chooser by oracle text, case-insensitively', () => {
+    expect(isChooseABackgroundLegend(card({ oracleText: 'Choose a Background (…)' }))).toBe(true);
+    expect(isChooseABackgroundLegend(card({ oracleText: 'choose a background (…)' }))).toBe(true);
+    expect(isChooseABackgroundLegend(card({ oracleText: 'Flying' }))).toBe(false);
+  });
+
+  it('recognizes a Background by type line alone, never by oracle text', () => {
+    const bg = card({ typeLine: 'Legendary Enchantment — Background', oracleText: 'Whenever…' });
+    expect(isBackground(bg)).toBe(true);
+    expect(isBackground(card({ typeLine: 'Legendary Enchantment — Background' }))).toBe(true);
+    expect(
+      isBackground(card({ typeLine: 'Legendary Creature — Human', oracleText: 'Background' }))
+    ).toBe(false);
+  });
+
+  it('labels Partner-family and Background/chooser cards, and nothing else', () => {
+    expect(legendKindLabel(card({ oracleText: 'Partner (…)' }))).toBe('Partner');
+    expect(legendKindLabel(card({ oracleText: "Doctor's companion (…)" }))).toBe('Partner');
+    expect(legendKindLabel(card({ oracleText: 'Choose a Background (…)' }))).toBe('Background');
+    expect(legendKindLabel(card({ typeLine: 'Legendary Enchantment — Background' }))).toBe(
+      'Background'
+    );
+    expect(legendKindLabel(card({ oracleText: 'Flying' }))).toBeNull();
+  });
+});
+
+describe('selectBackgrounds', () => {
+  function chooserPick(overrides: Partial<CubeCard> = {}): LegendPick {
+    const c = card({
+      typeLine: 'Legendary Creature — Test',
+      oracleText: 'Choose a Background (…)',
+      colors: ['W'],
+      ...overrides,
+    });
+    return { card: c, identity: 'W', reason: 'test chooser' };
+  }
+  function backgroundCard(overrides: Partial<CubeCard> = {}): CubeCard {
+    return card({
+      typeLine: 'Legendary Enchantment — Background',
+      colors: ['W'],
+      cubePop: 0.5,
+      ...overrides,
+    });
+  }
+
+  it('adds nothing when there is no choose-a-Background legend', () => {
+    const legends = [
+      {
+        card: card({ typeLine: 'Legendary Creature — Test' }),
+        identity: 'W',
+        reason: 'x',
+      } as LegendPick,
+    ];
+    const pool = [backgroundCard(), backgroundCard()];
+    expect(selectBackgrounds(legends, pool, new Set())).toEqual([]);
+  });
+
+  it('pairs one Background per chooser when supply is plentiful', () => {
+    const legends = [chooserPick(), chooserPick({ colors: ['U'] })];
+    const pool = [
+      backgroundCard({ cubePop: 0.9 }),
+      backgroundCard({ cubePop: 0.7, colors: ['U'] }),
+      backgroundCard({ cubePop: 0.3 }),
+    ];
+    const picks = selectBackgrounds(legends, pool, new Set());
+    expect(picks).toHaveLength(2);
+    for (const p of picks) expect(isBackground(p.card)).toBe(true);
+  });
+
+  it('prefers a colour-matching Background over a higher-quality mismatch', () => {
+    const legends = [chooserPick({ colors: ['U'] })]; // one U chooser
+    const pool = [
+      backgroundCard({ cubePop: 0.99, colors: ['R'] }), // best quality, wrong colour
+      backgroundCard({ cubePop: 0.2, colors: ['U'] }), // worse quality, matches
+    ];
+    const picks = selectBackgrounds(legends, pool, new Set());
+    expect(picks).toHaveLength(1);
+    expect(picks[0].card.colors).toEqual(['U']);
+  });
+
+  it('takes whatever supply exists when short of one-per-chooser', () => {
+    const legends = [chooserPick(), chooserPick({ colors: ['U'] }), chooserPick({ colors: ['B'] })];
+    const pool = [backgroundCard()]; // only one Background owned
+    const picks = selectBackgrounds(legends, pool, new Set());
+    expect(picks).toHaveLength(1);
+  });
+
+  it('never picks a banned Background (absent from pool) or one already used as a spell', () => {
+    const legends = [chooserPick(), chooserPick({ colors: ['U'] })];
+    const bannedAwayBg = backgroundCard({ cubePop: 0.99 }); // simulates a ban: just not in pool
+    const lockedAsSpell = backgroundCard({ cubePop: 0.9, oracleId: 'locked-bg' });
+    const available = backgroundCard({ cubePop: 0.5, oracleId: 'available-bg' });
+    const pool = [lockedAsSpell, available]; // bannedAwayBg deliberately omitted from pool
+    const picks = selectBackgrounds(legends, pool, new Set(['locked-bg']));
+    expect(picks.map((p) => p.card.oracleId)).toEqual(['available-bg']);
+    expect(picks.some((p) => p.card.oracleId === bannedAwayBg.oracleId)).toBe(false);
+  });
+});
+
+describe('selectLegends — Backgrounds stay within the target, not on top of it (board E462)', () => {
+  it('a section with 2 choosers keeps exactly the target, holds both Backgrounds, and drops the 2 weakest ordinary legends', () => {
+    const target = LEGEND_TARGET[180]; // 60
+    const pool: CubeCard[] = [];
+
+    const chooser1 = card({
+      typeLine: 'Legendary Creature — Test',
+      colors: ['W'],
+      oracleText: 'Choose a Background (…)',
+      cubePop: 0.99,
+    });
+    const chooser2 = card({
+      typeLine: 'Legendary Creature — Test',
+      colors: ['W'],
+      oracleText: 'Choose a Background (…)',
+      cubePop: 0.98,
+    });
+    pool.push(chooser1, chooser2);
+
+    const bg1 = card({
+      typeLine: 'Legendary Enchantment — Background',
+      colors: ['W'],
+      cubePop: 0.5,
+    });
+    const bg2 = card({
+      typeLine: 'Legendary Enchantment — Background',
+      colors: ['W'],
+      cubePop: 0.4,
+    });
+    pool.push(bg1, bg2);
+
+    // Exactly enough ordinary mono-W legends that supply === target (60) —
+    // 2 choosers + 58 ordinary — so NOTHING is naturally excluded by the
+    // quota before Backgrounds enter the picture; any drop is provably the
+    // Background-driven one, not ordinary quota overflow.
+    const ordinary: CubeCard[] = [];
+    for (let i = 0; i < 58; i++) {
+      ordinary.push(
+        card({ typeLine: 'Legendary Creature — Test', colors: ['W'], cubePop: 0.9 - i * 0.001 })
+      );
+    }
+    pool.push(...ordinary);
+
+    const legends = selectLegends(pool, 180, new Set());
+    expect(legends.length).toBe(target);
+
+    const legendIds = new Set(legends.map((l) => l.card.oracleId));
+    expect(legendIds.has(chooser1.oracleId)).toBe(true);
+    expect(legendIds.has(chooser2.oracleId)).toBe(true);
+    expect(legendIds.has(bg1.oracleId)).toBe(true);
+    expect(legendIds.has(bg2.oracleId)).toBe(true);
+
+    // The 2 weakest ordinary legends (lowest cubePop, i.e. the last 2 pushed)
+    // are the ones dropped to make room.
+    const weakest = ordinary.slice(-2);
+    const strongest = ordinary.slice(0, -2);
+    for (const c of weakest) expect(legendIds.has(c.oracleId)).toBe(false);
+    for (const c of strongest) expect(legendIds.has(c.oracleId)).toBe(true);
+  });
+
+  it('protects a Partner legend and the last representative of an identity from being dropped', () => {
+    const target = LEGEND_TARGET[180]; // 60
+    const pool: CubeCard[] = [];
+
+    const chooser = card({
+      typeLine: 'Legendary Creature — Test',
+      colors: ['W'],
+      oracleText: 'Choose a Background (…)',
+      cubePop: 0.99,
+    });
+    const partner = card({
+      typeLine: 'Legendary Creature — Test',
+      colors: ['W'],
+      oracleText: 'Partner (…)',
+      cubePop: 0.01, // deliberately the WEAKEST card in the whole pool
+    });
+    const soleU = card({ colors: ['U'], typeLine: 'Legendary Creature — Test', cubePop: 0.011 }); // 2nd-weakest, and the ONLY U legend
+    pool.push(chooser, partner, soleU);
+
+    const background = card({
+      typeLine: 'Legendary Enchantment — Background',
+      colors: ['W'],
+      cubePop: 0.5,
+    });
+    pool.push(background);
+
+    // Enough ordinary mono-W filler that supply exactly meets the target
+    // once the chooser, partner and lone U legend are counted too.
+    const ordinary: CubeCard[] = [];
+    for (let i = 0; i < target - 3; i++) {
+      ordinary.push(
+        card({ typeLine: 'Legendary Creature — Test', colors: ['W'], cubePop: 0.9 - i * 0.001 })
+      );
+    }
+    pool.push(...ordinary);
+
+    const legends = selectLegends(pool, 180, new Set());
+    expect(legends.length).toBe(target);
+    const legendIds = new Set(legends.map((l) => l.card.oracleId));
+    // The Partner and the sole U legend are both the weakest cards in the
+    // whole pool — an unprotected drop would take them first — but neither
+    // is ever dropped.
+    expect(legendIds.has(partner.oracleId)).toBe(true);
+    expect(legendIds.has(soleU.oracleId)).toBe(true);
+    expect(legendIds.has(background.oracleId)).toBe(true);
+    // The Background still made room — one ordinary W legend is gone instead.
+    const ordinaryDropped = ordinary.filter((c) => !legendIds.has(c.oracleId));
+    expect(ordinaryDropped).toHaveLength(1);
   });
 });

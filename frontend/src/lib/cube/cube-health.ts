@@ -132,13 +132,17 @@ export function computeCubeHealth(
 }
 
 /** "real pauper cubes" / "real peasant cubes" when the cube is measured
- *  against that corpus (board E464); else "real 360s" when the band was
- *  mined for this exact size, else "real cubes". */
+ *  against that corpus (board E464); "real Commander cubes" when it's judged
+ *  against that band instead of a size band (board E462 — this had the same
+ *  "real cubes" generic fallback the color/fixing gaps did); else "real 360s"
+ *  when the band was mined for this exact size, else "real cubes". */
 export function corpusWord(
   size: CubeSize,
   bandIsSizeSpecific: boolean,
-  rarity: BandRarity = 'any'
+  rarity: BandRarity = 'any',
+  format: CubeFormat = 'limited'
 ): string {
+  if (format === 'commander') return 'real Commander cubes';
   if (rarity === 'pauper' || rarity === 'peasant') return `real ${rarity} cubes`;
   return bandIsSizeSpecific ? `real ${size}s` : 'real cubes';
 }

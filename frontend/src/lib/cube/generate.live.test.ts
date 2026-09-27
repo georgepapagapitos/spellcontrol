@@ -37,7 +37,15 @@ import {
   type GeneratedCube,
   type Pick,
 } from './generate';
-import { isLegendCandidate, legendIdentityOf, LEGEND_TARGET, type LegendIdentity } from './legend';
+import {
+  isLegendCandidate,
+  legendIdentityOf,
+  isChooseABackgroundLegend,
+  isBackground,
+  isPartnerLegend,
+  LEGEND_TARGET,
+  type LegendIdentity,
+} from './legend';
 import { namesToCubePool } from './pool';
 import {
   filterPool,
@@ -160,6 +168,11 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     size: CubeSize;
     target: number;
     achievedCount: number;
+    /** Board E462: how many of `achievedCount` are choose-a-Background
+     *  legends, their paired Backgrounds, and any Partner-family legend. */
+    chooserCount: number;
+    backgroundCount: number;
+    partnerCount: number;
     report: Record<string, { supply: number; achieved: number }>;
   }[] = [];
 
@@ -355,9 +368,13 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     const ALL_IDENTITIES: LegendIdentity[] = [...COLORS, ...COLOR_PAIRS, 'other'];
 
     for (const size of CUBE_SIZES) {
-      it(`${size}: legend count matches LEGEND_TARGET, additional to the spell size`, () => {
+      it(`${size}: legend count matches LEGEND_TARGET exactly, additional to the spell size`, () => {
         const cube = generateCube(commanderPool, size, { synergyLevel: 0, format: 'commander' });
         expect(cube.legends).toBeDefined();
+        // Backgrounds join the section WITHIN the target (board E462) —
+        // selectLegends drops an equal number of its weakest ordinary picks to
+        // make room, so the total lands exactly on LEGEND_TARGET whenever
+        // supply allows (as it does on this collection at every size).
         expect(cube.legends!.length).toBe(LEGEND_TARGET[size]);
         // Additional to size (open question 3) — the spell section is its own,
         // unaffected full-size cube.
@@ -391,6 +408,9 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           size,
           target: LEGEND_TARGET[size],
           achievedCount: cube.legends!.length,
+          chooserCount: cube.legends!.filter((l) => isChooseABackgroundLegend(l.card)).length,
+          backgroundCount: cube.legends!.filter((l) => isBackground(l.card)).length,
+          partnerCount: cube.legends!.filter((l) => isPartnerLegend(l.card)).length,
           report,
         });
       });

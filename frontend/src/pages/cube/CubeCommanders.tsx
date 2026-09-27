@@ -39,7 +39,7 @@ import { MeterBar } from '../../components/shared/MeterBar';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { COLORS, COLOR_PAIRS, type GeneratedCube } from '../../lib/cube/generate';
-import type { LegendIdentity } from '../../lib/cube/legend';
+import { legendKindLabel, type LegendIdentity } from '../../lib/cube/legend';
 import { simulateCommanderDraftAsync } from '../../lib/cube/generate-async';
 import { COMMANDER_PLAYABLE_TARGET, type CommanderDraftSimResult } from '../../lib/cube/draft-sim';
 import { sizeInfo } from '../../lib/cube/targets';
@@ -142,6 +142,7 @@ export function CubeCommandersSection({
                 size="1x"
                 onActivate={() => setPreviewIndex(i)}
                 badges={<CommanderBadge />}
+                caption={legendKindLabel(l.card)}
               />
             ))}
           </div>
@@ -167,6 +168,9 @@ export function CubeCommandersSection({
                       <span className="cube-row-title">
                         <span className="cube-row-name">{l.card.name}</span>
                         <span className="cube-row-identity">{IDENTITY_LABEL[l.identity]}</span>
+                        {legendKindLabel(l.card) && (
+                          <span className="cube-row-kind">{legendKindLabel(l.card)}</span>
+                        )}
                       </span>
                       {l.reason && <span className="cube-row-reason">{l.reason}</span>}
                     </div>
