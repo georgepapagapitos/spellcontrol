@@ -569,14 +569,14 @@ export function PodHubPage() {
                 <span className="pod-hub-roster-owner-tag">Owner</span>
               )}
               {isOwner && m.userId !== pod.ownerUserId && (
-                <button
-                  type="button"
-                  className="pod-hub-roster-remove"
+                <Button
+                  placement="row"
+                  variant="danger"
                   onClick={() => setRemoveTarget(m)}
                   aria-label={`Remove ${m.username} from pod`}
                 >
                   Remove
-                </button>
+                </Button>
               )}
             </li>
           ))}
@@ -592,14 +592,14 @@ export function PodHubPage() {
                   <span className="pod-hub-roster-name">{m.username}</span>
                   <span className="pod-hub-roster-pending">Invited</span>
                   {isOwner && (
-                    <button
-                      type="button"
-                      className="pod-hub-roster-remove"
+                    <Button
+                      placement="row"
+                      variant="danger"
                       onClick={() => setRemoveTarget(m)}
                       aria-label={`Remove ${m.username} from pod`}
                     >
                       Remove
-                    </button>
+                    </Button>
                   )}
                 </li>
               ))}

@@ -168,9 +168,9 @@ function PodsIndexPageBody() {
           <p className="friends-signin-body">
             Create an account or sign in to track games and trades with your regular table.
           </p>
-          <Link to={signInHref} className="friends-signin-btn">
+          <Button variant="primary" to={signInHref}>
             Sign in
-          </Link>
+          </Button>
         </div>
       </div>
     );

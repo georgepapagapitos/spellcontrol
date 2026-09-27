@@ -39,33 +39,8 @@
 }
 
 .friends-search-btn {
+  /* A primary Button; the form's default stretch matches it to the field. */
   flex-shrink: 0;
-  padding: 0 var(--space-4);
-  height: 2.375rem;
-  background: var(--accent);
-  color: var(--on-accent);
-  border: none;
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background var(--motion-fast);
-  white-space: nowrap;
-  /* Stamped physicality — see .btn-primary in tabs.css (T53 Phase 4). */
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 14%),
-    0 1px 0 rgb(0 0 0 / 12%);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .friends-search-btn:hover {
-    background: var(--accent-hover);
-  }
-}
-
-.friends-search-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 /* Search results */
@@ -111,65 +86,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* ── Action buttons ─────────────────────────────────────────────────────── */
-.friends-action-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 var(--space-3);
-  height: 2rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background var(--motion-fast),
-    color var(--motion-fast);
-  white-space: nowrap;
-  background: var(--surface);
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .friends-action-btn:hover:not(:disabled) {
-    background: var(--surface-raised);
-  }
-}
-
-.friends-action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.friends-action-btn.is-primary {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: transparent;
-  /* Stamped physicality — see .btn-primary in tabs.css (T53 Phase 4). */
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 14%),
-    0 1px 0 rgb(0 0 0 / 12%);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .friends-action-btn.is-primary:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-}
-
-.friends-action-btn.is-danger {
-  color: var(--err-text);
-  border-color: var(--err-text);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .friends-action-btn.is-danger:hover:not(:disabled) {
-    background: var(--err-bg, color-mix(in srgb, var(--err-text) 10%, transparent));
-  }
 }
 
 /* ── Tabs panel area ─────────────────────────────────────────────────────── */
@@ -348,22 +264,4 @@
 .friends-activity-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
-.friends-action-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.friends-search-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* a11y (UX-cohesion): 44px touch targets on coarse pointers. */
-@media (pointer: coarse) {
-  .friends-action-btn,
-  .friends-search-btn {
-    min-height: 44px;
-  }
 }

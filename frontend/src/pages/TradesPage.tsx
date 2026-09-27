@@ -2,7 +2,7 @@ import './TradesPage.css';
 import { PageHeader } from '@/components/PageHeader';
 import { SocialHubTabs } from '../components/SocialHubTabs';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useSignInPath } from '../lib/sign-in-path';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
@@ -158,9 +158,9 @@ function TradesPageBody() {
           <p className="friends-signin-body">
             Trade offers travel between accounts, so they need one on both ends.
           </p>
-          <Link to={signInHref} className="friends-signin-btn">
+          <Button variant="primary" to={signInHref}>
             Sign in
-          </Link>
+          </Button>
         </div>
       </div>
     );
