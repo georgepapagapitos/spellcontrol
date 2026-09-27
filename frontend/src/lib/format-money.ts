@@ -63,3 +63,16 @@ export function formatMoney(
   if (value === 0 && zeroAsDash) return '—';
   return getFormatter(currency, wholeDollars).format(value);
 }
+
+/**
+ * A tally that reads in whole units once it is big enough to (`$840`), but
+ * keeps its cents below 10 units so a small real amount never rounds to a
+ * `$0` that reads as "worthless" (a $0.37 spare copy). For insight lines that
+ * total cards; a headline figure keeps `wholeDollars` outright.
+ */
+export function formatMoneyTally(
+  value: number,
+  opts: Omit<FormatMoneyOptions, 'wholeDollars'> = {}
+) {
+  return formatMoney(value, { ...opts, wholeDollars: Math.abs(value) >= 10 });
+}

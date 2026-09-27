@@ -1,10 +1,14 @@
 import './RecentlyAddedCard.css';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { PackagePlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useDecksStore } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
-import { aggregateNewArrivalDecks } from '../../lib/home-signals';
+import {
+  aggregateNewArrivalDecks,
+  isRecentPartialImport,
+  latestImport,
+} from '../../lib/home-signals';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { dayKey, formatDayKey } from '../../lib/value-history';
@@ -31,6 +35,11 @@ function FanThumb({ name, owned }: { name: string; owned?: string }) {
  * (the copies you hold, owned art first), and the list names the decks that
  * have new cards that fit. The per-deck number also sits on each deck's tile
  * in Your decks, where it belongs to the deck. No import yet: nothing.
+ *
+ * Nor when the latest import is over a month old or is (nearly) the whole
+ * collection: a first import or a replace-everything re-import would only
+ * restate the hero's card count, so the band's second slot goes to Your
+ * cards instead (`isRecentPartialImport`, T164).
  */
 export function RecentlyAddedCard() {
   const decks = useDecksStore((s) => s.decks);
@@ -39,14 +48,11 @@ export function RecentlyAddedCard() {
   const hydrating = useCollectionStore((s) => s.hydrating);
   const importHistory = useCollectionStore((s) => s.importHistory);
 
-  const latest = useMemo(
-    () =>
-      importHistory.reduce<(typeof importHistory)[number] | null>(
-        (best, e) => (!best || e.addedAt > best.addedAt ? e : best),
-        null
-      ),
-    [importHistory]
-  );
+  const latest = useMemo(() => latestImport(importHistory), [importHistory]);
+  // Captured once per mount: render stays pure, and a month-long threshold
+  // doesn't need a clock that ticks while the page is open.
+  const [now] = useState(() => Date.now());
+  const recent = isRecentPartialImport(latest, collectionCards.length, now);
 
   const fan = useMemo(() => {
     const out: Array<{ name: string; owned?: string }> = [];
@@ -77,12 +83,12 @@ export function RecentlyAddedCard() {
       title="Recently added"
       icon={PackagePlus}
       loading={hydrating || !decksHydrated}
-      empty={!latest}
+      empty={!recent}
       viewAllHref="/collection"
       viewAllLabel="Collection"
       className="home-added-card"
     >
-      {latest && (
+      {latest && recent && (
         <>
           <div className="home-added-head">
             {fan.length > 0 && (

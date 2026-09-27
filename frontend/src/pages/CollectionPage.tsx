@@ -74,12 +74,14 @@ export function CollectionPage() {
   };
 
   useEffect(() => {
-    if (searchParams.get('add') !== null) {
-      // Strip the params from the URL without adding a history entry so a
-      // refresh doesn't re-open the sheet.
+    // Strip one-shot params from the URL without adding a history entry, so a
+    // refresh doesn't re-open what they opened: ?add (+ ?q) the Add cards
+    // sheet, and Home's Your cards doors, ?stats (the Breakdown drawer) and
+    // ?spares (the tradeable-surplus filter).
+    const oneShot = ['add', 'q', 'stats', 'spares'];
+    if (oneShot.some((k) => searchParams.get(k) !== null)) {
       const next = new URLSearchParams(searchParams);
-      next.delete('add');
-      next.delete('q');
+      for (const k of oneShot) next.delete(k);
       setSearchParams(next, { replace: true });
     }
     // Run only once on mount — the param values are already captured in state.
@@ -90,11 +92,13 @@ export function CollectionPage() {
 
   const [exportOpen, setExportOpen] = useState(false);
 
-  const [statsOpen, setStatsOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(() => searchParams.get('stats') !== null);
   // A Breakdown drawer row's filter request, relayed to CardListTable (see
   // its `filterJump` prop's doc — the two are mounted siblings, so this
   // can't go through the `?binder=`-style URL deep link).
-  const [filterJump, setFilterJump] = useState<CollectionFilterJump | null>(null);
+  const [filterJump, setFilterJump] = useState<CollectionFilterJump | null>(() =>
+    searchParams.get('spares') !== null ? { kind: 'surplus' } : null
+  );
 
   const [historyOpen, setHistoryOpen] = useState(false);
 

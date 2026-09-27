@@ -7,7 +7,7 @@ import { useCubeStore } from '../store/cube';
 import { useAllocations } from '../lib/allocations';
 import { summarizeCostBasis } from '../lib/cost-basis';
 import { useCurrency } from '../lib/currency';
-import { formatMoney } from '../lib/format-money';
+import { formatMoney, formatMoneyTally } from '../lib/format-money';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { BinderDef, EnrichedCard } from '../types';
@@ -218,10 +218,7 @@ function sharedCopyDetail(row: SharedCopyRow): string {
 
 function closeToDoneDetail(row: CloseToDoneRow): string {
   const count = row.missingNames.length;
-  const costText =
-    row.costToFinish > 0
-      ? ` · ${formatMoney(row.costToFinish, { wholeDollars: true })} to finish`
-      : '';
+  const costText = row.costToFinish > 0 ? ` · ${formatMoneyTally(row.costToFinish)} to finish` : '';
   return `${row.deckName}: missing ${count} card${count === 1 ? '' : 's'}${costText}.`;
 }
 
@@ -322,9 +319,7 @@ function CloseToDoneSheet({ rows, onClose }: { rows: CloseToDoneRow[]; onClose: 
               </Link>
               <span className="card-picker-meta">
                 Missing {row.missingNames.length}
-                {row.costToFinish > 0
-                  ? ` · ${formatMoney(row.costToFinish, { wholeDollars: true })}`
-                  : ''}
+                {row.costToFinish > 0 ? ` · ${formatMoneyTally(row.costToFinish)}` : ''}
               </span>
             </li>
           ))}
@@ -595,7 +590,7 @@ function StatsDrawer({
                 {allocationSplit && (
                   <InsightRow
                     label="Idle cards"
-                    detail={`${formatMoney(allocationSplit.idleValue, { wholeDollars: true })} in ${allocationSplit.idleCount.toLocaleString()} cards no deck uses · ${formatMoney(allocationSplit.boundValue, { wholeDollars: true })} in decks`}
+                    detail={`${formatMoneyTally(allocationSplit.idleValue)} in ${allocationSplit.idleCount.toLocaleString()} ${allocationSplit.idleCount === 1 ? 'card' : 'cards'} no deck uses · ${formatMoneyTally(allocationSplit.boundValue)} in decks`}
                     bar={
                       allocationSplit.idleValue + allocationSplit.boundValue > 0 ? (
                         <StackedBar
@@ -624,7 +619,9 @@ function StatsDrawer({
                 {sparesSummary && (
                   <InsightRow
                     label="Spares"
-                    detail={`${sparesSummary.count.toLocaleString()} cop${sparesSummary.count === 1 ? 'y' : 'ies'} worth ${formatMoney(sparesSummary.value, { wholeDollars: true })} beyond what your decks use.`}
+                    // An unpriced spare is worth an unknown amount, not $0: say
+                    // nothing about money rather than "worth $0".
+                    detail={`${sparesSummary.count.toLocaleString()} cop${sparesSummary.count === 1 ? 'y' : 'ies'}${sparesSummary.value > 0 ? ` worth ${formatMoneyTally(sparesSummary.value)}` : ''} beyond what your decks use.`}
                     onClick={() => closeAndJump({ kind: 'surplus' })}
                   />
                 )}

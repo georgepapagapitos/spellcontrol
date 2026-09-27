@@ -12,14 +12,22 @@ vi.mock('../lib/materialize', () => ({
   materializeBinders: () => ({ binders: [] }),
 }));
 vi.mock('../components/CardListTable', () => ({
-  CardListTable: ({ onAddCards }: { onAddCards: (query?: string) => void }) => (
-    <div>
+  CardListTable: ({
+    onAddCards,
+    filterJump,
+  }: {
+    onAddCards: (query?: string) => void;
+    filterJump?: { kind: string } | null;
+  }) => (
+    <div data-testid="card-table" data-filter-jump={filterJump?.kind ?? ''}>
       <button onClick={() => onAddCards()}>Add cards (table)</button>
       <button onClick={() => onAddCards('dark ritual')}>Search hand-off (table)</button>
     </div>
   ),
 }));
-vi.mock('../components/StatsBar', () => ({ StatsBar: () => null }));
+vi.mock('../components/StatsBar', () => ({
+  StatsBar: ({ open }: { open: boolean }) => (open ? <div data-testid="stats-drawer" /> : null),
+}));
 vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
 // Controllable sync state so we can exercise the fresh-device "loading your
 // collection" branch without standing up the real sync engine.
@@ -223,6 +231,27 @@ describe('CollectionPage – AddCardsSheet deep-link (UX-333)', () => {
     // the sheet is not re-opened on subsequent renders (state is local).
     renderPage('/collection?add=list');
     expect(screen.getByTestId('add-cards-sheet')).toBeTruthy();
+  });
+});
+
+// Home's Your cards card links here (T164): its Breakdown door and shared-card
+// row open the drawer, its Spare copies row lands on the surplus filter.
+describe('CollectionPage – deep links from Home', () => {
+  it('opens the Breakdown drawer for ?stats', () => {
+    renderPage('/collection?stats');
+    expect(screen.getByTestId('stats-drawer')).toBeTruthy();
+  });
+
+  it('applies the tradeable-surplus filter for ?spares, drawer closed', () => {
+    renderPage('/collection?spares');
+    expect(screen.getByTestId('card-table').getAttribute('data-filter-jump')).toBe('surplus');
+    expect(screen.queryByTestId('stats-drawer')).toBeNull();
+  });
+
+  it('opens neither without the params', () => {
+    renderPage('/collection');
+    expect(screen.queryByTestId('stats-drawer')).toBeNull();
+    expect(screen.getByTestId('card-table').getAttribute('data-filter-jump')).toBe('');
   });
 });
 

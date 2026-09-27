@@ -11,6 +11,8 @@ import {
   aggregateNewArrivalDecks,
   aggregateBinderReviewCount,
   upcomingGameNights,
+  isRecentPartialImport,
+  latestImport,
 } from './home-signals';
 
 // ── Shared fixtures (mirrors new-arrivals.test.ts's builders) ──────────────
@@ -363,5 +365,30 @@ describe('upcomingGameNights', () => {
   it('applies the limit', () => {
     const nights = [1, 2, 3, 4, 5].map((i) => gameNight({ startsAt: NOW + i * 1000 }));
     expect(upcomingGameNights(nights, NOW, 3)).toHaveLength(3);
+  });
+});
+
+describe('latestImport', () => {
+  const entry = (id: string, addedAt: number) =>
+    ({ id, name: id, count: 1, format: 'plain', addedAt }) as never;
+  it('is null for no history and the newest entry otherwise', () => {
+    expect(latestImport([])).toBeNull();
+    expect(latestImport([entry('a', 1), entry('b', 3), entry('c', 2)])?.id).toBe('b');
+  });
+});
+
+describe('isRecentPartialImport', () => {
+  const DAY = 86_400_000;
+  const now = 100 * DAY;
+  it('is true for an addition to the collection made this month', () => {
+    expect(isRecentPartialImport({ count: 50, addedAt: now - DAY }, 1000, now)).toBe(true);
+  });
+  it('is false with no import, or one over a month old', () => {
+    expect(isRecentPartialImport(null, 1000, now)).toBe(false);
+    expect(isRecentPartialImport({ count: 50, addedAt: now - 31 * DAY }, 1000, now)).toBe(false);
+  });
+  it('is false when the import is (nearly) the whole collection', () => {
+    expect(isRecentPartialImport({ count: 13_557, addedAt: now }, 13_557, now)).toBe(false);
+    expect(isRecentPartialImport({ count: 950, addedAt: now }, 1000, now)).toBe(false);
   });
 });
