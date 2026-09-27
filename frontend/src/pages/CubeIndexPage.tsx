@@ -31,17 +31,12 @@ export function CubeIndexPage() {
   const awaitingFirstPull = useAwaitingFirstPull();
 
   const [renameTarget, setRenameTarget] = useState<SavedCube | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<SavedCube | null>(null);
   const [shareTarget, setShareTarget] = useState<SavedCube | null>(null);
   const [physicalTarget, setPhysicalTarget] = useState<SavedCube | null>(null);
 
   const handleRename = (name: string) => {
     if (renameTarget) cubeStore.renameSaved(renameTarget.id, name);
     setRenameTarget(null);
-  };
-  const handleDelete = () => {
-    if (deleteTarget) cubeStore.removeSaved(deleteTarget.id);
-    setDeleteTarget(null);
   };
   const handleTogglePhysical = (sc: SavedCube) => {
     if (sc.isPhysical) {
@@ -140,7 +135,9 @@ export function CubeIndexPage() {
                       label: 'Delete',
                       icon: Trash2,
                       danger: true,
-                      onClick: () => setDeleteTarget(sc),
+                      // Undoable from the toast, so it doesn't confirm first
+                      // (T157) — removeSaved shows the Undo toast itself.
+                      onClick: () => cubeStore.removeSaved(sc.id),
                     },
                   ]}
                 />
@@ -158,16 +155,6 @@ export function CubeIndexPage() {
           confirmLabel="Rename"
           onSubmit={handleRename}
           onCancel={() => setRenameTarget(null)}
-        />
-      )}
-      {deleteTarget && (
-        <ConfirmDialog
-          title="Delete cube?"
-          body={`"${deleteTarget.name}" will be removed. You can undo from the toast.`}
-          confirmLabel="Delete"
-          danger
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteTarget(null)}
         />
       )}
       {shareTarget && (

@@ -29,8 +29,6 @@ import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { type BinderViewControls, type BinderViewMode } from '../components/BinderSummaryBar';
 import { useSetMap } from '../lib/api';
-import { useConfirm } from '../lib/use-confirm';
-import { BINDER_DELETE_CONFIRM_BODY } from '../lib/binder-copy';
 import { useStoredView } from '../lib/use-stored-view';
 import { ShareDialog } from '../components/ShareDialog';
 import { CardName } from '@/components/shared/CardName';
@@ -77,7 +75,6 @@ export function BinderPage() {
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
-  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // Sync the URL param into the existing activeTab store field so child
   // components (BinderTabs, BinderView, BinderListView) keep working
@@ -329,15 +326,8 @@ export function BinderPage() {
               icon: Trash2,
               danger: true,
               menuOnly: true,
-              onClick: async () => {
-                const ok = await confirm({
-                  title: `Delete "${active.def.name}"?`,
-                  body: BINDER_DELETE_CONFIRM_BODY,
-                  confirmLabel: 'Delete binder',
-                  danger: true,
-                });
-                if (ok) deleteBinder(active.def.id);
-              },
+              // Undoable from the toast, so it doesn't confirm first (T157).
+              onClick: () => deleteBinder(active.def.id),
             },
           ]}
           meta={
@@ -492,7 +482,6 @@ export function BinderPage() {
             </section>
           ))}
       </div>
-      {confirmDialog}
     </>
   );
 }

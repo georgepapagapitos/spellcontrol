@@ -379,7 +379,6 @@ export function DecksIndexPage() {
   const [showImport, setShowImport] = useState(false);
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [showStarters, setShowStarters] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const allSelected = sorted.length > 0 && sorted.every((d) => sel.selected.has(d.id));
@@ -475,13 +474,10 @@ export function DecksIndexPage() {
     navigate('/decks/new', { state: regenerateState(deck) });
   };
 
+  // Undoable from the toast, so a single delete doesn't confirm first
+  // (T157) — deleteDeck shows the Undo toast itself.
   const handleDelete = (deck: Deck) => {
-    setPendingDelete(deck);
-  };
-
-  const confirmDelete = () => {
-    if (pendingDelete) deleteDeck(pendingDelete.id);
-    setPendingDelete(null);
+    deleteDeck(deck.id);
   };
 
   const confirmDeleteAllDecks = () => {
@@ -617,17 +613,6 @@ export function DecksIndexPage() {
             startersOnly
             onPick={(picked) => picked && navigate(deckBoardPath(picked.id))}
             onClose={() => setShowStarters(false)}
-          />
-        )}
-
-        {pendingDelete && (
-          <ConfirmDialog
-            title={`Delete "${pendingDelete.name}"?`}
-            body="The deck will be removed. You can undo from the toast."
-            confirmLabel="Delete"
-            danger
-            onConfirm={confirmDelete}
-            onCancel={() => setPendingDelete(null)}
           />
         )}
 

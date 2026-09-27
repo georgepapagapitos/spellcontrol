@@ -56,7 +56,6 @@ export function CubeDetailPage() {
 
   const [tab, setTab] = useState<DetailTab>('cards');
   const [renameOpen, setRenameOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [physicalConfirmOpen, setPhysicalConfirmOpen] = useState(false);
   const [bannedOpen, setBannedOpen] = useState(false);
@@ -208,9 +207,10 @@ export function CubeDetailPage() {
     cubeStore.renameSaved(target.id, name);
     setRenameOpen(false);
   };
+  // Undoable from the toast, so it doesn't confirm first (T157) —
+  // removeSaved shows the Undo toast itself.
   const handleDelete = () => {
     cubeStore.removeSaved(target.id);
-    setDeleteOpen(false);
   };
   const handleTogglePhysical = () => {
     if (target.isPhysical) {
@@ -393,7 +393,7 @@ export function CubeDetailPage() {
             icon: Trash2,
             danger: true,
             menuOnly: true,
-            onClick: () => setDeleteOpen(true),
+            onClick: handleDelete,
           },
         ]}
       />
@@ -476,16 +476,6 @@ export function CubeDetailPage() {
           confirmLabel="Rename"
           onSubmit={handleRename}
           onCancel={() => setRenameOpen(false)}
-        />
-      )}
-      {deleteOpen && (
-        <ConfirmDialog
-          title="Delete cube?"
-          body={`"${target.name}" will be removed. You can undo from the toast.`}
-          confirmLabel="Delete"
-          danger
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteOpen(false)}
         />
       )}
       {shareOpen && (

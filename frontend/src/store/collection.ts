@@ -1842,8 +1842,12 @@ export const useCollectionStore = create<CollectionState>()(
           const newActive = s.activeTab === id ? remaining[0]?.id || 'uncategorized' : s.activeTab;
           return { binders: remaining, activeTab: newActive };
         });
+        // A single delete no longer confirms first (T157: one item you can
+        // undo doesn't ask twice), so the toast carries the consequence the
+        // confirm dialog used to state — its cards fall back to your other
+        // binders, not just that the binder is gone.
         toast.show({
-          message: `Deleted ${removed.name}`,
+          message: `Deleted ${removed.name}. Its cards moved to other binders.`,
           tone: 'success',
           actionLabel: 'Undo',
           onAction: () => restoreBinders([removed]),

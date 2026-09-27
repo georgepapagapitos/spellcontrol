@@ -1,12 +1,11 @@
 import { ChevronDown, ChevronUp, Download, MoreHorizontal, Pencil, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import type { MaterializedBinder } from '../types';
 import { BinderExportDialog } from './BinderExportDialog';
-import { useConfirm } from '../lib/use-confirm';
-import { BINDER_DELETE_CONFIRM_BODY } from '../lib/binder-copy';
+import { useMenuKeyboard } from '../lib/use-menu-keyboard';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { IconButton } from '@/components/shared/Button';
@@ -45,7 +44,6 @@ export function BinderTabs({ binders }: Props) {
   const moveBinder = useCollectionStore((s) => s.moveBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const [exportOpen, setExportOpen] = useState(false);
-  const { confirm, dialog: confirmDialog } = useConfirm();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Sort by position so reorder arrows produce a consistent display — hoisted
@@ -91,14 +89,10 @@ export function BinderTabs({ binders }: Props) {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    const ok = await confirm({
-      title: `Delete "${name}"?`,
-      body: BINDER_DELETE_CONFIRM_BODY,
-      confirmLabel: 'Delete binder',
-      danger: true,
-    });
-    if (ok) deleteBinder(id);
+  // A single delete is undoable from the toast, so it doesn't confirm first
+  // (T157) — deleteBinder shows the Undo toast itself.
+  const handleDelete = (id: string) => {
+    deleteBinder(id);
   };
 
   return (
@@ -157,7 +151,7 @@ export function BinderTabs({ binders }: Props) {
                   onMoveUp={() => moveBinder(b.def.id, 'up')}
                   onMoveDown={() => moveBinder(b.def.id, 'down')}
                   onEdit={() => setEditingBinder(b.def.id)}
-                  onDelete={() => handleDelete(b.def.id, b.def.name)}
+                  onDelete={() => handleDelete(b.def.id)}
                 />
               )}
             </div>
@@ -191,8 +185,6 @@ export function BinderTabs({ binders }: Props) {
           onClose={() => setExportOpen(false)}
         />
       )}
-
-      {confirmDialog}
     </div>
   );
 }
@@ -218,7 +210,6 @@ function BinderOverflowMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   // When the sheet is open on mobile it should claim the screen — locking
   // body scroll prevents the page underneath from scrolling on a swipe.
@@ -236,7 +227,7 @@ function BinderOverflowMenu({
   };
 
   return (
-    <div className="binder-overflow" ref={ref}>
+    <div className="binder-overflow">
       <IconButton
         className="binder-overflow-btn"
         ref={btnRef}
@@ -249,7 +240,7 @@ function BinderOverflowMenu({
       />
       {open && panelPos && (
         <BinderOverflowPanel
-          containerRef={ref}
+          triggerRef={btnRef}
           panelPos={panelPos}
           onClose={() => setOpen(false)}
           canMoveUp={canMoveUp}
@@ -274,7 +265,7 @@ function BinderOverflowMenu({
  * computed from the trigger button's getBoundingClientRect().
  */
 function BinderOverflowPanel({
-  containerRef,
+  triggerRef,
   panelPos,
   onClose,
   canMoveUp,
@@ -284,7 +275,7 @@ function BinderOverflowPanel({
   onEdit,
   onDelete,
 }: {
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
   panelPos: PanelPos;
   onClose: () => void;
   canMoveUp: boolean;
@@ -310,24 +301,18 @@ function BinderOverflowPanel({
     else onClose();
   }, [beginClose, onClose]);
 
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      // Both the trigger container AND the portaled panel are outside each
-      // other in the DOM, so check both before dismissing.
-      const insideContainer = containerRef.current?.contains(e.target as Node);
-      const insidePanel = panelRef.current?.contains(e.target as Node);
-      if (!insideContainer && !insidePanel) dismiss();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismiss();
-    };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [containerRef, dismiss]);
+  // Real menu-button keyboard semantics (WAI-ARIA menu pattern), shared with
+  // every other overflow menu in the app: initial focus into the panel,
+  // Arrow/Home/End movement between the (non-disabled) menuitems, Escape and
+  // outside-pointerdown dismiss with focus returned to the trigger. Replaces
+  // this panel's own hand-rolled mousedown+Escape listeners, which had none
+  // of the arrow-key or focus-return behavior.
+  const { closeAndReturnFocus } = useMenuKeyboard({
+    open: true,
+    onClose: dismiss,
+    panelRef,
+    triggerRef,
+  });
 
   const closingClass = isClosing ? ' is-closing' : '';
 
@@ -355,7 +340,7 @@ function BinderOverflowPanel({
           className="binder-overflow-item"
           disabled={!canMoveUp}
           onClick={() => {
-            dismiss();
+            closeAndReturnFocus();
             onMoveUp();
           }}
         >
@@ -368,7 +353,7 @@ function BinderOverflowPanel({
           className="binder-overflow-item"
           disabled={!canMoveDown}
           onClick={() => {
-            dismiss();
+            closeAndReturnFocus();
             onMoveDown();
           }}
         >
@@ -380,7 +365,7 @@ function BinderOverflowPanel({
           role="menuitem"
           className="binder-overflow-item"
           onClick={() => {
-            dismiss();
+            closeAndReturnFocus();
             onEdit();
           }}
         >
@@ -392,7 +377,7 @@ function BinderOverflowPanel({
           role="menuitem"
           className="binder-overflow-item binder-overflow-item--danger"
           onClick={() => {
-            dismiss();
+            closeAndReturnFocus();
             onDelete();
           }}
         >
