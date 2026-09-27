@@ -36,14 +36,29 @@
   padding: var(--space-1) 0.4rem;
 }
 
-.deck-tag-manager-name {
+.deck-tag-manager-name,
+.deck-tag-manager-name-btn {
   flex: 1 1 auto;
   min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.deck-tag-manager-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
+}
+
+.deck-tag-manager-name-btn .inline-rename-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-tag-manager-name-btn svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
 }
 
 .deck-tag-manager-count {

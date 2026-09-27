@@ -67,7 +67,6 @@ export function ListsPage() {
   const cards = useCollectionStore((s) => s.cards);
   const createList = useCollectionStore((s) => s.createList);
   const setListKind = useCollectionStore((s) => s.setListKind);
-  const renameList = useCollectionStore((s) => s.renameList);
   const deleteList = useCollectionStore((s) => s.deleteList);
   const deleteLists = useCollectionStore((s) => s.deleteLists);
   const deleteAllLists = useCollectionStore((s) => s.deleteAllLists);
@@ -76,11 +75,10 @@ export function ListsPage() {
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
   const [shareList, setShareList] = useState<{ id: string; name: string } | null>(null);
-  // Drives the create/rename name dialogs. `rename` carries the target list;
+  // Drives the create-name dialog. Renaming an existing list happens in
+  // place on its own detail page (STYLE_GUIDE § Verbs — Rename), never here.
   // `dynamic` creates a rule-driven list (the rule editor opens on arrival).
-  const [nameDialog, setNameDialog] = useState<
-    { mode: 'create'; dynamic?: boolean } | { mode: 'rename'; id: string; current: string } | null
-  >(null);
+  const [nameDialog, setNameDialog] = useState<{ mode: 'create'; dynamic?: boolean } | null>(null);
   // Purpose of the static list being created (want = acquire, tracking =
   // catalogue of owned cards). Reset to want each time the dialog opens.
   const [createKind, setCreateKind] = useState<ListKind>('want');
@@ -164,23 +162,23 @@ export function ListsPage() {
   };
   const handleCreateDynamic = () => setNameDialog({ mode: 'create', dynamic: true });
 
-  const handleRename = (id: string, current: string) =>
-    setNameDialog({ mode: 'rename', id, current });
+  // Rename moved in place onto the list's own detail page title
+  // (STYLE_GUIDE § Verbs — Rename); this is the index row's "Rename" menu
+  // item, a shortcut that opens the list and puts its title straight into
+  // edit mode instead of a modal.
+  const handleRename = (id: string) =>
+    navigate(`/collection/lists/${id}`, { state: { autoRename: true } });
 
   const submitName = (name: string) => {
     if (!nameDialog) return;
-    if (nameDialog.mode === 'create') {
-      // A dynamic list starts with an empty rule; the detail view auto-opens
-      // the rule editor so creation flows straight into defining the rule.
-      const id = createList(
-        name,
-        nameDialog.dynamic ? [] : undefined,
-        !nameDialog.dynamic && createKind === 'tracking' ? 'tracking' : undefined
-      );
-      navigate(`/collection/lists/${id}`);
-    } else {
-      renameList(nameDialog.id, name);
-    }
+    // A dynamic list starts with an empty rule; the detail view auto-opens
+    // the rule editor so creation flows straight into defining the rule.
+    const id = createList(
+      name,
+      nameDialog.dynamic ? [] : undefined,
+      !nameDialog.dynamic && createKind === 'tracking' ? 'tracking' : undefined
+    );
+    navigate(`/collection/lists/${id}`);
     setNameDialog(null);
   };
 
@@ -386,7 +384,7 @@ export function ListsPage() {
                     triggerClassName="binders-index-card-menu-btn"
                     ariaLabel={`Actions for ${l.name}`}
                     items={[
-                      { label: 'Rename', icon: Pencil, onClick: () => handleRename(l.id, l.name) },
+                      { label: 'Rename', icon: Pencil, onClick: () => handleRename(l.id) },
                       // Shares project a list's stored entries; a dynamic
                       // list's membership lives client-side, so sharing one
                       // would publish an empty list.
@@ -445,27 +443,20 @@ export function ListsPage() {
       )}
       {nameDialog && (
         <NameInputDialog
-          title={
-            nameDialog.mode === 'rename'
-              ? 'Rename list'
-              : nameDialog.dynamic
-                ? 'New dynamic list'
-                : 'New list'
-          }
+          title={nameDialog.dynamic ? 'New dynamic list' : 'New list'}
           label="List name"
           placeholder={
-            nameDialog.mode === 'create' && nameDialog.dynamic
+            nameDialog.dynamic
               ? 'Commanders I own'
-              : nameDialog.mode === 'create' && createKind === 'tracking'
+              : createKind === 'tracking'
                 ? 'Eligible commanders'
                 : 'Wishlist, Trade pile'
           }
-          initialValue={nameDialog.mode === 'rename' ? nameDialog.current : ''}
-          confirmLabel={nameDialog.mode === 'create' ? 'Create list' : 'Rename'}
+          confirmLabel="Create list"
           onSubmit={submitName}
           onCancel={() => setNameDialog(null)}
         >
-          {nameDialog.mode === 'create' && !nameDialog.dynamic && (
+          {!nameDialog.dynamic && (
             <fieldset className="name-input-modes" aria-label="List purpose">
               <label className="name-input-mode">
                 <input

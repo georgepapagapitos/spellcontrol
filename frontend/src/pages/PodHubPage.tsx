@@ -36,6 +36,7 @@ import {
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { InlineRename } from '@/components/shared/InlineRename';
 const POD_NAME_MAX = 60;
 
 type GamesFetch =
@@ -149,7 +150,6 @@ export function PodHubPage() {
   const [inviteRespondBusy, setInviteRespondBusy] = useState(false);
 
   const [renaming, setRenaming] = useState(false);
-  const [draftName, setDraftName] = useState('');
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<PodMember | null>(null);
@@ -329,30 +329,16 @@ export function PodHubPage() {
     }
   }
 
-  function startRename() {
-    if (!pod) return;
-    setDraftName(pod.name);
-    setRenaming(true);
-  }
-  function cancelRename() {
-    setRenaming(false);
-  }
-  async function commitRename() {
-    if (!pod) return;
-    const trimmed = draftName.trim();
-    if (!trimmed || trimmed === pod.name) {
-      setRenaming(false);
-      return;
-    }
+  async function commitRename(name: string) {
     try {
-      const newName = await renamePod(pod.id, trimmed);
+      const newName = await renamePod(pod!.id, name);
       setPod((prev) => (prev ? { ...prev, name: newName } : prev));
-      setRenaming(false);
     } catch (err) {
       toast.show({
         message: userMessage(err, "Couldn't rename the pod."),
         tone: 'error',
       });
+      throw err;
     }
   }
 
@@ -478,43 +464,22 @@ export function PodHubPage() {
 
       <header className="pod-hub-header">
         <h1 className="pod-hub-name">
-          {renaming ? (
-            <span
-              className="pod-hub-name-edit"
-              role="presentation"
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) void commitRename();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') cancelRename();
-              }}
-            >
-              <input
-                autoFocus
-                type="text"
-                className="pod-hub-name-input"
-                value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void commitRename();
-                }}
-                maxLength={POD_NAME_MAX}
-                aria-label="Pod name"
-              />
-              <Button variant="primary" onClick={() => void commitRename()}>
-                Done
-              </Button>
-            </span>
-          ) : isOwner ? (
-            <button
-              type="button"
+          {isOwner ? (
+            // renameLabel carries the pod's own name (not a bare "Rename
+            // pod") so a screen-reader user tabbing straight to this button
+            // hears which pod, not just the verb — it's the only control on
+            // the page named "Rename".
+            <InlineRename
+              value={pod.name}
+              onCommit={commitRename}
+              editing={renaming}
+              onEditingChange={setRenaming}
+              label="Pod name"
+              renameLabel={`Rename ${pod.name}`}
+              maxLength={POD_NAME_MAX}
               className="pod-hub-name-btn"
-              onClick={startRename}
-              title="Rename pod"
-            >
-              {pod.name}
-              <Pencil width={14} height={14} strokeWidth={1.8} aria-hidden />
-            </button>
+              icon={<Pencil width={14} height={14} strokeWidth={1.8} aria-hidden />}
+            />
           ) : (
             pod.name
           )}

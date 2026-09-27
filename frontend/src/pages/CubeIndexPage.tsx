@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Boxes, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './cube/cube.css';
 import { DecksHubTabs } from '../components/DecksHubTabs';
 import { PageHeader } from '../components/PageHeader';
 import { BackLink } from '../components/BackLink';
 import { OverflowMenu } from '../components/OverflowMenu';
-import { NameInputDialog } from '../components/NameInputDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ShareDialog } from '../components/ShareDialog';
 import { EmptyState } from '../components/shared/EmptyState';
@@ -29,15 +28,16 @@ export function CubeIndexPage() {
   const cubeStore = useCubeStore();
   const saved = cubeStore.saved;
   const awaitingFirstPull = useAwaitingFirstPull();
+  const navigate = useNavigate();
 
-  const [renameTarget, setRenameTarget] = useState<SavedCube | null>(null);
   const [shareTarget, setShareTarget] = useState<SavedCube | null>(null);
   const [physicalTarget, setPhysicalTarget] = useState<SavedCube | null>(null);
 
-  const handleRename = (name: string) => {
-    if (renameTarget) cubeStore.renameSaved(renameTarget.id, name);
-    setRenameTarget(null);
-  };
+  // Rename moved in place onto the cube's own detail page title (STYLE_GUIDE
+  // § Verbs — Rename); this row's "Rename" is a shortcut that opens the cube
+  // and puts its title straight into edit mode instead of a modal.
+  const handleRename = (sc: SavedCube) =>
+    navigate(`/decks/cube/${sc.id}`, { state: { autoRename: true } });
   const handleTogglePhysical = (sc: SavedCube) => {
     if (sc.isPhysical) {
       cubeStore.setPhysical(sc.id, false, []);
@@ -121,7 +121,7 @@ export function CubeIndexPage() {
                   ariaLabel={`Actions for ${sc.name}`}
                   items={[
                     { label: 'Share', icon: Share2, onClick: () => setShareTarget(sc) },
-                    { label: 'Rename', icon: Pencil, onClick: () => setRenameTarget(sc) },
+                    { label: 'Rename', icon: Pencil, onClick: () => handleRename(sc) },
                     {
                       label: sc.isPhysical ? 'Unmark physical' : 'Mark physical',
                       icon: Boxes,
@@ -143,16 +143,6 @@ export function CubeIndexPage() {
         </section>
       )}
 
-      {renameTarget && (
-        <NameInputDialog
-          title="Rename cube"
-          label="Cube name"
-          initialValue={renameTarget.name}
-          confirmLabel="Rename"
-          onSubmit={handleRename}
-          onCancel={() => setRenameTarget(null)}
-        />
-      )}
       {shareTarget && (
         <ShareDialog
           kind="cube"

@@ -53,6 +53,7 @@ primitives directory.
 | `components/OverflowMenu`                                      | a hand-rolled `⋮` popover                       | § Toolbars & action rows                                      |
 | `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                  | § Verbs (menus)                                               |
 | `lib/use-menu-keyboard`                                        | a bespoke `role="menu"` key handler             | § Verbs (menus)                                               |
+| `components/shared/InlineRename`                               | a bespoke input-swap rename flow                | § Verbs (rename)                                              |
 | `components/shared/ToolbarPopover`                             | a second portal-popover impl                    | § Toolbars & action rows                                      |
 | `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows               | § Toolbars & action rows                                      |
 | `components/Tabs`                                              | bespoke tab markup                              | § Tabs / view switchers                                       |
@@ -186,10 +187,40 @@ screen.
   `src/test/no-direct-clipboard-write.test.ts` fails a `.tsx` file that calls
   `navigator.clipboard.writeText` directly.
 
-**Still open (tracked on T157):** rename (inline for decks and pods, a modal
-for lists and cubes), and undo for server-side removals (trade decline,
-game-night RSVP, pods, friends). Until they are settled here, match the
-nearest surface that already does it and say which one in the PR.
+**Rename**
+
+- **Renaming an existing thing happens in place: the name is the field.**
+  Activating the resting name (click/tap, or Enter/Space — it's a real
+  `<button>`) swaps it for an input pre-filled and selected. Enter or blur
+  saves; Escape reverts and returns focus to the name; an empty or unchanged
+  value reverts without saving. No toast on save — the user watched it
+  happen. Built: `components/shared/InlineRename`. It renders only the
+  interactive part, never a heading, so it composes as a page `<h1>`'s
+  content (`PageHeader`'s `title`, `DeckHero`'s `title`) without breaking
+  heading semantics, or inline anywhere else a name can be renamed (a deck
+  tag row). Adopted: pod name (drops the separate Done button — Enter/blur
+  already saves a plain rename), the deck tag manager (one button per tag,
+  dropping the old ✓/✕ pair), and the list/cube detail page title. The deck
+  name keeps its Done button: its editor is the name **and** the colour
+  together, one surface, and blur can't close that — picking a colour
+  swatch keeps focus put on purpose, so Done is the explicit exit.
+- **Naming something that doesn't exist yet stays a dialog.** Creating a
+  list or saving a cube (`NameInputDialog`) has nothing on screen to edit in
+  place, so it keeps the themed `window.prompt` replacement. A rename menu
+  item on an index row (a list, a cube) is a shortcut onto the thing's own
+  detail page: it navigates there and opens the title straight into edit
+  mode, never a modal. Guard: `src/test/name-input-dialog-create-only.test.ts`
+  fails if a `NameInputDialog`'s `onSubmit` calls a `rename*` mutator.
+- **A rule's name inside `BinderEditor` stays a live field, not
+  `InlineRename`.** `FilterGroupEditor`'s name input writes straight into the
+  editor's own uncommitted draft on every keystroke (the whole rule set only
+  lands on the dialog's Save), so there is no separate committed value for
+  blur to fall back to — it still gets Escape-reverts, restoring the name
+  the field opened with.
+
+**Still open (tracked on T157):** undo for server-side removals (trade
+decline, game-night RSVP, pods, friends). Until it is settled here, match
+the nearest surface that already does it and say which one in the PR.
 
 ---
 

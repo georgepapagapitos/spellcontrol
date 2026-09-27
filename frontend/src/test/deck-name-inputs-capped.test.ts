@@ -20,9 +20,13 @@ import { fileURLToPath } from 'node:url';
 
 const srcDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Marks an `<input>` as a place a deck gets named. */
+/** Marks an `<input>` (or an `InlineRename` call site) as a place a deck gets
+ *  named. `label="Deck name"` is the deck editor's own hero rename: its real
+ *  `<input>` lives inside the shared `InlineRename` component with a
+ *  computed `className`, so the call site's own opening tag — not a raw
+ *  `<input>` — is what still carries `maxLength={DECK_NAME_MAX}`. */
 const DECK_NAME_INPUT =
-  /aria-label=\{?["`]?Deck name|deck-editor-name-input|import-deck-draft-name/;
+  /aria-label=\{?["`]?Deck name|deck-editor-name-input|import-deck-draft-name|label="Deck name"/;
 
 function tsxFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -34,13 +38,19 @@ function tsxFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Each `<input …>` element's own source text. */
+/** Each `<input …>` element's own source text, or an `<InlineRename …>`
+ *  call site's opening-tag text (see `DECK_NAME_INPUT` above). */
 function inputElements(source: string): string[] {
   const out: string[] = [];
   for (const m of source.matchAll(/<input\b/g)) {
     const end = source.indexOf('/>', m.index);
     if (end === -1) continue;
     out.push(source.slice(m.index, end + 2));
+  }
+  for (const m of source.matchAll(/<InlineRename\b/g)) {
+    const end = source.indexOf('>', m.index);
+    if (end === -1) continue;
+    out.push(source.slice(m.index, end + 1));
   }
   return out;
 }

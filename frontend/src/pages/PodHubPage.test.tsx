@@ -176,7 +176,7 @@ describe('PodHubPage — owner vs member vs invited controls', () => {
     expect(await screen.findByRole('button', { name: /invite more people/i })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /manage friday crew/i }));
     expect(screen.getByRole('menuitem', { name: /delete pod/i })).toBeTruthy();
-    expect(screen.getByTitle('Rename pod')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Rename Friday crew' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /remove bob from pod/i })).toBeTruthy();
   });
 
@@ -249,7 +249,7 @@ describe('PodHubPage — owner vs member vs invited controls', () => {
     expect(await screen.findByText('Friday crew')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /invite more people/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /delete pod/i })).toBeNull();
-    expect(screen.queryByTitle('Rename pod')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Rename Friday crew' })).toBeNull();
     expect(screen.queryByRole('button', { name: /remove sam from pod/i })).toBeNull();
   });
 
@@ -296,13 +296,27 @@ describe('PodHubPage — rename', () => {
     vi.mocked(renamePod).mockResolvedValue('Saturday crew');
     renderPage();
 
-    fireEvent.click(await screen.findByTitle('Rename pod'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename Friday crew' }));
     const input = screen.getByLabelText('Pod name');
     fireEvent.change(input, { target: { value: 'Saturday crew' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => expect(renamePod).toHaveBeenCalledWith('pod1', 'Saturday crew'));
     expect(await screen.findByText('Saturday crew')).toBeTruthy();
+  });
+
+  it('Escape reverts without calling the API', async () => {
+    authState.user = { id: 'owner1', username: 'sam', role: 'user' };
+    vi.mocked(getPod).mockResolvedValue(podDetail());
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename Friday crew' }));
+    const input = screen.getByLabelText('Pod name');
+    fireEvent.change(input, { target: { value: 'Discarded name' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(renamePod).not.toHaveBeenCalled();
+    expect(await screen.findByText('Friday crew')).toBeTruthy();
   });
 });
 

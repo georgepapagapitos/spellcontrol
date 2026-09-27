@@ -59,6 +59,10 @@ describe('CubeDetailPage — found', () => {
   it('renders the header with the cube name and Cards tab by default', async () => {
     useCubeStore.setState({ saved: [saved({ id: 'x', name: 'My Draft Cube' })] });
     renderAt('/decks/cube/x');
+    // The title is now an in-place rename control (STYLE_GUIDE § Verbs —
+    // Rename) — a button naming the cube — but a heading's accessible name
+    // is computed from its rendered text, not a nested control's aria-label,
+    // so the heading itself still reads as the plain cube name.
     expect(screen.getByRole('heading', { name: 'My Draft Cube' })).toBeTruthy();
     const cardsTab = screen.getByRole('tab', { name: 'Cards' });
     expect(cardsTab.getAttribute('aria-selected')).toBe('true');
@@ -94,5 +98,45 @@ describe('CubeDetailPage — not found', () => {
     expect(screen.getByText(/doesn't exist/)).toBeTruthy();
     const back = screen.getByRole('link', { name: /Back to cubes/ });
     expect(back.getAttribute('href')).toBe('/decks/cube');
+  });
+});
+
+describe('CubeDetailPage — rename (STYLE_GUIDE § Verbs — Rename)', () => {
+  it('renames in place on the title: Enter saves', async () => {
+    useCubeStore.setState({ saved: [saved({ id: 'x', name: 'My Draft Cube' })] });
+    renderAt('/decks/cube/x');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename My Draft Cube' }));
+    const input = screen.getByLabelText('Cube name');
+    fireEvent.change(input, { target: { value: 'Renamed cube' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() =>
+      expect(useCubeStore.getState().saved.find((c) => c.id === 'x')?.name).toBe('Renamed cube')
+    );
+  });
+
+  it('Escape reverts without renaming', () => {
+    useCubeStore.setState({ saved: [saved({ id: 'x', name: 'My Draft Cube' })] });
+    renderAt('/decks/cube/x');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename My Draft Cube' }));
+    const input = screen.getByLabelText('Cube name');
+    fireEvent.change(input, { target: { value: 'Discarded' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(useCubeStore.getState().saved.find((c) => c.id === 'x')?.name).toBe('My Draft Cube');
+    expect(screen.getByRole('button', { name: 'Rename My Draft Cube' })).toBeTruthy();
+  });
+
+  it('the header Rename menu item opens the title in edit mode, no modal', () => {
+    useCubeStore.setState({ saved: [saved({ id: 'x', name: 'My Draft Cube' })] });
+    renderAt('/decks/cube/x');
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByLabelText('Cube name')).toBeTruthy();
   });
 });

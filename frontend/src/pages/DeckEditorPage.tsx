@@ -78,6 +78,7 @@ import { BulkEditDeckDialog } from '../components/deck/BulkEditDeckDialog';
 import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
 import { DeckVisibilityChip } from '../components/deck/DeckVisibilityChip';
 import { DeckHero } from '../components/deck/DeckHero';
+import { InlineRename } from '@/components/shared/InlineRename';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
 import { useSealMoment } from '../components/shared/SealMoment';
 import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
@@ -379,7 +380,6 @@ export function DeckEditorPage() {
     swap: { returnCopyId: string; returnCard: ScryfallCard; returnSetName: string } | null;
   } | null>(null);
   const [renaming, setRenaming] = useState(false);
-  const [draftName, setDraftName] = useState('');
   const [makeCommanderTarget, setMakeCommanderTarget] = useState<{
     slotId: string;
     card: ScryfallCard;
@@ -1473,19 +1473,7 @@ export function DeckEditorPage() {
     );
   }
 
-  const handleStartRename = () => {
-    setDraftName(deck.name);
-    setRenaming(true);
-  };
-  const handleCommitRename = () => {
-    const trimmed = draftName.trim();
-    if (trimmed && trimmed !== deck.name) renameDeck(deck.id, trimmed);
-    setRenaming(false);
-  };
-  const handleCancelRename = () => {
-    setDraftName(deck.name);
-    setRenaming(false);
-  };
+  const handleCommitRename = (name: string) => renameDeck(deck.id, name);
   // Undoable from the toast, so it doesn't confirm first (T157) — deleteDeck
   // shows the Undo toast itself, which survives the navigate below (the toast
   // store is global, not page state).
@@ -3056,75 +3044,38 @@ export function DeckEditorPage() {
         color={deck.color}
         back={<BackLink to="/decks" label="All decks" />}
         title={
-          <>
-            {renaming ? (
-              <div
-                className="deck-editor-hero-edit"
-                // Not an interactive element itself — the handlers below only
-                // orchestrate focus/commit for the real controls nested inside
-                // (the name input, the color radios). role="presentation"
-                // reflects that the div has no meaning of its own.
-                role="presentation"
-                // Clicking a color swatch must not blur-commit: the visible
-                // swatch span isn't focusable, so mousedown moves focus to
-                // <body> (relatedTarget null) and the commit unmounts this UI
-                // before the radio's click ever fires — the color never changed.
-                // Keeping focus put (except for text inputs, which need it)
-                // fixes that in every browser, Safari's no-focus buttons included.
-                onMouseDown={(e) => {
-                  const t = e.target as HTMLElement;
-                  if (!t.matches('input:not([type="radio"])')) e.preventDefault();
-                }}
-                onBlur={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                    handleCommitRename();
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') handleCancelRename();
-                }}
-              >
-                <input
-                  autoFocus
-                  type="text"
-                  className="deck-editor-name-input"
-                  value={draftName}
-                  maxLength={DECK_NAME_MAX}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleCommitRename();
-                  }}
-                  aria-label="Deck name"
+          // Identity is the header (STYLE_GUIDE § Config surfaces): name and
+          // colour are a colour dot and an inline name field together, one
+          // editing surface — so the explicit Done stays (unlike a plain
+          // rename, blur can't close this: picking a colour swatch keeps
+          // focus put on purpose, InlineRename's own mousedown guard).
+          <h1 className="deck-editor-title">
+            {/* renameLabel carries the deck's own name (not a bare "Rename
+                deck") so a screen-reader user tabbing straight to this
+                button hears which deck, not just the verb. */}
+            <InlineRename
+              value={deck.name}
+              onCommit={handleCommitRename}
+              editing={renaming}
+              onEditingChange={setRenaming}
+              label="Deck name"
+              renameLabel={`Rename ${deck.name}`}
+              maxLength={DECK_NAME_MAX}
+              className="deck-editor-name binder-hero-name"
+              inputClassName="deck-editor-name-input"
+              editClassName="deck-editor-hero-edit"
+              doneLabel="Done"
+            >
+              <div className="deck-editor-hero-edit-color">
+                <span className="deck-editor-hero-edit-label">Color</span>
+                <ColorPicker
+                  value={deck.color}
+                  onChange={(hex) => updateDeck(deck.id, { color: hex })}
+                  ariaLabel="Deck color"
                 />
-                <div className="deck-editor-hero-edit-color">
-                  <span className="deck-editor-hero-edit-label">Color</span>
-                  <ColorPicker
-                    value={deck.color}
-                    onChange={(hex) => updateDeck(deck.id, { color: hex })}
-                    ariaLabel="Deck color"
-                  />
-                </div>
-                <Button
-                  variant="primary"
-                  onClick={handleCommitRename}
-                  className="deck-editor-hero-edit-done"
-                >
-                  Done
-                </Button>
               </div>
-            ) : (
-              <h1 className="deck-editor-title">
-                <button
-                  type="button"
-                  className="deck-editor-name binder-hero-name"
-                  onClick={handleStartRename}
-                  title="Edit deck name & color"
-                >
-                  {deck.name}
-                </button>
-              </h1>
-            )}
-          </>
+            </InlineRename>
+          </h1>
         }
         meta={
           <>
