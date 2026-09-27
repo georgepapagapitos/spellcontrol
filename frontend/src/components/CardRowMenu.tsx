@@ -18,11 +18,22 @@ interface Props {
    *  "Move to binder" vs "Add to binder" label and the disabled row in the
    *  sheet. */
   currentBinder?: { id: string; name: string; color: string | null } | null;
-  /** `row` (default) is the list/table kebab; `tile` is the grid tile's
-   *  corner ⋮. Same items either way: only where it sits and what a
-   *  right-click on it belongs to differ. */
-  variant?: 'row' | 'tile';
+  /** `row` (default) is the list/table kebab; `tile` is a grid tile's corner
+   *  ⋮; `pocket` is a binder page pocket's. Same items every way: only where
+   *  it sits and what a right-click on it belongs to differ. */
+  variant?: 'row' | 'tile' | 'pocket';
 }
+
+/** Wrapper class, trigger class and right-click host per placement. */
+const PLACEMENT = {
+  row: { menu: 'deck-row-menu', trigger: 'card-edit-btn', host: '.collection-list-row' },
+  tile: {
+    menu: 'collection-grid-menu',
+    trigger: 'collection-grid-menu-btn',
+    host: '.collection-grid-cell',
+  },
+  pocket: { menu: 'slot-menu', trigger: 'collection-grid-menu-btn', host: '.slot-cell' },
+} as const;
 
 /**
  * The per-row card-actions kebab. A thin wrapper over the shared
@@ -61,10 +72,10 @@ export function CardRowMenu({
   return (
     <>
       <OverflowMenu
-        className={variant === 'tile' ? 'collection-grid-menu' : 'deck-row-menu'}
-        triggerClassName={variant === 'tile' ? 'collection-grid-menu-btn' : 'card-edit-btn'}
-        ariaLabel={variant === 'tile' ? `Actions for ${card.name}` : 'Card actions'}
-        contextHost={variant === 'tile' ? '.collection-grid-cell' : '.collection-list-row'}
+        className={PLACEMENT[variant].menu}
+        triggerClassName={PLACEMENT[variant].trigger}
+        ariaLabel={variant === 'row' ? 'Card actions' : `Actions for ${card.name}`}
+        contextHost={PLACEMENT[variant].host}
         items={items}
         header={
           currentBinder ? (

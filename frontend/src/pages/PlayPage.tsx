@@ -2130,7 +2130,11 @@ function HistoryTab({
                     Rematch
                   </Button>
                   {menuItems.length > 0 && (
-                    <OverflowMenu items={menuItems} ariaLabel={`Game options: ${when}`} />
+                    <OverflowMenu
+                      items={menuItems}
+                      ariaLabel={`Game options: ${when}`}
+                      contextHost=".play-history-item"
+                    />
                   )}
                   {kind === 'remove' && canDropRecord(rec, userId) && (
                     <IconButton

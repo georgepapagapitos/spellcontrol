@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import { createContext, type ReactNode } from 'react';
 import type { EnrichedCard } from '../types';
 
 /**
@@ -25,6 +25,13 @@ export interface CardPreviewCtx {
    * ×N badge in the corner — same affordance the collection grid uses.
    */
   qtyByCopyId?: Map<string, number>;
+  /**
+   * The card's ⋮ for a pocket (T162): the same `CardRowMenu` the binder's list
+   * view gives each row, so a binder offers one card menu however it is
+   * viewed. A right-click on the pocket opens it. Absent on a read-only
+   * binder (a share link), where a pocket has no menu.
+   */
+  cardMenu?: (card: EnrichedCard) => ReactNode;
 }
 
 export const CardPreviewContext = createContext<CardPreviewCtx | null>(null);

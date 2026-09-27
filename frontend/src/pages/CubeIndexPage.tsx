@@ -119,6 +119,9 @@ export function CubeIndexPage() {
                 </Link>
                 <OverflowMenu
                   ariaLabel={`Actions for ${sc.name}`}
+                  contextHost=".cube-index-row"
+                  itemHref={`/decks/cube/${sc.id}`}
+                  itemName={sc.name}
                   items={[
                     { label: 'Share', icon: Share2, onClick: () => setShareTarget(sc) },
                     { label: 'Rename', icon: Pencil, onClick: () => handleRename(sc) },

@@ -1,5 +1,5 @@
 import { Image as ImageIcon, ImageOff } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type {
   BinderPage,
@@ -13,6 +13,7 @@ import type {
 import { PageGrid } from './PageGrid';
 import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
+import { CardRowMenu } from './CardRowMenu';
 import { ColorPip } from './shared/ManaSymbol';
 import { EmptyState } from './shared/EmptyState';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
@@ -145,6 +146,8 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
       <SectionList
         viewKey={active.def.id}
         binderName={active.def.name}
+        binderId={active.def.id}
+        binderColor={active.def.color}
         totalPages={active.totalPages}
         sections={active.sections}
         pocketSize={active.effectivePocketSize}
@@ -165,6 +168,8 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
 function SectionList({
   viewKey,
   binderName,
+  binderId,
+  binderColor,
   totalPages,
   sections,
   pocketSize,
@@ -180,6 +185,8 @@ function SectionList({
 }: {
   viewKey: string;
   binderName: string;
+  binderId: string;
+  binderColor: string | null;
   totalPages: number;
   sections: BinderSection[];
   pocketSize: PocketSize;
@@ -213,6 +220,20 @@ function SectionList({
 
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
   const allocations = useAllocations();
+
+  // A pocket's ⋮ and right-click: the menu the list view gives the same card
+  // (BinderListView), so the binder has one card menu in either view.
+  const cardMenu = useCallback(
+    (card: EnrichedCard) => (
+      <CardRowMenu
+        variant="pocket"
+        card={card}
+        onEditCard={() => setEditingCard(card)}
+        currentBinder={{ id: binderId, name: binderName, color: binderColor }}
+      />
+    ),
+    [binderId, binderName, binderColor]
+  );
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const pushToast = useToastsStore((s) => s.push);
@@ -405,6 +426,7 @@ function SectionList({
           showImages={showImages}
           onOpenCard={handleOpenCard}
           onOpenPage={setPagesStartIndex}
+          cardMenu={cardMenu}
         />
       )}
       {!merged &&
@@ -428,6 +450,7 @@ function SectionList({
               onToggle={toggle}
               onOpenCard={handleOpenCard}
               onOpenPages={handleOpenPages}
+              cardMenu={cardMenu}
             />
           );
         })}
@@ -530,6 +553,7 @@ const PageRun = memo(function PageRun({
   showImages,
   onOpenCard,
   onOpenPage,
+  cardMenu,
 }: {
   pages: BinderPage[];
   /** Parallel to `pages`: what sits on each one. */
@@ -542,11 +566,12 @@ const PageRun = memo(function PageRun({
   showImages?: boolean;
   onOpenCard: (card: EnrichedCard) => void;
   onOpenPage: (globalPageIndex: number) => void;
+  cardMenu: (card: EnrichedCard) => ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
   const ctxValue = useMemo(
-    () => ({ openCard: onOpenCard, openPages: onOpenPage, isPreviewOpen, qtyByCopyId }),
-    [onOpenCard, onOpenPage, isPreviewOpen, qtyByCopyId]
+    () => ({ openCard: onOpenCard, openPages: onOpenPage, isPreviewOpen, qtyByCopyId, cardMenu }),
+    [onOpenCard, onOpenPage, isPreviewOpen, qtyByCopyId, cardMenu]
   );
 
   // When every page would carry the same heading (an ungrouped binder, where
@@ -593,6 +618,7 @@ const SectionBlock = memo(function SectionBlock({
   onToggle,
   onOpenCard,
   onOpenPages,
+  cardMenu,
 }: {
   section: BinderSection;
   sectionIdx: number;
@@ -608,6 +634,7 @@ const SectionBlock = memo(function SectionBlock({
   onToggle: (sectionKey: string) => void;
   onOpenCard: (card: EnrichedCard) => void;
   onOpenPages: (sectionIdx: number, localPageIndex: number) => void;
+  cardMenu: (card: EnrichedCard) => ReactNode;
 }) {
   // Whether the user has expanded past the inline page cap.
   const [pagesExpanded, setPagesExpanded] = useState(false);
@@ -621,8 +648,8 @@ const SectionBlock = memo(function SectionBlock({
     [onOpenPages, sectionIdx]
   );
   const ctxValue = useMemo(
-    () => ({ openCard: onOpenCard, openPages, isPreviewOpen, qtyByCopyId }),
-    [onOpenCard, openPages, isPreviewOpen, qtyByCopyId]
+    () => ({ openCard: onOpenCard, openPages, isPreviewOpen, qtyByCopyId, cardMenu }),
+    [onOpenCard, openPages, isPreviewOpen, qtyByCopyId, cardMenu]
   );
 
   const visiblePages = pagesExpanded ? section.pages : section.pages.slice(0, pageCap);

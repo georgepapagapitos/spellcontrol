@@ -506,6 +506,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                         <td>
                           <OverflowMenu
                             ariaLabel={`Actions for ${u.username}`}
+                            contextHost="tr"
                             items={[
                               {
                                 label: 'AI access…',
