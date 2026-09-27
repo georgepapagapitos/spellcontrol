@@ -18,6 +18,9 @@ vi.mock('../lib/api', () => ({
   importFile: vi.fn(),
   importRows: vi.fn(),
   fetchImportLink: (url: string) => fetchImportLinkMock(url),
+  // Read by useBinderLayoutInputs (E457), shared by the routing summary —
+  // irrelevant to what these tests assert.
+  useSetMap: vi.fn(() => undefined),
 }));
 
 // The Drive picker decides which import affordance renders at all, and it reads

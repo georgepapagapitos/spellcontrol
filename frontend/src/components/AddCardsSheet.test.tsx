@@ -102,10 +102,9 @@ vi.mock('../lib/api', () => ({
   // The desktop inspector's PrintingPicker calls this; an empty result falls
   // back to the card it already has (its own fallback-to-[fallback] logic).
   fetchPrintings: vi.fn(async () => []),
-  // Read by the Add-list commit's routing summary (E457) to match
-  // BinderPage's own materialize inputs — irrelevant to what these tests
-  // assert, so it resolves to nothing rather than hitting the network.
-  getSetMap: vi.fn(async () => undefined),
+  // Read by useBinderLayoutInputs (E457), shared by the Add-list commit's
+  // routing summary — irrelevant to what these tests assert.
+  useSetMap: vi.fn(() => undefined),
 }));
 
 const importCardsMock = vi.fn(async (..._args: unknown[]) => 'import-id');

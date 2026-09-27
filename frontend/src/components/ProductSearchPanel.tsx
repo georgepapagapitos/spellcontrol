@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlignJustify, ChevronLeft, Layers, LayoutGrid, Package, Rows3 } from 'lucide-react';
 import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
 import { CardThumb } from './CardThumb';
-import { searchProducts, fetchProduct, useSetMap } from '../lib/api';
+import { searchProducts, fetchProduct } from '../lib/api';
 import {
   colorIdentityCost,
   colorIdentityLabel,
@@ -11,7 +11,7 @@ import {
 } from '../lib/use-product-commander';
 import { useBuildDeckFromImport } from '../lib/build-deck-from-import';
 import { useCollectionStore } from '../store/collection';
-import { bindersUseTags, useCardsWithTags } from '../lib/card-tags';
+import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import {
   PRODUCT_IMPORT_LABEL,
   groupPhysicalByZone,
@@ -295,11 +295,13 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
   const navigate = useNavigate();
   const buildDeckFromResult = useBuildDeckFromImport();
   const importCards = useCollectionStore((s) => s.importCards);
-  const rawCards = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
-  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
+  // Same inputs BinderPage materializes from — shared so "where did my
+  // cards go?" can't drift from what a binder actually shows (E457). Named
+  // `binderLayout` (not `layout`) since this file's own `layout` state below
+  // is the unrelated product-grid/list view preference.
+  const binderLayout = useBinderLayoutInputs();
+  const { setMap } = binderLayout;
   const carousel = useCardCarousel('product');
-  const setMap = useSetMap();
 
   const [query, setQuery] = useState('');
   const [type, setType] = useState(TYPE_FILTERS[0].value);
@@ -323,7 +325,7 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
   const [layout, setLayout] = useState<PreconLayout>(readLayout);
   const debounceRef = useRef<number | null>(null);
 
-  const routingSummary = result ? summarizeImportRouting(result.importIds, cards, binders) : null;
+  const routingSummary = result ? summarizeImportRouting(result.importIds, binderLayout) : null;
 
   const chooseLayout = (next: PreconLayout) => {
     setLayout(next);

@@ -34,7 +34,7 @@ describe('ImportRoutingSummary', () => {
       unroutedCount: 0,
     });
     expect(screen.getByText('Commanders')).toBeTruthy();
-    expect(screen.getByText('pp. 3-5', { exact: false })).toBeTruthy();
+    expect(screen.getByText('pp. 3–5', { exact: false })).toBeTruthy();
   });
 
   it('omits the page detail entirely when an entry has none', () => {

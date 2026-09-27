@@ -1,5 +1,4 @@
-import type { SetMap } from '@spellcontrol/binder-routing';
-import type { BinderDef, EnrichedCard } from '../types';
+import type { BinderLayoutInputs } from './use-binder-layout-inputs';
 import { materializeBinders } from './materialize';
 
 /**
@@ -24,9 +23,11 @@ export interface ImportRoutingEntry {
 
 /**
  * Formats a page-number list the way a physical binder is discussed:
- * "p. 3" for one page, "pp. 3, 7" for a few, "pp. 3-5" for a run — a mix of
- * both when some are adjacent and some aren't. Returns '' for an empty list
- * so a caller can treat it as "nothing to show" without a special case.
+ * "p. 3" for one page, "pp. 3, 7" for a few, "pp. 3–5" for a run — a mix of
+ * both when some are adjacent and some aren't. A run uses an en dash, the
+ * same glyph every other range in the app uses ("A–Z", "1–5"). Returns '' for
+ * an empty list so a caller can treat it as "nothing to show" without a
+ * special case.
  */
 export function formatBinderPages(pages: number[]): string {
   const sorted = [...new Set(pages)].sort((a, b) => a - b);
@@ -40,7 +41,7 @@ export function formatBinderPages(pages: number[]): string {
       prev = cur;
       continue;
     }
-    runs.push(start === prev ? `${start}` : `${start}-${prev}`);
+    runs.push(start === prev ? `${start}` : `${start}–${prev}`);
     if (cur !== undefined) {
       start = cur;
       prev = cur;
@@ -85,27 +86,27 @@ export interface ImportRoutingSummary {
  * naive approach (re-running rule matching here) would silently disagree
  * with materializeBinders when those edge cases kick in.
  *
+ * `layout` is a `useBinderLayoutInputs()` result — the exact chain
+ * `BinderPage` itself decorates/materializes from (tags → Secret Lair drops →
+ * release dates, plus its `allocatedCopyIds`/`setMap`), at BinderPage's
+ * DEFAULT view (group-printings off, no in-binder search). Every caller of
+ * this function reads the SAME hook, so a tag rule, a release-date sort, or
+ * a `hideDeckAllocated: false` binder can no longer make this summary
+ * disagree with what the user actually sees when they open the binder —
+ * three real call sites each supplying their own ad hoc subset of these
+ * inputs is exactly how that drift happened before.
+ *
  * Each entry's `pages` is read off the SAME materialize pass, walking
  * `section.pages[].slots` (not `section.cards`, which carries no page
- * number). For this to equal what `BinderPage` actually renders, `opts`
- * must carry the same `allocatedCopyIds`/`setMap` BinderPage does — those are
- * the two materialize inputs (besides the cards/binders every caller already
- * passes) that can shift a card onto a different page: `allocatedCopyIds`
- * for a `hideDeckAllocated: false` binder, `setMap` for a binder sorted by
- * release date. (`qtyByPrintingKey` is deliberately never passed: omitting it
- * makes materialize fall back to counting quantities from `cards` itself,
- * which is exactly BinderPage's own default "group printings" off state —
- * passing a grouped count here would answer a view this summary never
- * renders.) A caller that can't source `allocatedCopyIds`/`setMap` gets
- * `pages` computed anyway; it's exactly right for every binder that isn't
- * using one of those two narrow features, and BinderPage itself opens in
- * that same "group printings off" state by default.
+ * number). `qtyByPrintingKey` is deliberately never passed to
+ * `materializeBinders`: omitting it makes materialize fall back to counting
+ * quantities from `layout.cards` itself, which is exactly BinderPage's own
+ * default "group printings off" state — passing a grouped count here would
+ * answer a view this summary never renders.
  */
 export function summarizeImportRouting(
   importIds: ReadonlySet<string>,
-  cards: EnrichedCard[],
-  binderDefs: BinderDef[],
-  opts: { allocatedCopyIds?: ReadonlySet<string>; setMap?: SetMap } = {}
+  layout: BinderLayoutInputs
 ): ImportRoutingSummary {
   if (importIds.size === 0) return { entries: [], totalRouted: 0, unroutedCount: 0 };
 
@@ -113,10 +114,10 @@ export function summarizeImportRouting(
   // — only which cards landed where and on which page — but we still go
   // through the official path so quirks like deck-allocation hiding and
   // printing promotion stay consistent with the user-visible layout.
-  const { binders, uncategorized } = materializeBinders(cards, binderDefs, {
+  const { binders, uncategorized } = materializeBinders(layout.cards, layout.binders, {
     search: '',
-    allocatedCopyIds: opts.allocatedCopyIds,
-    setMap: opts.setMap,
+    allocatedCopyIds: layout.allocatedCopyIds,
+    setMap: layout.setMap,
   });
 
   const entries: ImportRoutingEntry[] = [];

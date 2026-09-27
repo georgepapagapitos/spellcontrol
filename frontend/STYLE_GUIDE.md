@@ -3932,28 +3932,38 @@ and `UnresolvedNameRow`:
   When the action also built a deck, the card adds an "Open deck" button
   instead of navigating away mid-summary, so "where did my cards go?" is
   answered before the sheet closes.
-- **A routing row also names the page(s) the cards landed on** (E457,
-  2026-09-27): `formatBinderPages` renders "p. 3" / "pp. 3, 7" / "pp. 3-5" (a
-  contiguous run collapses; the rest stay comma-separated) as a quieter,
-  smaller trailing detail after the binder name (`.import-routing-pages`),
-  never a second fact competing with it. `summarizeImportRouting`'s `pages`
-  answer for the binder's default Pages view (group-printings off — what a
-  binder opens in until the user toggles it) because that's the only state a
-  caller outside `BinderPage` can name; a caller that can source
-  `allocatedCopyIds`/`setMap` (the two materialize inputs besides cards/
-  binders that can shift a page number — deck-allocation hiding and
-  release-date sorts) passes them so the page numbers agree with the real
-  layout exactly, not approximately.
-- **The Add list predicts each row's destination before commit** (E457): a
-  quiet line under a scan/search row (`.scan-row-binder` in
-  `ScannerQueueSheet.tsx`) shows the binder pip + name `nextBinderMatch`
-  would route that exact copy to (finish/condition/language included, since a
-  binder rule can filter on finish), or "Matched no binder" — the same
-  wording the post-import summary uses for its own unrouted row, so the two
-  moments read as one vocabulary. Hidden entirely when the user has no
-  binders. Filters are compiled once per render pass
-  (`compileBinderCandidates` + `nextBinderMatchCompiled`), not once per row,
-  since the list can hold a booster box.
+- **One hook owns every input that changes a binder's layout** (E457,
+  2026-09-27): `lib/use-binder-layout-inputs.ts`'s `useBinderLayoutInputs()`
+  is `pages/BinderPage.tsx`'s own materialize chain — cards decorated with
+  oracle tags → Secret Lair drops → per-printing release dates, plus
+  `allocatedCopyIds` and `setMap` — extracted so a caller outside BinderPage
+  (the Add-list row prediction, the post-import routing summary in
+  `AddCardsSheet`/`UploadPanel`/`ProductSearchPanel`) reads the SAME inputs
+  rather than re-deriving its own subset. Three call sites each decorating a
+  different (incomplete) slice is exactly how a tag-rule binder, or a page
+  number, used to disagree with what BinderPage actually rendered. It answers
+  for BinderPage's DEFAULT view — "group printings" off (a non-persisted
+  toggle that starts off every session), no in-binder search — since that's
+  the only state nameable from outside the page. `summarizeImportRouting`
+  takes this hook's result directly (`summarizeImportRouting(importIds,
+  layout)`) instead of separate `cards`/`binders`/options arguments.
+- **A routing row also names the page(s) the cards landed on**: `pages` on
+  each `ImportRoutingEntry`, read off the same materialize pass (walking
+  `section.pages[].slots`, which carries `pageNum`, never `section.cards`).
+  `formatBinderPages` renders "p. 3" / "pp. 3, 7" / "pp. 3–5" (a contiguous
+  run collapses to an en dash range, the same glyph every other range in the
+  app uses — "A–Z", "1–5" — never a hyphen; the rest stay comma-separated) as
+  a quieter, smaller trailing detail after the binder name
+  (`.import-routing-pages`), never a second fact competing with it.
+- **The Add list predicts each row's destination before commit**: a quiet
+  line under a scan/search row (`.scan-row-binder` in `ScannerQueueSheet.tsx`)
+  shows the binder pip + name `nextBinderMatch` would route that exact copy
+  to (finish/condition/language included, since a binder rule can filter on
+  finish), or "Matched no binder" — the same wording the post-import summary
+  uses for its own unrouted row, so the two moments read as one vocabulary.
+  Hidden entirely when the user has no binders. Filters are compiled once per
+  render pass (`compileBinderCandidates` + `nextBinderMatchCompiled`), not
+  once per row, since the list can hold a booster box.
 
 **Import admin left the add flow (T153, 2026-09-26).** `UploadPanel` used to
 mix adding cards with collection administration — an import-history aside

@@ -28,7 +28,7 @@ import {
   importReviewHeadline,
   fetchErrorMessage,
 } from '../lib/import-review';
-import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
+import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { Modal } from './Modal';
 import { useCanScan } from '../lib/use-can-scan';
 import { useSealMoment } from './shared/SealMoment';
@@ -179,10 +179,13 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const binderNameId = useId();
 
   const rawCards = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
-  // Decorate with oracle tags so "where did my import go?" respects tag rules
-  // (no-op unless a binder uses one).
-  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
+  // Same inputs BinderPage materializes from (tags/Secret Lair drops/release
+  // dates, allocatedCopyIds, setMap) — shared so "where did my import go?"
+  // can't drift from what a binder actually shows (E457). `rawCards` above
+  // stays separate: the content-reimport match below wants the undecorated
+  // rows.
+  const layout = useBinderLayoutInputs();
+  const { cards, binders } = layout;
   const isLoading = useCollectionStore((s) => s.isLoading);
   const error = useCollectionStore((s) => s.error);
   const unresolvedNames = useCollectionStore((s) => s.unresolvedNames);
@@ -223,8 +226,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   );
 
   const routingSummary = useMemo(
-    () => summarizeImportRouting(recentImportIds, cards, binders),
-    [recentImportIds, cards, binders]
+    () => summarizeImportRouting(recentImportIds, layout),
+    [recentImportIds, layout]
   );
 
   // Single review/summary surface (E130): one container covers the
