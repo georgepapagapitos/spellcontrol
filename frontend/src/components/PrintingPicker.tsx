@@ -4,6 +4,7 @@ import { formatMoney } from '../lib/format-money';
 import { imageFromCard } from '../lib/card-thumbs';
 import { FINISH_LABELS, availableFinishes } from '../lib/scanner-feedback';
 import { LANGUAGE_OPTIONS } from '../lib/copy-options';
+import { useScannerSettings } from '../lib/scanner-settings';
 import { CardThumb } from './CardThumb';
 import { ConditionControl, FinishControl } from './CopyControls';
 import { SelectMenu } from './SelectMenu';
@@ -66,7 +67,10 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>(fallback.id);
-  const [finish, setFinish] = useState<Finish>('nonfoil');
+  // Starts from Add settings (T153) so a phone set to Foil/LP/Japanese for
+  // the scanner gets the same defaults here — the picker's own clamp against
+  // `finishes` below still wins for a printing that lacks the default finish.
+  const [finish, setFinish] = useState<Finish>(() => useScannerSettings.getState().defaultFinish);
   const [pVisible, setPVisible] = useState(PRINTING_PAGE_SIZE);
   const [qty, setQty] = useState(1);
   // Raw text mirror of qty — lets the field go blank/mid-edit; the clamp only
@@ -80,9 +84,12 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
     setQtyText(String(qty));
   }
   // Near Mint is the unmarked default (a copy with no condition reads as NM),
-  // so picking it adds nothing to the stored copy, same as before.
-  const [condition, setCondition] = useState<Condition>('nm');
-  const [language, setLanguage] = useState('');
+  // so picking it adds nothing to the stored copy — true whether it comes
+  // from Add settings' own 'nm' default or a user override.
+  const [condition, setCondition] = useState<Condition>(
+    () => useScannerSettings.getState().defaultCondition
+  );
+  const [language, setLanguage] = useState(() => useScannerSettings.getState().defaultLanguage);
   const qtyId = useId();
 
   // cardName is fixed for this picker's lifetime (a different row mounts a
