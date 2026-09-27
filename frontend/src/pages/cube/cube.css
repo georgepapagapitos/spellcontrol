@@ -350,19 +350,50 @@
   flex-direction: column;
   gap: var(--space-2);
 }
-.cube-commander-coverage h3 {
+.cube-commander-coverage-head {
   margin: 0;
+}
+.cube-commander-coverage-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
   font-family: var(--font-serif);
   font-size: var(--text-sm);
+  font-weight: inherit;
   color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+@media (pointer: coarse) {
+  .cube-commander-coverage-toggle {
+    min-height: 44px;
+  }
+}
+.cube-commander-coverage-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+.cube-commander-coverage-toggle[aria-expanded='false'] .cube-group-chevron {
+  transform: rotate(-90deg);
 }
 .cube-commander-coverage-summary {
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
   line-height: 1.4;
+}
+.cube-commander-coverage-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 .cube-commander-coverage-sub {
   margin: 0;

@@ -15,7 +15,7 @@
 // Commander deck.
 
 import { useMemo, useState } from 'react';
-import { Crown } from 'lucide-react';
+import { ChevronDown, Crown } from 'lucide-react';
 import { CardGridCell } from '../../components/shared/CardGridCell';
 import { CardPreview } from '../../components/CardPreview';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -162,7 +162,14 @@ export function CubeCommandersSection({
   );
 }
 
+/**
+ * Collapsed by default — same idiom as Cube health / Draftability right
+ * above it (STYLE_GUIDE "insight surfaces never displace content"): the
+ * summary line always states the headline fact, and opening it never moves
+ * the spell buckets below further than that one line already did.
+ */
 export function CommanderCoveragePanel({ cube }: { cube: GeneratedCube }) {
+  const [open, setOpen] = useState(false);
   const status = legendsStatus(cube);
   const legends = cube.legends ?? [];
   const counts = useMemo(() => {
@@ -184,10 +191,21 @@ export function CommanderCoveragePanel({ cube }: { cube: GeneratedCube }) {
 
   return (
     <div className="cube-commander-coverage">
-      <h3>Commander coverage</h3>
+      <h3 className="cube-commander-coverage-head">
+        <button
+          type="button"
+          className="cube-commander-coverage-toggle"
+          aria-expanded={open}
+          aria-controls={open ? 'cube-commander-coverage-body' : undefined}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <ChevronDown className="cube-group-chevron" width={14} height={14} aria-hidden />
+          Commander coverage
+        </button>
+      </h3>
       <p className="cube-commander-coverage-summary">{summary}</p>
-      {status === 'ready' && legends.length > 0 && (
-        <>
+      {open && status === 'ready' && legends.length > 0 && (
+        <div id="cube-commander-coverage-body" className="cube-commander-coverage-body">
           <p className="cube-commander-coverage-sub">
             Legendary creatures in this cube, by colour identity. A count of what's in the cube, not
             a simulated draft.
@@ -206,7 +224,7 @@ export function CommanderCoveragePanel({ cube }: { cube: GeneratedCube }) {
               -card cube. Own more legends to fill it out.
             </p>
           )}
-        </>
+        </div>
       )}
     </div>
   );

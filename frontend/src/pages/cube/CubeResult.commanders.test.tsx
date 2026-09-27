@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CubeResult } from './CubeResult';
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import type { LegendPick } from '../../lib/cube/legend';
@@ -130,7 +130,9 @@ describe('CubeResult — Commanders section (board #12, PR3)', () => {
         gaps: [{ severity: 'short', text: gapText }],
       })
     );
-    // The coverage panel's own note (derived straight from legends.length/target).
+    // Coverage is collapsed by default (STYLE_GUIDE "insight surfaces never
+    // displace content") — open it before checking its note.
+    fireEvent.click(screen.getByRole('button', { name: 'Commander coverage' }));
     expect(document.querySelector('.cube-commander-coverage-note')?.textContent).toMatch(
       /50 short of the 60-commander target/
     );
@@ -143,6 +145,7 @@ describe('CubeResult — Commanders section (board #12, PR3)', () => {
   it('the coverage grid flags a zero-count identity and never uses colour alone', () => {
     const legends = [legend(1, 'G'), legend(2, 'G')];
     renderCube(cube({ format: 'commander', legends }));
+    fireEvent.click(screen.getByRole('button', { name: 'Commander coverage' }));
     const wCell = screen.getByText('W').closest('.cube-coverage-cell');
     expect(wCell?.className).toContain('is-low');
     expect(within(wCell as HTMLElement).getByText('0')).toBeTruthy();
