@@ -321,6 +321,55 @@ describe('CubeShoppingList', () => {
     expect(document.querySelector('.cube-rows')?.getAttribute('aria-busy')).toBe('false');
   });
 
+  it('disables the want-list button until prices resolve, so a send never skips every card as unresolved', async () => {
+    const loadPool = vi.fn(async () => []);
+    buildShoppingListMock.mockReturnValue([
+      shoppingRow('Ragavan, Nimble Pilferer', 'ragavan', 0.08),
+    ]);
+    let resolvePrices!: (v: Map<string, ScryfallCard>) => void;
+    getCardsByNamesMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePrices = resolve;
+      })
+    );
+
+    render(<CubeShoppingList target={saved()} loadPool={loadPool} />);
+    await waitFor(() => expect(screen.getByText('Ragavan, Nimble Pilferer')).toBeTruthy());
+
+    const button = screen.getByRole('button', { name: /Add 1 to a want list/ });
+    expect(button).toHaveProperty('disabled', true);
+
+    await act(async () => {
+      resolvePrices(
+        new Map([
+          [
+            'Ragavan, Nimble Pilferer',
+            scryfallCard({ id: 'r1', name: 'Ragavan, Nimble Pilferer', prices: { usd: '58.00' } }),
+          ],
+        ])
+      );
+    });
+
+    await waitFor(() => expect(button).toHaveProperty('disabled', false));
+  });
+
+  it('keeps the ranked list on a failed price fetch, treating every row as unpriced instead of erroring the tab', async () => {
+    const loadPool = vi.fn(async () => []);
+    buildShoppingListMock.mockReturnValue([
+      shoppingRow('Ragavan, Nimble Pilferer', 'ragavan', 0.08),
+      shoppingRow('Solitude', 'solitude', 0.04),
+    ]);
+    getCardsByNamesMock.mockRejectedValue(new Error('scryfall down'));
+
+    render(<CubeShoppingList target={saved()} loadPool={loadPool} />);
+
+    await waitFor(() => expect(screen.getAllByText('No price yet')).toHaveLength(2));
+    expect(screen.getByText('Ragavan, Nimble Pilferer')).toBeTruthy();
+    expect(screen.getByText('Solitude')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(document.querySelector('.cube-rows')?.getAttribute('aria-busy')).toBe('false');
+  });
+
   it('sends only the selected cards to the chosen want list', async () => {
     useCollectionStore.setState({
       cards: [],

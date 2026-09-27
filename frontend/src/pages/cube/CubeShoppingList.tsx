@@ -133,10 +133,18 @@ export function CubeShoppingList({ target, loadPool }: Props) {
         setStatus('ready');
 
         const priceNames = [...new Set(built.map((r) => r.card.name))];
-        const pricedMap = priceNames.length > 0 ? await getCardsByNames(priceNames) : new Map();
-        if (!cancelled) {
-          setPriceByName(pricedMap);
-          setPricesReady(true);
+        // Pricing is a nice-to-have layered on an already-ranked list — a
+        // failed price fetch must not throw the whole tab into the error
+        // state and lose that ranking. Caught on its own so a rejection here
+        // just leaves every row unpriced; `pricesReady` still flips in
+        // `finally` so "No price yet" reads as final, not "…" forever.
+        try {
+          const pricedMap = priceNames.length > 0 ? await getCardsByNames(priceNames) : new Map();
+          if (!cancelled) setPriceByName(pricedMap);
+        } catch {
+          // Ranked rows are already committed above; leave them priceless.
+        } finally {
+          if (!cancelled) setPricesReady(true);
         }
       } catch (e) {
         if (!cancelled) {
@@ -297,7 +305,7 @@ export function CubeShoppingList({ target, loadPool }: Props) {
           </Button>
           <Button
             variant="primary"
-            disabled={selected.size === 0 || sending}
+            disabled={selected.size === 0 || sending || !pricesReady}
             onClick={() => setListOpen(true)}
           >
             Add {selected.size} to a want list
