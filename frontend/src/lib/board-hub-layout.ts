@@ -8,11 +8,11 @@ export interface Size {
   height: number;
 }
 
-/** Widest rendered petal ("High roll"), measured in a real browser at 390px
- *  wide with touch emulation on (`.board-hub-petal`, the 44px pointer-coarse
- *  floor): 101×44. Used as a uniform stand-in for every petal's box — the
- *  shorter labels (Menu, Help) only get extra breathing room from it. */
-const DEFAULT_PETAL: Size = { width: 101, height: 44 };
+/** A ring key's box (`.board-hub-key`, BoardHubMenu's `HUB_KEY`): 72×64, a
+ *  6px rect with its icon over its word. Every key shares the one box, so it
+ *  is a uniform stand-in for each. The component passes its own size (it has
+ *  a compact 66×60 for a 320px phone); this default matches the full one. */
+const DEFAULT_PETAL: Size = { width: 72, height: 64 };
 
 /** Straight up, in screen space (y grows downward) — Lotus's own convention
  *  for where the first petal of a full circle sits. */
@@ -87,7 +87,7 @@ function clampPoint(p: Point, b: Bounds): Point {
  * layout this app has today (the board is always a 2-column grid, so a
  * seam's horizontal position is always exactly centred; only its vertical
  * position varies by row) — the petals go evenly around a full circle,
- * Lotus's own layout: 72° apart for five, starting straight up. The radius
+ * Lotus's own layout: 60° apart for six, starting straight up. The radius
  * is the largest that still clears every petal's own angle (see
  * `angleRadiusBound`), capped at `radius` and floored at the smallest radius
  * that keeps adjacent petals from overlapping (the chord between two points
@@ -99,7 +99,7 @@ function clampPoint(p: Point, b: Bounds): Point {
  * does it fall back to fanning across a wide arc toward the open side of the
  * screen instead (the same floor/cap logic, aimed at the arc actually used).
  * A literal viewport corner (both axes constrained at once) is outside what
- * a 2-column board can produce and, at this petal's real measured width,
+ * a 2-column board can produce and, at the key's size,
  * isn't achievable overlap-free by any single-radius fan regardless of
  * tuning — verified empirically, not assumed — so the fallback is tuned
  * against the hub positions this app's own presets actually reach, not

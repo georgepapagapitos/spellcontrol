@@ -856,7 +856,6 @@
    Targets measured at < 44 px without this block:
      counter-row-btn  1.8 rem ≈ 28.8 px
      seat-menu-close  no fixed size
-     game-menu-close  2 rem ≈ 32 px
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (pointer: coarse) {
   /* Counter ± buttons in the seat drawer's counters section */
@@ -885,12 +884,6 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-
-  /* Game-menu close button (2 rem base = 32 px) */
-  .game-menu-close {
-    width: 2.75rem;
-    height: 2.75rem;
   }
 
   /* Seam hub button — 2.6 rem ≈ 41.6 px below the 600 px breakpoint.

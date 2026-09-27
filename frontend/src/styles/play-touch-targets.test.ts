@@ -11,6 +11,8 @@ const counters = read('play-counters-panel.css');
 const enhancements = read('play-enhancements.css');
 const setup = read('play-setup.css');
 const panelMenus = read('play-panel-menus.css');
+const hub = read('../components/play/BoardHubMenu.css');
+const sheets = read('../components/play/BoardSheets.css');
 
 /**
  * Every body declared for a selector, joined.
@@ -263,13 +265,43 @@ describe('F1: a fast swipe on the panel is not cancelled by the browser', () => 
     expect(gameBoard).not.toMatch(/touch-action:\s*none/);
   });
 
-  it('the seat drawer body and the game menu sheet keep scrolling by touch', () => {
+  it('the seat drawer body and the hub sheets keep scrolling by touch', () => {
     const drawerBody = ruleBody(panelMenus, '.seat-menu-body');
     expect(drawerBody, '.seat-menu-body is missing').toBeTruthy();
     expect(drawerBody).toMatch(/touch-action:\s*pan-y/);
-    const menuBody = ruleBody(panelMenus, '.game-menu-body');
-    expect(menuBody, '.game-menu-body is missing').toBeTruthy();
-    expect(menuBody).toMatch(/touch-action:\s*pan-y/);
+    const sheetBody = ruleBody(sheets, '.board-sheet-body');
+    expect(sheetBody, '.board-sheet-body is missing').toBeTruthy();
+    expect(sheetBody).toMatch(/touch-action:\s*pan-y/);
+  });
+});
+
+/**
+ * The hub ring (board T155): keys are at least 56px on both axes at every
+ * pointer, the compact size included, and the dock's items are its full
+ * 56px height. The sheets' close is a 44px rect at every pointer. These are
+ * px on purpose: BoardHubMenu places keys from the same numbers.
+ */
+describe('the hub ring and its sheets clear the touch floor', () => {
+  const px = (body: string | null, prop: string) =>
+    Number(new RegExp(String.raw`(?:^|[;\s])${prop}:\s*(\d+(?:\.\d+)?)px`).exec(body ?? '')?.[1]);
+
+  it('every key is at least 56px wide and tall, compact or not', () => {
+    for (const sel of ['.board-hub-key', '.board-hub-ring.is-compact .board-hub-key']) {
+      const body = ruleBody(hub, sel);
+      expect(px(body, 'width'), `${sel} width`).toBeGreaterThanOrEqual(56);
+      expect(px(body, 'height'), `${sel} height`).toBeGreaterThanOrEqual(56);
+    }
+  });
+
+  it('the dock is 56px tall and its items fill it', () => {
+    expect(px(ruleBody(hub, '.board-hub-dock'), 'height')).toBeGreaterThanOrEqual(56);
+  });
+
+  it("a sheet's close is a 44px rect", () => {
+    const body = ruleBody(sheets, '.board-sheet-close');
+    expect(px(body, 'width')).toBeGreaterThanOrEqual(44);
+    expect(px(body, 'height')).toBeGreaterThanOrEqual(44);
+    expect(body).toMatch(/border-radius:\s*var\(--radius\)/);
   });
 });
 

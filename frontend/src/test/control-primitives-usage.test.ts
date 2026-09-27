@@ -194,7 +194,6 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/deck/GenerationModePicker.tsx': { count: 2, why: CHOICE },
     'components/DiscoverFiltersPopover.tsx': { count: 6, why: CHOICE },
     'components/play/GameBoard.tsx': { count: 5, why: BOARD_CHROME },
-    'components/play/GameMenu.tsx': { count: 5, why: BOARD_CHROME },
     'components/play/OnlineGameView.tsx': { count: 4, why: BOARD_CHROME },
     'components/play/PhaseChip.tsx': { count: 2, why: BOARD_CHROME },
     'components/SortValueOrderEditor.tsx': { count: 1, why: STRUCTURE },

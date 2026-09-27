@@ -30,6 +30,7 @@ const FILES = [
   'play-effects.css',
   '../components/play/BoardHighRoll.css',
   '../components/play/BoardHubMenu.css',
+  '../components/play/BoardSheets.css',
 ];
 const OFF_BOARD = /^\.play-board-door\b/;
 
@@ -108,10 +109,10 @@ describe('board stylesheets never size the board off the physical viewport', () 
     );
   });
 
-  it("the game menu takes the rotated board's own height, not the landscape dvh", () => {
-    const css = readFileSync(join(here, 'play-panel-menus.css'), 'utf8');
+  it("the hub sheets take the rotated board's own height, not the landscape dvh", () => {
+    const css = readFileSync(join(here, '../components/play/BoardSheets.css'), 'utf8');
     expect(css).toMatch(
-      /\.game-board-rotator\[data-board-rot\] \.game-menu \{\s*max-height: 88cqw;/
+      /\.game-board-rotator\[data-board-rot\] \.board-sheet \{\s*max-height: 90cqw;/
     );
   });
 });

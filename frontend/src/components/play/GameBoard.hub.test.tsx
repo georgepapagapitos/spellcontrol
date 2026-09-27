@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 /**
- * The board hub's radial petal ring (Lotus fan-out), plus the two table
- * moments it opens directly: board-level Restart and High Roll. Mock harness
- * mirrors GameBoard.gestures.test.tsx.
+ * The board hub's ring (board T155, Direction A): six keys and a dock, the
+ * sheets they open, and the two table moments the ring acts on directly
+ * (board-level Restart and High Roll). Mock harness mirrors
+ * GameBoard.gestures.test.tsx.
  */
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,6 +44,12 @@ vi.mock('../../store/play', () => {
       turnTrackerEnabled: true,
       setGameTimerEnabled: vi.fn(),
       setTurnTrackerEnabled: vi.fn(),
+      lowLifeWarningEnabled: true,
+      setLowLifeWarningEnabled: vi.fn(),
+      underlineSixNine: false,
+      setUnderlineSixNine: vi.fn(),
+      minimalistMode: false,
+      setMinimalistMode: vi.fn(),
     });
   usePlayStore.getState = getState;
   return { usePlayStore };
@@ -70,6 +77,7 @@ vi.mock('../../lib/game-tools', async (importOriginal) => {
 });
 
 import { highRoll } from '../../lib/game-tools';
+import { useRulesReferenceStore } from '../../store/rules-reference';
 import { GameBoard } from './GameBoard';
 
 const pair = () => [seat(0, 'Alice'), seat(1, 'Bob')];
@@ -87,27 +95,61 @@ function openRing() {
   fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
 }
 
+const labels = (sel: string) =>
+  [...document.querySelectorAll(sel)].map((el) => el.textContent?.trim());
+const keys = () => labels('.board-hub-key');
+const dockItems = () => labels('.board-hub-dock-item');
+
+const handlers = () => ({
+  onEnd: vi.fn(),
+  onMinimize: vi.fn(),
+  onLeave: vi.fn(),
+  onRematch: vi.fn(),
+});
+
 describe('the hub ring', () => {
-  it('fans out the five petals for a host, mid-game', () => {
-    render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
+  it('places six keys clockwise from High roll, Restart last, and the dock after them', () => {
+    render(
+      <GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll {...handlers()} />
+    );
     openRing();
+    expect(keys()).toEqual(['High roll', 'Dice', 'Players', 'Settings', 'Help', 'Restart']);
+    expect(dockItems()).toEqual(['History', 'Rules', 'Leave']);
+    // One menu, one order: keys, then the dock.
     const ring = screen.getByRole('menu', { name: 'Board menu' });
     expect(
       within(ring)
         .getAllByRole('menuitem')
-        .map((el) => el.textContent)
-    ).toEqual(['Restart', 'High roll', 'Players', 'Menu', 'Help']);
+        .map((el) => el.textContent?.trim())
+    ).toEqual([
+      'High roll',
+      'Dice',
+      'Players',
+      'Settings',
+      'Help',
+      'Restart',
+      'History',
+      'Rules',
+      'Leave',
+    ]);
   });
 
-  it('drops the host-only petals for a viewer who cannot control the table', () => {
+  it('lands focus on High roll, never on a destructive key', () => {
+    render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }), { detail: 0 });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'High roll' }));
+  });
+
+  it('drops the host-only keys for a viewer who cannot control the table', () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll={false} />);
     openRing();
-    const ring = screen.getByRole('menu', { name: 'Board menu' });
-    expect(
-      within(ring)
-        .getAllByRole('menuitem')
-        .map((el) => el.textContent)
-    ).toEqual(['High roll', 'Menu', 'Help']);
+    expect(keys()).toEqual(['High roll', 'Dice', 'Settings', 'Help']);
+  });
+
+  it('has no Leave in the dock when the board has no way off it', () => {
+    render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
+    openRing();
+    expect(dockItems()).toEqual(['History', 'Rules']);
   });
 
   it('turns the hub into a close (✕) button while open', () => {
@@ -126,17 +168,25 @@ describe('the hub ring', () => {
     expect(screen.queryByRole('menu', { name: 'Board menu' })).toBeNull();
   });
 
-  it('keeps the clock strip visible while open — it moved out of the seam, so a petal can never reach it', () => {
-    render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
-    expect(document.querySelector('.game-clock-strip')).toBeTruthy();
-    openRing();
-    expect(document.querySelector('.game-clock-strip')).toBeTruthy();
+  it('hides the undo satellite while open, and brings it back on close', async () => {
+    const undoStack = await import('../../lib/undo-stack');
+    vi.mocked(undoStack.peekLabel).mockReturnValue('Alice −1');
+    try {
+      render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
+      expect(screen.getByRole('button', { name: 'Undo Alice −1' })).toBeTruthy();
+      openRing();
+      expect(screen.queryByRole('button', { name: 'Undo Alice −1' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Close menu' }));
+      expect(screen.getByRole('button', { name: 'Undo Alice −1' })).toBeTruthy();
+    } finally {
+      vi.mocked(undoStack.peekLabel).mockReturnValue(null);
+    }
   });
 
   // F12a: the hub button reads the triggering click's `detail` (0 for a
   // keyboard-synthesized click, >=1 for a real pointer click) and passes it
   // through as BoardHubMenu's `openedByKeyboard`.
-  it("suppresses the first petal's ring on a pointer-triggered open, not on a keyboard one", () => {
+  it("suppresses the first key's ring on a pointer-triggered open, not on a keyboard one", () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }), { detail: 1 });
     expect(
@@ -148,6 +198,95 @@ describe('the hub ring', () => {
     expect(
       document.querySelector('.board-hub-ring')?.classList.contains('board-hub-ring-pointer-opened')
     ).toBe(false);
+  });
+});
+
+describe('each key and dock item opens one sheet', () => {
+  for (const [item, dialog] of [
+    ['Dice', 'Dice'],
+    ['Players', 'Players'],
+    ['Settings', 'Settings'],
+    ['Help', 'How the board works'],
+    ['History', 'History'],
+    ['Leave', 'Leave the board'],
+  ] as const) {
+    it(`${item} opens the ${dialog} sheet, and closing it hands focus back to the hub`, () => {
+      render(
+        <GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll {...handlers()} />
+      );
+      const hub = screen.getByRole('button', { name: 'Game menu' });
+      openRing();
+      fireEvent.click(screen.getByRole('menuitem', { name: item }));
+      // The ring closes as the sheet opens: one tap in, one tap out.
+      expect(screen.queryByRole('menu', { name: 'Board menu' })).toBeNull();
+      const sheet = screen.getByRole('dialog', { name: dialog });
+      // Focus lands inside the sheet, on something that does something.
+      expect(sheet.contains(document.activeElement)).toBe(true);
+      expect(document.activeElement?.getAttribute('aria-label')).not.toBe('Close');
+
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      expect(screen.queryByRole('dialog', { name: dialog })).toBeNull();
+      expect(document.activeElement).toBe(hub);
+    });
+  }
+
+  it('Rules opens the rules reference', () => {
+    useRulesReferenceStore.getState().close();
+    render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
+    openRing();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rules' }));
+    expect(useRulesReferenceStore.getState().isOpen).toBe(true);
+    useRulesReferenceStore.getState().close();
+  });
+
+  it('the Players lock note carries Restart, which asks first', () => {
+    const dispatch = vi.fn();
+    const game = makeTestState([seat(0, 'Alice', { life: 31 }), seat(1, 'Bob')]);
+    render(<GameBoard game={game} dispatch={dispatch} canControlAll />);
+    openRing();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Players' }));
+    expect(screen.getByText(/Roster locks once the game starts/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Restart…' }));
+    expect(screen.getByText('Restart the game?')).toBeTruthy();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('a finished board', () => {
+  const finished = () => makeTestState(pair(), { status: 'finished', winnerSeat: 0 });
+
+  function openFinishedRing() {
+    // The win celebration covers the board first; dismissing it reveals the hub.
+    fireEvent.click(screen.getByRole('dialog', { name: 'Alice wins' }).parentElement!);
+    openRing();
+  }
+
+  beforeEach(() => sessionStorage.clear());
+
+  it('makes Rematch the one filled key, and drops High roll, Players and Restart', () => {
+    render(<GameBoard game={finished()} dispatch={vi.fn()} canControlAll {...handlers()} />);
+    openFinishedRing();
+    expect(keys()).toEqual(['Rematch', 'Dice', 'Settings', 'Help']);
+    expect(document.querySelectorAll('.board-hub-key.is-primary')).toHaveLength(1);
+    expect(screen.getByRole('menuitem', { name: 'Rematch' }).classList).toContain('is-primary');
+  });
+
+  it("swaps the dock's Leave for Clear the table, which acts at once", () => {
+    const h = handlers();
+    render(<GameBoard game={finished()} dispatch={vi.fn()} canControlAll {...h} />);
+    openFinishedRing();
+    expect(dockItems()).toEqual(['History', 'Rules', 'Clear the table']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clear the table' }));
+    expect(h.onLeave).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog', { name: 'Leave the board' })).toBeNull();
+  });
+
+  it('Rematch re-seats the table', () => {
+    const h = handlers();
+    render(<GameBoard game={finished()} dispatch={vi.fn()} canControlAll {...h} />);
+    openFinishedRing();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rematch' }));
+    expect(h.onRematch).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -196,18 +196,15 @@ describe('how the board works', () => {
     expect(screen.queryByRole('dialog', { name: 'How the board works' })).toBeNull();
   });
 
-  it('comes back from the game menu', () => {
-    render(<GameBoard game={makeTestState(pod())} dispatch={vi.fn()} canControlAll />);
-    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Menu' }));
-    fireEvent.click(screen.getByRole('button', { name: 'How the board works' }));
-    expect(screen.getByRole('dialog', { name: 'How the board works' })).toBeTruthy();
-  });
-
-  it('comes back from the hub ring directly, via Help', () => {
+  // One home for it now (T155): the menu's "How the board works" duplicated
+  // the Help petal and went with the menu.
+  it("comes back from the hub ring's Help key, as a sheet with the same rows", () => {
     render(<GameBoard game={makeTestState(pod())} dispatch={vi.fn()} canControlAll />);
     fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Help' }));
-    expect(screen.getByRole('dialog', { name: 'How the board works' })).toBeTruthy();
+    const sheet = screen.getByRole('dialog', { name: 'How the board works' });
+    expect(sheet.textContent).toContain('toward you');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('dialog', { name: 'How the board works' })).toBeNull();
   });
 });

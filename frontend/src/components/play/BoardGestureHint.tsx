@@ -2,10 +2,48 @@ import { useRef } from 'react';
 import { markBoardGesturesSeen } from '../../lib/board-gestures-seen';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
 
+export type BoardGestureId = 'tap' | 'hold' | 'number' | 'toward' | 'away' | 'pass';
+
 /**
- * How the board works, shown once per device on the first shared board and
- * again from the game menu. The seats carry no buttons (the Lotus model), so
- * the gestures have to be taught somewhere; this is that somewhere.
+ * The board's gestures, one row each: the lead words bold, then the rest.
+ * One list for both places that teach them, the first-run card below and the
+ * hub's Help sheet, so the two can never drift.
+ */
+export function boardGestures(
+  vertical: boolean,
+  showTurnTracker: boolean
+): Array<{ id: BoardGestureId; lead: string; rest: string }> {
+  return [
+    {
+      id: 'tap',
+      lead: 'Tap',
+      rest: `a seat's ${vertical ? 'bottom or top' : 'left or right'} half for −1 or +1.`,
+    },
+    { id: 'hold', lead: 'Hold', rest: 'for ±10, and keep holding for more.' },
+    { id: 'number', lead: 'Tap the number', rest: 'to type a total.' },
+    {
+      id: 'toward',
+      lead: 'Swipe a seat toward you',
+      rest: 'for its drawer: name, counters, color, turn.',
+    },
+    { id: 'away', lead: 'Swipe it away from you', rest: 'for commander damage.' },
+    ...(showTurnTracker
+      ? [
+          {
+            id: 'pass' as const,
+            lead: 'Pass',
+            rest: 'on the clock strip moves the turn to the next seat.',
+          },
+        ]
+      : []),
+  ];
+}
+
+/**
+ * How the board works, shown once per device on the first shared board (the
+ * hub's Help sheet shows the same rows on demand). The seats carry no buttons
+ * (the Lotus model), so the gestures have to be taught somewhere; this is
+ * that somewhere.
  *
  * Screen-relative, never rotated to a seat: it is for whoever is holding the
  * device when the game starts, the same ruling as the clock and the win
@@ -47,27 +85,11 @@ export function BoardGestureHint({
           How the board works
         </h2>
         <ul className="board-hint-list">
-          <li>
-            <strong>Tap</strong> a seat&apos;s {vertical ? 'bottom or top' : 'left or right'} half
-            for −1 or +1.
-          </li>
-          <li>
-            <strong>Hold</strong> for ±10, and keep holding for more.
-          </li>
-          <li>
-            <strong>Tap the number</strong> to type a total.
-          </li>
-          <li>
-            <strong>Swipe a seat toward you</strong> for its drawer: name, counters, color, turn.
-          </li>
-          <li>
-            <strong>Swipe it away from you</strong> for commander damage.
-          </li>
-          {showTurnTracker && (
-            <li>
-              <strong>Pass</strong> on the clock strip moves the turn to the next seat.
+          {boardGestures(vertical, showTurnTracker).map((g) => (
+            <li key={g.id}>
+              <strong>{g.lead}</strong> {g.rest}
             </li>
-          )}
+          ))}
         </ul>
         <button type="button" className="board-hint-done" onClick={close}>
           Got it

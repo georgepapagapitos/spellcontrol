@@ -1,0 +1,648 @@
+/* The hub's destination sheets (board T155): BoardSheets.tsx + DiceSheet.tsx.
+   Themed surfaces (they pick up the app theme, unlike the always-dark board
+   under them), so focus rings are the standard accent ring. They render in
+   place inside `.game-board-rotator` and rotate with a board kept still. */
+
+.board-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: pp-fade-in 160ms ease-out;
+}
+
+/* Bottom sheet on a phone: the shell's corners are --radius-lg, top only. */
+.board-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 90dvh;
+  overflow: hidden;
+  padding-bottom: var(--safe-bottom);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  animation: board-sheet-up 220ms var(--ease-out-soft);
+}
+
+/* Focused only as a last resort (a sheet with nothing to act on), so the
+   title is read; the panel itself draws no ring. */
+.board-sheet:focus {
+  outline: none;
+}
+
+/* A roomy, unrotated board: a centred dialog. */
+@media (min-width: 600px) {
+  :where(.game-board-rotator:not([data-board-rot])) .board-sheet-backdrop {
+    align-items: center;
+    padding: var(--space-5);
+  }
+  :where(.game-board-rotator:not([data-board-rot])) .board-sheet {
+    width: min(32rem, 100%);
+    max-height: 82dvh;
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-modal);
+    animation: pp-scale-in 180ms var(--ease-out-soft);
+  }
+  :where(.game-board-rotator:not([data-board-rot])) .board-sheet-grabber {
+    display: none;
+  }
+}
+
+/* A board kept still in landscape is turned 90° (play-board.css): its own
+   height is the screen's width, while dvh is still the short landscape
+   height. `.game-board` is the size container in exactly this query, so cqw
+   is the board's height, the same trick the life keypad uses. */
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .game-board-rotator[data-board-rot] .board-sheet {
+    max-height: 90cqw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-sheet-backdrop,
+  .board-sheet {
+    animation: none;
+  }
+}
+
+@keyframes board-sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.board-sheet-grabber {
+  flex: none;
+  width: 36px;
+  height: 4px;
+  margin: var(--space-2) auto 0;
+  border-radius: 999px;
+  background: var(--border-strong);
+  opacity: 0.6;
+}
+
+.board-sheet-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-3) var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.board-sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.board-sheet-title-main {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.board-sheet-meta {
+  margin: 1px 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.3;
+  color: var(--text-muted);
+}
+
+/* The close is a 44px rect at every pointer: circular icon buttons are
+   retired, and this is a touch-first surface. */
+.board-sheet-close {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .board-sheet-close:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+}
+
+.board-sheet-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The ONE scroll region between the header and footer chrome. */
+.board-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  /* The sheet isn't inside a seat's gesture surface (touch-action: none),
+     stated anyway so the body always scrolls by touch. */
+  touch-action: pan-y;
+}
+
+.board-sheet-foot {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+/* Board sheets are touch-first at every width: every button keeps the 44px
+   floor even under a mouse. */
+.board-sheet .btn {
+  min-height: 44px;
+  font-size: var(--text-base);
+}
+
+.board-sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.board-sheet-section > .form-section-heading {
+  margin: 0;
+}
+
+.board-sheet-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+/* A note that carries its fix as a link (§ Config surfaces: a warning
+   offers its fix as a button). */
+.board-sheet-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--accent-light);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+.board-sheet-note > svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.board-sheet-note p {
+  margin: 0;
+}
+
+.board-sheet .board-sheet-note-fix {
+  min-height: 0;
+  padding: 0;
+  font-size: inherit;
+  vertical-align: baseline;
+}
+
+/* A coarse pointer still gets a 44px target round the inline link, without
+   growing the line it sits on. */
+@media (pointer: coarse) {
+  .board-sheet .board-sheet-note-fix {
+    position: relative;
+  }
+  .board-sheet .board-sheet-note-fix::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.board-sheet-divider {
+  margin: 2px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.board-sheet-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-2);
+  text-align: center;
+  color: var(--border-strong);
+}
+
+.board-sheet-empty-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── Players ── */
+
+.board-roster {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-roster-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  border-bottom: 1px solid var(--border);
+}
+
+.board-roster-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.board-roster-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-roster-remove {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.board-roster-remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .board-roster-remove:hover:not(:disabled) {
+    background: var(--err-bg);
+    border-color: var(--err-border);
+    color: var(--err-text);
+  }
+}
+
+.board-roster-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.board-sheet .board-roster-add {
+  align-self: flex-start;
+}
+
+/* ── Help ── */
+
+.board-help-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-help-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.35;
+}
+
+.board-help-row:last-child {
+  border-bottom: 0;
+}
+
+.board-help-diagram {
+  flex: none;
+}
+
+.board-help-diagram .gd-seat {
+  fill: var(--surface-raised);
+  stroke: var(--border-strong);
+}
+
+.board-help-diagram .gd-split {
+  stroke: var(--border-strong);
+  stroke-dasharray: 2 2;
+}
+
+.board-help-diagram .gd-dot {
+  fill: var(--accent);
+}
+
+.board-help-diagram .gd-halo {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.4;
+  opacity: 0.6;
+}
+
+.board-help-diagram .gd-arrow {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.board-help-diagram .gd-edge {
+  stroke: var(--text-primary);
+  stroke-width: 2;
+}
+
+.board-help-diagram .gd-num {
+  fill: var(--text-primary);
+  font-family: 'Bebas Neue', var(--font-mono);
+  font-size: var(--text-base);
+}
+
+/* ── Leave ── */
+
+.board-leave-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.board-sheet .board-leave-btn {
+  width: 100%;
+}
+
+/* ── Dice ── */
+
+/* The result slot is always there, so nothing below it moves on the first
+   roll. */
+.dice-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 124px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.dice-slot-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dice-slot-result {
+    animation: dice-slot-pop var(--motion-gentle) var(--ease-pop);
+  }
+}
+
+@keyframes dice-slot-pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.dice-slot-big {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Bebas Neue', var(--font-mono);
+  /* The slot's number reads like a board numeral: 64px. */
+  font-size: calc(var(--text-2xl) * 2);
+  font-weight: 400;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.dice-slot-big.is-word {
+  font-size: calc(var(--text-2xl) * 1.375);
+}
+
+.dice-slot-big.is-empty {
+  color: var(--border-strong);
+}
+
+.dice-slot-cap {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.dice-slot-faces {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.dice-slot-face {
+  min-width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dice-slot-hint {
+  margin-top: var(--space-2);
+}
+
+.dice-count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dice-stepper {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.dice-stepper-btn {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.dice-stepper-btn:disabled {
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dice-stepper-btn:hover:not(:disabled) {
+    background: var(--accent-light);
+  }
+}
+
+/* Inside the stepper's clipped box an outset ring would be cut off. */
+.dice-stepper-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.dice-stepper-value {
+  min-width: 48px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.dice-count-label {
+  font-size: var(--text-base);
+}
+
+.dice-keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+
+.board-sheet .dice-key {
+  padding: 0;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.board-sheet .dice-key-other {
+  grid-column: span 2;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+/* Open reads as a ring and a heavier word, not the accent alone. */
+.board-sheet .dice-key-other.is-open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  font-weight: 700;
+}
+
+.dice-other {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.dice-other-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.dice-other-field input {
+  width: 6.5rem;
+  height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+}
+
+.dice-other-field input[aria-invalid='true'] {
+  border-color: var(--err-border);
+}
+
+.dice-other-field input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dice-other-error {
+  flex-basis: 100%;
+  color: var(--err-text);
+}
+
+.dice-pair {
+  display: grid;
+  /* Two across where "Pick first player" fits, stacked on a 320px phone. */
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.board-sheet .dice-pair > .btn {
+  padding-inline: var(--space-2);
+}

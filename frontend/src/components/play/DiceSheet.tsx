@@ -1,5 +1,5 @@
-import { Coins, Target } from 'lucide-react';
-import { useState } from 'react';
+import { Coins, Minus, Plus, Target } from 'lucide-react';
+import { useId, useState } from 'react';
 import type { GameAction, GameState } from '../../lib/game-state';
 import {
   DIE_PRESETS,
@@ -10,33 +10,53 @@ import {
   type CoinSide,
 } from '../../lib/game-tools';
 import { haptics } from '../../lib/haptics';
-
-interface Props {
-  game: GameState;
-  dispatch: (a: GameAction) => void;
-}
+import { Button, IconButton } from '@/components/shared/Button';
+import { BoardSheet, SheetSection } from './BoardSheets';
 
 type Result =
   | { kind: 'coin'; side: CoinSide }
   | { kind: 'dice'; text: string; rolls: number[]; total: number }
   | { kind: 'first'; name: string };
 
+const MIN_COUNT = 1;
+const MAX_COUNT = 20;
+const MIN_SIDES = 2;
+const MAX_SIDES = 1000;
+
 /**
- * Pre-game / table tools: coin flip, dice, and random first-player. Every
- * result is also written to the game log as a `note` event so it shows up
- * in the timeline and survives online sync — no new reducer action needed.
+ * The Dice sheet (board T155): one control for dice instead of three. A count
+ * stepper and die keys whose labels say exactly what a tap rolls (`3d6`), so
+ * the common case stays one tap; Other… opens a sides field and the sheet's
+ * one primary, Roll. The result slot is always there, and before the first
+ * roll it says so. Coin and first player land in the same slot.
+ *
+ * Every result also goes to the game log as a `note`, so it shows in History
+ * and survives sync with no reducer action of its own. First player is the
+ * quiet pick, kept apart from the High roll ceremony on purpose (STYLE_GUIDE
+ * § the hub ring and its table moments).
  */
-export function GameTools({ game, dispatch }: Props) {
+export function DiceSheet({
+  game,
+  dispatch,
+  onClose,
+}: {
+  game: GameState;
+  dispatch: (a: GameAction) => void;
+  onClose: () => void;
+}) {
   const [result, setResult] = useState<Result | null>(null);
-  // Bumped on every roll to re-trigger the reveal animation via key remount.
+  // Bumped on every result to replay the reveal via a key remount.
   const [spin, setSpin] = useState(0);
-  const [dieSides, setDieSides] = useState(20);
-  const [dieCount, setDieCount] = useState(1);
-  // Raw text mirrors of the two fields above so the user can clear/retype
-  // without every keystroke snapping back through the clamp — the clamp
-  // itself only runs at commit (blur/Enter).
-  const [dieCountText, setDieCountText] = useState('1');
-  const [dieSidesText, setDieSidesText] = useState('20');
+  const [count, setCount] = useState(1);
+  const [otherOpen, setOtherOpen] = useState(false);
+  // Raw text so the field can be cleared and retyped; it's read at Roll.
+  const [sidesText, setSidesText] = useState('100');
+  const sidesId = useId();
+  const otherId = useId();
+  const sidesHintId = useId();
+  const sides = Number(sidesText);
+  const sidesValid = Number.isInteger(sides) && sides >= MIN_SIDES && sides <= MAX_SIDES;
+  const live = game.status !== 'finished';
 
   const announce = (message: string) => dispatch({ type: 'note', actorSeat: null, message });
   const reveal = (r: Result) => {
@@ -45,16 +65,16 @@ export function GameTools({ game, dispatch }: Props) {
     haptics.tap();
   };
 
+  const roll = (dieSides: number) => {
+    const r = rollDice(dieSides, count);
+    reveal({ kind: 'dice', text: `${r.count}d${r.sides}`, rolls: r.rolls, total: r.total });
+    announce(describeRoll(r));
+  };
+
   const onCoin = () => {
     const side = flipCoin();
     reveal({ kind: 'coin', side });
     announce(`Coin flip: ${side}`);
-  };
-
-  const onRoll = (sides: number, count = 1) => {
-    const r = rollDice(sides, count);
-    reveal({ kind: 'dice', text: `${r.count}d${r.sides}`, rolls: r.rolls, total: r.total });
-    announce(describeRoll(r));
   };
 
   const onFirstPlayer = () => {
@@ -62,133 +82,160 @@ export function GameTools({ game, dispatch }: Props) {
     if (!pick) return;
     reveal({ kind: 'first', name: pick.name });
     announce(`First player: ${pick.name}`);
-    // Record the pick as state, not just prose. The log note above is the
-    // human-readable moment; `startingSeat` is what the finished-game summary
-    // carries into the on-the-play win-rate rollup. Unlike coin/dice — genuinely
-    // ephemeral — who went first is a fact about the game worth aggregating.
+    // Who went first is a fact the on-the-play stat aggregates, so it lands
+    // in state as well as the log, and the turn marker moves there: "on the
+    // play" and "whose turn is it" are the same fact on turn one.
     dispatch({ type: 'settings', patch: { startingSeat: pick.seat } });
-    // …and move the turn marker there. "On the play" and "whose turn is it"
-    // are the same fact on turn one, so the tool that decides it is the honest
-    // place to light the marker up — otherwise turn tracking stays invisible
-    // until someone digs into a seat menu, which most tables never do.
     dispatch({ type: 'pass-turn', actorSeat: null, toSeat: pick.seat });
   };
 
   return (
-    <section className="game-menu-section game-tools" aria-label="Table tools">
-      <h3 className="game-tools-title">Tools</h3>
+    <BoardSheet title="Dice" onClose={onClose} className="dice-sheet">
+      <div>
+        <div className="dice-slot" aria-live="polite" aria-atomic="true">
+          {result ? (
+            <div key={spin} className="dice-slot-result">
+              {result.kind === 'dice' && (
+                <>
+                  {result.rolls.length > 1 && (
+                    <span className="dice-slot-faces">
+                      {result.rolls.map((n, i) => (
+                        <span key={i} className="dice-slot-face">
+                          {n}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  <span className="dice-slot-big">{result.total}</span>
+                  <span className="dice-slot-cap">
+                    {result.rolls.length > 1 ? `${result.text} · total` : result.text}
+                  </span>
+                </>
+              )}
+              {result.kind === 'coin' && (
+                <>
+                  <span className="dice-slot-big is-word">{result.side}</span>
+                  <span className="dice-slot-cap">Coin flip</span>
+                </>
+              )}
+              {result.kind === 'first' && (
+                <>
+                  <span className="dice-slot-big is-word">{result.name}</span>
+                  <span className="dice-slot-cap">goes first</span>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="dice-slot-result">
+              <span className="dice-slot-big is-empty" aria-hidden="true">
+                —
+              </span>
+              <span className="dice-slot-cap">No roll yet</span>
+            </div>
+          )}
+        </div>
+        <p className="board-sheet-hint dice-slot-hint">Every roll and flip goes in the game log.</p>
+      </div>
 
-      <div className="game-tools-result-wrap" aria-live="polite">
-        {result ? (
-          <div key={spin} className="game-tools-result is-pop">
-            {result.kind === 'coin' && (
-              <>
-                <span className="game-tools-result-big">{result.side === 'Heads' ? 'H' : 'T'}</span>
-                <span className="game-tools-result-sub">{result.side}</span>
-              </>
-            )}
-            {result.kind === 'dice' && (
-              <>
-                {result.rolls.length > 1 && (
-                  <div className="game-tools-dice-faces">
-                    {result.rolls.map((n, i) => (
-                      <span key={i} className="game-tools-die-face">
-                        {n}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <span className="game-tools-result-big">{result.total}</span>
-                <span className="game-tools-result-sub">
-                  {result.rolls.length > 1 ? `${result.text} · total` : result.text}
-                </span>
-              </>
-            )}
-            {result.kind === 'first' && (
-              <>
-                <span className="game-tools-result-big game-tools-result-name">{result.name}</span>
-                <span className="game-tools-result-sub">goes first</span>
-              </>
-            )}
+      <SheetSection title="Roll">
+        <div className="dice-count" role="group" aria-label="Dice per roll">
+          <div className="dice-stepper">
+            <IconButton
+              className="dice-stepper-btn"
+              label="Fewer dice"
+              icon={<Minus width={18} height={18} strokeWidth={2} />}
+              disabled={count <= MIN_COUNT}
+              onClick={() => setCount((n) => Math.max(MIN_COUNT, n - 1))}
+            />
+            <span className="dice-stepper-value" aria-live="polite">
+              {count}
+            </span>
+            <IconButton
+              className="dice-stepper-btn"
+              label="More dice"
+              icon={<Plus width={18} height={18} strokeWidth={2} />}
+              disabled={count >= MAX_COUNT}
+              onClick={() => setCount((n) => Math.min(MAX_COUNT, n + 1))}
+            />
           </div>
-        ) : (
-          <span className="game-tools-result-hint">Flip, roll, or pick a starting player.</span>
-        )}
-      </div>
+          <span className="board-sheet-hint dice-count-label">
+            {count === 1 ? 'die per roll' : 'dice per roll'}
+          </span>
+        </div>
 
-      <div className="game-tools-actions">
-        <button type="button" className="game-tools-btn" onClick={onCoin}>
-          <Coins width={14} height={14} aria-hidden /> Flip coin
-        </button>
-        <button type="button" className="game-tools-btn" onClick={onFirstPlayer}>
-          <Target width={14} height={14} aria-hidden /> First player
-        </button>
-      </div>
-
-      <div className="game-tools-dice" role="group" aria-label="Dice">
-        {DIE_PRESETS.map((d) => (
-          <button
-            key={d}
-            type="button"
-            className="game-tools-die"
-            aria-label={`Roll d${d}`}
-            onClick={() => onRoll(d)}
+        <div className="dice-keys">
+          {DIE_PRESETS.map((d, i) => (
+            <Button
+              key={d}
+              className="dice-key"
+              onClick={() => roll(d)}
+              aria-label={`Roll ${count}d${d}`}
+              data-autofocus={i === 0 || undefined}
+            >
+              {`${count}d${d}`}
+            </Button>
+          ))}
+          <Button
+            className={`dice-key dice-key-other${otherOpen ? ' is-open' : ''}`}
+            aria-expanded={otherOpen}
+            aria-controls={otherOpen ? otherId : undefined}
+            onClick={() => setOtherOpen((v) => !v)}
           >
-            d{d}
-          </button>
-        ))}
-      </div>
+            Other…
+          </Button>
+        </div>
 
-      <div className="game-tools-custom">
-        <label className="game-tools-custom-field">
-          <span>Count</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={20}
-            value={dieCountText}
-            onChange={(e) => setDieCountText(e.target.value)}
-            onBlur={() => {
-              const n = Math.max(1, Math.min(20, Number(dieCountText) || 1));
-              setDieCount(n);
-              setDieCountText(String(n));
+        {otherOpen && (
+          <form
+            id={otherId}
+            className="dice-other"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (sidesValid) roll(sides);
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-            }}
-          />
-        </label>
-        <span className="game-tools-custom-x" aria-hidden="true">
-          d
-        </span>
-        <label className="game-tools-custom-field">
-          <span>Sides</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={2}
-            max={1000}
-            value={dieSidesText}
-            onChange={(e) => setDieSidesText(e.target.value)}
-            onBlur={() => {
-              const n = Math.max(2, Math.min(1000, Number(dieSidesText) || 6));
-              setDieSides(n);
-              setDieSidesText(String(n));
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-            }}
-          />
-        </label>
-        <button
-          type="button"
-          className="game-tools-btn game-tools-custom-roll"
-          onClick={() => onRoll(dieSides, dieCount)}
-        >
-          Roll
-        </button>
-      </div>
-    </section>
+          >
+            <label className="dice-other-field" htmlFor={sidesId}>
+              <span>Sides</span>
+              <input
+                id={sidesId}
+                type="number"
+                inputMode="numeric"
+                min={MIN_SIDES}
+                max={MAX_SIDES}
+                value={sidesText}
+                aria-invalid={!sidesValid}
+                aria-describedby={sidesValid ? undefined : sidesHintId}
+                onChange={(e) => setSidesText(e.target.value)}
+              />
+            </label>
+            <Button type="submit" variant="primary" disabled={!sidesValid}>
+              {sidesValid ? `Roll ${count}d${sides}` : 'Roll'}
+            </Button>
+            {!sidesValid && (
+              <p id={sidesHintId} className="board-sheet-hint dice-other-error">
+                A die has 2 to 1000 sides.
+              </p>
+            )}
+          </form>
+        )}
+      </SheetSection>
+
+      <SheetSection title={live ? 'Coin and first player' : 'Coin'}>
+        <div className="dice-pair">
+          <Button icon={<Coins width={17} height={17} strokeWidth={2} />} onClick={onCoin}>
+            Flip a coin
+          </Button>
+          {live && (
+            <Button
+              icon={<Target width={17} height={17} strokeWidth={2} />}
+              onClick={onFirstPlayer}
+            >
+              Pick first player
+            </Button>
+          )}
+        </div>
+        {live && <p className="board-sheet-hint">Picking a first player also starts their turn.</p>}
+      </SheetSection>
+    </BoardSheet>
   );
 }
