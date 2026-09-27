@@ -1012,7 +1012,7 @@
 .scan-row-binder {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1);
   font-family: var(--font-label);
   font-size: var(--text-xs);
   letter-spacing: 0.02em;

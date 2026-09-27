@@ -33,6 +33,7 @@ import { formatMoney } from '../lib/format-money';
 import { formatRelativeTime } from '../lib/format-time';
 import { CONDITIONS, FINISH_LABELS, finishUnitPrice } from '../lib/scanner-feedback';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
+import { bindersUseTags, useCardsWithTags } from '../lib/card-tags';
 import type { ScannedEntry } from '../lib/use-scan-queue';
 
 /** Every scanner sheet sits over the full-screen camera, which is above the
@@ -126,15 +127,19 @@ export function ScannerQueueSheet({
   // the list can hold a booster box), then predict each row's destination
   // against the compiled candidates. Recomputes only when the queue or the
   // binder set actually changes, not on filter/sort/select-mode churn.
+  // Tag-decorated the same way BinderPage's cards are, so a "tag IS …" rule
+  // predicts the binder the card will actually land in.
+  const rowCards = useCardsWithTags(
+    useMemo(() => entries.map(entryToEnrichedCard), [entries]),
+    bindersUseTags(binders)
+  );
   const binderMatches = useMemo(() => {
     const matches = new Map<string, BinderDef | null>();
     if (binders.length === 0) return matches;
     const compiled = compileBinderCandidates(binders);
-    for (const e of entries) {
-      matches.set(e.id, nextBinderMatchCompiled(entryToEnrichedCard(e), compiled));
-    }
+    entries.forEach((e, i) => matches.set(e.id, nextBinderMatchCompiled(rowCards[i], compiled)));
     return matches;
-  }, [entries, binders]);
+  }, [entries, rowCards, binders]);
 
   const totalCount = entries.reduce((sum, e) => sum + e.qty, 0);
   const totalPrice = entries.reduce((sum, e) => sum + (unitPrice(e) ?? 0) * e.qty, 0);
