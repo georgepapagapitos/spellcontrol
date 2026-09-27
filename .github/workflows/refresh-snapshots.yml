@@ -91,6 +91,10 @@ jobs:
         working-directory: frontend
         run: node scripts/refresh-cube-signal.mjs
 
+      - name: Refresh pauper/peasant cube power signal (CubeCobra)
+        working-directory: frontend
+        run: node scripts/refresh-cube-signal-budget.mjs
+
       # Every run, not age-gated: the table is small and a new Secret Lair drop
       # adds flavor names between refreshes. Fails loudly (nothing builds from
       # the network), and refuses to write a collapsed table.
@@ -112,6 +116,8 @@ jobs:
               ["public/comprehensive-rules.json", (d) => !!d.meta],
               ["public/sld-drops.json", (d) => !!d.generatedAt],
               ["public/cube-signal.json", (d) => Object.keys(d.cards || {}).length > 20000],
+              ["public/cube-signal-pauper.json", (d) => Object.keys(d.cards || {}).length > 500],
+              ["public/cube-signal-peasant.json", (d) => Object.keys(d.cards || {}).length > 500],
             ];
             let bad = 0;
             for (const [file, ok] of checks) {
@@ -157,6 +163,8 @@ jobs:
               ["public/comprehensive-rules.json", "scripts/refresh-rules.mjs"],
               ["public/sld-drops.json", "scripts/refresh-sld-drops.mjs"],
               ["public/cube-signal.json", "scripts/refresh-cube-signal.mjs"],
+              ["public/cube-signal-pauper.json", "scripts/refresh-cube-signal-budget.mjs"],
+              ["public/cube-signal-peasant.json", "scripts/refresh-cube-signal-budget.mjs"],
             ];
             let stale = 0;
             for (const [file, script] of targets) {
@@ -200,6 +208,8 @@ jobs:
             frontend/public/comprehensive-rules.json
             frontend/public/sld-drops.json
             frontend/public/cube-signal.json
+            frontend/public/cube-signal-pauper.json
+            frontend/public/cube-signal-peasant.json
             packages/binder-routing/src/flavor-names.ts
           body: |
             Automated refresh of the age-gated build snapshots, via the **Refresh build snapshots** workflow.

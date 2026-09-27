@@ -17,10 +17,16 @@ import type { EnrichedCard } from '../../types';
 import type { CubeCard } from '../../lib/cube/core';
 import type { SavedCube } from '../../store/cube';
 import { buildShoppingList, type ShoppingRow } from '../../lib/cube/shopping-list';
-import { hasCubeSignal, loadCubeSignal, rankedCubeSignalNames } from '../../lib/cube/signal';
+import {
+  hasCubeSignal,
+  loadCubeSignal,
+  rankedCubeSignalNames,
+  rankedScopedSignalNames,
+} from '../../lib/cube/signal';
 import { fetchCubeOracle } from '../../lib/cube/oracle';
 import { namesToCubePool } from '../../lib/cube/pool';
 import { formatExclusion } from '../../lib/cube/play-format';
+import type { RarityCap } from '../../lib/cube/pool-filters';
 import { ensureCardTags, getCardTags, isCardTagsFailed } from '@/lib/card-tags';
 
 /** How many popular-by-cube-signal names to fetch oracle facts for — a bound
@@ -80,7 +86,13 @@ export function CubeShoppingList({ target, loadPool }: Props) {
       setError('');
       setPricesReady(false);
       try {
-        // The candidate walk below reads `getCardTags`/`rankedCubeSignalNames`
+        // A pauper/peasant cube ranks candidates from that corpus, not the
+        // all-cube signal — otherwise a pauper cube's shopping list would
+        // suggest rares and mythics its own pool can never contain. Read from
+        // the settings the cube was (re)built with, same as `loadPool` above
+        // (CubeDetailPage threads the same `filters` into both).
+        const scope: RarityCap = target.settings?.filters.rarity ?? 'any';
+        // The candidate walk below reads `getCardTags`/the ranked-name walk
         // SYNCHRONOUSLY — both are empty until their snapshot has loaded, so
         // both loaders are awaited explicitly here rather than assumed as a
         // side effect of `loadPool` (whose own contract is only "returns a
@@ -88,7 +100,11 @@ export function CubeShoppingList({ target, loadPool }: Props) {
         // Commander-only / group-hug candidate through silently before this
         // fix, and would break again the moment `loadPool` is backed by
         // anything else — a mock, a future refactor of useOwnedCubePool).
-        const [builtPool] = await Promise.all([loadPool(), ensureCardTags(), loadCubeSignal()]);
+        const [builtPool] = await Promise.all([
+          loadPool(),
+          ensureCardTags(),
+          loadCubeSignal(scope),
+        ]);
         if (cancelled) return;
         if (!builtPool) throw new Error("Couldn't load your collection's cards. Try again.");
         // Both loaders swallow their own network errors (they degrade to "no
@@ -96,15 +112,17 @@ export function CubeShoppingList({ target, loadPool }: Props) {
         // failed fetch never throws on its own. Left unchecked, that reads as
         // "nothing beats the cube" (the empty state) rather than the failure
         // it is — this is what let a blocked cube-signal request land there.
-        if (!hasCubeSignal() || isCardTagsFailed()) {
+        if (!hasCubeSignal(scope) || isCardTagsFailed()) {
           throw new Error("Couldn't load card popularity. Try again.");
         }
 
         const format = target.cube.format ?? 'limited';
         const ownedNames = new Set(collectionCards.map((c) => c.name));
         const inCubeNames = new Set(target.cube.picks.map((p) => p.card.name));
+        const rankedNames =
+          scope === 'any' ? rankedCubeSignalNames() : rankedScopedSignalNames(scope);
         const names: string[] = [];
-        for (const name of rankedCubeSignalNames()) {
+        for (const name of rankedNames) {
           if (names.length >= CANDIDATE_LIMIT) break;
           if (ownedNames.has(name) || inCubeNames.has(name)) continue;
           if (formatExclusion(format, getCardTags(name))) continue;
@@ -113,7 +131,7 @@ export function CubeShoppingList({ target, loadPool }: Props) {
 
         const enriched = await fetchCubeOracle(names, collectionCards);
         if (cancelled) return;
-        const candidates = namesToCubePool(names, collectionCards, enriched);
+        const candidates = namesToCubePool(names, collectionCards, enriched, scope);
         const ownedOracleIds = new Set(
           collectionCards.map((c) => c.oracleId).filter((id): id is string => Boolean(id))
         );
