@@ -22,15 +22,26 @@ import {
   bucketOf,
   curveSlotOf,
   pairsFixedBy,
+  byQuality,
   type ColorPair,
   type CubeCard,
 } from './core';
+import { selectLegends, type LegendPick } from './legend';
 
 // The card shape and the pure classifiers live in ./core so `objective` and
 // `refine` can reach them without importing back up into this module — that
 // was a value-level import cycle. Re-exported here so every existing
 // `from './cube/generate'` import site keeps working unchanged.
-export { COLORS, COLOR_PAIRS, isLand, bucketOf, curveSlotOf, pairOf, pairsFixedBy } from './core';
+export {
+  COLORS,
+  COLOR_PAIRS,
+  isLand,
+  bucketOf,
+  curveSlotOf,
+  pairOf,
+  pairsFixedBy,
+  byQuality,
+} from './core';
 export type { ColorPair, CubeCard } from './core';
 
 /** One selected card plus the slot it was picked to fill (the "why"). */
@@ -63,6 +74,13 @@ export interface GeneratedCube {
    * Always computed; absent only on cubes saved before the objective shipped.
    */
   score?: CubeScore;
+  /**
+   * The Commander legend section (see ./legend) — ADDITIONAL to `size`, never
+   * counted in `picks`/`byBucket`/`shortfall`. Present only for
+   * `format: 'commander'`; absent for `limited` and for any cube saved before
+   * this shipped, so an old save round-trips unchanged.
+   */
+  legends?: LegendPick[];
 }
 
 /** Optional knobs for cube generation. */
@@ -163,19 +181,6 @@ export function dedupeByOracle(rawPool: CubeCard[]): CubeCard[] {
   }
   return [...byOracle.values()];
 }
-
-/** quality: the cube-native signal first — higher CubeCobra popularity (share
- *  of cubes holding the card), then higher draft Elo — and EDHREC rank only for
- *  cards CubeCobra has never seen, which sort after every cubed card (lower rank
- *  = better; unknown last). EDHREC rank alone is Commander popularity: it put
- *  Command Tower and Arcane Signet at the top of a draft cube's colorless
- *  section (E288). oracleId breaks ties so every sort (and thus the whole cube)
- *  is deterministic regardless of the pool's incoming order. */
-export const byQuality = (a: CubeCard, b: CubeCard) =>
-  (b.cubePop ?? -1) - (a.cubePop ?? -1) ||
-  (b.cubeElo ?? -1) - (a.cubeElo ?? -1) ||
-  (a.rank ?? Infinity) - (b.rank ?? Infinity) ||
-  a.oracleId.localeCompare(b.oracleId);
 
 /** Largest-remainder apportionment so bucket targets sum exactly to `size`.
  *  Normalizes `shares` to sum to 1 first — the mined per-band shares are each
@@ -825,6 +830,17 @@ export function generateCube(
     finalByBucket = refined.byBucket;
     score = refined.score;
   }
+
+  // Legends are a parallel, ADDITIONAL section for a Commander cube — computed
+  // last, against the FINAL spell picks (post-refine, if it ran), so a
+  // legendary creature the greedy or refiner actually seated as a spell is
+  // never also offered as a commander. See ./legend for why this never touches
+  // (or is touched by) the refiner.
+  const legends =
+    format === 'commander'
+      ? selectLegends(pool, size, new Set(finalPicks.map((p) => p.card.oracleId)))
+      : undefined;
+
   return {
     size,
     format,
@@ -835,6 +851,7 @@ export function generateCube(
     shortfall,
     poolSize: pool.length,
     score,
+    legends,
   };
 }
 

@@ -30,12 +30,14 @@ import {
   generateCube,
   pairOf,
   pairsFixedBy,
+  COLORS,
   COLOR_PAIRS,
   type ColorPair,
   type CubeCard,
   type GeneratedCube,
   type Pick,
 } from './generate';
+import { isLegendCandidate, legendIdentityOf, LEGEND_TARGET, type LegendIdentity } from './legend';
 import { namesToCubePool } from './pool';
 import {
   filterPool,
@@ -150,6 +152,13 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
   let limitedHidden: PoolHidden;
   const rows: Row[] = [];
   const goodstuffBySize = new Map<CubeSize, GeneratedCube>();
+  /** Per-size legend colour-identity supply vs. achieved (board #12, PR1). */
+  const legendCoverageRows: {
+    size: CubeSize;
+    target: number;
+    achievedCount: number;
+    report: Record<string, { supply: number; achieved: number }>;
+  }[] = [];
 
   beforeAll(async () => {
     const taggerData = JSON.parse(
@@ -217,6 +226,15 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
       [...goodstuffBySize].map(([size, cube]) => [size, names(cube)])
     );
     writeFileSync(out, JSON.stringify({ ...summary, rows, goodstuffPicks }, null, 2));
+    if (legendCoverageRows.length > 0) {
+      const legendOut = join(OUT_DIR, 'legend-coverage.json');
+      writeFileSync(legendOut, JSON.stringify(legendCoverageRows, null, 2));
+      console.log(
+        legendCoverageRows
+          .map((r) => `commander legends ${r.size}: ${r.achievedCount}/${r.target} → ${legendOut}`)
+          .join('\n')
+      );
+    }
     const fmt = (n: number) => n.toFixed(3);
     console.log(
       ['size  level  pool     ms     total  oldTot arch   inter  removal creature ramp   swaps']
@@ -308,6 +326,74 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           (c) => formatExclusion('limited', getCardTags(c.name)) === 'commanderOnly'
         )
       ).toBe(true);
+    });
+  });
+
+  // Commander legend section (board #12, PR1): the legend classifier + quota,
+  // harness-only — proven here and by unit tests, not yet reachable from any
+  // UI (PR2 wires the build page). The T150 lesson this guards against: never
+  // ship the format picker ahead of a real, non-empty, colour-spread legend
+  // pool at every offered size on a real collection.
+  describe('commander legends (board #12, PR1)', () => {
+    const ALL_IDENTITIES: LegendIdentity[] = [...COLORS, ...COLOR_PAIRS, 'other'];
+
+    for (const size of CUBE_SIZES) {
+      it(`${size}: legend count matches LEGEND_TARGET, additional to the spell size`, () => {
+        const cube = generateCube(commanderPool, size, { synergyLevel: 0, format: 'commander' });
+        expect(cube.legends).toBeDefined();
+        expect(cube.legends!.length).toBe(LEGEND_TARGET[size]);
+        // Additional to size (open question 3) — the spell section is its own,
+        // unaffected full-size cube.
+        expect(cube.picks.length).toBe(size);
+        expect(cube.shortfall).toBe(0);
+      });
+
+      it(`${size}: colour-identity coverage — every identity the pool supports is represented`, () => {
+        const cube = generateCube(commanderPool, size, { synergyLevel: 0, format: 'commander' });
+        const pickedIds = new Set(cube.picks.map((p) => p.card.oracleId));
+        const supply = {} as Record<LegendIdentity, number>;
+        for (const id of ALL_IDENTITIES) supply[id] = 0;
+        for (const c of commanderPool) {
+          if (!isLegendCandidate(c) || pickedIds.has(c.oracleId)) continue;
+          supply[legendIdentityOf(c)]++;
+        }
+        const achieved = {} as Record<LegendIdentity, number>;
+        for (const id of ALL_IDENTITIES) achieved[id] = 0;
+        for (const l of cube.legends!) achieved[l.identity]++;
+
+        const report: Record<string, { supply: number; achieved: number }> = {};
+        for (const id of ALL_IDENTITIES) {
+          report[id] = { supply: supply[id], achieved: achieved[id] };
+          // Coverage guarantee: any identity the pool genuinely supports (at
+          // least one eligible, not-already-a-spell candidate) is represented.
+          if (supply[id] > 0) {
+            expect(achieved[id], `${size}/${id} coverage`).toBeGreaterThanOrEqual(1);
+          }
+        }
+        legendCoverageRows.push({
+          size,
+          target: LEGEND_TARGET[size],
+          achievedCount: cube.legends!.length,
+          report,
+        });
+      });
+    }
+
+    it('a legend is never also a spell pick, at either end of the slider — the refiner never sees legends, so it can never swap one in', () => {
+      for (const level of [0, 1] as const) {
+        const cube = generateCube(commanderPool, 360, { synergyLevel: level, format: 'commander' });
+        const pickIds = new Set(cube.picks.map((p) => p.card.oracleId));
+        const overlap = cube.legends!.filter((l) => pickIds.has(l.card.oracleId));
+        expect(overlap, `level ${level} overlap`).toEqual([]);
+        // Singleton within the legend section itself, too.
+        const legendIds = cube.legends!.map((l) => l.card.oracleId);
+        expect(new Set(legendIds).size).toBe(legendIds.length);
+      }
+    });
+
+    it('a limited-format cube never carries a legends section', () => {
+      const cube = generateCube(pool, 360, { synergyLevel: 0 });
+      expect(cube.legends).toBeUndefined();
     });
   });
 
