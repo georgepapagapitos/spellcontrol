@@ -63,6 +63,7 @@ function SharedViewInner({ token }: { token: string }) {
     | { status: 'error'; message: string }
     | { status: 'ready'; payload: PublicShareResponse }
   >({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +92,7 @@ function SharedViewInner({ token }: { token: string }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, attempt]);
 
   // Undefined while the share is still loading — the hook no-ops until then, so
   // the tab keeps whatever title it already had. The gated states name
@@ -142,7 +143,15 @@ function SharedViewInner({ token }: { token: string }) {
     );
   }
   if (state.status === 'error') {
-    return <ErrorView message={state.message} />;
+    return (
+      <ErrorView
+        message={state.message}
+        onRetry={() => {
+          setState({ status: 'loading' });
+          setAttempt((n) => n + 1);
+        }}
+      />
+    );
   }
 
   const { payload } = state;

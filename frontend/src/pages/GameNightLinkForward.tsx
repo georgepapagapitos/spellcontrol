@@ -5,11 +5,10 @@ import {
   resolveGuestInvite,
   saveGuestInviteToken,
 } from '../lib/game-nights-api';
-import { SharedShell } from '../components/share/SharedShell';
+import { ErrorView, NotFoundView, SharedShell } from '../components/share/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
 /**
  * Shared landing for the two link types that resolve to a night rather than
  * being one: the stable weekly-series link (/gn/s/:token, E125) and a named
@@ -31,6 +30,7 @@ export function GameNightLinkForward({
   const [state, setState] = useState<
     { status: 'loading' } | { status: 'notFound' } | { status: 'error'; message: string }
   >({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!token) return;
@@ -56,31 +56,25 @@ export function GameNightLinkForward({
     };
     // `resolve` is a stable module-level closure at both call sites.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, navigate]);
+  }, [token, navigate, attempt]);
 
   if (!token || state.status === 'notFound') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <div className="shared-view shared-view--missing">
-          <h1>Link not found</h1>
-          <p>{notFoundMessage}</p>
-          <Button variant="primary" to="/" className="shared-copy-btn">
-            Go to SpellControl
-          </Button>
-        </div>
+        <NotFoundView message={notFoundMessage} />
       </SharedShell>
     );
   }
   if (state.status === 'error') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <div className="shared-view shared-view--error">
-          <h1>Something went wrong</h1>
-          <p>{state.message}</p>
-          <Button variant="primary" to="/" className="shared-copy-btn">
-            Go to SpellControl
-          </Button>
-        </div>
+        <ErrorView
+          message={state.message}
+          onRetry={() => {
+            setState({ status: 'loading' });
+            setAttempt((n) => n + 1);
+          }}
+        />
       </SharedShell>
     );
   }

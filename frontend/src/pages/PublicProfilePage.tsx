@@ -257,6 +257,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
     | { status: 'error'; message: string }
     | { status: 'ready'; profile: PublicProfile }
   >({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
   const [reporting, setReporting] = useState(false);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -289,7 +290,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
     return () => {
       cancelled = true;
     };
-  }, [username, navigate]);
+  }, [username, navigate, attempt]);
 
   useEffect(() => {
     if (state.status !== 'ready') return;
@@ -303,7 +304,15 @@ function PublicProfilePageInner({ username }: { username: string }) {
     return <NotFoundView title="Profile not found" message={NOT_FOUND_MESSAGE} />;
   }
   if (state.status === 'error') {
-    return <ErrorView message={state.message} />;
+    return (
+      <ErrorView
+        message={state.message}
+        onRetry={() => {
+          setState({ status: 'loading' });
+          setAttempt((n) => n + 1);
+        }}
+      />
+    );
   }
 
   const { profile } = state;
