@@ -137,6 +137,29 @@ describe('buildCommands', () => {
     expect(go).toHaveBeenCalledWith('/collection?add=list');
   });
 
+  it('offers Empty deck next to New deck: it creates the deck, then opens it (E465)', () => {
+    const go = vi.fn();
+    const createEmptyDeck = vi.fn(() => 'empty-1');
+    const commands = buildCommands({ decks: [], go, createEmptyDeck });
+    const actions = commands.filter((c) => c.group === 'Actions').map((c) => c.id);
+    expect(actions.indexOf('action:empty-deck')).toBe(actions.indexOf('action:new-deck') + 1);
+
+    const empty = commands.find((c) => c.id === 'action:empty-deck')!;
+    expect(empty.label).toBe('Empty deck');
+    // Building the palette never creates a deck; only running the command does.
+    expect(createEmptyDeck).not.toHaveBeenCalled();
+    empty.run();
+    expect(createEmptyDeck).toHaveBeenCalledTimes(1);
+    expect(go).toHaveBeenCalledWith('/decks/empty-1');
+    expect(scoreCommand(empty, 'blank')).toBeGreaterThan(0);
+  });
+
+  it('omits Empty deck when there is no way to create one', () => {
+    expect(
+      buildCommands({ decks: [], go: vi.fn() }).find((c) => c.id === 'action:empty-deck')
+    ).toBeUndefined();
+  });
+
   it('offers Scan cards only when the device can scan', () => {
     const go = vi.fn();
     expect(

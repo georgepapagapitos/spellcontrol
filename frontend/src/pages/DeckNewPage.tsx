@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Zap } from 'lucide-react';
+import { ArrowRight, Plus, Zap } from 'lucide-react';
 // New-deck-only stylesheets ship with this chunk, not the boot payload (E265).
 import '@/styles/deck-builder-customizer.css';
 import '@/styles/deck-builder-import-dialog.css';
 import '@/styles/deck-builder-commander-profile.css';
+import './DeckNewPage.css';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { BackLink } from '../components/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
@@ -24,6 +25,7 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
 import { usePublishOnCreate, type PublishOutcome } from '../lib/use-publish-on-create';
+import { createEmptyDeck } from '../lib/create-empty-deck';
 import { VisibilityChoice } from '../components/VisibilityChoice';
 import type { ScryfallCard, DeckFormat, EDHRECTheme, Customization } from '@/deck-builder/types';
 import type { ComboSeedContext } from '../types/combos';
@@ -197,6 +199,7 @@ export function DeckNewPage() {
   const [formatExpanded, setFormatExpanded] = useState(false);
   // Radios group by shared `name` — scope each group to this page instance.
   const formatGroup = useId();
+  const emptyDoorId = useId();
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
   const isPdh = selectedFormat === 'paupercommander';
 
@@ -314,6 +317,19 @@ export function DeckNewPage() {
     colorReady,
   ]);
 
+  // ── Empty deck (E465) ─────────────────────────────────────────────────
+  // One tap to a deck with no commander, in the selected format; the
+  // commander comes later, from the editor. Only for a commander format
+  // (the others already create in one step at the foot of a short page),
+  // and not when the page opened with an intent of its own: a prefill
+  // (regenerate, combo seed) or the "From my binder" door. Once a commander
+  // is picked, Start blank beside Generate is the same start.
+  const showEmptyDoor =
+    formatConfig.hasCommander && !prefill && commanderSource !== 'binder' && !commander;
+  const handleEmptyDeck = useCallback(() => {
+    navigate(`/decks/${createEmptyDeck(selectedFormat, createDeck)}`);
+  }, [navigate, selectedFormat, createDeck]);
+
   // Per-mode CTA copy + readiness. Art Theme can't build without a motif chosen.
   const genMode = customization.generationMode;
   const modeReady = genMode !== 'art-theme' || customization.artThemeTag.trim().length > 0;
@@ -406,8 +422,8 @@ export function DeckNewPage() {
           {formatConfig.hasCommander ? (
             <>
               {isPdh
-                ? 'Pick an uncommon creature to lead, then generate a deck, start from scratch, or '
-                : 'Pick a commander, then generate a deck, start from scratch, or '}
+                ? 'Build a deck around an uncommon creature, or '
+                : 'Build a deck around a commander, or '}
             </>
           ) : (
             <>Create a {formatConfig.label} deck and add cards, or </>
@@ -441,6 +457,29 @@ export function DeckNewPage() {
             These cards are pinned as must-includes. Generation seats them first.
           </p>
         </section>
+      )}
+
+      {showEmptyDoor && (
+        <button
+          type="button"
+          className="deck-new-empty-door"
+          aria-labelledby={`${emptyDoorId}-title`}
+          aria-describedby={`${emptyDoorId}-desc`}
+          onClick={handleEmptyDeck}
+        >
+          <span className="deck-new-empty-door-glyph" aria-hidden>
+            <Plus width={18} height={18} />
+          </span>
+          <span className="deck-new-empty-door-text">
+            <span id={`${emptyDoorId}-title`} className="deck-new-empty-door-title">
+              Empty deck
+            </span>
+            <span id={`${emptyDoorId}-desc`} className="deck-new-empty-door-desc">
+              Add cards now. Choose the commander later.
+            </span>
+          </span>
+          <ArrowRight className="deck-new-empty-door-go" width={16} height={16} aria-hidden />
+        </button>
       )}
 
       {showImport && (
@@ -504,8 +543,8 @@ export function DeckNewPage() {
       )}
 
       {/* Brew walks the EDHREC-driven Commander flow — no PDH data there. It
-          sits BELOW the commander picker, not above it: the subtitle's first
-          instruction is "Pick a commander", and on a 360px phone the promo
+          sits BELOW the commander picker, not above it: the picker is the
+          page's first instruction, and on a 360px phone the promo
           box used to push the picker under the tab bar, so the first thing
           in reach was a secondary mode. A commander already picked here
           rides along (router state) — brew resets the builder store on mount

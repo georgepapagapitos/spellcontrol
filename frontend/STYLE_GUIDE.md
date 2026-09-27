@@ -7248,12 +7248,24 @@ prefix is muted (`.deck-visibility-chip-prefix`).
 
 **Secondary modes sit below the primary action they fork from.** On
 `/decks/new` the brew door ("Prefer to pick every card?") renders _after_ the
-commander picker, not between Format and Commander: the subtitle's first
-instruction is "Pick a commander", and on a 360px phone the promo box used to
+commander picker, not between Format and Commander: the picker is the
+page's first instruction, and on a 360px phone the promo box used to
 push the picker under the tab bar. A commander picked before "Start brewing"
 travels with the navigation (router state) and `BrewBuildPage` re-applies it
 after its mount-only store reset, so the fork never asks for the same choice
 twice.
+
+**The empty start is an open slot above Format** (E465). "Empty deck" on
+`/decks/new` is one compact dashed row (`.deck-new-empty-door`, the
+BinderStartChooser Blank idiom: dashed `--border-strong`, transparent,
+`--radius-lg`) between the header and Format. One tap creates a deck with no
+commander in the selected format and opens it. It shows only for a commander
+format, with no prefill or "From my binder" intent, and until a commander is
+picked (then Start blank beside Generate is the same start). The deck is
+created **Private**: an empty "Untitled deck" never publishes itself; the
+editor's Sharing chip publishes it later. The ⌘K "Empty deck" command is the
+same start. The row stays one line of description on a phone so Commander
+search still begins on the first screen.
 
 ## The You page — one page, one name, precise doors
 

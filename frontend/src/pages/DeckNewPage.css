@@ -1,0 +1,78 @@
+/* DeckNewPage's own rules. Loads with the new-deck chunk, not the boot
+   payload (see STYLE_GUIDE "CSS file layout"). */
+
+/* The "Empty deck" door (E465): a way to start without a preset, drawn as an
+   open slot like BinderStartChooser's Blank tile (BinderEditor.css
+   `.binder-start-tile--alt`). One compact row so Commander search still
+   starts on a phone's first screen. Capped on a wide screen so the arrow
+   stays near the words it belongs to. */
+.deck-new-empty-door {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 560px;
+  min-height: 44px;
+  padding: var(--space-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast);
+}
+
+.deck-new-empty-door-glyph {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--accent);
+}
+
+.deck-new-empty-door-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.deck-new-empty-door-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.deck-new-empty-door-desc {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.deck-new-empty-door-go {
+  flex: none;
+  color: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-new-empty-door:hover {
+    border-color: var(--accent);
+  }
+}
+
+.deck-new-empty-door:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Same step down as the page subtitle below the desktop tier, so the
+   description stays on one line at 390px. */
+@media (max-width: 1023px) {
+  .deck-new-empty-door-desc {
+    font-size: var(--text-xs);
+  }
+}

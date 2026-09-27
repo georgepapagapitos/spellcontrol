@@ -88,6 +88,9 @@ export interface BuildCommandsCtx {
   /** Whether this device can use the camera scanner (`useCanScan()`) — gates
    *  the "Scan cards" action the same way the Add cards sheet's Scan tab does. */
   canScan?: boolean;
+  /** Create an empty Commander deck and return its id (`createEmptyDeck`).
+   *  Absent means no "Empty deck" command. */
+  createEmptyDeck?: () => string;
 }
 
 /**
@@ -103,6 +106,7 @@ export function buildCommands({
   aiAvailable,
   deckPage,
   canScan,
+  createEmptyDeck,
 }: BuildCommandsCtx): Command[] {
   const out: Command[] = ROUTES.map((r) => ({
     id: `nav:${r.path}`,
@@ -130,9 +134,24 @@ export function buildCommands({
       id: 'action:new-deck',
       label: 'New deck',
       group: 'Actions',
+      hint: 'Pick a commander or format',
       keywords: ['create', 'build'],
       run: () => go('/decks/new'),
     },
+    // The /decks/new page's "Empty deck" door (E465), next to New deck.
+    // Created Private, like the door.
+    ...(createEmptyDeck
+      ? [
+          {
+            id: 'action:empty-deck',
+            label: 'Empty deck',
+            group: 'Actions' as const,
+            hint: 'Start adding cards',
+            keywords: ['blank', 'empty', 'start', 'create', 'new deck'],
+            run: () => go(`/decks/${createEmptyDeck()}`),
+          },
+        ]
+      : []),
     {
       // DecksIndexPage owns the import dialog as local state, so the palette
       // asks for it through location state — the same channel DeckNewPage's

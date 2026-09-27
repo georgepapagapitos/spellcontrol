@@ -7,6 +7,7 @@ import { useAiStatus } from '../lib/use-ai-status';
 import { useCanScan } from '../lib/use-can-scan';
 import { useSearchCards } from '../lib/use-search-cards';
 import { useCardCarousel } from './deck/useCardCarousel';
+import { createEmptyDeck } from '../lib/create-empty-deck';
 import {
   buildCommands,
   flattenGroups,
@@ -66,6 +67,7 @@ export function CommandPalette({ onClose }: Props): JSX.Element {
         aiAvailable: !!aiStatus,
         deckPage,
         canScan,
+        createEmptyDeck: () => createEmptyDeck(),
         go: (path, state) => {
           onClose();
           navigate(path, state ? { state } : undefined);
