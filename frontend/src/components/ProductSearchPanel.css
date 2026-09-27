@@ -441,3 +441,14 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* The copies stepper holds a one- or two-digit count: size it to that, never
+   the sheet's width (the shared .card-edit-qty-input grows to fill a row). */
+.product-qty-controls {
+  width: fit-content;
+}
+
+.product-qty-input {
+  flex: 0 0 auto;
+  width: 3rem;
+}

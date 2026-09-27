@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlignJustify, ChevronLeft, Layers, LayoutGrid, Package, Rows3 } from 'lucide-react';
 import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
@@ -38,7 +38,7 @@ import './ProductSearchPanel.css';
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
-import { SwitchRow } from '@/components/shared/form';
+import { Field, SwitchRow } from '@/components/shared/form';
 /** Carousel entries for a product's full physical contents (one swipeable card per copy-set). */
 function physicalToEntries(physicalCards: ProductPhysicalCard[]): CarouselEntry[] {
   return physicalCards.map((pc) => ({
@@ -173,22 +173,25 @@ function ProductQuantityField({
     setPrevValue(value);
     setText(String(value));
   }
+  const inputId = useId();
+  // A kit Field: a sentence-case label bound to the input (§ Config surfaces),
+  // and a stepper sized to its content rather than stretched across the sheet.
   return (
-    <div className="card-edit-qty">
-      <span className="card-edit-qty-label">Copies</span>
-      <div className="card-edit-qty-controls">
+    <Field label="Copies" htmlFor={inputId}>
+      <div className="card-edit-qty-controls product-qty-controls">
         <button
           type="button"
           className="card-edit-qty-btn"
           onClick={() => onChange(clamp(value - 1))}
           disabled={disabled || value <= 1}
-          aria-label="Decrease"
+          aria-label="One fewer copy"
         >
           −
         </button>
         <input
+          id={inputId}
           type="number"
-          className="card-edit-qty-input"
+          className="card-edit-qty-input product-qty-input"
           min={1}
           max={MAX_PRODUCT_QUANTITY}
           value={text}
@@ -203,19 +206,18 @@ function ProductQuantityField({
           onKeyDown={(e) => {
             if (e.key === 'Enter') e.currentTarget.blur();
           }}
-          aria-label="Copies"
         />
         <button
           type="button"
           className="card-edit-qty-btn"
           onClick={() => onChange(clamp(value + 1))}
           disabled={disabled || value >= MAX_PRODUCT_QUANTITY}
-          aria-label="Increase"
+          aria-label="One more copy"
         >
           +
         </button>
       </div>
-    </div>
+    </Field>
   );
 }
 

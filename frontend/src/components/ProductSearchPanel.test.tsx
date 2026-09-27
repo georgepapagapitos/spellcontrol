@@ -196,7 +196,7 @@ describe('ProductSearchPanel — collection context (default)', () => {
     renderPanel();
     await openProductDetail();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Increase' }));
+    fireEvent.click(screen.getByRole('button', { name: 'One more copy' }));
     expect(screen.getByRole('button', { name: 'Add 4 cards to collection' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add 4 cards to collection' }));
