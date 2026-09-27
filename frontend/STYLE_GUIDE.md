@@ -2168,7 +2168,12 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   so a query too short to search yet, or a panel that isn't open, never
   swallows the keys of whatever the host's input does with them otherwise. A
   new host follows this pattern rather than hand-rolling its own keydown
-  handler.
+  handler. A lookup page is the one exception: `/search` passes
+  `enterNeedsNav: true`, so Enter right after typing (out of habit, before
+  any ↑/↓) passes through instead of silently adding `CardSearchResults`'
+  row-0 default to the collection — an add flow (the Add cards workbench,
+  the list-add hosts) leaves this off, since a type-then-Enter quick add IS
+  the point there.
 - **`CardPreview` is one layout function with two shapes (E421, 2026-09-25).**
   It replaced the 2026-08-18 ruling ("≥1024px is two panes"), which it keeps
   and extends. Every length comes from the viewport (the backdrop is the one

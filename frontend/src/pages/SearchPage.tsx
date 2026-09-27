@@ -95,7 +95,17 @@ export function SearchPage() {
   // which only understands a subset of operators; surface the "online" notes.
   const offlineActive = useOfflineStore(offlineDataAvailable);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { resultsRef, onActiveChange, onKeyDown: resultsKeyDown } = useResultsKeys();
+  // A lookup page, not an add flow — Enter out of habit right after typing
+  // must not silently add the top hit (CardSearchResults starts active on
+  // row 0), so this requires an explicit arrow press first.
+  const {
+    resultsRef,
+    onActiveChange,
+    onKeyDown: resultsKeyDown,
+  } = useResultsKeys({
+    enterNeedsNav: true,
+    resetKey: query,
+  });
 
   const insertExample = (snippet: string) => {
     const next = query.trim() ? `${query.replace(/\s+$/, '')} ${snippet}` : snippet;

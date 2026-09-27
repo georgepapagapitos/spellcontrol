@@ -159,4 +159,22 @@ describe('SearchPage keyboard nav', () => {
     expect(h.moveActive).not.toHaveBeenCalled();
     expect(h.addActive).not.toHaveBeenCalled();
   });
+
+  // /search is a lookup page, not an add flow: CardSearchResults starts
+  // active on row 0, so an Enter pressed out of habit right after typing
+  // must not silently add it (board T159/E457 follow-up).
+  it('requires an explicit arrow press before Enter adds, since this is a lookup page', async () => {
+    renderPage();
+    const input = screen.getByRole('textbox', { name: 'Search any card' });
+    fireEvent.change(input, { target: { value: 'sol ring' } });
+    await screen.findByTestId('results');
+    act(() => h.onActiveChange?.({ id: 'a', name: 'Sol Ring' }));
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(h.addActive).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(h.addActive).toHaveBeenCalledTimes(1);
+  });
 });

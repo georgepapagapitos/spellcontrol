@@ -75,3 +75,42 @@ describe('useResultsKeys', () => {
     expect(preventDefault).not.toHaveBeenCalled();
   });
 });
+
+// A lookup page (SearchPage) passes this so an Enter out of habit right
+// after typing doesn't silently add CardSearchResults' row-0 default.
+describe('useResultsKeys({ enterNeedsNav: true })', () => {
+  it('passes Enter through until an arrow has moved the active row, then adds', () => {
+    const { result } = renderHook(
+      ({ resetKey }) => useResultsKeys({ enterNeedsNav: true, resetKey }),
+      {
+        initialProps: { resetKey: 'sol ring' as unknown },
+      }
+    );
+    const handle: CardSearchResultsHandle = { moveActive: vi.fn(), addActive: vi.fn() };
+    result.current.resultsRef.current = handle;
+    act(() => result.current.onActiveChange({ id: 'a', name: 'Sol Ring' } as never));
+
+    act(() => result.current.onKeyDown(keyEvent('Enter').event));
+    expect(handle.addActive).not.toHaveBeenCalled();
+
+    act(() => result.current.onKeyDown(keyEvent('ArrowDown').event));
+    act(() => result.current.onKeyDown(keyEvent('Enter').event));
+    expect(handle.addActive).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-requires an arrow press once resetKey changes (a new query)', () => {
+    const { result, rerender } = renderHook(
+      ({ resetKey }) => useResultsKeys({ enterNeedsNav: true, resetKey }),
+      { initialProps: { resetKey: 'sol ring' as unknown } }
+    );
+    const handle: CardSearchResultsHandle = { moveActive: vi.fn(), addActive: vi.fn() };
+    result.current.resultsRef.current = handle;
+    act(() => result.current.onActiveChange({ id: 'a', name: 'Sol Ring' } as never));
+    act(() => result.current.onKeyDown(keyEvent('ArrowDown').event));
+
+    act(() => rerender({ resetKey: 'lightning bolt' }));
+
+    act(() => result.current.onKeyDown(keyEvent('Enter').event));
+    expect(handle.addActive).not.toHaveBeenCalled();
+  });
+});
