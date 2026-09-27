@@ -582,6 +582,185 @@
   color: var(--warn-text);
 }
 
+/* ---- draft simulation ---- */
+/* "Draftability" (T150 W4 #6) — its own disclosure directly under Cube health
+   (same collapsed-by-default family, same idiom), so the two read as one
+   group and the cards below never move further than one more summary line.
+   No warn colour anywhere here on purpose: a cube that doesn't clear the
+   two-colour bar yet isn't a defect the way an off-curve mana base is (see
+   `.cube-draft-sim-note`). Note: `.cube-draftability` (singular, no `sim`) is
+   a DIFFERENT, pre-existing class — the archetype-support score badge above —
+   do not conflate the two. */
+.cube-draft-sim {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cube-draft-sim-head {
+  margin: 0;
+}
+.cube-draft-sim-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: inherit;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+@media (pointer: coarse) {
+  .cube-draft-sim-toggle {
+    min-height: 44px;
+  }
+}
+.cube-draft-sim-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+.cube-draft-sim-toggle[aria-expanded='false'] .cube-group-chevron {
+  transform: rotate(-90deg);
+}
+.cube-draft-sim-summary {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.cube-draft-sim-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+.cube-draft-sim-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.cube-draft-sim-running {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.cube-draft-sim-label {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.cube-draft-sim-caption {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+/* Deliberately no color/icon — see the file-header comment. */
+.cube-draft-sim-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+.cube-draft-sim-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cube-draft-sim-stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.cube-draft-sim-stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.cube-draft-sim-pairs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cube-draft-sim-pair-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cube-draft-sim-pair-row {
+  display: grid;
+  grid-template-columns: 3rem minmax(2.4rem, auto) 1fr 2.6rem;
+  align-items: center;
+  gap: var(--space-2);
+}
+.cube-draft-sim-pips {
+  display: flex;
+  gap: var(--space-1);
+}
+.cube-draft-sim-pip {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-family: var(--font-label);
+  flex: none;
+}
+.cube-draft-sim-pair-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cube-draft-sim-pair-meter {
+  min-width: 0;
+}
+.cube-draft-sim-pair-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: right;
+}
+.cube-draft-sim-archetypes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cube-draft-sim-pill-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.cube-draft-sim-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
 /* ---- sample pack ---- */
 /* Closed by default (STYLE_GUIDE "index-page insight strips": never displace
    the page's primary content) — opening it draws the first pack, so it never
