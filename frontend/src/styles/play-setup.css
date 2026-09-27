@@ -160,7 +160,6 @@
 .play-setup-start {
   align-self: stretch;
   justify-content: center;
-  gap: 0.4rem;
   padding-block: 0.6rem;
   /* Explicit radius so btn's var(--radius) wins over any pill-btn inheritance */
   border-radius: var(--radius);
@@ -171,7 +170,6 @@
 .play-setup-watch {
   align-self: stretch;
   justify-content: center;
-  gap: 0.4rem;
   margin-top: var(--space-2);
   padding-block: 0.6rem;
   border-radius: var(--radius);

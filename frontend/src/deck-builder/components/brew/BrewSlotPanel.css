@@ -36,11 +36,10 @@
   display: flex;
 }
 
-/* Icon-plus-label nav affordances (sweep 3: literal arrow characters replaced
-   with the app's ArrowLeft/ArrowRight icon convention) — .btn/.btn-link don't
-   set their own gap since most call sites are text-only. */
-.brew-slot-search-toggle .btn-link,
-.brew-slot-nav .btn {
+/* Icon-plus-label link (sweep 3: literal arrow characters replaced with the
+   app's ArrowLeft/ArrowRight icon convention). `.btn` carries the icon gap
+   itself (--icon-gap); `.btn-link` does not. */
+.brew-slot-search-toggle .btn-link {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;

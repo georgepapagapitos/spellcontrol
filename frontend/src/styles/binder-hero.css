@@ -546,7 +546,7 @@
 .pill-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--icon-gap);
   flex-shrink: 0;
   padding: 0.45rem 0.95rem;
   /* T53 Phase 4: hero CTAs are stamped rects now — the pill-hero tier is
@@ -647,7 +647,6 @@
 .page-actions .btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
 }
 
 /* Coarse-pointer floors. Browse pages shares a dense summary line with the

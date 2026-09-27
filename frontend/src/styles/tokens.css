@@ -107,6 +107,12 @@
   --space-7: 3rem;
   --space-8: 4rem;
 
+  /* Between a button's icon and its label, in every button family (`.btn`,
+     `.pill-btn`, `.toolbar-pill`): one value, owned here, not per surface.
+     Between --space-1 and --space-2 because 4px crowds a 14px glyph against
+     the label and 8px detaches it (T152 W8e). */
+  --icon-gap: 0.4rem;
+
   /* Gutter between cards in every card grid. Must equal `GRID_GAP_PX`
      (lib/grid-zoom.ts): the collection grid computes its column count in JS
      while the deck/list grids let CSS `auto-fill` do it, and the two only

@@ -76,7 +76,6 @@
 }
 
 .card-info-flip {
-  gap: 0.4rem;
   justify-content: center;
   font-size: var(--text-sm);
 }

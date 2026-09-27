@@ -656,7 +656,6 @@
 .btn-add-rule {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
 }
 
 /* Only shown for a group with nothing in it, where the consequence of "no

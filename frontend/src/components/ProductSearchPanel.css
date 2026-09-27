@@ -422,7 +422,6 @@
 .product-actions .btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
 }
 
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */

@@ -159,7 +159,6 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
   min-height: 32px;
 }
 
@@ -553,7 +552,6 @@
 .import-upload-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
   padding: var(--space-2) 14px;
 }
 
@@ -788,7 +786,6 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
 }
 
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the global input rule is
@@ -863,7 +860,6 @@
 .empty-state-action {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
 }
 
 .samples-intro-list {
