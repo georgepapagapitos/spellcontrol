@@ -9,8 +9,22 @@
 // not a competitive drafter. The point is exposing structural cube problems
 // (too few playables in most pairs, an archetype nobody can actually build),
 // not grading individual picks.
+//
+// Board E461 extends this same module with a SECOND pod model,
+// `simulateCommanderDraft`, for a Commander cube's combined spells+legends
+// pool: bots draft naturally (no guaranteed legend slot, per the design doc's
+// open question 5), take a commander when a good one appears, then draft
+// inside that commander's colour identity instead of a 2-colour pair. It
+// shares the pack-dealing/pass-around mechanics with the limited-format pod
+// below (`dealAndDraft`) and the module's RNG/seed conventions, but needs its
+// own scoring and deck-building because a singleton, identity-restricted
+// Commander pool isn't a parameter tweak on "best 23-card 2-colour deck" (see
+// the design doc's Finding 5). Deliberately kept in ONE module rather than
+// forked into a new file — the two models share more machinery (packs, seed,
+// axis snowball, RNG) than they differ, and a second `draft-sim-*.ts` leaf
+// would just be that machinery copy-pasted.
 
-import { COLORS, isLand, COLOR_PAIRS, type ColorPair, type CubeCard } from './core';
+import { COLORS, isLand, identityColors, COLOR_PAIRS, type ColorPair, type CubeCard } from './core';
 import { sizeInfo, type CubeSize } from './targets';
 import {
   computePowerBasis,
@@ -19,6 +33,7 @@ import {
   AXIS_LABEL,
   type PowerBasis,
 } from './objective';
+import { isLegendCandidate, legendIdentityOf, LEGEND_BUCKETS, type LegendIdentity } from './legend';
 import { mulberry32, shuffle } from '../playtest/rng';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 
@@ -155,25 +170,29 @@ function takePick(state: DrafterState, pack: CubeCard[], basis: PowerBasis): voi
 }
 
 /**
- * One seeded pod: shuffle the cube, cut it into `players * 3` packs of up to
+ * One seeded pod: shuffle the pool, cut it into `players * 3` packs of up to
  * 15 cards, and pass them around for 3 rounds (packs 1 and 3 pass left, pack 2
- * passes right — the standard draft convention). A cube short of
+ * passes right — the standard draft convention). A pool short of
  * `players * 45` cards yields shorter (or empty) packs near the end rather
  * than failing — those picks just don't happen, which is the honest outcome
- * for a cube that can't actually feed this many drafters.
+ * for a cube that can't actually feed this many drafters. Generic over the
+ * drafter state shape so both pod models (limited 2-colour, commander
+ * identity-restricted) share this mechanic instead of each re-implementing
+ * pack dealing and the pass-around order.
  */
-function draftPod(
-  cube: CubeCard[],
+function dealAndDraft<S>(
+  pool: CubeCard[],
   players: number,
   rand: () => number,
-  basis: PowerBasis
-): DrafterState[] {
+  newState: () => S,
+  takeOnePick: (state: S, pack: CubeCard[]) => void
+): S[] {
   const perPlayerCards = PACKS_PER_PLAYER * CARDS_PER_PACK;
-  // Canonical order first — same cube in ANY input order must shuffle
+  // Canonical order first — same pool in ANY input order must shuffle
   // identically for a given seed (mirrors refine.ts's own same-pool-any-order
-  // determinism contract). A plain in-place shuffle of `cube` as given would
+  // determinism contract). A plain in-place shuffle of `pool` as given would
   // instead depend on its incoming order, since Fisher-Yates swaps by index.
-  const canonical = [...cube].sort((a, b) => a.oracleId.localeCompare(b.oracleId));
+  const canonical = [...pool].sort((a, b) => a.oracleId.localeCompare(b.oracleId));
   const drawPool = shuffle(canonical, rand).slice(
     0,
     Math.min(canonical.length, players * perPlayerCards)
@@ -184,13 +203,13 @@ function draftPod(
     packs.push(drawPool.slice(i * CARDS_PER_PACK, (i + 1) * CARDS_PER_PACK));
   }
 
-  const states = Array.from({ length: players }, newDrafterState);
+  const states = Array.from({ length: players }, newState);
   for (let round = 0; round < PACKS_PER_PLAYER; round++) {
     let held = packs.slice(round * players, (round + 1) * players);
     const passLeft = round !== 1;
     for (let step = 0; step < CARDS_PER_PACK; step++) {
       for (let seat = 0; seat < players; seat++) {
-        if (held[seat].length > 0) takePick(states[seat], held[seat], basis);
+        if (held[seat].length > 0) takeOnePick(states[seat], held[seat]);
       }
       const prev = held;
       held = prev.map((_, seat) =>
@@ -199,6 +218,17 @@ function draftPod(
     }
   }
   return states;
+}
+
+function draftPod(
+  cube: CubeCard[],
+  players: number,
+  rand: () => number,
+  basis: PowerBasis
+): DrafterState[] {
+  return dealAndDraft(cube, players, rand, newDrafterState, (state, pack) =>
+    takePick(state, pack, basis)
+  );
 }
 
 /** The best 23-or-fewer non-land playables a drafted pool can field in one
@@ -337,5 +367,284 @@ export function simulateDraft(
     reachedBarShare: totalDecks ? reachedBar / totalDecks : 0,
     pairShares,
     undraftedArchetypes,
+  };
+}
+
+// ── Commander pod (board E461) ──────────────────────────────────────────────
+// A Commander cube's pod builds one 60-card Commander-Legends-style deck per
+// drafter (commander + ~35 non-land playables + ~24 lands) — a deliberately
+// SMALLER, draft-only shape than the app's normal 100-card singleton format
+// (design doc open question 2 keeps that for saved decks); this only measures
+// whether a pod's own draft produced enough legal, on-identity playables to
+// fill one, the same "structural problem, not deck quality" scope the limited
+// pod above has. 35 is picked to land the deck at 60 with a ~40% land ratio
+// (24/60), the same ratio a 60-card limited deck runs (17/40) scaled up.
+
+/** commander (1) + COMMANDER_NONLAND_TARGET (35) + lands (24) = a 60-card deck.
+ *  Exported so the UI states the exact same bar the sim measures against,
+ *  rather than a copy of the number in a comment somewhere. */
+export const COMMANDER_NONLAND_TARGET = 35;
+/** Matches scoreCard's on-identity bonus scale below. */
+const COMMANDER_BONUS = 0.5;
+/**
+ * Own-pick index (0-indexed, inclusive) after which a bot with no commander
+ * yet force-commits to the best legend it has already drafted (or keeps
+ * waiting if it hasn't picked one up at all yet — see `takeCommanderPick`).
+ * Deliberately as early as `COMMIT_PICK` anchors the limited pod's colour
+ * commitment: reaching `COMMANDER_NONLAND_TARGET` (35) identity-legal
+ * playables out of 45 total picks needs most of the draft to happen AFTER
+ * commitment, mirroring how a real Commander Legends drafter locks their
+ * commander early and spends the rest of the draft mostly in one identity —
+ * an off-identity card is a genuinely dead pick in that format, not merely a
+ * worse one, so real drafters commit hard and early.
+ */
+const COMMANDER_COMMIT_DEADLINE = 8;
+
+function isIdentityLegal(card: CubeCard, identity: readonly string[]): boolean {
+  return identityColors(card).every((c) => identity.includes(c));
+}
+
+interface CommanderDrafterState {
+  picks: CubeCard[];
+  pickCount: number;
+  axisCounts: Map<AxisKey, number>;
+  /** Every legend-candidate card drafted so far, whether or not it triggered
+   *  a commit — the pool `COMMANDER_COMMIT_DEADLINE`'s fallback picks from. */
+  legendCandidates: CubeCard[];
+  commander: CubeCard | null;
+  /** Set once `commander` is, from `identityColors(commander)` — kept
+   *  alongside `commander` (rather than re-derived) so a hybrid/colour-
+   *  indicator commander's identity is fixed at commit time. */
+  identity: string[] | null;
+}
+
+function newCommanderDrafterState(): CommanderDrafterState {
+  return {
+    picks: [],
+    pickCount: 0,
+    axisCounts: new Map(),
+    legendCandidates: [],
+    commander: null,
+    identity: null,
+  };
+}
+
+/**
+ * How much a bot wants this pack card. Before a commander is locked, a legend
+ * that clears `qualityBar` (see `commanderQualityBar`) gets a strong bonus —
+ * "takes a commander when a good one appears," not the first legend seen
+ * regardless of power. Once locked, an off-identity card is nearly worthless
+ * (it is a dead card in a singleton, colour-identity-restricted deck) and an
+ * on-identity card gets the same synergy snowball the limited pod's bots use.
+ */
+function scoreCommanderCard(
+  card: CubeCard,
+  state: CommanderDrafterState,
+  basis: PowerBasis,
+  qualityBar: number
+): number {
+  if (isLand(card)) {
+    if (!state.identity) return 0.35;
+    return isIdentityLegal(card, state.identity) ? 0.4 : 0.05;
+  }
+  const power = rawPower(card, basis);
+  if (!state.commander) {
+    return isLegendCandidate(card) && power >= qualityBar ? power + COMMANDER_BONUS : power;
+  }
+  if (!isIdentityLegal(card, state.identity!)) return -1;
+  let score = power;
+  for (const ax of axesOf(card)) {
+    score += Math.min(state.axisCounts.get(ax) ?? 0, 6) * 0.05;
+  }
+  return score;
+}
+
+function takeCommanderPick(
+  state: CommanderDrafterState,
+  pack: CubeCard[],
+  basis: PowerBasis,
+  qualityBar: number
+): void {
+  let bestIdx = 0;
+  let bestScore = -Infinity;
+  for (let i = 0; i < pack.length; i++) {
+    const s = scoreCommanderCard(pack[i], state, basis, qualityBar);
+    if (s > bestScore) {
+      bestScore = s;
+      bestIdx = i;
+    }
+  }
+  const [card] = pack.splice(bestIdx, 1);
+  state.picks.push(card);
+  state.pickCount++;
+  if (!isLand(card)) {
+    for (const ax of axesOf(card)) state.axisCounts.set(ax, (state.axisCounts.get(ax) ?? 0) + 1);
+  }
+  if (isLegendCandidate(card)) state.legendCandidates.push(card);
+
+  if (!state.commander && isLegendCandidate(card) && rawPower(card, basis) >= qualityBar) {
+    state.commander = card;
+    state.identity = identityColors(card);
+  } else if (
+    !state.commander &&
+    state.pickCount >= COMMANDER_COMMIT_DEADLINE &&
+    state.legendCandidates.length > 0
+  ) {
+    const best = state.legendCandidates.reduce((a, b) =>
+      rawPower(b, basis) > rawPower(a, basis) ? b : a
+    );
+    state.commander = best;
+    state.identity = identityColors(best);
+  }
+}
+
+function draftCommanderPod(
+  combined: CubeCard[],
+  players: number,
+  rand: () => number,
+  basis: PowerBasis,
+  qualityBar: number
+): CommanderDrafterState[] {
+  return dealAndDraft(combined, players, rand, newCommanderDrafterState, (state, pack) =>
+    takeCommanderPick(state, pack, basis, qualityBar)
+  );
+}
+
+/**
+ * The power bar a legend must clear to be worth committing to immediately —
+ * the median `rawPower` across every commander candidate in the cube's OWN
+ * legend section. Pool-derived (not a fixed constant) so it scales with how
+ * strong the cube's legends actually are, the same way `computePowerBasis`
+ * scales power to the pool rather than a global constant. No legends at all
+ * → Infinity, so no bot ever "finds a good one" (an honest zero-commander
+ * result, not a crash).
+ */
+function commanderQualityBar(legends: CubeCard[], basis: PowerBasis): number {
+  if (legends.length === 0) return Infinity;
+  const powers = legends.map((c) => rawPower(c, basis)).sort((a, b) => a - b);
+  return powers[Math.floor((powers.length - 1) / 2)];
+}
+
+export interface CommanderIdentityShare {
+  identity: LegendIdentity;
+  /** 0..1 share of ALL drafted decks (commander or not) whose commander landed here. */
+  share: number;
+}
+
+export interface CommanderDraftSimResult {
+  runs: number;
+  playersPerRun: number;
+  packsPerPlayer: number;
+  cardsPerPack: number;
+  /** runs * playersPerRun. */
+  totalDecks: number;
+  /** True when the combined spells+legends pool has fewer cards than the
+   *  size's own nominal pod needs — see `DraftSimResult.shortCube`. */
+  shortCube: boolean;
+  /** 0..1 share of decks that ended with a commander AND at least
+   *  `COMMANDER_NONLAND_TARGET` (35) identity-legal non-land playables. */
+  builtDeckShare: number;
+  /** 0..1 share of decks that never landed a commander at all — the
+   *  "couldn't even start" half of the decks `builtDeckShare` excludes,
+   *  distinct from "got one but couldn't fill 35 playables around it." */
+  noCommanderShare: number;
+  /** All 16 identity buckets (5 colours + 10 pairs + 3+), by how often a
+   *  drafted deck's commander landed there, sorted by share descending. */
+  identityShares: CommanderIdentityShare[];
+  /** Identity buckets the legend section actually supplies at least one
+   *  candidate for, but that no drafted deck, across every run, ever turned
+   *  into a built (>=35-playable) deck. */
+  unbuildableIdentities: LegendIdentity[];
+}
+
+/**
+ * Draft a Commander cube's combined spells+legends pool `options.runs` times
+ * (default 50): bots draft naturally off the whole pool (legends fall at
+ * natural odds, same as the sample pack — no guaranteed per-pack legend
+ * slot), take a commander when a good one appears, then draft inside that
+ * commander's colour identity for the rest of the pod. Pure and deterministic
+ * like `simulateDraft`; same seed contract (derived from the combined pool
+ * unless overridden).
+ */
+export function simulateCommanderDraft(
+  spells: CubeCard[],
+  legends: CubeCard[],
+  size: CubeSize,
+  options: DraftSimOptions = {}
+): CommanderDraftSimResult {
+  const runs = Math.max(1, Math.floor(options.runs ?? 50));
+  const combined = [...spells, ...legends];
+  const basis = computePowerBasis(combined);
+  const perPlayerCards = PACKS_PER_PLAYER * CARDS_PER_PACK;
+  const nominalPlayers = sizeInfo(size).players;
+  const players = Math.max(
+    1,
+    Math.min(nominalPlayers, Math.floor(combined.length / perPlayerCards))
+  );
+  const shortCube = combined.length < nominalPlayers * perPlayerCards;
+  const baseSeed = (options.seed ?? deriveSeed(combined)) >>> 0;
+  const qualityBar = commanderQualityBar(legends, basis);
+
+  // The baseline "unbuildable identities" scores against: every identity the
+  // legend section can actually supply a commander candidate for, regardless
+  // of whether any pod happened to draft one — the same "the pool CAN support
+  // this" baseline `draftablePoolAxes` gives the limited pod's archetype
+  // report.
+  const supportedIdentities = new Set<LegendIdentity>(legends.map((c) => legendIdentityOf(c)));
+
+  const identityCounts = new Map<LegendIdentity, number>(LEGEND_BUCKETS.map((id) => [id, 0]));
+  const builtByIdentity = new Map<LegendIdentity, number>(LEGEND_BUCKETS.map((id) => [id, 0]));
+  let builtDecks = 0;
+  let noCommanderDecks = 0;
+  let totalDecks = 0;
+
+  for (let run = 0; run < runs; run++) {
+    const rand = mulberry32((baseSeed + run * 0x9e3779b1) >>> 0);
+    const drafters = draftCommanderPod(combined, players, rand, basis, qualityBar);
+    for (const state of drafters) {
+      totalDecks++;
+      if (!state.commander) {
+        noCommanderDecks++;
+        continue;
+      }
+      const identity = legendIdentityOf(state.commander);
+      identityCounts.set(identity, (identityCounts.get(identity) ?? 0) + 1);
+
+      const nonland = state.picks.filter(
+        (c) => !isLand(c) && c.oracleId !== state.commander!.oracleId
+      );
+      const eligible = nonland
+        .filter((c) => isIdentityLegal(c, state.identity!))
+        .sort((a, b) => rawPower(b, basis) - rawPower(a, basis));
+      if (eligible.length >= COMMANDER_NONLAND_TARGET) {
+        builtDecks++;
+        builtByIdentity.set(identity, (builtByIdentity.get(identity) ?? 0) + 1);
+      }
+    }
+  }
+
+  const identityShares: CommanderIdentityShare[] = LEGEND_BUCKETS.map((identity) => ({
+    identity,
+    share: totalDecks ? (identityCounts.get(identity) ?? 0) / totalDecks : 0,
+  })).sort(
+    (a, b) =>
+      b.share - a.share || LEGEND_BUCKETS.indexOf(a.identity) - LEGEND_BUCKETS.indexOf(b.identity)
+  );
+
+  const unbuildableIdentities = LEGEND_BUCKETS.filter(
+    (id) => supportedIdentities.has(id) && (builtByIdentity.get(id) ?? 0) === 0
+  );
+
+  return {
+    runs,
+    playersPerRun: players,
+    packsPerPlayer: PACKS_PER_PLAYER,
+    cardsPerPack: CARDS_PER_PACK,
+    totalDecks,
+    shortCube,
+    builtDeckShare: totalDecks ? builtDecks / totalDecks : 0,
+    noCommanderShare: totalDecks ? noCommanderDecks / totalDecks : 0,
+    identityShares,
+    unbuildableIdentities,
   };
 }

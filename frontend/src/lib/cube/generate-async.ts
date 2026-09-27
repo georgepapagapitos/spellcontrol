@@ -15,7 +15,13 @@
 // merely being ignored on arrival.
 
 import { generateCube, type CubeGenOptions, type GeneratedCube } from './generate';
-import { simulateDraft, type DraftSimOptions, type DraftSimResult } from './draft-sim';
+import {
+  simulateDraft,
+  simulateCommanderDraft,
+  type DraftSimOptions,
+  type DraftSimResult,
+  type CommanderDraftSimResult,
+} from './draft-sim';
 import type { CubeCard } from './core';
 import type { CubeSize } from './targets';
 import type { CubeProgress, CubeWorkerRequest, CubeWorkerResponse } from './generate-async-types';
@@ -142,6 +148,14 @@ function runGenerateWorker(
 // ── Draft simulation ─────────────────────────────────────────────────────────
 // Same shape as generation above, minus progress (a run of 50 pods is well
 // under a second — see draft-sim.test.ts — so there's no loading bar to feed).
+//
+// A Commander cube's pod (board E461, `simulateCommanderDraftAsync`) shares
+// every bit of this plumbing — the worker file, the message kind, the
+// generation counter — with the limited pod above; only an optional `legends`
+// array on the wire request tells generate.worker.ts which of draft-sim.ts's
+// two pure functions to call. Two exported entry points keep each caller's
+// return type concrete (`DraftSimResult` vs `CommanderDraftSimResult`) instead
+// of pushing a union onto every existing `simulateDraftAsync` call site.
 
 export interface SimulateDraftAsyncHandlers {
   signal?: AbortSignal;
@@ -159,20 +173,59 @@ export function simulateDraftAsync(
   const stale = () => gen !== currentDraftGen || Boolean(signal?.aborted);
 
   if (noWorker()) {
-    return runDraftSimInline(cube, size, options, stale);
+    return runDraftSimInline(cube, size, options, undefined, stale) as Promise<DraftSimResult>;
   }
-  return runDraftSimWorker(cube, size, options, signal, stale);
+  return runDraftSimWorker(
+    cube,
+    size,
+    options,
+    undefined,
+    signal,
+    stale
+  ) as Promise<DraftSimResult>;
+}
+
+export function simulateCommanderDraftAsync(
+  spells: CubeCard[],
+  legends: CubeCard[],
+  size: CubeSize,
+  options?: DraftSimOptions,
+  { signal }: SimulateDraftAsyncHandlers = {}
+): Promise<CommanderDraftSimResult> {
+  const gen = ++currentDraftGen;
+  const stale = () => gen !== currentDraftGen || Boolean(signal?.aborted);
+
+  if (noWorker()) {
+    return runDraftSimInline(
+      spells,
+      size,
+      options,
+      legends,
+      stale
+    ) as Promise<CommanderDraftSimResult>;
+  }
+  return runDraftSimWorker(
+    spells,
+    size,
+    options,
+    legends,
+    signal,
+    stale
+  ) as Promise<CommanderDraftSimResult>;
 }
 
 function runDraftSimInline(
   cube: CubeCard[],
   size: CubeSize,
   options: DraftSimOptions | undefined,
+  legends: CubeCard[] | undefined,
   stale: () => boolean
-): Promise<DraftSimResult> {
+): Promise<DraftSimResult | CommanderDraftSimResult> {
   return Promise.resolve().then(() => {
     if (stale()) throw abortError();
-    const result = simulateDraft(cube, size, options);
+    const result = legends
+      ? simulateCommanderDraft(cube, legends, size, options)
+      : simulateDraft(cube, size, options);
     if (stale()) throw abortError();
     return result;
   });
@@ -182,15 +235,16 @@ function runDraftSimWorker(
   cube: CubeCard[],
   size: CubeSize,
   options: DraftSimOptions | undefined,
+  legends: CubeCard[] | undefined,
   signal: AbortSignal | undefined,
   stale: () => boolean
-): Promise<DraftSimResult> {
+): Promise<DraftSimResult | CommanderDraftSimResult> {
   return new Promise((resolve, reject) => {
     let worker: Worker;
     try {
       worker = newCubeWorker();
     } catch {
-      runDraftSimInline(cube, size, options, stale).then(resolve, reject);
+      runDraftSimInline(cube, size, options, legends, stale).then(resolve, reject);
       return;
     }
     const finish = () => {
@@ -218,8 +272,14 @@ function runDraftSimWorker(
     worker.onerror = (e) => {
       logger.warn('[cube] draft-sim worker crashed:', e.message);
       finish();
-      runDraftSimInline(cube, size, options, stale).then(resolve, reject);
+      runDraftSimInline(cube, size, options, legends, stale).then(resolve, reject);
     };
-    worker.postMessage({ kind: 'draft-sim', cube, size, options } satisfies CubeWorkerRequest);
+    worker.postMessage({
+      kind: 'draft-sim',
+      cube,
+      size,
+      options,
+      legends,
+    } satisfies CubeWorkerRequest);
   });
 }

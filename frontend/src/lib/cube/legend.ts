@@ -76,7 +76,11 @@ export function legendIdentityOf(c: CubeCard): LegendIdentity {
   return 'other';
 }
 
-const LEGEND_BUCKETS: LegendIdentity[] = [...COLORS, ...COLOR_PAIRS, 'other'];
+/** Every legend identity bucket, in a fixed order — exported so ./draft-sim's
+ *  commander pod simulation (board E461) can report per-identity draft rate
+ *  and "nobody could build it" against the same 16 buckets this module quotas
+ *  over, instead of re-deriving its own list. */
+export const LEGEND_BUCKETS: LegendIdentity[] = [...COLORS, ...COLOR_PAIRS, 'other'];
 
 /**
  * Legend section size, additional to the stated cube size — a near-fixed
