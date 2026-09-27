@@ -176,8 +176,18 @@ function buildSignature(
         .sort()
         .join(',')
     : COMBOS_UNCHECKED;
+  // The analysis sizes the deck from its format (99 vs 59), so a deck whose
+  // format changed must not match the signature it was analysed under, here
+  // or in this device's analysis cache (which a format switch on another
+  // device never clears). Folded into the version segment so the segment
+  // count `missesCombos` relies on stays put, and only for formats other
+  // than Commander, so no existing Commander deck is forced to recompute.
+  const version =
+    deck.format && deck.format !== 'commander'
+      ? `${ANALYSIS_ENGINE_VERSION}@${deck.format}`
+      : ANALYSIS_ENGINE_VERSION;
   return [
-    ANALYSIS_ENGINE_VERSION,
+    version,
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     cardNames.join(','),
@@ -309,7 +319,13 @@ export function useCommanderBracketAnalysis(args: Args): {
   }, []);
 
   useEffect(() => {
-    if (!enabled || !deck || mainboardSize == null || !deck.commander) return;
+    if (!enabled || !deck || mainboardSize == null || !deck.commander) {
+      // Drop a result still in flight: the deck lost its commander or moved
+      // to a format without one, and a late write would put a bracket back
+      // on a deck the format switch just cleared.
+      reqIdRef.current++;
+      return;
+    }
     if (!signature) return;
     // Hold for the combo match. Only a deck with no estimate at all stops
     // waiting at COMBO_WAIT_MS: one that has an estimate keeps it on screen

@@ -7246,6 +7246,28 @@ state word: a first-time user looking for "share" has to be able to find it
 without hovering for the aria-label. The state word still leads visually — the
 prefix is muted (`.deck-visibility-chip-prefix`).
 
+**A value in the deck hero's meta line that can change is a link to its own
+sheet (E465).** Sharing opens ShareDialog from its status; the format opens
+`DeckFormatSheet` from its label (`DeckFormatLink`). Both wear the
+`.deck-meta-link` family (`deck-builder-editor.css`): the line's voice, the
+accent on the value, underline on hover, and an accessible name that says the
+verb (`Format: Commander. Change format`). A fact that can't change there
+(the count, the value) stays plain text. Each link sizes its coarse hit area
+to the room around it: the format sits straight under the name, whose rename
+button owns the space above, so its ghost grows only sideways and into the
+column gap below, and the line starts below the name's 0.22em slack rather
+than letting the link take the name's bottom edge.
+
+**A format switch shows what it does before it commits, and doesn't confirm.**
+The sheet lists the formats as a `ChoiceList`; picking one shows the lines
+that are true for THIS deck (`describeFormatSwitch`: the commander moving
+into the deck, cards the new format flags, the sideboard starting or
+stopping to count, Commander-only tools going away). The switch is one
+`replaceDeck` inside one `recordEdit`, removes no card (a commander the new
+format can't have moves into the deck with its copy), and its toast offers
+Undo, so it follows § Verbs: undoable, so no confirm. Never promise a rule
+nothing enforces (the 60-card formats' 15-card sideboard cap, E468).
+
 **Secondary modes sit below the primary action they fork from.** On
 `/decks/new` the brew door ("Prefer to pick every card?") renders _after_ the
 commander picker, not between Format and Commander: the subtitle's first

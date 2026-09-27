@@ -1,0 +1,69 @@
+/* The format sheet (E465): a ChoiceList of formats, then what switching this
+   deck does, then the switch. A bottom sheet on a phone, a centred dialog
+   above (STYLE_GUIDE § Overlays, Pattern B). */
+.deck-format-sheet {
+  max-width: 640px;
+}
+
+.deck-format-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Nine formats: two columns wherever the dialog is centred, so the list and
+   what the switch does stay in view together. */
+@media (min-width: 600px) {
+  .deck-format-sheet .choice-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.deck-format-consequences {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.deck-format-consequences-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.deck-format-consequences-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+}
+
+/* ── Phone: a bottom sheet ──────────────────────────────────────────────── */
+@media (max-width: 599px) {
+  /* The sheet backdrop pads the dialog for the home indicator; here the
+     footer is the bottom edge, so it takes that inset instead. */
+  .modal-backdrop.modal-backdrop--sheet > .modal.deck-format-sheet {
+    padding-bottom: 0;
+  }
+
+  .deck-format-sheet .deck-format-sheet-footer {
+    padding-bottom: calc(var(--space-4) + var(--safe-bottom));
+    border-radius: 0;
+  }
+
+  /* Cancel leaves the phone footer (§ Config surfaces): the ×, the backdrop
+     and the back gesture all dismiss. The switch takes the row. */
+  .deck-format-sheet-footer .deck-format-sheet-cancel {
+    display: none;
+  }
+
+  .deck-format-sheet-footer .deck-format-sheet-confirm {
+    flex: 1;
+  }
+}

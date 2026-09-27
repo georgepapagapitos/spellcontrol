@@ -1,39 +1,8 @@
 /* Visibility status (deck header). The last segment of the hero's meta line
    (STYLE_GUIDE § Layout system: one meta line, nothing boxed under the
-   title), so it wears the line's voice and marks itself as the one tappable
-   segment with the accent on its state. "Sharing:" stays on the face: a bare
-   "Private" never told a first-time user that this is where sharing lives. */
-.deck-visibility-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  vertical-align: bottom;
-  cursor: pointer;
-}
-
-/* The state reads first; the verb sits in the meta line's own colour. */
-.deck-visibility-chip-state {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-visibility-chip:hover .deck-visibility-chip-state {
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-}
-
-.deck-visibility-chip:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius);
-}
+   title), drawn by the shared `.deck-meta-link` family in
+   deck-builder-editor.css. "Sharing:" stays on the face: a bare "Private"
+   never told a first-time user that this is where sharing lives. */
 
 /* An inline segment can't grow to 44px without breaking the line, so the
    touch target grows invisibly around it instead. */

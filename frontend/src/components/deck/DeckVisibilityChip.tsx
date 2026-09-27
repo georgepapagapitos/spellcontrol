@@ -41,11 +41,11 @@ export function DeckVisibilityChip({ deckId, deckName, colorIdentity }: Props) {
           said "Private" was the page's only share door and nothing told a
           first-time user that tapping the state changes it. */}
       <Chip
-        className="deck-visibility-chip"
+        className="deck-meta-link deck-visibility-chip"
         onClick={() => setOpen(true)}
         aria-label={`Sharing: ${label}. Change visibility`}
         icon={<Icon width={14} height={14} strokeWidth={1.8} />}
-        trailing={<span className="deck-visibility-chip-state">{label}</span>}
+        trailing={<span className="deck-meta-link-value">{label}</span>}
       >
         Sharing:{' '}
       </Chip>

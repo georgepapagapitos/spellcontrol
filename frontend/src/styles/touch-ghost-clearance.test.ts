@@ -24,9 +24,12 @@ for (const [, name, value] of read('styles/tokens.css').matchAll(
 ))
   if (!tokens.has(name)) tokens.set(name, parseFloat(value) * (value.endsWith('rem') ? 16 : 1));
 
-/** px value of a length: `10px`, `0.5rem`, `var(--x)`, or a calc() of sums of products. */
+/** px value of a length: `10px`, `0.5rem`, `var(--x)`, or a calc() of sums/differences of products. */
 function px(expr: string): number {
-  const body = expr.trim().replace(/^calc\((.*)\)$/, '$1');
+  const body = expr
+    .trim()
+    .replace(/^calc\((.*)\)$/, '$1')
+    .replace(/\s+-\s+/g, ' + -1 * ');
   return body.split(/\s+\+\s+/).reduce(
     (sum, term) =>
       sum +
@@ -121,5 +124,34 @@ describe('coarse-pointer ghosts stay off their neighbours', () => {
       lane,
       `lane ${lane}px < link ${linkTop}+${linkFloor} + name slack ${slackEm * nameSize}`
     ).toBeGreaterThanOrEqual(linkTop + linkFloor + slackEm * nameSize);
+  });
+
+  it("the format link in the deck hero's meta line stays off the name above it (E465)", () => {
+    // The format is the meta line's first segment, straight under the name,
+    // whose rename button reaches 0.22em below its text. The line's content
+    // starts below that slack at the largest name size, and the link's coarse
+    // ghost never reaches up, only down into the hero column's own gap.
+    const deck = read('styles/deck-builder-editor.css');
+    const slack = parseFloat(decl(deck, '.deck-editor-name', 'padding')) * px('var(--text-3xl)');
+    const gap = px(decl(deck, '.deck-editor-hero-text', 'gap'));
+    const pad = px(
+      decl(deck, '.deck-editor-hero .binder-hero-meta:has(> .deck-format-link)', 'padding-top')
+    );
+    expect(
+      gap + pad,
+      `line starts ${gap + pad}px under the name, slack is ${slack}px`
+    ).toBeGreaterThanOrEqual(slack - 1e-6);
+
+    // inset: <top> <sides> <bottom>, the bottom possibly a calc().
+    const [, top, , bottom] = /^(\S+)\s+(\S+)\s+(.+)$/.exec(
+      decl(
+        deck,
+        '.deck-format-link::after',
+        'inset',
+        after(deck, '@media (pointer: coarse) {\n  .deck-format-link {')
+      )
+    )!;
+    expect(px(top), 'the ghost reaches up into the name').toBe(0);
+    expect(-px(bottom), 'the ghost reaches past the column gap').toBeLessThanOrEqual(gap);
   });
 });

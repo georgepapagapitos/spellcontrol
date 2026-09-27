@@ -632,3 +632,58 @@ describe('useCommanderBracketAnalysis — device cache of the last result', () =
     expect(a.updateDeck).toHaveBeenCalledTimes(1);
   });
 });
+
+// E465: a deck's format can change after it's made. The analysis sizes the
+// deck from its format, and the switch clears the persisted result, so the
+// signature and an in-flight result must both respect the format.
+describe('useCommanderBracketAnalysis — after a format switch', () => {
+  it('recomputes a Brawl deck whose result was analysed as Commander', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+    const commanderDeck = makeDeck({ format: 'commander' });
+    // What the device cache restores after a switch made on another device:
+    // the Commander-era result, stamped with the Commander-era signature.
+    const deck = makeDeck({ format: 'brawl', gradeBracketSignature: sig(commanderDeck) });
+    const a = args({ deck, mainboardSize: 59 });
+    renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledWith(expect.objectContaining({ deckSize: 59 }));
+    const persisted = vi.mocked(a.updateDeck).mock.calls.at(-1)![1];
+    expect(persisted.gradeBracketSignature).not.toBe(sig(commanderDeck));
+  });
+
+  it('keeps a Commander deck on the signature it already has', async () => {
+    const deck = makeDeck({ format: 'commander' });
+    (deck as Deck).gradeBracketSignature = sig(deck);
+    const a = args({ deck });
+    renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+    expect(analyzeCommanderDeck).not.toHaveBeenCalled();
+  });
+
+  it('drops a result that lands after the deck moved to a format without a commander', async () => {
+    let finish!: (v: unknown) => void;
+    vi.mocked(analyzeCommanderDeck).mockReturnValue(
+      new Promise((r) => {
+        finish = r;
+      }) as never
+    );
+    let a = args();
+    const { rerender } = renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+    // Switched to Modern while the analysis was still running.
+    a = { ...a, hasCommander: false, deck: makeDeck({ format: 'modern', commander: null }) };
+    rerender();
+    await act(async () => {
+      finish(RESULT);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(a.updateDeck).not.toHaveBeenCalled();
+  });
+});

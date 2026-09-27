@@ -78,6 +78,7 @@ import { AppendDeckDialog } from '../components/deck/AppendDeckDialog';
 import { BulkEditDeckDialog } from '../components/deck/BulkEditDeckDialog';
 import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
 import { DeckVisibilityChip } from '../components/deck/DeckVisibilityChip';
+import { DeckFormatLink } from '../components/deck/DeckFormatLink';
 import { DeckHero } from '../components/deck/DeckHero';
 import { InlineRename } from '@/components/shared/InlineRename';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
@@ -3023,7 +3024,9 @@ export function DeckEditorPage() {
   const hasCommanderFormat = !!formatConfig?.hasCommander;
   // Bracket is glanceable info — it rides the hero meta line now (the old
   // feature-strip chip is gone); the Tune view still owns the override UI.
-  const bracketValue = effectiveBracket(deck);
+  // A Commander bracket only: a deck switched to a 60-card format can still
+  // carry one from before (an analysis that landed late, an older device).
+  const bracketValue = hasCommanderFormat ? effectiveBracket(deck) : undefined;
   // An estimate made before the combo match answered is a floor (combos only
   // raise a bracket); the glanceable readouts say "2+" like the hero's "At least".
   const heroBracket =
@@ -3120,7 +3123,10 @@ export function DeckEditorPage() {
         }
         meta={
           <>
-            {formatConfig?.label}
+            {/* The format is a link to its own sheet, like sharing at the
+                    line's end: a value here that can change opens where it
+                    changes (E465). */}
+            {formatConfig && <DeckFormatLink deck={deck} />}
             {/* The deck's totals. The sideboard and considering counts are
                     also the way INTO those zones: each links to the out-zone at
                     the foot of the deck body, which is why the toolbar no longer

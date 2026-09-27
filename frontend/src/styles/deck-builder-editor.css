@@ -60,6 +60,64 @@
   color: var(--text-secondary);
 }
 
+/* A value in the meta line that opens its own sheet: the format
+   (DeckFormatLink) and sharing (DeckVisibilityChip). It wears the line's
+   voice and marks itself as tappable with the accent on its value. Each one
+   sizes its own coarse-pointer hit area to the room around it. */
+.deck-meta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  vertical-align: bottom;
+  cursor: pointer;
+}
+
+.deck-meta-link-value {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-meta-link:hover .deck-meta-link-value {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+.deck-meta-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* The format opens the meta line, straight under the name. The name's rename
+   button carries 0.22em of slack below its text (see .deck-editor-name),
+   which reaches past the 4px column gap into the meta line, so a link there
+   would take the name's bottom edge. The line's content starts below that
+   slack instead (the widest case, the 3xl name), and the link's coarse hit
+   area grows only into room nothing else uses: sideways, and down into the
+   column gap. Upward is the name's. */
+.deck-editor-hero .binder-hero-meta:has(> .deck-format-link) {
+  padding-top: calc(0.22 * var(--text-3xl) - var(--space-1));
+}
+
+@media (pointer: coarse) {
+  .deck-format-link {
+    position: relative;
+  }
+
+  .deck-format-link::after {
+    content: '';
+    position: absolute;
+    inset: 0 -4px calc(-1 * var(--space-1));
+  }
+}
+
 .deck-editor-hero-art {
   position: absolute;
   object-fit: cover;
@@ -163,7 +221,7 @@
     color: rgb(255 255 255 / 86%);
   }
 
-  .deck-editor-hero--art .deck-visibility-chip-state {
+  .deck-editor-hero--art .deck-meta-link-value {
     color: #fff;
   }
 
