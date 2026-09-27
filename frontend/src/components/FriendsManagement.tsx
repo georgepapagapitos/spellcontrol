@@ -1,4 +1,4 @@
-import { EmptyStateMark } from './shared/EmptyStateMark';
+import { EmptyState } from './shared/EmptyState';
 import './FriendsManagement.css';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -505,11 +505,12 @@ export function FriendsManagement() {
           {loading ? (
             <FriendsSkeleton />
           ) : friendsList.length === 0 ? (
-            <div className="empty-state" role="status">
-              <EmptyStateMark />
-              <p className="empty-state-tagline">No friends yet.</p>
-              <p className="empty-state-hint">Search above to find and add other players.</p>
-            </div>
+            <EmptyState
+              mark
+              status
+              tagline="No friends yet."
+              hint="Search above to find and add other players."
+            />
           ) : (
             <ul className="friends-list" aria-label="Your friends">
               {friendsList.map((friend) => {
@@ -561,13 +562,12 @@ export function FriendsManagement() {
           {loading ? (
             <FriendsSkeleton />
           ) : incomingList.length === 0 && outgoingList.length === 0 ? (
-            <div className="empty-state" role="status">
-              <EmptyStateMark />
-              <p className="empty-state-tagline">No pending requests.</p>
-              <p className="empty-state-hint">
-                Send one from the search above, or wait for someone to send you one.
-              </p>
-            </div>
+            <EmptyState
+              mark
+              status
+              tagline="No pending requests."
+              hint="Send one from the search above, or wait for someone to send you one."
+            />
           ) : (
             <>
               {incomingList.length > 0 && (
@@ -665,13 +665,12 @@ export function FriendsManagement() {
           {inbox === null ? (
             <FriendsSkeleton />
           ) : inboxList.length === 0 ? (
-            <div className="empty-state" role="status">
-              <EmptyStateMark />
-              <p className="empty-state-tagline">Nothing shared yet.</p>
-              <p className="empty-state-hint">
-                When a friend shares a deck or collection with you, it shows up here.
-              </p>
-            </div>
+            <EmptyState
+              mark
+              status
+              tagline="Nothing shared yet."
+              hint="When a friend shares a deck or collection with you, it shows up here."
+            />
           ) : (
             <ul className="friends-inbox-list" aria-label="Shared with you">
               {inboxList.map((item) => {
@@ -723,13 +722,12 @@ export function FriendsManagement() {
           ) : activity === null ? (
             <FriendsSkeleton />
           ) : activity.length === 0 ? (
-            <div className="empty-state" role="status">
-              <EmptyStateMark />
-              <p className="empty-state-tagline">Nothing new from friends yet.</p>
-              <p className="empty-state-hint">
-                This fills in as friends publish decks or share with you.
-              </p>
-            </div>
+            <EmptyState
+              mark
+              status
+              tagline="Nothing new from friends yet."
+              hint="This fills in as friends publish decks or share with you."
+            />
           ) : (
             <ul className="friends-activity-list" aria-label="Recent friend activity">
               {activity.map((item) => {

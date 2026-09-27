@@ -39,7 +39,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ColorPip } from '../components/shared/ManaSymbol';
 import { colorSelectionMatches, type ColorMatchMode } from '../lib/colors';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
@@ -655,45 +655,43 @@ export function DecksIndexPage() {
           /* Three-door empty state (UX-317) — mirrors the Binders gold standard:
            a tagline, a plain-English hint, then ALL three entry points so the
            user knows what the page can do before they've done anything. */
-          <div className="empty-state">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">No decks yet.</p>
-            <p className="empty-state-hint">
-              Build one, or bring in a list or precon you already have.
-            </p>
-            <div className="empty-state-actions decks-empty-actions">
-              <Button
-                variant="primary"
-                to="/decks/new"
-                className="empty-state-action"
-                icon={<Wand2 width={14} height={14} strokeWidth={2} />}
-              >
-                Build a deck
-              </Button>
-              <Button
-                onClick={() => setShowImport(true)}
-                className="empty-state-action"
-                icon={<Download width={14} height={14} strokeWidth={2} />}
-              >
-                Import deck
-              </Button>
-              <Button
-                onClick={() => setShowProductSearch(true)}
-                className="empty-state-action"
-                icon={<Package width={14} height={14} strokeWidth={2} />}
-              >
-                Add a product
-              </Button>
-            </div>
-          </div>
+          <EmptyState
+            mark
+            tagline="No decks yet."
+            hint="Build one, or bring in a list or precon you already have."
+            actionsClassName="decks-empty-actions"
+            actions={
+              <>
+                <Button
+                  variant="primary"
+                  to="/decks/new"
+                  icon={<Wand2 width={14} height={14} strokeWidth={2} />}
+                >
+                  Build a deck
+                </Button>
+                <Button
+                  onClick={() => setShowImport(true)}
+                  icon={<Download width={14} height={14} strokeWidth={2} />}
+                >
+                  Import deck
+                </Button>
+                <Button
+                  onClick={() => setShowProductSearch(true)}
+                  icon={<Package width={14} height={14} strokeWidth={2} />}
+                >
+                  Add a product
+                </Button>
+              </>
+            }
+          />
         ) : sorted.length === 0 ? (
-          <div className="empty-state">
-            <p className="empty-state-tagline">
-              {debouncedSearch
+          <EmptyState
+            tagline={
+              debouncedSearch
                 ? `No decks match "${debouncedSearch}".`
-                : 'No decks match the current filters.'}
-            </p>
-          </div>
+                : 'No decks match the current filters.'
+            }
+          />
         ) : (
           <>
             {sel.selectMode && (

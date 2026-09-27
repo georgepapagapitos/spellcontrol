@@ -1,4 +1,4 @@
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '../components/shared/EmptyState';
 import { ChevronDown, LayoutGrid, List, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -189,8 +189,8 @@ export function TagsPage() {
         <div id="tags-browse-panel">
           {!ready && loadError ? (
             <div className="tags-page-status" role="alert">
-              <p className="empty-state-tagline">Couldn't load the tag list.</p>
-              <p className="empty-state-hint">
+              <p>Couldn't load the tag list.</p>
+              <p>
                 The tag snapshot ships with the app, so this is usually a one-off.{' '}
                 <button type="button" className="tags-retry" onClick={() => void ensureCardTags()}>
                   Retry
@@ -203,8 +203,8 @@ export function TagsPage() {
             </p>
           ) : matches.length === 0 ? (
             <div className="tags-page-status">
-              <p className="empty-state-tagline">No tag matches “{tagQuery.trim()}”.</p>
-              <p className="empty-state-hint">Tags describe function. Try “sweeper” or “tutor”.</p>
+              <p>No tag matches “{tagQuery.trim()}”.</p>
+              <p>Tags describe function. Try “sweeper” or “tutor”.</p>
             </div>
           ) : (
             <>
@@ -272,13 +272,11 @@ export function TagsPage() {
         // do, so the generic invitation would just repeat it.
         ready &&
         unknown.length === 0 && (
-          <div className="empty-state">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">Pick a tag to see what it finds.</p>
-            <p className="empty-state-hint">
-              Combine tags to narrow: “sweeper” plus “instant speed” is a much shorter list.
-            </p>
-          </div>
+          <EmptyState
+            mark
+            tagline="Pick a tag to see what it finds."
+            hint="Combine tags to narrow: “sweeper” plus “instant speed” is a much shorter list."
+          />
         )
       )}
     </div>

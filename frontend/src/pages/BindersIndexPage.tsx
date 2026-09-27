@@ -36,7 +36,7 @@ import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { OverflowMenu } from '../components/OverflowMenu';
 import { PageHeader } from '../components/PageHeader';
 import { InfoTip } from '../components/InfoTip';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '../components/shared/EmptyState';
 import {
   SelectToggle,
   BulkSelectBar,
@@ -361,45 +361,42 @@ export function BindersIndexPage() {
         </div>
       ) : binders.length === 0 ? (
         cards.length === 0 ? (
-          <div className="empty-state">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">No binders yet.</p>
-            <p className="empty-state-hint">
-              Binders sort your collection by rule. Import it first, or try the samples to see how.
-            </p>
-            <div className="empty-state-actions">
-              <Button variant="primary" to="/collection">
-                Import your collection
-              </Button>
-              <Button onClick={() => setShowSamplesIntro(true)} disabled={loadingSamples}>
-                Try it out
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="empty-state">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">Build your first binder.</p>
-            <p className="empty-state-hint">
-              A binder is a rule that catches cards from your collection: one per deck, format, or
-              theme.
-            </p>
-            <div className="empty-state-actions">
-              <Button variant="primary" onClick={() => setEditingBinder('new')}>
-                Create your first binder
-              </Button>
-              {!hasSampleBinders && (
-                <Button onClick={() => setShowSamplesIntro(true)} disabled={loadingSamples}>
-                  Load sample binders
+          <EmptyState
+            mark
+            tagline="No binders yet."
+            hint="Binders sort your collection by rule. Import it first, or try the samples to see how."
+            actions={
+              <>
+                <Button variant="primary" to="/collection">
+                  Import your collection
                 </Button>
-              )}
-            </div>
-          </div>
+                <Button onClick={() => setShowSamplesIntro(true)} disabled={loadingSamples}>
+                  Try it out
+                </Button>
+              </>
+            }
+          />
+        ) : (
+          <EmptyState
+            mark
+            tagline="Build your first binder."
+            hint="A binder is a rule that catches cards from your collection: one per deck, format, or theme."
+            actions={
+              <>
+                <Button variant="primary" onClick={() => setEditingBinder('new')}>
+                  Create your first binder
+                </Button>
+                {!hasSampleBinders && (
+                  <Button onClick={() => setShowSamplesIntro(true)} disabled={loadingSamples}>
+                    Load sample binders
+                  </Button>
+                )}
+              </>
+            }
+          />
         )
       ) : sorted.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-state-tagline">No binders match "{debouncedSearch}".</p>
-        </div>
+        <EmptyState tagline={`No binders match "${debouncedSearch}".`} />
       ) : (
         <>
           {sel.selectMode && (

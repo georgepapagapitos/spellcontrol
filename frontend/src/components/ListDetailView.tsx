@@ -27,6 +27,7 @@ import { SortMenu, type SortMenuOption } from './SortMenu';
 import { ViewModeToggle } from './ViewModeToggle';
 import { Legend } from './Legend';
 import { CardRow } from './shared/CardRow';
+import { EmptyState } from './shared/EmptyState';
 import {
   CardTableFrame,
   CardTableHead,
@@ -756,20 +757,22 @@ export function ListDetailView({
           <SkeletonRows count={Math.min(Math.max(list.entries.length, 3), 10)} />
         )
       ) : sorted.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-state-tagline">
-            {rows.length > 0
+        <EmptyState
+          tagline={
+            rows.length > 0
               ? 'No cards match your filters.'
               : dynamic
                 ? "Nothing in your collection matches this list's rule yet. New imports that match will appear here automatically."
-                : 'No cards in this list yet.'}
-          </p>
-          {rows.length > 0 && (
-            <Button variant="link" onClick={clearAll}>
-              Clear filters
-            </Button>
-          )}
-        </div>
+                : 'No cards in this list yet.'
+          }
+          actions={
+            rows.length > 0 && (
+              <Button variant="link" onClick={clearAll}>
+                Clear filters
+              </Button>
+            )
+          }
+        />
       ) : view === 'grid' ? (
         <div
           ref={gridRef}

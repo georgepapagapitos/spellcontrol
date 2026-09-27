@@ -15,7 +15,7 @@ import { TrendingRail } from '../components/aggregates/TrendingRail';
 import { CommanderTypeahead } from '../components/CommanderTypeahead';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '@/components/shared/EmptyState';
 import {
   FilterChipsRow,
   colorChipLabel,
@@ -351,20 +351,20 @@ export function DiscoverDecksPage() {
           </div>
         ) : displayDecks.length === 0 ? (
           hasActiveFilters ? (
-            <div className="empty-state">
-              <p className="empty-state-tagline">No public decks match these filters.</p>
-              <Button variant="link" onClick={() => setFilters(NO_DISCOVER_FILTERS)}>
-                Clear filters
-              </Button>
-            </div>
+            <EmptyState
+              tagline="No public decks match these filters."
+              actions={
+                <Button variant="link" onClick={() => setFilters(NO_DISCOVER_FILTERS)}>
+                  Clear filters
+                </Button>
+              }
+            />
           ) : (
-            <div className="empty-state">
-              <EmptyStateMark />
-              <p className="empty-state-tagline">No public decks yet.</p>
-              <p className="empty-state-hint">
-                Publish one of your own from the Decks page to be the first.
-              </p>
-            </div>
+            <EmptyState
+              mark
+              tagline="No public decks yet."
+              hint="Publish one of your own from the Decks page to be the first."
+            />
           )
         ) : (
           <>

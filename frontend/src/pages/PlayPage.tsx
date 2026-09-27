@@ -9,7 +9,7 @@ import '@/styles/play-effects.css';
 import '@/styles/play-enhancements.css';
 import '@/styles/play-layout-editor.css';
 import '@/styles/play-counters-panel.css';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { Check, Copy, Eye, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -452,18 +452,15 @@ export function PlayPage() {
               </>
             )
           ) : isGuest ? (
-            <div className="empty-state">
-              <p className="empty-state-tagline">Online games need an account.</p>
-              <p className="empty-state-hint">
-                Sign in to host or join a multiplayer game so other players can sync to it. Local
-                games work without an account.
-              </p>
-              <div className="empty-state-actions">
+            <EmptyState
+              tagline="Online games need an account."
+              hint="Sign in to host or join a multiplayer game so other players can sync to it. Local games work without an account."
+              actions={
                 <Button variant="primary" to={signInHref}>
                   Sign in
                 </Button>
-              </div>
-            </div>
+              }
+            />
           ) : (
             <>
               <OnlineSetup
@@ -1933,11 +1930,11 @@ function HistoryTab({
   // before any games are recorded.
   if (history.length === 0 && userId === null) {
     return (
-      <div className="empty-state">
-        <EmptyStateMark />
-        <p className="empty-state-tagline">No games yet.</p>
-        <p className="empty-state-hint">Pick a door on the Play tab to start your first game.</p>
-      </div>
+      <EmptyState
+        mark
+        tagline="No games yet."
+        hint="Pick a door on the Play tab to start your first game."
+      />
     );
   }
 
@@ -1945,11 +1942,11 @@ function HistoryTab({
     <div className="play-history">
       {userId !== null && <FriendsLeaderboard />}
       {history.length === 0 && hiddenCount === 0 && (
-        <div className="empty-state">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">No games yet.</p>
-          <p className="empty-state-hint">Pick a door on the Play tab to start your first game.</p>
-        </div>
+        <EmptyState
+          mark
+          tagline="No games yet."
+          hint="Pick a door on the Play tab to start your first game."
+        />
       )}
       {hasBothModes && (
         <Tabs<HistoryFilter>
@@ -2085,7 +2082,9 @@ function HistoryTab({
           </div>
         )}
         {shown.length === 0 && history.length > 0 && (
-          <p className="empty-state-hint">No {filter} games yet.</p>
+          <EmptyState compact className="empty-state-hint">
+            No {filter} games yet.
+          </EmptyState>
         )}
         <ul className="play-history-list">
           {shown.map((rec) => {
@@ -2184,7 +2183,9 @@ function HistoryTab({
                 Out of your list only. Each one still counts in your win-loss.
               </p>
               {loadingHidden && hiddenHistory.length === 0 && (
-                <p className="empty-state-hint">Loading…</p>
+                <EmptyState compact className="empty-state-hint">
+                  Loading…
+                </EmptyState>
               )}
               <ul className="play-history-list">
                 {hiddenHistory.map((rec) => (

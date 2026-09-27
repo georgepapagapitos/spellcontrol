@@ -1,4 +1,4 @@
-import { EmptyStateMark } from './shared/EmptyStateMark';
+import { EmptyState } from './shared/EmptyState';
 import {
   AlignJustify,
   Bookmark,
@@ -2271,32 +2271,33 @@ export function CardListTable({
         // Brand-new, never-populated collection — distinct from a filtered
         // "no matches". Same view, just empty: point at the search bar above
         // and offer the Add cards sheet (search · list · scan) right here.
-        <div className="empty-state">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">Your collection is empty.</p>
-          <p className="empty-state-hint">
-            Search for a card above to add it, or use Add cards to import a list
-            {canScan ? ' or scan your cards' : ''}.
-          </p>
-          {onAddCards && (
-            <Button
-              variant="primary"
-              onClick={() => onAddCards()}
-              className="empty-state-action"
-              icon={<Plus width={16} height={16} strokeWidth={1.8} />}
-            >
-              Add cards
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          mark
+          tagline="Your collection is empty."
+          hint={
+            <>
+              Search for a card above to add it, or use Add cards to import a list
+              {canScan ? ' or scan your cards' : ''}.
+            </>
+          }
+          actions={
+            onAddCards && (
+              <Button
+                variant="primary"
+                onClick={() => onAddCards()}
+                icon={<Plus width={16} height={16} strokeWidth={1.8} />}
+              >
+                Add cards
+              </Button>
+            )
+          }
+        />
       ) : sorted.length === 0 && !showScryfall ? (
-        <div className="empty-state">
-          <p className="empty-state-tagline">No matches.</p>
-          <p className="empty-state-hint">Try a broader search or fewer filters.</p>
-          <Button onClick={clearAllFilters} className="empty-state-action">
-            Clear filters
-          </Button>
-        </div>
+        <EmptyState
+          tagline="No matches."
+          hint="Try a broader search or fewer filters."
+          actions={<Button onClick={clearAllFilters}>Clear filters</Button>}
+        />
       ) : view === 'grid' ? (
         <div
           ref={gridContainerRef}

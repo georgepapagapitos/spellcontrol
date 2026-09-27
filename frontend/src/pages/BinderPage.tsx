@@ -7,7 +7,7 @@ import { useDocumentTitle } from '../lib/use-document-title';
 import { AddCardSheet } from '../components/AddCardSheet';
 import { PageHeader } from '../components/PageHeader';
 import { BackLink } from '../components/BackLink';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '../components/shared/EmptyState';
 
 const BinderCardEditor = lazy(() =>
   import('../components/BinderCardEditor').then((m) => ({ default: m.BinderCardEditor }))
@@ -388,19 +388,16 @@ export function BinderPage() {
           // the toolbar with no content and no explanation below it.
           if (active.totalCards === 0) {
             return (
-              <div className="empty-state">
-                <EmptyStateMark />
-                <p className="empty-state-tagline">No cards match this binder's rules.</p>
-                <p className="empty-state-hint">
-                  Loosen a rule or add another match group, and cards from your collection file in
-                  here.
-                </p>
-                <div className="empty-state-actions">
+              <EmptyState
+                mark
+                tagline="No cards match this binder's rules."
+                hint="Loosen a rule or add another match group, and cards from your collection file in here."
+                actions={
                   <Button variant="primary" onClick={() => setEditingBinder(active.def.id)}>
                     Binder rules
                   </Button>
-                </div>
-              </div>
+                }
+              />
             );
           }
           // BinderListView preserves the binder's section grouping (the same

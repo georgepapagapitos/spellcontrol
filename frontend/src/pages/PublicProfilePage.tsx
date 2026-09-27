@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { NotFoundView, ErrorView } from '../components/share/SharedShell';
 import { UserAvatar } from '../components/UserAvatar';
 import { ReportDialog } from '../components/share/ReportDialog';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '../components/shared/EmptyState';
 import { formatIdentity, standaloneIdentity } from '../lib/display-name';
 import { formatSocialCount } from '../lib/social-proof';
 import { formatRelativeTime } from '../lib/format-time';
@@ -334,23 +334,18 @@ function PublicProfilePageInner({ username }: { username: string }) {
     </div>
   ) : profile.decks.length === 0 ? (
     profile.isOwner ? (
-      <div className="empty-state">
-        <EmptyStateMark />
-        <p className="empty-state-tagline">No public decks yet.</p>
-        <p className="empty-state-hint">
-          New decks are public unless you pick Private, and they show up here.
-        </p>
-        <div className="empty-state-actions">
-          <Button variant="primary" to="/decks" className="empty-state-action">
+      <EmptyState
+        mark
+        tagline="No public decks yet."
+        hint="New decks are public unless you pick Private, and they show up here."
+        actions={
+          <Button variant="primary" to="/decks">
             Go to your decks
           </Button>
-        </div>
-      </div>
+        }
+      />
     ) : (
-      <div className="empty-state">
-        <EmptyStateMark />
-        <p className="empty-state-tagline">{heading} hasn&apos;t shared any decks yet.</p>
-      </div>
+      <EmptyState mark tagline={`${heading} hasn't shared any decks yet.`} />
     )
   ) : (
     <DeckGrid decks={profile.decks} username={profile.username} />

@@ -13,6 +13,7 @@ import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { VerdictBadge } from './VerdictBadge';
 import { InfoTip } from '../InfoTip';
 import { Button } from '@/components/shared/Button';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useTouchPeek } from '@/lib/use-touch-peek';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
@@ -766,12 +767,10 @@ export function CoachFeed({
           Suggestions
         </h4>
         {!isPending && allChanges.length === 0 ? (
-          <div className="empty-state">
-            <p className="empty-state-tagline">Nothing to coach. This deck looks tuned.</p>
-            <p className="empty-state-hint">
-              Your deck is well-covered. Try adjusting your power bracket or browsing themes below.
-            </p>
-          </div>
+          <EmptyState
+            tagline="Nothing to coach. This deck looks tuned."
+            hint="Your deck is well-covered. Try adjusting your power bracket or browsing themes below."
+          />
         ) : (
           <>
             {/* Filter chips */}

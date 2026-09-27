@@ -64,7 +64,7 @@ import { useSharedFilters } from '../components/share/use-shared-filters';
 import { SharedCardTile } from '../components/share/SharedCardTile';
 import { SharedCardList } from '../components/share/SharedCardList';
 import { SharedEmptyState } from '../components/share/SharedEmptyState';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '@/components/shared/EmptyState';
 import type { PublicCard, ShareKind } from '../lib/shared-types';
 
 import { userMessage } from '@/lib/user-error';
@@ -753,16 +753,19 @@ export function FriendHubPage() {
         {loading ? (
           <HubSkeleton />
         ) : sharesList.length === 0 ? (
-          <div className="empty-state" role="status">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">
-              {ownerUsername
-                ? `${hasDisplayName ? identity!.primary : handle} hasn't`
-                : "This person hasn't"}{' '}
-              shared anything with friends yet.
-            </p>
-            <p className="empty-state-hint">Check back after their next share.</p>
-          </div>
+          <EmptyState
+            mark
+            status
+            tagline={
+              <>
+                {ownerUsername
+                  ? `${hasDisplayName ? identity!.primary : handle} hasn't`
+                  : "This person hasn't"}{' '}
+                shared anything with friends yet.
+              </>
+            }
+            hint="Check back after their next share."
+          />
         ) : (
           KIND_ORDER.map((kind) => {
             const rows = sharesList.filter((s) => s.kind === kind);

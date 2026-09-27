@@ -89,6 +89,7 @@ primitives directory.
 | ----------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------- |
 | `components/shared/MeterBar`                                | a hand-rolled bar track                               | § Bars & meters — **never hand-roll a track**   |
 | `components/InfoTip`                                        | inline hand-holding prose                             | § Info tooltips                                 |
+| `components/shared/EmptyState`                              | hand-rolled `.empty-state`/`.empty-state-tagline` JSX | § Empty states                                  |
 | `components/shared/EmptyStateMark`                          | a bare "nothing here" line                            | § Empty states                                  |
 | `components/share/SharedEmptyState`                         | a bare `<p>` in a share/friend view                   | § Empty states                                  |
 | `components/share/SharedShell` (`LoadingView`, `ErrorView`) | a bare `Loading…` / a dead-end error on a public page | § Verbs (loading, empty, error)                 |
@@ -3838,6 +3839,18 @@ collapsed 44px row and reserves its height, so an async fetch never shifts the g
 when it resolves.
 
 ## Empty states (E182)
+
+**`components/shared/EmptyState`** is the one primitive for the `.empty-state`
+family below — a primary shape (`tagline`/`hint`/`actions`/`mark`/`status`) and
+a `compact` shape (one quiet line for a nested or secondary empty, or an
+in-panel placeholder). It renders the same `.empty-state`/`.empty-state-tagline`/
+`.empty-state-hint`/`.empty-state-actions` markup this section describes, so no
+new CSS family is introduced; `src/test/empty-state-primitive.test.ts` fails on
+a hand-rolled `className="empty-state"` or `"empty-state-tagline"` anywhere
+else. This does not cover `DeckDisplay.tsx`'s `.deck-empty-state` (the
+insight-strip-styled reference fix just below, a deliberately different,
+icon-led shape for a generated card list) or a one-off inline picker/search
+placeholder (a dropdown's "No matches" row) — those stay their own thing.
 
 A surface whose primary content is a **generated list** (deck card list,
 collection grid, any grouped-rows view) can legitimately have zero rows —

@@ -10,6 +10,7 @@ import type { Deck } from '../../store/decks';
 import type { BinderDef, EnrichedCard } from '../../types';
 import { CardRow } from '../shared/CardRow';
 import { MeterBar } from '../shared/MeterBar';
+import { EmptyState } from '../shared/EmptyState';
 import './PullListSheet.css';
 import { Button, IconButton } from '@/components/shared/Button';
 
@@ -167,10 +168,7 @@ export function PullListSheet({
 
         <div className="pull-list-body">
           {groups.length === 0 ? (
-            <div className="empty-state">
-              <p className="empty-state-tagline">Nothing to pull yet.</p>
-              <p className="empty-state-hint">Add cards to the deck first.</p>
-            </div>
+            <EmptyState tagline="Nothing to pull yet." hint="Add cards to the deck first." />
           ) : (
             groups.map((g) => {
               const pullable = isPullableKind(g.kind);

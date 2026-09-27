@@ -9,7 +9,7 @@ import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { Modal } from '../components/Modal';
 import { UserAvatar } from '../components/UserAvatar';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '../components/shared/EmptyState';
 import { useAnimatedNumber } from '../lib/use-animated-number';
 import { listFriends, type Friend } from '../lib/friends-client';
 import {
@@ -199,16 +199,17 @@ function PodsIndexPageBody() {
       {loading ? (
         <PodsSkeleton />
       ) : isEmpty ? (
-        <div className="empty-state" role="status">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">No pods yet.</p>
-          <p className="empty-state-hint">
-            Create one to track games and trades with your regular table.
-          </p>
-          <Button variant="primary" onClick={() => setCreateOpen(true)}>
-            Create pod
-          </Button>
-        </div>
+        <EmptyState
+          mark
+          status
+          tagline="No pods yet."
+          hint="Create one to track games and trades with your regular table."
+          actions={
+            <Button variant="primary" onClick={() => setCreateOpen(true)}>
+              Create pod
+            </Button>
+          }
+        />
       ) : (
         <>
           {invited.length > 0 && (

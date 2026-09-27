@@ -17,6 +17,7 @@ import './TonightTrades.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { EmptyState } from '@/components/shared/EmptyState';
 interface TonightTradesData {
   incoming: (TradeRadarMatch & { supplierUsername: string })[];
   outgoing: (TradeRadarMatch & { wanterUsername: string })[];
@@ -243,10 +244,11 @@ function TonightTradesSection<K extends 'supplierUsername' | 'wanterUsername'>({
         {title} {matches.length > 0 && <span className="game-night-count">{matches.length}</span>}
       </h3>
       {byPerson.size === 0 ? (
-        <div className="empty-state tonight-trades-section-empty">
-          <p className="empty-state-tagline">{emptyTagline}</p>
-          <p className="empty-state-hint">{emptyHint}</p>
-        </div>
+        <EmptyState
+          className="tonight-trades-section-empty"
+          tagline={emptyTagline}
+          hint={emptyHint}
+        />
       ) : (
         [...byPerson.entries()].map(([person, personMatches]) => (
           <div key={person} className="tonight-trades-person-group">

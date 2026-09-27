@@ -22,7 +22,7 @@ import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { OverflowMenu } from '../components/OverflowMenu';
-import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { EmptyState } from '@/components/shared/EmptyState';
 import {
   SelectToggle,
   BulkSelectBar,
@@ -222,14 +222,14 @@ export function ListsPage() {
     if (!activeList) {
       return (
         <div className="binders-index-page">
-          <div className="empty-state">
-            <p className="empty-state-tagline">List not found.</p>
-            <div className="empty-state-actions">
+          <EmptyState
+            tagline="List not found."
+            actions={
               <Button variant="primary" to="/collection/lists">
                 Back to lists
               </Button>
-            </div>
-          </div>
+            }
+          />
           {confirmDialog}
         </div>
       );
@@ -308,24 +308,21 @@ export function ListsPage() {
           <span className="sr-only">Loading your lists…</span>
         </div>
       ) : lists.length === 0 ? (
-        <div className="empty-state">
-          <EmptyStateMark />
-          <p className="empty-state-tagline">No lists yet.</p>
-          <p className="empty-state-hint">
-            A wishlist, a trade pile, or a rule that keeps itself current. Lists never touch your
-            collection, binders, or decks.
-          </p>
-          <div className="empty-state-actions">
-            <Button variant="primary" onClick={handleCreate}>
-              Create your first list
-            </Button>
-            <Button onClick={handleCreateDynamic}>New dynamic list</Button>
-          </div>
-        </div>
+        <EmptyState
+          mark
+          tagline="No lists yet."
+          hint="A wishlist, a trade pile, or a rule that keeps itself current. Lists never touch your collection, binders, or decks."
+          actions={
+            <>
+              <Button variant="primary" onClick={handleCreate}>
+                Create your first list
+              </Button>
+              <Button onClick={handleCreateDynamic}>New dynamic list</Button>
+            </>
+          }
+        />
       ) : sorted.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-state-tagline">No lists match “{search.trim()}”.</p>
-        </div>
+        <EmptyState tagline={`No lists match “${search.trim()}”.`} />
       ) : (
         <>
           {sel.selectMode && (

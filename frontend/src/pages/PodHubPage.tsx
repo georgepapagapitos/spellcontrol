@@ -9,6 +9,7 @@ import { toast } from '../store/toasts';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackedBar } from '../components/shared/MeterBar';
+import { EmptyState } from '../components/shared/EmptyState';
 import { UserAvatar } from '../components/UserAvatar';
 import { gameFormatLabel } from '../lib/game-formats';
 import { useAnimatedNumber } from '../lib/use-animated-number';
@@ -424,15 +425,16 @@ export function PodHubPage() {
     return (
       <div className="pod-hub">
         <BackLink to="/pods" label="Pods" />
-        <div className="empty-state" role="status">
-          <p className="empty-state-tagline">Pod not found.</p>
-          <p className="empty-state-hint">
-            It may have been deleted, or you don't have access to it.
-          </p>
-          <Button variant="primary" to="/pods">
-            Back to pods
-          </Button>
-        </div>
+        <EmptyState
+          status
+          tagline="Pod not found."
+          hint="It may have been deleted, or you don't have access to it."
+          actions={
+            <Button variant="primary" to="/pods">
+              Back to pods
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -628,12 +630,16 @@ export function PodHubPage() {
                   </Button>
                 </p>
               ) : gamesFetch.games.length === 0 ? (
-                <div className="pod-hub-stats-empty pod-hub-stats-empty-cta">
+                <EmptyState
+                  compact
+                  as="div"
+                  className="pod-hub-stats-empty pod-hub-stats-empty-cta"
+                >
                   <p>No games yet.</p>
                   <Button variant="primary" to="/play/nights">
                     Plan a game night
                   </Button>
-                </div>
+                </EmptyState>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table className="play-records-table">
@@ -683,7 +689,9 @@ export function PodHubPage() {
                   </Button>
                 </p>
               ) : leaderboardFetch.standings.length === 0 ? (
-                <p className="pod-hub-stats-empty">No standings yet.</p>
+                <EmptyState compact className="pod-hub-stats-empty">
+                  No standings yet.
+                </EmptyState>
               ) : (
                 <>
                   <div style={{ overflowX: 'auto' }}>

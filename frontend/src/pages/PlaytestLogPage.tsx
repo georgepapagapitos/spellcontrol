@@ -8,6 +8,7 @@ import {
   type PlaytestSnapshot,
 } from '@/lib/playtest/session-snapshot';
 import { LogDock } from '@/playtest/components/LogDock';
+import { EmptyState } from '@/components/shared/EmptyState';
 import '@/styles/playtest.css';
 
 const KEY_PREFIX = 'spellcontrol:playtest:';
@@ -48,10 +49,10 @@ export function PlaytestLogPage() {
   }
   if (!deck) {
     return (
-      <div className="empty-state">
-        <p className="empty-state-tagline">Deck not found.</p>
-        <p className="empty-state-hint">Close this window and open the log from the table.</p>
-      </div>
+      <EmptyState
+        tagline="Deck not found."
+        hint="Close this window and open the log from the table."
+      />
     );
   }
 
