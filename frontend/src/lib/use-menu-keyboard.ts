@@ -43,6 +43,15 @@ export interface UseMenuKeyboardOptions {
    * default: a long list needs focus to scroll its own scroller to the item.
    */
   preventScroll?: boolean;
+  /**
+   * A panel that nests several independent item lists (a menu with a flyout
+   * submenu open beside it) — Up/Down/Home/End walk only the list containing
+   * `document.activeElement`, found via its closest ancestor matching this
+   * selector, rather than every item under `panelRef`. Omit for a panel with
+   * one flat list (the default): navigation then spans the whole panel, as
+   * before.
+   */
+  scopeSelector?: string;
 }
 
 const DEFAULT_ITEM_SELECTOR = '[role="menuitem"]';
@@ -55,7 +64,8 @@ function getItems(panel: HTMLElement, selector: string): HTMLElement[] {
 
 /**
  * Real menu-button semantics for a popover menu (WAI-ARIA menu / listbox
- * popup pattern), shared by OverflowMenu, CardRowMenu and SelectMenu:
+ * popup pattern), shared by OverflowMenu, CardRowMenu, SelectMenu and
+ * CtxMenuShell (the pointer-anchored card/table context menus):
  *
  * - on open, focus moves to the first item (or `initialItemSelector` match);
  * - ArrowDown/ArrowUp move focus through items, wrapping at the ends;
@@ -92,6 +102,7 @@ export function useMenuKeyboard({
   dialog = false,
   ignoreSelector,
   preventScroll = false,
+  scopeSelector,
 }: UseMenuKeyboardOptions): { closeAndReturnFocus: () => void } {
   // Keep the latest onClose without re-subscribing listeners every render
   // (consumers pass inline arrows).
@@ -184,12 +195,28 @@ export function useMenuKeyboard({
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') {
         return;
       }
+      // A text field inside the panel (a menu's own "new tag" input) keeps
+      // Home/End/arrows as cursor movement — they are not menu navigation
+      // just because a menuitem happens to live in the same panel.
+      const eventTarget = e.target as HTMLElement | null;
+      if (
+        eventTarget &&
+        (eventTarget.tagName === 'INPUT' ||
+          eventTarget.tagName === 'TEXTAREA' ||
+          eventTarget.isContentEditable)
+      ) {
+        return;
+      }
       const currentPanel = panelRef.current;
       if (!currentPanel) return;
-      const items = getItems(currentPanel, itemSelector);
+      const active = document.activeElement as HTMLElement | null;
+      // Scoped to the sub-list focus is currently in (a submenu flyout),
+      // falling back to the whole panel for a flat, single-list menu.
+      const scope = (scopeSelector && active?.closest<HTMLElement>(scopeSelector)) || currentPanel;
+      const items = getItems(scope, itemSelector);
       if (items.length === 0) return;
       e.preventDefault();
-      const activeIndex = items.indexOf(document.activeElement as HTMLElement);
+      const activeIndex = items.indexOf(active as HTMLElement);
       let next: number;
       if (e.key === 'Home') next = 0;
       else if (e.key === 'End') next = items.length - 1;
@@ -221,6 +248,7 @@ export function useMenuKeyboard({
     dialog,
     ignoreSelector,
     preventScroll,
+    scopeSelector,
     isTopmost,
   ]);
 

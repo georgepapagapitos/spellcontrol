@@ -98,6 +98,52 @@ function DialogHarness({ ignoreSelector }: { ignoreSelector?: string }) {
   );
 }
 
+/**
+ * Stands in for CtxMenuShell hosting a root menu plus an open flyout
+ * submenu (TableContextMenu's shape): two `[data-menu-panel]` groups inside
+ * one panel. `scopeSelector` should confine Up/Down to whichever group
+ * `document.activeElement` is in, not the panel as a whole.
+ */
+function ScopedHarness() {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useMenuKeyboard({
+    open,
+    onClose: () => setOpen(false),
+    panelRef,
+    triggerRef,
+    scopeSelector: '[data-menu-panel]',
+  });
+  return (
+    <div>
+      <button ref={triggerRef} type="button" onClick={() => setOpen((v) => !v)}>
+        Trigger
+      </button>
+      {open && (
+        <div ref={panelRef} role="menu">
+          <div data-menu-panel="root">
+            <button type="button" role="menuitem">
+              Root One
+            </button>
+            <button type="button" role="menuitem">
+              Root Two
+            </button>
+          </div>
+          <div data-menu-panel="sub">
+            <button type="button" role="menuitem">
+              Sub One
+            </button>
+            <button type="button" role="menuitem">
+              Sub Two
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const openMenu = () => {
   fireEvent.click(screen.getByRole('button', { name: 'Trigger' }));
 };
@@ -199,6 +245,22 @@ describe('useMenuKeyboard', () => {
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'One' }));
     fireEvent.keyDown(document, { key: 'ArrowDown' });
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Three' }));
+  });
+
+  it('with scopeSelector, walks only the group focus is in, not the whole panel', () => {
+    render(<ScopedHarness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trigger' }));
+    // Initial focus (no initialItemSelector) lands on the first item overall.
+    screen.getByText('Sub One').focus();
+
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByText('Sub Two'));
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByText('Sub One')); // wraps within the group
+
+    screen.getByText('Root One').focus();
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(screen.getByText('Root Two')); // wraps within ITS group
   });
 
   it('closes on Escape and returns focus to the trigger', () => {

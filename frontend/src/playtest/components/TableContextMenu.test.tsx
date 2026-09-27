@@ -185,6 +185,29 @@ describe('TableContextMenu — submenus', () => {
     expect(document.activeElement).toBe(rows[0]);
   });
 
+  it('walks only the open submenu with ↑/↓, never the root behind it', () => {
+    // The shared keyboard hook (T157) now supplies Up/Down; this proves the
+    // table-specific bit it did not have to reimplement — a flyout's rows
+    // scope navigation to themselves — is still true.
+    render(<TableContextMenu x={0} y={0} items={nested()} onClose={vi.fn()} />);
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: /Move all to/ }), {
+      key: 'ArrowRight',
+    });
+    const hand = screen.getByRole('menuitem', { name: 'Hand' });
+    expect(document.activeElement).toBe(hand);
+
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    const graveyard = screen.getByRole('menuitem', { name: 'Graveyard' });
+    expect(document.activeElement).toBe(graveyard);
+
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(hand); // wraps inside the submenu…
+
+    // …never reaching the root's "Shuffle" or "Move all to" rows.
+    expect(document.activeElement).not.toBe(screen.getByRole('menuitem', { name: 'Shuffle' }));
+    expect(document.activeElement).not.toBe(screen.getByRole('menuitem', { name: /Move all to/ }));
+  });
+
   it('opens with a submenu already open when asked for one by id', () => {
     const list: MenuEntry[] = [
       { label: 'Tap', onClick: vi.fn() },
