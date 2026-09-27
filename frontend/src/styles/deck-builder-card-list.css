@@ -189,7 +189,8 @@
   padding-bottom: var(--stack-open);
 }
 
-.deck-grid-section--stack:has(.deck-card-grid-cell.is-open ~ .deck-card-grid-cell)
+.deck-grid-section--stack:has(.deck-card-grid-cell.is-open ~ .deck-card-grid-cell) .deck-card-stack,
+.deck-grid-section--stack:has(.deck-card-grid-cell[data-menu-open] ~ .deck-card-grid-cell)
   .deck-card-stack {
   padding-bottom: var(--stack-open);
 }
@@ -259,8 +260,14 @@
 
 /* Touch parity. A touch has no hover, so the first tap opens the card
    (`.is-open`, set by DeckCardGrid) and a second tap on it opens the carousel.
-   Outside the hover query on purpose: a touch laptop taps too. */
-.deck-card-stack .deck-card-grid-cell.is-open ~ .deck-card-grid-cell {
+   Outside the hover query on purpose: a touch laptop taps too.
+
+   A card whose menu is open (`[data-menu-open]`, T162) stays open too. The
+   menu's backdrop takes the pointer, so the card loses its hover the moment
+   the menu appears; without this the card slid back under its neighbours and
+   the user picked "Move to sideboard" for a card they could no longer see. */
+.deck-card-stack .deck-card-grid-cell.is-open ~ .deck-card-grid-cell,
+.deck-card-stack .deck-card-grid-cell[data-menu-open] ~ .deck-card-grid-cell {
   transform: translateY(var(--stack-open));
 }
 
@@ -432,6 +439,18 @@
 /* No hover movement. Keep a visible keyboard-focus ring for a11y
    (the tile is a button). */
 .deck-card-grid-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The card a menu is open for (T162) wears the ring on the card, where the
+   eye is, rather than on the cell: in a stack the next card overlaps the
+   cell, so a ring there showed only as two stray corners. */
+.deck-card-grid-cell[data-menu-open] {
+  outline: none;
+}
+
+.deck-card-grid-cell[data-menu-open] > .deck-card-grid-tile {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

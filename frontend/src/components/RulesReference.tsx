@@ -2,7 +2,7 @@ import { ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SearchPill } from './SearchPill';
 import { Tabs } from './Tabs';
-import { openEntryMenu, RulesEntryMenu, type RulesEntry } from './RulesEntryMenu';
+import { RulesEntryMenu, type RulesEntry } from './RulesEntryMenu';
 import {
   loadRulesBundle,
   searchGlossary,
@@ -259,10 +259,10 @@ function RuleRow({
     question: `Explain rule ${number}.`,
   };
   return (
-    <div className="rules-ref-rule" onContextMenu={openEntryMenu}>
+    <div className="rules-ref-rule">
       <span className="rules-ref-rule-num">{number}</span>
       <span className="rules-ref-rule-text">{withRuleLinks(text, onJump)}</span>
-      <RulesEntryMenu entry={entry} {...menu} />
+      <RulesEntryMenu entry={entry} contextHost=".rules-ref-rule" {...menu} />
     </div>
   );
 }
@@ -300,11 +300,7 @@ function KeywordList({
         };
         const bodyId = `rules-kw-${k.kind}-${k.rule}`;
         return (
-          <li
-            key={`${k.kind}-${k.rule}`}
-            className="rules-ref-keyword"
-            onContextMenu={openEntryMenu}
-          >
+          <li key={`${k.kind}-${k.rule}`} className="rules-ref-keyword">
             <div className="rules-ref-keyword-row">
               <button
                 type="button"
@@ -329,7 +325,7 @@ function KeywordList({
                 <span className={`rules-ref-badge rules-ref-badge-${k.kind}`}>{k.kind}</span>
                 <span className="rules-ref-keyword-rule">{k.rule}</span>
               </button>
-              <RulesEntryMenu entry={entry} {...menu} />
+              <RulesEntryMenu entry={entry} contextHost=".rules-ref-keyword" {...menu} />
             </div>
             {summary && !isOpen && <p className="rules-ref-keyword-summary">{summary}</p>}
             {isOpen && (
@@ -370,10 +366,11 @@ function GlossaryList({
   return (
     <dl className="rules-ref-glossary">
       {results.map((g) => (
-        <div key={g.term} className="rules-ref-glossary-entry" onContextMenu={openEntryMenu}>
+        <div key={g.term} className="rules-ref-glossary-entry">
           <dt className="rules-ref-glossary-term">
             <span>{g.term}</span>
             <RulesEntryMenu
+              contextHost=".rules-ref-glossary-entry"
               entry={{
                 label: g.term,
                 text: `${g.term}: ${g.definition}`,

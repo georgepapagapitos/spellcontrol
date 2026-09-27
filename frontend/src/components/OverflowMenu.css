@@ -71,3 +71,14 @@
     min-height: 44px;
   }
 }
+
+/* The item a menu acts on (T162, STYLE_GUIDE § Verbs — Menus). While an
+   item's menu is open, from its ⋮ or a right-click, the item wears the accent
+   ring, so "which card is this menu for" never needs guessing: a right-click
+   menu sits at the pointer, not beside the item. Inset, so a tile inside a
+   clipping grid or a virtualised list still shows all four sides. Set and
+   cleared only by lib/context-menu.ts `markMenuTarget`. */
+[data-menu-open] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}

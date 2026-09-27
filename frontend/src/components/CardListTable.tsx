@@ -1361,6 +1361,24 @@ export function CardListTable({
     [groupPrintings, allCards, allocatedCopyIds, applyRemoval]
   );
 
+  // One card menu for every layout: the list/table kebab and the grid tile's
+  // corner ⋮ offer the same actions, and right-click opens whichever sits on
+  // the card under the pointer.
+  const cardMenu = (r: Row, variant: 'row' | 'tile') => (
+    <CardRowMenu
+      card={r.card}
+      variant={variant}
+      onEditCard={() => openEdit(r.card, !groupPrintings)}
+      onSplitCopy={groupPrintings && r.qty >= 2 ? () => openEdit(r.card, true) : undefined}
+      onDelete={() => handleDeleteRow(r)}
+      currentBinder={
+        r.binderId && r.binderName
+          ? { id: r.binderId, name: r.binderName, color: r.binderColor }
+          : null
+      }
+    />
+  );
+
   const confirmDeleteCount = useCallback(
     (count: number) => {
       if (!deletingRow) return;
@@ -2408,6 +2426,7 @@ export function CardListTable({
                       selectMode={selectMode}
                       selected={selected}
                       onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
+                      menu={cardMenu(r, 'tile')}
                       cornerExtras={
                         dupChip || surplusChip ? (
                           <>
@@ -2506,21 +2525,7 @@ export function CardListTable({
                     (isRefreshingPrices || !pricesEverLoaded) && !((r.card.purchasePrice ?? 0) > 0)
                   }
                   onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(item.index))}
-                  menu={
-                    <CardRowMenu
-                      card={r.card}
-                      onEditCard={() => openEdit(r.card, !groupPrintings)}
-                      onSplitCopy={
-                        groupPrintings && r.qty >= 2 ? () => openEdit(r.card, true) : undefined
-                      }
-                      onDelete={() => handleDeleteRow(r)}
-                      currentBinder={
-                        r.binderId && r.binderName
-                          ? { id: r.binderId, name: r.binderName, color: r.binderColor }
-                          : null
-                      }
-                    />
-                  }
+                  menu={cardMenu(r, 'row')}
                 />
               );
             })}

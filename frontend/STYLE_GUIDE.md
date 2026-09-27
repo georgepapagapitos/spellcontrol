@@ -54,6 +54,7 @@ primitives directory.
 | `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                  | § Verbs (menus)                                               |
 | `lib/use-menu-keyboard`                                        | a bespoke `role="menu"` key handler             | § Verbs (menus)                                               |
 | `components/shared/InlineRename`                               | a bespoke input-swap rename flow                | § Verbs (rename)                                              |
+| `OverflowMenu` `contextHost` (+ `lib/context-menu`)            | an `onContextMenu` on an item                   | § Verbs (menus)                                               |
 | `components/shared/ToolbarPopover`                             | a second portal-popover impl                    | § Toolbars & action rows                                      |
 | `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows               | § Toolbars & action rows                                      |
 | `components/Tabs`                                              | bespoke tab markup                              | § Tabs / view switchers                                       |
@@ -161,6 +162,42 @@ screen.
   keys, Home/End, Escape closes and returns focus. Build it on `OverflowMenu`,
   `SelectMenu`, `ToolbarPopover` or `CtxMenuShell`, which run on
   `useMenuKeyboard`; a hand-rolled menu fails `src/test` (menu keyboard guard).
+- **Right-click opens the ⋮'s menu (T162, 2026-09-27).** On any item with a ⋮
+  (a card, a deck, a binder, a rule), a right-click opens that same menu with
+  the same items, at the pointer. It is never a second menu with its own
+  items: a user learns an item's actions once. The Context Menu key and
+  Shift+F10 on the focused item open it too, hung off the ⋮ the way a click
+  on it would. Pass `contextHost=".your-item"` to the item's `OverflowMenu`;
+  a hand-rolled `onContextMenu` fails
+  `src/test/right-click-opens-the-kebab-menu.test.ts`. The deck view is the
+  one surface with its own path, a single `CtxMenuShell` card menu that the
+  row ⋮, the tile ⋮ and a right-click all build from `cardMenuCtx`.
+- **The item a menu acts on is marked while the menu is open**, however the
+  menu was opened: `data-menu-open`, drawn as the accent ring (on the card
+  art, for a tile). A right-click menu sits at the pointer, not beside its
+  item, so the ring is how the user knows which card "Remove" means. In the
+  deck's stacks the marked card also stays fanned out: the menu's backdrop
+  takes the hover away, and a card sliding back under its neighbours while its
+  menu was up is the bug that started this ruling.
+- **What keeps the browser's menu:** Shift + right-click (Firefox's own
+  convention, made to hold in Chrome and Edge too), a field, selected text
+  under the pointer, and a link that is not the item's own (a deck badge on a
+  card). An item that is a page of its own (a deck tile) passes `itemHref`:
+  its menu gains **Open in new tab** and **Copy link** above the destructive
+  rows, so taking the right-click from its link loses nothing the browser
+  offered. The rules live in `lib/context-menu.ts`.
+- **A menu with nothing to do does not render.** No ⋮, and a right-click is
+  the browser's. A read-only shared deck used to open a menu holding one
+  disabled "Remove from deck".
+- **A right-click never comes without a visible ⋮** (§ Tag chips), revealed on
+  hover or focus under a fine pointer and always shown under a coarse one,
+  where there is no right-click. A grid tile keeps it top-right, where the
+  deck and collection grids both put it.
+- **Surfaces without per-item actions keep the browser's menu.** Search
+  results, shared and friend views and Discover tiles have no ⋮, so a
+  right-click there is the browser's (on a link tile, that is Open in new
+  tab). Giving one of them a menu is a feature decision, not part of this
+  contract.
 
 **Copy**
 

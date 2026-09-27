@@ -10,6 +10,13 @@ export interface UseMenuKeyboardOptions {
   panelRef: RefObject<HTMLElement | null>;
   /** The button that opened the menu — focus returns here on Escape/activation. */
   triggerRef: RefObject<HTMLElement | null>;
+  /**
+   * Where focus returns on close, when that is not the trigger: a menu opened
+   * by right-clicking an item hands focus back to the item (its link or row),
+   * not to the item's ⋮. The trigger still counts as "inside" for the
+   * outside-pointerdown guard either way.
+   */
+  returnFocusRef?: RefObject<HTMLElement | null>;
   /** Selector for focusable items inside the panel. Defaults to menuitems. */
   itemSelector?: string;
   /**
@@ -97,6 +104,7 @@ export function useMenuKeyboard({
   onClose,
   panelRef,
   triggerRef,
+  returnFocusRef,
   itemSelector = DEFAULT_ITEM_SELECTOR,
   initialItemSelector,
   dialog = false,
@@ -115,13 +123,15 @@ export function useMenuKeyboard({
   // trigger, so it stays mounted with the panel closed.
   const { isTopmost } = useOverlayLayer(open);
 
+  const focusBackRef = returnFocusRef ?? triggerRef;
+
   const closeAndReturnFocus = useCallback(() => {
     onCloseRef.current();
     // preventScroll: the trigger is on-screen (the menu was anchored to it),
     // and a page scroll here would trip the scroll-close guards in the
     // portaled menus.
-    triggerRef.current?.focus({ preventScroll: true });
-  }, [triggerRef]);
+    (focusBackRef.current ?? triggerRef.current)?.focus({ preventScroll: true });
+  }, [focusBackRef, triggerRef]);
 
   useEffect(() => {
     if (!open) return;
@@ -175,7 +185,7 @@ export function useMenuKeyboard({
       if (e.key === 'Escape') {
         e.preventDefault();
         onCloseRef.current();
-        triggerRef.current?.focus({ preventScroll: true });
+        (focusBackRef.current ?? triggerRef.current)?.focus({ preventScroll: true });
         return;
       }
       if (e.key === 'Tab') {
@@ -189,7 +199,7 @@ export function useMenuKeyboard({
         // Close and park focus on the trigger so the browser's default tab
         // traversal continues from the menu's anchor point.
         onCloseRef.current();
-        triggerRef.current?.focus({ preventScroll: true });
+        (focusBackRef.current ?? triggerRef.current)?.focus({ preventScroll: true });
         return;
       }
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') {
@@ -241,6 +251,7 @@ export function useMenuKeyboard({
     open,
     panelRef,
     triggerRef,
+    focusBackRef,
     itemSelector,
     initialItemSelector,
     dialog,

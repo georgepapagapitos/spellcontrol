@@ -3,6 +3,7 @@ import { CircleAlert, Layers, Pencil, Search, Tag as TagIcon, Trash2, X } from '
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useOverflowEdges } from '@/lib/use-overflow-edges';
 import { useCurrency } from '@/lib/currency';
+import { isKeyboardContextMenu, keepsBrowserMenu } from '@/lib/context-menu';
 import { createPortal } from 'react-dom';
 import type {
   ScryfallCard,
@@ -132,7 +133,7 @@ import { DeckToolbar } from './DeckToolbar';
 import { DeckCardGrid } from './DeckCardGrid';
 import { CategorySection } from './DeckMainboardRow';
 import { DeckCardMenu } from './DeckCardMenu';
-import type { DeckCardActionCtx } from './deck-card-actions';
+import { hasCardActions, type DeckCardActionCtx } from './deck-card-actions';
 import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
 import { Button, buttonClass, IconButton } from '@/components/shared/Button';
@@ -663,22 +664,31 @@ export function DeckDisplay({
     zone: DeckZone;
     x: number;
     y: number;
+    /** The row or tile the menu acts on; it wears the ring while it's open. */
+    target: Element | null;
   } | null>(null);
   const openCardMenu = (zone: DeckZone) => (row: Row, e: React.MouseEvent) => {
-    // A right-click on a field or a link keeps the browser's own menu: copy,
-    // paste and open-in-new-tab are not ours to take.
-    if (
-      (e.target as HTMLElement).closest(
-        'input, textarea, select, a[href], [contenteditable="true"]'
-      )
-    ) {
+    // A field, selected text, a link or a Shift+right-click keeps the
+    // browser's own menu (lib/context-menu), and so does a card with nothing
+    // to do (a read-only shared deck).
+    if (keepsBrowserMenu(e.nativeEvent)) return;
+    if (!hasCardActions(cardMenuCtx(row, zone))) return;
+    e.preventDefault();
+    const target = e.currentTarget;
+    if (isKeyboardContextMenu(e.nativeEvent)) {
+      // The Context Menu key or Shift+F10 has no pointer: the menu opens where
+      // the card's ⋮ opens it, beside the card rather than over its face.
+      const kebab = target.querySelector('.deck-card-grid-menu, .deck-row-menu-trigger');
+      const rect = (kebab ?? target).getBoundingClientRect();
+      setCardMenu({ row, zone, x: rect.left, y: rect.bottom, target });
       return;
     }
-    e.preventDefault();
-    setCardMenu({ row, zone, x: e.clientX, y: e.clientY });
+    setCardMenu({ row, zone, x: e.clientX, y: e.clientY, target });
   };
-  const openCardMenuAt = (zone: DeckZone) => (row: Row, rect: DOMRect) =>
-    setCardMenu({ row, zone, x: rect.left, y: rect.bottom });
+  const openCardMenuAt = (zone: DeckZone) => (row: Row, trigger: HTMLElement) => {
+    const rect = trigger.getBoundingClientRect();
+    setCardMenu({ row, zone, x: rect.left, y: rect.bottom, target: trigger.closest('li') });
+  };
 
   const collapsedTitlesForLens = useMemo(
     () => titlesUnder(collapsedSections, `${groupBy}:`),
@@ -1544,6 +1554,7 @@ export function DeckDisplay({
         onSetCardTags ? (slotIds, tags) => onSetCardTags('cards', slotIds, tags) : undefined
       }
       onRowContextMenu={openCardMenu('cards')}
+      menuCtx={(row) => cardMenuCtx(row, 'cards')}
       collapsed={isSectionCollapsed(g.title)}
       onToggleCollapsed={() => toggleSection(g.title)}
       title={g.title}
@@ -1604,6 +1615,7 @@ export function DeckDisplay({
           onSetCardTags ? (slotIds, tags) => onSetCardTags(zone, slotIds, tags) : undefined
         }
         onRowContextMenu={openCardMenu(zone)}
+        menuCtx={(row) => cardMenuCtx(row, zone)}
         currency={currency}
         showPrefs={showPrefs}
         onRowClick={openPreview}
@@ -2148,6 +2160,7 @@ export function DeckDisplay({
                           onToggleSection={toggleSection}
                           onRowContextMenu={openCardMenu('cards')}
                           onRowMenu={openCardMenuAt('cards')}
+                          rowHasMenu={(row) => hasCardActions(cardMenuCtx(row, 'cards'))}
                           onRowClick={openPreview}
                           legalityBySlot={legalityBySlot}
                           gridZoom={effectiveGridZoom}
@@ -2207,7 +2220,8 @@ export function DeckDisplay({
                           collapsedTitles={collapsedOutzoneTitles}
                           onToggleSection={toggleOutzoneSection}
                           onRowContextMenu={(row, e) => openCardMenu(outzoneOf(row))(row, e)}
-                          onRowMenu={(row, rect) => openCardMenuAt(outzoneOf(row))(row, rect)}
+                          onRowMenu={(row, trigger) => openCardMenuAt(outzoneOf(row))(row, trigger)}
+                          rowHasMenu={(row) => hasCardActions(cardMenuCtx(row, outzoneOf(row)))}
                           onRowClick={openPreview}
                           legalityBySlot={legalityBySlot}
                           gridZoom={effectiveGridZoom}
@@ -2487,6 +2501,7 @@ export function DeckDisplay({
             row={cardMenu.row}
             x={cardMenu.x}
             y={cardMenu.y}
+            target={cardMenu.target}
             deckTags={deckTags.map((t) => t.tag)}
             ctx={cardMenuCtx(cardMenu.row, cardMenu.zone)}
             onClose={() => setCardMenu(null)}

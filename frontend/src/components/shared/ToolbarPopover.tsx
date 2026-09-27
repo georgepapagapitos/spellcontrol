@@ -1,8 +1,9 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
+import { markMenuTarget } from '@/lib/context-menu';
 
 /**
  * Toolbar popover — portal-positioned disclosure (same mechanism as
@@ -26,6 +27,7 @@ export function ToolbarPopover({
   panelClassName,
   panelRole,
   panelAriaLabel,
+  itemHost,
   children,
 }: {
   label?: string;
@@ -46,12 +48,21 @@ export function ToolbarPopover({
   panelClassName?: string;
   panelRole?: string;
   panelAriaLabel?: string;
+  /** For a per-item menu (the deck-row kebab): a selector for the trigger's
+   *  closest ancestor, the item the menu acts on. It is marked while the menu
+   *  is open, the same as an OverflowMenu's `contextHost`. */
+  itemHost?: string;
   children: (close: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || !itemHost) return;
+    return markMenuTarget(buttonRef.current?.closest(itemHost));
+  }, [open, itemHost]);
 
   useLayoutEffect(() => {
     if (!open || !panelRef.current || !buttonRef.current) return;

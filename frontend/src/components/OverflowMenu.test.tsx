@@ -102,4 +102,116 @@ describe('OverflowMenu', () => {
     expect(onItem).toHaveBeenCalledOnce();
     expect(onRowClick).not.toHaveBeenCalled();
   });
+
+  // ── Right-click (T162, STYLE_GUIDE § Verbs — Menus) ─────────────────────
+  describe('right-click on its item', () => {
+    const tile = (extra: Partial<React.ComponentProps<typeof OverflowMenu>> = {}) =>
+      render(
+        <div className="tile" data-testid="tile">
+          <a href="/decks/abc" data-testid="own-link">
+            <span data-testid="name">Atraxa</span>
+          </a>
+          <a href="/decks/other" data-testid="other-link">
+            elsewhere
+          </a>
+          <OverflowMenu
+            ariaLabel="Actions for Atraxa"
+            contextHost=".tile"
+            items={[
+              { label: 'Rename', onClick: () => {} },
+              { label: 'Delete deck', onClick: () => {}, danger: true },
+            ]}
+            {...extra}
+          />
+        </div>
+      );
+
+    it('opens the same menu at the pointer', () => {
+      tile({ itemHref: '/decks/abc' });
+      const notPrevented = fireEvent.contextMenu(screen.getByTestId('name'), {
+        clientX: 140,
+        clientY: 220,
+      });
+      expect(notPrevented).toBe(false);
+      const menu = screen.getByRole('menu');
+      expect(menu.style.left).toBe('140px');
+      expect(menu.style.top).toBe('220px');
+      expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeTruthy();
+    });
+
+    it('marks the item while the menu is open, from a right-click or the ⋮ alike', () => {
+      tile();
+      const host = screen.getByTestId('tile');
+      fireEvent.contextMenu(host, { clientX: 10, clientY: 10 });
+      expect(host.hasAttribute('data-menu-open')).toBe(true);
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(host.hasAttribute('data-menu-open')).toBe(false);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for Atraxa' }));
+      expect(host.hasAttribute('data-menu-open')).toBe(true);
+    });
+
+    it('gives focus back to the item on Escape, not to its ⋮', () => {
+      tile({ itemHref: '/decks/abc' });
+      fireEvent.contextMenu(screen.getByTestId('name'), { clientX: 10, clientY: 10 });
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(document.activeElement).toBe(screen.getByTestId('own-link'));
+    });
+
+    it('opens at the ⋮ for the Context Menu key or Shift+F10', () => {
+      tile();
+      fireEvent.contextMenu(screen.getByTestId('tile'), {
+        button: -1,
+        shiftKey: true,
+        clientX: 300,
+        clientY: 400,
+      });
+      const menu = screen.getByRole('menu');
+      // Hung off the trigger, not at the coordinates the keyboard event carries.
+      expect(menu.style.top).not.toBe('400px');
+      expect(menu.style.left).not.toBe('300px');
+    });
+
+    it('lets Shift + right-click through to the browser', () => {
+      tile();
+      const notPrevented = fireEvent.contextMenu(screen.getByTestId('name'), { shiftKey: true });
+      expect(notPrevented).toBe(true);
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+
+    it('leaves a link that is not the item’s own to the browser', () => {
+      tile({ itemHref: '/decks/abc' });
+      expect(fireEvent.contextMenu(screen.getByTestId('other-link'))).toBe(true);
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+
+    it('adds Open in new tab and Copy link for an item that is a page, above Delete', () => {
+      tile({ itemHref: '/decks/abc', itemName: 'Atraxa' });
+      expect(fireEvent.contextMenu(screen.getByTestId('name'))).toBe(false);
+      const labels = screen.getAllByRole('menuitem').map((el) => el.textContent);
+      expect(labels).toEqual(['Rename', 'Open in new tab', 'Copy link', 'Delete deck']);
+    });
+
+    it('lets an inner item with its own menu answer first', () => {
+      render(
+        <div className="outer" data-testid="outer">
+          <OverflowMenu
+            ariaLabel="Outer"
+            contextHost=".outer"
+            items={[{ label: 'Outer item', onClick: () => {} }]}
+          />
+          <div className="inner" data-testid="inner">
+            <OverflowMenu
+              ariaLabel="Inner"
+              contextHost=".inner"
+              items={[{ label: 'Inner item', onClick: () => {} }]}
+            />
+          </div>
+        </div>
+      );
+      fireEvent.contextMenu(screen.getByTestId('inner'), { clientX: 5, clientY: 5 });
+      expect(screen.getByRole('menuitem', { name: 'Inner item' })).toBeTruthy();
+      expect(screen.queryByRole('menuitem', { name: 'Outer item' })).toBeNull();
+    });
+  });
 });

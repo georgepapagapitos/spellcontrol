@@ -137,7 +137,7 @@ describe('card inspector', () => {
     const row = container.querySelector<HTMLElement>('[data-peek-name="Skirk Prospector"]')!;
     row.getBoundingClientRect = () =>
       ({ top: 100, left: 0, right: 300, bottom: 120, width: 300, height: 20 }) as DOMRect;
-    fireEvent.focus(row.querySelector('button')!);
+    fireEvent.focus(row);
     expect(nameOf(container)).toBe('Skirk Prospector');
   });
 

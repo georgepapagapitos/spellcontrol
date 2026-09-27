@@ -234,6 +234,17 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
 }
 
 /**
+ * Whether a card has a menu at all: at least one action the user can take.
+ * A read-only deck (a shared link, a public profile) passes no handlers, and
+ * its menu used to open on a lone disabled "Remove from deck". A menu with
+ * nothing to do is a dead end, so it doesn't render: no ⋮, and a right-click
+ * gets the browser's own menu (STYLE_GUIDE § Verbs — Menus).
+ */
+export function hasCardActions(ctx: DeckCardActionCtx): boolean {
+  return deckCardActions(ctx).some((action) => !action.disabled);
+}
+
+/**
  * The tag picker's rows. A card's section is its FIRST tag (see groupByTag),
  * so picking one HOISTS it to index 0 rather than appending: appending would
  * leave the card sitting in whatever group it was already in, and the menu

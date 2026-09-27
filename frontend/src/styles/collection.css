@@ -1039,6 +1039,89 @@ i.ss.set-symbol--mythic {
   right: auto;
 }
 
+/* The card's ⋮ on a grid tile (T162), the deck grid's `.deck-card-grid-menu`
+   in the collection: top-right, where every card tile keeps its menu. It rests
+   hidden under a fine pointer and appears on hover or keyboard focus, and it
+   is always shown under a coarse one, where there is no hover and no
+   right-click. A sibling of the role="button" tile, positioned against the
+   cell, whose top edge is the card's. */
+.collection-grid-menu {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 3;
+}
+
+.collection-grid-menu-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.collection-grid-menu-btn:focus-visible,
+.collection-grid-menu-btn[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.collection-grid-menu-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The ⋮ holds the corner, so the proxy / price / rarity chips sit beside it
+   for good rather than jumping aside when it appears on hover. */
+.collection-grid-cell.has-menu .collection-grid-topright {
+  right: var(--space-6);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .collection-grid-cell:hover .collection-grid-menu-btn {
+    opacity: 1;
+  }
+
+  .collection-grid-menu-btn:hover {
+    color: var(--text-primary);
+  }
+}
+
+@media (pointer: coarse) {
+  .collection-grid-menu-btn {
+    opacity: 1;
+  }
+
+  /* A 44px target around the 22px glyph (§ Tag chips, the invisible
+     expanded hit-area technique), so the corner stays a small mark. */
+  .collection-grid-menu-btn::after {
+    content: '';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* The card a menu is open for wears the ring on the card, not around the
+   cell and its captions (T162). */
+.collection-grid-cell[data-menu-open] {
+  outline: none;
+}
+
+.collection-grid-cell[data-menu-open] > .collection-grid-item {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Page-number chip — shown on binder list rows so the user can find a
    card in physical storage without leaving the list. */
 .card-list-page {

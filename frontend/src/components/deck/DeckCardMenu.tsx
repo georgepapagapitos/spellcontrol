@@ -19,6 +19,7 @@ export function DeckCardMenu({
   row,
   x,
   y,
+  target,
   ctx,
   deckTags,
   onClose,
@@ -26,6 +27,8 @@ export function DeckCardMenu({
   row: Row;
   x: number;
   y: number;
+  /** The row or tile the menu acts on (CtxMenuShell marks it). */
+  target?: Element | null;
   ctx: DeckCardActionCtx;
   deckTags: string[];
   onClose: () => void;
@@ -42,6 +45,7 @@ export function DeckCardMenu({
       title={row.name}
       variant={narrow ? 'sheet' : 'floating'}
       contentKey={page}
+      target={target}
       onClose={onClose}
     >
       <DeckCardMenuBody

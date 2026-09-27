@@ -575,9 +575,14 @@ export function ListDetailView({
     );
   };
 
-  const rowMenu = (entry: ListEntry) => (
+  // One entry menu for the rows and the grid tiles alike; `tile` only moves it
+  // to the card's corner (CardRowMenu's two variants, for list entries).
+  const rowMenu = (entry: ListEntry, variant: 'row' | 'tile' = 'row') => (
     <OverflowMenu
       ariaLabel={`Actions for ${entry.name}`}
+      className={variant === 'tile' ? 'collection-grid-menu' : undefined}
+      triggerClassName={variant === 'tile' ? 'collection-grid-menu-btn' : undefined}
+      contextHost={variant === 'tile' ? '.collection-grid-cell' : '.collection-list-row'}
       items={[
         {
           label: 'Add one',
@@ -790,6 +795,7 @@ export function ListDetailView({
               caption={captionPrefs.sortValue ? captionFor(r) : null}
               setLabel={gridSetLabel(r.card, captionPrefs)}
               onActivate={() => setPreviewIndex(i)}
+              menu={dynamic ? undefined : rowMenu(r.entry, 'tile')}
             />
           ))}
         </div>
