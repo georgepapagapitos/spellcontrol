@@ -191,6 +191,10 @@ export function CubeShoppingList({ target, loadPool }: Props) {
     () => selectedPriced.filter((p) => p.price == null).length,
     [selectedPriced]
   );
+  // A total is only meaningful once at least one selected row actually has a
+  // price — "$0.00 total" when every selection is unpriced isn't a real
+  // total, it's zero cards' worth of nothing.
+  const selectedHasAnyPrice = selectedPriced.length - selectedUnpricedCount > 0;
 
   const handleRetry = useCallback(() => setRetryToken((t) => t + 1), []);
   const handleToggleAll = () => {
@@ -289,14 +293,16 @@ export function CubeShoppingList({ target, loadPool }: Props) {
       <div className="cube-shop-toolbar">
         <span className="cube-shop-summary">
           <b>{selected.size}</b> of {rows.length} selected
-          {pricesReady ? (
+          {!pricesReady ? (
+            ' · Pricing…'
+          ) : selectedHasAnyPrice ? (
             <>
               {' '}
               · <b>{formatMoney(selectedTotal, { currency })}</b> total
               {selectedUnpricedCount > 0 && ` · ${selectedUnpricedCount} without a price yet`}
             </>
           ) : (
-            ' · Pricing…'
+            ' · no prices yet'
           )}
         </span>
         <div className="cube-shop-actions">

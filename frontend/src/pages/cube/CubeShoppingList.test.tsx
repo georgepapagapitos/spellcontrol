@@ -278,6 +278,49 @@ describe('CubeShoppingList', () => {
     expect(screen.getByText(/1 without a price yet/)).toBeTruthy();
   });
 
+  it('reads "no prices yet" rather than a false "$0.00 total" when every selected card is unpriced', async () => {
+    const loadPool = vi.fn(async () => []);
+    buildShoppingListMock.mockReturnValue([
+      shoppingRow('Cavern of Souls', 'cavern', 0.02),
+      shoppingRow('Ancient Tomb', 'tomb', 0.01),
+    ]);
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Cavern of Souls', scryfallCard({ id: 'c1', name: 'Cavern of Souls', prices: {} })],
+        ['Ancient Tomb', scryfallCard({ id: 't1', name: 'Ancient Tomb', prices: {} })],
+      ])
+    );
+
+    render(<CubeShoppingList target={saved()} loadPool={loadPool} />);
+
+    await waitFor(() => expect(screen.getAllByText('No price yet')).toHaveLength(2));
+    expect(summaryText()).toMatch(/2 of 2 selected · no prices yet/);
+    expect(summaryText()).not.toMatch(/total/);
+    expect(screen.queryByText('$0.00')).toBeNull();
+  });
+
+  it('shows a real total once at least one selected card is priced, alongside the unpriced count', async () => {
+    const loadPool = vi.fn(async () => []);
+    buildShoppingListMock.mockReturnValue([
+      shoppingRow('Ragavan, Nimble Pilferer', 'ragavan', 0.08),
+      shoppingRow('Cavern of Souls', 'cavern', 0.02),
+    ]);
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        [
+          'Ragavan, Nimble Pilferer',
+          scryfallCard({ id: 'r1', name: 'Ragavan, Nimble Pilferer', prices: { usd: '58.00' } }),
+        ],
+        ['Cavern of Souls', scryfallCard({ id: 'c1', name: 'Cavern of Souls', prices: {} })],
+      ])
+    );
+
+    render(<CubeShoppingList target={saved()} loadPool={loadPool} />);
+
+    await waitFor(() => expect(screen.getByText('No price yet')).toBeTruthy());
+    expect(summaryText()).toMatch(/2 of 2 selected · \$58\.00 total · 1 without a price yet/);
+  });
+
   it('shows a quiet per-row placeholder and "Pricing…" while prices are in flight, never "No price yet" early', async () => {
     const loadPool = vi.fn(async () => []);
     buildShoppingListMock.mockReturnValue([
