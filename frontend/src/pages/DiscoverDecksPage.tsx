@@ -293,29 +293,31 @@ export function DiscoverDecksPage() {
             onChange={(commander) => setFilters({ ...filters, commander })}
             trailing={<DiscoverFiltersPopover filters={filters} onChange={setFilters} />}
           />
-          <SelectMenu
-            value={sortField}
-            options={sortOptions}
-            onChange={toggleSort}
-            ariaLabel="Sort discover decks by"
-          />
-          <ViewModeToggle<DiscoverTileView>
-            ariaLabel="Discover view mode"
-            value={view}
-            onChange={setView}
-            options={[
-              {
-                value: 'grid',
-                label: 'Grid view',
-                icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
-              },
-              {
-                value: 'list',
-                label: 'List view',
-                icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
-              },
-            ]}
-          />
+          <div className="discover-sort-bar">
+            <SelectMenu
+              value={sortField}
+              options={sortOptions}
+              onChange={toggleSort}
+              ariaLabel="Sort discover decks by"
+            />
+            <ViewModeToggle<DiscoverTileView>
+              ariaLabel="Discover view mode"
+              value={view}
+              onChange={setView}
+              options={[
+                {
+                  value: 'grid',
+                  label: 'Grid view',
+                  icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+                {
+                  value: 'list',
+                  label: 'List view',
+                  icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+              ]}
+            />
+          </div>
         </div>
 
         <FilterChipsRow

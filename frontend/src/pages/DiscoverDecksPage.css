@@ -18,6 +18,28 @@
   margin-bottom: var(--space-3);
 }
 
+.discover-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Phone: the search pill takes its own row and sort + view share the next,
+   sort left and view right: My Decks' shape on the other tab of the same hub.
+   In one row the three controls measured 478px at 44px touch sizes against a
+   374px row (390 wide), so the view toggle dropped onto a line of its own.
+   The sort bar is in the nightly journey's NO_WRAP_AT_PHONE list. */
+@media (max-width: 600px) {
+  .discover-toolbar > .commander-typeahead {
+    flex-basis: 100%;
+  }
+
+  .discover-sort-bar {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+}
+
 .discover-budget-note {
   margin: calc(-1 * var(--space-2)) 0 var(--space-3);
   font-size: var(--text-xs);

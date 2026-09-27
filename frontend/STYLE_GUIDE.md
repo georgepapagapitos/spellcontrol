@@ -1361,6 +1361,13 @@ report. When you write that idiom, write the third line too.
      idle label to the glyph (`.toolbar-label-compact` at ≤600px, with
      `aria-label` + `title` carrying the name). The ACTIVE label stays visible:
      "Done" is the way out of select mode and must never be a bare glyph.
+   - **A search field is not a control to shorten.** When a search pill and
+     its pickers can't share one phone row, the pill takes a row of its own at
+     `≤600px` and the pickers share the next one: sort at the start, view
+     toggle at the end. My Decks and Discover, the two tabs of one hub, both
+     use this shape. The pickers row goes in `NO_WRAP_AT_PHONE`
+     (`.decks-index-sort-bar`, `.discover-sort-bar`). A 120px search box that
+     truncates its own placeholder is not a fit.
 
 3. **Card action rows** — actions in the footer of a list card (the game-night
    cards are the reference). A card earns **at most ~3 visible controls**, at

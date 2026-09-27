@@ -227,6 +227,10 @@ const NO_WRAP_AT_PHONE = [
   // The binder page's control row (BinderSummaryBar): wrapped to three lines
   // at 390px before its display controls folded into the View popover.
   '.binder-summary',
+  // Discover's sort + view row: at 44px touch sizes the one-row toolbar
+  // measured 478px in a 374px row and the view toggle wrapped alone. The
+  // search pill now takes its own row at phone width, as on My Decks.
+  '.discover-sort-bar',
 ];
 
 /**
