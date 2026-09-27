@@ -14,6 +14,7 @@ import { BrandMark } from '../components/shared/BrandMark';
 import { AddCardsSheet } from '../components/AddCardsSheet';
 import { PageHeader } from '../components/PageHeader';
 import { StatsBar } from '../components/StatsBar';
+import type { CollectionFilterJump } from '../lib/collection-insights';
 import { CardListTable } from '../components/CardListTable';
 import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
 import { CollectionExportDialog } from '../components/CollectionExportDialog';
@@ -90,6 +91,10 @@ export function CollectionPage() {
   const [exportOpen, setExportOpen] = useState(false);
 
   const [statsOpen, setStatsOpen] = useState(false);
+  // A Breakdown drawer row's filter request, relayed to CardListTable (see
+  // its `filterJump` prop's doc — the two are mounted siblings, so this
+  // can't go through the `?binder=`-style URL deep link).
+  const [filterJump, setFilterJump] = useState<CollectionFilterJump | null>(null);
 
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -281,8 +286,14 @@ export function CollectionPage() {
             binders={materialized}
             setMap={setMap}
             onAddCards={(query) => openAddCards('search', query)}
+            filterJump={filterJump}
+            onFilterJumpApplied={() => setFilterJump(null)}
           />
-          <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
+          <StatsBar
+            open={statsOpen}
+            onClose={() => setStatsOpen(false)}
+            onFilterJump={setFilterJump}
+          />
           {exportOpen && (
             <CollectionExportDialog cards={cards} onClose={() => setExportOpen(false)} />
           )}

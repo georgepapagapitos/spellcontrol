@@ -41,6 +41,46 @@ export function isBasicLandName(name: string): boolean {
 }
 
 /**
+ * Copies kept aside before the rest of a card's unallocated stock counts as
+ * tradeable surplus. 1 is the simplest defensible default: decks here are
+ * predominantly Commander (singleton), so a card only ever needs one
+ * "working" copy — anything past that, once nothing has claimed it, is free
+ * to trade. Constructed playsets (up to 4) would need per-format awareness
+ * this collection doesn't track, so the floor stays flat and card-agnostic.
+ */
+export const SURPLUS_KEEP_COPIES = 1;
+
+/**
+ * Map<cardName, surplus count> for the "tradeable surplus" collection
+ * filter — physical copies bound to no deck or cube, beyond the first kept
+ * copy, excluding basic lands (fungible, never worth flagging as spare).
+ * Names with zero surplus are omitted, so `.has(name)` doubles as the
+ * per-row predicate.
+ *
+ * Computed over the FULL collection, not a scoped subset (e.g. a
+ * single-binder view's `cards` prop) — a surplus copy sitting in a
+ * different binder than the one currently displayed still counts, since
+ * allocation is a collection-wide fact.
+ */
+export function computeSurplusByName(
+  cards: EnrichedCard[],
+  allocations: ReadonlyMap<string, AllocationInfo>
+): Map<string, number> {
+  const unallocated = new Map<string, number>();
+  for (const c of cards) {
+    if (isBasicLandName(c.name)) continue;
+    if (allocations.has(c.copyId)) continue;
+    unallocated.set(c.name, (unallocated.get(c.name) ?? 0) + 1);
+  }
+  const surplus = new Map<string, number>();
+  for (const [name, count] of unallocated) {
+    const over = count - SURPLUS_KEEP_COPIES;
+    if (over > 0) surplus.set(name, over);
+  }
+  return surplus;
+}
+
+/**
  * Cubes have no per-cube user color (unlike decks), so every cube badge/link
  * tints with one shared identity color — a CSS var distinct from any deck
  * swatch so a "in a cube" marker never reads as a deck. Defined in tokens.css.

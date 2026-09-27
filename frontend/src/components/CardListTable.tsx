@@ -54,6 +54,7 @@ import { DeckBadge } from './DeckBadge';
 import { Legend } from './Legend';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
 import { useAllocations, computeSurplusByName, type AllocationInfo } from '../lib/allocations';
+import type { CollectionFilterJump } from '../lib/collection-insights';
 import { ViewModeToggle } from './ViewModeToggle';
 import { ZoomControl } from './ZoomControl';
 import {
@@ -144,6 +145,17 @@ interface Props {
    * in scoped views (e.g. a single binder) that never render either.
    */
   onAddCards?: (query?: string) => void;
+  /**
+   * A one-shot filter request from an external surface (the Breakdown
+   * drawer's insight rows and grouped rows — see
+   * `lib/collection-insights.ts`'s `CollectionFilterJump`). Applied by a
+   * `useEffect` (not a mount-time read, unlike the `?binder=` deep link
+   * above) since the drawer and this table are mounted siblings on the same
+   * page — a URL param wouldn't retrigger. Call `onFilterJumpApplied` once
+   * consumed so the caller can clear it and the same jump can fire again.
+   */
+  filterJump?: CollectionFilterJump | null;
+  onFilterJumpApplied?: () => void;
 }
 
 interface Row {
@@ -336,6 +348,8 @@ export function CardListTable({
   setMap,
   hideBinderFilter = false,
   onAddCards,
+  filterJump,
+  onFilterJumpApplied,
 }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
@@ -520,6 +534,40 @@ export function CardListTable({
     joiners: [],
   });
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
+  // A jump from an external surface (currently the Breakdown drawer — see
+  // `filterJump`'s doc on Props) sets the matching filter state directly,
+  // unlike the `?binder=` deep link above which only ever reads at mount.
+  // Runs on every change (not mount-only) since drawer and table are mounted
+  // siblings for the whole page's lifetime.
+  useEffect(() => {
+    if (!filterJump) return;
+    switch (filterJump.kind) {
+      case 'binder':
+        setBinderExpr({ chips: [{ value: filterJump.name, negate: false }], joiners: [] });
+        break;
+      case 'color':
+        // 'all' (exact match) mirrors the breakdown bucket's semantics — see
+        // lib/collection-insights.ts's colorFilterJump doc.
+        setColorFilter(new Set([filterJump.key]));
+        setColorMode('all');
+        break;
+      case 'rarity':
+        setRarityExpr({ chips: [{ value: filterJump.key, negate: false }], joiners: [] });
+        break;
+      case 'type':
+        setTypesExpr({ chips: [{ value: filterJump.key, negate: false }], joiners: [] });
+        break;
+      case 'set':
+        setSetFilter(new Set([filterJump.code]));
+        break;
+      case 'surplus':
+        setSurplusOnly(true);
+        break;
+    }
+    onFilterJumpApplied?.();
+    // Only the jump's identity should retrigger this — the setters are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterJump]);
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [oracleTagExpr, setOracleTagExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [scryfallQuery, setScryfallQuery] = useState<ScryfallQueryRule | undefined>(undefined);

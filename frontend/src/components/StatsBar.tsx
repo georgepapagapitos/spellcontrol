@@ -1,54 +1,52 @@
-import { X } from 'lucide-react';
-import { useMemo } from 'react';
+import { ChevronRight, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
+import { useDecksStore } from '../store/decks';
+import { useCubeStore } from '../store/cube';
+import { useAllocations } from '../lib/allocations';
 import { summarizeCostBasis } from '../lib/cost-basis';
 import { useCurrency } from '../lib/currency';
 import { formatMoney } from '../lib/format-money';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
-import type { EnrichedCard } from '../types';
-import { getColorKey, COLOR_INFO } from '../lib/colors';
-import { getCardType, TYPE_ORDER } from '../lib/card-types';
+import { useEscapeKey } from '../lib/use-escape-key';
+import type { BinderDef, EnrichedCard } from '../types';
 import { ColorPip, ManaSymbol, TypeIcon } from './shared/ManaSymbol';
 import { MeterBar, StackedBar } from './shared/MeterBar';
 import { ValueTrend } from './ValueTrend';
-import { IconButton } from '@/components/shared/Button';
-
-const COLOR_BUCKETS: Array<{ key: string; label: string; color: string }> = [
-  { key: 'W', label: 'White', color: COLOR_INFO.W.pip },
-  { key: 'U', label: 'Blue', color: COLOR_INFO.U.pip },
-  { key: 'B', label: 'Black', color: COLOR_INFO.B.pip },
-  { key: 'R', label: 'Red', color: COLOR_INFO.R.pip },
-  { key: 'G', label: 'Green', color: COLOR_INFO.G.pip },
-  { key: 'M', label: 'Multicolor', color: COLOR_INFO.M.pip },
-  { key: 'C', label: 'Colorless', color: COLOR_INFO.C.pip },
-];
-
-const TYPE_LABELS: Record<string, string> = {
-  creature: 'Creature',
-  instant: 'Instant',
-  sorcery: 'Sorcery',
-  artifact: 'Artifact',
-  enchantment: 'Enchantment',
-  land: 'Land',
-  planeswalker: 'Planeswalker',
-  battle: 'Battle',
-  other: 'Other',
-};
-
-const RARITY_BUCKETS: Array<{ key: string; label: string; color: string }> = [
-  { key: 'mythic', label: 'Mythic', color: 'var(--rarity-mythic-to)' },
-  { key: 'rare', label: 'Rare', color: 'var(--rarity-rare-to)' },
-  { key: 'uncommon', label: 'Uncommon', color: 'var(--rarity-uncommon-to)' },
-  { key: 'common', label: 'Common', color: 'var(--rarity-common-to)' },
-];
+import { IconButton, Button } from '@/components/shared/Button';
+import { SelectMenu } from './SelectMenu';
+import { SegmentedControl } from './shared/form';
+import { EmptyState } from './shared/EmptyState';
+import {
+  computeAllocationSplit,
+  computeSparesSummary,
+  computeSharedCopies,
+  computeCloseToDone,
+  computeConcentration,
+  computeGroupedBreakdown,
+  BREAKDOWN_GROUP_OPTIONS,
+  COLOR_BUCKETS,
+  type BreakdownGroupBy,
+  type BreakdownMeasure,
+  type CollectionFilterJump,
+  type GroupedBreakdownRow,
+  type SharedCopyRow,
+  type CloseToDoneRow,
+} from '../lib/collection-insights';
 
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** A row asked to filter the collection table to a dimension this drawer
+   *  just computed (a surplus toggle, a color/type/rarity/set/binder bucket).
+   *  Owned by CollectionPage, which forwards it to CardListTable's
+   *  `filterJump` prop — see that prop's doc for why this isn't a URL param. */
+  onFilterJump: (jump: CollectionFilterJump) => void;
 }
 
-export function StatsBar({ open, onClose }: Props) {
+export function StatsBar({ open, onClose, onFilterJump }: Props) {
   const cards = useCollectionStore((s) => s.cards);
   const scryfallMisses = useCollectionStore((s) => s.scryfallMisses);
   const binderDefs = useCollectionStore((s) => s.binders);
@@ -85,7 +83,14 @@ export function StatsBar({ open, onClose }: Props) {
         </div>
       )}
 
-      {open && <StatsDrawer cards={cards} onClose={onClose} />}
+      {open && (
+        <StatsDrawer
+          cards={cards}
+          binderDefs={binderDefs}
+          onClose={onClose}
+          onFilterJump={onFilterJump}
+        />
+      )}
     </>
   );
 }
@@ -142,13 +147,313 @@ function CostBasisCard({ cards }: { cards: EnrichedCard[] }) {
   );
 }
 
+// ── Insight row primitive (STYLE_GUIDE "Index-page insight strips" /
+// memory feedback_insight_surfaces_never_displace_content, generalized from
+// the ownership-lens strip to any drawer row): count + teaser + chevron when
+// there's an action, a plain line when there isn't. Never rendered for an
+// insight with nothing to say — each call site's own null-guard above this.
+
+interface InsightRowProps {
+  label: string;
+  detail: string;
+  onClick?: () => void;
+  to?: string;
+}
+
+function InsightRow({ label, detail, onClick, to }: InsightRowProps) {
+  const text = (
+    <span className="collection-insight-row-text">
+      <span className="collection-insight-row-label">{label}</span>
+      <span className="collection-insight-row-detail">{detail}</span>
+    </span>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className="collection-insight-row">
+        {text}
+        <ChevronRight
+          className="collection-insight-row-chevron"
+          aria-hidden
+          width={16}
+          height={16}
+        />
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" className="collection-insight-row" onClick={onClick}>
+        {text}
+        <ChevronRight
+          className="collection-insight-row-chevron"
+          aria-hidden
+          width={16}
+          height={16}
+        />
+      </button>
+    );
+  }
+  return <div className="collection-insight-row collection-insight-row--static">{text}</div>;
+}
+
+function sharedCopyDetail(row: SharedCopyRow): string {
+  const deckCount = row.wantedBy.filter((w) => w.kind === 'deck').length;
+  const cubeCount = row.wantedBy.filter((w) => w.kind === 'cube').length;
+  const phrase =
+    cubeCount === 0
+      ? `in ${deckCount} deck${deckCount === 1 ? '' : 's'}`
+      : deckCount === 0
+        ? `in ${cubeCount} cube${cubeCount === 1 ? '' : 's'}`
+        : `in ${deckCount} deck${deckCount === 1 ? '' : 's'} and ${cubeCount} cube${cubeCount === 1 ? '' : 's'}`;
+  return `${row.cardName}: ${phrase}, you own ${row.owned}.`;
+}
+
+function closeToDoneDetail(row: CloseToDoneRow): string {
+  const count = row.missingNames.length;
+  const costText =
+    row.costToFinish > 0
+      ? ` · ${formatMoney(row.costToFinish, { wholeDollars: true })} to finish`
+      : '';
+  return `${row.deckName}: missing ${count} card${count === 1 ? '' : 's'}${costText}.`;
+}
+
+/**
+ * Cards where decks/cubes together want more copies than you own (T164) —
+ * the drawer's own list sheet when the top-level insight row covers more
+ * than one card, mirroring `OwnershipLensSheet`'s "card-picker" shell
+ * (`components/deck/OwnershipLensSheet.tsx`) verbatim, so this file needs no
+ * CSS of its own beyond the insight rows.
+ */
+function SharedCopiesSheet({ rows, onClose }: { rows: SharedCopyRow[]; onClose: () => void }) {
+  useLockBodyScroll();
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const dismiss = () => beginClose();
+  useEscapeKey(dismiss);
+
+  return (
+    <div
+      className="card-picker-root"
+      role="presentation"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) dismiss();
+      }}
+    >
+      <div
+        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Cards wanted by more decks than you own"
+        onAnimationEnd={onAnimationEnd}
+      >
+        <div className="card-picker-handle" aria-hidden />
+        <div className="card-picker-header">
+          <h2 className="card-picker-title">Shared copies</h2>
+        </div>
+        <ul className="card-picker-list" role="list" aria-label="Cards in shortfall">
+          {rows.map((row) => (
+            <li key={row.cardName} className="card-picker-row">
+              <span className="card-picker-name">{row.cardName}</span>
+              <span className="card-picker-meta">
+                {row.wantedBy.map((w, i) => (
+                  <span key={`${w.kind}-${w.id}`}>
+                    {i > 0 && ', '}
+                    {w.kind === 'deck' ? <Link to={`/decks/${w.id}`}>{w.name}</Link> : w.name}
+                  </span>
+                ))}
+                {' · you own '}
+                {row.owned}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="card-picker-footer">
+          <Button variant="primary" onClick={dismiss}>
+            Done
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Decks missing 1-5 unowned cards (T164) — same card-picker shell as
+ *  `SharedCopiesSheet`, listing decks instead of cards. */
+function CloseToDoneSheet({ rows, onClose }: { rows: CloseToDoneRow[]; onClose: () => void }) {
+  useLockBodyScroll();
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const dismiss = () => beginClose();
+  useEscapeKey(dismiss);
+
+  return (
+    <div
+      className="card-picker-root"
+      role="presentation"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) dismiss();
+      }}
+    >
+      <div
+        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Decks close to done"
+        onAnimationEnd={onAnimationEnd}
+      >
+        <div className="card-picker-handle" aria-hidden />
+        <div className="card-picker-header">
+          <h2 className="card-picker-title">Close to done</h2>
+        </div>
+        <ul className="card-picker-list" role="list" aria-label="Decks missing a few cards">
+          {rows.map((row) => (
+            <li key={row.deckId} className="card-picker-row">
+              <Link to={`/decks/${row.deckId}`} className="card-picker-name">
+                {row.deckName}
+              </Link>
+              <span className="card-picker-meta">
+                Missing {row.missingNames.length}
+                {row.costToFinish > 0
+                  ? ` · ${formatMoney(row.costToFinish, { wholeDollars: true })}`
+                  : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="card-picker-footer">
+          <Button variant="primary" onClick={dismiss}>
+            Done
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Grouped Breakdown card (Color / Type / Rarity / Set / Binder / Deck use) ─
+
+const GROUP_BY_KEY = 'spellcontrol:collection-breakdown-group';
+const MEASURE_KEY = 'spellcontrol:collection-breakdown-measure';
+const SET_ROW_CAP = 8;
+
+function loadGroupBy(): BreakdownGroupBy {
+  try {
+    const v = localStorage.getItem(GROUP_BY_KEY);
+    if (BREAKDOWN_GROUP_OPTIONS.some((o) => o.value === v)) return v as BreakdownGroupBy;
+  } catch {
+    /* private browsing / blocked storage */
+  }
+  return 'color';
+}
+
+function loadMeasure(): BreakdownMeasure {
+  try {
+    const v = localStorage.getItem(MEASURE_KEY);
+    if (v === 'count' || v === 'value') return v;
+  } catch {
+    /* private browsing / blocked storage */
+  }
+  return 'count';
+}
+
+/** The dimension-specific glyph the old fixed Colors/Types/Rarity sections
+ *  each carried, kept for the three dimensions that had one. Set/Binder/Deck
+ *  use never had a glyph and don't get one now. */
+function breakdownRowIcon(groupBy: BreakdownGroupBy, row: GroupedBreakdownRow) {
+  if (groupBy === 'color') return <ColorPip color={row.key} />;
+  if (groupBy === 'rarity') {
+    return (
+      <ManaSymbol
+        symbol="planeswalker"
+        className={`breakdown-icon breakdown-icon-rarity rarity-${row.key}`}
+      />
+    );
+  }
+  if (groupBy === 'type' && row.key !== 'other') {
+    return <TypeIcon type={row.key} className="breakdown-icon" />;
+  }
+  return null;
+}
+
+interface BreakdownRowProps {
+  row: GroupedBreakdownRow;
+  groupBy: BreakdownGroupBy;
+  measure: BreakdownMeasure;
+  total: number;
+  typeCountTotal: number;
+  onSelect?: () => void;
+}
+
+function BreakdownRow({
+  row,
+  groupBy,
+  measure,
+  total,
+  typeCountTotal,
+  onSelect,
+}: BreakdownRowProps) {
+  const measureValue = measure === 'count' ? row.count : row.value;
+  const pct = total > 0 ? Math.round((measureValue / total) * 100) : 0;
+  const displayValue =
+    measure === 'count'
+      ? row.count.toLocaleString()
+      : formatMoney(row.value, { wholeDollars: true });
+  const icon = breakdownRowIcon(groupBy, row);
+
+  const body = (
+    <>
+      <div className="breakdown-row-head">
+        {icon}
+        <span className="breakdown-row-label">{row.label}</span>
+        <span className="breakdown-row-count">{displayValue}</span>
+        <span className="breakdown-row-pct">({pct}%)</span>
+      </div>
+      {row.colorSplits ? (
+        <StackedBar
+          max={typeCountTotal}
+          segments={COLOR_BUCKETS.map((b) => ({
+            key: b.key,
+            value: row.colorSplits![b.key] ?? 0,
+            color: b.color,
+            title: `${b.label}: ${row.colorSplits![b.key] ?? 0}`,
+          }))}
+        />
+      ) : (
+        <MeterBar value={measureValue} max={total} color={row.color} />
+      )}
+    </>
+  );
+
+  if (!onSelect) {
+    return <li className="breakdown-row">{body}</li>;
+  }
+  return (
+    <li className="breakdown-row breakdown-row--interactive">
+      <button type="button" className="breakdown-row-button" onClick={onSelect}>
+        {body}
+      </button>
+    </li>
+  );
+}
+
 /**
  * The drawer itself, split out so it mounts fresh on every open — that
  * replays the entry slide and resets useSheetExit's closing state (the
  * hook is one-shot; it must unmount with the drawer, not live in the
  * always-mounted StatsBar shell).
  */
-function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () => void }) {
+function StatsDrawer({
+  cards,
+  binderDefs,
+  onClose,
+  onFilterJump,
+}: {
+  cards: EnrichedCard[];
+  binderDefs: BinderDef[];
+  onClose: () => void;
+  onFilterJump: (jump: CollectionFilterJump) => void;
+}) {
   useLockBodyScroll();
 
   // Symmetric slide-out exit (side drawer: in from the right, back out to
@@ -156,54 +461,97 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
   // `stats-drawer-slide-out` before unmount instead of vanishing.
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'stats-drawer-slide-out');
 
-  // Unique printings (by scryfallId) — breakdowns count one per unique printing,
-  // matching the reference UI where 3,365 unique sums to 6,440 total copies.
-  const uniqueCards = useMemo(() => {
-    const seen = new Map<string, EnrichedCard>();
-    for (const c of cards) {
-      if (!seen.has(c.scryfallId)) seen.set(c.scryfallId, c);
-    }
-    return [...seen.values()];
-  }, [cards]);
+  const decks = useDecksStore((s) => s.decks);
+  const cubes = useCubeStore((s) => s.saved);
+  const allocations = useAllocations();
+  const currency = useCurrency();
 
-  const colorCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const c of uniqueCards) {
-      const k = getColorKey(c);
-      counts[k] = (counts[k] ?? 0) + 1;
-    }
-    return counts;
-  }, [uniqueCards]);
+  // Applies a row's filter to the collection table (via the CollectionPage
+  // callback -> CardListTable's filterJump prop) and closes the drawer the
+  // same way any other dismiss does.
+  const closeAndJump = (jump: CollectionFilterJump) => {
+    onFilterJump(jump);
+    beginClose();
+  };
 
-  const typeBreakdown = useMemo(() => {
-    const totals: Record<string, number> = {};
-    const splits: Record<string, Record<string, number>> = {};
-    for (const c of uniqueCards) {
-      const t = getCardType(c);
-      const colorKey = getColorKey(c);
-      totals[t] = (totals[t] ?? 0) + 1;
-      if (!splits[t]) splits[t] = {};
-      splits[t][colorKey] = (splits[t][colorKey] ?? 0) + 1;
-    }
-    return TYPE_ORDER.filter((t) => (totals[t] ?? 0) > 0).map((t) => ({
-      key: t,
-      label: TYPE_LABELS[t] ?? t,
-      total: totals[t] ?? 0,
-      splits: splits[t] ?? {},
-    }));
-  }, [uniqueCards]);
+  const allocationSplit = useMemo(
+    () => computeAllocationSplit(cards, allocations),
+    [cards, allocations]
+  );
+  const sparesSummary = useMemo(
+    () => computeSparesSummary(cards, allocations),
+    [cards, allocations]
+  );
+  const sharedCopyRows = useMemo(
+    () => computeSharedCopies(cards, decks, cubes),
+    [cards, decks, cubes]
+  );
+  const ownedNames = useMemo(() => new Set(cards.map((c) => c.name)), [cards]);
+  const closeToDoneRows = useMemo(
+    () => computeCloseToDone(decks, ownedNames, currency),
+    [decks, ownedNames, currency]
+  );
+  const concentration = useMemo(() => computeConcentration(cards), [cards]);
+  const hasInsights =
+    allocationSplit ||
+    sparesSummary ||
+    sharedCopyRows.length > 0 ||
+    closeToDoneRows.length > 0 ||
+    concentration;
 
-  const rarityCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const c of uniqueCards) {
-      const r = (c.rarity || '').toLowerCase();
-      counts[r] = (counts[r] ?? 0) + 1;
-    }
-    return counts;
-  }, [uniqueCards]);
+  const [sharedCopiesSheetOpen, setSharedCopiesSheetOpen] = useState(false);
+  const [closeToDoneSheetOpen, setCloseToDoneSheetOpen] = useState(false);
 
-  const uniqueTotal = uniqueCards.length;
-  const denom = Math.max(1, uniqueTotal);
+  const [groupBy, setGroupByState] = useState<BreakdownGroupBy>(loadGroupBy);
+  const setGroupBy = (v: BreakdownGroupBy) => {
+    setGroupByState(v);
+    try {
+      localStorage.setItem(GROUP_BY_KEY, v);
+    } catch {
+      /* private browsing / blocked storage */
+    }
+  };
+  const [measure, setMeasureState] = useState<BreakdownMeasure>(loadMeasure);
+  const setMeasure = (v: BreakdownMeasure) => {
+    setMeasureState(v);
+    try {
+      localStorage.setItem(MEASURE_KEY, v);
+    } catch {
+      /* private browsing / blocked storage */
+    }
+  };
+  const [showAllSets, setShowAllSets] = useState(false);
+  // Reset the cap when the group-by dimension changes. Adjusted during
+  // render (React's documented pattern for "state depending on a changed
+  // prop") rather than in an effect, which would set state synchronously
+  // in the effect body and trigger a cascading extra render.
+  const [showAllSetsForGroup, setShowAllSetsForGroup] = useState(groupBy);
+  if (showAllSetsForGroup !== groupBy) {
+    setShowAllSetsForGroup(groupBy);
+    setShowAllSets(false);
+  }
+
+  const groupedRows = useMemo(
+    () => computeGroupedBreakdown(cards, groupBy, { binderDefs, allocations }),
+    [cards, groupBy, binderDefs, allocations]
+  );
+  const sortedRows = useMemo(
+    () =>
+      [...groupedRows].sort((a, b) =>
+        measure === 'count' ? b.count - a.count : b.value - a.value
+      ),
+    [groupedRows, measure]
+  );
+  const isCappable = groupBy === 'set';
+  const visibleRows = isCappable && !showAllSets ? sortedRows.slice(0, SET_ROW_CAP) : sortedRows;
+  const measureTotal = useMemo(
+    () => sortedRows.reduce((s, r) => s + (measure === 'count' ? r.count : r.value), 0),
+    [sortedRows, measure]
+  );
+  const typeCountTotal = useMemo(
+    () => (groupBy === 'type' ? sortedRows.reduce((s, r) => s + r.count, 0) : 0),
+    [sortedRows, groupBy]
+  );
 
   return (
     <div className="stats-drawer-root">
@@ -231,80 +579,117 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
 
         <div className="stats-drawer-body">
           <ValueTrend />
+
+          {hasInsights && (
+            <section className="breakdown-card" aria-label="Collection insights">
+              <h3 className="breakdown-title">Insights</h3>
+              <div className="collection-insights-list">
+                {allocationSplit && (
+                  <InsightRow
+                    label="In decks vs idle"
+                    detail={`In decks: ${allocationSplit.boundCount.toLocaleString()} cards · ${formatMoney(allocationSplit.boundValue, { wholeDollars: true })}. Idle: ${allocationSplit.idleCount.toLocaleString()} cards · ${formatMoney(allocationSplit.idleValue, { wholeDollars: true })}.`}
+                  />
+                )}
+                {sparesSummary && (
+                  <InsightRow
+                    label="Spares"
+                    detail={`${sparesSummary.count.toLocaleString()} cop${sparesSummary.count === 1 ? 'y' : 'ies'} worth ${formatMoney(sparesSummary.value, { wholeDollars: true })} beyond what your decks use.`}
+                    onClick={() => closeAndJump({ kind: 'surplus' })}
+                  />
+                )}
+                {sharedCopyRows.length > 0 && (
+                  // Always the sheet, never a direct deck link: `shortfall >
+                  // 0` requires `demand > owned >= 1`, so `demand` (and thus
+                  // `wantedBy.length`) is always >= 2 — a returned row is
+                  // never wanted by only one deck.
+                  <InsightRow
+                    label={`${sharedCopyRows.length} card${sharedCopyRows.length === 1 ? '' : 's'} wanted by more decks than you own`}
+                    detail={sharedCopyDetail(sharedCopyRows[0])}
+                    onClick={() => setSharedCopiesSheetOpen(true)}
+                  />
+                )}
+                {closeToDoneRows.length > 0 &&
+                  (closeToDoneRows.length === 1 ? (
+                    <InsightRow
+                      label="1 deck close to done"
+                      detail={closeToDoneDetail(closeToDoneRows[0])}
+                      to={`/decks/${closeToDoneRows[0].deckId}`}
+                    />
+                  ) : (
+                    <InsightRow
+                      label={`${closeToDoneRows.length} decks close to done`}
+                      detail={closeToDoneDetail(closeToDoneRows[0])}
+                      onClick={() => setCloseToDoneSheetOpen(true)}
+                    />
+                  ))}
+                {concentration && (
+                  <InsightRow
+                    label="Concentration"
+                    detail={`Your top ${concentration.topCount} cards hold ${concentration.topSharePct}% of your collection's value.`}
+                  />
+                )}
+              </div>
+            </section>
+          )}
+
           <CostBasisCard cards={cards} />
 
-          <section className="breakdown-card" aria-label="Cards by color">
-            <h3 className="breakdown-title">Colors</h3>
-            <ul className="breakdown-list">
-              {COLOR_BUCKETS.map((b) => {
-                const count = colorCounts[b.key] ?? 0;
-                const pct = uniqueTotal > 0 ? Math.round((count / uniqueTotal) * 100) : 0;
-                return (
-                  <li key={b.key} className="breakdown-row">
-                    <div className="breakdown-row-head">
-                      <ColorPip color={b.key} />
-                      <span className="breakdown-row-label">{b.label}</span>
-                      <span className="breakdown-row-count">{count.toLocaleString()}</span>
-                      <span className="breakdown-row-pct">({pct}%)</span>
-                    </div>
-                    <MeterBar value={count} max={denom} color={b.color} />
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-
-          <section className="breakdown-card" aria-label="Cards by type">
-            <h3 className="breakdown-title">Types</h3>
-            <ul className="breakdown-list breakdown-list-types">
-              {typeBreakdown.map((t) => {
-                return (
-                  <li key={t.key} className="breakdown-row">
-                    <div className="breakdown-row-head">
-                      {t.key !== 'other' && <TypeIcon type={t.key} className="breakdown-icon" />}
-                      <span className="breakdown-row-label">{t.label}</span>
-                      <span className="breakdown-row-count">{t.total.toLocaleString()}</span>
-                    </div>
-                    <StackedBar
-                      max={denom}
-                      segments={COLOR_BUCKETS.map((b) => ({
-                        key: b.key,
-                        value: t.splits[b.key] ?? 0,
-                        color: b.color,
-                        title: `${b.label}: ${t.splits[b.key] ?? 0}`,
-                      }))}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-
-          <section className="breakdown-card" aria-label="Cards by rarity">
-            <h3 className="breakdown-title">Rarity</h3>
-            <ul className="breakdown-list">
-              {RARITY_BUCKETS.map((b) => {
-                const count = rarityCounts[b.key] ?? 0;
-                const pct = uniqueTotal > 0 ? Math.round((count / uniqueTotal) * 100) : 0;
-                return (
-                  <li key={b.key} className="breakdown-row">
-                    <div className="breakdown-row-head">
-                      <ManaSymbol
-                        symbol="planeswalker"
-                        className={`breakdown-icon breakdown-icon-rarity rarity-${b.key}`}
-                      />
-                      <span className="breakdown-row-label">{b.label}</span>
-                      <span className="breakdown-row-count">{count.toLocaleString()}</span>
-                      <span className="breakdown-row-pct">({pct}%)</span>
-                    </div>
-                    <MeterBar value={count} max={denom} color={b.color} />
-                  </li>
-                );
-              })}
-            </ul>
+          <section className="breakdown-card" aria-label="Collection breakdown by group">
+            <div className="breakdown-header-row">
+              <h3 className="breakdown-title">Breakdown</h3>
+            </div>
+            <div className="breakdown-controls">
+              <SelectMenu<BreakdownGroupBy>
+                value={groupBy}
+                onChange={setGroupBy}
+                options={BREAKDOWN_GROUP_OPTIONS}
+                label="Group by"
+                ariaLabel="Group the breakdown by"
+              />
+              <SegmentedControl<BreakdownMeasure>
+                ariaLabel="Measure"
+                value={measure}
+                onChange={setMeasure}
+                options={[
+                  { value: 'count', label: 'Count' },
+                  { value: 'value', label: 'Value' },
+                ]}
+              />
+            </div>
+            {visibleRows.length === 0 ? (
+              <EmptyState compact className="breakdown-empty">
+                Nothing to break down yet.
+              </EmptyState>
+            ) : (
+              <ul className="breakdown-list">
+                {visibleRows.map((row) => (
+                  <BreakdownRow
+                    key={row.key}
+                    row={row}
+                    groupBy={groupBy}
+                    measure={measure}
+                    total={measureTotal}
+                    typeCountTotal={typeCountTotal}
+                    onSelect={row.filterJump ? () => closeAndJump(row.filterJump!) : undefined}
+                  />
+                ))}
+              </ul>
+            )}
+            {isCappable && sortedRows.length > visibleRows.length && (
+              <Button variant="link" onClick={() => setShowAllSets(true)}>
+                Show all {sortedRows.length} sets
+              </Button>
+            )}
           </section>
         </div>
       </aside>
+
+      {sharedCopiesSheetOpen && (
+        <SharedCopiesSheet rows={sharedCopyRows} onClose={() => setSharedCopiesSheetOpen(false)} />
+      )}
+      {closeToDoneSheetOpen && (
+        <CloseToDoneSheet rows={closeToDoneRows} onClose={() => setCloseToDoneSheetOpen(false)} />
+      )}
     </div>
   );
 }
