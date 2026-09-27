@@ -26,6 +26,8 @@ import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { InlineCardSearch } from './InlineCardSearch';
 import { CardSearchResults } from './CardSearchResults';
 import { useCollectionStore } from '../store/collection';
+import { entryKey, useScanQueueStore } from '../lib/use-scan-queue';
+import { useScannerSettings } from '../lib/scanner-settings';
 
 /** Class names of the row and every descendant, in document order — the
  *  "same markup" the two surfaces must agree on. */
@@ -99,5 +101,67 @@ describe('CardSearchResults keyboard nav handle', () => {
 
     await vi.waitFor(() => expect(addCard).toHaveBeenCalledTimes(1));
     expect(addCard.mock.calls[0][0]).toMatchObject({ name: 'Ash Barrens' });
+  });
+});
+
+describe('CardSearchResults addToList (T153 Add-list target)', () => {
+  afterEach(() => {
+    useScanQueueStore.setState({ queue: [] });
+    useScannerSettings.setState({
+      defaultFinish: 'nonfoil',
+      defaultCondition: 'nm',
+      defaultLanguage: '',
+    });
+  });
+
+  it('"+" adds to the Add list, not the collection, with no toast/undo affordance', async () => {
+    const addCard = vi.fn(async (..._a: unknown[]) => ['c1']);
+    useCollectionStore.setState({ cards: [] as never, addCard });
+
+    render(<CardSearchResults results={[RESULT]} addToList />);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Add Sol Ring' }));
+
+    expect(addCard).not.toHaveBeenCalled();
+    expect(useScanQueueStore.getState().queue).toMatchObject([
+      { id: entryKey('row-parity', 'nonfoil'), qty: 1, source: 'searched' },
+    ]);
+    // No collection toast/undo minus icon for a list add.
+    expect(screen.queryByText(/Added ×/)).toBeNull();
+  });
+
+  it('tapping again increments via a −/+ stepper instead of a second "+"', async () => {
+    render(<CardSearchResults results={[RESULT]} addToList />);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Add Sol Ring' }));
+    expect(await screen.findByRole('button', { name: 'One more Sol Ring' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Add Sol Ring' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'One more Sol Ring' }));
+    expect(useScanQueueStore.getState().queue[0].qty).toBe(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'One fewer Sol Ring' }));
+    expect(useScanQueueStore.getState().queue[0].qty).toBe(1);
+  });
+
+  it('announces the add in a polite live region', async () => {
+    render(<CardSearchResults results={[RESULT]} addToList />);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Add Sol Ring' }));
+    const status = await screen.findByRole('status');
+    expect(status.textContent).toBe('Added Sol Ring to the add list, 1 card');
+  });
+
+  it('the printing picker adds its explicit finish/condition/language/qty to the list', async () => {
+    render(<CardSearchResults results={[RESULT]} addToList />);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /Printing/ }));
+    const foil = await screen.findByRole('radio', { name: /Foil/ });
+    fireEvent.click(foil);
+    fireEvent.click(document.querySelector('.inline-card-search-add-printing')!);
+
+    expect(useScanQueueStore.getState().queue).toMatchObject([
+      { id: entryKey('row-parity', 'foil'), finish: 'foil', qty: 1, source: 'searched' },
+    ]);
   });
 });

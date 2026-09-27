@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+// Also its own lazy chunk now (the Add-cards sheet's Add-list row edit,
+// T153) — see the matching note in ScannerQueueSheet.tsx.
+import '@/styles/admin-scanner.css';
 import { ChevronLeft, ChevronRight, Minus, Plus, Trash2 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
@@ -6,7 +9,10 @@ import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
 import { ConditionControl, FinishControl } from './CopyControls';
 import { Button, IconButton } from './shared/Button';
+import { Field } from './shared/form';
 import { conditionLabel } from './shared/CardRow';
+import { SelectMenu } from './SelectMenu';
+import { ADD_LANGUAGE_OPTIONS } from './PrintingPicker';
 import { fetchPrintings } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { userMessage } from '../lib/user-error';
@@ -20,6 +26,7 @@ interface Props {
   onClose: () => void;
   onFinish: (finish: Finish) => void;
   onCondition: (condition: Condition) => void;
+  onLanguage: (language: string) => void;
   onQty: (delta: number) => void;
   onPrinting: (card: ScryfallCard) => void;
   onRemove: () => void;
@@ -48,6 +55,7 @@ export function ScannerEditSheet({
   onClose,
   onFinish,
   onCondition,
+  onLanguage,
   onQty,
   onPrinting,
   onRemove,
@@ -139,6 +147,14 @@ export function ScannerEditSheet({
 
             <FinishControl printing={card} value={entry.finish} onChange={onFinish} />
             <ConditionControl value={condition} onChange={onCondition} />
+            <Field label="Language">
+              <SelectMenu
+                ariaLabel="Language"
+                value={entry.language ?? ''}
+                options={ADD_LANGUAGE_OPTIONS}
+                onChange={onLanguage}
+              />
+            </Field>
 
             <div className="scanner-edit-field scanner-edit-qty">
               <span className="form-field-label" id="scanner-edit-qty-label">

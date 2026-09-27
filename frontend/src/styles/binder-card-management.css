@@ -903,6 +903,96 @@
   }
 }
 
+/* ── T153 Add list: sticky bar, commit summary, error banner ─────────────
+   The bar/summary/error are `.add-cards-modal` flex children rendered AFTER
+   `.add-cards-modal-body` (which is `flex: 1`), so they dock at the bottom on
+   every tab without any position:fixed math — the modal's own max-height
+   already reserves space for the on-screen keyboard (`--keyboard-inset`,
+   modals-dialogs.css), and this bar just sits inside that. Hidden entirely
+   (not rendered) when the list is empty. */
+.add-cards-list-bar {
+  align-items: center;
+  flex-wrap: wrap;
+  padding-bottom: max(var(--space-4), calc(var(--space-2) + var(--safe-bottom)));
+}
+
+.add-cards-list-bar-thumbs {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.add-cards-list-bar-thumb {
+  width: 2rem;
+  height: 2.78rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: 1px solid var(--surface);
+  margin-left: -0.6rem;
+}
+
+.add-cards-list-bar-thumb:first-child {
+  margin-left: 0;
+}
+
+.add-cards-list-bar-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.add-cards-list-bar-summary {
+  display: flex;
+  flex-direction: column;
+  margin-right: auto;
+  font-size: var(--text-sm);
+  line-height: 1.3;
+}
+
+.add-cards-list-bar-summary b {
+  color: var(--text-primary);
+}
+
+.add-cards-list-bar-summary span {
+  color: var(--text-muted);
+}
+
+.add-cards-commit-review,
+.add-cards-commit-error {
+  margin: var(--space-3) var(--space-4) 0;
+  flex-shrink: 0;
+}
+
+/* T153: search-results add-list stepper (replaces "+" once a row is queued)
+   and the polite live-region announcement standing in for the collection
+   toast the Add-list target skips. */
+.inline-card-search-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.inline-card-search-stepper output {
+  min-width: 1.1em;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.inline-card-search-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ── Inline Scryfall search (collection add-from-Scryfall) ────── */
 
 .inline-card-search {
@@ -1290,6 +1380,40 @@
 }
 @media (pointer: coarse) {
   .inline-card-search-add {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* T153: the Add-list stepper replaces `.inline-card-search-add` once a row
+   is already queued — same circular-icon-button treatment, two of them. */
+.inline-card-search-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: filter var(--motion-fast);
+}
+
+.inline-card-search-stepper-btn:focus-visible {
+  filter: brightness(1.1);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-stepper-btn:hover {
+    filter: brightness(1.1);
+  }
+}
+@media (pointer: coarse) {
+  .inline-card-search-stepper-btn {
     min-width: 44px;
     min-height: 44px;
   }

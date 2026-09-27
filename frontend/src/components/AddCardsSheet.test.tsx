@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { ScryfallCard } from '@/deck-builder/types';
+import type { ScannedEntry } from '../lib/use-scan-queue';
 
 // Heavy dependencies are stubbed: each is exercised by its own test
 // suite. AddCardsSheet's job is the tab strip + tab-panel routing + the
@@ -51,6 +53,7 @@ vi.mock('../lib/use-can-scan', () => ({
 const importTextMock = vi.fn(async (_text: string) => ({
   cards: [{ name: 'Forest' }],
   unresolvedNames: [],
+  fetchErrors: [],
   scryfallHits: 1,
   format: 'mtga',
 }));
@@ -59,17 +62,32 @@ vi.mock('../lib/api', () => ({
 }));
 
 const importCardsMock = vi.fn(async (..._args: unknown[]) => 'import-id');
+const deleteImportsMock = vi.fn(async (..._args: unknown[]) => undefined);
+const collectionState = {
+  importCards: importCardsMock,
+  deleteImports: deleteImportsMock,
+  cards: [] as unknown[],
+  binders: [] as unknown[],
+};
+function useCollectionStoreMock(selector: (s: typeof collectionState) => unknown) {
+  return selector(collectionState);
+}
+useCollectionStoreMock.getState = () => collectionState;
 vi.mock('../store/collection', () => ({
-  useCollectionStore: (selector: (s: { importCards: typeof importCardsMock }) => unknown) =>
-    selector({ importCards: importCardsMock }),
+  useCollectionStore: useCollectionStoreMock,
 }));
 
 import { AddCardsSheet } from './AddCardsSheet';
 import { useCanScan } from '../lib/use-can-scan';
+import { useScanQueueStore } from '../lib/use-scan-queue';
 
 beforeEach(() => {
   importTextMock.mockClear();
   importCardsMock.mockClear();
+  deleteImportsMock.mockClear();
+  collectionState.cards = [];
+  collectionState.binders = [];
+  useScanQueueStore.setState({ queue: [] });
   vi.mocked(useCanScan).mockReturnValue(true);
 });
 
@@ -197,5 +215,107 @@ describe('AddCardsSheet', () => {
     expect(modal.className).toContain('is-closing');
     fireEvent.animationEnd(modal, { animationName: 'modal-panel-out' });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AddCardsSheet Add list (T153)', () => {
+  function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
+    return {
+      id: 'print-1',
+      oracle_id: 'oracle-1',
+      name: 'Sol Ring',
+      set: 'cmr',
+      set_name: 'Commander Legends',
+      collector_number: '472',
+      prices: { usd: '2.00' },
+      finishes: ['nonfoil', 'foil'],
+      image_uris: {
+        small: '',
+        normal: '',
+        large: '',
+        png: '',
+        art_crop: '',
+        border_crop: '',
+      },
+      ...overrides,
+    } as ScryfallCard;
+  }
+
+  function seedAddList(entries: ScannedEntry[]) {
+    useScanQueueStore.setState({ queue: entries });
+  }
+
+  const solRing: ScannedEntry = {
+    id: 'print-1::nonfoil',
+    card: makeCard(),
+    qty: 2,
+    finish: 'nonfoil',
+    rawText: 'Sol Ring',
+    source: 'searched',
+  };
+
+  it('shows the bar with count and value only when the list has items', () => {
+    const { rerender } = render(<AddCardsSheet onClose={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'Review' })).toBeNull();
+
+    seedAddList([solRing]);
+    rerender(<AddCardsSheet onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Review' })).toBeTruthy();
+    expect(screen.getByText('2 cards')).toBeTruthy();
+    expect(screen.getByText('$4.00')).toBeTruthy();
+  });
+
+  it('commits from the bar: one importCards call, clears the list, shows the routing summary', async () => {
+    seedAddList([solRing]);
+    render(<AddCardsSheet onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2' }));
+
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    expect(importCardsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cards: expect.any(Array) }),
+      'add-list',
+      'merge'
+    );
+    expect(useScanQueueStore.getState().queue).toEqual([]);
+    expect(await screen.findByText('Added to your collection')).toBeTruthy();
+    // The mock's importText always resolves one card regardless of qty
+    // requested, which is exactly the added !== requested branch.
+    expect(screen.getByText('Added 1 of 2 card')).toBeTruthy();
+  });
+
+  it('labels an all-scanned batch scanned-cards, even when committed from the bar', async () => {
+    seedAddList([{ ...solRing, source: 'scanned' }]);
+    render(<AddCardsSheet onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2' }));
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    expect(importCardsMock).toHaveBeenCalledWith(expect.anything(), 'scanned-cards', 'merge');
+  });
+
+  it('Undo removes exactly that import', async () => {
+    seedAddList([solRing]);
+    render(<AddCardsSheet onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2' }));
+    await screen.findByText('Added to your collection');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(deleteImportsMock).toHaveBeenCalledWith(['import-id']);
+  });
+
+  it('opens the review sheet, which stacks above the Add-cards sheet and commits the same way', async () => {
+    seedAddList([solRing]);
+    render(<AddCardsSheet onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+    const dialog = await screen.findByRole('dialog', { name: '2 cards' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add 2 cards' }));
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    expect(useScanQueueStore.getState().queue).toEqual([]);
+  });
+
+  it('the list survives the sheet closing and reopening', () => {
+    seedAddList([solRing]);
+    const { unmount } = render(<AddCardsSheet onClose={() => {}} />);
+    expect(screen.getByText('2 cards')).toBeTruthy();
+    unmount();
+    render(<AddCardsSheet onClose={() => {}} />);
+    expect(screen.getByText('2 cards')).toBeTruthy();
   });
 });

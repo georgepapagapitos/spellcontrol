@@ -13,6 +13,13 @@ interface Props {
   /** Escape behavior: clear the query, then bubble up to the caller. The caller
    *  decides what bubbling means (close the dialog, switch tab, etc.). */
   onEscape?: () => void;
+  /**
+   * Retarget every add into the device-local Add list (T153) instead of the
+   * collection — the unified Add-cards sheet's Search tab. The binder-pin
+   * variant ({@link AddCardSheet}) always adds straight to the collection
+   * and pins, so it leaves this off.
+   */
+  addToList?: boolean;
 }
 
 /**
@@ -23,7 +30,13 @@ interface Props {
  * live in {@link CardSearchResults}, shared with {@link InlineCardSearch} so
  * the two surfaces can't drift apart again.
  */
-export function AddCardSearchPanel({ binderId, autoFocus = true, initialQuery, onEscape }: Props) {
+export function AddCardSearchPanel({
+  binderId,
+  autoFocus = true,
+  initialQuery,
+  onEscape,
+  addToList,
+}: Props) {
   const [query, setQuery] = useState(initialQuery ?? '');
   const { results, loading, error } = useSearchCards(query);
   const resultsRef = useRef<CardSearchResultsHandle>(null);
@@ -74,7 +87,12 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, initialQuery, o
         {!loading && !error && query.trim().length >= 2 && results.length === 0 && (
           <p className="card-picker-empty">No matches.</p>
         )}
-        <CardSearchResults ref={resultsRef} results={results} binderId={binderId} />
+        <CardSearchResults
+          ref={resultsRef}
+          results={results}
+          binderId={binderId}
+          addToList={addToList}
+        />
       </div>
     </div>
   );

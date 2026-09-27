@@ -53,6 +53,7 @@ function renderEdit(e: ScannedEntry = entry) {
     onClose: vi.fn(),
     onFinish: vi.fn(),
     onCondition: vi.fn(),
+    onLanguage: vi.fn(),
     onQty: vi.fn(),
     onPrinting: vi.fn(),
     onRemove: vi.fn(),
@@ -110,6 +111,13 @@ describe('ScannerEditSheet', () => {
       expect(screen.getByRole('radio', { name })).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'Heavily Played' }));
     expect(props.onCondition).toHaveBeenCalledWith('hp');
+  });
+
+  it('picks a language, English standing for "not set"', () => {
+    const props = renderEdit();
+    fireEvent.click(screen.getByRole('button', { name: 'Language' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Japanese' }));
+    expect(props.onLanguage).toHaveBeenCalledWith('ja');
   });
 
   it('steps the quantity, never below one', () => {
