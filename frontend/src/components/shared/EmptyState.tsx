@@ -41,7 +41,7 @@ interface CompactProps {
    *  with mark/hint. */
   compact: true;
   /** The line's own styling class, owned by the caller's stylesheet (e.g.
-   *  DeckDisplay's `.deck-outzone-empty`, PodHubPage's `.pod-hub-stats-empty`)
+   *  the deck sections' `.deck-section-empty`, PodHubPage's `.pod-hub-stats-empty`)
    *  — EmptyState renders it as-is rather than shipping one fixed compact
    *  class every consumer would share (keeps `css-chunk-ownership.test.ts`
    *  happy: the class stays owned by the page/component that already loads
@@ -53,6 +53,11 @@ interface CompactProps {
   as?: 'p' | 'div';
   children: ReactNode;
   status?: boolean;
+  /** For a line that stands in for a collapsible list: the collapse
+   *  control's `aria-controls` target, hidden with the list it replaces
+   *  (an empty sideboard or Considering section). */
+  id?: string;
+  hidden?: boolean;
 }
 
 type EmptyStateProps = PrimaryProps | CompactProps;
@@ -68,7 +73,12 @@ export function EmptyState(props: EmptyStateProps) {
   if (props.compact) {
     const Tag = props.as ?? 'p';
     return (
-      <Tag className={props.className} role={props.status ? 'status' : undefined}>
+      <Tag
+        className={props.className}
+        id={props.id}
+        hidden={props.hidden}
+        role={props.status ? 'status' : undefined}
+      >
         {props.children}
       </Tag>
     );

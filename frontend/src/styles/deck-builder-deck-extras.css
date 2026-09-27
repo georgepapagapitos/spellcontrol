@@ -309,78 +309,35 @@
 }
 
 /* ── "Not in the deck" zone (E176) ────────────────────────────────── */
-/* One subordinate container below the decklist holding Sideboard +
-   Considering (E122) behind a segmented Tabs switch — replaces the former
-   pair of peer sections (.deck-sideboard-section / .deck-considering-section)
-   that shared a bare border-top and read as two more page sections rather
-   than one subordinate "outside the 99" zone. The inset surface + border
-   here (mirrors .deck-combos-panel) IS the "outside the 99" cue — no repeat
-   border-top divider needed inside. Renders in every view mode (grid
-   included) as a compact row list — never thumbnails, it's a small holding
-   zone. Always mounted, even at 0/0 — this is real editable content (drop
-   targets for "Move to sideboard"/"Move to considering"), not a dismissible
-   insight strip, so it stays discoverable rather than disappearing empty. */
+/* Sideboard and Considering, drawn as two more deck sections by the same
+   renderer and header the deck uses in the current view (tiles, stacks or
+   rows). No panel, no tab strip: they used to sit in a bordered box behind a
+   Sideboard | Considering switch that always showed rows, which under a grid
+   of card art read as a different app. The only rules here are the space that
+   sets them apart from the deck above and the focus ring the page hero's
+   "+N sideboard" link lands on. */
 .deck-outzone {
   margin-top: var(--space-5);
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   min-width: 0;
 }
 
-/* Same serif/uppercase/tracked look as .deck-section-title (the mainboard's
-   own type/category headers) — a distinct class (not a shared one) so tests
-   querying mainboard section titles never pick this container title up. Also
-   the jump-target focus ring (tabIndex=-1, target of the toolbar chip's
-   #deck-outzone fragment link). */
-.deck-outzone-title {
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  margin: 0;
-  color: var(--text-primary);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.deck-outzone:focus {
+  outline: none;
 }
 
-.deck-outzone-title:focus-visible {
+.deck-outzone:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 4px;
   border-radius: var(--radius);
 }
 
-.deck-outzone-single-label {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.deck-outzone-single-count {
-  margin-left: 0.3rem;
-  color: var(--text-muted);
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-
-.deck-outzone-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.deck-outzone-body .deck-section:last-child {
-  margin-bottom: 0;
-}
-
-.deck-outzone-empty {
+/* An empty pile's one line, where its cards would be. */
+.deck-section-empty {
+  margin: 0;
+  padding: var(--space-2) 0.1rem;
   color: var(--text-muted);
   font-size: var(--text-sm);
   font-style: italic;
-  padding: var(--space-2) 0;
 }
 
 /* ── Zone toggle (mainboard / sideboard / considering, E122) ──────── */

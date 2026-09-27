@@ -66,6 +66,7 @@ import { RoleBadge, LegalityBadge } from './deck-display-icons';
 import { CardName } from '@/components/shared/CardName';
 import { IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 // ── Category section ──────────────────────────────────────────────────────
 export function CategorySection({
@@ -97,6 +98,7 @@ export function CategorySection({
   combosByOracle,
   cardProvenance,
   target,
+  empty,
   selectMode,
   isRowSelected,
   onToggleRowSelected,
@@ -113,6 +115,9 @@ export function CategorySection({
   rows: Row[];
   /** Target count for this bucket's header gauge (category view only). */
   target?: number;
+  /** Shown under the header when there are no rows; without it an empty
+   *  section renders nothing. See TypedGroup.empty. */
+  empty?: string;
   currency: CurrencyCode;
   showPrefs: ShowPrefs;
   onRowClick: (name: string) => void;
@@ -142,7 +147,7 @@ export function CategorySection({
   /** Collapsed sections keep their header (count and price stay readable —
    *  that is the point of collapsing one) and hide only their rows. Both are
    *  optional: a section with no `onToggleCollapsed` renders no chevron and
-   *  can never collapse, which is how the out-zone lists stay as they were. */
+   *  can never collapse. */
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   /** Passed straight to every row's menu — see DeckCardRow's own docs. */
@@ -214,7 +219,7 @@ export function CategorySection({
   // A bucket with no rows still renders when it carries a target (the 0/N
   // gap story) — see groupByCategory. Type-mode buckets never set `target`,
   // so this is a no-op there — byte-identical to the pre-E124 early return.
-  if (rows.length === 0 && target === undefined) return null;
+  if (rows.length === 0 && target === undefined && !empty) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
   const count = rows.reduce((sum, r) => sum + r.qty, 0);
 
@@ -321,12 +326,18 @@ export function CategorySection({
             />
           )}
         </div>
-        {showPrefs.price && (
+        {showPrefs.price && rows.length > 0 && (
           <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
         )}
         {headerAction}
       </header>
-      {dragEnabled ? (
+      {/* An empty pile says so in the list's place, once the last row's exit
+          animation (still in `entries`) has played out. */}
+      {empty && entries.length === 0 ? (
+        <EmptyState compact className="deck-section-empty" id={listId} hidden={collapsed}>
+          {empty}
+        </EmptyState>
+      ) : dragEnabled ? (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

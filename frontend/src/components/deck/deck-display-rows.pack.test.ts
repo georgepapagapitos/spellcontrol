@@ -166,14 +166,32 @@ describe('gridSectionSpan (grid view, packed)', () => {
 });
 
 describe('packed grid CSS', () => {
+  const css = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../../styles/deck-builder-card-list.css'),
+    'utf8'
+  ).replace(/\/\*[\s\S]*?\*\//g, '');
+
   // `dense` fills holes by moving later groups up, which would break the one
   // reading order the grid shares with the list, the stacks and the carousel.
   it('never reorders groups to fill holes', () => {
-    const css = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), '../../styles/deck-builder-card-list.css'),
-      'utf8'
-    ).replace(/\/\*[\s\S]*?\*\//g, '');
     expect(css).toContain('.deck-card-grid-sections--packed');
     expect(css).not.toMatch(/grid-auto-flow:[^;]*dense/);
+  });
+
+  // A packed section is a subgrid, so any child without a column placement
+  // lands in its FIRST card column. The empty sideboard's line did exactly
+  // that and wrapped at one card's width. Every child DeckCardGrid renders
+  // inside a section spans the section.
+  it('spans every child of a packed section across the whole section', () => {
+    const rule = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].find(
+      ([, selectors, body]) =>
+        selectors.includes('.deck-card-grid-sections--packed') &&
+        /grid-column:\s*1\s*\/\s*-1/.test(body)
+    );
+    expect(rule, 'the full-width placement rule for packed section children').toBeDefined();
+    const selectors = rule![1];
+    for (const child of ['.deck-section-header', '.deck-card-grid', '.deck-section-empty']) {
+      expect(selectors).toContain(`.deck-grid-section > ${child}`);
+    }
   });
 });

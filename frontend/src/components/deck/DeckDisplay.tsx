@@ -30,7 +30,6 @@ import {
   type LegalityIssue,
 } from '../../lib/deck-validation';
 import { useSealMoment } from '../shared/SealMoment';
-import { EmptyState } from '../shared/EmptyState';
 import { DeckExportDialog } from '../shared/DeckExportDialog';
 import {
   buildExport,
@@ -85,7 +84,6 @@ import {
 } from '@/deck-builder/services/deckBuilder/deckIdentity';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { ROLE_TITLES, type RoleKey } from '../../lib/role-badges';
-import { Tabs } from '../Tabs';
 import { clampZoom, readStoredZoom } from '@/lib/grid-zoom';
 import { useElementWidth } from '@/lib/use-element-width';
 import { useMediaQuery } from '@/lib/use-media-query';
@@ -154,6 +152,11 @@ const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
 // beside the panel it drops to fewer columns. Below 1024 (or on a coarse
 // pointer) the row thumbnail, click→carousel and touch long-press peek carry it.
 const INSPECTOR_QUERY = '(min-width: 1024px) and (hover: hover) and (pointer: fine)';
+
+/** The collapsed-section keys under one prefix, with the prefix stripped. */
+function titlesUnder(keys: Set<string>, prefix: string): Set<string> {
+  return new Set([...keys].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)));
+}
 
 // ── Props ─────────────────────────────────────────────────────────────────
 export interface DeckDisplayCard {
@@ -597,16 +600,6 @@ export function DeckDisplay({
     }
   };
   const [search, setSearch] = useState('');
-  // "Not in the deck" zone (E176): which of the two zones the segmented
-  // switch shows. Defaults to whichever actually holds cards (Sideboard
-  // unless it's empty and Considering isn't) so newly-routed import extras
-  // / parked suggestions are visible without an extra tap — same intent as
-  // the old Considering auto-open heuristic, adapted to a tab switch.
-  // Lazy-init only — the user's own tap afterward always wins, it doesn't
-  // re-derive as cards move in/out while mounted.
-  const [outzoneTab, setOutzoneTab] = useState<'sideboard' | 'considering'>(() =>
-    sideboard.length === 0 && considering.length > 0 ? 'considering' : 'sideboard'
-  );
 
   // ── Multi-select (E172) ──────────────────────────────────────────────────
   // A deliberate mode the user opts into via the toolbar's "Select" toggle —
@@ -645,23 +638,24 @@ export function DeckDisplay({
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
   const [groupBy, setGroupBy] = useState<DeckGroupBy>(() => readStoredGroupBy());
-  // Collapsed mainboard sections, keyed by lens so the same title under two
-  // lenses folds independently. The out-zone lists are deliberately excluded:
-  // they are small holding zones already behind a tab.
+  // Collapsed sections. Mainboard sections are keyed by lens so the same title
+  // under two lenses folds independently; Sideboard and Considering are keyed
+  // under `outzone:` because they are the same two piles under every lens.
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     readStoredCollapsedSections
   );
   const sectionKey = (title: string) => `${groupBy}:${title}`;
   const isSectionCollapsed = (title: string) => collapsedSections.has(sectionKey(title));
-  const toggleSection = (title: string) => {
+  const toggleCollapsedKey = (key: string) => {
     setCollapsedSections((prev) => {
       const next = new Set(prev);
-      const key = `${groupBy}:${title}`;
       if (!next.delete(key)) next.add(key);
       writeStoredCollapsedSections(next);
       return next;
     });
   };
+  const toggleSection = (title: string) => toggleCollapsedKey(sectionKey(title));
+  const toggleOutzoneSection = (title: string) => toggleCollapsedKey(`outzone:${title}`);
   // The card menu, anchored to a pointer or to a tile's kebab. One instance
   // for the whole surface; the row and tile only report where and what.
   const [cardMenu, setCardMenu] = useState<{
@@ -686,12 +680,14 @@ export function DeckDisplay({
   const openCardMenuAt = (zone: DeckZone) => (row: Row, rect: DOMRect) =>
     setCardMenu({ row, zone, x: rect.left, y: rect.bottom });
 
-  const collapsedTitlesForLens = useMemo(() => {
-    const prefix = `${groupBy}:`;
-    return new Set(
-      [...collapsedSections].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length))
-    );
-  }, [collapsedSections, groupBy]);
+  const collapsedTitlesForLens = useMemo(
+    () => titlesUnder(collapsedSections, `${groupBy}:`),
+    [collapsedSections, groupBy]
+  );
+  const collapsedOutzoneTitles = useMemo(
+    () => titlesUnder(collapsedSections, 'outzone:'),
+    [collapsedSections]
+  );
   const [gridZoom, setGridZoom] = useState(() => readStoredZoom(GRID_SIZE_STORAGE_KEY));
   const [showPrefs, setShowPrefs] = useState<ShowPrefs>(() => readStoredShowPrefs());
   // Mirrors the collection grid: on narrow viewports the top zoom steps
@@ -886,25 +882,36 @@ export function DeckDisplay({
     [cards, sideboard, considering]
   );
 
-  // Sideboard rows always stay type-grouped — the sideboard is a small,
-  // rarely-consulted holding list, not the shape-story surface the category
-  // gauges explain; type grouping keeps it simple and consistent regardless
-  // of the mainboard's lens.
-  const sideboardGroups = useMemo(
-    () =>
-      sideboard.length === 0
-        ? []
-        : groupByType(buildRows(sideboard, currency, collectionByCopyId, crossDeck)),
+  // The sideboard and Considering (E122) are each ONE section, whatever the
+  // mainboard's lens: a pile of a handful of cards split by type would put a
+  // header over every second card. Each renders the way the deck above it
+  // does (tiles, a stack or rows), so the pile reads as more of the same deck
+  // rather than a form bolted under it. `empty` is set only when the pile
+  // really is empty; a search that filters it to nothing hides it like any
+  // other section, instead of claiming there are no cards.
+  const sideboardGroups = useMemo<TypedGroup[]>(
+    () => [
+      {
+        title: 'Sideboard',
+        icon: 'sideboard',
+        rows: buildRows(sideboard, currency, collectionByCopyId, crossDeck),
+        empty: sideboard.length === 0 ? 'No sideboard cards yet' : undefined,
+      },
+    ],
     [sideboard, collectionByCopyId, crossDeck, currency]
   );
-
-  // Considering (E122) — same type-grouped, non-shape-story treatment as the
-  // sideboard: a small holding list, not the category-gauge surface.
-  const consideringGroups = useMemo(
-    () =>
-      considering.length === 0
-        ? []
-        : groupByType(buildRows(considering, currency, collectionByCopyId, crossDeck)),
+  const consideringGroups = useMemo<TypedGroup[]>(
+    () => [
+      {
+        title: 'Considering',
+        icon: 'considering',
+        rows: buildRows(considering, currency, collectionByCopyId, crossDeck),
+        empty:
+          considering.length === 0
+            ? "Nothing parked here yet. Move a card here when you're unsure about it."
+            : undefined,
+      },
+    ],
     [considering, collectionByCopyId, crossDeck, currency]
   );
 
@@ -1012,18 +1019,6 @@ export function DeckDisplay({
   const visibleConsideringGroups = useMemo(
     () => applyFilterSort(consideringGroups, search, sort, sortDir),
     [consideringGroups, search, sort, sortDir]
-  );
-
-  // Stacks lens: the out-zone is ONE column, not one per type. It is a holding
-  // pile of a handful of cards — splitting it by type would put a header over
-  // every second card — so the type groups collapse back into a single stack
-  // that keeps the lens's sort and filter.
-  const outzoneStack = useCallback(
-    (groups: TypedGroup[]): TypedGroup[] =>
-      groups.length === 0
-        ? []
-        : [{ ...groups[0], target: undefined, rows: groups.flatMap((g) => g.rows) }],
-    []
   );
 
   // No card in the deck (main, sideboard, or considering) matches the current
@@ -1416,19 +1411,22 @@ export function DeckDisplay({
   const statStripRef = useRef<HTMLDivElement>(null);
   useOverflowEdges(statStripRef, activeView === 'deck');
 
-  // "Not in the deck" zone (E176): whether the format has a real sideboard
-  // at all (every DECK_FORMAT_CONFIGS entry does today, but the format
-  // config's own sideboardSize gate is the single source, mirrored from the
-  // former list-view-only sideboard section). false → the switch collapses
-  // to Considering alone (a 1-item tablist would be an anti-pattern).
-  const showSideboardTab = formatConfig.sideboardSize > 0;
-  // Which pile the out-zone is showing, and whether it holds anything after
-  // the lens's search/filter. Both the stack and its menus key off this.
-  const outzoneZone: DeckZone =
-    outzoneTab === 'sideboard' && showSideboardTab ? 'sideboard' : 'considering';
-  const outzoneRows = (
-    outzoneZone === 'sideboard' ? visibleSideboardGroups : visibleConsideringGroups
-  ).reduce((n, g) => n + g.rows.length, 0);
+  // "Not in the deck" (E176): whether the format has a real sideboard at all
+  // (every DECK_FORMAT_CONFIGS entry does today, but the format config's own
+  // sideboardSize gate is the single source). false → Considering alone.
+  const hasSideboard = formatConfig.sideboardSize > 0;
+  const outzoneGroups = useMemo(
+    () =>
+      hasSideboard
+        ? [...visibleSideboardGroups, ...visibleConsideringGroups]
+        : visibleConsideringGroups,
+    [hasSideboard, visibleSideboardGroups, visibleConsideringGroups]
+  );
+  // A tile's menu needs its pile. The grid reports only the row, and a name
+  // can sit in both piles, so the row's own slot id decides.
+  const sideboardSlotIds = useMemo(() => new Set(sideboard.map((c) => c.slotId)), [sideboard]);
+  const outzoneOf = (row: Row): DeckZone =>
+    row.slotIds.some((id) => sideboardSlotIds.has(id)) ? 'sideboard' : 'considering';
 
   const ctxValue = useMemo(
     () => ({
@@ -1506,7 +1504,7 @@ export function DeckDisplay({
   const cardMenuCtx = (row: Row, zone: DeckZone): DeckCardActionCtx => ({
     row,
     isSingleton: formatConfig.isSingleton,
-    moveZone: zone === 'cards' ? (showSideboardTab ? 'sideboard' : undefined) : 'mainboard',
+    moveZone: zone === 'cards' ? (hasSideboard ? 'sideboard' : undefined) : 'mainboard',
     onEditCard,
     onSetQty: onSetQtyForZone(zone),
     // Out-zone rows get their own remover and their own way back. Both were
@@ -1521,7 +1519,7 @@ export function DeckDisplay({
           : onRemoveConsideringCard,
     onMoveToZone:
       zone === 'cards'
-        ? showSideboardTab
+        ? hasSideboard
           ? onMoveToSideboard
           : undefined
         : zone === 'sideboard'
@@ -1566,7 +1564,7 @@ export function DeckDisplay({
       onEditCard={onEditCard}
       roleFilter={activeRoleFilter}
       legalityBySlot={legalityBySlot}
-      onMoveToSideboard={showSideboardTab ? onMoveToSideboard : undefined}
+      onMoveToSideboard={hasSideboard ? onMoveToSideboard : undefined}
       onMoveToConsidering={onMoveToConsidering}
       onMakeCommander={onMakeCommander}
       canMakeCommander={canMakeCommander}
@@ -1586,6 +1584,57 @@ export function DeckDisplay({
       cardProvenance={cardProvenance}
     />
   );
+
+  // The same section as the deck's own, pointed at its pile's handlers. Roles
+  // are not passed: the role lens counts the deck, so it never dims these.
+  const renderOutzoneSection = (g: TypedGroup) => {
+    const zone: DeckZone = g.icon === 'sideboard' ? 'sideboard' : 'considering';
+    const inSideboard = zone === 'sideboard';
+    return (
+      <CategorySection
+        key={g.title}
+        title={g.title}
+        icon={g.icon}
+        rows={g.rows}
+        empty={g.empty}
+        collapsed={collapsedOutzoneTitles.has(g.title)}
+        onToggleCollapsed={() => toggleOutzoneSection(g.title)}
+        deckTags={deckTags.map((t) => t.tag)}
+        onSetRowTags={
+          onSetCardTags ? (slotIds, tags) => onSetCardTags(zone, slotIds, tags) : undefined
+        }
+        onRowContextMenu={openCardMenu(zone)}
+        currency={currency}
+        showPrefs={showPrefs}
+        onRowClick={openPreview}
+        onRemoveCard={inSideboard ? onRemoveSideboardCard : onRemoveConsideringCard}
+        onSetQty={onSetQtyForZone(zone)}
+        selectMode={selectMode}
+        isRowSelected={(row) => isRowSelected(zone, row)}
+        onToggleRowSelected={(row) => toggleRowSelected(zone, row)}
+        dragEnabled={sort === 'custom'}
+        onReorder={onReorderForZone(zone)}
+        // Considering is copy-limit exempt (E122) regardless of format
+        // singleton rules — never the 1-copy cap `isSingleton ?? true` would
+        // otherwise fall back to.
+        isSingleton={inSideboard ? formatConfig.isSingleton : false}
+        onEditCard={inSideboard ? onEditCard : undefined}
+        legalityBySlot={legalityBySlot}
+        onMoveToMainboard={inSideboard ? onMoveToMainboard : onMoveFromConsidering}
+        onMakeCommander={inSideboard ? onMakeCommander : undefined}
+        canMakeCommander={canMakeCommander}
+        onMakePartner={inSideboard ? onMakePartner : undefined}
+        canMakePartner={canMakePartner}
+        onMoveToAnotherDeck={inSideboard ? onMoveToAnotherDeck : undefined}
+        onReleaseCopy={inSideboard ? onReleaseCopy : undefined}
+        onUseOwnCopy={inSideboard ? onUseOwnCopy : undefined}
+        synergyByName={synergyByName}
+        cardInclusionMap={cardInclusionMap}
+        combosByOracle={combosByOracle}
+        cardProvenance={cardProvenance}
+      />
+    );
+  };
 
   const renderAnalysis = (view: AnalysisTabId) => (
     <DeckAnalysisView
@@ -1787,7 +1836,7 @@ export function DeckDisplay({
                     ? `${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'} selected`
                     : 'Select cards'}
                 </span>
-                {selection && onBulkMove && selection.zone === 'cards' && showSideboardTab && (
+                {selection && onBulkMove && selection.zone === 'cards' && hasSideboard && (
                   <Button
                     onClick={() => {
                       onBulkMove([...selection.keys], 'cards', 'sideboard');
@@ -2046,7 +2095,7 @@ export function DeckDisplay({
                       }
                       onOpen={openPreview}
                       actions={{
-                        onMoveToSideboard: showSideboardTab ? onMoveToSideboard : undefined,
+                        onMoveToSideboard: hasSideboard ? onMoveToSideboard : undefined,
                         onMoveToConsidering,
                         onRemoveCard,
                       }}
@@ -2113,153 +2162,62 @@ export function DeckDisplay({
                         />
                       ))}
 
-                    {/* "Not in the deck" (E176) — one subordinate zone below the
-                    decklist, inside `.deck-body-main` so the inspector column
-                    stays stuck alongside it, in EVERY view mode (the former defect: this
-                    content only rendered inside the list-view branch, so
-                    grid-view users could neither see nor reach it). Always a
-                    compact row list (CategorySection/DeckCardRow) even in
-                    grid view — it's a small holding zone, not a shape story,
-                    so thumbnails would waste vertical space. The Sideboard
-                    tab is format-gated (unlimited/constructed sideboards);
-                    Considering (E122) is always available and always
-                    excluded from stats/legality/mana/role counts upstream
-                    (see the `cards`-only `allCards`/`legalityIssues` memos
-                    above — this zone never feeds them). */}
-                    <div className="deck-outzone">
-                      <h3 className="deck-outzone-title" id="deck-outzone" tabIndex={-1}>
-                        Not in the deck
-                      </h3>
-                      {showSideboardTab ? (
-                        <Tabs
-                          ariaLabel="Not in the deck"
-                          variant="fitted"
-                          value={outzoneTab}
-                          onChange={setOutzoneTab}
-                          tabs={[
-                            {
-                              id: 'sideboard',
-                              label: 'Sideboard',
-                              count: sideboard.length,
-                              controls: 'deck-outzone-panel',
-                              ariaLabel: `Sideboard, ${sideboard.length} cards`,
-                            },
-                            {
-                              id: 'considering',
-                              label: 'Considering',
-                              count: considering.length,
-                              controls: 'deck-outzone-panel',
-                              ariaLabel: `Considering, ${considering.length} cards`,
-                            },
-                          ]}
-                        />
-                      ) : (
-                        <div className="deck-outzone-single-label">
-                          Considering
-                          <span className="deck-outzone-single-count">({considering.length})</span>
+                    {/* "Not in the deck" (E176): Sideboard and Considering as two
+                    more sections at the foot of the deck, drawn by the same
+                    renderer the deck uses in the current view (tiles, stacks or
+                    rows) with the same header, so they read as more of the deck
+                    rather than a form under it. They used to be a bordered panel
+                    with a Sideboard | Considering tab strip that always showed
+                    rows, even in grid view; next to a wall of card art that
+                    looked like another app. Inside `.deck-body-main` so the
+                    inspector column stays stuck alongside them. The Sideboard
+                    is format-gated; Considering (E122) is always here. Neither
+                    feeds stats, legality, mana or role counts (see the
+                    `cards`-only `allCards`/`legalityIssues` memos above). Always
+                    mounted, even at 0/0: they are where "Move to sideboard" and
+                    "Move to considering" land, and the target of the page
+                    hero's "+N sideboard" link. */}
+                    <section
+                      className="deck-outzone"
+                      id="deck-outzone"
+                      tabIndex={-1}
+                      aria-label="Not in the deck"
+                    >
+                      {viewMode === 'list' ? (
+                        // The deck's own column grid, so a pile is exactly as
+                        // wide as a column above it.
+                        <div
+                          className="deck-card-columns"
+                          style={{ '--deck-cols': listCols } as CSSProperties}
+                          {...hoverPeek.listHandlers}
+                          {...touchPeek.listHandlers}
+                        >
+                          {outzoneGroups.map((g) => (
+                            <div key={g.title} className="deck-card-column">
+                              {renderOutzoneSection(g)}
+                            </div>
+                          ))}
                         </div>
+                      ) : (
+                        <DeckCardGrid
+                          layout={viewMode}
+                          groups={outzoneGroups}
+                          currency={currency}
+                          showPrice={showPrefs.price}
+                          collapsedTitles={collapsedOutzoneTitles}
+                          onToggleSection={toggleOutzoneSection}
+                          onRowContextMenu={(row, e) => openCardMenu(outzoneOf(row))(row, e)}
+                          onRowMenu={(row, rect) => openCardMenuAt(outzoneOf(row))(row, rect)}
+                          onRowClick={openPreview}
+                          legalityBySlot={legalityBySlot}
+                          gridZoom={effectiveGridZoom}
+                          gridWidth={gridWidth}
+                          showRoles={showPrefs.roles}
+                          synergyByName={synergyByName}
+                          binderByCopyId={binderByCopyId}
+                        />
                       )}
-                      <div
-                        id="deck-outzone-panel"
-                        className="deck-outzone-body"
-                        role={showSideboardTab ? 'tabpanel' : undefined}
-                        aria-labelledby={showSideboardTab ? `sc-tab-${outzoneTab}` : undefined}
-                      >
-                        {viewMode === 'stacks' && outzoneRows > 0 ? (
-                          <DeckCardGrid
-                            layout="stacks"
-                            hideHeaders
-                            groups={outzoneStack(
-                              outzoneTab === 'sideboard' && showSideboardTab
-                                ? visibleSideboardGroups
-                                : visibleConsideringGroups
-                            )}
-                            currency={currency}
-                            showPrice={showPrefs.price}
-                            onRowContextMenu={openCardMenu(outzoneZone)}
-                            onRowMenu={openCardMenuAt(outzoneZone)}
-                            onRowClick={openPreview}
-                            gridZoom={effectiveGridZoom}
-                            gridWidth={gridWidth}
-                            showRoles={showPrefs.roles}
-                            synergyByName={synergyByName}
-                            binderByCopyId={binderByCopyId}
-                          />
-                        ) : outzoneTab === 'sideboard' && showSideboardTab ? (
-                          visibleSideboardGroups.length > 0 ? (
-                            visibleSideboardGroups.map((g) => (
-                              <CategorySection
-                                key={`sb-${g.title}`}
-                                title={g.title}
-                                icon={g.icon}
-                                rows={g.rows}
-                                currency={currency}
-                                showPrefs={showPrefs}
-                                onRowClick={openPreview}
-                                onRemoveCard={onRemoveSideboardCard}
-                                onSetQty={onSetQtyForZone('sideboard')}
-                                selectMode={selectMode}
-                                isRowSelected={(row) => isRowSelected('sideboard', row)}
-                                onToggleRowSelected={(row) => toggleRowSelected('sideboard', row)}
-                                dragEnabled={sort === 'custom'}
-                                onReorder={onReorderForZone('sideboard')}
-                                isSingleton={formatConfig.isSingleton}
-                                onEditCard={onEditCard}
-                                legalityBySlot={legalityBySlot}
-                                onMoveToMainboard={onMoveToMainboard}
-                                onMakeCommander={onMakeCommander}
-                                canMakeCommander={canMakeCommander}
-                                onMakePartner={onMakePartner}
-                                canMakePartner={canMakePartner}
-                                onMoveToAnotherDeck={onMoveToAnotherDeck}
-                                onReleaseCopy={onReleaseCopy}
-                                onUseOwnCopy={onUseOwnCopy}
-                                synergyByName={synergyByName}
-                                cardInclusionMap={cardInclusionMap}
-                                combosByOracle={combosByOracle}
-                                cardProvenance={cardProvenance}
-                              />
-                            ))
-                          ) : (
-                            <EmptyState compact className="deck-outzone-empty">
-                              No sideboard cards yet
-                            </EmptyState>
-                          )
-                        ) : visibleConsideringGroups.length > 0 ? (
-                          visibleConsideringGroups.map((g) => (
-                            <CategorySection
-                              key={`cn-${g.title}`}
-                              title={g.title}
-                              icon={g.icon}
-                              rows={g.rows}
-                              currency={currency}
-                              showPrefs={showPrefs}
-                              onRowClick={openPreview}
-                              onRemoveCard={onRemoveConsideringCard}
-                              onSetQty={onSetQtyForZone('considering')}
-                              selectMode={selectMode}
-                              isRowSelected={(row) => isRowSelected('considering', row)}
-                              onToggleRowSelected={(row) => toggleRowSelected('considering', row)}
-                              dragEnabled={sort === 'custom'}
-                              onReorder={onReorderForZone('considering')}
-                              // Considering is copy-limit exempt (E122) regardless of
-                              // format singleton rules — never the artificial 1-copy
-                              // cap `isSingleton ?? true` would otherwise fall back to.
-                              isSingleton={false}
-                              onMoveToMainboard={onMoveFromConsidering}
-                              synergyByName={synergyByName}
-                              cardInclusionMap={cardInclusionMap}
-                              combosByOracle={combosByOracle}
-                              cardProvenance={cardProvenance}
-                            />
-                          ))
-                        ) : (
-                          <EmptyState compact className="deck-outzone-empty">
-                            Nothing parked here yet. Move a card here when you're unsure about it.
-                          </EmptyState>
-                        )}
-                      </div>
-                    </div>
+                    </section>
 
                     {onAddFromSearch && search.trim().length >= 1 && noDeckMatches && (
                       <button

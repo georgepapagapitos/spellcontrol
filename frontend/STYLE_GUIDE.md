@@ -1067,27 +1067,39 @@ a hero CTA.
   keep their accent fill / accent tint — the tint specifically for larger
   multi-line option cards, where a solid fill behind a label + sublabel is
   heavy and hurts the sublabel's contrast.
-- **Subordinate container + `fitted` Tabs = a real tab strip, not a
-  value-picker**, even though it visually reads as one segmented control.
-  The test: does each segment swap in a _different set of rows_ (a view),
-  or does it just set an inert property with no panel of its own? The deck
-  editor's **"Not in the deck" zone** (E176 — `.deck-outzone`,
-  `DeckDisplay.tsx`) is the reference: an inset/tinted panel below the
-  decklist titled "Not in the deck", holding a `fitted` `Tabs` strip
-  (Sideboard | Considering, each with a `count`) that switches which zone's
-  compact row list renders in the panel body below it. Two real panels of
-  different cards → `Tabs` + `role="tablist"`/`"tab"`/`"tabpanel"`, **not**
-  the radio-fieldset above (that pattern is for a single inert setting like
-  currency, where there's no panel to switch — using it here would falsely
-  suggest there's nothing to disclose). The panel itself is what carries the
-  "subordinate / outside the 99" meaning (`background: var(--surface)` +
-  `border` + `border-radius: var(--radius-lg)`, mirroring `.deck-combos-panel`)
-  — the Tabs strip inside it is a plain content switcher, unstyled beyond the
-  primitive's own look. Renders as a **compact row list in every view mode**,
-  including grid — thumbnails would waste vertical space in a small holding
-  zone, so this is the one place in the deck editor that deliberately never
-  reads `viewMode`. A single-tab case (a format with no sideboard) drops the
-  `Tabs` strip entirely rather than rendering a 1-item tablist.
+- **`fitted` Tabs = a real tab strip, not a value-picker**, even though it
+  visually reads as one segmented control. The test: does each segment swap
+  in a _different set of rows_ (a view), or does it just set an inert
+  property with no panel of its own? The add-cards panel's source switch
+  (`CardSearchPanel.tsx`: Collection | Suggestions | Scryfall) is the
+  reference: each segment swaps in a different result list, so it is `Tabs` +
+  `role="tablist"`/`"tab"`/`"tabpanel"`, **not** the radio-fieldset above
+  (that pattern is for a single inert setting like currency, where there's no
+  panel to switch; using it here would falsely suggest there's nothing to
+  disclose). A single-tab case drops the strip rather than rendering a 1-item
+  tablist.
+- **Sideboard and Considering are deck sections, not a panel (2026-09-27,
+  supersedes E176's tabbed panel).** They render as two more sections at the
+  foot of the deck (`.deck-outzone` in `DeckDisplay.tsx`), drawn by the same
+  renderer and header as the deck in the current view mode: tiles in grid, a
+  stack in stacks, rows on the deck's own column grid in list. Chevron, icon,
+  name, count and price like any section, collapsible outside stacks (keyed
+  `outzone:<title>`, so the choice holds under every lens). The old shape was
+  a bordered, tinted panel titled "Not in the deck" with a Sideboard |
+  Considering `fitted` tab strip over a row list in every view mode. Under a
+  grid of card art that read as a form from another app, and the tab hid one
+  pile behind the other for a zone of a handful of cards. The rulings:
+  - **Each pile is ONE section**, whatever the lens. A pile of a few cards
+    split by type would put a header over every second card.
+  - **An empty pile stays on the page** as its header plus one muted line
+    (`TypedGroup.empty` → `.deck-section-empty`), because it is where "Move to
+    sideboard" and "Move to considering" land and where the page hero's "+N
+    sideboard" link jumps. It states no price. A pile a search filters to
+    nothing hides like any other section instead of claiming to be empty.
+  - **What separates them from the deck is order and the pile's own name**,
+    plus `margin-top: var(--space-5)`. No box, no divider, no extra title.
+  - **Neither pile feeds stats, legality, mana or the role lens**, which
+    never dims their rows.
 - **`BinderTabs.tsx` is a deliberate, permanent exception to "all tabbed
   surfaces go through `Tabs.tsx`" above (E164).** It hand-rolls plain
   `<button className="tab">` elements instead of the primitive because each
@@ -4571,10 +4583,10 @@ moving off it. The rulings, guarded by `styles/stack-hover-reachable.test.ts`:
   so grid-view groups lose their framed box (§ Layout system, one frame per
   surface). On a phone (three columns) Commander still stands alone when the
   next group does not fit beside it, which is fine: the commander is special.
-- **The out-zone is ONE stack.** "Not in the deck" is a holding pile of a
-  handful of cards, so in the stacks lens it collapses its type groups into a
-  single column and drops the section header — the tab directly above already
-  names the pile, and a header per type would sit over every second card.
+- **Each out-zone pile is ONE stack.** Sideboard and Considering are each a
+  single column under an ordinary stack header, side by side when the width
+  allows, not a stack per type (see "Sideboard and Considering are deck
+  sections" above).
 - **A stack header is words.** No collapse chevron (the column is already its
   own collapse, one card open at a time) and no type glyph (the column below it
   is a wall of card art). Name, count, price.

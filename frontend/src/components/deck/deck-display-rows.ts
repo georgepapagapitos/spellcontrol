@@ -659,7 +659,16 @@ export function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[
   return sorted;
 }
 
-export type TypedGroup = { title: string; icon: string; rows: Row[]; target?: number };
+export type TypedGroup = {
+  title: string;
+  icon: string;
+  rows: Row[];
+  target?: number;
+  /** A line shown under the header when the group has no rows. Only the
+   *  sideboard and Considering set it: they stay on the page empty, because
+   *  they are where "Move to sideboard" and "Move to considering" land. */
+  empty?: string;
+};
 
 // ── List columns (2026-09-19) ────────────────────────────────────────────
 // Column sizing for the list view. The old rule was width-only (as many

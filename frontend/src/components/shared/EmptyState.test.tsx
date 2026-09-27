@@ -64,14 +64,27 @@ describe('EmptyState', () => {
 
   it('renders the compact single-line variant with the caller-owned class, no wrapper markup', () => {
     const { container } = render(
-      <EmptyState compact className="deck-outzone-empty">
+      <EmptyState compact className="deck-section-empty">
         No sideboard cards yet
       </EmptyState>
     );
     expect(container.querySelector('.empty-state')).toBeNull();
-    const line = container.querySelector('.deck-outzone-empty');
+    const line = container.querySelector('.deck-section-empty');
     expect(line?.tagName).toBe('P');
     expect(line?.textContent).toBe('No sideboard cards yet');
+  });
+
+  // An empty deck section's line stands in for its card list, so the section's
+  // collapse chevron controls it and collapsing hides it.
+  it('gives the compact line an id and hides it with the list it replaces', () => {
+    const { container } = render(
+      <EmptyState compact className="deck-section-empty" id="sb-list" hidden>
+        No sideboard cards yet
+      </EmptyState>
+    );
+    const line = container.querySelector('#sb-list');
+    expect(line?.classList.contains('deck-section-empty')).toBe(true);
+    expect(line?.hasAttribute('hidden')).toBe(true);
   });
 
   it('renders the compact variant as a div with a nested CTA and role="status"', () => {

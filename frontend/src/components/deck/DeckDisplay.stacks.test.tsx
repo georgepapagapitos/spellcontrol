@@ -123,12 +123,15 @@ describe('deck Stacks view', () => {
         />
       </MemoryRouter>
     );
-    const zone = container.querySelector('.deck-outzone-body')!;
-    // A holding pile of a handful of cards: one column, and no header over it
-    // (the tab directly above already names the pile).
+    const zone = container.querySelector('.deck-outzone')!;
+    // A holding pile of a handful of cards: one column, not one per type, under
+    // the same header a deck stack has. The sideboard is empty, so it is a
+    // header and its one line, with no stack under it.
     expect(zone.querySelectorAll('.deck-card-stack')).toHaveLength(1);
     expect(zone.querySelectorAll('.deck-card-grid-tile')).toHaveLength(2);
-    expect(zone.querySelector('.deck-section-header')).toBeNull();
+    const titles = [...zone.querySelectorAll('.deck-section-title')].map((t) => t.textContent);
+    expect(titles).toEqual(['Sideboard (0)', 'Considering (2)']);
+    expect(zone.querySelector('.deck-section-empty')?.textContent).toBe('No sideboard cards yet');
     expect(zone.querySelector('.deck-row')).toBeNull();
   });
 

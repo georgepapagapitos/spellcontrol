@@ -33,6 +33,7 @@ import { SectionIcon } from './deck-display-icons';
 import { FoilShimmer } from '../shared/FoilShimmer';
 import { PartnerHeaderButton, LegalityBadge, RoleBadge } from './deck-display-icons';
 import { IconButton } from '@/components/shared/Button';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 /** Section chrome around one card (0.85rem of padding a side) and the gap
  *  between columns, in px at a 16px root — the two numbers the CSS spends on
@@ -100,6 +101,11 @@ export function stackLayout(viewportW: number, containerW: number, gridZoom: num
  *  view and on every stack header. */
 const GRID_SUBTOTAL_MIN_SPAN = 3;
 
+/** Columns an empty sideboard or Considering takes in the packed grid: enough
+ *  for its header and its one line, so the two can sit side by side instead of
+ *  each spending a full row saying it is empty. */
+const EMPTY_SECTION_SPAN = 3;
+
 export function DeckCardGrid({
   groups,
   onRowClick,
@@ -120,7 +126,6 @@ export function DeckCardGrid({
   onToggleSection,
   onRowContextMenu,
   onRowMenu,
-  hideHeaders = false,
 }: {
   groups: TypedGroup[];
   onRowClick: (name: string) => void;
@@ -157,10 +162,6 @@ export function DeckCardGrid({
    *  rect. Right-click alone would leave touch and keyboard users with no
    *  way in, which is why this is not optional in practice. */
   onRowMenu?: (row: Row, rect: DOMRect) => void;
-  /** Drops the per-section header. The "Not in the deck" zone names its pile
-   *  in a tab directly above the stack, so a header there would say Sideboard
-   *  for the third time in three rows. */
-  hideHeaders?: boolean;
 }) {
   const stacks = layout === 'stacks';
   const [containerRef, containerWidth] = useElementWidth<HTMLDivElement>();
@@ -224,7 +225,8 @@ export function DeckCardGrid({
     // A bucket with no rows still renders when it carries a target (the
     // 0/N gap story) — see groupByCategory. Type-mode buckets never set
     // `target`, so this is a no-op there.
-    if (g.rows.length === 0 && g.target === undefined) return null;
+    const emptyLine = g.rows.length === 0 ? g.empty : undefined;
+    if (g.rows.length === 0 && g.target === undefined && !emptyLine) return null;
     const count = g.rows.reduce((s, r) => s + r.qty, 0);
     const subtotal = g.rows.reduce((s, r) => s + r.price, 0);
     // Stacks never collapse. A stack is already its own collapse — the
@@ -239,8 +241,13 @@ export function DeckCardGrid({
     // a tag that collides with a type name), so the title is a safe id
     // seed. Non-word characters would otherwise produce an invalid id.
     const listId = `deck-grid-section-${g.title.replace(/\W+/g, '-').toLowerCase()}`;
-    const span = packed ? gridSectionSpan(g.rows.length, gridCols, collapsed) : 0;
-    const showSubtotal = showPrice && (!packed || span >= GRID_SUBTOTAL_MIN_SPAN);
+    const span = !packed
+      ? 0
+      : emptyLine
+        ? Math.min(gridCols, EMPTY_SECTION_SPAN)
+        : gridSectionSpan(g.rows.length, gridCols, collapsed);
+    const showSubtotal =
+      showPrice && g.rows.length > 0 && (!packed || span >= GRID_SUBTOTAL_MIN_SPAN);
     return (
       <section
         key={g.title}
@@ -262,239 +269,243 @@ export function DeckCardGrid({
               : undefined
         }
       >
-        {!hideHeaders && (
-          <header className="deck-section-header">
-            {onToggleSection && !stacks && (
-              <IconButton
-                className="deck-section-collapse"
-                aria-expanded={!collapsed}
-                aria-controls={listId}
-                onClick={() => onToggleSection(g.title)}
-                label={`${collapsed ? 'Expand' : 'Collapse'} ${g.title}`}
-                icon={
-                  <ChevronDown
-                    width={14}
-                    height={14}
-                    strokeWidth={2}
-                    className="deck-section-collapse-icon"
-                  />
-                }
-              />
-            )}
-            {/* Stacks drop the type glyph: the column is already a wall of
+        <header className="deck-section-header">
+          {onToggleSection && !stacks && (
+            <IconButton
+              className="deck-section-collapse"
+              aria-expanded={!collapsed}
+              aria-controls={listId}
+              onClick={() => onToggleSection(g.title)}
+              label={`${collapsed ? 'Expand' : 'Collapse'} ${g.title}`}
+              icon={
+                <ChevronDown
+                  width={14}
+                  height={14}
+                  strokeWidth={2}
+                  className="deck-section-collapse-icon"
+                />
+              }
+            />
+          )}
+          {/* Stacks drop the type glyph: the column is already a wall of
                   card art, and a header that has to sit above it stays
                   readable as words alone. */}
-            {!stacks && (
-              <span className="deck-section-icon">
-                <SectionIcon icon={g.icon} />
-              </span>
-            )}
-            {/* A <div> (MeterBar's root) can't nest inside <h3> — phrasing
+          {!stacks && (
+            <span className="deck-section-icon">
+              <SectionIcon icon={g.icon} />
+            </span>
+          )}
+          {/* A <div> (MeterBar's root) can't nest inside <h3> — phrasing
                   content only — so the gauge is a sibling of the heading,
                   both wrapped as the single grid-column-occupying title cell. */}
-            <div className="deck-section-title-row">
-              <h3 className="deck-section-title">
-                {g.title}{' '}
-                <span className="deck-section-count">
-                  ({count}
-                  {g.target !== undefined ? ` / ${g.target}` : ''})
-                </span>
-              </h3>
-              {g.target !== undefined && (
-                <MeterBar
-                  value={count}
-                  max={Math.max(g.target, count)}
-                  size="sm"
-                  role="meter"
-                  label={`${g.title}: ${count} of ${g.target}`}
-                  className="deck-section-gauge"
-                />
-              )}
-            </div>
-            {showSubtotal && (
-              <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
+          <div className="deck-section-title-row">
+            <h3 className="deck-section-title">
+              {g.title}{' '}
+              <span className="deck-section-count">
+                ({count}
+                {g.target !== undefined ? ` / ${g.target}` : ''})
+              </span>
+            </h3>
+            {g.target !== undefined && (
+              <MeterBar
+                value={count}
+                max={Math.max(g.target, count)}
+                size="sm"
+                role="meter"
+                label={`${g.title}: ${count} of ${g.target}`}
+                className="deck-section-gauge"
+              />
             )}
-            {g.icon === 'commander' && onEditPartner && (
-              <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
-            )}
-          </header>
-        )}
-        <ul
-          id={listId}
-          hidden={collapsed}
-          // Stacks keep measuring a stack's own list for the zoom stepper, as
-          // before; the grid is measured whole, on the container (above).
-          ref={stacks ? gridRef : undefined}
-          className={`deck-card-grid grid-${zoomBucket(gridZoom)}${
-            stacks ? ' deck-card-stack' : ''
-          }`}
-          style={
-            {
-              '--card-min-desktop': `${zoomMinCol(gridZoom, 'desktop')}px`,
-              '--card-min-mobile': `${zoomMinCol(gridZoom, 'mobile')}px`,
-              // Container-derived tier overrides the CSS `@media` (viewport)
-              // tier once measured — a grid narrower than the viewport got
-              // the desktop ladder here and the mobile one in JS.
-              ...(gridWidth > 0
-                ? { '--card-min': `${zoomMinCol(gridZoom, zoomTier(gridWidth))}px` }
-                : {}),
-            } as CSSProperties
-          }
-        >
-          {g.rows.map((row, i) => {
-            const cellKey = `${g.title}\n${row.name}`;
-            const role = showRoles ? getRoleBadge(row.card) : null;
-            const synergy = synergyByName?.get(row.name);
-            const binders: BinderInfo[] = [];
-            if (binderByCopyId) {
-              const seen = new Set<string>();
-              for (const cid of row.allocatedCopyIds) {
-                for (const b of binderByCopyId.get(cid) ?? []) {
-                  if (!seen.has(b.id)) {
-                    seen.add(b.id);
-                    binders.push(b);
+          </div>
+          {showSubtotal && (
+            <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
+          )}
+          {g.icon === 'commander' && onEditPartner && (
+            <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
+          )}
+        </header>
+        {emptyLine ? (
+          <EmptyState compact className="deck-section-empty" id={listId} hidden={collapsed}>
+            {emptyLine}
+          </EmptyState>
+        ) : (
+          <ul
+            id={listId}
+            hidden={collapsed}
+            // Stacks keep measuring a stack's own list for the zoom stepper, as
+            // before; the grid is measured whole, on the container (above).
+            ref={stacks ? gridRef : undefined}
+            className={`deck-card-grid grid-${zoomBucket(gridZoom)}${
+              stacks ? ' deck-card-stack' : ''
+            }`}
+            style={
+              {
+                '--card-min-desktop': `${zoomMinCol(gridZoom, 'desktop')}px`,
+                '--card-min-mobile': `${zoomMinCol(gridZoom, 'mobile')}px`,
+                // Container-derived tier overrides the CSS `@media` (viewport)
+                // tier once measured — a grid narrower than the viewport got
+                // the desktop ladder here and the mobile one in JS.
+                ...(gridWidth > 0
+                  ? { '--card-min': `${zoomMinCol(gridZoom, zoomTier(gridWidth))}px` }
+                  : {}),
+              } as CSSProperties
+            }
+          >
+            {g.rows.map((row, i) => {
+              const cellKey = `${g.title}\n${row.name}`;
+              const role = showRoles ? getRoleBadge(row.card) : null;
+              const synergy = synergyByName?.get(row.name);
+              const binders: BinderInfo[] = [];
+              if (binderByCopyId) {
+                const seen = new Set<string>();
+                for (const cid of row.allocatedCopyIds) {
+                  for (const b of binderByCopyId.get(cid) ?? []) {
+                    if (!seen.has(b.id)) {
+                      seen.add(b.id);
+                      binders.push(b);
+                    }
                   }
                 }
               }
-            }
-            const roleDimmed = !!roleFilter && countedRoleOf(row.card) !== roleFilter;
-            return (
-              // `data-peek-name` on the tile feeds the card inspector through
-              // the same delegated hover handlers the list rows use.
-              <li
-                key={row.name}
-                className={`deck-card-grid-cell${roleDimmed ? ' is-role-dimmed' : ''}${
-                  stacks && openCell === cellKey ? ' is-open' : ''
-                }`}
-                onContextMenu={onRowContextMenu ? (e) => onRowContextMenu(row, e) : undefined}
-              >
-                <button
-                  type="button"
-                  className={`deck-card-grid-tile${foilTileClass(row)}`}
-                  onPointerDown={(e) => {
-                    lastPointer.current = e.pointerType;
-                  }}
-                  onClick={(e) => {
-                    // `detail` is 0 for a keyboard press, which must not
-                    // inherit the pointer type of an earlier tap.
-                    const tap = lastPointer.current === 'touch' && e.detail > 0;
-                    lastPointer.current = null;
-                    // The last card of a stack already shows whole: straight
-                    // to the carousel.
-                    if (stacks && tap && openCell !== cellKey && i < g.rows.length - 1) {
-                      setOpenCell(cellKey);
-                      // A strip low on the screen opens most of its card below
-                      // the fold. Scroll just enough to show it whole, never to
-                      // centre it: a card that already fits stays under the
-                      // finger. The cell is a full card tall at rest (the tail
-                      // only overlaps it), so its box is already the open card.
-                      e.currentTarget.parentElement?.scrollIntoView({
-                        block: 'nearest',
-                        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-                      });
-                      return;
-                    }
-                    onRowClick(row.name);
-                  }}
-                  data-peek-name={row.name}
-                  aria-label={`${row.name} (${row.qty} in deck, ${allocationSummary(row)})`}
+              const roleDimmed = !!roleFilter && countedRoleOf(row.card) !== roleFilter;
+              return (
+                // `data-peek-name` on the tile feeds the card inspector through
+                // the same delegated hover handlers the list rows use.
+                <li
+                  key={row.name}
+                  className={`deck-card-grid-cell${roleDimmed ? ' is-role-dimmed' : ''}${
+                    stacks && openCell === cellKey ? ' is-open' : ''
+                  }`}
+                  onContextMenu={onRowContextMenu ? (e) => onRowContextMenu(row, e) : undefined}
                 >
-                  {row.imageNormal ? (
-                    <img
-                      src={row.imageNormal}
-                      alt=""
-                      className="deck-card-grid-image"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <span className="deck-card-grid-fallback">{row.name}</span>
-                  )}
-                  {/* Foil is shown by the holographic overlay alone — no
-                          text pip (keeps the corners free for status icons). */}
-                  {row.foil && row.imageNormal && <FoilShimmer seed={row.name} />}
-                  {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
-                  {row.status !== 'allocated' &&
-                    (row.allocatedQty > 0 ? (
-                      <span
-                        className={`deck-card-grid-alloc deck-card-grid-alloc-${
-                          row.orphanQty > 0 ? 'orphan' : 'unowned'
-                        }`}
-                        title={allocationSummary(row)}
-                        aria-label={allocationSummary(row)}
-                      >
-                        {row.allocatedQty}/{row.qty}
-                      </span>
-                    ) : (
-                      <span
-                        className="deck-card-grid-missing"
-                        title={allocationSummary(row)}
-                        aria-label={allocationSummary(row)}
-                      />
-                    ))}
-                  {(() => {
-                    const issue = legalityBySlot?.get(row.legalitySlotKey ?? row.slotIds[0]);
-                    return issue ? (
-                      <LegalityBadge issue={issue} className="deck-card-grid-illegal" />
-                    ) : null;
-                  })()}
-                </button>
-                {onRowMenu && (
-                  <IconButton
-                    className="deck-card-grid-menu"
-                    aria-haspopup="menu"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRowMenu(row, e.currentTarget.getBoundingClientRect());
+                  <button
+                    type="button"
+                    className={`deck-card-grid-tile${foilTileClass(row)}`}
+                    onPointerDown={(e) => {
+                      lastPointer.current = e.pointerType;
                     }}
-                    label={`Actions for ${row.name}`}
-                    icon={<MoreVertical width={14} height={14} strokeWidth={2} />}
-                  />
-                )}
-                {(row.isPartner ||
-                  role ||
-                  (synergy && synergy.length > 0) ||
-                  binders.length > 0 ||
-                  row.tags.length > 0) && (
-                  <div className="deck-card-grid-badges">
-                    {row.isPartner && (
-                      <span
-                        className="deck-card-grid-partner"
-                        title="Partner commander"
-                        aria-label="Partner commander"
-                      >
-                        <Handshake width={13} height={13} strokeWidth={2.4} aria-hidden />
-                      </span>
+                    onClick={(e) => {
+                      // `detail` is 0 for a keyboard press, which must not
+                      // inherit the pointer type of an earlier tap.
+                      const tap = lastPointer.current === 'touch' && e.detail > 0;
+                      lastPointer.current = null;
+                      // The last card of a stack already shows whole: straight
+                      // to the carousel.
+                      if (stacks && tap && openCell !== cellKey && i < g.rows.length - 1) {
+                        setOpenCell(cellKey);
+                        // A strip low on the screen opens most of its card below
+                        // the fold. Scroll just enough to show it whole, never to
+                        // centre it: a card that already fits stays under the
+                        // finger. The cell is a full card tall at rest (the tail
+                        // only overlaps it), so its box is already the open card.
+                        e.currentTarget.parentElement?.scrollIntoView({
+                          block: 'nearest',
+                          behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+                        });
+                        return;
+                      }
+                      onRowClick(row.name);
+                    }}
+                    data-peek-name={row.name}
+                    aria-label={`${row.name} (${row.qty} in deck, ${allocationSummary(row)})`}
+                  >
+                    {row.imageNormal ? (
+                      <img
+                        src={row.imageNormal}
+                        alt=""
+                        className="deck-card-grid-image"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="deck-card-grid-fallback">{row.name}</span>
                     )}
-                    {row.tags.length > 0 && (
-                      <span
-                        className="deck-card-grid-tags"
-                        title={`Tags: ${row.tags.join(', ')}`}
-                        aria-label={`Tags: ${row.tags.join(', ')}`}
-                      >
-                        <TagIcon width={11} height={11} strokeWidth={2.4} aria-hidden />
-                        {row.tags.length > 1 && (
-                          <span className="deck-card-grid-tags-count">{row.tags.length}</span>
-                        )}
-                      </span>
-                    )}
-                    {binders.length > 0 && <BinderBadge binders={binders} />}
-                    {synergy && synergy.length > 0 && (
-                      <span
-                        className="deck-card-grid-synergy"
-                        role="img"
-                        title={`Synergy with your commander:\n• ${synergy.join('\n• ')}`}
-                        aria-label={`Synergy: ${synergy.join('; ')}`}
-                      >
-                        ✦
-                      </span>
-                    )}
-                    {role && <RoleBadge card={row.card} variant="grid" />}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                    {/* Foil is shown by the holographic overlay alone — no
+                          text pip (keeps the corners free for status icons). */}
+                    {row.foil && row.imageNormal && <FoilShimmer seed={row.name} />}
+                    {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
+                    {row.status !== 'allocated' &&
+                      (row.allocatedQty > 0 ? (
+                        <span
+                          className={`deck-card-grid-alloc deck-card-grid-alloc-${
+                            row.orphanQty > 0 ? 'orphan' : 'unowned'
+                          }`}
+                          title={allocationSummary(row)}
+                          aria-label={allocationSummary(row)}
+                        >
+                          {row.allocatedQty}/{row.qty}
+                        </span>
+                      ) : (
+                        <span
+                          className="deck-card-grid-missing"
+                          title={allocationSummary(row)}
+                          aria-label={allocationSummary(row)}
+                        />
+                      ))}
+                    {(() => {
+                      const issue = legalityBySlot?.get(row.legalitySlotKey ?? row.slotIds[0]);
+                      return issue ? (
+                        <LegalityBadge issue={issue} className="deck-card-grid-illegal" />
+                      ) : null;
+                    })()}
+                  </button>
+                  {onRowMenu && (
+                    <IconButton
+                      className="deck-card-grid-menu"
+                      aria-haspopup="menu"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRowMenu(row, e.currentTarget.getBoundingClientRect());
+                      }}
+                      label={`Actions for ${row.name}`}
+                      icon={<MoreVertical width={14} height={14} strokeWidth={2} />}
+                    />
+                  )}
+                  {(row.isPartner ||
+                    role ||
+                    (synergy && synergy.length > 0) ||
+                    binders.length > 0 ||
+                    row.tags.length > 0) && (
+                    <div className="deck-card-grid-badges">
+                      {row.isPartner && (
+                        <span
+                          className="deck-card-grid-partner"
+                          title="Partner commander"
+                          aria-label="Partner commander"
+                        >
+                          <Handshake width={13} height={13} strokeWidth={2.4} aria-hidden />
+                        </span>
+                      )}
+                      {row.tags.length > 0 && (
+                        <span
+                          className="deck-card-grid-tags"
+                          title={`Tags: ${row.tags.join(', ')}`}
+                          aria-label={`Tags: ${row.tags.join(', ')}`}
+                        >
+                          <TagIcon width={11} height={11} strokeWidth={2.4} aria-hidden />
+                          {row.tags.length > 1 && (
+                            <span className="deck-card-grid-tags-count">{row.tags.length}</span>
+                          )}
+                        </span>
+                      )}
+                      {binders.length > 0 && <BinderBadge binders={binders} />}
+                      {synergy && synergy.length > 0 && (
+                        <span
+                          className="deck-card-grid-synergy"
+                          role="img"
+                          title={`Synergy with your commander:\n• ${synergy.join('\n• ')}`}
+                          aria-label={`Synergy: ${synergy.join('; ')}`}
+                        >
+                          ✦
+                        </span>
+                      )}
+                      {role && <RoleBadge card={row.card} variant="grid" />}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
     );
   }
