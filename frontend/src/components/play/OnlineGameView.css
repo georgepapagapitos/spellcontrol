@@ -342,7 +342,9 @@
 }
 
 .ogv-life-num.is-pop {
-  animation: ogv-pop 180ms var(--ease-pop);
+  /* ease-out, not --ease-pop: the keyframes already overshoot to 1.12, and an
+     overshooting curve on each segment would bounce the total below 1. */
+  animation: ogv-pop 180ms ease-out;
 }
 
 @keyframes ogv-pop {
