@@ -57,7 +57,7 @@ export function useOwnedCubePool(filters: PoolFilters) {
       setLoading(true);
       setError('');
       try {
-        await Promise.all([loadTaggerData(), loadCubeSignal(), ensureCardTags()]);
+        await Promise.all([loadTaggerData(), loadCubeSignal(filters.rarity), ensureCardTags()]);
         // Recomputed fresh (not the outer memo): ensureCardTags() may have just
         // resolved, and the memo above won't reflect that until the next render.
         const { names } = filterPool(collectionCards, availableNames, filters);
