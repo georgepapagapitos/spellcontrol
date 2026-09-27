@@ -214,4 +214,50 @@ describe('OverflowMenu', () => {
       expect(screen.queryByRole('menuitem', { name: 'Outer item' })).toBeNull();
     });
   });
+
+  describe('inside a selection', () => {
+    const selected = (
+      selection: { title: string; items: { label: string; onClick: () => void }[] } | null
+    ) =>
+      render(
+        <div className="tile" data-testid="tile">
+          <span data-testid="name">Atraxa</span>
+          <OverflowMenu
+            ariaLabel="Actions for Atraxa"
+            contextHost=".tile"
+            items={[{ label: 'Rename', onClick: () => {} }]}
+            selection={selection}
+          />
+        </div>
+      );
+
+    it('opens the selection’s actions, titled with the count, on a right-click', () => {
+      const onDelete = vi.fn();
+      selected({
+        title: '3 decks selected',
+        items: [{ label: 'Delete selected', onClick: onDelete }],
+      });
+      fireEvent.contextMenu(screen.getByTestId('name'), { clientX: 5, clientY: 5 });
+      expect(screen.getByRole('menu', { name: '3 decks selected' })).toBeTruthy();
+      expect(screen.queryByRole('menuitem', { name: 'Rename' })).toBeNull();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+      expect(onDelete).toHaveBeenCalledOnce();
+    });
+
+    it('keeps the ⋮ on the item’s own menu', () => {
+      selected({
+        title: '3 decks selected',
+        items: [{ label: 'Delete selected', onClick: () => {} }],
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for Atraxa' }));
+      expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeTruthy();
+      expect(screen.queryByRole('menuitem', { name: 'Delete selected' })).toBeNull();
+    });
+
+    it('opens the item’s own menu when the item is not in a selection', () => {
+      selected(null);
+      fireEvent.contextMenu(screen.getByTestId('name'), { clientX: 5, clientY: 5 });
+      expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeTruthy();
+    });
+  });
 });

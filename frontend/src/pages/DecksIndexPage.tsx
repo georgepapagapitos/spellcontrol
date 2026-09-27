@@ -48,7 +48,7 @@ import {
   colorChipLabel,
   type FilterChipDescriptor,
 } from '../components/shared/FilterChipsRow';
-import { OverflowMenu } from '../components/OverflowMenu';
+import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
 import { InfoTip } from '../components/InfoTip';
 import {
   SelectToggle,
@@ -56,7 +56,7 @@ import {
   SelectCheck,
   selectInteraction,
 } from '../components/BulkSelectBar';
-import { useSelection } from '../lib/use-selection';
+import { selectedCountLabel, useSelection } from '../lib/use-selection';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { useCollectionStore } from '../store/collection';
 import { MIN_COLLECTION_SIZE } from '../lib/commander-readiness';
@@ -485,6 +485,38 @@ export function DecksIndexPage() {
     setConfirmDeleteAll(false);
   };
 
+  // The selection's actions: the bulk bar's buttons and the menu a right-click
+  // inside the selection opens, from one list (T162).
+  const bulkActions: OverflowMenuItem[] = [
+    ...(authStatus === 'authed'
+      ? [
+          {
+            label: visibilityBusy ? 'Working…' : 'Make public',
+            icon: Globe,
+            disabled: visibilityBusy,
+            onClick: () => void applyVisibility(Array.from(sel.selected), true),
+          },
+          {
+            label: visibilityBusy ? 'Working…' : 'Make private',
+            icon: GlobeLock,
+            disabled: visibilityBusy,
+            onClick: () => void applyVisibility(Array.from(sel.selected), false),
+          },
+        ]
+      : []),
+    {
+      label: 'Delete selected',
+      icon: Trash2,
+      danger: true,
+      disabled: visibilityBusy,
+      onClick: () => setConfirmBulkDelete(true),
+    },
+  ];
+  const selectionMenu = (id: string) =>
+    sel.selectMode && sel.selected.has(id) && sel.selected.size > 1
+      ? { title: selectedCountLabel(sel.selected.size, 'deck'), items: bulkActions }
+      : null;
+
   return (
     <>
       <div className="decks-index-page">
@@ -705,37 +737,8 @@ export function DecksIndexPage() {
                 onClear={sel.clear}
                 onDone={sel.exit}
                 noun="deck"
-              >
-                {authStatus === 'authed' && (
-                  <>
-                    <Button
-                      placement="row"
-                      disabled={sel.selected.size === 0 || visibilityBusy}
-                      onClick={() => void applyVisibility(Array.from(sel.selected), true)}
-                      icon={<Globe width={14} height={14} strokeWidth={1.8} />}
-                    >
-                      {visibilityBusy ? 'Working…' : 'Make public'}
-                    </Button>
-                    <Button
-                      placement="row"
-                      disabled={sel.selected.size === 0 || visibilityBusy}
-                      onClick={() => void applyVisibility(Array.from(sel.selected), false)}
-                      icon={<GlobeLock width={14} height={14} strokeWidth={1.8} />}
-                    >
-                      {visibilityBusy ? 'Working…' : 'Make private'}
-                    </Button>
-                  </>
-                )}
-                <Button
-                  placement="row"
-                  disabled={sel.selected.size === 0 || visibilityBusy}
-                  onClick={() => setConfirmBulkDelete(true)}
-                  variant="danger"
-                  icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
-                >
-                  Delete selected
-                </Button>
-              </BulkSelectBar>
+                actions={bulkActions}
+              />
             )}
             <ul className={`decks-index-list is-${view}`}>
               {sorted.map((deck, cardIndex) => {
@@ -937,6 +940,7 @@ export function DecksIndexPage() {
                       contextHost=".decks-index-card"
                       itemHref={`/decks/${deck.id}`}
                       itemName={deck.name}
+                      selection={selectionMenu(deck.id)}
                       items={[
                         ...(canRegenerate(deck)
                           ? [

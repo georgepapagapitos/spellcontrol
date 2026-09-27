@@ -41,11 +41,14 @@ describe('CardGridCell menu (T162)', () => {
     expect(tile.closest('.collection-grid-cell')!.hasAttribute('data-menu-open')).toBe(true);
   });
 
-  it('steps the ⋮ aside in select mode, where a tap toggles instead', () => {
+  it('steps the ⋮ aside in select mode but keeps it for a right-click', () => {
     const { container } = render(
       <CardGridCell card={card} qty={1} size="1x" onActivate={() => {}} menu={menu} selectMode />
     );
-    expect(screen.queryByRole('button', { name: 'Actions for Sol Ring' })).toBeNull();
+    // No `has-menu`: collection.css hides the ⋮ while a tap toggles.
     expect(container.querySelector('.has-menu')).toBeNull();
+    const tile = screen.getByRole('button', { name: /Sol Ring, quantity 1/ });
+    expect(fireEvent.contextMenu(tile, { clientX: 5, clientY: 5 })).toBe(false);
+    expect(screen.getByRole('menuitem', { name: 'Edit card' })).toBeTruthy();
   });
 });

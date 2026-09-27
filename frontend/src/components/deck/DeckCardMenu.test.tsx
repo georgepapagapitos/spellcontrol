@@ -345,4 +345,45 @@ describe('deck card menu', () => {
     const fromKebab = getAllByRole('menuitem').map((el) => el.textContent?.trim());
     expect(fromKebab).toEqual(fromPointer);
   });
+
+  it('opens the selection’s actions on a right-click of a selected card (T162)', () => {
+    const onBulkMove = vi.fn();
+    const { container, getByRole } = renderDeck({
+      onRemoveCard: vi.fn(),
+      onBulkMove,
+      onBulkRemove: vi.fn(),
+    });
+    fireEvent.click(getByRole('button', { name: 'Select' }));
+    fireEvent.click(rowFor(container, 'Brago'));
+    fireEvent.click(rowFor(container, 'Bear'));
+
+    const bar = getByRole('region', { name: 'Bulk actions' });
+    const barLabels = within(bar)
+      .getAllByRole('button')
+      .map((el) => el.textContent?.trim())
+      .filter((t) => t === 'Move to considering' || t === 'Remove');
+
+    fireEvent.contextMenu(rowFor(container, 'Bear'), { clientX: 30, clientY: 30 });
+    const menu = getByRole('menu', { name: '2 cards selected' });
+    const menuLabels = within(menu)
+      .getAllByRole('menuitem')
+      .map((el) => el.textContent?.trim());
+    expect(barLabels).toEqual(['Move to considering', 'Remove']);
+    // The bar's moves and Remove, from the same list.
+    for (const label of barLabels) expect(menuLabels).toContain(label);
+
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Move to considering' }));
+    expect(onBulkMove).toHaveBeenCalledWith(['s0', 's1'], 'cards', 'considering');
+  });
+
+  it('opens a card’s own menu when it is outside the selection', () => {
+    const { container, getByRole } = renderDeck({
+      onRemoveCard: vi.fn(),
+      onBulkMove: vi.fn(),
+    });
+    fireEvent.click(getByRole('button', { name: 'Select' }));
+    fireEvent.click(rowFor(container, 'Brago'));
+    fireEvent.contextMenu(rowFor(container, 'Bear'), { clientX: 30, clientY: 30 });
+    expect(getByRole('menu', { name: 'Bear' })).toBeTruthy();
+  });
 });

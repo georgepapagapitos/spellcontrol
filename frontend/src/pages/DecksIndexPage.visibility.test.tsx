@@ -6,7 +6,7 @@
  * visibility action at all, and multi-select's only bulk action was Delete.
  */
 import 'fake-indexeddb/auto';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OwnedPublication } from '../lib/publications-client';
@@ -155,5 +155,28 @@ describe('DecksIndexPage — visibility actions', () => {
     openRowMenu('Alpha Deck');
     expect(screen.queryByRole('menuitem', { name: 'Make public' })).toBeNull();
     expect(screen.getByRole('menuitem', { name: 'Share' })).toBeTruthy();
+  });
+
+  it('opens the bulk bar’s actions on a right-click inside the selection (T162)', async () => {
+    renderPage();
+    await waitFor(() => expect(listMyPublicationsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select all (2)' }));
+    const bar = screen.getByRole('region', { name: 'Bulk actions' });
+    const barActions = ['Make public', 'Make private', 'Delete selected'];
+    for (const label of barActions)
+      expect(within(bar).getByRole('button', { name: label })).toBeTruthy();
+
+    fireEvent.contextMenu(screen.getByText('Alpha Deck'), { clientX: 20, clientY: 20 });
+    const menu = screen.getByRole('menu', { name: '2 decks selected' });
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((el) => el.textContent?.trim())
+    ).toEqual(barActions);
+
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Make public' }));
+    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledTimes(2));
   });
 });

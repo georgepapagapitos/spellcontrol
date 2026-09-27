@@ -22,6 +22,9 @@ interface Props {
    *  ⋮; `pocket` is a binder page pocket's. Same items every way: only where
    *  it sits and what a right-click on it belongs to differ. */
   variant?: 'row' | 'tile' | 'pocket';
+  /** Set while this card is one of two or more selected: a right-click opens
+   *  the selection's actions (OverflowMenu `selection`). */
+  selection?: { title: string; items: OverflowMenuItem[] } | null;
 }
 
 /** Wrapper class, trigger class and right-click host per placement. */
@@ -49,6 +52,7 @@ export function CardRowMenu({
   onDelete,
   currentBinder,
   variant = 'row',
+  selection,
 }: Props) {
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
   const [otagsSheetOpen, setOtagsSheetOpen] = useState(false);
@@ -76,6 +80,7 @@ export function CardRowMenu({
         triggerClassName={PLACEMENT[variant].trigger}
         ariaLabel={variant === 'row' ? 'Card actions' : `Actions for ${card.name}`}
         contextHost={PLACEMENT[variant].host}
+        selection={selection}
         items={items}
         header={
           currentBinder ? (

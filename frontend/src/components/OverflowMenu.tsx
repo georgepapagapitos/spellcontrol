@@ -74,6 +74,14 @@ interface Props {
   itemHref?: string;
   /** Names the item in the Copy link toast: `Copied link to <name>`. */
   itemName?: string;
+  /**
+   * Set while this item is one of two or more selected ones (select mode):
+   * a right-click then opens the selection's actions, titled with the count,
+   * instead of the item's own. They are the bulk bar's actions, from the same
+   * list, so the two cannot disagree. The ⋮ still opens the item's own menu.
+   * The playtest board's rule, app-wide (STYLE_GUIDE § Verbs — Menus).
+   */
+  selection?: { title: string; items: OverflowMenuItem[] } | null;
 }
 
 type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
@@ -97,8 +105,11 @@ export function OverflowMenu({
   contextHost,
   itemHref,
   itemName,
+  selection,
 }: Props) {
   const [open, setOpen] = useState(false);
+  // Opened from a right-click inside a selection: shows the selection's items.
+  const [forSelection, setForSelection] = useState(false);
   // Where the panel hangs: the ⋮ (null), or the pointer of a right-click.
   const [point, setPoint] = useState<{ x: number; y: number } | null>(null);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
@@ -142,7 +153,8 @@ export function OverflowMenu({
     });
   }, [open, align, point]);
 
-  const openAt = (at: { x: number; y: number } | null) => {
+  const openAt = (at: { x: number; y: number } | null, onSelection = false) => {
+    setForSelection(onSelection);
     if (at) {
       setPanelPos({ top: at.y, left: at.x });
     } else if (buttonRef.current) {
@@ -169,6 +181,11 @@ export function OverflowMenu({
     openAt(null);
   };
 
+  const selectionRef = useRef(selection);
+  useEffect(() => {
+    selectionRef.current = selection;
+  });
+
   // Right-click on the item. A native listener on the host rather than a prop
   // threaded into every caller's markup: the host is the caller's own element
   // (a tile, a row), and one selector is all a caller names. `openAt` is read
@@ -192,11 +209,11 @@ export function OverflowMenu({
         // it would, and give focus back to what had it (the item).
         returnFocusRef.current =
           document.activeElement instanceof HTMLElement ? document.activeElement : null;
-        openAtRef.current(null);
+        openAtRef.current(null, !!selectionRef.current);
         return;
       }
       returnFocusRef.current = itemFocusTarget(me.target, host);
-      openAtRef.current({ x: me.clientX, y: me.clientY });
+      openAtRef.current({ x: me.clientX, y: me.clientY }, !!selectionRef.current);
     };
     host.addEventListener('contextmenu', onContextMenu);
     return () => host.removeEventListener('contextmenu', onContextMenu);
@@ -237,8 +254,10 @@ export function OverflowMenu({
   // The link pair sits above the destructive rows: an item's own actions come
   // first and Delete comes last.
   const firstDanger = items.findIndex((item) => item.danger);
-  const allItems =
-    linkItems.length === 0
+  const showSelection = forSelection && !!selection;
+  const allItems = showSelection
+    ? selection.items
+    : linkItems.length === 0
       ? items
       : firstDanger < 0
         ? [...items, ...linkItems]
@@ -293,7 +312,7 @@ export function OverflowMenu({
               panelClassName ? ` ${panelClassName}` : ''
             }`}
             role="menu"
-            aria-label={ariaLabel}
+            aria-label={showSelection ? selection.title : ariaLabel}
             style={{
               position: 'fixed',
               top: panelPos.top,
@@ -305,12 +324,17 @@ export function OverflowMenu({
               }`,
             }}
           >
-            {header}
-            {allItems.map((item) => {
+            {showSelection ? (
+              // The same status plate CardRowMenu uses for "In <binder>".
+              <div className="deck-row-menu-status">{selection.title}</div>
+            ) : (
+              header
+            )}
+            {allItems.map((item, i) => {
               const Icon = item.icon;
               return (
                 <button
-                  key={item.label}
+                  key={`${i}-${item.label}`}
                   type="button"
                   role="menuitem"
                   disabled={item.disabled}

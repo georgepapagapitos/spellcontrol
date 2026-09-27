@@ -45,3 +45,9 @@ export function useSelection(): Selection {
 
   return { selectMode, selected, enter, exit, toggle, clear, selectAll };
 }
+
+/** "3 decks selected": the bar's count and the title of the menu a
+ *  right-click inside the selection opens, one wording for both. */
+export function selectedCountLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'} selected`;
+}
