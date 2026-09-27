@@ -16,11 +16,8 @@ import { CardPreview } from '../components/CardPreview';
 import { Tabs } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
 import { ComboFiltersPopover } from '../components/ComboFiltersPopover';
-import {
-  FilterChipsRow,
-  colorChipLabel,
-  type FilterChipDescriptor,
-} from '../components/shared/FilterChipsRow';
+import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
+import { colorChipLabel } from '../lib/filter-summary';
 import { ComboRow } from '../components/deck/ComboRow';
 import { ComboCollectionAside } from '../components/deck/ComboCollectionAside';
 import { useComboPreview } from '../components/deck/use-combo-preview';

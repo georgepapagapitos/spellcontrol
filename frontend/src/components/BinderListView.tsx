@@ -1,9 +1,9 @@
-import { Image as ImageIcon, ImageOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { formatLocationSpan } from '../lib/card-locations';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
-import { CardPreview, type CardPreviewAction } from './CardPreview';
+import { CardPreview } from './CardPreview';
+import { useBinderCardPreview } from './use-binder-card-preview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardRow } from './shared/CardRow';
@@ -102,37 +102,9 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
 
-  // "Set cover" / "Remove cover" in the card preview's icon bar — the explicit
-  // override for the index tile's cover art (lib/binder-cover.ts). Only offered
-  // for cards that actually have art to show. Mirrors BinderView.
-  const coverActions = (card: EnrichedCard | undefined): CardPreviewAction[] => {
-    if (!card?.imageNormal) return [];
-    const isCover = binder.def.coverScryfallId === card.scryfallId;
-    return [
-      {
-        key: 'cover',
-        label: isCover ? 'Remove cover' : 'Set cover',
-        // Only when a 360px phone has no room for every label.
-        shortLabel: isCover ? undefined : 'Cover',
-        icon: isCover ? (
-          <ImageOff width={18} height={18} strokeWidth={2} aria-hidden />
-        ) : (
-          <ImageIcon width={18} height={18} strokeWidth={2} aria-hidden />
-        ),
-        onClick: () => {
-          updateBinder(binder.def.id, {
-            coverScryfallId: isCover ? undefined : card.scryfallId,
-          });
-          pushToast({
-            message: isCover
-              ? 'Cover follows the most valuable card again.'
-              : `${card.name} is now this binder's cover.`,
-            tone: 'success',
-          });
-        },
-      },
-    ];
-  };
+  // Why a card is here, Move to binder and Set cover: the same preview the
+  // page grid gives (use-binder-card-preview.tsx).
+  const cardPreview = useBinderCardPreview(binder);
 
   /**
    * Deck allocations for a row. Ungrouped rows stand for exactly one
@@ -450,7 +422,8 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
           totalPages={binder.totalPages}
           getStackAllocations={(i) => allocationsFor(flat.cards[i])}
           getStackQty={(i) => flat.qtys[i] ?? 1}
-          getActions={(i) => coverActions(flat.cards[i])}
+          getActions={(i) => cardPreview.getCardActions(flat.cards[i])}
+          renderPanelMeta={(i) => cardPreview.renderCardMeta(flat.cards[i])}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
           onEdit={(c) => {
@@ -493,7 +466,8 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
           binderName={binder.def.name}
           resolveCard={resolveCard}
           qtyByCopyId={qtyByCopyId}
-          getCardActions={coverActions}
+          getCardActions={cardPreview.getCardActions}
+          renderCardMeta={cardPreview.renderCardMeta}
           onClose={() => setPagesStartIndex(null)}
           onEditCard={(c) => {
             setPagesStartIndex(null);
@@ -501,6 +475,7 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
           }}
         />
       )}
+      {cardPreview.sheet}
     </>
   );
 }

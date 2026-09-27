@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { currencySymbol } from '../lib/currency';
 import { isFilterEmpty } from '../lib/rules';
 import { countBinderMatches } from '../lib/binder-counts';
-import { cardTagLabel } from '../lib/card-tags';
+import { autoSummary } from '../lib/filter-summary';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { InfoTip } from './InfoTip';
 import { OverflowMenu } from './OverflowMenu';
@@ -23,7 +22,6 @@ import type {
 import { Button, IconButton } from '@/components/shared/Button';
 import { ColorPip } from './shared/ManaSymbol';
 import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
-import { colorChipLabel } from './shared/FilterChipsRow';
 import { FILTER_COLOR_OPTIONS } from '../lib/colors';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
@@ -651,85 +649,6 @@ function FilterGroupFields({
       </div>
     </RuleFieldContext.Provider>
   );
-}
-
-/**
- * Build a short human-readable summary of a filter for use as the group's
- * legend placeholder and aria-label fallback. Walks every filter field;
- * caps at 4 parts so the summary stays scannable. Returns '' for an empty
- * filter. Field order is roughly "most distinguishing first" so when the
- * cap kicks in you keep the parts a user is most likely to recognize.
- */
-function autoSummary(f: BinderFilter): string {
-  const parts: string[] = [];
-  const chipNames = (expr: ChipExpression | undefined, max = 2) => {
-    if (!expr || expr.chips.length === 0) return null;
-    const is = expr.chips.filter((c) => !c.negate).map((c) => c.value);
-    if (is.length === 0) return null;
-    if (is.length <= max) return is.join(', ');
-    return `${is.slice(0, max).join(', ')} +${is.length - max}`;
-  };
-  const push = (s: string | null | undefined) => {
-    if (s) parts.push(s);
-  };
-
-  push(chipNames(f.rarities));
-  push(chipNames(f.typeChips));
-  push(chipNames(f.colors));
-  if (f.colorIdentity?.colors.length)
-    push(colorChipLabel(f.colorIdentity.colors, f.colorIdentity.mode));
-  push(chipNames(f.treatments));
-  push(chipNames(f.finishes));
-  push(chipNames(f.layouts));
-  push(chipNames(f.borderColors));
-  push(chipNames(f.legalities));
-  push(chipNames(f.oracleChips));
-  // Tags summarize with their friendly label (e.g. "mana-rock" → "Mana rock").
-  {
-    const tagIs = f.oracleTagChips?.chips
-      .filter((c) => !c.negate)
-      .map((c) => cardTagLabel(c.value));
-    if (tagIs && tagIs.length > 0) {
-      push(
-        tagIs.length <= 2
-          ? tagIs.join(', ')
-          : `${tagIs.slice(0, 2).join(', ')} +${tagIs.length - 2}`
-      );
-    }
-  }
-
-  if (f.commanderEligible === true) parts.push('Commander');
-  else if (f.commanderEligible === false) parts.push('Not commander');
-
-  if (f.proxy === true) parts.push('Proxy');
-  else if (f.proxy === false) parts.push('Not proxy');
-
-  if (f.setCodes && f.setCodes.length > 0) {
-    push(
-      f.setCodes.length <= 2
-        ? f.setCodes.join(', ')
-        : `${f.setCodes.slice(0, 2).join(', ')} +${f.setCodes.length - 2}`
-    );
-  }
-
-  // Price rules match against the display-currency price — label accordingly.
-  const sym = currencySymbol();
-  if (f.priceMin !== undefined && f.priceMax !== undefined)
-    parts.push(`${sym}${f.priceMin}–${f.priceMax}`);
-  else if (f.priceMin !== undefined) parts.push(`≥ ${sym}${f.priceMin}`);
-  else if (f.priceMax !== undefined) parts.push(`≤ ${sym}${f.priceMax}`);
-
-  if (f.cmcMin !== undefined && f.cmcMax !== undefined)
-    parts.push(`Mana value ${f.cmcMin}–${f.cmcMax}`);
-  else if (f.cmcMin !== undefined) parts.push(`Mana value ≥ ${f.cmcMin}`);
-  else if (f.cmcMax !== undefined) parts.push(`Mana value ≤ ${f.cmcMax}`);
-
-  if (f.edhrecRankMax !== undefined) parts.push(`EDH top ${f.edhrecRankMax}`);
-  if (f.manaCost?.trim()) parts.push(f.manaCost.trim());
-  if (f.nameContains?.trim()) parts.push(`"${f.nameContains.trim()}"`);
-  if (f.scryfallQuery?.query.trim()) parts.push(`⌕ ${f.scryfallQuery.query.trim()}`);
-
-  return parts.slice(0, 4).join(' · ');
 }
 
 /** Deep-clone the chip fields of a filter (so duplication doesn't share mutable refs). */

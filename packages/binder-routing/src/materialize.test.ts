@@ -1703,3 +1703,72 @@ describe('quantity sort with a caller-supplied per-printing count', () => {
     expect(binders[0].sections[0].cards.map((c) => c.name)).toEqual(['Many', 'One']);
   });
 });
+
+describe('placement reasons', () => {
+  const rare = { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } };
+  const red = { colorIdentity: { colors: ['R'], mode: 'all' as const } };
+
+  it('names the rule group that filed a card, not just the binder', () => {
+    const card = makeCard({ rarity: 'rare', colorIdentity: ['R'] });
+    const binder = makeBinder({
+      filterGroups: [
+        { name: 'Blue', filter: { colorIdentity: { colors: ['U'], mode: 'all' } } },
+        { name: 'Rares', filter: rare },
+      ],
+    });
+    const { binders } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].reasons?.get(card.copyId)).toEqual({ kind: 'rule', group: 1 });
+  });
+
+  it('says a pin is a pin, even when a rule would have matched too', () => {
+    const card = makeCard({ rarity: 'rare' });
+    const binder = makeBinder({ filter: rare, pinnedCopyIds: [card.copyId] });
+    const { binders } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].reasons?.get(card.copyId)).toEqual({ kind: 'pinned' });
+  });
+
+  it('tells a price-margin keep apart from a rule match', () => {
+    const card = makeCard({ purchasePrice: 9.6 });
+    const binder = makeBinder({
+      filter: { priceMin: 10 },
+      lastReviewedSnapshot: { at: 1, keys: [printingFinishKey(card)], cardSnapshots: {} },
+    });
+    const { binders } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].reasons?.get(card.copyId)).toEqual({ kind: 'price-margin' });
+  });
+
+  it('tells a printing pulled in with its sibling apart from a rule match', () => {
+    const foil = makeCard({ oracleId: 'o-bolt', rarity: 'rare' });
+    const plain = makeCard({ oracleId: 'o-bolt', rarity: 'common' });
+    const binder = makeBinder({ filter: rare, keepPrintingsTogether: true });
+    const { binders } = materializeBinders([foil, plain], [binder], defaultOpts);
+    expect(binders[0].reasons?.get(foil.copyId)).toEqual({ kind: 'rule', group: 0 });
+    expect(binders[0].reasons?.get(plain.copyId)).toEqual({ kind: 'printings' });
+  });
+
+  // Every placement path records its reason: a new path that forgets would
+  // leave a card the preview cannot explain.
+  it('explains every copy in every binder', () => {
+    const cards = [
+      makeCard({ rarity: 'rare' }),
+      makeCard({ rarity: 'common', colorIdentity: ['R'] }),
+      makeCard({ rarity: 'common', colorIdentity: ['G'] }),
+      makeCard({ oracleId: 'o-x', rarity: 'rare', colorIdentity: ['U'] }),
+      makeCard({ oracleId: 'o-x', rarity: 'common', colorIdentity: ['U'] }),
+    ];
+    const pinned = makeCard({ rarity: 'uncommon', colorIdentity: ['W'] });
+    const defs = [
+      makeBinder({ id: 'a', position: 0, filter: rare, keepPrintingsTogether: true }),
+      makeBinder({ id: 'b', position: 1, filter: red, pinnedCopyIds: [pinned.copyId] }),
+      makeBinder({ id: 'c', position: 2 }),
+    ];
+    const { binders } = materializeBinders([...cards, pinned], defs, defaultOpts);
+    for (const b of binders) {
+      for (const section of b.sections) {
+        for (const c of section.cards) {
+          expect(b.reasons?.has(c.copyId), `${b.def.id}: ${c.copyId}`).toBe(true);
+        }
+      }
+    }
+  });
+});

@@ -43,11 +43,8 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
-import {
-  FilterChipsRow,
-  colorChipLabel,
-  type FilterChipDescriptor,
-} from '../components/shared/FilterChipsRow';
+import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
+import { colorChipLabel } from '../lib/filter-summary';
 import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
 import { InfoTip } from '../components/InfoTip';
 import {

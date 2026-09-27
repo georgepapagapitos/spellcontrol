@@ -3750,6 +3750,20 @@ never shows the chooser.
   the cards". A suggestion opens the rules editor seeded, the same path as
   Save as binder, so nothing is created without the user seeing "N cards land
   here".
+- **A card preview opened from a binder leads with why the card is there**
+  (E470), in CardPreview's meta slot, the same slot the deck view uses for its
+  context: "Filed by the rule “Rocks”." (the rule's name, else the editor's own
+  auto title, from `lib/filter-summary.ts`), "Added here by hand…", the price
+  margin, or its other printings. The reason is the one `materializeBinders`
+  recorded when it placed the card (`MaterializedBinder.reasons`), never
+  re-derived, so it cannot disagree with the routing. At most one "also" line:
+  a binder above the user took it out of, else the first binder further down
+  whose rules match it (catch-alls and manual binders say nothing). Same block
+  in the page grid's preview, the page viewer and the list's preview
+  (`useBinderCardPreview`).
+- **The preview carries the card's binder actions**: Move to binder, then Set
+  cover. Move hands the card to the move sheet, so the preview closes as it
+  opens (`CardPreviewAction.closesPreview`), the way Edit does.
 - **An empty binder warns only where it does harm.** Above another binder it
   takes that binder's cards: the amber banner. Last in line it is a catch-all:
   a plain note saying what it does. Both open "This binder has no conditions".

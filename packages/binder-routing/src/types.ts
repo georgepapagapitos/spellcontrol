@@ -556,8 +556,27 @@ export interface BinderSection {
   pages: BinderPage[];
 }
 
+/**
+ * Why one copy sits in the binder it does, recorded where materialize places
+ * it, so a UI explaining a card can never disagree with the routing.
+ * - `pinned`: added to this binder by hand; pins are claimed before any rule.
+ * - `rule`: the first of `def.filterGroups` whose conditions it matches.
+ * - `price-margin`: was reviewed here, and now misses the rule only by a price
+ *   within the stickiness margin, so it stays instead of flapping.
+ * - `printings`: another copy of the same card matched, and the binder keeps
+ *   every printing together.
+ */
+export type PlacementReason =
+  | { kind: 'pinned' }
+  | { kind: 'rule'; group: number }
+  | { kind: 'price-margin' }
+  | { kind: 'printings' };
+
 export interface MaterializedBinder {
   def: BinderDef;
+  /** Why each copy is here, by `copyId` (see {@link PlacementReason}). Always
+   *  set by materializeBinders; optional so hand-built fixtures can omit it. */
+  reasons?: ReadonlyMap<string, PlacementReason>;
   effectivePocketSize: PocketSize;
   /** Sort chain actually applied (includes implicit tie-breakers). */
   effectiveSorts: SortEntry[];

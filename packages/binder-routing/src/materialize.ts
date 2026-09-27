@@ -4,6 +4,7 @@ import type {
   BinderSection,
   EnrichedCard,
   MaterializedBinder,
+  PlacementReason,
   Page,
   PocketSize,
   SetMap,
@@ -115,6 +116,12 @@ export function materializeBinders(
 
   const buckets = new Map<string, EnrichedCard[]>();
   orderedDefs.forEach((d) => buckets.set(d.id, []));
+  const reasons = new Map<string, Map<string, PlacementReason>>();
+  orderedDefs.forEach((d) => reasons.set(d.id, new Map()));
+  const place = (binderId: string, card: EnrichedCard, reason: PlacementReason) => {
+    buckets.get(binderId)!.push(card);
+    reasons.get(binderId)!.set(card.copyId, reason);
+  };
   const uncategorized: EnrichedCard[] = [];
 
   for (const card of cards) {
@@ -128,7 +135,7 @@ export function materializeBinders(
       // deck, swallow it — don't render anywhere, but keep the pin metadata so
       // it returns to its slot when the deck releases it.
       if (isSwallowedByBinder(isAllocated, claimingDef)) continue;
-      buckets.get(claimedBy)?.push(card);
+      place(claimedBy, card, { kind: 'pinned' });
       continue;
     }
     // Sticky price retention: a card the user confirmed in a binder (its key
@@ -150,7 +157,7 @@ export function materializeBinders(
       if (!cardMatchesAnyGroup(card, compiledGroups[i], PRICE_STICKINESS_MARGIN)) continue;
       // Same swallow rule as pins/routing for deck-allocated copies.
       if (!isSwallowedByBinder(isAllocated, def)) {
-        buckets.get(def.id)!.push(card);
+        place(def.id, card, { kind: 'price-margin' });
       }
       stuck = true;
       break;
@@ -170,7 +177,8 @@ export function materializeBinders(
         // sent to uncategorized). It returns when un-allocated.
         swallowed = true;
       } else {
-        buckets.get(def.id)!.push(card);
+        const group = compiledGroups[i].findIndex((g) => cardMatchesCompiled(card, g));
+        place(def.id, card, { kind: 'rule', group: Math.max(group, 0) });
         matched = true;
       }
       break;
@@ -203,7 +211,7 @@ export function materializeBinders(
       if (card.oracleId !== undefined && wanted.has(card.oracleId) && !excluded.has(card.copyId)) {
         // Same swallow rule as the main routing loop, for deck-allocated copies.
         if (isSwallowedByBinder(allocated.has(card.copyId), def)) continue;
-        bucket.push(card);
+        place(def.id, card, { kind: 'printings' });
       } else {
         kept.push(card);
       }
@@ -250,6 +258,7 @@ export function materializeBinders(
           );
     return {
       def,
+      reasons: reasons.get(def.id)!,
       effectivePocketSize,
       effectiveSorts,
       displaySorts: getDisplaySorts(effectiveSorts, defSorts, def.sortValueOrders),

@@ -1,5 +1,5 @@
 import { Boxes, Layers, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { BinderPage, EnrichedCard, PocketSize } from '../types';
 import { CardPreview, type CardPreviewAction } from './CardPreview';
@@ -38,6 +38,8 @@ interface Props {
   onEditCard?: (card: EnrichedCard) => void;
   /** Extra per-card actions (e.g. "Set cover") forwarded to the inner CardPreview's icon bar. */
   getCardActions?: (card: EnrichedCard | undefined) => CardPreviewAction[];
+  /** The inner card preview's lead section (why the card is in this binder). */
+  renderCardMeta?: (card: EnrichedCard | undefined) => ReactNode;
   /** Group-printings qty by copyId — forwarded to inner CardPreview's ×N tag. */
   qtyByCopyId?: Map<string, number>;
 }
@@ -69,6 +71,7 @@ export function BinderPagePreview({
   onClose,
   onEditCard,
   getCardActions,
+  renderCardMeta,
   qtyByCopyId,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -277,6 +280,7 @@ export function BinderPagePreview({
             return c ? (qtyByCopyId?.get(c.copyId) ?? 1) : 1;
           }}
           getActions={getCardActions ? (i) => getCardActions(innerCard.cards[i]) : undefined}
+          renderPanelMeta={renderCardMeta ? (i) => renderCardMeta(innerCard.cards[i]) : undefined}
           onIndexChange={(i) => setInnerCard((prev) => (prev ? { ...prev, index: i } : prev))}
           onClose={() => setInnerCard(null)}
           onEdit={

@@ -80,6 +80,9 @@ export interface CardPreviewAction {
   /** Owner/management actions (Remove from deck, …) go in the row's ⋮ menu
    *  instead of standing as a button — STYLE_GUIDE § Card action rows. */
   overflow?: boolean;
+  /** The action hands the card to another surface (a sheet that moves it
+   *  somewhere else), so the preview closes as it runs, the way Edit does. */
+  closesPreview?: boolean;
 }
 
 interface Props {
@@ -1033,6 +1036,7 @@ export function CardPreview({
                     data-has-short={a.shortLabel ? '' : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (a.closesPreview) onClose();
                       a.onClick();
                     }}
                     aria-label={a.label}
@@ -1054,7 +1058,10 @@ export function CardPreview({
                     panelClassName="card-preview-menu"
                     items={overflow.map((a) => ({
                       label: a.label,
-                      onClick: a.onClick,
+                      onClick: () => {
+                        if (a.closesPreview) onClose();
+                        a.onClick();
+                      },
                       danger: a.danger,
                     }))}
                   />

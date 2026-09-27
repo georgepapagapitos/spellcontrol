@@ -456,3 +456,40 @@ describe('CardPreview action row (one line on a phone)', () => {
     ).toBeNull();
   });
 });
+
+describe('CardPreview actions that hand the card on', () => {
+  // A binder's "Move to binder" opens the move sheet; the preview it came from
+  // closes as it runs, the way Edit does, rather than sitting under the sheet
+  // showing a card that is about to leave the binder.
+  it('closes the preview before running a closesPreview action', () => {
+    const calls: string[] = [];
+    render(
+      <MemoryRouter>
+        <CardPreview
+          cards={[mk({})]}
+          index={0}
+          binderName=""
+          sectionLabels={['']}
+          pageNumbers={[0]}
+          totalPages={0}
+          onIndexChange={() => {}}
+          onClose={() => calls.push('close')}
+          getActions={() => [
+            {
+              key: 'move',
+              label: 'Move to binder',
+              icon: null,
+              closesPreview: true,
+              onClick: () => calls.push('move'),
+            },
+            { key: 'cover', label: 'Set cover', icon: null, onClick: () => calls.push('cover') },
+          ]}
+        />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Set cover' }));
+    expect(calls).toEqual(['cover']);
+    fireEvent.click(screen.getByRole('button', { name: 'Move to binder' }));
+    expect(calls).toEqual(['cover', 'close', 'move']);
+  });
+});

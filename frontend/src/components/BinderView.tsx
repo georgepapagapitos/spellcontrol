@@ -1,4 +1,3 @@
-import { Image as ImageIcon, ImageOff } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type {
@@ -25,6 +24,7 @@ import {
   printingStubFromEnriched,
 } from '../lib/edit-card';
 import { BinderPagePreview } from './BinderPagePreview';
+import { useBinderCardPreview } from './use-binder-card-preview';
 import { BinderDriftBanner } from './BinderDriftBanner';
 import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
 import { useAllocations } from '../lib/allocations';
@@ -66,7 +66,6 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const updateBinder = useCollectionStore((s) => s.updateBinder);
-  const pushToast = useToastsStore((s) => s.push);
 
   // The Uncategorized bucket is no longer a tab in this view — it lives in the
   // Collection page filter. Migrate any legacy persisted activeTab to the first
@@ -78,6 +77,9 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
   }, [activeTab, binders, setActiveTab]);
 
   const active = binders.find((b) => b.def.id === activeTab);
+  // Why a card is here, Move to binder and Set cover, for the section preview
+  // and the page viewer alike (the list view uses the same hook).
+  const cardPreview = useBinderCardPreview(active);
 
   if (!active) {
     return (
@@ -108,38 +110,6 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
   // no search-free set was supplied (e.g. no query active).
   const driftActive = driftBinders?.find((b) => b.def.id === activeTab) ?? active;
 
-  // "Set cover" / "Remove cover" in the card preview's icon bar — the explicit
-  // override for the index tile's cover art (lib/binder-cover.ts). Only offered
-  // for cards that actually have art to show.
-  const coverActions = (card: EnrichedCard | undefined): CardPreviewAction[] => {
-    if (!card?.imageNormal) return [];
-    const isCover = active.def.coverScryfallId === card.scryfallId;
-    return [
-      {
-        key: 'cover',
-        label: isCover ? 'Remove cover' : 'Set cover',
-        // Only when a 360px phone has no room for every label.
-        shortLabel: isCover ? undefined : 'Cover',
-        icon: isCover ? (
-          <ImageOff width={18} height={18} strokeWidth={2} aria-hidden />
-        ) : (
-          <ImageIcon width={18} height={18} strokeWidth={2} aria-hidden />
-        ),
-        onClick: () => {
-          updateBinder(active.def.id, {
-            coverScryfallId: isCover ? undefined : card.scryfallId,
-          });
-          pushToast({
-            message: isCover
-              ? 'Cover follows the most valuable card again.'
-              : `${card.name} is now this binder's cover.`,
-            tone: 'success',
-          });
-        },
-      },
-    ];
-  };
-
   return (
     <>
       <BinderDriftBanner binder={driftActive} />
@@ -159,8 +129,10 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
         controls={controls}
         qtyByCopyId={qtyByCopyId}
         showImages={showImages}
-        getCardActions={coverActions}
+        getCardActions={cardPreview.getCardActions}
+        renderCardMeta={cardPreview.renderCardMeta}
       />
+      {cardPreview.sheet}
     </>
   );
 }
@@ -182,6 +154,7 @@ function SectionList({
   qtyByCopyId,
   showImages,
   getCardActions,
+  renderCardMeta,
 }: {
   viewKey: string;
   binderName: string;
@@ -200,6 +173,8 @@ function SectionList({
   showImages?: boolean;
   /** Extra per-card actions (e.g. "Set cover") for the card-preview icon bar. */
   getCardActions?: (card: EnrichedCard | undefined) => CardPreviewAction[];
+  /** The preview panel's lead section for a card (why it is in this binder). */
+  renderCardMeta?: (card: EnrichedCard | undefined) => ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -473,6 +448,7 @@ function SectionList({
             return c ? (qtyByCopyId?.get(c.copyId) ?? 1) : 1;
           }}
           getActions={getCardActions ? (i) => getCardActions(preview.cards[i]) : undefined}
+          renderPanelMeta={renderCardMeta ? (i) => renderCardMeta(preview.cards[i]) : undefined}
           onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
           onClose={() => setPreview(null)}
           onEdit={(c) => {
@@ -491,6 +467,7 @@ function SectionList({
           resolveCard={resolveCard}
           qtyByCopyId={qtyByCopyId}
           getCardActions={getCardActions}
+          renderCardMeta={renderCardMeta}
           onClose={() => setPagesStartIndex(null)}
           onEditCard={(c) => {
             setPagesStartIndex(null);
