@@ -7,7 +7,7 @@ import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import { useAllocations } from '../../lib/allocations';
 import { useCurrency } from '../../lib/currency';
-import { formatMoney } from '../../lib/format-money';
+import { formatMoneyTally } from '../../lib/format-money';
 import {
   computeCloseToDone,
   computeSharedCopies,
@@ -27,7 +27,7 @@ interface Row {
   label: string;
 }
 
-const money = (n: number) => formatMoney(n, { wholeDollars: true });
+const money = (n: number) => formatMoneyTally(n);
 
 /**
  * What you can do with the cards you have: the deck a few cards from done,

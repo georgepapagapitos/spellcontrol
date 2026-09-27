@@ -125,6 +125,19 @@ describe('StatsBar — Insights section', () => {
     ]);
     expect(screen.getByText('Insights')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Spares/ })).toBeTruthy();
+    // The cheaper copy is the spare; under $10 keeps its cents.
+    expect(screen.getByText('1 copy worth $1.00 beyond what your decks use.')).toBeTruthy();
+  });
+
+  // Seen in the browser: an unpriced printing's spare read "1 copy worth $0",
+  // which says the card is worthless when its price is only unknown.
+  it('says nothing about money for a spare with no price', () => {
+    renderDrawer([
+      mk({ name: 'Mind Stone', scryfallId: 'sf-ms', purchasePrice: 0 }),
+      mk({ name: 'Mind Stone', scryfallId: 'sf-ms', purchasePrice: 0 }),
+    ]);
+    expect(screen.getByText('1 copy beyond what your decks use.')).toBeTruthy();
+    expect(screen.queryByText(/worth \$0/)).toBeNull();
   });
 
   it('tapping Spares applies the surplus filterJump', () => {
@@ -155,8 +168,8 @@ describe('StatsBar — Insights section', () => {
     );
     const row = screen.getByText('Idle cards').closest('.collection-insight-row');
     expect(row?.tagName).toBe('DIV'); // static, never a button/link
-    expect(row?.textContent).toContain('$8 in 1 cards no deck uses');
-    expect(row?.textContent).toContain('$3 in decks');
+    expect(row?.textContent).toContain('$8.00 in 1 card no deck uses');
+    expect(row?.textContent).toContain('$3.00 in decks');
     expect(row?.querySelector('.meterbar')).toBeTruthy();
   });
 

@@ -95,7 +95,7 @@ describe('YourCardsCard', () => {
     const links = screen.getAllByRole('link').filter((l) => l.className.includes('your-cards'));
     expect(links.map((l) => l.textContent)).toEqual([
       'Burn Pile2 cards to finish · $14',
-      'Spare copies1 copy · $2',
+      'Spare copies1 copy · $2.00',
       'Sol Ringin 3 decks, you own 2',
     ]);
     expect(links[0].getAttribute('href')).toBe('/decks/burn');

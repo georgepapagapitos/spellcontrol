@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { useCurrencyStore } from './currency';
-import { formatMoney } from './format-money';
+import { formatMoney, formatMoneyTally } from './format-money';
 
 describe('formatMoney', () => {
   describe('basic USD formatting', () => {
@@ -118,5 +118,16 @@ describe('formatMoney', () => {
       expect(a).toBe(b);
       expect(a).toBe('€10.00');
     });
+  });
+});
+
+describe('formatMoneyTally', () => {
+  it('keeps cents under 10 units so a small amount never reads as $0', () => {
+    expect(formatMoneyTally(0.37, { currency: 'USD' })).toBe('$0.37');
+    expect(formatMoneyTally(9.99, { currency: 'USD' })).toBe('$9.99');
+  });
+  it('drops cents from 10 units up', () => {
+    expect(formatMoneyTally(10, { currency: 'USD' })).toBe('$10');
+    expect(formatMoneyTally(839.6, { currency: 'USD' })).toBe('$840');
   });
 });
