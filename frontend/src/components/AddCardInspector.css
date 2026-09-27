@@ -1,0 +1,47 @@
+/* AddCardInspector — desktop Search tab right pane (T153 phase 4). Only
+   mounted at >=1024px (AddCardsSheet gates it on useMediaQuery), so no
+   narrower-tier rules are needed here. */
+.add-card-inspector {
+  /* A grid item's automatic min-height is its content's, which would stop
+     this pane from shrinking to scroll inside the fixed-height workbench
+     row (same class of trap as a flex item's automatic minimum). */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4);
+}
+
+.add-card-inspector-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.add-card-inspector-top {
+  display: grid;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.add-card-inspector-art {
+  width: 12rem;
+}
+
+.add-card-inspector-art.is-empty {
+  background: var(--surface-raised);
+}
+
+.add-card-inspector-name {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.add-card-inspector-type {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

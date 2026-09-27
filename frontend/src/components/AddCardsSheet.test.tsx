@@ -1,15 +1,55 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ScannedEntry } from '../lib/use-scan-queue';
 
 // Heavy dependencies are stubbed: each is exercised by its own test
-// suite. AddCardsSheet's job is the tab strip + tab-panel routing + the
-// scan launcher, which is what these tests cover.
+// suite (CardSearchResults.test.tsx covers onActiveChange/hideRowDisclosure
+// itself). AddCardsSheet's job is the tab strip + tab-panel routing + the
+// desktop-workbench wiring (isDesktop -> hideRowDisclosure/onActiveChange ->
+// AddCardInspector), which is what these tests + the ones below cover. The
+// stub forwards those two props so the wiring is observable without a real
+// search.
 vi.mock('./AddCardSearchPanel', () => ({
-  AddCardSearchPanel: () => <div data-testid="search-panel">search</div>,
+  AddCardSearchPanel: (props: {
+    hideRowDisclosure?: boolean;
+    onActiveChange?: (card: ScryfallCard | null) => void;
+  }) => (
+    <div data-testid="search-panel" data-hide-row-disclosure={String(!!props.hideRowDisclosure)}>
+      search
+      {props.onActiveChange && (
+        <button
+          type="button"
+          data-testid="simulate-hover"
+          onClick={() => props.onActiveChange!(FAKE_CARD)}
+        >
+          simulate hover
+        </button>
+      )}
+    </div>
+  ),
 }));
+
+const FAKE_CARD: ScryfallCard = {
+  id: 'fake-card',
+  oracle_id: 'fake-oracle',
+  name: 'Sol Ring',
+  type_line: 'Artifact',
+  set: 'cmr',
+  set_name: 'Commander Legends',
+  collector_number: '472',
+  finishes: ['nonfoil'],
+  prices: { usd: '2.00' },
+  image_uris: {
+    small: 'https://cards.scryfall.io/small/fake-card.jpg',
+    normal: 'https://cards.scryfall.io/normal/fake-card.jpg',
+    large: '',
+    png: '',
+    art_crop: '',
+    border_crop: '',
+  },
+} as unknown as ScryfallCard;
 
 vi.mock('./UploadPanel', () => ({
   UploadPanel: (props: { hideScanButton?: boolean }) => (
@@ -59,6 +99,9 @@ const importTextMock = vi.fn(async (_text: string) => ({
 }));
 vi.mock('../lib/api', () => ({
   importText: (text: string) => importTextMock(text),
+  // The desktop inspector's PrintingPicker calls this; an empty result falls
+  // back to the card it already has (its own fallback-to-[fallback] logic).
+  fetchPrintings: vi.fn(async () => []),
 }));
 
 const importCardsMock = vi.fn(async (..._args: unknown[]) => 'import-id');
@@ -89,6 +132,19 @@ beforeEach(() => {
   collectionState.binders = [];
   useScanQueueStore.setState({ queue: [] });
   vi.mocked(useCanScan).mockReturnValue(true);
+  // AddCardsSheet reads the desktop-workbench tier via useMediaQuery, which
+  // happy-dom doesn't implement — default to non-desktop; the workbench
+  // describe block below overrides this per test.
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('AddCardsSheet', () => {
@@ -171,18 +227,44 @@ describe('AddCardsSheet', () => {
     expect(importCardsMock).not.toHaveBeenCalled();
   });
 
-  // Dismissal routes through the symmetric pop-out exit (useSheetExit):
-  // is-closing goes on the modal + backdrop, and onClose fires only when
-  // the modal-panel-out animation ends.
-  it('plays the exit animation on Escape, then fires onClose', () => {
+  // The sheet renders through the shared <Modal> now (not a hand-rolled
+  // backdrop): Escape starts Modal's own delayed exit — is-closing goes on
+  // the backdrop, and onClose fires only once the panel's exit animation
+  // ends.
+  it('renders through <Modal>, and Escape plays its exit animation before firing onClose', () => {
     const onClose = vi.fn();
-    const { container } = render(<AddCardsSheet onClose={onClose} />);
+    render(<AddCardsSheet onClose={onClose} />);
+    const dialog = screen.getByRole('dialog', { name: 'Add cards' });
+    expect(dialog.className).toContain('add-cards-modal');
+    // <Modal> portals to document.body, a sibling of RTL's own container.
+    const backdrop = document.body.querySelector('.add-cards-backdrop') as HTMLElement;
+    expect(backdrop).toBeTruthy();
+
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled(); // exit animation in flight
-    const modal = container.querySelector('.add-cards-modal') as HTMLElement;
-    expect(modal.className).toContain('is-closing');
-    expect(container.querySelector('.add-cards-backdrop')?.className).toContain('is-closing');
-    fireEvent.animationEnd(modal, { animationName: 'modal-panel-out' });
+    expect(backdrop.className).toContain('is-closing');
+
+    fireEvent.animationEnd(dialog, { animationName: 'modal-panel-out' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses via the backdrop through the same delayed exit', () => {
+    const onClose = vi.fn();
+    render(<AddCardsSheet onClose={onClose} />);
+    const dialog = screen.getByRole('dialog', { name: 'Add cards' });
+    fireEvent.click(document.body.querySelector('.add-cards-backdrop') as Element);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.animationEnd(dialog, { animationName: 'modal-panel-out' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Per Modal's own contract (see Modal.tsx / Modal.test.tsx): a close the
+  // dialog's OWN button initiates unmounts directly, no exit animation —
+  // Modal reserves the animated exit for Escape/backdrop dismissal.
+  it('dismisses immediately via the ✕ button, with no exit animation to wait on', () => {
+    const onClose = vi.fn();
+    render(<AddCardsSheet onClose={onClose} />);
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -206,15 +288,25 @@ describe('AddCardsSheet', () => {
     expect(screen.queryByText('Sound on each scan')).toBeNull();
   });
 
-  it('dismisses via the ✕ button and the backdrop through the same exit', () => {
+  // The Add-list review, a row edit, the scanner and its settings all share
+  // the overlay-layer stack with the sheet's own <Modal> — only the topmost
+  // one answers Escape (STYLE_GUIDE § Overlays).
+  it('Escape closes a stacked child (Add settings) before the sheet underneath it', async () => {
     const onClose = vi.fn();
-    const { container } = render(<AddCardsSheet onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText('Close'));
-    fireEvent.click(container.querySelector('.add-cards-backdrop') as Element); // guard: no double-close
-    const modal = container.querySelector('.add-cards-modal') as HTMLElement;
-    expect(modal.className).toContain('is-closing');
-    fireEvent.animationEnd(modal, { animationName: 'modal-panel-out' });
-    expect(onClose).toHaveBeenCalledTimes(1);
+    render(<AddCardsSheet onClose={onClose} />);
+    fireEvent.click(screen.getByLabelText('Add settings'));
+    const settingsDialog = await screen.findByRole(
+      'dialog',
+      { name: 'Add settings' },
+      { timeout: 5000 }
+    );
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled(); // the sheet underneath is untouched
+
+    fireEvent.animationEnd(settingsDialog, { animationName: 'modal-panel-out' });
+    expect(screen.queryByRole('heading', { name: 'Add settings' })).toBeNull();
+    expect(onClose).not.toHaveBeenCalled(); // still hasn't propagated to the sheet
   });
 });
 
@@ -317,5 +409,51 @@ describe('AddCardsSheet Add list (T153)', () => {
     unmount();
     render(<AddCardsSheet onClose={() => {}} />);
     expect(screen.getByText('2 cards')).toBeTruthy();
+  });
+});
+
+describe('AddCardsSheet desktop workbench (T153 phase 4)', () => {
+  function setDesktop(isDesktop: boolean) {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: isDesktop && query.includes('min-width: 1024px'),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  }
+
+  it('below 1024px: no inspector, and the row disclosure stays', () => {
+    setDesktop(false);
+    render(<AddCardsSheet onClose={() => {}} />);
+    expect(screen.getByTestId('search-panel').getAttribute('data-hide-row-disclosure')).toBe(
+      'false'
+    );
+    expect(screen.queryByText('Search for a card to see it here.')).toBeNull();
+  });
+
+  it('at 1024px and up: the inspector renders (empty until a row goes active) and the row disclosure hides', () => {
+    setDesktop(true);
+    render(<AddCardsSheet onClose={() => {}} />);
+    expect(screen.getByTestId('search-panel').getAttribute('data-hide-row-disclosure')).toBe(
+      'true'
+    );
+    expect(screen.getByText('Search for a card to see it here.')).toBeTruthy();
+  });
+
+  it('the inspector follows the active row, and its Add button lands in the Add list', async () => {
+    setDesktop(true);
+    render(<AddCardsSheet onClose={() => {}} />);
+
+    fireEvent.click(screen.getByTestId('simulate-hover'));
+    expect(await screen.findByRole('heading', { name: 'Sol Ring', level: 3 })).toBeTruthy();
+
+    await waitFor(() =>
+      expect(document.querySelector('.inline-card-search-add-printing')).toBeTruthy()
+    );
+    fireEvent.click(document.querySelector('.inline-card-search-add-printing')!);
+
+    expect(useScanQueueStore.getState().queue).toMatchObject([
+      { id: 'fake-card::nonfoil', qty: 1, source: 'searched' },
+    ]);
   });
 });

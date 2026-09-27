@@ -2037,7 +2037,7 @@ e.currentTarget) close(); }}`. A full-screen viewer whose backdrop is covered by
 calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   regardless of import order, same cascade rule as the Home bento overrides.
   Swept fleet-wide 2026-08-19; the current widths, for consistency when
-  adding a sibling: Add cards 900 · Test hand 1180 · CardGroup 960 ·
+  adding a sibling: Add cards 1180 · Test hand 1180 · CardGroup 960 ·
   NewArrivals / PullList 720 · ConflictPanel 720 · DeckSizePrompt /
   CardFitPanel 42rem ·
   BuildReport / DeckTokens 640 · BuyList / DeckPrimer
@@ -2047,6 +2047,23 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   scry 720 · token creator 640 · stats 600; its three short pickers
   (designations, life adjust, takeback mode) stay on the 480px default
   deliberately — that width IS right for a brief exclusive choice.
+- **Add cards is a bottom sheet up to 1024px, then a two-pane workbench
+  (T153 phase 4, 2026-09-27).** It moved onto `<Modal>` (was a hand-rolled
+  `.modal-backdrop` — exit animation, focus trap and topmost-only Escape now
+  come from the shared layer). Below 1024px it is a single-column bottom
+  sheet: `add-cards-backdrop` extends the shared sheet treatment past the
+  primitive's own 600px ceiling up to the tablet boundary, because a
+  floating full-height card read wrong at tablet width and the Search tab's
+  per-row "Printing & finish" disclosure is the only printing picker there.
+  At and above 1024px the Search tab becomes a two-pane workbench —
+  `AddCardSearchPanel` (results, 26rem) beside `AddCardInspector` (the
+  active row's art, name, type and the shared `PrintingPicker`) — and the
+  disclosure hides, since the inspector replaces it. `CardSearchResults`
+  drives the inspector via `onActiveChange`, fired on hover and on the
+  existing ↑/↓ keyboard nav; `Enter` still adds the active row's own shown
+  printing (decision B), unaffected by whatever the inspector's picker has
+  selected. Other tabs (Add from list, Products, Scan) are unchanged and use
+  the full width at every tier.
 - **`CardPreview` is one layout function with two shapes (E421, 2026-09-25).**
   It replaced the 2026-08-18 ruling ("≥1024px is two panes"), which it keeps
   and extends. Every length comes from the viewport (the backdrop is the one

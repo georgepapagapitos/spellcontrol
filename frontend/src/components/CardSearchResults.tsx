@@ -55,6 +55,18 @@ interface Props {
    * collection toast, only a polite live-region announcement.
    */
   addToList?: boolean;
+  /**
+   * Fires with the active row's card whenever it changes (hover or keyboard
+   * nav), and with `null` when there are no results. Lets a host without its
+   * own search input — the desktop Add-cards workbench — drive a live
+   * inspector pane instead of a per-row disclosure.
+   */
+  onActiveChange?: (card: ScryfallCard | null) => void;
+  /**
+   * Hide the per-row "Printing & finish" disclosure — for a host that shows
+   * an inspector for the active row instead (desktop Add-cards workbench).
+   */
+  hideRowDisclosure?: boolean;
 }
 
 const DEFAULT_PAGE = 10;
@@ -77,7 +89,18 @@ function ownedLabel(count: number): string {
  */
 export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
   function CardSearchResults(
-    { results, view = 'list', pageSize, total = null, binderId, onAdd, onAdded, addToList },
+    {
+      results,
+      view = 'list',
+      pageSize,
+      total = null,
+      binderId,
+      onAdd,
+      onAdded,
+      addToList,
+      onActiveChange,
+      hideRowDisclosure,
+    },
     ref
   ) {
     const addCard = useCollectionStore((s) => s.addCard);
@@ -280,6 +303,13 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       [results, activeIndex]
     );
 
+    // Desktop workbench inspector (T153 phase 4): the active row, or null
+    // once the reset effect above has settled on an empty result set.
+    useEffect(() => {
+      const idx = Math.min(activeIndex, results.length - 1);
+      onActiveChange?.(idx >= 0 ? results[idx] : null);
+    }, [results, activeIndex, onActiveChange]);
+
     if (results.length === 0) return null;
 
     const shown = results.slice(0, visible);
@@ -442,24 +472,26 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                           <span className="inline-card-search-owned">{ownedLabel(owned)}</span>
                         )}
                       </span>
-                      <button
-                        type="button"
-                        className={`inline-card-search-printings-toggle${
-                          printingsOpen ? ' is-open' : ''
-                        }`}
-                        aria-expanded={printingsOpen}
-                        onClick={() => setOpenPrintingsId(printingsOpen ? null : c.id)}
-                      >
-                        {printingsOpen ? (
-                          <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
-                        ) : (
-                          <ChevronRight width={12} height={12} strokeWidth={2} aria-hidden />
-                        )}
-                        {finishes.length > 1 ? 'Printing & finish' : 'Printing'}
-                      </button>
+                      {!hideRowDisclosure && (
+                        <button
+                          type="button"
+                          className={`inline-card-search-printings-toggle${
+                            printingsOpen ? ' is-open' : ''
+                          }`}
+                          aria-expanded={printingsOpen}
+                          onClick={() => setOpenPrintingsId(printingsOpen ? null : c.id)}
+                        >
+                          {printingsOpen ? (
+                            <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
+                          ) : (
+                            <ChevronRight width={12} height={12} strokeWidth={2} aria-hidden />
+                          )}
+                          {finishes.length > 1 ? 'Printing & finish' : 'Printing'}
+                        </button>
+                      )}
                     </span>
                   </div>
-                  {printingsOpen && (
+                  {!hideRowDisclosure && printingsOpen && (
                     <PrintingPicker
                       cardName={c.name}
                       fallback={c}
