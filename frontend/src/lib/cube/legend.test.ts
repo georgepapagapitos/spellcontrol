@@ -328,3 +328,114 @@ describe('selectBackgrounds', () => {
     expect(picks.some((p) => p.card.oracleId === bannedAwayBg.oracleId)).toBe(false);
   });
 });
+
+describe('selectLegends — Backgrounds stay within the target, not on top of it (board E462)', () => {
+  it('a section with 2 choosers keeps exactly the target, holds both Backgrounds, and drops the 2 weakest ordinary legends', () => {
+    const target = LEGEND_TARGET[180]; // 60
+    const pool: CubeCard[] = [];
+
+    const chooser1 = card({
+      typeLine: 'Legendary Creature — Test',
+      colors: ['W'],
+      oracleText: 'Choose a Background (…)',
+      cubePop: 0.99,
+    });
+    const chooser2 = card({
+      typeLine: 'Legendary Creature — Test',
+      colors: ['W'],
+      oracleText: 'Choose a Background (…)',
+      cubePop: 0.98,
+    });
+    pool.push(chooser1, chooser2);
+
+    const bg1 = card({
+      typeLine: 'Legendary Enchantment — Background',
+      colors: ['W'],
+      cubePop: 0.5,
+    });
+    const bg2 = card({
+      typeLine: 'Legendary Enchantment — Background',
+      colors: ['W'],
+      cubePop: 0.4,
+    });
+    pool.push(bg1, bg2);
+
+    // Exactly enough ordinary mono-W legends that supply === target (60) —
+    // 2 choosers + 58 ordinary — so NOTHING is naturally excluded by the
+    // quota before Backgrounds enter the picture; any drop is provably the
+    // Background-driven one, not ordinary quota overflow.
+    const ordinary: CubeCard[] = [];
+    for (let i = 0; i < 58; i++) {
+      ordinary.push(
+        card({ typeLine: 'Legendary Creature — Test', colors: ['W'], cubePop: 0.9 - i * 0.001 })
+      );
+    }
+    pool.push(...ordinary);
+
+    const legends = selectLegends(pool, 180, new Set());
+    expect(legends.length).toBe(target);
+
+    const legendIds = new Set(legends.map((l) => l.card.oracleId));
+    expect(legendIds.has(chooser1.oracleId)).toBe(true);
+    expect(legendIds.has(chooser2.oracleId)).toBe(true);
+    expect(legendIds.has(bg1.oracleId)).toBe(true);
+    expect(legendIds.has(bg2.oracleId)).toBe(true);
+
+    // The 2 weakest ordinary legends (lowest cubePop, i.e. the last 2 pushed)
+    // are the ones dropped to make room.
+    const weakest = ordinary.slice(-2);
+    const strongest = ordinary.slice(0, -2);
+    for (const c of weakest) expect(legendIds.has(c.oracleId)).toBe(false);
+    for (const c of strongest) expect(legendIds.has(c.oracleId)).toBe(true);
+  });
+
+  it('protects a Partner legend and the last representative of an identity from being dropped', () => {
+    const target = LEGEND_TARGET[180]; // 60
+    const pool: CubeCard[] = [];
+
+    const chooser = card({
+      typeLine: 'Legendary Creature — Test',
+      colors: ['W'],
+      oracleText: 'Choose a Background (…)',
+      cubePop: 0.99,
+    });
+    const partner = card({
+      typeLine: 'Legendary Creature — Test',
+      colors: ['W'],
+      oracleText: 'Partner (…)',
+      cubePop: 0.01, // deliberately the WEAKEST card in the whole pool
+    });
+    const soleU = card({ colors: ['U'], typeLine: 'Legendary Creature — Test', cubePop: 0.011 }); // 2nd-weakest, and the ONLY U legend
+    pool.push(chooser, partner, soleU);
+
+    const background = card({
+      typeLine: 'Legendary Enchantment — Background',
+      colors: ['W'],
+      cubePop: 0.5,
+    });
+    pool.push(background);
+
+    // Enough ordinary mono-W filler that supply exactly meets the target
+    // once the chooser, partner and lone U legend are counted too.
+    const ordinary: CubeCard[] = [];
+    for (let i = 0; i < target - 3; i++) {
+      ordinary.push(
+        card({ typeLine: 'Legendary Creature — Test', colors: ['W'], cubePop: 0.9 - i * 0.001 })
+      );
+    }
+    pool.push(...ordinary);
+
+    const legends = selectLegends(pool, 180, new Set());
+    expect(legends.length).toBe(target);
+    const legendIds = new Set(legends.map((l) => l.card.oracleId));
+    // The Partner and the sole U legend are both the weakest cards in the
+    // whole pool — an unprotected drop would take them first — but neither
+    // is ever dropped.
+    expect(legendIds.has(partner.oracleId)).toBe(true);
+    expect(legendIds.has(soleU.oracleId)).toBe(true);
+    expect(legendIds.has(background.oracleId)).toBe(true);
+    // The Background still made room — one ordinary W legend is gone instead.
+    const ordinaryDropped = ordinary.filter((c) => !legendIds.has(c.oracleId));
+    expect(ordinaryDropped).toHaveLength(1);
+  });
+});

@@ -294,8 +294,36 @@ export function selectLegends(
       picks.push({ card, identity: b, reason: `${labelFor(b)} legend (${i + 1} of ${quota[b]})` });
     });
   }
-  picks.push(...selectBackgrounds(picks, pool, alreadyPickedIds));
-  return picks;
+
+  const backgroundPicks = selectBackgrounds(picks, pool, alreadyPickedIds);
+  if (backgroundPicks.length === 0) return picks;
+
+  // Backgrounds join the section WITHIN the target, not on top of it (board
+  // E462): make room by dropping the lowest-quality ordinary legends. Never a
+  // chooser (it's the reason a Background got added), never a Partner-family
+  // legend (dropping one would silently orphan its other half — legends have
+  // no "locked" concept of their own to protect otherwise, see the module
+  // doc), and never the LAST pick left in its identity bucket (the coverage
+  // guarantee `distributeLegendQuota`'s own floors exist for — a Background
+  // slot shouldn't zero out an identity the pool genuinely supports).
+  const identityCounts = new Map<LegendIdentity, number>();
+  for (const p of picks) identityCounts.set(p.identity, (identityCounts.get(p.identity) ?? 0) + 1);
+  const protectedIds = new Set<string>();
+  for (const p of picks) {
+    if (
+      isChooseABackgroundLegend(p.card) ||
+      isPartnerLegend(p.card) ||
+      identityCounts.get(p.identity) === 1
+    ) {
+      protectedIds.add(p.card.oracleId);
+    }
+  }
+  const droppable = picks
+    .filter((p) => !protectedIds.has(p.card.oracleId))
+    .sort((a, b) => byQuality(a.card, b.card)); // best first, same order supply[b] was built in
+  const dropIds = new Set(droppable.slice(-backgroundPicks.length).map((p) => p.card.oracleId));
+  const kept = picks.filter((p) => !dropIds.has(p.card.oracleId));
+  return [...kept, ...backgroundPicks];
 }
 
 /** Roughly one Background per choose-a-Background legend already selected —
@@ -309,13 +337,12 @@ const MAX_BACKGROUNDS = 10;
  * creature, so `isLegendCandidate` never finds it on its own), so it only
  * ever enters here, one per chooser, best quality first, preferring a
  * colour-identity overlap with its chooser and falling back to the next-best
- * Background when no match is left. These APPEND to `legendPicks` (the
- * caller's return value already includes them — "part of the legend count,
- * not a second array reported on top of it"), so a cube's own legend total
- * can run slightly past `LEGEND_TARGET` when choosers are present; that's
- * accepted (see generate.live.test.ts's own comment on the guard this
- * changed). No supply → returns `[]`, same "nothing to add" shape every
- * other legend helper uses when a pool has nothing to offer.
+ * Background when no match is left. `selectLegends` makes room for these
+ * WITHIN the target by dropping an equal number of its weakest ordinary
+ * picks (see there) — Backgrounds are part of the legend count, never a
+ * second array added on top of it. No supply → returns `[]`, same "nothing
+ * to add" shape every other legend helper uses when a pool has nothing to
+ * offer.
  */
 export function selectBackgrounds(
   legendPicks: readonly LegendPick[],

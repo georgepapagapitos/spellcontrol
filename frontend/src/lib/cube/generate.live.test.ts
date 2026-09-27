@@ -368,17 +368,14 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     const ALL_IDENTITIES: LegendIdentity[] = [...COLORS, ...COLOR_PAIRS, 'other'];
 
     for (const size of CUBE_SIZES) {
-      it(`${size}: legend count matches LEGEND_TARGET (plus any Backgrounds), additional to the spell size`, () => {
+      it(`${size}: legend count matches LEGEND_TARGET exactly, additional to the spell size`, () => {
         const cube = generateCube(commanderPool, size, { synergyLevel: 0, format: 'commander' });
         expect(cube.legends).toBeDefined();
-        // Backgrounds APPEND to the legend section (board E462) rather than
-        // displacing a normal quota pick, so the count can run a little past
-        // LEGEND_TARGET when the pool has choose-a-Background legends — on
-        // this collection, up to +3 (6 choosers, only 3 Backgrounds owned).
-        // Never under target, never past it by more than the pool's whole
-        // Background supply (selectBackgrounds' own 1-per-chooser cap).
-        expect(cube.legends!.length).toBeGreaterThanOrEqual(LEGEND_TARGET[size]);
-        expect(cube.legends!.length).toBeLessThanOrEqual(LEGEND_TARGET[size] + 10);
+        // Backgrounds join the section WITHIN the target (board E462) —
+        // selectLegends drops an equal number of its weakest ordinary picks to
+        // make room, so the total lands exactly on LEGEND_TARGET whenever
+        // supply allows (as it does on this collection at every size).
+        expect(cube.legends!.length).toBe(LEGEND_TARGET[size]);
         // Additional to size (open question 3) — the spell section is its own,
         // unaffected full-size cube.
         expect(cube.picks.length).toBe(size);
