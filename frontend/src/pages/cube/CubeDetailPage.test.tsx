@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCubeStore, type SavedCube } from '../../store/cube';
+import { useCollectionStore } from '../../store/collection';
 import type { GeneratedCube } from '../../lib/cube/generate';
 
 vi.mock('../../deck-builder/services/scryfall/client', () => ({
@@ -40,6 +41,7 @@ function saved(over: Partial<SavedCube> = {}): SavedCube {
 
 beforeEach(() => {
   useCubeStore.setState({ size: 540, result: null, loadedId: null, saved: [] });
+  useCollectionStore.setState({ cards: [], binders: [], hydrating: false });
   localStorage.clear();
 });
 
@@ -77,11 +79,12 @@ describe('CubeDetailPage — found', () => {
     expect(screen.getByText('Mark this cube physical first.')).toBeTruthy();
   });
 
-  it('a physical cube gets the real pull-list-not-built-yet empty state', () => {
+  it('a physical cube renders the real pull list (CubePullList), not the placeholder', () => {
     useCubeStore.setState({ saved: [saved({ id: 'x', isPhysical: true })] });
     renderAt('/decks/cube/x');
     fireEvent.click(screen.getByRole('tab', { name: 'Pull list by binder' }));
-    expect(screen.getByText('Not built yet.')).toBeTruthy();
+    expect(screen.getByText('0 of 0 located')).toBeTruthy();
+    expect(screen.queryByText('Not built yet.')).toBeNull();
   });
 });
 

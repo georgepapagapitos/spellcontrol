@@ -33,6 +33,7 @@ import { useOwnershipFor, CubeLoadingBlock, CubeErrorBlock } from './shared';
 import { CubeResult, SavedCubeMeta, type CubeEditHandlers } from './CubeResult';
 import { CubeCardPickerSheet } from './CubeCardPickerSheet';
 import { CubeShoppingList } from './CubeShoppingList';
+import { CubePullList } from './CubePullList';
 import { Button, IconButton } from '../../components/shared/Button';
 
 type DetailTab = 'cards' | 'shopping' | 'pull';
@@ -447,16 +448,7 @@ export function CubeDetailPage() {
           </div>
         )}
         {tab === 'shopping' && <CubeShoppingList target={target} loadPool={loadPool} />}
-        {tab === 'pull' && target.isPhysical && (
-          <div className="empty-state">
-            <EmptyStateMark />
-            <p className="empty-state-tagline">Not built yet.</p>
-            <p className="empty-state-hint">
-              Where each of this cube's {target.size.toLocaleString()} cards sits in your binders,
-              grouped by binder and page, so pulling it for a game is one pass through the shelf.
-            </p>
-          </div>
-        )}
+        {tab === 'pull' && target.isPhysical && <CubePullList cube={target} />}
         {tab === 'pull' && !target.isPhysical && (
           <div className="empty-state">
             <EmptyStateMark />
