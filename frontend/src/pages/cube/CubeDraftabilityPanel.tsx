@@ -149,7 +149,7 @@ function summaryLine(status: Status): string {
   if (status.kind === 'error') return 'Draft simulation failed.';
   if (status.kind === 'idle') return 'Simulates 50 drafts when opened.';
   const pct = Math.round(status.result.reachedBarShare * 100);
-  return `Simulated 50 drafts: ${pct}% of decks reached 23 playables in two colours.`;
+  return `Simulated 50 drafts: ${pct}% of decks reached 23 playables in two colors.`;
 }
 
 function DraftSimReport({
@@ -173,7 +173,7 @@ function DraftSimReport({
 
       <div className="cube-draft-sim-stat">
         <div className="cube-draft-sim-stat-row">
-          <span className="cube-draft-sim-label">Reached 23 playables in two colours</span>
+          <span className="cube-draft-sim-label">Reached 23 playables in two colors</span>
           <strong className="cube-draft-sim-stat-value">{reachPct}%</strong>
         </div>
         <MeterBar value={result.reachedBarShare} max={1} />
@@ -182,13 +182,13 @@ function DraftSimReport({
         </p>
         {result.reachedBarShare < REACH_NOTE_THRESHOLD && (
           <p className="cube-draft-sim-note">
-            {`Only ${reachPct}% of simulated decks reached a full two-colour build. The cube is likely thin in too many colour pairs for a ${nominalPlayers}-player pod.`}
+            {`Only ${reachPct}% of simulated decks reached a full two-color build. The cube is likely thin in too many color pairs for a ${nominalPlayers}-player pod.`}
           </p>
         )}
       </div>
 
       <div className="cube-draft-sim-pairs">
-        <p className="cube-draft-sim-label">Colour pairs drafted</p>
+        <p className="cube-draft-sim-label">Color pairs drafted</p>
         <ul className="cube-draft-sim-pair-list">
           {result.pairShares.map((p) => (
             <PairRow key={p.label} pair={p.pair} label={p.label} share={p.share} />

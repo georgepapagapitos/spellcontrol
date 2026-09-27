@@ -98,7 +98,28 @@ describe('CubeResult — Commanders section (board #12, PR3)', () => {
 
     expect(screen.queryByRole('button', { name: 'Draftability' })).toBeNull();
     expect(screen.getByText('Commander coverage')).toBeTruthy();
-    expect(screen.getByText(/3 commanders across 2 colour identities/)).toBeTruthy();
+    expect(screen.getByText(/3 commanders across 2 color identities/)).toBeTruthy();
+  });
+
+  it('collapses to a preview row with "See all N commanders", which expands the rest', () => {
+    const legends = Array.from({ length: 9 }, (_, i) => legend(i));
+    renderCube(cube({ format: 'commander', legends }));
+    const commanders = document.querySelector('.cube-commanders') as HTMLElement;
+
+    // Collapsed by default: only the first 6 tiles, plus the expand control.
+    expect(within(commanders).getAllByRole('button', { name: /^Legend \d/ })).toHaveLength(6);
+    const seeAll = within(commanders).getByRole('button', { name: 'See all 9 commanders' });
+
+    fireEvent.click(seeAll);
+    expect(within(commanders).getAllByRole('button', { name: /^Legend \d/ })).toHaveLength(9);
+    expect(within(commanders).getByRole('button', { name: 'Show fewer' })).toBeTruthy();
+  });
+
+  it('never shows "See all" when every legend already fits in one preview row', () => {
+    const legends = [legend(1, 'G'), legend(2, 'G'), legend(3, 'WU')];
+    renderCube(cube({ format: 'commander', legends }));
+    const commanders = document.querySelector('.cube-commanders') as HTMLElement;
+    expect(within(commanders).queryByText(/See all/)).toBeNull();
   });
 
   it('empty state: a Commander cube saved before legends existed (`legends` undefined) explains itself', () => {
@@ -117,7 +138,7 @@ describe('CubeResult — Commanders section (board #12, PR3)', () => {
     expect(screen.getByText('No commanders in this cube.')).toBeTruthy();
   });
 
-  it('short state: fewer legends than the size target shows the shortfall note, and renders a "short" gap when generateCube reported one', () => {
+  it('short state: the shortfall fact lives ONLY in "Where your collection lands" — the coverage panel never repeats it', () => {
     // size 180 → LEGEND_TARGET 60; 10 legends is well short.
     const legends = Array.from({ length: 10 }, (_, i) => legend(i));
     const gapText =
@@ -130,19 +151,22 @@ describe('CubeResult — Commanders section (board #12, PR3)', () => {
         gaps: [{ severity: 'short', text: gapText }],
       })
     );
-    // Coverage is collapsed by default (STYLE_GUIDE "insight surfaces never
-    // displace content") — open it before checking its note.
-    fireEvent.click(screen.getByRole('button', { name: 'Commander coverage' }));
-    expect(document.querySelector('.cube-commander-coverage-note')?.textContent).toMatch(
-      /50 short of the 60-commander target/
-    );
     // "Where your collection lands" renders whatever generateCube put in gaps —
     // see generate.test.ts for the real derivation of that gap's text.
     expect(screen.getByText(gapText)).toBeTruthy();
     expect(document.querySelector('.cube-gap-short')?.textContent).toBe(gapText);
+
+    // Coverage is collapsed by default (STYLE_GUIDE "insight surfaces never
+    // displace content") — open it and confirm it does NOT restate the fact
+    // (one fact, one place): no `.cube-commander-coverage-note` element at all.
+    fireEvent.click(screen.getByRole('button', { name: 'Commander coverage' }));
+    expect(document.querySelector('.cube-commander-coverage-note')).toBeNull();
+    expect(document.querySelector('.cube-commander-coverage-body')?.textContent).not.toMatch(
+      /short/i
+    );
   });
 
-  it('the coverage grid flags a zero-count identity and never uses colour alone', () => {
+  it('the coverage grid flags a zero-count identity and never uses color alone', () => {
     const legends = [legend(1, 'G'), legend(2, 'G')];
     renderCube(cube({ format: 'commander', legends }));
     fireEvent.click(screen.getByRole('button', { name: 'Commander coverage' }));

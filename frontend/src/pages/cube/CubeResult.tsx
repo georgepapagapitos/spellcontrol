@@ -243,8 +243,6 @@ export function CubeResult({
         <CubeSuppliers cube={cube} supplierMap={supplierMap} myUsername={myUsername} />
       )}
 
-      <CubeCommandersSection cube={cube} view={view} enrichedMap={enrichedMap} />
-
       <div className="cube-balance">
         <h3>Color balance</h3>
         <StackedBar segments={segments} size="md" />
@@ -334,6 +332,8 @@ export function CubeResult({
           </div>
         )}
       </div>
+
+      <CubeCommandersSection cube={cube} view={view} enrichedMap={enrichedMap} />
 
       <div className="cube-list">
         <div className="cube-list-head">

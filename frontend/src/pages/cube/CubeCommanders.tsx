@@ -1,18 +1,27 @@
 // The Commanders section (board #12, PR3): a Commander cube's legend
-// section, shown above the spell buckets — a legend is chosen for what it
-// enables as a commander, not where it slots on a curve, so it gets its own
-// gallery/rows rather than mixing into the colour-bucket groups below (design
-// doc § 4). Read-only: locking/swapping/banning a SPECIFIC legend isn't a
-// thing the generator supports yet (`selectLegends` has no lock/ban
-// awareness of its own) — a deliberate scope cut, not an oversight, so no
-// edit affordance is offered here that would silently do nothing.
+// section, shown directly above the spell buckets ("The cards") — a legend
+// is chosen for what it enables as a commander, not where it slots on a
+// curve, so it gets its own header + gallery/rows rather than mixing into
+// the colour-bucket groups below (design doc § 4). Collapsed to one row of
+// tiles (or rows) by default with a "See all N commanders" control — same
+// "insight surfaces never displace content" idiom as Cube health /
+// Draftability, just a peek instead of a one-line summary since the whole
+// point here IS the cards. State is per page view (plain useState, not
+// persisted) — a fresh visit always starts collapsed.
+//
+// Read-only: locking/swapping/banning a SPECIFIC legend isn't a thing the
+// generator supports yet (`selectLegends` has no lock/ban awareness of its
+// own) — a deliberate scope cut, not an oversight, so no edit affordance is
+// offered here that would silently do nothing.
 //
 // `CommanderCoveragePanel` is the colour-identity coverage readout that
 // replaces Draftability for a Commander cube (PR1 open question 6): a
 // straight count of this cube's own commanders per identity, never a
 // simulated draft — `draft-sim.ts`'s model (best 23-card deck in one
 // 2-colour pair) has no notion of a singleton, colour-identity-restricted
-// Commander deck.
+// Commander deck. The shortfall fact itself lives ONLY in "Where your
+// collection lands" (./generate's gaps) — this panel's zero-count cells
+// already flag which identities are thin, so it doesn't restate the count.
 
 import { useMemo, useState } from 'react';
 import { ChevronDown, Crown } from 'lucide-react';
@@ -21,12 +30,13 @@ import { CardPreview } from '../../components/CardPreview';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { COLORS, COLOR_PAIRS, type GeneratedCube } from '../../lib/cube/generate';
-import { LEGEND_TARGET, type LegendIdentity } from '../../lib/cube/legend';
+import type { LegendIdentity } from '../../lib/cube/legend';
 import { pickToPreviewCard } from './shared';
+import { Button } from '../../components/shared/Button';
 
 const ALL_IDENTITIES: LegendIdentity[] = [...COLORS, ...COLOR_PAIRS, 'other'];
-/** "W" / "WU" / "3+" — plain letters, same "colour is never the only signal"
- *  rule the draft-sim pips already follow, just without a colour swatch at
+/** "W" / "WU" / "3+" — plain letters, same "color is never the only signal"
+ *  rule the draft-sim pips already follow, just without a color swatch at
  *  all here (a 16-cell grid of swatches would out-noise the letters). */
 const IDENTITY_LABEL: Record<LegendIdentity, string> = (() => {
   const l = {} as Record<LegendIdentity, string>;
@@ -35,6 +45,10 @@ const IDENTITY_LABEL: Record<LegendIdentity, string> = (() => {
   l.other = '3+';
   return l;
 })();
+
+/** Roughly one gallery row at the widths this app supports — the approved
+ *  mockup's own preview count (design doc § 4, mockup §3). */
+const PREVIEW_COUNT = 6;
 
 /** A crown badge, reusing the existing tile-corner badge chip (same one the
  *  gallery's "Locked" badge uses) so a Commander tile needs no new CSS.
@@ -69,12 +83,15 @@ export function CubeCommandersSection({
   enrichedMap: Map<string, ScryfallCard>;
 }) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const status = legendsStatus(cube);
   const legends = cube.legends ?? [];
   const previewCards = useMemo<EnrichedCard[]>(
     () => legends.map((l) => pickToPreviewCard(l.card, enrichedMap)),
     [legends, enrichedMap]
   );
+  const canExpand = legends.length > PREVIEW_COUNT;
+  const visible = expanded ? legends : legends.slice(0, PREVIEW_COUNT);
 
   if (status === 'not-commander') return null;
 
@@ -102,7 +119,10 @@ export function CubeCommandersSection({
         legends.length > 0 &&
         (view === 'gallery' ? (
           <div className="cube-gallery">
-            {legends.map((l, i) => (
+            {/* `visible` is always a PREFIX of `legends` (a slice(0, N), or
+                the whole array once expanded), so its own index IS the index
+                into `legends`/`previewCards` — no separate lookup needed. */}
+            {visible.map((l, i) => (
               <CardGridCell
                 key={l.card.oracleId || l.card.name}
                 card={previewCards[i]}
@@ -115,7 +135,7 @@ export function CubeCommandersSection({
           </div>
         ) : (
           <ul className="cube-rows">
-            {legends.map((l, i) => {
+            {visible.map((l, i) => {
               const s = enrichedMap.get(l.card.name);
               const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
               return (
@@ -144,6 +164,12 @@ export function CubeCommandersSection({
             })}
           </ul>
         ))}
+
+      {status === 'ready' && canExpand && (
+        <Button className="cube-commanders-see-all" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? 'Show fewer' : `See all ${legends.length} commanders`}
+        </Button>
+      )}
 
       {previewIndex !== null && previewCards[previewIndex] && (
         <CardPreview
@@ -181,13 +207,12 @@ export function CommanderCoveragePanel({ cube }: { cube: GeneratedCube }) {
 
   if (status === 'not-commander') return null;
 
-  const target = LEGEND_TARGET[cube.size];
   const summary =
     status === 'pre-legends'
       ? 'No legend section yet. Rebuild this cube to add one.'
       : legends.length === 0
         ? 'No commanders in this cube.'
-        : `${legends.length} commander${legends.length === 1 ? '' : 's'} across ${ALL_IDENTITIES.filter((id) => counts[id] > 0).length} colour identities.`;
+        : `${legends.length} commander${legends.length === 1 ? '' : 's'} across ${ALL_IDENTITIES.filter((id) => counts[id] > 0).length} color identities.`;
 
   return (
     <div className="cube-commander-coverage">
@@ -207,8 +232,7 @@ export function CommanderCoveragePanel({ cube }: { cube: GeneratedCube }) {
       {open && status === 'ready' && legends.length > 0 && (
         <div id="cube-commander-coverage-body" className="cube-commander-coverage-body">
           <p className="cube-commander-coverage-sub">
-            Legendary creatures in this cube, by colour identity. A count of what's in the cube, not
-            a simulated draft.
+            Legendary creatures in this cube, by color identity.
           </p>
           <div className="cube-coverage-grid">
             {ALL_IDENTITIES.map((id) => (
@@ -218,12 +242,6 @@ export function CommanderCoveragePanel({ cube }: { cube: GeneratedCube }) {
               </div>
             ))}
           </div>
-          {legends.length < target && (
-            <p className="cube-commander-coverage-note">
-              {target - legends.length} short of the {target}-commander target for a {cube.size}
-              -card cube. Own more legends to fill it out.
-            </p>
-          )}
         </div>
       )}
     </div>
