@@ -15,7 +15,7 @@ const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m
 const ICON_PROPS = { width: 22, height: 22, strokeWidth: 1.7, 'aria-hidden': true } as const;
 
 /** Same boundary as the CSS phone tier. */
-const PHONE = '(max-width: 600px)';
+const PHONE = '(max-width: 599px)';
 /** Scroll this far in one direction before the button reacts, so a finger's
  *  jitter at rest doesn't flicker it. */
 const SCROLL_SLOP_PX = 8;

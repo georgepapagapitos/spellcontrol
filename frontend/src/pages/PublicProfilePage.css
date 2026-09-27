@@ -170,7 +170,7 @@
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .public-profile-header {
     flex-direction: column;
     text-align: center;

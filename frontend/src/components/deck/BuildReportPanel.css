@@ -337,7 +337,7 @@
    anywhere) and the gap chips already flex-wrap, so no reflow is needed —
    just a slightly denser stack. Matches the 600px tier used by the sibling
    stat panels. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .build-report {
     gap: 0.35rem;
   }

@@ -204,6 +204,10 @@ meanwhile.
   44 / 40 / 36px, rows 44 / 40 / 36px, body text 16 / 15 / 15px, page gutter
   16 / 24 / 32px, all driven by tier tokens rather than per-component media
   queries. Tablet is its own tier: it does not inherit phone-size controls.
+- **A query that closes a tier ends on 599px or 1023px**, never 600 or 1024:
+  `max-width: 600px` and `min-width: 600px` both match at exactly 600px, so
+  that width ran phone and tablet rules together
+  (`styles/tier-edge-queries.test.ts`, stylesheets and matchMedia strings).
 - **Shape follows role** (§ Shape language — corners): actions are rects;
   filters, sort, toggles, chips and search are pills; circles are only the
   camera button and avatars. An icon-only action such as `⋮` is a rect the

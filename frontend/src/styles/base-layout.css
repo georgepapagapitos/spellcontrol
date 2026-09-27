@@ -116,7 +116,7 @@ body {
    of content width at 360px viewports, and most pages already host
    panels/cards with their own internal padding so the page-level
    gutter is mostly empty space. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .app-main {
     --page-gutter: 0.5rem;
   }

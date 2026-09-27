@@ -29,7 +29,7 @@
    HomeHero.css ruling, applied to this page's own shell instead of
    .app-shell). */
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .welcome-hero {
     /* ~60vh, floored/ceilinged so a very short or very tall phone viewport
        still gets a sane band instead of a sliver or a screen-filling one. */

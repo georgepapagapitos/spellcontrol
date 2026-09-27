@@ -526,7 +526,7 @@
   color: var(--text-muted);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .format-pill {
     flex: 1 1 calc(50% - 0.4rem);
     text-align: center;

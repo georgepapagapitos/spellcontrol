@@ -13,7 +13,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.45));
+  box-shadow: var(--shadow-modal);
   overflow: hidden;
 }
 

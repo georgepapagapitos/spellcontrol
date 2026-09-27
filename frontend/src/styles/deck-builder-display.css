@@ -171,7 +171,7 @@
    ACTIVE toggle keeps its visible label: "Done" is the way out of select mode
    and must never be a bare glyph. Same trade as the grouped collection
    toolbar's Collapse-all, which went icon-only here for this exact reason. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   :is(.toolbar-pill, .pill-btn):not([aria-pressed='true']) > .toolbar-label-compact {
     display: none;
   }

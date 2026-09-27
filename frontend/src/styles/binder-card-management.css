@@ -814,7 +814,7 @@
    view down to 320px. The scrolling strip hid Scan past the edge with nothing
    to say there was more. Two classes to outweigh `.sc-tabs--underline .sc-tab`
    whatever order the sheets load in. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .add-cards-tabs.sc-tabs--underline .sc-tab {
     flex: 1 1 0;
     min-width: 0;

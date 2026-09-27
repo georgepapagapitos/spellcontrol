@@ -35,7 +35,7 @@
      lives at the end of this file; see the note there. */
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .deck-builder-page {
     gap: var(--space-4);
   }
@@ -120,7 +120,7 @@
    equal-specificity tie against the `max-width: 600px` block near the top. A
    phone rule written up there is silently dead. Until the file is reordered
    wide → narrow, phone overrides belong here, after it. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   /* Sharing the row is right for a 601–1024 tablet and wrong for a
      phone, so give it its own full-width line. The 100% basis is what makes
      that deterministic — the container's `flex-wrap` alone leaves Search

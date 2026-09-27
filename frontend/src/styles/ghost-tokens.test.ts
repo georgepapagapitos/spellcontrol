@@ -63,3 +63,56 @@ describe('ghost tokens (T35 migration)', () => {
     });
   }
 });
+
+// The deny-list above only knows names that were retired on purpose. A name
+// that was never declared at all fails the same silent way: `--shadow-panel`
+// rendered two popovers with no shadow, and `--font-sans` dropped a counter
+// label back to its parent's numeral face, with no build error. So every
+// custom property a stylesheet reads must be declared somewhere: in a
+// stylesheet, or as a quoted '--name' a component sets inline. A var() with
+// a fallback is held to the same rule, because a fallback on a name nothing
+// ever sets is dead code dressed as a token.
+const OVERRIDE_HOOKS = new Set([
+  // Read with a fallback on purpose: a caller may set them, none does yet.
+  '--collection-controls-sticky-h',
+  '--foil-bars',
+]);
+
+function sourceFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...sourceFiles(full));
+    else if (/\.(css|tsx?)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+describe('every custom property a stylesheet reads is declared', () => {
+  const declared = new Set<string>();
+  const reads = new Map<string, string[]>();
+  for (const file of sourceFiles(srcRoot)) {
+    const src = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const m of src.matchAll(/(--[\w-]+)\s*:/g)) declared.add(m[1]);
+    for (const m of src.matchAll(/['"`](--[\w-]+)/g)) declared.add(m[1]);
+    if (!file.endsWith('.css')) continue;
+    for (const m of src.matchAll(/var\(\s*(--[\w-]+)/g)) {
+      reads.set(m[1], [...(reads.get(m[1]) ?? []), file]);
+    }
+  }
+
+  it('finds declarations and reads', () => {
+    expect(declared.size).toBeGreaterThan(100);
+    expect(reads.size).toBeGreaterThan(100);
+  });
+
+  it('reads no undeclared name', () => {
+    const undeclared = [...reads]
+      .filter(([name]) => !declared.has(name) && !OVERRIDE_HOOKS.has(name))
+      .map(([name, files]) => `${name} in ${[...new Set(files)].join(', ')}`);
+    expect(
+      undeclared,
+      `Nothing declares these, so they resolve to their fallback or to nothing. Use an existing token from tokens.css:\n${undeclared.join('\n')}`
+    ).toEqual([]);
+  });
+});

@@ -133,7 +133,7 @@
    cluster tucked under them on the second. The direction keeps its words — a
    bare arrow is the asc/desc ambiguity the direction label exists to remove.
 
-   ⚠️ This was a `@media (max-width: 600px)` VIEWPORT query, which asked the
+   ⚠️ This was a `@media (max-width: 599px)` VIEWPORT query, which asked the
    wrong question. The popover host is capped at `min(26rem, 100vw - 2rem)`, so
    its content box is ~387px at EVERY viewport ≥ 600px — the four-track grid
    needs ~411px, the trailing `1fr` track got starved to 79px, and the
@@ -257,7 +257,7 @@
   max-width: 240px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .rule-label {
     width: 100%;
   }
@@ -674,7 +674,7 @@
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-tooltip);
   overflow: hidden;
 }
 

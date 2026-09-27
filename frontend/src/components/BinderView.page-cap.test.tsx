@@ -36,7 +36,7 @@ import { BinderView, PHONE_SECTION_PAGE_CAP, SECTION_PAGE_CAP } from './BinderVi
 
 function stubPhone(phone: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: /max-width:\s*600px/.test(query) ? phone : false,
+    matches: /max-width:\s*599px/.test(query) ? phone : false,
     media: query,
     onchange: null,
     addEventListener: () => {},

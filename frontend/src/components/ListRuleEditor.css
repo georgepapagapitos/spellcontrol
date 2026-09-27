@@ -24,7 +24,7 @@
 
 /* Cancel leaves the phone footer, as in the binder editor: the ×, the
    backdrop and the back gesture all dismiss, and the row needs its width. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .list-rule-editor-cancel {
     display: none;
   }

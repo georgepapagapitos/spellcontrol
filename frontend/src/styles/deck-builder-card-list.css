@@ -85,7 +85,7 @@
   display: none;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .deck-card-grid {
     --card-min: var(--card-min-mobile, 110px);
   }
@@ -136,7 +136,7 @@
   --stack-open: calc(var(--stack-card-h) - var(--stack-peek));
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .deck-grid-section--stack {
     --stack-w: var(--stack-w-mobile, 154px);
   }
@@ -1167,7 +1167,7 @@
    Nothing is lost: all three live in the card preview with the reason prose
    their tooltips can't deliver on touch anyway, and tapping the row is
    already what opens it. Tighter gaps buy the name a few more characters. */
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .deck-row-hovermeta {
     display: none;
   }

@@ -397,7 +397,7 @@
 /* Phones (and short landscape viewports): tighter sticky search row so the
    pinned chrome leaves room for content. Kept beside the base token — the
    two values are one contract. */
-@media (max-width: 600px), (max-height: 480px) {
+@media (max-width: 599px), (max-height: 480px) {
   :root {
     --collection-search-sticky-h: 3rem;
   }
