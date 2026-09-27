@@ -221,9 +221,9 @@ function TradesPageBody() {
       {loadError && (
         <div className="friends-error" role="alert">
           <span>{loadError}</span>
-          <button type="button" className="friends-error-retry" onClick={refresh}>
+          <Button onClick={refresh} className="friends-error-retry">
             Retry
-          </button>
+          </Button>
         </div>
       )}
 

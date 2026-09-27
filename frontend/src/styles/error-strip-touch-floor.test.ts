@@ -15,27 +15,20 @@ const srcRoot = join(here, '..');
  * Every surface whose page never loaded Discover's stylesheet (the Welcome
  * page's Trending rail, Play, game nights) shipped a 32px touch target.
  *
- * The floor belongs with the strip, in the global shared.css, and nowhere
- * else, so it can't drift back into one page's chunk.
+ * The Retry is a `Button` now (T152 W8f), so its look and its floor come from
+ * `.btn`, which declares the coarse floor itself (shared-control-floors.test.ts).
+ * What this pins: every Retry in the strip renders as `Button`, never a raw
+ * `<button>` that would fall back to a bare 32px box, and the class that seats
+ * it in the strip lives in the global shared.css only, so it can't drift back
+ * into one page's chunk.
  */
 
-/** Bodies of every `@media (pointer: coarse)` block in the sheet, joined. */
-function coarseBlocks(sheet: string): string {
-  const out: string[] = [];
-  const re = /@media\s*\(pointer:\s*coarse\)\s*\{/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(sheet))) {
-    let depth = 1;
-    let i = m.index + m[0].length;
-    const start = i;
-    while (i < sheet.length && depth > 0) {
-      if (sheet[i] === '{') depth++;
-      else if (sheet[i] === '}') depth--;
-      i++;
-    }
-    out.push(sheet.slice(start, i - 1));
-  }
-  return out.join('\n');
+function tsxFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) return tsxFiles(path);
+    return name.endsWith('.tsx') && !name.endsWith('.test.tsx') ? [path] : [];
+  });
 }
 
 function cssFiles(dir: string): string[] {
@@ -47,11 +40,20 @@ function cssFiles(dir: string): string[] {
 }
 
 describe('load-failure strip touch floor', () => {
-  it('floors the Retry pill at 44px on touch, in shared.css', () => {
-    const shared = readFileSync(join(here, 'shared.css'), 'utf8');
-    expect(coarseBlocks(shared)).toMatch(
-      /\.discover-decks-error-retry\s*\{[^}]*min-height:\s*44px/
-    );
+  it('renders every Retry as Button, which carries the 44px coarse floor', () => {
+    const raw: string[] = [];
+    let seen = 0;
+    for (const path of tsxFiles(srcRoot)) {
+      const src = readFileSync(path, 'utf8');
+      for (const m of src.matchAll(/className="discover-decks-error-retry"/g)) {
+        seen++;
+        const open = src.lastIndexOf('<', m.index);
+        if (!src.startsWith('<Button', open))
+          raw.push(path.slice(srcRoot.length + 1).replace(/\\/g, '/'));
+      }
+    }
+    expect(seen, 'the scan found no Retry at all').toBeGreaterThan(0);
+    expect(raw, 'render the strip Retry as Button').toEqual([]);
   });
 
   it('declares the Retry pill in no stylesheet but shared.css', () => {

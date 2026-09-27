@@ -1207,13 +1207,12 @@ function LocalSetup({
       {isHorde && hordeStatus === 'error' && (
         <div className="discover-decks-error" role="alert">
           <span>{hordeLoadError ?? "Couldn't load that horde."}</span>
-          <button
-            type="button"
-            className="discover-decks-error-retry"
+          <Button
             onClick={() => useHordeGameStore.getState().retryLoad()}
+            className="discover-decks-error-retry"
           >
             Retry
-          </button>
+          </Button>
         </div>
       )}
 

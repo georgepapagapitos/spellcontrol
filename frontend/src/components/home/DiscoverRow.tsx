@@ -5,6 +5,7 @@ import { DiscoverDeckTile } from '../DiscoverDeckTile';
 import { listDiscoverDecks, type DiscoverDeck } from '../../lib/discover-client';
 import { userMessage } from '@/lib/user-error';
 import { HomeSectionSearch } from './HomeSectionSearch';
+import { Button } from '@/components/shared/Button';
 
 const ROW_LIMIT = 5;
 
@@ -77,14 +78,9 @@ export function DiscoverRow() {
       ) : error ? (
         <div className="home-quiet" role="alert">
           <span className="home-quiet-text">{error}</span>
-          <button
-            type="button"
-            className="home-card-retry"
-            aria-label="Retry loading Discover"
-            onClick={retry}
-          >
+          <Button aria-label="Retry loading Discover" onClick={retry} className="home-card-retry">
             Retry
-          </button>
+          </Button>
         </div>
       ) : decks && decks.length > 0 ? (
         <ul className="decks-index-list is-grid home-rail">

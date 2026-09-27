@@ -345,9 +345,9 @@ export function DiscoverDecksPage() {
         ) : error ? (
           <div className="discover-decks-error" role="alert">
             <span>{error}</span>
-            <button type="button" className="discover-decks-error-retry" onClick={loadFirstPage}>
+            <Button onClick={loadFirstPage} className="discover-decks-error-retry">
               Retry
-            </button>
+            </Button>
           </div>
         ) : displayDecks.length === 0 ? (
           hasActiveFilters ? (
@@ -385,13 +385,9 @@ export function DiscoverDecksPage() {
             {loadMoreError ? (
               <div className="discover-decks-error" role="alert">
                 <span>{loadMoreError}</span>
-                <button
-                  type="button"
-                  className="discover-decks-error-retry"
-                  onClick={handleLoadMore}
-                >
+                <Button onClick={handleLoadMore} className="discover-decks-error-retry">
                   Retry
-                </button>
+                </Button>
               </div>
             ) : (
               hasMore && (

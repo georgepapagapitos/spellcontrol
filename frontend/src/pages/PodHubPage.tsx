@@ -443,9 +443,9 @@ export function PodHubPage() {
         <BackLink to="/pods" label="Pods" />
         <p className="friends-error" role="alert">
           <span>{loadError}</span>
-          <button type="button" className="friends-error-retry" onClick={loadPod}>
+          <Button onClick={loadPod} className="friends-error-retry">
             Retry
-          </button>
+          </Button>
         </p>
       </div>
     );
@@ -623,9 +623,9 @@ export function PodHubPage() {
               ) : gamesFetch.status === 'error' ? (
                 <p className="friends-error" role="alert">
                   <span>{gamesFetch.message}</span>
-                  <button type="button" className="friends-error-retry" onClick={loadGames}>
+                  <Button onClick={loadGames} className="friends-error-retry">
                     Retry
-                  </button>
+                  </Button>
                 </p>
               ) : gamesFetch.games.length === 0 ? (
                 <div className="pod-hub-stats-empty pod-hub-stats-empty-cta">
@@ -678,9 +678,9 @@ export function PodHubPage() {
               ) : leaderboardFetch.status === 'error' ? (
                 <p className="friends-error" role="alert">
                   <span>{leaderboardFetch.message}</span>
-                  <button type="button" className="friends-error-retry" onClick={loadLeaderboard}>
+                  <Button onClick={loadLeaderboard} className="friends-error-retry">
                     Retry
-                  </button>
+                  </Button>
                 </p>
               ) : leaderboardFetch.standings.length === 0 ? (
                 <p className="pod-hub-stats-empty">No standings yet.</p>

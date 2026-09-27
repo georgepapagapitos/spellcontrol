@@ -286,10 +286,7 @@ function CardMatchGroup({
         )}
         {all.status === 'error' && (
           <p className="sets-status" role="alert">
-            Couldn't load printings.{' '}
-            <button type="button" className="sets-retry" onClick={loadAll}>
-              Retry
-            </button>
+            Couldn't load printings. <Button onClick={loadAll}>Retry</Button>
           </p>
         )}
         {all.status === 'done' &&
@@ -686,9 +683,7 @@ function SetDetail({ code }: { code: string }) {
       {state.status === 'error' && (
         <div className="sets-error" role="alert">
           <p>{state.message}</p>
-          <button type="button" className="sets-retry" onClick={() => setAttempt((a) => a + 1)}>
-            Retry
-          </button>
+          <Button onClick={() => setAttempt((a) => a + 1)}>Retry</Button>
         </div>
       )}
 

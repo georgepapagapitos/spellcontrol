@@ -154,9 +154,9 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
     return (
       <div className="discover-decks-error" role="alert">
         <span>{error}</span>
-        <button type="button" className="discover-decks-error-retry" onClick={() => void refresh()}>
+        <Button onClick={() => void refresh()} className="discover-decks-error-retry">
           Retry
-        </button>
+        </Button>
       </div>
     );
   }

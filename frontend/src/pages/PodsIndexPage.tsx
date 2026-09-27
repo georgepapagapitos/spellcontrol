@@ -190,9 +190,9 @@ function PodsIndexPageBody() {
       {loadError && (
         <div className="friends-error" role="alert">
           <span>{loadError}</span>
-          <button type="button" className="friends-error-retry" onClick={loadPods}>
+          <Button onClick={loadPods} className="friends-error-retry">
             Retry
-          </button>
+          </Button>
         </div>
       )}
 

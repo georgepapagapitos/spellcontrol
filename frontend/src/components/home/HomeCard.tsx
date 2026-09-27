@@ -3,6 +3,7 @@ import { ChevronRight, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   title: string;
@@ -93,14 +94,13 @@ export function HomeCard({
           <div className="home-card-error" role="alert">
             <span>{error}</span>
             {onRetry && (
-              <button
-                type="button"
-                className="home-card-retry"
+              <Button
                 aria-label={`Retry loading ${title}`}
                 onClick={onRetry}
+                className="home-card-retry"
               >
                 Retry
-              </button>
+              </Button>
             )}
           </div>
         ) : (

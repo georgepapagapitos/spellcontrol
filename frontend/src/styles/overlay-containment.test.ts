@@ -354,7 +354,6 @@ describe('coarse-pointer touch floor', () => {
     // The two collection-tile badges are NOT in this list: neither axis can
     // reach 44px without stealing another control's taps. See the test below
     // the loop, which pins their measured geometry instead.
-    ['components/home/HomeCard.css', '.home-card-retry'],
     ['styles/deck-builder-analysis.css', '.deck-stat-btn'],
     ['styles/deck-builder-toast.css', '.toast-close'],
     // Card preview: the action row, the Flip/Turn button on the art, and the

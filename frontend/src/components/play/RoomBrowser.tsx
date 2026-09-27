@@ -58,9 +58,9 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
     return (
       <div className="discover-decks-error" role="alert">
         <span>{error}</span>
-        <button type="button" className="discover-decks-error-retry" onClick={() => void refresh()}>
+        <Button onClick={() => void refresh()} className="discover-decks-error-retry">
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
