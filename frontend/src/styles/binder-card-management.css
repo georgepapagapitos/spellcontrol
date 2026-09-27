@@ -734,12 +734,54 @@
    Uses the standard .modal shell (mobile full-bleed, ≤720px centered
    on desktop) with a tab strip injected between header and body. */
 
+/* Widened past the shell's 480px default for the desktop two-pane workbench
+   (STYLE_GUIDE § Overlays "a dense desktop dialog widens past the phone
+   default"; width table updated 900 -> 1180). Below 1024px the sheet block
+   further down overrides this back to full width — it wins on specificity
+   regardless of source order (two classes + a combinator vs. one class). */
 .add-cards-modal {
-  max-width: 920px;
+  max-width: 1180px;
   /* Entrance/exit come from the structural .modal-backdrop > [role='dialog']
-     rules (the ONE dialog motion, UX-201) — the component only routes its
-     dismiss paths through useSheetExit('modal-panel-out') so every close
-     plays that shared exit. No bespoke keyframes here. */
+     rules (the ONE dialog motion, UX-201) — <Modal> owns is-closing and the
+     exit animation. No bespoke keyframes here. */
+}
+
+/* Bottom sheet below 1024px (STYLE_GUIDE § Overlays: "on-demand panels ...
+   a bottom sheet on mobile, centered modal >=1024px"). The shared
+   `.modal-backdrop--sheet` primitive only sheets up to 600px, which is
+   right for a short picker but leaves the tablet-width Add-cards dialog as
+   a floating full-height card instead of a sheet — this scoped block
+   extends the exact same treatment (copied from modals-dialogs.css) up to
+   the tablet/desktop boundary for this dialog only. */
+@media (max-width: 1023px) {
+  .modal-backdrop.add-cards-backdrop {
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .modal-backdrop.add-cards-backdrop > [role='dialog'] {
+    max-width: none;
+    width: 100%;
+    max-height: calc(var(--vh-safe) - 3rem - var(--keyboard-inset));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    /* Belt and braces alongside .add-cards-list-bar's own safe-bottom pad
+       (only present once the list has items): whatever tab is showing when
+       the sheet has none still clears the home indicator. */
+    padding-bottom: var(--safe-bottom);
+    animation: sheet-panel-in 220ms var(--ease-out-soft);
+  }
+
+  .modal-backdrop.add-cards-backdrop.is-closing > [role='dialog'] {
+    animation: modal-panel-out var(--motion-fast) var(--ease-out-soft) forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop.add-cards-backdrop > [role='dialog'] {
+    animation: none;
+  }
 }
 
 /* The sheet's chrome never shrinks. `.modal` has only a max-height, so a tall
@@ -812,6 +854,17 @@
   min-height: 0;
 }
 
+/* Below 1024px this is a transparent wrapper around AddCardSearchPanel
+   alone (the inspector isn't rendered). At and above 1024px it becomes the
+   desktop two-pane workbench: results on the left, a live inspector for
+   the active row on the right (T153 phase 4). */
+.add-cards-search-workbench {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .add-cards-panel-search,
 .add-cards-panel-upload,
 .add-cards-panel-product {
@@ -821,6 +874,26 @@
 .add-cards-panel-search .add-card-search-input-wrap,
 .add-cards-panel-product .add-card-search-input-wrap {
   padding-bottom: var(--space-2);
+}
+
+/* Desktop workbench override — declared after the base rules above so it
+   wins the equal-specificity tie (STYLE_GUIDE § CSS traps: a min-width
+   override placed above its base rule is dead). */
+@media (min-width: 1024px) {
+  .add-cards-panel-search {
+    padding: 0;
+  }
+
+  .add-cards-search-workbench {
+    display: grid;
+    grid-template-columns: 26rem minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .add-cards-search-workbench .add-card-search-panel {
+    border-right: 1px solid var(--border);
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
 }
 
 .add-cards-panel-search .add-card-sheet-body,
@@ -887,12 +960,10 @@
 }
 
 /* Mobile / phones: tighten chrome so as much of the body shows above the
-   on-screen keyboard as possible. */
+   on-screen keyboard as possible. The dialog's own width is already full
+   below 1024px via the sheet block above (higher specificity), so this
+   block only tightens padding now. */
 @media (max-width: 720px) {
-  .add-cards-modal {
-    max-width: 100%;
-  }
-
   .add-cards-panel-search,
   .add-cards-panel-upload {
     padding: var(--space-3) var(--space-4) var(--space-4);

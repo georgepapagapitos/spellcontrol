@@ -1,9 +1,7 @@
 import { Camera, Package, Search, Settings, Upload, X } from 'lucide-react';
-import { Suspense, lazy, useEffect, useId, useState, type ReactNode } from 'react';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
+import { Suspense, lazy, useId, useState, type ReactNode } from 'react';
 import { useCanScan } from '../lib/use-can-scan';
-import { useOverlayLayer } from '../lib/overlay-layer';
+import { useMediaQuery } from '../lib/use-media-query';
 import { importEntries, importScannedCards } from '../lib/scan-import';
 import { fetchErrorMessage } from '../lib/import-review';
 import {
@@ -14,13 +12,20 @@ import { formatMoney } from '../lib/format-money';
 import { useCollectionStore } from '../store/collection';
 import { rekeyedId, useScanQueue } from '../lib/use-scan-queue';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
+import { AddCardInspector } from './AddCardInspector';
 import { UploadPanel } from './UploadPanel';
 import { ProductSearchPanel } from './ProductSearchPanel';
 import { ImportRoutingSummary } from './ImportRoutingSummary';
+import { Modal } from './Modal';
 import { Tabs } from './Tabs';
 
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
+import type { ScryfallCard } from '@/deck-builder/types';
+
+/** Density tier boundary (STYLE_GUIDE § Layout system): desktop >=1024px gets
+ *  the two-pane Search workbench; phone/tablet keep the single-column sheet. */
+const DESKTOP_QUERY = '(min-width: 1024px)';
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 // Lazy so its admin-scanner.css classes stay out of this page's eager chunk
 // (css-chunk-ownership.test.ts) — the sheet carries that stylesheet itself.
@@ -110,28 +115,10 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
   const deleteImports = useCollectionStore((s) => s.deleteImports);
   const labelId = useId();
 
-  useLockBodyScroll();
-
-  // Symmetric exit so every dismiss path — backdrop, ✕, Escape, a panel's
-  // own close — plays the exit before unmount instead of teleport-vanishing.
-  // The animation itself is the structural .modal-backdrop motion (the ONE
-  // dialog entrance/exit, UX-201) — we wait on its `modal-panel-out`.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'modal-panel-out');
-
-  // Registers this sheet in the shared overlay-layer stack (the same one
-  // <Modal> and CardScanner use) so its Escape only fires when nothing —
-  // the Add-list review, a row edit, the scanner, its settings — is stacked
-  // on top of it. Without this, Escape closed the whole sheet out from under
-  // whatever was open above it.
-  const { isTopmost } = useOverlayLayer();
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isTopmost()) beginClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [beginClose, isTopmost]);
+  // Desktop Search workbench (T153 phase 4): a live inspector pane tracks
+  // the active result row instead of each row's own printing disclosure.
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const [activeSearchCard, setActiveSearchCard] = useState<ScryfallCard | null>(null);
 
   /** Resolves true once the cards are in the collection, so the scanner takes
    *  those rows off its list (it used to keep them, ready to add twice). A
@@ -243,20 +230,18 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
   ];
 
   return (
-    <div
-      className={`modal-backdrop add-cards-backdrop${isClosing ? ' is-closing' : ''}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-      role="presentation"
-    >
-      <div
-        className={`modal add-cards-modal${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={labelId}
-        onAnimationEnd={onAnimationEnd}
+    <>
+      {/* The shared Modal: focus trap and restore, exit animation, hardware
+          back, the overlay-layer Escape stack (topmost-only, so the Add-list
+          review / a row edit / the scanner / its settings answer Escape
+          first when stacked above this). `add-cards-backdrop` is a bottom
+          sheet below 1024px and a centered workspace dialog at and above it
+          (STYLE_GUIDE § Overlays). */}
+      <Modal
+        onClose={onClose}
+        className="modal add-cards-modal"
+        backdropClassName="add-cards-backdrop"
+        labelledBy={labelId}
       >
         <div className="modal-header add-cards-modal-header">
           <h2 id={labelId}>Add cards</h2>
@@ -269,9 +254,11 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
               icon={<Settings width={18} height={18} strokeWidth={1.8} />}
               onClick={() => setSettingsOpen(true)}
             />
+            {/* A dialog's own close button unmounts directly — Modal reserves
+                its animated exit for Escape/backdrop dismissal. */}
             <IconButton
               className="modal-close"
-              onClick={() => beginClose()}
+              onClick={onClose}
               label="Close"
               icon={<X width={20} height={20} strokeWidth={1.8} />}
             />
@@ -302,12 +289,34 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             hidden={activeTab !== 'search'}
             className="add-cards-panel add-cards-panel-search"
           >
-            <AddCardSearchPanel
-              autoFocus={activeTab === 'search'}
-              initialQuery={initialQuery}
-              onEscape={beginClose}
-              addToList
-            />
+            {/* Desktop (>=1024px): a two-pane workbench — results on the
+                left, a live inspector for the active row on the right,
+                which replaces the per-row "Printing & finish" disclosure.
+                Below that, unchanged: one column, the disclosure stays. */}
+            <div className="add-cards-search-workbench">
+              <AddCardSearchPanel
+                autoFocus={activeTab === 'search'}
+                initialQuery={initialQuery}
+                onEscape={onClose}
+                addToList
+                onActiveChange={isDesktop ? setActiveSearchCard : undefined}
+                hideRowDisclosure={isDesktop}
+              />
+              {isDesktop && (
+                <AddCardInspector
+                  card={activeSearchCard}
+                  onAdd={(printing, finish, extras) =>
+                    addToAddList(printing, {
+                      finish,
+                      condition: extras.condition,
+                      language: extras.language,
+                      qty: extras.quantity,
+                      source: 'searched',
+                    })
+                  }
+                />
+              )}
+            </div>
           </div>
 
           <div
@@ -327,7 +336,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             hidden={activeTab !== 'product'}
             className="add-cards-panel add-cards-panel-product"
           >
-            <ProductSearchPanel onClose={beginClose} />
+            <ProductSearchPanel onClose={onClose} />
           </div>
 
           {canScan && (
@@ -474,7 +483,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             </Button>
           </div>
         )}
-      </div>
+      </Modal>
 
       {scannerOpen && (
         <Suspense fallback={null}>
@@ -532,6 +541,6 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
           />
         </Suspense>
       )}
-    </div>
+    </>
   );
 }

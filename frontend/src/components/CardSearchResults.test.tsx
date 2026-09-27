@@ -188,3 +188,56 @@ describe('CardSearchResults addToList (T153 Add-list target)', () => {
     ]);
   });
 });
+
+describe('CardSearchResults onActiveChange / hideRowDisclosure (T153 phase 4, desktop workbench)', () => {
+  const second: ScryfallCard = { ...RESULT, id: 'row-parity-2', name: 'Ash Barrens' };
+
+  it('fires with the top result on mount, with no hover or keyboard nav yet', async () => {
+    const onActiveChange = vi.fn();
+    render(<CardSearchResults results={[RESULT, second]} onActiveChange={onActiveChange} />);
+    await act(async () => {});
+    expect(onActiveChange).toHaveBeenLastCalledWith(RESULT);
+  });
+
+  it('follows the row the pointer hovers', async () => {
+    const onActiveChange = vi.fn();
+    render(<CardSearchResults results={[RESULT, second]} onActiveChange={onActiveChange} />);
+    await act(async () => {});
+    onActiveChange.mockClear();
+
+    fireEvent.mouseEnter(screen.getByText('Ash Barrens').closest('li')!);
+    expect(onActiveChange).toHaveBeenLastCalledWith(second);
+  });
+
+  it('follows moveActive (the same keyboard nav AddCardSearchPanel drives)', async () => {
+    const onActiveChange = vi.fn();
+    const ref = { current: null as import('./CardSearchResults').CardSearchResultsHandle | null };
+    render(
+      <CardSearchResults ref={ref} results={[RESULT, second]} onActiveChange={onActiveChange} />
+    );
+    await act(async () => {});
+    onActiveChange.mockClear();
+
+    act(() => ref.current?.moveActive(1));
+    expect(onActiveChange).toHaveBeenLastCalledWith(second);
+  });
+
+  it('fires null once the result set empties', async () => {
+    const onActiveChange = vi.fn();
+    const { rerender } = render(
+      <CardSearchResults results={[RESULT]} onActiveChange={onActiveChange} />
+    );
+    await act(async () => {});
+    onActiveChange.mockClear();
+
+    rerender(<CardSearchResults results={[]} onActiveChange={onActiveChange} />);
+    await act(async () => {});
+    expect(onActiveChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('hides the per-row "Printing & finish" disclosure when hideRowDisclosure is set', async () => {
+    render(<CardSearchResults results={[RESULT]} hideRowDisclosure />);
+    await act(async () => {});
+    expect(screen.queryByRole('button', { name: /Printing/ })).toBeNull();
+  });
+});

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { SearchPill } from './SearchPill';
 import { CardSearchResults, type CardSearchResultsHandle } from './CardSearchResults';
 import { useSearchCards } from '../lib/use-search-cards';
+import type { ScryfallCard } from '@/deck-builder/types';
 
 interface Props {
   /** When provided, the card is also pinned to this binder after being added. */
@@ -20,6 +21,10 @@ interface Props {
    * and pins, so it leaves this off.
    */
   addToList?: boolean;
+  /** Pass-through to {@link CardSearchResults} — see its own doc comment. */
+  onActiveChange?: (card: ScryfallCard | null) => void;
+  /** Pass-through to {@link CardSearchResults} — see its own doc comment. */
+  hideRowDisclosure?: boolean;
 }
 
 /**
@@ -36,6 +41,8 @@ export function AddCardSearchPanel({
   initialQuery,
   onEscape,
   addToList,
+  onActiveChange,
+  hideRowDisclosure,
 }: Props) {
   const [query, setQuery] = useState(initialQuery ?? '');
   const { results, loading, error } = useSearchCards(query);
@@ -92,6 +99,8 @@ export function AddCardSearchPanel({
           results={results}
           binderId={binderId}
           addToList={addToList}
+          onActiveChange={onActiveChange}
+          hideRowDisclosure={hideRowDisclosure}
         />
       </div>
     </div>
