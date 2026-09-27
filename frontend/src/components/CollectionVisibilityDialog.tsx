@@ -8,10 +8,10 @@ import {
   setCollectionVisibility,
   type CollectionVisibility,
 } from '../lib/auth-api';
-import { toast } from '../store/toasts';
 import { profileCollectionUrl } from '../lib/profile-client';
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { CopyButton } from '@/components/shared/CopyButton';
 
 const OPTIONS: { value: CollectionVisibility; label: string; hint: string }[] = [
   {
@@ -115,15 +115,6 @@ export function CollectionVisibilityDialog({
       ? profileCollectionUrl(username)
       : '';
 
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.show({ message: 'Link copied to clipboard.', tone: 'success' });
-    } catch {
-      toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
-    }
-  };
-
   return (
     <Modal
       onClose={onClose}
@@ -167,9 +158,7 @@ export function CollectionVisibilityDialog({
             className="share-dialog-url"
             aria-label="Link"
           />
-          <Button variant="primary" onClick={() => void copy()}>
-            Copy
-          </Button>
+          <CopyButton value={url} what="the link" variant="primary" />
         </div>
       )}
       <div className="choice-dialog-actions">

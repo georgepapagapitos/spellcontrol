@@ -52,6 +52,7 @@ import type { PickedDeck } from '../components/play/DeckPickerDialog';
 import { deckBoardPath, starterFileName } from '../lib/starter-decks';
 import { TableProfiles } from '../components/play/TableProfiles';
 import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '../lib/game-state';
+import { useCopyFeedback } from '@/lib/use-copy-feedback';
 import { gameToRecord } from '../lib/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';
 
@@ -265,16 +266,11 @@ export function PlayPage() {
   // Which game's join-code banner the host dismissed. Keyed by code so a new
   // game's banner shows again without an effect to reset it.
   const [codeHiddenFor, setCodeHiddenFor] = useState<string | null>(null);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const copyJoinCode = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCodeCopied(true);
-      setTimeout(() => setCodeCopied(false), 1500);
-    } catch {
-      toast.show({ message: "Couldn't copy the code.", tone: 'error' });
-    }
-  };
+  const {
+    copied: codeCopied,
+    announcement: codeCopyAnnouncement,
+    copy: copyJoinCode,
+  } = useCopyFeedback({ what: 'the code' });
 
   const handleStartLocal = (setup: LocalGameSetup) => {
     if (local) setPendingStart(setup);
@@ -409,8 +405,8 @@ export function PlayPage() {
                     <button
                       type="button"
                       className="play-code-copy"
-                      aria-label={codeCopied ? 'Join code copied' : 'Copy join code'}
-                      onClick={() => void copyJoinCode(online.code)}
+                      aria-label="Copy join code"
+                      onClick={() => copyJoinCode(online.code)}
                     >
                       {codeCopied ? (
                         <>
@@ -422,6 +418,9 @@ export function PlayPage() {
                         </>
                       )}
                     </button>
+                    <span className="sr-only copy-feedback-announce" aria-live="polite">
+                      {codeCopyAnnouncement}
+                    </span>
                     <span className="play-code-hint">
                       Players go to Play → Online → Join, then enter this code.
                     </span>

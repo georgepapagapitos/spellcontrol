@@ -18,7 +18,6 @@ import {
 import { formatBracketLabel } from '@/lib/format-bracket-label';
 import { bracketPodLine } from '@/lib/bracket-pod-line';
 import { canShare, openShareSheet } from '@/lib/web-share';
-import { toast } from '@/store/toasts';
 import {
   CLOCK_EARLY_TURN,
   clockShare,
@@ -32,6 +31,7 @@ import { MeterBar } from '../shared/MeterBar';
 import { imageFromCard } from '@/lib/card-thumbs';
 import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 import { Button } from '@/components/shared/Button';
+import { CopyButton } from '@/components/shared/CopyButton';
 
 /** Actual deck `ScryfallCard`s by name. Passed so the card preview shows the
  *  printing in the deck instead of re-fetching the default printing by name. */
@@ -336,21 +336,13 @@ function BracketAnswer({
 
 /** The sentence an owner reads out (or pastes) before a game. */
 function PodLine({ text }: { text: string }): JSX.Element {
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.show({ message: 'Copied for your pod.', tone: 'success' });
-    } catch {
-      toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
-    }
-  };
   return (
     <div className="bracket-breakdown-section">
       <h4 className="bracket-breakdown-heading">Tell your pod</h4>
       <div className="bracket-pod">
         <p className="bracket-pod-text">{text}</p>
         <div className="bracket-pod-actions">
-          <Button onClick={() => void copy()}>Copy</Button>
+          <CopyButton value={text} what="the line for your pod" />
           {canShare() && <Button onClick={() => void openShareSheet({ text })}>Share</Button>}
         </div>
       </div>

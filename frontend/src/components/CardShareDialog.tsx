@@ -4,6 +4,7 @@ import { Modal } from './Modal';
 import { toast } from '../store/toasts';
 import './CardShareDialog.css';
 import { Button } from '@/components/shared/Button';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface Props {
   /** Card name — titles the dialog and names the downloaded file. */
@@ -26,7 +27,15 @@ export function CardShareDialog({ name, imageUrl, onClose }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const filename = `${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.jpg`;
 
-  const run = async (key: string, fn: () => Promise<void>, done: string) => {
+  const run = async (
+    key: string,
+    fn: () => Promise<void>,
+    done: string,
+    fail: { message: string; tone: 'warn' | 'error' } = {
+      message: "Couldn't do that. The card art didn't load.",
+      tone: 'warn',
+    }
+  ) => {
     if (busy) return;
     setBusy(key);
     try {
@@ -34,7 +43,7 @@ export function CardShareDialog({ name, imageUrl, onClose }: Props) {
       toast.show({ message: done, tone: 'success' });
       onClose();
     } catch {
-      toast.show({ message: "Couldn't do that. The card art didn't load.", tone: 'warn' });
+      toast.show(fail);
       setBusy(null);
     }
   };
@@ -77,6 +86,7 @@ export function CardShareDialog({ name, imageUrl, onClose }: Props) {
     desc: string;
     run: () => Promise<void>;
     done: string;
+    fail?: { message: string; tone: 'warn' | 'error' };
   }> = [
     // mailto can't carry an attachment, so mail gets the art as a link.
     {
@@ -106,8 +116,12 @@ export function CardShareDialog({ name, imageUrl, onClose }: Props) {
       icon: <LinkIcon width={18} height={18} strokeWidth={2} aria-hidden />,
       title: 'Copy image link',
       desc: 'A direct link most chat apps show inline',
-      run: () => navigator.clipboard.writeText(imageUrl),
-      done: 'Image link copied.',
+      run: async () => {
+        const ok = await copyToClipboard(imageUrl);
+        if (!ok) throw new Error('clipboard write failed');
+      },
+      done: 'Copied the image link',
+      fail: { message: "Couldn't copy the image link.", tone: 'error' },
     },
   ];
 
@@ -119,7 +133,8 @@ export function CardShareDialog({ name, imageUrl, onClose }: Props) {
       title: 'Copy image',
       desc: 'Paste it straight into a chat or doc',
       run: copyImage,
-      done: 'Card image copied.',
+      done: 'Copied the card image',
+      fail: { message: "Couldn't copy the card image.", tone: 'error' },
     });
   }
 
@@ -142,7 +157,7 @@ export function CardShareDialog({ name, imageUrl, onClose }: Props) {
             key={o.key}
             type="button"
             className="choice-dialog-option card-share-option"
-            onClick={() => void run(o.key, o.run, o.done)}
+            onClick={() => void run(o.key, o.run, o.done, o.fail)}
             disabled={!!busy}
             aria-busy={busy === o.key}
           >

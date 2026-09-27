@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
-import { Check, Clipboard, Download, ExternalLink, X } from 'lucide-react';
+import { useMemo } from 'react';
+import { Download, ExternalLink, X } from 'lucide-react';
 import { Modal } from '../Modal';
 import { formatMoney } from '../../lib/format-money';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import type { CardTally } from './useCardCarousel';
 import './BuyListDialog.css';
 import { Button, IconButton } from '@/components/shared/Button';
+import { CopyButton } from '@/components/shared/CopyButton';
 
 /** One `<qty> <name>` line per unique missing card — the vendor-neutral
  *  buy-list text (paste into Cardsphere, Card Kingdom, an LGS order, …). */
@@ -40,7 +41,6 @@ interface Props {
  * TCGPlayer Mass Entry, copy the plain-text list, or download it as a .txt.
  */
 export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: Props) {
-  const [copied, setCopied] = useState(false);
   const text = useMemo(() => buyListText(tally), [tally]);
   const rows = useMemo(
     () =>
@@ -53,15 +53,6 @@ export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: P
   const total = useMemo(() => rows.reduce((sum, r) => sum + r.price, 0), [rows]);
   const count = useMemo(() => tally.reduce((sum, t) => sum + t.count, 0), [tally]);
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* ignore */
-    }
-  };
   const handleDownload = () => {
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -113,19 +104,7 @@ export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: P
         >
           Download
         </Button>
-        <Button
-          onClick={handleCopy}
-          aria-label="Copy list to clipboard"
-          icon={
-            copied ? (
-              <Check width={14} height={14} strokeWidth={2.5} />
-            ) : (
-              <Clipboard width={14} height={14} strokeWidth={2} />
-            )
-          }
-        >
-          {copied ? 'Copied' : 'Copy'}
-        </Button>
+        <CopyButton value={text} what="the buy list" icon aria-label="Copy list to clipboard" />
         <Button
           variant="primary"
           href={tcgplayerMassEntryUrl(tally)}

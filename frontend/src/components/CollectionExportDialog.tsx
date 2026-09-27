@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Clipboard, Download, X } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { canShare, openShareSheet } from '@/lib/web-share';
 import { Modal } from './Modal';
 import { SelectMenu } from './SelectMenu';
@@ -16,6 +16,7 @@ import {
   type CollectionExportFormat,
 } from '../lib/collection-export';
 import { Button, IconButton } from '@/components/shared/Button';
+import { CopyButton } from '@/components/shared/CopyButton';
 
 const PREVIEW_LINES = 30;
 
@@ -38,7 +39,6 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
   const [format, setFormat] = useState<CollectionExportFormat>(() =>
     readStoredCollectionExportFormat()
   );
-  const [copied, setCopied] = useState(false);
 
   const text = useMemo(
     () => collectionToExport(cards, format, currency),
@@ -71,15 +71,6 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
       tone: 'success',
     });
     onClose();
-  };
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      /* ignore */
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
   };
   const handleShare = async () => {
     await openShareSheet({ title: fileName, text });
@@ -124,19 +115,7 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
             >
               Download
             </Button>
-            <Button
-              onClick={handleCopy}
-              aria-label="Copy to clipboard"
-              icon={
-                copied ? (
-                  <Check width={14} height={14} strokeWidth={2.5} />
-                ) : (
-                  <Clipboard width={14} height={14} strokeWidth={2} />
-                )
-              }
-            >
-              {copied ? 'Copied' : 'Copy'}
-            </Button>
+            <CopyButton value={text} what="the export" icon aria-label="Copy to clipboard" />
             {canShare() && <Button onClick={handleShare}>Share…</Button>}
           </div>
         </div>

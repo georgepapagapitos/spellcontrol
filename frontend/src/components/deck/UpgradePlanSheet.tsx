@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 import { Modal } from '../Modal';
 import { OverflowMenu } from '../OverflowMenu';
 import { Button, IconButton } from '../shared/Button';
+import { CopyButton } from '../shared/CopyButton';
+import { copyToClipboard } from '@/lib/clipboard';
 import { MeterBar } from '../shared/MeterBar';
 import { EmptyStateMark } from '../shared/EmptyStateMark';
 import { ChoiceList, Disclosure, Field, SegmentedControl, SwitchRow } from '../shared/form';
@@ -201,17 +203,22 @@ export function UpgradePlanSheet({
     }
   };
 
-  const copyList = async () => {
-    const text = toBuy.map((p) => `1 ${p.change.name}`).join('\n');
-    try {
-      await navigator.clipboard.writeText(text);
+  const buildShoppingListText = () => toBuy.map((p) => `1 ${p.change.name}`).join('\n');
+
+  // Only the narrow (OverflowMenu) rendering of "Copy shopping list" uses
+  // this — its trigger disappears into the closed menu, so it confirms with
+  // a toast. The wide rendering is a persistent Button and confirms in place
+  // via CopyButton instead (STYLE_GUIDE § Verbs — Copy).
+  const copyListFromMenu = async () => {
+    const ok = await copyToClipboard(buildShoppingListText());
+    if (ok) {
       pushToast({
         message: `Copied ${toBuy.length} ${toBuy.length === 1 ? 'card' : 'cards'}`,
         tone: 'success',
       });
-    } catch (err) {
-      logger.warn('[UpgradePlan] clipboard write failed', err);
-      pushToast({ message: "Couldn't copy the list", tone: 'error' });
+    } else {
+      logger.warn('[UpgradePlan] clipboard write failed');
+      pushToast({ message: "Couldn't copy the list.", tone: 'error' });
     }
   };
 
@@ -542,9 +549,13 @@ export function UpgradePlanSheet({
         </p>
         {wide ? (
           <>
-            <Button variant="secondary" disabled={!ready || toBuy.length === 0} onClick={copyList}>
-              Copy shopping list
-            </Button>
+            <CopyButton
+              value={buildShoppingListText}
+              what="the list"
+              label="Copy shopping list"
+              variant="secondary"
+              disabled={!ready || toBuy.length === 0}
+            />
             <Button variant="secondary" disabled={!ready || applying} onClick={() => apply(true)}>
               Apply to a copy
             </Button>
@@ -555,7 +566,7 @@ export function UpgradePlanSheet({
             items={[
               {
                 label: 'Copy shopping list',
-                onClick: () => void copyList(),
+                onClick: () => void copyListFromMenu(),
                 disabled: !ready || toBuy.length === 0,
               },
               {
