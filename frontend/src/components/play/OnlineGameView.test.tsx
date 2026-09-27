@@ -419,7 +419,10 @@ describe('Presence + status render states', () => {
 });
 
 describe('Leave confirmation (OGV-01)', () => {
-  it('confirms before the host leaves an active game, and only leaves on confirm', () => {
+  // E430: with anyone holding an account still seated, the host hands the
+  // table on, and the dialog names who takes it (game-core's nextHostSeat,
+  // the same rule the server applies).
+  it('names who becomes host when the host leaves, and only leaves on confirm', () => {
     const onLeave = vi.fn();
     const game = makeTestGame([
       makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
@@ -429,6 +432,24 @@ describe('Leave confirmation (OGV-01)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
     expect(onLeave).not.toHaveBeenCalled();
+    expect(screen.getByText('Leave the table?')).toBeTruthy();
+    expect(screen.getByText('Bob becomes host.')).toBeTruthy();
+    expect(screen.queryByText('End the table for everyone?')).toBeNull();
+
+    // The header's Leave opened it; the dialog's own Leave (rendered last) confirms.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Leave' }).at(-1)!);
+    expect(onLeave).toHaveBeenCalledOnce();
+  });
+
+  it('ends the table when only guests are left to take it', () => {
+    const onLeave = vi.fn();
+    const game = makeTestGame([
+      makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+      makeTestPlayer({ id: 'p1', userId: null, seat: 1, name: 'Bob' }),
+    ]);
+    render(<OnlineGameView game={game} onLeave={onLeave} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
     expect(screen.getByText('End the table for everyone?')).toBeTruthy();
     expect(screen.getByText(/ends the game for the other player still seated/)).toBeTruthy();
 
@@ -468,13 +489,35 @@ describe('Leave confirmation (OGV-01)', () => {
     const onLeave = vi.fn();
     const game = makeTestGame([
       makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
-      makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
-      makeTestPlayer({ id: 'p2', userId: 'user_3', seat: 2, name: 'Carol' }),
+      makeTestPlayer({ id: 'p1', userId: null, seat: 1, name: 'Bob' }),
+      makeTestPlayer({ id: 'p2', userId: null, seat: 2, name: 'Carol' }),
     ]);
     render(<OnlineGameView game={game} onLeave={onLeave} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
     expect(screen.getByText(/ends the game for all 2 other players still seated/)).toBeTruthy();
+  });
+
+  // E449: a spectator never sat at this table; its Rematch would seat
+  // strangers' names in a local game on the spectator's own device.
+  it('offers Rematch on a finished table to a seated player, not to a spectator', () => {
+    const game = makeTestGame(
+      [
+        makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+        makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
+      ],
+      { status: 'finished', winnerSeat: 0 }
+    );
+    const { unmount } = render(
+      <OnlineGameView game={game} onRematch={vi.fn()} onLeave={vi.fn()} />
+    );
+    expect(screen.getByRole('button', { name: /Rematch/ })).toBeTruthy();
+    unmount();
+
+    mockAuthUserId.current = 'user_watching';
+    render(<OnlineGameView game={game} onRematch={vi.fn()} onLeave={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /Rematch/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy();
   });
 });
 

@@ -119,6 +119,12 @@ describe('describeGameEvent', () => {
     expect(describeGameEvent(row('settings'), seatName)).toEqual({ action: 'Settings changed' });
   });
 
+  it('settings with a message says what happened (a handover, a reseat)', () => {
+    expect(
+      describeGameEvent(row('settings', { message: 'Bob is the host now' }), seatName)
+    ).toEqual({ action: 'Bob is the host now' });
+  });
+
   it('designation falls through to the default kind-as-action case', () => {
     // 'designation' has no dedicated case in the original switch — this
     // preserves that (pre-existing, out-of-scope-to-fix) behavior.

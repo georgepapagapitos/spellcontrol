@@ -1089,7 +1089,8 @@ describe('History — a co-op Horde game', () => {
   // counter out of a Horde game (seen live). It goes the same way now.
   it('Rematch on a finished online Horde table starts a Horde fight too', () => {
     useAuth.setState({
-      user: { id: 'u-watch', username: 'watcher', role: 'user' },
+      // A seated player: a spectator is not offered Rematch at all (E449).
+      user: { id: 'u-maya', username: 'maya', role: 'user' },
       status: 'authed',
     } as never);
     const table = createGameState({

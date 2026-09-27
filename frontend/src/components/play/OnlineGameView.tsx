@@ -1,7 +1,7 @@
 import { Clock, Compass, Crown, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '../../lib/game-state';
-import { cmdDamageKey } from '../../lib/game-state';
+import { cmdDamageKey, nextHostSeat } from '../../lib/game-state';
 import type { GameRequest } from '../../lib/games-api';
 import { paletteForIndex } from '../../lib/seat-palette';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
@@ -128,12 +128,14 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
   const hostName = game.players.find((p) => p.userId === game.hostUserId)?.name ?? 'the host';
   const opponents = game.players.filter((p) => p.seat !== mySeat?.seat);
 
-  // Leaving as the host deletes the session for everyone still at the table
-  // (backend deletes the row unconditionally on host-leave, any status but
-  // finished) — confirm before that fires. A finished table's "Close" and a
-  // non-host's "Leave" are both non-destructive to anyone but the leaver, so
-  // they skip the dialog.
+  // The host confirms before leaving: it hands the table on (and says to
+  // whom), or ends it for everyone when nobody is left to take it. A
+  // non-host's "Leave" affects nobody but the leaver, so it skips the dialog.
   const [confirmLeave, setConfirmLeave] = useState(false);
+  // E430: the host hands the table to this seat on Leave (the server's rule),
+  // and only a table with nobody to take it ends.
+  const heirSeat = isHost ? nextHostSeat(game) : null;
+  const heir = heirSeat === null ? null : game.players.find((p) => p.seat === heirSeat);
   const handleLeave = () => {
     if (isHost) setConfirmLeave(true);
     else onLeave?.();
@@ -211,23 +213,35 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
         )}
       </header>
 
-      {confirmLeave && (
-        <ConfirmDialog
-          title="End the table for everyone?"
-          body={
-            opponents.length > 0
-              ? `Leaving ends the game for ${opponents.length === 1 ? 'the other player' : `all ${opponents.length} other players`} still seated.`
-              : 'Leaving ends the game.'
-          }
-          confirmLabel="End table"
-          danger
-          onConfirm={() => {
-            setConfirmLeave(false);
-            onLeave?.();
-          }}
-          onCancel={() => setConfirmLeave(false)}
-        />
-      )}
+      {confirmLeave &&
+        (heir ? (
+          <ConfirmDialog
+            title="Leave the table?"
+            body={`${heir.name} becomes host.`}
+            confirmLabel="Leave"
+            onConfirm={() => {
+              setConfirmLeave(false);
+              onLeave?.();
+            }}
+            onCancel={() => setConfirmLeave(false)}
+          />
+        ) : (
+          <ConfirmDialog
+            title="End the table for everyone?"
+            body={
+              opponents.length > 0
+                ? `Leaving ends the game for ${opponents.length === 1 ? 'the other player' : `all ${opponents.length} other players`} still seated.`
+                : 'Leaving ends the game.'
+            }
+            confirmLabel="End table"
+            danger
+            onConfirm={() => {
+              setConfirmLeave(false);
+              onLeave?.();
+            }}
+            onCancel={() => setConfirmLeave(false)}
+          />
+        ))}
 
       <HoldBanners
         onlineRequests={onlineRequests}
@@ -237,7 +251,13 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
       />
 
       {game.status === 'finished' ? (
-        <FinishedPanel game={game} onRematch={onRematch} onLeave={onLeave} />
+        // A spectator never sat at this table, so it is not theirs to rematch
+        // (it would seat strangers' names in a local game on their device, E449).
+        <FinishedPanel
+          game={game}
+          onRematch={viewerSeated ? onRematch : undefined}
+          onLeave={onLeave}
+        />
       ) : (
         <>
           {!viewerSeated && game.format === 'horde' && <SpectatorHorde game={game} />}

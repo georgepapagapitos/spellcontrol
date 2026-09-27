@@ -20,7 +20,7 @@ import type {
   HordeTable as HordeTableState,
   MulliganType,
 } from '../../lib/game-state';
-import { makePlayer, MAX_ONLINE_SEATS, HORDE_MAX_SEATS } from '../../lib/game-state';
+import { makePlayer, MAX_ONLINE_SEATS, HORDE_MAX_SEATS, nextHostSeat } from '../../lib/game-state';
 import { ColorPip } from '../shared/ManaSymbol';
 import { HordeSetupFields, levelSummary } from './horde/HordeSetupFields';
 import {
@@ -141,6 +141,8 @@ export function OnlineLobby({
 }: Props) {
   const isHost = game.hostUserId != null && game.hostUserId === userId;
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const heirSeat = isHost ? nextHostSeat(game) : null;
+  const heir = heirSeat === null ? null : game.players.find((p) => p.seat === heirSeat);
   const isHordeFormat = game.format === 'horde';
 
   const seats: Array<GamePlayer | null> = useMemo(() => {
@@ -451,23 +453,38 @@ export function OnlineLobby({
         </div>
       </div>
 
-      {confirmLeave && (
-        <ConfirmDialog
-          title="End the table for everyone?"
-          body={
-            game.players.length > 1
-              ? `Leaving ends the table for ${game.players.length === 2 ? 'the other player' : `all ${game.players.length - 1} other players`} still seated.`
-              : 'Leaving ends the table.'
-          }
-          confirmLabel="End table"
-          danger
-          onConfirm={() => {
-            setConfirmLeave(false);
-            onLeave();
-          }}
-          onCancel={() => setConfirmLeave(false)}
-        />
-      )}
+      {confirmLeave &&
+        // The host hands the table on when anyone with an account is left
+        // to take it (E430, the same rule the server applies); only a table
+        // with nobody to hand it to ends.
+        (heir ? (
+          <ConfirmDialog
+            title="Leave the table?"
+            body={`${heir.name} becomes host.`}
+            confirmLabel="Leave"
+            onConfirm={() => {
+              setConfirmLeave(false);
+              onLeave();
+            }}
+            onCancel={() => setConfirmLeave(false)}
+          />
+        ) : (
+          <ConfirmDialog
+            title="End the table for everyone?"
+            body={
+              game.players.length > 1
+                ? `Leaving ends the table for ${game.players.length === 2 ? 'the other player' : `all ${game.players.length - 1} other players`} still seated.`
+                : 'Leaving ends the table.'
+            }
+            confirmLabel="End table"
+            danger
+            onConfirm={() => {
+              setConfirmLeave(false);
+              onLeave();
+            }}
+            onCancel={() => setConfirmLeave(false)}
+          />
+        ))}
     </div>
   );
 }

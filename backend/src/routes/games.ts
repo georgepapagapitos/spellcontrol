@@ -15,6 +15,7 @@ import {
   GAME_PHASES,
   MAX_ONLINE_SEATS,
   HORDE_MAX_SEATS,
+  nextHostSeat,
   type GameAction,
   type GameFormat,
   type GamePlayer,
@@ -2349,6 +2350,7 @@ function actionIsAllowed(action: GameAction, state: GameState, userId: string): 
     case 'remove-player':
     case 'reseat':
     case 'horde-setup':
+    case 'transfer-host':
       return 'Host only.';
     case 'update-player': {
       const target = state.players.find((p) => p.seat === action.seat);
@@ -2437,7 +2439,15 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
 
   const updated = await db
     .update(gameSessions)
-    .set({ state: next, status: next.status, version: next.version, updatedAt: next.updatedAt })
+    .set({
+      state: next,
+      status: next.status,
+      version: next.version,
+      updatedAt: next.updatedAt,
+      // A transfer-host moves the host; the room browser's Friends filter
+      // reads this column, so it moves in the same write.
+      hostUserId: next.hostUserId ?? undefined,
+    })
     .where(and(eq(gameSessions.code, code), eq(gameSessions.version, current.version)))
     .returning({ version: gameSessions.version });
   if (updated.length === 0) {
@@ -2462,7 +2472,10 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
 });
 
 /**
- * POST /api/games/:code/leave — leave the game (lobby-only for non-hosts).
+ * POST /api/games/:code/leave — leave the game. In the lobby the seat goes;
+ * once started it stays, marked not connected. A host hands the table to
+ * `nextHostSeat` first (E430); with nobody to hand it to, or when the last
+ * account leaves, the table is deleted.
  *
  * fix: a non-participant used to get the current `GameState` back verbatim —
  * `if (!me) return res.json({ game: current })` — regardless of visibility,
@@ -2482,30 +2495,40 @@ gamesRouter.post('/:code/leave', writeLimiter, requireAuth, async (req: Request,
   const current = row.state as GameState;
   const me = current.players.find((p) => p.userId === req.user!.id);
   if (!me) return res.status(404).json({ error: 'Game not found.' });
-  if (me.isHost) {
-    // Host leave = end + delete.
+
+  // E430: a host who leaves hands the table on rather than ending it for
+  // everyone, then leaves like anyone else. game-core picks the successor,
+  // so the Leave dialog names the same seat the server hands it to.
+  const successor = me.isHost ? nextHostSeat(current) : null;
+  let next =
+    successor !== null ? applyAction(current, { type: 'transfer-host', seat: successor }) : current;
+  next =
+    current.status === 'lobby'
+      ? applyAction(next, { type: 'remove-player', seat: me.seat })
+      : // Mid-game or finished: keep the seat so life totals are intact.
+        applyAction(next, { type: 'update-player', seat: me.seat, patch: { connected: false } });
+
+  // Nobody with an account is left at the table (a host with no successor,
+  // or the last one out): nothing can act on it any more, so it ends now
+  // rather than sitting until the 24h sweep.
+  if (
+    (me.isHost && successor === null) ||
+    !next.players.some((p) => p.userId !== null && p.connected)
+  ) {
     await db.delete(gameSessions).where(eq(gameSessions.code, code));
     broadcastGameDeleted(code);
     return res.json({ deleted: true });
   }
-  if (current.status === 'lobby') {
-    const next = applyAction(current, { type: 'remove-player', seat: me.seat });
-    await db
-      .update(gameSessions)
-      .set({ state: next, status: next.status, version: next.version, updatedAt: next.updatedAt })
-      .where(eq(gameSessions.code, code));
-    broadcastGameState(code, next);
-    return res.json({ game: next });
-  }
-  // Mid-game: mark disconnected but keep the seat so life totals are intact.
-  const next = applyAction(current, {
-    type: 'update-player',
-    seat: me.seat,
-    patch: { connected: false },
-  });
+
   await db
     .update(gameSessions)
-    .set({ state: next, status: next.status, version: next.version, updatedAt: next.updatedAt })
+    .set({
+      state: next,
+      status: next.status,
+      version: next.version,
+      updatedAt: next.updatedAt,
+      hostUserId: next.hostUserId ?? undefined,
+    })
     .where(eq(gameSessions.code, code));
   broadcastGameState(code, next);
   res.json({ game: next });
