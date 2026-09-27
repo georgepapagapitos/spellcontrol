@@ -817,7 +817,9 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         aria-labelledby={`sc-tab-${activeMode}`}
       >
         {noCommanderYet && mainboardRules && (
-          <p className="card-search-tag-note">No commander yet, so every color shows.</p>
+          <p className="card-search-tag-note card-search-tag-note--quiet">
+            No commander yet, so every color shows.
+          </p>
         )}
         {activeMode === 'collection' &&
           !binderHintDismissed &&

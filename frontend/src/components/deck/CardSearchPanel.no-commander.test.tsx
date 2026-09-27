@@ -68,6 +68,8 @@ describe('CardSearchPanel — a commander deck with no commander yet', () => {
     expect(screen.getByText('Counterspell')).toBeTruthy();
     expect(screen.getByText('Swords to Plowshares')).toBeTruthy();
     expect(screen.getAllByText(NOTE)).toHaveLength(1);
+    // A fact about the search, not a warning: the quiet note, not the warn tone.
+    expect(screen.getByText(NOTE).className).toContain('card-search-tag-note--quiet');
     // Nothing is badged off-color: there is no identity to be off.
     expect(screen.queryByText('Off-color')).toBeNull();
   });

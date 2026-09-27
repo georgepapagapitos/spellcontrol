@@ -20,8 +20,6 @@
   aspect-ratio: 63 / 88;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
 }
 
 .commander-open-slot-body {

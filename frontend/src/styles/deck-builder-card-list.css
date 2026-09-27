@@ -1866,8 +1866,27 @@
   margin-top: 0.2rem;
 }
 
+.deck-empty-state-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+}
+
 .deck-empty-state-action {
   flex: 0 0 auto;
+}
+
+/* Two doors (Add cards, Choose a commander) on a phone: they share their own
+   row at equal width rather than one riding beside the text and the other
+   wrapping alone under it (E465). */
+@media (max-width: 599px) {
+  .deck-empty-state-actions--pair {
+    flex: 1 1 100%;
+  }
+
+  .deck-empty-state-actions--pair .deck-empty-state-action {
+    flex: 1 1 0;
+  }
 }
 
 @media (pointer: coarse) {

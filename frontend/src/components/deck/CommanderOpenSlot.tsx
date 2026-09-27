@@ -26,9 +26,7 @@ export function CommanderOpenSlot({ onChoose }: { onChoose: () => void }) {
         </div>
       </header>
       <div className="commander-open-slot-row">
-        <span className="commander-open-slot-ghost" aria-hidden>
-          ?
-        </span>
+        <span className="commander-open-slot-ghost" aria-hidden />
         <div className="commander-open-slot-body">
           <p className="commander-open-slot-title">No commander yet</p>
           <p className="commander-open-slot-detail">

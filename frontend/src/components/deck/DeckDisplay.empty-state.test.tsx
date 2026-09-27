@@ -76,6 +76,11 @@ describe('DeckDisplay empty state (E182)', () => {
     expect(getByRole('button', { name: 'Add cards' }).className).toContain('btn-primary');
     const choose = getByRole('button', { name: 'Choose a commander' });
     expect(choose.className).not.toContain('btn-primary');
+    // Both doors share one actions row, so a phone lays them out as a pair
+    // instead of wrapping Choose alone under the text.
+    const pair = container.querySelector('.deck-empty-state-actions--pair');
+    expect(pair?.contains(choose)).toBe(true);
+    expect(pair?.contains(getByRole('button', { name: 'Add cards' }))).toBe(true);
 
     choose.click();
     expect(onChooseCommander).toHaveBeenCalledTimes(1);

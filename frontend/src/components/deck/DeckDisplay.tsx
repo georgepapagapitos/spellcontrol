@@ -2045,18 +2045,26 @@ export function DeckDisplay({
                           : 'Open Add cards to search for cards and start your list.'}
                       </p>
                     </div>
-                    <Button
-                      variant="primary"
-                      onClick={() => onAddCards?.()}
-                      className="deck-empty-state-action"
+                    <div
+                      className={
+                        chooseCommander
+                          ? 'deck-empty-state-actions deck-empty-state-actions--pair'
+                          : 'deck-empty-state-actions'
+                      }
                     >
-                      Add cards
-                    </Button>
-                    {chooseCommander && (
-                      <Button onClick={chooseCommander} className="deck-empty-state-action">
-                        Choose a commander
+                      <Button
+                        variant="primary"
+                        onClick={() => onAddCards?.()}
+                        className="deck-empty-state-action"
+                      >
+                        Add cards
                       </Button>
-                    )}
+                      {chooseCommander && (
+                        <Button onClick={chooseCommander} className="deck-empty-state-action">
+                          Choose a commander
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )}
                 {/* The Roles lens is a strict PARTITION: `classifyCardCategory`

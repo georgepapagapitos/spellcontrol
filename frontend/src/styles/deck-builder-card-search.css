@@ -176,6 +176,12 @@
   padding: 0 0.1rem 0.2rem;
 }
 
+/* A fact about the search, not a warning: "No commander yet, so every color
+   shows." (E465). An unfinished deck is not a problem to flag. */
+.card-search-tag-note--quiet {
+  color: var(--text-secondary);
+}
+
 /* Zero-result escape hatches — jump to another source keeping the query. */
 .card-search-empty-wrap {
   display: flex;
