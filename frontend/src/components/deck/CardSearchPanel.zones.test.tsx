@@ -91,8 +91,8 @@ describe('CardSearchPanel — out-of-deck zones accept any card', () => {
     renderPanel('main');
     fireEvent.click(screen.getByRole('button', { name: 'Show them' }));
 
-    const rows = Array.from(document.querySelectorAll('.card-search-row'));
-    const names = rows.map((r) => r.querySelector('.card-search-name')?.textContent);
+    const rows = Array.from(document.querySelectorAll('.inline-card-search-row'));
+    const names = rows.map((r) => r.querySelector('.inline-card-search-name')?.textContent);
     expect(names).toContain('Counterspell');
     // Playable cards stay ahead of the ones that cannot be played.
     expect(names.indexOf('Lightning Bolt')).toBeLessThan(names.indexOf('Counterspell'));
