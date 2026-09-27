@@ -6,9 +6,11 @@ import { IconButton } from '@/components/shared/Button';
 
 /**
  * Standalone "Add a product" dialog — the {@link ProductSearchPanel} (search a
- * known MTG product → add as a deck / to the collection / both) hosted in the
- * shared add-cards modal shell. Lets the deck surfaces reuse the exact same
- * product search the Collection's Add-cards sheet exposes as its Products tab.
+ * known MTG product and add it as a deck, with adding the cards to the
+ * collection as an optional switch) hosted in the shared add-cards modal
+ * shell. Deck-first (`context="deck"`), unlike the Collection's Add-cards
+ * sheet, which hosts the same panel collection-first. Lets the deck surfaces
+ * reuse the exact same product search.
  */
 export function ProductSearchDialog({ onClose }: { onClose: () => void }) {
   const labelId = useId();
@@ -25,7 +27,7 @@ export function ProductSearchDialog({ onClose }: { onClose: () => void }) {
       </div>
       <div className="modal-body add-cards-modal-body">
         <div className="add-cards-panel add-cards-panel-product">
-          <ProductSearchPanel onClose={onClose} />
+          <ProductSearchPanel onClose={onClose} context="deck" />
         </div>
       </div>
     </Modal>
