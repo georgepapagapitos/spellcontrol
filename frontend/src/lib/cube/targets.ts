@@ -42,9 +42,6 @@ export interface BandTargets {
   fixingLands: Stat;
   /** The ten color pairs' own gold + fixing-land shape. */
   pairs: Record<ColorPair, PairTargets>;
-  /** Share of total cube cards that are 3+ color gold cards — its own small
-   *  slice, not attributed to any one pair (see generate.ts's multicolor split). */
-  multiXColor: Stat;
 }
 
 interface TargetsFile {

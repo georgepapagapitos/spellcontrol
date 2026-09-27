@@ -288,8 +288,7 @@ export function axisScoreOf(ax: AxisKey, d: AxisAgg, minDepthVal: number): numbe
  * (50%-100%) on a single swap. Scoring that swing gave the refiner a strong,
  * volatile gradient at exactly the cube sizes where gold-per-pair is naturally
  * thin (a handful of cards per pair at 180-360) — measured dragging archetype
- * down further on top of the seed-shape cost `selectMulticolorBucket` already
- * pays for pair balance. A real, deep archetype has plenty of gold
+ * down for no real signal. A real, deep archetype has plenty of gold
  * contributors; this floor costs it nothing.
  */
 const MIN_GOLD_SAMPLE = 4;
