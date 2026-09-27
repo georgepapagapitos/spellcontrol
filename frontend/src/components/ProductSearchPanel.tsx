@@ -668,7 +668,7 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
           {TYPE_FILTERS.map((t) => (
             <Chip
               key={t.value || 'all'}
-              className={`product-type-chip${type === t.value ? ' active' : ''}`}
+              className="filter-chip"
               pressed={type === t.value}
               onClick={() => setType(t.value)}
             >

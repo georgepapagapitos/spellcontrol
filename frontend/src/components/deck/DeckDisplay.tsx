@@ -1910,7 +1910,7 @@ export function DeckDisplay({
                 {roleFilterEntries.map(([key, count]) => (
                   <Chip
                     key={key}
-                    className={`deck-role-bar-chip${activeRoleFilter === key ? ' is-active' : ''}`}
+                    className="filter-chip deck-role-bar-chip"
                     pressed={activeRoleFilter === key}
                     onClick={() => setRoleFilter((cur) => (cur === key ? null : key))}
                     trailing={<span className="deck-role-bar-count">{count}</span>}

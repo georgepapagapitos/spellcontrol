@@ -38,6 +38,7 @@ import { CardPreview } from '../CardPreview';
 import { Tabs } from '../Tabs';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
 import { OwnershipBadge } from './OwnershipBadge';
+import { Chip } from '@/components/shared/Chip';
 
 import { userMessage } from '@/lib/user-error';
 export interface DeckAnalysisPanelHandle {
@@ -668,13 +669,9 @@ function FilterPill({
   label: string;
 }) {
   return (
-    <button
-      type="button"
-      className={`deck-combos-filter-pill${active ? ' active' : ''}`}
-      onClick={onClick}
-    >
+    <Chip className="filter-chip" pressed={active} onClick={onClick}>
       {label}
-    </button>
+    </Chip>
   );
 }
 

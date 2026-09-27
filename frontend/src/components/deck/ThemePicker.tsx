@@ -133,7 +133,7 @@ function ThemePickerList({
           return (
             <Chip
               key={theme.slug}
-              className={`theme-chip${active ? ' is-active' : ''}`}
+              className="filter-chip theme-chip"
               pressed={active}
               onClick={() => onToggle(theme)}
               labelClassName="theme-chip-name card-name-chip-text"
@@ -146,7 +146,7 @@ function ThemePickerList({
         })}
         {remaining > 0 && (
           <Chip
-            className="theme-chip theme-chip-more"
+            className="filter-chip theme-chip theme-chip-more"
             onClick={() => setVisibleCount((prev) => prev + EXPAND_STEP)}
           >
             Show {nextStep} more ({remaining} left)
@@ -154,7 +154,7 @@ function ThemePickerList({
         )}
         {visibleCount > COLLAPSED_COUNT && (
           <Chip
-            className="theme-chip theme-chip-more"
+            className="filter-chip theme-chip theme-chip-more"
             onClick={() => setVisibleCount(() => COLLAPSED_COUNT)}
           >
             Show fewer

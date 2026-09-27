@@ -208,10 +208,11 @@ meanwhile.
   `max-width: 600px` and `min-width: 600px` both match at exactly 600px, so
   that width ran phone and tablet rules together
   (`styles/tier-edge-queries.test.ts`, stylesheets and matchMedia strings).
-- **Shape follows role** (§ Shape language — corners): actions are rects;
-  filters, sort, toggles, chips and search are pills; circles are only the
-  camera button and avatars. An icon-only action such as `⋮` is a rect the
-  height of its row.
+- **Shape follows role** (§ Shape language — corners): actions are rects,
+  and so are actionable filter/toggle chips (they act, same tier as a
+  button); sort, search and toolbar pickers stay pills, and so do
+  non-actionable label chips; circles are only the camera button and
+  avatars. An icon-only action such as `⋮` is a rect the height of its row.
 
 ---
 
@@ -558,8 +559,9 @@ restyles one of those triggers (`triggerClassName` on `OverflowMenu` or
 the same vocabulary `Button` uses, rather than spelling out `btn …`. A label that hides on phones (`.toolbar-label-compact`) takes that class through `labelClassName`, which lands on `.btn-label` itself: a span nested inside it would leave an empty flex item holding the icon gap.
 
 **Chips are a primitive (E435, 2026-09-26).** A chip renders `Chip` from
-`components/shared/Chip`. Chips have no shared look: each family keeps its own
-class in `className`, so moving one onto `Chip` changes no pixels. The role
+`components/shared/Chip`. Chips have no shared look across roles — a label
+chip's family, an action chip's family — except the actionable filter/toggle
+role (below), so moving most chips onto `Chip` changes no pixels. The role
 picks the element, one way each:
 
 - no handler: a label chip, a `<span>` (`as="li"` inside a list);
@@ -586,6 +588,20 @@ glyph-only `<button>`s and raw chip classes per file. The migration is done
 ruling that keeps it, and a test refuses any entry without one. A new file, or
 a listed file that grows, fails: fix it with the primitive, never with an
 entry.
+
+**Actionable filter/toggle chips share one look (T152 W8k).** Every family in
+this role — the deck/combo Format/Source/Result/Pieces chips, the Coach feed
+lanes, the card-search availability toggles, the deck role bar, the theme
+picker, the product-type facets, and the combos ownership filters — paints
+through one `.filter-chip` class (`styles/search-controls.css`): a
+`var(--radius)` rect, `--text-xs`, an accent-tint hover, an **accent fill**
+(never a tint) on `[aria-pressed='true']`, and the 44px coarse-pointer floor.
+Pressed state reads `aria-pressed` — never an `.is-active`/`.active` class —
+so a family stopped painting that twin once its chip renders `Chip`. A
+family's own class keeps only what's genuinely its own: an icon color, a
+dashed sub-state, an italic "show more" action chip. `DiscoverFiltersPopover`'s
+label+checkbox chips paint the same class on their `<span>` but key off
+`:checked` instead, since they're a choice control, not a `Chip`.
 
 **One frame per surface — never box a grid of self-framed tiles.** A
 container whose children already carry border + raised fill (result-grid

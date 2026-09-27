@@ -13,9 +13,11 @@ import { IconButton } from './Button';
  * A chip: a small labelled pill or rect that names a state, filters a list,
  * or opens something (STYLE_GUIDE § Shape language, "Chips are a primitive").
  *
- * Chips have no shared look: every family keeps its own class, passed as
- * `className`, so a call site moved onto `Chip` paints what it did before.
- * What `Chip` adds is the structure, one way for each role:
+ * Chips have no shared look across roles — except actionable filter/toggle
+ * chips, which all paint through `.filter-chip` (STYLE_GUIDE § Shape
+ * language, `styles/search-controls.css`); every other family keeps its own
+ * class, passed as `className`. What `Chip` adds is the structure, one way
+ * for each role:
  *
  * - no handler: a label chip, `<span>` (or `<li>` inside a list);
  * - `pressed` + `onClick`: a filter toggle, `<button aria-pressed>`;

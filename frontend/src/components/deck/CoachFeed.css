@@ -45,47 +45,13 @@
   align-items: center;
 }
 
-/* Toggle chips: rects, not pills — aria-pressed filters ACT (the role
-   decides the shape; matches .deck-role-bar-chip's explicit precedent). */
-.coach-feed-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: var(--radius);
-  border: 0.5px solid var(--border);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background var(--motion-fast) ease,
-    color var(--motion-fast) ease,
-    border-color var(--motion-fast) ease;
-}
-
-.coach-feed-filter-chip[aria-pressed='true'] {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* The floor on the REAL box, not a ghost: `.coach-feed-filters` wraps, so a
-   44px ghost would overlap the chip beside it and toggle the wrong filter —
-   the same call `.trade-offer-chip` makes for the same reason. `min-width`
-   only moves the short chips ("All" measured 37x36); a long label is already
-   wider. Wrapping to another line is this row's documented behaviour. */
-@media (pointer: coarse) {
-  .coach-feed-filter-chip {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
+/* Toggle chips: shape/size/resting/pressed/floor come from the shared
+   `.filter-chip` (styles/search-controls.css) — this file only adds the
+   owned-empty dashed sub-state and the count badge's own colors. */
 
 /* Lane has matches, but "Owned only" hid them all — dimmed + dashed border to
    read as "available, just not in your collection"; clicking lands on the
-   context-aware empty state. Keep the pressed tint at full strength. */
+   context-aware empty state. Keep the pressed fill at full strength. */
 .coach-feed-filter-chip--owned-empty:not([aria-pressed='true']) {
   border-style: dashed;
   opacity: 0.6;
@@ -98,8 +64,8 @@
   color: var(--text-muted);
 }
 
-.coach-feed-filter-chip[aria-pressed='true'] .coach-feed-chip-count {
-  color: var(--accent);
+.filter-chip[aria-pressed='true'] .coach-feed-chip-count {
+  color: var(--on-accent);
 }
 
 /* "Owned only" checkbox label — compact, touch-friendly. */

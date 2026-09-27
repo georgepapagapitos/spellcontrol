@@ -731,8 +731,7 @@ export function CoachFeed({
                     <Chip
                       key={f}
                       className={
-                        'coach-feed-filter-chip' +
-                        (ownedEmpty ? ' coach-feed-filter-chip--owned-empty' : '')
+                        'filter-chip' + (ownedEmpty ? ' coach-feed-filter-chip--owned-empty' : '')
                       }
                       pressed={activeFilter === f}
                       onClick={() => setActiveFilter(f)}
@@ -753,7 +752,7 @@ export function CoachFeed({
                   nothing" rule), same as every other zero-count chip here. */}
                 {offMetaCount > 0 && (
                   <Chip
-                    className="coach-feed-filter-chip"
+                    className="filter-chip"
                     pressed={offMetaOnly}
                     aria-label={`Off-meta picks, ${offMetaCount}. Spicy, low-EDHREC-play picks for this lane.`}
                     onClick={() => setOffMetaOnly((v) => !v)}

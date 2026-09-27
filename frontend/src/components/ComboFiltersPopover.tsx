@@ -102,7 +102,7 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
                   return (
                     <Chip
                       key={r.key}
-                      className={`deck-filter-chip${active ? ' is-active' : ''}`}
+                      className="filter-chip"
                       onClick={() => toggleIn('results', r.key)}
                       pressed={active}
                     >
@@ -121,7 +121,7 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
                   return (
                     <Chip
                       key={p.key}
-                      className={`deck-filter-chip${active ? ' is-active' : ''}`}
+                      className="filter-chip"
                       onClick={() => toggleIn('pieceCounts', p.key)}
                       pressed={active}
                     >
@@ -136,7 +136,7 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
               <div className="deck-filters-section-label">Commanders</div>
               <div className="deck-filters-chips" role="group" aria-label="Filter by hostability">
                 <Chip
-                  className={`deck-filter-chip${filters.hostOnly ? ' is-active' : ''}`}
+                  className="filter-chip"
                   onClick={() => setFilters({ ...filters, hostOnly: !filters.hostOnly })}
                   pressed={filters.hostOnly}
                   disabled={!hasCommanders}

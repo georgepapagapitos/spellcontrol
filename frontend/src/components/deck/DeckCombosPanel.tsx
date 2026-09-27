@@ -21,6 +21,7 @@ import { CardPreview } from '../CardPreview';
 import { Tabs } from '../Tabs';
 import { ComboRow } from './ComboRow';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 export interface DeckCombosPanelHandle {
   /** Expand the panel (if collapsed), optionally switch to `tab`, scroll it into
@@ -359,44 +360,46 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
             role="group"
             aria-label="Filter by ownership"
           >
-            <button
-              type="button"
-              className={`deck-combos-filter-pill${ownershipFilter === 'all' ? ' active' : ''}`}
+            <Chip
+              className="filter-chip"
+              pressed={ownershipFilter === 'all'}
               onClick={() => setOwnershipFilter('all')}
+              trailing={<span className="deck-combos-filter-count">{oneAwayCount}</span>}
             >
               All
-              <span className="deck-combos-filter-count">{oneAwayCount}</span>
-            </button>
-            <button
-              type="button"
-              className={`deck-combos-filter-pill${ownershipFilter === 'owned' ? ' active' : ''}`}
+            </Chip>
+            <Chip
+              className="filter-chip"
+              pressed={ownershipFilter === 'owned'}
               onClick={() => setOwnershipFilter('owned')}
+              icon={
+                <CheckCircle2
+                  className="deck-combos-filter-icon deck-combos-filter-icon--owned"
+                  width={13}
+                  height={13}
+                  strokeWidth={2.5}
+                />
+              }
+              trailing={<span className="deck-combos-filter-count">{oneAwayOwned.length}</span>}
             >
-              <CheckCircle2
-                className="deck-combos-filter-icon deck-combos-filter-icon--owned"
-                width={13}
-                height={13}
-                strokeWidth={2.5}
-                aria-hidden
-              />
               In my collection
-              <span className="deck-combos-filter-count">{oneAwayOwned.length}</span>
-            </button>
-            <button
-              type="button"
-              className={`deck-combos-filter-pill${ownershipFilter === 'notOwned' ? ' active' : ''}`}
+            </Chip>
+            <Chip
+              className="filter-chip"
+              pressed={ownershipFilter === 'notOwned'}
               onClick={() => setOwnershipFilter('notOwned')}
+              icon={
+                <Circle
+                  className="deck-combos-filter-icon deck-combos-filter-icon--not-owned"
+                  width={13}
+                  height={13}
+                  strokeWidth={2.5}
+                />
+              }
+              trailing={<span className="deck-combos-filter-count">{oneAwayNotOwned.length}</span>}
             >
-              <Circle
-                className="deck-combos-filter-icon deck-combos-filter-icon--not-owned"
-                width={13}
-                height={13}
-                strokeWidth={2.5}
-                aria-hidden
-              />
               Need to buy
-              <span className="deck-combos-filter-count">{oneAwayNotOwned.length}</span>
-            </button>
+            </Chip>
           </div>
         )}
 

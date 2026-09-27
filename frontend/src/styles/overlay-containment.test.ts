@@ -221,11 +221,13 @@ describe('coarse-pointer touch floor', () => {
   // ghost in that case so the floor is still enforced.
   const CONTROLS: Array<[string, string]> = [
     ['styles/modals-dialogs.css', '.modal-close'],
-    // Coach-tab filter row (E326). The row WRAPS, so these take the floor on
-    // their real box — a ghost would overlap the chip beside it and toggle the
-    // wrong filter. Measured 37x36 before the fix, and it is the tab's primary
-    // filter control.
-    ['components/deck/CoachFeed.css', '.coach-feed-filter-chip'],
+    // Filter-chip family (T152 W8k). Every filter/toggle chip in the app
+    // (Coach-tab lanes, Format/Source/Result/Pieces, card-search, role bar,
+    // themes, product type, combos ownership) shares this rule, since these
+    // chips WRAP in a row with room to grow — a ghost would overlap the next
+    // chip and toggle the wrong filter. Measured 37x36 before the original
+    // Coach-tab fix (E326).
+    ['styles/search-controls.css', '.filter-chip'],
     // The cut-card thumb and the tier-2 row action, both in a dense swap row,
     // so both ghost (E326). ⚠️ `.deck-card-row-out` needed its `overflow:
     // hidden` moved onto the IMG first — a button that clips its overflow also
@@ -309,9 +311,6 @@ describe('coarse-pointer touch floor', () => {
     // The binder summary line's sort breadcrumb. Dense row (it shares a line
     // with Browse pages and Collapse all), so it takes the floor on a ghost.
     ['styles/search-controls.css', '.sort-popover-btn::after'],
-    // Format/Source/Result/Pieces chips. They WRAP inside a popover panel with
-    // room to grow, so real boxes — a ghost would overlap the next chip.
-    ['styles/search-controls.css', '.deck-filter-chip'],
     // The WUBRG+C pip row: the most-tapped control in every filter surface and,
     // at 34px, the smallest. Real boxes for the same reason as the chips.
     ['styles/collection.css', '.color-filter-btn'],
