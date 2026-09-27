@@ -259,6 +259,18 @@ export function ListsPage() {
         actions={[
           { label: 'New list', icon: Plus, primary: true, onClick: handleCreate },
           { label: 'New dynamic list', icon: SlidersHorizontal, onClick: handleCreateDynamic },
+          ...(lists.length > 1
+            ? [
+                {
+                  label: 'Delete all lists',
+                  icon: Trash2,
+                  danger: true,
+                  menuOnly: true,
+                  opensDialog: true,
+                  onClick: () => void handleDeleteAll(),
+                },
+              ]
+            : []),
         ]}
       />
       <CollectionHubTabs />
@@ -428,18 +440,6 @@ export function ListsPage() {
             })}
           </ul>
         </>
-      )}
-
-      {lists.length > 1 && (
-        <div className="binders-index-danger">
-          <Button
-            variant="link"
-            onClick={() => void handleDeleteAll()}
-            className="binders-index-danger-btn"
-          >
-            Delete all lists
-          </Button>
-        </div>
       )}
 
       {confirmDialog}

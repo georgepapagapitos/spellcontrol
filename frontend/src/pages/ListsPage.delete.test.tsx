@@ -6,7 +6,7 @@
  * it shows offers Undo.
  */
 import 'fake-indexeddb/auto';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -53,5 +53,48 @@ describe('ListsPage — single delete has no confirm (T157)', () => {
 
     const toast = useToastsStore.getState().toasts.find((t) => t.actionLabel === 'Undo');
     expect(toast?.message).toBe('Deleted Solo List');
+  });
+});
+
+describe('ListsPage — "Delete all lists" lives in the header ⋮', () => {
+  const list = (id: string, name: string, order: number) => ({
+    id,
+    name,
+    entries: [],
+    order,
+    createdAt: 0,
+    updatedAt: 0,
+  });
+
+  beforeEach(() => {
+    useAuth.setState({ status: 'guest' });
+    useToastsStore.setState({ toasts: [] });
+  });
+
+  it('is not offered with a single list, which deletes from its own row', () => {
+    useCollectionStore.setState({ cards: [], lists: [list('list-1', 'Solo List', 0)] });
+    renderPage();
+    // At desktop width the one secondary action sits inline, so with the
+    // delete-all withheld the ⋮ has nothing to hold and does not render.
+    expect(screen.queryByRole('button', { name: 'More list actions' })).toBeNull();
+    expect(screen.queryByText('Delete all lists')).toBeNull();
+  });
+
+  it('is the last ⋮ item, never a link under the list, and confirms before deleting', async () => {
+    useCollectionStore.setState({
+      cards: [],
+      lists: [list('list-1', 'One', 0), list('list-2', 'Two', 1)],
+    });
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Delete all lists' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'More list actions' }));
+    const items = screen.getAllByRole('menuitem');
+    expect(items[items.length - 1].textContent).toBe('Delete all lists');
+    fireEvent.click(items[items.length - 1]);
+
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(useCollectionStore.getState().lists).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete all lists' }));
+    await waitFor(() => expect(useCollectionStore.getState().lists).toHaveLength(0));
   });
 });

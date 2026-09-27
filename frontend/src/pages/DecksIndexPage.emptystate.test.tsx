@@ -2,8 +2,8 @@
 /**
  * Tests for:
  *   UX-317 — Decks empty state three-door layout (Build / Import / Add precon).
- *   "Delete all decks" is a danger link under the deck list (mirrors Binders),
- *   shown only when there is more than one deck.
+ *   "Delete all decks" is the last, danger item in the header ⋮ (like
+ *   Collection, Binders and Lists), offered only when there is more than one deck.
  */
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -167,7 +167,7 @@ describe('DecksIndexPage — seeded search (?query=, from the Home hero)', () =>
   });
 });
 
-describe('DecksIndexPage — "Delete all decks" danger link (mirrors Binders)', () => {
+describe('DecksIndexPage — "Delete all decks" in the header ⋮', () => {
   beforeEach(() => {
     localStorage.clear();
     mockDecks = [];
@@ -175,23 +175,31 @@ describe('DecksIndexPage — "Delete all decks" danger link (mirrors Binders)', 
   });
   afterEach(() => localStorage.clear());
 
-  it('does NOT render the danger link when decks is empty', () => {
+  function openMenu() {
+    fireEvent.click(screen.getByRole('button', { name: 'More deck actions' }));
+  }
+
+  it('is not offered when there are no decks', () => {
     renderEmpty();
-    expect(document.querySelectorAll('.decks-index-danger-btn')).toHaveLength(0);
+    openMenu();
+    expect(screen.queryByRole('menuitem', { name: 'Delete all decks' })).toBeNull();
   });
 
-  it('does NOT render the danger link with a single deck', () => {
+  it('is not offered with a single deck, which deletes from its own card', () => {
     mockDecks = [makeDeck('a', 'Solo')];
     renderEmpty();
-    expect(document.querySelectorAll('.decks-index-danger-btn')).toHaveLength(0);
+    openMenu();
+    expect(screen.queryByRole('menuitem', { name: 'Delete all decks' })).toBeNull();
   });
 
-  it('renders the danger link under the list and confirms before deleting all', () => {
+  it('is the last menu item, never a link under the list, and confirms before deleting', () => {
     mockDecks = [makeDeck('a', 'One'), makeDeck('b', 'Two')];
     renderEmpty();
-    const btn = document.querySelector('.decks-index-danger-btn') as HTMLButtonElement;
-    expect(btn).toBeTruthy();
-    fireEvent.click(btn);
+    expect(screen.queryByRole('button', { name: 'Delete all decks' })).toBeNull();
+    openMenu();
+    const items = screen.getAllByRole('menuitem');
+    expect(items[items.length - 1].textContent).toBe('Delete all decks');
+    fireEvent.click(items[items.length - 1]);
     // Confirm dialog appears; not deleted until confirmed.
     expect(screen.getByTestId('confirm-dialog')).toBeTruthy();
     expect(mockDeleteAllDecks).not.toHaveBeenCalled();

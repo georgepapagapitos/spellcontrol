@@ -524,7 +524,7 @@ export function DecksIndexPage() {
         <PageHeader
           title="Decks"
           meta={`${sorted.length.toLocaleString()} ${sorted.length === 1 ? 'deck' : 'decks'}`}
-          menuLabel="More ways to start a deck"
+          menuLabel="More deck actions"
           actions={[
             { label: 'New deck', icon: Plus, primary: true, to: '/decks/new' },
             {
@@ -562,6 +562,21 @@ export function DecksIndexPage() {
                     label: 'New deck from my collection',
                     icon: BookOpen,
                     onClick: () => navigate('/decks/new', { state: { commanderSource: 'binder' } }),
+                  },
+                ]
+              : []),
+            // The whole-library delete: last, in red, after the divider the
+            // menu draws before its first danger item. One deck is deleted
+            // from its own card, so this needs two.
+            ...(decks.length > 1
+              ? [
+                  {
+                    label: 'Delete all decks',
+                    icon: Trash2,
+                    danger: true,
+                    menuOnly: true,
+                    opensDialog: true,
+                    onClick: () => setConfirmDeleteAll(true),
                   },
                 ]
               : []),
@@ -997,18 +1012,6 @@ export function DecksIndexPage() {
               })}
             </ul>
           </>
-        )}
-
-        {decks.length > 1 && (
-          <div className="decks-index-danger">
-            <Button
-              variant="link"
-              onClick={() => setConfirmDeleteAll(true)}
-              className="decks-index-danger-btn"
-            >
-              Delete all decks
-            </Button>
-          </div>
         )}
 
         {shareDeck && (

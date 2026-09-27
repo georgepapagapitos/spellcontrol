@@ -500,19 +500,6 @@
   }
 }
 
-.binders-index-danger,
-.decks-index-danger {
-  margin-top: var(--space-2);
-  display: flex;
-  justify-content: flex-end;
-}
-
-.binders-index-danger-btn,
-.decks-index-danger-btn {
-  color: var(--err-text);
-  font-size: var(--text-sm);
-}
-
 /* No mobile bottom-sheet treatment — the per-card menu uses the same
    anchored popover at every breakpoint (matches the deck-editor and
    decks-index 3-dot menus). The backdrop / handle nodes still render
