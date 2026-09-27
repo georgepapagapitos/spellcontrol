@@ -27,6 +27,13 @@ const HUB_TITLES: Record<string, string> = {
   decks: 'Decks',
   play: 'Play',
   you: 'You',
+  friends: 'Friends',
+  trades: 'Trades',
+  pods: 'Pods',
+  search: 'Search',
+  rules: 'Rules',
+  tags: 'Tags',
+  admin: 'Admin',
 };
 import {
   ShortcutRegistryProvider,
@@ -94,7 +101,7 @@ function LayoutShell() {
   // extended to ordinary top-level navigation so a screen-reader user isn't
   // silently left wherever focus last was. Skips the very first render (the
   // browser already places focus sensibly on initial load).
-  useDocumentTitle(HUB_TITLES[pathname.split('/')[1] ?? '']);
+  useDocumentTitle(HUB_TITLES[pathname.split('/')[1] ?? ''], { hub: true });
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {
