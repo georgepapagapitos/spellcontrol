@@ -1,0 +1,314 @@
+/* Upgrade plan (E458): the Add cards shell. A bottom sheet below 1024px, a
+   two-pane workbench above: settings and the answer on the left, the plan on
+   the right, the actions docked in the footer. */
+
+.upgrade-plan-modal {
+  max-width: 1120px;
+  width: 100%;
+  height: calc(var(--vh-safe) - 6rem - var(--keyboard-inset));
+}
+
+@media (max-width: 1023px) {
+  .modal-backdrop.upgrade-plan-backdrop {
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .modal-backdrop.upgrade-plan-backdrop > [role='dialog'] {
+    max-width: none;
+    width: 100%;
+    height: calc(var(--vh-safe) - 3rem - var(--keyboard-inset));
+    max-height: calc(var(--vh-safe) - 3rem - var(--keyboard-inset));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    animation: sheet-panel-in 220ms var(--ease-out-soft);
+  }
+
+  .modal-backdrop.upgrade-plan-backdrop.is-closing > [role='dialog'] {
+    animation: modal-panel-out var(--motion-fast) var(--ease-out-soft) forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop.upgrade-plan-backdrop > [role='dialog'] {
+    animation: none;
+  }
+}
+
+.upgrade-plan-header {
+  flex-shrink: 0;
+}
+
+.upgrade-plan-eyebrow {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* One scroll region below 1024px (settings, answer, then the plan); two
+   independently scrolling panes above. */
+.upgrade-plan-panes {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.upgrade-plan-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5) 0;
+}
+
+.upgrade-plan-main {
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+@media (min-width: 1024px) {
+  .upgrade-plan-panes {
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) 1fr;
+    overflow: hidden;
+  }
+
+  .upgrade-plan-side,
+  .upgrade-plan-main {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    min-height: 0;
+  }
+
+  .upgrade-plan-side {
+    padding-bottom: var(--space-5);
+    border-right: 0.5px solid var(--border);
+    background: var(--bg);
+  }
+}
+
+.upgrade-plan-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.upgrade-plan-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.upgrade-plan-preset-amount {
+  font-family: var(--font-mono);
+}
+
+.upgrade-plan-preset-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.upgrade-plan-amount {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+}
+
+.upgrade-plan-amount-input {
+  width: 8rem;
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  font-size: var(--text-input);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.upgrade-plan-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 0.5px solid var(--border);
+}
+
+.upgrade-plan-spend {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.upgrade-plan-spend-amount {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  color: var(--text-primary);
+}
+
+.upgrade-plan-spend-of {
+  color: var(--text-secondary);
+}
+
+.upgrade-plan-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.upgrade-plan-stats div {
+  padding: var(--space-2) var(--space-3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.upgrade-plan-stats dt {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.upgrade-plan-stats dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+}
+
+.upgrade-plan-line {
+  display: flex;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.upgrade-plan-line-key {
+  flex: 0 0 5rem;
+  color: var(--text-muted);
+}
+
+.upgrade-plan-muted {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.upgrade-plan-note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.upgrade-plan-note p {
+  margin: 0;
+}
+
+.upgrade-plan-note.is-warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+}
+
+.upgrade-plan-change {
+  margin-top: var(--space-4);
+}
+
+.upgrade-plan-group {
+  margin-top: var(--space-4);
+}
+
+.upgrade-plan-group-title {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.upgrade-plan-group-count {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+
+.upgrade-plan-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.upgrade-plan-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.upgrade-plan-row > .deck-card-row {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 0;
+}
+
+.upgrade-plan-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: var(--space-5);
+  accent-color: var(--accent);
+}
+
+/* The card that took an unticked card's place, marked once. */
+.upgrade-plan-row.is-new {
+  box-shadow: inset 3px 0 var(--accent);
+  background: var(--accent-light);
+}
+
+.upgrade-plan-row.is-dropped > .deck-card-row {
+  opacity: 0.6;
+}
+
+.upgrade-plan-empty {
+  padding: var(--space-6) var(--space-3);
+}
+
+.upgrade-plan-footer {
+  flex-shrink: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-bottom: max(var(--space-4), calc(var(--space-2) + var(--safe-bottom)));
+}
+
+.upgrade-plan-answer {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.upgrade-plan-answer strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+@media (pointer: coarse) {
+  .upgrade-plan-check {
+    width: 24px;
+    height: 24px;
+  }
+}

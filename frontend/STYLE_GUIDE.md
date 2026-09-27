@@ -3893,6 +3893,49 @@ below it) but differs on the one point that matters most:
   settle only once it has advanced since baseline. `use-build-time-nudge.ts`
   is the reference implementation.
 
+## Upgrade plan (E458, 2026-09-27)
+
+A budget and a goal in, the best swaps that fit out, for any Commander deck
+(imported, hand-built, generated). `components/deck/UpgradePlanSheet.tsx` over
+the pure `lib/upgrade-plan.ts`.
+
+- **It spends over the Coach feed's own ranked list** (`buildCoachChanges` →
+  `rankCoachMoves`), so the plan is "the Coach's top moves that fit your
+  money" and the two can never disagree. No AI call, no new data source.
+- **Entry is one 48px row at the top of Coach** (`.upgrade-plan-entry`), never a
+  panel above the feed (§ Index-page insight strips). A precon added to the
+  collection offers "Plan upgrades" beside "Open deck", which lands on
+  `?view=tune&plan=1`.
+- **The Add cards shell:** a fixed-height bottom sheet below 1024px, two panes
+  above: settings and the answer left, the plan right, actions in the footer.
+  On a phone the settings fold into one `Disclosure` that states all three
+  values, and Copy shopping list and Apply to a copy move into ⋮.
+- **Settings use the kit:** Budget is a `SegmentedControl` of presets whose
+  second line is the swap count each one buys, plus Custom. Goal is a
+  `ChoiceList` (Stay at Bracket N, Move up to Bracket N+1 disabled with its
+  reason at the top bracket, Any bracket). "Use my cards first" is a
+  `SwitchRow`.
+- **Rows are `DeckCardRow`**, read-only, behind a checkbox (picking items from a
+  list, so a checkbox, not a switch). Every row names its cut as "Replaces X: …"
+  and shows the swap art. A free owned copy shows the Available badge and no
+  price. Unticking re-plans; the note names what left and what took its place,
+  and the newcomer is marked once. Unticked rows stay in a "Left out by you"
+  group so they can come back.
+- **Honest money:** a copy committed to another deck is priced (counting it
+  free would strip that deck). A card with no price is left out and counted,
+  never free. "Next" names the best move the budget didn't reach.
+- **Bracket words follow § Bracket:** "Stay at Bracket N" holds the stated
+  bracket, or the Estimate when the list already reads higher (adding cards
+  can't promise a 2 to a deck that estimates 4). The summary reports the
+  Estimate ("Stays Bracket 2 · Core" or "Bracket 2 · Core → Bracket 3 ·
+  Upgraded"), and the plan waits for the combo check before it shows one.
+  Holding names what it left out and offers "Plan for Bracket N+1" as the fix;
+  from Bracket 4 up nothing is pre-filtered, and the re-estimate alone stops a
+  move to 5.
+- **Apply in place is the primary action** (one store write, one Undo, a toast
+  with Undo). Apply to a copy saves "<name> (upgraded)" and leaves the list as
+  it was.
+
 ## Wedge-feature discovery hints
 
 A feature that ships with real product value but no proactive signal is
