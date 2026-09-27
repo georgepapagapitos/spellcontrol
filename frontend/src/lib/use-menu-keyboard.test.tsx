@@ -11,6 +11,7 @@ interface HarnessProps {
   role?: 'menuitem' | 'option';
   onItem?: (label: string) => void;
   ignoreSelector?: string;
+  withInput?: boolean;
 }
 
 function Harness({
@@ -20,6 +21,7 @@ function Harness({
   role = 'menuitem',
   onItem,
   ignoreSelector,
+  withInput = false,
 }: HarnessProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -40,6 +42,7 @@ function Harness({
       </button>
       {open && (
         <div ref={panelRef} role={role === 'option' ? 'listbox' : 'menu'}>
+          {withInput && <input aria-label="Filter" />}
           {items.map((item) => (
             <button
               key={item.label}
@@ -224,6 +227,19 @@ describe('useMenuKeyboard', () => {
     expect(document.activeElement).toBe(three);
     fireEvent.keyDown(document, { key: 'ArrowUp' });
     expect(document.activeElement).toBe(two);
+  });
+
+  it('steps from a one-line search field into the items with ArrowDown, but leaves Home/End to the field', () => {
+    // SelectMenu's search box relies on this: the query field sits above the
+    // options, and ArrowDown is how a keyboard user reaches them.
+    render(<Harness withInput />);
+    fireEvent.click(screen.getByText('Trigger'));
+    const field = screen.getByLabelText('Filter');
+    act(() => field.focus());
+    fireEvent.keyDown(field, { key: 'Home' });
+    expect(document.activeElement).toBe(field);
+    fireEvent.keyDown(field, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByText('One'));
   });
 
   it('jumps to the first/last item with Home/End', () => {

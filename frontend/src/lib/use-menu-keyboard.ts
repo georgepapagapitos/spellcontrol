@@ -195,17 +195,15 @@ export function useMenuKeyboard({
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') {
         return;
       }
-      // A text field inside the panel (a menu's own "new tag" input) keeps
-      // Home/End/arrows as cursor movement — they are not menu navigation
-      // just because a menuitem happens to live in the same panel.
+      // A text field inside the panel keeps its own cursor keys. In a
+      // one-line input that is only Home/End: Up/Down have no job there, and
+      // SelectMenu's search box relies on ArrowDown stepping from the query
+      // into the options. A textarea or contenteditable uses all four.
       const eventTarget = e.target as HTMLElement | null;
-      if (
-        eventTarget &&
-        (eventTarget.tagName === 'INPUT' ||
-          eventTarget.tagName === 'TEXTAREA' ||
-          eventTarget.isContentEditable)
-      ) {
-        return;
+      if (eventTarget) {
+        const multiline = eventTarget.tagName === 'TEXTAREA' || eventTarget.isContentEditable;
+        const singleLine = eventTarget.tagName === 'INPUT';
+        if (multiline || (singleLine && (e.key === 'Home' || e.key === 'End'))) return;
       }
       const currentPanel = panelRef.current;
       if (!currentPanel) return;
