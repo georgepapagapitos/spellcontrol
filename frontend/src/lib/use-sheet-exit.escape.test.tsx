@@ -139,7 +139,6 @@ const OWN_ESCAPE: Record<string, string> = {
     'escape: false; a window capture-phase handler that defers to the share dialog and an open ⋮ menu',
   'components/AvatarPickerSheet.tsx':
     "the search input clears its query first and preventDefaults, so the hook's close waits for the next Escape",
-  'pages/DeckEditorPage.tsx': 'the deck-name rename input in the page hero, not inside a sheet',
 };
 
 const SRC = join(__dirname, '..');
