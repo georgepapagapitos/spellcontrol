@@ -40,7 +40,7 @@ import { UsernameEditor } from '../components/UsernameEditor';
 import { TypeSetPicker } from '../components/TypeSetPicker';
 import { SettingsSection } from '../components/settings/SettingsSection';
 import { SettingsRow } from '../components/settings/SettingsRow';
-import { SwitchRow } from '../components/shared/form';
+import { SegmentedControl, SwitchRow } from '../components/shared/form';
 import { scrollToHeading } from '../lib/scroll-to-heading';
 import { track } from '../lib/analytics';
 import { listFriends } from '../lib/friends-client';
@@ -690,20 +690,15 @@ export function YouPage() {
           title="Price currency"
           hint="Show card prices and collection value in USD (TCGplayer) or EUR (Cardmarket)."
         >
-          <fieldset className="settings-currency-toggle" aria-label="Price currency">
-            {(['USD', 'EUR'] as const).map((c) => (
-              <label key={c} className="settings-currency-option">
-                <input
-                  type="radio"
-                  name="price-currency"
-                  value={c}
-                  checked={currency === c}
-                  onChange={() => handleCurrencyChange(c)}
-                />
-                <span>{c === 'USD' ? '$ USD' : '€ EUR'}</span>
-              </label>
-            ))}
-          </fieldset>
+          <SegmentedControl<Currency>
+            ariaLabel="Price currency"
+            value={currency}
+            onChange={handleCurrencyChange}
+            options={(['USD', 'EUR'] as const).map((c) => ({
+              value: c,
+              label: c === 'USD' ? '$ USD' : '€ EUR',
+            }))}
+          />
         </SettingsSection>
       </div>
 

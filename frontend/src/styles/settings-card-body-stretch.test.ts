@@ -17,8 +17,12 @@ const here = dirname(fileURLToPath(import.meta.url));
  * blockified), so every intrinsic-width control that lives in a settings
  * card body must carry its own `align-self` / `width: fit-content`. This
  * guards the ones we know about; add a selector when a new one lands.
+ *
+ * The price-currency chooser itself moved to the shared `SegmentedControl`
+ * primitive (`.segmented`, components/shared/form.css), which opts out via
+ * `width: fit-content` and is covered by the shared-tracks describe below.
  */
-const INTRINSIC_WIDTH_CONTROLS = ['.settings-currency-toggle'];
+const INTRINSIC_WIDTH_CONTROLS: string[] = [];
 
 function ruleBody(css: string, selector: string): string {
   const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '');

@@ -58,7 +58,7 @@ describe('exclusive-value pickers use native radios', () => {
       offenders,
       'These components hand-roll ARIA radio semantics. Use a <fieldset> of ' +
         'visually-hidden <input type="radio"> over styled labels (STYLE_GUIDE ' +
-        '"exclusive-value picker"; reference: .settings-currency-toggle) — it ' +
+        '"exclusive-value picker"; reference: SegmentedControl in components/shared/form.tsx) — it ' +
         'gives exclusivity, arrow-key nav and one group tab stop for free.\n  ' +
         offenders.join('\n  ')
     ).toEqual([]);

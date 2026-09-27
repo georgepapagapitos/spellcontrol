@@ -449,12 +449,10 @@ describe('segmented-control options carry the coarse floor on the SPAN', () => {
   // the padding and text. A 44px floor on the LABEL wrapper grows the pill but
   // leaves the span text-height and top-aligned inside it — the Private /
   // Public toggle shipped that way on phones (2026-09-10). The floor lives on
-  // the span, and the span centers (same placement as .home-hero-scope-option
-  // and .settings-currency-option).
+  // the span, and the span centers (same placement as .home-hero-scope-option).
   const OPTIONS: Array<[string, string]> = [
     ['components/shared/form.css', '.segmented-option'],
     ['playtest/components/ScrySheet.css', '.playtest-scry-mode'],
-    ['styles/settings-sync.css', '.settings-currency-option'],
   ];
 
   for (const [file, option] of OPTIONS) {
