@@ -139,12 +139,13 @@ function toStatus(result: DraftSimResult | undefined): Status {
 }
 
 function summaryLine(status: Status): string {
-  // Short on purpose: when loading, the body right below carries the fuller
-  // "Simulating 50 drafts…" text — this summary line stays visible even while
-  // open (same as the loaded/error cases), so the two must not read as an
-  // accidental duplicate stacked on top of each other.
+  // Short on purpose: the summary line stays visible even while open (same
+  // as every state), so it must not read as a duplicate of the body's own
+  // sentence stacked directly below it — loading and error both get a
+  // shorter cue here; the body carries the fuller text (and, for error, the
+  // retry action).
   if (status.kind === 'loading') return 'Simulating…';
-  if (status.kind === 'error') return "Couldn't simulate the draft.";
+  if (status.kind === 'error') return 'Draft simulation failed.';
   if (status.kind === 'idle') return 'Simulates 50 drafts when opened.';
   const pct = Math.round(status.result.reachedBarShare * 100);
   return `Simulated 50 drafts: ${pct}% of decks reached 23 playables in two colours.`;

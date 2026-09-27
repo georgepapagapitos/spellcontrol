@@ -710,6 +710,7 @@
 }
 .cube-draft-sim-pips {
   display: flex;
+  gap: var(--space-1);
 }
 .cube-draft-sim-pip {
   width: 20px;
@@ -721,11 +722,7 @@
   font-size: var(--text-xs);
   font-weight: 700;
   font-family: var(--font-label);
-  box-shadow: 0 0 0 1.5px var(--surface-raised);
   flex: none;
-}
-.cube-draft-sim-pip + .cube-draft-sim-pip {
-  margin-left: -6px;
 }
 .cube-draft-sim-pair-label {
   font-size: var(--text-xs);

@@ -170,6 +170,12 @@ describe('CubeDraftabilityPanel — error and retry', () => {
     expect(alert.textContent).toContain("Couldn't simulate the draft.");
     expect(mockSimulate).toHaveBeenCalledTimes(1);
 
+    // The always-visible summary line must not repeat the error block's own
+    // sentence stacked directly above it (same rule as the loading state).
+    const summary = document.querySelector('.cube-draft-sim-summary')!.textContent;
+    expect(summary).not.toBe(alert.textContent);
+    expect(summary).not.toContain("Couldn't simulate the draft.");
+
     mockSimulate.mockResolvedValueOnce(draftResult());
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
