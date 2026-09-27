@@ -76,5 +76,7 @@ describe('CubeDetailPage — single delete has no confirm (T157)', () => {
 
     const toast = useToastsStore.getState().toasts.find((t) => t.actionLabel === 'Undo');
     expect(toast?.message).toBe('Deleted Solo Cube');
+    // Lands on the cube list, not on "Cube not found" for what it just removed.
+    expect(screen.getByText('CUBE INDEX')).toBeTruthy();
   });
 });

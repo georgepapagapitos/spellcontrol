@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Ban, Boxes, Copy, Pencil, Plus, Share2, Trash2, X } from 'lucide-react';
 import './cube.css';
 import { BackLink } from '../../components/BackLink';
@@ -46,6 +46,7 @@ type DetailTab = 'cards' | 'shopping' | 'pull';
  *  tab slot without pretending to be built. */
 export function CubeDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const cubeStore = useCubeStore();
   const saved = cubeStore.saved;
   const awaitingFirstPull = useAwaitingFirstPull();
@@ -209,8 +210,12 @@ export function CubeDetailPage() {
   };
   // Undoable from the toast, so it doesn't confirm first (T157) —
   // removeSaved shows the Undo toast itself.
+  // Back to the cube list, like the deck editor after a delete: staying here
+  // left the user on "Cube not found" for the thing they just removed. Undo
+  // brings it back on the list.
   const handleDelete = () => {
     cubeStore.removeSaved(target.id);
+    navigate('/decks/cube');
   };
   const handleTogglePhysical = () => {
     if (target.isPhysical) {
