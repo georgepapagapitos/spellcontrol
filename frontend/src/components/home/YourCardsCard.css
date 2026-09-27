@@ -1,0 +1,57 @@
+/* YourCardsCard.css — what you can do with the cards you have. Rows mirror
+   Recently added's deck list (a dotted hairline, name left, fact right) so
+   the band's two possible second cards read as one family. */
+
+.home-your-cards-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-your-cards-list > li:first-child .home-your-cards-row {
+  border-top: 0;
+}
+
+.home-your-cards-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 40px;
+  border-top: 1px dotted var(--border);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+@media (pointer: coarse) {
+  .home-your-cards-row {
+    min-height: 44px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-your-cards-row:hover .home-your-cards-name {
+    color: var(--accent);
+  }
+}
+
+.home-your-cards-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.home-your-cards-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-your-cards-meta {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

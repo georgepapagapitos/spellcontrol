@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, renderHook, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { pending } from '@/test/pending';
 import type { Deck } from '../../store/decks';
 import type { EnrichedCard, BinderDef } from '../../types';
@@ -267,6 +267,20 @@ describe('RecentlyAddedCard', () => {
     format: 'plain',
     addedAt,
   });
+  /** Cards from an earlier import, so the latest one is an addition to the
+   *  collection rather than the whole of it (isRecentPartialImport). */
+  const earlier = (n: number) =>
+    Array.from({ length: n }, (_, i) => makeCard({ name: `Earlier ${i}`, importId: 'earlier' }));
+
+  // The import timestamps below are small epoch values; pin "now" just after
+  // them so they read as this month's imports.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(10_000);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('shows the skeleton while the stores are still hydrating (E277)', () => {
     stores({ hydrating: true, decksHydrated: false });
@@ -285,6 +299,7 @@ describe('RecentlyAddedCard', () => {
   it("headlines the LATEST import's own card count, not a sum across decks", () => {
     stores({
       importHistory: [importEntry('old', 900, 1000), importEntry('new', 118, 5000)],
+      cards: earlier(900),
     });
     const { container } = renderIn(<RecentlyAddedCard />);
     expect(container.querySelector('.home-added-count')?.textContent).toBe('118');
@@ -317,6 +332,7 @@ describe('RecentlyAddedCard', () => {
       cards: [
         candidate({ name: 'Sol Ring', updatedAt: 2000 }),
         candidate({ name: 'Arcane Signet', updatedAt: 2000 }),
+        ...earlier(20),
       ],
     });
     renderIn(<RecentlyAddedCard />);
@@ -325,6 +341,42 @@ describe('RecentlyAddedCard', () => {
     });
     expect(link.getAttribute('href')).toBe('/decks/atraxa');
     expect(screen.getByText('2 fit')).toBeTruthy();
+  });
+});
+
+describe('RecentlyAddedCard gives way when it has nothing new', () => {
+  const stores = (importHistory: unknown[], cards: unknown[]) => {
+    mockUseDecksStore.mockImplementation((sel: (s: Record<string, unknown>) => unknown) =>
+      sel({ decks: [], hydrated: true })
+    );
+    mockUseCollectionStore.mockImplementation((sel: (s: Record<string, unknown>) => unknown) =>
+      sel({ cards, importHistory, hydrating: false })
+    );
+  };
+  const DAY = 86_400_000;
+  const cards = (n: number, importId: string) =>
+    Array.from({ length: n }, (_, i) => makeCard({ name: `C${i}`, importId }));
+
+  // The screenshot that started T164: "Recently added · 13,557 cards", the
+  // whole collection restated beside the hero's own card count.
+  it('renders nothing when the latest import is the whole collection', () => {
+    const now = Date.now();
+    stores(
+      [{ id: 'all', name: 'x', count: 100, format: 'plain', addedAt: now - DAY }],
+      cards(100, 'all')
+    );
+    const { container } = renderIn(<RecentlyAddedCard />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders nothing once the latest import is over a month old', () => {
+    const now = Date.now();
+    stores(
+      [{ id: 'add', name: 'x', count: 10, format: 'plain', addedAt: now - 31 * DAY }],
+      [...cards(10, 'add'), ...cards(100, 'earlier')]
+    );
+    const { container } = renderIn(<RecentlyAddedCard />);
+    expect(container.innerHTML).toBe('');
   });
 });
 

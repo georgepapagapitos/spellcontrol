@@ -6231,7 +6231,8 @@ is a column of sections in a fixed order, each answering one question:
    setup checklist instead.
 2. **Waiting on you** — what needs an answer.
 3. **Your decks** — what you were working on.
-4. **Price movers · Recently added** — what changed (one band, two cards).
+4. **Price movers · Recently added or Your cards** — what changed, and what
+   to do about it (one band, never more than two cards).
 5. **Around the table** — game nights, activity, friends' new decks.
 6. **Discover** — what other players are building.
 
@@ -6244,6 +6245,16 @@ Rulings:
   ribbons). Recently added headlines the latest import's own `count`, never a
   sum across decks. A deck appears in one list: Discover asks the server for
   `exclude: 'mine'`.
+- **The band's second card depends on what you have (T164).** Recently added
+  holds it only for an import from the last 30 days that ADDED to the
+  collection (`isRecentPartialImport`: under 90% of the cards). A first import
+  or a replace-everything re-import is the collection itself and would restate
+  the hero's card count, so the slot goes to **Your cards**: at most three
+  rows from `lib/collection-insights.ts` (decks a few cards from done, spare
+  copies, a card more decks want than you own), each a door to where it is
+  acted on (`/decks/:id`, `/collection?spares`, `/collection?stats`), with the
+  full list behind its Breakdown door. The rows reuse Recently added's deck
+  list shape so either card reads as the same family. No insight: nothing.
 - **Nothing to show renders nothing** (the general rule: § Empty states,
   secondary sections). A `HomeCard` with `empty` renders
   `null` (the collapsed invitation row is retired, along with

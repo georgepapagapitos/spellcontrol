@@ -225,3 +225,32 @@ export function upcomingGameNights(nights: GameNight[], now = Date.now(), limit 
     .sort((a, b) => a.startsAt - b.startsAt)
     .slice(0, limit);
 }
+
+/** An import older than this is history, not "recently added". */
+export const RECENT_IMPORT_DAYS = 30;
+
+/**
+ * Whether the latest import still says something the rest of Home doesn't:
+ * it happened within the last month, and it is an ADDITION to the collection
+ * rather than (nearly) the whole of it. A first import, or a re-import that
+ * replaced everything, makes "Recently added · 13,557 cards" the collection's
+ * own size restated beside the hero's scale line, so the band gives that slot
+ * to Your cards instead (T164).
+ */
+export function isRecentPartialImport(
+  latest: Pick<ImportHistoryEntry, 'addedAt' | 'count'> | null,
+  collectionSize: number,
+  now: number
+): boolean {
+  if (!latest) return false;
+  if (now - latest.addedAt > RECENT_IMPORT_DAYS * 86_400_000) return false;
+  return latest.count < collectionSize * 0.9;
+}
+
+/** The newest entry of the import history, or null. */
+export function latestImport(history: ImportHistoryEntry[]): ImportHistoryEntry | null {
+  return history.reduce<ImportHistoryEntry | null>(
+    (best, e) => (!best || e.addedAt > best.addedAt ? e : best),
+    null
+  );
+}

@@ -4,6 +4,7 @@ import { WaitingOnYou } from '../components/home/WaitingOnYou';
 import { YourDecks } from '../components/home/YourDecks';
 import { PriceMoversCard } from '../components/home/PriceMoversCard';
 import { RecentlyAddedCard } from '../components/home/RecentlyAddedCard';
+import { YourCardsCard } from '../components/home/YourCardsCard';
 import { AroundTheTable } from '../components/home/AroundTheTable';
 import { DiscoverRow } from '../components/home/DiscoverRow';
 import { useGameNights } from '../components/play/GameNights';
@@ -15,8 +16,8 @@ import { useAuth } from '../store/auth';
  * and the catch-all here for them); reachable by direct URL for guests.
  *
  * Read top to bottom it answers, in order: what needs me (Waiting on you),
- * what was I working on (Your decks), what changed (Price movers, Recently
- * added), who's around (Around the table), and what others are building
+ * what was I working on (Your decks), what changed and what to do about it
+ * (Price movers, then Recently added or Your cards), who's around (Around the table), and what others are building
  * (Discover). The hero above them is the collection itself.
  *
  * It replaced a bento of nine equal cards, several of which said the same
@@ -45,6 +46,7 @@ export function HomePage() {
       <div className="home-band">
         <PriceMoversCard />
         <RecentlyAddedCard />
+        <YourCardsCard />
       </div>
       <AroundTheTable
         nights={nights.nights}

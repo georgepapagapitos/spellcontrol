@@ -159,14 +159,19 @@ describe('HomePage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Good morning, georgep' })).toBeTruthy();
     // Sections with nothing to show (no price movers, no import, nobody at the
     // table) render nothing once settled. Cards but no binder yet: that step
-    // is waiting on you.
+    // is waiting on you. Two copies of one card and no deck using either: a
+    // spare, so Your cards takes the band's slot Recently added leaves empty.
     await waitFor(() =>
       expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
         'Waiting on you',
         'Your decks',
+        'Your cards',
         'Discover',
       ])
     );
+    expect(
+      screen.getByRole('link', { name: 'Show your spare copies: 1 copy' }).getAttribute('href')
+    ).toBe('/collection?spares');
     expect(screen.getByRole('link', { name: 'Build your first binder' })).toBeTruthy();
     // Nothing in the table: one quiet line, not three empty cards.
     expect(screen.getByRole('region', { name: 'Around the table' })).toBeTruthy();
