@@ -33,7 +33,7 @@ import { setReleaseDates } from '../lib/card-release-dates';
 import { getCurrency } from '../lib/currency';
 import type { Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
-import { availableFinishes } from '../lib/scanner-feedback';
+import { landedFinish } from '../lib/add-card-message';
 import { useScannerSettings } from '../lib/scanner-settings';
 import { fetchWithAbortTimeout } from '../lib/fetch-utils';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
@@ -798,13 +798,9 @@ export const useCollectionStore = create<CollectionState>()(
         // exactly as given and never re-defaulted here.
         const isQuickAdd = extras === undefined;
         const defaults = isQuickAdd ? useScannerSettings.getState() : null;
-        // An explicit finish is used exactly as given, same as before. With no
-        // finish, take the quick-add default if this printing actually has it,
-        // else the printing's own first finish (the scanner-fallback fix).
-        const made = availableFinishes(card.finishes);
-        const landed =
-          finish ??
-          (defaults && made.includes(defaults.defaultFinish) ? defaults.defaultFinish : made[0]);
+        // One resolution for the finish, shared with the add toast so the
+        // toast always names what was saved.
+        const landed = landedFinish(card, finish, isQuickAdd);
         const condition = extras?.condition ?? defaults?.defaultCondition;
         const language = extras?.language ?? defaults?.defaultLanguage;
         const rows = Array.from({ length: qty }, () => {

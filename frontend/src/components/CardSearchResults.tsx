@@ -167,7 +167,13 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       confirm(id, copyIds);
       haptics.tap();
       pushToast({
-        message: addedCardMessage(printing, copyIds.length, finish, Boolean(binderId)),
+        message: addedCardMessage(
+          printing,
+          copyIds.length,
+          finish,
+          Boolean(binderId),
+          extras === undefined
+        ),
         tone: 'success',
         durationMs: 4000,
         actionLabel: 'Undo',
