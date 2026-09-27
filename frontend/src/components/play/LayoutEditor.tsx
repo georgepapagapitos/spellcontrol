@@ -76,6 +76,9 @@ export function LayoutPicker({
                 value={opt.id}
                 checked={current === opt.id}
                 onChange={() => onPick(opt.id)}
+                // A sheet opening on this picker lands on the current layout,
+                // never on a seat's remove button above it.
+                data-autofocus={current === opt.id || undefined}
               />
               <LayoutPreview layout={opt} shared={shared} />
               {/* The visible name is the radio's accessible name too: a
@@ -89,6 +92,7 @@ export function LayoutPicker({
           className={`layout-option layout-option-custom ${customActive ? 'is-selected' : ''}`}
           aria-pressed={customActive}
           onClick={onCustomize}
+          data-autofocus={customActive || undefined}
         >
           {customActive ? (
             <LayoutPreview layout={resolveLayout(total, current, turnOrder)} shared={shared} />

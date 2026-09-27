@@ -5,7 +5,7 @@
  * These replaced the tabbed game menu, so the old Setup-tab and Game-tab
  * assertions live on here against the sheet that now owns each control.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameAction, GameState } from '../../lib/game-state';
 import { applyAction, createGameState, makePlayer } from '../../lib/game-state';
@@ -126,6 +126,16 @@ describe('Players', () => {
     players(activeGame([], 10));
     expect(screen.queryByRole('button', { name: 'Add player' })).toBeNull();
     expect(screen.getByText('A table seats up to 10 players.')).toBeTruthy();
+  });
+
+  it('opens on the current layout, never on a seat’s remove button or Restart…', () => {
+    players(activeGame([], 4));
+    const focused = document.activeElement as HTMLInputElement;
+    expect(focused.type).toBe('radio');
+    expect(focused.checked).toBe(true);
+    cleanup();
+    players(activeGame([{ type: 'life', seat: 1, delta: -3, actorSeat: 1 }]));
+    expect((document.activeElement as HTMLInputElement).checked).toBe(true);
   });
 
   it('locks the roster once life moves, and the lock note offers Restart', () => {
