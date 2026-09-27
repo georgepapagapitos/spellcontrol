@@ -1766,6 +1766,7 @@
   display: flex;
   justify-content: center;
   padding: var(--space-3) var(--space-4) var(--space-4);
+}
 /* ==== Pull list by binder (CubePullList.tsx) ==== */
 .cube-pull-summary {
   display: flex;
