@@ -37,8 +37,8 @@ describe('InlineRename', () => {
     fireEvent.change(input, { target: { value: 'New name' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(onCommit).toHaveBeenCalledWith('New name'));
-    // Back to resting.
-    expect(screen.queryByLabelText('Deck name')).toBeNull();
+    // Back to resting, once the commit settles (a loaded run lags a tick).
+    await waitFor(() => expect(screen.queryByLabelText('Deck name')).toBeNull());
   });
 
   it('blur saves a changed, non-empty value', async () => {

@@ -102,8 +102,12 @@ describe('coarse-pointer ghosts stay off their neighbours', () => {
     );
     // The name's box starts 0.22em above its text (padding cancelled by a
     // negative margin), at the phone art hero's font size.
-    const slackEm = parseFloat(decl(deck, '.deck-editor-name', 'padding'));
-    const nameSize = px(decl(deck, '.deck-editor-hero--art .deck-editor-name', 'font-size', phone));
+    // The name is the shared InlineRename button now; its rule carries the
+    // `.binder-hero-name` bump so it beats the primitive's base.
+    const slackEm = parseFloat(decl(deck, '.deck-editor-name.binder-hero-name', 'padding'));
+    const nameSize = px(
+      decl(deck, '.deck-editor-hero--art .deck-editor-name.binder-hero-name', 'font-size', phone)
+    );
     const lane = px(
       decl(
         deck,
