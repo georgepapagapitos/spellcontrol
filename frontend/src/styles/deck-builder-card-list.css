@@ -1320,7 +1320,8 @@
   background: var(--surface-raised);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-raised);
+  /* Follows the pointer above everything: popover depth, not a chip lift. */
+  box-shadow: var(--shadow-tooltip);
 }
 
 /* ── Role-filter lens ─────────────────────────────────────────────────
