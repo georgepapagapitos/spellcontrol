@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CubeDraftabilityPanel } from './CubeDraftabilityPanel';
 import { simulateDraftAsync } from '../../lib/cube/generate-async';
-import { COLOR_PAIRS, pairOf } from '../../lib/cube/draft-sim';
+import { COLOR_PAIRS } from '../../lib/cube/core';
 import type { DraftSimResult } from '../../lib/cube/draft-sim';
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import { BUCKET_ORDER } from './shared';
@@ -57,7 +57,7 @@ function cubeOf(count: number, size: GeneratedCube['size'] = 360): GeneratedCube
 function draftResult(overrides: Partial<DraftSimResult> = {}): DraftSimResult {
   const pairShares = COLOR_PAIRS.map((pair, i) => ({
     pair,
-    label: pairOf(pair),
+    label: pair,
     share: i === 0 ? 0.2 : (1 - 0.2) / (COLOR_PAIRS.length - 1),
   }));
   return {
@@ -142,7 +142,7 @@ describe('CubeDraftabilityPanel — loaded', () => {
       (el) => el.textContent ?? ''
     );
     for (const pair of COLOR_PAIRS) {
-      expect(labelTexts.some((t) => t.startsWith(pairOf(pair)))).toBe(true);
+      expect(labelTexts.some((t) => t.startsWith(pair))).toBe(true);
     }
 
     expect(screen.getByText('Tokens')).toBeTruthy();

@@ -15,14 +15,23 @@ import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CubeScore } from './objective';
 import { AXIS_LABEL } from './objective';
 import { refineCube } from './refine';
-import { COLORS, isLand, bucketOf, curveSlotOf, type CubeCard } from './core';
+import {
+  COLORS,
+  COLOR_PAIRS,
+  isLand,
+  bucketOf,
+  curveSlotOf,
+  pairsFixedBy,
+  type ColorPair,
+  type CubeCard,
+} from './core';
 
 // The card shape and the pure classifiers live in ./core so `objective` and
 // `refine` can reach them without importing back up into this module — that
 // was a value-level import cycle. Re-exported here so every existing
 // `from './cube/generate'` import site keeps working unchanged.
-export { COLORS, isLand, bucketOf, curveSlotOf } from './core';
-export type { CubeCard } from './core';
+export { COLORS, COLOR_PAIRS, isLand, bucketOf, curveSlotOf, pairOf, pairsFixedBy } from './core';
+export type { ColorPair, CubeCard } from './core';
 
 /** One selected card plus the slot it was picked to fill (the "why"). */
 export interface Pick {
@@ -288,14 +297,12 @@ function selectBucket(
   pool: CubeCard[],
   target: number,
   band: BandTargets,
-  isLandBucket: boolean,
   quota: Record<Quota, number>,
   seed: CubeCard[] = []
 ): { picks: CubeCard[]; deferred: CubeCard[] } {
   const effectiveTarget = Math.max(target, seed.length);
   const sorted = [...pool].sort(byQuality);
-  if (isLandBucket || sorted.length + seed.length <= effectiveTarget) {
-    // Lands: quality-only (fixing nuance isn't worth a Scryfall round-trip here).
+  if (sorted.length + seed.length <= effectiveTarget) {
     const need = Math.max(0, effectiveTarget - seed.length);
     return { picks: [...seed, ...sorted.slice(0, need)], deferred: sorted.slice(need) };
   }
@@ -358,6 +365,65 @@ function selectBucket(
     }
   }
   return { picks, deferred };
+}
+
+/**
+ * Fixing lands, spread across the ten color pairs by the corpus's own per-pair
+ * fixing counts (`band.pairs[p].fixingLands`) instead of by popularity alone
+ * (item 2 of the pair-aware program) — popularity only ranks WITHIN a pair
+ * (and among lands that fix no pair at all, e.g. a mono-color utility land).
+ * A land that fixes several pairs (a triland, a five-color land) counts toward
+ * each of them at once, exactly like it does at the table: this deliberately
+ * ISN'T a partition, so one land can satisfy two pairs' deficits simultaneously.
+ *
+ * Pass 1 fills each pair's own deficit, biggest corpus target first (ties
+ * broken by `COLOR_PAIRS` order for determinism), best-quality qualifying land
+ * first. Pass 2 fills whatever's left by pure quality (utility/mono lands, or
+ * any pair whose deficit the pool couldn't reach). No curve/quota shaping here
+ * — lands never carry a role/creature quota, and the refiner never touches the
+ * land bucket (see refine.ts), so this greedy fill is the land bucket's only
+ * shot at the corpus shape.
+ */
+function selectFixingLands(
+  pool: CubeCard[],
+  target: number,
+  band: BandTargets,
+  seed: CubeCard[] = []
+): { picks: CubeCard[]; deferred: CubeCard[] } {
+  const effectiveTarget = Math.max(target, seed.length);
+  const sorted = [...pool].sort(byQuality);
+  if (sorted.length + seed.length <= effectiveTarget) {
+    return { picks: [...seed, ...sorted], deferred: [] };
+  }
+
+  const picked: CubeCard[] = [...seed];
+  const pickedIds = new Set(picked.map((c) => c.oracleId));
+  const pairCount = {} as Record<ColorPair, number>;
+  for (const p of COLOR_PAIRS) pairCount[p] = 0;
+  for (const c of seed) for (const p of pairsFixedBy(c)) pairCount[p]++;
+
+  const pairTarget = {} as Record<ColorPair, number>;
+  for (const p of COLOR_PAIRS) pairTarget[p] = band.pairs[p].fixingLands.median;
+  const order = [...COLOR_PAIRS].sort(
+    (a, b) => pairTarget[b] - pairTarget[a] || COLOR_PAIRS.indexOf(a) - COLOR_PAIRS.indexOf(b)
+  );
+  for (const p of order) {
+    for (const c of sorted) {
+      if (picked.length >= effectiveTarget || pairCount[p] >= pairTarget[p]) break;
+      if (pickedIds.has(c.oracleId) || !pairsFixedBy(c).includes(p)) continue;
+      picked.push(c);
+      pickedIds.add(c.oracleId);
+      for (const pp of pairsFixedBy(c)) pairCount[pp]++;
+    }
+  }
+  for (const c of sorted) {
+    if (picked.length >= effectiveTarget) break;
+    if (pickedIds.has(c.oracleId)) continue;
+    picked.push(c);
+    pickedIds.add(c.oracleId);
+  }
+  const deferred = sorted.filter((c) => !pickedIds.has(c.oracleId));
+  return { picks: picked, deferred };
 }
 
 function reasonFor(c: CubeCard, bucket: ColorBucket): string {
@@ -433,14 +499,17 @@ export function generateCube(
     );
     const quota = {} as Record<Quota, number>;
     for (const k of QUOTAS) quota[k] = quotaByKey[k][b];
-    const { picks: sel, deferred } = selectBucket(
-      buckets[b],
-      want,
-      band,
-      b === 'land',
-      quota,
-      lockedInBucket
-    );
+    // Land gets a pair-aware selector (selectFixingLands, below); every other
+    // bucket including multicolor keeps the plain quota/curve fill. A gold-pair
+    // floor for multicolor was tried and measured to cost archetype depth: it
+    // takes a slot pure quality would have spent on the pool's best card
+    // (usually the archetype's own leaning pair) and gives it to a fairness
+    // target instead. Removed; the pair-band guards in generate.live.test.ts
+    // are the tripwire if a pool ever leaves a well-supported pair starved.
+    const { picks: sel, deferred } =
+      b === 'land'
+        ? selectFixingLands(buckets[b], want, band, lockedInBucket)
+        : selectBucket(buckets[b], want, band, quota, lockedInBucket);
     byBucket[b] = sel.length;
     for (const c of sel) picks.push({ card: c, bucket: b, reason: reasonFor(c, b) });
     leftovers.push(...deferred);

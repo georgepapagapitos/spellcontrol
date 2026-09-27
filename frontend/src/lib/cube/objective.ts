@@ -11,7 +11,15 @@
 // panel → adversary). The adversary mitigations are inline-commented (M#).
 
 import type { Pick } from './generate';
-import { bucketOf, curveSlotOf, isLand, COLORS, type CubeCard } from './core';
+import {
+  bucketOf,
+  curveSlotOf,
+  isLand,
+  pairOf,
+  COLORS,
+  type ColorPair,
+  type CubeCard,
+} from './core';
 import type { BandTargets, ColorBucket, CurveSlot } from './targets';
 import { AXES, type AxisKey } from '@/deck-builder/services/synergy/axes';
 
@@ -57,9 +65,11 @@ export function typeOf(c: CubeCard): string | null {
   return TYPE_CLASSIFY_ORDER.find((x) => t.includes(x)) ?? null;
 }
 
-/** Term weights — sum to 1.0. Archetype is the lens the greedy ignores entirely. */
+/** Term weights — sum to 1.0. Archetype (+ its pair-concentration sibling) is
+ *  the lens the greedy ignores entirely. */
 const W = {
-  archetype: 0.4,
+  archetype: 0.39,
+  pairConcentration: 0.01,
   glue: 0.12,
   color: 0.13,
   curve: 0.13,
@@ -67,19 +77,26 @@ const W = {
   power: 0.05,
   type: 0.08,
 } as const;
+/** Combined weight of the two archetype-family terms — kept in one place so
+ *  `weightsFor` scales and splits them together. */
+const ARCHETYPE_FAMILY = W.archetype + W.pairConcentration;
 
 /**
  * Term weights for a given synergy level (the "Best cards ↔ Synergy" slider).
- * At 1 these are `W` verbatim; below it the archetype weight shrinks and the
- * freed weight spreads proportionally across the environment terms — so sliding
- * toward "Best cards" makes the refiner care about curve/interaction/balance
- * instead of theme depth, rather than meaning nothing at all. Always sums to 1.
+ * At 1 these are `W` verbatim; below it the archetype-family weight (archetype
+ * depth + pair concentration) shrinks and the freed weight spreads
+ * proportionally across the environment terms — so sliding toward "Best cards"
+ * makes the refiner care about curve/interaction/balance instead of theme
+ * depth, rather than meaning nothing at all. Always sums to 1.
  */
 export function weightsFor(synergyLevel: number): Record<keyof typeof W, number> {
-  const archetype = W.archetype * synergyLevel;
-  const k = (1 - archetype) / (1 - W.archetype);
+  const family = ARCHETYPE_FAMILY * synergyLevel;
+  const archetype = family * (W.archetype / ARCHETYPE_FAMILY);
+  const pairConcentration = family - archetype;
+  const k = (1 - family) / (1 - ARCHETYPE_FAMILY);
   return {
     archetype,
+    pairConcentration,
     glue: W.glue * k,
     color: W.color * k,
     curve: W.curve * k,
@@ -121,6 +138,9 @@ export interface AxisSupport {
 /** The objective broken into its named terms (all 0..1) plus the [0,1] total. */
 export interface CubeScore {
   archetype: number;
+  /** How well each of the cube's top archetypes concentrates its gold cards
+   *  in the pair(s) that support it — see `pairConcentrationOf`. */
+  pairConcentration: number;
   glue: number;
   color: number;
   curve: number;
@@ -229,11 +249,15 @@ function contributes(c: CubeCard, ax: AxisKey): boolean {
   return (c.synergyProducers ?? []).includes(ax) || (c.synergyPayoffs ?? []).includes(ax);
 }
 
-/** Per-axis enabler/payoff/bucket tally, as accumulated in `scoreCube` and (incrementally) in ./scorer-state. */
+/** Per-axis enabler/payoff/bucket/pair tally, as accumulated in `scoreCube` and (incrementally) in ./scorer-state. */
 export interface AxisAgg {
   e: number;
   y: number;
   buckets: Partial<Record<ColorBucket, number>>;
+  /** Same tally, but only for exactly-two-color (gold) contributors, keyed by
+   *  their `ColorPair` — the basis for `pairConcentrationOf`. A mono/colorless
+   *  or 3+ color contributor touches `buckets` above but not this. */
+  pairs: Partial<Record<ColorPair, number>>;
 }
 
 /**
@@ -256,6 +280,65 @@ export function axisScoreOf(ax: AxisKey, d: AxisAgg, minDepthVal: number): numbe
   const concentration = contribCount > 0 ? top2 / contribCount : 0;
   const depth = Math.min(total, minDepthVal) / minDepthVal;
   return depth * balance * (0.5 + 0.5 * concentration);
+}
+
+/**
+ * Below this many gold contributors, "concentration" isn't a measurement, it's
+ * noise: 1 gold card is trivially 100% concentrated, 2-3 cards swing wildly
+ * (50%-100%) on a single swap. Scoring that swing gave the refiner a strong,
+ * volatile gradient at exactly the cube sizes where gold-per-pair is naturally
+ * thin (a handful of cards per pair at 180-360) — measured dragging archetype
+ * down for no real signal. A real, deep archetype has plenty of gold
+ * contributors; this floor costs it nothing.
+ */
+const MIN_GOLD_SAMPLE = 4;
+
+/**
+ * How much one archetype's gold (exactly-two-color) contributors concentrate
+ * in a SINGLE pair, in (0, 1] — 1 = every gold card shares one identity (a
+ * real cube's "UB = reanimator"), lower = the theme's gold pieces are spread
+ * across unrelated pairs, which is undraftable ("half your reanimator payoffs
+ * are UB, half are RW"). Top-1 share of gold contributors, not top-2 like
+ * `axisScoreOf`'s bucket concentration: spreading over TWO pairs is exactly
+ * the failure this term exists to catch, where spreading a mono-color theme
+ * over "U" and "multicolor" (axisScoreOf's coarser buckets) is not a defect.
+ * An axis with fewer than `MIN_GOLD_SAMPLE` gold contributors — including none
+ * at all (a purely mono-color theme) — has nothing MEANINGFUL to concentrate
+ * yet: scores 1, M4-style, so it isn't penalized for a property that doesn't
+ * apply to it (or that a thin sample can't reliably measure).
+ */
+export function pairConcentrationOf(d: AxisAgg): number {
+  const counts = Object.values(d.pairs);
+  const total = counts.reduce((a, b) => a + b, 0);
+  if (total < MIN_GOLD_SAMPLE) return 1;
+  return Math.max(...counts) / total;
+}
+
+/**
+ * Rank `draftable` axes by `primary`, average the top-`k` `primary` values
+ * (the metric `k` was computed for), and separately average `secondary` over
+ * that SAME top-k set — used so the archetype term and the pair-concentration
+ * term always judge the cube's same K "real" archetypes (the ones deep enough
+ * to matter), rather than pair-concentration picking its own, unrelated top-k
+ * (which would let two stray same-pair gold cards on an otherwise-empty axis
+ * outscore a cube's actual best archetype). `k === 0` (nothing draftable) is
+ * M4: nothing to penalize, both terms are 1.
+ */
+export function topKMean(
+  draftable: AxisKey[],
+  k: number,
+  primary: (ax: AxisKey) => number,
+  secondary: (ax: AxisKey) => number
+): { primary: number; secondary: number } {
+  if (k === 0) return { primary: 1, secondary: 1 };
+  const ranked = draftable
+    .map((ax) => ({ ax, v: primary(ax) }))
+    .sort((a, b) => b.v - a.v)
+    .slice(0, k);
+  return {
+    primary: ranked.reduce((s, r) => s + r.v, 0) / k,
+    secondary: ranked.reduce((s, r) => s + secondary(r.ax), 0) / k,
+  };
 }
 
 /** Term B (glue/overlap) for one card. M7 — spellslinger excluded so every instant/sorcery doesn't inflate it. */
@@ -317,23 +400,22 @@ export function scoreCube(
   }
   const landCount = byBucket['land'] ?? 0;
 
-  // ── Term A: archetype portfolio ─────────────────────────────────────────
+  // ── Term A: archetype portfolio (+ Term A2: pair concentration) ──────────
   // Per-axis enabler/payoff tallies + a per-axis color-bucket distribution
-  // (for the concentration factor).
-  const axisData = new Map<
-    AxisKey,
-    { e: number; y: number; buckets: Record<ColorBucket, number> }
-  >();
+  // (for the concentration factor) + a per-axis color-PAIR distribution over
+  // just its gold contributors (for the pair-concentration term).
+  const axisData = new Map<AxisKey, AxisAgg>();
   const ensure = (ax: AxisKey) => {
     let d = axisData.get(ax);
     if (!d) {
-      d = { e: 0, y: 0, buckets: {} as Record<ColorBucket, number> };
+      d = { e: 0, y: 0, buckets: {}, pairs: {} };
       axisData.set(ax, d);
     }
     return d;
   };
   for (const c of cards) {
     const b = bucketOf(c);
+    const p = pairOf(c);
     const touched = new Set<AxisKey>();
     for (const ax of c.synergyProducers ?? []) {
       ensure(ax).e++;
@@ -346,6 +428,7 @@ export function scoreCube(
     for (const ax of touched) {
       const d = ensure(ax);
       d.buckets[b] = (d.buckets[b] ?? 0) + 1;
+      if (p) d.pairs[p] = (d.pairs[p] ?? 0) + 1;
     }
   }
 
@@ -359,15 +442,24 @@ export function scoreCube(
   // well the cube nails its 5. Instead average the top-K axis scores, K = what a
   // cube this size should deliver. A pool supporting fewer than K axes uses all
   // of them, so sparse/tag-less pools are unchanged (M4 still holds: 0 → 1).
+  //
+  // Pair concentration rides along on the SAME top-K axes (see `topKMean`) — a
+  // real cube's "UB = reanimator, RW = aggro" shape only means something for
+  // the archetypes the cube actually delivers.
   const draftable = draftablePoolAxes(pool);
-  const axisScores = draftable
-    .map((ax) => {
+  const k = Math.min(draftable.length, targetArchetypeCount(size));
+  const { primary: archetype, secondary: pairConcentration } = topKMean(
+    draftable,
+    k,
+    (ax) => {
       const d = axisData.get(ax);
       return d ? axisScoreOf(ax, d, MIN_DEPTH) : 0;
-    })
-    .sort((a, b) => b - a);
-  const k = Math.min(axisScores.length, targetArchetypeCount(size));
-  const archetype = k > 0 ? axisScores.slice(0, k).reduce((s, v) => s + v, 0) / k : 1;
+    },
+    (ax) => {
+      const d = axisData.get(ax);
+      return d ? pairConcentrationOf(d) : 1;
+    }
+  );
 
   // UI breakdown: the archetypes the cube actually fields, strongest first.
   const axes: AxisSupport[] = [];
@@ -457,6 +549,7 @@ export function scoreCube(
   const w = weightsFor(synergyLevel);
   const weighted =
     w.archetype * archetype +
+    w.pairConcentration * pairConcentration +
     w.glue * glue +
     w.color * color +
     w.curve * curve +
@@ -466,7 +559,19 @@ export function scoreCube(
   const total = fixingMultiplier * weighted;
 
   axes.sort((a, b) => b.score - a.score || a.axis.localeCompare(b.axis));
-  return { archetype, glue, color, curve, interaction, power, type, fixingMultiplier, total, axes };
+  return {
+    archetype,
+    pairConcentration,
+    glue,
+    color,
+    curve,
+    interaction,
+    power,
+    type,
+    fixingMultiplier,
+    total,
+    axes,
+  };
 }
 
 export { contributes };

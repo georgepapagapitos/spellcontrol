@@ -138,6 +138,7 @@ function expectTermsClose(
   const TOL = 1e-9; // property-test tolerance vs the 1e-12 formula equivalence
   for (const k of [
     'archetype',
+    'pairConcentration',
     'glue',
     'color',
     'curve',

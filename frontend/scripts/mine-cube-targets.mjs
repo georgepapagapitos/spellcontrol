@@ -118,12 +118,36 @@ const cardType = (c) =>
   (c.details?.type_line ?? c.details?.type ?? c.type_line ?? '').toLowerCase();
 const cardCmc = (c) => Number(c.details?.cmc ?? c.cmc ?? 0) || 0;
 const cardColors = (c) => c.details?.colors ?? c.colors ?? [];
+// Color IDENTITY (for the pair split — a card's cast colors can differ from
+// its identity, e.g. hybrid mana) and produced mana (for fixing-land pairing:
+// an "add one mana of any color" land like Command Tower has an EMPTY colour
+// identity but a full produced_mana, so lands must key off produced mana, not
+// identity — see core.ts's `pairsFixedBy`).
+const cardColorIdentity = (c) => c.details?.color_identity ?? cardColors(c);
+const cardProducedMana = (c) => c.details?.produced_mana ?? [];
 function colorBucket(c) {
   if (cardType(c).includes('land')) return 'land';
   const colors = cardColors(c);
   if (colors.length === 0) return 'colorless';
   if (colors.length > 1) return 'multicolor';
   return colors[0]; // W/U/B/R/G
+}
+
+// The ten two-color pairs — same canonical set/order as core.ts's COLOR_PAIRS
+// (this script can't import frontend TS directly, so it's mirrored here).
+const COLOR_PAIRS = ['WU', 'UB', 'BR', 'RG', 'GW', 'WB', 'UR', 'BG', 'RW', 'GU'];
+const PAIR_BY_KEY = new Map(COLOR_PAIRS.map((p) => [[...p].sort().join(''), p]));
+const WUBRG = new Set(['W', 'U', 'B', 'R', 'G']);
+/** Every pair a set of produced/identity colors covers (every 2-subset). */
+function pairsOf(colors) {
+  const uniq = [...new Set(colors.filter((c) => WUBRG.has(c)))];
+  const out = [];
+  for (let i = 0; i < uniq.length; i++)
+    for (let j = i + 1; j < uniq.length; j++) {
+      const p = PAIR_BY_KEY.get([uniq[i], uniq[j]].sort().join(''));
+      if (p) out.push(p);
+    }
+  return out;
 }
 function distribution(cube) {
   const cards = (cube.cards?.mainboard || []).filter((c) => cardName(c));
@@ -166,7 +190,32 @@ function distribution(cube) {
 
   const fixingLands = cards.filter((c) => isFixingLand(cardType(c))).length;
 
-  return { color, curve, type, role, fixingLands };
+  // Per-pair gold share (of TOTAL cards, same basis as color.multicolor — every
+  // exactly-two-color nonland card belongs to exactly one pair) and multiXColor
+  // (3+ color gold cards, which don't belong to any single pair — their own
+  // small slice). Per-pair fixingLands is a raw COUNT, not a share: a land can
+  // fix more than one pair (a triland counts toward all 3), so these don't sum
+  // to `fixingLands`.
+  const pairGold = Object.fromEntries(COLOR_PAIRS.map((p) => [p, 0]));
+  const pairFixing = Object.fromEntries(COLOR_PAIRS.map((p) => [p, 0]));
+  let multiXColor = 0;
+  for (const c of nonland) {
+    const identity = [...new Set(cardColorIdentity(c).filter((x) => WUBRG.has(x)))];
+    if (identity.length === 2) {
+      const p = PAIR_BY_KEY.get([...identity].sort().join(''));
+      if (p) pairGold[p]++;
+    } else if (identity.length >= 3) {
+      multiXColor++;
+    }
+  }
+  multiXColor /= n;
+  for (const k in pairGold) pairGold[k] /= n;
+  for (const c of cards) {
+    if (!isFixingLand(cardType(c))) continue;
+    for (const p of pairsOf(cardProducedMana(c))) pairFixing[p]++;
+  }
+
+  return { color, curve, type, role, fixingLands, pairGold, pairFixing, multiXColor };
 }
 
 // --- aggregate: median + p25/p75 across cubes ---
@@ -189,12 +238,23 @@ function aggregateBand(dists) {
   const pick = (path) => dists.map((d) => path.split('.').reduce((o, k) => o[k], d));
   const aggGroup = (group) =>
     Object.fromEntries(Object.keys(dists[0][group]).map((k) => [k, agg(pick(`${group}.${k}`))]));
+  const pairs = Object.fromEntries(
+    COLOR_PAIRS.map((p) => [
+      p,
+      {
+        gold: agg(dists.map((d) => d.pairGold[p])),
+        fixingLands: agg(dists.map((d) => d.pairFixing[p])),
+      },
+    ])
+  );
   return {
     color: aggGroup('color'),
     curve: aggGroup('curve'),
     type: aggGroup('type'),
     role: aggGroup('role'),
     fixingLands: agg(dists.map((d) => d.fixingLands)),
+    pairs,
+    multiXColor: agg(dists.map((d) => d.multiXColor)),
   };
 }
 

@@ -10,7 +10,7 @@
 // (too few playables in most pairs, an archetype nobody can actually build),
 // not grading individual picks.
 
-import { COLORS, isLand, type CubeCard } from './core';
+import { COLORS, isLand, COLOR_PAIRS, type ColorPair, type CubeCard } from './core';
 import { sizeInfo, type CubeSize } from './targets';
 import {
   computePowerBasis,
@@ -22,21 +22,14 @@ import {
 import { mulberry32, shuffle } from '../playtest/rng';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 
-// ponytail: the colour-pair lane (T150 W4) is adding ColorPair/COLOR_PAIRS/
-// pairOf to ./core; this is a throwaway local copy so this file doesn't block
-// on that PR landing first. Delete this block and import from ./core once it
-// ships — the coordinator owns that swap at rebase.
-export type ColorPair = readonly [string, string];
-export const COLOR_PAIRS: ColorPair[] = (() => {
-  const pairs: ColorPair[] = [];
-  for (let i = 0; i < COLORS.length; i++) {
-    for (let j = i + 1; j < COLORS.length; j++) pairs.push([COLORS[i], COLORS[j]]);
-  }
-  return pairs;
-})();
-export function pairOf(pair: ColorPair): string {
-  return pair.join('');
-}
+/** Canonical `ColorPair` for two (unordered) colours — the reverse of what a
+ *  string pair like 'WU' already gives you by indexing. `core` only exposes
+ *  this lookup keyed off a card's colours (`pairOf`); a bot's committed
+ *  colours are computed from popularity counts, not a card, so it needs the
+ *  same lookup built from `COLOR_PAIRS` itself. */
+const PAIR_BY_COLORS = new Map<string, ColorPair>(
+  COLOR_PAIRS.map((p) => [[...p].sort().join(''), p])
+);
 
 const PACKS_PER_PLAYER = 3;
 const CARDS_PER_PACK = 15;
@@ -136,10 +129,7 @@ function commitColors(state: DrafterState): ColorPair {
       COLORS.indexOf(a) - COLORS.indexOf(b)
   );
   const [c1, c2] = ranked;
-  return [c1, c2].sort(
-    (a, b) =>
-      COLORS.indexOf(a as (typeof COLORS)[number]) - COLORS.indexOf(b as (typeof COLORS)[number])
-  ) as unknown as ColorPair;
+  return PAIR_BY_COLORS.get([c1, c2].sort().join(''))!; // every 2 of WUBRG is one of the 10 pairs
 }
 
 function takePick(state: DrafterState, pack: CubeCard[], basis: PowerBasis): void {
@@ -308,7 +298,7 @@ export function simulateDraft(
   const shortCube = cube.length < nominalPlayers * perPlayerCards;
   const baseSeed = (options.seed ?? deriveSeed(cube)) >>> 0;
 
-  const pairCounts = new Map<string, number>(COLOR_PAIRS.map((p) => [pairOf(p), 0]));
+  const pairCounts = new Map<ColorPair, number>(COLOR_PAIRS.map((p) => [p, 0]));
   let reachedBar = 0;
   let totalDecks = 0;
   const leaned = new Set<AxisKey>();
@@ -321,7 +311,7 @@ export function simulateDraft(
     for (const state of drafters) {
       const { pair, deck } = buildBestDeck(state.picks, basis);
       totalDecks++;
-      pairCounts.set(pairOf(pair), (pairCounts.get(pairOf(pair)) ?? 0) + 1);
+      pairCounts.set(pair, (pairCounts.get(pair) ?? 0) + 1);
       if (deck.length >= PLAYABLE_TARGET) reachedBar++;
       for (const ax of leanedAxes(deck)) leaned.add(ax);
     }
@@ -329,8 +319,8 @@ export function simulateDraft(
 
   const pairShares: PairShare[] = COLOR_PAIRS.map((pair) => ({
     pair,
-    label: pairOf(pair),
-    share: totalDecks ? (pairCounts.get(pairOf(pair)) ?? 0) / totalDecks : 0,
+    label: pair,
+    share: totalDecks ? (pairCounts.get(pair) ?? 0) / totalDecks : 0,
   })).sort((a, b) => b.share - a.share || a.label.localeCompare(b.label));
 
   const undraftedArchetypes: UndraftedArchetype[] = draftablePoolAxes(cube)
