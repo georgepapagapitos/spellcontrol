@@ -29,7 +29,7 @@
   border: 1px solid var(--border);
   border-bottom: 0;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-sheet);
   animation: board-sheet-up 220ms var(--ease-out-soft);
 }
 

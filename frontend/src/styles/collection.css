@@ -1048,7 +1048,7 @@ i.ss.set-symbol--mythic {
   top: 5px;
   right: 5px;
   z-index: 2;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
 }
 
 /* CardGridCell-only: when the proxy chip and rarity badge can coexist, both
@@ -1370,7 +1370,7 @@ i.ss.set-symbol--mythic {
   letter-spacing: 0.04em;
   line-height: 1;
   text-transform: uppercase;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
 }
 
 /* Corner badge for the "Tradeable surplus" filter — same scrim-chip
@@ -1385,7 +1385,7 @@ i.ss.set-symbol--mythic {
   border-radius: 999px;
   line-height: 1;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
 }
 
 .collection-grid-qty {
@@ -1401,7 +1401,7 @@ i.ss.set-symbol--mythic {
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
   line-height: 1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
 }
 
 .collection-grid-qty-x {
@@ -1426,7 +1426,7 @@ i.ss.set-symbol--mythic {
   padding: 0.22rem;
   background: var(--art-scrim);
   border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
 }
 
 .collection-grid-badges .card-list-deck-badge {
@@ -1848,7 +1848,7 @@ i.ss.set-symbol--mythic {
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.45);
   color: var(--art-scrim-text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
 }
 
 .collection-grid-check[data-checked='true'] {

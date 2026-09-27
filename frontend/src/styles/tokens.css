@@ -121,6 +121,22 @@
   --card-grid-gap: 0.625rem;
 
   /* ── Effects ──────────────────────────────────────────────────────────── */
+  /* Elevation scale (T157 W5) — one set of drop shadows for every floating
+     surface, by ROLE not by pixel guess. Pick the step that names what the
+     element IS, not the value that looked closest:
+       --shadow-raised   a chip/badge lifted a hair off its surface (card
+                          badges, active tab/segment fill, a drag overlay)
+       --shadow-tooltip  a popover/menu/dropdown/flyout anchored to a trigger
+       --shadow-card     a resting card-like surface (auth/welcome panels,
+                          a thumbnail lifted off its grid)
+       --shadow-modal    a dialog/takeover that suspends the page under it
+       --shadow-sheet    a bottom sheet or dock rising from a screen edge
+     Ring/focus outlines (`0 0 0 Npx var(...)`), inset bevels/hairlines, and
+     glows that carry game-state meaning (turn ring, damage flash, foil) are
+     NOT elevation — they stay as literals. See STYLE_GUIDE § Color & spacing
+     and styles/elevation-ratchet.test.ts (guards raw elevation shadows from
+     creeping back in file by file). */
+  --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-tooltip: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.5);
   --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.22);

@@ -1475,7 +1475,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   padding: 1px var(--space-1);
   border-radius: 3px;
   border: 1px solid rgba(0, 0, 0, 0.25);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-raised);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1598,7 +1598,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   line-height: 1;
   padding: 3px var(--space-1);
   border-radius: var(--radius);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-raised);
 }
 
 /* A card exiled face down, as the rest of the table sees it: present, and
@@ -3835,7 +3835,7 @@ button.playtest-card-pt__value--editable:focus-visible {
    the felt without a pill behind the row. */
 .playtest-hand__mv .ms {
   font-size: inherit;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-raised);
 }
 
 /* A card in hand the whole table can see (R). Marked in place, at the

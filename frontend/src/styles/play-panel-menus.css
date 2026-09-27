@@ -80,7 +80,7 @@
      over the seat, not as more of it (Lotus's drawer is a neutral dark). */
   background: color-mix(in srgb, var(--pp-base, #2a3340) 18%, #15171d);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-tooltip);
   animation: seat-drawer-down 220ms var(--ease-out-soft);
 }
 

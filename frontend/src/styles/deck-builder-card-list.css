@@ -352,7 +352,7 @@
   padding: 0 0.28rem;
   border-radius: 999px;
   background: var(--art-scrim);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
   font-family: var(--font-mono);
   /* stylelint-disable-next-line declaration-property-value-disallowed-list */
   font-size: 0.62rem;
@@ -376,7 +376,7 @@
   padding: 0.2rem;
   background: var(--art-scrim);
   border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
 }
 
 .deck-card-grid-badges .card-list-binder-badge svg {
@@ -477,7 +477,7 @@
   height: 1.15rem;
   border-radius: 999px;
   background: var(--art-scrim);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
   color: var(--art-scrim-text);
 }
 
@@ -493,7 +493,7 @@
   padding: 0 0.28rem;
   border-radius: 999px;
   background: var(--art-scrim);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
   color: var(--art-scrim-text);
 }
 
@@ -1320,7 +1320,8 @@
   background: var(--surface-raised);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+  /* Follows the pointer above everything: popover depth, not a chip lift. */
+  box-shadow: var(--shadow-tooltip);
 }
 
 /* ── Role-filter lens ─────────────────────────────────────────────────

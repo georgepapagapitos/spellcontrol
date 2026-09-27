@@ -116,7 +116,7 @@ button.card-counter-slot:focus-visible {
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+  box-shadow: var(--shadow-raised);
 }
 
 .card-counter--mark {
