@@ -330,9 +330,12 @@ export function CubeSizePicker({
   format?: CubeFormat;
 }) {
   const info = sizeInfo(size);
+  // One fact, one place: the deck-size fact ("60-card deck with a commander")
+  // lives only in CubeFormatPicker's own note — this note states only what's
+  // specific to THIS size (the spells + commanders split and the pod it fits).
   const note =
     format === 'commander'
-      ? `${size} spells + ${LEGEND_TARGET[size]} commanders · ${POD_ARTICLE[info.players] ?? 'a'} ${info.players}-player pod, everyone builds a 60-card deck with a commander.`
+      ? `${size} spells + ${LEGEND_TARGET[size]} commanders · ${POD_ARTICLE[info.players] ?? 'a'} ${info.players}-player pod`
       : info.note;
   return (
     <div className="cube-size">

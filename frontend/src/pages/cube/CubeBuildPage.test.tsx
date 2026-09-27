@@ -164,9 +164,11 @@ describe('CubeBuildPage — format (board #12, PR2)', () => {
 
     fireEvent.click(commander);
     expect((commander as HTMLInputElement).checked).toBe(true);
-    // Size note switches from the draft-pod note to the spells + commanders math.
-    expect(screen.getByText(/540 spells \+ \d+ commanders/)).toBeTruthy();
-    expect(screen.getByText(/60-card deck with a commander/)).toBeTruthy();
+    // Size note switches from the draft-pod note to its own spells +
+    // commanders math — one fact, one place: the deck-size fact ("60-card
+    // deck with a commander") lives only in the format note above, not here.
+    expect(screen.getByText(/540 spells \+ \d+ commanders · an 8-player pod/)).toBeTruthy();
+    expect(screen.getByText(/60-card decks with a commander, multiplayer/)).toBeTruthy();
     // Footer pool line grows a legend-eligibility count.
     expect(screen.getByText(/legendary creatures eligible/)).toBeTruthy();
   });
