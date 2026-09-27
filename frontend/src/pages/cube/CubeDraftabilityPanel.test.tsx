@@ -177,7 +177,7 @@ describe('CubeDraftabilityPanel — error and retry', () => {
     expect(summary).not.toContain("Couldn't simulate the draft.");
 
     mockSimulate.mockResolvedValueOnce(draftResult());
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     await waitFor(() => expect(screen.getByText('96%')).toBeTruthy());
     expect(mockSimulate).toHaveBeenCalledTimes(2);

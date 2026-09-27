@@ -124,7 +124,7 @@ export function CubeDraftabilityPanel({ cube }: { cube: GeneratedCube }): JSX.El
             <div className="cube-error" role="alert">
               Couldn't simulate the draft.
               <Button variant="link" onClick={() => setRetryToken((t) => t + 1)}>
-                Try again
+                Retry
               </Button>
             </div>
           )}

@@ -16,8 +16,7 @@ import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../lib/calen
 import { gameFormatLabel } from '../lib/game-formats';
 import { mapsSearchUrl } from '../lib/place-search';
 import { useAuth } from '../store/auth';
-import { ErrorView, NotFoundView, SharedShell } from '../components/share/SharedShell';
-import { BrandMark } from '../components/shared/BrandMark';
+import { ErrorView, LoadingView, NotFoundView, SharedShell } from '../components/share/SharedShell';
 import { NightPoll } from '../components/NightPoll';
 import { OverflowMenu } from '../components/OverflowMenu';
 import './GameNightView.css';
@@ -117,10 +116,7 @@ function GameNightViewInner({ token }: { token: string }) {
   if (state.status === 'loading') {
     return (
       <SharedShell ctaLabel="Plan your own game nights">
-        <div className="shared-view shared-view--loading" aria-busy="true">
-          <BrandMark size={64} motion="busy" aria-hidden />
-          <p>Loading…</p>
-        </div>
+        <LoadingView />
       </SharedShell>
     );
   }

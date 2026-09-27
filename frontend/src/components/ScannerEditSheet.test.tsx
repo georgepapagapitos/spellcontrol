@@ -171,7 +171,7 @@ describe('ScannerEditSheet', () => {
     fetchPrintingsMock.mockResolvedValueOnce([makeCard()]);
     renderEdit();
     fireEvent.click(screen.getByRole('button', { name: /^Printing: Fifth Dawn/ }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(screen.getByText('1 printing of Mana Geyser')).toBeTruthy());
   });
 });

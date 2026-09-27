@@ -268,7 +268,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
             setPendingDelete(null);
             deleteGameNight(night.id)
               .then(refresh)
-              .then(() => toast.show({ message: 'Game night deleted.' }))
+              .then(() => toast.show({ message: `Deleted ${night.title}`, tone: 'success' }))
               .catch((err) =>
                 toast.show({
                   message: userMessage(err, "Couldn't delete the game night."),
@@ -1058,7 +1058,7 @@ function NightDialog({
     try {
       await removeGameNightRsvp(night.id, rsvpId);
       setRemoved((prev) => new Set(prev).add(rsvpId));
-      toast.show({ message: `${displayName} removed from the night.` });
+      toast.show({ message: `Removed ${displayName} from the night`, tone: 'success' });
       onPeopleChanged();
     } catch (err) {
       toast.show({
@@ -1077,7 +1077,7 @@ function NightDialog({
       await removeGameNightRsvp(night.id, rsvpId, { block: true });
       setRemoved((prev) => new Set(prev).add(rsvpId));
       setBlockedLocally((prev) => new Set(prev).add(username));
-      toast.show({ message: `${displayName} removed and blocked from the night.` });
+      toast.show({ message: `Removed and blocked ${displayName} from the night`, tone: 'success' });
       onPeopleChanged();
     } catch (err) {
       toast.show({
@@ -1113,7 +1113,7 @@ function NightDialog({
     try {
       await removeGameNightInvite(night.id, username);
       setRemoved((prev) => new Set(prev).add(`invite:${username}`));
-      toast.show({ message: `Invite to ${username} removed.` });
+      toast.show({ message: `Removed the invite to ${username}`, tone: 'success' });
       onPeopleChanged();
     } catch (err) {
       toast.show({

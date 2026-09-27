@@ -7,8 +7,7 @@ import {
   type PublicDeckPage as PublicDeckPageData,
 } from '../lib/share-client';
 import { SharedDeckSurface } from '../components/share/SharedDeckSurface';
-import { BrandMark } from '../components/shared/BrandMark';
-import { NotFoundView, ErrorView } from '../components/share/SharedShell';
+import { NotFoundView, ErrorView, LoadingView } from '../components/share/SharedShell';
 import { useAuth } from '../store/auth';
 import { useDecksStore } from '../store/decks';
 import { useDocumentTitle } from '../lib/use-document-title';
@@ -133,12 +132,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
   );
 
   if (state.status === 'loading' || (isOwner && !decksHydrated)) {
-    return (
-      <div className="shared-view shared-view--loading" aria-busy="true">
-        <BrandMark size={64} motion="busy" aria-hidden />
-        <p>Loading…</p>
-      </div>
-    );
+    return <LoadingView />;
   }
   if (ownDeckId) {
     return <Navigate to={`/decks/${ownDeckId}`} replace />;

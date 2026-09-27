@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </p>
             <div className="error-boundary-actions">
               <Button variant="primary" onClick={() => this.setState({ error: null })}>
-                Try again
+                Retry
               </Button>
               <Button onClick={() => window.location.reload()}>Reload page</Button>
             </div>

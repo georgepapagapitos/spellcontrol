@@ -5,8 +5,7 @@ import {
   resolveGuestInvite,
   saveGuestInviteToken,
 } from '../lib/game-nights-api';
-import { ErrorView, NotFoundView, SharedShell } from '../components/share/SharedShell';
-import { BrandMark } from '../components/shared/BrandMark';
+import { ErrorView, LoadingView, NotFoundView, SharedShell } from '../components/share/SharedShell';
 
 import { userMessage } from '@/lib/user-error';
 /**
@@ -80,10 +79,7 @@ export function GameNightLinkForward({
   }
   return (
     <SharedShell ctaLabel="Plan your own game nights">
-      <div className="shared-view shared-view--loading" aria-busy="true">
-        <BrandMark size={64} motion="busy" aria-hidden />
-        <p>Loading…</p>
-      </div>
+      <LoadingView />
     </SharedShell>
   );
 }

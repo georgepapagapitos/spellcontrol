@@ -335,7 +335,7 @@ function SpectatorHorde({ game }: { game: GameState }) {
       : status === 'error'
         ? {
             message: error ?? "Couldn't load the horde.",
-            actionLabel: 'Try again',
+            actionLabel: 'Retry',
             onAction: retry,
           }
         : undefined;

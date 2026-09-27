@@ -644,7 +644,7 @@ export function FriendHubPage() {
               <p className="friend-hub-radar-note" role="alert">
                 Couldn't check {who}'s collection against your want lists.{' '}
                 <Button variant="link" onClick={retryCollection} className="friend-hub-radar-retry">
-                  Try again
+                  Retry
                 </Button>
               </p>
             ) : collectionUnknown || radar === null ? (
@@ -691,7 +691,7 @@ export function FriendHubPage() {
               <p className="friend-hub-radar-note" role="alert">
                 Couldn't check your collection against {who}'s want lists.{' '}
                 <Button variant="link" onClick={retryWants} className="friend-hub-radar-retry">
-                  Try again
+                  Retry
                 </Button>
               </p>
             ) : collectionUnknown || wantRadar === null ? (
@@ -792,7 +792,7 @@ export function FriendHubPage() {
           <p className="friend-hub-radar-note" role="alert">
             Couldn't load {who}'s decks.{' '}
             <Button variant="link" onClick={retryDecks} className="friend-hub-radar-retry">
-              Try again
+              Retry
             </Button>
           </p>
         ) : friendDecks === null ? (
@@ -837,7 +837,7 @@ export function FriendHubPage() {
           <p className="friend-hub-radar-note" role="alert">
             Couldn't load {who}'s collection.{' '}
             <Button variant="link" onClick={retryCollection} className="friend-hub-radar-retry">
-              Try again
+              Retry
             </Button>
           </p>
         ) : friendCards === null ? (
@@ -990,7 +990,7 @@ export function FriendHubPage() {
           <p className="friend-hub-radar-note" role="alert">
             Couldn't load your trades with {who}.{' '}
             <Button variant="link" onClick={refreshTrades} className="friend-hub-radar-retry">
-              Try again
+              Retry
             </Button>
           </p>
         ) : offers === null ? (

@@ -238,7 +238,7 @@ export function CubePullList({ cube }: { cube: SavedCube }) {
   const setMap = useSetMap();
 
   // `attempt` is read into the returned value purely so it's a REAL
-  // dependency — "Try again" bumps `buildAttempt`, and this memo has to
+  // dependency — "Retry" bumps `buildAttempt`, and this memo has to
   // actually depend on it to run again, not just list it for eslint's sake.
   const { groups, buildError } = useMemo(() => {
     try {
