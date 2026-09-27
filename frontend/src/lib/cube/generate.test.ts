@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generateCube, bucketOf, curveSlotOf, byQuality, CubeCard } from './generate';
-import { targetsForSize } from './targets';
+import { generateCube, bucketOf, curveSlotOf, byQuality, apportion, CubeCard } from './generate';
+import { targetsForSize, CUBE_SIZES } from './targets';
 import { scoreCube } from './objective';
 
 let id = 0;
@@ -626,5 +626,21 @@ describe('play format', () => {
     expect(commander.targetByBucket).toEqual(
       generateCube(pool, 360, { format: 'commander' }).targetByBucket
     );
+  });
+});
+
+describe('apportion', () => {
+  it('sums bucket targets to exactly `size`, for every band and every offered size (E454)', () => {
+    for (const format of ['limited', 'commander'] as const) {
+      for (const size of CUBE_SIZES) {
+        const band = targetsForSize(size, format);
+        const shares = Object.fromEntries(
+          Object.entries(band.color).map(([bucket, stat]) => [bucket, stat.median])
+        ) as Record<keyof typeof band.color, number>;
+        const targetByBucket = apportion(shares, size);
+        const sum = Object.values(targetByBucket).reduce((a, b) => a + b, 0);
+        expect(sum, `${format} ${size}`).toBe(size);
+      }
+    }
   });
 });
