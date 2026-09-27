@@ -912,6 +912,10 @@ describe.skipIf(!POOL_PATH)('commander draft simulation (real collection, report
     playersPerRun: number;
     totalDecks: number;
     shortCube: boolean;
+    /** Own picks per drafter — `packsPerPlayer * cardsPerPack` (45) unless
+     *  the combined spells+legends pool is too small for the pod (shortCube),
+     *  in which case it's the floor of what's actually available per seat. */
+    picksPerDrafter: number;
     builtDeckSharePct: number;
     noCommanderSharePct: number;
     topIdentities: { identity: string; sharePct: number }[];
@@ -983,6 +987,12 @@ describe.skipIf(!POOL_PATH)('commander draft simulation (real collection, report
         expect(identitySum + result.noCommanderShare).toBeCloseTo(1, 5);
       }
 
+      const combinedSize = cube.picks.length + cube.legends!.length;
+      const picksPerDrafter = Math.min(
+        result.packsPerPlayer * result.cardsPerPack,
+        Math.floor(combinedSize / result.playersPerRun)
+      );
+
       draftRows.push({
         size,
         ms,
@@ -990,6 +1000,7 @@ describe.skipIf(!POOL_PATH)('commander draft simulation (real collection, report
         playersPerRun: result.playersPerRun,
         totalDecks: result.totalDecks,
         shortCube: result.shortCube,
+        picksPerDrafter,
         builtDeckSharePct: Math.round(result.builtDeckShare * 1000) / 10,
         noCommanderSharePct: Math.round(result.noCommanderShare * 1000) / 10,
         topIdentities: result.identityShares

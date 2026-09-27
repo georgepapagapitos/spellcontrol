@@ -174,7 +174,7 @@ describe('CommanderCoveragePanel — loaded', () => {
 
     await waitFor(() => expect(screen.getByText('55%')).toBeTruthy());
     expect(document.querySelector('.cube-commander-coverage-summary')!.textContent).toBe(
-      'Simulated 50 drafts: 55% of drafters built a legal commander deck.'
+      'Simulated 50 drafts: 55% of drafters had a commander and 23+ playables in its colors.'
     );
 
     // Both identities with a nonzero share render as rows.
@@ -183,12 +183,12 @@ describe('CommanderCoveragePanel — loaded', () => {
     expect(document.querySelector('.cube-commander-coverage-pill')!.textContent).toBe('BG');
   });
 
-  it('says every supported identity got built when nothing is unbuildable', async () => {
+  it('says every supported identity reached the bar when nothing is unbuildable', async () => {
     mockSimulate.mockResolvedValue(simResult({ unbuildableIdentities: [] }));
     render(<CommanderCoveragePanel cube={cubeOf(360, [legendPick()])} />);
     openToggle();
     await waitFor(() =>
-      expect(screen.getByText(/Every color identity this cube supports got built/)).toBeTruthy()
+      expect(screen.getByText(/Every color identity this cube supports reached 23\+/)).toBeTruthy()
     );
     expect(document.querySelector('.cube-commander-coverage-pill')).toBeNull();
   });

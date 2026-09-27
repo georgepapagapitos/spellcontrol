@@ -20,7 +20,10 @@
 // (PR4, the follow-up open question 6 itself deferred) adds the real
 // simulation on top: opening the panel now ALSO seeds a Commander pod (see
 // draft-sim.ts's `simulateCommanderDraft`) and reports how many drafters
-// actually ended up with a legal commander deck. The panel "keeps its static
+// ended up with a commander and a real playable core around it (the same
+// `COMMANDER_PLAYABLE_TARGET` bar the limited pod's own Draftability uses,
+// not "did the draft alone fill all 59 other cards" — see that module's own
+// doc for why). The panel "keeps its static
 // grid and gains the simulation" (rather than forking a second disclosure
 // next to it, or ripping the grid out) — same collapsed-by-default idiom as
 // Draftability, same cache-on-`picks` idiom, one section that states the
@@ -38,7 +41,7 @@ import type { EnrichedCard } from '../../types';
 import { COLORS, COLOR_PAIRS, type GeneratedCube } from '../../lib/cube/generate';
 import type { LegendIdentity } from '../../lib/cube/legend';
 import { simulateCommanderDraftAsync } from '../../lib/cube/generate-async';
-import { COMMANDER_NONLAND_TARGET, type CommanderDraftSimResult } from '../../lib/cube/draft-sim';
+import { COMMANDER_PLAYABLE_TARGET, type CommanderDraftSimResult } from '../../lib/cube/draft-sim';
 import { sizeInfo } from '../../lib/cube/targets';
 import { pickToPreviewCard } from './shared';
 import { Button } from '../../components/shared/Button';
@@ -292,7 +295,7 @@ export function CommanderCoveragePanel({ cube }: { cube: GeneratedCube }) {
       : legends.length === 0
         ? 'No commanders in this cube.'
         : simStatus.kind === 'done'
-          ? `Simulated 50 drafts: ${Math.round(simStatus.result.builtDeckShare * 100)}% of drafters built a legal commander deck.`
+          ? `Simulated 50 drafts: ${Math.round(simStatus.result.builtDeckShare * 100)}% of drafters had a commander and ${COMMANDER_PLAYABLE_TARGET}+ playables in its colors.`
           : simStatus.kind === 'loading'
             ? 'Simulating…'
             : `${legends.length} commander${legends.length === 1 ? '' : 's'} across ${coveredIdentityCount} color identities.`;
@@ -355,8 +358,9 @@ export function CommanderCoveragePanel({ cube }: { cube: GeneratedCube }) {
 
 /** The simulation half of the panel's open body — the static grid above it
  *  already states legend counts, so this states the three metrics that need
- *  an actual draft to answer: whether a pod ends up with a buildable deck,
- *  which identities got drafted as commander, and which ones never got built. */
+ *  an actual draft to answer: whether a pod ends up with a commander and a
+ *  real playable core, which identities got drafted as commander, and which
+ *  ones nobody ever reached that core with. */
 function CommanderDraftSimReport({
   result,
   size,
@@ -379,13 +383,16 @@ function CommanderDraftSimReport({
 
       <div className="cube-commander-coverage-sim-stat">
         <div className="cube-commander-coverage-sim-stat-row">
-          <span className="cube-commander-coverage-label">Built a legal commander deck</span>
+          <span className="cube-commander-coverage-label">
+            Commander and {COMMANDER_PLAYABLE_TARGET}+ playables
+          </span>
           <strong className="cube-commander-coverage-sim-stat-value">{pct}%</strong>
         </div>
         <MeterBar value={result.builtDeckShare} max={1} />
         <p className="cube-commander-coverage-caption">
-          {builtCount} of {result.totalDecks} drafted decks (a commander plus{' '}
-          {COMMANDER_NONLAND_TARGET} playables in its colors).
+          {builtCount} of {result.totalDecks} drafted decks had a commander and at least{' '}
+          {COMMANDER_PLAYABLE_TARGET} playables in its colors. Basics fill the rest of a 60-card
+          deck.
         </p>
       </div>
 
@@ -405,10 +412,13 @@ function CommanderDraftSimReport({
       </div>
 
       <div className="cube-commander-coverage-sim-unbuildable">
-        <p className="cube-commander-coverage-label">Color identities nobody built</p>
+        <p className="cube-commander-coverage-label">
+          Color identities nobody reached {COMMANDER_PLAYABLE_TARGET}+ playables in
+        </p>
         {result.unbuildableIdentities.length === 0 ? (
           <p className="cube-commander-coverage-caption">
-            Every color identity this cube supports got built by someone.
+            Every color identity this cube supports reached {COMMANDER_PLAYABLE_TARGET}+ playables
+            for someone.
           </p>
         ) : (
           <ul className="cube-commander-coverage-pill-list">

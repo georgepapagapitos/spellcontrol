@@ -372,18 +372,26 @@ export function simulateDraft(
 
 // ── Commander pod (board E461) ──────────────────────────────────────────────
 // A Commander cube's pod builds one 60-card Commander-Legends-style deck per
-// drafter (commander + ~35 non-land playables + ~24 lands) — a deliberately
-// SMALLER, draft-only shape than the app's normal 100-card singleton format
-// (design doc open question 2 keeps that for saved decks); this only measures
-// whether a pod's own draft produced enough legal, on-identity playables to
-// fill one, the same "structural problem, not deck quality" scope the limited
-// pod above has. 35 is picked to land the deck at 60 with a ~40% land ratio
-// (24/60), the same ratio a 60-card limited deck runs (17/40) scaled up.
+// drafter (commander + 59 other cards) — a deliberately SMALLER, draft-only
+// shape than the app's normal 100-card singleton format (design doc open
+// question 2 keeps that for saved decks). Basics fill whatever's left after
+// the drafted playables (unlimited supply, always legal, the same way a
+// limited deck's own land base isn't drafted card-for-card), so the bar this
+// measures is NOT "did the draft alone produce all 59 other cards" — it's
+// whether the pod produced a real PLAYABLE CORE: a commander plus enough
+// on-identity non-land picks to build around. That's the same shape question
+// the limited pod's own 23-card bar asks (see PLAYABLE_TARGET above); a first
+// pass here required 35 (deck size minus commander minus a 24-land manabase)
+// and measured 4-11% buildable on a real collection — a number that reads as
+// "Commander drafts almost always fail," which isn't true and was the wrong
+// bar, not a wrong pool. 78-100% of 30-45 picks landing on-identity is a
+// bar no real draft (limited or Commander) clears at that rate.
 
-/** commander (1) + COMMANDER_NONLAND_TARGET (35) + lands (24) = a 60-card deck.
- *  Exported so the UI states the exact same bar the sim measures against,
- *  rather than a copy of the number in a comment somewhere. */
-export const COMMANDER_NONLAND_TARGET = 35;
+/** How many on-identity non-land playables, alongside a commander, count as
+ *  a real playable core — deliberately the SAME number as the limited pod's
+ *  `PLAYABLE_TARGET` (23 of 45 picks), not deck-size-minus-manabase (35).
+ *  Exported so the UI states the exact same bar the sim measures against. */
+export const COMMANDER_PLAYABLE_TARGET = PLAYABLE_TARGET;
 /** Matches scoreCard's on-identity bonus scale below. */
 const COMMANDER_BONUS = 0.5;
 /**
@@ -391,7 +399,7 @@ const COMMANDER_BONUS = 0.5;
  * yet force-commits to the best legend it has already drafted (or keeps
  * waiting if it hasn't picked one up at all yet — see `takeCommanderPick`).
  * Deliberately as early as `COMMIT_PICK` anchors the limited pod's colour
- * commitment: reaching `COMMANDER_NONLAND_TARGET` (35) identity-legal
+ * commitment: reaching `COMMANDER_PLAYABLE_TARGET` (23) identity-legal
  * playables out of 45 total picks needs most of the draft to happen AFTER
  * commitment, mirroring how a real Commander Legends drafter locks their
  * commander early and spends the rest of the draft mostly in one identity —
@@ -542,18 +550,19 @@ export interface CommanderDraftSimResult {
    *  size's own nominal pod needs — see `DraftSimResult.shortCube`. */
   shortCube: boolean;
   /** 0..1 share of decks that ended with a commander AND at least
-   *  `COMMANDER_NONLAND_TARGET` (35) identity-legal non-land playables. */
+   *  `COMMANDER_PLAYABLE_TARGET` (23) identity-legal non-land playables — a
+   *  real playable core, basics filling the rest of the 60-card deck. */
   builtDeckShare: number;
   /** 0..1 share of decks that never landed a commander at all — the
    *  "couldn't even start" half of the decks `builtDeckShare` excludes,
-   *  distinct from "got one but couldn't fill 35 playables around it." */
+   *  distinct from "got one but couldn't fill 23 playables around it." */
   noCommanderShare: number;
   /** All 16 identity buckets (5 colours + 10 pairs + 3+), by how often a
    *  drafted deck's commander landed there, sorted by share descending. */
   identityShares: CommanderIdentityShare[];
   /** Identity buckets the legend section actually supplies at least one
-   *  candidate for, but that no drafted deck, across every run, ever turned
-   *  into a built (>=35-playable) deck. */
+   *  candidate for, but that no drafted deck, across every run, ever reached
+   *  a playable core (>=23 on-identity non-land playables) with. */
   unbuildableIdentities: LegendIdentity[];
 }
 
@@ -616,7 +625,7 @@ export function simulateCommanderDraft(
       const eligible = nonland
         .filter((c) => isIdentityLegal(c, state.identity!))
         .sort((a, b) => rawPower(b, basis) - rawPower(a, basis));
-      if (eligible.length >= COMMANDER_NONLAND_TARGET) {
+      if (eligible.length >= COMMANDER_PLAYABLE_TARGET) {
         builtDecks++;
         builtByIdentity.set(identity, (builtByIdentity.get(identity) ?? 0) + 1);
       }

@@ -324,10 +324,11 @@ describe('simulateCommanderDraft — the buildable bar', () => {
     const spells = pairFocusedSpells(pairs);
     const legends = pairFocusedLegends(pairs);
     const result = simulateCommanderDraft(spells, legends, SIZE_180_CMDR, { runs: 30, seed: 42 });
-    // A hard ceiling for the STARVED cube below is 0.125 (at most one
-    // commander per run) — clearing 0.25 is a real, meaningfully different
-    // outcome, not noise near that floor.
-    expect(result.builtDeckShare).toBeGreaterThan(0.25);
+    // Measured 0.92 at the 23-playable bar (COMMANDER_PLAYABLE_TARGET) on
+    // this pool — 0.7 leaves real headroom for seed variance while staying
+    // far clear of the STARVED cube's hard 0.125 ceiling (at most one
+    // commander per run) below.
+    expect(result.builtDeckShare).toBeGreaterThan(0.7);
     const identitiesUsed = result.identityShares.filter((s) => s.share > 0).length;
     expect(identitiesUsed).toBeGreaterThan(1);
   });
@@ -362,7 +363,7 @@ describe('simulateCommanderDraft — a mono-identity-starved cube', () => {
   it('an identity with legend supply but zero identity-legal spells anywhere is flagged unbuildable', () => {
     // W has real backing (50 mono-white spells); BG has NONE — no black, no
     // green, and no colourless nonland card exists anywhere in this pool, so
-    // any drafter who ends up with a BG commander can never field 35
+    // any drafter who ends up with a BG commander can never field 23
     // identity-legal playables around it, however the draft itself goes.
     const spells: CubeCard[] = [];
     for (let i = 0; i < 50; i++) {
