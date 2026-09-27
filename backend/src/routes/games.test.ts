@@ -2437,6 +2437,118 @@ describe('POST /api/games/:code/leave', () => {
     expect(res.status).toBe(404);
   });
 
+  // E430: the host hands the table on instead of ending it for everyone.
+  describe('host handover', () => {
+    async function table(prefix: string, joinerCount: number, start: boolean) {
+      const host = await registerAndGetCookie(`${prefix}_h`);
+      const created = await request(app).post('/api/games').set('Cookie', host).send({});
+      const code = created.body.game.code as string;
+      const joiners: string[] = [];
+      let game = created.body.game;
+      for (let i = 0; i < joinerCount; i++) {
+        const cookie = await registerAndGetCookie(`${prefix}_j${i}`);
+        game = (await request(app).post(`/api/games/${code}/join`).set('Cookie', cookie).send({}))
+          .body.game;
+        joiners.push(cookie);
+      }
+      if (start) {
+        game = (
+          await request(app)
+            .patch(`/api/games/${code}`)
+            .set('Cookie', host)
+            .send({ baseVersion: game.version, actions: [{ type: 'start' }] })
+        ).body.game;
+      }
+      return { code, host, joiners, game };
+    }
+    const hostColumn = async (code: string) =>
+      (await pool.query('SELECT host_user_id FROM game_sessions WHERE code = $1', [code])).rows[0]
+        ?.host_user_id as string | undefined;
+
+    it('in the lobby: the next seat hosts, the old host is gone, and the column moves', async () => {
+      const { code, host, joiners, game } = await table('games_ho_lobby', 2, false);
+      const heir = game.players.find((p: { seat: number }) => p.seat === 1);
+      const res = await request(app).post(`/api/games/${code}/leave`).set('Cookie', host).send({});
+      expect(res.status).toBe(200);
+      expect(res.body.deleted).toBeUndefined();
+      expect(res.body.game.hostUserId).toBe(heir.userId);
+      expect(res.body.game.players.map((p: { seat: number }) => p.seat)).toEqual([1, 2]);
+      expect(res.body.game.players.find((p: { seat: number }) => p.seat === 1).isHost).toBe(true);
+      expect(res.body.game.events.at(-2).message).toBe(`${heir.name} is the host now`);
+      expect(await hostColumn(code)).toBe(heir.userId);
+
+      // The new host holds every host-only power; the old one is not seated.
+      const started = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiners[0])
+        .send({ baseVersion: res.body.game.version, actions: [{ type: 'start' }] });
+      expect(started.status).toBe(200);
+      expect((await request(app).get(`/api/games/${code}`).set('Cookie', host)).status).toBe(404);
+    });
+
+    it('mid-game: the old host keeps a seat, marked away, with no host powers', async () => {
+      const { code, host, joiners, game } = await table('games_ho_mid', 1, true);
+      const res = await request(app).post(`/api/games/${code}/leave`).set('Cookie', host).send({});
+      expect(res.status).toBe(200);
+      const old = res.body.game.players.find((p: { seat: number }) => p.seat === 0);
+      expect(old).toMatchObject({ connected: false, isHost: false });
+      expect(res.body.game.hostUserId).toBe(game.players[1].userId);
+
+      const reset = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: res.body.game.version, actions: [{ type: 'reset', id: 'next' }] });
+      expect(reset.status).toBe(403);
+      const rematch = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiners[0])
+        .send({ baseVersion: res.body.game.version, actions: [{ type: 'reset', id: 'next' }] });
+      expect(rematch.status).toBe(200);
+    });
+
+    it('with nobody left to take it (a guest seat cannot host), the table ends', async () => {
+      const { code, host, game } = await table('games_ho_guest', 0, false);
+      await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: game.version,
+          actions: [
+            { type: 'add-player', player: { id: 'guest', userId: null, seat: 1, name: 'Guest' } },
+          ],
+        });
+      const res = await request(app).post(`/api/games/${code}/leave`).set('Cookie', host).send({});
+      expect(res.body.deleted).toBe(true);
+      expect(await hostColumn(code)).toBeUndefined();
+    });
+
+    it('the last one out ends the table', async () => {
+      const { code, host, joiners } = await table('games_ho_last', 1, true);
+      await request(app).post(`/api/games/${code}/leave`).set('Cookie', host).send({});
+      const res = await request(app)
+        .post(`/api/games/${code}/leave`)
+        .set('Cookie', joiners[0])
+        .send({});
+      expect(res.body.deleted).toBe(true);
+      expect(await hostColumn(code)).toBeUndefined();
+    });
+
+    it('transfer-host by PATCH is host only, and moves the column too', async () => {
+      const { code, host, joiners, game } = await table('games_ho_patch', 1, false);
+      const denied = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiners[0])
+        .send({ baseVersion: game.version, actions: [{ type: 'transfer-host', seat: 1 }] });
+      expect(denied.status).toBe(403);
+      const moved = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: game.version, actions: [{ type: 'transfer-host', seat: 1 }] });
+      expect(moved.status).toBe(200);
+      expect(await hostColumn(code)).toBe(game.players[1].userId);
+    });
+  });
+
   // fix: this used to hand the caller the full `GameState` (200, `game:
   // current`) for ANY authenticated non-participant, regardless of
   // visibility — the one route in this file that skipped the stealth-404

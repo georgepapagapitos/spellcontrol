@@ -14,6 +14,7 @@ import {
   MAX_COUNTERS_PER_SCOPE,
   MAX_COUNTER_NAME_LENGTH,
   MAX_HORDE_STEPS,
+  nextHostSeat,
   type GameEvent,
   type GamePlayer,
   type GameState,
@@ -1334,6 +1335,61 @@ function hordeSettings(overrides: Partial<HordeSettings> = {}): HordeSettings {
 function hordeLobby(players = 2) {
   return lobby(players, { format: 'horde' });
 }
+
+// E430: when the host leaves, the table passes on instead of ending.
+describe('host handover', () => {
+  const guest = (seat: number) =>
+    makePlayer({ id: `g${seat}`, userId: null, seat, name: `G${seat}`, startingLife: 40 });
+
+  it('nextHostSeat: the next seat after the host, wrapping round', () => {
+    expect(nextHostSeat(lobby(3))).toBe(1);
+    const hostInSeat2 = { ...lobby(4), hostUserId: 'u2' };
+    expect(nextHostSeat(hostInSeat2)).toBe(3);
+    const hostLast = { ...lobby(3), hostUserId: 'u2' };
+    expect(nextHostSeat(hostLast)).toBe(0);
+  });
+
+  it('nextHostSeat skips guests and seats no longer at the table', () => {
+    let s = lobby(4);
+    s = { ...s, players: [s.players[0], guest(1), ...s.players.slice(2)] };
+    s = applyAction(s, { type: 'update-player', seat: 2, patch: { connected: false } });
+    expect(nextHostSeat(s)).toBe(3);
+  });
+
+  it('nextHostSeat is null when nobody with an account is left', () => {
+    const s = lobby(1);
+    expect(nextHostSeat(s)).toBeNull();
+    const withGuest = { ...s, players: [s.players[0], guest(1)] };
+    expect(nextHostSeat(withGuest)).toBeNull();
+  });
+
+  it('transfer-host moves the host id and the seat flags, and logs it by name', () => {
+    const s = applyAction(lobby(3), { type: 'transfer-host', seat: 2, ts: 5000 });
+    expect(s.hostUserId).toBe('u2');
+    expect(s.players.map((p) => p.isHost)).toEqual([false, false, true]);
+    expect(s.events.at(-1)).toMatchObject({
+      kind: 'settings',
+      targetSeat: 2,
+      message: 'P2 is the host now',
+      ts: 5000,
+    });
+  });
+
+  it('transfer-host refuses a guest seat', () => {
+    const s = lobby(2);
+    const withGuest = { ...s, players: [s.players[0], guest(1)] };
+    expect(() => applyAction(withGuest, { type: 'transfer-host', seat: 1 })).toThrow(
+      'A guest seat cannot host.'
+    );
+  });
+
+  it('a started game keeps going after a handover', () => {
+    let s = applyAction(lobby(2), { type: 'start', ts: 2000 });
+    s = applyAction(s, { type: 'transfer-host', seat: 1 });
+    expect(s.status).toBe('active');
+    expect(s.hostUserId).toBe('u1');
+  });
+});
 
 /** A horde game past the lobby: `horde-setup` then `start`. */
 function startedHorde(players = 2, settingsOverrides: Partial<HordeSettings> = {}): GameState {

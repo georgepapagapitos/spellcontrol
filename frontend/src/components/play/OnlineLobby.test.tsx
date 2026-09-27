@@ -130,6 +130,24 @@ describe('OnlineLobby — seat bracket carries the estimate (2026-09-24 ruling)'
   });
 });
 
+// E430: the host's Leave hands the table on when someone with an account is
+// seated, and says to whom; only a table of guests ends.
+describe('OnlineLobby — the host leaving', () => {
+  it('names the next seat as the new host', () => {
+    renderLobby(table(3));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+    expect(screen.getByText('Leave the table?')).toBeTruthy();
+    expect(screen.getByText('P1 becomes host.')).toBeTruthy();
+  });
+
+  it('ends the table when only guests are left', () => {
+    const t = table(2);
+    renderLobby({ ...t, players: [t.players[0], seat(1, { userId: null })] });
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+    expect(screen.getByText('End the table for everyone?')).toBeTruthy();
+  });
+});
+
 describe('OnlineLobby', () => {
   it('titles the lobby with the format when the table has no name', () => {
     renderLobby(table());

@@ -68,7 +68,9 @@ export function describeGameEvent(
     case 'note':
       return { action: row.message ?? 'note' };
     case 'settings':
-      return { action: 'Settings changed' };
+      // A reseat ("Seats shuffled") and a handover ("Maya is the host now")
+      // say what happened; a rules change carries no message.
+      return { action: row.message ?? 'Settings changed' };
     default:
       return { action: row.kind };
   }

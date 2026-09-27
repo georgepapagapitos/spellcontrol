@@ -506,6 +506,14 @@ export type GameAction =
    * seating (the same split the random-first-player control already uses).
    */
   | { type: 'reseat'; order: string[]; ts?: number }
+  /**
+   * Hand the table to another seat: its account becomes the host, with every
+   * host-only power (start, reset, settings, add/remove players, reseat,
+   * horde-setup). The leave route applies it when the host leaves (E430,
+   * successor from `nextHostSeat`); as a PATCH action it is host-only. A
+   * guest seat has no account and cannot host.
+   */
+  | { type: 'transfer-host'; seat: number; ts?: number }
   | {
       type: 'update-player';
       seat: number;
@@ -1259,6 +1267,23 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       };
       break;
     }
+    case 'transfer-host': {
+      const target = requireSeat(prev.players, action.seat);
+      if (target.userId === null) throw new Error('A guest seat cannot host.');
+      next = {
+        ...next,
+        hostUserId: target.userId,
+        players: prev.players.map((p) => ({ ...p, isHost: p.seat === action.seat })),
+        events: pushEvent(next, {
+          kind: 'settings',
+          actorSeat: null,
+          targetSeat: action.seat,
+          message: `${target.name} is the host now`,
+          ts,
+        }),
+      };
+      break;
+    }
     case 'reseat': {
       if (prev.status !== 'lobby') return prev;
       // Must be a permutation of exactly the seated players: anything else
@@ -1887,6 +1912,24 @@ export interface GameRecord {
    */
   commanderDamageEnabled?: boolean;
   poisonEnabled?: boolean;
+}
+
+/**
+ * Who takes the table when the host leaves (E430): the next seat after the
+ * host's, in seat order and wrapping round, that has an account and is still
+ * at the table. Null when nobody qualifies, and the table then ends. Guests
+ * have no device to host from. Presence is deliberately not part of the rule:
+ * only the server's memory knows it, and the Leave dialog has to name the
+ * same person the server will pick.
+ */
+export function nextHostSeat(state: GameState): number | null {
+  const seats = [...state.players].sort((a, b) => a.seat - b.seat);
+  const from = seats.findIndex((p) => p.userId !== null && p.userId === state.hostUserId);
+  for (let i = 1; i <= seats.length; i++) {
+    const p = seats[(from + i) % seats.length];
+    if (p.userId !== null && p.userId !== state.hostUserId && p.connected) return p.seat;
+  }
+  return null;
 }
 
 export function gameToRecord(state: GameState, endedAt: number = Date.now()): GameRecord {

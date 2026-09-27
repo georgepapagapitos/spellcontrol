@@ -21,6 +21,8 @@ import { resolveHordeSettings } from '../lib/horde';
 import { gameElapsed } from '../lib/game-clock';
 import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
 import * as gamesBoard from '../lib/games-board';
+import { toast } from './toasts';
+import { useAuth } from './auth';
 
 // The online flow talks to the games HTTP API; mock it so dispatch/refresh
 // branches can be exercised without a server.
@@ -781,6 +783,36 @@ describe('usePlayStore — online flow', () => {
     mockGet.mockResolvedValue(fresh);
     await usePlayStore.getState().refreshOnline();
     expect(usePlayStore.getState().online).toBe(fresh);
+  });
+
+  // E430: mid-game nothing else on screen changes when the table is handed
+  // to you, so the new host is told once, and nobody else is.
+  it('tells this device when the table is handed to it, and only then', async () => {
+    const show = vi.spyOn(toast, 'show').mockImplementation(() => 'id');
+    useAuth.setState({ user: { id: 'u2', username: 'guest', role: 'user' } } as never);
+    try {
+      mockCreate.mockResolvedValue(makeOnlineGame(1));
+      await usePlayStore.getState().hostOnline({
+        format: 'commander',
+        startingLife: 40,
+        commanderDamageEnabled: true,
+        poisonEnabled: false,
+      });
+      mockGet.mockResolvedValue(makeOnlineGame(2));
+      await usePlayStore.getState().refreshOnline();
+      expect(show).not.toHaveBeenCalled();
+
+      mockGet.mockResolvedValue({ ...makeOnlineGame(3), hostUserId: 'u2' });
+      await usePlayStore.getState().refreshOnline();
+      expect(show).toHaveBeenCalledWith({ message: "You're the host now.", tone: 'info' });
+
+      mockGet.mockResolvedValue({ ...makeOnlineGame(4), hostUserId: 'u2' });
+      await usePlayStore.getState().refreshOnline();
+      expect(show).toHaveBeenCalledTimes(1);
+    } finally {
+      show.mockRestore();
+      useAuth.setState({ user: null } as never);
+    }
   });
 
   it('refreshOnline clears the game and stops polling on a 404', async () => {

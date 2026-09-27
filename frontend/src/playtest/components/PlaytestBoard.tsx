@@ -125,7 +125,7 @@ import { Modal } from '@/components/Modal';
 import { EndGameDialog } from '@/components/play/EndGameDialog';
 import { useRulesReferenceStore } from '@/store/rules-reference';
 import { GameMenuSheet, type GameMenuSection } from './GameMenuSheet';
-import { cardsToBottom, GAME_PHASES, type MulliganType } from '@/lib/game-state';
+import { cardsToBottom, GAME_PHASES, nextHostSeat, type MulliganType } from '@/lib/game-state';
 import { formatClock, msToNextSecond } from '@/lib/game-clock';
 import { useNow } from '@/lib/use-now';
 import {
@@ -1477,9 +1477,18 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const leaveOnline = usePlayStore((s) => s.leaveOnline);
   const leaveTable = useCallback(async () => {
     if (!onlineTable) return;
+    // A host hands the table on (E430, the server's rule); only a table
+    // with nobody left to take it ends for everyone.
+    const game = usePlayStore.getState().online;
+    const heirSeat = game && onlineTable.isHost ? nextHostSeat(game) : null;
+    const heir = heirSeat === null ? null : game?.players.find((p) => p.seat === heirSeat);
     const ok = await confirm({
       title: 'Leave the table?',
-      body: 'You give up your seat. If you host, the table ends for everyone.',
+      body: !onlineTable.isHost
+        ? 'You give up your seat.'
+        : heir
+          ? `You give up your seat, and ${heir.name} becomes host.`
+          : 'You give up your seat, and the table ends for everyone.',
       confirmLabel: 'Leave',
       danger: true,
     });
