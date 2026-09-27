@@ -5601,11 +5601,17 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
 - **No raw `px`/`rem` font sizes** — use the `--text-*` scale (`--text-xs`,
   `--text-sm`, `--text-base`, …). stylelint enforces this on `src/**/*.css`.
 - **Spacing scale:** a 4px-base `--space-*` scale (`--space-1` = 0.25rem …
-  `--space-8` = 4rem) lives in the `:root` token block of `styles/tokens.css`. New code
-  uses these tokens for `margin`/`padding`/`gap` instead of freehand rems. Legacy
-  off-scale values (0.35rem, 0.6rem, 0.85rem, …) are left alone and get snapped
-  to the scale opportunistically — only when the surface is already being touched
-  and visually verified, never as a blind find-and-replace. Never hardcode a new
+  `--space-8` = 4rem) lives in the `:root` token block of `styles/tokens.css`,
+  with three half steps for dense rows, chips and badges: `--space-0-5` (2px),
+  `--space-1-5` (6px), `--space-2-5` (10px). New code uses these tokens for
+  `margin`/`padding`/`gap` instead of freehand rems. The half steps exist
+  because the ~1,900 freehand lengths the 2026-09-27 audit counted clustered at
+  6.4, 4.8, 9.6 and 2.4px: the scale had no step where dense UI needs one.
+- **Snapping legacy values, one stylesheet at a time (T157).** A stylesheet's
+  freehand spacing snaps to the nearest step in one change, then its
+  `layout-ratchet.baseline.json` count is lowered so it cannot drift back.
+  Snapping by script is fine when every shift is 2px or less; a larger shift
+  gets a look on screen first and a line in the PR. Never hardcode a new
   spacing rem that matches a scale step; write `var(--space-N)`.
 
 ## Responsive

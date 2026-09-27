@@ -40,7 +40,7 @@
   margin: 0 calc(var(--page-gutter, var(--space-4)) * -1) var(--space-3);
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   flex-wrap: wrap;
 }
 
@@ -69,7 +69,7 @@
 .collection-hero-pricing {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   color: var(--text-muted);
 }
 
@@ -175,7 +175,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: 0.85rem var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -191,7 +191,7 @@
   /* Twenty sections deep — scrolling to the end and swiping once more used to
      chain straight into the card grid behind the dialog. */
   overscroll-behavior: contain;
-  padding: 0.9rem var(--space-4) var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -206,7 +206,7 @@
 .collection-filters-group {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
 }
 
 /* The Color field's label also carries the AND/OR toggle — Field's label
@@ -234,7 +234,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   padding: var(--space-3) var(--space-4);
   border-top: 0.5px solid var(--border);
 }
@@ -278,9 +278,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   min-height: 1.9rem;
-  padding: 0.15rem 0.45rem;
+  padding: var(--space-0-5) var(--space-2);
   background: var(--surface);
   border: 0.5px solid var(--border-strong);
   border-radius: 999px;
@@ -300,7 +300,7 @@
   background: transparent;
   color: var(--text-primary);
   font-size: var(--text-sm);
-  padding: 0.15rem var(--space-1);
+  padding: var(--space-0-5) var(--space-1);
 }
 
 .set-filter-pill > input::placeholder {
@@ -310,8 +310,8 @@
 .set-filter-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.1rem 0.15rem 0.1rem 0.45rem;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-0-5) var(--space-0-5) var(--space-2);
   background: var(--accent-light);
   color: var(--accent);
   border-radius: 999px;
@@ -389,7 +389,7 @@
   right: 0;
   z-index: var(--z-popover);
   margin: 0;
-  padding: 0.3rem;
+  padding: var(--space-1);
   list-style: none;
   max-height: 18rem;
   overflow-y: auto;
@@ -403,7 +403,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0.35rem var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
   border-radius: var(--radius);
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -442,7 +442,7 @@
 
 .color-filter-row {
   display: inline-flex;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .color-filter-btn {
@@ -452,7 +452,7 @@
   border-radius: 50%;
   background: transparent;
   border: 0;
-  padding: 2px;
+  padding: var(--space-0-5);
   cursor: pointer;
   opacity: 0.55;
   transition:
@@ -495,7 +495,7 @@
 
 .collection-select {
   height: 2.1rem;
-  padding: 0.3rem 1.9rem 0.3rem 0.85rem;
+  padding: var(--space-1) var(--space-6) var(--space-1) var(--space-3);
   border-radius: 999px;
   border: 0.5px solid var(--border-strong);
   background: var(--surface);
@@ -523,7 +523,7 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-  margin-bottom: 0.6rem;
+  margin-bottom: var(--space-2-5);
 }
 
 /* Group + Sort + view toggle sit together on the right side of the summary
@@ -534,7 +534,7 @@
 .card-list-summary-actions {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -551,7 +551,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 0.45rem 0.6rem;
+  padding: var(--space-2) var(--space-2-5);
 }
 
 .view-popover-row-label {
@@ -561,15 +561,15 @@
 
 .view-popover-section {
   border-top: 0.5px solid var(--border);
-  margin-top: 0.3rem;
-  padding-top: 0.3rem;
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
 }
 
 /* Same treatment as .legend-section-title so the panel's group headings and
    the embedded key's section headings read as one family. */
 .view-popover-section-title {
   display: block;
-  padding: 0.3rem 0.6rem 0.1rem;
+  padding: var(--space-1) var(--space-2-5) var(--space-0-5);
   font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
@@ -582,8 +582,8 @@
 .view-popover-key {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 0.3rem 0.3rem;
+  gap: var(--space-2-5);
+  padding: 0 var(--space-1) var(--space-1);
 }
 
 .view-popover-back {
@@ -621,7 +621,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 0.2rem 0.6rem;
+  padding: var(--space-1) var(--space-2-5);
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
   /* Actionable (embedded × clears the filter) → rect, per the Shape rule
@@ -687,7 +687,7 @@
 .collection-filter-chips-clear-all {
   background: transparent;
   border: 0;
-  padding: 0.2rem var(--space-1);
+  padding: var(--space-1) var(--space-1);
   font-size: var(--text-xs);
   color: var(--accent);
   cursor: pointer;
@@ -714,7 +714,7 @@
   gap: var(--space-1);
   background: transparent;
   border: 0;
-  padding: 0.2rem var(--space-1);
+  padding: var(--space-1) var(--space-1);
   font-size: var(--text-xs);
   color: var(--accent);
   cursor: pointer;
@@ -835,10 +835,10 @@
 .card-list-bulk-toolbar {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   flex-wrap: wrap;
   padding: var(--space-2) var(--space-3);
-  margin-bottom: 0.6rem;
+  margin-bottom: var(--space-2-5);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-raised);
@@ -894,7 +894,7 @@
 
 .card-list-set-code {
   display: inline-block;
-  padding: 0.1rem 0.4rem;
+  padding: var(--space-0-5) var(--space-1-5);
   border-radius: 999px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1145,9 +1145,9 @@ i.ss.set-symbol--mythic {
 .card-list-deck-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
-  margin-left: 0.4rem;
-  padding: 0.05rem 0.35rem;
+  gap: var(--space-0-5);
+  margin-left: var(--space-1-5);
+  padding: 0.05rem var(--space-1-5);
   border-radius: 999px;
   background: color-mix(in srgb, var(--deck-color, var(--accent)) 18%, transparent);
   color: var(--deck-color, var(--accent));
@@ -1191,9 +1191,9 @@ i.ss.set-symbol--mythic {
 .card-list-binder-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
-  margin-left: 0.4rem;
-  padding: 0.05rem 0.35rem;
+  gap: var(--space-0-5);
+  margin-left: var(--space-1-5);
+  padding: 0.05rem var(--space-1-5);
   border-radius: 999px;
   background: color-mix(in srgb, var(--binder-color, var(--accent)) 18%, transparent);
   border: 0.5px solid color-mix(in srgb, var(--binder-color, var(--accent)) 35%, transparent);
@@ -1239,7 +1239,7 @@ i.ss.set-symbol--mythic {
 .mana-cost {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   font-size: var(--text-base);
 }
 
@@ -1279,7 +1279,7 @@ i.ss.set-symbol--mythic {
 .mana-cost-face {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .mana-cost-sep {
@@ -1291,7 +1291,7 @@ i.ss.set-symbol--mythic {
 /* Grid view */
 
 .collection-grid {
-  gap: 0.65rem;
+  gap: var(--space-2-5);
 }
 
 /* Column wrapper for one grid slot: the card tile plus its optional
@@ -1321,7 +1321,7 @@ i.ss.set-symbol--mythic {
   position: relative;
   z-index: -1;
   margin-top: -10px;
-  padding-top: 10px;
+  padding-top: var(--space-2-5);
   padding-bottom: var(--space-1);
   background: var(--surface);
   border-radius: 0 0 var(--radius) var(--radius);
@@ -1453,7 +1453,7 @@ i.ss.set-symbol--mythic {
   color: var(--art-scrim-text);
   font-size: var(--text-sm);
   font-weight: 800;
-  padding: 0.2rem 0.55rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: 999px;
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
@@ -1480,7 +1480,7 @@ i.ss.set-symbol--mythic {
 .collection-grid-badges .card-list-deck-badge,
 .collection-grid-badges .card-list-binder-badge {
   margin-left: 0;
-  padding: 0.22rem;
+  padding: var(--space-1);
   background: var(--art-scrim);
   border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
   box-shadow: var(--shadow-raised);
@@ -1559,12 +1559,12 @@ i.ss.set-symbol--mythic {
 .collection-grid-item.grid-2x .collection-grid-badges {
   bottom: 6px;
   right: 6px;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .collection-grid-item.grid-2x .collection-grid-badges .card-list-deck-badge,
 .collection-grid-item.grid-2x .collection-grid-badges .card-list-binder-badge {
-  padding: 0.3rem;
+  padding: var(--space-1);
 }
 
 .collection-grid-item.grid-2x .collection-grid-badges svg {
@@ -1575,12 +1575,12 @@ i.ss.set-symbol--mythic {
 .collection-grid-item.grid-3x .collection-grid-badges {
   bottom: var(--space-2);
   right: var(--space-2);
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .collection-grid-item.grid-3x .collection-grid-badges .card-list-deck-badge,
 .collection-grid-item.grid-3x .collection-grid-badges .card-list-binder-badge {
-  padding: 0.4rem;
+  padding: var(--space-1-5);
 }
 
 .collection-grid-item.grid-3x .collection-grid-badges svg {
@@ -1595,12 +1595,12 @@ i.ss.set-symbol--mythic {
   .collection-grid-badges {
     bottom: 6px;
     right: 6px;
-    gap: 0.3rem;
+    gap: var(--space-1);
   }
 
   .collection-grid-badges .card-list-deck-badge,
   .collection-grid-badges .card-list-binder-badge {
-    padding: 0.32rem;
+    padding: var(--space-1-5);
   }
 
   .collection-grid-badges svg {
@@ -1611,14 +1611,14 @@ i.ss.set-symbol--mythic {
 
 .collection-grid-item.grid-2x .collection-grid-qty {
   font-size: var(--text-base);
-  padding: var(--space-1) 0.65rem;
+  padding: var(--space-1) var(--space-2-5);
   bottom: 6px;
   left: 6px;
 }
 
 .collection-grid-item.grid-3x .collection-grid-qty {
   font-size: var(--text-lg);
-  padding: 0.3rem var(--space-3);
+  padding: var(--space-1) var(--space-3);
   bottom: var(--space-2);
   left: var(--space-2);
 }
@@ -1682,7 +1682,7 @@ i.ss.set-symbol--mythic {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3) 0.4rem;
+  padding: var(--space-2) var(--space-3) var(--space-1-5);
   font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -1723,7 +1723,7 @@ i.ss.set-symbol--mythic {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-1) 0.35rem;
+  padding: var(--space-3) var(--space-1) var(--space-1-5);
   font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -1794,7 +1794,7 @@ i.ss.set-symbol--mythic {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   min-width: 0;
 }
 
@@ -1920,7 +1920,7 @@ i.ss.set-symbol--mythic {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .collection-list-name {
@@ -1935,7 +1935,7 @@ i.ss.set-symbol--mythic {
 .collection-list-meta {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   flex-wrap: wrap;
   color: var(--text-muted);
 }
@@ -1944,7 +1944,7 @@ i.ss.set-symbol--mythic {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: var(--space-0-5);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
@@ -1965,7 +1965,7 @@ i.ss.set-symbol--mythic {
   font-weight: 600;
   color: var(--text-muted);
   background: var(--surface-raised);
-  padding: 0.1rem var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: 999px;
   line-height: 1.3;
   white-space: nowrap;
@@ -1992,11 +1992,11 @@ i.ss.set-symbol--mythic {
 .list-target-price {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   border-radius: var(--radius);
-  padding: 0.15rem var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   cursor: pointer;
 }
 .list-target-price-empty {
@@ -2022,14 +2022,14 @@ i.ss.set-symbol--mythic {
 @media (pointer: coarse) {
   .list-target-price {
     min-height: 44px;
-    padding: 0 0.6rem;
+    padding: 0 var(--space-2-5);
   }
 }
 
 .list-target-price.is-editing {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 .list-target-price-symbol {
   font-family: var(--font-mono);
@@ -2044,7 +2044,7 @@ i.ss.set-symbol--mythic {
   background: var(--surface-raised);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
-  padding: 0.15rem 0.35rem;
+  padding: var(--space-0-5) var(--space-1-5);
 }
 .list-target-price-input:focus-visible {
   outline: 2px solid var(--accent);
@@ -2063,7 +2063,7 @@ i.ss.set-symbol--mythic {
   justify-content: center;
   background: transparent;
   border: 0;
-  padding: 0.2rem;
+  padding: var(--space-1);
   color: var(--text-muted);
   cursor: pointer;
   border-radius: 2px;
@@ -2094,7 +2094,7 @@ i.ss.set-symbol--mythic {
    line, tight vertical padding. Used by the binder's compact list mode. */
 .collection-list.is-compact .collection-list-row {
   gap: var(--space-2);
-  padding: 0.3rem 0.7rem;
+  padding: var(--space-1) var(--space-3);
 }
 
 .collection-list.is-compact .collection-list-thumb {
@@ -2104,7 +2104,7 @@ i.ss.set-symbol--mythic {
 .collection-list.is-compact .collection-list-main {
   flex-direction: row;
   align-items: baseline;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   flex-wrap: nowrap;
   overflow: hidden;
 }
@@ -2119,7 +2119,7 @@ i.ss.set-symbol--mythic {
 
 .collection-list.is-compact .collection-list-meta {
   font-size: var(--text-xs);
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   flex-wrap: nowrap;
   flex-shrink: 0;
 }
@@ -2283,7 +2283,7 @@ i.ss.set-symbol--mythic {
 .collection-table-th {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 0;
   height: 100%;
   font-size: var(--text-xs);
@@ -2352,7 +2352,7 @@ i.ss.set-symbol--mythic {
 .collection-table-name {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .collection-table-name .collection-list-name {
@@ -2363,7 +2363,7 @@ i.ss.set-symbol--mythic {
 .collection-table-binder {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .collection-table-notes {
@@ -2492,7 +2492,7 @@ i.ss.set-symbol--mythic {
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   justify-content: flex-end;
 }
 
@@ -2500,7 +2500,7 @@ i.ss.set-symbol--mythic {
   appearance: none;
   background: transparent;
   border: 0;
-  padding: 2px var(--space-1);
+  padding: var(--space-0-5) var(--space-1);
   color: inherit;
   cursor: pointer;
   display: inline-flex;
