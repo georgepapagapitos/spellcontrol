@@ -6212,6 +6212,20 @@ same controls, from `components/CopyControls` plus the kit:
   `IconButton`, 44px on touch) sit in a caption under the card, the way the
   collection grid captions price and set. A scrim "+" on the art covered the
   mana cost once it grew to its touch size.
+- **The deck editor's add panel (`CardSearchPanel`) renders the same list-row
+  look** (E457, 2026-09-27), not a lookalike of its own: its three result tabs
+  (Collection, Suggestions, Scryfall) render `CardSearchResults`' own
+  `inline-card-search-item`/`-row`/`-add`/`-preview-trigger`/`-thumb`/`-name`/
+  `-mana`/`-trailing`/`-meta` classes (`styles/binder-card-management.css`,
+  loaded globally from `main.tsx`, so there is no chunk to move it into) via a
+  local `SearchResultRow` shell, instead of forking a second copy of the same
+  CSS in `deck-builder-card-search.css`. The engine stays its own — zones, fit
+  signals, legality/off-color badges, in-deck counts, the binder-location
+  badge, EDHREC/combo fit, "Fit & cut" — every deck-specific signal rides in
+  the shared row's trailing `.inline-card-search-meta` slot, the same slot
+  the collection-wide search fills with "You own N" / "Added ×N". No grid or
+  compact view here: the panel has always been list-only (dense, badge-heavy
+  rows don't fit a caption tile), so only the list row's look applies.
 - Labels are sentence-case `Field` labels above the control, never uppercase
   side labels (§ Config surfaces). Two fields to a row once the container, not
   the viewport, is 30rem wide.
@@ -6258,9 +6272,9 @@ each row is otherwise text-only — the guided-brew "Deck so far" panel
 (`BrewRunningDeck`) is the canonical example: a running list of accepted
 picks next to the curve/color meters. These lists still want the tactile
 "physical card" cue art gives (the thing meters-only panels lack), but at a
-size that keeps many rows on screen at once — smaller than the `.has-thumb`
-add-cards row (2.45rem × 3.4rem, `CardSearchPanel`) and well below the 66px
-**List** density tile.
+size that keeps many rows on screen at once — smaller than the shared
+add-cards row thumb (`.inline-card-search-thumb`, 34px wide, same 488/680
+aspect) and well below the 66px **List** density tile.
 
 - **Size: 1.8rem × 2.5rem** (~29×40px), same card aspect ratio (0.72) as the
   add-cards thumb, just scaled down for row density.
