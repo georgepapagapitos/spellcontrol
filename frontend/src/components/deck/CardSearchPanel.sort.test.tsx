@@ -67,8 +67,8 @@ describe('CardSearchPanel — Sort control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sort' }));
     fireEvent.click(screen.getByRole('option', { name: 'Name' }));
 
-    const rows = Array.from(document.querySelectorAll('.card-search-row'));
-    const names = rows.map((r) => r.querySelector('.card-search-name')?.textContent);
+    const rows = Array.from(document.querySelectorAll('.inline-card-search-row'));
+    const names = rows.map((r) => r.querySelector('.inline-card-search-name')?.textContent);
     expect(names.indexOf('Ancient Tomb')).toBeLessThan(names.indexOf('Lightning Bolt'));
   });
 });
