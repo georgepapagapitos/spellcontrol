@@ -150,6 +150,9 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
   /** The same collection with nothing excluded — the `commander` format's pool. */
   let commanderPool: CubeCard[];
   let limitedHidden: PoolHidden;
+  /** Card names the mined pauper/peasant corpora play — the corpus-play-share membership sets. */
+  let pauperCorpusNames: Set<string>;
+  let peasantCorpusNames: Set<string>;
   const rows: Row[] = [];
   const goodstuffBySize = new Map<CubeSize, GeneratedCube>();
   /** Per-size legend colour-identity supply vs. achieved (board #12, PR1). */
@@ -170,6 +173,14 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
     const otagData = JSON.parse(
       readFileSync(resolve(here, '..', '..', '..', 'public', 'otag-index.json'), 'utf8')
     ) as unknown;
+    const pauperSignalData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'cube-signal-pauper.json'), 'utf8')
+    ) as { cards: Record<string, number> };
+    const peasantSignalData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'cube-signal-peasant.json'), 'utf8')
+    ) as { cards: Record<string, number> };
+    pauperCorpusNames = new Set(Object.keys(pauperSignalData.cards));
+    peasantCorpusNames = new Set(Object.keys(peasantSignalData.cards));
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       if (url.endsWith('/tagger-tags.json')) {
@@ -177,6 +188,12 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
       }
       if (url.endsWith('/cube-signal.json')) {
         return { ok: true, status: 200, json: async () => signalData } as Response;
+      }
+      if (url.endsWith('/cube-signal-pauper.json')) {
+        return { ok: true, status: 200, json: async () => pauperSignalData } as Response;
+      }
+      if (url.endsWith('/cube-signal-peasant.json')) {
+        return { ok: true, status: 200, json: async () => peasantSignalData } as Response;
       }
       if (url.endsWith('/otag-index.json')) {
         return { ok: true, status: 200, json: async () => otagData } as Response;
@@ -446,6 +463,56 @@ describe.skipIf(!POOL_PATH)('cube generator LIVE stress (real collection)', () =
           });
         }
       });
+    }
+  });
+
+  // Budget-aware power signal (#5): a pauper/peasant pool's "good card" should
+  // mean "what that pool's builders actually play" (the mined corpus,
+  // cube-signal-{pauper,peasant}.json), not "what all ~400k cubes play" (the
+  // all-cube signal, dominated by power/legacy/vintage). Measures corpus-play
+  // share — the fraction of a generated cube's picks the mined corpus plays —
+  // built from the SAME filtered pool under the all-cube signal (today's
+  // behavior) vs the scoped signal (loadCubeSignal(scope)), and asserts the
+  // scoped signal raises it, at both slider ends — the pauper/peasant analogue
+  // of E288's Command Tower guard.
+  describe('pauper/peasant corpus-scoped signal', () => {
+    const corpusOf = { pauper: () => pauperCorpusNames, peasant: () => peasantCorpusNames };
+    const frontFace = (name: string) => name.split(' // ')[0].trim();
+    const corpusPlayShare = (cube: GeneratedCube, corpus: Set<string>) =>
+      cube.picks.filter((p) => corpus.has(p.card.name) || corpus.has(frontFace(p.card.name)))
+        .length / cube.picks.length;
+
+    afterAll(async () => {
+      await loadCubeSignal(); // leave the module scoped to 'any' for any later test
+    });
+
+    for (const scope of ['pauper', 'peasant'] as const) {
+      for (const level of [0, 1] as const) {
+        it(`${scope} @ ${level}: the scoped signal raises corpus-play share over the all-cube signal`, async () => {
+          const all = new Set(collection.map((c) => c.name));
+          const filtered = filterPool(collection, all, {
+            ...DEFAULT_POOL_FILTERS,
+            source: 'all',
+            rarity: scope,
+          });
+          const corpus = corpusOf[scope]();
+
+          await loadCubeSignal(); // scope 'any' — today's behavior
+          const subOld = namesToCubePool(filtered.names, collection, facts);
+          const cubeOld = generateCube(subOld, 360, { synergyLevel: level });
+          const shareOld = corpusPlayShare(cubeOld, corpus);
+
+          await loadCubeSignal(scope);
+          const subNew = namesToCubePool(filtered.names, collection, facts);
+          const cubeNew = generateCube(subNew, 360, { synergyLevel: level });
+          const shareNew = corpusPlayShare(cubeNew, corpus);
+
+          console.log(
+            `[cube-signal-budget] ${scope} @ ${level}: corpus-play share ${(shareOld * 100).toFixed(1)}% -> ${(shareNew * 100).toFixed(1)}%`
+          );
+          expect(shareNew).toBeGreaterThan(shareOld);
+        });
+      }
     }
   });
 
