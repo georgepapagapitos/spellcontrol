@@ -14,6 +14,7 @@ import type { BoardLayout, TurnOrder } from '../../lib/board-layouts';
 import {
   encodeCustomLayout,
   isCustomLayout,
+  layoutName,
   layoutsForCount,
   resolveLayout,
   turnOrderOf,
@@ -29,6 +30,7 @@ import {
 import { paletteForIndex } from '../../lib/seat-palette';
 import { FacingArrow } from './FacingArrow';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
+import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 
 // ── Layout picker (board arrangement) ────────────────────────────────────
@@ -73,10 +75,12 @@ export function LayoutPicker({
                 name={layoutGroup}
                 value={opt.id}
                 checked={current === opt.id}
-                aria-label={`Layout ${opt.id}`}
                 onChange={() => onPick(opt.id)}
               />
               <LayoutPreview layout={opt} shared={shared} />
+              {/* The visible name is the radio's accessible name too: a
+                  layout is picked by a word, not only by a drawing. */}
+              <span className="layout-option-name">{layoutName(opt.id)}</span>
             </label>
           ))}
         </fieldset>
@@ -409,17 +413,10 @@ export function CustomLayoutEditor({
               : `${count - placedCount} ${count - placedCount === 1 ? 'seat' : 'seats'} to place`}
           </span>
           <div className="cle-foot-actions">
-            <button type="button" className="game-menu-btn" onClick={onClose}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="game-menu-btn is-primary"
-              disabled={!allPlaced}
-              onClick={apply}
-            >
+            <Button onClick={onClose}>Cancel</Button>
+            <Button variant="primary" disabled={!allPlaced} onClick={apply}>
               Apply layout
-            </button>
+            </Button>
           </div>
         </footer>
       </div>
