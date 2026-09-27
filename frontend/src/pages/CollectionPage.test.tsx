@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -255,5 +255,57 @@ describe('CollectionPage – Import history moved to ⋮ (T153)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Delete selected/ }));
     expect(screen.getByText(/You can undo from the toast/)).toBeTruthy();
     expect(screen.queryByText(/This can't be undone/)).toBeNull();
+  });
+});
+
+describe('CollectionPage – Delete collection from ⋮', () => {
+  it('is not offered on an empty collection', () => {
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'More collection actions' })).toBeNull();
+  });
+
+  it('runs the two-step confirm, then clears the collection', async () => {
+    const clearCards = vi.fn(() => Promise.resolve());
+    useCollectionStore.setState({
+      cards: [
+        { copyId: 'c1', scryfallId: 'sf1', name: 'Sol Ring' },
+        { copyId: 'c2', scryfallId: 'sf2', name: 'Arcane Signet' },
+      ] as never,
+      clearCards,
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'More collection actions' }));
+    const items = screen.getAllByRole('menuitem');
+    expect(items[items.length - 1].textContent).toBe('Delete collection');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete collection' }));
+
+    expect(screen.getByRole('heading', { name: 'Delete entire collection?' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(clearCards).not.toHaveBeenCalled();
+
+    // The store offers Undo from its toast, so the final step must not claim otherwise.
+    expect(screen.getByRole('heading', { name: 'Last chance: delete everything?' })).toBeTruthy();
+    expect(screen.getByText(/only way to undo it/)).toBeTruthy();
+    expect(screen.queryByText(/can't be undone/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete everything' }));
+
+    await waitFor(() => expect(clearCards).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Last chance: delete everything?' })).toBeNull()
+    );
+  });
+
+  it('Cancel leaves the collection alone', () => {
+    const clearCards = vi.fn(() => Promise.resolve());
+    useCollectionStore.setState({
+      cards: [{ copyId: 'c1', scryfallId: 'sf1', name: 'Sol Ring' }] as never,
+      clearCards,
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'More collection actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete collection' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('heading', { name: 'Delete entire collection?' })).toBeNull();
+    expect(clearCards).not.toHaveBeenCalled();
   });
 });

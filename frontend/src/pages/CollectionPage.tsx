@@ -1,4 +1,4 @@
-import { BarChart3, Download, History, Plus, Share2 } from 'lucide-react';
+import { BarChart3, Download, History, Plus, Share2, Trash2 } from 'lucide-react';
 import { CollectionHubTabs } from '@/components/CollectionHubTabs';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -19,6 +19,7 @@ import { CardListTable } from '../components/CardListTable';
 import { CollectionVisibilityDialog } from '../components/CollectionVisibilityDialog';
 import { CollectionExportDialog } from '../components/CollectionExportDialog';
 import { ImportHistorySheet } from '../components/ImportHistorySheet';
+import { DeleteCollectionDialog } from '../components/DeleteCollectionDialog';
 import { Button } from '@/components/shared/Button';
 
 export function CollectionPage() {
@@ -93,6 +94,8 @@ export function CollectionPage() {
   const [statsOpen, setStatsOpen] = useState(false);
 
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const collectionCardCount = cards.length;
   const collectionValue = useMemo(
@@ -207,6 +210,14 @@ export function CollectionPage() {
                       opensDialog: true,
                       onClick: () => setHistoryOpen(true),
                     },
+                    {
+                      label: 'Delete collection',
+                      icon: Trash2,
+                      danger: true,
+                      menuOnly: true,
+                      opensDialog: true,
+                      onClick: () => setDeleteOpen(true),
+                    },
                   ]),
             ]}
             meta={
@@ -281,6 +292,7 @@ export function CollectionPage() {
           )}
           {shareOpen && <CollectionVisibilityDialog onClose={() => setShareOpen(false)} />}
           {historyOpen && <ImportHistorySheet onClose={() => setHistoryOpen(false)} />}
+          {deleteOpen && <DeleteCollectionDialog onClose={() => setDeleteOpen(false)} />}
         </>
       )}
 

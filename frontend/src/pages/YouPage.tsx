@@ -29,6 +29,7 @@ import {
   type MyIdentities,
 } from '../lib/auth-api';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { DeleteCollectionDialog } from '../components/DeleteCollectionDialog';
 import { InfoTip } from '../components/InfoTip';
 import { SyncIndicator } from '../components/SyncIndicator';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
@@ -112,10 +113,8 @@ export function YouPage() {
   const decks = useDecksStore((s) => s.decks);
   const deckCount = decks.length;
   const remapAllocations = useDecksStore((s) => s.remapAllocations);
-  const clearCards = useCollectionStore((s) => s.clearCards);
 
-  const [wipeStep, setWipeStep] = useState<0 | 1 | 2>(0);
-  const [wipeBusy, setWipeBusy] = useState(false);
+  const [wipeOpen, setWipeOpen] = useState(false);
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [resetCacheBusy, setResetCacheBusy] = useState(false);
@@ -309,18 +308,6 @@ export function YouPage() {
       });
     } finally {
       setUnlinkBusy(false);
-    }
-  }
-
-  async function handleConfirmWipe() {
-    setWipeBusy(true);
-    try {
-      // clearCards() surfaces its own "Collection cleared" toast (with Undo) and
-      // swallows IDB errors internally, so there's nothing to confirm or catch here.
-      await clearCards();
-      setWipeStep(0);
-    } finally {
-      setWipeBusy(false);
     }
   }
 
@@ -875,7 +862,7 @@ export function YouPage() {
                 left to match against.
               </div>
             </div>
-            <Button variant="danger" onClick={() => setWipeStep(1)} disabled={cardCount === 0}>
+            <Button variant="danger" onClick={() => setWipeOpen(true)} disabled={cardCount === 0}>
               Delete collection
             </Button>
           </div>
@@ -997,24 +984,7 @@ export function YouPage() {
         />
       )}
 
-      {wipeStep === 1 && (
-        <WipeConfirmDialog
-          cardCount={cardCount}
-          step={1}
-          busy={wipeBusy}
-          onAdvance={() => setWipeStep(2)}
-          onCancel={() => setWipeStep(0)}
-        />
-      )}
-      {wipeStep === 2 && (
-        <WipeConfirmDialog
-          cardCount={cardCount}
-          step={2}
-          busy={wipeBusy}
-          onAdvance={() => void handleConfirmWipe()}
-          onCancel={() => setWipeStep(0)}
-        />
-      )}
+      {wipeOpen && <DeleteCollectionDialog onClose={() => setWipeOpen(false)} />}
       {deleteStep === 1 && (
         <DeleteAccountDialog
           username={username ?? ''}
@@ -1311,7 +1281,7 @@ interface DeleteAccountDialogProps {
 /**
  * Two-step confirmation for permanent account deletion. Step 1 spells out the
  * scope (every server-side record); step 2 is the final irreversible gate.
- * Mirrors WipeConfirmDialog so the destructive-action UX is consistent.
+ * Mirrors DeleteCollectionDialog so the destructive-action UX is consistent.
  */
 function DeleteAccountDialog({
   username,
@@ -1356,70 +1326,6 @@ function DeleteAccountDialog({
           autoFocus
         >
           {busy ? 'Deleting…' : isFinal ? 'Delete account' : 'Continue'}
-        </Button>
-      </div>
-    </Modal>
-  );
-}
-
-interface WipeConfirmDialogProps {
-  cardCount: number;
-  step: 1 | 2;
-  busy: boolean;
-  onAdvance: () => void;
-  onCancel: () => void;
-}
-
-/**
- * Two-step confirmation: the first step explains the consequences and
- * requires an intentional "Continue" click; the second is the final
- * "yes, delete" gate. Splitting them stops accidental deletions from
- * muscle memory (one click on a danger button is not enough).
- */
-function WipeConfirmDialog({ cardCount, step, busy, onAdvance, onCancel }: WipeConfirmDialogProps) {
-  const isFinal = step === 2;
-  // Freeze the count at open. `cardCount` is live store state that the very
-  // delete this dialog describes is concurrently zeroing, so while the wipe
-  // ran the still-mounted dialog re-rendered as "permanently remove 0 cards"
-  // before `setWipeStep(0)` landed — reading as "I confirmed and it just sat
-  // there." What the user agreed to is the number they were shown.
-  const [frozenCount] = useState(cardCount);
-  return (
-    <Modal
-      onClose={onCancel}
-      dismissable={!busy}
-      className="choice-dialog"
-      labelledBy="wipe-collection-title"
-    >
-      <h2 id="wipe-collection-title" className="choice-dialog-title">
-        {isFinal ? 'Last chance: delete everything?' : 'Delete entire collection?'}
-      </h2>
-      <p className="choice-dialog-body">
-        {isFinal ? (
-          <>
-            This will permanently remove <strong>{frozenCount.toLocaleString()}</strong>{' '}
-            {frozenCount === 1 ? 'card' : 'cards'} and the import history. Your binders stay defined
-            but will be empty. This can't be undone.
-          </>
-        ) : (
-          <>
-            You're about to remove all <strong>{frozenCount.toLocaleString()}</strong>{' '}
-            {frozenCount === 1 ? 'card' : 'cards'} from your collection. Binder definitions and
-            decks are kept, but decks will lose their physical copy assignments.
-          </>
-        )}
-      </p>
-      <div className="choice-dialog-actions">
-        <Button onClick={onCancel} disabled={busy}>
-          Cancel
-        </Button>
-        <Button
-          variant={isFinal ? 'danger' : 'secondary'}
-          onClick={onAdvance}
-          disabled={busy}
-          autoFocus
-        >
-          {busy ? 'Deleting…' : isFinal ? 'Delete everything' : 'Continue'}
         </Button>
       </div>
     </Modal>
