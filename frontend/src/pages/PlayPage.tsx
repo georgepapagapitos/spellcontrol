@@ -1180,14 +1180,12 @@ function LocalSetup({
                 }
               />
               {count > minSeats && (
-                <button
-                  type="button"
+                <IconButton
                   className="play-setup-seat-remove"
-                  aria-label={`Remove ${p.name || `Player ${i + 1}`}`}
+                  label={`Remove ${p.name || `Player ${i + 1}`}`}
                   onClick={() => removePlayer(i)}
-                >
-                  ✕
-                </button>
+                  icon={<X width={14} height={14} strokeWidth={2} />}
+                />
               )}
             </li>
           ))}
@@ -1259,17 +1257,15 @@ function SeatDeck({
     <div className="play-setup-seat-deck">
       <DeckPicker decks={decks} value={value} valueName={deckName} onChange={onChange} />
       {value && deckName && (
-        <button
-          type="button"
+        <IconButton
           className="play-setup-seat-deck-clear"
-          aria-label="Clear deck"
+          label="Clear deck"
           onClick={() => {
             onChange(null);
             setOpen(false);
           }}
-        >
-          ✕
-        </button>
+          icon={<X width={14} height={14} strokeWidth={2} />}
+        />
       )}
     </div>
   );
@@ -2139,14 +2135,12 @@ function HistoryTab({
                     <OverflowMenu items={menuItems} ariaLabel={`Game options: ${when}`} />
                   )}
                   {kind === 'remove' && canDropRecord(rec, userId) && (
-                    <button
-                      type="button"
+                    <IconButton
                       className="play-history-remove"
-                      aria-label={`Remove game: ${when}`}
+                      label={`Remove game: ${when}`}
                       onClick={() => setPendingDrop([rec])}
-                    >
-                      ×
-                    </button>
+                      icon={<X width={14} height={14} strokeWidth={2} />}
+                    />
                   )}
                 </div>
                 <div className="play-history-winner">

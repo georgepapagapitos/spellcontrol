@@ -80,7 +80,7 @@ export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: P
           Buy list
         </h2>
         <IconButton
-          className="buy-list-close"
+          variant="quiet"
           onClick={onClose}
           label="Close"
           icon={<X width={18} height={18} strokeWidth={2} />}

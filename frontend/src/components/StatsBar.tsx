@@ -230,7 +230,7 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
         <header className="stats-drawer-header">
           <h2 className="stats-drawer-title">Breakdown</h2>
           <IconButton
-            className="stats-drawer-close"
+            variant="quiet"
             onClick={() => beginClose()}
             label="Close breakdown"
             icon={<X width={20} height={20} strokeWidth={1.8} />}

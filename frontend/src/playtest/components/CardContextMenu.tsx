@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import type { Zone } from '@/lib/playtest';
+import { IconButton } from '@/components/shared/Button';
 import type { ShortcutId } from '../lib/shortcuts';
 import { nextGenericCounter } from '../lib/counter-kinds';
 import { createTokenEntries, moveToEntries, type MadeToken } from './menu-entries';
@@ -256,13 +258,11 @@ export function CardContextMenu({
       {stickers.map((s, i) => (
         <div key={`${i}-${s}`} className="playtest-ctx-sticker">
           <span>{s}</span>
-          <button
-            type="button"
+          <IconButton
             onClick={() => onRemoveSticker(i)}
-            aria-label={`Remove sticker ${s}`}
-          >
-            ×
-          </button>
+            label={`Remove sticker ${s}`}
+            icon={<X width={12} height={12} strokeWidth={2} />}
+          />
         </div>
       ))}
     </>

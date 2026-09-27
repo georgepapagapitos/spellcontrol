@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Upload, Download, ChevronRight, Cloud, Link2 } from 'lucide-react';
+import { Upload, Download, ChevronRight, Cloud, Link2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../Modal';
 import { ProgressBar } from '../ProgressBar';
@@ -40,7 +40,7 @@ import {
 
 import { DECK_NAME_MAX } from '@/lib/deck-name';
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 interface Props {
   onClose: () => void;
   /** Initial / fallback format selection. The user can change it per deck. */
@@ -629,15 +629,13 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     >
       <div className="modal-header">
         <h2 id="import-deck-title">{title}</h2>
-        <button
-          type="button"
-          className="modal-close"
+        <IconButton
+          variant="quiet"
           onClick={onClose}
-          aria-label="Close"
           disabled={isLoading}
-        >
-          ×
-        </button>
+          label="Close"
+          icon={<X width={20} height={20} strokeWidth={1.8} />}
+        />
       </div>
 
       <div
@@ -656,9 +654,13 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         {error && (
           <div className="error-banner">
             <span>{error}</span>
-            <button className="banner-dismiss" onClick={() => setError(null)} aria-label="Dismiss">
-              ×
-            </button>
+            <IconButton
+              variant="quiet"
+              className="banner-dismiss"
+              onClick={() => setError(null)}
+              label="Dismiss"
+              icon={<X width={16} height={16} strokeWidth={2} />}
+            />
           </div>
         )}
 
@@ -707,19 +709,17 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   {batchFiles.map((f, i) => (
                     <li key={f.name}>
                       <span className="import-deck-batch-file-name">{f.name}</span>
-                      <button
-                        type="button"
+                      <IconButton
                         className="import-deck-batch-remove"
                         onClick={() => {
                           setError(null);
                           setBatchFiles((fs) => fs.filter((_, idx) => idx !== i));
                         }}
                         disabled={isLoading}
-                        aria-label={`Remove ${f.name}`}
+                        label={`Remove ${f.name}`}
                         title="Remove"
-                      >
-                        ×
-                      </button>
+                        icon={<X width={14} height={14} strokeWidth={2} />}
+                      />
                     </li>
                   ))}
                 </ul>

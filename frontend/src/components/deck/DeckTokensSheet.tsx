@@ -65,6 +65,7 @@ export function DeckTokensSheet({
             </p>
           </div>
           <IconButton
+            variant="quiet"
             className="deck-tokens-sheet-close"
             onClick={onClose}
             label="Close"

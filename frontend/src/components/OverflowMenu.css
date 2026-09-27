@@ -22,8 +22,9 @@
   padding: 2px;
   background: none;
   border: none;
-  /* Circular icon-only — the ⋮ kebab is the canonical round-button case. */
-  border-radius: 999px;
+  /* A rect like every other icon-only action (STYLE_GUIDE § Shape language:
+     circles are retired outside the camera button and avatars). */
+  border-radius: var(--radius);
   color: var(--text-muted);
   cursor: pointer;
 }

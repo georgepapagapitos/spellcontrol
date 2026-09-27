@@ -259,6 +259,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                     {formatRelativeTime(response.createdAt)}
                   </span>
                   <IconButton
+                    variant="quiet"
                     className="deck-feedback-dismiss"
                     onClick={() => handleDelete(response)}
                     label={`Delete response from ${response.authorName}`}

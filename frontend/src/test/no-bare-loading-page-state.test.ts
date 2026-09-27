@@ -29,7 +29,7 @@ const PAGES_DIR = path.resolve(__dirname, '../pages');
 /** file (relative to pages/) : line — reason it's not the page's whole
  *  loading state, so it stays text rather than growing a skeleton. */
 const ALLOWLIST: Record<string, string> = {
-  'PlayPage.tsx:2194':
+  'PlayPage.tsx:2188':
     'the hidden-games sub-list inside an already-loaded history panel, not the page load — a small inline sub-panel placeholder (STYLE_GUIDE § Empty states)',
 };
 

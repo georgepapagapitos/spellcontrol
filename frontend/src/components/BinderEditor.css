@@ -8,19 +8,11 @@
   padding-block: var(--space-3);
 }
 
+/* Size, colour and states now come from the shared .icon-btn look
+   (IconButton variant="quiet"); this class only nudges it flush with the
+   header's left edge. */
 .binder-editor-back {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
   margin-left: calc(var(--space-2) * -1);
-  border: 0;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text-secondary);
-  cursor: pointer;
 }
 
 .binder-color-dot {
@@ -81,11 +73,6 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .binder-editor-back:hover {
-    background: var(--surface-raised);
-    color: var(--text-primary);
-  }
-
   .binder-color-dot:hover {
     box-shadow: 0 0 0 1px var(--accent);
   }
@@ -104,7 +91,6 @@
   outline-offset: 2px;
 }
 
-.binder-editor-back:focus-visible,
 .binder-color-dot:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -112,13 +98,8 @@
 
 /* A text field grows on touch; a caret can't live on a ghost (E321). */
 @media (pointer: coarse) {
-  .binder-editor-back,
   .binder-editor-header .binder-editor-name {
     min-height: 44px;
-  }
-
-  .binder-editor-back {
-    width: 44px;
   }
 
   .binder-color-dot::after {

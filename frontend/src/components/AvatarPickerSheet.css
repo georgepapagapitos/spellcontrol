@@ -35,40 +35,6 @@
   }
 }
 
-.avatar-picker-close {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  background: none;
-  border: none;
-  border-radius: var(--radius);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .avatar-picker-close:hover {
-    background: var(--surface-raised);
-    color: var(--text-primary);
-  }
-}
-
-.avatar-picker-close:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-@media (pointer: coarse) {
-  .avatar-picker-close {
-    width: 44px;
-    height: 44px;
-  }
-}
-
 /* Fixed rail above the scroll container — the search field never scrolls out
    from under the user mid-browse. Block (not flex) on purpose: SearchPill
    carries `flex: 1 1 12rem` for horizontal toolbars, and as a flex item in a

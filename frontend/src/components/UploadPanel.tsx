@@ -1,4 +1,4 @@
-import { Camera, ChevronDown, ChevronRight, Cloud, Link2, Upload } from 'lucide-react';
+import { Camera, ChevronDown, ChevronRight, Cloud, Link2, Upload, X } from 'lucide-react';
 import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
@@ -51,7 +51,7 @@ import {
 } from '../lib/google-picker';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 // Per-format column/line examples for the import-source InfoTip (E130 —
 // discoverability for the 5 bare text links, which named the tools but
@@ -679,14 +679,13 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           <div className="import-review-header">
             <span className="import-review-title">{reviewHeadline}</span>
             {(successMsg || routingSummary.entries.length > 0) && (
-              <button
-                type="button"
+              <IconButton
+                variant="quiet"
                 className="banner-dismiss"
                 onClick={handleDismissReviewSummary}
-                aria-label="Dismiss import summary"
-              >
-                ×
-              </button>
+                label="Dismiss import summary"
+                icon={<X width={16} height={16} strokeWidth={2} />}
+              />
             )}
           </div>
 
@@ -737,14 +736,13 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                   <Button variant="link" onClick={() => setShowMalformed((v) => !v)}>
                     {showMalformed ? 'Hide list' : 'Show list'}
                   </Button>
-                  <button
-                    type="button"
+                  <IconButton
+                    variant="quiet"
                     className="banner-dismiss"
                     onClick={() => setMalformedRows([])}
-                    aria-label="Dismiss"
-                  >
-                    ×
-                  </button>
+                    label="Dismiss"
+                    icon={<X width={16} height={16} strokeWidth={2} />}
+                  />
                 </span>
               </div>
               {showMalformed && (
@@ -1065,14 +1063,13 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       {error && (
         <div className="error-banner">
           <span>{error}</span>
-          <button
-            type="button"
+          <IconButton
+            variant="quiet"
             className="banner-dismiss"
             onClick={() => setError(null)}
-            aria-label="Dismiss"
-          >
-            ×
-          </button>
+            label="Dismiss"
+            icon={<X width={16} height={16} strokeWidth={2} />}
+          />
         </div>
       )}
 

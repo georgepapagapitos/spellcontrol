@@ -47,6 +47,10 @@ const ALLOWLIST = new Set([
   // element also carries .filter-chip (.filter-chip:focus-visible in
   // search-controls.css) — the "show more"/"show fewer" theme action chip.
   '.theme-chip-more',
+  // element also carries .icon-btn (IconButton variant="quiet"; its
+  // :focus-visible ring is in tabs.css) — .banner-dismiss only overrides
+  // color/opacity to tint the dismiss to its banner (T152 W8m).
+  '.banner-dismiss',
 ]);
 
 function cssFiles(dir: string): string[] {

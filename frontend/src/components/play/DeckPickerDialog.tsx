@@ -108,7 +108,7 @@ export function DeckPickerDialog({
       <div className="modal-header deck-picker-header">
         <h2 id={labelId}>{startersOnly ? 'Pick a starter deck' : 'Pick a deck'}</h2>
         <IconButton
-          className="modal-close"
+          variant="quiet"
           onClick={onClose}
           label="Close"
           icon={<X width={20} height={20} strokeWidth={1.8} />}

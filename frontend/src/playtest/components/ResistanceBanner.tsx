@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
+import { IconButton } from '@/components/shared/Button';
 
 interface Props {
   message: string;
@@ -29,14 +31,12 @@ export function ResistanceBanner({ message, onDismiss }: Props) {
   return (
     <div className="playtest-resistance-banner" role="status">
       <span className="playtest-resistance-banner__message">{message}</span>
-      <button
-        type="button"
+      <IconButton
         className="playtest-resistance-banner__dismiss"
-        aria-label="Dismiss opponent announcement"
+        label="Dismiss opponent announcement"
         onClick={onDismiss}
-      >
-        ×
-      </button>
+        icon={<X width={14} height={14} strokeWidth={2} />}
+      />
     </div>
   );
 }

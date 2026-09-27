@@ -9,6 +9,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { useId, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import type { GameLayout, GameState } from '../../lib/game-state';
 import type { BoardLayout, TurnOrder } from '../../lib/board-layouts';
 import {
@@ -30,7 +31,7 @@ import {
 import { paletteForIndex } from '../../lib/seat-palette';
 import { FacingArrow } from './FacingArrow';
 import { useOverlayDismiss } from '../../lib/use-overlay-dismiss';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 
 // ── Layout picker (board arrangement) ────────────────────────────────────
@@ -281,9 +282,12 @@ export function CustomLayoutEditor({
       >
         <header className="cle-head">
           <span className="cle-title">Custom layout</span>
-          <button type="button" className="cle-close" aria-label="Close" onClick={onClose}>
-            ✕
-          </button>
+          <IconButton
+            className="cle-close"
+            label="Close"
+            onClick={onClose}
+            icon={<X width={16} height={16} strokeWidth={2} />}
+          />
         </header>
 
         <div className="cle-rows">

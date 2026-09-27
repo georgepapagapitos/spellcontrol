@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import {
   CARD_GROUP_HELP,
@@ -12,7 +13,7 @@ import {
   type ShortcutId,
   type ShortcutOverrides,
 } from '../lib/shortcuts';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 
 interface Props {
   overrides: ShortcutOverrides;
@@ -89,14 +90,12 @@ export function ShortcutsSheet({ overrides, onChange, onClose }: Props) {
         <h2 id="playtest-shortcuts-title" className="shortcuts-overlay-title">
           Keyboard shortcuts
         </h2>
-        <button
-          type="button"
+        <IconButton
           className="shortcuts-overlay-close"
           onClick={onClose}
-          aria-label="Close"
-        >
-          ✕
-        </button>
+          label="Close"
+          icon={<X width={18} height={18} strokeWidth={2} />}
+        />
       </header>
       <p className="playtest-shortcuts-help">
         Press any key to change it. Esc cancels. Backspace or Delete turns an optional shortcut off.

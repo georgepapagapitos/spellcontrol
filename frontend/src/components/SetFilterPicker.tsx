@@ -1,6 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { X } from 'lucide-react';
 import type { SetMap } from '../lib/api';
 import { Chip } from '@/components/shared/Chip';
+import { IconButton } from '@/components/shared/Button';
 
 /** One candidate in the picker's list — a Scryfall set (collection Filters,
  *  via `setMapToOptions`) or an owned set code (binder/list rule editor). */
@@ -184,8 +186,7 @@ export function SetFilterPicker({ options, value, onChange }: Props) {
           role="combobox"
         />
         {value.size > 0 && (
-          <button
-            type="button"
+          <IconButton
             className="search-pill-clear set-filter-clear-all"
             onClick={(e) => {
               e.stopPropagation();
@@ -193,11 +194,9 @@ export function SetFilterPicker({ options, value, onChange }: Props) {
               setQuery('');
               inputRef.current?.focus();
             }}
-            aria-label="Clear all sets"
-            title="Clear all sets"
-          >
-            ×
-          </button>
+            label="Clear all sets"
+            icon={<X width={14} height={14} strokeWidth={2} />}
+          />
         )}
       </div>
       {open && matches.length > 0 && (

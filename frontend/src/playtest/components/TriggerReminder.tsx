@@ -90,7 +90,7 @@ export function TriggerReminder({ cards, beat, turn, myTurn, onLocate }: Props) 
       <div className="trigger-reminder__head">
         <span className="trigger-reminder__title">Triggers</span>
         <IconButton
-          className="trigger-reminder__close"
+          variant="quiet"
           onClick={() => setOpenKey(null)}
           label="Dismiss triggers"
           icon={<X size={14} />}

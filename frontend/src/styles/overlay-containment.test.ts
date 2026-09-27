@@ -220,7 +220,7 @@ describe('coarse-pointer touch floor', () => {
   // row (the deck row hit ~50px for one line of text). Point the guard at the
   // ghost in that case so the floor is still enforced.
   const CONTROLS: Array<[string, string]> = [
-    ['styles/modals-dialogs.css', '.modal-close'],
+    ['styles/tabs.css', '.icon-btn'],
     // Filter-chip family (T152 W8k). Every filter/toggle chip in the app
     // (Coach-tab lanes, Format/Source/Result/Pieces, card-search, role bar,
     // themes, product type, combos ownership) shares this rule, since these
@@ -236,7 +236,6 @@ describe('coarse-pointer touch floor', () => {
     ['components/deck/DeckCardRow.css', '.deck-card-row-secondary-act::after'],
     ['styles/deck-builder-card-list.css', '.deck-row-menu-trigger::after'],
     ['styles/auth.css', '.auth-reveal'],
-    ['styles/tooltip-legend.css', '.banner-dismiss'],
     ['components/trade/TradeComposer.css', '.trade-stepper-btn::after'],
     ['components/trade/TradeComposer.css', '.trade-picked-remove::after'],
     // The "which of my copies is leaving" disclosure — ghosted like its row

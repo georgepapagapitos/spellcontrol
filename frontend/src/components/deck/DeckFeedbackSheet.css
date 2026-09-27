@@ -115,30 +115,9 @@
   text-align: right;
 }
 
+/* Look comes from .icon-btn now (28px rounded up to the shared 32px). */
 .deck-feedback-dismiss {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .deck-feedback-dismiss:hover {
-    background: var(--accent-light);
-    color: var(--text-primary);
-  }
-}
-
-.deck-feedback-dismiss:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .deck-feedback-comment {
@@ -255,11 +234,6 @@
   .deck-feedback-verdict {
     min-height: 44px;
     padding: 0 var(--space-3);
-  }
-
-  .deck-feedback-dismiss {
-    width: 44px;
-    height: 44px;
   }
 }
 

@@ -564,7 +564,7 @@ export function CubeDetailPage() {
           <div className="modal-header">
             <h2 id="cube-banned-title">Banned cards</h2>
             <IconButton
-              className="modal-close"
+              variant="quiet"
               label="Close"
               icon={<X width={20} height={20} strokeWidth={1.8} />}
               onClick={() => setBannedOpen(false)}

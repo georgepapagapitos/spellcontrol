@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlignJustify, ChevronLeft, Layers, LayoutGrid, Package, Rows3 } from 'lucide-react';
+import { AlignJustify, ChevronLeft, Layers, LayoutGrid, Package, Rows3, X } from 'lucide-react';
 import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
 import { CardThumb } from './CardThumb';
 import { searchProducts, fetchProduct } from '../lib/api';
@@ -36,7 +36,7 @@ import type {
 import './ProductSearchPanel.css';
 
 import { userMessage } from '@/lib/user-error';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Field, SwitchRow } from '@/components/shared/form';
 /** Carousel entries for a product's full physical contents (one swipeable card per copy-set). */
@@ -582,14 +582,13 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
             <div className="import-review product-review" role="status" aria-live="polite">
               <div className="import-review-header">
                 <span className="import-review-title">Import summary</span>
-                <button
-                  type="button"
+                <IconButton
+                  variant="quiet"
                   className="banner-dismiss"
                   onClick={() => setResult(null)}
-                  aria-label="Dismiss import summary"
-                >
-                  ×
-                </button>
+                  label="Dismiss import summary"
+                  icon={<X width={16} height={16} strokeWidth={2} />}
+                />
               </div>
               <p className="import-review-line">
                 Added {result.count.toLocaleString()} card{result.count === 1 ? '' : 's'} from{' '}

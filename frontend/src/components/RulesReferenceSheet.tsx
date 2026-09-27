@@ -73,7 +73,7 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
         <div className="modal-header rules-ref-header">
           <h2 id={labelId}>Rules reference</h2>
           <IconButton
-            className="modal-close"
+            variant="quiet"
             onClick={() => beginClose()}
             label="Close"
             icon={<X width={20} height={20} strokeWidth={1.8} />}

@@ -73,6 +73,7 @@ export function DeckPublishNudge({ deckId }: Props) {
           {busy ? 'Making private…' : 'Make private'}
         </Button>
         <IconButton
+          variant="quiet"
           className="deck-publish-nudge-dismiss"
           onClick={() => setDismissed(true)}
           label="Dismiss"

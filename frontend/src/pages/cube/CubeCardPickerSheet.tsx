@@ -58,7 +58,7 @@ export function CubeCardPickerSheet({
       <div className="modal-header">
         <h2 id={titleId}>{title}</h2>
         <IconButton
-          className="modal-close"
+          variant="quiet"
           label="Close"
           icon={<X width={20} height={20} strokeWidth={1.8} />}
           onClick={onClose}

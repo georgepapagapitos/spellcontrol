@@ -1,6 +1,6 @@
 import { type JSX, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { LayoutGrid, Rows3 } from 'lucide-react';
+import { LayoutGrid, Rows3, X } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSwipeDownDismiss } from '../../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../../lib/use-sheet-exit';
@@ -10,6 +10,7 @@ import { ViewModeToggle } from '../ViewModeToggle';
 import { VerdictBadge } from './VerdictBadge';
 import type { VerdictTone } from './VerdictBadge';
 import type { CardTally } from './useCardCarousel';
+import { IconButton } from '../shared/Button';
 import './CardGroupSheet.css';
 
 /** A role/label annotation for a card in the group sheet. */
@@ -178,14 +179,12 @@ export function CardGroupSheet({
                 },
               ]}
             />
-            <button
-              type="button"
+            <IconButton
               className="card-group-close"
               onClick={() => beginClose()}
-              aria-label="Close"
-            >
-              ✕
-            </button>
+              label="Close"
+              icon={<X width={18} height={18} strokeWidth={2} />}
+            />
           </div>
         </header>
 

@@ -154,42 +154,8 @@
   margin: 0;
 }
 
-.modal-close {
-  background: none;
-  border: none;
-  font-size: var(--text-2xl);
-  color: var(--text-muted);
-  cursor: pointer;
-  line-height: 1;
-  padding: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-
-/* Coarse-pointer floor (STYLE_GUIDE § Responsive): the 28px box is
-   desktop-density — every modal's dismiss control needs 44px on touch. */
-@media (pointer: coarse) {
-  .modal-close {
-    width: 44px;
-    height: 44px;
-  }
-}
-
-.modal-close:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .modal-close:hover {
-    background: var(--surface-raised);
-    color: var(--text-primary);
-  }
-}
+/* .modal-close is gone: every dialog close renders IconButton
+   variant="quiet" now (the shared .icon-btn look, T152 W8m). */
 
 .modal-body {
   padding: 1.25rem var(--space-5);

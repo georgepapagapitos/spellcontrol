@@ -1,5 +1,6 @@
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import { IconButton } from './shared/Button';
 
 interface Props {
   value: string;
@@ -92,15 +93,12 @@ export const SearchPill = forwardRef<HTMLInputElement, Props>(function SearchPil
         autoFocus={autoFocus}
       />
       {!hideClear && value && (
-        <button
-          type="button"
+        <IconButton
           className="search-pill-clear"
           onClick={() => onChange('')}
-          aria-label="Clear search"
-          title="Clear search"
-        >
-          ×
-        </button>
+          label="Clear search"
+          icon={<X width={14} height={14} strokeWidth={2} />}
+        />
       )}
       {trailing}
     </div>

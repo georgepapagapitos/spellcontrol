@@ -161,7 +161,11 @@ export function Button({
  *  left an `IconButton` stepper with no way to turn off at its limit. */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
-export type IconButtonProps = Partial<Look> &
+/** The one look IconButton has that Button does not: a quiet 2rem icon rect
+ *  (close/back/dismiss), with no `placement` family of its own. */
+type QuietLook = { placement?: never; variant: 'quiet' };
+
+export type IconButtonProps = (Partial<Look> | QuietLook) &
   DistributiveOmit<Target, 'aria-label' | 'title'> & {
     /** The accessible name. Also the hover tooltip unless `title` says otherwise. */
     label: string;
@@ -175,7 +179,9 @@ export type IconButtonProps = Partial<Look> &
  * An icon with no visible text. `label` is required, so an unnamed icon
  * button cannot compile. With no `variant`/`placement` it adds no shared class
  * and the surface's own `className` carries the look (most icon-only buttons
- * are one-off close, step and menu controls); pass a variant to get `.btn`'s.
+ * are one-off close, step and menu controls); pass a variant to get `.btn`'s,
+ * or `variant="quiet"` for the shared `.icon-btn` look (STYLE_GUIDE §
+ * Buttons) — valid only with no `placement`.
  */
 export function IconButton({
   variant,
@@ -186,7 +192,8 @@ export function IconButton({
   className,
   ...rest
 }: IconButtonProps) {
-  const shared = variant || placement ? lookClass(placement, variant) : '';
+  const shared =
+    variant === 'quiet' ? 'icon-btn' : variant || placement ? lookClass(placement, variant) : '';
   return render(
     join(shared, className),
     {

@@ -140,14 +140,20 @@ export const typeGuards = [
   </Button>,
   // @ts-expect-error an icon button needs a name
   <IconButton key="d" icon={<X />} />,
+  // @ts-expect-error `variant="quiet"` is IconButton-only, Button has no `.icon-btn`
+  <Button key="e" variant="quiet">
+    x
+  </Button>,
+  // @ts-expect-error the quiet look has no placement family
+  <IconButton key="f" variant="quiet" placement="row" icon={<X />} label="Close" />,
 ];
 
 describe('IconButton', () => {
   it('is named by its label, which is also the tooltip, and hides the glyph', () => {
-    render(<IconButton label="Close" icon={<X />} className="modal-close" />);
+    render(<IconButton label="Close" icon={<X />} className="binder-editor-back" />);
     const btn = screen.getByRole('button', { name: 'Close' });
     expect(btn.getAttribute('title')).toBe('Close');
-    expect(btn.className).toBe('modal-close');
+    expect(btn.className).toBe('binder-editor-back');
     expect(btn.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(btn.textContent).toBe('');
   });
@@ -162,5 +168,10 @@ describe('IconButton', () => {
   it('adds the shared classes only when asked for a look', () => {
     render(<IconButton label="Delete" icon={<X />} variant="danger" />);
     expect(screen.getByRole('button', { name: 'Delete' }).className).toBe('btn btn-danger');
+  });
+
+  it('renders the shared quiet icon-button look', () => {
+    render(<IconButton label="Close" icon={<X />} variant="quiet" />);
+    expect(screen.getByRole('button', { name: 'Close' }).className).toBe('icon-btn');
   });
 });
