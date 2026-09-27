@@ -4,6 +4,7 @@ import { useAuth } from '../store/auth';
 import { verifyEmail, resendEmailVerification } from '../lib/auth-api';
 import { userMessage } from '@/lib/user-error';
 import { BrandMark } from '../components/shared/BrandMark';
+import { Button } from '@/components/shared/Button';
 
 type Phase = 'verifying' | 'verified' | 'error' | 'missing';
 
@@ -100,14 +101,14 @@ export default function VerifyEmailPage() {
         {body}
 
         {phase === 'error' && username && !resent ? (
-          <button
-            type="button"
+          <Button
+            variant="primary"
             className="auth-submit"
             onClick={() => void handleResend()}
             disabled={resending}
           >
             {resending ? 'Sending…' : 'Send a new link'}
-          </button>
+          </Button>
         ) : null}
 
         {phase !== 'verifying' ? (

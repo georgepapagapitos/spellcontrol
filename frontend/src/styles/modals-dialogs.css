@@ -497,10 +497,9 @@
 }
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive) — Cancel/Delete/Replace/
    Merge across every choice dialog (import mode, delete-imports, reimport
-   gate, name-input). `.btn`/`.upload-action` are desktop-density by default. */
+   gate, name-input). */
 @media (pointer: coarse) {
-  .choice-dialog-actions .btn,
-  .choice-dialog-actions .upload-action {
+  .choice-dialog-actions .btn {
     min-height: 44px;
   }
 }

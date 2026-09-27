@@ -12,6 +12,7 @@ import {
   allBindersBackupFileName,
 } from '../lib/backup';
 import { CollectionExportDialog } from './CollectionExportDialog';
+import { Button } from '@/components/shared/Button';
 
 interface Props {
   binders: MaterializedBinder[];
@@ -149,9 +150,7 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
         </button>
       </div>
       <div className="choice-dialog-actions">
-        <button type="button" className="upload-action" onClick={onClose}>
-          Cancel
-        </button>
+        <Button onClick={onClose}>Cancel</Button>
       </div>
     </Modal>
   );

@@ -1223,12 +1223,8 @@ function ReimportGateDialog({
         <strong>Replace</strong>.
       </p>
       <div className="choice-dialog-actions">
-        <button type="button" className="upload-action" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="upload-action" onClick={onMergeAnyway}>
-          Merge anyway
-        </button>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={onMergeAnyway}>Merge anyway</Button>
         <Button variant="danger" onClick={onReplace} autoFocus>
           Replace instead
         </Button>

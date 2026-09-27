@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BrandMark } from '../components/shared/BrandMark';
 import { forgotPassword } from '../lib/auth-api';
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 
 /**
  * Request a password-reset email. Always shows the same confirmation
@@ -46,9 +47,9 @@ export default function ForgotPasswordPage() {
               If an account uses that email, we've sent a link to reset the password. Check your
               inbox (and spam folder).
             </p>
-            <Link to="/auth" className="auth-submit auth-submit-link">
+            <Button variant="primary" to="/auth" className="auth-submit">
               Back to sign in
-            </Link>
+            </Button>
           </>
         ) : (
           <>
@@ -77,9 +78,9 @@ export default function ForgotPasswordPage() {
                 </div>
               ) : null}
 
-              <button type="submit" className="auth-submit" disabled={submitting}>
+              <Button type="submit" variant="primary" className="auth-submit" disabled={submitting}>
                 {submitting ? 'Sending…' : 'Send reset link'}
-              </button>
+              </Button>
             </form>
             <Link to="/auth" className="auth-back">
               Back to sign in
