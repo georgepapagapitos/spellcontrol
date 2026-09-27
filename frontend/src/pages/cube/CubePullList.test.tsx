@@ -13,13 +13,25 @@ const syncMock = vi.hoisted(() => ({
   state: 'ready' as 'idle' | 'syncing' | 'ready',
   error: false,
 }));
-const refreshNowMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 vi.mock('../../lib/sync', () => ({
   getSyncState: () => syncMock.state,
   hasSyncError: () => syncMock.error,
   onSyncedChange: () => () => {},
-  refreshNow: refreshNowMock,
 }));
+
+// Lets one test force buildCubePullList to throw (a real materialize crash),
+// then recover on retry — everything else uses the real implementation.
+const pullListMock = vi.hoisted(() => ({ shouldThrow: false }));
+vi.mock('../../lib/cube/pull-list', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/cube/pull-list')>();
+  return {
+    ...actual,
+    buildCubePullList: (...args: Parameters<typeof actual.buildCubePullList>) => {
+      if (pullListMock.shouldThrow) throw new Error('materialize blew up');
+      return actual.buildCubePullList(...args);
+    },
+  };
+});
 
 import { CubePullList } from './CubePullList';
 
@@ -110,7 +122,7 @@ function isChecked(el: HTMLElement): boolean {
 beforeEach(() => {
   syncMock.state = 'ready';
   syncMock.error = false;
-  refreshNowMock.mockClear();
+  pullListMock.shouldThrow = false;
   useAuth.setState({ status: 'guest' });
   useCubeStore.setState({ saved: [] });
   useCollectionStore.setState({ cards: [], binders: [], hydrating: false });
@@ -128,15 +140,58 @@ describe('CubePullList — loading', () => {
   });
 });
 
-describe('CubePullList — error with retry', () => {
-  it('shows an error with a retry action, which calls refreshNow', () => {
+describe('CubePullList — a sync error elsewhere does not touch this tab', () => {
+  it('still renders the list when hasSyncError() is true (e.g. a deck push failed)', () => {
+    const copy = makeCopy({ copyId: 'c1', name: 'Sol Ring', scryfallId: 'sf-sol' });
+    const binder = makeBinder({ id: 'b1', name: 'Rares', position: 0 });
+    useCollectionStore.setState({ cards: [copy], binders: [binder], hydrating: false });
+    const cube = makeSavedCube({
+      picks: [
+        makePick({
+          slotId: 'p1',
+          card: makeCubeCard({ name: 'Sol Ring', oracleId: 'o1' }),
+          allocatedCopyId: 'c1',
+        }),
+      ],
+    });
+    // This tab reads only local state, so a sync failure anywhere else in the
+    // app (a deck push, an unrelated pull) must not replace its list with an
+    // error — the pull list has nothing to do with whatever sync is doing.
     syncMock.error = true;
-    const cube = makeSavedCube();
-    render(<CubePullList cube={cube} />);
+    const { container } = render(<CubePullList cube={cube} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    const scope = interactive(container);
+    expect(scope.getByText('Rares')).toBeTruthy();
+    expect(scope.getByText('Sol Ring')).toBeTruthy();
+    expect(screen.getByText('1 of 1 located')).toBeTruthy();
+  });
+});
+
+describe('CubePullList — a build error, with retry', () => {
+  it('shows an error when materializing throws, and retry recomputes and recovers', () => {
+    const copy = makeCopy({ copyId: 'c1', name: 'Sol Ring', scryfallId: 'sf-sol' });
+    useCollectionStore.setState({ cards: [copy], binders: [], hydrating: false });
+    const cube = makeSavedCube({
+      picks: [
+        makePick({
+          slotId: 'p1',
+          card: makeCubeCard({ name: 'Sol Ring', oracleId: 'o1' }),
+          allocatedCopyId: 'c1',
+        }),
+      ],
+    });
+    pullListMock.shouldThrow = true;
+    const { container } = render(<CubePullList cube={cube} />);
     expect(screen.getByRole('alert')).toBeTruthy();
-    expect(screen.getByText(/Couldn't load your collection/)).toBeTruthy();
+    expect(screen.getByText(/Couldn't build the pull list/)).toBeTruthy();
+
+    // The underlying condition clears (a real crash would more likely be
+    // fixed by the data changing, but the point here is that "Try again"
+    // genuinely forces a recompute rather than being permanently stuck).
+    pullListMock.shouldThrow = false;
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(refreshNowMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(interactive(container).getByText('Sol Ring')).toBeTruthy();
   });
 });
 

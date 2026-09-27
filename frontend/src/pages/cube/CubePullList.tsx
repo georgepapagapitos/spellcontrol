@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState } from 'react';
 import { Printer } from 'lucide-react';
 import type { SavedCube } from '../../store/cube';
 import { useCollectionStore } from '../../store/collection';
@@ -8,7 +8,6 @@ import { useCardsWithReleaseDates, bindersUseReleaseDates } from '../../lib/card
 import { useAllocations } from '../../lib/allocations';
 import { useSetMap } from '../../lib/api';
 import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
-import { hasSyncError, onSyncedChange, refreshNow } from '../../lib/sync';
 import { safeLocalStorage } from '../../lib/safe-local-storage';
 import {
   buildCubePullList,
@@ -178,9 +177,12 @@ function CubePullGroupBlock({
 export function CubePullList({ cube }: { cube: SavedCube }) {
   const awaitingFirstPull = useAwaitingFirstPull();
   const hydrating = useCollectionStore((s) => s.hydrating);
-  // Subscribed, not a one-off read — a sync failure that resolves later (a
-  // retry from elsewhere, coming back online) must repaint this tab too.
-  const syncError = useSyncExternalStore(onSyncedChange, hasSyncError, () => false);
+  // Retry bumps this to force the guarded memo below to run again — this tab
+  // reads only local state (collection/binders/allocations), so a sync error
+  // ANYWHERE else in the app (a deck push, an unrelated pull) must never
+  // replace a perfectly good list with an error here. The only failure this
+  // tab can have is its own placement computation throwing.
+  const [buildAttempt, setBuildAttempt] = useState(0);
 
   const [ticked, setTicked] = useState<Set<string>>(() => loadTicks(cube.id));
   // Reload ticks when the viewed cube changes — the render-phase prev-state
@@ -218,10 +220,19 @@ export function CubePullList({ cube }: { cube: SavedCube }) {
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
   const setMap = useSetMap();
 
-  const groups = useMemo(
-    () => buildCubePullList(cube.picks, cards, binders, { allocatedCopyIds, setMap }),
-    [cube.picks, cards, binders, allocatedCopyIds, setMap]
-  );
+  const { groups, buildError } = useMemo(() => {
+    try {
+      return {
+        groups: buildCubePullList(cube.picks, cards, binders, { allocatedCopyIds, setMap }),
+        buildError: false,
+      };
+    } catch {
+      return { groups: [] as CubePullGroup[], buildError: true };
+    }
+    // buildAttempt isn't read above — it's a manual retry trigger, listed
+    // only so clicking "Try again" forces this memo to run again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cube.picks, cards, binders, allocatedCopyIds, setMap, buildAttempt]);
 
   if (hydrating || awaitingFirstPull) {
     return (
@@ -231,11 +242,11 @@ export function CubePullList({ cube }: { cube: SavedCube }) {
       </div>
     );
   }
-  if (syncError) {
+  if (buildError) {
     return (
       <CubeErrorBlock
-        error="Couldn't load your collection. Try again."
-        onRetry={() => void refreshNow()}
+        error="Couldn't build the pull list. Try again."
+        onRetry={() => setBuildAttempt((n) => n + 1)}
       />
     );
   }
