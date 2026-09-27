@@ -181,10 +181,7 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
     return (
       <div className="empty-state">
         <p className="empty-state-tagline">Couldn't start this playtest.</p>
-        <p className="empty-state-hint">
-          Something in this deck couldn't be dealt into a game. Try again, or open the deck to check
-          its cards.
-        </p>
+        <p className="empty-state-hint">Something in this deck couldn't be dealt into a game.</p>
         <div className="empty-state-actions">
           <Button
             variant="primary"
@@ -196,7 +193,7 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
               setInitFailed(false);
             }}
           >
-            Try again
+            Retry
           </Button>
           <Button to={back.to}>{back.label}</Button>
         </div>

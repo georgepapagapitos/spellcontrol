@@ -127,7 +127,7 @@ describe('TagsPage', () => {
     errorRef.value = true;
     renderPage();
     expect(screen.getByRole('alert').textContent).toContain("Couldn't load the tag list.");
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(ensureCardTags).toHaveBeenCalledTimes(1);
   });
 

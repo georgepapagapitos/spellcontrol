@@ -139,7 +139,7 @@ export function HordeBand({
             <span className="horde-band__line">
               Couldn't load the horde.{' '}
               <button type="button" className="horde-band__retry" onClick={() => retryLoad()}>
-                Try again
+                Retry
               </button>
             </span>
           ) : (

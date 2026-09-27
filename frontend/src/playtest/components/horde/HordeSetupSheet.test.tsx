@@ -44,12 +44,12 @@ describe('HordeSetupSheet', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('shows an error line with Try again, wired to retryHordeLoad', () => {
+  it('shows an error line with Retry, wired to retryHordeLoad', () => {
     const retryHordeLoad = vi.fn();
     usePlaytestStore.setState({ retryHordeLoad });
     renderSheet({ hordeLoad: { status: 'error', error: "Couldn't load that horde." } });
     expect(screen.getByRole('alert').textContent).toContain("Couldn't load that horde.");
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(retryHordeLoad).toHaveBeenCalledTimes(1);
   });
 

@@ -459,7 +459,7 @@ describe('PlaytestBoard — a horde at an online table: load states', () => {
     expect(screen.getByText('Loading the horde…')).toBeTruthy();
   });
 
-  it('shows an error with Try again', () => {
+  it('shows an error with Retry', () => {
     onlineTable = seatedTable([opponent(1, 'Maya')]);
     onlineHorde = buildOnlineHorde({
       status: 'error',
@@ -472,7 +472,7 @@ describe('PlaytestBoard — a horde at an online table: load states', () => {
       </MemoryRouter>
     );
     expect(screen.getByText("Couldn't load the horde.")).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onlineHorde!.actions.retryLoad).toHaveBeenCalledTimes(1);
   });
 });
