@@ -1,5 +1,6 @@
 import type { BinderDef, BinderFilterGroup, EnrichedCard } from '../types';
 import { compileFilterGroups, cardMatchesCompiled } from './rules';
+import type { BinderLayoutInputs } from './use-binder-layout-inputs';
 import { materializeBinders } from './materialize';
 
 export interface BinderCounts {
@@ -114,7 +115,13 @@ export interface EffectiveLandingCounts {
 export function countEffectiveLanding(
   cards: EnrichedCard[],
   allBinders: BinderDef[],
-  draft: DraftBinder
+  draft: DraftBinder,
+  /** The rest of `useBinderLayoutInputs()`, so a binder that hides deck cards
+   *  routes here the way BinderPage shows it. */
+  layout: Pick<BinderLayoutInputs, 'allocatedCopyIds' | 'setMap'> = {
+    allocatedCopyIds: new Set(),
+    setMap: undefined,
+  }
 ): EffectiveLandingCounts {
   const matches = countBinderMatches(cards, draft.groups, false).total;
 
@@ -155,7 +162,12 @@ export function countEffectiveLanding(
       : allBinders.map((b, i) => (i === existingIdx ? draftDef : b));
   };
 
-  const materializeFor = (defs: BinderDef[]) => materializeBinders(cards, defs, { search: '' });
+  const materializeFor = (defs: BinderDef[]) =>
+    materializeBinders(cards, defs, {
+      search: '',
+      allocatedCopyIds: layout.allocatedCopyIds,
+      setMap: layout.setMap,
+    });
   const landsIn = (result: ReturnType<typeof materializeFor>): number =>
     result.binders.find((b) => b.def.id === draftId)?.totalCards ?? 0;
 

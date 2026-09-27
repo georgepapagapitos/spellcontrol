@@ -290,6 +290,33 @@ describe('empty-rule warning gating', () => {
     open('b-empty');
     expect(screen.getByText(WARNING)).toBeTruthy();
   });
+
+  // Last in line an empty binder is a deliberate catch-all ("Everything else"
+  // from the Uncategorized sheet): it gets a plain note, not the amber banner.
+  // Above another binder it takes that binder's cards, which does warn.
+  it('says what a last-in-line empty binder does without warning', () => {
+    useCollectionStore.setState({
+      binders: [
+        makeBinderDef({ id: 'b-rares', position: 0 }),
+        makeBinderDef({ id: 'b-empty', position: 1 }),
+      ],
+    });
+    open('b-empty');
+    const note = screen.getByText(WARNING);
+    expect(note.closest('.warn-banner')).toBeNull();
+    expect(note.textContent).toMatch(/pass on/);
+  });
+
+  it('warns when an empty binder sits above another', () => {
+    useCollectionStore.setState({
+      binders: [
+        makeBinderDef({ id: 'b-empty', position: 0 }),
+        makeBinderDef({ id: 'b-rares', position: 1 }),
+      ],
+    });
+    open('b-empty');
+    expect(screen.getByText(WARNING).closest('.warn-banner')).not.toBeNull();
+  });
 });
 
 describe('the Color identity rule', () => {
