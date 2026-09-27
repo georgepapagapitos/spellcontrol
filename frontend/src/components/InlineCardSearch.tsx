@@ -1,22 +1,17 @@
-import { Check, ChevronDown, ChevronRight, Layers, Minus, Plus } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { forwardRef } from 'react';
 import { useSearchCards } from '../lib/use-search-cards';
-import { availableFinishes } from '../lib/scanner-feedback';
-import { ManaCost } from './ManaCost';
-import { CardPreview } from './CardPreview';
-import { PrintingPicker, type AddExtras } from './PrintingPicker';
-import { useCollectionStore } from '../store/collection';
-import { useToastsStore } from '../store/toasts';
-import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
-import { addedCardMessage } from '../lib/add-card-message';
+import {
+  CardSearchResults,
+  type CardSearchResultsHandle,
+  type CardSearchResultsView,
+} from './CardSearchResults';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
-import { IconButton } from '@/components/shared/Button';
 
 /** Result layouts: `list` (thumbnail rows — the default everywhere this panel
  *  is embedded), `grid` (card-image tiles, preview-first), `compact`
  *  (text-only rows). Grid/compact are offered by the standalone /search page. */
-export type InlineCardSearchView = 'grid' | 'list' | 'compact';
+export type InlineCardSearchView = CardSearchResultsView;
 
 interface Props {
   /** The shared collection search term — this panel never owns an input. */
@@ -48,376 +43,55 @@ interface Props {
 const RESULT_LIMIT = 60;
 const PAGE_SIZE = 10;
 
-function cardThumb(card: ScryfallCard): string | undefined {
-  return card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
-}
-
-/** Normal-res image for grid tiles — `small` is too soft at tile size. */
-function cardImage(card: ScryfallCard): string | undefined {
-  return card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
-}
-
 /**
  * Live Scryfall search-and-add results panel, driven entirely by the
  * collection's own search bar (no second input — typing up top updates
  * these results). The trigger that opens it lives in the grid/list as
- * the trailing card/row. Quick-add uses the printing the row shows (the one
- * Scryfall returns, in its first finish), same as the top-level Add card
- * button, and confirms with the same toast and Undo; the per-row
- * "Printings" disclosure lazily loads every printing so a specific set +
- * finish (plus quantity/condition/language) can be chosen inline. A "−"
- * next to the added count removes the last copy added this session, so a
- * mis-tap never needs a trip back to the collection table. All network
- * goes through the shared rate-limited, cached client.
+ * the trailing card/row. The row, its add/undo/toast behavior and the
+ * preview carousel all live in {@link CardSearchResults}, shared with
+ * {@link AddCardSearchPanel} so this panel and the Add-cards sheet can't
+ * drift apart.
+ *
+ * Renders no input of its own — a host with one on screen (SearchPage,
+ * TagsPage, ListAddCardSheet, ...) can drive keyboard navigation through the
+ * forwarded ref (`moveActive` / `addActive`); none currently wires this up,
+ * since each owns a separate `SearchPill` this lane doesn't touch.
  */
-export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded }: Props) {
-  const addCard = useCollectionStore((s) => s.addCard);
-  const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
-  const collection = useCollectionStore((s) => s.cards);
-  const pushToast = useToastsStore((s) => s.push);
+export const InlineCardSearch = forwardRef<CardSearchResultsHandle, Props>(
+  function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded }, ref) {
+    const q = query.trim();
+    const { results, loading, error, total } = useSearchCards(query, RESULT_LIMIT);
 
-  const [openPrintingsId, setOpenPrintingsId] = useState<string | null>(null);
-  // How many copies the user added this session, keyed by scryfall id, so
-  // the row can confirm the action without re-deriving from the collection.
-  const [addedCounts, setAddedCounts] = useState<Record<string, number>>({});
-  // The collection copyIds behind those counts (collection mode only) —
-  // what makes the "−" undo possible. Empty in retargeted (onAdd) mode.
-  const [addedCopyIds, setAddedCopyIds] = useState<Record<string, string[]>>({});
-  // Progressive reveal instead of an inner scrollbar — the page scrolls.
-  const [visible, setVisible] = useState(PAGE_SIZE);
-  // Index into `results` of the card whose full-size preview is open (null =
-  // closed). The preview is a carousel over the entire result set, so swiping
-  // can move past the progressively-revealed window.
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  // Within the preview, which result has its printing/finish picker expanded
-  // (keyed by scryfall id). Independent of the row-level disclosure above.
-  const [previewPrintingsId, setPreviewPrintingsId] = useState<string | null>(null);
-
-  const q = query.trim();
-  const { results, loading, error, total } = useSearchCards(query, RESULT_LIMIT);
-
-  // Reset per-result UI state when new results arrive. Defer to a microtask
-  // to avoid synchronous setState inside an effect body (react-hooks/set-state-in-effect).
-  useEffect(() => {
-    void Promise.resolve().then(() => {
-      setVisible(PAGE_SIZE);
-      setOpenPrintingsId(null);
-      setPreviewIndex(null);
-      setPreviewPrintingsId(null);
-    });
-  }, [results]);
-
-  const ownedCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of collection) {
-      const k = c.name.toLowerCase();
-      m.set(k, (m.get(k) ?? 0) + 1);
-    }
-    return m;
-  }, [collection]);
-
-  // Adapt the raw Scryfall results into the shape CardPreview consumes. The
-  // carousel renders the full result set so a swipe can cross the visible
-  // window; each card defaults to the nonfoil printing (same as quick-add).
-  const previewCards = useMemo(() => results.map((c) => scryfallToEnrichedCard(c)), [results]);
-
-  const confirm = (id: string, copyIds: string[] = [], count = Math.max(1, copyIds.length)) => {
-    setAddedCounts((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + count }));
-    if (copyIds.length > 0) {
-      setAddedCopyIds((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), ...copyIds] }));
-    }
-  };
-
-  // Drop specific copies added here. replaceAllCards re-runs allocation/binder
-  // remapping, same as the edit flow. One path for the row's "−" (last copy)
-  // and the toast's Undo (that add's whole batch).
-  const removeCopies = async (id: string, ids: string[]) => {
-    if (ids.length === 0) return;
-    const dropping = new Set(ids);
-    setAddedCopyIds((prev) => ({
-      ...prev,
-      [id]: (prev[id] ?? []).filter((c) => !dropping.has(c)),
-    }));
-    setAddedCounts((prev) => ({ ...prev, [id]: Math.max(0, (prev[id] ?? 0) - ids.length) }));
-    await replaceAllCards(
-      useCollectionStore.getState().cards.filter((c) => !dropping.has(c.copyId))
-    );
-  };
-
-  // A collection add confirms itself the way the Add cards sheet does: a toast
-  // naming the printing and finish that landed, with Undo. This panel added in
-  // silence, so the same "+" said something in one place and nothing here.
-  const addToCollection = async (
-    id: string,
-    printing: ScryfallCard,
-    finish?: Finish,
-    extras?: AddExtras
-  ) => {
-    const copyIds = await addCard(printing, finish, extras);
-    confirm(id, copyIds);
-    pushToast({
-      message: addedCardMessage(printing, copyIds.length, finish),
-      tone: 'success',
-      durationMs: 4000,
-      actionLabel: 'Undo',
-      onAction: () => void removeCopies(id, copyIds),
-    });
-  };
-
-  const quickAdd = async (card: ScryfallCard) => {
-    if (onAdd) {
-      await onAdd(card);
-      confirm(card.id);
-    } else {
-      await addToCollection(card.id, card);
-    }
-    onAdded?.(card);
-  };
-
-  const addPrinting = async (
-    card: ScryfallCard,
-    printing: ScryfallCard,
-    finish: Finish,
-    extras: AddExtras
-  ) => {
-    if (onAdd) {
-      await onAdd(printing, finish);
-      confirm(card.id);
-    } else {
-      await addToCollection(card.id, printing, finish, extras);
-    }
-    onAdded?.(printing, finish);
-  };
-
-  // Remove the most recently added copy of this result (collection mode).
-  const undoAdd = (id: string) => {
-    const last = addedCopyIds[id]?.at(-1);
-    if (last) void removeCopies(id, [last]);
-  };
-
-  return (
-    <div className={`inline-card-search${view === 'grid' ? ' inline-card-search--grid' : ''}`}>
-      <div className="inline-card-search-head">
-        <span className="inline-card-search-head-title">Scryfall results for “{q}”</span>
-        {onClose && (
-          <button type="button" className="inline-card-search-hide" onClick={onClose}>
-            Hide
-          </button>
+    return (
+      <div className={`inline-card-search${view === 'grid' ? ' inline-card-search--grid' : ''}`}>
+        <div className="inline-card-search-head">
+          <span className="inline-card-search-head-title">Scryfall results for “{q}”</span>
+          {onClose && (
+            <button type="button" className="inline-card-search-hide" onClick={onClose}>
+              Hide
+            </button>
+          )}
+        </div>
+        {q.length < 2 && (
+          <p className="inline-card-search-status">Type at least two characters above.</p>
         )}
-      </div>
-      {q.length < 2 && (
-        <p className="inline-card-search-status">Type at least two characters above.</p>
-      )}
-      {q.length >= 2 && loading && <p className="inline-card-search-status">Searching Scryfall…</p>}
-      {error && <p className="inline-card-search-status inline-card-search-error">{error}</p>}
-      {q.length >= 2 && !loading && !error && results.length === 0 && (
-        <p className="inline-card-search-status">No cards on Scryfall match “{q}”.</p>
-      )}
-
-      {results.length > 0 && view === 'grid' && (
-        <ul className="inline-card-search-grid" aria-label="Scryfall results">
-          {results.slice(0, visible).map((c, idx) => {
-            const owned = ownedCounts.get(c.name.toLowerCase()) ?? 0;
-            const added = addedCounts[c.id] ?? 0;
-            const img = cardImage(c);
-            return (
-              <li key={c.id} className="inline-card-search-tile">
-                <button
-                  type="button"
-                  className="collection-grid-item inline-card-search-tile-btn"
-                  aria-label={`Preview ${c.name}`}
-                  onClick={() => setPreviewIndex(idx)}
-                >
-                  {img ? (
-                    <img src={img} alt="" loading="lazy" className="collection-grid-img" />
-                  ) : (
-                    <span className="collection-grid-placeholder">{c.name}</span>
-                  )}
-                  {(added > 0 || owned > 0) && (
-                    <span className="inline-card-search-tile-badge">
-                      {added > 0 ? `added ×${added}` : `own ×${owned}`}
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {results.length > 0 && view !== 'grid' && (
-        <ul className="inline-card-search-list" role="listbox" aria-label="Scryfall results">
-          {results.slice(0, visible).map((c, idx) => {
-            const owned = ownedCounts.get(c.name.toLowerCase()) ?? 0;
-            const added = addedCounts[c.id] ?? 0;
-            const canUndo = (addedCopyIds[c.id]?.length ?? 0) > 0;
-            const printingsOpen = openPrintingsId === c.id;
-            const finishes = availableFinishes(c.finishes);
-            return (
-              <li key={c.id} className="inline-card-search-item">
-                <div className="inline-card-search-row">
-                  <IconButton
-                    className="inline-card-search-add"
-                    onClick={() => void quickAdd(c)}
-                    label={`Add ${c.name}`}
-                    icon={
-                      added > 0 ? (
-                        <Check width={12} height={12} strokeWidth={2.5} />
-                      ) : (
-                        <Plus width={12} height={12} strokeWidth={2.5} />
-                      )
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="inline-card-search-preview-trigger"
-                    aria-label={`Preview ${c.name}`}
-                    onClick={() => setPreviewIndex(idx)}
-                  >
-                    {view !== 'compact' &&
-                      (cardThumb(c) ? (
-                        <img
-                          src={cardThumb(c)}
-                          alt=""
-                          loading="lazy"
-                          className="inline-card-search-thumb"
-                        />
-                      ) : (
-                        <span
-                          className="inline-card-search-thumb inline-card-search-thumb--ph"
-                          aria-hidden
-                        />
-                      ))}
-                    <span className="inline-card-search-name">{c.name}</span>
-                  </button>
-                  {c.mana_cost && (
-                    <ManaCost cost={c.mana_cost} className="inline-card-search-mana" />
-                  )}
-                  <span className="inline-card-search-meta">
-                    {/* The printing "+" adds, in words as well as art. */}
-                    <span className="inline-card-search-owned">
-                      {c.set.toUpperCase()} #{c.collector_number}
-                    </span>
-                    {added > 0 && <span className="inline-card-search-added">added ×{added}</span>}
-                    {canUndo && (
-                      <IconButton
-                        className="inline-card-search-undo"
-                        onClick={() => undoAdd(c.id)}
-                        label={`Remove last added copy of ${c.name}`}
-                        icon={<Minus width={12} height={12} strokeWidth={2.5} />}
-                      />
-                    )}
-                    {owned > 0 && (
-                      <span className="inline-card-search-owned">in collection ×{owned}</span>
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    className={`inline-card-search-printings-toggle${
-                      printingsOpen ? ' is-open' : ''
-                    }`}
-                    aria-expanded={printingsOpen}
-                    onClick={() => setOpenPrintingsId(printingsOpen ? null : c.id)}
-                  >
-                    {printingsOpen ? (
-                      <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
-                    ) : (
-                      <ChevronRight width={12} height={12} strokeWidth={2} aria-hidden />
-                    )}
-                    {finishes.length > 1 ? 'Printing & finish' : 'Printing'}
-                  </button>
-                </div>
-                {printingsOpen && (
-                  <PrintingPicker
-                    cardName={c.name}
-                    fallback={c}
-                    showExtras={!onAdd}
-                    onAdd={(printing, finish, extras) =>
-                      void addPrinting(c, printing, finish, extras)
-                    }
-                  />
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {results.length > visible && (
-        <button
-          type="button"
-          className="inline-card-search-more"
-          onClick={() => setVisible((v) => v + PAGE_SIZE)}
-        >
-          Show {Math.min(PAGE_SIZE, results.length - visible)} more
-        </button>
-      )}
-      {/* The stack holds at most RESULT_LIMIT, so when the search matched more
-          than that it has to say so: the button used to read "· 50 not shown",
-          which counted the fetched-but-hidden rows and so told a reader that
-          60 was the whole answer. Picking a tag with 976 cards on /tags is the
-          case that made it obvious (board E341). */}
-      {total !== null && total > results.length && (
-        <p className="inline-card-search-total">
-          Showing {Math.min(visible, results.length).toLocaleString()} of {total.toLocaleString()}{' '}
-          matches. Narrow the search to see the rest.
-        </p>
-      )}
-
-      {previewIndex !== null && previewCards[previewIndex] && (
-        <CardPreview
-          source="search"
-          cards={previewCards}
-          index={previewIndex}
-          binderName=""
-          sectionLabels={[]}
-          pageNumbers={[]}
-          totalPages={0}
-          onIndexChange={setPreviewIndex}
-          onClose={() => {
-            setPreviewIndex(null);
-            setPreviewPrintingsId(null);
-          }}
-          getActions={(i) => {
-            const card = results[i];
-            if (!card) return [];
-            const added = addedCounts[card.id] ?? 0;
-            return [
-              {
-                key: 'add',
-                icon:
-                  added > 0 ? (
-                    <Check width={18} height={18} strokeWidth={2.4} aria-hidden />
-                  ) : (
-                    <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />
-                  ),
-                label: added > 0 ? `Added ×${added}` : 'Add',
-                onClick: () => void quickAdd(card),
-              },
-              {
-                key: 'printings',
-                icon: <Layers width={18} height={18} strokeWidth={2} aria-hidden />,
-                label: 'Printings',
-                onClick: () => setPreviewPrintingsId((cur) => (cur === card.id ? null : card.id)),
-              },
-            ];
-          }}
-          renderPanelExtra={(i) => {
-            const card = results[i];
-            if (!card || previewPrintingsId !== card.id) return null;
-            return (
-              <div className="card-preview-printings">
-                <PrintingPicker
-                  cardName={card.name}
-                  fallback={card}
-                  showExtras={!onAdd}
-                  onAdd={(printing, finish, extras) =>
-                    void addPrinting(card, printing, finish, extras)
-                  }
-                />
-              </div>
-            );
-          }}
+        {q.length >= 2 && loading && (
+          <p className="inline-card-search-status">Searching Scryfall…</p>
+        )}
+        {error && <p className="inline-card-search-status inline-card-search-error">{error}</p>}
+        {q.length >= 2 && !loading && !error && results.length === 0 && (
+          <p className="inline-card-search-status">No cards on Scryfall match “{q}”.</p>
+        )}
+        <CardSearchResults
+          ref={ref}
+          results={results}
+          view={view}
+          pageSize={PAGE_SIZE}
+          total={total}
+          onAdd={onAdd}
+          onAdded={onAdded}
         />
-      )}
-    </div>
-  );
-}
+      </div>
+    );
+  }
+);

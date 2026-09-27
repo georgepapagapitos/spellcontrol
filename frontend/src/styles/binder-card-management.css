@@ -724,26 +724,8 @@
   padding: var(--space-2) var(--space-3);
 }
 
-.add-card-sheet-body .card-search-results {
-  max-height: none;
-}
-
 .add-card-sheet-error {
   color: var(--err-text);
-}
-
-/* The row's added state — a filled pill, not just accent-colored text, so
-   "this landed" is legible at a glance on a dense result list (and doesn't rest
-   on color alone). */
-.add-card-sheet-added {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.05rem 0.4rem;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ── Unified Add-cards modal (Search / Upload / Scan tabs) ───────
@@ -946,6 +928,7 @@
 
 /* Native render-skip for offscreen tiles — same trick as .cube-gallery. */
 .inline-card-search-tile {
+  position: relative;
   content-visibility: auto;
   contain-intrinsic-size: auto 210px;
 }
@@ -971,6 +954,48 @@
   line-height: 1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   pointer-events: none;
+}
+
+/* Grid tiles get a real "+" (previously adding from grid needed the preview)
+   — a scrim pill in the opposite corner from the owned/added badge, always
+   visible (never hover-only, so a touch screen can use it at all). */
+.inline-card-search-tile-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--art-scrim);
+  color: var(--art-scrim-text);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.inline-card-search-tile-add:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-tile-add:hover {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+}
+
+/* Coarse pointers need the 44px target (WCAG 2.5.5); desktop keeps the
+   compact scrim pill so it doesn't dominate the art. */
+@media (pointer: coarse) {
+  .inline-card-search-tile-add {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 /* ── Scryfall trigger: the trailing "card" in grid view ──────────
@@ -1214,6 +1239,14 @@
   }
 }
 
+/* Keyboard-driven active row (↑/↓ from a host's own search input, e.g.
+   AddCardSearchPanel's SearchPill; Enter adds this row). */
+.inline-card-search-row.active {
+  background: var(--accent-light);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .inline-card-search-row {
   display: flex;
   align-items: center;
@@ -1333,9 +1366,27 @@
   font-size: var(--text-xs);
 }
 
+/* Groups the meta text and the printing toggle so they can move to the row's
+   second line together under 480px (below) — the toggle's own rule stays a
+   flex sibling either way. */
+.inline-card-search-trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* A filled pill, not just accent-colored text, so "this landed" is legible at
+   a glance on a dense result list (and doesn't rest on color alone). */
 .inline-card-search-added {
-  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .inline-card-search-owned {
@@ -1388,10 +1439,23 @@
 
 /* Narrow phones: the 2rem indent costs a whole tile column. The picker's own
    raised surface already reads as nested under its row, so trade indent for
-   art. */
+   art. Same breakpoint also wraps the row above (fixed-width meta text +
+   "Printing & finish" toggle otherwise squeeze the card NAME — the row's
+   whole point — down to a couple of characters); the trailing group takes
+   the row's full second line so the name stays legible. */
 @media (max-width: 480px) {
   .inline-card-search-printings {
     padding-left: var(--space-3);
+  }
+
+  .inline-card-search-row {
+    flex-wrap: wrap;
+  }
+
+  .inline-card-search-trailing {
+    flex-basis: 100%;
+    justify-content: space-between;
+    padding-left: calc(var(--space-5) + var(--space-2));
   }
 }
 

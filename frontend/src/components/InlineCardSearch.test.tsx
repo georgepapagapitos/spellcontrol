@@ -100,3 +100,23 @@ describe('InlineCardSearch collection add', () => {
     );
   });
 });
+
+// A retargeted add (a list) owns its own feedback — the collection toast
+// would be wrong there (nothing was added to the collection).
+describe('InlineCardSearch retargeted add', () => {
+  it('skips the collection toast but still confirms the row and fires onAdded', async () => {
+    await searchWith(1, 1);
+    useToastsStore.getState().clear();
+    const onAdd = vi.fn(async () => {});
+    const onAdded = vi.fn();
+    render(<InlineCardSearch query="card 0" onAdd={onAdd} onAdded={onAdded} />);
+    expect(await screen.findByText('TST #0')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Card 0' }));
+
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
+    expect(onAdded).toHaveBeenCalledTimes(1);
+    expect(useToastsStore.getState().toasts).toHaveLength(0);
+    expect(await screen.findByText('Added ×1')).toBeTruthy();
+  });
+});

@@ -10,7 +10,6 @@ const h = vi.hoisted(() => ({
   removeCardFromBinder: vi.fn(),
   push: vi.fn((_input: { message: string; onAction?: () => void }) => 'toast-1'),
   fetchPrintings: vi.fn(async (..._a: unknown[]) => [] as unknown[]),
-  carouselOpen: vi.fn(),
   results: [] as unknown[],
   cards: [] as Array<{ copyId: string; name: string }>,
 }));
@@ -42,10 +41,12 @@ vi.mock('../lib/api', () => ({ fetchPrintings: h.fetchPrintings }));
 
 vi.mock('../lib/haptics', () => ({ haptics: { tap: () => {} } }));
 
-// The carousel itself is covered by its own suite — here we only care that the
-// row's thumbnail is wired to open it with every result as a slide.
-vi.mock('./deck/useCardCarousel', () => ({
-  useCardCarousel: () => ({ open: h.carouselOpen, preview: null }),
+// CardPreview itself is covered by its own suite — here we only care that the
+// row's thumbnail opens it at the right slide with the right card.
+vi.mock('./CardPreview', () => ({
+  CardPreview: (props: { cards: Array<{ name: string }>; index: number }) => (
+    <div data-testid="card-preview">{props.cards[props.index]?.name}</div>
+  ),
 }));
 
 import { AddCardSearchPanel } from './AddCardSearchPanel';
@@ -53,8 +54,8 @@ import { AddCardSearchPanel } from './AddCardSearchPanel';
 /** Mount and flush the panel's result-reset effect, which defers its setState to
  *  a microtask — without this the pending reset lands *after* the first click
  *  and silently collapses whatever the test just opened. */
-async function mount() {
-  const view = render(<AddCardSearchPanel autoFocus={false} />);
+async function mount(props: { binderId?: string } = {}) {
+  const view = render(<AddCardSearchPanel autoFocus={false} {...props} />);
   await act(async () => {});
   return view;
 }
@@ -82,7 +83,7 @@ beforeEach(() => {
 });
 
 describe('AddCardSearchPanel', () => {
-  it('leads each result with the card image, wired to the preview carousel', async () => {
+  it('leads each result with the card image, opening the preview carousel', async () => {
     await mount();
     const thumb = screen.getByRole('button', { name: 'Preview Sol Ring' });
     expect(thumb.querySelector('img')?.getAttribute('src')).toBe(
@@ -90,10 +91,7 @@ describe('AddCardSearchPanel', () => {
     );
 
     fireEvent.click(thumb);
-    expect(h.carouselOpen).toHaveBeenCalledWith(
-      [expect.objectContaining({ name: 'Sol Ring', card: expect.objectContaining({ id: 'a' }) })],
-      'Sol Ring'
-    );
+    expect((await screen.findByTestId('card-preview')).textContent).toBe('Sol Ring');
   });
 
   it('confirms an add with a toast naming the printing that landed', async () => {
@@ -183,5 +181,37 @@ describe('AddCardSearchPanel', () => {
     toast.onAction();
     await waitFor(() => expect(h.replaceAllCards).toHaveBeenCalled());
     expect(h.replaceAllCards.mock.calls[0][0]).toEqual([{ copyId: 'keep', name: 'Forest' }]);
+  });
+
+  it('Enter adds the keyboard-active row, same as clicking its +', async () => {
+    h.results = [card('a'), card('b', { name: 'Ash Barrens', collector_number: '456' })];
+    await mount();
+    const input = screen.getByRole('textbox', { name: 'Search Scryfall' });
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(h.addCard).toHaveBeenCalledTimes(1));
+    expect(h.addCard.mock.calls[0][0]).toMatchObject({ name: 'Ash Barrens' });
+  });
+
+  it('pins the add to the binder, and undo unpins it', async () => {
+    h.addCard.mockResolvedValue(['c1']);
+    h.cards = [{ copyId: 'c1', name: 'Sol Ring' }];
+    await mount({ binderId: 'binder-1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Sol Ring' }));
+    await waitFor(() => expect(h.pinCardToBinder).toHaveBeenCalledWith('binder-1', 'c1'));
+
+    await waitFor(() => expect(h.push).toHaveBeenCalled());
+    expect(h.push.mock.calls[0][0]).toMatchObject({
+      message: 'Added Sol Ring · LTR #123 · Non-foil · pinned to this binder',
+    });
+
+    const toast = h.push.mock.calls[0][0] as unknown as { onAction: () => void };
+    toast.onAction();
+    await waitFor(() =>
+      expect(h.removeCardFromBinder).toHaveBeenCalledWith('binder-1', 'c1', false)
+    );
   });
 });
