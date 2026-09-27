@@ -4,6 +4,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
 import { useAnimatedNumber } from '@/lib/use-animated-number';
+import { Button } from '@/components/shared/Button';
 
 export interface PowerHeroProps {
   /** Override-aware bracket number (1–5), or null when not yet estimated. */
@@ -364,13 +365,9 @@ export function PowerHero({
             <div className="discover-decks-error" role="alert">
               <span>{combosError}</span>
               {onRetryCombos && (
-                <button
-                  type="button"
-                  className="discover-decks-error-retry"
-                  onClick={onRetryCombos}
-                >
+                <Button onClick={onRetryCombos} className="discover-decks-error-retry">
                   Retry
-                </button>
+                </Button>
               )}
             </div>
           ) : (

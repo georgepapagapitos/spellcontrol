@@ -170,14 +170,9 @@ function ColumnError({
   return (
     <div className="home-card-error" role="alert">
       <span>{message}</span>
-      <button
-        type="button"
-        className="home-card-retry"
-        aria-label={`Retry loading ${what}`}
-        onClick={onRetry}
-      >
+      <Button aria-label={`Retry loading ${what}`} onClick={onRetry} className="home-card-retry">
         Retry
-      </button>
+      </Button>
     </div>
   );
 }

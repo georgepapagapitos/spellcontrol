@@ -102,9 +102,9 @@ export function SavedDecksPage() {
         ) : error ? (
           <div className="discover-decks-error" role="alert">
             <span>{error}</span>
-            <button type="button" className="discover-decks-error-retry" onClick={load}>
+            <Button onClick={load} className="discover-decks-error-retry">
               Retry
-            </button>
+            </Button>
           </div>
         ) : decks.length === 0 ? (
           <div className="empty-state">

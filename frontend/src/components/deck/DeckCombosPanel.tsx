@@ -20,6 +20,7 @@ import type { ComboMatch } from '../../types/combos';
 import { CardPreview } from '../CardPreview';
 import { Tabs } from '../Tabs';
 import { ComboRow } from './ComboRow';
+import { Button } from '@/components/shared/Button';
 
 export interface DeckCombosPanelHandle {
   /** Expand the panel (if collapsed), optionally switch to `tab`, scroll it into
@@ -402,14 +403,9 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
         {error && (
           <div className="discover-decks-error" role="alert">
             <span>{error}</span>
-            <button
-              type="button"
-              className="discover-decks-error-retry"
-              onClick={refetch}
-              disabled={loading}
-            >
+            <Button onClick={refetch} disabled={loading} className="discover-decks-error-retry">
               {loading ? 'Retrying…' : 'Retry'}
-            </button>
+            </Button>
           </div>
         )}
 

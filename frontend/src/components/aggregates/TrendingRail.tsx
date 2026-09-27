@@ -5,6 +5,7 @@ import { apiUrl } from '../../lib/api-base';
 import { useCardThumb } from '../../lib/card-thumbs';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 interface RisingCommander {
   commanderKey: string;
   commanderName: string;
@@ -266,13 +267,9 @@ export function TrendingRail({ enabled }: { enabled: boolean }) {
             from pushing the browse grid down. */}
         <div className="discover-decks-error" role="alert">
           <span>{error}</span>
-          <button
-            type="button"
-            className="discover-decks-error-retry"
-            onClick={() => void refresh()}
-          >
+          <Button onClick={() => void refresh()} className="discover-decks-error-retry">
             Retry
-          </button>
+          </Button>
         </div>
       </section>
     );

@@ -413,14 +413,9 @@ export function CollectionCombosPage() {
           {error && (
             <div className="discover-decks-error" role="alert">
               <span>Couldn't check your collection against the combo database.</span>
-              <button
-                type="button"
-                className="discover-decks-error-retry"
-                onClick={refetch}
-                disabled={loading}
-              >
+              <Button onClick={refetch} disabled={loading} className="discover-decks-error-retry">
                 {loading ? 'Retrying…' : 'Retry'}
-              </button>
+              </Button>
             </div>
           )}
 

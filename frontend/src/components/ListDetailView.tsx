@@ -736,9 +736,9 @@ export function ListDetailView({
         <div className="discover-decks-error" role="alert">
           <span>This is taking longer than usual.</span>
           {onRetry && (
-            <button type="button" className="discover-decks-error-retry" onClick={onRetry}>
+            <Button onClick={onRetry} className="discover-decks-error-retry">
               Retry
-            </button>
+            </Button>
           )}
         </div>
       )}

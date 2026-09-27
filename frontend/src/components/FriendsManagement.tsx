@@ -29,6 +29,7 @@ import { useInbox, markInboxSeen, countUnseen, useInboxSeenAt } from '../lib/use
 import { useConfirm } from '../lib/use-confirm';
 
 import { userMessage } from '@/lib/user-error';
+import { Button } from '@/components/shared/Button';
 type TabId = 'friends' | 'requests' | 'inbox' | 'activity';
 
 const TABS = [
@@ -486,9 +487,9 @@ export function FriendsManagement() {
         {loadError && (
           <div className="friends-error" role="alert">
             <span>{loadError}</span>
-            <button type="button" className="friends-error-retry" onClick={() => void loadData()}>
+            <Button onClick={() => void loadData()} className="friends-error-retry">
               Retry
-            </button>
+            </Button>
           </div>
         )}
 
@@ -715,13 +716,9 @@ export function FriendsManagement() {
           {activityError ? (
             <div className="friends-error" role="alert">
               <span>{activityError}</span>
-              <button
-                type="button"
-                className="friends-error-retry"
-                onClick={() => void loadActivity()}
-              >
+              <Button onClick={() => void loadActivity()} className="friends-error-retry">
                 Retry
-              </button>
+              </Button>
             </div>
           ) : activity === null ? (
             <FriendsSkeleton />

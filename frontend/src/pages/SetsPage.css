@@ -377,17 +377,6 @@
   margin: 0;
 }
 
-.sets-retry {
-  min-height: 44px;
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text-primary);
-  font-weight: 600;
-  cursor: pointer;
-}
-
 /* Checklist grid — plain CSS grid (no virtualizer); content-visibility keeps
    big sets (SLD ~2600 tiles) cheap without JS windowing. */
 .set-grid {
@@ -556,9 +545,4 @@
     /* Shared keyframe from footer-card-preview.css (motion-tokens guard). */
     animation: skeleton-shimmer 1.4s ease-in-out infinite;
   }
-}
-
-.sets-retry:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
