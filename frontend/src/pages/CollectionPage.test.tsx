@@ -12,9 +12,10 @@ vi.mock('../lib/materialize', () => ({
   materializeBinders: () => ({ binders: [] }),
 }));
 vi.mock('../components/CardListTable', () => ({
-  CardListTable: ({ onAddCards }: { onAddCards: () => void }) => (
+  CardListTable: ({ onAddCards }: { onAddCards: (query?: string) => void }) => (
     <div>
-      <button onClick={onAddCards}>Add cards (table)</button>
+      <button onClick={() => onAddCards()}>Add cards (table)</button>
+      <button onClick={() => onAddCards('dark ritual')}>Search hand-off (table)</button>
     </div>
   ),
 }));
@@ -27,11 +28,23 @@ vi.mock('../lib/sync', () => ({
   getSyncState: () => syncMock.state,
   onSyncedChange: () => () => {},
 }));
-// Stub AddCardsSheet to expose its initialTab for assertion without rendering
-// the full modal stack (CardScanner, UploadPanel, etc.).
+// Stub AddCardsSheet to expose its initialTab/initialQuery for assertion
+// without rendering the full modal stack (CardScanner, UploadPanel, etc.).
 vi.mock('../components/AddCardsSheet', () => ({
-  AddCardsSheet: ({ initialTab, onClose }: { initialTab?: string; onClose: () => void }) => (
-    <div data-testid="add-cards-sheet" data-initial-tab={initialTab ?? 'search'}>
+  AddCardsSheet: ({
+    initialTab,
+    initialQuery,
+    onClose,
+  }: {
+    initialTab?: string;
+    initialQuery?: string;
+    onClose: () => void;
+  }) => (
+    <div
+      data-testid="add-cards-sheet"
+      data-initial-tab={initialTab ?? 'search'}
+      data-initial-query={initialQuery ?? ''}
+    >
       <button onClick={onClose}>Close</button>
     </div>
   ),
@@ -169,6 +182,32 @@ describe('CollectionPage – AddCardsSheet deep-link (UX-333)', () => {
     // Current implementation: addParam !== null → open, initialTab defaults to 'search'.
     const sheet = screen.getByTestId('add-cards-sheet');
     expect(sheet.getAttribute('data-initial-tab')).toBe('search');
+  });
+
+  it('opens on the Products tab for ?add=products', () => {
+    renderPage('/collection?add=products');
+    expect(screen.getByTestId('add-cards-sheet').getAttribute('data-initial-tab')).toBe('product');
+  });
+
+  it('opens on the Scan tab for ?add=scan', () => {
+    renderPage('/collection?add=scan');
+    expect(screen.getByTestId('add-cards-sheet').getAttribute('data-initial-tab')).toBe('scan');
+  });
+
+  it('opens on Search with the query pre-filled for ?add=search&q=', () => {
+    renderPage('/collection?add=search&q=dark%20ritual');
+    const sheet = screen.getByTestId('add-cards-sheet');
+    expect(sheet.getAttribute('data-initial-tab')).toBe('search');
+    expect(sheet.getAttribute('data-initial-query')).toBe('dark ritual');
+  });
+
+  it('opens the sheet on Search with the query when the collection search hands off', () => {
+    renderPage('/collection');
+    expect(screen.queryByTestId('add-cards-sheet')).toBeNull();
+    fireEvent.click(screen.getByText('Search hand-off (table)'));
+    const sheet = screen.getByTestId('add-cards-sheet');
+    expect(sheet.getAttribute('data-initial-tab')).toBe('search');
+    expect(sheet.getAttribute('data-initial-query')).toBe('dark ritual');
   });
 
   it('strips the ?add= param from the URL after mount', async () => {

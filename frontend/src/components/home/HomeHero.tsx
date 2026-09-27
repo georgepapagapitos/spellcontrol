@@ -1,7 +1,7 @@
 import './HomeHero.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarPlus, Check, ChevronRight, Plus, Upload, Users } from 'lucide-react';
+import { CalendarPlus, Check, ChevronRight, Plus, Users } from 'lucide-react';
 import { BrandMark } from '../shared/BrandMark';
 import { AddCardsSheet } from '../AddCardsSheet';
 import { OverflowMenu } from '../OverflowMenu';
@@ -59,7 +59,7 @@ function HeroActions({ secondary }: { secondary: React.ReactNode }) {
         aria-haspopup="dialog"
         onClick={() => setAddOpen(true)}
         className="home-hero-action"
-        icon={<Upload width={16} height={16} strokeWidth={1.8} />}
+        icon={<Plus width={16} height={16} strokeWidth={1.8} />}
       >
         Add cards
       </Button>

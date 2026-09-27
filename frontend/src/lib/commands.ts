@@ -85,6 +85,9 @@ export interface BuildCommandsCtx {
   aiAvailable?: boolean;
   /** The deck page currently open, when there is one — enables deck-scoped AI. */
   deckPage?: { id: string; name: string } | null;
+  /** Whether this device can use the camera scanner (`useCanScan()`) — gates
+   *  the "Scan cards" action the same way the Add cards sheet's Scan tab does. */
+  canScan?: boolean;
 }
 
 /**
@@ -94,7 +97,13 @@ export interface BuildCommandsCtx {
  * the decks index. Only real destinations and real handlers are listed — a
  * command that cannot fire is worse than an absent one.
  */
-export function buildCommands({ decks, go, aiAvailable, deckPage }: BuildCommandsCtx): Command[] {
+export function buildCommands({
+  decks,
+  go,
+  aiAvailable,
+  deckPage,
+  canScan,
+}: BuildCommandsCtx): Command[] {
   const out: Command[] = ROUTES.map((r) => ({
     id: `nav:${r.path}`,
     label: r.label,
@@ -133,8 +142,36 @@ export function buildCommands({ decks, go, aiAvailable, deckPage }: BuildCommand
       group: 'Actions',
       keywords: ['upload', 'moxfield', 'archidekt'],
       run: () => go('/decks', { openImport: true }),
+    },
+    {
+      // The Add cards sheet's deep links (T153 decision C) — the palette just
+      // routes there rather than opening the sheet itself.
+      id: 'action:add-cards',
+      label: 'Add cards',
+      group: 'Actions',
+      keywords: ['collection', 'search'],
+      run: () => go('/collection?add=search'),
+    },
+    {
+      id: 'action:import-list',
+      label: 'Import a list',
+      group: 'Actions',
+      keywords: ['collection', 'upload', 'paste', 'csv'],
+      run: () => go('/collection?add=list'),
     }
   );
+
+  // Self-hiding like the AI group: a device that can't scan gets no promise
+  // it can't keep (same gate as the Add cards sheet's Scan tab).
+  if (canScan) {
+    out.push({
+      id: 'action:scan-cards',
+      label: 'Scan cards',
+      group: 'Actions',
+      keywords: ['collection', 'camera'],
+      run: () => go('/collection?add=scan'),
+    });
+  }
 
   // AI commands exist only while the feature is reachable — same self-hiding
   // rule as every AI surface (unavailable ⇒ absent, never greyed out).

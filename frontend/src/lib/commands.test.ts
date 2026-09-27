@@ -128,6 +128,25 @@ describe('buildCommands', () => {
     expect(go).toHaveBeenCalledWith('/rules?tab=ask');
   });
 
+  it('offers Add cards and Import a list unconditionally, routing to the deep links', () => {
+    const go = vi.fn();
+    const commands = buildCommands({ decks: [], go });
+    commands.find((c) => c.id === 'action:add-cards')?.run();
+    expect(go).toHaveBeenCalledWith('/collection?add=search');
+    commands.find((c) => c.id === 'action:import-list')?.run();
+    expect(go).toHaveBeenCalledWith('/collection?add=list');
+  });
+
+  it('offers Scan cards only when the device can scan', () => {
+    const go = vi.fn();
+    expect(
+      buildCommands({ decks: [], go }).find((c) => c.id === 'action:scan-cards')
+    ).toBeUndefined();
+    const scannable = buildCommands({ decks: [], go, canScan: true });
+    scannable.find((c) => c.id === 'action:scan-cards')?.run();
+    expect(go).toHaveBeenCalledWith('/collection?add=scan');
+  });
+
   it('never emits the Cards group — that lane is async and palette-owned', () => {
     const commands = buildCommands({
       decks: [deck('d1', 'Cards')],

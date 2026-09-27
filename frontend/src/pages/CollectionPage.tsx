@@ -44,25 +44,45 @@ export function CollectionPage() {
   const [, forceSyncTick] = useState(0);
   useEffect(() => onSyncedChange(() => forceSyncTick((n) => n + 1)), []);
 
-  // Deep-link: ?add=list opens the AddCardsSheet on the "Add from list" tab.
-  // Both the open-flag and the initial tab are captured at mount via the lazy
-  // useState initialiser so they remain stable even after the param is stripped
-  // from the URL (which triggers a re-render with an empty searchParams).
-  // Only 'list' is supported; unknown ?add= values open the sheet on 'search'.
+  // Deep-link: ?add=search|list|scan|products opens the AddCardsSheet on the
+  // matching tab, with &q= seeding the Search tab's query (T153 decision C).
+  // Both the open-flag and the initial tab/query are captured at mount via the
+  // lazy useState initialiser so they remain stable even after the params are
+  // stripped from the URL (which triggers a re-render with empty
+  // searchParams). Unknown/absent-but-present ?add= values open on 'search'
+  // (this is also how the pre-T153 ?add=list-only link kept working). 'scan'
+  // falls back to 'search' on a device that can't scan — AddCardsSheet's own
+  // `safeInitial` clamp already covers that.
+  type AddTab = 'upload' | 'search' | 'product' | 'scan';
+  const addTabFromParam = (v: string | null): AddTab => {
+    if (v === 'list') return 'upload';
+    if (v === 'scan') return 'scan';
+    if (v === 'products') return 'product';
+    return 'search';
+  };
   const [addCardsOpen, setAddCardsOpen] = useState(() => searchParams.get('add') !== null);
-  const [initialTab] = useState<'upload' | 'search'>(() =>
-    searchParams.get('add') === 'list' ? 'upload' : 'search'
+  const [initialTab, setInitialTab] = useState<AddTab>(() =>
+    addTabFromParam(searchParams.get('add'))
   );
+  const [initialQuery, setInitialQuery] = useState<string | undefined>(
+    () => searchParams.get('q') ?? undefined
+  );
+  const openAddCards = (tab: AddTab = 'search', query?: string) => {
+    setInitialTab(tab);
+    setInitialQuery(query);
+    setAddCardsOpen(true);
+  };
 
   useEffect(() => {
     if (searchParams.get('add') !== null) {
-      // Strip the param from the URL without adding a history entry so a
+      // Strip the params from the URL without adding a history entry so a
       // refresh doesn't re-open the sheet.
       const next = new URLSearchParams(searchParams);
       next.delete('add');
+      next.delete('q');
       setSearchParams(next, { replace: true });
     }
-    // Run only once on mount — the param value is already captured in state.
+    // Run only once on mount — the param values are already captured in state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -161,7 +181,7 @@ export function CollectionPage() {
                 icon: Plus,
                 primary: true,
                 opensDialog: true,
-                onClick: () => setAddCardsOpen(true),
+                onClick: () => openAddCards('search'),
               },
               ...(isEmpty
                 ? []
@@ -253,7 +273,7 @@ export function CollectionPage() {
             cards={cards}
             binders={materialized}
             setMap={setMap}
-            onAddCards={() => setAddCardsOpen(true)}
+            onAddCards={(query) => openAddCards('search', query)}
           />
           <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
           {exportOpen && (
@@ -265,7 +285,11 @@ export function CollectionPage() {
       )}
 
       {addCardsOpen && (
-        <AddCardsSheet initialTab={initialTab} onClose={() => setAddCardsOpen(false)} />
+        <AddCardsSheet
+          initialTab={initialTab}
+          initialQuery={initialQuery}
+          onClose={() => setAddCardsOpen(false)}
+        />
       )}
     </>
   );
