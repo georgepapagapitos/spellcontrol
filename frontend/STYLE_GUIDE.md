@@ -6409,6 +6409,15 @@ same controls, from `components/CopyControls` plus the kit:
   `IconButton`, 44px on touch) sit in a caption under the card, the way the
   collection grid captions price and set. A scrim "+" on the art covered the
   mana cost once it grew to its touch size.
+- **A list row's "+" keeps its 44px target on touch but paints a 28px disc**
+  (E459, 2026-09-27). Growing the solid accent circle to the whole target
+  made it the heaviest thing in every row of /search, Add cards, list add and
+  the deck add panel. `.inline-card-search-add` and the −/+ stepper keep the
+  44px box (padding `--space-2`, `background-clip: content-box`), so the rows
+  keep their height and the tap area is unchanged; the focus ring follows the
+  painted disc. This is the in-box form of the ghost hit-area rule above: use
+  it when the box can stay 44px, and the `::after` ghost when growing the box
+  would stretch a dense row.
 - **The deck editor's add panel (`CardSearchPanel`) renders the same list-row
   look** (E457, 2026-09-27), not a lookalike of its own: its three result tabs
   (Collection, Suggestions, Scryfall) render `CardSearchResults`' own

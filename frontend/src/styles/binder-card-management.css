@@ -1410,12 +1410,6 @@
     outline: none;
   }
 }
-@media (pointer: coarse) {
-  .inline-card-search-add {
-    min-width: 44px;
-    min-height: 44px;
-  }
-}
 
 /* T153: the Add-list stepper replaces `.inline-card-search-add` once a row
    is already queued — same circular-icon-button treatment, two of them. */
@@ -1444,10 +1438,23 @@
     filter: brightness(1.1);
   }
 }
+
+/* Touch: both buttons keep their 44px box (the tap target, and the row
+   height the list was sized around) but paint only a 28px disc inside it,
+   so the add control no longer outweighs the card (E459). The ring follows
+   the disc, 2px out, the same gap as the pointer ring. After both base rules
+   on purpose: their `background` shorthand would reset the clip. */
 @media (pointer: coarse) {
+  .inline-card-search-add,
   .inline-card-search-stepper-btn {
     min-width: 44px;
     min-height: 44px;
+    padding: var(--space-2);
+    background-clip: content-box;
+  }
+  .inline-card-search-add:focus-visible,
+  .inline-card-search-stepper-btn:focus-visible {
+    outline-offset: calc(2px - var(--space-2));
   }
 }
 
