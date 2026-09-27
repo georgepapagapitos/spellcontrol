@@ -28,7 +28,6 @@ import { useCardsWithReleaseDates, bindersUseReleaseDates } from '../lib/card-re
 import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
-import { BINDER_DELETE_CONFIRM_BODY } from '../lib/binder-copy';
 import { Modal } from '../components/Modal';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -201,17 +200,14 @@ export function BindersIndexPage() {
   // burn the key.
   const cascade = usePanelCascade(sorted.length > 0 ? 'binders-index:cascade' : null);
 
+  // A single delete is undoable from the toast, so it doesn't confirm first
+  // (T157) — bulk and delete-all below still do, since the toast there only
+  // shows a count.
   const handleDelete = useCallback(
-    async (id: string, name: string) => {
-      const ok = await confirm({
-        title: `Delete "${name}"?`,
-        body: BINDER_DELETE_CONFIRM_BODY,
-        confirmLabel: 'Delete binder',
-        danger: true,
-      });
-      if (ok) deleteBinder(id);
+    (id: string) => {
+      deleteBinder(id);
     },
-    [confirm, deleteBinder]
+    [deleteBinder]
   );
 
   const handleDeleteAll = useCallback(async () => {
@@ -591,7 +587,7 @@ export function BindersIndexPage() {
                         label: 'Delete binder',
                         icon: Trash2,
                         danger: true,
-                        onClick: () => void handleDelete(b.def.id, b.def.name),
+                        onClick: () => handleDelete(b.def.id),
                       },
                     ]}
                   />

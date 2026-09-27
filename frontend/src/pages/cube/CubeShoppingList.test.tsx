@@ -187,7 +187,7 @@ describe('CubeShoppingList', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(screen.getByText('network down')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     await waitFor(() =>
       expect(screen.getByText("Nothing you could buy beats what's in the cube.")).toBeTruthy()

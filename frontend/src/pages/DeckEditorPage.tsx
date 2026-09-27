@@ -394,7 +394,6 @@ export function DeckEditorPage() {
   } | null>(null);
   const [showPartnerPicker, setShowPartnerPicker] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   // Coach "Owned only" filter — shared by the feed and the Next-best-move hero.
   const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
   const handleOwnedOnlyChange = useCallback((next: boolean) => {
@@ -1487,7 +1486,10 @@ export function DeckEditorPage() {
     setDraftName(deck.name);
     setRenaming(false);
   };
-  const handleConfirmDelete = () => {
+  // Undoable from the toast, so it doesn't confirm first (T157) — deleteDeck
+  // shows the Undo toast itself, which survives the navigate below (the toast
+  // store is global, not page state).
+  const handleDelete = () => {
     deleteDeck(deck.id);
     navigate('/decks');
   };
@@ -3239,7 +3241,7 @@ export function DeckEditorPage() {
                 actions live here, never inline) are all in the ⋮. */}
             <DeckEditorOverflowMenu
               onDuplicate={handleDuplicate}
-              onDelete={() => setConfirmDelete(true)}
+              onDelete={handleDelete}
               onImport={() => setAppendOpen(true)}
               onBulkEdit={() => setBulkEditOpen(true)}
               onResync={() => setResyncOpen(true)}
@@ -3756,21 +3758,6 @@ export function DeckEditorPage() {
         />
       )}
 
-      {confirmDelete && (
-        <ConfirmDialog
-          title={`Delete "${deck.name}"?`}
-          /* `deleteDeck` ALWAYS shows an undo toast that re-inserts the captured
-             deck (store/decks.ts), so the finality clause was simply untrue —
-             the dialog said "This can't be undone." and the toast one second
-             later offered Undo. The /decks index bulk delete, same store and
-             same toast, already words it correctly; this matches it. */
-          body="The deck will be removed. You can undo from the toast."
-          confirmLabel="Delete"
-          danger
-          onConfirm={handleConfirmDelete}
-          onCancel={() => setConfirmDelete(false)}
-        />
-      )}
       {tokensOpen && <DeckTokensSheet tokens={deckTokens} onClose={() => setTokensOpen(false)} />}
       {primerOpen && <DeckPrimerSheet deck={deck} onClose={() => setPrimerOpen(false)} />}
       {appendOpen && <AppendDeckDialog deck={deck} onClose={() => setAppendOpen(false)} />}

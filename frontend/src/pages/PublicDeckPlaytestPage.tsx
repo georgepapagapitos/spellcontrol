@@ -11,8 +11,7 @@ import {
 import type { PublicDeck } from '../lib/shared-types';
 import { publicDeckToDeck } from '../lib/public-deck-to-deck';
 import { PlaytestSession } from '@/playtest/components/PlaytestSession';
-import { NotFoundView, ErrorView } from '../components/share/SharedShell';
-import { BrandMark } from '../components/shared/BrandMark';
+import { NotFoundView, ErrorView, LoadingView } from '../components/share/SharedShell';
 import { useDocumentTitle } from '../lib/use-document-title';
 import { userMessage } from '@/lib/user-error';
 import '@/styles/playtest.css';
@@ -100,12 +99,7 @@ function PublicDeckPlaytestInner({ sourceKey, isSlug }: { sourceKey: string; isS
   const backTo = isSlug ? `/d/${sourceKey}` : `/s/${sourceKey}`;
 
   if (state.status === 'loading') {
-    return (
-      <div className="shared-view shared-view--loading" aria-busy="true">
-        <BrandMark size={64} motion="busy" aria-hidden />
-        <p>Loading deck…</p>
-      </div>
-    );
+    return <LoadingView label="Loading deck…" />;
   }
   if (state.status === 'notFound') {
     return (

@@ -284,7 +284,7 @@ function PrintingGrid({
                 setAttempt((a) => a + 1);
               }}
             >
-              Try again
+              Retry
             </Button>
           </div>
         ) : !printings ? (

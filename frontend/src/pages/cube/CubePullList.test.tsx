@@ -186,10 +186,10 @@ describe('CubePullList — a build error, with retry', () => {
     expect(screen.getByText(/Couldn't build the pull list/)).toBeTruthy();
 
     // The underlying condition clears (a real crash would more likely be
-    // fixed by the data changing, but the point here is that "Try again"
+    // fixed by the data changing, but the point here is that "Retry"
     // genuinely forces a recompute rather than being permanently stuck).
     pullListMock.shouldThrow = false;
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(interactive(container).getByText('Sol Ring')).toBeTruthy();
   });

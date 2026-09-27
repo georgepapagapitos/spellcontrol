@@ -51,6 +51,24 @@ export function SharedShell({ children, action, ctaLabel }: Props) {
   );
 }
 
+interface LoadingViewProps {
+  /** Override for a surface loading something more specific than the page
+   *  itself (e.g. "Loading deck…"). */
+  label?: string;
+}
+
+/** Shared pending state for any `SharedShell`-wrapped public page: the brand
+ *  mark's `busy` pulse plus a visible, `aria-busy` label — never a bare
+ *  "Loading…" with no motion. Same reuse rationale as `NotFoundView` below. */
+export function LoadingView({ label = 'Loading…' }: LoadingViewProps) {
+  return (
+    <div className="shared-view shared-view--loading" aria-busy="true">
+      <BrandMark size={64} motion="busy" aria-hidden />
+      <p>{label}</p>
+    </div>
+  );
+}
+
 interface NotFoundViewProps {
   title?: string;
   message?: string;

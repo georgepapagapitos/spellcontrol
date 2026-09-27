@@ -57,7 +57,7 @@ import type { CardPreviewAction } from '../CardPreview';
 import { userMessage } from '@/lib/user-error';
 import { printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
-import { Button } from '@/components/shared/Button';
+import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 /**
  * Can this owned card go in the mainboard of a commander deck? The two rules
@@ -229,17 +229,23 @@ const SYNTAX_TIP = (
   </>
 );
 
-/** Portrait mini-card thumbnail for a result row — the full card image, not an
- *  art crop, so the card is recognizable at a glance. Uses the row's own image
- *  URL when in hand, else resolves via the batched CDN thumb hook. Also the
- *  row's preview trigger: tapping it opens the card carousel over the results,
- *  so a card can be read in full before deciding to add it. */
+/** Portrait mini-card thumbnail + name, the row's preview trigger — matching
+ *  `CardSearchResults`' list row (E457) so the deck panel's own engine paints
+ *  the same thumbnail/name treatment as the collection-wide add-cards search.
+ *  The full card image, not an art crop, so the card is recognizable at a
+ *  glance. Uses the row's own image URL when in hand, else resolves via the
+ *  batched CDN thumb hook. Tapping it opens the card carousel over the
+ *  results, so a card can be read in full before deciding to add it. */
 function RowThumb({
   name,
+  nameNode,
   image,
   onPreview,
 }: {
   name: string;
+  /** Display node for the name (e.g. a flavor-named `<CardName>`); falls
+   *  back to the plain `name` string for rows with no full printing. */
+  nameNode?: React.ReactNode;
   image?: string;
   onPreview: () => void;
 }) {
@@ -248,13 +254,82 @@ function RowThumb({
   return (
     <button
       type="button"
-      className="card-search-thumb"
+      className="inline-card-search-preview-trigger"
       aria-label={`Preview ${name}`}
-      title="Preview card"
       onClick={onPreview}
     >
-      {url && <img src={url} alt="" loading="lazy" />}
+      {url ? (
+        <img src={url} alt="" loading="lazy" className="inline-card-search-thumb" />
+      ) : (
+        <span className="inline-card-search-thumb inline-card-search-thumb--ph" aria-hidden />
+      )}
+      <span className="inline-card-search-name">{nameNode ?? name}</span>
     </button>
+  );
+}
+
+/** The li/row shell shared by all three result tabs — the "+", the thumb+name
+ *  preview trigger and the mana cost — rendered with the same
+ *  `inline-card-search-*` classes as `CardSearchResults`' list row (E457), so
+ *  the deck panel's own engine paints identically to the collection-wide
+ *  add-cards search. Each tab fills the trailing meta slot with its own
+ *  deck-fit signals (owned/in-deck counts, legality badges, EDHREC/combo
+ *  fit) — nothing here is deck-specific. */
+function SearchResultRow({
+  resultIndex,
+  active,
+  warn,
+  onHover,
+  addLabel,
+  addDisabled,
+  onAdd,
+  name,
+  nameNode,
+  image,
+  onPreview,
+  manaCost,
+  children,
+}: {
+  resultIndex: number;
+  active: boolean;
+  /** Off-color / not-legal / any other row-level caution — dims the name,
+   *  same as the row's former `is-off-color` modifier. */
+  warn?: boolean;
+  onHover: () => void;
+  addLabel: string;
+  addDisabled: boolean;
+  onAdd: () => void;
+  name: string;
+  nameNode?: React.ReactNode;
+  image?: string;
+  onPreview: () => void;
+  manaCost?: string;
+  /** The row's meta line — owned/in-deck counts, badges, fit signal. */
+  children: React.ReactNode;
+}) {
+  return (
+    <li
+      id={`card-search-result-${resultIndex}`}
+      role="option"
+      aria-selected={active}
+      className={`inline-card-search-item${warn ? ' is-off-color' : ''}`}
+      onMouseEnter={onHover}
+    >
+      <div className={`inline-card-search-row${active ? ' active' : ''}`}>
+        <IconButton
+          className="inline-card-search-add"
+          onClick={onAdd}
+          disabled={addDisabled}
+          label={addLabel}
+          icon={<Plus width={12} height={12} strokeWidth={2.5} />}
+        />
+        <RowThumb name={name} nameNode={nameNode} image={image} onPreview={onPreview} />
+        {manaCost && <ManaCost cost={manaCost} className="inline-card-search-mana" />}
+        <span className="inline-card-search-trailing">
+          <span className="inline-card-search-meta">{children}</span>
+        </span>
+      </div>
+    </li>
   );
 }
 
@@ -1174,91 +1249,78 @@ function CollectionResults({
             legality !== 'restricted';
           const flagNote = offColor ? ' (off-color)' : notLegal ? ' (not legal)' : '';
           return (
-            <li
+            <SearchResultRow
               key={c.scryfallId}
-              id={`card-search-result-${i}`}
-              role="option"
-              aria-selected={active}
-              className={`card-search-row has-thumb${active ? ' active' : ''}${offColor || notLegal ? ' is-off-color' : ''}`}
-              onMouseEnter={() => onActiveChange(i)}
+              resultIndex={i}
+              active={active}
+              warn={offColor || notLegal}
+              onHover={() => onActiveChange(i)}
+              addLabel={
+                atCopyLimit(c.name)
+                  ? `${c.name} is already at its copy limit`
+                  : inDeck > 0
+                    ? `Add another ${c.name}${flagNote}`
+                    : `Add ${c.name}${flagNote}`
+              }
+              addDisabled={atCopyLimit(c.name)}
+              onAdd={() => addAtIndex(i)}
+              name={c.name}
+              nameNode={<CardName card={c} />}
+              image={c.imageNormal}
+              onPreview={() => carousel.open(previewEntries, c.name)}
+              manaCost={c.manaCost}
             >
-              <button
-                type="button"
-                className="card-search-add"
-                disabled={atCopyLimit(c.name)}
-                aria-label={
-                  atCopyLimit(c.name)
-                    ? `${c.name} is already at its copy limit`
-                    : inDeck > 0
-                      ? `Add another ${c.name}${flagNote}`
-                      : `Add ${c.name}${flagNote}`
-                }
-                onClick={() => addAtIndex(i)}
-              >
-                +
-              </button>
-              <RowThumb
-                name={c.name}
-                image={c.imageNormal}
-                onPreview={() => carousel.open(previewEntries, c.name)}
-              />
-              <span className="card-search-name">
-                <CardName card={c} />
-              </span>
-              {c.manaCost && <ManaCost cost={c.manaCost} className="card-search-mana" />}
-              <span className="card-search-meta">
-                {offColor && (
-                  <span
-                    className="card-search-badge card-search-badge--warn"
-                    title="Outside your commander's color identity"
-                  >
-                    Off-color
-                  </span>
-                )}
-                {notLegal && (
-                  <span
-                    className="card-search-badge card-search-badge--warn"
-                    title="Not legal in this format"
-                  >
-                    Not legal
-                  </span>
-                )}
-                owned {ownedCount}
-                {binders.length > 0 && (
-                  <BinderBadge
-                    binders={binders}
-                    onSelect={(b) =>
-                      pushToast({ message: `${c.name} is filed in ${b.name}`, tone: 'info' })
-                    }
-                  />
-                )}
-                {inDeck > 0 && (
-                  <>
-                    {' · '}
-                    <span className="card-search-indeck">in deck × {inDeck}</span>
-                  </>
-                )}
-                <FitSignal
-                  gap={gapByName.get(nameKey)}
-                  produces={comboProducesByName.get(nameKey)}
-                  platformCount={topCardCounts.get(nameKey)}
+              {offColor && (
+                <span
+                  className="card-search-badge card-search-badge--warn"
+                  title="Outside your commander's color identity"
+                >
+                  Off-color
+                </span>
+              )}
+              {notLegal && (
+                <span
+                  className="card-search-badge card-search-badge--warn"
+                  title="Not legal in this format"
+                >
+                  Not legal
+                </span>
+              )}
+              owned {ownedCount}
+              {binders.length > 0 && (
+                <BinderBadge
+                  binders={binders}
+                  onSelect={(b) =>
+                    pushToast({ message: `${c.name} is filed in ${b.name}`, tone: 'info' })
+                  }
                 />
-                {onPreviewFit && (
-                  <>
-                    {' · '}
-                    <button
-                      type="button"
-                      className="card-search-fit"
-                      aria-label={`Preview how ${c.name} fits`}
-                      title="Check the fit and what it would replace"
-                      onClick={() => void previewFitAt(i)}
-                    >
-                      Fit & cut
-                    </button>
-                  </>
-                )}
-              </span>
-            </li>
+              )}
+              {inDeck > 0 && (
+                <>
+                  {' · '}
+                  <span className="card-search-indeck">in deck × {inDeck}</span>
+                </>
+              )}
+              <FitSignal
+                gap={gapByName.get(nameKey)}
+                produces={comboProducesByName.get(nameKey)}
+                platformCount={topCardCounts.get(nameKey)}
+              />
+              {onPreviewFit && (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className="card-search-fit"
+                    aria-label={`Preview how ${c.name} fits`}
+                    title="Check the fit and what it would replace"
+                    onClick={() => void previewFitAt(i)}
+                  >
+                    Fit & cut
+                  </button>
+                </>
+              )}
+            </SearchResultRow>
           );
         })}
       </ul>
@@ -1465,86 +1527,73 @@ function SuggestionsResults({
     // Unowned buy candidates show their price when EDHREC has one.
     const badgeLabel = row.ownership === 'unowned' && row.price ? `$${row.price}` : badge.label;
     return (
-      <li
+      <SearchResultRow
         key={`${row.kind}:${row.name}`}
-        id={`card-search-result-${i}`}
-        role="option"
-        aria-selected={active}
-        className={`card-search-row has-thumb${active ? ' active' : ''}`}
-        onMouseEnter={() => onActiveChange(i)}
+        resultIndex={i}
+        active={active}
+        onHover={() => onActiveChange(i)}
+        addLabel={
+          atCopyLimit(row.name)
+            ? `${row.name} is already at its copy limit`
+            : inDeckCount > 0
+              ? `Add another ${row.name}`
+              : `Add ${row.name}`
+        }
+        addDisabled={atCopyLimit(row.name)}
+        onAdd={() => void addAtIndex(i)}
+        name={row.name}
+        image={row.imageUrl}
+        onPreview={() => carousel.open(previewEntries, row.name)}
       >
-        <button
-          type="button"
-          className="card-search-add"
-          disabled={atCopyLimit(row.name)}
-          aria-label={
-            atCopyLimit(row.name)
-              ? `${row.name} is already at its copy limit`
-              : inDeckCount > 0
-                ? `Add another ${row.name}`
-                : `Add ${row.name}`
-          }
-          onClick={() => void addAtIndex(i)}
-        >
-          +
-        </button>
-        <RowThumb
-          name={row.name}
-          image={row.imageUrl}
-          onPreview={() => carousel.open(previewEntries, row.name)}
-        />
-        <span className="card-search-name">{row.name}</span>
-        <span className="card-search-meta">
-          <span className={badge.className}>{badgeLabel}</span>
-          {row.kind === 'staple' ? (
-            <>
-              {' · '}
-              {(() => {
-                const info = classifyInclusion(row.inclusion);
-                return info.kind === 'pct' ? (
-                  `${info.pct}%`
-                ) : (
-                  <span className="card-search-offmeta">Off-meta</span>
-                );
-              })()}
-              {row.roleLabel && (
-                <>
-                  {' · '}
-                  {row.roleLabel}
-                </>
-              )}
-            </>
-          ) : row.kind === 'gem' ? (
-            <>
-              {' · '}
-              <span className="card-search-gem">
-                {row.signals?.length ? hiddenGemReason({ signals: row.signals }) : 'Hidden gem'}
-              </span>
-            </>
-          ) : (
-            <>
-              {' · '}
-              <span className="card-search-combo">
-                {row.produces ? `Completes: ${row.produces}` : 'Completes a combo'}
-              </span>
-            </>
-          )}
-          {onPreviewFit && (
-            <>
-              {' · '}
-              <button
-                type="button"
-                className="card-search-fit"
-                aria-label={`Preview how ${row.name} fits`}
-                title="Check the fit and what it would replace"
-                onClick={() => void previewFitAt(i)}
-              >
-                Fit & cut
-              </button>
-            </>
-          )}
-        </span>
-      </li>
+        <span className={badge.className}>{badgeLabel}</span>
+        {row.kind === 'staple' ? (
+          <>
+            {' · '}
+            {(() => {
+              const info = classifyInclusion(row.inclusion);
+              return info.kind === 'pct' ? (
+                `${info.pct}%`
+              ) : (
+                <span className="card-search-offmeta">Off-meta</span>
+              );
+            })()}
+            {row.roleLabel && (
+              <>
+                {' · '}
+                {row.roleLabel}
+              </>
+            )}
+          </>
+        ) : row.kind === 'gem' ? (
+          <>
+            {' · '}
+            <span className="card-search-gem">
+              {row.signals?.length ? hiddenGemReason({ signals: row.signals }) : 'Hidden gem'}
+            </span>
+          </>
+        ) : (
+          <>
+            {' · '}
+            <span className="card-search-combo">
+              {row.produces ? `Completes: ${row.produces}` : 'Completes a combo'}
+            </span>
+          </>
+        )}
+        {onPreviewFit && (
+          <>
+            {' · '}
+            <button
+              type="button"
+              className="card-search-fit"
+              aria-label={`Preview how ${row.name} fits`}
+              title="Check the fit and what it would replace"
+              onClick={() => void previewFitAt(i)}
+            >
+              Fit & cut
+            </button>
+          </>
+        )}
+      </SearchResultRow>
     );
   };
 
@@ -1765,77 +1814,64 @@ function ScryfallResults({
           const badge = OWNERSHIP_BADGE[ownershipOf(c.name)];
           const nameKey = c.name.toLowerCase();
           return (
-            <li
+            <SearchResultRow
               key={c.id}
-              id={`card-search-result-${i}`}
-              role="option"
-              aria-selected={active}
-              className={`card-search-row has-thumb${active ? ' active' : ''}${offColor ? ' is-off-color' : ''}`}
-              onMouseEnter={() => onActiveChange(i)}
+              resultIndex={i}
+              active={active}
+              warn={offColor}
+              onHover={() => onActiveChange(i)}
+              addLabel={
+                atCopyLimit(c.name)
+                  ? `${c.name} is already at its copy limit`
+                  : offColor
+                    ? `Add ${c.name} (off-color)`
+                    : inDeck > 0
+                      ? `Add another ${c.name}`
+                      : `Add ${c.name}`
+              }
+              addDisabled={atCopyLimit(c.name)}
+              onAdd={() => addAtIndex(i)}
+              name={c.name}
+              nameNode={<CardName card={c} />}
+              image={imageFromCard(c, 'normal')}
+              onPreview={() => carousel.open(previewEntries, c.name)}
+              manaCost={c.mana_cost}
             >
-              <button
-                type="button"
-                className="card-search-add"
-                disabled={atCopyLimit(c.name)}
-                aria-label={
-                  atCopyLimit(c.name)
-                    ? `${c.name} is already at its copy limit`
-                    : offColor
-                      ? `Add ${c.name} (off-color)`
-                      : inDeck > 0
-                        ? `Add another ${c.name}`
-                        : `Add ${c.name}`
-                }
-                onClick={() => addAtIndex(i)}
-              >
-                +
-              </button>
-              <RowThumb
-                name={c.name}
-                image={imageFromCard(c, 'normal')}
-                onPreview={() => carousel.open(previewEntries, c.name)}
+              {offColor && (
+                <span
+                  className="card-search-badge card-search-badge--warn"
+                  title="Outside your commander's color identity"
+                >
+                  Off-color
+                </span>
+              )}
+              <span className={badge.className}>{badge.label}</span>
+              {inDeck > 0 && (
+                <>
+                  {' · '}
+                  <span className="card-search-indeck">in deck × {inDeck}</span>
+                </>
+              )}
+              <FitSignal
+                gap={gapByName.get(nameKey)}
+                produces={comboProducesByName.get(nameKey)}
+                platformCount={topCardCounts.get(nameKey)}
               />
-              <span className="card-search-name">
-                <CardName card={c} />
-              </span>
-              {c.mana_cost && <ManaCost cost={c.mana_cost} className="card-search-mana" />}
-              <span className="card-search-meta">
-                {offColor && (
-                  <span
-                    className="card-search-badge card-search-badge--warn"
-                    title="Outside your commander's color identity"
+              {onPreviewFit && (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className="card-search-fit"
+                    aria-label={`Preview how ${c.name} fits`}
+                    title="Check the fit and what it would replace"
+                    onClick={() => onPreviewFit(c)}
                   >
-                    Off-color
-                  </span>
-                )}
-                <span className={badge.className}>{badge.label}</span>
-                {inDeck > 0 && (
-                  <>
-                    {' · '}
-                    <span className="card-search-indeck">in deck × {inDeck}</span>
-                  </>
-                )}
-                <FitSignal
-                  gap={gapByName.get(nameKey)}
-                  produces={comboProducesByName.get(nameKey)}
-                  platformCount={topCardCounts.get(nameKey)}
-                />
-                {onPreviewFit && (
-                  <>
-                    {' · '}
-                    <button
-                      type="button"
-                      className="card-search-fit"
-                      aria-label={`Preview how ${c.name} fits`}
-                      title="Check the fit and what it would replace"
-                      onClick={() => onPreviewFit(c)}
-                    >
-                      Fit & cut
-                    </button>
-                  </>
-                )}
-              </span>
-            </li>
+                    Fit & cut
+                  </button>
+                </>
+              )}
+            </SearchResultRow>
           );
         })}
       </ul>

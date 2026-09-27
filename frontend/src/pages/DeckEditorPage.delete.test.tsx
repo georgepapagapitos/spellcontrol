@@ -506,6 +506,20 @@ describe('DeckEditorPage — Delete in ⋮ overflow (UX-316)', () => {
     expect(screen.getByRole('menuitem', { name: 'Playtest' })).toBeTruthy();
     vi.unstubAllGlobals();
   });
+
+  // T157 — a single-item delete is undoable from the toast, so it no longer
+  // confirms first (deleteDeck itself shows the Undo toast — see
+  // decks-store.test.ts for that store-level contract).
+  it('calls deleteDeck directly when Delete is activated, with no confirm dialog', () => {
+    renderEditor();
+    const [trigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+
+    expect(mockDeleteDeck).toHaveBeenCalledWith('deck-1');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText(/This can't be undone/)).toBeNull();
+  });
 });
 
 describe('DeckEditorPage — ⋮ menu sectioning + Export de-dup (E181)', () => {

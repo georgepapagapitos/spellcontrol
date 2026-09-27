@@ -228,7 +228,7 @@ describe('PublicProfilePage — the Collection tab (T136)', () => {
     fetchProfileCollectionMock.mockRejectedValueOnce(new Error('offline'));
     fetchProfileCollectionMock.mockResolvedValue(COLLECTION);
     renderProfile('/u/alice?tab=collection');
-    const retry = await screen.findByRole('button', { name: 'Try again' });
+    const retry = await screen.findByRole('button', { name: 'Retry' });
     retry.click();
     expect(await screen.findByText(/1 card/)).toBeTruthy();
   });

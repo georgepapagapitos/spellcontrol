@@ -95,23 +95,6 @@ function pathTo(entries: MenuEntry[], id: string): number[] | null {
   return null;
 }
 
-/** Up/Down walk the rows of the panel focus is in, and wrap. */
-function arrowNav(e: React.KeyboardEvent<HTMLElement>) {
-  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-  const target = e.target as HTMLElement;
-  const panel = target.closest('[data-menu-panel]');
-  if (!panel || target.tagName === 'INPUT') return;
-  const rows = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-    (el) => el.closest('[data-menu-panel]') === panel
-  );
-  const at = rows.indexOf(target);
-  const next = rows[(at + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length];
-  if (next) {
-    e.preventDefault();
-    next.focus();
-  }
-}
-
 /** The row at `path` anywhere in this menu, root panel or submenu. */
 function findRow(root: RefObject<HTMLElement | null>, path: string): HTMLElement | null {
   return (
@@ -249,14 +232,14 @@ export function TableContextMenu({ x, y, origin, items, title, header, openId, o
     }, HOVER_MS);
   }
 
-  /** Keys on a row: ↑/↓ walk its panel, → opens its submenu, ← backs out of
-   *  a submenu to the row that opened it. */
-  function rowKey(e: React.KeyboardEvent<HTMLElement>, level: number, prefix: number[]) {
-    if (e.key === 'ArrowLeft' && level > 0) {
-      e.preventDefault();
-      setPath(path.slice(0, level - 1));
-      findRow(rootRef, prefix.join('.'))?.focus();
-    } else arrowNav(e);
+  /** ← backs out of a submenu to the row that opened it. ↑/↓ (which walk the
+   *  panel focus is currently in, scoped by `data-menu-panel`) and → (opening
+   *  a submenu, bound on the submenu button itself below) are the shell's. */
+  function backOut(e: React.KeyboardEvent<HTMLElement>, level: number, prefix: number[]) {
+    if (e.key !== 'ArrowLeft' || level === 0) return;
+    e.preventDefault();
+    setPath(path.slice(0, level - 1));
+    findRow(rootRef, prefix.join('.'))?.focus();
   }
 
   function renderRows(rows: MenuEntry[], level: number, prefix: number[]) {
@@ -285,7 +268,7 @@ export function TableContextMenu({ x, y, origin, items, title, header, openId, o
               if (e.key === 'ArrowRight') {
                 e.preventDefault();
                 openSubmenu(level, i, true);
-              } else rowKey(e, level, prefix);
+              } else backOut(e, level, prefix);
             }}
           >
             <span>{item.label}</span>
@@ -309,7 +292,7 @@ export function TableContextMenu({ x, y, origin, items, title, header, openId, o
           className="playtest-ctx-action"
           disabled={item.disabled}
           onPointerEnter={onPointerEnter}
-          onKeyDown={(e) => rowKey(e, level, prefix)}
+          onKeyDown={(e) => backOut(e, level, prefix)}
           onClick={() => {
             onClose();
             item.onClick?.();

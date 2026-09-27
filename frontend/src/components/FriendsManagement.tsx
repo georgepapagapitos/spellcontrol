@@ -344,7 +344,7 @@ export function FriendsManagement() {
       await removeFriend(friend.id);
       toast.show({
         message: `Removed ${formatIdentity(friend).primary} from friends`,
-        tone: 'info',
+        tone: 'success',
       });
       void loadData();
     } catch (err) {

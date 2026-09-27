@@ -811,7 +811,7 @@ function TradeSide({
           {error}{' '}
           {onRetry && (
             <Button variant="link" onClick={onRetry}>
-              Try again
+              Retry
             </Button>
           )}
         </p>

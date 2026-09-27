@@ -360,7 +360,7 @@ export function PodHubPage() {
     setRemoveBusy(true);
     try {
       await removePodMember(pod.id, removeTarget.userId);
-      toast.show({ message: `Removed ${removeTarget.username} from ${pod.name}.`, tone: 'info' });
+      toast.show({ message: `Removed ${removeTarget.username} from ${pod.name}`, tone: 'success' });
       setRemoveTarget(null);
       loadPod();
     } catch (err) {
@@ -378,7 +378,7 @@ export function PodHubPage() {
     setDeleteBusy(true);
     try {
       await deletePod(pod.id);
-      toast.show({ message: `Deleted ${pod.name}.`, tone: 'info' });
+      toast.show({ message: `Deleted ${pod.name}`, tone: 'success' });
       navigate('/pods');
     } catch (err) {
       toast.show({

@@ -346,7 +346,7 @@ function TradeOfferCard({
             onClick={() =>
               void run(async () => {
                 await removeTrade(offer.id);
-                toast.show({ message: 'Removed from your trades.', tone: 'success' });
+                toast.show({ message: 'Removed from your trades', tone: 'success' });
               }, "Couldn't remove the trade. Try again.")
             }
             label={`Remove this trade with ${who} from your list`}

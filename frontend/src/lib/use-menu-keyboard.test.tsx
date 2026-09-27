@@ -11,6 +11,7 @@ interface HarnessProps {
   role?: 'menuitem' | 'option';
   onItem?: (label: string) => void;
   ignoreSelector?: string;
+  withInput?: boolean;
 }
 
 function Harness({
@@ -20,6 +21,7 @@ function Harness({
   role = 'menuitem',
   onItem,
   ignoreSelector,
+  withInput = false,
 }: HarnessProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -40,6 +42,7 @@ function Harness({
       </button>
       {open && (
         <div ref={panelRef} role={role === 'option' ? 'listbox' : 'menu'}>
+          {withInput && <input aria-label="Filter" />}
           {items.map((item) => (
             <button
               key={item.label}
@@ -94,6 +97,52 @@ function DialogHarness({ ignoreSelector }: { ignoreSelector?: string }) {
         <button type="button">Portaled option</button>
       </div>
       <button type="button">Outside</button>
+    </div>
+  );
+}
+
+/**
+ * Stands in for CtxMenuShell hosting a root menu plus an open flyout
+ * submenu (TableContextMenu's shape): two `[data-menu-panel]` groups inside
+ * one panel. `scopeSelector` should confine Up/Down to whichever group
+ * `document.activeElement` is in, not the panel as a whole.
+ */
+function ScopedHarness() {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useMenuKeyboard({
+    open,
+    onClose: () => setOpen(false),
+    panelRef,
+    triggerRef,
+    scopeSelector: '[data-menu-panel]',
+  });
+  return (
+    <div>
+      <button ref={triggerRef} type="button" onClick={() => setOpen((v) => !v)}>
+        Trigger
+      </button>
+      {open && (
+        <div ref={panelRef} role="menu">
+          <div data-menu-panel="root">
+            <button type="button" role="menuitem">
+              Root One
+            </button>
+            <button type="button" role="menuitem">
+              Root Two
+            </button>
+          </div>
+          <div data-menu-panel="sub">
+            <button type="button" role="menuitem">
+              Sub One
+            </button>
+            <button type="button" role="menuitem">
+              Sub Two
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -180,6 +229,19 @@ describe('useMenuKeyboard', () => {
     expect(document.activeElement).toBe(two);
   });
 
+  it('steps from a one-line search field into the items with ArrowDown, but leaves Home/End to the field', () => {
+    // SelectMenu's search box relies on this: the query field sits above the
+    // options, and ArrowDown is how a keyboard user reaches them.
+    render(<Harness withInput />);
+    fireEvent.click(screen.getByText('Trigger'));
+    const field = screen.getByLabelText('Filter');
+    act(() => field.focus());
+    fireEvent.keyDown(field, { key: 'Home' });
+    expect(document.activeElement).toBe(field);
+    fireEvent.keyDown(field, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByText('One'));
+  });
+
   it('jumps to the first/last item with Home/End', () => {
     render(<Harness />);
     openMenu();
@@ -199,6 +261,22 @@ describe('useMenuKeyboard', () => {
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'One' }));
     fireEvent.keyDown(document, { key: 'ArrowDown' });
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Three' }));
+  });
+
+  it('with scopeSelector, walks only the group focus is in, not the whole panel', () => {
+    render(<ScopedHarness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trigger' }));
+    // Initial focus (no initialItemSelector) lands on the first item overall.
+    screen.getByText('Sub One').focus();
+
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByText('Sub Two'));
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByText('Sub One')); // wraps within the group
+
+    screen.getByText('Root One').focus();
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(screen.getByText('Root Two')); // wraps within ITS group
   });
 
   it('closes on Escape and returns focus to the trigger', () => {

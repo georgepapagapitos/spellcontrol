@@ -278,7 +278,7 @@ export function OnlineLobby({
                   {hordeDeck.status === 'error' && (
                     <p className="lobby-horde-error" role="alert">
                       <span>Couldn't load that horde.</span>
-                      <Button onClick={hordeDeck.retry}>Try again</Button>
+                      <Button onClick={hordeDeck.retry}>Retry</Button>
                     </p>
                   )}
                 </>

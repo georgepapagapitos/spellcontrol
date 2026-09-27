@@ -14,6 +14,41 @@ function items(n = 2) {
   ));
 }
 
+/** Real menu rows (role="menuitem"), for the arrow-key nav tests — the
+ *  keyboard hook's Up/Down/Home/End only walk elements with that role. */
+function menuItems(n = 3) {
+  return Array.from({ length: n }, (_, i) => (
+    <button key={i} type="button" role="menuitem">{`Item ${i + 1}`}</button>
+  ));
+}
+
+/** Mounts the shell only after a click, so the click can move focus to the
+ *  opener first — the "no explicit triggerRef" fallback path. */
+function EscapeHarness({ onCloseSpy }: { onCloseSpy: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Opener
+      </button>
+      {open && (
+        <CtxMenuShell
+          x={10}
+          y={10}
+          title="Brago"
+          variant="floating"
+          onClose={() => {
+            onCloseSpy();
+            setOpen(false);
+          }}
+        >
+          {menuItems()}
+        </CtxMenuShell>
+      )}
+    </>
+  );
+}
+
 describe('CtxMenuShell', () => {
   beforeEach(() => {
     // jsdom/happy-dom report a 0x0 viewport; give the clamp something real.
@@ -191,5 +226,75 @@ describe('CtxMenuShell', () => {
     expect(parseFloat(menu.style.left)).toBeLessThan(window.innerWidth);
     expect(parseFloat(menu.style.top)).toBeLessThan(window.innerHeight);
     expect(menu.style.visibility).toBe('visible');
+  });
+
+  // Arrow keys, Home/End and focus-return-on-Escape run on the same
+  // useMenuKeyboard hook every other menu in the app uses (T157) — this shell
+  // used to have none of this at all.
+  describe('keyboard navigation', () => {
+    it('moves focus with ArrowDown/ArrowUp, wrapping at both ends', () => {
+      const { getByText } = render(
+        <CtxMenuShell x={10} y={10} title="Brago" variant="floating" onClose={vi.fn()}>
+          {menuItems(3)}
+        </CtxMenuShell>
+      );
+      const [one, two, three] = [getByText('Item 1'), getByText('Item 2'), getByText('Item 3')];
+      expect(document.activeElement).toBe(one);
+
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(two);
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(three);
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(one); // wraps bottom → top
+
+      fireEvent.keyDown(document, { key: 'ArrowUp' });
+      expect(document.activeElement).toBe(three); // wraps top → bottom
+    });
+
+    it('jumps to the first/last item with Home/End', () => {
+      const { getByText } = render(
+        <CtxMenuShell x={10} y={10} title="Brago" variant="floating" onClose={vi.fn()}>
+          {menuItems(3)}
+        </CtxMenuShell>
+      );
+      fireEvent.keyDown(document, { key: 'End' });
+      expect(document.activeElement).toBe(getByText('Item 3'));
+      fireEvent.keyDown(document, { key: 'Home' });
+      expect(document.activeElement).toBe(getByText('Item 1'));
+    });
+
+    it('skips a disabled item when navigating with the arrow keys', () => {
+      const { getByText } = render(
+        <CtxMenuShell x={10} y={10} title="Brago" variant="floating" onClose={vi.fn()}>
+          <button type="button" role="menuitem">
+            One
+          </button>
+          <button type="button" role="menuitem" disabled>
+            Two
+          </button>
+          <button type="button" role="menuitem">
+            Three
+          </button>
+        </CtxMenuShell>
+      );
+      expect(document.activeElement).toBe(getByText('One'));
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(getByText('Three'));
+    });
+
+    it('returns focus to whatever opened it on Escape, with no explicit trigger', () => {
+      const onCloseSpy = vi.fn();
+      const { getByText, queryByRole } = render(<EscapeHarness onCloseSpy={onCloseSpy} />);
+      const opener = getByText('Opener');
+      opener.focus();
+      fireEvent.click(opener);
+      expect(queryByRole('menu')).toBeTruthy();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onCloseSpy).toHaveBeenCalled();
+      expect(queryByRole('menu')).toBeNull();
+      expect(document.activeElement).toBe(opener);
+    });
   });
 });
