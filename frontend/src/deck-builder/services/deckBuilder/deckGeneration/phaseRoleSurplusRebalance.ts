@@ -14,7 +14,7 @@ import {
   getWipeScope,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
-import { getCardPrice } from '@/deck-builder/services/scryfall/client';
+import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/card-text';
 import { stampRoleSubtypes, routeCardByType, roleCapTolerance } from '../categorize';
 import { computeRoleCounts, countedRoleOf } from '../commanderDeckAnalysis';
@@ -659,6 +659,11 @@ export function applyRoleSurplusRebalance(
     for (const { ec, score } of ranked) {
       if (score < evictedScore + MIN_IMPROVEMENT_MARGIN) break; // sorted desc — nothing further clears the bar
       const card = ctx.scryfallCardMap.get(ec.name)!;
+      // E485: the pool is `allNonLand`, which still carries utility lands. A
+      // conversion swaps a spell slot, so a land here pushes the deck past its
+      // tuned land count (kozilek shipped 40 on 38: Oblivion Stone -> Eldrazi
+      // Temple). An MDFC whose FRONT is a spell stays eligible.
+      if (getFrontFaceTypeLine(card).includes('Land')) continue;
       if (ctx.cardAllowed && !ctx.cardAllowed(card)) continue;
       if (!fitsColorIdentity(card, colorIdentity)) continue;
       const isGC = state.gameChangerNames.has(ec.name);

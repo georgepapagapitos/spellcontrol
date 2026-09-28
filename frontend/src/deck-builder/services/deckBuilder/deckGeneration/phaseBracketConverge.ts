@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger';
 import type { DeckCategory, DetectedCombo, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { markBanned, type GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
+import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
   isProtectionPiece,
@@ -302,6 +303,10 @@ export function applyBracketConvergence(
       // re-raise the very floor we're lowering.
       !state.comboCardNames.has(c.name) &&
       scryfallCardMap.has(c.name) &&
+      // E485: allNonLand still carries utility lands, and this fills the cut
+      // card's spell slot (atraxa-bracket2 shipped Karn's Bastion over its
+      // tuned land count, undisclosed).
+      !getFrontFaceTypeLine(scryfallCardMap.get(c.name)!).includes('Land') &&
       !isPowerSignal(c.name, state.gameChangerNames) &&
       (!ctx.cardAllowed || ctx.cardAllowed(scryfallCardMap.get(c.name)!)) &&
       // Filler is sourced straight from the EDHREC pool, not cardPicking.ts's

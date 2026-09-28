@@ -257,6 +257,25 @@ describe('applyBracketConvergence', () => {
     expect(state.usedNames.has('Safe Filler C')).toBe(true);
   });
 
+  it('never fills a cut spell slot with a land from the pool (E485)', () => {
+    // allNonLand carries utility lands; atraxa-bracket2 shipped Karn's Bastion
+    // over its tuned land count through this swap, undisclosed.
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    const map = fillerScryfallMap();
+    map.set('Safe Filler A', scryfallCard('Safe Filler A', { type_line: 'Land' }));
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: map,
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+    });
+
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(state.usedNames.has('Safe Filler A')).toBe(false);
+    expect(state.usedNames.has('Safe Filler B')).toBe(true);
+  });
+
   it('breaks an incidental 2-card combo to converge a target-2 deck', () => {
     const state = makeState();
     state.cfg.targetBracket = 2;

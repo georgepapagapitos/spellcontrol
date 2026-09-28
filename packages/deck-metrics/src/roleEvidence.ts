@@ -73,8 +73,18 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   //  - The sacrifice-edict subject list gains "target opponent" (Tribute to
   //    Hunger: "Target opponent sacrifices a creature of their choice"),
   //    opponent-forcing like the rest of the list.
+  //
+  // 2026-09-28 (E486 review): the counter branch was the literal "counter
+  // target spell", so a card Scryfall tags removal whose removal IS its
+  // counter clause failed its own evidence when the text was scoped. Every
+  // one of these failed it, verified on Scryfall:
+  // Negate / Fierce Guardianship / An Offer You Can't Refuse / Dovin's Veto
+  // ("counter target noncreature spell"), Swan Song ("counter target
+  // enchantment, instant, or sorcery spell"), Spell Pierce, Tale's End,
+  // Summary Dismissal ("exile all other spells and counter all abilities"),
+  // Stifle ("counter target activated or triggered ability").
   removal:
-    /(destroy|exile)[^.]*?target|counter target spell|return target (creature|permanent|artifact|enchantment|planeswalker|spell)|fights?[^.]*?target creature|target creature gets? [+-]?\d+\/-\d+|(target player|target opponent|each opponent|defending player|each player|each other player)[^.]*?sacrifice|damage[^.]*?to (target|any target)\b|gain control of target creature|loses all( other card types and)? abilities|put target[^.]*?(?:top|bottom) of its owner'?s library|(?:doesn't|don't) untap during (?:its|their) controller'?s (?:next )?untap step/i,
+    /(destroy|exile)[^.]*?target|\bcounter (?:target|up to (?:one|two) target|all)\b[^.]*?\b(?:spells?|abilit(?:y|ies))\b|return target (creature|permanent|artifact|enchantment|planeswalker|spell)|fights?[^.]*?target creature|target creature gets? [+-]?\d+\/-\d+|(target player|target opponent|each opponent|defending player|each player|each other player)[^.]*?sacrifice|damage[^.]*?to (target|any target)\b|gain control of target creature|loses all( other card types and)? abilities|put target[^.]*?(?:top|bottom) of its owner'?s library|(?:doesn't|don't) untap during (?:its|their) controller'?s (?:next )?untap step/i,
   // Exile-based wipes (Farewell) and return-all bounce wipes (Devastation
   // Tide) alongside the destroy-based ones. "destroy each"/"exile
   // each"/"return each" (permanent, not just creature — Selective

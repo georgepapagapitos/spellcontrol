@@ -226,6 +226,25 @@ describe('applyBudgetConvergence', () => {
     expect(totalOf(state)).toBeCloseTo(result.finalTotal, 1);
   });
 
+  it('never swaps a spell for a cheaper land (E485)', async () => {
+    const state = makeState();
+    // No same-type (Artifact) alternative, so the choice falls to the any-type
+    // tier, where the two highest-priority candidates are lands.
+    const map = poolScryfallMap();
+    map.set('Cheap Alt A', scryfallCard('Cheap Alt A', '2', { type_line: 'Land' }));
+    map.set('Cheap Alt B', scryfallCard('Cheap Alt B', '3', { type_line: 'Land' }));
+    map.set('Cheap Alt C', scryfallCard('Cheap Alt C', '4', { type_line: 'Creature — Elf' }));
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 40, scryfallCardMap: map })
+    );
+
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(state.usedNames.has('Cheap Alt A')).toBe(false);
+    expect(state.usedNames.has('Cheap Alt B')).toBe(false);
+    expect(state.usedNames.has('Cheap Alt C')).toBe(true);
+  });
+
   it('never cuts a must-include card', async () => {
     const state = makeState();
     const result = await applyBudgetConvergence(
