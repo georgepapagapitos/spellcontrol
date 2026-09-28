@@ -529,7 +529,7 @@ export function PodHubPage() {
       )}
 
       <section className="pod-hub-section" aria-label="Pod roster">
-        <SectionHeader title="Members" titleClassName="pod-hub-section-head" />
+        <SectionHeader title="Members" titleClassName="pod-hub-section-head" variant="overline" />
         <ul className="pod-hub-roster">
           {activeMembers.map((m) => (
             <li key={m.userId} className="pod-hub-roster-row">
@@ -556,7 +556,11 @@ export function PodHubPage() {
 
         {invitedMembers.length > 0 && (
           <>
-            <SectionHeader title="Invited" titleClassName="pod-hub-section-head" />
+            <SectionHeader
+              title="Invited"
+              titleClassName="pod-hub-section-head"
+              variant="overline"
+            />
             <ul className="pod-hub-roster">
               {invitedMembers.map((m) => (
                 <li key={m.userId} className="pod-hub-roster-row">
@@ -690,7 +694,11 @@ export function PodHubPage() {
 
           {otherMembers.length > 0 && (
             <section className="pod-hub-section" aria-label="What the pod plays">
-              <SectionHeader title="What the pod plays" titleClassName="pod-hub-section-head" />
+              <SectionHeader
+                title="What the pod plays"
+                titleClassName="pod-hub-section-head"
+                variant="overline"
+              />
               <ul className="pod-hub-wtpp-list">
                 {otherMembers.map((m) => {
                   const state = memberDeckState(m.userId);

@@ -9,9 +9,10 @@ import type { ReactNode } from 'react';
  * a row: the title, then `meta` (a count or a sub-line, rendered as given),
  * then `tools` in their own group at the end.
  *
- * Each part takes its family's class until the section-header convergence
- * gives the row one look: `className` goes on the row, or on the heading
- * when there is no row.
+ * `variant` is the heading's role, painted once in base-layout.css: a
+ * `title` (serif, --text-lg, Home's reference) or an `overline` (a small
+ * uppercase serif label above its rows). `className` goes on the row, or on
+ * the heading when there is no row; a family class keeps its own spacing.
  */
 
 export interface SectionHeaderProps {
@@ -20,6 +21,8 @@ export interface SectionHeaderProps {
   id?: string;
   /** Defaults to 2: a page's sections sit under its one `h1`. */
   level?: 2 | 3 | 4;
+  /** The heading's role: a section title (default) or an overline label. */
+  variant?: 'title' | 'overline';
   className?: string;
   titleClassName?: string;
   meta?: ReactNode;
@@ -31,6 +34,7 @@ export function SectionHeader({
   title,
   id,
   level = 2,
+  variant = 'title',
   className,
   titleClassName,
   meta,
@@ -40,13 +44,13 @@ export function SectionHeader({
   const H = `h${level}` as const;
   if (!meta && !tools)
     return (
-      <H id={id} className={className ?? titleClassName}>
+      <H id={id} className={className ?? titleClassName} data-heading={variant}>
         {title}
       </H>
     );
   return (
     <div className={className}>
-      <H id={id} className={titleClassName}>
+      <H id={id} className={titleClassName} data-heading={variant}>
         {title}
       </H>
       {meta}

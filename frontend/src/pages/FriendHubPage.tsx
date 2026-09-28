@@ -631,7 +631,11 @@ export function FriendHubPage() {
           h2h &&
           h2h.summary.gamesPlayed > 0 && (
             <section className="friend-hub-section" aria-label="Head-to-head record">
-              <SectionHeader title="Head-to-head" titleClassName="friend-hub-section-head" />
+              <SectionHeader
+                title="Head-to-head"
+                titleClassName="friend-hub-section-head"
+                variant="overline"
+              />
               <Surface as="div" variant="framed" className="friend-hub-h2h-card">
                 <H2HSummary data={h2h} />
               </Surface>
@@ -641,7 +645,11 @@ export function FriendHubPage() {
 
         {(wantsAnything || collectionUnknown) && (
           <section className="friend-hub-section" aria-label="Trade radar">
-            <SectionHeader title="Trade radar" titleClassName="friend-hub-section-head" />
+            <SectionHeader
+              title="Trade radar"
+              titleClassName="friend-hub-section-head"
+              variant="overline"
+            />
             {radarError ? (
               <p className="friend-hub-radar-note" role="alert">
                 Couldn't check {who}'s collection against your want lists.{' '}
@@ -688,7 +696,11 @@ export function FriendHubPage() {
 
         {showWantRadar && (
           <section className="friend-hub-section" aria-label="What this friend is looking for">
-            <SectionHeader title="They're looking for" titleClassName="friend-hub-section-head" />
+            <SectionHeader
+              title="They're looking for"
+              titleClassName="friend-hub-section-head"
+              variant="overline"
+            />
             {wantsError ? (
               <p className="friend-hub-radar-note" role="alert">
                 Couldn't check your collection against {who}'s want lists.{' '}
@@ -775,7 +787,11 @@ export function FriendHubPage() {
             const { plural } = KIND_META[kind];
             return (
               <section key={kind} className="friend-hub-section" aria-label={plural}>
-                <SectionHeader title={plural} titleClassName="friend-hub-section-head" />
+                <SectionHeader
+                  title={plural}
+                  titleClassName="friend-hub-section-head"
+                  variant="overline"
+                />
                 <ul className="friend-hub-list">
                   {rows.map((s) => (
                     <HubRow key={s.token} share={s} />

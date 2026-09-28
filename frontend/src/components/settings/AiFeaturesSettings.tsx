@@ -52,6 +52,7 @@ export function AiFeaturesSettings() {
         title="AI features"
         id="settings-ai-group-title"
         titleClassName="settings-section-header"
+        variant="overline"
       />
       <SettingsSection
         id="settings-ai-title"

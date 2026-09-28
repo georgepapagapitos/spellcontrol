@@ -29,48 +29,48 @@ primitives directory.
 
 ### Card surfaces
 
-| Reach for                                                   | Instead of                    | Ruling                                                          |
-| ----------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------- |
+| Reach for                                                   | Instead of                    | Ruling                                                                                                                            |
+| ----------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `components/shared/CardGridCell`                            | a bespoke grid tile           | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy) · § Index tiles wear cover art |
 | `components/shared/CardRow`                                 | a bespoke list row            | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy)                                |
-| `components/CardThumb` + `lib/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL      | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129)                                                 |
-| `components/CardPreview`                                    | a second card-detail view     | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129) — there is exactly one card view                |
-| `components/shared/ManaSymbol` (`ColorPip`)                 | a bare `mana-font` class      | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                           |
-| `components/ManaCost`                                       | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                                         |
-| `components/shared/SetSymbol`                               | a bare `keyrune` class        | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                           |
+| `components/CardThumb` + `lib/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL      | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129)                                            |
+| `components/CardPreview`                                    | a second card-detail view     | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129) — there is exactly one card view           |
+| `components/shared/ManaSymbol` (`ColorPip`)                 | a bare `mana-font` class      | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
+| `components/ManaCost`                                       | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                     |
+| `components/shared/SetSymbol`                               | a bare `keyrune` class        | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
 
 ### Controls & chrome
 
-| Reach for                                                      | Instead of                                           | Ruling                                                        |
-| -------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
-| `components/PageHeader`                                        | a hand-built `.binder-hero`                          | § Layout system                                               |
-| `components/shared/Button` (`Button`)                          | a raw `className="btn …"`                            | § Shape language — Buttons are a primitive                    |
-| `components/shared/Button` (`IconButton`)                      | a `<button>` holding only a glyph                    | § Shape language — Buttons are a primitive                    |
-| `lib/icon-scale` (`ICON_SCALE`)                                | a one-off `lucide-react` size/strokeWidth pair       | § Icon scale                                                  |
-| `components/shared/CopyButton` (`CopyButton`/`CopyIconButton`) | a hand-rolled `Copied` label swap or copy toast      | § Verbs (Copy)                                                |
-| `components/shared/Chip`                                       | a raw `className="…-chip"` element                   | § Shape language — Chips are a primitive                      |
-| `components/shared/Chip` (`tone`)                              | a raw `-badge`/`-pill`/`-tag` label, or `is-*` tones | § Shape language — Badges, counts and surfaces are primitives |
-| `components/shared/ArtBadge`                                   | a raw badge class on card art                        | § Shape language — Badges, counts and surfaces are primitives |
-| `components/shared/Count`                                      | a raw count-bubble class                             | § Shape language — Badges, counts and surfaces are primitives |
-| `components/shared/Surface`                                    | a raw tile, section-card or popover class            | § Layout system — Surfaces: one frame                         |
-| `components/shared/SectionHeader`                              | a hand-built `-section-head` row                     | § Layout system — Section header                              |
+| Reach for                                                      | Instead of                                           | Ruling                                                                                                                      |
+| -------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `components/PageHeader`                                        | a hand-built `.binder-hero`                          | § Layout system                                                                                                             |
+| `components/shared/Button` (`Button`)                          | a raw `className="btn …"`                            | § Shape language — Buttons are a primitive                                                                                  |
+| `components/shared/Button` (`IconButton`)                      | a `<button>` holding only a glyph                    | § Shape language — Buttons are a primitive                                                                                  |
+| `lib/icon-scale` (`ICON_SCALE`)                                | a one-off `lucide-react` size/strokeWidth pair       | § Icon scale                                                                                                                |
+| `components/shared/CopyButton` (`CopyButton`/`CopyIconButton`) | a hand-rolled `Copied` label swap or copy toast      | § Verbs (Copy)                                                                                                              |
+| `components/shared/Chip`                                       | a raw `className="…-chip"` element                   | § Shape language — Chips are a primitive                                                                                    |
+| `components/shared/Chip` (`tone`)                              | a raw `-badge`/`-pill`/`-tag` label, or `is-*` tones | § Shape language — Badges, counts and surfaces are primitives                                                               |
+| `components/shared/ArtBadge`                                   | a raw badge class on card art                        | § Shape language — Badges, counts and surfaces are primitives                                                               |
+| `components/shared/Count`                                      | a raw count-bubble class                             | § Shape language — Badges, counts and surfaces are primitives                                                               |
+| `components/shared/Surface`                                    | a raw tile, section-card or popover class            | § Layout system — Surfaces: one frame                                                                                       |
+| `components/shared/SectionHeader`                              | a hand-built `-section-head` row                     | § Layout system — Section header                                                                                            |
 | `components/SearchPill`                                        | a bare `<input type="search">`                       | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive) · § Responsive (keep `min-width: 0`) |
 | `components/SelectMenu`                                        | a restyled `<select>`                                | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/OverflowMenu`                                      | a hand-rolled `⋮` popover                            | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
-| `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                       | § Verbs (menus)                                               |
-| `lib/use-menu-keyboard`                                        | a bespoke `role="menu"` key handler                  | § Verbs (menus)                                               |
-| `components/shared/InlineRename`                               | a bespoke input-swap rename flow                     | § Verbs (rename)                                              |
-| `OverflowMenu` `contextHost` (+ `lib/context-menu`)            | an `onContextMenu` on an item                        | § Verbs (menus)                                               |
+| `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                       | § Verbs (menus)                                                                                                             |
+| `lib/use-menu-keyboard`                                        | a bespoke `role="menu"` key handler                  | § Verbs (menus)                                                                                                             |
+| `components/shared/InlineRename`                               | a bespoke input-swap rename flow                     | § Verbs (rename)                                                                                                            |
+| `OverflowMenu` `contextHost` (+ `lib/context-menu`)            | an `onContextMenu` on an item                        | § Verbs (menus)                                                                                                             |
 | `components/shared/ToolbarPopover`                             | a second portal-popover impl                         | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows                    | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
-| `components/Tabs`                                              | bespoke tab markup                                   | [§ Tabs / view switchers](style-guide/components.md#tabs--view-switchers)                                       |
-| `components/ViewModeToggle`                                    | a bespoke layout switcher                            | [§ View-mode toggle option order](style-guide/cards-collection.md#view-mode-toggle-option-order-richest--sparsest)                               |
-| `components/shared/FilterChipsRow`                             | a bespoke active-filter row                          | [§ Tag chips](style-guide/components.md#tag-chips-e171)                                                   |
-| `components/shared/form` (`SwitchRow`)                         | a checkbox for an on/off setting                     | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                             |
-| `components/shared/form` (`SegmentedControl`)                  | a new segmented-pill CSS family                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                             |
-| `components/shared/form` (`ChoiceList`)                        | a hint that rewrites per option                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                             |
-| `components/shared/form` (`Disclosure`)                        | a hand-rolled collapsible group                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                             |
-| `components/shared/form` (`Field`)                             | an uppercase `.field label`                          | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                             |
+| `components/Tabs`                                              | bespoke tab markup                                   | [§ Tabs / view switchers](style-guide/components.md#tabs--view-switchers)                                                   |
+| `components/ViewModeToggle`                                    | a bespoke layout switcher                            | [§ View-mode toggle option order](style-guide/cards-collection.md#view-mode-toggle-option-order-richest--sparsest)          |
+| `components/shared/FilterChipsRow`                             | a bespoke active-filter row                          | [§ Tag chips](style-guide/components.md#tag-chips-e171)                                                                     |
+| `components/shared/form` (`SwitchRow`)                         | a checkbox for an on/off setting                     | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
+| `components/shared/form` (`SegmentedControl`)                  | a new segmented-pill CSS family                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
+| `components/shared/form` (`ChoiceList`)                        | a hint that rewrites per option                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
+| `components/shared/form` (`Disclosure`)                        | a hand-rolled collapsible group                      | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
+| `components/shared/form` (`Field`)                             | an uppercase `.field label`                          | [§ Config surfaces](style-guide/components.md#config-surfaces-t139)                                                         |
 
 ### Overlays
 
@@ -93,20 +93,20 @@ primitives directory.
 
 ### Feedback, state & identity
 
-| Reach for                                                   | Instead of                                            | Ruling                                          |
-| ----------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------- |
-| `components/shared/MeterBar`                                | a hand-rolled bar track                               | [§ Bars & meters](style-guide/data-display.md#bars--meters) — **never hand-roll a track**   |
-| `components/InfoTip`                                        | inline hand-holding prose                             | [§ Info tooltips](style-guide/components.md#info-tooltips)                                 |
-| `components/shared/EmptyState`                              | hand-rolled `.empty-state`/`.empty-state-tagline` JSX | [§ Empty states](style-guide/components.md#empty-states-e182)                                  |
-| `components/shared/EmptyStateMark`                          | a bare "nothing here" line                            | [§ Empty states](style-guide/components.md#empty-states-e182)                                  |
-| `components/share/SharedEmptyState`                         | a bare `<p>` in a share/friend view                   | [§ Empty states](style-guide/components.md#empty-states-e182)                                  |
-| `components/share/SharedShell` (`LoadingView`, `ErrorView`) | a bare `Loading…` / a dead-end error on a public page | § Verbs (loading, empty, error)                 |
-| `components/shared/ThinDataNote`                            | inventing a sample-size caveat                        | [§ Deck-analysis band words](style-guide/decks.md#deck-analysis-band-words)                      |
-| `components/deck/VerdictBadge`                              | a bespoke pass/fail pill                              | [§ Verdict badges](style-guide/decks.md#verdict-badges) · § One scoring vocabulary     |
-| `components/shared/SealBurst` / `SealMoment`                | confetti                                              | [§ Completion moments (the seal)](style-guide/app-shell.md#completion-moments-the-seal)                 |
-| `components/shared/BrandMark`                               | an inline logo SVG                                    | [§ Brand mark motion](style-guide/app-shell.md#brand-mark-motion)                             |
-| `components/UserAvatar`                                     | a bespoke initials circle                             | § Icon scale                                    |
-| `playtest/components/OpponentRail`                          | a bespoke multiplayer sidebar                         | [§ Opponent rail — never hide a seat](style-guide/overlays.md#opponent-rail--never-hide-a-seat)             |
+| Reach for                                                   | Instead of                                            | Ruling                                                                                                                 |
+| ----------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `components/shared/MeterBar`                                | a hand-rolled bar track                               | [§ Bars & meters](style-guide/data-display.md#bars--meters) — **never hand-roll a track**                              |
+| `components/InfoTip`                                        | inline hand-holding prose                             | [§ Info tooltips](style-guide/components.md#info-tooltips)                                                             |
+| `components/shared/EmptyState`                              | hand-rolled `.empty-state`/`.empty-state-tagline` JSX | [§ Empty states](style-guide/components.md#empty-states-e182)                                                          |
+| `components/shared/EmptyStateMark`                          | a bare "nothing here" line                            | [§ Empty states](style-guide/components.md#empty-states-e182)                                                          |
+| `components/share/SharedEmptyState`                         | a bare `<p>` in a share/friend view                   | [§ Empty states](style-guide/components.md#empty-states-e182)                                                          |
+| `components/share/SharedShell` (`LoadingView`, `ErrorView`) | a bare `Loading…` / a dead-end error on a public page | § Verbs (loading, empty, error)                                                                                        |
+| `components/shared/ThinDataNote`                            | inventing a sample-size caveat                        | [§ Deck-analysis band words](style-guide/decks.md#deck-analysis-band-words)                                            |
+| `components/deck/VerdictBadge`                              | a bespoke pass/fail pill                              | [§ Verdict badges](style-guide/decks.md#verdict-badges) · § One scoring vocabulary                                     |
+| `components/shared/SealBurst` / `SealMoment`                | confetti                                              | [§ Completion moments (the seal)](style-guide/app-shell.md#completion-moments-the-seal)                                |
+| `components/shared/BrandMark`                               | an inline logo SVG                                    | [§ Brand mark motion](style-guide/app-shell.md#brand-mark-motion)                                                      |
+| `components/UserAvatar`                                     | a bespoke initials circle                             | § Icon scale                                                                                                           |
+| `playtest/components/OpponentRail`                          | a bespoke multiplayer sidebar                         | [§ Opponent rail — never hide a seat](style-guide/overlays.md#opponent-rail--never-hide-a-seat)                        |
 | `playtest/components/OpponentQuadrant`                      | a bespoke opponent board panel                        | [§ Desktop table with opponents: 2x2, not a rail](style-guide/overlays.md#desktop-table-with-opponents-2x2-not-a-rail) |
 
 **Adding a primitive?** Add its row here _and_ its ruling to the relevant section
@@ -379,7 +379,13 @@ meanwhile.
   ([§ Toolbars](style-guide/components.md#toolbars--action-rows-responsive), search beside its list) and one door. The meta hides on a
   phone before anything wraps. **Built** as `SectionHeader` (T166): Home's
   `.home-section-head` is the reference markup; a section with no meta or
-  tools gets only its heading.
+  tools gets only its heading. Its `variant` is the heading's role, painted
+  once in `styles/base-layout.css`: a `title` (serif, `--text-lg`, 700) or an
+  `overline` (a small uppercase serif label above its rows, at
+  `--tracking-overline`). A family keeps its spacing, never the type. New
+  uppercase text takes `--tracking-overline`, never a raw em value;
+  `styles/tracking-ratchet.test.ts` freezes the raw letter-spacing left in
+  each file and only lets it fall. Guard: `styles/section-heading-plate.test.ts`.
 - **The camera button lives on the collection pages, on phones, only**, with
   bottom padding on the content so the last row scrolls clear of it. Everywhere
   else, scanning is reached through Add cards. **Built** (`ScanFab`): it tucks
@@ -1092,12 +1098,12 @@ There are always exactly **four type roles**, and every rule below is written
 against the _token_, never against a face name. Which faces fill them is a
 user choice — see § Type sets.
 
-| Role    | Token            | Scope                                                                                                | Never                                                 |
-| ------- | ---------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Body    | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)  | —                                                     |
-| Display | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below) | body, chrome, section titles, dialog titles, numerals |
-| Label   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see [§ App chrome](style-guide/app-shell.md#app-chrome--leather--divider-tabs-t53)                                       | prose, headings, form controls                        |
-| Data    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                       | —                                                     |
+| Role    | Token            | Scope                                                                                                                            | Never                                                 |
+| ------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Body    | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)                              | —                                                     |
+| Display | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below)                             | body, chrome, section titles, dialog titles, numerals |
+| Label   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see [§ App chrome](style-guide/app-shell.md#app-chrome--leather--divider-tabs-t53) | prose, headings, form controls                        |
+| Data    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                                                   | —                                                     |
 
 In the default set (**Codex**) those roles are Eczar / Marcellus / Archivo
 Narrow / IBM Plex Mono respectively. Older examples in this section were written
