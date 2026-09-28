@@ -224,7 +224,10 @@ function FilterGroupCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renaming]);
 
-  const summary = autoSummary(group.filter);
+  // Sentence case: it is shown as a title, and a rarity summary alone reads
+  // "uncommon".
+  const rawSummary = autoSummary(group.filter);
+  const summary = rawSummary && rawSummary.charAt(0).toUpperCase() + rawSummary.slice(1);
   const name = group.name?.trim() ?? '';
   const displayLabel = name || summary || `Rule ${index + 1}`;
   const badgeCount = groupBadgeCount(group.filter, matchCount, emptyGroupMatchesNothing);

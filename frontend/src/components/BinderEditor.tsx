@@ -93,6 +93,10 @@ function formatCaughtBy(
 
 const STARTER_LABELS = new Set(STARTER_TEMPLATES.map((t) => t.label));
 
+/** A sort field's picker label ("Set"), for copy that names the field. */
+const sortFieldLabel = (field: string | undefined): string =>
+  SORT_FIELDS.find((f) => f.value === field)?.label ?? 'group';
+
 /** The page's pocket grid, drawn: 2×2, 3×3 or 4×3. The number sits beside it. */
 function PocketGlyph({ pockets }: { pockets: PocketSize }) {
   const cols = pockets === 4 ? 2 : pockets === 12 ? 4 : 3;
@@ -1162,7 +1166,7 @@ export function BinderEditor() {
                         hint={
                           pageBreakDepth <= 1
                             ? 'Each section header starts a new page; deeper sorts order cards within it.'
-                            : `Every ${pageBreakDepth === 2 ? '2nd' : '3rd'} sort starts its own page. Empty pockets are accepted.`
+                            : `Each new ${sortFieldLabel(sorts[pageBreakDepth - 1]?.field).toLowerCase()} starts its own page. Empty pockets are accepted.`
                         }
                       >
                         <SelectMenu
@@ -1171,7 +1175,10 @@ export function BinderEditor() {
                           onChange={(v) => setPageBreakDepth(v as number)}
                           options={Array.from({ length: sorts.length }, (_, i) => ({
                             value: i + 1,
-                            label: i === 0 ? 'Section headers only' : `First ${i + 1} sorts`,
+                            label:
+                              i === 0
+                                ? 'Section headers only'
+                                : `Each ${sortFieldLabel(sorts[i]?.field).toLowerCase()} too`,
                           }))}
                         />
                       </Field>

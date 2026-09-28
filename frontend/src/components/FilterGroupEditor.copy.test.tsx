@@ -78,7 +78,7 @@ describe('FilterGroupEditor copy (E497)', () => {
     );
     const title = document.querySelector('.filter-group-title')?.textContent ?? '';
     expect(title).not.toBe('Match all of');
-    expect(title.length).toBeGreaterThan(0);
+    expect(title).toMatch(/^[A-Z]/); // sentence case, not the raw "rare"
     // Same string the editor already used as the rename placeholder/aria-label.
     expect(screen.getByRole('button', { name: `Actions for rule: ${title}` })).toBeTruthy();
   });
