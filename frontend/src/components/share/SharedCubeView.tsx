@@ -112,6 +112,7 @@ export function SharedCubeView({ data, action }: Props) {
             >
               <SectionHeader
                 titleClassName="shared-cube-section-head"
+                variant="overline"
                 title={
                   <>
                     {BUCKET_LABEL[key] ?? key}

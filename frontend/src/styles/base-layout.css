@@ -455,3 +455,26 @@ select {
   border: 0.5px solid var(--border-strong);
   box-shadow: var(--shadow-tooltip);
 }
+
+/* ── Section headings (T166) ─────────────────────────────────────────
+   SectionHeader marks its heading's role (data-heading). A title is Home's
+   reference (§ Layout system, Section header): serif, --text-lg, 700. An
+   overline is the small uppercase serif label above a block of rows, at the
+   one --tracking-overline. A family keeps its own spacing, never the type.
+   Guard: styles/section-heading-plate.test.ts. */
+:where([data-heading='title']) {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+:where([data-heading='overline']) {
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}

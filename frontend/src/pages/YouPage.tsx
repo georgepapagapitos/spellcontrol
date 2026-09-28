@@ -629,6 +629,7 @@ export function YouPage() {
           title="Appearance"
           id="settings-appearance-group-title"
           titleClassName="settings-section-header"
+          variant="overline"
         />
         <SettingsSection
           id="settings-appearance-title"
@@ -677,6 +678,7 @@ export function YouPage() {
           title="Collection preferences"
           id="settings-collection-prefs-group-title"
           titleClassName="settings-section-header"
+          variant="overline"
         />
         <SettingsSection
           id="settings-collection-prefs-title"
@@ -810,6 +812,7 @@ export function YouPage() {
           title="Data & storage"
           id="settings-data-group-title"
           titleClassName="settings-section-header"
+          variant="overline"
         />
 
         <OfflineModeSettings />

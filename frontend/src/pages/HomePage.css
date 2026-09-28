@@ -89,11 +89,6 @@
 }
 
 .home-section-title {
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--text-primary);
 }
 
 .home-section-meta {
