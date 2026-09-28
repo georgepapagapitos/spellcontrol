@@ -1,6 +1,7 @@
 import type { Customization, ScryfallCard } from '@/deck-builder/types';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { defaultCustomization } from '@/deck-builder/store';
+import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { getCurrency } from './currency';
 import { deckColorIdentity } from './deck-validation';
 import { planFill, type FillPlan } from './fill-deck-plan';
@@ -24,7 +25,35 @@ export interface FillResult {
 const isBasic = (c: ScryfallCard) => /\bBasic\b/.test((c.type_line ?? '').split('//')[0]);
 
 /**
- * Build the rest of a part-built Commander deck around the cards already in
+ * The generator settings that make it build THIS deck's format: the format's
+ * own card pool (Brawl and Pauper Commander each gate every pick on their
+ * Scryfall legality) and its size. Commander and Pauper Commander are the
+ * 99-card sentinel with the default lands, so the land auto-tune still runs.
+ * Brawl is 59 cards and a commander, so its role, curve and land targets are
+ * sized for 60 with the format's own land count, and the nonbasic share
+ * scales with it.
+ */
+export function fillFormatSettings(
+  format: Deck['format']
+): Pick<Customization, 'mtgFormat'> &
+  Partial<Pick<Customization, 'deckFormat' | 'landCount' | 'nonBasicLandCount'>> {
+  const config = DECK_FORMAT_CONFIGS[format];
+  const mtgFormat = config.hasCommander ? format : 'commander';
+  if (config.mainboardSize === 99) return { mtgFormat };
+  const landCount = config.defaultLands;
+  return {
+    mtgFormat,
+    deckFormat: config.deckSize,
+    landCount,
+    nonBasicLandCount: Math.round(
+      (defaultCustomization.nonBasicLandCount * landCount) / defaultCustomization.landCount
+    ),
+  };
+}
+
+/**
+ * Build the rest of a part-built commander-format deck (Commander, Brawl,
+ * Pauper Commander) around the cards already in
  * it. Every nonbasic card in the mainboard goes to the generator as a
  * must-include of the 'deck' kind (the build-from-deck hook it has carried
  * since the original port, which no screen used), so the rest is picked to
@@ -45,7 +74,7 @@ export async function buildFill(
   const customization: Customization = {
     ...defaultCustomization,
     currency: getCurrency(),
-    mtgFormat: deck.format === 'paupercommander' ? 'paupercommander' : 'commander',
+    ...fillFormatSettings(deck.format),
     brewLevel: options.brewLevel,
     collectionMode: false,
     collectionStrategy: options.preferOwned ? 'prefer' : defaultCustomization.collectionStrategy,

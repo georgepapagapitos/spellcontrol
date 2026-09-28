@@ -58,7 +58,8 @@ function Thumb({ card }: { card: ScryfallCard }): JSX.Element {
 
 export interface FillDeckSheetProps {
   deck: Deck;
-  /** Mainboard size the deck should reach (99, or 98 with a partner). */
+  /** Mainboard size the deck should reach: the format's (99 in Commander, 59 in
+   *  Brawl), one less with a partner. */
   target: number;
   /** Owned card names, for the "Favor cards I own" option. Empty hides it. */
   ownedNames: Set<string>;
