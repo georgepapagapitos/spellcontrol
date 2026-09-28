@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ChevronRight, Compass } from 'lucide-react';
 import { DiscoverDeckTile } from '../DiscoverDeckTile';
 import { listDiscoverDecks, type DiscoverDeck } from '../../lib/discover-client';
@@ -62,10 +61,13 @@ export function DiscoverRow() {
               toResults={(term) => `/decks/discover?q=${encodeURIComponent(term)}`}
               toPage="/decks/discover"
             />
-            <Link to="/decks/discover" className="home-door">
+            <Button
+              variant="link"
+              to="/decks/discover"
+              iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
+            >
               Browse
-              <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
-            </Link>
+            </Button>
           </>
         }
       />

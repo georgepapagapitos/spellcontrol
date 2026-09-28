@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowLeftRight,
   CalendarPlus,
+  ChevronRight,
   Heart,
   Layers,
   MessageSquare,
@@ -218,9 +219,13 @@ function NextNight({ night, onReplied }: { night: GameNight; onReplied: () => Pr
       {night.isHost ? (
         <p className="home-table-note">You're hosting.</p>
       ) : polling ? (
-        <Link to="/play/nights" className="home-door">
+        <Button
+          variant="link"
+          to="/play/nights"
+          iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
+        >
           Vote on a date
-        </Link>
+        </Button>
       ) : (
         <div className="home-table-rsvp" role="group" aria-label={`RSVP to ${night.title}`}>
           {STATUS_LABELS.map(({ status, label }) => (
@@ -364,9 +369,13 @@ export function AroundTheTable({
           ) : (
             <>
               <p className="home-table-note">Nothing planned.</p>
-              <Link to="/play/nights" className="home-door">
+              <Button
+                variant="link"
+                to="/play/nights"
+                iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
+              >
                 Plan a game night
-              </Link>
+              </Button>
             </>
           )}
         </div>
