@@ -146,51 +146,39 @@ export const CATCH_ALL_ID = 'catch-all';
 
 const notLand = chip('land', true);
 
-const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
+const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G', 'M'] as const;
 
-/** W/U/B/R/G mono binders (colorIdentity, the modern exact rule — never the
- *  legacy per-card `colors` bucket) + one Multicolor binder built from every
- *  2-to-5-color combination (colorIdentity can only express one exact combo
- *  per rule group, so "any multicolor card" is the OR of all 26 non-mono
- *  combinations) + a catch-all for colorless cards and every land regardless
- *  of its own color identity — lands read as their own shelf, not scattered
- *  across the color binders, matching the "Lands" pull-out's own job. */
+/**
+ * W/U/B/R/G mono binders plus one Multicolor binder, each ONE rule group:
+ * `colors IS <key>` (the "Color group" field — a chip expression over
+ * `getColorKey`'s per-card bucket, `packages/binder-routing/src/rules.ts` /
+ * `colors.ts`) AND `typeTokenChips NOT land`.
+ *
+ * Deliberately NOT `colorIdentity` (the modern exact-combo rule the ground-
+ * truth audit introduced for one-off "Save as binder" filters, #2351): that
+ * rule can only express ONE specific color combo per group, so a Multicolor
+ * binder needs the OR of all 26 non-mono combinations — 26 rules a user
+ * opening "Binder rules" would have to read. `colors`/`getColorKey` is
+ * already the SAME bucket the Color sort's sections use and the chooser's
+ * "One color" tile reads, so reusing it here doesn't introduce a new
+ * classification, just a plain, single-rule binder. A `?` (no Scryfall
+ * color data) card reports `colors` as `''` internally (rules.ts), which
+ * matches no IS chip, so it falls through every color binder to the
+ * catch-all — never vanishes, never gets its own bucket.
+ *
+ * A catch-all last (colorless + every land, regardless of the land's own
+ * color identity) keeps lands off the color shelf entirely, matching the
+ * "Lands" pull-out's own job.
+ */
 function colorSplitBuckets(): ShelfRowDef[] {
-  const mono: ShelfRowDef[] = COLOR_KEYS.map((k) => ({
+  return COLOR_KEYS.map((k) => ({
     id: `color-${k.toLowerCase()}`,
     name: COLOR_INFO[k].label,
     description: 'a to z',
-    filter: { colorIdentity: { colors: [k], mode: 'all' }, typeTokenChips: notLand },
+    filter: { colors: chip(k.toLowerCase()), typeTokenChips: notLand },
     sortPresetId: 'a-to-z',
     color: COLOR_INFO[k].pip,
   }));
-
-  const multicolor: ShelfRowDef = {
-    id: 'color-m',
-    name: 'Multicolor',
-    description: 'a to z',
-    filter: {}, // placeholder; multicolor is expressed as multiple filterGroups, not one filter
-    sortPresetId: 'a-to-z',
-    color: COLOR_INFO.M.pip,
-  };
-
-  return [...mono, multicolor];
-}
-
-/** The OR-groups a Multicolor bucket needs (one group per 2-5 color combo,
- *  each excluding lands). Kept separate from `ShelfRowDef.filter` (single
- *  AND-filter) since this bucket is the one case that needs several groups. */
-function multicolorGroups(): { filter: BinderFilter }[] {
-  const all = [...COLOR_KEYS];
-  const groups: { filter: BinderFilter }[] = [];
-  for (let mask = 0; mask < 1 << all.length; mask++) {
-    const combo = all.filter((_, i) => mask & (1 << i));
-    if (combo.length < 2) continue;
-    groups.push({
-      filter: { colorIdentity: { colors: combo, mode: 'all' }, typeTokenChips: notLand },
-    });
-  }
-  return groups;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -319,12 +307,6 @@ export function splitBucketsFor(
   }
 }
 
-/** Extra OR-groups a row needs beyond its single `filter` (only the
- *  Multicolor bucket, currently — see `multicolorGroups`). */
-function extraGroupsFor(rowId: string): { filter: BinderFilter }[] {
-  return rowId === 'color-m' ? multicolorGroups() : [];
-}
-
 // ---------------------------------------------------------------------------
 // The plan
 // ---------------------------------------------------------------------------
@@ -394,18 +376,16 @@ function dedupeNames(names: string[], existingNames: readonly string[]): string[
   });
 }
 
+/**
+ * Every proposed binder is exactly one rule group — the design goal being a
+ * plan a user can open "Binder rules" on and immediately read, not a hidden
+ * OR-list. `at-most-2-groups.test.ts`-style guard lives in shelf-plan.test.ts.
+ */
 function rowToInput(row: ShelfRowDef, color: string): BinderInput {
-  // The Multicolor bucket needs several OR-groups (one per 2-5 color combo);
-  // every other row is a single group. `row.filter` is a placeholder ({})
-  // for Multicolor specifically — using it AS WELL as the real combo groups
-  // would silently turn the bucket into a catch-all (an empty filter matches
-  // everything), so the placeholder is dropped whenever real groups exist.
-  const extra = extraGroupsFor(row.id);
-  const groups = extra.length > 0 ? extra : [{ filter: row.filter }];
   return {
     name: row.name,
     position: 0, // overwritten by the caller
-    filterGroups: groups,
+    filterGroups: [{ filter: row.filter }],
     sorts: sortsFor(row.sortPresetId),
     pocketSize: DEFAULT_POCKET_SIZE,
     doubleSided: false,

@@ -8,6 +8,7 @@ import {
   type ShelfStrategyId,
 } from './shelf-plan';
 import { materializeBinders } from './materialize';
+import { getColorKey } from './colors';
 import type { BinderDef, EnrichedCard } from '../types';
 
 let n = 0;
@@ -89,6 +90,25 @@ function bigPile(): EnrichedCard[] {
   );
   // A very expensive card, for the value pull-out / value-then-color tiers.
   out.push(card('Mana Crypt', 'Artifact', [], 'mythic', 220));
+  // No color data at all (a Scryfall-lookup miss) — getColorKey reports '?'
+  // for this, which must fall through every color binder to Everything
+  // else, never vanish and never get its own bucket.
+  out.push({
+    copyId: `c-unknown-${++n}`,
+    scryfallId: `sf-unknown-${n}`,
+    oracleId: `o-unknown-${n}`,
+    name: 'Unknown Colors Card',
+    typeLine: 'Instant',
+    rarity: 'common',
+    purchasePrice: 2,
+    setCode: 'tst',
+    setName: 'Test Set',
+    collectorNumber: String(n),
+    finish: 'nonfoil',
+    foil: false,
+    sourceCategory: 'manual',
+    sourceFormat: 'manual',
+  } as EnrichedCard);
   return out;
 }
 
@@ -227,7 +247,7 @@ describe('shelf-plan strategies', () => {
     expect(totalCopiesPlanned(result)).toBe(pile.length);
   });
 
-  it('by-color: Multicolor lands cards with 2+ identity colors, never a mono card', () => {
+  it('by-color: Multicolor lands cards by the Color-group bucket (getColorKey), never a mono card', () => {
     const pile = bigPile();
     const result = plan('by-color', pile);
     const created = result.toCreate(0);
@@ -244,9 +264,47 @@ describe('shelf-plan strategies', () => {
     );
     const multi = binders.find((b) => b.def.name === 'Multicolor')!;
     for (const c of multi.sections.flatMap((s) => s.cards)) {
-      expect((c.colorIdentity ?? []).length).toBeGreaterThanOrEqual(2);
+      expect(getColorKey(c)).toBe('M');
     }
     expect(multi.sections.flatMap((s) => s.cards).some((c) => c.name === 'Bant Charm')).toBe(true);
+  });
+
+  it('by-color: a card with no color data lands in Everything else, never vanishes, never its own bucket', () => {
+    const pile = bigPile();
+    const result = plan('by-color', pile);
+    const created = result.toCreate(0);
+    const { binders, uncategorized } = materializeBinders(
+      pile,
+      created.map((input, i) => ({
+        ...input,
+        id: `unk${i}`,
+        position: i,
+        createdAt: 0,
+        updatedAt: 0,
+      })),
+      { search: '' }
+    );
+    expect(uncategorized.totalCards).toBe(0); // the catch-all took it, not left behind
+    const catchAll = binders.find((b) => b.def.name === 'Everything else')!;
+    const everywhereElse = binders.filter((b) => b.def.name !== 'Everything else');
+    const inCatchAll = catchAll.sections
+      .flatMap((s) => s.cards)
+      .some((c) => c.name === 'Unknown Colors Card');
+    const inAnyColorBinder = everywhereElse.some((b) =>
+      b.sections.flatMap((s) => s.cards).some((c) => c.name === 'Unknown Colors Card')
+    );
+    expect(inCatchAll).toBe(true);
+    expect(inAnyColorBinder).toBe(false);
+  });
+
+  it('every proposed binder, in every strategy, is at most 2 rule groups (readable in the rules editor)', () => {
+    const pile = bigPile();
+    for (const strategy of SHELF_STRATEGIES) {
+      const result = plan(strategy.id, pile);
+      for (const input of result.toCreate(0)) {
+        expect(input.filterGroups.length, `${strategy.id}: ${input.name}`).toBeLessThanOrEqual(2);
+      }
+    }
   });
 
   it('by-color: lands never land in a color bucket, only Everything else or the Lands pull-out', () => {

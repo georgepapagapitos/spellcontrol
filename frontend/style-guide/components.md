@@ -813,8 +813,17 @@ plan engine (`lib/shelf-plan.ts`) is pure and reuses `materializeBinders`
 directly rather than re-deriving counts.
 
 - **Four strategies, each a fixed bucket order, never user-reorderable**: By
-  color (W/U/B/R/G, then Multicolor — the modern `colorIdentity` rule, one
-  filterGroup per 2-to-5-color combination, never the legacy per-card `colors`
+  color (W/U/B/R/G, then Multicolor, each ONE rule group: the "Color group"
+  field — `colors IS <key>`, a chip expression over `getColorKey`'s per-card
+  bucket — AND `typeTokenChips NOT land`. Deliberately the legacy `colors`
+  field here, not `colorIdentity` (the ground-truth audit's exact-combo rule,
+  #2351): `colorIdentity` can express only one specific combo per group, so a
+  Multicolor binder built from it needs 26 OR'd groups — unreadable in the
+  rules editor. `colors`/`getColorKey` is the SAME bucket the Color sort's
+  sections and the chooser's "One color" tile already use, so this isn't a
+  new classification, just a plain single-rule binder; a card with no
+  Scryfall color data reports `''` internally and matches no color binder,
+  falling through to the catch-all rather than vanishing or getting its own
   bucket), By set (the collection's own biggest sets, oldest-set-first inside
   each — one per set is unusable and one per year doesn't map to a shelf, so
   this is the one sane middle), By card type (`TYPE_ORDER`'s own precedence,
@@ -846,6 +855,10 @@ directly rather than re-deriving counts.
   checkmark instead), so the plan can always say "0 left over" and mean it; a
   guard test (`shelf-plan.test.ts`) asserts the invariant against the real
   engine for every strategy, not just trusts the arithmetic.
+- **Every proposed binder is one rule group** (a guard test caps it at 2) —
+  the plan is meant to be opened and read in "Binder rules" afterward, not
+  just trusted; a bucket that needed a hidden OR-list to work would defeat
+  that the moment someone looked.
 - **Volumes reuse the exact same derivation as a normal binder** (`planVolumes`
   via `lib/binder-volumes.ts`) — every proposed binder defaults to the
   standard 360-card/9-pocket size specifically so the plan's volumes note
