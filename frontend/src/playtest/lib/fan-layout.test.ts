@@ -10,6 +10,8 @@ import {
   MAX_FAN_OVERLAP,
   MIN_FAN_OVERLAP,
   fanCardWidth,
+  fanGapShift,
+  fanInsertIndex,
   fanOverlap,
   fanTilt,
   pilesWidth,
@@ -128,5 +130,63 @@ describe('fanCardWidth', () => {
     const big = fanCardWidth(12, cardW, wrapW, 0);
     expect(big).toBeLessThan(cardW);
     expect(big * (1 + 11 * (1 - MAX_FAN_OVERLAP))).toBeCloseTo(room);
+  });
+});
+
+describe('fanInsertIndex', () => {
+  it('counts the cards whose centre is left of the held card', () => {
+    const centers = [100, 200, 300];
+    expect(fanInsertIndex(centers, 50)).toBe(0);
+    expect(fanInsertIndex(centers, 150)).toBe(1);
+    expect(fanInsertIndex(centers, 299)).toBe(2);
+    expect(fanInsertIndex(centers, 900)).toBe(3);
+    expect(fanInsertIndex([], 10)).toBe(0);
+  });
+});
+
+/**
+ * The gap a held card opens has to be the room it will actually take: the fan
+ * is centred, so a card's resting x is `(i - (n - 1) / 2) * step`, and every
+ * other card must already stand at its place in the NEW order while the gap
+ * is open. Anything else and the drop throws the cards sideways and slides
+ * them back.
+ */
+describe('fanGapShift', () => {
+  const step = 60;
+  const at = (i: number, n: number) => (i - (n - 1) / 2) * step;
+
+  it('parts the cards either side of the gap', () => {
+    expect(fanGapShift(0, 1, step)).toBe(-30);
+    expect(fanGapShift(1, 1, step)).toBe(30);
+  });
+
+  it('puts every card where it lands when a card comes in from elsewhere', () => {
+    const n = 5;
+    for (let k = 0; k <= n; k++) {
+      for (let i = 0; i < n; i++) {
+        const landed = i < k ? i : i + 1;
+        expect(at(i, n) + fanGapShift(i, k, step), `k=${k} i=${i}`).toBeCloseTo(at(landed, n + 1));
+      }
+    }
+  });
+
+  it("closes the lifted card's box and puts every other card where it lands when arranging", () => {
+    const n = 5;
+    for (let src = 0; src < n; src++) {
+      const others = [...Array(n).keys()].filter((i) => i !== src);
+      for (let k = 0; k < n; k++) {
+        const order = [...others];
+        order.splice(k, 0, src);
+        for (const i of others) {
+          expect(at(i, n) + fanGapShift(i, k, step, src), `src=${src} k=${k} i=${i}`).toBeCloseTo(
+            at(order.indexOf(i), n)
+          );
+        }
+      }
+    }
+  });
+
+  it('leaves the lifted card itself alone: it is invisible while held', () => {
+    expect(fanGapShift(2, 0, step, 2)).toBe(0);
   });
 });

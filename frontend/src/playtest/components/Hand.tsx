@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import { useDndMonitor, useDroppable, type DragMoveEvent } from '@dnd-kit/core';
 import type { PlaytestCard } from '@/lib/playtest';
 import { ManaCost } from '@/components/ManaCost';
-import { fanCardWidth, fanOverlap, fanTilt } from '../lib/fan-layout';
+import { fanCardWidth, fanGapShift, fanInsertIndex, fanOverlap, fanTilt } from '../lib/fan-layout';
 import { isPlaytestLand } from '../lib/zones';
 import { PlaytestCardView } from './PlaytestCardView';
 
@@ -33,10 +33,22 @@ interface Props {
   /** Cards currently being shown to the table (R). Marked in place rather
    *  than moved: it is still in your hand, everyone can just see it. */
   revealedIds?: ReadonlySet<string>;
-  /** Arranging the hand is on (E348): every card also becomes a drop target,
-   *  so dragging one onto another puts it in that place. The board owns the
-   *  drop itself — this only registers the targets. */
-  reorderable?: boolean;
+}
+
+/** A card held over the fan: where it would land, and which card of this
+ *  hand it is when it was lifted out of it (null from anywhere else). */
+interface Held {
+  insertAt: number;
+  source: number | null;
+}
+
+/** The held card's x on screen: the pointer when there is one, otherwise the
+ *  centre of the moving copy (a keyboard drag has no pointer). */
+function heldX(e: DragMoveEvent): number | null {
+  const a = e.activatorEvent;
+  if (a && 'clientX' in a) return (a as PointerEvent).clientX + e.delta.x;
+  const r = e.active.rect.current.translated;
+  return r ? r.left + r.width / 2 : null;
 }
 
 /**
@@ -46,10 +58,13 @@ interface Props {
  * (the moving copy is a top-level `<DragOverlay>`), so dragging composes with
  * the fan by construction.
  */
-function fanStyle(i: number, n: number, overlap: number): React.CSSProperties {
+function fanStyle(i: number, n: number, overlap: number, shift: number): React.CSSProperties {
   const { deg, drop } = fanTilt(i, n);
   return {
     transform: `rotate(${deg.toFixed(2)}deg) translateY(${drop.toFixed(1)}px)`,
+    // The gap a held card opens (`fanGapShift`). Its own property, so it
+    // slides on screen axes and never has to be folded into the rotation.
+    translate: shift ? `${shift.toFixed(1)}px 0` : undefined,
     marginLeft: i === 0 ? undefined : `calc(var(--pt-card-w) * ${(-overlap).toFixed(3)})`,
     zIndex: i,
   };
@@ -81,16 +96,23 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number 
   return width;
 }
 
-export function Hand({
-  cards,
-  fan = false,
-  onCardMenu,
-  onCardPreview,
-  revealedIds,
-  reorderable = false,
-}: Props) {
-  const { setNodeRef, isOver } = useDroppable({ id: 'hand' });
+export function Hand({ cards, fan = false, onCardMenu, onCardPreview, revealedIds }: Props) {
+  const [held, setHeld] = useState<Held | null>(null);
+  // The drop's own render moves every card to its new place with the gap
+  // already gone; `settling` keeps that render from animating the gap shut
+  // on top of it, which would throw each card a step out and slide it back.
+  const [settling, setSettling] = useState(false);
+  // `insertAt` rides on the droppable, so the board's drop handler reads
+  // where the gap is off `event.over` rather than working it out again.
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'hand',
+    data: { insertAt: held?.insertAt ?? null },
+  });
   const rootRef = useRef<HTMLDivElement | null>(null);
+  /** Each other card's resting centre, measured as the drag starts, before
+   *  anything has moved. The gap is placed against these, not against where
+   *  the cards have slid to, or it would chase itself across the fan. */
+  const restRef = useRef<{ source: number | null; centers: number[] } | null>(null);
   const containerW = useContainerWidth(rootRef);
   const [cardW, setCardW] = useState(FALLBACK_CARD_W);
   const [piles, setPiles] = useState<number | undefined>(undefined);
@@ -117,6 +139,58 @@ export function Hand({
 
   const handW = fanCardWidth(cards.length, cardW, containerW, piles);
   const overlap = fanOverlap(cards.length, cardW, containerW, handW, piles);
+  const step = handW * (1 - overlap);
+
+  const track = (e: DragMoveEvent) => {
+    const rest = restRef.current;
+    const x = rest && e.over?.id === 'hand' ? heldX(e) : null;
+    if (!rest || x === null) {
+      setHeld(null);
+      return;
+    }
+    const insertAt = fanInsertIndex(rest.centers, x);
+    setHeld((prev) =>
+      prev?.insertAt === insertAt && prev.source === rest.source
+        ? prev
+        : { insertAt, source: rest.source }
+    );
+  };
+  useDndMonitor({
+    onDragStart(e) {
+      if (!fan) return;
+      const id = String(e.active.id);
+      const from = id.startsWith('hand:') ? cards.findIndex((c) => `hand:${c.id}` === id) : -1;
+      const source = from >= 0 ? from : null;
+      const slots = rootRef.current?.querySelectorAll<HTMLElement>('.playtest-hand__slot') ?? [];
+      const centers: number[] = [];
+      slots.forEach((el, i) => {
+        if (i === source) return;
+        const r = el.getBoundingClientRect();
+        centers.push(r.left + r.width / 2);
+      });
+      restRef.current = { source, centers };
+    },
+    onDragMove: track,
+    onDragOver: track,
+    onDragEnd(e) {
+      restRef.current = null;
+      setHeld(null);
+      if (e.over?.id === 'hand') setSettling(true);
+    },
+    onDragCancel() {
+      restRef.current = null;
+      setHeld(null);
+    },
+  });
+
+  // One frame with the slide switched off is enough: the forced layout read
+  // commits the new places without a transition before it comes back on.
+  useLayoutEffect(() => {
+    if (!settling) return;
+    void rootRef.current?.offsetWidth;
+    const id = requestAnimationFrame(() => setSettling(false));
+    return () => cancelAnimationFrame(id);
+  }, [settling]);
   // A big hand draws its cards smaller (see `fanCardWidth`). Both sizes are
   // set because each is a registered, inherited length: overriding the width
   // alone would leave every card the full table height.
@@ -133,7 +207,6 @@ export function Hand({
       key={c.id}
       card={c}
       draggableId={`hand:${c.id}`}
-      handSlot={reorderable}
       size="sm"
       onClick={
         onCardMenu
@@ -162,7 +235,7 @@ export function Hand({
       onLongPress={onCardMenu}
       title={
         onCardMenu
-          ? `Drag to play${reorderable ? ' · drag onto another card to arrange' : ''} · right-click or hold for options`
+          ? 'Drag to play · drag along the hand to arrange · right-click or hold for options'
           : undefined
       }
     />
@@ -183,7 +256,7 @@ export function Hand({
         rootRef.current = el;
         setNodeRef(el);
       }}
-      className={`playtest-hand${fan ? ' playtest-hand--fan' : ''}${isOver ? ' is-over' : ''}`}
+      className={`playtest-hand${fan ? ' playtest-hand--fan' : ''}${isOver ? ' is-over' : ''}${settling ? ' is-settling' : ''}`}
       // The tuck below the table edge follows the hand's card height. Not
       // `--pt-card-*` itself: the root reads the table's size back off its
       // own style (above) and places itself by the pile row's width.
@@ -201,7 +274,12 @@ export function Hand({
             <div
               key={c.id}
               className="playtest-hand__slot"
-              style={fanStyle(i, cards.length, overlap)}
+              style={fanStyle(
+                i,
+                cards.length,
+                overlap,
+                held ? fanGapShift(i, held.insertAt, step, held.source) : 0
+              )}
             >
               {/* The lift on hover/focus is on this wrapper, so the cost badge
                   rises with its card instead of staying behind on the felt. */}

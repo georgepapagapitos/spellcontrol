@@ -7828,6 +7828,18 @@ a commander opens its card menu; it never casts.** Casting is that menu's
 Move to ▸ Battlefield, or a drag onto the felt, because a click that cast put
 the commander on the table every time someone only meant to look at it.
 
+**A card held over the hand opens a gap where it will land** (2026-09-28,
+user). With the pointer over the fan, the cards either side part by exactly
+one fan step (a card's width less the overlap) and the drop goes into that
+gap, whether the card came from the felt, a pile, or the hand itself; a hand
+card lifted out also closes its own empty box. One step and no more, because
+the fan is centred: when the card lands every other card is already standing
+where the new order puts it, so nothing jumps. The pointer decides, not the
+card's box, since the gap follows the pointer and the drop has to agree with
+the gap the player sees. There is no drop-onto-a-card target in the hand any
+more; the hand card menu's Move earlier / later is the keyboard's way to
+arrange.
+
 **Commander tax is a coin above the command zone, never a line in a menu**
 (2026-09-24, EDHPlay's layout). One coin per commander (`taxCommanders`: the
 deck's commander gold, its partner silver, a card put in the zone by hand too,

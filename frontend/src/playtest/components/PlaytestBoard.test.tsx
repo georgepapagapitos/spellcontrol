@@ -2087,16 +2087,28 @@ describe('PlaytestBoard — dragging a card off a pile', () => {
     };
   }
 
-  function drop(cardId: string, over: string | null) {
+  // `insertAt` is the gap the fan has opened (Hand.tsx rides it on the hand
+  // droppable); every other droppable carries no data.
+  function drop(
+    cardId: string,
+    over: string | null,
+    insertAt: number | null = null,
+    state = withPiles()
+  ) {
     render(
       <MemoryRouter>
-        <PlaytestBoard state={withPiles()} />
+        <PlaytestBoard state={state} />
       </MemoryRouter>
     );
     act(() =>
       dnd.onDragEnd?.({
-        active: { id: `zone:${cardId}`, rect: { current: { translated: null } } },
-        over: over ? { id: over } : null,
+        active: {
+          id: cardId.includes(':') ? cardId : `zone:${cardId}`,
+          rect: { current: { translated: null } },
+        },
+        over: over
+          ? { id: over, data: { current: over === 'hand' ? { insertAt } : undefined } }
+          : null,
         delta: { x: 0, y: 0 },
       })
     );
@@ -2116,9 +2128,33 @@ describe('PlaytestBoard — dragging a card off a pile', () => {
     );
   });
 
-  it('puts an exiled card in the hand', () => {
-    drop('ex-1', 'hand');
-    expect(dispatch).toHaveBeenCalledWith({ type: 'MOVE_TO_ZONE', cardId: 'ex-1', to: 'hand' });
+  it('puts an exiled card in the hand, in the gap the fan opened for it', () => {
+    drop('ex-1', 'hand', 1);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'MOVE_TO_ZONE',
+      cardId: 'ex-1',
+      to: 'hand',
+      toIndex: 1,
+    });
+  });
+
+  it('arranges a hand card into the gap, with no card to aim at', () => {
+    // One state for both: the opening hand is dealt from a shuffle.
+    const state = withPiles();
+    const hand = state.zones.hand;
+    drop(`hand:${hand[0].id}`, 'hand', hand.length - 1, state);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'REORDER_HAND',
+      cardId: hand[0].id,
+      toIndex: hand.length - 1,
+    });
+  });
+
+  it('spends no step on a hand card put back in its own place', () => {
+    const state = withPiles();
+    drop(`hand:${state.zones.hand[0].id}`, 'hand', 0, state);
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'REORDER_HAND' }));
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'MOVE_TO_ZONE' }));
   });
 
   it('moves a card between piles, a library drop landing on top', () => {
