@@ -1,11 +1,3 @@
-/* deck-builder-commander.css — Commander search: input, results panel, result-grid cards, owned toggle, top/playstyle suggestions, partner selector.
- * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
- * Original lines 40-817. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
-/* ── Commander search ─────────────────────────────────────────────────── */
-.commander-search {
-  position: relative;
-}
-
 /* ── Search results panel ──────────────────────────────────────────────
    Sits below the input and sizes to its content (one result → one short
    row), so there's no dead space. It only ever grows *downward*, so the
@@ -39,12 +31,6 @@
   color: var(--text-muted);
 }
 
-.commander-search-loading {
-  padding: var(--space-2) var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
 .commander-search-item {
   display: flex;
   flex-direction: column;
@@ -71,13 +57,6 @@
   }
 }
 
-.commander-search-item-line {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
 .commander-search-item-name {
   font-size: var(--text-base);
   font-weight: 600;
@@ -85,34 +64,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Legend explaining the readiness % chip. */
-.commander-readiness-hint {
-  margin: var(--space-1-5) 0 0;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-.commander-search-item-readiness {
-  flex-shrink: 0;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--accent);
-  background: var(--accent-light);
-  border-radius: 999px;
-  padding: 0.05rem var(--space-1-5);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Loading + unavailable variants: no accent fill, just a quiet glyph. */
-.commander-search-item-readiness.is-loading,
-.commander-search-item-readiness.is-muted {
-  display: inline-flex;
-  align-items: center;
-  color: var(--text-muted);
-  background: transparent;
-  padding: 0.05rem var(--space-1);
 }
 
 .commander-readiness-spin {
@@ -237,32 +188,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Groups ReadinessChip + the optional platform-count badge (social W4) so
-   `.commander-result-headline`'s space-between still sees exactly 2 children
-   — a bare 3rd child would spread apart from the chip instead of sitting
-   snugly beside it. */
-.commander-result-trailing {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  flex-shrink: 0;
-}
-
-/* Platform deck-count badge — matches .commander-search-item-readiness's
-   visual weight (compact pill, tabular-nums) but its own class + muted
-   count-pill color, since it isn't a readiness signal. */
-.commander-result-platform-count {
-  flex-shrink: 0;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  border-radius: 999px;
-  padding: 0.05rem var(--space-1-5);
-  font-variant-numeric: tabular-nums;
 }
 
 .commander-result-pips {
@@ -451,101 +376,6 @@
   }
 }
 
-/* Center the commander search column so it doesn't stretch the full
-   width of the parent section card — matches the reference repo's
-   focused single-column treatment. */
-.commander-search {
-  max-width: 38rem;
-  margin: 0 auto;
-}
-
-/* ── Owned-only toggle ──────────────────────────────────────────────── */
-.commander-owned-toggle {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-2-5) auto 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  cursor: pointer;
-  user-select: none;
-}
-
-.commander-owned-toggle:focus-within {
-  color: var(--text-primary);
-}
-@media (hover: hover) and (pointer: fine) {
-  .commander-owned-toggle:hover {
-    color: var(--text-primary);
-  }
-}
-
-/* The label IS the target (a 14x14 checkbox sits inside it), and it measured
-   340x23 — a real hit area of 275x24, the shortest control on the page that
-   ties deck-building to the collection. `.field-checkbox` in forms-banners.css
-   carries exactly this floor for the identical pattern; this is that rule,
-   applied to the one label that never picked up the class. */
-@media (pointer: coarse) {
-  .commander-owned-toggle {
-    min-height: 44px;
-  }
-}
-
-.commander-owned-count {
-  color: var(--text-muted);
-}
-
-/* ── Top-commanders suggestion section ──────────────────────────────── */
-/* Lives inside the (unboxed) .commander-search-panel — no padding, so its
-   grid lines up with the by-name results grid. */
-.commander-suggestions {
-  padding: 0;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2-5);
-}
-
-.commander-suggestions-label {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.commander-suggestions-empty {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-/* ── By-playstyle facet ──────────────────────────────────────────────
-   The Name | Playstyle mode switcher and the playstyle browser that the
-   "By playstyle" tab reveals. Reuses the suggestion-chip vocabulary so the
-   commander results read identically across both facets. */
-.commander-search-modes {
-  margin-bottom: var(--space-3);
-}
-
-.commander-playstyle-browse {
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2-5);
-  text-align: center;
-}
-
-.commander-suggestions-hint {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.commander-playstyle-more {
-  align-self: center;
-  margin-top: var(--space-1);
-}
-
 /* Mana-color filter row — circular pips that toggle on click. */
 .commander-color-filter {
   display: flex;
@@ -601,82 +431,6 @@
   box-shadow:
     0 0 0 2px var(--accent),
     0 0 0 4px var(--surface);
-}
-
-.commander-color-clear {
-  background: transparent;
-  border: 0;
-  font-family: inherit;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: var(--space-1) var(--space-1-5);
-}
-
-.commander-color-clear:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .commander-color-clear:hover {
-    color: var(--text-primary);
-  }
-}
-
-/* "Random" surprise-me button — a real commit action (picks a commander),
-   so it wears the standing accent-fill anatomy (T53 Phase 4): rect, fill
-   at rest (the old hover-only fill never read as primary on touch),
-   stamped. */
-.commander-suggestion-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  color: var(--on-accent);
-  background: var(--accent);
-  border: 0;
-  border-radius: var(--radius);
-  padding: var(--space-1-5) var(--space-3);
-  cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 14%),
-    0 1px 0 rgb(0 0 0 / 12%);
-  transition: background var(--motion-fast) ease;
-}
-
-.commander-suggestion-chip:focus-visible {
-  background: var(--accent-hover);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .commander-suggestion-chip:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-}
-
-.commander-suggestion-chip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Surprise-me button row. */
-.commander-surprise {
-  display: flex;
-  justify-content: center;
-  margin-top: var(--space-1-5);
-}
-
-.commander-surprise-icon {
-  display: inline-block;
-  flex: 0 0 auto;
-  color: var(--on-accent);
-}
-
-.commander-surprise-chip {
-  font-weight: 600;
 }
 
 .commander-search-error {
@@ -804,12 +558,6 @@
   }
 }
 
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
-.commander-surprise-chip:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 /* Coarse-pointer floor for the WUBRG pip row: six pips plus Clear must still
    fit a 320px phone, so the box grows to 40px and a vertical-only ghost
    supplies the last 4px — sideways ghosts would overlap the neighbouring pip
@@ -829,9 +577,5 @@
     width: 100%;
     height: 44px;
     transform: translateY(-50%);
-  }
-
-  .commander-suggestion-chip {
-    min-height: 44px;
   }
 }

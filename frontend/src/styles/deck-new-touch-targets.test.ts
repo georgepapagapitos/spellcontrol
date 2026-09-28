@@ -8,18 +8,18 @@ const here = dirname(fileURLToPath(import.meta.url));
 const commander = readFileSync(join(here, 'deck-builder-commander.css'), 'utf8');
 const forms = readFileSync(join(here, 'forms-banners.css'), 'utf8');
 const doors = readFileSync(join(here, '../pages/DeckNewPage.css'), 'utf8');
+const formKit = readFileSync(join(here, '../components/shared/form.css'), 'utf8');
 
 /**
- * Playtest batch 5, `/decks/new`. Hit-tested with `elementFromPoint`, not read
- * off the box (`.claude/tools/b5-newpage-hits.mjs`, phone/coarse):
+ * Playtest batch 5, `/decks/new`, hit-tested with `elementFromPoint`
+ * (`.claude/tools/b5-newpage-hits.mjs`, phone/coarse): the old "Commanders I
+ * own" checkbox label measured a real hit area of 275x24, the shortest target
+ * on the page and the one control tying deck-building to the collection.
  *
- *   .commander-owned-toggle   label 340x23  ->  REAL hit area 275x24
- *
- * That is the control tying deck-building to the collection — the product's
- * thesis — and it was the shortest target on the page. The label IS the target
- * (a 14x14 checkbox sits inside it), which is the app's sanctioned pattern;
- * `.field-checkbox` carries the 44px floor for exactly this shape and this one
- * label never picked up the class.
+ * The commander finder (T168) replaced it with the form kit's
+ * SegmentedControl ("All commanders" / "In my collection"), whose option span
+ * carries the floor, and kept the color pips' 44px hit ghost. These pin both,
+ * so the collection switch can't shrink back below the floor.
  */
 function coarseBlocks(css: string): string {
   const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -52,15 +52,16 @@ describe('/decks/new coarse-pointer touch targets', () => {
     expect(forms.length).toBeGreaterThan(500);
   });
 
-  it('.commander-owned-toggle reaches the 44px floor on a coarse pointer', () => {
-    const body = ruleBody(coarseBlocks(commander), '.commander-owned-toggle');
-    expect(
-      body,
-      '.commander-owned-toggle measured a 275x24 real hit area at phone — the ' +
-        'label is the target and it carried no floor. It is the one control ' +
-        'linking deck-building to the collection.'
-    ).toBeTruthy();
+  it('the "In my collection" switch reaches the 44px floor on a coarse pointer', () => {
+    const body = ruleBody(coarseBlocks(formKit), '.segmented-option span');
+    expect(body, 'SegmentedControl lost its coarse floor').toBeTruthy();
     expect(body!).toMatch(/min-height:\s*44px/);
+  });
+
+  it('each color pip keeps a 44px hit ghost on a coarse pointer', () => {
+    const ghost = ruleBody(coarseBlocks(commander), '.commander-color-pip::after');
+    expect(ghost, '.commander-color-pip lost its coarse hit ghost').toBeTruthy();
+    expect(ghost!).toMatch(/height:\s*44px/);
   });
 
   it('still matches the shape `.field-checkbox` already uses, rather than inventing one', () => {

@@ -1,22 +1,22 @@
-import { Shuffle } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import './CommanderSearch.css';
+import { Shuffle, SlidersHorizontal } from 'lucide-react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  searchCommanders,
-  searchPdhCommanders,
-  getRandomPdhCommander,
+  commanderFinderSupportsRegex,
   getCardByName,
+  getCardPrice,
   getOwnedPrinting,
+  searchCommanderFinder,
 } from '@/deck-builder/services/scryfall/client';
 import {
-  fetchTopCommanders,
   fetchAllCommanderNames,
-  fetchCommandersIncludingColors,
   fetchCommanderData,
+  fetchCommandersWithinColors,
   fetchPlaystyleCommanders,
+  fetchTopCommanders,
 } from '@/deck-builder/services/edhrec/client';
-import type { ScryfallCard, EDHRECTopCommander, DeckFormat } from '@/deck-builder/types';
+import type { ScryfallCard, DeckFormat, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
-import { normalizeForSearch } from '../../lib/normalize-search';
 import {
   computeReadiness,
   extractCommanderCandidates,
@@ -27,37 +27,59 @@ import {
 import {
   classifyCommanderPlaystyles,
   classifyOwnedCommanderPlaystyles,
-  type Playstyle,
+  playstyleById,
+  PLAYSTYLES,
 } from '../../lib/commander-playstyle-index';
+import {
+  buildScryfallQuery,
+  colorComboName,
+  colorIdentityMatches,
+  colorModeHint,
+  compareEntries,
+  effectiveSort,
+  filterSummary,
+  isSearching,
+  matchReason,
+  relaxations,
+  type ColorMode,
+  type FinderEntry,
+  type FinderQuery,
+  type FinderSort,
+  type FinderSource,
+  type Relaxation,
+} from '../../lib/commander-finder';
+import { buildCollectionSearch } from '../../lib/deck-add-search';
+import { useDebouncedValue } from '../../lib/use-debounced-value';
+import { useMediaQuery } from '../../lib/use-media-query';
 import { CommanderReadiness } from './CommanderReadiness';
-import { PlaystyleGrid } from './PlaystyleGrid';
 import { CommanderResultCard } from './CommanderResultCard';
-import { BinderRanking } from './BinderRanking';
-import { useDeckBuilderStore } from '@/deck-builder/store';
 import type { EnrichedCard } from '../../types';
 import { ManaCost } from '../ManaCost';
 import { ColorPip } from '../shared/ManaSymbol';
-import { Tabs } from '../Tabs';
 import { SearchPill } from '../SearchPill';
+import { SelectMenu } from '../SelectMenu';
 import { InfoTip } from '../InfoTip';
 import { buildCommanderKey } from '../../lib/commander-key';
 import { getCommanderStatsBatch, type CommanderStats } from '../../lib/aggregates-client';
-
+import { getCurrency } from '@/lib/currency';
+import { formatMoney } from '@/lib/format-money';
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { Count } from '@/components/shared/Count';
+import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/FilterChipsRow';
+import { SegmentedControl } from '@/components/shared/form';
 import { RulesTextParagraphs } from '@/components/RulesText';
+
 /**
  * Resolves the commander-picker platform-deck-count badge (social W4) for a
- * settled Top-EDHREC/Playstyle candidate list: looks up each visible
- * candidate's oracle id via the already cache-backed `getCardByName`, builds
- * each commander key, and fires ONE batch lookup — never per row. A candidate
- * whose name fails to resolve (offline, or a name Scryfall doesn't recognize)
- * is skipped rather than failing the whole batch.
+ * settled list of visible commanders: looks up each one's oracle id via the
+ * already cache-backed `getCardByName`, builds each commander key, and fires
+ * ONE batch lookup — never per row. A candidate whose name fails to resolve
+ * (offline, or a name Scryfall doesn't recognize) is skipped rather than
+ * failing the whole batch.
  *
- * Exported and dependency-injected so it's directly unit-testable — this
- * file has no test harness cheap enough to mount (collection store, EDHREC/
- * Scryfall clients, localStorage, …) just to exercise this one behavior.
+ * Exported and dependency-injected so it's directly unit-testable.
  */
 export async function resolvePlatformCounts(
   candidates: Array<{ name: string }>,
@@ -90,34 +112,50 @@ export async function resolvePlatformCounts(
   return out;
 }
 
+type SearchMode = 'name' | 'playstyle' | 'binder';
+
 interface Props {
   value: ScryfallCard | null;
   onSelect: (card: ScryfallCard | null) => void;
   /**
-   * Deck format this picker serves. 'paupercommander' swaps every data source
-   * — live `t:creature r:uncommon` search, owned uncommon creatures, Scryfall
-   * random — and hides the EDHREC-backed surfaces (top chips, readiness %,
-   * playstyle browse): EDHREC has no data for PDH commanders.
+   * Deck format this picker serves. 'paupercommander' searches uncommon
+   * creatures instead of commanders and hides the EDHREC-backed surfaces
+   * (the popular list, "you own N%"): EDHREC has no data for PDH commanders.
    */
   format?: DeckFormat;
   /**
-   * Enables the "From my binder" tab (E283): owned commanders in the chosen
-   * colors ranked by collection coverage. A pick from that tab lands here
-   * instead of `onSelect`, so the caller can preselect its owned-only build
-   * settings. Only the new-deck page wires it; every other picker is unchanged.
+   * A pick made while browsing "In my collection" sorted by "Most of the deck
+   * owned" lands here instead of `onSelect` (E283), so the caller can switch
+   * on its owned-only build settings. Only the new-deck flow wires it, and the
+   * finder says so under the sort while it applies.
    */
   onSelectFromBinder?: (card: ScryfallCard) => void;
   /**
-   * Tab to open on first render, overriding the remembered one. A caller that
-   * arrives with intent (the Decks index's "From my binder" door) uses this;
-   * it does not write the preference, so the remembered tab still wins on the
-   * next plain visit. 'binder' still needs `onSelectFromBinder` to exist.
+   * How to open. 'binder' (the Decks index's "From my collection" door) opens
+   * on "In my collection" sorted by "Most of the deck owned". The other two
+   * name tabs of the old picker and open the default view.
    */
   initialSearchMode?: SearchMode;
 }
 
-const WUBRG_ORDER = 'WUBRGC';
-const COLORS: Array<'W' | 'U' | 'B' | 'R' | 'G' | 'C'> = ['W', 'U', 'B', 'R', 'G', 'C'];
+/** A result, with whatever it came from: an owned copy, a Scryfall card, or only a name. */
+type Entry = FinderEntry & {
+  owned?: EnrichedCard;
+  card?: ScryfallCard;
+  imageUrl?: string;
+};
+
+interface RemoteResult {
+  key: string;
+  status: 'loading' | 'done' | 'error';
+  entries: Entry[];
+  total: number;
+  /** The popular list comes from EDHREC; a search from Scryfall. */
+  from: 'edhrec' | 'scryfall';
+  error?: string;
+}
+
+const COLORS = ['W', 'U', 'B', 'R', 'G', 'C'] as const;
 const COLOR_LABEL: Record<string, string> = {
   W: 'White',
   U: 'Blue',
@@ -126,122 +164,132 @@ const COLOR_LABEL: Record<string, string> = {
   G: 'Green',
   C: 'Colorless',
 };
-// Map a sorted color key (e.g. "UBR") to its canonical MTG color-combo name.
-const COLOR_COMBO: Record<string, string> = {
-  W: 'White',
-  U: 'Blue',
-  B: 'Black',
-  R: 'Red',
-  G: 'Green',
-  C: 'Colorless',
-  WU: 'Azorius',
-  WB: 'Orzhov',
-  WR: 'Boros',
-  WG: 'Selesnya',
-  UB: 'Dimir',
-  UR: 'Izzet',
-  UG: 'Simic',
-  BR: 'Rakdos',
-  BG: 'Golgari',
-  RG: 'Gruul',
-  WUB: 'Esper',
-  WUR: 'Jeskai',
-  WUG: 'Bant',
-  WBR: 'Mardu',
-  WBG: 'Abzan',
-  WRG: 'Naya',
-  UBR: 'Grixis',
-  UBG: 'Sultai',
-  URG: 'Temur',
-  BRG: 'Jund',
-  WUBR: 'Yore-Tiller',
-  WUBG: 'Witch-Maw',
-  WURG: 'Ink-Treader',
-  WBRG: 'Dune-Brood',
-  UBRG: 'Glint-Eye',
-  WUBRG: 'Five-Color',
-};
 
-const OWNED_ONLY_KEY = 'commander-search-owned-only';
+// "In my collection" keeps the old "Commanders I own" key, so a returning
+// player lands where they left off.
+const SOURCE_KEY = 'commander-search-owned-only';
 const COLOR_FILTER_KEY = 'commander-search-color-filter';
-const SEARCH_MODE_KEY = 'commander-search-mode';
+const COLOR_MODE_KEY = 'commander-search-color-mode';
 
-// How many commanders to show before the "Show more" expander. Keeps the
-// inline-growing panel short until the user opts into the full list.
-const PLAYSTYLE_PREVIEW_COUNT = 10;
+/** Tiles shown before "Show more"; each press adds two pages. */
+const PAGE = 12;
+/** Parallel EDHREC page fetches while scoring a whole list (the client throttles too). */
+const SCORE_CONCURRENCY = 4;
+/** Re-sort by coverage after this many new scores, not after each one. */
+const SCORE_RESORT_EVERY = 12;
+/** Commanders "Worth buying the commander for" scores, and how many it shows. */
+const BUY_POOL = 30;
+const BUY_SHOWN = 6;
+/** Playstyle chips shown before "N more" on a wide screen. */
+const STYLE_PREVIEW = 9;
 
-type SearchMode = 'name' | 'playstyle' | 'binder';
+function readPref(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
 
-/**
- * The WUBRG + Colorless pip filter, shared by the by-name suggestions and the
- * by-playstyle browser so both read and write the same `colorFilter`. Colorless
- * is mutually exclusive with the five colors (a colorless commander has no color
- * identity).
- */
+function writePref(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* storage unavailable: the choice lasts for this visit */
+  }
+}
+
+function pickRandom<T>(arr: readonly T[]): T | null {
+  if (arr.length === 0) return null;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+async function runPool<T>(
+  items: readonly T[],
+  fn: (item: T) => Promise<void>,
+  cancelled: () => boolean
+): Promise<void> {
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(SCORE_CONCURRENCY, items.length) }, async () => {
+      while (!cancelled() && next < items.length) await fn(items[next++]);
+    })
+  );
+}
+
+/** EDHREC's popular list for the color filter. */
+function fetchPopular(colors: ReadonlySet<string>, mode: ColorMode): Promise<EDHRECTopCommander[]> {
+  if (colors.size === 0) return fetchTopCommanders([]);
+  return mode === 'within' && !colors.has('C')
+    ? fetchCommandersWithinColors([...colors])
+    : fetchTopCommanders([...colors]);
+}
+
+const identityOf = (ci: readonly string[] | undefined): string[] =>
+  ci && ci.length > 0 ? [...ci] : ['C'];
+
+const popularEntry = (c: EDHRECTopCommander, i: number): Entry => ({
+  key: c.sanitized || c.name,
+  name: c.name,
+  colors: identityOf(c.colorIdentity),
+  popularity: i,
+  numDecks: c.numDecks,
+  playstyleIds: [],
+});
+
+const playstyleLabels = (ids: readonly string[]): string[] =>
+  ids.flatMap((id) => {
+    const p = playstyleById(id);
+    return p ? [p.label] : [];
+  });
+
+/** The WUBRG + colorless filter. Colorless can't combine with a color. */
 function ColorPips({
-  colorFilter,
-  setColorFilter,
+  colors,
+  onChange,
 }: {
-  colorFilter: Set<string>;
-  setColorFilter: (update: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+  colors: ReadonlySet<string>;
+  onChange: (next: Set<string>) => void;
 }) {
   return (
-    <div className="commander-color-filter" role="group" aria-label="Filter by color identity">
+    <div className="commander-color-filter">
       {COLORS.map((c) => {
-        const active = colorFilter.has(c);
+        const active = colors.has(c);
         return (
           <IconButton
             className={`commander-color-pip${active ? ' active' : ''}`}
             key={c}
             aria-pressed={active}
-            onClick={() =>
-              setColorFilter((prev) => {
-                const next = new Set(prev);
-                if (next.has(c)) {
-                  next.delete(c);
+            onClick={() => {
+              const next = new Set(colors);
+              if (next.has(c)) {
+                next.delete(c);
+              } else {
+                next.add(c);
+                if (c === 'C') {
+                  for (const other of [...next]) if (other !== 'C') next.delete(other);
                 } else {
-                  next.add(c);
-                  if (c === 'C') {
-                    for (const other of next) if (other !== 'C') next.delete(other);
-                  } else {
-                    next.delete('C');
-                  }
+                  next.delete('C');
                 }
-                return next;
-              })
-            }
+              }
+              onChange(next);
+            }}
             label={COLOR_LABEL[c]}
             icon={<ColorPip color={c} pip={false} />}
           />
         );
       })}
-      {colorFilter.size > 0 && (
-        <button
-          type="button"
-          className="commander-color-clear"
-          onClick={() => setColorFilter(new Set())}
-        >
-          Clear
-        </button>
-      )}
     </div>
   );
 }
 
-function getColorFilterLabel(colors: Set<string>): string {
-  if (colors.size === 0) return 'Top';
-  const sorted = [...colors]
-    .sort((a, b) => WUBRG_ORDER.indexOf(a) - WUBRG_ORDER.indexOf(b))
-    .join('');
-  const name = COLOR_COMBO[sorted];
-  return name ? `Top ${name}` : 'Top';
-}
-
-function pickRandom<T>(arr: T[]): T | null {
-  if (arr.length === 0) return null;
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
+/**
+ * The commander finder: one search box and one result list, narrowed by
+ * filters that combine (colors, playstyles, "In my collection") and ordered
+ * by a sort. Every commander picker renders it: the generator, Brew, the
+ * deck editor's "Choose a commander" sheet and both import dialogs. Picking
+ * one collapses it to the chosen commander with a Change button.
+ */
 export function CommanderSearch({
   value,
   onSelect,
@@ -250,22 +298,12 @@ export function CommanderSearch({
   initialSearchMode,
 }: Props) {
   const pdh = format === 'paupercommander';
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<ScryfallCard[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [randomLoading, setRandomLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const debounceRef = useRef<number | null>(null);
+  const isPhone = useMediaQuery('(max-width: 599px)');
+  const baseId = useId();
+  const filtersId = `${baseId}-filters`;
 
+  // ── Collection ────────────────────────────────────────────────────────
   const collectionCards = useCollectionStore((s) => s.cards);
-  // The collection stores one row per physical copy, so a card owned in
-  // multiples (or across printings) appears many times. Commander selection
-  // only cares about the card identity, so de-dup by name — otherwise the
-  // search dropdown, Random pool and suggestion chips all show repeats.
-  // Uses the shared `isCommanderEligible` (via extractCommanderCandidates) so
-  // detection can't drift from binder routing — this also catches non-creature
-  // commanders ("can be your commander" planeswalkers/backgrounds) that a bare
-  // legendary-creature type-line check would miss.
   // importId → addedAt so "most recent copy" is real: prod importIds are random
   // UUIDs, so recency can't be read off the id itself (audit F6).
   const importHistory = useCollectionStore((s) => s.importHistory);
@@ -273,6 +311,8 @@ export function CommanderSearch({
     () => new Map(importHistory.map((h) => [h.id, h.addedAt])),
     [importHistory]
   );
+  // One row per commander you own (the collection stores one per copy). The
+  // shared `isCommanderEligible` keeps this from drifting from binder routing.
   const collectionLegends = useMemo(
     () =>
       pdh
@@ -280,611 +320,518 @@ export function CommanderSearch({
         : extractCommanderCandidates(collectionCards, importRecency),
     [pdh, collectionCards, importRecency]
   );
-  const ownedNames = useMemo(
-    () => new Set(collectionLegends.map((c) => c.name)),
+  const ownedLegendNames = useMemo(
+    () => new Set(collectionLegends.map((c) => c.name.toLowerCase())),
     [collectionLegends]
   );
-  // All owned card names (lowercased) — readiness measures a commander's staples
-  // against the *whole* collection, not just its legends.
+  // Readiness scores a commander's staples against the WHOLE collection.
   const ownedCardNames = useMemo(
     () => new Set(collectionCards.map((c) => c.name.toLowerCase())),
     [collectionCards]
   );
+  // "You own N%" needs EDHREC staples (none for PDH) and a collection to
+  // measure; below MIN_COLLECTION_SIZE every commander reads close to 0%.
+  const canScore = !pdh && collectionCards.length >= MIN_COLLECTION_SIZE;
 
-  // Collection readiness per commander, fetched lazily when a result is
-  // highlighted (hover/focus) or selected — so typing never triggers a burst of
-  // throttled EDHREC requests. Keyed by lowercased name; deduped via refs.
+  // ── Readiness: how much of a commander's deck you own ─────────────────
   const [readiness, setReadiness] = useState<Map<string, ReadinessScore | 'loading'>>(new Map());
   const readinessInflight = useRef<Set<string>>(new Set());
   const readinessDone = useRef<Set<string>>(new Set());
-  // Commander-picker platform-deck-count badges (social W4) — resolved in bulk
-  // per settled Top/Playstyle list below (never per row, never by-name, never
-  // PDH). Keyed by lowercased commander name, same convention as `readiness`.
-  // Merged rather than replaced per resolve, since the Top and Playstyle
-  // effects below share this one map and must not clobber each other's badges.
-  const [platformCounts, setPlatformCounts] = useState<Map<string, number>>(new Map());
   const ensureReadiness = useCallback(
     async (name: string): Promise<void> => {
-      // Readiness scores a commander's EDHREC staples against the collection —
-      // meaningless for PDH (no EDHREC data), so the % surface stays hidden.
-      // Same for an empty collection: every commander would read 0%, and each
-      // score costs an EDHREC fetch.
-      if (pdh || ownedCardNames.size === 0) return;
+      if (!canScore) return;
       const key = name.toLowerCase();
       if (readinessDone.current.has(key) || readinessInflight.current.has(key)) return;
       readinessInflight.current.add(key);
       setReadiness((prev) => new Map(prev).set(key, 'loading'));
+      let score: ReadinessScore;
       try {
         const data = await fetchCommanderData(name);
-        const score = computeReadiness(data.cardlists.allNonLand, ownedCardNames);
-        readinessDone.current.add(key);
-        setReadiness((prev) => new Map(prev).set(key, score));
+        score = computeReadiness(data.cardlists.allNonLand, ownedCardNames);
       } catch {
-        readinessDone.current.add(key);
-        setReadiness((prev) => new Map(prev).set(key, computeReadiness([], ownedCardNames)));
-      } finally {
-        readinessInflight.current.delete(key);
+        score = computeReadiness([], ownedCardNames);
       }
+      readinessDone.current.add(key);
+      readinessInflight.current.delete(key);
+      setReadiness((prev) => new Map(prev).set(key, score));
     },
-    [pdh, ownedCardNames]
+    [canScore, ownedCardNames]
   );
 
-  // Resolve readiness for the selected commander (covers prefilled selections);
-  // a prior hover usually cached it already, so this is instant.
+  // Covers a prefilled selection; a hover or the eager load usually cached it.
   useEffect(() => {
-    if (!value) return;
-    void (async () => {
-      await ensureReadiness(value.name);
-    })();
+    if (value) void ensureReadiness(value.name);
   }, [value, ensureReadiness]);
-  const selectedReadiness = value ? readiness.get(value.name.toLowerCase()) : undefined;
 
-  const [ownedOnly, setOwnedOnly] = useState<boolean>(() => {
+  // ── Filters ───────────────────────────────────────────────────────────
+  const [text, setText] = useState('');
+  const debouncedText = useDebouncedValue(text, 250);
+  const [source, setSourceState] = useState<FinderSource>(() =>
+    initialSearchMode === 'binder' || readPref(SOURCE_KEY) === 'true' ? 'owned' : 'all'
+  );
+  const [colors, setColorsState] = useState<Set<string>>(() => {
     try {
-      return localStorage.getItem(OWNED_ONLY_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const [colorFilter, setColorFilterState] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem(COLOR_FILTER_KEY);
-      return raw ? new Set(JSON.parse(raw)) : new Set();
+      const raw = readPref(COLOR_FILTER_KEY);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
     } catch {
       return new Set();
     }
   });
-  const setColorFilter = (update: Set<string> | ((prev: Set<string>) => Set<string>)) => {
-    setColorFilterState((prev) => {
-      const next = typeof update === 'function' ? update(prev) : update;
-      try {
-        localStorage.setItem(COLOR_FILTER_KEY, JSON.stringify([...next]));
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
+  const [colorMode, setColorModeState] = useState<ColorMode>(() =>
+    readPref(COLOR_MODE_KEY) === 'within' ? 'within' : 'exact'
+  );
+  const [playstyleIds, setPlaystyleIds] = useState<string[]>([]);
+  const [sortChoice, setSortChoice] = useState<FinderSort | null>(
+    initialSearchMode === 'binder' ? 'owned' : null
+  );
+  const [showAllStyles, setShowAllStyles] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // "In my collection" needs something to show; with no legends it's "All".
+  const hasLegends = collectionLegends.length > 0;
+  const activeSource: FinderSource = hasLegends ? source : 'all';
+
+  const setSource = (next: FinderSource) => {
+    setSourceState(next);
+    writePref(SOURCE_KEY, String(next === 'owned'));
+  };
+  const setColors = (next: Set<string>) => {
+    setColorsState(next);
+    writePref(COLOR_FILTER_KEY, JSON.stringify([...next]));
+  };
+  const setColorMode = (next: ColorMode) => {
+    setColorModeState(next);
+    writePref(COLOR_MODE_KEY, next);
+  };
+  const togglePlaystyle = (id: string) =>
+    setPlaystyleIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  const clearAll = () => {
+    setText('');
+    setColors(new Set());
+    setPlaystyleIds([]);
   };
 
-  // Top commanders from EDHREC, filtered by colorFilter. Kept loaded so the
-  // empty-query state always has chips to click. (Reference repo refetches
-  // on every filter change — we mirror that.)
-  const [topCommanders, setTopCommanders] = useState<EDHRECTopCommander[]>([]);
-  const [topLoading, setTopLoading] = useState(false);
-  // EDHREC unreachable: rendered as its own state with a Retry, never as the
-  // "No commanders found" empty result — a failed fetch is not an empty list.
-  const [topError, setTopError] = useState(false);
-  const [topReloadKey, setTopReloadKey] = useState(0);
-  const [showAllTopCommanders, setShowAllTopCommanders] = useState(false);
+  const query: FinderQuery = useMemo(
+    () => ({ text: debouncedText, colors, colorMode, playstyleIds }),
+    [debouncedText, colors, colorMode, playstyleIds]
+  );
+  const searching = isSearching(query);
+  const sort = effectiveSort(sortChoice === 'owned' && !canScore ? null : sortChoice, searching);
 
-  useEffect(() => {
-    // PDH: EDHREC's top-commander list is legendary-only — nothing to fetch.
-    // No state reset needed: callers key this component by format, so a
-    // format switch remounts with fresh (empty, not-loading) state.
-    if (pdh) return;
-    let cancelled = false;
-    async function run() {
-      if (!cancelled) {
-        setTopLoading(true);
-        setTopError(false);
-      }
-      try {
-        const data = await fetchTopCommanders([...colorFilter]);
-        if (!cancelled) setTopCommanders(data);
-      } catch {
-        if (!cancelled) {
-          setTopCommanders([]);
-          setTopError(true);
-        }
-      } finally {
-        if (!cancelled) setTopLoading(false);
-      }
-    }
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [colorFilter, pdh, topReloadKey]);
-
-  // Local search results (owned mode). Kept in state so the dropdown can read
-  // it without recomputing on every render. Declared before the search effect
-  // so setLocalResults is in scope when the effect uses it.
-  const [localResults, setLocalResults] = useState<EnrichedCard[]>([]);
-  const [showAllNameResults, setShowAllNameResults] = useState(false);
-
-  // Reset local results when switching out of owned-only mode.
-  const [prevOwnedOnly, setPrevOwnedOnly] = useState(ownedOnly);
-  if (prevOwnedOnly !== ownedOnly) {
-    setPrevOwnedOnly(ownedOnly);
-    if (!ownedOnly) setLocalResults([]);
-  }
-
-  // The panel below the input sizes to its content and only grows downward,
-  // so the input never moves. `queried` decides *what* the panel shows —
-  // results vs. EDHREC suggestions.
-  const queried = query.trim().length >= 2;
-
-  // Search effect — switches source by ownedOnly. Scryfall when off, local
-  // collection-legend filter when on.
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      const q = query.trim();
-      if (q.length < 2) {
-        if (!cancelled) {
-          setError(null);
-          setResults([]);
-        }
-        return;
-      }
-      if (ownedOnly) {
-        const nq = normalizeForSearch(q);
-        // Rank hits so the closest match leads: exact name, then prefix, then
-        // any substring; ties broken alphabetically. Ranking folds punctuation
-        // the same way the filter does so "mr house" still ranks "Mr. House"
-        // as an exact hit.
-        const rank = (name: string): number => {
-          const n = normalizeForSearch(name);
-          if (n === nq) return 0;
-          if (n.startsWith(nq)) return 1;
-          return 2;
-        };
-        const matched = collectionLegends
-          .filter((c) => normalizeForSearch(c.name).includes(nq))
-          .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
-        // Resolve full ScryfallCards lazily — we don't need them in the list,
-        // just for the final selection. Show owned legends as a name+type list.
-        // To keep typing snappy we don't pre-fetch; click handler hits Scryfall.
-        if (!cancelled) {
-          setError(null);
-          setResults([]); // not used for owned mode; we render `localResults` directly
-          // store local results into a separate memo via state to avoid rerender churn:
-          setLocalResults(matched.slice(0, 12));
-        }
-        return;
-      }
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-      await new Promise<void>((resolve) => {
-        debounceRef.current = window.setTimeout(resolve, 220);
-      });
-      if (cancelled) return;
-      setSearchLoading(true);
-      setError(null);
-      try {
-        const cards = pdh ? await searchPdhCommanders(q) : await searchCommanders(q);
-        if (!cancelled) setResults(cards.slice(0, 12));
-      } catch (e) {
-        if (!cancelled) {
-          setError(
-            userMessage(e, "Couldn't run that search. Check your connection and try again.")
-          );
-          setResults([]);
-        }
-      } finally {
-        if (!cancelled) setSearchLoading(false);
-      }
-    }
-    void run();
-    return () => {
-      cancelled = true;
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [query, ownedOnly, collectionLegends, pdh]);
-
-  // Filter top commanders: hide split-card "//" entries; in owned mode,
-  // surface only those the user actually has so the chip row reads as
-  // "what can I build right now" rather than aspirational.
-  // NOTE: this useMemo MUST live above the `if (value) return` below — moving
-  // it past the early return would mismatch the hooks count when the user
-  // picks a commander.
-  const visibleTop = useMemo(() => {
-    // PDH: there is no EDHREC top list; owned mode browses the collection's
-    // uncommon creatures instead (all of them — the pool IS the suggestion).
-    if (pdh) {
-      if (!ownedOnly) return [];
-      return collectionLegends
-        .filter((c) => {
-          if (colorFilter.size === 0) return true;
-          const ci = c.colorIdentity && c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
-          if (ci.length !== colorFilter.size) return false;
-          return ci.every((color) => colorFilter.has(color));
-        })
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((c, i) => ({
-          rank: i + 1,
-          name: c.name,
-          sanitized: c.scryfallId ?? c.name,
-          colorIdentity: c.colorIdentity ?? [],
-          numDecks: 0,
-        }));
-    }
-    const base = topCommanders.filter((c) => !c.name.includes('//'));
-    if (!ownedOnly) return base;
-
-    const owned = base.filter((c) => ownedNames.has(c.name));
-    const MIN = 10;
-    if (owned.length >= MIN) return owned;
-
-    // Pad with the user's other owned legends so the empty-query state isn't
-    // sparse just because their owned legends rarely overlap with EDHREC's top
-    // list. Respect the same exact-match color filter Surprise-me uses.
-    const seen = new Set(owned.map((c) => c.name));
-    const fillerSource = collectionLegends.filter((c) => {
-      if (seen.has(c.name)) return false;
-      if (colorFilter.size === 0) return true;
-      const ci = c.colorIdentity ?? [];
-      if (ci.length !== colorFilter.size) return false;
-      return ci.every((color) => colorFilter.has(color));
-    });
-
-    const filler: EDHRECTopCommander[] = fillerSource.slice(0, MIN - owned.length).map((c, i) => ({
-      rank: owned.length + i + 1,
-      name: c.name,
-      sanitized: c.scryfallId ?? c.name,
-      colorIdentity: c.colorIdentity ?? [],
-      numDecks: 0,
-    }));
-
-    return [...owned, ...filler];
-  }, [pdh, topCommanders, ownedOnly, ownedNames, collectionLegends, colorFilter]);
-  const topResultKey = `${ownedOnly}|${[...colorFilter].sort().join('')}|${visibleTop
-    .map((c) => c.name)
-    .join('|')}`;
-  const [prevTopResultKey, setPrevTopResultKey] = useState(topResultKey);
-  if (prevTopResultKey !== topResultKey) {
-    setPrevTopResultKey(topResultKey);
-    setShowAllTopCommanders(false);
-  }
-
-  // Eager-load readiness for the recommended pills — a small, bounded set (≤12)
-  // shown without typing, so a sequential throttled fetch is affordable and the
-  // pills show a spinner → % instead of staying blank until hovered. (Search
-  // *results* stay lazy-on-hover, since those churn per keystroke.)
-  useEffect(() => {
-    if (visibleTop.length === 0) return;
-    let cancelled = false;
-    void (async () => {
-      for (const c of visibleTop.slice(0, 12)) {
-        if (cancelled) return;
-        await ensureReadiness(c.name);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [visibleTop, ensureReadiness]);
-
-  // Platform-deck-count badges for the same visible Top-EDHREC tiles (social
-  // W4) — mirrors the eager-readiness-load effect just above, but for the
-  // commander-picker "N on SpellControl" badge instead. Explicit `pdh` guard
-  // (unlike the effect above, which relies on `ensureReadiness` itself
-  // returning early): PDH's owned-mode branch still populates `visibleTop`
-  // with synthetic collection-derived entries, so an empty-array check alone
-  // wouldn't exclude it here. Cancelled on any dep change (tab switch away
-  // included, since `visibleTop`'s identity is stable while browsing Top but
-  // this still guards a slow response racing an unmount).
-  useEffect(() => {
-    if (pdh || visibleTop.length === 0) return;
-    let cancelled = false;
-    void (async () => {
-      const map = await resolvePlatformCounts(visibleTop.slice(0, 12), {
-        getCardByName,
-        getCommanderStatsBatch,
-      });
-      if (cancelled) return;
-      setPlatformCounts((prev) => new Map([...prev, ...map]));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [pdh, visibleTop]);
-
-  // ── By-playstyle discovery ────────────────────────────────────────────
-  // A second facet alongside name search: pick a playstyle (aristocrats,
-  // tokens, voltron, …) and browse the commanders that do it best.
-  const [searchMode, setSearchMode] = useState<SearchMode>(() => {
-    if (initialSearchMode) return initialSearchMode;
-    try {
-      const stored = localStorage.getItem(SEARCH_MODE_KEY);
-      return stored === 'playstyle' || stored === 'binder' ? stored : 'name';
-    } catch {
-      return 'name';
-    }
-  });
-  // PDH has no playstyle browse (EDHREC-backed) — even a persisted 'playstyle'
-  // preference resolves to name search there. The stored preference survives
-  // for the next Commander-format visit. Likewise 'binder' only exists where
-  // the caller wires `onSelectFromBinder`.
-  const activeSearchMode: SearchMode = pdh
-    ? 'name'
-    : searchMode === 'binder' && !onSelectFromBinder
-      ? 'name'
-      : searchMode;
-  const landCount = useDeckBuilderStore((s) => s.customization.landCount);
-  const changeMode = (mode: SearchMode) => {
-    setSearchMode(mode);
-    try {
-      localStorage.setItem(SEARCH_MODE_KEY, mode);
-    } catch {
-      /* ignore */
-    }
-  };
-  const [playstyle, setPlaystyle] = useState<Playstyle | null>(null);
-  const [playstyleCommanders, setPlaystyleCommanders] = useState<EDHRECTopCommander[]>([]);
-  const [playstyleLoading, setPlaystyleLoading] = useState(false);
-  // Browse list is collapsed to PLAYSTYLE_PREVIEW_COUNT until "Show more"; reset
-  // to collapsed whenever the result set's identity changes. Render-phase reset
-  // (the React-recommended pattern, same as `prevOwnedOnly` below) rather than a
-  // setState-in-effect, which would cascade renders.
-  const [showAllPlaystyle, setShowAllPlaystyle] = useState(false);
-  const playstyleResultKey = `${playstyle?.id ?? ''}|${ownedOnly}|${[...colorFilter].sort().join('')}`;
-  const [prevPlaystyleResultKey, setPrevPlaystyleResultKey] = useState(playstyleResultKey);
-  if (prevPlaystyleResultKey !== playstyleResultKey) {
-    setPrevPlaystyleResultKey(playstyleResultKey);
-    setShowAllPlaystyle(false);
-  }
-
-  // Local playstyle classification of the user's own legendary creatures — pure,
-  // instant, offline. Owned-mode browsing reads this instead of EDHREC so it can
-  // surface owned commanders that aren't in EDHREC's top-N for a tag.
-  const ownedByPlaystyle = useMemo(() => {
-    const map = new Map<string, EnrichedCard[]>();
+  // ── Your commanders: local, instant, offline ──────────────────────────
+  const ownedPlaystyles = useMemo(() => {
+    const map = new Map<string, string[]>();
     for (const legend of collectionLegends) {
-      for (const { playstyle: ps } of classifyOwnedCommanderPlaystyles(legend)) {
-        const bucket = map.get(ps.id);
-        if (bucket) bucket.push(legend);
-        else map.set(ps.id, [legend]);
-      }
+      map.set(
+        legend.name,
+        classifyOwnedCommanderPlaystyles(legend).map((m) => m.playstyle.id)
+      );
     }
     return map;
   }, [collectionLegends]);
 
-  // Aspirational browse: fetch EDHREC's top commanders for the chosen playstyle.
-  // Owned mode skips the network entirely (uses the local index above).
-  useEffect(() => {
-    if (activeSearchMode !== 'playstyle' || !playstyle || ownedOnly) return;
-    let cancelled = false;
-    const slug = playstyle.edhrecSlug;
-    void (async () => {
-      setPlaystyleLoading(true);
-      setPlaystyleCommanders([]);
-      try {
-        const list = await fetchPlaystyleCommanders(slug);
-        if (!cancelled) setPlaystyleCommanders(list);
-      } catch {
-        if (!cancelled) setPlaystyleCommanders([]);
-      } finally {
-        if (!cancelled) setPlaystyleLoading(false);
+  const ownedEntries = useMemo<Entry[]>(() => {
+    if (activeSource !== 'owned') return [];
+    const search = buildCollectionSearch(query.text.trim().length >= 2 ? query.text : '');
+    return collectionLegends.flatMap((c) => {
+      if (!colorIdentityMatches(c.colorIdentity, query.colors, query.colorMode)) return [];
+      if (!search.match(c).hit) return [];
+      const ids = ownedPlaystyles.get(c.name) ?? [];
+      if (query.playstyleIds.length > 0 && !query.playstyleIds.some((id) => ids.includes(id))) {
+        return [];
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeSearchMode, playstyle, ownedOnly]);
-
-  // Commanders shown for the chosen playstyle, narrowed by the color pips.
-  // Within-identity match: a color filter shows commanders castable in those
-  // colors (a mono-black commander still shows under a B/G filter).
-  const playstyleResults = useMemo(() => {
-    if (activeSearchMode !== 'playstyle' || !playstyle) return [];
-    const matchesColor = (ci: string[]): boolean => {
-      if (colorFilter.size === 0) return true;
-      const ident = ci.length > 0 ? ci : ['C'];
-      return ident.every((color) => colorFilter.has(color));
-    };
-    if (ownedOnly) {
-      return (ownedByPlaystyle.get(playstyle.id) ?? [])
-        .filter((c) => matchesColor(c.colorIdentity ?? []))
-        .map((c) => ({
-          name: c.name,
-          colors: c.colorIdentity && c.colorIdentity.length > 0 ? c.colorIdentity : ['C'],
+      return [
+        {
           key: c.scryfallId ?? c.name,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-    }
-    return playstyleCommanders
-      .filter((c) => !c.name.includes('//') && matchesColor(c.colorIdentity))
-      .map((c) => ({
-        name: c.name,
-        colors: c.colorIdentity.length > 0 ? c.colorIdentity : ['C'],
-        key: c.sanitized || c.name,
-      }));
-  }, [activeSearchMode, playstyle, ownedOnly, ownedByPlaystyle, playstyleCommanders, colorFilter]);
+          name: c.name,
+          colors: identityOf(c.colorIdentity),
+          typeLine: c.typeLine,
+          oracleText: c.oracleText,
+          cmc: c.cmc,
+          popularity: c.edhrecRank,
+          playstyleIds: ids,
+          owned: c,
+          imageUrl: c.imageNormal,
+        },
+      ];
+    });
+  }, [activeSource, collectionLegends, ownedPlaystyles, query]);
 
-  // Eager-load readiness for the visible playstyle commanders (bounded set),
-  // mirroring the recommended-pills behavior so the % shows without hovering.
+  // ── Every commander: EDHREC's popular list, or a Scryfall search ──────
+  // The key summarises everything the fetch reads, so the effect runs once
+  // per distinct request rather than once per `query` identity.
+  const remoteKey = JSON.stringify([
+    activeSource,
+    pdh,
+    query.text.trim().length >= 2 ? query.text.trim() : '',
+    [...query.colors].sort(),
+    query.colorMode,
+    [...query.playstyleIds].sort(),
+    reloadKey,
+  ]);
+  const [remote, setRemote] = useState<RemoteResult | null>(null);
+  const queryRef = useRef(query);
   useEffect(() => {
-    if (activeSearchMode !== 'playstyle' || playstyleResults.length === 0) return;
+    queryRef.current = query;
+  }, [query]);
+
+  useEffect(() => {
+    if (activeSource !== 'all') return;
     let cancelled = false;
+    const q = queryRef.current;
+    const browse = !isSearching(q) && !pdh;
+    const from = browse ? 'edhrec' : 'scryfall';
+    const settle = (next: Omit<RemoteResult, 'key' | 'from'>) => {
+      if (!cancelled) setRemote({ key: remoteKey, from, ...next });
+    };
     void (async () => {
-      for (const c of playstyleResults.slice(0, 12)) {
-        if (cancelled) return;
-        await ensureReadiness(c.name);
+      // Keep the previous tiles up, dimmed, instead of collapsing the grid.
+      setRemote((prev) => ({
+        key: remoteKey,
+        from,
+        status: 'loading',
+        entries: prev?.entries ?? [],
+        total: prev?.total ?? 0,
+      }));
+      try {
+        if (browse) {
+          const list = await fetchPopular(q.colors, q.colorMode);
+          const entries = list.filter((c) => !c.name.includes('//')).map(popularEntry);
+          settle({ status: 'done', entries, total: entries.length });
+          return;
+        }
+        const regex = commanderFinderSupportsRegex();
+        const selected = q.playstyleIds;
+        const [page, tagLists] = await Promise.all([
+          searchCommanderFinder(buildScryfallQuery(q, regex), { pdh }),
+          // EDHREC's crowd list for each chosen playstyle ranks first.
+          Promise.all(
+            (pdh ? [] : selected).map(async (id) => {
+              const slug = playstyleById(id)?.edhrecSlug;
+              const list = slug
+                ? await fetchPlaystyleCommanders(slug).catch((): EDHRECTopCommander[] => [])
+                : [];
+              return { id, list };
+            })
+          ),
+        ]);
+        const tagRank = new Map<string, number>();
+        const tagStyles = new Map<string, string[]>();
+        for (const { id, list } of tagLists) {
+          list.forEach((c, i) => {
+            const k = c.name.toLowerCase();
+            tagRank.set(k, Math.min(tagRank.get(k) ?? i, i));
+            tagStyles.set(k, [...(tagStyles.get(k) ?? []), id]);
+          });
+        }
+        const entries: Entry[] = page.cards.flatMap((card, i) => {
+          const k = card.name.toLowerCase();
+          let ids = classifyCommanderPlaystyles(card).map((m) => m.playstyle.id);
+          for (const id of tagStyles.get(k) ?? []) if (!ids.includes(id)) ids = [id, ...ids];
+          // Scryfall already applied a lone playstyle's clause (typal rides on
+          // otag:typal, which the local reader can't always see), so trust it.
+          if (regex && selected.length === 1 && !ids.includes(selected[0])) {
+            ids = [selected[0], ...ids];
+          }
+          // Offline, the query had no playstyle clause: filter here instead.
+          if (!regex && selected.length > 0 && !selected.some((id) => ids.includes(id))) return [];
+          return [
+            {
+              key: card.id,
+              name: card.name,
+              colors: identityOf(card.color_identity),
+              typeLine: card.type_line,
+              oracleText: card.oracle_text ?? card.card_faces?.[0]?.oracle_text,
+              cmc: card.cmc,
+              popularity: card.edhrec_rank ?? 100_000 + i,
+              playstyleIds: ids,
+              tagRank: tagRank.get(k),
+              card,
+              imageUrl: card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal,
+            },
+          ];
+        });
+        // Crowd-listed commanders the rules-text pattern missed, when nothing
+        // is typed (a typed search has to match what was typed).
+        if (q.text.trim().length < 2) {
+          const seen = new Set(entries.map((e) => e.name.toLowerCase()));
+          for (const { list } of tagLists) {
+            for (const c of list) {
+              const k = c.name.toLowerCase();
+              if (seen.has(k) || c.name.includes('//')) continue;
+              if (!colorIdentityMatches(c.colorIdentity, q.colors, q.colorMode)) continue;
+              seen.add(k);
+              entries.push({
+                ...popularEntry(c, 100_000 + entries.length),
+                playstyleIds: tagStyles.get(k) ?? [],
+                tagRank: tagRank.get(k),
+              });
+            }
+          }
+        }
+        settle({ status: 'done', entries, total: Math.max(page.total, entries.length) });
+      } catch (e) {
+        settle({
+          status: 'error',
+          entries: [],
+          total: 0,
+          error: browse
+            ? "Couldn't reach EDHREC for popular commanders. Searching by name still works."
+            : userMessage(e, "Couldn't run that search. Check your connection and try again."),
+        });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [activeSearchMode, playstyleResults, ensureReadiness]);
+  }, [remoteKey, activeSource, pdh]);
 
-  // Platform-deck-count badges for the visible playstyle tiles (social W4) —
-  // same shape as the Top-browse effect above. No explicit `pdh` guard needed:
-  // `activeSearchMode` is forced to 'name' for PDH (see activeSearchMode's own
-  // definition), so this condition already structurally excludes it.
+  const current = remote?.key === remoteKey ? remote : null;
+  const loading = activeSource === 'all' && (current === null || current.status === 'loading');
+  const entries = useMemo<Entry[]>(
+    () => (activeSource === 'owned' ? ownedEntries : (remote?.entries ?? [])),
+    [activeSource, ownedEntries, remote]
+  );
+  const total = activeSource === 'owned' ? ownedEntries.length : (remote?.total ?? 0);
+
+  // ── Scoring the whole list for "Most of the deck owned" ───────────────
+  // The sort reads a snapshot taken every few scores rather than the live
+  // map, so tiles don't jump under the pointer while the list is scored.
+  const scoringOn = sort === 'owned' && canScore;
+  const scoringKey = `${scoringOn}|${activeSource}|${remoteKey}|${entries.length}`;
+  const [scoring, setScoring] = useState<{ key: string; done: number; of: number } | null>(null);
+  const [scoreSnapshot, setScoreSnapshot] = useState<Map<string, number>>(new Map());
+  const readinessRef = useRef(readiness);
   useEffect(() => {
-    if (activeSearchMode !== 'playstyle' || playstyleResults.length === 0) return;
+    readinessRef.current = readiness;
+  }, [readiness]);
+  const entriesRef = useRef(entries);
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
+
+  useEffect(() => {
+    if (!scoringOn) return;
     let cancelled = false;
+    const names = entriesRef.current.map((e) => e.name);
+    if (names.length === 0) return;
+    const snapshot = () => {
+      const map = new Map<string, number>();
+      for (const [k, v] of readinessRef.current) {
+        if (v !== 'loading' && v.available) map.set(k, v.percent);
+      }
+      setScoreSnapshot(map);
+    };
+    let done = 0;
     void (async () => {
-      const map = await resolvePlatformCounts(playstyleResults.slice(0, 12), {
-        getCardByName,
-        getCommanderStatsBatch,
-      });
-      if (cancelled) return;
-      setPlatformCounts((prev) => new Map([...prev, ...map]));
+      setScoring({ key: scoringKey, done: 0, of: names.length });
+      await runPool(
+        names,
+        async (name) => {
+          await ensureReadiness(name);
+          done += 1;
+          if (cancelled) return;
+          setScoring({ key: scoringKey, done, of: names.length });
+          if (done % SCORE_RESORT_EVERY === 0) snapshot();
+        },
+        () => cancelled
+      );
+      // One more turn so the last score has landed in the ref.
+      await new Promise((r) => setTimeout(r, 0));
+      if (!cancelled) snapshot();
     })();
     return () => {
       cancelled = true;
     };
-  }, [activeSearchMode, playstyleResults]);
+  }, [scoringKey, scoringOn, ensureReadiness]);
+  const scoringNow =
+    scoringOn && scoring?.key === scoringKey && scoring.done < scoring.of ? scoring : null;
 
-  const nameResults = ownedOnly ? localResults : results;
-  const nameResultKey = `${ownedOnly}|${query.trim()}|${nameResults
-    .map((card) => ('scryfallId' in card ? card.scryfallId : card.id))
-    .join('|')}`;
-  const [prevNameResultKey, setPrevNameResultKey] = useState(nameResultKey);
-  if (prevNameResultKey !== nameResultKey) {
-    setPrevNameResultKey(nameResultKey);
-    setShowAllNameResults(false);
+  const sorted = useMemo(
+    () =>
+      [...entries].sort((a, b) =>
+        compareEntries(a, b, {
+          sort,
+          text: query.text,
+          selectedPlaystyles: query.playstyleIds,
+          readiness: (k) => scoreSnapshot.get(k),
+        })
+      ),
+    [entries, sort, query.text, query.playstyleIds, scoreSnapshot]
+  );
+
+  // Collapse to one page whenever the list itself changes.
+  const [visibleCount, setVisibleCount] = useState(PAGE);
+  const listKey = `${activeSource}|${remoteKey}|${sort}`;
+  const [prevListKey, setPrevListKey] = useState(listKey);
+  if (prevListKey !== listKey) {
+    setPrevListKey(listKey);
+    setVisibleCount(PAGE);
   }
-  const visibleRemoteResults = showAllNameResults
-    ? results
-    : results.slice(0, PLAYSTYLE_PREVIEW_COUNT);
-  const visibleLocalResults = showAllNameResults
-    ? localResults
-    : localResults.slice(0, PLAYSTYLE_PREVIEW_COUNT);
+  const visible = sorted.slice(0, visibleCount);
+  const visibleNames = visible.map((e) => e.name).join('|');
 
-  // ── Selection handlers ────────────────────────────────────────────────
-  // `fromBinder` routes the pick through `onSelectFromBinder` (E283) instead
-  // of `onSelect`; the two handlers are otherwise identical.
-  const selectCard = (card: ScryfallCard, fromBinder = false) => {
-    (fromBinder && onSelectFromBinder ? onSelectFromBinder : onSelect)(card);
-    setQuery('');
-    setResults([]);
-    setLocalResults([]);
+  // Eager "you own N%" for the visible tiles: a bounded set, fetched in turn.
+  useEffect(() => {
+    if (!canScore || !visibleNames) return;
+    let cancelled = false;
+    void (async () => {
+      for (const name of visibleNames.split('|')) {
+        if (cancelled) return;
+        await ensureReadiness(name);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleNames, canScore, ensureReadiness]);
+
+  // "N on SpellControl" for the visible tiles (social W4), one batch per page.
+  const [platformCounts, setPlatformCounts] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (pdh || !visibleNames) return;
+    let cancelled = false;
+    void (async () => {
+      const map = await resolvePlatformCounts(
+        visibleNames.split('|').map((name) => ({ name })),
+        { getCardByName, getCommanderStatsBatch }
+      );
+      if (!cancelled) setPlatformCounts((prev) => new Map([...prev, ...map]));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pdh, visibleNames]);
+
+  // ── "Worth buying the commander for" ──────────────────────────────────
+  // Popular commanders you don't own, ranked by how much of their deck you do.
+  const showBuy = activeSource === 'owned' && sort === 'owned' && canScore && !searching;
+  const buyKey = JSON.stringify([showBuy, [...colors].sort(), colorMode]);
+  const [buyPool, setBuyPool] = useState<{ key: string; entries: Entry[] }>({
+    key: '',
+    entries: [],
+  });
+  const ownedLegendNamesRef = useRef(ownedLegendNames);
+  useEffect(() => {
+    ownedLegendNamesRef.current = ownedLegendNames;
+  }, [ownedLegendNames]);
+  useEffect(() => {
+    if (!showBuy) return;
+    let cancelled = false;
+    const [, colorList, mode] = JSON.parse(buyKey) as [boolean, string[], ColorMode];
+    void (async () => {
+      const list = await fetchPopular(new Set(colorList), mode).catch(
+        (): EDHRECTopCommander[] => []
+      );
+      const pool = list
+        .filter(
+          (c) => !c.name.includes('//') && !ownedLegendNamesRef.current.has(c.name.toLowerCase())
+        )
+        .slice(0, BUY_POOL)
+        .map(popularEntry);
+      if (cancelled) return;
+      setBuyPool({ key: buyKey, entries: pool });
+      await runPool(
+        pool,
+        (e) => ensureReadiness(e.name),
+        () => cancelled
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showBuy, buyKey, ensureReadiness]);
+  const buyShown = useMemo(() => {
+    if (!showBuy || buyPool.key !== buyKey) return [];
+    return buyPool.entries
+      .flatMap((e) => {
+        const r = readiness.get(e.name.toLowerCase());
+        return r && r !== 'loading' && r.available && r.percent > 0 ? [{ e, pct: r.percent }] : [];
+      })
+      .sort((a, b) => b.pct - a.pct)
+      .slice(0, BUY_SHOWN)
+      .map(({ e }) => e);
+  }, [showBuy, buyKey, buyPool, readiness]);
+  const buyNames = buyShown.map((e) => e.name).join('|');
+  const [buyPrices, setBuyPrices] = useState<Map<string, string | null>>(new Map());
+  const pricedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!buyNames) return;
+    let cancelled = false;
+    void (async () => {
+      for (const name of buyNames.split('|')) {
+        if (cancelled) return;
+        if (pricedRef.current.has(name)) continue;
+        pricedRef.current.add(name);
+        let price: string | null = null;
+        try {
+          const raw = getCardPrice(await getCardByName(name), getCurrency());
+          price = raw ? formatMoney(Number(raw), { wholeDollars: Number(raw) >= 10 }) : null;
+        } catch {
+          price = null;
+        }
+        setBuyPrices((prev) => new Map(prev).set(name, price));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [buyNames]);
+
+  // ── Selection ─────────────────────────────────────────────────────────
+  const [selecting, setSelecting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // E283: browsing what you own by coverage is a build-from-my-collection
+  // intent, so the caller preselects owned-only settings for that pick.
+  const fromBinder = activeSource === 'owned' && sort === 'owned' && !!onSelectFromBinder;
+
+  const finish = (card: ScryfallCard, viaBinder: boolean) => {
+    (viaBinder && onSelectFromBinder ? onSelectFromBinder : onSelect)(card);
+    setText('');
   };
 
-  const selectByName = async (name: string, fromBinder = false) => {
-    setSearchLoading(true);
+  const selectEntry = async (entry: Entry) => {
     setError(null);
+    setSelecting(entry.key);
     try {
-      const card = await getCardByName(name);
-      selectCard(card, fromBinder);
+      if (entry.owned) {
+        // The exact printing you own, so the deck binds the copy on screen.
+        finish(await getOwnedPrinting(entry.owned.scryfallId, entry.owned.name), fromBinder);
+      } else if (entry.card) {
+        finish(entry.card, false);
+      } else {
+        finish(await getCardByName(entry.name), false);
+      }
     } catch (e) {
       setError(userMessage(e, "Couldn't load that card. Try again in a moment."));
     } finally {
-      setSearchLoading(false);
+      setSelecting(null);
     }
   };
 
-  // Owned-mode selection. Resolve the user's *exact* printing (by its
-  // scryfallId) rather than the cheapest one `getCardByName` would return, so
-  // the generated deck binds the physical copy they picked — right printing and
-  // finish. The allocator keys on `card.id` (see pickCollectionCopy), so this
-  // is what makes "build from my collection" honor the copy on screen.
-  const selectOwnedCard = async (owned: EnrichedCard, fromBinder = false) => {
-    setSearchLoading(true);
-    setError(null);
-    try {
-      const card = await getOwnedPrinting(owned.scryfallId, owned.name);
-      selectCard(card, fromBinder);
-    } catch (e) {
-      setError(userMessage(e, "Couldn't load that card. Try again in a moment."));
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  // Owned suggestion chips carry only a name (EDHREC payload), so map back to
-  // the owned copy to resolve its printing; fall back to name resolution if the
-  // name somehow isn't in the collection (shouldn't happen in owned mode).
-  const selectOwnedByName = async (name: string) => {
-    const owned = collectionLegends.find((c) => c.name === name);
-    if (owned) {
-      await selectOwnedCard(owned);
-    } else {
-      await selectByName(name);
-    }
-  };
-
-  // Surprise me — random pick, respecting owned-only and color filter.
-  const handleSurpriseMe = async () => {
+  const [randomLoading, setRandomLoading] = useState(false);
+  const handleRandom = async () => {
     setError(null);
     setRandomLoading(true);
     try {
-      if (ownedOnly) {
-        const pool = collectionLegends.filter((c) => {
-          if (colorFilter.size === 0) return true;
-          const ci = c.colorIdentity ?? [];
-          // Exact-match: a single-color filter shouldn't surface multicolor
-          // commanders that just happen to include that color.
-          if (ci.length !== colorFilter.size) return false;
-          return ci.every((color) => colorFilter.has(color));
-        });
-        const fallback =
-          colorFilter.size > 0 && pool.length === 0
-            ? collectionLegends.filter((c) => {
-                const ci = c.colorIdentity ?? [];
-                return ci.every((color) => colorFilter.has(color));
-              })
-            : pool;
-        const pick = pickRandom(fallback.length > 0 ? fallback : collectionLegends);
+      // With nothing set, any commander EDHREC knows; otherwise one from the
+      // list on screen, so Random respects every filter.
+      if (activeSource === 'all' && !pdh && !searching && colors.size === 0) {
+        const pick = pickRandom((await fetchAllCommanderNames()).filter((n) => !n.includes('//')));
         if (!pick) {
-          setError(
-            pdh
-              ? 'No uncommon creatures in your collection match that filter.'
-              : 'No legendary creatures in your collection match that filter.'
-          );
+          setError("Couldn't load EDHREC's commander list. Try again.");
           return;
         }
-        await selectOwnedCard(pick);
+        finish(await getCardByName(pick), false);
         return;
       }
-      // Online PDH — Scryfall's random endpoint over the derived commander
-      // pool (there is no EDHREC list to draw from).
-      if (pdh) {
-        const exactColors =
-          colorFilter.size > 0
-            ? [...colorFilter].sort((a, b) => WUBRG_ORDER.indexOf(a) - WUBRG_ORDER.indexOf(b))
-            : [];
-        const pick = await getRandomPdhCommander(exactColors);
-        selectCard(pick);
+      const pick = pickRandom(sorted);
+      if (!pick) {
+        setError(`No ${pdh ? 'uncommon creatures' : 'commanders'} match these filters.`);
         return;
       }
-      // Online — pick from the EDHREC commander list, narrowed by color.
-      if (colorFilter.size > 0) {
-        const all = await fetchCommandersIncludingColors([...colorFilter]);
-        const exact = all.filter(
-          (c) =>
-            c.colorIdentity.length === colorFilter.size &&
-            c.colorIdentity.every((color) => colorFilter.has(color))
-        );
-        const pool = exact.length > 0 ? exact : all;
-        const pick = pickRandom(pool);
-        if (!pick) {
-          setError('No commanders matched that color filter.');
-          return;
-        }
-        await selectByName(pick.name);
-      } else {
-        const names = await fetchAllCommanderNames();
-        const filtered = names.filter((n) => !n.includes('//'));
-        const pick = pickRandom(filtered);
-        if (!pick) {
-          setError("Couldn't load EDHREC commander list.");
-          return;
-        }
-        await selectByName(pick);
-      }
+      await selectEntry(pick);
     } catch (e) {
       setError(userMessage(e, "Couldn't pick a random commander. Try again."));
     } finally {
@@ -892,20 +839,17 @@ export function CommanderSearch({
     }
   };
 
-  // ── Selected commander view ───────────────────────────────────────────
+  // ── Selected commander ────────────────────────────────────────────────
   if (value) {
-    // Two-faced commanders (DFCs, MDFCs) keep their oracle text on the
-    // card_faces array, not on the top-level card. Prefer the top-level
-    // values; fall back to the front face. We don't try to render both
-    // faces — that's reserved for the card preview modal.
+    const selectedReadiness = readiness.get(value.name.toLowerCase());
+    // Two-faced commanders keep oracle text on card_faces; fall back to the
+    // front face. Both faces belong to the card preview, not here.
     const front = value.card_faces?.[0];
     const manaCost = value.mana_cost ?? front?.mana_cost ?? '';
     const oracleText = value.oracle_text ?? front?.oracle_text ?? '';
     const power = value.power ?? front?.power;
     const toughness = value.toughness ?? front?.toughness;
     const loyalty = value.loyalty;
-    // Detected playstyles (top 3) — an explainable "how this deck wins" read,
-    // and a bridge to the By-playstyle browser.
     const playstyleMatches = classifyCommanderPlaystyles(value).slice(0, 3);
     return (
       <div className="commander-pick">
@@ -951,17 +895,17 @@ export function CommanderSearch({
                 Plays like
                 <InfoTip
                   label="Plays like"
-                  text="How this commander tends to win, read from its rules text. Try the “By playstyle” tab for more like it."
+                  text="How this commander tends to win, read from its rules text. Change the commander and filter by playstyle to find more like it."
                 />
               </span>
               {playstyleMatches.map((m) => (
-                <Chip key={m.playstyle.id} className="commander-pick-playstyle-tag" tone="accent">
+                <Chip key={m.playstyle.id} className="commander-pick-playstyle-tag" tone="neutral">
                   {m.playstyle.label}
                 </Chip>
               ))}
             </div>
           )}
-          {!pdh && ownedCardNames.size > 0 && (
+          {canScore && (
             <div className="commander-pick-readiness">
               <CommanderReadiness
                 score={selectedReadiness === 'loading' ? undefined : selectedReadiness}
@@ -969,354 +913,353 @@ export function CommanderSearch({
             </div>
           )}
         </div>
-        <Button
-          onClick={() => {
-            onSelect(null);
-            setQuery('');
-            setResults([]);
-            setLocalResults([]);
-          }}
-          className="commander-pick-change"
-        >
+        <Button onClick={() => onSelect(null)} className="commander-pick-change">
           Change
         </Button>
       </div>
     );
   }
 
-  // ── Search UI ─────────────────────────────────────────────────────────
-  const listboxId = 'commander-search-listbox';
-  const binderColorLabel = getColorFilterLabel(colorFilter).replace(/^Top /, '');
-  const resultItems = (
-    <>
-      <ul className="commander-result-grid" role="listbox" id={listboxId}>
-        {searchLoading && <li className="commander-search-loading">Searching…</li>}
-        {!ownedOnly &&
-          visibleRemoteResults.map((card) => (
-            <li key={card.id}>
-              <CommanderResultCard
-                name={card.name}
-                imageUrl={card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal}
-                colors={card.color_identity}
-                typeLine={card.type_line}
-                readiness={readiness.get(card.name.toLowerCase())}
-                onSelect={() => selectCard(card)}
-                onPeek={() => void ensureReadiness(card.name)}
-              />
-            </li>
+  // ── Finder ────────────────────────────────────────────────────────────
+  const noun = pdh ? 'uncommon creature' : 'commander';
+  const nouns = `${noun}s`;
+  const count = (n: number) => `${n.toLocaleString()} ${n === 1 ? noun : nouns}`;
+  const comboName = colorComboName(colors);
+  const summary = filterSummary(query);
+  const anyFilter = summary.length > 0;
+  const filterCount = (colors.size > 0 ? 1 : 0) + playstyleIds.length;
+
+  const sortOptions: Array<{ value: FinderSort; label: string }> = [
+    ...(searching ? [{ value: 'match' as const, label: 'Best match' }] : []),
+    { value: 'popular', label: 'Popular' },
+    ...(canScore ? [{ value: 'owned' as const, label: 'Most of the deck owned' }] : []),
+    { value: 'name', label: 'Name' },
+    // The popular list carries no mana values.
+    ...(activeSource === 'owned' || searching || pdh
+      ? [{ value: 'mv' as const, label: 'Mana value' }]
+      : []),
+  ];
+
+  const checking = scoringNow
+    ? ` · checking coverage, ${scoringNow.done} of ${scoringNow.of} done`
+    : '';
+  const status =
+    loading && entries.length === 0
+      ? 'Searching…'
+      : activeSource === 'owned'
+        ? `${count(total)} you own${checking}`
+        : current?.from === 'edhrec' && current.status === 'done'
+          ? `Popular ${comboName ? `${comboName} ` : ''}commanders on EDHREC${checking}`
+          : `${count(total)}${checking}`;
+
+  const relax = (r: Relaxation) => {
+    if (r.id === 'source') setSource('all');
+    else if (r.id === 'within') setColorMode('within');
+    else if (r.id === 'text') setText('');
+    else togglePlaystyle(r.id.slice('style:'.length));
+  };
+  const emptyReasons = relaxations({ ...query, source: activeSource });
+
+  const colorChipLabel =
+    colorMode === 'within' && !colors.has('C') ? `Within ${comboName}` : comboName;
+  const filterChips: FilterChipDescriptor[] = [
+    ...(colors.size > 0
+      ? [{ id: 'colors', label: colorChipLabel, onClear: () => setColors(new Set()) }]
+      : []),
+    ...playstyleIds.flatMap((id) => {
+      const p = playstyleById(id);
+      return p ? [{ id: `style:${id}`, label: p.label, onClear: () => togglePlaystyle(id) }] : [];
+    }),
+  ];
+
+  const stylesShown =
+    isPhone || showAllStyles
+      ? PLAYSTYLES
+      : PLAYSTYLES.filter((p, i) => i < STYLE_PREVIEW || playstyleIds.includes(p.id));
+
+  const filters = (
+    <div className="commander-finder-filters" id={filtersId}>
+      <div className="commander-finder-row">
+        <span className="commander-finder-label" id={`${baseId}-colors`}>
+          Colors
+        </span>
+        <div className="commander-finder-control" role="group" aria-labelledby={`${baseId}-colors`}>
+          <ColorPips colors={colors} onChange={setColors} />
+          {comboName && <span className="commander-finder-combo">{comboName}</span>}
+          {colors.size > 0 && !colors.has('C') && (
+            <SegmentedControl
+              ariaLabel="Color match"
+              value={colorMode}
+              onChange={setColorMode}
+              options={[
+                { value: 'exact', label: 'Exactly' },
+                { value: 'within', label: 'Within' },
+              ]}
+            />
+          )}
+          {colors.size > 0 && (
+            <span className="commander-finder-hint">{colorModeHint(colors, colorMode)}</span>
+          )}
+        </div>
+      </div>
+      <div className="commander-finder-row">
+        <span className="commander-finder-label" id={`${baseId}-styles`}>
+          Playstyle
+        </span>
+        <div className="commander-finder-control" role="group" aria-labelledby={`${baseId}-styles`}>
+          {stylesShown.map((p) => (
+            <Chip
+              key={p.id}
+              className="filter-chip"
+              pressed={playstyleIds.includes(p.id)}
+              onClick={() => togglePlaystyle(p.id)}
+            >
+              {p.label}
+            </Chip>
           ))}
-        {ownedOnly &&
-          visibleLocalResults.map((card) => (
-            <li key={card.scryfallId}>
-              <CommanderResultCard
-                name={card.name}
-                imageUrl={card.imageNormal}
-                colors={card.colorIdentity ?? card.colors ?? []}
-                typeLine={card.typeLine ?? (pdh ? 'Creature' : 'Legendary Creature')}
-                readiness={readiness.get(card.name.toLowerCase())}
-                onSelect={() => void selectOwnedCard(card)}
-                onPeek={() => void ensureReadiness(card.name)}
-              />
-            </li>
-          ))}
-      </ul>
-      {nameResults.length > PLAYSTYLE_PREVIEW_COUNT && (
-        <Button
-          variant="link"
-          className="commander-playstyle-more"
-          onClick={() => setShowAllNameResults((v) => !v)}
-        >
-          {showAllNameResults ? 'Show fewer' : `Show all ${nameResults.length}`}
-        </Button>
-      )}
-    </>
+          {!isPhone && PLAYSTYLES.length > STYLE_PREVIEW && (
+            <Button variant="link" onClick={() => setShowAllStyles((v) => !v)}>
+              {showAllStyles ? 'Fewer' : `${PLAYSTYLES.length - stylesShown.length} more`}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
   );
-  const hasResults = nameResults.length > 0;
 
   return (
-    <div className="commander-search">
-      {!pdh && (
-        <Tabs
-          ariaLabel="Commander search mode"
-          variant="underline"
-          className="commander-search-modes"
-          value={activeSearchMode}
-          onChange={changeMode}
-          tabs={[
-            { id: 'name', label: 'By name', controls: 'commander-search-panel' },
-            { id: 'playstyle', label: 'By playstyle', controls: 'commander-search-panel' },
-            ...(onSelectFromBinder
-              ? [
-                  {
-                    id: 'binder' as const,
-                    label: 'My collection',
-                    controls: 'commander-search-panel',
-                  },
-                ]
-              : []),
-          ]}
-        />
-      )}
-
-      {activeSearchMode === 'name' && (
-        <SearchPill
-          inputType="text"
-          placeholder={ownedOnly ? 'Search your commanders…' : 'Search for a commander…'}
-          value={query}
-          onChange={setQuery}
-          ariaLabel={ownedOnly ? 'Search your commanders' : 'Search for a commander'}
-          inputProps={{
-            role: 'combobox',
-            'aria-expanded': queried,
-            'aria-controls': listboxId,
-            'aria-autocomplete': 'list',
-          }}
-        />
-      )}
-
-      {/* Owned-only toggle — only visible if the collection has any legends. */}
-      {(collectionLegends.length > 0 || ownedOnly) && (
-        <label className="commander-owned-toggle">
-          <input
-            type="checkbox"
-            checked={ownedOnly}
-            onChange={(e) => {
-              const next = e.target.checked;
-              setOwnedOnly(next);
-              try {
-                localStorage.setItem(OWNED_ONLY_KEY, String(next));
-              } catch {
-                /* ignore */
-              }
-              setResults([]);
-              setLocalResults([]);
-            }}
-          />
-          <span>
-            Commanders I own
-            {collectionLegends.length > 0 && (
-              <span className="commander-owned-count">
-                {' '}
-                ({collectionLegends.length.toLocaleString()}{' '}
-                {pdh
-                  ? `uncommon creature${collectionLegends.length === 1 ? '' : 's'}`
-                  : `legend${collectionLegends.length === 1 ? '' : 's'}`}
-                )
-              </span>
-            )}
-          </span>
-        </label>
-      )}
-
-      {/* Readiness legend — explains the % chip.
-          Hidden for PDH: readiness is EDHREC-staple-based and never loads there. */}
-      {!pdh && collectionCards.length > 0 && (
-        <p className="commander-readiness-hint">
-          The <strong>%</strong> beside a commander is how many staples you already own.
+    <div className="commander-search commander-finder">
+      <SearchPill
+        className="commander-finder-search"
+        inputType="text"
+        placeholder="Name, creature type or rules text"
+        value={text}
+        onChange={setText}
+        ariaLabel={`Search ${nouns} by name, type or rules text`}
+      />
+      {text.trim().length > 0 && (
+        <p className="commander-finder-syntax">
+          Scryfall syntax works too: <code>o:&quot;dies&quot;</code> <code>t:vampire</code>{' '}
+          <code>pow&gt;=5</code>
         </p>
       )}
 
-      {/* Results panel: search results when a query is active, EDHREC
-          suggestions otherwise. Sizes to its content and grows inline with the
-          page, so long lists use page scroll instead of an inner scroll box. */}
-      <div
-        className="commander-search-panel"
-        id="commander-search-panel"
-        {...(!pdh && { role: 'tabpanel', 'aria-labelledby': `sc-tab-${activeSearchMode}` })}
-      >
-        {activeSearchMode === 'binder' ? (
-          <div className="commander-playstyle-browse">
-            <p className="commander-suggestions-hint">
-              Which {colorFilter.size > 0 ? `${binderColorLabel} ` : ''}commander does your
-              collection build best?
-            </p>
-            <ColorPips colorFilter={colorFilter} setColorFilter={setColorFilter} />
-            {collectionCards.length < MIN_COLLECTION_SIZE ? (
-              <p className="commander-suggestions-empty">
-                Add at least {MIN_COLLECTION_SIZE} cards to your collection to rank commanders by
-                what you own.
-              </p>
-            ) : (
-              <BinderRanking
-                colorFilter={colorFilter}
-                colorLabel={binderColorLabel}
-                ownedOnly={ownedOnly}
-                collectionLegends={collectionLegends}
-                collectionCards={collectionCards}
-                ownedCardNames={ownedCardNames}
-                landCount={landCount}
-                disabled={searchLoading}
-                onSelectOwned={(card) => void selectOwnedCard(card, true)}
-                onSelectByName={(name) => void selectByName(name, true)}
-              />
-            )}
-          </div>
-        ) : activeSearchMode === 'playstyle' ? (
-          <div className="commander-playstyle-browse">
-            {playstyle ? (
+      {(hasLegends || isPhone) && (
+        <div className="commander-finder-source">
+          {hasLegends && (
+            <SegmentedControl
+              ariaLabel={`Which ${nouns}`}
+              value={activeSource}
+              onChange={setSource}
+              options={[
+                { value: 'all', label: isPhone ? 'All' : `All ${nouns}` },
+                {
+                  value: 'owned',
+                  label: `${isPhone ? 'Mine' : 'In my collection'} · ${collectionLegends.length.toLocaleString()}`,
+                },
+              ]}
+            />
+          )}
+          {isPhone && (
+            <Button
+              icon={<SlidersHorizontal width={14} height={14} strokeWidth={1.8} />}
+              aria-expanded={filtersOpen}
+              aria-controls={filtersOpen ? filtersId : undefined}
+              onClick={() => setFiltersOpen((v) => !v)}
+            >
               <>
-                <div className="playstyle-picker-bar">
-                  <Button variant="link" onClick={() => setPlaystyle(null)}>
-                    ← All play styles
-                  </Button>
-                  <span className="playstyle-picker-current">{playstyle.label}</span>
-                </div>
-                <p className="commander-suggestions-label">{playstyle.blurb}</p>
-                <ColorPips colorFilter={colorFilter} setColorFilter={setColorFilter} />
-                {!ownedOnly && playstyleLoading ? (
-                  <p className="commander-suggestions-empty">Loading commanders…</p>
-                ) : playstyleResults.length === 0 ? (
-                  <p className="commander-suggestions-empty">
-                    {ownedOnly
-                      ? 'None of your commanders fit that playstyle yet.'
-                      : 'No commanders found for that playstyle.'}
-                  </p>
-                ) : (
-                  <>
-                    <ul className="commander-result-grid">
-                      {(showAllPlaystyle
-                        ? playstyleResults
-                        : playstyleResults.slice(0, PLAYSTYLE_PREVIEW_COUNT)
-                      ).map((c) => (
-                        <li key={c.key}>
-                          <CommanderResultCard
-                            name={c.name}
-                            colors={c.colors}
-                            readiness={readiness.get(c.name.toLowerCase())}
-                            disabled={searchLoading}
-                            onSelect={() =>
-                              void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
-                            }
-                            onPeek={() => void ensureReadiness(c.name)}
-                            platformDeckCount={platformCounts.get(c.name.toLowerCase())}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                    {playstyleResults.length > PLAYSTYLE_PREVIEW_COUNT && (
-                      <Button
-                        variant="link"
-                        className="commander-playstyle-more"
-                        onClick={() => setShowAllPlaystyle((v) => !v)}
-                      >
-                        {showAllPlaystyle ? 'Show fewer' : `Show all ${playstyleResults.length}`}
-                      </Button>
-                    )}
-                  </>
-                )}
+                Filters
+                <Count
+                  className="commander-finder-filter-count"
+                  value={filterCount}
+                  placement="inline"
+                />
               </>
-            ) : (
-              <>
-                <p className="commander-suggestions-hint">
-                  Pick how you want to play, and see the commanders that do it best
-                  {ownedOnly ? ' from your collection' : ' on EDHREC'}.
-                </p>
-                <PlaystyleGrid onSelect={setPlaystyle} />
-              </>
-            )}
-          </div>
-        ) : queried ? (
-          hasResults ? (
-            resultItems
-          ) : searchLoading ? (
-            <p className="commander-search-status">Searching…</p>
-          ) : error ? null : (
-            <p className="commander-search-status">No commanders found.</p>
-          )
-        ) : (
-          <div className="commander-suggestions">
-            <p className="commander-suggestions-label">
-              {pdh ? (
-                ownedOnly ? (
-                  'Uncommon creatures you own:'
-                ) : (
-                  'Any creature printed at uncommon can lead a Pauper Commander deck. Search by name, browse the ones you own, or go random.'
-                )
-              ) : (
-                <>
-                  {getColorFilterLabel(colorFilter)} commanders on EDHREC
-                  {ownedOnly ? ' (yours)' : ''}:
-                </>
-              )}
-            </p>
-            <ColorPips colorFilter={colorFilter} setColorFilter={setColorFilter} />
+            </Button>
+          )}
+        </div>
+      )}
 
-            {topLoading && visibleTop.length === 0 ? (
-              <p className="commander-suggestions-empty">Loading…</p>
-            ) : topError && !ownedOnly && visibleTop.length === 0 ? (
-              <p className="commander-suggestions-empty" role="alert">
-                Couldn't reach EDHREC for top commanders. Check your connection and try again.{' '}
-                <Button variant="link" onClick={() => setTopReloadKey((k) => k + 1)}>
-                  Retry
-                </Button>
-              </p>
-            ) : visibleTop.length === 0 ? (
-              pdh && !ownedOnly ? null : (
-                <p className="commander-suggestions-empty">
-                  {pdh
-                    ? 'No uncommon creatures in your collection match that filter.'
-                    : ownedOnly
-                      ? "You don't own any of EDHREC's top commanders for that filter."
-                      : 'No commanders found.'}
+      {!isPhone || filtersOpen ? (
+        filters
+      ) : (
+        <FilterChipsRow chips={filterChips} onClearAll={clearAll} />
+      )}
+
+      <div className="commander-finder-toolbar">
+        <p className="commander-finder-status" role="status" aria-live="polite">
+          <span className="commander-finder-status-count">{status}</span>
+          {summary && !isPhone && <span className="commander-finder-summary"> · {summary}</span>}
+        </p>
+        <div className="commander-finder-actions">
+          {anyFilter && !isPhone && (
+            <Button variant="link" onClick={clearAll}>
+              Clear all
+            </Button>
+          )}
+          <SelectMenu
+            label="Sort"
+            ariaLabel="Sort commanders"
+            value={sort}
+            options={sortOptions}
+            onChange={setSortChoice}
+          />
+          <Button
+            icon={<Shuffle width={14} height={14} strokeWidth={1.8} />}
+            onClick={() => void handleRandom()}
+            disabled={randomLoading || selecting !== null || (loading && entries.length === 0)}
+          >
+            {randomLoading ? 'Picking…' : 'Random'}
+          </Button>
+        </div>
+      </div>
+
+      {playstyleIds.length > 0 && (
+        <ul className="commander-finder-style-notes">
+          {playstyleIds.map((id) => {
+            const p = playstyleById(id);
+            return p ? (
+              <li key={id}>
+                <strong>{p.label}:</strong> {p.blurb}
+              </li>
+            ) : null;
+          })}
+        </ul>
+      )}
+      {fromBinder && (
+        <p className="commander-finder-note">
+          Picking from here builds with only your cards. Change that in Customize.
+        </p>
+      )}
+
+      <div className="commander-search-panel" id="commander-search-panel">
+        {current?.status === 'error' ? (
+          <p className="commander-finder-alert" role="alert">
+            <span>{current.error}</span>
+            <Button variant="link" onClick={() => setReloadKey((k) => k + 1)}>
+              Retry
+            </Button>
+          </p>
+        ) : loading && entries.length === 0 ? (
+          <ul className="commander-result-grid" aria-hidden>
+            {Array.from({ length: 6 }, (_, i) => (
+              <li key={i}>
+                <span className="commander-result-card commander-finder-skeleton">
+                  <span className="commander-result-art">
+                    <span className="commander-result-art-skeleton" />
+                  </span>
+                  <span className="commander-result-body">
+                    <span className="commander-finder-skeleton-line" />
+                    <span className="commander-finder-skeleton-line is-short" />
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : sorted.length === 0 ? (
+          <div className="commander-finder-empty">
+            <p className="commander-finder-empty-title">
+              {activeSource === 'owned' && !anyFilter
+                ? `No ${nouns} in your collection yet.`
+                : activeSource === 'owned'
+                  ? `None of your ${nouns} match these filters.`
+                  : `No ${nouns} match these filters.`}
+            </p>
+            {emptyReasons.length > 0 && (
+              <div className="commander-finder-empty-actions">
+                {emptyReasons.map((r) => (
+                  <Button key={r.id} onClick={() => relax(r)}>
+                    {r.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <ul className="commander-result-grid" aria-busy={loading}>
+              {visible.map((e) => (
+                <li key={e.key}>
+                  <CommanderResultCard
+                    name={e.name}
+                    imageUrl={e.imageUrl}
+                    colors={e.colors}
+                    comboName={colorComboName(e.colors)}
+                    reason={matchReason(e, query.text)}
+                    owned={activeSource === 'all' && ownedLegendNames.has(e.name.toLowerCase())}
+                    readiness={canScore ? readiness.get(e.name.toLowerCase()) : undefined}
+                    coverageBar={sort === 'owned'}
+                    playstyles={playstyleLabels(
+                      // The playstyles you filtered by lead, so the tile says why it's here.
+                      [...e.playstyleIds].sort(
+                        (a, b) =>
+                          Number(playstyleIds.includes(b)) - Number(playstyleIds.includes(a))
+                      )
+                    )}
+                    numDecks={e.numDecks}
+                    platformDeckCount={platformCounts.get(e.name.toLowerCase())}
+                    selecting={selecting === e.key}
+                    disabled={selecting !== null}
+                    onSelect={() => void selectEntry(e)}
+                    onPeek={() => void ensureReadiness(e.name)}
+                  />
+                </li>
+              ))}
+            </ul>
+            {sorted.length > visibleCount ? (
+              <Button
+                variant="link"
+                className="commander-finder-more"
+                onClick={() => setVisibleCount((n) => n + PAGE * 2)}
+              >
+                Show {Math.min(PAGE * 2, sorted.length - visibleCount)} more
+              </Button>
+            ) : (
+              activeSource === 'all' &&
+              total > sorted.length && (
+                <p className="commander-finder-hint commander-finder-cap">
+                  Showing the top {sorted.length.toLocaleString()}. Narrow the search to see the
+                  rest.
                 </p>
               )
-            ) : (
-              <>
-                <ul className="commander-result-grid" aria-busy={topLoading}>
-                  {(showAllTopCommanders
-                    ? visibleTop
-                    : visibleTop.slice(0, PLAYSTYLE_PREVIEW_COUNT)
-                  ).map((c) => {
-                    const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
-                    return (
-                      <li key={c.sanitized}>
-                        <CommanderResultCard
-                          name={c.name}
-                          colors={colors}
-                          readiness={readiness.get(c.name.toLowerCase())}
-                          disabled={searchLoading}
-                          onSelect={() =>
-                            void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
-                          }
-                          onPeek={() => void ensureReadiness(c.name)}
-                          platformDeckCount={platformCounts.get(c.name.toLowerCase())}
-                        />
-                      </li>
-                    );
-                  })}
-                </ul>
-                {visibleTop.length > PLAYSTYLE_PREVIEW_COUNT && (
-                  <Button
-                    variant="link"
-                    className="commander-playstyle-more"
-                    onClick={() => setShowAllTopCommanders((v) => !v)}
-                  >
-                    {showAllTopCommanders ? 'Show fewer' : `Show all ${visibleTop.length}`}
-                  </Button>
-                )}
-              </>
             )}
+          </>
+        )}
 
-            <div className="commander-surprise">
-              <Chip
-                className="commander-suggestion-chip commander-surprise-chip"
-                onClick={handleSurpriseMe}
-                disabled={
-                  randomLoading || searchLoading || (ownedOnly && collectionLegends.length === 0)
-                }
-                icon={
-                  <Shuffle
-                    className="commander-surprise-icon"
-                    width={14}
-                    height={14}
-                    strokeWidth={1.8}
-                  />
-                }
-              >
-                {randomLoading ? 'Picking…' : 'Random'}
-              </Chip>
-            </div>
-          </div>
+        {buyShown.length > 0 && (
+          <section className="commander-finder-buy" aria-labelledby={`${baseId}-buy`}>
+            <h3 className="commander-finder-buy-title" id={`${baseId}-buy`}>
+              Worth buying the commander for
+            </h3>
+            <p className="commander-finder-hint">
+              Popular commanders you don't own whose decks your collection already covers.
+            </p>
+            <ul className="commander-result-grid">
+              {buyShown.map((e) => {
+                const price = buyPrices.get(e.name);
+                return (
+                  <li key={e.key}>
+                    <CommanderResultCard
+                      name={e.name}
+                      colors={e.colors}
+                      comboName={colorComboName(e.colors)}
+                      readiness={readiness.get(e.name.toLowerCase())}
+                      coverageBar
+                      numDecks={e.numDecks}
+                      detail={
+                        <span className="commander-result-type">
+                          Not in your collection{price ? ` · ${price}` : ''}
+                        </span>
+                      }
+                      selecting={selecting === e.key}
+                      disabled={selecting !== null}
+                      onSelect={() => void selectEntry(e)}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         )}
       </div>
 

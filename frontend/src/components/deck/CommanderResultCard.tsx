@@ -1,8 +1,12 @@
+import './CommanderResultCard.css';
 import type { ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { ColorPip } from '../shared/ManaSymbol';
-import { ReadinessChip } from './CommanderReadiness';
+import { Chip } from '../shared/Chip';
+import { MeterBar } from '../shared/MeterBar';
 import type { ReadinessScore } from '../../lib/commander-readiness';
+import type { MatchReason } from '../../lib/commander-finder';
 
 interface Props {
   name: string;
@@ -11,8 +15,28 @@ interface Props {
   imageUrl?: string;
   /** Color-identity letters (WUBRGC) for the pip strip. */
   colors: string[];
+  /**
+   * The color combination in words ("Golgari", "Mono-black"), printed beside
+   * the pips. Pips name themselves on hover only; touch has no hover, so the
+   * word is what tells a newer player which colors these are.
+   */
+  comboName?: string;
   typeLine?: string;
+  /**
+   * How much of this commander's deck the collection covers: a fact chip
+   * ("You own 58%") by default, or with `coverageBar` a bar and a "You own 52
+   * of its 90 staples" line, for the "Most of the deck owned" sort.
+   */
   readiness?: ReadinessScore | 'loading';
+  coverageBar?: boolean;
+  /** Why a plain-words search matched, quoted under the name. */
+  reason?: MatchReason | null;
+  /** The commander is in the player's collection. */
+  owned?: boolean;
+  /** Playstyle labels this commander plays like, strongest first. */
+  playstyles?: string[];
+  /** EDHREC deck count, when the source list carries one. */
+  numDecks?: number;
   /** Swaps the name for "Loading…" while the pick is being resolved. */
   selecting?: boolean;
   disabled?: boolean;
@@ -20,35 +44,78 @@ interface Props {
   /** Fired on hover/focus — used to lazily load the readiness %. */
   onPeek?: () => void;
   /**
-   * SpellControl's own platform deck count for this commander (social W4) —
-   * undefined for every call site that doesn't wire it (by-name search,
-   * add-cards flows, guided-build reuse) and for a below-threshold commander,
-   * both of which render exactly as before this prop existed. Wired today
-   * only by CommanderSearch's Top-EDHREC and Playstyle browse tiles.
+   * SpellControl's own platform deck count for this commander (social W4).
+   * Undefined renders nothing, as does a below-threshold commander.
    */
   platformDeckCount?: number;
-  /**
-   * Extra rows under the type line (E283: the binder ranking's coverage bar,
-   * line and meta). Undefined for every other call site, which renders as
-   * before.
-   */
+  /** Extra rows under everything else. */
   detail?: ReactNode;
 }
 
+/** "31k decks", "4.7k decks", "812 decks". */
+export function formatDeckCount(n: number): string {
+  if (n >= 10_000) return `${Math.round(n / 1000)}k decks`;
+  if (n >= 1_000) return `${(n / 1000).toFixed(1)}k decks`;
+  return `${n.toLocaleString()} ${n === 1 ? 'deck' : 'decks'}`;
+}
+
+function ReasonLine({ reason }: { reason: MatchReason }) {
+  return (
+    <span className="commander-result-reason">
+      {reason.field === 'type' ? 'Type' : 'Rules text'}: {reason.text.slice(0, reason.start)}
+      <mark>{reason.text.slice(reason.start, reason.end)}</mark>
+      {reason.text.slice(reason.end)}
+    </span>
+  );
+}
+
+function ReadinessFact({ score }: { score: ReadinessScore | 'loading' }) {
+  if (score === 'loading') {
+    return (
+      <Chip
+        className="commander-result-fact"
+        tone="neutral"
+        icon={<Loader2 className="commander-readiness-spin" width={12} height={12} />}
+      >
+        Checking
+      </Chip>
+    );
+  }
+  if (!score.available) {
+    return (
+      <Chip className="commander-result-fact" tone="neutral">
+        No staple data
+      </Chip>
+    );
+  }
+  return (
+    <Chip className="commander-result-fact" tone="neutral" labelTitle={score.explainerLine}>
+      You own {score.percent}%
+    </Chip>
+  );
+}
+
 /**
- * One commander in a result grid: a card-shaped art thumbnail beside the name,
- * color pips, optional type line, and the collection-readiness %. Shared by the
- * by-name search, the by-playstyle browser, the top-EDHREC suggestions, and the
- * guided build's playstyle list so every commander list reads the same. The
- * `.commander-result-grid` container reflows from a single column (phones /
- * native) to multiple columns as width allows. Styles live in deck-builder-commander.css.
+ * One commander in a result grid: a card-shaped art thumbnail beside the
+ * name, color pips with the combination's name, and the facts that help pick
+ * one (why it matched, whether you own it, how much of its deck you own, how
+ * it plays, how many decks run it). Every commander list renders this, so
+ * every list reads the same. The `.commander-result-grid` container reflows
+ * from one column on a phone to several as width allows. Styles live in
+ * deck-builder-commander.css.
  */
 export function CommanderResultCard({
   name,
   imageUrl,
   colors,
+  comboName,
   typeLine,
   readiness,
+  coverageBar,
+  reason,
+  owned,
+  playstyles,
+  numDecks,
   selecting,
   disabled,
   onSelect,
@@ -62,6 +129,13 @@ export function CommanderResultCard({
   // matching CardSearchPanel's add-cards row thumb resolution.
   const resolved = useCardThumb(imageUrl ? undefined : name, 'normal');
   const art = imageUrl ?? resolved;
+  const scored = readiness && readiness !== 'loading' && readiness.available ? readiness : null;
+  const showBar = coverageBar === true && readiness !== undefined;
+  const showReadinessFact = readiness !== undefined && !showBar;
+  const styles = playstyles?.slice(0, 2) ?? [];
+  const decks = numDecks ?? 0;
+  const hasFacts =
+    owned || showReadinessFact || styles.length > 0 || decks > 0 || platformDeckCount !== undefined;
   return (
     <button
       type="button"
@@ -79,25 +153,62 @@ export function CommanderResultCard({
         )}
       </span>
       <span className="commander-result-body">
-        <span className="commander-result-headline">
-          <span className="commander-result-name">{selecting ? 'Loading…' : name}</span>
-          <span className="commander-result-trailing">
-            <ReadinessChip score={readiness} />
-            {platformDeckCount !== undefined && (
-              <span className="commander-result-platform-count">
-                {platformDeckCount.toLocaleString()} on SpellControl
-              </span>
-            )}
-          </span>
-        </span>
+        <span className="commander-result-name">{selecting ? 'Loading…' : name}</span>
         {colors.length > 0 && (
-          <span className="commander-result-pips" aria-hidden>
-            {colors.map((color) => (
-              <ColorPip key={color} color={color} pip={false} />
-            ))}
+          <span className="commander-result-colors">
+            <span className="commander-result-pips" aria-hidden>
+              {colors.map((color) => (
+                <ColorPip key={color} color={color} pip={false} />
+              ))}
+            </span>
+            {comboName && <span className="commander-result-combo">{comboName}</span>}
           </span>
         )}
         {typeLine && <span className="commander-result-type">{typeLine}</span>}
+        {reason && reason.field !== 'name' && <ReasonLine reason={reason} />}
+        {showBar && (
+          <span className="commander-result-coverage">
+            <MeterBar
+              value={scored?.ownedCount ?? 0}
+              max={scored?.totalCount || 1}
+              indeterminate={readiness === 'loading'}
+              color={scored && scored.percent < 45 ? 'var(--warn-border)' : 'var(--success)'}
+              className="commander-result-coverage-bar"
+            />
+            <span className="commander-result-coverage-line">
+              {readiness === 'loading'
+                ? 'Checking your collection…'
+                : scored
+                  ? `You own ${scored.ownedCount} of its ${scored.totalCount} staples`
+                  : 'No staple data for this commander'}
+            </span>
+          </span>
+        )}
+        {hasFacts && (
+          <span className="commander-result-facts">
+            {owned && (
+              <Chip className="commander-result-fact" tone="success">
+                In collection
+              </Chip>
+            )}
+            {showReadinessFact && <ReadinessFact score={readiness} />}
+            {styles.length > 0 && (
+              <Chip className="commander-result-fact" tone="neutral">
+                {styles.join(' · ')}
+              </Chip>
+            )}
+            {decks > 0 && (
+              <Chip className="commander-result-fact" tone="neutral">
+                {formatDeckCount(decks)}
+              </Chip>
+            )}
+            {platformDeckCount !== undefined && (
+              <Chip className="commander-result-fact commander-result-platform-count" tone="info">
+                {platformDeckCount.toLocaleString()} on SpellControl
+              </Chip>
+            )}
+          </span>
+        )}
         {detail}
       </span>
     </button>

@@ -255,9 +255,14 @@ accent-filled variant and OR the muted one.
   AND (its pre-existing behavior). Filter chips echo the mode: "White, Red"
   (OR) vs "White + Red" (AND) via `colorChipLabel`.
 - **Deliberate exceptions — no toggle:** combos ("fits inside these colors",
-  subset), Discover decks (identity-subset, server-side), and CommanderSearch
-  (exact-identity EDHREC pages). Their color rows mean something else; don't
-  "unify" them onto this chip.
+  subset), Discover decks (identity-subset, server-side), and the commander
+  finder (`CommanderSearch`). Their color rows mean something else; don't
+  "unify" them onto this chip. The finder asks a commander question, so its
+  switch is **Exactly / Within** (a `SegmentedControl`, shown once a color is
+  on): Exactly is the identity itself (Golgari = black-green only), Within is
+  anything castable in those colors, colorless included. The hint beside it is
+  mandatory here too and spells the selection out in words ("Black-green
+  commanders only", "Anything you can play in black-green").
 
 ## Manual price-override badge (E204)
 
@@ -730,8 +735,8 @@ user is choosing between several cards (not just scanning a list they already
 own) resolves art at `useCardThumb`'s `'normal'` size, matching
 `CardSearchPanel`'s add-cards row thumb — never `'small'`, which is reserved
 for genuinely dense, already-decided lists (the guided-brew pick list, E128
-above). `CommanderResultCard` (by-name search, by-playstyle browse, EDHREC
-top-N, the New-deck playstyle list) is the reference.
+above). `CommanderResultCard` (every commander finder list, and the editor's
+"In this deck" legends) is the reference.
 
 ### Grid "Details" captions — fixed-height lines, per-line opt-out
 
