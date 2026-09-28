@@ -86,6 +86,7 @@ export function publicDeckToDeck(data: PublicDeck, sourceKey: string): Deck {
     // ── Deck-describing analysis (Stats + Power tabs) ──────────────────────
     bracketEstimation: data.bracketEstimation as BracketEstimation | undefined,
     bracketOverride: data.bracketOverride,
+    coverCardName: data.coverCardName,
     deckGrade: data.deckGrade,
     planScore: data.planScore as PlanScore | undefined,
     synergyAnalysis: data.synergyAnalysis as SynergyAnalysis | undefined,

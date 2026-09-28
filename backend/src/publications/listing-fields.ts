@@ -5,6 +5,7 @@ import {
   countProjectable,
   isProjectableSlot,
 } from '../shares/projections';
+import { pickDeckCover, type DeckCoverInput } from '@spellcontrol/deck-metrics';
 import { cardArtUrl } from '../shares/og';
 
 export interface ListingFields {
@@ -86,7 +87,6 @@ export function extractListingFields(deckData: unknown): ListingFields | null {
   const name = clampDeckName(rawName);
 
   const cardsArr = Array.isArray(deck.cards) ? deck.cards : [];
-  const firstMainboardCard = asRecord(cardsArr[0])?.card;
   const { commander, partnerCommander } = deck;
 
   return {
@@ -108,10 +108,8 @@ export function extractListingFields(deckData: unknown): ListingFields | null {
       (commander ? 1 : 0) +
       (partnerCommander ? 1 : 0) +
       countProjectable(cardsArr, isProjectableSlot),
-    ogArtCrop:
-      cardArtUrl(commander) ??
-      cardArtUrl(partnerCommander) ??
-      cardArtUrl(firstMainboardCard) ??
-      null,
+    // The same cover the owner sees on the deck's tile and page: their pick,
+    // else the commander, else the deck's signature card.
+    ogArtCrop: cardArtUrl(pickDeckCover(deck as DeckCoverInput<unknown>)) ?? null,
   };
 }

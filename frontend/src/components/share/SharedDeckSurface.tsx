@@ -20,7 +20,7 @@ import { buildWinConditionSummary } from '../../lib/win-condition-summary';
 import { toClockCard } from '../../lib/hand-classify';
 import { formatMoney } from '../../lib/format-money';
 import { useCurrency } from '../../lib/currency';
-import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
+import { deckCoverArt } from '../../lib/deck-cover';
 import { deckValue } from '../../lib/deck-value';
 import { effectiveBracket } from '../../store/decks';
 import { bracketTextWithEstimate } from '../../lib/format-bracket-label';
@@ -248,9 +248,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
   // meta line of format · commander · cards · value · bracket. A visitor was
   // getting a plain caption-and-title block instead — the same deck, dressed as
   // a different product.
-  const rawHeroArt =
-    deck.commander?.image_uris?.art_crop ?? deck.commander?.card_faces?.[0]?.image_uris?.art_crop;
-  const heroArt = rawHeroArt ? scryfallArtCrop(rawHeroArt) : undefined;
+  const heroArt = useMemo(() => deckCoverArt(deck), [deck]);
   const heroValue = useMemo(() => deckValue(deck, currency), [deck, currency]);
   const bracketValue = effectiveBracket(deck);
   // A stated bracket that differs from the estimate carries the estimate

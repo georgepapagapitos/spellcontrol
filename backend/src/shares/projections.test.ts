@@ -324,6 +324,7 @@ describe('projectDeck', () => {
     saltiestCards: [{ name: 'Cyclonic Rift', salt: 3.2 }],
     sourceProduct: { code: 'ELD', fileName: 'eld.json', name: 'Throne of Eldraine' },
     bracketOverride: 4,
+    coverCardName: 'Blood Artist',
     averageSalt: 1.1,
   };
 
@@ -351,6 +352,8 @@ describe('projectDeck', () => {
       name: 'Throne of Eldraine',
     });
     expect(out?.bracketOverride).toBe(4);
+    // The visitor's hero wears the owner's chosen cover (pickDeckCover).
+    expect(out?.coverCardName).toBe('Blood Artist');
   });
 
   it('never projects the owner-private coaching fields', () => {
@@ -393,12 +396,14 @@ describe('projectDeck', () => {
       roleCounts: { ramp: 'twelve', removal: 9 },
       saltiestCards: [{ name: 'Rhystic Study' }, { salt: 2 }, { name: 'Ad Nauseam', salt: 2.8 }],
       bracketOverride: 9,
+      coverCardName: 42,
       sourceProduct: { code: 'ELD' },
       winConTags: [],
     });
     expect(out?.roleCounts).toEqual({ removal: 9 });
     expect(out?.saltiestCards).toEqual([{ name: 'Ad Nauseam', salt: 2.8 }]);
     expect(out?.bracketOverride).toBeUndefined();
+    expect(out?.coverCardName).toBeUndefined();
     expect(out?.sourceProduct).toBeUndefined();
     expect(out?.winConTags).toBeUndefined();
   });

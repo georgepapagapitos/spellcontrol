@@ -120,7 +120,7 @@ describe('extractListingFields', () => {
     expect(fields?.ogArtCrop).toBe('https://cards.scryfall.io/art_crop/partner.jpg');
   });
 
-  it('falls back to the first mainboard card for a non-commander deck', () => {
+  it('falls back to the mainboard for a non-commander deck', () => {
     const fields = extractListingFields(
       baseDeck({
         format: 'standard',
@@ -140,6 +140,30 @@ describe('extractListingFields', () => {
       })
     );
     expect(fields?.ogArtCrop).toBe('https://cards.scryfall.io/art_crop/bolt.jpg');
+  });
+
+  it("wears the same cover the owner sees: their pick, else the deck's 4-of over a pricier land", () => {
+    const slot = (id: string, card: Record<string, unknown>) => ({
+      slotId: id,
+      card: { image_uris: { art_crop: `https://cards.scryfall.io/art_crop/${id}.jpg` }, ...card },
+      allocatedCopyId: null,
+    });
+    const terror = { name: 'Tolarian Terror', type_line: 'Creature', prices: { usd: '0.2' } };
+    const cards = [
+      slot('land', { name: 'Scalding Tarn', type_line: 'Land', prices: { usd: '30' } }),
+      slot('one', { name: 'Pricey One-of', type_line: 'Instant', prices: { usd: '3' } }),
+      slot('terror', terror),
+      slot('terror', terror),
+      slot('terror', terror),
+      slot('terror', terror),
+    ];
+    const deck = { format: 'pauper', commander: null, cards };
+    expect(extractListingFields(baseDeck(deck))?.ogArtCrop).toBe(
+      'https://cards.scryfall.io/art_crop/terror.jpg'
+    );
+    expect(
+      extractListingFields(baseDeck({ ...deck, coverCardName: 'Pricey One-of' }))?.ogArtCrop
+    ).toBe('https://cards.scryfall.io/art_crop/one.jpg');
   });
 
   it('is null when nothing has art', () => {

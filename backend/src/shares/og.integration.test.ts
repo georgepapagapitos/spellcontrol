@@ -304,7 +304,7 @@ describe('lookupShareLandingMeta', () => {
     expect(meta!.image).toBe('https://cards.scryfall.io/art_crop/atraxa.jpg');
   });
 
-  it("falls back to the first mainboard card's art for a non-Commander deck with no commander", async () => {
+  it("falls back to the deck's cover card for a non-Commander deck with no commander", async () => {
     const cookie = await makeUser('og-deck-nocmd');
     await setSnapshot(cookie, 0, {
       decks: [

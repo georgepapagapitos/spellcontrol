@@ -6,6 +6,7 @@
 //
 // Pure and DOM-free on purpose: the gating here (what is disabled, what is
 // absent, which label a multi-copy row gets) is the part worth testing.
+import { coverHasArt } from '@spellcontrol/deck-metrics';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getMaxCopies } from '../../lib/deck-validation';
 import { withTagAdded, withTagRemoved } from '../../lib/deck-tags';
@@ -13,7 +14,8 @@ import type { Row } from './deck-display-rows';
 
 /** Clusters, in render order. The menu runs past a dozen rows, and the style
  *  guide asks for labelled sections rather than one flat list once it does. */
-export type DeckCardActionSection = 'copies' | 'move' | 'collection' | 'commander' | 'tag';
+export type DeckCardActionSection =
+  'copies' | 'move' | 'collection' | 'commander' | 'tag' | 'cover';
 
 export const SECTION_TITLES: Record<DeckCardActionSection, string> = {
   copies: 'Copies',
@@ -21,6 +23,7 @@ export const SECTION_TITLES: Record<DeckCardActionSection, string> = {
   collection: 'Collection',
   commander: 'Command zone',
   tag: 'Tags',
+  cover: 'Cover',
 };
 
 export const SECTION_ORDER: DeckCardActionSection[] = [
@@ -29,6 +32,7 @@ export const SECTION_ORDER: DeckCardActionSection[] = [
   'tag',
   'collection',
   'commander',
+  'cover',
 ];
 
 export interface DeckCardAction {
@@ -66,6 +70,14 @@ export interface DeckCardActionCtx {
   /** Already bound to this row's zone by the caller, so the action list never
    *  needs to know which zone it is in. Absent means no tag actions. */
   onSetRowTags?: (slotIds: string[], tags: string[]) => void;
+  /** The deck's cover art (lib/deck-cover): the owner's pick by name, the
+   *  card the deck wears right now, and the setter (null = automatic again).
+   *  Absent means no cover action: a read-only deck, or an out-zone row. */
+  cover?: {
+    chosen: string | null;
+    current: string | null;
+    set: (cardName: string | null) => void;
+  };
 }
 
 export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
@@ -87,6 +99,7 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
     canMakePartner,
     onChangeCommander,
     onSetRowTags,
+    cover,
   } = ctx;
 
   // A commander row carries no deck slot, so every slot-bound action is
@@ -241,6 +254,27 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
       section: 'commander',
       run: onChangeCommander,
     });
+  }
+
+  if (cover && coverHasArt(row.card)) {
+    const name = row.card.name;
+    if (cover.chosen === name) {
+      out.push({
+        key: 'cover-clear',
+        label: 'Stop using as cover',
+        section: 'cover',
+        run: () => cover.set(null),
+      });
+    } else if (cover.current !== name) {
+      // Absent on the card already wearing it: pinning the automatic pick
+      // would change nothing the user can see.
+      out.push({
+        key: 'cover-set',
+        label: 'Use as deck cover',
+        section: 'cover',
+        run: () => cover.set(name),
+      });
+    }
   }
 
   return out;

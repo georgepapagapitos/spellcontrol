@@ -136,6 +136,8 @@ export interface PublicDeck {
   bracketEstimation?: unknown;
   /** Owner's self-declared bracket; wins over the estimate on every surface. */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  /** The owner's cover card by name (pickDeckCover); display-only. */
+  coverCardName?: string;
   deckGrade?: { letter: string; headline: string };
   /** 0-100 PlanScore with sub-scores — the Power tab's headline number. */
   planScore?: unknown;
@@ -555,6 +557,7 @@ export function projectDeck(owner: ShareOwner, deckRaw: unknown): PublicDeck | n
     averageSalt: asNumber(r.averageSalt),
     bracketEstimation: r.bracketEstimation,
     bracketOverride: asBracket(r.bracketOverride),
+    coverCardName: asString(r.coverCardName),
     deckGrade: (() => {
       const g = asRecord(r.deckGrade);
       if (!g) return undefined;

@@ -301,6 +301,8 @@ export interface DeckDisplayProps {
   /** When provided, the commander row's menu offers "Change commander",
    *  which opens the commander picker (E465). */
   onChangeCommander?: () => void;
+  /** When provided, deck rows offer "Use as deck cover" (deck-card-actions). */
+  cover?: DeckCardActionCtx['cover'];
   /** When provided, the Commander section header shows an "Add/Edit partner"
    *  control that opens the partner picker. Pass only when the commander can
    *  actually have a partner. */
@@ -551,6 +553,7 @@ export function DeckDisplay({
   onMakePartner,
   canMakePartner,
   onChangeCommander,
+  cover,
   onEditPartner,
   onMoveToAnotherDeck,
   onReleaseCopy,
@@ -1640,6 +1643,7 @@ export function DeckDisplay({
     onMakePartner,
     canMakePartner,
     onChangeCommander: zone === 'cards' ? onChangeCommander : undefined,
+    cover: zone === 'cards' ? cover : undefined,
     onSetRowTags: onSetCardTags ? (slotIds, tags) => onSetCardTags(zone, slotIds, tags) : undefined,
   });
 

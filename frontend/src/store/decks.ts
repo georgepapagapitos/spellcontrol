@@ -250,6 +250,12 @@ export interface Deck {
    */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   /**
+   * The card whose art covers the deck, by name so a printing swap keeps it
+   * (the card menu's "Use as cover"). Absent or no longer in the deck means
+   * the automatic pick: see `pickDeckCover` in @spellcontrol/deck-metrics.
+   */
+  coverCardName?: string | null;
+  /**
    * Where the deck's AI features may draw candidates from (T112): `any`,
    * `owned`, or `uncommitted` (owned copies no other deck uses). One answer
    * shared by Read the deck and Refine. Absent means "not chosen yet" — the
