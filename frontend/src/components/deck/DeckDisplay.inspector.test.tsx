@@ -4,7 +4,7 @@
 // what a row cannot (oracle text, ownership) and holding a card while it's
 // read. Also covers the 2026-09-19 rulings it inherits: rows that rest sparse
 // (no role code by default) and a labelled Group dropdown.
-// See STYLE_GUIDE § Deck list on a wide screen.
+// See style-guide/decks.md § Deck list on a wide screen.
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';

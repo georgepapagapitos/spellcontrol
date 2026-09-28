@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
  * The add-cards Sort control (E423 lane G): it used to be a native <select>,
- * now SelectMenu (STYLE_GUIDE § Config surfaces). SortMenu doesn't fit here —
+ * now SelectMenu (style-guide/components.md § Config surfaces). SortMenu doesn't fit here —
  * `compareResults`/`AddSort` has no direction concept, each field sorts a
  * fixed way, so there is nothing for a Reverse action to flip.
  */

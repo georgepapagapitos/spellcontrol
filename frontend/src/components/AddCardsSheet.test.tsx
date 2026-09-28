@@ -293,7 +293,7 @@ describe('AddCardsSheet', () => {
 
   // The Add-list review, a row edit, the scanner and its settings all share
   // the overlay-layer stack with the sheet's own <Modal> — only the topmost
-  // one answers Escape (STYLE_GUIDE § Overlays).
+  // one answers Escape (style-guide/overlays.md § Overlays).
   it('Escape closes a stacked child (Add settings) before the sheet underneath it', async () => {
     const onClose = vi.fn();
     render(<AddCardsSheet onClose={onClose} />);

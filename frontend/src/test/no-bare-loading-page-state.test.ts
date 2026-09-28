@@ -11,7 +11,7 @@
  *     line ("Loading printings…", "Loading usage counters…") or a busy
  *     button label swap (`{loading ? 'Loading…' : 'Resume'}`, a string inside
  *     a JSX *expression*, not JsxText) is invisible to this narrow check —
- *     read the ALLOWLIST below and STYLE_GUIDE § Empty states' "small inline
+ *     read the ALLOWLIST below and style-guide/components.md § Empty states' "small inline
  *     sub-panel placeholder" carve-out for what was reviewed by eye instead.
  *   - only files directly under `pages/` (not `components/`, `playtest/`) —
  *     the task that added this guard is page-scoped; a component-level bare
@@ -33,7 +33,7 @@ const ALLOWLIST: Record<string, { count: number; reason: string }> = {
   'PlayPage.tsx': {
     count: 1,
     reason:
-      'the hidden-games sub-list inside an already-loaded history panel, not the page load — a small inline sub-panel placeholder (STYLE_GUIDE § Empty states)',
+      'the hidden-games sub-list inside an already-loaded history panel, not the page load — a small inline sub-panel placeholder (style-guide/components.md § Empty states)',
   },
 };
 
