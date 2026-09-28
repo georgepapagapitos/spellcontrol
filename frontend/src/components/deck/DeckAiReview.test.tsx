@@ -484,7 +484,7 @@ describe('the reading', () => {
     expect(container.textContent).toContain('The review could not be generated.');
     expect(container.textContent).not.toContain('ramps into');
     expect(container.querySelector('.deck-ai-prose')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 
   it('renders a label-less v3 review as plain prose instead of mislabelling it', async () => {

@@ -20,8 +20,7 @@
  *     declined.", "Game night deleted." before this sweep) is out of scope:
  *     this guard only holds the two fixed verb-first openings to their shape,
  *     it doesn't detect every synonym for a deletion.
- *   - test files are skipped, and so are `components/deck/*` and
- *     `components/ProductSearchPanel.tsx` while the T152 sessions hold them.
+ *   - test files are skipped; every source file is held to the rule.
  *   - a trailing period is allowed after a second sentence ("Deleted Rares.
  *     Its cards moved to other binders."); only the lone fragment is held.
  */
@@ -31,8 +30,7 @@ import path from 'node:path';
 import ts from 'typescript';
 
 const ROOT = path.resolve(__dirname, '..');
-const SKIP_FILE =
-  /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|\/components\/deck\/|\/components\/ProductSearchPanel\.tsx$)/;
+const SKIP_FILE = /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__)/;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

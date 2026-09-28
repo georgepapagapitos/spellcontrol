@@ -582,7 +582,7 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
                 onClick={() => void openProduct(selected.product)}
                 disabled={busy || loadingProduct}
               >
-                Try again
+                Retry
               </Button>
             </p>
           )}

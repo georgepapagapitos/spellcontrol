@@ -6,7 +6,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  margin-top: 2px;
+  margin-top: var(--space-0-5);
 }
 
 /* ── Binder tabs (extended for new dynamic-binder model) ────────────────── */
@@ -144,7 +144,7 @@
 .tab-export {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 @media (hover: hover) and (pointer: fine) {

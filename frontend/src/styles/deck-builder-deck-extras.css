@@ -4,7 +4,7 @@
 /* ── Format badge ─────────────────────────────────────────────────── */
 .deck-format-badge {
   display: inline-block;
-  padding: 0.1rem 0.45rem;
+  padding: var(--space-0-5) var(--space-2);
   /* Non-actionable category label → pill, not rect (STYLE_GUIDE "Shape language"). */
   border-radius: 999px;
   background: var(--surface-raised);
@@ -69,7 +69,7 @@
   /* Peer of the format badge, not a glyph loose in the prose: same pill
      shell so the two read as one badge pair and the meta line keeps a single
      visual rhythm, instead of an icon jammed against the commander name. */
-  padding: 0.1rem 0.3rem;
+  padding: var(--space-0-5) var(--space-1);
   border-radius: 999px;
   border: 0.5px solid var(--border);
   background: var(--surface);
@@ -96,8 +96,8 @@
 .deck-legality-banner {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem var(--space-3);
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-2);
   border-radius: var(--radius);
   background: var(--warn-bg);
@@ -170,7 +170,7 @@
 .deck-role-bar-clear {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
   border: none;
   border-radius: var(--radius);
@@ -205,8 +205,8 @@
 .deck-claimed-banner {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem var(--space-3);
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-2);
   border-radius: var(--radius);
   background: var(--accent-light);
@@ -238,7 +238,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0.45rem var(--space-3);
+  padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-2);
   border-radius: var(--radius);
   background: var(--accent-light);
@@ -264,14 +264,14 @@
 .deck-identity-themes {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0.6rem 0 0 0;
+  gap: var(--space-1);
+  margin: var(--space-2-5) 0 0 0;
   padding: 0;
   list-style: none;
 }
 
 .deck-identity-theme {
-  padding: 0.16rem var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: 999px;
   border: 0.5px solid var(--border-strong);
   color: var(--text-secondary);
@@ -290,7 +290,7 @@
   justify-content: center;
   width: 0.95rem;
   height: 0.95rem;
-  margin-left: 0.35rem;
+  margin-left: var(--space-1-5);
   color: var(--err-text);
   vertical-align: -1px;
   flex-shrink: 0;
@@ -334,7 +334,7 @@
 /* An empty pile's one line, where its cards would be. */
 .deck-section-empty {
   margin: 0;
-  padding: var(--space-2) 0.1rem;
+  padding: var(--space-2) var(--space-0-5);
   color: var(--text-muted);
   font-size: var(--text-sm);
   font-style: italic;
@@ -386,7 +386,7 @@
 .format-pill-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   margin: 0;
   padding: 0;
   border: 0;
@@ -399,7 +399,7 @@
   position: relative;
   display: inline-flex;
   flex: 0 0 auto;
-  padding: 0.4rem 0.95rem;
+  padding: var(--space-1-5) var(--space-4);
   border-radius: var(--radius);
   font-family: inherit;
   font-size: var(--text-sm);

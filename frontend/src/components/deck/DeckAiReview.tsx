@@ -376,7 +376,7 @@ export function DeckAiReview({
       {phase === 'error' && error && (
         <div className="deck-ai-error" role="alert">
           <span>{error}</span>
-          <Button onClick={read}>Try again</Button>
+          <Button onClick={read}>Retry</Button>
         </div>
       )}
 
