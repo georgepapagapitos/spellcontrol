@@ -181,8 +181,7 @@ export async function applyCoherenceRepair(
     // Keyed by the deck card's full name; the lift index, like EDHREC, keys a
     // double-faced card by its front face (E490).
     const seeds =
-      ctx.liftedByOf(c.name.toLowerCase()) ??
-      ctx.liftedByOf(frontFaceName(c.name).toLowerCase());
+      ctx.liftedByOf(c.name.toLowerCase()) ?? ctx.liftedByOf(frontFaceName(c.name).toLowerCase());
     if (seeds) liftedByMap[c.name.toLowerCase()] = seeds;
   }
 
