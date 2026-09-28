@@ -201,6 +201,14 @@ instead — the stack panel marks a token with a chip mirroring its seat chip,
 because its tucked rows are clipped to the title bar and would cut a 45°
 ribbon in half. The rule: ribbon on a card, chip in a list.
 
+**Where the stack panel's chips sit (E502).** On a row with card art, the
+seat chip and the Token chip lie over the card's top border, in the corners.
+On a text-bar row (no art, usually an opponent's card whose art is not
+cached) they get their own line above the name, in the same corners, and the
+name and cost take the full width below. Never back to a reserved left pad:
+the seat chip is as wide as the seat name, so a pad only fits the default
+label (core `STYLE_GUIDE § Color & spacing`, "sized by its text").
+
 ---
 
 ## Horde table (Local Horde, 2026-09-24)

@@ -99,19 +99,47 @@
   width: 100%;
 }
 
-/* Tokens and anything else with no art keep a text bar — the only row that
-   cannot be a picture of a card. The 4.25rem left pad clears the seat chip
-   (.stack-panel__seat) for the default "A player" label. The chip is sized
-   by its text, so no scale step or derived length fits it; a longer name
-   still overlaps. */
+/* Tokens and anything else with no art keep a text bar: the only row that
+   cannot be a picture of a card. Mostly an opponent's card whose art is not
+   cached yet, so the seat chip usually carries a username of any length.
+
+   The chips therefore sit in the row's own flow, on a line above the name,
+   not laid over it: seat chip in the top-left corner where every art row
+   has it, Token chip top-right, name and cost on the line below at full
+   width. A reserved left pad cannot work here, because the chip is sized
+   by its text and no fixed length clears every name (E502: the old 4.25rem
+   cleared "A player" and nothing longer). The art rows keep the chips over
+   the card's top border (`.stack-panel__seat` below). */
+.stack-panel__card--bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'seat token'
+    'bar bar';
+  background: var(--surface);
+  border: 1px solid var(--border-strong, var(--border));
+}
+
+.stack-panel__card--bar .stack-panel__seat {
+  position: static;
+  grid-area: seat;
+  justify-self: start;
+  max-width: 100%;
+}
+
+.stack-panel__card--bar .stack-panel__token {
+  position: static;
+  grid-area: token;
+}
+
+/* Padded inline like the chips, so the name starts under the seat name and
+   the cost ends under the Token chip. */
 .stack-panel__bar {
+  grid-area: bar;
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-1) var(--space-1) 4.25rem;
-  background: var(--surface);
-  border: 1px solid var(--border-strong, var(--border));
-  border-radius: 6px;
+  padding: var(--space-1) var(--space-1-5);
 }
 
 .stack-panel__name {

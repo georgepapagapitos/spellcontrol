@@ -82,6 +82,43 @@ describe('StackPanel', () => {
     expect(screen.getByText('You')).toBeTruthy();
   });
 
+  // E502: a row with no art lays its chips out on a line above the name
+  // (styles/stack-panel-seat-chip.test.ts pins the CSS). A row with art
+  // keeps them over the card's top border, so it must not take the class.
+  it('marks only the rows with no art as text bars, top of the stack included', () => {
+    const { container } = render(
+      <StackPanel
+        items={[
+          item({ id: 'a', name: 'Counterspell', seatName: 'Planeswalker_Extraordinaire' }),
+          item({ id: 'b', name: 'Sol Ring', imageUrl: 'https://img/sol.jpg' }),
+          item({ id: 'c', name: 'Goblin', isToken: true }),
+          item({ id: 'd', name: 'Elrond', imageUrl: 'https://img/elrond.jpg' }),
+          item({ id: 'e', name: 'Swords to Plowshares' }),
+        ]}
+        onDrawArrow={vi.fn()}
+        onCopy={vi.fn()}
+        onResolve={vi.fn()}
+      />
+    );
+    const bars = [...container.querySelectorAll('.stack-panel__card--bar')];
+    expect(bars.map((el) => el.querySelector('.stack-panel__name')?.textContent)).toEqual([
+      'Counterspell',
+      'Goblin',
+      'Swords to Plowshares',
+    ]);
+    // Each bar carries its own seat chip; the Token chip only on the token.
+    expect(bars.map((el) => el.querySelector('.stack-panel__seat')?.textContent)).toEqual([
+      'Planeswalker_Extraordinaire',
+      'A player',
+      'A player',
+    ]);
+    expect(bars.map((el) => el.querySelector('.stack-panel__token') !== null)).toEqual([
+      false,
+      true,
+      false,
+    ]);
+  });
+
   // The cards under the top of the stack are clipped to their title bar, so
   // the only way to read one in full is the same hover preview the board
   // gives you. That preview is delegated off `data-preview-id`.
