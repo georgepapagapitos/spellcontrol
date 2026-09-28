@@ -398,7 +398,12 @@ meanwhile.
 - **Density tiers: phone ≤599 · tablet 600–1023 · desktop ≥1024.** Controls
   44 / 40 / 36px, rows 44 / 40 / 36px, body text 16 / 15 / 15px, page gutter
   16 / 24 / 32px, all driven by tier tokens rather than per-component media
-  queries. Tablet is its own tier: it does not inherit phone-size controls.
+  queries. Tablet is its own tier: it does not inherit phone-size controls. **Built** (T135): `tokens.css` sets `--control-h` and
+  `--gutter` per tier, floors `--control-h` at 44px on a touch pointer (last,
+  so rule order can never undercut it), and sets `--text-base` to 1rem on a
+  phone. The shared controls (`.btn`, `.pill-btn`, `.toolbar-pill`, `.tab`,
+  `.search-pill`), the page gutter and the desktop header read them. Row
+  heights are not wired yet. Guard: `styles/density-tiers.test.ts`.
 - **A query that closes a tier ends on 599px or 1023px**, never 600 or 1024:
   `max-width: 600px` and `min-width: 600px` both match at exactly 600px, so
   that width ran phone and tablet rules together

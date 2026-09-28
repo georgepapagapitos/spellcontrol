@@ -95,7 +95,7 @@
   border-radius: 999px;
   padding: var(--space-1-5) var(--space-3);
   cursor: pointer;
-  height: 2.1rem;
+  height: var(--control-h);
   white-space: nowrap;
   transition:
     border-color var(--motion-fast) ease,

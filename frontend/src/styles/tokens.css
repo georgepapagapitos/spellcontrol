@@ -117,6 +117,13 @@
   --space-6: 2rem;
   --space-7: 3rem;
   --space-8: 4rem;
+  /* Density tiers (STYLE_GUIDE § Layout system): phone ≤599 · tablet
+     600–1023 · desktop ≥1024. One token per measure, re-set per tier at the
+     end of this file, so a control or a page reads its tier instead of
+     carrying its own media query. Desktop is the base. A coarse pointer
+     still floors every shared control at 44px on top of this. */
+  --control-h: 2.25rem; /* 36px desktop · 40 tablet · 44 phone and any touch */
+  --gutter: var(--space-6); /* 32px desktop · 24 tablet · 16 phone */
 
   /* The coarse-pointer touch floor (STYLE_GUIDE § Responsive). For a length
      that has to make room for a 44px target it doesn't own, such as the deck
@@ -488,5 +495,32 @@
 @media (max-width: 1023px) {
   :root {
     --mobile-tabbar-h: 3.5rem;
+  }
+}
+
+/* Density tiers (see --control-h above). Tablet is its own tier: it does not
+   inherit phone-size controls. Body text is 16px on a phone, 15 above. */
+@media (max-width: 1023px) {
+  :root {
+    --control-h: 2.5rem;
+    --gutter: var(--space-5);
+  }
+}
+
+@media (max-width: 599px) {
+  :root {
+    --control-h: 2.75rem;
+    --gutter: var(--space-4);
+    --text-base: 1rem;
+  }
+}
+
+/* A touch pointer floors the control height at 44px at every tier (STYLE_GUIDE
+   § Responsive, 44px touch targets). Last, so it wins over the tier blocks:
+   a control that reads --control-h meets the floor whatever order its own
+   stylesheet declares its rules in. */
+@media (pointer: coarse) {
+  :root {
+    --control-h: 2.75rem;
   }
 }

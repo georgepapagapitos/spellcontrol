@@ -107,21 +107,11 @@ body {
      bars / bleed elements (.collection-toolbar-row, the index search
      rows) can mirror it via negative margins and stay flush with the
      content edge at every breakpoint. */
-  --page-gutter: 1rem;
+  --page-gutter: var(--gutter);
   padding: 0 var(--page-gutter) var(--space-6);
   /* When a focused field is scrolled into view, keep it clear of the soft
      keyboard (and leave a 1rem cushion). No-op when no keyboard is shown. */
   scroll-padding-bottom: calc(var(--keyboard-inset) + 1rem);
-}
-
-/* Phones get a tighter gutter — every pixel of side padding eats ~9%
-   of content width at 360px viewports, and most pages already host
-   panels/cards with their own internal padding so the page-level
-   gutter is mostly empty space. */
-@media (max-width: 599px) {
-  .app-main {
-    --page-gutter: 0.5rem;
-  }
 }
 
 /* Native's bottom tab bar (MobileTabBar) is in normal flow — like web
@@ -304,7 +294,7 @@ select {
   border-bottom: 1px solid var(--chrome-border);
   /* Landscape phones with a notch: keep the brand and nav clear of the
      display cutout, same floor the tab bar and modal backdrop use. */
-  padding: 0 max(var(--space-4), var(--safe-right)) 0 max(var(--space-4), var(--safe-left));
+  padding: 0 max(var(--gutter), var(--safe-right)) 0 max(var(--gutter), var(--safe-left));
   position: sticky;
   top: 0;
   z-index: var(--z-panel);
