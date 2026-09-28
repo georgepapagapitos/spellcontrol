@@ -97,6 +97,7 @@ import { DecksIndexPage } from './DecksIndexPage';
 import { DiscoverDecksPage } from './DiscoverDecksPage';
 import { SavedDecksPage } from './SavedDecksPage';
 import { DeckNewPage } from './DeckNewPage';
+import { DeckGeneratePage } from './DeckGeneratePage';
 import { PlayPage } from './PlayPage';
 import { RulesPage } from './RulesPage';
 import { SearchPage } from './SearchPage';
@@ -200,7 +201,12 @@ const CASES: RouteCase[] = [
   {
     path: '/decks/new',
     routes: <Route path="/decks/new" element={<DeckNewPage />} />,
-    ready: /commander|format/i,
+    ready: /format/i,
+  },
+  {
+    path: '/decks/new/generate',
+    routes: <Route path="/decks/new/generate" element={<DeckGeneratePage />} />,
+    ready: /find a commander/i,
   },
   { path: '/play', routes: <Route path="/play" element={<PlayPage />} />, ready: /Play/ },
   { path: '/rules', routes: <Route path="/rules" element={<RulesPage />} />, ready: /rules/i },

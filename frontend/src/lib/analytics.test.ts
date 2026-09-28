@@ -26,6 +26,7 @@ describe('normalizePath', () => {
       '/decks',
       '/decks/new',
       '/decks/new/brew',
+      '/decks/new/generate',
       '/decks/discover',
       '/collection/binders',
       '/guides/',

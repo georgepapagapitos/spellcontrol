@@ -1,5 +1,5 @@
 // Shared with DeckNewPage / DeckEditorPage; ships with those chunks, not the boot payload (E265).
-import { canRegenerate, regenerateState } from '../lib/regenerate-prefill';
+import { canRegenerate, regenerateHref, regenerateState } from '../lib/regenerate-prefill';
 import '@/styles/deck-builder-import-dialog.css';
 import {
   AlignJustify,
@@ -483,7 +483,7 @@ export function DecksIndexPage() {
 
   const handleRegenerate = (deck: Deck) => {
     if (!deck.commander) return;
-    navigate('/decks/new', { state: regenerateState(deck) });
+    navigate(regenerateHref(deck), { state: regenerateState(deck) });
   };
 
   // Undoable from the toast, so a single delete doesn't confirm first
@@ -572,7 +572,8 @@ export function DecksIndexPage() {
                   {
                     label: 'New deck from my collection',
                     icon: BookOpen,
-                    onClick: () => navigate('/decks/new', { state: { commanderSource: 'binder' } }),
+                    onClick: () =>
+                      navigate('/decks/new/generate', { state: { commanderSource: 'binder' } }),
                   },
                 ]
               : []),

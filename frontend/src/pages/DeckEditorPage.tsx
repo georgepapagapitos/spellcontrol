@@ -1,5 +1,5 @@
 import { MoreVertical, Play, Plus, Redo2, RefreshCw, Undo2, X } from 'lucide-react';
-import { canRegenerate, regenerateState } from '../lib/regenerate-prefill';
+import { canRegenerate, regenerateHref, regenerateState } from '../lib/regenerate-prefill';
 import {
   type ReactNode,
   useCallback,
@@ -3244,7 +3244,7 @@ export function DeckEditorPage() {
               onBuildReport={deck.buildReport ? () => setShowBuildReport(true) : undefined}
               onRegenerate={
                 canRegenerate(deck)
-                  ? () => navigate('/decks/new', { state: regenerateState(deck) })
+                  ? () => navigate(regenerateHref(deck), { state: regenerateState(deck) })
                   : undefined
               }
               onPlaytest={isPhone ? () => navigate(`/decks/${deck.id}/playtest`) : undefined}

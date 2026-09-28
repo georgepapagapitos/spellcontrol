@@ -134,11 +134,11 @@ export function buildCommands({
       id: 'action:new-deck',
       label: 'New deck',
       group: 'Actions',
-      hint: 'Pick a commander or format',
+      hint: 'Pick how to start',
       keywords: ['create', 'build'],
       run: () => go('/decks/new'),
     },
-    // The /decks/new page's "Empty deck" door (E465), next to New deck.
+    // The start page's "Empty deck" door (E465), next to New deck.
     // Created Private, like the door.
     ...(createEmptyDeck
       ? [
@@ -152,9 +152,26 @@ export function buildCommands({
           },
         ]
       : []),
+    // The start page's two build doors, one step closer.
+    {
+      id: 'action:generate-deck',
+      label: 'Generate a deck',
+      group: 'Actions',
+      hint: 'Find a commander, draft the 100',
+      keywords: ['create', 'build', 'edhrec', 'commander'],
+      run: () => go('/decks/new/generate'),
+    },
+    {
+      id: 'action:brew-deck',
+      label: 'Brew a deck',
+      group: 'Actions',
+      hint: 'Build it one slot at a time',
+      keywords: ['create', 'build', 'slot'],
+      run: () => go('/decks/new/brew'),
+    },
     {
       // DecksIndexPage owns the import dialog as local state, so the palette
-      // asks for it through location state — the same channel DeckNewPage's
+      // asks for it through location state — the same channel DeckGeneratePage's
       // `prefill` already uses. No new global store for one boolean.
       id: 'action:import-deck',
       label: 'Import deck',

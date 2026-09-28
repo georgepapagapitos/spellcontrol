@@ -2,7 +2,7 @@
  * The single dedup choke point for the first-publish seal moment (E150),
  * shared by every entry surface that can turn a deck public for the first
  * time — the deck-editor visibility chip and post-create nudge (both via
- * ShareDialog's `doPublish`), and the creation-time fieldset on /decks/new
+ * ShareDialog's `doPublish`), and the creation-time fieldset on /decks/new/generate
  * and the single-deck import flow (via `usePublishOnCreate`, which can't
  * fire directly — see its own doc comment — and instead hands the outcome
  * to DeckEditorPage's `justPublished` landing effect). All four routes

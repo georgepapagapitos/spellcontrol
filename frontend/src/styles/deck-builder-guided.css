@@ -1,38 +1,6 @@
-/* deck-builder-guided.css — New-deck CTA banner + generation takeover wrapper + pick-mode/playstyle picker (incl. deck-row synergy/inclusion chips).
+/* deck-builder-guided.css — Generation takeover wrapper + pick-mode/playstyle picker (incl. deck-row synergy/inclusion chips).
  * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
  * Original lines 8216-8539. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
-/* ── New-deck CTA banner ──────────────────────────────────────────────── */
-.guided-cta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.guided-cta-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-}
-
-.guided-cta-text strong {
-  color: var(--text-primary);
-}
-
-.guided-cta-text span {
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  max-width: 42rem;
-}
-
-/* "Start brewing" — icon-plus-label (sweep 3: literal arrow character
-   replaced with the app's ArrowRight icon convention). */
-.guided-cta > .btn {
-  display: inline-flex;
-  align-items: center;
-}
-
 /* Generation takeover wrapper — full-width, some top breathing room. */
 .guided-takeover-wrap {
   margin-top: var(--space-4);

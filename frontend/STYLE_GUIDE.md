@@ -2143,7 +2143,7 @@ menu), not N buttons × rows (the Admin users table injected 30 destructive tab 
 into `/you`). (4) An unmatched route renders "Page not found" inside the Layout with one
 CTA, never a silent redirect. (5) A page reached only via a button from its hub (not
 itself a hub tab) gets a `BackLink` to that hub, matching its siblings at the same depth
-(`/decks/new`, `/decks/new/brew`, `/decks/compare`, `/decks/cube`). (6) Social hub pages
+(`/decks/new`, `/decks/new/brew`, `/decks/compare`, `/decks/cube`; `/decks/new/generate` backs to New deck). (6) Social hub pages
 share one content cap, the `.social-page-shell` class in `social-shared.css` (640px;
 `--wide` is 760px for the trade give/get layout), so a new page can't ship uncapped
 (`/pods` did) or a pixel off its siblings (Pods sat 16px left of Friends when each page
@@ -2193,7 +2193,7 @@ aria-label="Loading" aria-busy="true">` and mark the list itself
   2026-09-09 — render-blocking CSS 99 KB → 76 KB gzipped). The play table's
   eight `play-*.css` sheets are imported by `PlayPage.tsx`; `deck-builder-editor`,
   `-test-hand`, `-row-qty`, `-analysis-panel` by `DeckEditorPage.tsx`;
-  `-customizer` and `-commander-profile` by `DeckNewPage` + `BrewBuildPage`;
+  `-customizer` and `-commander-profile` by `DeckGeneratePage` + `BrewBuildPage`;
   `-combos-list` by the editor + `CollectionCombosPage`; `-import-dialog` by the
   decks index + new-deck + editor; `admin-scanner.css` by `CardScanner`,
   `AdminPage` and `YouPage`. A sheet is page-local only when **every** chunk

@@ -83,8 +83,8 @@
 }
 
 /* Format section (sweep 3, B5-08): below 600px the full pill grid claims most
- * of the first screen before Commander search — the page's own first
- * instruction. Collapse to the active format + a "Change format" disclosure;
+ * of the first screen before the start page's doors. Collapse to the
+ * active format + a "Change format" disclosure;
  * two classes beat deck-builder-deck-extras.css's single-class .format-pill-row
  * rule regardless of stylesheet import order. */
 .deck-new-format-summary {
@@ -108,19 +108,12 @@
   }
 }
 
-/* ── New-deck chooser actions ─────────────────────────────────────────────
-   Rendered by DeckNewPage, so they live with the new-deck page sheet — not
-   the editor sheet, which now only loads with the editor chunk (E265). */
+/* ── Build actions row ────────────────────────────────────────────────────
+   Rendered by BrewBuildPage's start step. Lives with the page sheet, not the
+   editor sheet, which only loads with the editor chunk (E265). */
 .deck-builder-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-}
-
-.deck-builder-actions-hint {
-  flex: 1 1 100%;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin: var(--space-1) 0 0;
 }

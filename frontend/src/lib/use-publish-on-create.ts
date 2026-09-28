@@ -49,7 +49,7 @@ async function publishWithSyncRetry(deckId: string): Promise<PublishResult> {
 
 /**
  * Shared creation-time "publish on create" flow — the exact choke point
- * DeckNewPage's Private/Public fieldset (#1278) already used, now reused by
+ * the generator's Private/Public fieldset (#1278) already used, now reused by
  * ImportDeckDialog's single-deck path (E150) so this network/error dance
  * doesn't fork into a second, slowly-drifting copy. Owns: guest/offline
  * gating for the fieldset, and the success toast.
@@ -78,7 +78,7 @@ export function usePublishOnCreate(onSettled: (deckId: string, outcome?: Publish
   const [visibility, setVisibility] = useState<CreateVisibility>('public');
   // Never leave Public/Friends selected-but-disabled (e.g. connectivity drops
   // after one was chosen) — snap back to Private during render, mirroring
-  // DeckNewPage's identical guarded render-time setState (terminating, so
+  // DeckGeneratePage's identical guarded render-time setState (terminating, so
   // react-hooks/set-state-in-effect doesn't apply — there's no effect here).
   if (!canPublish && visibility !== 'private') {
     setVisibility('private');

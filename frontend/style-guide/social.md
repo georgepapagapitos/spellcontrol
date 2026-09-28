@@ -81,7 +81,7 @@ creates anything just by opening. The link it shows is the thing's own
 address, to copy; it is never something the owner manages. New decks start
 Public (the create form's first option); "Send to a friend" sits below the
 choice because it isn't one. `ShareDialog`, `CollectionVisibilityDialog`,
-`DeckNewPage` and `ImportDeckDialog`'s creation-time fieldset, the online host
+`DeckGeneratePage` and `ImportDeckDialog`'s creation-time fieldset, the online host
 form, and the online lobby's in-game setting all render through it. A public
 or friends-only collection lives on the owner's profile
 (`/u/:name?tab=collection`), not at a link of its own.

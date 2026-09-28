@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 /**
- * The new-deck page's order, once a commander is picked. Generate sat 3,300px
+ * The generator's order, once a commander is picked. Generate sat 3,300px
  * down on desktop and 4,000px on a phone, below a 1,400px Customize section,
  * with Themes (the choice most builds make) after all of it. Themes now come
- * straight after the build method, and the Brew promo joins Generate and Start
- * blank as the third way to build.
+ * straight after the build method, and Generate and Start blank ride a sticky
+ * bar at the foot of the page. Brew is a door on the start page, not here.
  */
 import 'fake-indexeddb/auto';
 import { render, screen } from '@testing-library/react';
@@ -27,7 +27,6 @@ vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchCommanderData: () => Promise.resolve(null),
   fetchPartnerCommanderData: () => Promise.resolve(null),
 }));
-vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
 vi.mock('../components/deck/CommanderSearch', () => ({ CommanderSearch: () => null }));
 vi.mock('../components/deck/CommanderProfileCard', () => ({
   CommanderProfileCard: () => <div data-testid="profile" />,
@@ -46,7 +45,7 @@ vi.mock('../components/deck/GenerationModePicker', () => ({
 }));
 vi.mock('../components/deck/GenerationTakeover', () => ({ GenerationTakeover: () => null }));
 
-import { DeckNewPage } from './DeckNewPage';
+import { DeckGeneratePage } from './DeckGeneratePage';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -63,16 +62,16 @@ const before = (a: Element, b: Element) =>
 
 function renderPage(commander?: ScryfallCard) {
   const entry = commander
-    ? { pathname: '/decks/new', state: { prefill: { commander } } }
-    : '/decks/new';
+    ? { pathname: '/decks/new/generate', state: { prefill: { commander } } }
+    : '/decks/new/generate';
   return render(
     <MemoryRouter initialEntries={[entry]}>
-      <DeckNewPage />
+      <DeckGeneratePage />
     </MemoryRouter>
   );
 }
 
-describe('DeckNewPage order', () => {
+describe('DeckGeneratePage order', () => {
   beforeEach(() => {
     localStorage.clear();
     useDeckBuilderStore.getState().reset();
@@ -87,17 +86,28 @@ describe('DeckNewPage order', () => {
     expect(before(themes, customize)).toBe(true);
   });
 
-  it('offers Brew beside Generate once a commander is picked', () => {
+  it('puts Generate and Start blank in the build bar, after every setting', () => {
     renderPage(krenko);
+    const bar = screen.getByRole('group', { name: 'Build this deck' });
     const generate = screen.getByRole('button', { name: 'Generate deck' });
-    const brew = screen.getByRole('link', { name: /Start brewing/ });
-    expect(before(generate, brew)).toBe(true);
-    expect(before(screen.getByTestId('customize'), brew)).toBe(true);
+    expect(bar.contains(generate)).toBe(true);
+    expect(bar.contains(screen.getByRole('button', { name: 'Start blank' }))).toBe(true);
+    expect(before(screen.getByTestId('customize'), bar)).toBe(true);
+    // The bar is the page's last child, so at the end of the page it sits in
+    // flow below the last section and covers none of it.
+    expect(bar.parentElement?.lastElementChild).toBe(bar);
   });
 
-  it('keeps the Brew promo under the picker before a commander is picked', () => {
+  it('recaps the choices in the bar: commander, method and bracket', () => {
+    renderPage(krenko);
+    const bar = screen.getByRole('group', { name: 'Build this deck' });
+    expect(bar.textContent).toContain('Krenko · EDHREC');
+    expect(bar.textContent).toMatch(/Any bracket|Bracket \d/);
+  });
+
+  it('has no build bar and no Brew door before a commander is picked', () => {
     renderPage();
-    expect(screen.getByRole('link', { name: /Start brewing/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Generate deck' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Build this deck' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /brew/i })).toBeNull();
   });
 });
