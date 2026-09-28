@@ -9,13 +9,13 @@
 .seat-menu-facing {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 /* A <fieldset>: strip its default chrome, same as .settings-currency-toggle. */
 .seat-menu-facing-row {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   margin: 0;
   padding: 0;
   border: 0;
@@ -66,7 +66,7 @@
 /* ── Layout picker: the "Custom…" tile ── */
 .layout-option-custom {
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
   min-height: 78px;
 }
 
@@ -120,7 +120,7 @@
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: var(--space-3);
   animation: pp-scale-in 160ms var(--ease-out-soft);
 }
 
@@ -166,11 +166,11 @@
 .cle-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  gap: var(--space-1-5);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 6px;
+  padding: var(--space-1-5);
   /* Roughly a table's footprint; rows stretch within. */
   min-height: 220px;
 }
@@ -205,9 +205,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
+  gap: var(--space-1);
   border-radius: var(--radius);
-  padding: 0.4rem;
+  padding: var(--space-1-5);
   cursor: grab;
   color: #fff;
   touch-action: none;
@@ -248,13 +248,13 @@
 .cle-tray {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .cle-tray-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .cle-tray-chip {
@@ -262,7 +262,7 @@
   border: 1px solid var(--border);
   color: var(--text-primary);
   border-radius: var(--radius);
-  padding: 0.35rem 0.8rem;
+  padding: var(--space-1-5) var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
@@ -282,8 +282,8 @@
 .cle-controls {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.6rem;
+  gap: var(--space-1-5);
+  padding: var(--space-2-5);
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -297,7 +297,7 @@
 .cle-controls-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .cle-ctrl {
@@ -305,12 +305,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-primary);
   border-radius: var(--radius);
-  padding: 0.45rem 0.6rem;
+  padding: var(--space-2) var(--space-2-5);
   font-size: var(--text-xs, 0.72rem);
   font-weight: 600;
   cursor: pointer;
@@ -330,7 +330,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   flex-wrap: wrap;
 }
 

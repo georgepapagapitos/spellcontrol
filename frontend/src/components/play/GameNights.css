@@ -11,7 +11,7 @@
 .play-setup-header {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .play-setup-title {
@@ -346,7 +346,7 @@
   right: 0;
   z-index: var(--z-popover);
   margin: 0;
-  padding: 0.3rem;
+  padding: var(--space-1);
   list-style: none;
   max-height: 14rem;
   overflow-y: auto;

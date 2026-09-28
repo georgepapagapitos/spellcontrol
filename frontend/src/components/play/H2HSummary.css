@@ -46,7 +46,7 @@
 }
 
 .h2h-rivalry dd {
-  margin: 0.1rem 0 0;
+  margin: var(--space-0-5) 0 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;

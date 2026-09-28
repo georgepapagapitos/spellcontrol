@@ -295,7 +295,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-2) 0.65rem;
+  padding: var(--space-2) var(--space-2-5);
   pointer-events: none;
   min-height: 0;
 }
@@ -441,7 +441,7 @@
   max-width: calc(100% - 3.5rem);
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: var(--space-0-5);
   pointer-events: none;
 }
 
@@ -609,7 +609,7 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   letter-spacing: 0.01em;
   max-width: 100%;
   white-space: nowrap;
@@ -640,8 +640,8 @@
   letter-spacing: 0.06em;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 999px;
-  padding: 0.05rem 0.4rem;
-  margin-left: 0.2rem;
+  padding: 0.05rem var(--space-1-5);
+  margin-left: var(--space-1);
 }
 
 .player-panel-subtitle {
@@ -854,7 +854,7 @@
     0 2px 12px rgba(0, 0, 0, 0.55),
     0 0 28px rgba(0, 0, 0, 0.25);
   border-radius: var(--radius);
-  padding: 0.1rem 0.6rem;
+  padding: var(--space-0-5) var(--space-2-5);
   font-size: calc(var(--life-size) * 0.32);
   line-height: 0.9;
   font-weight: 400;
@@ -930,7 +930,7 @@
   background: rgba(0, 0, 0, 0.6);
   color: var(--pp-accent);
   border: 1px solid var(--pp-accent);
-  padding: 0.2rem 0.6rem;
+  padding: var(--space-1) var(--space-2-5);
   border-radius: 999px;
 }
 

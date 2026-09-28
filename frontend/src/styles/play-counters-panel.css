@@ -12,15 +12,15 @@
   left: 0.65rem;
   z-index: 3;
   display: flex;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   pointer-events: none;
 }
 
 .pp-counter-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.22rem;
-  padding: 0.18rem var(--space-2);
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: var(--radius);
   background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -57,13 +57,13 @@
 .pp-counters {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
 }
 
 .pp-counters-inner {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 /* Rows take their natural height and the slack falls BELOW them.
@@ -76,14 +76,14 @@
   flex: 0 1 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   min-height: 0;
 }
 
 .pp-counters-body .counter-row {
   flex: 0 0 auto;
   /* Slightly tighter than the standalone row so it doesn't crowd the grid. */
-  padding: 0.3rem 0.55rem;
+  padding: var(--space-1) var(--space-2);
 }
 
 .pp-counters-body .counter-row-label {
@@ -101,7 +101,7 @@
    than the poison / commander badges beside it. */
 .pp-counter-badge.is-custom {
   font-size: var(--text-sm);
-  gap: 0.3rem;
+  gap: var(--space-1);
   max-width: 9rem;
 }
 
@@ -117,7 +117,7 @@
 
 .pp-counters-empty {
   margin: 0;
-  padding: 0.4rem 0.55rem;
+  padding: var(--space-1-5) var(--space-2);
   font-size: var(--text-sm);
   line-height: 1.35;
   color: rgba(255, 255, 255, 0.66);
@@ -125,9 +125,9 @@
 
 .pp-counters-add {
   display: flex;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   flex: 0 0 auto;
-  margin-top: 0.35rem;
+  margin-top: var(--space-1-5);
 }
 
 .pp-counters-add-field {
@@ -139,7 +139,7 @@
 .pp-counters-add-input {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 0.35rem 0.55rem;
+  padding: var(--space-1-5) var(--space-2);
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.28);
   background: rgba(0, 0, 0, 0.32);
@@ -156,7 +156,7 @@
 
 .pp-counters-add-btn {
   flex: 0 0 auto;
-  padding: 0.35rem 0.7rem;
+  padding: var(--space-1-5) var(--space-3);
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.14);
@@ -175,7 +175,7 @@
 
 .pp-counters-error,
 .pp-counters-cap {
-  margin: 0.3rem 0 0;
+  margin: var(--space-1) 0 0;
   font-size: var(--text-xs, 0.72rem);
   line-height: 1.35;
   color: rgba(255, 210, 210, 0.92);
@@ -189,7 +189,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 0.15rem;
+  margin-left: var(--space-0-5);
   padding: var(--space-1);
   border: 0;
   border-radius: var(--radius);
@@ -435,7 +435,7 @@
   min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .pp-cmd-half {
@@ -444,7 +444,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.1rem;
+  gap: var(--space-0-5);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -555,7 +555,7 @@
 .pp-cmd-half-row {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   /* The gaps between the ± and the value fall through to the half's own tap
      zones; the step buttons opt back in below. */
   pointer-events: none;
@@ -672,7 +672,7 @@
 .pp-life-chip {
   display: inline-flex;
   align-items: center;
-  padding: 0.18rem var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: var(--radius);
   background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -730,7 +730,7 @@
   align-items: center;
   justify-content: center;
   min-height: 2rem;
-  padding: 0.3rem var(--space-3);
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.14);
@@ -804,8 +804,8 @@
 
     .player-panel.is-cmd-self[data-sideways] .pp-cmd-focus-bar {
       flex-direction: column;
-      gap: 0.125rem;
-      padding-block: 0.125rem;
+      gap: var(--space-0-5);
+      padding-block: var(--space-0-5);
     }
 
     .player-panel.is-cmd-self[data-sideways] .pp-cmd-focus-title {
@@ -821,8 +821,8 @@
 
     .player-panel.is-cmd-self:not([data-sideways]) .pp-cmd-focus-bar {
       flex-direction: column;
-      gap: 0.125rem;
-      padding-block: 0.125rem;
+      gap: var(--space-0-5);
+      padding-block: var(--space-0-5);
     }
 
     .player-panel.is-cmd-self:not([data-sideways]) .pp-cmd-focus-title {
@@ -943,7 +943,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 0.4rem 0.9rem;
+  padding: var(--space-1-5) var(--space-4);
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(14, 17, 24, 0.75);
@@ -1015,7 +1015,7 @@
   z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--space-1);
   pointer-events: none; /* tap falls through to the panel — use seat menu to change */
 }
 

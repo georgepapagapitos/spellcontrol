@@ -45,7 +45,7 @@
 .playtest-stats-rows {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
 }
 
 .playtest-stats-row {
@@ -129,7 +129,7 @@
 
 .playtest-stats-verdict {
   display: inline-block;
-  padding: 2px var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: 999px;
   font-size: var(--text-xs);
   font-weight: 700;
@@ -150,19 +150,19 @@
 .playtest-stats-zones {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.1rem;
+  gap: var(--space-1-5);
+  margin-top: var(--space-0-5);
 }
 
 .playtest-stats-zone-pill {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   /* Non-actionable count label → pill (STYLE_GUIDE "Shape language"). */
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: var(--space-1) var(--space-2-5);
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }

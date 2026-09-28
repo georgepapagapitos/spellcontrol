@@ -524,7 +524,7 @@
   border: none;
   color: var(--on-accent);
   border-radius: var(--radius);
-  padding: 0.7rem 0;
+  padding: var(--space-3) 0;
   font-size: var(--text-md);
   font-weight: 600;
   cursor: pointer;
@@ -558,7 +558,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 0.7rem var(--space-2);
+  padding: var(--space-3) var(--space-2);
 }
 
 /* Minus button: destructive-adjacent tone (neutral red-tinted) */
@@ -601,13 +601,13 @@
 .layout-picker {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 .layout-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 /* A <fieldset>: strip its default chrome and keep its radio labels as
@@ -628,7 +628,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 0.6rem;
+  padding: var(--space-2-5);
   cursor: pointer;
   display: flex;
   flex-direction: column;

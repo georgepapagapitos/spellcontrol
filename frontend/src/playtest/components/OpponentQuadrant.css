@@ -163,7 +163,7 @@
 
 .opponent-quadrant__designations {
   display: inline-flex;
-  gap: 2px;
+  gap: var(--space-0-5);
   font-size: var(--text-sm);
 }
 
@@ -293,8 +293,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 3px;
+  gap: var(--space-0-5);
+  padding: var(--space-1);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   background: color-mix(in oklab, var(--surface) 88%, transparent);
