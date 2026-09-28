@@ -420,6 +420,51 @@
      distinct from the deck-blue accent and the WUBRG set so a cube marker is
      never mistaken for a deck. Referenced as CUBE_BADGE_COLOR in allocations.ts. */
   --cube-color: #8b5cf6;
+
+  /* ── Table (T157 W5) ─────────────────────────────────────────────────────
+     The multiplayer game board + its panel covers (seat menu, counters
+     drawer, life keypad) render on a fixed always-dark ground independent of
+     app theme (STYLE_GUIDE § Accessibility "always-dark surface" ruling;
+     § "The table's look is per-device, never table-wide"). These name the
+     recurring roles that were previously repeated as raw literals across
+     play-panel-menus.css / play-counters-panel.css / play-enhancements.css /
+     play-effects.css / play-history-inline.css / play-board.css / playtest.css
+     — one place to change "the table's panel color". Per-seat colors
+     (--pp-base/--pp-edge/--pp-ink, set inline from seat-palette.ts) and
+     single-use effect colors (glows, damage flashes, gradient/mask stops)
+     are NOT here on purpose; see the comment above each surviving literal. */
+  /* White keyboard-focus ring for the board's always-dark chrome (the
+     documented alternative to --accent there), and the matching decorative
+     "auto" swatch-marker ring that deliberately shares its look. */
+  --table-focus-ring: rgba(255, 255, 255, 0.7);
+  /* Primary ink for the board's own base text (near-white, warm) — the
+     `.game-board` root color and the always-dark hint dialog's body text. */
+  --table-text: #f4f6fa;
+  /* Fixed white ink/border for table chrome that always sits on the dark
+     plate regardless of seat (menu buttons, counter chips, badges) — unlike
+     `--pp-ink`, which flips to black for a light seat color. */
+  --table-ink: #fff;
+  /* Dark ink for a bright/filled control on the dark board chrome (the hint
+     dialog's primary button, the commander-damage hub's gold state). */
+  --table-ink-inverse: #12151c;
+  /* Secondary/dimmed ink on the same dark chrome (labels, hints, sub-text). */
+  --table-ink-muted: rgba(255, 255, 255, 0.85);
+  /* Translucent white edge on the dark chrome — hairline borders and their
+     matching hover washes. */
+  --table-border: rgba(255, 255, 255, 0.18);
+  /* Subtle tap/press feedback wash over a dark panel (`:active` states). */
+  --table-press-wash: rgba(255, 255, 255, 0.06);
+  /* Lethal/low-life danger red — base channels only. Usages apply their own
+     alpha with `rgba(var(--table-danger-rgb), <alpha>)` so every lethal pulse,
+     border and glow shares one hue. */
+  --table-danger-rgb: 220, 38, 38;
+  /* Playtest table-skin (E347, per-device felt preference): the white ink and
+     hairline every colored felt uses over its own dark base/glow. */
+  --table-felt-text: rgb(255 255 255 / 88%);
+  --table-felt-line: rgb(255 255 255 / 7%);
+  /* The generic/library pile-back "leather field" gradient — reused verbatim
+     for a face-down exiled card so it reads as the same physical object. */
+  --table-card-back: linear-gradient(135deg, #2b3340 0%, #1a2030 100%);
 }
 
 /* Phones (and short landscape viewports): tighter sticky search row so the

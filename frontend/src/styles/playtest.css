@@ -531,28 +531,28 @@ body {
 }
 
 body[data-felt='green'] {
-  --felt-text: rgb(255 255 255 / 88%);
+  --felt-text: var(--table-felt-text);
   --felt-base: #12301f;
   --felt-glow: #1b4332;
-  --felt-line: rgb(255 255 255 / 7%);
+  --felt-line: var(--table-felt-line);
 }
 
 body[data-felt='blue'] {
-  --felt-text: rgb(255 255 255 / 88%);
+  --felt-text: var(--table-felt-text);
   --felt-base: #0e2338;
   --felt-glow: #14304d;
-  --felt-line: rgb(255 255 255 / 7%);
+  --felt-line: var(--table-felt-line);
 }
 
 body[data-felt='wine'] {
-  --felt-text: rgb(255 255 255 / 88%);
+  --felt-text: var(--table-felt-text);
   --felt-base: #2e0f16;
   --felt-glow: #45161f;
-  --felt-line: rgb(255 255 255 / 7%);
+  --felt-line: var(--table-felt-line);
 }
 
 body[data-felt='slate'] {
-  --felt-text: rgb(255 255 255 / 88%);
+  --felt-text: var(--table-felt-text);
   --felt-base: #191b1f;
   --felt-glow: #23262b;
   --felt-line: rgb(255 255 255 / 6%);
@@ -911,7 +911,7 @@ body[data-felt='slate'] {
   display: block;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #2b3340 0%, #1a2030 100%);
+  background: var(--table-card-back);
   border-radius: 4px;
 }
 
@@ -1608,7 +1608,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   width: 100%;
   aspect-ratio: 5 / 7;
   border-radius: var(--radius);
-  background: linear-gradient(135deg, #2b3340 0%, #1a2030 100%);
+  background: var(--table-card-back);
   border: 0.5px solid var(--border);
 }
 

@@ -1,0 +1,23 @@
+{
+  "components/play/BoardHighRoll.css": 4,
+  "components/play/BoardHubMenu.css": 17,
+  "components/play/BoardSheets.css": 1,
+  "components/play/GameRecap.css": 3,
+  "components/play/OnlineLobby.css": 9,
+  "playtest/components/CardCounters.css": 7,
+  "playtest/components/CardHoverPreview.css": 2,
+  "playtest/components/CustomCountersDialog.css": 2,
+  "playtest/components/horde/HordeBand.css": 4,
+  "playtest/components/horde/HordeHalf.css": 1,
+  "playtest/components/OpponentQuadrant.css": 5,
+  "playtest/components/OpponentRail.css": 1,
+  "playtest/components/StackPanel.css": 6,
+  "playtest/components/TableArrows.css": 1,
+  "styles/play-board.css": 20,
+  "styles/play-counters-panel.css": 59,
+  "styles/play-effects.css": 16,
+  "styles/play-enhancements.css": 34,
+  "styles/play-history-inline.css": 6,
+  "styles/play-panel-menus.css": 54,
+  "styles/playtest.css": 16
+}
