@@ -6,6 +6,10 @@ import {
   releaseDateOf,
   CANONICAL_MULTICOLOR,
   UNKNOWN_VALUE,
+  SORT_FIELDS,
+  SORT_PRESETS,
+  matchSortPreset,
+  describeSortChain,
 } from './sorting.js';
 import type { EnrichedCard } from './types.js';
 
@@ -812,5 +816,94 @@ describe('normalizeSorts drops a field repeated in a stored chain', () => {
     const { normalizeSorts } = await import('./sorting');
     const sorts = [{ field: 'name' as const, dir: 'asc' as const }];
     expect(normalizeSorts(sorts)).toBe(sorts);
+  });
+});
+
+describe('dirShort (E492)', () => {
+  it('gives every SORT_FIELDS entry a non-empty short direction pair', () => {
+    for (const f of SORT_FIELDS) {
+      expect(f.dirShort, `${f.value} has no dirShort`).toBeDefined();
+      expect(f.dirShort).toHaveLength(2);
+      expect(f.dirShort[0].length).toBeGreaterThan(0);
+      expect(f.dirShort[1].length).toBeGreaterThan(0);
+      // Shorter (or equal) than the long label — that's the whole point of
+      // having a second pair: a width-capped host swaps in this one.
+      expect(f.dirShort[0].length).toBeLessThanOrEqual(f.dirLabels[0].length);
+      expect(f.dirShort[1].length).toBeLessThanOrEqual(f.dirLabels[1].length);
+    }
+  });
+
+  it('spot-checks the pairs the mockup specified', () => {
+    const byValue = (v: string) => SORT_FIELDS.find((f) => f.value === v)!;
+    expect(byValue('setReleaseDate').dirShort).toEqual(['Oldest', 'Newest']);
+    expect(byValue('name').dirShort).toEqual(['A–Z', 'Z–A']);
+    expect(byValue('price').dirShort).toEqual(['Cheap', 'Pricey']);
+    expect(byValue('rarity').dirShort).toEqual(['Mythic', 'Common']);
+    expect(byValue('edhrec').dirShort).toEqual(['Most', 'Least']);
+    // Color's descending option used to be the "GRBUW" acronym — jargon on
+    // jargon. Both labels now just say what it does.
+    expect(byValue('color').dirLabels[1]).toBe('Reversed');
+    expect(byValue('color').dirShort[1]).toBe('Reversed');
+  });
+});
+
+describe('SORT_PRESETS / matchSortPreset (E491)', () => {
+  it('round-trips every preset chain through matchSortPreset', () => {
+    for (const preset of SORT_PRESETS) {
+      expect(matchSortPreset(preset.sorts)?.id).toBe(preset.id);
+    }
+  });
+
+  it('every preset chain stays within MAX_SORTS', async () => {
+    const { MAX_SORTS } = await import('./sorting');
+    for (const preset of SORT_PRESETS) {
+      expect(preset.sorts.length).toBeLessThanOrEqual(MAX_SORTS);
+    }
+  });
+
+  it('matches regardless of a trailing `none` entry', () => {
+    const preset = SORT_PRESETS.find((p) => p.id === 'a-to-z')!;
+    expect(matchSortPreset([...preset.sorts, { field: 'none', dir: 'asc' }])?.id).toBe('a-to-z');
+  });
+
+  it('does not match a chain that only partially overlaps a preset', () => {
+    expect(matchSortPreset([{ field: 'color', dir: 'asc' }])).toBeUndefined();
+  });
+
+  it('a preset with one direction flipped matches a DIFFERENT preset, not the original', () => {
+    const setCollection = SORT_PRESETS.find((p) => p.id === 'set-collection')!;
+    const flipped = setCollection.sorts.map((s, i) =>
+      i === 0 ? { ...s, dir: 'desc' as const } : s
+    );
+    expect(matchSortPreset(flipped)?.id).toBe('newest-sets');
+  });
+});
+
+describe('describeSortChain (E491)', () => {
+  it('spells out a chain that matches no preset', () => {
+    expect(
+      describeSortChain([
+        { field: 'rarity', dir: 'asc' },
+        { field: 'price', dir: 'desc' },
+      ])
+    ).toBe('Rarity, then price');
+  });
+
+  it('names a single-field chain with no "then"', () => {
+    expect(describeSortChain([{ field: 'name', dir: 'asc' }])).toBe('Name');
+  });
+
+  it('keeps the EDHREC acronym uppercase in a continuation', () => {
+    expect(
+      describeSortChain([
+        { field: 'name', dir: 'asc' },
+        { field: 'edhrec', dir: 'asc' },
+      ])
+    ).toBe('Name, then EDHREC rank');
+  });
+
+  it('returns an empty string for no active sorts', () => {
+    expect(describeSortChain([])).toBe('');
+    expect(describeSortChain([{ field: 'none', dir: 'asc' }])).toBe('');
   });
 });

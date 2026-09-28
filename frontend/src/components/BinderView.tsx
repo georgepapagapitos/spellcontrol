@@ -371,6 +371,13 @@ function SectionList({
     return () => cancelAnimationFrame(id);
   }, [previewActive]);
 
+  // The phone sort sheet's "Your first sections" preview: real section labels
+  // and the page each starts on, from this same materialized binder — never
+  // a re-derived estimate (STYLE_GUIDE § Sort chains).
+  const firstSortSections = sections
+    .slice(0, 4)
+    .map((sec) => ({ label: sec.label, page: sec.pages[0]?.pageNum ?? 1 }));
+
   return (
     <>
       <BinderSummaryBar
@@ -383,6 +390,9 @@ function SectionList({
                 valueOrders,
                 onSortsChange,
                 onValueOrdersChange,
+                firstSections: firstSortSections,
+                totalSections: sections.length,
+                totalPages,
               }
             : undefined
         }

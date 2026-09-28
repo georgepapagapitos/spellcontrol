@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { createOverlayHistoryController } from './overlay-history';
 
 /**
@@ -189,6 +189,7 @@ export function useOverlayLayer(
       dismiss: participates ? () => dismissRef.current?.() ?? false : undefined,
     });
     if (participates) overlayHistory.registered();
+    notifyLayerChange();
     return () => {
       const i = layerStack.findIndex((entry) => entry.id === id);
       if (i !== -1) layerStack.splice(i, 1);
@@ -196,6 +197,7 @@ export function useOverlayLayer(
       // overlay-history.ts): a marked entry left behind by this close is
       // either reused by whatever opens next or skipped transparently if
       // anyone ever backs into it.
+      notifyLayerChange();
     };
   }, [active, participates]);
 
@@ -206,4 +208,40 @@ export function useOverlayLayer(
   const isTopmost = useCallback(() => layerStack[layerStack.length - 1]?.id === idRef.current, []);
 
   return { isTopmost };
+}
+
+// ── "Is anything open at all" — a coarser question than `isTopmost` ────────
+//
+// A few surfaces (the phone camera FAB) need to hide the moment ANY overlay
+// covers the screen, not just answer whether they themselves are on top of
+// the stack. `layerStack` above is plain module state, so a component needs
+// a subscription to re-render when it changes — this is that subscription,
+// built once here rather than as a one-off `useState` + effect in the FAB
+// (which is exactly the kind of copy this module exists to prevent).
+
+const layerChangeListeners = new Set<() => void>();
+
+function notifyLayerChange(): void {
+  for (const listener of layerChangeListeners) listener();
+}
+
+function subscribeLayerChange(listener: () => void): () => void {
+  layerChangeListeners.add(listener);
+  return () => layerChangeListeners.delete(listener);
+}
+
+/** Whether any overlay (modal, sheet, or open popover) is currently on the stack. */
+export function hasOpenOverlay(): boolean {
+  return layerStack.length > 0;
+}
+
+/**
+ * Re-renders whenever an overlay opens or closes anywhere in the app. Use for
+ * chrome that must get out of the way of ANY overlay (the scan FAB hiding
+ * under the sort sheet, an "Add cards" sheet, a card preview, …) rather than
+ * one specific dialog's own open state — a one-off prop from every caller
+ * would work only until the next overlay type nobody remembered to wire up.
+ */
+export function useAnyOverlayOpen(): boolean {
+  return useSyncExternalStore(subscribeLayerChange, hasOpenOverlay, () => false);
 }

@@ -31,5 +31,13 @@ export {
   getDisplaySorts,
   getImplicitTiebreakers,
   sortEntryLabel,
+  SORT_PRESETS,
+  matchSortPreset,
+  describeSortChain,
 } from '@spellcontrol/binder-routing';
-export type { SortContext, TreatmentKey, FinishKey } from '@spellcontrol/binder-routing';
+export type {
+  SortContext,
+  TreatmentKey,
+  FinishKey,
+  SortPreset,
+} from '@spellcontrol/binder-routing';

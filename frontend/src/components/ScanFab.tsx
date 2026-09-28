@@ -3,6 +3,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCanScan } from '../lib/use-can-scan';
 import { useMediaQuery } from '../lib/use-media-query';
+import { useAnyOverlayOpen } from '../lib/overlay-layer';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
 import { importScannedCards } from '../lib/scan-import';
@@ -44,6 +45,11 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
   const canScan = useCanScan();
   const phone = useMediaQuery(PHONE);
   const onCollection = useLocation().pathname.startsWith('/collection');
+  // Hides under ANY overlay — the sort sheet, Add cards, a card preview — not
+  // just the scanner's own. Otherwise it floats on top of whatever a phone
+  // sheet is trying to show (binders-v2 mockup finding #5: the button covered
+  // the very panel it was supposed to get out of the way of).
+  const overlayOpen = useAnyOverlayOpen();
   const importCards = useCollectionStore((s) => s.importCards);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -95,7 +101,7 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
     }
   };
 
-  const showButton = phone && onCollection;
+  const showButton = phone && onCollection && !overlayOpen;
   // An open scanner outlives the button (a route change under it must not
   // unmount the camera mid-scan).
   if (!canScan || (!showButton && !scannerOpen)) return null;
