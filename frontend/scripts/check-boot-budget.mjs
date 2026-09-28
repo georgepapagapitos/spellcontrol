@@ -21,12 +21,17 @@
 // i.e. +0.6 KB into a 0.59 KB margin. It cannot leave the critical path: the
 // foil layers render in the CardPreview chunk, which the entry modulepreloads.
 // Its grain textures already moved out to public/foil/*.svg to keep it at that.
+// CSS came back down 69 → 67 on 2026-09-28 (T168): the commander finder
+// replaced the three-tab picker and its dead boot rules (owned toggle,
+// suggestion chips, playstyle grid, the old readiness chip) left
+// deck-builder-commander.css and deck-builder-guided.css; its own styles ship
+// in the finder's chunk. Measured 65.80.
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BUDGET_KB = { js: 410, css: 69 };
+export const BUDGET_KB = { js: 410, css: 67 };
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 // Vite emits multi-line <link> tags; a line-based scan misses them.

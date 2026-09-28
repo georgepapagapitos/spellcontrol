@@ -2,7 +2,7 @@
    from Collection ⋮ → "Import history". Layout classes moved here from the
    old UploadPanel aside (import-upload.css) when import admin left the
    add-cards flow (T153); the row/checkbox visuals stay shared with other
-   surfaces (see the `.field-checkbox`/`.commander-owned-toggle`/… selector
+   surfaces (see the `.field-checkbox`/`.filter-popover-row`/… selector
    group still in import-upload.css). */
 
 .import-history-sheet-body {

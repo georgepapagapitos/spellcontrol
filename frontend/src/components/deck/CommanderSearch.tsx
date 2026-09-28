@@ -943,12 +943,15 @@ export function CommanderSearch({
   const checking = scoringNow
     ? ` · checking coverage, ${scoringNow.done} of ${scoringNow.of} done`
     : '';
+  // The popular list only takes colors, and its status line names them.
+  const browsingPopular =
+    activeSource === 'all' && current?.from === 'edhrec' && current.status === 'done';
   const status =
     loading && entries.length === 0
       ? 'Searching…'
       : activeSource === 'owned'
         ? `${count(total)} you own${checking}`
-        : current?.from === 'edhrec' && current.status === 'done'
+        : browsingPopular
           ? `Popular ${comboName ? `${comboName} ` : ''}commanders on EDHREC${checking}`
           : `${count(total)}${checking}`;
 
@@ -1089,7 +1092,9 @@ export function CommanderSearch({
       <div className="commander-finder-toolbar">
         <p className="commander-finder-status" role="status" aria-live="polite">
           <span className="commander-finder-status-count">{status}</span>
-          {summary && !isPhone && <span className="commander-finder-summary"> · {summary}</span>}
+          {summary && !isPhone && !browsingPopular && (
+            <span className="commander-finder-summary"> · {summary}</span>
+          )}
         </p>
         <div className="commander-finder-actions">
           {anyFilter && !isPhone && (
