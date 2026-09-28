@@ -2,6 +2,7 @@ import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   commanderCandidatesFor,
+  commanderEligibleFor,
   partnerCandidatesFor,
 } from '../components/deck/import-deck-shared';
 import {
@@ -11,7 +12,7 @@ import {
   type AllocationInfo,
 } from './allocations';
 import { getMaxCopies } from './deck-validation';
-import type { Deck, DeckCard } from '../store/decks';
+import { deckNameForCommander, type Deck, type DeckCard } from '../store/decks';
 import type { DeckImportResponse, EnrichedCard } from '../types';
 
 /**
@@ -22,7 +23,8 @@ import type { DeckImportResponse, EnrichedCard } from '../types';
  *  - `no-commander-in-paste` — the format has no commander slot, or the
  *     paste didn't specify one (no `Commander` section header, and no single
  *     unambiguous commander-eligible card among the pasted cards when the
- *     deck has none yet either). Nothing about the commander changes.
+ *     deck has none yet either). Nothing about the commander changes; a
+ *     `Commander` line pasted into a format without one joins the mainboard.
  *  - `matches-existing` — the paste's `Commander` line names the SAME card
  *     the deck already has. Treated as a duplicate: deduped out of the main
  *     list, existing commander/allocation left untouched.
@@ -33,10 +35,13 @@ import type { DeckImportResponse, EnrichedCard } from '../types';
  *     the conflict explicitly.
  *  - `deck-has-none` — the deck has no commander yet (a freshly created deck,
  *     or one whose commander was removed). `candidates` lists what the paste
- *     offers — the explicit `Commander` line if present, else every
- *     commander-eligible card found among the pasted cards (deduped). Always
- *     requires an explicit user pick in the review step; never auto-applied,
- *     even when there's exactly one candidate.
+ *     offers — the explicit `Commander` line if it can lead a deck of this
+ *     format, else every commander-eligible card found among the pasted
+ *     cards (deduped). Always requires an explicit user pick in the review
+ *     step; never auto-applied, even when there's exactly one candidate.
+ *
+ * Whatever the branch, a pasted `Commander` line that doesn't end up seated
+ * lands in the mainboard like any other pasted card (see `buildAppendPlan`).
  */
 export type AppendCommanderDecision =
   | { kind: 'no-commander-in-paste' }
@@ -64,9 +69,10 @@ export function resolveAppendCommanderDecision(
     };
   }
 
-  const candidates = result.commander
-    ? [result.commander]
-    : commanderCandidatesFor(result.cards, format);
+  const candidates =
+    result.commander && commanderEligibleFor(format)(result.commander)
+      ? [result.commander]
+      : commanderCandidatesFor(result.cards, format);
   return { kind: 'deck-has-none', candidates };
 }
 
@@ -100,8 +106,16 @@ export interface AppendPlan {
   addedCards: DeckCard[];
   addedSideboard: DeckCard[];
   addedConsidering: DeckCard[];
-  /** Total slots actually appended across cards/sideboard/considering — 0 disables Confirm. */
+  /** Total slots actually appended across cards/sideboard/considering. */
   addedCount: number;
+  /** The commander or partner differs from the deck's current one (a
+   *  `deck-has-none` pick). With `addedCount`, what Confirm commits: both
+   *  zero/false disables it. */
+  commanderChanged: boolean;
+  /** The deck's name after the commit: an "Untitled deck" takes a newly
+   *  picked commander's short name, the same rule as the store's own
+   *  commander actions. Otherwise the name it already has. */
+  name: string;
   skippedDuplicates: SkippedDuplicate[];
   commanderDecision: AppendCommanderDecision;
 }
@@ -175,9 +189,19 @@ export function buildAppendPlan(
     if (chosenPartner) bump(chosenPartner.name);
   }
   // 'conflicts-with-existing' and 'no-commander-in-paste' (and 'deck-has-none'
-  // with no chosenCommander yet): mainCandidates is untouched — a conflicting
-  // or not-yet-chosen commander candidate is just a normal card, subject to
-  // the same copy-limit filter as everything else.
+  // with no chosenCommander yet): a conflicting or not-yet-chosen commander
+  // candidate is just a normal card, subject to the same copy-limit filter as
+  // everything else. The server returns the `Commander` line in
+  // `result.commander`, never in `result.cards`, so unless this append seats
+  // it, it's put in front of the main list here (E413: it used to vanish).
+  const pastedCommander = result.commander;
+  if (
+    pastedCommander &&
+    pastedCommander.name !== commander?.name &&
+    pastedCommander.name !== partnerCommander?.name
+  ) {
+    mainCandidates = [pastedCommander, ...mainCandidates];
+  }
 
   const claimed = new Map<string, AllocationInfo>(buildAllocationMap(ctx.decks));
   const newMain = allocateCardsForImport(
@@ -232,6 +256,10 @@ export function buildAppendPlan(
     addedSideboard: newSide,
     addedConsidering: newConsider,
     addedCount: newMain.length + newSide.length + newConsider.length,
+    commanderChanged:
+      (commander?.name ?? null) !== (deck.commander?.name ?? null) ||
+      (partnerCommander?.name ?? null) !== (deck.partnerCommander?.name ?? null),
+    name: deckNameForCommander(deck, commander),
     skippedDuplicates: [...skipped.entries()].map(([name, count]) => ({ name, count })),
     commanderDecision: decision,
   };

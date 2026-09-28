@@ -119,12 +119,20 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
     [result, chosenCommander]
   );
 
+  // A paste that only picks a commander still commits: Confirm is live when
+  // anything would change, and says what that is.
+  const hasChanges = !!plan && (plan.addedCount > 0 || plan.commanderChanged);
+  const commanderOnly = !!plan && plan.addedCount === 0 && plan.commanderChanged;
+
   const handleConfirm = useCallback(() => {
-    if (!plan || plan.addedCount === 0) return;
-    const label = `paste ${plan.addedCount} card${plan.addedCount === 1 ? '' : 's'}`;
+    if (!plan || !hasChanges) return;
+    const label = commanderOnly
+      ? 'set commander'
+      : `paste ${plan.addedCount} card${plan.addedCount === 1 ? '' : 's'}`;
     recordEdit(deck.id, label, () => {
       replaceDeck(deck.id, {
         ...deck,
+        name: plan.name,
         cards: plan.cards,
         sideboard: plan.sideboard,
         considering: plan.considering,
@@ -135,7 +143,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
       });
     });
     onClose();
-  }, [plan, deck, recordEdit, replaceDeck, onClose]);
+  }, [plan, hasChanges, commanderOnly, deck, recordEdit, replaceDeck, onClose]);
 
   const decision = plan?.commanderDecision;
 
@@ -253,8 +261,11 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
             {decision?.kind === 'conflicts-with-existing' && (
               <div className="import-deck-warning">
                 This list's commander, <strong>{decision.pasted.name}</strong>, differs from{' '}
-                {decision.existing.name}. Kept {decision.existing.name}; {decision.pasted.name} was
-                added as a regular card. Use its row's "Make commander" to swap.
+                {decision.existing.name}. Kept {decision.existing.name};{' '}
+                {plan.addedCards.some((c) => c.card.name === decision.pasted.name)
+                  ? `${decision.pasted.name} was added as a regular card.`
+                  : `${decision.pasted.name} is already in the deck.`}{' '}
+                Use its row's "Make commander" to swap.
               </div>
             )}
 
@@ -346,7 +357,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
               </div>
             )}
 
-            {plan.addedCount === 0 && (
+            {!hasChanges && (
               <p className="append-deck-nothing-to-add" role="status">
                 Nothing to add. Check the pasted list.
               </p>
@@ -371,8 +382,10 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
       {step === 'review' && plan && (
         <div className="modal-footer">
           <Button onClick={() => setStep('input')}>Back</Button>
-          <Button variant="primary" onClick={handleConfirm} disabled={plan.addedCount === 0}>
-            Add {plan.addedCount} card{plan.addedCount === 1 ? '' : 's'}
+          <Button variant="primary" onClick={handleConfirm} disabled={!hasChanges}>
+            {commanderOnly
+              ? 'Set commander'
+              : `Add ${plan.addedCount} card${plan.addedCount === 1 ? '' : 's'}`}
           </Button>
         </div>
       )}

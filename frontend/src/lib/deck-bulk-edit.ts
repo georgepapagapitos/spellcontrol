@@ -6,7 +6,8 @@ import {
   type AllocationInfo,
 } from './allocations';
 import { validateDeckZones, type LegalityIssue } from './deck-validation';
-import { newDeckCard, type Deck, type DeckCard } from '../store/decks';
+import { deckNameForCommander, newDeckCard, type Deck, type DeckCard } from '../store/decks';
+import { commanderEligibleFor } from '../components/deck/import-deck-shared';
 import { cardKey, type CardDelta, type CardListDiff } from './deck-diff';
 import type { EnrichedCard } from '../types';
 
@@ -142,7 +143,19 @@ export interface BulkEditDiffEntry {
   qty: number;
 }
 
+/** A `Commander` section line that stays in the mainboard instead of being
+ *  seated: the card can't lead a deck of this format, or the format has no
+ *  command zone at all. */
+export interface CommanderRejection {
+  name: string;
+  reason: 'ineligible' | 'no-command-zone';
+}
+
 export interface BulkEditPlan {
+  /** The deck's name after the commit: an "Untitled deck" takes a newly
+   *  seated commander's short name, the same rule as the store's own
+   *  commander actions. Otherwise the name it already has. */
+  name: string;
   cards: DeckCard[];
   sideboard: DeckCard[];
   considering: DeckCard[];
@@ -157,6 +170,8 @@ export interface BulkEditPlan {
   malformedLines: string[];
   /** Format requires a commander, the deck had one, and the edit left it empty. */
   commanderMissing: boolean;
+  /** `Commander` section cards that went to the mainboard instead. */
+  commanderRejected: CommanderRejection[];
   legalityIssues: LegalityIssue[];
   /** False when the plan is byte-identical to the current deck — disables Confirm. */
   hasChanges: boolean;
@@ -346,7 +361,38 @@ export function buildBulkEditPlan(
     return out;
   }
 
-  const newMain = reconcileZone(parsed.main);
+  // The Commander section is sorted BEFORE the zones are reconciled, so a
+  // line that can't be seated joins the mainboard with the same slot reuse
+  // and copy allocation as any other main line, never silently dropped:
+  //  - a format with no command zone seats nothing from it;
+  //  - a card that can't lead a deck of this format (not legendary, or not
+  //    an uncommon creature in Pauper Commander) isn't seated. The deck's
+  //    current commander or partner is exempt: a round trip that leaves the
+  //    section alone never changes who leads the deck;
+  //  - a line past the second (commander + partner) has no slot to take.
+  const isEligible = commanderEligibleFor(formatConfig.format);
+  const alreadySeated = new Set(
+    [deck.commander, deck.partnerCommander].flatMap((c) => (c ? [c.name.toLowerCase()] : []))
+  );
+  const commanderRejected: CommanderRejection[] = [];
+  const seatLines: ParsedLine[] = [];
+  const commanderToMain: ParsedLine[] = [];
+  for (const line of parsed.commanderLines) {
+    const card = resolve(line.name);
+    if (!formatConfig.hasCommander) {
+      commanderToMain.push(line);
+      if (card) commanderRejected.push({ name: card.name, reason: 'no-command-zone' });
+    } else if (card && !alreadySeated.has(card.name.toLowerCase()) && !isEligible(card)) {
+      commanderToMain.push(line);
+      commanderRejected.push({ name: card.name, reason: 'ineligible' });
+    } else if (seatLines.length >= 2) {
+      commanderToMain.push(line);
+    } else {
+      seatLines.push(line);
+    }
+  }
+
+  const newMain = reconcileZone([...commanderToMain, ...parsed.main]);
   const newSide = reconcileZone(parsed.sideboard);
   const newConsidering = reconcileZone(parsed.considering);
 
@@ -359,7 +405,7 @@ export function buildBulkEditPlan(
   // Commander/partner: preserve the existing allocatedCopyId when the name is
   // unchanged; otherwise allocate fresh (or leave unbound, same as any other
   // new addition). Format-agnostic decks (hasCommander: false) always resolve
-  // to null, matching what buildExport seeds for them (no Commander section).
+  // to null; their Commander section already went to the mainboard above.
   const resolveSlot = (
     line: ParsedLine | undefined,
     existingCard: ScryfallCard | null,
@@ -385,7 +431,7 @@ export function buildBulkEditPlan(
   let commanderMissing = false;
 
   if (formatConfig.hasCommander) {
-    const [cmdLine, partnerLine] = parsed.commanderLines;
+    const [cmdLine, partnerLine] = seatLines;
     const cmd = resolveSlot(cmdLine, deck.commander, deck.commanderAllocatedCopyId);
     commander = cmd.card;
     commanderAllocatedCopyId = cmd.copyId;
@@ -420,6 +466,7 @@ export function buildBulkEditPlan(
     (partnerCommander?.name ?? null) !== (deck.partnerCommander?.name ?? null);
 
   return {
+    name: deckNameForCommander(deck, commander),
     cards: newMain,
     sideboard: newSide,
     considering: newConsidering,
@@ -432,6 +479,7 @@ export function buildBulkEditPlan(
     unresolvedNames: [...unresolvedNames],
     malformedLines: parsed.malformedLines,
     commanderMissing,
+    commanderRejected,
     legalityIssues,
     hasChanges: zonesChanged || commanderChanged,
   };
