@@ -22,7 +22,13 @@ export function BinderCardWhy({
   if (!why) return null;
   return (
     <div className="binder-card-why">
-      <Notebook className="binder-card-why-icon" width={14} height={14} aria-hidden />
+      <Notebook
+        className="binder-card-why-icon"
+        width={14}
+        height={14}
+        strokeWidth={1.8}
+        aria-hidden
+      />
       <p className="binder-card-why-text">
         <span>{why.reason}</span>
         {why.also && <span className="binder-card-why-also">{why.also}</span>}
