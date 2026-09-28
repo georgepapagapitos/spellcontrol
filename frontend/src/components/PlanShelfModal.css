@@ -182,15 +182,12 @@
 }
 
 @media (max-width: 599px) {
-  .plan-shelf-row {
-    grid-template-columns: auto auto auto minmax(0, 1fr) auto;
-  }
-
-  .plan-shelf-row-pages {
-    grid-column: 4 / -1;
-    text-align: left;
-  }
-
+  /* Same 6-column grid as desktop (an override here that drops a column
+     while the row still renders 6 children broke auto-placement: count and
+     pages landed on a wrapped second row, and the reorder buttons stretched
+     to fill it — found shooting the sheet at 390px). The name column just
+     shrinks (`minmax(0, 1fr)` + ellipsis already on `.plan-shelf-row-name`);
+     count and pages stay put as two small trailing columns. */
   .plan-shelf-footer-note {
     display: none;
   }
