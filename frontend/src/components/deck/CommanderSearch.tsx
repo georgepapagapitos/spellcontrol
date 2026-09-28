@@ -35,6 +35,7 @@ import {
   colorComboName,
   colorIdentityMatches,
   colorModeHint,
+  colorWords,
   compareEntries,
   effectiveSort,
   filterSummary,
@@ -964,7 +965,9 @@ export function CommanderSearch({
   const emptyReasons = relaxations({ ...query, source: activeSource });
 
   const colorChipLabel =
-    colorMode === 'within' && !colors.has('C') ? `Within ${comboName}` : comboName;
+    colorMode === 'within' && !colors.has('C')
+      ? `Within ${colorWords(colors).toLowerCase()}`
+      : comboName;
   const filterChips: FilterChipDescriptor[] = [
     ...(colors.size > 0
       ? [{ id: 'colors', label: colorChipLabel, onClear: () => setColors(new Set()) }]

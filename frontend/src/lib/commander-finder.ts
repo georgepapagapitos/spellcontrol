@@ -73,7 +73,7 @@ export function colorComboName(colors: Iterable<string>): string {
 }
 
 /** "Black-green", "Black", "White-blue-black": the colors in words. */
-function colorWords(colors: Iterable<string>): string {
+export function colorWords(colors: Iterable<string>): string {
   const words = sortColors(colors).map((c) => COLOR_WORD[c] ?? c);
   const joined = words.join('-');
   return joined.charAt(0).toUpperCase() + joined.slice(1);
@@ -344,8 +344,11 @@ export function relaxations(q: FinderQuery & { source: FinderSource }): Relaxati
 export function filterSummary(q: FinderQuery): string {
   const parts: string[] = [];
   if (q.colors.size > 0) {
-    const name = colorComboName(q.colors);
-    parts.push(q.colorMode === 'within' && !q.colors.has('C') ? `within ${name}` : name);
+    parts.push(
+      q.colorMode === 'within' && !q.colors.has('C')
+        ? `within ${colorWords(q.colors).toLowerCase()}`
+        : colorComboName(q.colors)
+    );
   }
   const styles = q.playstyleIds.flatMap((id) => {
     const p = playstyleById(id);
