@@ -1109,6 +1109,11 @@ export function BinderEditor() {
                         )}
                         onMoveAbove={firstCatcher ? () => setPlaceAboveId(firstCatcher.id) : null}
                         moveAboveLabel={firstCatcher ? `Move above ${firstCatcher.name}` : ''}
+                        isEmpty={
+                          effectiveLanding.matches > 0 &&
+                          effectiveLanding.lands === 0 &&
+                          !placeAbove
+                        }
                       />
                     )}
 
@@ -1137,24 +1142,6 @@ export function BinderEditor() {
                         </Button>
                       </p>
                     )}
-
-                    {effectiveLanding &&
-                      effectiveLanding.matches > 0 &&
-                      effectiveLanding.lands === 0 &&
-                      !placeAbove && (
-                        <div className="warn-banner binder-editor-warn">
-                          <span>
-                            Every matching card already lands in{' '}
-                            {formatCaughtBy(effectiveLanding.caughtBy, 'a binder above this one')},
-                            so this binder will be empty.
-                          </span>
-                          {firstCatcher && (
-                            <Button onClick={() => setPlaceAboveId(firstCatcher.id)}>
-                              Move above {firstCatcher.name}
-                            </Button>
-                          )}
-                        </div>
-                      )}
 
                     {showEmptyWarning &&
                       (sitsLast ? (

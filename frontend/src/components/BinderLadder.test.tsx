@@ -85,6 +85,43 @@ describe('BinderLadder', () => {
     expect(onMoveAbove).toHaveBeenCalledTimes(1);
   });
 
+  it('is a quiet note by default, and the loud amber warning only when isEmpty is set', () => {
+    stubViewport(false);
+    const { rerender } = render(
+      <BinderLadder
+        ladder={ladder}
+        draftId="draft"
+        caughtAbove={107}
+        caughtByLabel="Commanders"
+        onMoveAbove={() => {}}
+        moveAboveLabel="Move above Commanders"
+      />
+    );
+    const quietLine = screen
+      .getByText(/107 of its matches went to Commanders, above/)
+      .closest('p')!;
+    expect(quietLine.className).not.toMatch(/is-warning/);
+
+    rerender(
+      <BinderLadder
+        ladder={ladder}
+        draftId="draft"
+        caughtAbove={107}
+        caughtByLabel="Commanders"
+        onMoveAbove={() => {}}
+        moveAboveLabel="Move above Commanders"
+        isEmpty
+      />
+    );
+    const warningLine = screen
+      .getByText(/107 of its matches went to Commanders, above/)
+      .closest('p')!;
+    expect(warningLine.className).toMatch(/is-warning/);
+    // Still exactly one "Move above" control — this line carries the fix,
+    // not a second box repeating it.
+    expect(screen.getAllByRole('button', { name: 'Move above Commanders' })).toHaveLength(1);
+  });
+
   it('omits the caught-by line when nothing was caught', () => {
     stubViewport(false);
     render(

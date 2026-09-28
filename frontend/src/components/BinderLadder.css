@@ -1,6 +1,7 @@
 /* BinderLadder.css — "a card goes to the first binder that wants it" (E493).
-   A quiet ambient list, not a warning: the loud amber case (a binder that
-   lands zero cards) still gets its own .warn-banner in BinderEditor. */
+   A quiet ambient list; the caught-by line takes the amber warn treatment
+   itself (.is-warning) when this binder currently lands nothing — one fact,
+   one place, instead of a second banner repeating the same "Move above". */
 
 .binder-ladder {
   display: flex;
@@ -87,6 +88,26 @@
 
 .binder-ladder-caught-text {
   grid-column: 3 / -1;
+}
+
+/* The zero-landing case (E493 fold): the same warn tokens every other
+   binder-editor warning uses (BinderEditor.css's .warn-banner), applied here
+   instead of a duplicate box — a real problem state gets the loud treatment,
+   a partial catch stays the quiet note above. Two classes outweigh the base
+   .binder-ladder-caught rule regardless of file order. */
+.binder-ladder-caught.is-warning {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border: 0.5px solid var(--warn-border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.binder-ladder-caught.is-warning .binder-ladder-caught-text {
+  grid-column: unset;
 }
 
 .binder-ladder-show-all {

@@ -242,7 +242,7 @@ describe('the binder ladder agrees with the footer (E493)', () => {
     expect(myRung.textContent).toContain('0');
   });
 
-  it('"Move above" from the ladder previews the new position, same as the warning banner', () => {
+  it('"Move above" from the ladder previews the new position and applies on save', () => {
     const catcher = makeBinderDef({ id: 'lair', name: 'Secret Lair', position: 0 });
     const editing = makeBinderDef({
       id: 'rares',
@@ -260,10 +260,10 @@ describe('the binder ladder agrees with the footer (E493)', () => {
     open('rares');
 
     expect(screen.getByText(/of its matches went to Secret Lair, above/)).toBeTruthy();
-    // Both the amber warning and the ladder's caught-by line offer the same
-    // "Move above" fix — the SAME handler, reused rather than rebuilt.
+    // One fact, one place (E493): the caught-by line IS the zero-landing
+    // warning here — exactly one "Move above", not a duplicate amber box.
     const moveButtons = screen.getAllByRole('button', { name: 'Move above Secret Lair' });
-    expect(moveButtons.length).toBeGreaterThanOrEqual(2);
+    expect(moveButtons).toHaveLength(1);
     fireEvent.click(moveButtons[0]);
 
     const landLine = () => screen.getByText(/lands? here/).closest('strong')?.textContent ?? '';
@@ -271,5 +271,23 @@ describe('the binder ladder agrees with the footer (E493)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(moveBinderAbove).toHaveBeenCalledWith('rares', 'lair');
+  });
+
+  it('the caught-by line takes the amber warning treatment exactly when the binder lands zero', () => {
+    const catcher = makeBinderDef({ id: 'lair', name: 'Secret Lair', position: 0 });
+    const editing = makeBinderDef({
+      id: 'rares',
+      name: 'Rares',
+      position: 1,
+      filterGroups: [{ filter: RARES }],
+    });
+    useCollectionStore.setState({
+      binders: [catcher, editing],
+      cards: [card('1', [], 'rare'), card('2', [], 'mythic')],
+    });
+    open('rares');
+
+    const caughtLine = screen.getByText(/of its matches went to Secret Lair, above/).closest('p')!;
+    expect(caughtLine.className).toMatch(/is-warning/);
   });
 });

@@ -248,9 +248,10 @@ describe('the zero-landing warning offers the fix', () => {
 
     // The catch-all above takes both rares, so this binder would be empty.
     expect(landLine()).toBe('0 cards land here');
-    // Two identical fixes exist now (E493): the amber warning's own action and
-    // the binder ladder's caught-by line, both wired to the SAME handler.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Move above Secret Lair' })[0]);
+    // One fact, one place (E493): the ladder's own caught-by line carries the
+    // fix — no separate amber box duplicating the same "Move above".
+    expect(screen.getAllByRole('button', { name: 'Move above Secret Lair' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Move above Secret Lair' }));
 
     // Previewed immediately, applied only on save.
     expect(landLine()).toBe('2 cards land here');

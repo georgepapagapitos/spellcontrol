@@ -16,6 +16,12 @@ interface Props {
    *  the button is omitted rather than thrown on). */
   onMoveAbove: (() => void) | null;
   moveAboveLabel: string;
+  /** True exactly when the binder's rules currently land nothing (matches > 0,
+   *  lands === 0, no pending Move-above) — the same condition the editor used
+   *  to show as a SEPARATE amber banner. The caught-by line already explains
+   *  why and carries the fix, so that state is folded in here instead of
+   *  duplicating a second "Move above" box with the same action. */
+  isEmpty?: boolean;
 }
 
 /** Phone shows only the binder immediately above the draft (positionally —
@@ -37,6 +43,7 @@ export function BinderLadder({
   caughtByLabel,
   onMoveAbove,
   moveAboveLabel,
+  isEmpty = false,
 }: Props) {
   const phone = useMediaQuery('(max-width: 599px)');
   const [expanded, setExpanded] = useState(false);
@@ -80,11 +87,11 @@ export function BinderLadder({
         })}
       </ul>
       {caughtAbove > 0 && (
-        <p className="binder-ladder-caught">
+        <p className={`binder-ladder-caught${isEmpty ? ' is-warning' : ''}`}>
           <span className="binder-ladder-caught-text">
             {caughtAbove.toLocaleString()} of its matches went to {caughtByLabel}, above.
             {onMoveAbove && (
-              <Button variant="link" onClick={onMoveAbove}>
+              <Button variant={isEmpty ? undefined : 'link'} onClick={onMoveAbove}>
                 {moveAboveLabel}
               </Button>
             )}
