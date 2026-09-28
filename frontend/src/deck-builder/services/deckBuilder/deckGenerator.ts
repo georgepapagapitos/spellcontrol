@@ -2526,7 +2526,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (role) {
             cardRoleMap.set(edhrecCard.name, role);
             cardCmcMap.set(edhrecCard.name, scryfallCard.cmc);
-            const subtype = getCardSubtype(scryfallCard.name);
+            const subtype = getCardSubtype(scryfallCard.name, role);
             if (subtype) cardSubtypeMap.set(edhrecCard.name, subtype);
             // Also store under full Scryfall name for DFCs (e.g. "A // B")
             if (scryfallCard.name !== edhrecCard.name) {

@@ -1,5 +1,9 @@
 import { logger } from '@/lib/logger';
-import { checkRoleEvidence } from '@spellcontrol/deck-metrics';
+import {
+  checkRoleEvidence,
+  isIncidentalRampByTags,
+  isRampByTags,
+} from '@spellcontrol/deck-metrics';
 const TAG_REPO_URL =
   (import.meta.env.VITE_TAG_REPO_URL as string | undefined) ?? '/tagger-tags.json';
 
@@ -119,12 +123,16 @@ export type CardDrawSubtype = 'tutor' | 'wheel' | 'cantrip' | 'card-draw' | 'car
 // cardMatchesRole, hasMultipleRoles, and getAllCardRoles.
 
 function isRampCard(cardName: string): boolean {
-  return !!(
-    tagSets?.['ramp']?.has(cardName) ||
-    tagSets?.['cost-reducer']?.has(cardName) ||
-    tagSets?.['mana-dork']?.has(cardName) ||
-    tagSets?.['mana-rock']?.has(cardName)
-  );
+  return isRampByTags((tag) => hasTag(cardName, tag));
+}
+
+/**
+ * E476: the card carries Scryfall's generic `ramp` tag but its job is
+ * something else (Mana Drain, Sword of Feast and Famine), so it never fills
+ * the ramp role anywhere. The rule lives in `@spellcontrol/deck-metrics`.
+ */
+export function isIncidentalRamp(cardName: string): boolean {
+  return isIncidentalRampByTags((tag) => hasTag(cardName, tag));
 }
 
 function isCardDrawCard(cardName: string): boolean {
@@ -201,9 +209,20 @@ export function getAllCardRoles(cardName: string): RoleKey[] {
   return roles;
 }
 
+/**
+ * A card's generation-stamped `deckRole`, minus a stale `ramp` stamp. Saved
+ * decks keep frozen card copies, so a deck generated before E476 still says
+ * Mana Drain is ramp; read the stamp through this, never `card.deckRole`.
+ */
+export function stampedRole(card: { name: string; deckRole?: string }): string | undefined {
+  return card.deckRole === 'ramp' && isIncidentalRamp(card.name) ? undefined : card.deckRole;
+}
+
 /** For cards with the 'ramp' role, return the specific subtype. */
 export function getRampSubtype(cardName: string): RampSubtype | null {
-  if (!tagSets) return null;
+  // Stamped on every card for secondary-role badges, so incidental ramp must
+  // get no subtype here either.
+  if (!tagSets || !isRampCard(cardName)) return null;
   if (tagSets['mana-dork']?.has(cardName)) return 'mana-producer';
   if (tagSets['mana-rock']?.has(cardName)) return 'mana-rock';
   if (tagSets['cost-reducer']?.has(cardName)) return 'cost-reducer';
@@ -888,14 +907,19 @@ export function getWipeScope(card: {
 }
 
 /**
- * Positive-evidence-gated role classification. Returns the same role
- * `getCardRole` would (by name) IFF the card's own oracle text corroborates
- * it — otherwise drops the role. Guards against upstream tagger mistags and
- * corrupt/mismatched Scryfall records (a cached card whose oracle_text
- * doesn't match its type, inflating a role count with an effect it doesn't
- * have). Falls back to trusting the tag when no oracle text is available to
- * check against (can't validate what we can't read), so a face with no text
- * doesn't lose a real role for lack of data.
+ * Positive-evidence-gated role classification. Walks the card's tagged roles
+ * in `getCardRole`'s priority order and returns the first one the card's own
+ * oracle text corroborates, or null when none is. Guards against upstream
+ * tagger mistags and corrupt/mismatched Scryfall records (a cached card whose
+ * oracle_text doesn't match its type, inflating a role count with an effect
+ * it doesn't have). Falls back to trusting the primary tag when no oracle
+ * text is available to check against (can't validate what we can't read), so
+ * a face with no text doesn't lose a real role for lack of data.
+ *
+ * E476: checking only the primary role dropped real roles. Liliana,
+ * Dreadhorde General is tagged boardwipe, removal and draw; her text isn't a
+ * wipe, so she counted as nothing, though her -4 is an edict and her static
+ * draws. Smart Trim then read removal as short and cut ramp instead.
  *
  * NOTE: shared with live generation (categorize.ts, scryfallFill.ts,
  * cardPicking.ts, deckGenerator.ts) — this is not report-only, so evidence
@@ -908,15 +932,18 @@ export function validateCardRole(card: {
   oracle_text?: string;
   card_faces?: Array<{ oracle_text?: string }>;
 }): RoleKey | null {
-  const role = getCardRole(card.name);
-  if (!role) return null;
   const text = card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ?? '';
-  return checkRoleEvidence(role, text);
+  for (const role of getAllCardRoles(card.name)) {
+    if (checkRoleEvidence(role, text)) return role;
+  }
+  return null;
 }
 
-/** Get the subtype of a card for its primary role (if any). */
-export function getCardSubtype(cardName: string): string | null {
-  const role = getCardRole(cardName);
+/** Get the subtype of a card for `role`, its primary role by default. */
+export function getCardSubtype(
+  cardName: string,
+  role: RoleKey | null = getCardRole(cardName)
+): string | null {
   if (!role) return null;
   switch (role) {
     case 'ramp':

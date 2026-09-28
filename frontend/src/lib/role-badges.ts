@@ -10,6 +10,7 @@ import {
   getBoardwipeSubtype,
   getCardDrawSubtype,
   hasMultipleRoles,
+  stampedRole,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -86,7 +87,7 @@ function badge(tone: string): RoleBadge {
 // the bundled tagger (by card name) so badges show up the same way for
 // both flows — and so callers that only have a name-bearing card work.
 export function getRoleBadge(card: RoleCardInput): RoleBadge | null {
-  const role = card.deckRole ?? getCardRole(card.name);
+  const role = stampedRole(card) ?? getCardRole(card.name);
   if (!role) return null;
   switch (role) {
     case 'ramp': {

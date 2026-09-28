@@ -12,13 +12,13 @@
  * Pure — only depends on the tagger/scryfall helpers and the card shape.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { getCardRole } from '@/deck-builder/services/tagger/client';
+import { getCardRole, stampedRole } from '@/deck-builder/services/tagger/client';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 
 /** The card's functional tagger role — its own `deckRole` when present, else the
  *  tagger's name-based classification. `null` when unclassified. */
 export const roleOf = (card: ScryfallCard): string | null =>
-  card.deckRole ?? getCardRole(card.name);
+  stampedRole(card) ?? getCardRole(card.name);
 
 /** True when two cards share the same (non-null) functional role. */
 export function sameRole(a: ScryfallCard, b: ScryfallCard): boolean {

@@ -1,4 +1,6 @@
 export { checkRoleEvidence } from './roleEvidence';
+export { isIncidentalRampByTags, isRampByTags } from './rampRole';
+import { isRampByTags } from './rampRole';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -206,7 +208,8 @@ export const HARDCODED_GAME_CHANGERS: ReadonlySet<string> = new Set([
  * Build a {@link TagLookup} over raw tagger data (`{ tag: [cardName, …] }`).
  *
  * The role PRECEDENCE encoded here is the thing worth sharing — not the lookup
- * itself. `getCardRole` folds four tags into `ramp` and six into `cardDraw`, and
+ * itself. `getCardRole` folds four tags into `ramp` (minus incidental ramp, see
+ * `rampRole.ts`) and six into `cardDraw`, and
  * checks boardwipe before removal because boardwipe is the more specific claim.
  * A second copy of those rules on the server would not fail loudly when it
  * drifted; it would quietly classify cards differently and hand back a bracket
@@ -229,14 +232,7 @@ export function createTagLookup(tags: Record<string, readonly string[]>): TagLoo
       // Priority order — boardwipe before removal, it is the more specific tag.
       if (has('boardwipe', name)) return 'boardwipe';
       if (has('removal', name)) return 'removal';
-      if (
-        has('ramp', name) ||
-        has('cost-reducer', name) ||
-        has('mana-dork', name) ||
-        has('mana-rock', name)
-      ) {
-        return 'ramp';
-      }
+      if (isRampByTags((tag) => has(tag, name))) return 'ramp';
       if (
         has('card-advantage', name) ||
         has('tutor', name) ||

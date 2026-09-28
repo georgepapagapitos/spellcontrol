@@ -49,7 +49,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v16-rating-only-combo-floor',
+    'v17-incidental-ramp',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards

@@ -20,6 +20,7 @@ import {
 import type { EnrichedCard } from '../../types';
 import { COMMANDER_SLOT_ID, PARTNER_COMMANDER_SLOT_ID } from '../../lib/deck-validation';
 import { rolesForCard, ROLE_TITLES, type RoleKey } from '../../lib/role-badges';
+import { stampedRole } from '@/deck-builder/services/tagger/client';
 import { effectiveSortIndex } from '@/lib/deck-reorder';
 import type { DeckDisplayCard } from './DeckDisplay';
 import {
@@ -65,7 +66,7 @@ export function resolveInclusionPct(
  */
 export function cardAllRoles(card: ScryfallCard): RoleKey[] {
   const roles = rolesForCard(card);
-  const enriched = card.deckRole as RoleKey | undefined;
+  const enriched = stampedRole(card) as RoleKey | undefined;
   return enriched && enriched in ROLE_TITLES && !roles.includes(enriched)
     ? [...roles, enriched]
     : roles;

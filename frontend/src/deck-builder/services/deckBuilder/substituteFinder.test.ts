@@ -14,9 +14,11 @@ vi.mock('@/deck-builder/services/tagger/client', () => {
     'Swords to Plowshares': ['removal'],
     'Wrath of God': ['boardwipe'],
     'Mystic Confluence': ['cardDraw', 'removal'], // multi-role; primary is cardDraw
-    // E460: the generic ramp tag on cards whose job is something else.
-    'Mana Drain': ['ramp'],
-    'Sword of Feast and Famine': ['ramp'],
+    // E460/E476: the generic ramp tag on cards whose job is something else.
+    // The real `cardMatchesRole` gives them no ramp role (pinned against real
+    // tags in substituteFinder.incidental.test.ts); the mock says the same.
+    'Mana Drain': [],
+    'Sword of Feast and Famine': [],
     'Rampant Growth': ['ramp'],
   };
   const subtypes: Record<string, string | null> = {

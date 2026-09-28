@@ -7,6 +7,7 @@ import type {
 import {
   getCardRole,
   cardMatchesRole,
+  stampedRole,
   getAllCardRoles,
   hasTag,
   getCardSubtype,
@@ -752,7 +753,7 @@ export function getCurvePhases(
     let interactionInPhase = 0;
     let cardDrawInPhase = 0;
     for (const ac of cards) {
-      const role = ac.card.deckRole || getCardRole(ac.card.name);
+      const role = stampedRole(ac.card) || getCardRole(ac.card.name);
       if (role === 'ramp') rampInPhase++;
       if (role === 'removal' || role === 'boardwipe') interactionInPhase++;
       if (role === 'cardDraw') cardDrawInPhase++;
@@ -1408,7 +1409,7 @@ export function computeOptimizeSwaps(
     if (synergyProtectedNames?.has(card.name)) continue; // load-bearing for an invested axis
     if (isLiftProtected(card.name)) continue; // package-connected via lift co-play
 
-    const role = card.deckRole || getCardRole(card.name) || undefined;
+    const role = stampedRole(card) || getCardRole(card.name) || undefined;
     const roleLabel = role ? ROLE_LABELS[role] || role : undefined;
     const cmdInclusion = inclusionMap[card.name] ?? null;
     const globalInclusion =
@@ -1722,7 +1723,7 @@ export function computeOptimizeSwaps(
       if (isLiftProtected(card.name)) continue; // package-connected via lift co-play
       if (isChannelLand(card)) continue; // channel lands are too good to ever cut
       if (isMdfcLand(card)) continue; // MDFCs double as spells — never cut
-      const role = card.deckRole || getCardRole(card.name) || undefined;
+      const role = stampedRole(card) || getCardRole(card.name) || undefined;
       const roleLabel = role ? ROLE_LABELS[role] || role : undefined;
       const cmdInclusion = inclusionMap[card.name] ?? null;
       const globalInclusion =
@@ -2456,12 +2457,13 @@ export function analyzeDeck(
     if (targetRole === 'ramp' && getFrontFaceTypeLine(card).includes('Land')) {
       subtypeLabel = 'Ramp Land';
     }
+    const stamped = stampedRole(card);
     return {
       card,
       inclusion: incMap[card.name] ?? null,
       score: inDeckScoreMap.get(card.name),
-      role: card.deckRole || undefined,
-      roleLabel: card.deckRole ? ROLE_LABELS[card.deckRole] : undefined,
+      role: stamped || undefined,
+      roleLabel: stamped ? ROLE_LABELS[stamped] : undefined,
       subtype: subtype || undefined,
       subtypeLabel,
     };
@@ -2502,7 +2504,7 @@ export function analyzeDeck(
 
   const roleBreakdowns: RoleBreakdown[] = Object.entries(roleTargets).map(([role, target]) => {
     const roleCards = currentCards
-      .filter((c) => c.deckRole === role || cardMatchesRole(c.name, role as RoleKey))
+      .filter((c) => stampedRole(c) === role || cardMatchesRole(c.name, role as RoleKey))
       .map((c) => makeAnalyzedCard(c, role))
       .sort(sortByInclusion);
     // Use card list length so lands with roles are included in the displayed count
@@ -2549,7 +2551,7 @@ export function analyzeDeck(
 
   // Ramp cards
   const rampCards: AnalyzedCard[] = currentCards
-    .filter((c) => c.deckRole === 'ramp' || cardMatchesRole(c.name, 'ramp'))
+    .filter((c) => stampedRole(c) === 'ramp' || cardMatchesRole(c.name, 'ramp'))
     .map((c) => makeAnalyzedCard(c, 'ramp'))
     .sort(sortByInclusion);
 
@@ -2864,12 +2866,8 @@ export function analyzeDeck(
   const fixingRecommendations: RecommendedCard[] = [];
   for (const [name, { card }] of candidateMap) {
     if (card.primary_type === 'Land') continue;
-    const isFixer =
-      hasTag(name, 'mana-dork') ||
-      hasTag(name, 'mana-rock') ||
-      hasTag(name, 'cost-reducer') ||
-      hasTag(name, 'ramp');
-    if (!isFixer) continue;
+    // The ramp role, not the raw tag: a counterspell that adds {C} isn't a fixer.
+    if (!cardMatchesRole(name, 'ramp')) continue;
     const cardColors = getRecommendationColors(name, card.color_identity);
     const relevantColors = cardColors.filter((c) => ci.includes(c));
     const role = getCardRole(name);

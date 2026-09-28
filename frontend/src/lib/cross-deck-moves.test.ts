@@ -17,6 +17,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => {
   };
   return {
     getCardRole: (name: string) => roles[name]?.[0] ?? null,
+    stampedRole: (card: { deckRole?: string }) => card.deckRole,
     cardMatchesRole: (name: string, role: string) => (roles[name] ?? []).includes(role),
     getCardSubtype: () => null,
     getCardTags: (name: string) => roles[name] ?? [],

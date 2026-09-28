@@ -2,6 +2,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { RecommendedCard } from './deckAnalyzer';
 import { getCardPrice, getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import { primaryTypeOf } from '@/lib/card-matching';
+import { stampedRole } from '@/deck-builder/services/tagger/client';
 
 /**
  * Cost optimizer — suggests cheaper, role-equivalent replacements for the most
@@ -310,7 +311,8 @@ export function buildCostPlan(
     } else {
       // Prefer the card's role bucket; fall back to its primary-type bucket so a
       // spell with no detected role still gets a suggestion instead of nothing.
-      const roleBucket = card.deckRole ? byRole.get(card.deckRole) : undefined;
+      const stamped = stampedRole(card);
+      const roleBucket = stamped ? byRole.get(stamped) : undefined;
       pool = roleBucket ?? byRole.get(`type:${primaryTypeOf(card).toLowerCase()}`) ?? [];
     }
 

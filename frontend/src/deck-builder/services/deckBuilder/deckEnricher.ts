@@ -15,6 +15,7 @@ import {
   getRemovalSubtype,
   getBoardwipeSubtype,
   getCardDrawSubtype,
+  stampedRole,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import {
@@ -317,7 +318,7 @@ export async function enrichDeckCards(
             relMap[card.name] = 0;
             continue;
           }
-          const role = (card.deckRole as RoleKey) || null;
+          const role = (stampedRole(card) as RoleKey) || null;
           const sub =
             card.rampSubtype ||
             card.removalSubtype ||

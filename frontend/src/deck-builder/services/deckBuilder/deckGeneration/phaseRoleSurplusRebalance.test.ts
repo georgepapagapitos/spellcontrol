@@ -29,9 +29,15 @@ const WIPE_SCOPE_OF = new Map<string, MockWipeScope>();
 // individual tests mark which names are free-interaction pieces (Fierce
 // Guardianship/Commandeer-class), rather than depending on real oracle text.
 const FREE_INTERACTION_NAMES = new Set<string>();
+// E166: a card whose own text corroborates a different role than its raw
+// tag (Liliana, Dreadhorde General: tagged boardwipe, reads as removal).
+// Unset names validate to their ROLE_OF role, as before.
+const VALIDATED_OF = new Map<string, RoleKey | null>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn((name: string) => ROLE_OF.get(name) ?? null),
-  validateCardRole: vi.fn((card: { name: string }) => ROLE_OF.get(card.name) ?? null),
+  validateCardRole: vi.fn((card: { name: string }) =>
+    VALIDATED_OF.has(card.name) ? VALIDATED_OF.get(card.name)! : (ROLE_OF.get(card.name) ?? null)
+  ),
   getRampSubtype: vi.fn(() => null),
   getRemovalSubtype: vi.fn(() => null),
   getBoardwipeSubtype: vi.fn(() => null),
@@ -235,6 +241,35 @@ describe('applyRoleSurplusRebalance', () => {
     ONE_SIDED_WIPE_NAMES.clear();
     WIPE_SCOPE_OF.clear();
     FREE_INTERACTION_NAMES.clear();
+    VALIDATED_OF.clear();
+  });
+
+  it('converts from the role most over its target first, not the lowest-scored card overall', () => {
+    // meren-budget100 (E476 gate): the one affordable replacement went to a
+    // draw card 30% over target while ramp sat 73% over and kept its filler.
+    const state = makeState();
+    addRampCards(state, 7); // target 2 -> 3.5x
+    const draws = Array.from({ length: 6 }, (_, i) => scryfallCard(`Draw_${i + 1}`));
+    for (const c of draws) {
+      ROLE_OF.set(c.name, 'cardDraw');
+      state.usedNames.add(c.name);
+    }
+    state.categories.synergy.push(...draws); // target 3 -> 2x
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('The Only Payoff', 95),
+          ...Array.from({ length: 7 }, (_, i) => edhrecCard(`Ramp_${i + 1}`, 50)),
+          ...Array.from({ length: 6 }, (_, i) => edhrecCard(`Draw_${i + 1}`, i === 0 ? 1 : 50)),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const roleTargets = { ramp: 2, removal: 0, boardwipe: 0, cardDraw: 3 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    expect(result.conversions).toHaveLength(1);
+    expect(result.conversions[0].added).toBe('The Only Payoff');
+    expect(result.conversions[0].cut).toMatch(/^Ramp_/); // not Draw_1, the lowest-scored card
   });
 
   it('is a no-op when no role target is set', () => {
@@ -1122,6 +1157,46 @@ describe('applyRoleSurplusRebalance', () => {
         (c) => ROLE_OF.get(c.name) === 'boardwipe'
       );
       expect(remainingWipes).toHaveLength(1); // exactly target, not target+1
+    });
+
+    it('E166: never evicts a card the validated wipe count does not hold, so it trims a real wipe', () => {
+      // meren, live: raw-tagged wipes Golgari Charm, Toxic Deluge, Massacre
+      // Wurm and Liliana, Dreadhorde General, whose text reads as removal.
+      // Evicting Liliana "because wipes are 4/2" decremented a count she was
+      // never in, and three real wipes shipped against a cap of 2.
+      const state = makeState();
+      addWipeCards(state, 3);
+      const walker = scryfallCard('Edict Walker', { type_line: 'Legendary Planeswalker' });
+      ROLE_OF.set(walker.name, 'boardwipe');
+      VALIDATED_OF.set(walker.name, 'removal');
+      state.usedNames.add(walker.name);
+      state.categories.synergy.push(walker);
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Wipe Payoff', 90),
+            edhrecCard('Wipe_1', 50),
+            edhrecCard('Wipe_2', 50),
+            edhrecCard('Wipe_3', 50),
+            edhrecCard('Edict Walker', 1), // the worst-scored card: first to go on the raw tag
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, { roleTargets, isBoardCentricPlan: true })
+      );
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).not.toBe('Edict Walker');
+      expect(state.categories.synergy.map((c) => c.name)).toContain('Edict Walker');
+      const validatedWipes = state.categories.synergy.filter(
+        (c) =>
+          (VALIDATED_OF.has(c.name) ? VALIDATED_OF.get(c.name) : ROLE_OF.get(c.name)) ===
+          'boardwipe'
+      );
+      expect(validatedWipes).toHaveLength(2); // exactly the board-centric cap
     });
 
     it('leaves the identical target+1 pile alone when the plan is NOT board-centric (global tol-1 unaffected)', () => {

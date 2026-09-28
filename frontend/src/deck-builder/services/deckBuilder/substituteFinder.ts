@@ -194,35 +194,6 @@ export function similarityScore(
  */
 const isLandLine = (typeLine?: string): boolean => /\bLand\b/.test(typeLine ?? '');
 
-/** Tags that make a ramp card a ramp piece in its own right. */
-const RAMP_SPECIFIC = new Set(['mana-dork', 'mana-rock', 'cost-reducer', 'land-tutor']);
-/** Tags naming a different main job for the card. */
-const OTHER_JOB = new Set([
-  'counterspell',
-  'protection',
-  'removal',
-  'spot-removal',
-  'bounce',
-  'boardwipe',
-]);
-
-/**
- * E460: Scryfall's generic `ramp` tag is broad. Mana Drain (it adds mana a
- * turn later) and Sword of Feast and Famine (it untaps your lands) both carry
- * it, so the role gate offered a counterspell as the stand-in for a missing
- * Rampant Growth ("Mana Drain fills the Ramp slot"). A card whose only ramp
- * evidence is that generic tag, and whose tags name another job, makes mana on
- * the side: it isn't a ramp piece to seat in a ramp slot.
- */
-export function isIncidentalRamp(cardName: string): boolean {
-  const tags = getCardTags(cardName);
-  return (
-    tags.includes('ramp') &&
-    !tags.some((t) => RAMP_SPECIFIC.has(t)) &&
-    tags.some((t) => OTHER_JOB.has(t))
-  );
-}
-
 function rankCandidates(
   missing: GapAnalysisCard,
   ownedPool: readonly SubstituteCandidate[],
@@ -248,8 +219,9 @@ function rankCandidates(
     // the deck ships one land over its tuned count (Branch of Vitu-Ghazi seated
     // for Dark Ritual, live). Lands substitute only for lands, and vice versa.
     if (isLandLine(card.typeLine) !== isLandLine(missing.typeLine)) continue;
+    // Incidental ramp (Mana Drain, Sword of Feast and Famine) never matches
+    // `ramp` here: the rule lives at the role choke point (E460, E476).
     if (!cardMatchesRole(card.name, role)) continue; // wrong role
-    if (role === 'ramp' && isIncidentalRamp(card.name)) continue; // makes mana on the side
 
     const subtypeMatch = wantedSubtype != null && getCardSubtype(card.name) === wantedSubtype;
     const cmcDelta =
