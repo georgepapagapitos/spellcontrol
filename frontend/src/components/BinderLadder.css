@@ -1,0 +1,123 @@
+/* BinderLadder.css — "a card goes to the first binder that wants it" (E493).
+   A quiet ambient list; the caught-by line takes the amber warn treatment
+   itself (.is-warning) when this binder currently lands nothing — one fact,
+   one place, instead of a second banner repeating the same "Move above". */
+
+.binder-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.binder-ladder-lede {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.binder-ladder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.binder-ladder-rung {
+  display: grid;
+  grid-template-columns: 1.25rem auto 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+.binder-ladder-rung.is-me {
+  background: var(--accent-light);
+}
+
+.binder-ladder-ord {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.binder-ladder-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--swatch-color, var(--border-strong));
+}
+
+.binder-ladder-swatch.is-uncategorized {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+}
+
+.binder-ladder-name {
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.binder-ladder-rung.is-me .binder-ladder-name {
+  font-weight: 600;
+}
+
+.binder-ladder-count {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+/* Same grid as a rung, so its text starts under the name column rather than
+   a freehand padding-left standing in for the ordinal + swatch width. */
+.binder-ladder-caught {
+  display: grid;
+  grid-template-columns: 1.25rem auto 1fr auto;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.binder-ladder-caught-text {
+  grid-column: 3 / -1;
+}
+
+/* The zero-landing case (E493 fold): the same warn tokens every other
+   binder-editor warning uses (BinderEditor.css's .warn-banner), applied here
+   instead of a duplicate box — a real problem state gets the loud treatment,
+   a partial catch stays the quiet note above. Two classes outweigh the base
+   .binder-ladder-caught rule regardless of file order. */
+.binder-ladder-caught.is-warning {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border: 0.5px solid var(--warn-border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.binder-ladder-caught.is-warning .binder-ladder-caught-text {
+  grid-column: unset;
+}
+
+.binder-ladder-show-all {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 599px) {
+  .binder-ladder-caught-text {
+    grid-column: 1 / -1;
+  }
+}

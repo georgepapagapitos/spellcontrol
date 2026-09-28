@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { isFilterEmpty } from '../lib/rules';
 import { countBinderMatches } from '../lib/binder-counts';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 import { autoSummary } from '../lib/filter-summary';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { InfoTip } from './InfoTip';
@@ -117,7 +118,18 @@ export function FilterGroupList({
   // Per-group counts are raw rule matches. The whole-binder answer (and what
   // "keep printings together" pulls in) belongs to the host's footer, which
   // is the one place a count is stated — not a second total down here.
-  const { perGroup } = useMemo(() => countBinderMatches(cards, groups, false), [groups, cards]);
+  //
+  // Debounced: this scans the whole collection (11k+ cards on a real
+  // account) per group on every render, so feeding it live `groups` made
+  // every keystroke in a condition a 200ms+ main-thread task — the typed
+  // character itself waited behind the scan before it could paint (E493).
+  // `groups` stays live for the rows/chips actually being edited; only the
+  // match-count badge lags the debounce.
+  const debouncedGroups = useDebouncedValue(groups, 200);
+  const { perGroup } = useMemo(
+    () => countBinderMatches(cards, debouncedGroups, false),
+    [debouncedGroups, cards]
+  );
 
   return (
     <div className="filter-group-list">

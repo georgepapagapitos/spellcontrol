@@ -654,6 +654,41 @@ never shows the chooser.
   view — the earlier "Group printings" toggle collapsed copies BEFORE
   materializing and so reported 452 cards in a 591-card binder; it now
   applies to the page grid only, where fewer pockets is the point.
+- **The rules editor previews the DRAFT, not a summary (E493).** `BinderEditor`
+  widens to a two-column modal (`binder-editor--wide`, 1120px) for the "rules"
+  step: the left column is the editor, the right is a sticky `Preview` —
+  the first spread of pages from a REAL materialize pass of the draft
+  (`lib/binder-counts.ts:materializeDraftPreview`), built from the exact
+  `BinderInput` Save would write (one `buildDraftInput()` feeds both, so the
+  preview can never show a binder Save wouldn't produce) and the same
+  `useBinderLayoutInputs()` chain every other binder surface reads (never a
+  second partial chain — see `one-binder-layout-chain.test.ts`). Pages reuse
+  `PageGrid`, the same pocket component `BinderView` renders inline. The
+  column is DEBOUNCED (200ms) against the draft's page-layout inputs — the
+  footer's live counts stay instant, only the heavier page/section rebuild
+  waits for typing to settle. A `Sections` list names each section's start
+  page; clicking one jumps the spread. On a phone there's no room for a
+  column, so a compact strip sits under the header instead (one mini page +
+  page/binder-of-capacity stats + the first section); tapping it opens the
+  real `BinderPagePreview` on the draft's own pages. Neither the preview nor
+  the strip render during the "From a list" import step: each staged file
+  becomes its own binder only once the import runs, so there is no single
+  draft def to materialize yet.
+- **"A card goes to the first binder that wants it" is a ladder, not a
+  footnote (E493).** `BinderLadder` (Cards section, `routingMode: 'rules'`
+  only) lists every binder in waterfall order plus Uncategorized last, counts
+  from the SAME rules-only materialize pass the footer's "N land here" and
+  "N go to X, above" already read (`countEffectiveLanding`'s `ladder` field)
+  — they can't disagree because they're the same pass. The draft's own rung
+  always reads "This binder", never its typed name mid-edit. A non-zero
+  `caughtAbove` adds a dim line naming the catcher with the EXISTING
+  "Move above" fix as a link (the same handler the amber zero-landing warning
+  already wires — reused, not rebuilt; the two can coexist, so a test
+  clicking "Move above X" uses `getAllByRole(...)[0]`). On a phone the ladder
+  shows only its immediate neighbours (one above, the draft, one below) plus
+  a "Show all binders" expander — ordinals are computed over the FULL list
+  first, so the visible neighbours keep their real waterfall position instead
+  of renumbering 1/2/3.
 - **A whole-library destructive action has one home: the last, `danger`
   item in the index page's header ⋮.** "Delete all binders" / "decks" /
   "lists" and Collection's "Delete collection" all sit there. Red and last
