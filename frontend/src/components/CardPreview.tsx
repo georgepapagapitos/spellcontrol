@@ -634,7 +634,10 @@ export function CardPreview({
       if (a.ownerKind === 'cube') cubeById.set(a.ownerId, a);
       else if (a.deckId !== currentDeckId) deckById.set(a.deckId, a);
     }
-    const words = [binderName, sectionLabels[selected] ?? ''].filter(Boolean).join(' · ');
+    // A section named the same as its container adds nothing: a list passes
+    // its own name for both, and the footer read "My Wishlist · My Wishlist".
+    const section = sectionLabels[selected] ?? '';
+    const words = [binderName, section === binderName ? '' : section].filter(Boolean).join(' · ');
     const pills: ReactNode[] = [
       ...[...binderById.values()].map((b) => (
         <Link
