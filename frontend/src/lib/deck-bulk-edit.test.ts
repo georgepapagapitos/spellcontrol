@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import type { Deck, DeckCard } from '../store/decks';
+import { UNTITLED_DECK_NAME, type Deck, type DeckCard } from '../store/decks';
 import type { EnrichedCard } from '../types';
 import {
   parseBulkEditText,
@@ -63,6 +63,42 @@ function baseDeck(overrides: Partial<Deck> = {}): Deck {
     ...overrides,
   } as unknown as Deck;
 }
+
+// Real Scryfall card data (type line, oracle text, rarity): commander
+// eligibility reads these fields, so an invented card would test nothing.
+const UR_DRAGON = card({
+  name: 'The Ur-Dragon',
+  type_line: 'Legendary Creature — Dragon Avatar',
+  oracle_text:
+    'Eminence — As long as The Ur-Dragon is in the command zone or on the battlefield, other Dragon spells you cast cost {1} less to cast.\nFlying\nWhenever one or more Dragons you control attack, draw that many cards, then you may put a permanent card from your hand onto the battlefield.',
+  rarity: 'mythic',
+  color_identity: ['B', 'G', 'R', 'U', 'W'],
+});
+const BOLT = card({
+  name: 'Lightning Bolt',
+  type_line: 'Instant',
+  oracle_text: 'Lightning Bolt deals 3 damage to any target.',
+  rarity: 'common',
+  color_identity: ['R'],
+  legalities: { commander: 'legal', paupercommander: 'legal', standard: 'not_legal' },
+});
+const ISAMARU = card({
+  name: 'Isamaru, Hound of Konda',
+  type_line: 'Legendary Creature — Dog',
+  oracle_text: '',
+  rarity: 'rare',
+  color_identity: ['W'],
+  legalities: { commander: 'legal', paupercommander: 'not_legal' },
+});
+const FYNN = card({
+  name: 'Fynn, the Fangbearer',
+  type_line: 'Legendary Creature — Human Warrior',
+  oracle_text:
+    'Deathtouch\nWhenever a creature you control with deathtouch deals combat damage to a player, that player gets two poison counters. (A player with ten or more poison counters loses the game.)',
+  rarity: 'uncommon',
+  color_identity: ['G'],
+  legalities: { commander: 'legal', paupercommander: 'legal' },
+});
 
 const commanderConfig = DECK_FORMAT_CONFIGS.commander;
 const emptyCtx = { decks: [] as Deck[], collectionCards: [] as EnrichedCard[] };
@@ -291,7 +327,7 @@ describe('buildBulkEditPlan — allocation preservation (the critical contract)'
 
   it('commander changed to a different (owned) name reallocates instead of carrying the old copyId', () => {
     const oldCmdr = card({ name: 'Korvold, Fae-Cursed King' });
-    const newCmdr = card({ name: 'The Ur-Dragon' });
+    const newCmdr = UR_DRAGON;
     const deck = baseDeck({ commander: oldCmdr, commanderAllocatedCopyId: 'copy-old' });
     const parsed = parseBulkEditText('Commander\n1 The Ur-Dragon');
     const resolved = new Map([['the ur-dragon', newCmdr]]);
@@ -339,6 +375,145 @@ describe('buildBulkEditPlan — allocation preservation (the critical contract)'
     const parsed = parseBulkEditText('1 Sol Ring\ngarbage line here');
     const plan = buildBulkEditPlan(deck, parsed, new Map(), commanderConfig, emptyCtx);
     expect(plan.malformedLines).toEqual(['garbage line here']);
+  });
+});
+
+describe('buildBulkEditPlan — the Commander section seats only a real commander', () => {
+  it('a card that cannot be a commander is not seated: it stays in the deck and is reported', () => {
+    const deck = baseDeck({ commander: null });
+    const parsed = parseBulkEditText('Commander\n1 Lightning Bolt\n\nDeck\n1 Sol Ring');
+    const plan = buildBulkEditPlan(
+      deck,
+      parsed,
+      new Map([
+        ['lightning bolt', BOLT],
+        ['sol ring', card({ name: 'Sol Ring' })],
+      ]),
+      commanderConfig,
+      emptyCtx
+    );
+    expect(plan.commander).toBeNull();
+    expect(plan.cards.map((c) => c.card.name)).toEqual(['Lightning Bolt', 'Sol Ring']);
+    expect(plan.commanderRejected).toEqual([{ name: 'Lightning Bolt', reason: 'ineligible' }]);
+    expect(plan.added).toContainEqual({ name: 'Lightning Bolt', qty: 1 });
+    expect(plan.name).toBe('Test Deck');
+  });
+
+  it('replacing a seated commander with an ineligible card blocks the save instead of seating it', () => {
+    const korvold = card({ name: 'Korvold, Fae-Cursed King' });
+    const deck = baseDeck({ commander: korvold, commanderAllocatedCopyId: 'copy-cmdr' });
+    const parsed = parseBulkEditText('Commander\n1 Lightning Bolt');
+    const plan = buildBulkEditPlan(
+      deck,
+      parsed,
+      new Map([['lightning bolt', BOLT]]),
+      commanderConfig,
+      emptyCtx
+    );
+    expect(plan.commander).toBeNull();
+    expect(plan.commanderMissing).toBe(true);
+    expect(plan.cards.map((c) => c.card.name)).toEqual(['Lightning Bolt']);
+  });
+
+  it('Pauper Commander: a rare legend is rejected, an uncommon creature is seated', () => {
+    const pdh = DECK_FORMAT_CONFIGS.paupercommander;
+    const deck = baseDeck({ format: 'paupercommander', commander: null });
+    const rare = buildBulkEditPlan(
+      deck,
+      parseBulkEditText('Commander\n1 Isamaru, Hound of Konda'),
+      new Map([['isamaru, hound of konda', ISAMARU]]),
+      pdh,
+      emptyCtx
+    );
+    expect(rare.commander).toBeNull();
+    expect(rare.commanderRejected).toEqual([
+      { name: 'Isamaru, Hound of Konda', reason: 'ineligible' },
+    ]);
+    expect(rare.cards.map((c) => c.card.name)).toEqual(['Isamaru, Hound of Konda']);
+
+    const uncommon = buildBulkEditPlan(
+      deck,
+      parseBulkEditText('Commander\n1 Fynn, the Fangbearer'),
+      new Map([['fynn, the fangbearer', FYNN]]),
+      pdh,
+      emptyCtx
+    );
+    expect(uncommon.commander).toBe(FYNN);
+    expect(uncommon.commanderRejected).toEqual([]);
+  });
+
+  it('a format with no command zone seats nothing from a Commander section; the cards stay in the deck', () => {
+    const deck = baseDeck({ format: 'standard', commander: null });
+    const parsed = parseBulkEditText('Commander\n1 The Ur-Dragon\n\nDeck\n1 Lightning Bolt');
+    const plan = buildBulkEditPlan(
+      deck,
+      parsed,
+      new Map([
+        ['the ur-dragon', UR_DRAGON],
+        ['lightning bolt', BOLT],
+      ]),
+      DECK_FORMAT_CONFIGS.standard,
+      emptyCtx
+    );
+    expect(plan.commander).toBeNull();
+    expect(plan.cards.map((c) => c.card.name)).toEqual(['The Ur-Dragon', 'Lightning Bolt']);
+    expect(plan.commanderRejected).toEqual([{ name: 'The Ur-Dragon', reason: 'no-command-zone' }]);
+  });
+
+  it("the deck's own commander is never unseated by the check (a round trip stays byte-identical)", () => {
+    // Stored as a plain creature (e.g. carried over from another format):
+    // leaving the section alone must not move it.
+    const plain = card({ name: 'Grizzly Bears', type_line: 'Creature — Bear' });
+    const deck = baseDeck({ commander: plain, commanderAllocatedCopyId: 'copy-cmdr' });
+    const plan = buildBulkEditPlan(
+      deck,
+      parseBulkEditText('Commander\n1 Grizzly Bears'),
+      new Map(),
+      commanderConfig,
+      emptyCtx
+    );
+    expect(plan.commander).toBe(plain);
+    expect(plan.commanderRejected).toEqual([]);
+    expect(plan.hasChanges).toBe(false);
+  });
+});
+
+describe('buildBulkEditPlan — naming', () => {
+  it('an Untitled deck takes the short name of a commander the edit seats', () => {
+    const deck = baseDeck({ name: UNTITLED_DECK_NAME, commander: null });
+    const plan = buildBulkEditPlan(
+      deck,
+      parseBulkEditText('Commander\n1 The Ur-Dragon'),
+      new Map([['the ur-dragon', UR_DRAGON]]),
+      commanderConfig,
+      emptyCtx
+    );
+    expect(plan.commander).toBe(UR_DRAGON);
+    expect(plan.name).toBe('The Ur-Dragon');
+  });
+
+  it('a name the user typed is never touched', () => {
+    const deck = baseDeck({ name: 'Dragon Tribal', commander: null });
+    const plan = buildBulkEditPlan(
+      deck,
+      parseBulkEditText('Commander\n1 The Ur-Dragon'),
+      new Map([['the ur-dragon', UR_DRAGON]]),
+      commanderConfig,
+      emptyCtx
+    );
+    expect(plan.name).toBe('Dragon Tribal');
+  });
+
+  it('an Untitled deck whose edit seats no commander keeps the placeholder', () => {
+    const deck = baseDeck({ name: UNTITLED_DECK_NAME, commander: null });
+    const plan = buildBulkEditPlan(
+      deck,
+      parseBulkEditText('Commander\n1 Lightning Bolt'),
+      new Map([['lightning bolt', BOLT]]),
+      commanderConfig,
+      emptyCtx
+    );
+    expect(plan.name).toBe(UNTITLED_DECK_NAME);
   });
 });
 

@@ -480,19 +480,22 @@ interface DecksState {
    * later genuine local edit bumps the token again and the resync dialog can
    * tell the two apart. One `set()` regardless of how many cards changed —
    * never loop per-card actions here (each would fire its own sync push).
+   * `name` is optional: it's passed when the resync seats a commander on an
+   * "Untitled deck" (see `deckNameForCommander`).
    */
   resyncDeck(
     deckId: string,
-    fields: Pick<
-      Deck,
-      | 'cards'
-      | 'sideboard'
-      | 'considering'
-      | 'commander'
-      | 'partnerCommander'
-      | 'commanderAllocatedCopyId'
-      | 'partnerCommanderAllocatedCopyId'
-    >
+    fields: Partial<Pick<Deck, 'name'>> &
+      Pick<
+        Deck,
+        | 'cards'
+        | 'sideboard'
+        | 'considering'
+        | 'commander'
+        | 'partnerCommander'
+        | 'commanderAllocatedCopyId'
+        | 'partnerCommanderAllocatedCopyId'
+      >
   ): void;
 
   addSideboardCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
@@ -1558,13 +1561,28 @@ function defaultDeckName(commander: ScryfallCard | null): string {
  * here, so a commander arriving from another device can't rename anything.
  */
 function withCommander(d: Deck, card: ScryfallCard | null, allocated: string | null): Deck {
-  const rename = !!card && d.name === UNTITLED_DECK_NAME && d.commander?.name !== card.name;
   return {
     ...d,
-    ...(rename ? { name: defaultDeckName(card) } : {}),
+    name: deckNameForCommander(d, card),
     commander: card,
     commanderAllocatedCopyId: allocated,
   };
+}
+
+/**
+ * The name `deck` should carry once `next` is its commander: the incoming
+ * commander's short name when the deck still has the placeholder name and the
+ * commander actually changes, else the name it already has. The rule behind
+ * {@link withCommander}, exported for the dialogs that commit a whole deck
+ * through `replaceDeck` (Paste cards, Bulk edit) so every way of picking a
+ * commander names the deck the same way.
+ */
+export function deckNameForCommander(
+  deck: Pick<Deck, 'name' | 'commander'>,
+  next: ScryfallCard | null
+): string {
+  const rename = !!next && deck.name === UNTITLED_DECK_NAME && deck.commander?.name !== next.name;
+  return rename ? defaultDeckName(next) : deck.name;
 }
 
 /** Look up a deck by id (selector helper). */

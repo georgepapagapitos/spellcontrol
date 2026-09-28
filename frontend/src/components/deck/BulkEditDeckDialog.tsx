@@ -178,6 +178,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
       plan.added.reduce((s, e) => s + e.qty, 0) + plan.removed.reduce((s, e) => s + e.qty, 0);
     const label = `${mode === 'resync' ? 'resync' : 'bulk edit'}${changeCount > 0 ? ` (${changeCount} card${changeCount === 1 ? '' : 's'})` : ''}`;
     const fields = {
+      name: plan.name,
       cards: plan.cards,
       sideboard: plan.sideboard,
       considering: plan.considering,
@@ -292,10 +293,18 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
             {plan.commanderMissing && (
               <div className="import-deck-warning" role="alert">
                 <div className="import-deck-warning-title">Commander is missing</div>
-                This format needs a commander, and the Commander section is empty or unresolved. Go
-                back and restore it before saving.
+                This format needs a commander. Go back and put one in the Commander section before
+                saving.
               </div>
             )}
+
+            {plan.commanderRejected.map((r) => (
+              <div className="import-deck-warning" key={r.name}>
+                {r.reason === 'no-command-zone'
+                  ? `${formatConfig.label} has no commander, so ${r.name} stays in the deck.`
+                  : `${r.name} can't be a commander, so it stays in the deck.`}
+              </div>
+            ))}
 
             {offlineNames.length > 0 && (
               <p className="append-deck-offline" role="status">
