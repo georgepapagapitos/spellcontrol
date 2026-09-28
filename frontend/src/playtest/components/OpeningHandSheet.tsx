@@ -7,6 +7,7 @@ import { isKeepableHand } from '@/lib/opening-hand-sim';
 import { isLand, toSimCard } from '@/lib/hand-classify';
 import { CardPreview } from '@/components/CardPreview';
 import { useLongPress } from '@/lib/use-long-press';
+import { useMediaQuery } from '@/lib/use-media-query';
 import type { PlaytestPhase } from '../store';
 import './OpeningHandSheet.css';
 import { Button } from '@/components/shared/Button';
@@ -112,6 +113,8 @@ export function OpeningHandSheet({
   onMulligan,
   onConfirmBottom,
 }: Props) {
+  // The hint names the gesture the device has: "Tap" read wrong with a mouse.
+  const coarsePointer = useMediaQuery('(pointer: coarse)');
   const [selected, setSelected] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [peeking, setPeeking] = useState(false);
@@ -345,7 +348,9 @@ export function OpeningHandSheet({
             </p>
           ) : (
             previewable.length > 0 && (
-              <p className="playtest-opening-hint">Tap a card to enlarge.</p>
+              <p className="playtest-opening-hint">
+                {coarsePointer ? 'Tap' : 'Click'} a card to enlarge.
+              </p>
             )
           )}
         </div>

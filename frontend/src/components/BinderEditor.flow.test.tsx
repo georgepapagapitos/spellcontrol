@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import type { BinderDef, EnrichedCard } from '../types';
 import { useCollectionStore } from '../store/collection';
+import { useToastsStore } from '../store/toasts';
 import { BinderEditor } from './BinderEditor';
 
 // Offline: the Scryfall catalogs and the oracle-tag snapshot are network
@@ -362,5 +363,27 @@ describe('the Color identity rule', () => {
     expect(landLine()).toBe('2 cards land here');
     // …and the row stays where it was, so the next pip is one tap away.
     expect(screen.getByRole('group', { name: 'Color identity' })).toBeTruthy();
+  });
+});
+
+// The 2026-09-28 task walk: creating a binder was the one mutation with no
+// feedback, and the new binder often lands below the fold.
+describe('create confirms itself', () => {
+  it('toasts Created <name> for a new binder', () => {
+    useToastsStore.setState({ toasts: [] });
+    open('new');
+    fireEvent.click(screen.getByRole('button', { name: /Blank/ }));
+    fireEvent.change(screen.getByLabelText('Binder name'), { target: { value: 'Bulk rares' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create binder' }));
+    expect(useToastsStore.getState().toasts.map((t) => t.message)).toContain('Created Bulk rares');
+  });
+
+  it('an edit happens in front of the user and toasts nothing', () => {
+    useToastsStore.setState({ toasts: [] });
+    useCollectionStore.setState({ binders: [makeBinderDef({ id: 'b-edit', name: 'Old' })] });
+    open('b-edit');
+    fireEvent.change(screen.getByLabelText('Binder name'), { target: { value: 'New' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Save/ }));
+    expect(useToastsStore.getState().toasts).toEqual([]);
   });
 });

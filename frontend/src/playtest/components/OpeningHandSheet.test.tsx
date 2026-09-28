@@ -4,9 +4,9 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { OpeningHandSheet } from './OpeningHandSheet';
 import type { PlaytestCard } from '@/lib/playtest';
 
-/** Other hooks under this tree still read `window.matchMedia`, which
- *  happy-dom does not provide. The opening hand itself no longer asks it
- *  anything: the fan is the treatment at every width. */
+/** Hooks under this tree read `window.matchMedia`, which happy-dom does not
+ *  provide. The fan is the treatment at every width; the sheet only asks
+ *  the pointer type, to word its enlarge hint. */
 function stubViewport() {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: false,
@@ -232,5 +232,48 @@ describe('OpeningHandSheet — no dragging here (E348)', () => {
       el.getAttribute('aria-label')
     );
     expect(names).toEqual(['Card 0', 'Card 1', 'Card 2']);
+  });
+});
+
+// The 2026-09-28 task walk: the hint said "Tap" to a mouse on desktop.
+describe('the enlarge hint names the device’s gesture', () => {
+  function stubPointer(coarse: boolean) {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(pointer: coarse)' ? coarse : false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }));
+  }
+  const lookup = new Map(
+    hand().map((c) => [
+      c.id,
+      {
+        id: `s-${c.id}`,
+        name: c.name,
+        set: 'tst',
+        collector_number: '1',
+        type_line: 'Instant',
+        cmc: 1,
+        color_identity: [],
+        image_uris: { normal: 'x.jpg', small: 'x.jpg', art_crop: 'x.jpg' },
+      },
+    ])
+  ) as unknown as React.ComponentProps<typeof OpeningHandSheet>['cardLookup'];
+
+  it('says Tap on a touch screen', () => {
+    stubPointer(true);
+    renderSheet({ cardLookup: lookup });
+    expect(screen.getByText('Tap a card to enlarge.')).toBeTruthy();
+  });
+
+  it('says Click with a mouse', () => {
+    stubPointer(false);
+    renderSheet({ cardLookup: lookup });
+    expect(screen.getByText('Click a card to enlarge.')).toBeTruthy();
   });
 });

@@ -150,6 +150,38 @@ describe('CardPreview hidePrice (friend-surface value contract)', () => {
   });
 });
 
+describe('CardPreview container line', () => {
+  function renderIn(binderName: string, section: string) {
+    return render(
+      <MemoryRouter>
+        <CardPreview
+          cards={[mk({})]}
+          index={0}
+          binderName={binderName}
+          sectionLabels={[section]}
+          pageNumbers={[0]}
+          totalPages={0}
+          onIndexChange={() => {}}
+          onClose={() => {}}
+        />
+      </MemoryRouter>
+    );
+  }
+
+  it('joins a binder and its section', () => {
+    renderIn('Rares', 'White');
+    expect(document.body.textContent).toContain('Rares · White');
+  });
+
+  // The 2026-09-28 task walk: a list passes its own name as the section too,
+  // and the footer read "My Wishlist · My Wishlist".
+  it('never repeats a container named the same as its section', () => {
+    renderIn('My Wishlist', 'My Wishlist');
+    expect(document.body.textContent).toContain('My Wishlist');
+    expect(document.body.textContent).not.toContain('My Wishlist · My Wishlist');
+  });
+});
+
 describe('CardPreview printing identity (T36)', () => {
   it('appends the collector number to the set line', () => {
     renderPreview(mk({ setName: 'Test Set', setCode: 'TST', collectorNumber: '123' }));

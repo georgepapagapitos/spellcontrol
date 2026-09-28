@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, X } from 'lucide-react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { importFile, importText, type ImportProgressCallback } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
+import { toast } from '../store/toasts';
 import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS, sortDirectionLabel } from '../lib/sorting';
@@ -725,6 +726,10 @@ export function BinderEditor() {
         if (existing) updateBinder(id, input);
         if (placeAboveId) moveBinderAbove(id, placeAboveId);
         setEditingBinder(null);
+        // A new binder lands wherever its position puts it, often below the
+        // fold, so creation confirms itself (STYLE_GUIDE § Verbs: feedback).
+        // An edit happened in front of the user and needs none.
+        if (!existing) toast.show({ message: `Created ${input.name}`, tone: 'success' });
       } catch (err) {
         setErrorMsg(userMessage(err, "Couldn't save the binder. Try again."));
       } finally {
