@@ -8,6 +8,7 @@ import { AddCardSheet } from '../components/AddCardSheet';
 import { PageHeader } from '../components/PageHeader';
 import { BackLink } from '../components/BackLink';
 import { EmptyState } from '../components/shared/EmptyState';
+import { Chip } from '../components/shared/Chip';
 
 const BinderCardEditor = lazy(() =>
   import('../components/BinderCardEditor').then((m) => ({ default: m.BinderCardEditor }))
@@ -374,7 +375,9 @@ export function BinderPage() {
         // binder the card didn't fit flipped it, fixed in #2421), and the
         // only way back was inside the editor.
         <div className="binder-manual-order-bar" role="status">
-          <span className="sort-mode-badge">Rules paused</span>
+          <Chip className="sort-mode-badge" tone="accent">
+            Rules paused
+          </Chip>
           <span className="binder-manual-order-hint">
             Only the cards you added show here.{' '}
             {pausedRulesLand > 0
@@ -388,7 +391,9 @@ export function BinderPage() {
       )}
       {active?.def.manualOrder?.length ? (
         <div className="binder-manual-order-bar">
-          <span className="sort-mode-badge">Custom order</span>
+          <Chip className="sort-mode-badge" tone="accent">
+            Custom order
+          </Chip>
           <span className="binder-manual-order-hint">
             Cards are in your custom order. Open “Manage cards” → Order tab to change.
           </span>

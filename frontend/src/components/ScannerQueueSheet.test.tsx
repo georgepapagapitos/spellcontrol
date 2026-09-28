@@ -153,9 +153,13 @@ describe('ScannerQueueSheet', () => {
     renderSheet([{ ...greaves, language: 'ja' }, bolt]);
     const greavesRow = screen.getByRole('button', { name: /Edit 1 Lightning Greaves/ });
     expect(within(greavesRow).getByText('JA')).toBeTruthy();
-    expect(within(greavesRow).getAllByText(/./, { selector: '.scan-row-tag' })).toHaveLength(3);
+    expect(
+      within(greavesRow).getAllByText(/./, { selector: '.scan-row-tag .chip-label' })
+    ).toHaveLength(3);
     const boltRow = screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ });
-    expect(within(boltRow).getAllByText(/./, { selector: '.scan-row-tag' })).toHaveLength(2);
+    expect(
+      within(boltRow).getAllByText(/./, { selector: '.scan-row-tag .chip-label' })
+    ).toHaveLength(2);
   });
 
   it('overrides the non-empty heading via the heading prop (the Add-cards sheet review context)', () => {

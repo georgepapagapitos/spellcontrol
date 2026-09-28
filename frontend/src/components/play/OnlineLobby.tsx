@@ -535,7 +535,7 @@ function HordeReadOnly({
                   <ColorPip key={c} color={c} />
                 ))}
               </span>
-              <span className="deck-format-badge">{catalogEntry.badge}</span>
+              <Chip className="deck-format-badge">{catalogEntry.badge}</Chip>
             </span>
           </span>
         </div>

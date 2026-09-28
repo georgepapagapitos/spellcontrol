@@ -20,6 +20,7 @@ import { StackedBar } from '../shared/MeterBar';
 import { Field, SwitchRow, ChoiceList, Disclosure } from '../shared/form';
 import { SelectMenu } from '../SelectMenu';
 import { IconButton } from '../shared/Button';
+import { Chip } from '../shared/Chip';
 import { useSearchCards } from '../../lib/use-search-cards';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../../store/collection';
@@ -1143,17 +1144,23 @@ function CardListGroup({
       {values.length > 0 && (
         <ul className="deck-customizer-pills">
           {values.map((name) => (
-            <li key={name} className="deck-customizer-pill">
-              <span className="card-name-chip-text" title={name}>
-                {name}
-              </span>
-              <IconButton
-                className="deck-customizer-pill-remove"
-                label={`Remove ${name}`}
-                onClick={() => onChange(values.filter((v) => v !== name))}
-                icon={<X width={14} height={14} strokeWidth={1.8} />}
-              />
-            </li>
+            <Chip
+              key={name}
+              as="li"
+              className="deck-customizer-pill"
+              labelClassName="card-name-chip-text"
+              labelTitle={name}
+              trailing={
+                <IconButton
+                  className="deck-customizer-pill-remove"
+                  label={`Remove ${name}`}
+                  onClick={() => onChange(values.filter((v) => v !== name))}
+                  icon={<X width={14} height={14} strokeWidth={1.8} />}
+                />
+              }
+            >
+              {name}
+            </Chip>
           ))}
         </ul>
       )}

@@ -955,9 +955,9 @@ export function CommanderSearch({
                 />
               </span>
               {playstyleMatches.map((m) => (
-                <span key={m.playstyle.id} className="commander-pick-playstyle-tag">
+                <Chip key={m.playstyle.id} className="commander-pick-playstyle-tag" tone="accent">
                   {m.playstyle.label}
-                </span>
+                </Chip>
               ))}
             </div>
           )}

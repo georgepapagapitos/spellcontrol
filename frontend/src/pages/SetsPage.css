@@ -139,11 +139,11 @@
   white-space: nowrap;
 }
 
-.sets-card-badge.is-owned {
+.sets-card-badge[data-tone='success'] {
   color: var(--success);
 }
 
-.sets-card-badge.is-missing {
+.sets-card-badge[data-tone='neutral'] {
   color: var(--text-muted);
 }
 

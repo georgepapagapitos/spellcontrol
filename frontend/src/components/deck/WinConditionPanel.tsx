@@ -17,6 +17,7 @@ import {
 import { InfoTip } from '../InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 export interface WinConditionPanelProps {
   analysis: WinConditionAnalysis;
@@ -168,7 +169,11 @@ function WinConRow({
           <Trophy className="win-con-trophy" width={14} height={14} strokeWidth={1.8} aria-hidden />
         )}
         <span className="win-con-label">{wincon.label}</span>
-        {primary && <span className="win-con-tag">Primary</span>}
+        {primary && (
+          <Chip className="win-con-tag" tone="accent">
+            Primary
+          </Chip>
+        )}
       </div>
       <p className="win-con-summary">{wincon.summary}</p>
       {wincon.evidence.length > 0 && (

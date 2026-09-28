@@ -6,6 +6,7 @@ import { formatRelativeTime } from '../../lib/format-time';
 import { ReportDialog } from './ReportDialog';
 import './SharedGameSummaryView.css';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 interface Props {
   data: PublicGameResultShare;
@@ -81,7 +82,11 @@ export function SharedGameSummaryView({ data, token }: Props) {
               <span className="game-summary-participant-commander">{p.commander}</span>
             )}
             <span className="game-summary-participant-life">{p.finalLife} life</span>
-            {p.eliminated && <span className="game-summary-participant-badge">Eliminated</span>}
+            {p.eliminated && (
+              <Chip className="game-summary-participant-badge" tone="err">
+                Eliminated
+              </Chip>
+            )}
           </li>
         ))}
       </ol>

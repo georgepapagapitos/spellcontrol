@@ -50,10 +50,10 @@ export function SavedCubeMeta({ sc }: { sc: SavedCube }) {
       {sc.size} cards · {sizeInfo(sc.size).players} players
       {sc.cube.format === 'commander' && ' · Commander'} · saved {formatRelativeTime(sc.savedAt)}
       {sc.isPhysical && (
-        <span className="cube-saved-physical-tag">
+        <Chip className="cube-saved-physical-tag">
           {' · '}
           {sc.picks.filter((p) => p.allocatedCopyId).length} reserved
-        </span>
+        </Chip>
       )}
     </>
   );
@@ -205,7 +205,9 @@ export function CubeResult({
                   ? loaded.name
                   : `${built}-card ${cube.format === 'commander' ? 'Commander cube' : 'cube'}`}
                 {built < cube.size && (
-                  <span className="cube-short-tag"> ({cube.size - built} short)</span>
+                  <Chip className="cube-short-tag" tone="warn">
+                    {` (${cube.size - built} short)`}
+                  </Chip>
                 )}
               </h2>
               <p className="cube-result-sub">
@@ -458,10 +460,13 @@ export function CubeResult({
                               <span className="cube-row-title">
                                 <span className="cube-row-name">{p.card.name}</span>
                                 {isLocked && (
-                                  <span className="cube-row-locked-tag">
-                                    <Lock width={12} height={12} strokeWidth={2} aria-hidden />
+                                  <Chip
+                                    className="cube-row-locked-tag"
+                                    tone="accent"
+                                    icon={<Lock width={12} height={12} strokeWidth={2} />}
+                                  >
                                     Locked
-                                  </span>
+                                  </Chip>
                                 )}
                                 {iSupply || friendSuppliers.length === 0 ? (
                                   // A cube is built from cards you own, so "Owned" on every

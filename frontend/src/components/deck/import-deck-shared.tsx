@@ -6,6 +6,7 @@ import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtil
 import { isValidCommander, isPdhCommanderEligible } from '../../lib/commanders';
 import type { DeckImportResponse } from '../../types';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 /**
  * Parse/review pieces shared by `ImportDeckDialog` (creates a new deck from a
@@ -189,9 +190,9 @@ export function ImportParseSummary({
           </span>
         )}
         {detectedFormat && (
-          <span className="import-deck-review-tag">
+          <Chip className="import-deck-review-tag" tone="neutral">
             Detected: {DECK_FORMAT_CONFIGS[detectedFormat].label}
-          </span>
+          </Chip>
         )}
       </div>
 

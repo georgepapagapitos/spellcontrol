@@ -23,6 +23,7 @@ import './GameNightView.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button, buttonClass } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 /** Mirrors the server's GRACE_MS (routes/game-nights.ts): a night takes
  *  replies until a day after it starts, then every write is refused with
  *  "This game night has already happened." The page used to keep offering
@@ -258,13 +259,17 @@ function NightBody({
         <h1 className={`shared-view-title${cancelled ? ' is-cancelled' : ''}`}>{night.title}</h1>
         {cancelled && (
           <p className="game-night-cancelled" role="status">
-            <span className="game-night-cancelled-badge">Cancelled</span>
+            <Chip className="game-night-cancelled-badge" tone="err">
+              Cancelled
+            </Chip>
             This game night was cancelled.
           </p>
         )}
         {over && (
           <p className="game-night-cancelled" role="status">
-            <span className="game-night-cancelled-badge">Over</span>
+            <Chip className="game-night-cancelled-badge" tone="err">
+              Over
+            </Chip>
             This game night has already happened.
           </p>
         )}
@@ -454,7 +459,11 @@ function AttendeeList({ rsvps }: { rsvps: NightRsvp[] }) {
               {group.map((r, i) => (
                 <li key={`${r.displayName}-${i}`}>
                   {r.displayName}
-                  {r.isHost && <span className="game-night-host-pill">Host</span>}
+                  {r.isHost && (
+                    <Chip className="game-night-host-pill" tone="neutral">
+                      Host
+                    </Chip>
+                  )}
                 </li>
               ))}
             </ul>

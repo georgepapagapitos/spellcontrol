@@ -67,7 +67,7 @@ export function VerdictBadge({
 
   return (
     <span className={`verdict-badge${className ? ` ${className}` : ''}`}>
-      <Chip className={`verdict-chip is-${resolvedTone}`} title={title}>
+      <Chip className="verdict-chip" tone={resolvedTone} title={title}>
         {word}
       </Chip>
       {reason && <span className="verdict-reason">{reason}</span>}

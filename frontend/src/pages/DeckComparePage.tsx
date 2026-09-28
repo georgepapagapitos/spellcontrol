@@ -7,6 +7,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { BracketVerdictStrip } from '../components/deck/BracketVerdictStrip';
 import { MeterBar, StackedBar } from '../components/shared/MeterBar';
+import { Chip } from '../components/shared/Chip';
 import { InfoTip } from '../components/InfoTip';
 import { DiffGroup } from '../components/deck/DiffCardRow';
 import { diffDecks, type DeckDiff } from '@/lib/deck-diff';
@@ -122,7 +123,7 @@ function CompareRow({
   const delta = round(rb - ra, places);
   const fmt = (n: number) => (asMoney ? money(n) : n.toFixed(decimals));
   const good = invert ? delta < 0 : delta > 0;
-  const toneCls = delta === 0 ? '' : good ? 'is-added' : 'is-removed';
+  const tone = delta === 0 ? 'neutral' : good ? 'success' : 'err';
   // A zero delta reads as a word, never "+0" (STYLE_GUIDE § Money deltas).
   const diffText = delta === 0 ? 'same' : `${delta > 0 ? '+' : '−'}${fmt(Math.abs(delta))}`;
   return (
@@ -139,7 +140,9 @@ function CompareRow({
         {subB && <span className="deck-compare-sub">{subB}</span>}
       </td>
       <td className="deck-compare-num">
-        <span className={`deck-compare-delta-tag ${toneCls}`}>{diffText}</span>
+        <Chip className="deck-compare-delta-tag" tone={tone}>
+          {diffText}
+        </Chip>
       </td>
     </tr>
   );

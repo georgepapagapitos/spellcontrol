@@ -45,6 +45,7 @@ import { COMMANDER_PLAYABLE_TARGET, type CommanderDraftSimResult } from '../../l
 import { sizeInfo } from '../../lib/cube/targets';
 import { pickToPreviewCard } from './shared';
 import { Button } from '../../components/shared/Button';
+import { Chip } from '../../components/shared/Chip';
 
 const ALL_IDENTITIES: LegendIdentity[] = [...COLORS, ...COLOR_PAIRS, 'other'];
 /** "W" / "WU" / "3+" — plain letters, same "color is never the only signal"
@@ -427,9 +428,9 @@ function CommanderDraftSimReport({
         ) : (
           <ul className="cube-commander-coverage-pill-list">
             {result.unbuildableIdentities.map((id) => (
-              <li key={id} className="cube-commander-coverage-pill">
+              <Chip key={id} as="li" className="cube-commander-coverage-pill" tone="neutral">
                 {IDENTITY_LABEL[id]}
-              </li>
+              </Chip>
             ))}
           </ul>
         )}

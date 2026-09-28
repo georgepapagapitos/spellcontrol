@@ -22,6 +22,7 @@ import { OverflowMenu } from './OverflowMenu';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 
 /** A 404 from a row action means another tab or admin already handled that
  *  row — the outcome the action wanted is what's true, so the panel drops
@@ -478,12 +479,19 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                           )}
                         </td>
                         <td>
-                          <span className={`admin-role-pill is-${u.role}`}>{u.role}</span>
+                          <Chip
+                            className="admin-role-pill"
+                            tone={u.role === 'admin' ? 'accent' : 'neutral'}
+                          >
+                            {u.role}
+                          </Chip>
                         </td>
                         <td>
                           {u.role === 'admin' || u.aiAccess ? (
                             <span className="admin-profile-cell admin-ai-cell">
-                              <span className="admin-role-pill is-admin">On</span>
+                              <Chip className="admin-role-pill" tone="accent">
+                                On
+                              </Chip>
                               {u.aiDailyLimit !== null && (
                                 <span className="admin-profile-detail settings-row-hint">
                                   {u.aiDailyLimit}/day
@@ -491,7 +499,9 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                               )}
                             </span>
                           ) : (
-                            <span className="admin-role-pill">Off</span>
+                            <Chip className="admin-role-pill" tone="neutral">
+                              Off
+                            </Chip>
                           )}
                         </td>
                         <td>

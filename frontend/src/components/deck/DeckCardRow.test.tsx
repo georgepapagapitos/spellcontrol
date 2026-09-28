@@ -80,18 +80,18 @@ describe('DeckCardRow', () => {
     expect(chip).toBeTruthy();
     // Shared VerdictBadge chip, neutral tone — not a hand-rolled pill.
     expect(chip.classList.contains('verdict-chip')).toBe(true);
-    expect(chip.classList.contains('is-neutral')).toBe(true);
+    expect(chip.getAttribute('data-tone')).toBe('neutral');
   });
 
   it('renders the Game Changer + Synergy tags as shared VerdictBadge chips', () => {
     render(<DeckCardRow change={add({ isGameChanger: true, isThemeSynergy: true })} />);
     const gc = screen.getByText('Game Changer').closest('.verdict-chip')!;
     expect(gc.classList.contains('verdict-chip')).toBe(true);
-    expect(gc.classList.contains('is-warn')).toBe(true);
+    expect(gc.getAttribute('data-tone')).toBe('warn');
     expect(gc.getAttribute('title')).toContain('bracket-relevant');
     const syn = screen.getByText('Synergy').closest('.verdict-chip')!;
     expect(syn.classList.contains('verdict-chip')).toBe(true);
-    expect(syn.classList.contains('is-accent')).toBe(true);
+    expect(syn.getAttribute('data-tone')).toBe('accent');
   });
 
   it('renders the budget confidence tier as a toned VerdictBadge chip', () => {
@@ -100,14 +100,14 @@ describe('DeckCardRow', () => {
     );
     const dropIn = screen.getByText('Drop-in').closest('.verdict-chip')!;
     expect(dropIn.classList.contains('verdict-chip')).toBe(true);
-    expect(dropIn.classList.contains('is-success')).toBe(true);
+    expect(dropIn.getAttribute('data-tone')).toBe('success');
     unmount();
 
     render(
       <DeckCardRow change={add({ lane: 'budget', confidence: 'budget', reason: undefined })} />
     );
     const budget = screen.getByText('Budget').closest('.verdict-chip')!;
-    expect(budget.classList.contains('is-warn')).toBe(true);
+    expect(budget.getAttribute('data-tone')).toBe('warn');
   });
 
   it('shows no confidence chip for non-budget lanes', () => {
@@ -119,7 +119,7 @@ describe('DeckCardRow', () => {
     render(<DeckCardRow change={add({ roleLabel: 'Ramp' })} />);
     const role = screen.getByText('Ramp').closest('.verdict-chip')!;
     expect(role.classList.contains('verdict-chip')).toBe(true);
-    expect(role.classList.contains('is-neutral')).toBe(true);
+    expect(role.getAttribute('data-tone')).toBe('neutral');
   });
 
   it('formats a signed acquire price', () => {

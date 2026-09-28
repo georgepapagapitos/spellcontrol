@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import './OwnershipBadge.css';
 import { CheckCircle2, Circle } from 'lucide-react';
+import { Chip } from '@/components/shared/Chip';
 
 export interface OwnershipBadgeProps {
   /** Whether the card is in the player's collection. */
@@ -39,14 +40,14 @@ export function OwnershipBadge({
   if (!owned && !showUnowned) return null;
   const Icon = owned ? CheckCircle2 : Circle;
   const word = owned ? 'Owned' : 'Not owned';
-  const tone = owned ? 'is-owned' : 'is-unowned';
   return (
-    <span
-      className={`ownership-badge ${tone}${className ? ` ${className}` : ''}`}
+    <Chip
+      className={`ownership-badge${className ? ` ${className}` : ''}`}
+      tone={owned ? 'success' : 'neutral'}
+      icon={<Icon width={12} height={12} strokeWidth={2.5} />}
       title={title ?? (owned ? 'In your collection' : 'Not in your collection')}
     >
-      <Icon width={12} height={12} strokeWidth={2.5} aria-hidden />
       {detail ? `${word} ${detail}` : word}
-    </span>
+    </Chip>
   );
 }

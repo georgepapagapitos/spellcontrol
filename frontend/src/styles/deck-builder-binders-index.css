@@ -322,7 +322,7 @@
 
 /* Pending review-queue work ("N to review") — informational accent so it
    reads as an inbox count, not a warning. */
-.binders-index-card-tag--review {
+.binders-index-card-tag[data-tone='info'] {
   background: var(--accent-light);
   color: var(--info);
 }

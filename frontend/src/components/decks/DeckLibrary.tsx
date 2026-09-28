@@ -11,6 +11,7 @@ import { SearchPill } from '../SearchPill';
 import { SortMenu, type SortMenuOption } from '../SortMenu';
 import { SharedEmptyState } from '../share/SharedEmptyState';
 import { ColorPip } from '../shared/ManaSymbol';
+import { Chip } from '../shared/Chip';
 import { usePanelCascade, panelCascadeClass } from '../../lib/use-panel-cascade';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 
@@ -302,13 +303,13 @@ function DeckLibraryTile({
                 ))}
               </span>
             )}
-            <span className="deck-format-badge">{formatLabel(deck.format)}</span>
+            <Chip className="deck-format-badge">{formatLabel(deck.format)}</Chip>
             {deck.bracket != null && (
-              <span className="deck-bracket-badge">
+              <Chip className="deck-bracket-badge">
                 {deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
                   ? bracketBadgeWithEstimate(deck.bracket, deck.estimatedBracket)
                   : BRACKET_LABELS[deck.bracket]}
-              </span>
+              </Chip>
             )}
           </div>
           {deck.commanderName && (

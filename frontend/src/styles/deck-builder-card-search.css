@@ -333,7 +333,7 @@
   letter-spacing: 0.03em;
 }
 
-.card-search-badge--warn {
+.card-search-badge[data-tone='warn'] {
   background: var(--warn-bg, color-mix(in srgb, var(--accent) 12%, transparent));
   color: var(--warn-text, var(--accent));
   border: 1px solid var(--warn-border, color-mix(in srgb, var(--accent) 30%, transparent));

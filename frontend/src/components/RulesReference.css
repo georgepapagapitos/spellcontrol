@@ -166,10 +166,10 @@
   letter-spacing: 0.06em;
   line-height: 1;
 }
-.rules-ref-badge-ability {
+.rules-ref-badge[data-tone='accent'] {
   color: var(--accent);
 }
-.rules-ref-badge-action {
+.rules-ref-badge[data-tone='neutral'] {
   color: var(--text-muted);
 }
 

@@ -28,6 +28,7 @@ import {
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
 import { MeterBar } from '../shared/MeterBar';
+import { Chip } from '../shared/Chip';
 import { imageFromCard } from '@/lib/card-thumbs';
 import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 import { Button } from '@/components/shared/Button';
@@ -581,7 +582,9 @@ export function BracketBreakdown({
               const comboNote = comboFloorNote(f.reason, breakdown);
               return (
                 <li key={`${f.bracket}-${f.reason}-${i}`} className="bracket-breakdown-floor">
-                  <span className="bracket-breakdown-floor-tag">Bracket {f.bracket}</span>
+                  <Chip className="bracket-breakdown-floor-tag" tone="accent">
+                    Bracket {f.bracket}
+                  </Chip>
                   <div className="bracket-breakdown-floor-body">
                     <span className="bracket-breakdown-floor-reason">{f.reason}</span>
                     {f.detail && <span className="bracket-breakdown-floor-detail">{f.detail}</span>}

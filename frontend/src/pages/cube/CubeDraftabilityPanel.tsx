@@ -8,6 +8,7 @@ import type { GeneratedCube } from '../../lib/cube/generate';
 import { sizeInfo, type ColorBucket } from '../../lib/cube/targets';
 import { BUCKET_COLOR, BUCKET_LABEL } from './shared';
 import { Button } from '../../components/shared/Button';
+import { Chip } from '../../components/shared/Chip';
 
 /** A deck reaching fewer than this share of the 23-playable bar gets one
  *  plain, unstyled line saying so (design decision: no warn colour, no icon
@@ -211,9 +212,9 @@ function DraftSimReport({
         ) : (
           <ul className="cube-draft-sim-pill-list">
             {result.undraftedArchetypes.map((a) => (
-              <li key={a.axis} className="cube-draft-sim-pill">
+              <Chip key={a.axis} as="li" className="cube-draft-sim-pill" tone="neutral">
                 {a.label}
-              </li>
+              </Chip>
             ))}
           </ul>
         )}

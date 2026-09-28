@@ -1314,20 +1314,18 @@ function CollectionResults({
               manaCost={c.manaCost}
             >
               {offColor && (
-                <span
-                  className="card-search-badge card-search-badge--warn"
+                <Chip
+                  className="card-search-badge"
+                  tone="warn"
                   title="Outside your commander's color identity"
                 >
                   Off-color
-                </span>
+                </Chip>
               )}
               {notLegal && (
-                <span
-                  className="card-search-badge card-search-badge--warn"
-                  title="Not legal in this format"
-                >
+                <Chip className="card-search-badge" tone="warn" title="Not legal in this format">
                   Not legal
-                </span>
+                </Chip>
               )}
               owned {ownedCount}
               {binders.length > 0 && (
@@ -1881,12 +1879,13 @@ function ScryfallResults({
               manaCost={c.mana_cost}
             >
               {offColor && (
-                <span
-                  className="card-search-badge card-search-badge--warn"
+                <Chip
+                  className="card-search-badge"
+                  tone="warn"
                   title="Outside your commander's color identity"
                 >
                   Off-color
-                </span>
+                </Chip>
               )}
               <span className={badge.className}>{badge.label}</span>
               {inDeck > 0 && (

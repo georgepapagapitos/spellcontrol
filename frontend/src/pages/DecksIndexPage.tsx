@@ -903,17 +903,18 @@ export function DecksIndexPage() {
                               ))}
                             </span>
                           )}
-                          <span className="deck-format-badge">
+                          <Chip className="deck-format-badge">
                             {DECK_FORMAT_CONFIGS[deck.format]?.label ?? 'Commander'}
-                          </span>
+                          </Chip>
                           {publicDeckIds.has(deck.id) && (
-                            <span
+                            <Chip
                               className="decks-index-card-public-badge"
                               title="Published. Visible to everyone."
                               aria-label="Public"
+                              icon={<Globe width={14} height={14} strokeWidth={2} />}
                             >
-                              <Globe width={14} height={14} strokeWidth={2} aria-hidden />
-                            </span>
+                              {null}
+                            </Chip>
                           )}
                           {/* Detail + value travel as one group: the detail is
                               the piece that truncates, so the value stays
