@@ -305,6 +305,21 @@
   color: var(--text-primary);
 }
 
+/* Fix links stack one per row, and a row is 2rem. The shared `.btn-link`
+   ghost is 44px and centred, so each one reached 6px into the next row and
+   the lower link won the tap (nightly journey, 2026-09-28). On a coarse
+   pointer the link is its own 44px instead and the row grows around it; no
+   ghost (guard: styles/touch-ghost-clearance.test.ts). */
+@media (pointer: coarse) {
+  .deck-identity-card-check .btn-link {
+    min-height: var(--touch-target);
+  }
+
+  .deck-identity-card-check .btn-link::after {
+    content: none;
+  }
+}
+
 /* Build health: four scored meters, the 70 line marked on each. */
 .deck-identity-card-health {
   list-style: none;
