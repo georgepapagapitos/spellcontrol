@@ -602,7 +602,7 @@ export function DeckAiRefine({
       {phase === 'error' && error && (
         <div className="deck-ai-error" role="alert">
           <span>{error}</span>
-          <Button onClick={run}>Try again</Button>
+          <Button onClick={run}>Retry</Button>
         </div>
       )}
 

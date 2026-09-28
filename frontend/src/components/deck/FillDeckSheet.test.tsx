@@ -77,7 +77,7 @@ describe('FillDeckSheet', () => {
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Find 3 cards' }));
     expect((await screen.findByRole('alert')).textContent).toBe('EDHREC is down');
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 
   it('owns up to slots it could not fill', async () => {

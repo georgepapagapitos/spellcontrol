@@ -47,11 +47,6 @@ const COPY_PROPS =
   /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|actionLabel|emptyText|helper|text|summary|reason|note|alt|blurb)$/;
 const LOG_CALLEE = /^(console\.|logger?\.|debug\b|warn\b|log\b|trace\b|reportError\b)/;
 
-// Three deck files and ProductSearchPanel are mid-edit in the T152 component
-// library sessions; their "Try again" labels are swept once those land.
-const RETRY_FILE_SKIP =
-  /^(components\/deck\/FillDeckSheet\.tsx|components\/deck\/DeckAiRefine\.tsx|components\/deck\/DeckAiReview\.tsx|components\/ProductSearchPanel\.tsx)/;
-
 type Rule = [id: string, test: (text: string, kind: string) => boolean, why: string];
 const RULES: Rule[] = [
   // A lone trailing glyph ("Bracket —", or "—" alone) is the app's unknown-value placeholder, not prose.
@@ -173,7 +168,6 @@ function scan(file: string): Violation[] {
   const line = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
   const check = (n: ts.Node, kind: string, text: string) => {
     for (const [rule, test] of RULES) {
-      if (rule === 'RETRY' && RETRY_FILE_SKIP.test(rel)) continue;
       // The other rules already saw this string as `attr:text` or at its const.
       if (kind === 'infotip:text' && rule !== 'INFOTIP_LONG') continue;
       if (test(text, kind))

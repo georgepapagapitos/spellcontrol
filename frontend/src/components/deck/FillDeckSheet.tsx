@@ -287,7 +287,7 @@ export function FillDeckSheet({
             <>
               <Button onClick={() => beginClose()}>Close</Button>
               <Button variant="primary" onClick={() => void run()}>
-                Try again
+                Retry
               </Button>
             </>
           )}
