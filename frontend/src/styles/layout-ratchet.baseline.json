@@ -56,7 +56,7 @@
     "components/trade/TradeComposer.css": 2,
     "components/trade/TradeOfferList.css": 2,
     "pages/DeckComparePage.css": 3,
-    "pages/WelcomePage.css": 2,
+    "pages/WelcomePage.css": 1,
     "playtest/components/CardInfoDialog.css": 1,
     "playtest/components/LogDock.css": 1,
     "playtest/components/ScrySheet.css": 1,

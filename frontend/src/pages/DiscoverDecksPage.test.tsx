@@ -68,6 +68,7 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     cardOracleIds: [],
     likedByViewer: false,
     bookmarkedByViewer: false,
+    ogArtCrop: null,
     ...overrides,
   };
 }

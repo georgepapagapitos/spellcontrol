@@ -112,9 +112,13 @@ interface Props {
 export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsaved }: Props) {
   // The deck's own printing first; the by-name lookup lands on Scryfall's
   // default printing, which is the wrong art for a Secret Lair commander.
+  // A deck with no commander at all (any non-Commander format) has neither,
+  // so the last resort is the deck's own cover art (`ogArtCrop` — #2449's
+  // "every deck gets cover art": the owner's pick, else the commander, else
+  // the deck's signature card) rather than the colorless swatch (E482).
   const direct = deck.commanderImageNormal ?? undefined;
   const resolved = useCardThumb(direct ? undefined : (deck.commanderName ?? undefined), 'normal');
-  const thumb = direct ?? resolved;
+  const thumb = direct ?? resolved ?? deck.ogArtCrop ?? undefined;
   const social = socialLine(deck);
   const isGrid = view === 'grid';
   const ownerName = formatIdentity({
@@ -141,6 +145,12 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
               />
             ) : (
               <span className="decks-index-card-banner" aria-hidden="true">
+                {/* Pips only when the colours are known. An empty
+                    colorIdentity on a no-commander deck means the listing
+                    derives colours from a commander only (deckColorIdentity
+                    on the backend), not that the deck is colourless, so a
+                    colorless pip here would be false. Such decks get their
+                    cover art (ogArtCrop) above instead (E482). */}
                 {deck.colorIdentity.length > 0 && (
                   <span className="decks-index-card-banner-pips">
                     {deck.colorIdentity.map((c) => (

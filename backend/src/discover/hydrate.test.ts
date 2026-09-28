@@ -69,6 +69,7 @@ function listingRow(overrides: Partial<PublicationListingRow>): PublicationListi
     copyCount: 0,
     likeCount: 0,
     publishedAt: Date.now(),
+    ogArtCrop: null,
     ...overrides,
   };
 }

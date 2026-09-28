@@ -42,6 +42,14 @@ export interface PublicationListingRow {
   copyCount: number;
   likeCount: number;
   publishedAt: number;
+  /** The deck's cover art (`deck_publications.og_art_crop`, #2449's "every
+   *  deck gets cover art" pick — the owner's own choice, else the commander,
+   *  else the deck's signature card). A tile's own thumb resolution prefers
+   *  `commanderImageNormal`/a by-name lookup first; this is the fallback for
+   *  a deck with neither (board E482 — a deck with no commander otherwise
+   *  rendered as a flat colourless swatch, the first thing a cold visitor
+   *  saw on the landing's Fresh public decks rail). */
+  ogArtCrop: string | null;
 }
 
 export interface DiscoverDeckSummary {
@@ -66,6 +74,8 @@ export interface DiscoverDeckSummary {
    *  viewerId passed to hydratePublicationRows) — never inferred otherwise. */
   likedByViewer: boolean;
   bookmarkedByViewer: boolean;
+  /** See `PublicationListingRow.ogArtCrop` — passed through unchanged. */
+  ogArtCrop: string | null;
 }
 
 /**
@@ -208,6 +218,7 @@ export async function hydratePublicationRows(
       cardOracleIds: oracleIds,
       likedByViewer: likedSlugs.has(row.slug),
       bookmarkedByViewer: bookmarkedSlugs.has(row.slug),
+      ogArtCrop: row.ogArtCrop,
     };
   });
 }

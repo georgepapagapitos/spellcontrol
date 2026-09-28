@@ -49,6 +49,7 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     cardOracleIds: [],
     likedByViewer: false,
     bookmarkedByViewer: false,
+    ogArtCrop: null,
     ...overrides,
   };
 }
@@ -136,6 +137,52 @@ describe('DiscoverDeckTile — grid art banner', () => {
     const segs = container.querySelectorAll('.discover-tile-colorbar-seg');
     expect(segs.length).toBe(1);
     expect(segs[0].className).toContain('discover-tile-colorbar-seg--c');
+  });
+
+  // ============================================================
+  // A deck with no commander (any non-Commander format) — E482. Was a flat
+  // colourless swatch: no image, and no visible colour pips (colorIdentity
+  // is always [] for a non-Commander deck; see backend deckColorIdentity).
+  // ============================================================
+
+  it("falls back to the deck's cover art (ogArtCrop) when there is no commander art at all", () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({
+      format: 'pauper',
+      commanderName: null,
+      commanderImageNormal: null,
+      colorIdentity: [],
+      ogArtCrop: 'https://cards.scryfall.io/art_crop/pauper-cover.jpg',
+    });
+
+    const img = container.querySelector('.discover-tile-banner .decks-index-card-art');
+    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/art_crop/pauper-cover.jpg');
+    expect(container.querySelector('.decks-index-card-banner')).toBeFalsy();
+  });
+
+  // A no-commander deck's colorIdentity is empty because the listing only
+  // derives colours from a commander, not because the deck is colourless: a
+  // mono-white Pauper deck must never wear a colorless pip.
+  it('shows no colour claim in the swatch when a no-commander deck has no known colours', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({
+      format: 'pauper',
+      commanderName: null,
+      commanderImageNormal: null,
+      colorIdentity: [],
+      ogArtCrop: null,
+    });
+
+    expect(container.querySelector('.decks-index-card-art')).toBeFalsy();
+    expect(container.querySelector('.decks-index-card-banner-pips')).toBeFalsy();
+  });
+
+  it('still shows the real WUBRG pips in the swatch when colorIdentity is set but no art resolves', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({ colorIdentity: ['W', 'U'], ogArtCrop: null });
+
+    const pips = container.querySelector('.decks-index-card-banner-pips');
+    expect(pips?.querySelectorAll('.ms').length).toBe(2);
   });
 
   it('shows the buildable meter (not the value) in the footer when buildablePercent is set', () => {

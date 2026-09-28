@@ -185,6 +185,7 @@ interface DecksResponseBody {
     cardOracleIds: string[];
     likedByViewer: boolean;
     bookmarkedByViewer: boolean;
+    ogArtCrop: string | null;
   }>;
   page: number;
   hasMore: boolean;
@@ -210,6 +211,41 @@ describe('GET /api/discover/decks', () => {
     const slugs = slugsOf(res.body);
     expect(slugs).toContain(live.slug);
     expect(slugs).not.toContain(gone.slug);
+  });
+
+  // E482: a deck with no commander (any non-Commander format) has neither
+  // commanderName nor commanderImageNormal, so DiscoverDeckTile needs the
+  // deck's own cover art (ogArtCrop, deck_publications.og_art_crop — #2449)
+  // to avoid a flat colourless swatch. Confirms the listing endpoint
+  // actually surfaces the column, not just that extractListingFields
+  // computes it (covered separately in publications/listing-fields.test.ts).
+  it('surfaces ogArtCrop for a deck with no commander (E482)', async () => {
+    const name = uid('Disco Pauper No-Commander Deck');
+    const { slug } = await publishDeck({
+      name,
+      format: 'pauper',
+      commander: null,
+      partnerCommander: null,
+      cards: [
+        {
+          slotId: 's1',
+          card: {
+            id: uid('bolt'),
+            oracle_id: uid('bolt-oracle'),
+            name: 'Lightning Bolt',
+            image_uris: { art_crop: 'https://cards.scryfall.io/art_crop/bolt.jpg' },
+          },
+          allocatedCopyId: null,
+        },
+      ],
+    });
+
+    const res = await request(app).get('/api/discover/decks').query({ q: name });
+    expect(res.status).toBe(200);
+    const entry = res.body.decks.find((d: { slug: string }) => d.slug === slug);
+    expect(entry).toBeTruthy();
+    expect(entry.commanderName).toBeNull();
+    expect(entry.ogArtCrop).toBe('https://cards.scryfall.io/art_crop/bolt.jpg');
   });
 
   it("exclude=mine drops the viewer's own decks and nobody else's", async () => {
