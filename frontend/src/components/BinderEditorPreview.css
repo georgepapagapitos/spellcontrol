@@ -1,0 +1,146 @@
+/* BinderEditorPreview.css — the rules editor's live preview column (E493).
+   Desktop only; sticky beside the rules so it stays in view while the left
+   column scrolls. Container-queried off .binder-editor-body, never a
+   viewport breakpoint — the modal itself is width-capped
+   (feedback_container_query_not_viewport_in_capped_panels). */
+
+.binder-editor-preview {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.binder-editor-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.binder-editor-preview-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.binder-editor-preview-nav {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.binder-editor-preview-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.binder-editor-preview-spread {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.binder-editor-preview-page-empty {
+  border-radius: var(--radius);
+}
+
+.binder-editor-preview-stats {
+  display: flex;
+  gap: var(--space-4);
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.binder-editor-preview-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.binder-editor-preview-stat b {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+
+.binder-editor-preview-sections-head {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-overline);
+}
+
+.binder-editor-preview-sections {
+  display: flex;
+  flex-direction: column;
+  max-height: 12rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.binder-editor-preview-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.binder-editor-preview-section-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  overflow: hidden;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.binder-editor-preview-section-page {
+  flex: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .binder-editor-preview-section-row:hover .binder-editor-preview-section-label {
+    color: var(--accent);
+  }
+}
+
+.binder-editor-preview-section-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.binder-editor-preview-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.binder-editor-preview-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

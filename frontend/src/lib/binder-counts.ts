@@ -1,7 +1,63 @@
-import type { BinderDef, BinderFilterGroup, EnrichedCard } from '../types';
+import type {
+  BinderDef,
+  BinderFilterGroup,
+  BinderInput,
+  EnrichedCard,
+  MaterializedBinder,
+} from '../types';
 import { compileFilterGroups, cardMatchesCompiled } from './rules';
 import type { BinderLayoutInputs } from './use-binder-layout-inputs';
 import { materializeBinders } from './materialize';
+
+/** Stand-in id for a binder that has no id yet (a brand-new draft). Shared by
+ *  every draft-substitution pass (landing counts, the ladder, the live
+ *  preview) so they can all recognize the same slot as "this binder". */
+export const DRAFT_BINDER_ID = '__draft__';
+
+/** Ladder-only id for the catch-all bucket — never a real BinderDef id. */
+export const UNCATEGORIZED_LADDER_ID = '__uncategorized__';
+
+/**
+ * "Staples", "Staples and Rares", or "Staples and 3 others" — names the binders
+ * outbidding this one instead of the anonymous "binders above this one" (E298).
+ * Two names is the readable ceiling for an inline sentence; beyond that the
+ * count carries it and the binder list itself shows the order.
+ */
+export function formatCaughtBy(
+  caughtBy: { binderName: string; count: number }[],
+  fallback = 'binders above this one'
+): string {
+  if (caughtBy.length === 0) return fallback;
+  if (caughtBy.length === 1) return caughtBy[0].binderName;
+  if (caughtBy.length === 2) return `${caughtBy[0].binderName} and ${caughtBy[1].binderName}`;
+  return `${caughtBy[0].binderName} and ${caughtBy.length - 1} others`;
+}
+
+/** One rung of the binder ladder ("a card goes to the first binder that wants
+ *  it"), in waterfall (position) order, Uncategorized always last. */
+export interface LadderEntry {
+  id: string;
+  name: string;
+  /** null for Uncategorized — rendered as a dashed outline, never a color. */
+  color: string | null;
+  count: number;
+  isDraft: boolean;
+}
+
+/** Position a substituted draft def takes in the waterfall: an edited binder
+ *  keeps its slot, a new one goes last, and a pending "Move above X" previews
+ *  it half a step ahead of that target. Shared by every draft-substitution
+ *  pass so they can never disagree about where the draft sits. */
+function draftPosition(
+  allBinders: BinderDef[],
+  existingIdx: number,
+  placeAbove: BinderDef | undefined
+): number {
+  if (placeAbove !== undefined) return placeAbove.position - 0.5;
+  if (existingIdx !== -1) return allBinders[existingIdx].position;
+  const maxPosition = allBinders.reduce((m, b) => Math.max(m, b.position), -1);
+  return maxPosition + 1;
+}
 
 export interface BinderCounts {
   /**
@@ -73,6 +129,12 @@ export interface DraftBinder {
   /** Preview the draft just above this binder instead of where it sits (an
    *  existing binder) or last (a new one). The editor's "Move above" fix. */
   placeAboveId?: string | null;
+  /** For the ladder's own rung — the tab color the user picked and the name
+   *  they're typing, so its swatch and "N others" attribution read true even
+   *  before Save. Optional: callers that only want the counts (not the
+   *  ladder) can omit them. */
+  name?: string;
+  color?: string;
 }
 
 export interface EffectiveLandingCounts {
@@ -96,6 +158,14 @@ export interface EffectiveLandingCounts {
   /** How many of `lands` arrived via `keepPrintingsTogether` promotion rather
    *  than matching this binder's own rules. */
   pulledIn: number;
+  /** The full waterfall, in position order, Uncategorized last — "a card goes
+   *  to the first binder that wants it". Counts come from the SAME rules-only
+   *  materialize pass as `caughtBy`/`caughtAbove`, so the binder ladder can
+   *  never disagree with them. */
+  ladder: LadderEntry[];
+  /** The id `ladder` (and every other draft-substitution result) uses for
+   *  "this binder" — `draft.id`, or `DRAFT_BINDER_ID` for a new one. */
+  draftId: string;
 }
 
 /**
@@ -125,9 +195,8 @@ export function countEffectiveLanding(
 ): EffectiveLandingCounts {
   const matches = countBinderMatches(cards, draft.groups, false).total;
 
-  const draftId = draft.id ?? '__draft__';
+  const draftId = draft.id ?? DRAFT_BINDER_ID;
   const existingIdx = draft.id ? allBinders.findIndex((b) => b.id === draft.id) : -1;
-  const maxPosition = allBinders.reduce((m, b) => Math.max(m, b.position), -1);
   const placeAbove = draft.placeAboveId
     ? allBinders.find((b) => b.id === draft.placeAboveId)
     : undefined;
@@ -136,22 +205,14 @@ export function countEffectiveLanding(
     const now = Date.now();
     const draftDef: BinderDef = {
       id: draftId,
-      name: '',
-      // Editing an existing binder keeps its position (waterfall order
-      // unchanged by the preview); a new binder is appended last. A pending
-      // "Move above" previews it half a step ahead of its target.
-      position:
-        placeAbove !== undefined
-          ? placeAbove.position - 0.5
-          : existingIdx === -1
-            ? maxPosition + 1
-            : allBinders[existingIdx].position,
+      name: draft.name ?? '',
+      position: draftPosition(allBinders, existingIdx, placeAbove),
       filterGroups: draft.groups,
       sorts: [],
       pocketSize: null,
       doubleSided: false,
       fixedCapacity: null,
-      color: '#000000',
+      color: draft.color ?? '#8a8a8a',
       mode: draft.mode,
       keepPrintingsTogether,
       createdAt: now,
@@ -195,11 +256,89 @@ export function countEffectiveLanding(
   }
   caughtBy.sort((a, b) => b.count - a.count || a.binderName.localeCompare(b.binderName));
 
+  // The waterfall, off the SAME rules-only pass: `rulesOnly.binders` is
+  // already in position order (materializeBinders sorts before routing), so
+  // this can never disagree with `caughtAbove`/`caughtBy` above it.
+  const ladder: LadderEntry[] = rulesOnly.binders.map((b) => ({
+    id: b.def.id,
+    name: b.def.name,
+    color: b.def.color,
+    count: b.totalCards,
+    isDraft: b.def.id === draftId,
+  }));
+  ladder.push({
+    id: UNCATEGORIZED_LADDER_ID,
+    name: 'Uncategorized',
+    color: null,
+    count: rulesOnly.uncategorized.totalCards,
+    isDraft: false,
+  });
+
   return {
     matches,
     lands,
     caughtAbove: Math.max(0, matches - rulesOnlyLands),
     pulledIn: Math.max(0, lands - rulesOnlyLands),
     caughtBy,
+    ladder,
+    draftId,
   };
+}
+
+/**
+ * Materializes the editor's draft binder with its REAL layout settings (pocket
+ * size, sides, sorts, page filling) so the editor's live preview column/strip
+ * shows genuine pages, not an approximation. WYSIWYG with Save by construction:
+ * `input` is the exact `BinderInput` `handleSave` would persist, so the draft
+ * def built here can never drift from what gets written — no second partial
+ * chain to keep in sync.
+ *
+ * `existing` supplies the fields the editor doesn't own (pins, exclusions,
+ * manual order) so a manual-mode binder previews its real pinned/manual order
+ * rather than an empty slot; undefined for a not-yet-saved binder.
+ */
+export function materializeDraftPreview(
+  cards: EnrichedCard[],
+  allBinders: BinderDef[],
+  existing: BinderDef | undefined,
+  input: BinderInput,
+  placeAboveId: string | null | undefined,
+  layout: Pick<BinderLayoutInputs, 'allocatedCopyIds' | 'setMap'> = {
+    allocatedCopyIds: new Set(),
+    setMap: undefined,
+  }
+): MaterializedBinder {
+  const draftId = existing?.id ?? DRAFT_BINDER_ID;
+  const existingIdx = existing ? allBinders.findIndex((b) => b.id === existing.id) : -1;
+  const placeAbove = placeAboveId ? allBinders.find((b) => b.id === placeAboveId) : undefined;
+  const now = Date.now();
+  const draftDef: BinderDef = {
+    ...(existing ?? { id: draftId, createdAt: now, updatedAt: now }),
+    ...input,
+    id: draftId,
+    position: draftPosition(allBinders, existingIdx, placeAbove),
+    updatedAt: now,
+  };
+  const defs =
+    existingIdx === -1
+      ? [...allBinders, draftDef]
+      : allBinders.map((b, i) => (i === existingIdx ? draftDef : b));
+  const result = materializeBinders(cards, defs, {
+    search: '',
+    allocatedCopyIds: layout.allocatedCopyIds,
+    setMap: layout.setMap,
+  });
+  return (
+    result.binders.find((b) => b.def.id === draftId) ?? {
+      def: draftDef,
+      reasons: new Map(),
+      effectivePocketSize: draftDef.pocketSize ?? 9,
+      effectiveSorts: draftDef.sorts,
+      displaySorts: draftDef.sorts,
+      sections: [],
+      totalCards: 0,
+      totalPages: 0,
+      totalValue: 0,
+    }
+  );
 }

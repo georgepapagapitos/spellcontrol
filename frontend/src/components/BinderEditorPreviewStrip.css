@@ -1,0 +1,84 @@
+/* BinderEditorPreviewStrip.css — the phone/tablet counterpart to
+   BinderEditorPreview (E493): a compact row under the header instead of a
+   sticky column. */
+
+.binder-editor-preview-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.binder-editor-preview-strip.is-placeholder {
+  display: block;
+  cursor: default;
+}
+
+.binder-editor-preview-strip-empty {
+  margin: 0;
+}
+
+.binder-editor-preview-strip-thumb {
+  flex: none;
+  width: 4.5rem;
+}
+
+/* The thumbnail is decorative (the row's aria-label carries the facts) — its
+   own "Page N" caption would be noise at this size. */
+.binder-editor-preview-strip-thumb .page-num,
+.binder-editor-preview-strip-thumb .page-label {
+  display: none;
+}
+
+.binder-editor-preview-strip-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.binder-editor-preview-strip-headline {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.binder-editor-preview-strip-sub {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.binder-editor-preview-strip-hint {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.binder-editor-preview-strip-chevron {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.binder-editor-preview-strip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A row this dense benefits from a bit more headroom on touch, even though
+   its own height already clears the 44px floor (thumb + two text lines). */
+@media (pointer: coarse) {
+  .binder-editor-preview-strip {
+    min-height: 44px;
+  }
+}

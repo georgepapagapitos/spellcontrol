@@ -110,6 +110,38 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+  /* The two-column split below is a property of the MODAL's own width, not
+     the viewport — the modal is width-capped (--wide below), so a viewport
+     media query would fire at the wrong widths on a narrow desktop window
+     (feedback_container_query_not_viewport_in_capped_panels). */
+  container-type: inline-size;
+}
+
+/* The rules editor widens for the preview column (E493) — only while step
+   'rules' is showing it; the start chooser and import screens keep the
+   shared 720px default. */
+.modal.binder-editor.binder-editor--wide {
+  max-width: 1120px;
+}
+
+.binder-editor-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.binder-editor-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+@container (min-width: 860px) {
+  .binder-editor-columns {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+  }
 }
 
 .binder-editor-cards {

@@ -111,12 +111,20 @@ describe('a new binder starts from a starting point', () => {
     // The tile says how many of the user's own cards it would take.
     expect(within(rares).getByText('2 of your cards')).toBeTruthy();
 
+    // The footer/ladder counts are debounced off `groups` (E493) — a
+    // collection-wide scan on every keystroke otherwise made typing itself
+    // the janky part. Settle it before reading the answer.
+    vi.useFakeTimers();
     fireEvent.click(rares);
     expect((screen.getByLabelText('Binder name') as HTMLInputElement).value).toBe(
       'Rares & mythics'
     );
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     // The footer states the answer: both rares land in this new binder.
     expect(landLine()).toBe('2 cards land here');
+    vi.useRealTimers();
   });
 
   it('Blank goes to an empty rule, and Back returns to the chooser', () => {
@@ -240,7 +248,9 @@ describe('the zero-landing warning offers the fix', () => {
 
     // The catch-all above takes both rares, so this binder would be empty.
     expect(landLine()).toBe('0 cards land here');
-    fireEvent.click(screen.getByRole('button', { name: 'Move above Secret Lair' }));
+    // Two identical fixes exist now (E493): the amber warning's own action and
+    // the binder ladder's caught-by line, both wired to the SAME handler.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Move above Secret Lair' })[0]);
 
     // Previewed immediately, applied only on save.
     expect(landLine()).toBe('2 cards land here');
@@ -331,6 +341,9 @@ describe('the Color identity rule', () => {
     const monoWhite = { ...card('2', 'rare'), colors: ['W'], colorIdentity: ['W'] };
     useCollectionStore.setState({ cards: [azorius, monoWhite] });
     render(<BinderEditor />);
+    // The footer/ladder counts are debounced off `groups` (E493) — settle
+    // it after each rule change below before reading the answer.
+    vi.useFakeTimers();
     act(() => {
       useCollectionStore.setState({
         editingBinder: 'new',
@@ -339,6 +352,9 @@ describe('the Color identity rule', () => {
           groups: [{ filter: { colorIdentity: { colors: ['W', 'U'], mode: 'all' } } }],
         },
       });
+    });
+    act(() => {
+      vi.advanceTimersByTime(200);
     });
 
     const pips = screen.getByRole('group', { name: 'Color identity' });
@@ -356,15 +372,22 @@ describe('the Color identity rule', () => {
 
     // OR: any card showing white or blue.
     fireEvent.click(screen.getByRole('button', { name: /Color match mode/ }));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     expect(screen.getByText('any selected color')).toBeTruthy();
     expect(landLine()).toBe('2 cards land here');
 
     // Clearing the last pip removes the constraint rather than matching nothing.
     fireEvent.click(within(pips).getByRole('button', { name: 'White' }));
     fireEvent.click(within(pips).getByRole('button', { name: 'Blue' }));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     expect(landLine()).toBe('2 cards land here');
     // …and the row stays where it was, so the next pip is one tap away.
     expect(screen.getByRole('group', { name: 'Color identity' })).toBeTruthy();
+    vi.useRealTimers();
   });
 });
 

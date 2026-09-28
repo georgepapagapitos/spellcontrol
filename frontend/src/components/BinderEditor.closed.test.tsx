@@ -13,10 +13,35 @@ import { useCollectionStore } from '../store/collection';
 import { BinderEditor } from './BinderEditor';
 
 const countEffectiveLanding = vi.hoisted(() =>
-  vi.fn(() => ({ matches: 1, lands: 1, caughtAbove: 0, pulledIn: 0, caughtBy: [] }))
+  vi.fn(() => ({
+    matches: 1,
+    lands: 1,
+    caughtAbove: 0,
+    pulledIn: 0,
+    caughtBy: [],
+    ladder: [],
+    draftId: '__draft__',
+  }))
 );
 const countBinderMatches = vi.hoisted(() => vi.fn(() => ({ total: 1, perGroup: [1] })));
-vi.mock('../lib/binder-counts', () => ({ countEffectiveLanding, countBinderMatches }));
+const materializeDraftPreview = vi.hoisted(() =>
+  vi.fn(() => ({
+    def: { id: '__draft__', name: '', color: '#888' },
+    effectivePocketSize: 9,
+    effectiveSorts: [],
+    displaySorts: [],
+    sections: [],
+    totalCards: 0,
+    totalPages: 0,
+    totalValue: 0,
+  }))
+);
+vi.mock('../lib/binder-counts', async (importActual) => ({
+  ...(await importActual<typeof import('../lib/binder-counts')>()),
+  countEffectiveLanding,
+  countBinderMatches,
+  materializeDraftPreview,
+}));
 
 describe('BinderEditor while closed', () => {
   beforeEach(() => {

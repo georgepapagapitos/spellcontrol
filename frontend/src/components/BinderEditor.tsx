@@ -16,11 +16,15 @@ import { areAllGroupsEmpty } from '../lib/rules';
 import {
   countBinderMatches,
   countEffectiveLanding,
+  formatCaughtBy,
+  materializeDraftPreview,
   type EffectiveLandingCounts,
 } from '../lib/binder-counts';
 import { STARTER_TEMPLATES } from '../lib/binder-templates';
 import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
 import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
+import { useDebouncedValue } from '../lib/use-debounced-value';
+import { useMediaQuery } from '../lib/use-media-query';
 import { cleanFilter } from '../lib/clean-filter';
 import { formatPagesSummary, PACK_LABEL } from '../lib/binder-pages-summary';
 import { Modal } from './Modal';
@@ -30,6 +34,9 @@ import { PRESET_COLORS, pickRandomPresetColor } from '../lib/preset-colors';
 import { InfoTip } from './InfoTip';
 import { FilterGroupList, cloneChips, validateRanges } from './FilterGroupEditor';
 import { BinderStartChooser, type BinderStart } from './BinderStartChooser';
+import { BinderLadder } from './BinderLadder';
+import { BinderEditorPreview } from './BinderEditorPreview';
+import { BinderEditorPreviewStrip } from './BinderEditorPreviewStrip';
 import { ChoiceList, Disclosure, Field, SegmentedControl, SwitchRow } from './shared/form';
 import './BinderEditor.css';
 
@@ -76,22 +83,6 @@ const CARDS_TIP = (
 // (40 when double-sided, since each sheet stores cards on both sides).
 const defaultFixedCapacity = (pocket: PocketSize, doubleSided: boolean): number =>
   pocket * (doubleSided ? 40 : 20);
-
-/**
- * "Staples", "Staples and Rares", or "Staples and 3 others" — names the binders
- * outbidding this one instead of the anonymous "binders above this one" (E298).
- * Two names is the readable ceiling for an inline sentence; beyond that the
- * count carries it and the binder list itself shows the order.
- */
-function formatCaughtBy(
-  caughtBy: { binderName: string; count: number }[],
-  fallback = 'binders above this one'
-): string {
-  if (caughtBy.length === 0) return fallback;
-  if (caughtBy.length === 1) return caughtBy[0].binderName;
-  if (caughtBy.length === 2) return `${caughtBy[0].binderName} and ${caughtBy[1].binderName}`;
-  return `${caughtBy[0].binderName} and ${caughtBy.length - 1} others`;
-}
 
 const STARTER_LABELS = new Set(STARTER_TEMPLATES.map((t) => t.label));
 
@@ -488,10 +479,17 @@ export function BinderEditor() {
   // the over-capacity check below AND the per-group badge in FilterGroupList.
   const layout = useBinderLayoutInputs();
   const taggedCards = useCardsWithTags(layout.cards, groupsUseTags(groups));
+  // `groups` changes on every keystroke inside a condition; both reads below
+  // scan the whole collection (a real account runs 11k+ cards), so feeding
+  // them live `groups` made typing itself the janky part — the character
+  // waited behind a 200ms+ scan before it could paint (E493). `groups` stays
+  // live everywhere it drives what's actually being edited (FilterGroupList's
+  // rows/chips); only these read-side counts lag the debounce.
+  const debouncedGroups = useDebouncedValue(groups, 200);
   const binderMatchCount = useMemo(() => {
     if (!isOpen || fixedCapacity === null) return 0;
-    return countBinderMatches(taggedCards, groups, keepPrintingsTogether).total;
-  }, [taggedCards, groups, fixedCapacity, keepPrintingsTogether, isOpen]);
+    return countBinderMatches(taggedCards, debouncedGroups, keepPrintingsTogether).total;
+  }, [taggedCards, debouncedGroups, fixedCapacity, keepPrintingsTogether, isOpen]);
 
   // Where the waterfall actually seats this binder's cards, not just how many
   // match its own rules — substitutes the draft into the real binder list (in
@@ -506,10 +504,12 @@ export function BinderEditor() {
       binders,
       {
         id: existing?.id ?? null,
-        groups,
+        groups: debouncedGroups,
         keepPrintingsTogether,
         mode: routingMode,
         placeAboveId,
+        name,
+        color,
       },
       layout
     );
@@ -517,13 +517,85 @@ export function BinderEditor() {
     layout,
     taggedCards,
     binders,
-    groups,
+    debouncedGroups,
     keepPrintingsTogether,
     routingMode,
     existing?.id,
     isOpen,
     placeAboveId,
+    name,
+    color,
   ]);
+
+  // The editor's own layout settings, in exactly the shape Save will persist
+  // (BinderInput) — one function feeds both, so the live preview can never
+  // show a different binder than the one Save writes. Debounced before it
+  // reaches the (much heavier) full materialize pass below: a keystroke in a
+  // condition must never wait on a page/section rebuild over the collection.
+  const buildDraftInput = (): BinderInput => ({
+    name: name.trim(),
+    position: existing?.position ?? 0,
+    filterGroups: groups.map((g) => ({
+      ...(g.name?.trim() ? { name: g.name.trim() } : {}),
+      filter: cleanFilter(g.filter),
+    })),
+    sorts,
+    pocketSize,
+    doubleSided,
+    fixedCapacity,
+    color,
+    mode: routingMode,
+    hideDeckAllocated: showDeckAllocated ? undefined : false,
+    sortValueOrders: Object.keys(sortValueOrders).length ? sortValueOrders : undefined,
+    keepPrintingsTogether: keepPrintingsTogether || undefined,
+    tradeable: tradeable || undefined,
+    sectionMode: sectionMode !== 'sort' ? sectionMode : undefined,
+    pageBreakDepth: sorts.length > 1 && pageBreakDepth > 1 ? pageBreakDepth : undefined,
+    packSections: packSections || undefined,
+  });
+
+  // Deps are the primitive fields `buildDraftInput` reads, not the function
+  // itself — it's a fresh closure every render (same pattern as
+  // `binderMatchCount`/`effectiveLanding` above), so listing it would defeat
+  // the memo and rebuild the draft def on every unrelated re-render.
+  const draftInput = useMemo(
+    () => buildDraftInput(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      name,
+      groups,
+      sorts,
+      sortValueOrders,
+      pocketSize,
+      doubleSided,
+      fixedCapacity,
+      color,
+      routingMode,
+      showDeckAllocated,
+      keepPrintingsTogether,
+      tradeable,
+      sectionMode,
+      pageBreakDepth,
+      packSections,
+      existing?.position,
+    ]
+  );
+  const debouncedDraftInput = useDebouncedValue(draftInput, 200);
+
+  const hydrating = useCollectionStore((s) => s.hydrating);
+  const draftPreview = useMemo(() => {
+    if (!isOpen || step !== 'rules') return null;
+    return materializeDraftPreview(
+      taggedCards,
+      binders,
+      existing,
+      debouncedDraftInput,
+      placeAboveId,
+      layout
+    );
+  }, [isOpen, step, taggedCards, binders, existing, debouncedDraftInput, placeAboveId, layout]);
+
+  const phone = useMediaQuery('(max-width: 599px)');
 
   if (!isOpen) return null;
 
@@ -690,35 +762,15 @@ export function BinderEditor() {
       }
     }
 
-    const cleanedGroups: BinderFilterGroup[] = groups.map((g) => ({
-      ...(g.name?.trim() ? { name: g.name.trim() } : {}),
-      filter: cleanFilter(g.filter),
-    }));
-    // ⚠️ This is a FIELD WHITELIST: every persistable BinderDef field must be
-    // listed here explicitly. A BinderDef field omitted here is silently
-    // dropped on save (the editor preview reads local state and looks fine,
-    // but the reloaded binder loses it). Add new fields here when extending
-    // BinderDef. (Same trap that hit BinderFilter via cleanFilter.)
+    // ⚠️ Built by `buildDraftInput()` above — the SAME function the live
+    // preview reads, so what Save writes and what the preview showed can
+    // never diverge. Every persistable BinderDef field must be listed there
+    // explicitly: a field omitted is silently dropped on save (the editor
+    // looks fine, but the reloaded binder loses it). Add new fields there
+    // when extending BinderDef. (Same trap that hit BinderFilter via
+    // cleanFilter.)
     const input: BinderInput = {
-      name: name.trim(),
-      position: existing?.position ?? 0,
-      filterGroups: cleanedGroups,
-      sorts,
-      pocketSize,
-      doubleSided,
-      fixedCapacity,
-      color,
-      mode: routingMode,
-      hideDeckAllocated: showDeckAllocated ? undefined : false,
-      sortValueOrders: Object.keys(sortValueOrders).length ? sortValueOrders : undefined,
-      keepPrintingsTogether: keepPrintingsTogether || undefined,
-      tradeable: tradeable || undefined,
-      sectionMode: sectionMode !== 'sort' ? sectionMode : undefined,
-      // Drop a stale depth when the sort chain no longer supports it — the
-      // Page-breaks control is hidden at sorts.length <= 1, so a leftover
-      // depth would persist invisibly (materialize also clamps defensively).
-      pageBreakDepth: sorts.length > 1 && pageBreakDepth > 1 ? pageBreakDepth : undefined,
-      packSections: packSections || undefined,
+      ...buildDraftInput(),
     };
 
     // Rules binder (or editing an existing one): synchronous create/update.
@@ -926,7 +978,7 @@ export function BinderEditor() {
           backdrop tap from tearing the editor down mid-import. */}
       <Modal
         onClose={close}
-        className="modal binder-editor"
+        className={`modal binder-editor${step === 'rules' ? ' binder-editor--wide' : ''}`}
         backdropClassName="modal-backdrop--sheet"
         labelledBy="binder-editor-title"
         dismissable={!saving}
@@ -986,221 +1038,257 @@ export function BinderEditor() {
 
           {step === 'rules' && (
             <>
-              <section className="binder-editor-cards">
-                <h3 className="form-section-heading">
-                  Cards <InfoTip label="how a card lands here" text={CARDS_TIP} wide />
-                </h3>
+              {phone && (
+                <BinderEditorPreviewStrip
+                  binder={draftPreview}
+                  loading={hydrating}
+                  fixedCapacity={fixedCapacity}
+                  binderName={name.trim() || 'This binder'}
+                />
+              )}
+              <div className="binder-editor-columns">
+                <div className="binder-editor-main">
+                  <section className="binder-editor-cards">
+                    <h3 className="form-section-heading">
+                      Cards <InfoTip label="how a card lands here" text={CARDS_TIP} wide />
+                    </h3>
 
-                {routingMode === 'manual' && existing && (
-                  <div className="manual-mode-banner">
-                    <p>
-                      This binder uses manual mode. Only pinned cards appear; its rules are paused.
-                    </p>
-                    <Button onClick={() => setRoutingMode('rules')}>Switch to rules</Button>
-                  </div>
-                )}
+                    {routingMode === 'manual' && existing && (
+                      <div className="manual-mode-banner">
+                        <p>
+                          This binder uses manual mode. Only pinned cards appear; its rules are
+                          paused.
+                        </p>
+                        <Button onClick={() => setRoutingMode('rules')}>Switch to rules</Button>
+                      </div>
+                    )}
 
-                {isNew && editingBinderSeed?.flagged && editingBinderSeed.flagged.length > 0 && (
-                  <p className="binder-seed-note">
-                    Some filters weren&apos;t carried over or match differently in a binder:{' '}
-                    {editingBinderSeed.flagged
-                      .map((key) => {
-                        if (key === 'condition') return 'condition';
-                        if (key === 'binder') return 'binder membership';
-                        if (key === 'surplus') return 'tradeable surplus';
-                        return key;
-                      })
-                      .join(', ')}
-                    .
-                  </p>
-                )}
-
-                <div className={routingMode === 'manual' ? 'binder-editor-paused' : undefined}>
-                  <FilterGroupList
-                    groups={groups}
-                    cards={taggedCards}
-                    ownedSets={ownedSets}
-                    typeSuggestions={typeSuggestions}
-                    oracleSuggestions={oracleSuggestions}
-                    autofocusIdx={autofocusGroupIdx}
-                    clearAutofocus={() => setAutofocusGroupIdx(null)}
-                    onPatchFilter={patchFilter}
-                    onSetName={setGroupName}
-                    onAdd={addGroup}
-                    onDuplicate={duplicateGroup}
-                    onRemove={removeGroup}
-                    revealSetsSignal={revealSetsSignal}
-                  />
-                </div>
-
-                {routingMode === 'rules' && (
-                  <div className="binder-editor-switches">
-                    <SwitchRow
-                      label="Include cards in decks and cubes"
-                      hint="Off: a card in a deck or cube stays hidden here, even one added by hand, until you take it out."
-                      checked={showDeckAllocated}
-                      onChange={setShowDeckAllocated}
-                    />
-                    <SwitchRow
-                      label="Keep printings together"
-                      hint="When one copy matches here, its other printings come too, unless a binder above already took them."
-                      checked={keepPrintingsTogether}
-                      onChange={setKeepPrintingsTogether}
-                    />
-                  </div>
-                )}
-
-                {placeAbove && (
-                  <p className="binder-editor-note">
-                    Moves above <strong>{placeAbove.name}</strong> when you save.{' '}
-                    <Button variant="link" onClick={() => setPlaceAboveId(null)}>
-                      Keep its place
-                    </Button>
-                  </p>
-                )}
-
-                {effectiveLanding &&
-                  effectiveLanding.matches > 0 &&
-                  effectiveLanding.lands === 0 &&
-                  !placeAbove && (
-                    <div className="warn-banner binder-editor-warn">
-                      <span>
-                        Every matching card already lands in{' '}
-                        {formatCaughtBy(effectiveLanding.caughtBy, 'a binder above this one')}, so
-                        this binder will be empty.
-                      </span>
-                      {firstCatcher && (
-                        <Button onClick={() => setPlaceAboveId(firstCatcher.id)}>
-                          Move above {firstCatcher.name}
-                        </Button>
+                    {isNew &&
+                      editingBinderSeed?.flagged &&
+                      editingBinderSeed.flagged.length > 0 && (
+                        <p className="binder-seed-note">
+                          Some filters weren&apos;t carried over or match differently in a binder:{' '}
+                          {editingBinderSeed.flagged
+                            .map((key) => {
+                              if (key === 'condition') return 'condition';
+                              if (key === 'binder') return 'binder membership';
+                              if (key === 'surplus') return 'tradeable surplus';
+                              return key;
+                            })
+                            .join(', ')}
+                          .
+                        </p>
                       )}
-                    </div>
-                  )}
 
-                {showEmptyWarning &&
-                  (sitsLast ? (
-                    <p className="binder-editor-note">
-                      This binder has no conditions, so it takes every card the binders above pass
-                      on.
-                    </p>
-                  ) : (
-                    <div className="warn-banner binder-editor-warn">
-                      This binder has no conditions, so it takes every card the binders below it
-                      were meant to get. Add a condition, or move it to the bottom of your binder
-                      list.
-                    </div>
-                  ))}
-
-                {overCapacity && (
-                  <div className="warn-banner binder-editor-warn">
-                    {binderMatchCount.toLocaleString()} cards match, but the capacity is{' '}
-                    {capacity.toLocaleString()}. The extra{' '}
-                    {(binderMatchCount - capacity).toLocaleString()} still show, flagged as over
-                    capacity.
-                  </div>
-                )}
-
-                <div className="sr-only" role="status" aria-live="polite">
-                  {liveMsg}
-                </div>
-              </section>
-
-              <div className="binder-editor-settings">
-                <Disclosure title="Order" summary={orderSummary}>
-                  <SortPresetChips
-                    sorts={sorts}
-                    onPick={(preset) => setSorts(preset.sorts)}
-                    onChooseFields={() => {}}
-                  />
-                  <SortEditor
-                    sorts={sorts}
-                    valueOrders={sortValueOrders}
-                    onSortsChange={setSorts}
-                    onValueOrdersChange={setSortValueOrders}
-                  />
-                  {groups.length >= 2 ? (
-                    <Field label="Section headers come from">
-                      <SegmentedControl
-                        ariaLabel="Section headers come from"
-                        value={sectionMode}
-                        options={[
-                          { value: 'sort', label: 'The first sort' },
-                          { value: 'group', label: 'Rules' },
-                        ]}
-                        onChange={setSectionMode}
+                    <div className={routingMode === 'manual' ? 'binder-editor-paused' : undefined}>
+                      <FilterGroupList
+                        groups={groups}
+                        cards={taggedCards}
+                        ownedSets={ownedSets}
+                        typeSuggestions={typeSuggestions}
+                        oracleSuggestions={oracleSuggestions}
+                        autofocusIdx={autofocusGroupIdx}
+                        clearAutofocus={() => setAutofocusGroupIdx(null)}
+                        onPatchFilter={patchFilter}
+                        onSetName={setGroupName}
+                        onAdd={addGroup}
+                        onDuplicate={duplicateGroup}
+                        onRemove={removeGroup}
+                        revealSetsSignal={revealSetsSignal}
                       />
-                    </Field>
-                  ) : (
-                    <p className="form-field-hint">
-                      With two or more rules, section headers can follow the rules instead.
-                    </p>
-                  )}
-                </Disclosure>
-                <Disclosure title="Pages" summary={pagesSummary}>
-                  {pagesSettings}
-                  {sectionMode !== 'group' && (
-                    <Field label="Page filling">
-                      <ChoiceList
-                        ariaLabel="Page filling"
-                        value={packSections}
-                        options={[
-                          {
-                            value: false,
-                            label: PACK_LABEL.false,
-                            hint: 'Every section starts on a fresh page.',
-                          },
-                          {
-                            value: true,
-                            label: PACK_LABEL.true,
-                            hint: 'Sections share a page when they fit whole. None is split.',
-                          },
-                          {
-                            value: 'continuous',
-                            label: PACK_LABEL.continuous,
-                            hint: 'No empty pockets. Adding a card later shifts everything after it, so it suits closed sets like a Secret Lair drop.',
-                          },
-                        ]}
-                        onChange={setPackSections}
+                    </div>
+
+                    {routingMode === 'rules' && effectiveLanding && (
+                      <BinderLadder
+                        ladder={effectiveLanding.ladder}
+                        draftId={effectiveLanding.draftId}
+                        caughtAbove={effectiveLanding.caughtAbove}
+                        caughtByLabel={formatCaughtBy(
+                          effectiveLanding.caughtBy,
+                          'a binder above this one'
+                        )}
+                        onMoveAbove={firstCatcher ? () => setPlaceAboveId(firstCatcher.id) : null}
+                        moveAboveLabel={firstCatcher ? `Move above ${firstCatcher.name}` : ''}
                       />
-                    </Field>
-                  )}
-                  {sectionMode !== 'group' &&
-                    (sorts.length > 1 ? (
-                      <Field
-                        label="Page breaks"
-                        hint={
-                          pageBreakDepth <= 1
-                            ? 'Each section header starts a new page; deeper sorts order cards within it.'
-                            : `Each new ${sortFieldLabel(sorts[pageBreakDepth - 1]?.field).toLowerCase()} starts its own page. Empty pockets are accepted.`
-                        }
-                      >
-                        <SelectMenu
-                          ariaLabel="Page breaks"
-                          value={pageBreakDepth}
-                          onChange={(v) => setPageBreakDepth(v as number)}
-                          options={Array.from({ length: sorts.length }, (_, i) => ({
-                            value: i + 1,
-                            label:
-                              i === 0
-                                ? 'Section headers only'
-                                : `Each ${sortFieldLabel(sorts[i]?.field).toLowerCase()} too`,
-                          }))}
+                    )}
+
+                    {routingMode === 'rules' && (
+                      <div className="binder-editor-switches">
+                        <SwitchRow
+                          label="Include cards in decks and cubes"
+                          hint="Off: a card in a deck or cube stays hidden here, even one added by hand, until you take it out."
+                          checked={showDeckAllocated}
+                          onChange={setShowDeckAllocated}
                         />
-                      </Field>
-                    ) : (
-                      <p className="form-field-hint">
-                        Add a second sort in Order to break pages at a deeper level.
-                      </p>
-                    ))}
-                </Disclosure>
-              </div>
+                        <SwitchRow
+                          label="Keep printings together"
+                          hint="When one copy matches here, its other printings come too, unless a binder above already took them."
+                          checked={keepPrintingsTogether}
+                          onChange={setKeepPrintingsTogether}
+                        />
+                      </div>
+                    )}
 
-              <SwitchRow
-                label="Offer for trade"
-                hint="Cards here can appear on a game night's trade board when you opt in."
-                checked={tradeable}
-                onChange={setTradeable}
-              />
+                    {placeAbove && (
+                      <p className="binder-editor-note">
+                        Moves above <strong>{placeAbove.name}</strong> when you save.{' '}
+                        <Button variant="link" onClick={() => setPlaceAboveId(null)}>
+                          Keep its place
+                        </Button>
+                      </p>
+                    )}
+
+                    {effectiveLanding &&
+                      effectiveLanding.matches > 0 &&
+                      effectiveLanding.lands === 0 &&
+                      !placeAbove && (
+                        <div className="warn-banner binder-editor-warn">
+                          <span>
+                            Every matching card already lands in{' '}
+                            {formatCaughtBy(effectiveLanding.caughtBy, 'a binder above this one')},
+                            so this binder will be empty.
+                          </span>
+                          {firstCatcher && (
+                            <Button onClick={() => setPlaceAboveId(firstCatcher.id)}>
+                              Move above {firstCatcher.name}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
+                    {showEmptyWarning &&
+                      (sitsLast ? (
+                        <p className="binder-editor-note">
+                          This binder has no conditions, so it takes every card the binders above
+                          pass on.
+                        </p>
+                      ) : (
+                        <div className="warn-banner binder-editor-warn">
+                          This binder has no conditions, so it takes every card the binders below it
+                          were meant to get. Add a condition, or move it to the bottom of your
+                          binder list.
+                        </div>
+                      ))}
+
+                    {overCapacity && (
+                      <div className="warn-banner binder-editor-warn">
+                        {binderMatchCount.toLocaleString()} cards match, but the capacity is{' '}
+                        {capacity.toLocaleString()}. The extra{' '}
+                        {(binderMatchCount - capacity).toLocaleString()} still show, flagged as over
+                        capacity.
+                      </div>
+                    )}
+
+                    <div className="sr-only" role="status" aria-live="polite">
+                      {liveMsg}
+                    </div>
+                  </section>
+
+                  <div className="binder-editor-settings">
+                    <Disclosure title="Order" summary={orderSummary}>
+                      <SortPresetChips
+                        sorts={sorts}
+                        onPick={(preset) => setSorts(preset.sorts)}
+                        onChooseFields={() => {}}
+                      />
+                      <SortEditor
+                        sorts={sorts}
+                        valueOrders={sortValueOrders}
+                        onSortsChange={setSorts}
+                        onValueOrdersChange={setSortValueOrders}
+                      />
+                      {groups.length >= 2 ? (
+                        <Field label="Section headers come from">
+                          <SegmentedControl
+                            ariaLabel="Section headers come from"
+                            value={sectionMode}
+                            options={[
+                              { value: 'sort', label: 'The first sort' },
+                              { value: 'group', label: 'Rules' },
+                            ]}
+                            onChange={setSectionMode}
+                          />
+                        </Field>
+                      ) : (
+                        <p className="form-field-hint">
+                          With two or more rules, section headers can follow the rules instead.
+                        </p>
+                      )}
+                    </Disclosure>
+                    <Disclosure title="Pages" summary={pagesSummary}>
+                      {pagesSettings}
+                      {sectionMode !== 'group' && (
+                        <Field label="Page filling">
+                          <ChoiceList
+                            ariaLabel="Page filling"
+                            value={packSections}
+                            options={[
+                              {
+                                value: false,
+                                label: PACK_LABEL.false,
+                                hint: 'Every section starts on a fresh page.',
+                              },
+                              {
+                                value: true,
+                                label: PACK_LABEL.true,
+                                hint: 'Sections share a page when they fit whole. None is split.',
+                              },
+                              {
+                                value: 'continuous',
+                                label: PACK_LABEL.continuous,
+                                hint: 'No empty pockets. Adding a card later shifts everything after it, so it suits closed sets like a Secret Lair drop.',
+                              },
+                            ]}
+                            onChange={setPackSections}
+                          />
+                        </Field>
+                      )}
+                      {sectionMode !== 'group' &&
+                        (sorts.length > 1 ? (
+                          <Field
+                            label="Page breaks"
+                            hint={
+                              pageBreakDepth <= 1
+                                ? 'Each section header starts a new page; deeper sorts order cards within it.'
+                                : `Each new ${sortFieldLabel(sorts[pageBreakDepth - 1]?.field).toLowerCase()} starts its own page. Empty pockets are accepted.`
+                            }
+                          >
+                            <SelectMenu
+                              ariaLabel="Page breaks"
+                              value={pageBreakDepth}
+                              onChange={(v) => setPageBreakDepth(v as number)}
+                              options={Array.from({ length: sorts.length }, (_, i) => ({
+                                value: i + 1,
+                                label:
+                                  i === 0
+                                    ? 'Section headers only'
+                                    : `Each ${sortFieldLabel(sorts[i]?.field).toLowerCase()} too`,
+                              }))}
+                            />
+                          </Field>
+                        ) : (
+                          <p className="form-field-hint">
+                            Add a second sort in Order to break pages at a deeper level.
+                          </p>
+                        ))}
+                    </Disclosure>
+                  </div>
+
+                  <SwitchRow
+                    label="Offer for trade"
+                    hint="Cards here can appear on a game night's trade board when you opt in."
+                    checked={tradeable}
+                    onChange={setTradeable}
+                  />
+                </div>
+                {!phone && (
+                  <BinderEditorPreview
+                    binder={draftPreview}
+                    loading={hydrating}
+                    fixedCapacity={fixedCapacity}
+                  />
+                )}
+              </div>
             </>
           )}
 
