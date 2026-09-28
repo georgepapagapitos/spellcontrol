@@ -1,7 +1,7 @@
 import type { CoherenceRepair, DeckCategory, MaxRarity, ScryfallCard } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import { markUsed } from './state';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/card-text';
 import {
   validateCardRole,
   isProtectionPiece,
@@ -184,7 +184,7 @@ export function applyFlagshipSeating(
   // role-deficit card is effectively unpickable — those boosts dwarf anything
   // this scan would otherwise consider.
   const survivalScore = (card: ScryfallCard): number => {
-    const ec = poolByName.get(card.name);
+    const ec = getByCardName(poolByName, card.name);
     let score = ec ? calculateCardPriority(ec, brewLevel) : 0;
     score += Math.min(
       LIFT_PICK_BOOST_MAX,

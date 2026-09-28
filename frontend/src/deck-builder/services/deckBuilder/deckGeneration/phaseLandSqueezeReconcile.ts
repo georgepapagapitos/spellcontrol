@@ -14,6 +14,7 @@ import {
   OWNED_PRIORITY_BOOST_THEME_TIER,
 } from '../cardPicking';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
+import { getByCardName } from '@/lib/card-text';
 import { parsePrice } from '../costAnalyzer';
 import { isOwnedBudgetExempt } from '../deckFilters';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
@@ -197,7 +198,7 @@ export function applyLandSqueezeReconcile(
       : 0;
 
   const scoreOf = (card: ScryfallCard): number => {
-    const ec = poolByName.get(card.name);
+    const ec = getByCardName(poolByName, card.name);
     const role = validateCardRole(card);
     const roleFallback = role ? roleAverageInclusion.get(role) : undefined;
     let score = ec

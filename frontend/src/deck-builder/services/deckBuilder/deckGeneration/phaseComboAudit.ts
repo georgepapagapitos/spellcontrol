@@ -7,7 +7,7 @@ import type {
 } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import { markBanned } from './state';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 import {
@@ -114,7 +114,7 @@ export function comboIntegrityAuditPhase(
         if (isProtectionPiece(card) || isFreeInteraction(card)) continue;
         if (skipNames?.has(card.name)) continue;
         if (state.cfg.ownedQuotaProtects?.(card.name)) continue;
-        const incl = auditInclusion.get(card.name) ?? 0;
+        const incl = getByCardName(auditInclusion, card.name) ?? 0;
         if (!best || incl < best.incl) best = { card, category: cat, incl };
       }
     }
@@ -286,7 +286,7 @@ export function comboIntegrityAuditPhase(
         if (dc.isComplete) for (const n of dc.cards) completeComboCards.add(n);
       }
       logger.debug(
-        `[DeckGen] Combo audit: added multi-combo enabler ${name} (completes ${combosCompleted} combos) → evicted ${weak.card.name} (${auditInclusion.get(weak.card.name) ?? 0}%)`
+        `[DeckGen] Combo audit: added multi-combo enabler ${name} (completes ${combosCompleted} combos) → evicted ${weak.card.name} (${getByCardName(auditInclusion, weak.card.name) ?? 0}%)`
       );
     }
   }
@@ -302,7 +302,7 @@ export function comboIntegrityAuditPhase(
       if (auditMustInclude.has(name.toLowerCase())) return false;
       if (completeComboCards.has(name)) return false;
       if ((cardComboCount.get(name) ?? 0) >= 2) return false;
-      return (auditInclusion.get(name) ?? 0) <= ORPHAN_INCLUSION_THRESHOLD;
+      return (getByCardName(auditInclusion, name) ?? 0) <= ORPHAN_INCLUSION_THRESHOLD;
     });
 
     if (orphans.length === 0) continue; // all in-deck pieces are fine standalone
@@ -442,7 +442,7 @@ export function comboIntegrityAuditPhase(
           reason: `${orphanName}'s combo was still missing ${trulyMissing.length} card${trulyMissing.length === 1 ? '' : 's'}. Swapped for ${replacement.name}.`,
         });
         logger.debug(
-          `[DeckGen] Combo audit: evicted orphan ${orphanName} (${auditInclusion.get(orphanName) ?? 0}% inclusion) → ${replacement.name}`
+          `[DeckGen] Combo audit: evicted orphan ${orphanName} (${getByCardName(auditInclusion, orphanName) ?? 0}% inclusion) → ${replacement.name}`
         );
       }
     }

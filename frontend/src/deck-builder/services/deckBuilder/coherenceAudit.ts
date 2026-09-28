@@ -18,6 +18,7 @@ import { AXES } from '@/deck-builder/services/synergy/axes';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { producedManaColors } from '@/lib/mana-sources';
 import { BASIC_LAND_NAMES } from '@/lib/allocations';
+import { frontFaceName } from '@/lib/card-text';
 import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { unsupportedPayoffAxes } from './synergyDependency';
 import { answerCoverageFindings } from './answerCoverage';
@@ -302,10 +303,16 @@ export function auditDeckCoherence(input: CoherenceAuditInput): CoherenceFinding
     }
 
     const cs = classifyCard(card);
+    // EDHREC keys most double-faced cards by the front face alone (E490:
+    // Revitalizing Repast // Old-Growth Grove read as 0% and was cut as
+    // unjustified), so every name-keyed signal falls back to it, like the
+    // combo check below.
+    const front = frontFaceName(card.name);
     const justified =
       card.isThemeSynergyCard ||
-      (cardInclusionMap?.[card.name] ?? 0) > 0 ||
+      (cardInclusionMap?.[card.name] ?? cardInclusionMap?.[front] ?? 0) > 0 ||
       !!liftedByMap?.[lower] ||
+      !!liftedByMap?.[front.toLowerCase()] ||
       comboNames.has(lower) ||
       comboNames.has(lower.split(' // ')[0]) ||
       cs.producers.some((p) => invested.has(p.axis)) ||

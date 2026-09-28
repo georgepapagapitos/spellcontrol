@@ -242,6 +242,22 @@ describe('applyCoherenceRepair', () => {
     expect(state.usedNames.has('Junk Card')).toBe(false);
   });
 
+  it('reads a double-faced card by its front-face pool entry, so it is neither unjustified nor the weakest cut (E490)', async () => {
+    // EDHREC's Meren page lists "Revitalizing Repast"; the deck card carries
+    // the full name. meren-budget100 cut it as "Nothing ties this card to the
+    // deck" and, at a $0.22 per-card cap, seated Vampiric Rites.
+    const state = makeState();
+    state.edhrecData!.cardlists.allNonLand.push(edhrecCard('Revitalizing Repast', 18));
+    const repast = scryfallCard('Revitalizing Repast // Old-Growth Grove');
+    addToDeck(state, repast);
+    addToDeck(state, scryfallCard('Junk Card'));
+
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
+
+    expect(repairs.map((r) => r.cut)).toEqual(['Junk Card']);
+    expect(deckNames(state)).toContain(repast.name);
+  });
+
   it('never swaps a spell for a land from the pool (E485)', async () => {
     // allNonLand carries utility lands; atraxa-bracket2 cut Ajani for Karn's
     // Bastion and shipped a land over its tuned count.
