@@ -12,6 +12,7 @@ import { SortMenu, type SortMenuOption } from '../SortMenu';
 import { SharedEmptyState } from '../share/SharedEmptyState';
 import { ColorPip } from '../shared/ManaSymbol';
 import { usePanelCascade, panelCascadeClass } from '../../lib/use-panel-cascade';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 /**
  * One deck on someone's shelf, in the only shape this component needs.
@@ -275,7 +276,11 @@ function DeckLibraryTile({
               {deck.statsLine}
             </span>
           )}
-          {deck.badge && <span className="deck-library-tile-badge">{deck.badge}</span>}
+          {deck.badge && (
+            <ArtBadge className="deck-library-tile-badge" corner="bottom-start">
+              {deck.badge}
+            </ArtBadge>
+          )}
         </span>
         <span className="public-profile-tile-colorbar" aria-hidden="true">
           {(colors.length > 0 ? colors : ['C']).map((c, i) => (

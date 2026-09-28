@@ -34,6 +34,7 @@ import { FoilShimmer } from '../shared/FoilShimmer';
 import { PartnerHeaderButton, LegalityBadge, RoleBadge } from './deck-display-icons';
 import { IconButton } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 /** Section chrome around one card (0.85rem of padding a side) and the gap
  *  between columns, in px at a 16px root — the two numbers the CSS spends on
@@ -425,18 +426,23 @@ export function DeckCardGrid({
                     {/* Foil is shown by the holographic overlay alone — no
                           text pip (keeps the corners free for status icons). */}
                     {row.foil && row.imageNormal && <FoilShimmer seed={row.name} />}
-                    {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
+                    {row.qty > 1 && (
+                      <ArtBadge className="deck-card-grid-qty" corner="top-start">
+                        ×{row.qty}
+                      </ArtBadge>
+                    )}
                     {row.status !== 'allocated' &&
                       (row.allocatedQty > 0 ? (
-                        <span
+                        <ArtBadge
+                          corner="top-end"
                           className={`deck-card-grid-alloc deck-card-grid-alloc-${
                             row.orphanQty > 0 ? 'orphan' : 'unowned'
                           }`}
                           title={allocationSummary(row)}
-                          aria-label={allocationSummary(row)}
+                          label={allocationSummary(row)}
                         >
                           {row.allocatedQty}/{row.qty}
-                        </span>
+                        </ArtBadge>
                       ) : (
                         <span
                           className="deck-card-grid-missing"
@@ -470,36 +476,34 @@ export function DeckCardGrid({
                     row.tags.length > 0) && (
                     <div className="deck-card-grid-badges">
                       {row.isPartner && (
-                        <span
+                        <ArtBadge
                           className="deck-card-grid-partner"
                           title="Partner commander"
-                          aria-label="Partner commander"
-                        >
-                          <Handshake width={13} height={13} strokeWidth={2.4} aria-hidden />
-                        </span>
+                          label="Partner commander"
+                          icon={<Handshake width={13} height={13} strokeWidth={2.4} />}
+                        />
                       )}
                       {row.tags.length > 0 && (
-                        <span
+                        <ArtBadge
                           className="deck-card-grid-tags"
                           title={`Tags: ${row.tags.join(', ')}`}
-                          aria-label={`Tags: ${row.tags.join(', ')}`}
+                          label={`Tags: ${row.tags.join(', ')}`}
+                          icon={<TagIcon width={11} height={11} strokeWidth={2.4} />}
                         >
-                          <TagIcon width={11} height={11} strokeWidth={2.4} aria-hidden />
                           {row.tags.length > 1 && (
                             <span className="deck-card-grid-tags-count">{row.tags.length}</span>
                           )}
-                        </span>
+                        </ArtBadge>
                       )}
                       {binders.length > 0 && <BinderBadge binders={binders} />}
                       {synergy && synergy.length > 0 && (
-                        <span
+                        <ArtBadge
                           className="deck-card-grid-synergy"
-                          role="img"
                           title={`Synergy with your commander:\n• ${synergy.join('\n• ')}`}
-                          aria-label={`Synergy: ${synergy.join('; ')}`}
+                          label={`Synergy: ${synergy.join('; ')}`}
                         >
                           ✦
-                        </span>
+                        </ArtBadge>
                       )}
                       {role && <RoleBadge card={row.card} variant="grid" />}
                     </div>

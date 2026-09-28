@@ -22,6 +22,7 @@ import { formatMoney } from '../../lib/format-money';
 import { MagicText } from './MagicText';
 import { OwnershipBadge } from './OwnershipBadge';
 import { Chip } from '@/components/shared/Chip';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 export interface CardImageIndex {
   byOracle: Map<string, string>;
@@ -344,9 +345,13 @@ export function ComboRow({
                   </span>
                 )}
                 {c.quantity > 1 && (
-                  <span className="deck-combos-card-qty-badge" aria-label={`${c.quantity} copies`}>
+                  <ArtBadge
+                    className="deck-combos-card-qty-badge"
+                    corner="top-start"
+                    label={`${c.quantity} copies`}
+                  >
                     ×{c.quantity}
-                  </span>
+                  </ArtBadge>
                 )}
               </button>
             </li>

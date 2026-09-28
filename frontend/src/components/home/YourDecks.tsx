@@ -14,6 +14,7 @@ import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
 import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { HomeSectionSearch } from './HomeSectionSearch';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 const RECENT_LIMIT = 5;
 const WUBRG = ['W', 'U', 'B', 'R', 'G'];
@@ -56,10 +57,10 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
           </span>
         )}
         {arrivals > 0 && (
-          <span className="home-deck-arrivals" aria-hidden="true">
+          <ArtBadge className="home-deck-arrivals" corner="top-start" aria-hidden="true">
             <Sparkles width={12} height={12} strokeWidth={2} />+{arrivals} new card
             {arrivals === 1 ? '' : 's'}
-          </span>
+          </ArtBadge>
         )}
         <div className="decks-index-card-body">
           <div className="decks-index-card-name">
