@@ -8,7 +8,7 @@ import type {
   ScryfallCard,
 } from '@/deck-builder/types';
 import { type GenerationState, markBanned } from './state';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
@@ -178,7 +178,10 @@ export async function applyCoherenceRepair(
   const current = nonLands();
   const liftedByMap: Record<string, string[]> = {};
   for (const c of current) {
-    const seeds = ctx.liftedByOf(c.name.toLowerCase());
+    // Keyed by the deck card's full name; the lift index, like EDHREC, keys a
+    // double-faced card by its front face (E490).
+    const seeds =
+      ctx.liftedByOf(c.name.toLowerCase()) ?? ctx.liftedByOf(frontFaceName(c.name).toLowerCase());
     if (seeds) liftedByMap[c.name.toLowerCase()] = seeds;
   }
 
@@ -323,9 +326,9 @@ export async function applyCoherenceRepair(
       if (cat === 'lands') continue;
       for (const card of cards) {
         if (exclude.has(card.name) || isProtected(card)) continue;
-        const pooled = poolByName.get(card.name);
+        const pooled = getByCardName(poolByName, card.name);
         const incl =
-          (inclusionMap[card.name] ?? 0) +
+          (pooled?.inclusion ?? 0) +
           ownedBoostFor(card.name, !!pooled && isHighSynergyCard(pooled));
         if (!best || incl < best.incl) best = { card, category: cat, incl };
       }

@@ -94,6 +94,16 @@ describe('auditDeckCoherence', () => {
     expect(audit([vanilla], extra)).toHaveLength(0);
   });
 
+  // E490: the deck card carries Scryfall's full name, EDHREC's Meren page
+  // lists it as "Revitalizing Repast". meren-budget100 cut it as unjustified.
+  const repast = card({ name: 'Revitalizing Repast // Old-Growth Grove', type_line: 'Instant' });
+  it.each([
+    ['EDHREC inclusion', { cardInclusionMap: { 'Revitalizing Repast': 18 } }],
+    ['lift connectivity', { liftedByMap: { 'revitalizing repast': ['Test Commander'] } }],
+  ])("reads a double-faced card's %s from its front face", (_label, extra) => {
+    expect(audit([repast], extra)).toHaveLength(0);
+  });
+
   it('accepts membership in a complete combo as justification', () => {
     const combo: DetectedCombo = {
       comboId: 'c1',

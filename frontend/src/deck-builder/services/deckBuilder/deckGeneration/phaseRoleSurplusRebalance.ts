@@ -15,7 +15,7 @@ import {
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/card-text';
 import { stampRoleSubtypes, routeCardByType, roleCapTolerance } from '../categorize';
 import { computeRoleCounts, countedRoleOf } from '../commanderDeckAnalysis';
 import { computeLiftPickBoosts } from '../packageBoost';
@@ -585,7 +585,7 @@ export function applyRoleSurplusRebalance(
     role: RoleKey,
     liftBoosts: Map<string, number>
   ): number => {
-    const ec = poolByName.get(card.name);
+    const ec = getByCardName(poolByName, card.name);
     const priority = ec
       ? calculateCardPriority(ec, state.cfg.brewLevel)
       : (roleAverageInclusion.get(role) ?? 0);
@@ -914,7 +914,7 @@ export function applyRoleSurplusRebalance(
     // just because collectionStrategy='prefer' was the only reason it made
     // the cut in the first place.
     const donorScore = (card: ScryfallCard): number => {
-      const ec = poolByName.get(card.name);
+      const ec = getByCardName(poolByName, card.name);
       const role = countedRoleOf(card);
       const roleFallback = role ? roleAverageInclusion.get(role) : undefined;
       const priority = ec

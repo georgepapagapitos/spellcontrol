@@ -41,10 +41,15 @@ import {
   type BracketEstimation,
 } from './bracketEstimator';
 import { getCardRole, isExtraTurn } from '@/deck-builder/services/tagger/client';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/card-text';
 import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
 import { ROLE_LABELS } from './deckAnalyzer';
 import { calculateCardPriority } from './cardPicking';
+
+/** Inclusion % for a deck card, falling back to its front face (E490). */
+function inclusionOf(map: Record<string, number>, name: string): number {
+  return map[name] ?? map[frontFaceName(name)] ?? 0;
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -499,7 +504,7 @@ function computeDownshiftPlanWithTarget(
   // 2. Game Changers over allowance, lowest inclusion (least central) first.
   const allowance = gameChangerAllowance(target);
   const gcSorted = [...breakdown.gameChangerNames].sort(
-    (a, b) => (input.cardInclusionMap[a] ?? 0) - (input.cardInclusionMap[b] ?? 0)
+    (a, b) => inclusionOf(input.cardInclusionMap, a) - inclusionOf(input.cardInclusionMap, b)
   );
   const gcOverAllowance = Number.isFinite(allowance)
     ? gcSorted.slice(0, Math.max(0, breakdown.gameChangerCount - allowance))
@@ -555,14 +560,14 @@ function computeDownshiftPlanWithTarget(
       const ua = comboPieceFreq.get(a) ?? 1;
       const ub = comboPieceFreq.get(b) ?? 1;
       if (ua !== ub) return ua - ub; // unique pieces first
-      return (input.cardInclusionMap[a] ?? 0) - (input.cardInclusionMap[b] ?? 0);
+      return inclusionOf(input.cardInclusionMap, a) - inclusionOf(input.cardInclusionMap, b);
     });
     comboQueue.push({ piece: sorted[0], combo });
   }
 
   // 4. Stax over threshold.
   const staxSorted = [...breakdown.staxPieceNames].sort(
-    (a, b) => (input.cardInclusionMap[a] ?? 0) - (input.cardInclusionMap[b] ?? 0)
+    (a, b) => inclusionOf(input.cardInclusionMap, a) - inclusionOf(input.cardInclusionMap, b)
   );
   let staxToCut = 0;
   if (target <= 2)
@@ -573,7 +578,7 @@ function computeDownshiftPlanWithTarget(
   // 5. Extra turns — floor B3 at >= 3. Cut to drop below the threshold when
   // the target is lower than that.
   const extraTurnSorted = [...breakdown.extraTurnNames].sort(
-    (a, b) => (input.cardInclusionMap[a] ?? 0) - (input.cardInclusionMap[b] ?? 0)
+    (a, b) => inclusionOf(input.cardInclusionMap, a) - inclusionOf(input.cardInclusionMap, b)
   );
   const extraTurnQueue =
     target < 4 && breakdown.extraTurnCount >= 3
@@ -722,8 +727,8 @@ function buildPriorityLookup(
   const byName = new Map<string, EDHRECCard>();
   for (const c of targetPool?.cardlists?.allNonLand ?? []) byName.set(c.name, c);
   return (name: string) => {
-    const pooled = byName.get(name);
-    return pooled ? calculateCardPriority(pooled) : (cardInclusionMap[name] ?? 0);
+    const pooled = getByCardName(byName, name);
+    return pooled ? calculateCardPriority(pooled) : inclusionOf(cardInclusionMap, name);
   };
 }
 

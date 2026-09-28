@@ -1,7 +1,7 @@
 import { logger } from '@/lib/logger';
 import type { DeckCategory, DetectedCombo, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { markBanned, type GenerationState } from './state';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
@@ -343,7 +343,7 @@ export function applyBracketConvergence(
   const priorityByName = new Map<string, EDHRECCard>();
   for (const c of pool) priorityByName.set(c.name, c);
   const priorityFor = (name: string): number => {
-    const pooled = priorityByName.get(name);
+    const pooled = getByCardName(priorityByName, name);
     const base = pooled
       ? calculateCardPriority(pooled, state.cfg.brewLevel)
       : (inclusionMap[name] ?? 0);

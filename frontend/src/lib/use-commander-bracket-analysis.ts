@@ -156,8 +156,11 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        so it counts as removal again.
  *   v19 — graveyard-to-hand card advantage phrased across sentences counts
  *        as draw (Deadbridge Chant, E487).
+ *   v20 — the Bracket Fit plan finds a double-faced card's EDHREC entry under
+ *        its front face, so its cut order ranks the card by real priority
+ *        instead of 0 (E490).
  */
-const ANALYSIS_ENGINE_VERSION = 'v19-graveyard-draw';
+const ANALYSIS_ENGINE_VERSION = 'v20-dfc-pool-lookup';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for
