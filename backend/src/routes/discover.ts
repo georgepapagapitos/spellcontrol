@@ -153,15 +153,28 @@ const LISTING_COLUMNS = `dp.user_id, dp.deck_id, dp.slug, dp.deck_name, u.userna
 // `exclude=mine` because its Discover row is "decks from other players", and
 // since new decks default to public the newest listings were mostly the
 // viewer's own. The browse page leaves it off, so your published deck still
-// shows up in the gallery.
+// shows up in the gallery. $6 is the free-text search box: a substring match
+// over the deck's name, its commander and its builder, already escaped for
+// LIKE by `likeContains`.
 const LISTING_WHERE = `dp.unpublished_at IS NULL
       AND ($1::text IS NULL OR dp.commander_name = $1)
       AND ($2::text IS NULL OR dp.format = $2)
       AND ($3::int[] IS NULL OR dp.bracket = ANY($3))
       AND ($4::text[] IS NULL OR dp.color_identity <@ to_jsonb($4::text[]))
-      AND ($5::text IS NULL OR dp.user_id <> $5)`;
+      AND ($5::text IS NULL OR dp.user_id <> $5)
+      AND ($6::text IS NULL OR dp.deck_name ILIKE $6 OR dp.commander_name ILIKE $6
+           OR u.username ILIKE $6 OR u.display_name ILIKE $6)`;
+
+const MAX_QUERY_LENGTH = 80;
+
+/** `%term%` for ILIKE, with the term's own `%`, `_` and `\` matched literally. */
+function likeContains(raw: unknown): string | null {
+  const q = parseString(raw)?.slice(0, MAX_QUERY_LENGTH);
+  return q ? `%${q.replace(/[\\%_]/g, '\\$&')}%` : null;
+}
 
 interface ParsedFilters {
+  query: string | null;
   commander: string | null;
   format: string | null;
   brackets: number[] | null;
@@ -175,6 +188,7 @@ interface ParsedFilters {
 
 function parseFilters(query: Request['query']): ParsedFilters {
   return {
+    query: likeContains(query.q),
     commander: parseString(query.commander),
     format: parseString(query.format)?.toLowerCase() ?? null,
     brackets: parseBrackets(query.bracket),
@@ -201,6 +215,7 @@ discoverRouter.get(
       filters.brackets,
       filters.colors,
       filters.excludeMine ? (viewerId ?? null) : null,
+      filters.query,
     ];
     const sortCol = SORT_COLUMNS[filters.sort];
 
@@ -213,7 +228,7 @@ discoverRouter.get(
          FROM deck_publications dp JOIN users u ON u.id = dp.user_id
         WHERE ${LISTING_WHERE}
         ORDER BY ${sortCol} DESC, ${TIEBREAK}
-        LIMIT $6 OFFSET $7`,
+        LIMIT $7 OFFSET $8`,
         [...whereParams, filters.pageSize + 1, offset]
       );
       const hasMore = rows.length > filters.pageSize;

@@ -42,16 +42,16 @@ describe('WelcomeHero', () => {
   it('renders a labeled Discover-scoped search', () => {
     renderHero();
     expect(screen.getByRole('search')).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: /search public decks by commander/i })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: /search public decks/i })).toBeTruthy();
   });
 
   it('submits the search to /decks/discover with the commander query', () => {
     renderHero();
-    fireEvent.change(screen.getByRole('textbox', { name: /search public decks by commander/i }), {
+    fireEvent.change(screen.getByRole('textbox', { name: /search public decks/i }), {
       target: { value: 'Atraxa' },
     });
     fireEvent.click(screen.getByRole('button', { name: /^search$/i }));
-    expect(navigateMock).toHaveBeenCalledWith('/decks/discover?commander=Atraxa');
+    expect(navigateMock).toHaveBeenCalledWith('/decks/discover?q=Atraxa');
   });
 
   it('submits to plain /decks/discover when the search is empty', () => {

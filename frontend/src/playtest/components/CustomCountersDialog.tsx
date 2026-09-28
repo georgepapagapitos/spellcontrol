@@ -164,7 +164,7 @@ export function CustomCountersDialog({ cardName, counters, onApply, onClose }: P
                   aria-selected={i === active}
                   className={`counters-dialog__option${i === active ? ' is-active' : ''}`}
                   onMouseEnter={() => setActive(i)}
-                  // Picked on mousedown, as in CommanderTypeahead: the field keeps focus
+                  // Picked on mousedown, as in DiscoverSearch: the field keeps focus
                   // and the keyboard drives the same list through aria-activedescendant.
                   onMouseDown={(e) => {
                     e.preventDefault();

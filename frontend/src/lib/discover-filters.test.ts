@@ -18,6 +18,16 @@ describe('discover-filters round trip', () => {
     expect(discoverFiltersToSearchParams(NO_DISCOVER_FILTERS).toString()).toBe('');
   });
 
+  it('round-trips a text search as q, trimmed, blank treated as absent', () => {
+    const filters: DiscoverFilters = { ...NO_DISCOVER_FILTERS, query: 'dragons' };
+    expect(discoverFiltersToSearchParams(filters).toString()).toBe('q=dragons');
+    expect(roundTrip(filters)).toEqual(filters);
+    expect(parseDiscoverFiltersFromSearchParams(new URLSearchParams({ q: '  elf  ' })).query).toBe(
+      'elf'
+    );
+    expect(parseDiscoverFiltersFromSearchParams(new URLSearchParams({ q: '  ' })).query).toBeNull();
+  });
+
   it('round-trips a commander filter', () => {
     const filters: DiscoverFilters = {
       ...NO_DISCOVER_FILTERS,
@@ -52,6 +62,7 @@ describe('discover-filters round trip', () => {
 
   it('round-trips every dimension set at once', () => {
     const filters: DiscoverFilters = {
+      query: 'treasure',
       commander: 'Korvold, Fae-Cursed King',
       format: 'commander',
       brackets: [2, 3],

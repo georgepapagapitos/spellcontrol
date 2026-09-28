@@ -116,11 +116,11 @@ describe('DiscoverRow', () => {
     );
   });
 
-  it('carries its own commander search', async () => {
+  it('carries its own deck search', async () => {
     mockListDiscoverDecks.mockResolvedValue({ decks: [], page: 1, hasMore: false });
     renderRow();
-    expect(screen.getByLabelText('Search commanders', { selector: 'input' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Search commanders' }).getAttribute('href')).toBe(
+    expect(screen.getByLabelText('Search public decks', { selector: 'input' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Search public decks' }).getAttribute('href')).toBe(
       '/decks/discover'
     );
   });

@@ -53,8 +53,8 @@ export function DiscoverRow() {
         <span className="home-section-meta">New decks from other players</span>
         <div className="home-section-tools">
           <HomeSectionSearch
-            label="Search commanders"
-            toResults={(term) => `/decks/discover?commander=${encodeURIComponent(term)}`}
+            label="Search public decks"
+            toResults={(term) => `/decks/discover?q=${encodeURIComponent(term)}`}
             toPage="/decks/discover"
           />
           <Link to="/decks/discover" className="home-door">

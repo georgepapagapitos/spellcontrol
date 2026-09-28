@@ -37,7 +37,7 @@ export function WelcomeHero() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const term = query.trim();
-    navigate(term ? `/decks/discover?commander=${encodeURIComponent(term)}` : '/decks/discover');
+    navigate(term ? `/decks/discover?q=${encodeURIComponent(term)}` : '/decks/discover');
   }
 
   return (
@@ -74,8 +74,8 @@ export function WelcomeHero() {
           <SearchPill
             value={query}
             onChange={setQuery}
-            placeholder="Search commanders"
-            ariaLabel="Search public decks by commander"
+            placeholder="Search decks, commanders, builders"
+            ariaLabel="Search public decks"
             className="welcome-hero-search-pill"
             trailing={
               <IconButton

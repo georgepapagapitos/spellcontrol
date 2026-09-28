@@ -1,15 +1,15 @@
-/* CommanderTypeahead.css — the pill chrome is the shared `.search-pill`
+/* DiscoverSearch.css — the pill chrome is the shared `.search-pill`
    (search-controls.css); this file only adds the anchored results listbox,
    mirrored from `.set-filter-picker`/`.set-filter-results` (collection.css) —
    same positioning, same surface, single-select instead of chips. */
 
-.commander-typeahead {
+.discover-search {
   position: relative;
   flex: 1 1 12rem;
   min-width: 0;
 }
 
-.commander-typeahead-results {
+.discover-search-results {
   position: absolute;
   top: calc(100% + var(--space-1));
   left: 0;
@@ -31,12 +31,12 @@
    own height, since the list never flips above the input. A full
    flip/portal reposition is tracked debt, not this fix. */
 @media (max-height: 480px) {
-  .commander-typeahead-results {
+  .discover-search-results {
     max-height: 40vh;
   }
 }
 
-.commander-typeahead-option {
+.discover-search-option {
   padding: var(--space-1-5) var(--space-2);
   border-radius: var(--radius);
   font-size: var(--text-sm);
@@ -47,12 +47,12 @@
   white-space: nowrap;
 }
 
-.commander-typeahead-option.is-highlight {
+.discover-search-option.is-highlight {
   background: var(--accent-light);
   color: var(--accent);
 }
 
-.commander-typeahead-status {
+.discover-search-status {
   display: flex;
   align-items: center;
   gap: var(--space-2);
