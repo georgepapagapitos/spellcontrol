@@ -127,7 +127,9 @@
 .plan-shelf-row-volumes {
   grid-column: 1 / -1;
   margin: 0;
-  padding-left: calc(12px + var(--space-2) * 2 + 12px);
+  /* Aligns under the name column: swatch width + its two side gaps + the
+     check column's own width. */
+  padding-left: calc(var(--space-3) + var(--space-2) * 2 + var(--space-3));
   color: var(--text-muted);
   font-size: var(--text-xs);
 }
@@ -145,7 +147,7 @@
 .plan-shelf-shelf {
   display: flex;
   align-items: flex-end;
-  gap: 2px;
+  gap: var(--space-0-5);
   height: 56px;
   flex: none;
 }

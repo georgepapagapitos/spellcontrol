@@ -7,7 +7,7 @@
  * navigates here, since the planner lives one level up from that editor).
  */
 import 'fake-indexeddb/auto';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
