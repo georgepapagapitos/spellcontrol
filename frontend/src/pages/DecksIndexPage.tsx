@@ -25,7 +25,7 @@ import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { deckCoverArt } from '../lib/deck-cover';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
 import { PageHeader } from '../components/PageHeader';
 import { useDecksStore } from '../store/decks';
@@ -375,6 +375,19 @@ export function DecksIndexPage() {
   const cascade = usePanelCascade(sorted.length > 0 ? 'decks-index:cascade' : null);
 
   const [showImport, setShowImport] = useState(false);
+  // The command palette's "Import deck" lands here with `{ openImport: true }`
+  // in location state (lib/commands.ts). Derived from the current location
+  // rather than read once at mount, because the palette can fire while this
+  // page is already open. Closing drops the flag from history, so Back
+  // doesn't reopen the dialog.
+  const location = useLocation();
+  const paletteImport = !!(location.state as { openImport?: boolean } | null)?.openImport;
+  const closeImport = () => {
+    setShowImport(false);
+    if (paletteImport) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    }
+  };
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [showStarters, setShowStarters] = useState(false);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
@@ -649,7 +662,7 @@ export function DecksIndexPage() {
           </div>
         )}
 
-        {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
+        {(showImport || paletteImport) && <ImportDeckDialog onClose={closeImport} />}
         {showProductSearch && <ProductSearchDialog onClose={() => setShowProductSearch(false)} />}
         {showStarters && (
           <DeckPickerDialog
