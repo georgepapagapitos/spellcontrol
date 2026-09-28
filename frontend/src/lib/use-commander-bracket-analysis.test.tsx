@@ -49,7 +49,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v18-counter-evidence',
+    'v19-graveyard-draw',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards

@@ -809,6 +809,70 @@ describe('applyRoleSurplusRebalance', () => {
     });
   });
 
+  // E488 (meren-budget100 at $97.83/$100): the worst draw cards couldn't fund
+  // the payoff, so the walk climbed to the one expensive draw card whose
+  // eviction freed enough money and cut Protean Hulk (survival 90) while
+  // Vampiric Rites and Deadbridge Chant (10) stayed.
+  describe('budget-bound eviction reach (E488)', () => {
+    function drawDeck(state: GenerationState, specs: [string, number, string][]): void {
+      for (const [name, , usd] of specs) {
+        const c = scryfallCard(name, { prices: { usd } });
+        ROLE_OF.set(name, 'cardDraw');
+        state.usedNames.add(name);
+        state.categories.cardDraw.push(c);
+      }
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Payoff', 95),
+            ...specs.map(([name, inclusion]) => edhrecCard(name, inclusion)),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+    }
+    const payoffCtx = (state: GenerationState, deckBudget: number) => {
+      const ctx = makeCtx(state, {
+        roleTargets: { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 2 }, // cap 4
+        deckBudget,
+      });
+      ctx.scryfallCardMap.set('Payoff', scryfallCard('Payoff', { prices: { usd: '5.00' } }));
+      return ctx;
+    };
+
+    it("never cuts a role's best card just because evicting it funds the swap", () => {
+      const state = makeState();
+      drawDeck(state, [
+        ['Vampiric Rites', 10, '0.30'],
+        ['Deadbridge Chant', 10, '0.30'],
+        ['Draw Filler A', 20, '0.30'],
+        ['Draw Filler B', 20, '0.30'],
+        ['Protean Hulk', 60, '5.00'],
+      ]);
+      // Total $6.20 on a $6.20 ask: only evicting the $5 Hulk pays for Payoff.
+      const result = applyRoleSurplusRebalance(state, payoffCtx(state, 6.2));
+
+      expect(result.conversions).toEqual([]);
+      expect(state.usedNames.has('Protean Hulk')).toBe(true);
+    });
+
+    it('still steps past a stuck worst card to a near-tie', () => {
+      const state = makeState();
+      drawDeck(state, [
+        ['Vampiric Rites', 10, '0.30'],
+        ['Deadbridge Chant', 10, '0.30'],
+        ['Draw Filler A', 20, '0.30'],
+        ['Pricey Filler', 20, '5.00'],
+        ['Protean Hulk', 60, '5.00'],
+      ]);
+      // Total $10.90 on an $11.10 ask: a $4.70 delta doesn't fit, a $0 one does.
+      const result = applyRoleSurplusRebalance(state, payoffCtx(state, 11.1));
+
+      expect(result.conversions.map((c) => [c.cut, c.added])).toEqual([
+        ['Pricey Filler', 'Payoff'],
+      ]);
+    });
+  });
+
   // ── Defect 4 regression (live-eval gate) ───────────────────────────────────
   // A same-role replacement is a net-zero swap for that role's count (see the
   // 'net-zero swap' test above) — this reproduces the FULL under-firing bug:
