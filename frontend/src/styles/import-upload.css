@@ -255,6 +255,7 @@
 .import-history-check input[type='checkbox'],
 .field-checkbox input[type='checkbox'],
 .filter-popover-row input[type='checkbox'],
+.plan-shelf-row-check input[type='checkbox'],
 .collection-group-checkbox {
   appearance: none;
   -webkit-appearance: none;
@@ -276,6 +277,7 @@
   .import-history-check input[type='checkbox']:hover:not(:disabled),
   .field-checkbox input[type='checkbox']:hover:not(:disabled),
   .filter-popover-row input[type='checkbox']:hover:not(:disabled),
+  .plan-shelf-row-check input[type='checkbox']:hover:not(:disabled),
   .collection-group-checkbox:hover:not(:disabled) {
     border-color: var(--accent);
   }
@@ -284,6 +286,7 @@
 .import-history-check input[type='checkbox']:checked,
 .field-checkbox input[type='checkbox']:checked,
 .filter-popover-row input[type='checkbox']:checked,
+.plan-shelf-row-check input[type='checkbox']:checked,
 .collection-group-checkbox:checked {
   background: var(--accent);
   border-color: var(--accent);
@@ -292,6 +295,7 @@
 .import-history-check input[type='checkbox']:checked::after,
 .field-checkbox input[type='checkbox']:checked::after,
 .filter-popover-row input[type='checkbox']:checked::after,
+.plan-shelf-row-check input[type='checkbox']:checked::after,
 .collection-group-checkbox:checked::after {
   content: '';
   width: 8px;
@@ -303,6 +307,7 @@
 .import-history-check input[type='checkbox']:focus-visible,
 .field-checkbox input[type='checkbox']:focus-visible,
 .filter-popover-row input[type='checkbox']:focus-visible,
+.plan-shelf-row-check input[type='checkbox']:focus-visible,
 .collection-group-checkbox:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

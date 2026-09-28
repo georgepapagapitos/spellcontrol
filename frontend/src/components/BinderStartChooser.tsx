@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { countBinderMatches } from '../lib/binder-counts';
 import { STARTER_TEMPLATES, type StarterTemplate } from '../lib/binder-templates';
 import { useCardTagsError, useCardTagsReady, useCardsWithTags } from '../lib/card-tags';
+import { useCollectionStore } from '../store/collection';
 import type { BinderFilter, EnrichedCard } from '../types';
 
 export type BinderStart =
@@ -34,6 +36,18 @@ export function BinderStartChooser({
   // A failed tag load leaves those tiles without a count rather than on a
   // "Counting…" that never resolves; the template itself still works.
   const tagsFailed = useCardTagsError();
+  const navigate = useNavigate();
+  const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
+
+  // "Plan a shelf" (E496) opens a sheet of its own, not another editor step —
+  // close this one (setEditingBinder(null), the same action the editor's own
+  // Cancel uses) and hand off to the binders index via a query param, since
+  // the planner is owned by BindersIndexPage, one layer up from the editor
+  // modal this chooser lives inside.
+  const planAShelf = () => {
+    setEditingBinder(null);
+    navigate('/collection/binders?planShelf=1');
+  };
 
   const counts = useMemo(() => {
     const out = new Map<string, number>();
@@ -53,6 +67,20 @@ export function BinderStartChooser({
 
   return (
     <div className="binder-start">
+      {cards.length > 0 && (
+        // The lead tile (E496): most people don't want one binder, they want
+        // their whole collection in binders. Kept as its own small hunk —
+        // lane L5 is separately regrouping the tiles below this into job
+        // groups (E495); this tile is additive and doesn't touch that layout.
+        <button type="button" className="binder-start-tile binder-start-tile--shelf" onClick={planAShelf}>
+          <span className="binder-start-tile-label">Organize my whole collection</span>
+          <span className="binder-start-tile-desc">
+            Get a set of binders that covers everything, by color, by set or by value. You pick
+            which to keep.
+          </span>
+          <span className="binder-start-tile-count">Plan a shelf</span>
+        </button>
+      )}
       <div className="binder-start-head">
         <h3 className="binder-start-title">What goes in it?</h3>
         <p className="binder-start-sub">You can change everything after.</p>

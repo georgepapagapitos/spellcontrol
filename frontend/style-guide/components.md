@@ -803,6 +803,81 @@ never shows the chooser.
 - Gate every volumes UI on `volumes !== null && volumes.length > 1` — a binder
   with no fixed capacity or one that fits never says "Vol 1".
 
+### Plan a shelf (E496)
+
+Most people don't want one binder — they want their whole collection in
+binders, in the right order. `PlanShelfModal` (`Modal` +
+`modal-backdrop--sheet`, same pattern as `BinderVolumesSheet`) proposes an
+ordered set at once instead of a normal binder trip repeated seven times; the
+plan engine (`lib/shelf-plan.ts`) is pure and reuses `materializeBinders`
+directly rather than re-deriving counts.
+
+- **Four strategies, each a fixed bucket order, never user-reorderable**: By
+  color (W/U/B/R/G, then Multicolor — the modern `colorIdentity` rule, one
+  filterGroup per 2-to-5-color combination, never the legacy per-card `colors`
+  bucket), By set (the collection's own biggest sets, oldest-set-first inside
+  each — one per set is unusable and one per year doesn't map to a shelf, so
+  this is the one sane middle), By card type (`TYPE_ORDER`'s own precedence,
+  so an ambiguous card lands exactly where `getCardType` already says it
+  belongs), and Value first, then color (three price tiers, then the same
+  color split for what's left). Switching strategies re-proposes the whole
+  bucket set and re-checks everything — a chosen strategy's rows don't carry
+  over into another strategy's unrelated ones.
+- **"Pull these out first" rows are the only reorderable ones** (Worth $5+,
+  Commanders, Lands) — a grip-and-drag inside a bottom sheet fights the
+  sheet's own swipe-to-dismiss, and three rows is short enough that Move
+  up/down buttons are the whole affordance, on every width (no phone/desktop
+  split the way the sort chain's grip has one). They sit ahead of every
+  strategy's split in binder order, so first-match-wins lets them claim their
+  cards before the split runs.
+  - Checking a row is picking an item out of a list, not a setting, so it's a
+    plain checkbox (`form-kit-usage.test.ts` correctly leaves checkboxes
+    alone; a `pressed`/`aria-pressed` toggle-chip shape here would trip the
+    guard, which is why the strategy picker above is a `ChoiceList`, not a
+    chip row, despite the mockup drawing chips).
+- **Every row shows a count and a page total whether it's checked or not.** A
+  checked row's number is the real, engine-computed figure that will be
+  created (a second `materializeBinders` pass with ONLY the checked rows); an
+  unchecked row's is informational — what it would hold if you checked it now,
+  given the rows above it — computed from a first pass with every row present
+  so unchecking one is never a silent "where did that count go".
+- **A catch-all is always last and always active — never optional, never
+  shown as a real choice.** It has no interactive checkbox (a static
+  checkmark instead), so the plan can always say "0 left over" and mean it; a
+  guard test (`shelf-plan.test.ts`) asserts the invariant against the real
+  engine for every strategy, not just trusts the arithmetic.
+- **Volumes reuse the exact same derivation as a normal binder** (`planVolumes`
+  via `lib/binder-volumes.ts`) — every proposed binder defaults to the
+  standard 360-card/9-pocket size specifically so the plan's volumes note
+  ("White · 3 volumes of 360") means something before the binder even exists,
+  the same "derived, never persisted, a normal shelving state" ruling as
+  above.
+- **Existing binders are placed FIRST and never re-offered.** The plan
+  materializes `[...existing binders, ...proposed rows]` in that order, so a
+  card an existing binder already claims never reaches any plan row or the
+  totals — "your 3 existing binders stay in front of these" in the footer is
+  the literal routing order, not just copy.
+- **Name collisions are silently disambiguated**, "White" → "White 2", against
+  both the user's existing binder names and the plan's own rows — the
+  editor's own collision PROMPT is specific to its import-batch step and
+  isn't reusable here; a batch create has no natural place to pause and ask
+  per name.
+- **Create is one store operation** (`createBinders`, sibling of
+  `createBinder`) — a shelf's worth of binders lands as a single `set()`
+  (positions `existing count + index`), not N calls that would each
+  re-render/re-persist. The confirmation toast ("Created 9 binders") offers
+  Undo, which is exactly `deleteBinders` on the ids just created — no bespoke
+  removal path.
+- **Entry points**: the chooser's lead wide tile ("Organize my whole
+  collection") and the binders index — its ⋮ menu once a collection exists,
+  and the empty state's primary button once cards are imported but no binder
+  exists yet. The chooser tile can't open the planner directly (it renders one
+  layer inside `BinderEditor`, which the planner isn't part of) — it closes
+  the editor and hands off via `?planShelf=1`, consumed once by the index page.
+  Hidden entirely for an empty collection; a genuinely empty or fully-filed
+  collection that reaches the sheet anyway (a direct link, a reload mid-param)
+  gets an honest sentence instead of a picker with nothing to pick.
+
 ### Binder page viewer (flipbook)
 
 - **Same geometry model as the card preview (rebuilt 2026-09-25).** Every

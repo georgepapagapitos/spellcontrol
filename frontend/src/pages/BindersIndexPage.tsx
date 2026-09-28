@@ -1,6 +1,7 @@
 import {
   AlignJustify,
   LayoutGrid,
+  Layers,
   List as ListIconLucide,
   Inbox,
   Plus,
@@ -9,11 +10,11 @@ import {
 } from 'lucide-react';
 import { CollectionHubTabs } from '@/components/CollectionHubTabs';
 import { Chip } from '@/components/shared/Chip';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { computeDrift } from '../lib/binder-drift';
@@ -41,6 +42,7 @@ import {
 import { selectedCountLabel, useSelection } from '../lib/use-selection';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderExportDialog } from '../components/BinderExportDialog';
+import { PlanShelfModal } from '../components/PlanShelfModal';
 import { UncategorizedSheet } from '../components/UncategorizedSheet';
 import { ShareDialog } from '../components/ShareDialog';
 import { useBinderActions } from '../components/use-binder-actions';
@@ -88,6 +90,19 @@ export function BindersIndexPage() {
   const hasSampleBinders = useMemo(() => binders.some((b) => b.isSample), [binders]);
   const [showSamplesIntro, setShowSamplesIntro] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
+  const [planShelfOpen, setPlanShelfOpen] = useState(false);
+  // The chooser's "Plan a shelf" lead tile closes the New-binder editor and
+  // navigates here with `?planShelf=1` (it can't open this modal directly —
+  // it lives one layer up, inside BinderEditor). Consume the param once so a
+  // back-navigation or a reload doesn't reopen the sheet.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('planShelf') !== '1') return;
+    setPlanShelfOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('planShelf');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   // When cards already exist, "Try samples" should only add curated binder
   // rules that filter against the user's collection — skip the starter pack.
   const samplesBindersOnly = cards.length > 0;
@@ -260,6 +275,17 @@ export function BindersIndexPage() {
             primary: true,
             onClick: () => setEditingBinder('new'),
           },
+          ...(cards.length > 0
+            ? [
+                {
+                  label: 'Plan a shelf',
+                  icon: Layers,
+                  menuOnly: true,
+                  opensDialog: true,
+                  onClick: () => setPlanShelfOpen(true),
+                },
+              ]
+            : []),
           ...(binders.length > 0
             ? [
                 {
@@ -379,9 +405,10 @@ export function BindersIndexPage() {
             hint="A binder is a rule that catches cards from your collection: one per deck, format, or theme."
             actions={
               <>
-                <Button variant="primary" onClick={() => setEditingBinder('new')}>
-                  Create your first binder
+                <Button variant="primary" onClick={() => setPlanShelfOpen(true)}>
+                  Plan a shelf
                 </Button>
+                <Button onClick={() => setEditingBinder('new')}>Create one binder</Button>
                 {!hasSampleBinders && (
                   <Button onClick={() => setShowSamplesIntro(true)} disabled={loadingSamples}>
                     Load sample binders
@@ -616,6 +643,8 @@ export function BindersIndexPage() {
           onClose={() => setUncategorizedOpen(false)}
         />
       )}
+
+      {planShelfOpen && <PlanShelfModal onClose={() => setPlanShelfOpen(false)} />}
 
       {exportOpen && (
         <BinderExportDialog

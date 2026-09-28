@@ -1429,6 +1429,27 @@ describe('binder CRUD', () => {
     expect(useCollectionStore.getState().activeTab).toBe(created.id);
   });
 
+  it('createBinders (E496) lands every input in ONE operation, sequentially positioned after what already exists', () => {
+    useCollectionStore.setState({ binders: [makeBinder({ id: 'existing', position: 0 })] });
+    const created = useCollectionStore
+      .getState()
+      .createBinders([binderInput({ name: 'White' }), binderInput({ name: 'Blue' }), binderInput({ name: 'Everything else' })]);
+    expect(created.map((b) => b.name)).toEqual(['White', 'Blue', 'Everything else']);
+    expect(created.map((b) => b.position)).toEqual([1, 2, 3]);
+    const ids = new Set(created.map((b) => b.id));
+    expect(ids.size).toBe(3); // every id distinct
+    const all = useCollectionStore.getState().binders;
+    expect(all).toHaveLength(4);
+    expect(all[0].id).toBe('existing'); // untouched, still first
+    expect(useCollectionStore.getState().activeTab).toBe(created[0].id);
+  });
+
+  it('createBinders with an empty list is a no-op', () => {
+    useCollectionStore.setState({ binders: [makeBinder({ id: 'existing', position: 0 })] });
+    expect(useCollectionStore.getState().createBinders([])).toEqual([]);
+    expect(useCollectionStore.getState().binders).toHaveLength(1);
+  });
+
   it('updateBinder merges fields but keeps the id', () => {
     useCollectionStore.setState({ binders: [makeBinder({ id: 'b1', name: 'Old' })] });
     useCollectionStore.getState().updateBinder('b1', { name: 'New' } as Partial<BinderInput>);
