@@ -14,6 +14,7 @@ import {
   Menu,
   ChevronDown,
   Minimize2,
+  Move,
   RotateCcw,
   Rows3,
   ScrollText,
@@ -21,6 +22,8 @@ import {
   Undo2,
 } from 'lucide-react';
 import { useConfirm } from '@/lib/use-confirm';
+import { WedgeHintStrip } from '@/components/deck/WedgeHintStrip';
+import { dismissPlaytestDragHint, shouldShowPlaytestDragHint } from '@/lib/wedge-hints';
 import {
   DndContext,
   DragOverlay,
@@ -354,6 +357,15 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
   const retireHoldHint = useCallback(() => {
     setHoldHintSeen(true);
     writeHoldHintSeen();
+  }, []);
+  // Drag-to-play discovery hint (E484, see lib/wedge-hints.ts) — dismissed
+  // locally too, same reasoning as the binder hint in CardSearchPanel: the
+  // strip disappears on click without waiting on a re-render, and
+  // dismissPlaytestDragHint()'s localStorage write makes "never again" durable.
+  const [dragHintDismissed, setDragHintDismissed] = useState(false);
+  const retireDragHint = useCallback(() => {
+    setDragHintDismissed(true);
+    dismissPlaytestDragHint();
   }, []);
   const [tokenCreator, setTokenCreator] = useState(false);
   const [showScry, setShowScry] = useState(false);
@@ -2106,6 +2118,46 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
             onlineTable.opponents.every((o) => o.board.keptHand === true),
         }
       : undefined;
+  // The exact complement of `OpeningHandSheet`'s own mount condition below
+  // (`phase !== 'playing' || openingOnline`): the two can never both be
+  // "showing" at once, so the drag hint never fights the takeover for the
+  // same hand.
+  const isChoosingHand = phase !== 'playing' || Boolean(openingOnline);
+
+  // Retires the drag-to-play hint the first time a card actually leaves the
+  // hand for the battlefield, however it got there (drag, or the hand card
+  // menu's Play / Play tapped / Play face down). Hand length falling while
+  // battlefield length rises in the same update is that move; nothing else
+  // produces that pair (a discard/exile/library move drops the hand alone, a
+  // token or a command-zone cast raises the battlefield alone, and a takeback
+  // moves both the other way). Cheaper and less invasive than threading a
+  // "this came from hand" flag through every MOVE_TO_BATTLEFIELD call site.
+  const dragHintCounts = useRef({ hand: state.zones.hand.length, bf: state.battlefield.length });
+  useEffect(() => {
+    const prev = dragHintCounts.current;
+    const hand = state.zones.hand.length;
+    const bf = state.battlefield.length;
+    if (!isChoosingHand && hand < prev.hand && bf > prev.bf) retireDragHint();
+    dragHintCounts.current = { hand, bf };
+  }, [state.zones.hand.length, state.battlefield.length, isChoosingHand, retireDragHint]);
+
+  const dragHintCoarsePointer = useMediaQuery('(pointer: coarse)');
+  const showDragHint =
+    !isChoosingHand &&
+    !dragHintDismissed &&
+    shouldShowPlaytestDragHint(state.zones.hand.length > 0);
+  const dragHintBanner = showDragHint && (
+    <WedgeHintStrip
+      icon={<Move width={16} height={16} aria-hidden />}
+      headline="Play a card"
+      detail={
+        dragHintCoarsePointer
+          ? 'Drag a card onto the battlefield to play it, or hold it to choose from the menu.'
+          : 'Drag a card onto the battlefield to play it, or right-click it to choose from the menu.'
+      }
+      onDismiss={retireDragHint}
+    />
+  );
 
   // ── Table-tier chrome (≥1024px) ─────────────────────────────────────────
   // Everything the deleted rows used to offer, regrouped into the four
@@ -3212,6 +3264,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 <div className="playtest-banners">
                   {pendingBanner}
                   {banners}
+                  {dragHintBanner}
                   {!isNarrow &&
                     (onlineTable
                       ? onlineHordeView &&
