@@ -154,6 +154,15 @@ describe('buildCommands', () => {
     expect(scoreCommand(empty, 'blank')).toBeGreaterThan(0);
   });
 
+  it('offers Generate a deck and Brew a deck, straight to each builder', () => {
+    const go = vi.fn();
+    const commands = buildCommands({ decks: [], go });
+    commands.find((c) => c.id === 'action:generate-deck')?.run();
+    expect(go).toHaveBeenCalledWith('/decks/new/generate');
+    commands.find((c) => c.id === 'action:brew-deck')?.run();
+    expect(go).toHaveBeenCalledWith('/decks/new/brew');
+  });
+
   it('omits Empty deck when there is no way to create one', () => {
     expect(
       buildCommands({ decks: [], go: vi.fn() }).find((c) => c.id === 'action:empty-deck')

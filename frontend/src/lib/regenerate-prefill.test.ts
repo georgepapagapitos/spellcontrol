@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { canRegenerate, regenerateState } from './regenerate-prefill';
+import { canRegenerate, regenerateHref, regenerateState } from './regenerate-prefill';
 import type { Deck } from '../store/decks';
 
 const commander = { id: 'k', name: 'Krenko, Mob Boss' } as unknown as Deck['commander'];
 
+describe('regenerateHref', () => {
+  it("lands on the generator in the deck's own format", () => {
+    expect(regenerateHref({ format: 'paupercommander' } as Deck)).toBe(
+      '/decks/new/generate?format=paupercommander'
+    );
+  });
+});
+
 describe('regenerateState', () => {
-  it("carries the deck's own settings, themes and partner back to /decks/new", () => {
+  it("carries the deck's own settings, themes and partner back to the generator", () => {
     const deck = {
       id: 'deck-1',
       format: 'commander',

@@ -1,7 +1,7 @@
 import type { Deck } from '../store/decks';
 
 /**
- * Router state that sends a generated deck back to /decks/new with its own
+ * Router state that sends a generated deck back to the generator with its own
  * settings, themes and partner, for a Regenerate that lands on the compare
  * diff. One builder for every surface that offers it (the decks index tile and
  * the deck page), so the two can't drift on what a regenerate carries.
@@ -26,6 +26,12 @@ export function regenerateState(deck: Deck) {
       collectionMode: deck.generationContext?.collectionMode ?? false,
     },
   };
+}
+
+/** Where a regenerate lands: the generator, in the source deck's format (a
+ *  PDH regenerate must stay PDH). Paired with {@link regenerateState}. */
+export function regenerateHref(deck: Pick<Deck, 'format'>): string {
+  return `/decks/new/generate?format=${deck.format}`;
 }
 
 /** Regenerate needs the settings a generator produced and a commander to

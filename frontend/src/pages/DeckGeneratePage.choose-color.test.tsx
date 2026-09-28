@@ -22,7 +22,7 @@ vi.mock('../store/auth', () => ({
 }));
 vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 
-// Setting a commander makes useDeckGeneration pre-fetch EDHREC data (see the
+// Setting a commander makes useDeckGeneration pre-fetch EDHREC data ( see the
 // "Pre-fetch the EDHREC land suggestion" effect in use-deck-generation.ts).
 // These tests are synchronous, so that promise settles AFTER the test ends —
 // against the suite's global fetch guard it rejects into teardown, which vitest
@@ -33,7 +33,6 @@ vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchCommanderData: () => Promise.resolve(null),
 }));
 
-vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
 vi.mock('../components/deck/CommanderSearch', () => ({ CommanderSearch: () => null }));
 vi.mock('../components/deck/CommanderProfileCard', () => ({ CommanderProfileCard: () => null }));
 vi.mock('../components/deck/PartnerCommanderSelector', () => ({
@@ -45,7 +44,7 @@ vi.mock('../components/deck/GenerationModePicker', () => ({ GenerationModePicker
 vi.mock('../components/deck/GenerationTakeover', () => ({ GenerationTakeover: () => null }));
 
 import { fireEvent, screen } from '@testing-library/react';
-import { DeckNewPage } from './DeckNewPage';
+import { DeckGeneratePage } from './DeckGeneratePage';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 
 const piper = {
@@ -58,7 +57,7 @@ const piper = {
     'If The Prismatic Piper is your commander, choose a color before the game begins. The Prismatic Piper is the chosen color.\nPartner (You can have two commanders if both have partner.)',
 };
 
-describe('DeckNewPage choose-a-color commander', () => {
+describe('DeckGeneratePage choose-a-color commander', () => {
   beforeEach(() => {
     localStorage.clear();
     useDeckBuilderStore.getState().reset();
@@ -67,9 +66,11 @@ describe('DeckNewPage choose-a-color commander', () => {
   it('holds both build buttons until a color is chosen, then builds in that color', () => {
     render(
       <MemoryRouter
-        initialEntries={[{ pathname: '/decks/new', state: { prefill: { commander: piper } } }]}
+        initialEntries={[
+          { pathname: '/decks/new/generate', state: { prefill: { commander: piper } } },
+        ]}
       >
-        <DeckNewPage />
+        <DeckGeneratePage />
       </MemoryRouter>
     );
 

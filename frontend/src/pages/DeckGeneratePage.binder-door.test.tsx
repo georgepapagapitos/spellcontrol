@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 /**
- * Arriving at /decks/new from the Decks index's "From my binder" door opens
- * the commander picker on that tab. A plain visit leaves the picker to its
- * own remembered tab.
+ * Arriving at the generator from the Decks index's "New deck from my
+ * collection" door opens the commander picker on the collection. A plain
+ * visit leaves the picker to its own remembered view.
  */
 import 'fake-indexeddb/auto';
 import { render, screen } from '@testing-library/react';
@@ -21,7 +21,6 @@ vi.mock('../store/auth', () => ({
   useAuth: <T,>(selector: (s: { status: string }) => T): T => selector({ status: 'guest' }),
 }));
 vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
-vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
 vi.mock('../components/deck/CommanderSearch', () => ({
   CommanderSearch: ({ initialSearchMode }: { initialSearchMode?: string }) => (
     <div data-testid="commander-search" data-initial-mode={initialSearchMode ?? ''} />
@@ -41,27 +40,27 @@ vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchCommanderThemes: vi.fn(() => Promise.resolve([])),
 }));
 
-import { DeckNewPage } from './DeckNewPage';
+import { DeckGeneratePage } from './DeckGeneratePage';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 
 afterEach(() => useDeckBuilderStore.getState().reset());
 
-describe('DeckNewPage — "From my binder" door', () => {
-  it('opens the commander picker on the binder tab when the door sent us', () => {
+describe('DeckGeneratePage — "From my collection" door', () => {
+  it('opens the commander picker on the collection when the door sent us', () => {
     render(
       <MemoryRouter
-        initialEntries={[{ pathname: '/decks/new', state: { commanderSource: 'binder' } }]}
+        initialEntries={[{ pathname: '/decks/new/generate', state: { commanderSource: 'binder' } }]}
       >
-        <DeckNewPage />
+        <DeckGeneratePage />
       </MemoryRouter>
     );
     expect(screen.getByTestId('commander-search').getAttribute('data-initial-mode')).toBe('binder');
   });
 
-  it('leaves the picker to its remembered tab on a plain visit', () => {
+  it('leaves the picker to its remembered view on a plain visit', () => {
     render(
-      <MemoryRouter initialEntries={['/decks/new']}>
-        <DeckNewPage />
+      <MemoryRouter initialEntries={['/decks/new/generate']}>
+        <DeckGeneratePage />
       </MemoryRouter>
     );
     expect(screen.getByTestId('commander-search').getAttribute('data-initial-mode')).toBe('');

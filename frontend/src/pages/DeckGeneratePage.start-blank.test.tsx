@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 /**
- * Tests for the creation-time visibility choice (visibility-obvious, E-decks):
- * a Private/Public fieldset on the manual-create path. Uses the 'standard'
- * format (hasCommander: false) so the plain "Create deck" button renders
- * immediately — no commander picker interaction required — keeping the
- * heavy generator UI mocked out and irrelevant to what's under test.
+ * "Start blank" on the generator: a deck with the picked commander and no
+ * cards, created with the visibility choice on the page (visibility-obvious,
+ * E-decks). The commander arrives as a prefill so the build bar renders
+ * straight away, keeping the heavy generator UI mocked out and irrelevant to
+ * what's under test.
  */
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -49,9 +49,14 @@ vi.mock('../lib/share-client', () => ({
   createShare: (input: unknown) => createShareMock(input),
 }));
 
-// ── Heavy commander-generation UI, irrelevant to the non-commander 'standard'
-// format path this suite exercises ─────────────────────────────────────────
-vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
+// A prefilled commander makes useDeckGeneration pre-fetch EDHREC data; stub it
+// so nothing settles after a test ends.
+vi.mock('@/deck-builder/services/edhrec/client', () => ({
+  fetchCommanderData: () => Promise.resolve(null),
+  fetchPartnerCommanderData: () => Promise.resolve(null),
+}));
+
+// ── Heavy commander-generation UI, irrelevant to Start blank ─────────────
 vi.mock('../components/deck/CommanderSearch', () => ({ CommanderSearch: () => null }));
 vi.mock('../components/deck/CommanderProfileCard', () => ({ CommanderProfileCard: () => null }));
 vi.mock('../components/deck/PartnerCommanderSelector', () => ({
@@ -62,20 +67,25 @@ vi.mock('../components/deck/DeckCustomizer', () => ({ DeckCustomizer: () => null
 vi.mock('../components/deck/GenerationModePicker', () => ({ GenerationModePicker: () => null }));
 vi.mock('../components/deck/GenerationTakeover', () => ({ GenerationTakeover: () => null }));
 
-import { DeckNewPage } from './DeckNewPage';
+import { DeckGeneratePage } from './DeckGeneratePage';
+
+const KRENKO = {
+  id: 'krenko',
+  name: 'Krenko, Mob Boss',
+  color_identity: ['R'],
+  type_line: 'Legendary Creature — Goblin Warrior',
+};
 
 function renderPage() {
   return render(
-    <MemoryRouter>
-      <DeckNewPage />
+    <MemoryRouter
+      initialEntries={[
+        { pathname: '/decks/new/generate', state: { prefill: { commander: KRENKO } } },
+      ]}
+    >
+      <DeckGeneratePage />
     </MemoryRouter>
   );
-}
-
-/** Switch to the 'standard' format so the plain "Create deck" button (no
- *  commander required) renders immediately. */
-function selectStandardFormat() {
-  fireEvent.click(screen.getByRole('radio', { name: 'Standard' }));
 }
 
 // The visibility ChoiceList radio's accessible name is its label plus its
@@ -96,7 +106,7 @@ const PUB: PublishResult = {
   isFirstPublish: true,
 };
 
-describe('DeckNewPage — creation-time visibility', () => {
+describe('DeckGeneratePage — Start blank', () => {
   beforeEach(() => {
     localStorage.clear();
     authStatus = 'authed';
@@ -108,7 +118,6 @@ describe('DeckNewPage — creation-time visibility', () => {
 
   it('defaults to Public when authed (board T136)', () => {
     renderPage();
-    selectStandardFormat();
     // Native <input type="radio"> now — `checked`/`disabled`, not aria-*.
     expect(visibilityRadio('Public').checked).toBe(true);
     expect(visibilityRadio('Private').disabled).toBe(false);
@@ -117,27 +126,30 @@ describe('DeckNewPage — creation-time visibility', () => {
   it('disables Public and Friends for a guest, with a sign-in reason as the hint, and never blocks creation', () => {
     authStatus = 'guest';
     renderPage();
-    selectStandardFormat();
 
     expect(visibilityRadio('Public').disabled).toBe(true);
     expect(visibilityRadio('Friends').disabled).toBe(true);
     expect(screen.getAllByText('Sign in to publish.')).toHaveLength(2);
 
-    // The Create deck button itself must still be enabled for a guest.
-    const createButton = screen.getByRole('button', { name: 'Create deck' }) as HTMLButtonElement;
+    // Start blank itself must still be enabled for a guest.
+    const createButton = screen.getByRole('button', { name: 'Start blank' }) as HTMLButtonElement;
     expect(createButton.disabled).toBe(false);
   });
 
   it('publishes the deck after creation when Public is selected, navigates to the editor, and flags the first-publish seal', async () => {
     renderPage();
-    selectStandardFormat();
 
     fireEvent.click(visibilityRadio('Public'));
-    fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start blank' }));
 
     await waitFor(() => expect(createDeckMock).toHaveBeenCalledTimes(1));
     expect(createDeckMock).toHaveBeenCalledWith(
-      expect.objectContaining({ format: 'standard', source: 'manual', initialVisibility: 'public' })
+      expect.objectContaining({
+        format: 'commander',
+        source: 'manual',
+        commander: expect.objectContaining({ name: 'Krenko, Mob Boss' }),
+        initialVisibility: 'public',
+      })
     );
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledTimes(1));
     await waitFor(() =>
@@ -150,10 +162,9 @@ describe('DeckNewPage — creation-time visibility', () => {
   it('threads justPublished: false through when the server reports a republish, not a first publish', async () => {
     publishDeckMock.mockResolvedValue({ ...PUB, isFirstPublish: false });
     renderPage();
-    selectStandardFormat();
 
     fireEvent.click(visibilityRadio('Public'));
-    fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start blank' }));
 
     await waitFor(() =>
       expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
@@ -166,9 +177,8 @@ describe('DeckNewPage — creation-time visibility', () => {
     // The stamp is what keeps it private: the server would otherwise publish
     // a new deck by default on its first sync.
     renderPage();
-    selectStandardFormat();
     fireEvent.click(visibilityRadio('Private'));
-    fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start blank' }));
 
     await waitFor(() => expect(createDeckMock).toHaveBeenCalledTimes(1));
     expect(createDeckMock).toHaveBeenCalledWith(
@@ -180,13 +190,12 @@ describe('DeckNewPage — creation-time visibility', () => {
 
   it('creates the deck as friends-visible via the same share ShareDialog mints, in Public/Friends/Private order', async () => {
     renderPage();
-    selectStandardFormat();
 
     const radios = screen.getAllByRole('radio', { name: /^(Public|Friends|Private)/ });
     expect(radios.map((r) => r.getAttribute('value'))).toEqual(['public', 'friends', 'private']);
 
     fireEvent.click(visibilityRadio('Friends'));
-    fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start blank' }));
 
     await waitFor(() => expect(createDeckMock).toHaveBeenCalledTimes(1));
     expect(createDeckMock).toHaveBeenCalledWith(

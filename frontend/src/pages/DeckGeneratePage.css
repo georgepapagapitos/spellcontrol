@@ -1,0 +1,86 @@
+/* DeckGeneratePage's own rules. Loads with the generator chunk, not the boot
+   payload (see STYLE_GUIDE "CSS file layout"). */
+
+.deck-generate-hint {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* The build bar: Generate and Start blank, one reach away however far down
+   the settings run. A sticky footer, like the online lobby's
+   (style-guide/overlays.md): `bottom: 0` and not the tab bar's height,
+   because `.app-main` already ends at the tab bar's top; opaque, because the
+   settings scroll under it; sticky chrome, so `--z-popover`. It is the
+   page's last child, so at the end of the page it sits in flow below the
+   last section and covers nothing.
+   It pins at `.app-main`'s bottom PADDING edge, not its border (sticky insets
+   by the scroller's padding): 32px up on desktop, and above the scan button's
+   clearance on a phone that shows one. So it's drawn as a floating dock,
+   bordered and rounded all round, and the strip of page under it reads as
+   deliberate rather than as a bar that failed to reach the edge. */
+.deck-generate-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sheet);
+}
+
+.deck-generate-bar-summary {
+  flex: 1 1 16rem;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-generate-bar-error {
+  flex: 1 1 100%;
+  order: -1;
+  margin: 0;
+}
+
+.deck-generate-bar-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* A phone keeps the two buttons on one row, each half the width; the recap
+   line would make the bar two rows tall for a restatement of the page. The
+   one exception is the message that says why the buttons are disabled. */
+@media (max-width: 599px) {
+  .deck-generate-bar {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .deck-generate-bar-summary:not(.is-blocking) {
+    display: none;
+  }
+
+  .deck-generate-bar-summary.is-blocking {
+    flex-basis: 100%;
+    white-space: normal;
+  }
+
+  .deck-generate-bar-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+
+  .deck-generate-bar-actions > .btn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}

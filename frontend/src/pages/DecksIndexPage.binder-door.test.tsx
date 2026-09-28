@@ -53,7 +53,7 @@ function renderPage() {
     <MemoryRouter initialEntries={['/decks']}>
       <Routes>
         <Route path="/decks" element={<DecksIndexPage />} />
-        <Route path="/decks/new" element={<NewDeckProbe />} />
+        <Route path="/decks/new/generate" element={<NewDeckProbe />} />
       </Routes>
     </MemoryRouter>
   );

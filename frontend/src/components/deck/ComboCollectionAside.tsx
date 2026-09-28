@@ -60,7 +60,7 @@ export function ComboCollectionAside({ cards, produces, hosts, locations }: Prop
       const resolved = await getCardByName(commander.name);
       if (!resolved) throw new Error(`Couldn't find a printing for ${commander.name}.`);
       const pieceNames = cards.map((c) => c.cardName);
-      navigate('/decks/new', {
+      navigate('/decks/new/generate', {
         state: {
           prefill: {
             commander: resolved,

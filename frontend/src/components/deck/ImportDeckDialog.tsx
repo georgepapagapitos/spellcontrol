@@ -844,7 +844,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
             )}
             {/* Only the paths that create exactly one deck (paste, or a
                 staged batch merged into one) get the creation-time choice —
-                mirrors /decks/new's single fieldset. "Separate decks" (N
+                mirrors the generator's single fieldset. "Separate decks" (N
                 results) has no single editor to land the choice on; those
                 decks stay private, publishable afterward per-deck like
                 today, and a single-result landing gets the lighter

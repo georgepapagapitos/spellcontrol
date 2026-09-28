@@ -39,7 +39,7 @@ export function regenerateSettings(c: Customization): Partial<Customization> {
 
 /**
  * Persist a generated deck and return its new id. Shared by the one-shot
- * generator (DeckNewPage) and the guided builder so allocation and
+ * generator (DeckGeneratePage) and the guided builder so allocation and
  * metadata stay identical across both entry points.
  */
 export function saveGeneratedDeck(

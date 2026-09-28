@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const commander = readFileSync(join(here, 'deck-builder-commander.css'), 'utf8');
 const forms = readFileSync(join(here, 'forms-banners.css'), 'utf8');
+const doors = readFileSync(join(here, '../pages/DeckNewPage.css'), 'utf8');
 
 /**
  * Playtest batch 5, `/decks/new`. Hit-tested with `elementFromPoint`, not read
@@ -68,5 +69,13 @@ describe('/decks/new coarse-pointer touch targets', () => {
     const shared = ruleBody(coarseBlocks(forms), '.field-checkbox');
     expect(shared, '.field-checkbox lost its coarse floor').toBeTruthy();
     expect(shared!).toMatch(/min-height:\s*44px/);
+  });
+
+  it('every start-page door is a 44px target on every pointer, not only coarse ones', () => {
+    // A door is a whole row the size of a card: a floor on its base rule, not
+    // a coarse-only patch, so a narrow desktop window can't shrink it either.
+    const body = ruleBody(doors.replace(/\/\*[\s\S]*?\*\//g, ''), '.deck-new-door');
+    expect(body, '.deck-new-door lost its base rule').toBeTruthy();
+    expect(body!).toMatch(/min-height:\s*var\(--touch-target\)/);
   });
 });

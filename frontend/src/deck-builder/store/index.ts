@@ -275,7 +275,7 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
       userEditedLands: false,
       // Customization (user knobs) survives reset — but mtgFormat is page
       // context, not a knob: every build surface resets to Commander and the
-      // DeckNewPage format pill re-stamps PDH after its own reset. Without
+      // generator re-stamps PDH after its own reset. Without
       // this, a PDH visit would leak into the guided/brew Commander flows.
       // Must-includes are commander-scoped intent, not a knob — cleared here
       // so a past build's forced picks can't leak into a fresh page mount.

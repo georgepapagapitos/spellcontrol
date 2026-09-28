@@ -2,8 +2,8 @@
 /**
  * The prefill contract, which two callers share with different shapes:
  * Regenerate (full settings) and the combo seed (commander + must-includes
- * only). The ordering assertion below is the point of this file — see the
- * "ORDER IS LOAD-BEARING" comment in DeckNewPage.
+ * only). The ordering assertion below is the point of this file —  see the
+ * "ORDER IS LOAD-BEARING" comment in DeckGeneratePage.
  */
 import 'fake-indexeddb/auto';
 import { render } from '@testing-library/react';
@@ -23,7 +23,7 @@ vi.mock('../store/auth', () => ({
 }));
 vi.mock('../lib/sync', () => ({ isOnline: () => true, onSyncedChange: () => () => {} }));
 
-// Setting a commander makes useDeckGeneration pre-fetch EDHREC data (see the
+// Setting a commander makes useDeckGeneration pre-fetch EDHREC data ( see the
 // "Pre-fetch the EDHREC land suggestion" effect in use-deck-generation.ts).
 // These tests are synchronous, so that promise settles AFTER the test ends —
 // against the suite's global fetch guard it rejects into teardown, which vitest
@@ -35,7 +35,6 @@ vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchPartnerCommanderData: () => Promise.resolve(null),
 }));
 
-vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
 vi.mock('../components/deck/CommanderSearch', () => ({ CommanderSearch: () => null }));
 vi.mock('../components/deck/CommanderProfileCard', () => ({ CommanderProfileCard: () => null }));
 vi.mock('../components/deck/PartnerCommanderSelector', () => ({
@@ -47,13 +46,13 @@ vi.mock('../components/deck/GenerationModePicker', () => ({ GenerationModePicker
 vi.mock('../components/deck/GenerationTakeover', () => ({ GenerationTakeover: () => null }));
 
 import { screen } from '@testing-library/react';
-import { DeckNewPage } from './DeckNewPage';
+import { DeckGeneratePage } from './DeckGeneratePage';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 
 function renderWithPrefill(prefill: unknown) {
   return render(
-    <MemoryRouter initialEntries={[{ pathname: '/decks/new', state: { prefill } }]}>
-      <DeckNewPage />
+    <MemoryRouter initialEntries={[{ pathname: '/decks/new/generate', state: { prefill } }]}>
+      <DeckGeneratePage />
     </MemoryRouter>
   );
 }
@@ -65,7 +64,7 @@ const commander = {
   type_line: 'Legendary Creature — Human Wizard',
 };
 
-describe('DeckNewPage prefill', () => {
+describe('DeckGeneratePage prefill', () => {
   beforeEach(() => {
     localStorage.clear();
     useDeckBuilderStore.getState().reset();

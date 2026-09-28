@@ -624,26 +624,35 @@ switch starts flagging. Commander's sideboard stays an uncapped holding pile
 and Considering never counts; the deck list's badge counts flagged cards
 only, so neither size overrun shows there.
 
-**Secondary modes sit below the primary action they fork from.** On
-`/decks/new` the brew door ("Prefer to pick every card?") renders _after_ the
-commander picker, not between Format and Commander: the picker is the
-page's first instruction, and on a 360px phone the promo box used to
-push the picker under the tab bar. A commander picked before "Start brewing"
-travels with the navigation (router state) and `BrewBuildPage` re-applies it
-after its mount-only store reset, so the fork never asks for the same choice
-twice.
+**New deck starts at a page of doors, not a form** (T168). `/decks/new`
+asks one question, how to start, and each answer is a door
+(`.deck-new-door`): Generate a deck (the featured, full-width door with a
+drawn primary call to action), Brew it slot by slot, Empty deck, Import a
+list, Add a product. Format sits above them because it decides which doors
+apply: a format without a commander keeps only Empty and Import and says why
+in one line; Pauper Commander drops Brew (EDHREC has no PDH data); Add a
+product shows only under Commander, whose precons it builds. A door that goes
+somewhere is a link, one that acts here is a button, and its accessible name
+is its title with the description attached by `aria-describedby`. The format
+rides in `?format=` (written with `replace`), so Back, a reload and the
+generator's "Change format" link all land on the same pill. Nothing on the
+page asks for a commander. No wizard: each door leads to one existing flow.
 
-**The empty start is an open slot above Format** (E465). "Empty deck" on
-`/decks/new` is one compact dashed row (`.deck-new-empty-door`, the
-BinderStartChooser Blank idiom: dashed `--border-strong`, transparent,
-`--radius-lg`) between the header and Format. One tap creates a deck with no
-commander in the selected format and opens it. It shows only for a commander
-format, with no prefill or "From my binder" intent, and until a commander is
-picked (then Start blank beside Generate is the same start). The deck is
-created **Private**: an empty "Untitled deck" never publishes itself; the
-editor's Sharing chip publishes it later. The ⌘K "Empty deck" command is the
-same start. The row stays one line of description on a phone so Commander
-search still begins on the first screen.
+**The empty start is an open slot** (E465). Its door is dashed
+(`--border-strong`, transparent, the BinderStartChooser Blank idiom). One tap
+creates a deck with no commander in the selected format and opens it,
+**Private**: an empty "Untitled deck" never publishes itself; the editor's
+Sharing chip publishes it later. The ⌘K "Empty deck" command is the same start.
+
+**The generator keeps its build actions in a sticky bar** (`/decks/new/generate`,
+`.deck-generate-bar`). Generate and Start blank sit in a sticky footer
+(`bottom: 0`, `--z-popover`, opaque `--surface-raised`) with a one-line recap
+of the choices above them. The bar is the page's last child, so at the end of
+the page it sits in flow and covers nothing. Visibility stays a full
+`VisibilityChoice` section in the page (every hint visible, including why
+Public is unavailable) and the bar only echoes the pick. On a phone the recap
+hides and the two buttons split the row, unless the recap is the reason the
+buttons are disabled (a choose-a-color commander).
 
 ## The You page — one page, one name, precise doors
 

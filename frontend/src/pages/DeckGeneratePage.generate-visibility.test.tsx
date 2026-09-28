@@ -1,15 +1,15 @@
 // @vitest-environment happy-dom
 /**
- * The Private/Public fieldset sits above BOTH "Generate deck" and "Start
- * blank", but only the latter ever applied it — a generated deck was created
+ * The visibility choice sits above BOTH "Generate deck" and "Start blank",
+ * but only the latter ever applied it — a generated deck was created
  * private no matter what the user picked, with no error and no toast. These
  * tests pin the `onCreated` hand-off that fixes it.
  *
  * `useDeckGeneration` is faked so the hand-off itself is what's under test,
  * not the EDHREC/generator stack behind it: the fake captures the options the
  * page passes in, and the test invokes `onCreated` the way a completed build
- * would. Sibling suite DeckNewPage.test.tsx covers the "Start blank" path
- * against the real hook.
+ * would. Sibling suite DeckGeneratePage.start-blank.test.tsx covers the
+ * "Start blank" path against the real hook.
  */
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -57,13 +57,21 @@ vi.mock('../lib/use-deck-generation', () => ({
     capturedOnCreated = opts.onCreated;
     capturedVisibility = opts.initialVisibility;
     return {
-      commander: null,
+      // A picked commander: the visibility choice and the build bar only
+      // render once there is one to build around.
+      commander: { id: 'krenko', name: 'Krenko, Mob Boss', color_identity: ['R'] },
       partnerCommander: null,
       setPartnerCommander: () => {},
       colorIdentity: [],
-      customization: { generationMode: 'edhrec', artThemeTag: '', historicalYear: 2000 },
+      customization: {
+        generationMode: 'edhrec',
+        artThemeTag: '',
+        historicalYear: 2000,
+        targetBracket: 'all',
+      },
       updateCustomization: () => {},
       commanderProfile: null,
+      selectedThemes: [],
       selectedThemeSlugs: new Set<string>(),
       toggleTheme: () => {},
       selectCommander: () => {},
@@ -76,7 +84,6 @@ vi.mock('../lib/use-deck-generation', () => ({
   },
 }));
 
-vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => null }));
 vi.mock('../components/deck/CommanderSearch', () => ({ CommanderSearch: () => null }));
 vi.mock('../components/deck/CommanderProfileCard', () => ({ CommanderProfileCard: () => null }));
 vi.mock('../components/deck/PartnerCommanderSelector', () => ({
@@ -87,7 +94,7 @@ vi.mock('../components/deck/DeckCustomizer', () => ({ DeckCustomizer: () => null
 vi.mock('../components/deck/GenerationModePicker', () => ({ GenerationModePicker: () => null }));
 vi.mock('../components/deck/GenerationTakeover', () => ({ GenerationTakeover: () => null }));
 
-import { DeckNewPage } from './DeckNewPage';
+import { DeckGeneratePage } from './DeckGeneratePage';
 
 const PUB: PublishResult = {
   slug: 'generated-deck',
@@ -100,15 +107,12 @@ const PUB: PublishResult = {
   isFirstPublish: true,
 };
 
-/** Renders the page and switches to the non-commander 'standard' format, the
- *  cheapest way to get the shared visibility fieldset on screen. */
 function renderPage() {
   render(
-    <MemoryRouter>
-      <DeckNewPage />
+    <MemoryRouter initialEntries={['/decks/new/generate']}>
+      <DeckGeneratePage />
     </MemoryRouter>
   );
-  fireEvent.click(screen.getByRole('radio', { name: 'Standard' }));
 }
 
 // The visibility ChoiceList radio's accessible name is its label plus its
@@ -117,7 +121,7 @@ function renderPage() {
 const byLabel = (name: string) => new RegExp(`^${name}`);
 const visibilityRadio = (name: string) => screen.getByRole('radio', { name: byLabel(name) });
 
-describe('DeckNewPage — generated decks obey the visibility fieldset', () => {
+describe('DeckGeneratePage — generated decks obey the visibility choice', () => {
   beforeEach(() => {
     localStorage.clear();
     navigateMock.mockClear();
@@ -181,5 +185,14 @@ describe('DeckNewPage — generated decks obey the visibility fieldset', () => {
     expect(tookOverNavigation).toBe(false);
     expect(publishDeckMock).not.toHaveBeenCalled();
     expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('echoes the pick in the build bar, which carries no second visibility control', () => {
+    renderPage();
+    const bar = screen.getByRole('group', { name: 'Build this deck' });
+    expect(bar.textContent).toContain('Public');
+    fireEvent.click(visibilityRadio('Private'));
+    expect(bar.textContent).toContain('Private');
+    expect(bar.querySelector('input[type="radio"]')).toBeNull();
   });
 });

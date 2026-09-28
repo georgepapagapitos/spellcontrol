@@ -1,78 +1,147 @@
-/* DeckNewPage's own rules. Loads with the new-deck chunk, not the boot
-   payload (see STYLE_GUIDE "CSS file layout"). */
+/* DeckNewPage's own rules: the start page's doors. Loads with the new-deck
+   chunk, not the boot payload (see STYLE_GUIDE "CSS file layout"). */
 
-/* The "Empty deck" door (E465): a way to start without a preset, drawn as an
-   open slot like BinderStartChooser's Blank tile (BinderEditor.css
-   `.binder-start-tile--alt`). One compact row so Commander search still
-   starts on a phone's first screen. Capped on a wide screen so the arrow
-   stays near the words it belongs to. */
-.deck-new-empty-door {
-  display: flex;
+/* One door per way to start. Two to a row from 600px, the featured Generate
+   door across the whole row; one column on a phone, Generate first. */
+.deck-new-doors {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+@media (min-width: 600px) {
+  .deck-new-doors {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .deck-new-door.is-feature {
+    grid-column: 1 / -1;
+  }
+}
+
+.deck-new-door {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
-  width: 100%;
-  max-width: 560px;
-  min-height: 44px;
-  padding: var(--space-3);
-  border: 1px dashed var(--border-strong);
+  min-height: var(--touch-target);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: transparent;
+  background: var(--surface);
   color: var(--text-primary);
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
   transition: border-color var(--motion-fast);
 }
 
-.deck-new-empty-door-glyph {
+/* The open slot: nothing preset, drawn like BinderStartChooser's Blank tile. */
+.deck-new-door.is-dashed {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: transparent;
+}
+
+.deck-new-door.is-feature {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--accent) 14%, var(--surface)) 0%,
+    var(--surface) 60%
+  );
+}
+
+.deck-new-door-glyph {
   display: grid;
-  flex: none;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius);
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
   color: var(--accent);
 }
 
-.deck-new-empty-door-text {
+.deck-new-door.is-dashed .deck-new-door-glyph {
+  border-style: dashed;
+  background: transparent;
+}
+
+.deck-new-door-text {
   display: flex;
-  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--space-0-5);
   min-width: 0;
 }
 
-.deck-new-empty-door-title {
-  font-size: var(--text-base);
+.deck-new-door-title {
+  font-size: var(--text-md);
   font-weight: 600;
 }
 
-.deck-new-empty-door-desc {
+.deck-new-door-desc {
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
 
-.deck-new-empty-door-go {
-  flex: none;
+.deck-new-door-go {
   color: var(--accent);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .deck-new-empty-door:hover {
-    border-color: var(--accent);
+/* The featured door's call to action, drawn as the primary button it stands
+   for. Decorative: the whole door is the control, so it is aria-hidden and
+   never a nested button. */
+.deck-new-door-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* On a phone the label would squeeze the description into a sliver; the
+   arrow alone carries it, as on every other door. */
+@media (max-width: 599px) {
+  .deck-new-door {
+    padding: var(--space-3);
+  }
+
+  .deck-new-door-cta {
+    min-height: 0;
+    padding: 0;
+    background: none;
+    color: var(--accent);
+  }
+
+  .deck-new-door-cta-label {
+    display: none;
   }
 }
 
-.deck-new-empty-door:focus-visible {
+@media (hover: hover) and (pointer: fine) {
+  .deck-new-door:hover {
+    border-color: var(--accent);
+  }
+
+  .deck-new-door.is-feature:hover .deck-new-door-cta {
+    background: var(--accent-hover);
+  }
+}
+
+.deck-new-door:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Same step down as the page subtitle below the desktop tier, so the
-   description stays on one line at 390px. */
-@media (max-width: 1023px) {
-  .deck-new-empty-door-desc {
-    font-size: var(--text-xs);
-  }
+.deck-new-doors-hint {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
