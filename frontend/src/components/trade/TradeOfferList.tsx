@@ -490,7 +490,11 @@ function SettledNote({
           {i > 0 && ', '}
           <strong className="trade-offer-filed-card">{card.name}</strong> in{' '}
           {/* Looked up by card, not by the copy that arrived: page, not pocket. */}
-          {formatLocation({ binderName: where.binderName, pageNum: where.pageNum })}
+          {formatLocation({
+            binderName: where.binderName,
+            pageNum: where.pageNum,
+            volume: where.volume,
+          })}
         </span>
       ))}
       {rest > 0 && `, and ${rest} more`}.

@@ -23,6 +23,8 @@ import { BinderTabs } from '../components/BinderTabs';
 import { BinderDriftBanner } from '../components/BinderDriftBanner';
 import { BinderView } from '../components/BinderView';
 import { BinderListView } from '../components/BinderListView';
+import { BinderVolumesBar } from '../components/BinderVolumesBar';
+import { volumesFor, hasMultipleVolumes } from '../lib/binder-volumes';
 import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { type BinderViewControls, type BinderViewMode } from '../components/BinderSummaryBar';
@@ -184,6 +186,16 @@ export function BinderPage() {
   // Names the browser print job / tab title for the printable checklist.
   useDocumentTitle(active?.def.name);
 
+  // Volumes: read off an UNFILTERED materialize pass (driftBinders is already
+  // that pass, reused here rather than a third materialize call) — a
+  // search-narrowed pass would under-count pages and misreport how many
+  // physical books this binder needs. `null` = no fixed capacity.
+  const activeUnfiltered = driftBinders.find((b) => b.def.id === active?.def.id) ?? active;
+  const activeVolumes = useMemo(
+    () => (activeUnfiltered ? volumesFor(activeUnfiltered) : null),
+    [activeUnfiltered]
+  );
+
   // Printable checklist source: same section grouping as BinderListView,
   // duplicate copies rolled into a Quantity like its qty pills do.
   const printGroups = useMemo(() => {
@@ -342,13 +354,13 @@ export function BinderPage() {
                 cards · {active.totalPages.toLocaleString()} /{' '}
                 {Math.ceil(active.def.fixedCapacity / active.effectivePocketSize).toLocaleString()}{' '}
                 pages
-                {active.totalCards > active.def.fixedCapacity && (
+                {hasMultipleVolumes(activeVolumes) && (
                   <span
                     className="binder-summary-overcap"
-                    title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards`}
+                    title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards. See Volumes below.`}
                   >
                     {' '}
-                    ⚠ over capacity
+                    ⚠ fills {activeVolumes.length} binders
                   </span>
                 )}
               </>
@@ -359,6 +371,15 @@ export function BinderPage() {
               </>
             )
           }
+        />
+      )}
+      {active && active.def.fixedCapacity != null && hasMultipleVolumes(activeVolumes) && (
+        <BinderVolumesBar
+          volumes={activeVolumes}
+          fixedCapacity={active.def.fixedCapacity}
+          pocketSize={active.effectivePocketSize}
+          totalCards={active.totalCards}
+          onOpenRules={() => setEditingBinder(active.def.id)}
         />
       )}
       {shareOpen && activeId && active && (

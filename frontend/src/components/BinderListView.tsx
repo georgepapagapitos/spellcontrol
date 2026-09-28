@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { formatLocationSpan } from '../lib/card-locations';
+import { volumesFor, hasMultipleVolumes, pageVolume } from '../lib/binder-volumes';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
@@ -139,6 +140,20 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
   const flatPageLabels = useMemo(
     () => binder.sections.flatMap((s) => s.pages.map((p) => p.labels?.join(' · ') ?? s.label)),
     [binder.sections]
+  );
+  // Present only once the binder outgrows its own fixed capacity — see
+  // lib/binder-volumes.ts. `null` (no capacity) and a single-volume binder
+  // both leave this undefined, so the page viewer never shows "Vol 1".
+  const volumes = useMemo(() => volumesFor(binder), [binder]);
+  const flatVolumeLabels = useMemo(
+    () =>
+      hasMultipleVolumes(volumes)
+        ? flatPages.map((p) => {
+            const v = pageVolume(volumes, p.pageNum);
+            return v ? `Vol ${v}` : '';
+          })
+        : undefined,
+    [volumes, flatPages]
   );
 
   // Build rows per section. The binder is materialized physically — one
@@ -384,7 +399,9 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
                       }
                       columns={isTable ? columns : undefined}
                       allocations={allocationsFor(r.card, r.qty)}
-                      location={formatLocationSpan(r.spots)}
+                      location={formatLocationSpan(r.spots, {
+                        volume: r.spots[0] ? pageVolume(volumes, r.spots[0].pageNum) : undefined,
+                      })}
                       pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
                       onActivate={() => {
                         const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);
@@ -461,6 +478,7 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
         <BinderPagePreview
           pages={flatPages}
           pageLabels={flatPageLabels}
+          volumeLabels={flatVolumeLabels}
           startPageIndex={pagesStartIndex}
           pocketSize={binder.effectivePocketSize}
           binderName={binder.def.name}
