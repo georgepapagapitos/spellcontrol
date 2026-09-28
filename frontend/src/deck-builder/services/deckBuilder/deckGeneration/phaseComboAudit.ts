@@ -8,6 +8,7 @@ import type {
 import type { GenerationState } from './state';
 import { markBanned } from './state';
 import { frontFaceName } from '@/lib/card-text';
+import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 import {
   fitsColorIdentity,
@@ -381,8 +382,8 @@ export function comboIntegrityAuditPhase(
       // Can't complete — evict the orphaned low-value pieces, replace with best EDHREC candidates
       for (const orphanName of orphans) {
         if (auditSwaps >= MAX_AUDIT_SWAPS) break;
-        // Never evict lands here — the replacement pool below is
-        // allNonLand-only, so an orphaned combo piece that happens to be a
+        // Never evict lands here — the replacement below is filtered to
+        // spells, so an orphaned combo piece that happens to be a
         // land (e.g. Riptide Laboratory) would get silently swapped for a
         // spell, shrinking the land count out from under the resolved
         // target. Lands have their own top-up/target and stay untouched by
@@ -403,6 +404,10 @@ export function comboIntegrityAuditPhase(
               !usedNames.has(c.name) &&
               !bannedCards.has(c.name) &&
               scryfallCardMap.has(c.name) &&
+              // E485: allNonLand still carries utility lands. atraxa-bracket2
+              // swapped its orphaned Ajani for Karn's Bastion here and shipped
+              // a land over its tuned count.
+              !getFrontFaceTypeLine(scryfallCardMap.get(c.name)!).includes('Land') &&
               fitsColorIdentity(scryfallCardMap.get(c.name)!, colorIdentity) &&
               // E101: pre-filter mirrors auditCanAdd's bracket-ceiling gate so
               // an orphan eviction is never stranded by a rejected add.

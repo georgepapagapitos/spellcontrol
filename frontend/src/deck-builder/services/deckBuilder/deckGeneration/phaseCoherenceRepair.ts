@@ -269,8 +269,9 @@ export async function applyCoherenceRepair(
     for (const c of ranked) {
       const card = ctx.scryfallCardMap.get(c.name)!;
       // E485: `allNonLand` still carries utility lands, and this swaps a spell
-      // slot (land repairs take the basic-swap path above). atraxa-bracket2
-      // cut Ajani for Karn's Bastion and shipped a land over its tuned count.
+      // slot (land repairs take the basic-swap path above), so a land here
+      // would ship the deck over its tuned land count. Same guard as the
+      // surplus rebalance and the combo audit's orphan eviction.
       if (getFrontFaceTypeLine(card).includes('Land')) continue;
       if (pred && !pred(card)) continue;
       if (ctx.cardAllowed && !ctx.cardAllowed(card)) continue;

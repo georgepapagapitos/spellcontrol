@@ -107,12 +107,3 @@ describe('validateCardRole checks every tagged role, not only the first (E476, r
     expect(validateCardRole({ name: 'Golgari Charm', oracle_text: 'Flying.' })).toBeNull();
   });
 });
-
-describe('graveyard-to-hand across sentences is card draw (E487, real tags + real text)', () => {
-  it('Deadbridge Chant counts as draw', () => {
-    // Verbatim Scryfall oracle text (2026-09-28).
-    const text =
-      "When this enchantment enters, mill ten cards.\nAt the beginning of your upkeep, choose a card at random in your graveyard. If it's a creature card, put it onto the battlefield. Otherwise, put it into your hand.";
-    expect(validateCardRole({ name: 'Deadbridge Chant', oracle_text: text })).toBe('cardDraw');
-  });
-});

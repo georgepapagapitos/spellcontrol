@@ -143,6 +143,39 @@ describe('comboIntegrityAuditPhase', () => {
     mockGetCardRole.mockReturnValue(null);
   });
 
+  it('never replaces an orphaned combo piece with a land (E485)', () => {
+    // allNonLand carries utility lands; atraxa-bracket2 swapped its orphaned
+    // Ajani for Karn's Bastion here and shipped a land over its tuned count.
+    const state = makeState();
+    const orphan = scryfallCard('Orphan A');
+    state.categories.synergy.push(orphan);
+    state.usedNames.add(orphan.name);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Orphan A', 1),
+          edhrecCard('Utility Land', 99),
+          edhrecCard('Spell Fill', 50),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const scryfallCardMap = new Map<string, ScryfallCard>([
+      ['Orphan A', orphan],
+      ['Utility Land', scryfallCard('Utility Land', { type_line: 'Land', color_identity: [] })],
+      ['Spell Fill', scryfallCard('Spell Fill')],
+    ]);
+    const { repairs } = comboIntegrityAuditPhase(state, {
+      // Missing X isn't resolvable, so the combo can't complete and the
+      // orphaned low-inclusion piece is evicted.
+      detectedCombos: [combo('c1', ['Orphan A', 'Missing X'], ['Missing X'])],
+      scryfallCardMap,
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    expect(repairs).toEqual([expect.objectContaining({ cut: 'Orphan A', added: 'Spell Fill' })]);
+  });
+
   it('no-ops when combos were never requested (comboCountSetting <= 0)', () => {
     const state = makeState();
     state.cfg.comboCountSetting = 0;
