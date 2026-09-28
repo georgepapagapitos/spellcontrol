@@ -9,9 +9,6 @@
   /* A sleeve, not a bordered box (STYLE_GUIDE § Layout system, one frame per
      surface): the raised paper + the card shadow lift it; outlines belong to
      controls. */
-  background: var(--surface-raised);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
   padding: var(--space-4);
 }
 

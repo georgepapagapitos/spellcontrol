@@ -3,9 +3,6 @@
  * Original lines 5260-5416. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
 /* ── Deck combos panel ───────────────────────────────────────────────── */
 .deck-combos-panel {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
   padding: var(--space-3);
   display: flex;
   flex-direction: column;

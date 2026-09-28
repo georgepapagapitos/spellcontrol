@@ -422,3 +422,36 @@ select {
   width: 1em;
   height: 1em;
 }
+
+/* ── Surfaces (T166) ─────────────────────────────────────────────────
+   The three resting surfaces (§ Layout system, Surfaces: one frame), each
+   painted once on `Surface`'s data-surface. A family keeps its padding
+   and layout (a menu is dense, a settings form is not), never the frame.
+   - sleeve: an index tile. --surface-raised + --shadow-card, no outline.
+   - framed: an in-page section card. --surface and one hairline, flat.
+   - popover: an anchored panel. --surface, a strong hairline, the tooltip
+     shadow.
+   All three take --radius-lg (§ Shape language: cards, panels, sheets).
+   In :where(), so a state rule (a hover lift, a status border) still wins.
+   Guard: styles/surface-plate.test.ts. */
+:where([data-surface]) {
+  border-radius: var(--radius-lg);
+}
+
+:where([data-surface='sleeve']) {
+  background: var(--surface-raised);
+  border: 0;
+  box-shadow: var(--shadow-card);
+}
+
+:where([data-surface='framed']) {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  box-shadow: none;
+}
+
+:where([data-surface='popover']) {
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  box-shadow: var(--shadow-tooltip);
+}

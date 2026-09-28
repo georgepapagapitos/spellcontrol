@@ -315,11 +315,7 @@
      off the ground. Gloss overlays were deliberately skipped: the banner
      is a replaced <img> (no pseudo-elements) and Discover tiles stack
      scrim/stats/hover-zoom contracts a sheen would fight. */
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
   border-left: 3px solid var(--deck-color, var(--accent));
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
   overflow: visible;
   transition: border-color var(--motion-fast) ease;
 }

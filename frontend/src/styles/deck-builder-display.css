@@ -196,10 +196,6 @@
   z-index: var(--z-dropdown);
   min-width: 11rem;
   max-width: calc(100vw - 2rem);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-tooltip);
   padding: var(--space-1);
   max-height: min(360px, calc(100dvh - 4rem));
   overflow-y: auto;

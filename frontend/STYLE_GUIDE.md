@@ -348,6 +348,13 @@ meanwhile.
   `--border-strong` rule) over rows split by 0.5px `--border` hairlines, on the
   page itself at every width. The per-section cards on a wide screen and the
   single bordered panel below 1100px are gone (`styles/deck-tab-density.test.ts`).
+  **Built as `Surface` (T166):** its `variant` paints the frame once
+  (`styles/base-layout.css`): a `sleeve` is `--surface-raised` +
+  `--shadow-card` with no outline, `framed` is `--surface` with one 0.5px
+  `--border` and no shadow, a `popover` is `--surface` with a 0.5px
+  `--border-strong` and `--shadow-tooltip`, all at `--radius-lg`. A family
+  keeps its padding (it follows the content) but never the frame; a surface
+  nested in another frame drops its own. Guard: `styles/surface-plate.test.ts`.
 - **One fact, one place, on every screen.** A number or a list appears once
   per screen, in the place that owns it; everything else links to it. First
   settled for the deck view ([§ Deck view](style-guide/decks.md#deck-view--one-fact-one-place-2026-09-08) — one fact, one place), then found

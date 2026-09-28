@@ -16,9 +16,6 @@
 }
 
 .friend-hub-h2h-card {
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
 }
 
 .friend-hub-h2h-skeleton {

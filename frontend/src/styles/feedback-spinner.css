@@ -126,12 +126,9 @@
   max-width: 380px;
   margin: auto;
   text-align: center;
-  background: var(--surface);
-  border: 1px solid var(--err-border);
-  border-radius: var(--radius-lg);
   padding: var(--space-5) var(--space-5);
-  box-shadow: var(--shadow-card);
   animation: auth-rise var(--motion-gentle) var(--ease-out-soft) both;
+  border-color: var(--err-border);
 }
 
 @media (prefers-reduced-motion: reduce) {
