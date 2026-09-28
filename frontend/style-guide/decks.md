@@ -740,35 +740,61 @@ lands are excluded entirely (never shown as a percentage or "Off-meta") since
 the generator never scores them for EDHREC inclusion in the first place —
 that's "not applicable", not "no signal".
 
-## Ranked coverage rows (E283)
+## Commander finder (T168)
 
-The commander picker's "From my binder" tab ranks commanders by **collection
-coverage**: owned, identity-fitting cards on the commander's EDHREC page against
-the deck's spell slots (`lib/commander-coverage.ts`, the same line the owned-only
-generator gates its pool wideners on, E282). Rulings, in `BinderRanking.tsx`:
+Every commander picker is one component, `CommanderSearch`: the generator,
+Brew, the editor's "Choose a commander" sheet and both import dialogs. It
+replaced three tabs (By name, By playstyle, My collection) that each answered
+one question and made you pick which. Rulings:
 
-- **One ranking key, shown as a bar; the older stat stays a chip.** The
-  coverage bar (`MeterBar`, `max` = the generator's "no gaps" line, 1.2 × slots)
-  is the sort key; readiness (% of top staples owned) stays the trailing
-  `ReadinessChip` so the two numbers never compete for the same slot. Bar color
-  is semantic: `--success` at or above the line, `--warn-border` below it.
-- **The row's line says what the number means for the build**, not a
-  percentage: "93 owned cards for 62 slots, no gaps" / "59 owned cards for 62
-  slots, a few will come from outside this commander's data". The generator's
-  own thin-pool disclosure uses the same threshold, so the row never promises
-  what the build won't deliver.
-- **A ranked list sorts once, when every row has resolved.** Rows render
-  immediately in a stable (alphabetical) order with the indeterminate bar and
-  a "Checking your collection…" line; the sort happens on completion, so the
-  list reorders exactly once. Progress and the final sort are announced via
-  one `role="status"` line ("N commanders ranked, best coverage first").
-- **Unavailable is never 0.** A row EDHREC couldn't serve keeps the muted `—`
-  chip and an empty bar with "No EDHREC data for this commander right now."
-- **Not-owned rows are labelled inline, in the meta line** ("Not in your
-  binder · $12"), under their own "Not in your binder" heading; they share the
-  row shape so the two sections compare like for like. `CommanderResultCard`
-  takes a `detail` slot for the bar/line/meta block; every other picker leaves
-  it undefined and renders unchanged.
+- **One result list, filters that combine, one sort.** A search box, a color
+  row, a playstyle row and an **All commanders / In my collection** switch.
+  "Golgari aristocrats I own" is one query, never a tab choice.
+- **Plain words search the name, type line and rules text; Scryfall syntax
+  passes through.** A tile matched on its type or rules text quotes the line
+  with the match highlighted ("Rules text: … Sacrifice …"). That line is how a
+  player learns the box reads rules text; the syntax hint appears only once
+  they type.
+- **A playstyle is one rules-text pattern shared by both engines.** Each entry
+  in `lib/commander-playstyle-index.ts` carries an `oracle` regex source that
+  Scryfall runs as `o:/…/` and the local classifier runs as a JS RegExp, so a
+  commander Scryfall returns for a playstyle is always classified under it
+  locally too. Typal has no pattern and uses `otag:typal` plus a local "names
+  its own creature type" check. EDHREC's crowd list for the tag (about 24
+  commanders) ranks first; the pattern supplies the long tail.
+- **Several playstyles are OR, ranked by overlap.** AND nearly always comes
+  back empty; commanders matching every chosen playstyle rank first. A chosen
+  playstyle's one-line meaning shows under the toolbar, which is how "Wheels"
+  or "Aristocrats" gets explained on touch.
+- **In my collection is local, instant and offline**, over the rules text and
+  type line every owned row already carries, through the same engine as the
+  add-cards panel (`lib/deck-add-search.ts`). It never asks for a color first.
+- **One coverage number.** "How much of this deck do you own" is readiness
+  (top EDHREC staples owned): a "You own N%" fact on every tile, and under the
+  **Most of the deck owned** sort a `MeterBar` with "You own 52 of its 90
+  staples". Coverage and readiness used to show side by side as two numbers
+  for one question; the second one is gone. It needs `MIN_COLLECTION_SIZE`
+  cards to say anything and never runs for Pauper Commander.
+- **Scoring a whole list re-sorts in steps.** Under the coverage sort every
+  result is scored four at a time; the order refreshes every 12 scores and on
+  completion, never per score, so tiles don't jump under the pointer.
+  Unscored commanders sort last. Progress is in the one `role="status"` line.
+- **Picking under In my collection + Most of the deck owned builds from your
+  cards only** (E283), and the finder says so under the toolbar while it
+  applies: "Picking from here builds with only your cards."
+- **Worth buying the commander for.** Under that same sort, popular commanders
+  you don't own whose decks your collection covers, with the price, in their
+  own labelled section below the results.
+- **An empty result names the filter to drop** as buttons ("Search all
+  commanders", "Within white", "Remove Reanimator"), never "No commanders
+  found". A failed fetch is its own state with Retry, never an empty list.
+- **On a phone the filter rows fold into a Filters button** with a count, and
+  the active filters show as removable chips (`FilterChipsRow`). The All / Mine
+  switch stays out: it is the finder's main choice, not a filter.
+- **Tile facts, in order:** In collection, You own N%, the playstyles (the
+  ones you filtered by lead), EDHREC deck count. The pips carry the
+  combination's name in words ("Golgari"), because a pip names itself only on
+  hover.
 
 ## Deck analysis tabs — first-impression states
 

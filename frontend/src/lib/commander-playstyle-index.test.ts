@@ -4,7 +4,9 @@ import {
   classifyCommanderPlaystyles,
   classifyOwnedCommanderPlaystyles,
   commanderMatchesPlaystyle,
+  mentionsOwnSubtype,
   playstyleById,
+  playstyleScryfallClause,
 } from './commander-playstyle-index';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../types';
@@ -38,19 +40,98 @@ function ids(card: ScryfallCard): string[] {
 describe('PLAYSTYLES vocabulary', () => {
   it('has unique ids and EDHREC slugs', () => {
     expect(new Set(PLAYSTYLES.map((p) => p.id)).size).toBe(PLAYSTYLES.length);
-    expect(new Set(PLAYSTYLES.map((p) => p.edhrecSlug)).size).toBe(PLAYSTYLES.length);
+    const slugs = PLAYSTYLES.flatMap((p) => (p.edhrecSlug ? [p.edhrecSlug] : []));
+    expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it('every playstyle carries at least one signal', () => {
+  it('every playstyle can be searched for across all commanders', () => {
+    // A chip with no Scryfall clause would filter the "All commanders" list
+    // to nothing, however many commanders really play that way.
+    for (const p of PLAYSTYLES) expect(playstyleScryfallClause(p), p.id).toBeTruthy();
+  });
+
+  it('every playstyle carries a local signal', () => {
     for (const p of PLAYSTYLES) {
-      expect(p.themeSignals.length + p.archetypeSignals.length + (p.oracleSignal ? 1 : 0)) //
-        .toBeGreaterThan(0);
+      const signals =
+        p.themeSignals.length +
+        p.archetypeSignals.length +
+        (p.oracle ? 1 : 0) +
+        (p.localSignal ? 1 : 0);
+      expect(signals, p.id).toBeGreaterThan(0);
     }
   });
 
+  it('shares one rules-text pattern between Scryfall and the local classifier', () => {
+    const aristocrats = playstyleById('aristocrats')!;
+    expect(playstyleScryfallClause(aristocrats)).toBe(`o:/${aristocrats.oracle}/`);
+    expect(() => new RegExp(aristocrats.oracle!, 'i')).not.toThrow();
+    expect(playstyleScryfallClause(playstyleById('tribal')!)).toBe('otag:typal');
+  });
+
   it('playstyleById resolves a known id and rejects an unknown one', () => {
-    expect(playstyleById('tokens')?.label).toBe('Go-wide tokens');
+    expect(playstyleById('tokens')?.label).toBe('Tokens');
     expect(playstyleById('nope')).toBeUndefined();
+  });
+});
+
+describe('mentionsOwnSubtype (the typal signal)', () => {
+  const card = (name: string, typeLine: string, oracleText: string) => ({
+    name,
+    typeLine,
+    oracleText,
+  });
+
+  it('matches a commander that names its own creature type, in the plural', () => {
+    expect(
+      mentionsOwnSubtype(
+        card(
+          'Krenko, Mob Boss',
+          'Legendary Creature — Goblin Warrior',
+          '{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.'
+        )
+      )
+    ).toBe(true);
+    expect(
+      mentionsOwnSubtype(
+        card(
+          'Lathril, Blade of the Elves',
+          'Legendary Creature — Elf Noble',
+          'Tap ten untapped Elves you control: Each opponent loses 10 life.'
+        )
+      )
+    ).toBe(true);
+  });
+
+  it('matches a commander that asks for a creature type', () => {
+    expect(
+      mentionsOwnSubtype(
+        card(
+          'Morophon, the Boundless',
+          'Legendary Creature — Shapeshifter',
+          'As Morophon enters, choose a creature type.'
+        )
+      )
+    ).toBe(true);
+  });
+
+  it("does not count the creature type inside the commander's own name", () => {
+    expect(
+      mentionsOwnSubtype(
+        card(
+          'Lathliss, Dragon Queen',
+          'Legendary Creature — Human',
+          'Flying\nWhen Lathliss, Dragon Queen enters, draw a card.'
+        )
+      )
+    ).toBe(false);
+  });
+
+  it('is false for a commander with no subtype in its text', () => {
+    expect(
+      mentionsOwnSubtype(
+        card('Yawgmoth, Thran Physician', 'Legendary Creature — Human Cleric', 'Pay 1 life.')
+      )
+    ).toBe(false);
   });
 });
 
@@ -243,6 +324,12 @@ describe('every playstyle is reachable from an owned collection card', () => {
     lifegain: 'whenever you gain life, each opponent loses 1 life.',
     blink: 'when ~ enters, draw a card.',
     superfriends: 'planeswalkers you control enter with an additional loyalty counter.',
+    tribal: 'other wizards you control get +1/+1.',
+    graveyard: 'you may cast spells from your graveyard.',
+    treasure: 'whenever ~ attacks, create a treasure token.',
+    mill: 'at the beginning of your upkeep, each opponent mills three cards.',
+    wheels: 'each player discards their hand, then draws seven cards.',
+    grouphug: 'at the beginning of each upkeep, each player draws a card.',
   };
 
   it('has an exemplar for every playstyle in the vocabulary', () => {

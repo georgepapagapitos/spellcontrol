@@ -29,6 +29,7 @@ import type { ComboSeedContext } from '../types/combos';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { Button } from '@/components/shared/Button';
 import { parseDeckFormat } from '../lib/deck-format-param';
+import { getCardByName } from '@/deck-builder/services/scryfall/client';
 
 /**
  * Router-state seed for a build. Two shapes share it:
@@ -88,7 +89,7 @@ const METHOD_LABEL: Record<Customization['generationMode'], string> = {
 export function DeckGeneratePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const routerState = location.state as GenerateRouteState | null;
   const prefill = routerState?.prefill;
   const commanderSource = routerState?.commanderSource;
@@ -251,6 +252,38 @@ export function DeckGeneratePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // `?commander=<name>` (the Trending rail's "Build with …" tiles) lands with
+  // that commander picked. The param is dropped once applied, so a later
+  // Change survives a reload. A name that doesn't resolve leaves the finder
+  // open, which is where the player would have started anyway. A prefill
+  // (regenerate, combo seed) already names its commander and wins.
+  const commanderParam = searchParams.get('commander');
+  useEffect(() => {
+    if (!commanderParam || prefill) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const card = await getCardByName(commanderParam);
+        if (!cancelled) selectCommander(card);
+      } catch {
+        /* unresolved: the finder stays open */
+      }
+      if (!cancelled) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('commander');
+            return next;
+          },
+          { replace: true, state: location.state }
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [commanderParam, prefill, selectCommander, setSearchParams, location.state]);
 
   // ── Start blank: this commander, no cards ──────────────────────────────
   const handleStartBlank = useCallback(async () => {

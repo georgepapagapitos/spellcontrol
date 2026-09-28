@@ -76,13 +76,10 @@ function useTrendingRail(enabled: boolean) {
 }
 
 /** Borrows CommanderResultCard's exact CSS classes (visually identical) but
- *  is a real `<Link>` to `/decks/new`, never a `<button onClick>` -- a click
- *  handler here would give up cmd/ctrl-click, middle-click, and
- *  right-click-open-in-new-tab, none of which are worth threading an
- *  `href`/`as` prop through that shared, four-call-site component for one
- *  new consumer. `/decks/new` has no commander-prefill contract anywhere in
- *  the app today, so the copy never claims one -- it names the commander
- *  being displayed, and the aria-label states the real behavior. */
+ *  is a real `<Link>`, never a `<button onClick>` -- a click handler here
+ *  would give up cmd/ctrl-click, middle-click, and right-click-open-in-new-tab.
+ *  It opens the generator with this commander already picked
+ *  (`/decks/new/generate?commander=`, T168). */
 function TrendingCommanderTile({
   commanderName,
   deckCount,
@@ -95,7 +92,7 @@ function TrendingCommanderTile({
   const art = useCardThumb(commanderName, 'small');
   return (
     <Link
-      to="/decks/new"
+      to={`/decks/new/generate?commander=${encodeURIComponent(commanderName)}`}
       className="commander-result-card"
       aria-label={`Build a deck with ${commanderName}`}
     >

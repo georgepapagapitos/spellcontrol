@@ -226,7 +226,7 @@ describe('TrendingRail', () => {
   });
 
   describe('TrendingCommanderTile', () => {
-    it('renders as a real anchor, never a button, with honest non-prefill-claiming copy', async () => {
+    it('renders as a real anchor, never a button, into the generator with that commander', async () => {
       stubFetchResolved({ risingCommanders: risingFixture });
       renderRail();
       await loaded();
@@ -235,19 +235,21 @@ describe('TrendingRail', () => {
       const link = screen.getByRole('link', {
         name: `Build a deck with ${risingFixture[0].commanderName}`,
       });
-      expect(link.getAttribute('href')).toBe('/decks/new');
+      expect(link.getAttribute('href')).toBe(
+        `/decks/new/generate?commander=${encodeURIComponent(risingFixture[0].commanderName)}`
+      );
       expect(screen.queryByRole('button', { name: /praetors/i })).toBeNull();
       expect(link.getAttribute('title')).toBeNull();
       expect(mockUseCardThumb).toHaveBeenCalledWith("Atraxa, Praetors' Voice", 'small');
     });
 
-    it('clicking navigates to /decks/new (router test wrapper, not a real navigation)', async () => {
+    it('clicking navigates to the generator (router test wrapper, not a real navigation)', async () => {
       stubFetchResolved({ risingCommanders: risingFixture });
       render(
         <MemoryRouter initialEntries={['/discover']}>
           <Routes>
             <Route path="/discover" element={<TrendingRail enabled={true} />} />
-            <Route path="/decks/new" element={<div>New deck sentinel</div>} />
+            <Route path="/decks/new/generate" element={<div>New deck sentinel</div>} />
           </Routes>
         </MemoryRouter>
       );

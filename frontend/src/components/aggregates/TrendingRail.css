@@ -62,8 +62,8 @@
   color: var(--text-primary);
 }
 
-/* Plain fact chip (platform deck count) -- same pill shape as ReadinessChip's
-   accent variant, but neutral: this isn't a readiness/success signal. */
+/* Plain fact chip (platform deck count): a compact neutral pill, since this
+   isn't a readiness or success signal. */
 .trending-deck-count {
   flex-shrink: 0;
 }

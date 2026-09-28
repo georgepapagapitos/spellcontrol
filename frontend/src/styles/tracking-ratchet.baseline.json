@@ -4,7 +4,6 @@
   "components/ConflictPanel.css": 1,
   "components/CopyControls.css": 1,
   "components/deck/AiMarker.css": 1,
-  "components/deck/BinderRanking.css": 1,
   "components/deck/BracketBreakdown.css": 6,
   "components/deck/BracketVerdictStrip.css": 1,
   "components/deck/BuildReportPanel.css": 1,

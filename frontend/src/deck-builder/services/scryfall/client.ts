@@ -272,6 +272,47 @@ export async function searchCommanders(query: string): Promise<ScryfallCard[]> {
   return getCardRepository().searchCommanders(query);
 }
 
+export interface CommanderFinderPage {
+  cards: ScryfallCard[];
+  /** Every match, not just this page: Scryfall's `total_cards`. */
+  total: number;
+}
+
+/**
+ * Can the commander finder send playstyle clauses (`o:/regex/`, `otag:`) to
+ * the card search? Not on the offline catalog, whose query engine has no
+ * regex: the finder then leaves them out and filters by playstyle itself.
+ */
+export function commanderFinderSupportsRegex(): boolean {
+  return !(offlineActive() && !forceLive);
+}
+
+/**
+ * The commander finder's search: `query` (built by lib/commander-finder, with
+ * no base clause) against every commander, or every uncommon creature for
+ * Pauper Commander, most-played first. One page of up to 175 with the total,
+ * so the finder can say "532 commanders" while showing the top of the list.
+ * An empty query browses the whole pool by popularity. The query goes out as
+ * built: lib/commander-finder already normalized the part the player typed.
+ */
+export async function searchCommanderFinder(
+  query: string,
+  opts: { pdh?: boolean } = {}
+): Promise<CommanderFinderPage> {
+  const base = opts.pdh ? 't:creature r:uncommon' : 'is:commander f:commander';
+  const full = `${base} ${query}`.trim();
+  if (!commanderFinderSupportsRegex()) {
+    const resp = await offlineSearchCards(full, { order: 'edhrec', skipFormatFilter: true });
+    const cards = resp.data.filter(isPlayableCard);
+    return { cards, total: cards.length };
+  }
+  const resp = await scryfallFetch<ScryfallSearchResponse>(
+    `/cards/search?q=${encodeURIComponent(full)}&order=edhrec`
+  );
+  const cards = (resp.data ?? []).filter(isPlayableCard);
+  return { cards, total: resp.total_cards ?? cards.length };
+}
+
 async function liveSearchCards(
   query: string,
   colorIdentity: string[],

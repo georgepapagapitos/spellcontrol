@@ -1,5 +1,4 @@
 import { logger } from '@/lib/logger';
-import { OWNED_POOL_THIN_RATIO } from '@/lib/commander-coverage';
 import type {
   EDHRECCard,
   EDHRECCombo,
@@ -852,6 +851,9 @@ function isOwnedOnlyBuild(state: GenerationState): boolean {
   return constrainsToCollection(state.cfg.collectionStrategy) && !!state.context.collectionNames;
 }
 
+/** Widen the owned-only pool when owned-on-page < ratio × spell slots. */
+export const OWNED_POOL_THIN_RATIO = 1.2;
+
 /**
  * E282: widen only when the collection genuinely can't fill the deck from the
  * commander's own page with margin. The live A/B showed the E228 failure mode
@@ -863,9 +865,6 @@ function isOwnedOnlyBuild(state: GenerationState): boolean {
  * Ezuri 93 are left alone — their few remaining fills are disclosed instead.
  * Returns the owned-on-page count when the pool is thin, undefined otherwise.
  */
-// E283: the ratio lives in lib/commander-coverage.ts so the commander picker
-// ranks by the exact line the generator gates on; re-exported for callers.
-export { OWNED_POOL_THIN_RATIO };
 function thinOwnedPoolCount(state: GenerationState): number | undefined {
   const { collectionNames, colorIdentity, collectionPool } = state.context;
   if (!collectionNames || !state.edhrecData) return undefined;
