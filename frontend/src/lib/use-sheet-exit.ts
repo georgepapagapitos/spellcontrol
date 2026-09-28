@@ -67,7 +67,6 @@ export function useSheetExit(
 ) {
   const [isClosing, setIsClosing] = useState(false);
   const [exitFrom, setExitFrom] = useState(0);
-  const { isTopmost } = useOverlayLayer();
   // Ref guard so a double-trigger (e.g. Escape + backdrop in the same
   // frame) can't start two exits / fire onClose twice before the state
   // re-render lands.
@@ -120,6 +119,17 @@ export function useSheetExit(
       onCloseRef.current();
     }, 600);
   }, []);
+
+  // One Back press closes this sheet through the same path Escape uses
+  // (overlay-layer.ts's shared history integration, E481) — wired here so
+  // every one of the ~40 useSheetExit consumers gets it for free, exactly
+  // like the focus trap above. A sheet has no refusal concept (unlike
+  // Modal's `dismissable`), so this always accepts.
+  const dismissViaBack = useCallback(() => {
+    beginClose();
+    return true;
+  }, [beginClose]);
+  const { isTopmost } = useOverlayLayer(true, dismissViaBack);
 
   const onAnimationEnd = useCallback((e: React.AnimationEvent) => {
     // Ignore the on-mount entry animation (and any descendant animation

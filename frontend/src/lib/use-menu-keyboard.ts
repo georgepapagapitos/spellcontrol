@@ -92,9 +92,10 @@ function getItems(panel: HTMLElement, selector: string): HTMLElement[] {
  * (ToolbarPopover has had it for a while); it lives here now so every popover
  * gets it rather than the two that happened to hand-roll it.
  *
- * Escape / Tab / back are gated on the SHARED overlay-layer stack, so a
- * SelectMenu opened inside a filter popover is the one that answers a keypress
- * and the popover underneath keeps its focus.
+ * Escape / Tab are gated on the SHARED overlay-layer stack, so a SelectMenu
+ * opened inside a filter popover is the one that answers a keypress and the
+ * popover underneath keeps its focus. (Back is deliberately NOT part of this
+ * for menus — see the `useOverlayLayer` call below.)
  *
  * Consumers should close via the returned `closeAndReturnFocus` when an item
  * is activated, so keyboard users land back on the trigger.
@@ -119,10 +120,6 @@ export function useMenuKeyboard({
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  // Registered only while open: the component owning this hook also owns the
-  // trigger, so it stays mounted with the panel closed.
-  const { isTopmost } = useOverlayLayer(open);
-
   const focusBackRef = returnFocusRef ?? triggerRef;
 
   const closeAndReturnFocus = useCallback(() => {
@@ -132,6 +129,13 @@ export function useMenuKeyboard({
     // portaled menus.
     (focusBackRef.current ?? triggerRef.current)?.focus({ preventScroll: true });
   }, [focusBackRef, triggerRef]);
+
+  // Registered only while open: the component owning this hook also owns the
+  // trigger, so it stays mounted with the panel closed. Deliberately does NOT
+  // opt into the Back-button integration (E481): popovers open constantly and
+  // their items often navigate, and a history entry per open isn't worth it —
+  // see STYLE_GUIDE § Overlays. Escape still closes it (below), same as ever.
+  const { isTopmost } = useOverlayLayer(open);
 
   useEffect(() => {
     if (!open) return;

@@ -163,6 +163,8 @@ screen.
   keys, Home/End, Escape closes and returns focus. Build it on `OverflowMenu`,
   `SelectMenu`, `ToolbarPopover` or `CtxMenuShell`, which run on
   `useMenuKeyboard`; a hand-rolled menu fails `src/test` (menu keyboard guard).
+  Back does NOT close a menu (deliberately, E481) — see § Overlays → "Back
+  closes the topmost overlay first"; Escape is still how one closes.
 - **Right-click opens the ⋮'s menu (T162, 2026-09-27).** On any item with a ⋮
   (a card, a deck, a binder, a rule), a right-click opens that same menu with
   the same items, at the pointer. It is never a second menu with its own
@@ -2482,6 +2484,71 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   `.collection-hub-tabs` that combined with the active tab's
   `margin-bottom: -1px` to leave a 1px block-axis scroll range for touch
   momentum to rubber-band against. Write `overflow-y: hidden` explicitly.
+- **Back closes the topmost overlay first (E481, 2026-09-28).** Only when
+  nothing is open does Back navigate the page — a phone's edge swipe or the
+  browser Back button must not leave an open `CardPreview`/sheet/dialog and
+  land the user several screens back. **Exactly one press closes an overlay,
+  and the very next press genuinely leaves — never a spare press that looks
+  like nothing happened either way.** Back goes through the SAME shared
+  overlay stack Escape does, never a second mechanism: `useOverlayLayer`'s
+  optional second argument (`dismiss`) opts a layer in and reports back
+  whether the close was ACCEPTED (a Modal's `dismissable={false}` refuses, so
+  it returns `false`; everything else always accepts). `lib/overlay-history.ts`
+  owns the history mechanics — one history entry, same URL, marking the
+  CURRENT entry while any opted-in layer is open (a nested open reuses the
+  same marked entry rather than pushing another). A Back press first closes
+  the topmost layer through its own `dismiss`, and only RE-marks the entry
+  if something will still be open afterward — the close was refused, or more
+  than one layer was registered (nested). If it was the sole layer and it
+  accepted, nothing is re-marked: the entry underneath is a real, unmarked
+  page, so the next Back genuinely leaves. Re-marking on refusal specifically
+  is what keeps a stuck `dismissable={false}` Modal from silently leaking one
+  real navigation step per Back press while it sits there unclosed.
+  **Consumption is deliberately lazy — closing any other way (✕, backdrop,
+  Escape, an action) never touches `window.history` at all.** An eager
+  `history.back()` there raced a same-tick or later-microtask/timeout
+  `navigate()` the same action might also trigger (a menu item, a
+  delete-then-redirect): the queued traversal could land after the new
+  `pushState` and silently undo it. So the marked entry is simply left as the
+  current one. Two situations follow, and a naive implementation of either
+  one costs an extra press that reads as "nothing happened" — both are made
+  transparent instead: (1) the user later backs INTO that entry from
+  somewhere else (having navigated away without ever pressing Back, or
+  across a full page reload) — `onPopState` recognizes the entry it just
+  LANDED on is flagged and skips it forward with one more `history.back()`;
+  (2) the user instead backs OFF that entry, landing on the very page it was
+  cloned from, which — since marking spreads react-router's own `idx` onto
+  the clone — is otherwise indistinguishable from a no-op press. A
+  remembered `staleMarkerIdx` (cleared the moment it's consumed, skipped, or
+  superseded by a fresh mark, so Forward-then-Back into an unrelated later
+  visit to that idx can never misfire) is what makes THAT press also cascade
+  one more `history.back()`. `Modal`, `useSheetExit`, `useOverlayDismiss` and
+  `CardScanner` wire it, so every Modal dialog, sheet and `CardPreview`
+  (built on `useSheetExit`) gets it for free — no per-component history code.
+  A narrow, accepted edge case: a Back press that arrives while an overlay's
+  own non-Back close is still mid-exit-animation (not yet unregistered) is
+  read as a fresh dismiss attempt on that same layer rather than "nothing
+  open" — harmless (the guard against double-firing `onClose` still holds),
+  but it can occasionally cost one avoidable extra press; fast enough
+  double-actions to trigger it are rare.
+  **Popover menus (`useMenuKeyboard` — `OverflowMenu`, `SelectMenu`,
+  `ToolbarPopover`, `CtxMenuShell`) deliberately do NOT participate.** They
+  open and close constantly and their items routinely navigate; a history
+  entry per dropdown open isn't worth it, and Escape already closes them the
+  same way it always has. Pinned by `src/lib/overlay-history.test.ts`'s
+  numbered "acceptance sequences" (the mechanics, against fake hooks,
+  counting presses through all eight of: close-then-leave, ✕-then-leave,
+  ✕-then-navigate-then-land-then-leave, two nested closing in order then
+  leaving, the non-dismissable re-arm, the close-then-navigate race in both
+  same-tick and later-microtask/timeout orderings, a marker surviving a
+  reload, and Forward/Back never re-triggering a stale one),
+  `src/lib/overlay-layer.test.tsx`'s "Back-button integration" block (the
+  real wiring, incl. nested layers, a StrictMode double-invoke, and the
+  non-dismissable case), and `src/components/CardPreview.test.tsx`'s
+  "Back-button integration" block (a real `BrowserRouter`, proving
+  react-router never sees a route change, that a context pill's
+  close-and-navigate never triggers a stray back, and the coordinator's
+  close→Back→Back and ✕→Back sequences against a real previous page).
 
 **Sweep-3 rulings.** (1) A whole-table, session-ending overlay (the win recap) renders
 screen-relative and unrotated, like the ticker's public surfaces, even though it shows

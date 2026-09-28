@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { afterEach, describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { BrowserRouter, MemoryRouter, Route, Routes } from 'react-router-dom';
+import { useState, type ReactNode } from 'react';
 import type { EnrichedCard } from '../types';
 
 // Pending for the test's lifetime — the panel falls back to its text-only set
@@ -621,5 +621,181 @@ describe('CardPreview keyword links in the rules text', () => {
       expect(screen.queryByRole('dialog', { name: 'Rules reference' })).toBeNull()
     );
     expect(closing()).toBeNull();
+  });
+});
+
+// E481/T157: "Back closes the topmost overlay first." CardPreview gets this
+// for free through `useSheetExit`'s registration with the shared overlay
+// layer (overlay-layer.ts) — nothing CardPreview-specific is wired here. This
+// exercises the REAL `window.history`/react-router integration, unlike the
+// rest of this file's `MemoryRouter` renders, which never touch
+// `window.history` at all and so can't see a stray route change.
+describe('CardPreview — Back-button integration (E481)', () => {
+  function ListPage({ onClose }: { onClose: () => void }) {
+    const [open, setOpen] = useState(true);
+    if (!open) return <div data-testid="preview-closed">closed</div>;
+    return (
+      <CardPreview
+        cards={[mk({})]}
+        index={0}
+        binderName=""
+        sectionLabels={['']}
+        pageNumbers={[0]}
+        totalPages={0}
+        onIndexChange={() => {}}
+        onClose={() => {
+          setOpen(false);
+          onClose();
+        }}
+      />
+    );
+  }
+
+  function renderOnRealHistory(onClose: () => void) {
+    window.history.replaceState(null, '', '/lists/42');
+    return render(
+      <BrowserRouter>
+        <Routes>
+          <Route path="/lists/:id" element={<ListPage onClose={onClose} />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  /** Same as `renderOnRealHistory`, but with a real, distinct page underneath
+   *  the list page — so "Back leaves" has somewhere real to leave TO. */
+  function renderWithHomeBehind(onClose: () => void) {
+    window.history.replaceState(null, '', '/');
+    window.history.pushState(null, '', '/lists/42');
+    return render(
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<div>home page</div>} />
+          <Route path="/lists/:id" element={<ListPage onClose={onClose} />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  afterEach(() => {
+    // See overlay-history.test.ts: `history.length` only ever grows, so
+    // there's nothing to shrink between tests — just park the current entry
+    // back on a clean, unflagged URL.
+    window.history.replaceState(null, '', '/clean');
+  });
+
+  it('opened from a list page: one Back press closes it and the route is unchanged', async () => {
+    const onClose = vi.fn();
+    renderOnRealHistory(onClose);
+    await screen.findByRole('dialog');
+    const hrefBeforeBack = window.location.href;
+
+    act(() => {
+      window.history.back();
+    });
+
+    // The same close path Escape uses — `beginClose` — fired.
+    expect(document.querySelector('.card-preview-backdrop.is-closing')).not.toBeNull();
+    // React Router never re-rendered a different route: the URL is exactly
+    // what it was (the marker entry shares the same href), and the page
+    // component is still mounted (not replaced by a 404/route swap).
+    expect(window.location.href).toBe(hrefBeforeBack);
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+  });
+
+  it('coordinator sequence 1: Back closes, a second Back genuinely leaves to the real previous page — one press each, no extra one', async () => {
+    const onClose = vi.fn();
+    renderWithHomeBehind(onClose);
+    await screen.findByRole('dialog');
+
+    act(() => {
+      window.history.back(); // closes
+    });
+    expect(document.querySelector('.card-preview-backdrop.is-closing')).not.toBeNull();
+    expect(window.location.pathname).toBe('/lists/42'); // still here, not left
+
+    act(() => {
+      window.history.back(); // leaves — must reach home in this ONE press
+    });
+    await screen.findByText('home page');
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('coordinator sequence 2: closing via ✕ then one Back press leaves to the real previous page', async () => {
+    const onClose = vi.fn();
+    renderWithHomeBehind(onClose);
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close preview' }));
+    expect(document.querySelector('.card-preview-backdrop.is-closing')).not.toBeNull();
+    expect(window.location.pathname).toBe('/lists/42'); // lazy — nothing moved
+    // Let the close actually finish (the exit animation ending, same as a
+    // real browser) before Back is pressed — the layer must have genuinely
+    // unregistered, or the press below is ambiguous by construction (a Back
+    // arriving mid-close-animation is a known, separate edge case, not what
+    // this sequence is about).
+    fireEvent.animationEnd(dialog, { animationName: 'sheet-fall' });
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      window.history.back(); // must leave to home in ONE press, not two
+    });
+    await screen.findByText('home page');
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('closing via the ✕ does not navigate — consumption is lazy, so nothing touches history at all', async () => {
+    const onClose = vi.fn();
+    renderOnRealHistory(onClose);
+    await screen.findByRole('dialog');
+    const hrefBeforeClose = window.location.href;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close preview' }));
+    expect(document.querySelector('.card-preview-backdrop.is-closing')).not.toBeNull();
+
+    // Nothing was scheduled — the marked entry (if the close happens before
+    // any navigation) is simply left in place; this is what avoids the race
+    // where an eager `history.back()` could land after a same-tick or
+    // later-microtask `navigate()` and undo it (see overlay-history.test.ts).
+    expect(window.location.href).toBe(hrefBeforeClose);
+  });
+
+  it('closing via a context pill that also navigates (close + Link, same click) never triggers a stray back', async () => {
+    const onClose = vi.fn();
+    const backSpy = vi.spyOn(window.history, 'back');
+    window.history.replaceState(null, '', '/lists/42');
+    render(
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/lists/:id"
+            element={
+              <CardPreview
+                cards={[mk({})]}
+                index={0}
+                binderName=""
+                sectionLabels={['']}
+                pageNumbers={[0]}
+                totalPages={0}
+                onIndexChange={() => {}}
+                onClose={onClose}
+                getStackBinders={() => [{ id: 'b1', name: 'Rares', color: '#fff' }]}
+              />
+            }
+          />
+          <Route path="/collection/binders/:id" element={<div>binder page</div>} />
+        </Routes>
+      </BrowserRouter>
+    );
+    await screen.findByRole('dialog');
+
+    // The pill's onClick calls the raw `onClose` prop directly (no exit
+    // animation) in the same synchronous handler as the <Link>'s navigation.
+    fireEvent.click(screen.getByRole('link', { name: 'Rares' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(backSpy).not.toHaveBeenCalled();
+    await screen.findByText('binder page');
+    backSpy.mockRestore();
   });
 });
