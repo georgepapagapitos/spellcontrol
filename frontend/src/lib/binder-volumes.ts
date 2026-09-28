@@ -16,6 +16,9 @@ import {
 import type { MaterializedBinder, Volume } from '../types';
 
 export type { Volume };
+// `smallestFittingCapacity` takes a PAGE count, not a card count — see its
+// own doc in @spellcontrol/binder-routing for why a card-count comparison
+// silently lies once a binder's sections start fresh pages.
 export { smallestFittingCapacity, standardBinderSizes };
 
 /**

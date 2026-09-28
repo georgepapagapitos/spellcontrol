@@ -137,38 +137,60 @@ export function planVolumes(
 }
 
 /**
- * Page-count tiers the three standard capacity chips (Pages editor: "No
- * limit / 360 / 480 / 640 / Other…") represent. Chosen so that at 9 pockets —
- * the app's default pocket size and the one nearly every card binder on the
- * market uses — they reproduce those exact chips: 40 pages → 360 cards, 53
- * pages → 477 (~480), 71 pages → 639 (~640). Scaled to other pocket sizes so
- * "a binder that fits" always means the same physical page depth, not an
- * arbitrary card count that happens to divide evenly.
+ * Marketed binder sizes (raw card counts), per pocket size, for "Use a
+ * binder that fits". These are NOT derived from a formula — capacity chips
+ * are a real-world SKU number, and a formula that happens to look clean
+ * (e.g. an exact multiple of the pocket count) is not necessarily what a
+ * store sells.
+ *
+ * - **9 pockets**: 360 / 480 / 640 are the sizes already established
+ *   elsewhere in this app for the common 9-pocket zip/pro binder (the Pages
+ *   editor's own capacity chips) — the standard trading-card album size
+ *   tier, e.g. a 360-card binder as 20 double-sided sheets.
+ * - **4 and 12 pockets**: no equally-standard, citable marketed-capacity
+ *   list exists for toploader (4-pocket) or zip (12-pocket) pages the way it
+ *   does for 9-pocket albums. These are a reasoned scaling of the 9-pocket
+ *   sizes by pocket-count ratio, rounded to a clean number — a defensible
+ *   estimate, not a sourced figure. Revisit if real SKU data turns up.
  */
-const STANDARD_PAGE_TIERS = [40, 53, 71] as const;
+const STANDARD_SIZES: Record<PocketSize, readonly number[]> = {
+  4: [160, 240, 320],
+  9: [360, 480, 640],
+  12: [480, 720, 960],
+};
 
 /** The standard capacity chips (raw card counts) for a given pocket size. */
-export function standardBinderSizes(pocketSize: PocketSize): number[] {
-  return STANDARD_PAGE_TIERS.map((pages) => pages * pocketSize);
+export function standardBinderSizes(pocketSize: PocketSize): readonly number[] {
+  return STANDARD_SIZES[pocketSize];
 }
 
 /**
- * The smallest standard binder size that holds `cardCount` cards at
- * `pocketSize`, for "Use a binder that fits" — or `null` when even the
- * largest standard size isn't enough, meaning a split into volumes (or a
+ * The smallest standard binder size that holds a binder of `totalPages`
+ * pages at `pocketSize`, for "Use a binder that fits" — or `null` when even
+ * the largest standard size isn't enough, meaning a split into volumes (or a
  * custom "Other…" capacity) is the only option.
+ *
+ * **Page-based, not card-based.** A size "fits" iff
+ * `Math.floor(size / pocketSize) >= totalPages` — comparing against a raw
+ * card count instead would silently under-count whenever sections start
+ * fresh pages: 350 cards spread one-per-color-section-per-page over 9
+ * pockets can span 45 pages (405 pockets), which a nominally-"360-card"
+ * binder (40 pages, 360 pockets) does NOT physically hold, even though
+ * 350 < 360. Pass `totalPages` from the same unfiltered materialize pass
+ * `planVolumes` itself requires.
  *
  * `sizes` defaults to {@link standardBinderSizes}; a caller with its own
  * catalogue (e.g. a store's actual SKU list) can pass its own.
  */
 export function smallestFittingCapacity(
-  cardCount: number,
+  totalPages: number,
   pocketSize: PocketSize,
   sizes: readonly number[] = standardBinderSizes(pocketSize)
 ): number | null {
   let best: number | null = null;
   for (const size of sizes) {
-    if (size >= cardCount && (best === null || size < best)) best = size;
+    const pages = Math.floor(size / pocketSize);
+    if (pages >= totalPages && (best === null || size < best)) best = size;
   }
   return best;
 }

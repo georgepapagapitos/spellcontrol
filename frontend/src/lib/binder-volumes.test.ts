@@ -96,7 +96,7 @@ describe('pageVolume', () => {
 });
 
 describe('smallestFittingCapacity re-export', () => {
-  it('is reachable from the frontend shim', () => {
-    expect(smallestFittingCapacity(300, 9)).toBe(360);
+  it('is reachable from the frontend shim (page-based: 30 pages fits the 40-page/360-card tier)', () => {
+    expect(smallestFittingCapacity(30, 9)).toBe(360);
   });
 });

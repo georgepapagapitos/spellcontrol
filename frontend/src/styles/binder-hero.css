@@ -206,11 +206,6 @@
   }
 }
 
-.binder-summary-overcap {
-  color: var(--warn-text);
-  font-weight: 600;
-}
-
 /* Collapse, layout, key and View options cluster at the row's end; the sort
    chip before them is the one control that shrinks (it ellipsizes). */
 .binder-summary-end {

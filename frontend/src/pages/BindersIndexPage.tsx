@@ -522,8 +522,7 @@ export function BindersIndexPage() {
                           {hasMultipleVolumes(volumes) && (
                             <Chip
                               className="binders-index-card-tag"
-                              tone="warn"
-                              aria-label={`This binder is over capacity and fills ${volumes.length} physical binders`}
+                              aria-label={`Fills ${volumes.length} physical binders`}
                             >
                               {volumes.length} volumes
                             </Chip>

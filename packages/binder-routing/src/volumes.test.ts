@@ -281,31 +281,41 @@ describe('planVolumes — invariants over materializeBinders', () => {
 // ---------------------------------------------------------------------------
 
 describe('standardBinderSizes / smallestFittingCapacity', () => {
-  it('reproduces the app’s 360/480/640 chips at 9 pockets (rounded to whole pages)', () => {
-    expect(standardBinderSizes(9)).toEqual([360, 477, 639]);
+  it('gives the marketed 360/480/640 sizes at 9 pockets', () => {
+    expect(standardBinderSizes(9)).toEqual([360, 480, 640]);
   });
 
-  it('scales the same page tiers to other pocket sizes', () => {
-    expect(standardBinderSizes(4)).toEqual([160, 212, 284]);
-    expect(standardBinderSizes(12)).toEqual([480, 636, 852]);
+  it('has a reasoned (not formula-derived) catalogue for 4 and 12 pockets too', () => {
+    expect(standardBinderSizes(4)).toEqual([160, 240, 320]);
+    expect(standardBinderSizes(12)).toEqual([480, 720, 960]);
   });
 
-  it('picks the smallest standard size that holds the collection', () => {
-    expect(smallestFittingCapacity(300, 9)).toBe(360);
-    expect(smallestFittingCapacity(360, 9)).toBe(360); // inclusive
-    expect(smallestFittingCapacity(500, 9)).toBe(639);
+  it('fits by PAGES, not raw card count', () => {
+    // 9 pockets: 360 -> 40 pages, 480 -> 53 pages, 640 -> 71 pages.
+    expect(smallestFittingCapacity(40, 9)).toBe(360); // exact fit
+    expect(smallestFittingCapacity(41, 9)).toBe(480); // one page over -> next tier
+    expect(smallestFittingCapacity(71, 9)).toBe(640);
+  });
+
+  it('a card count under a size can still fail to fit once pages are counted', () => {
+    // A binder that starts a fresh page per section can need far more pages
+    // than its card count alone would suggest: 45 pages needs 45*9 = 405
+    // pockets, more than a 360 (40-page) binder holds even though a naive
+    // "350 cards < 360" comparison would have said yes.
+    expect(smallestFittingCapacity(45, 9)).not.toBe(360);
+    expect(smallestFittingCapacity(45, 9)).toBe(480);
   });
 
   it('returns null when nothing in the catalogue fits', () => {
-    expect(smallestFittingCapacity(700, 9)).toBeNull();
+    expect(smallestFittingCapacity(72, 9)).toBeNull();
   });
 
   it('accepts a custom size catalogue', () => {
-    expect(smallestFittingCapacity(50, 9, [100, 200])).toBe(100);
-    expect(smallestFittingCapacity(150, 9, [100, 200])).toBe(200);
+    expect(smallestFittingCapacity(15, 4, [40, 80])).toBe(80);
+    expect(smallestFittingCapacity(10, 4, [40, 80])).toBe(40);
   });
 
   it('is order-independent over the size list', () => {
-    expect(smallestFittingCapacity(50, 9, [200, 100, 300])).toBe(100);
+    expect(smallestFittingCapacity(10, 4, [80, 40, 120])).toBe(40);
   });
 });

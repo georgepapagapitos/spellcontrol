@@ -23,7 +23,7 @@ import { BinderTabs } from '../components/BinderTabs';
 import { BinderDriftBanner } from '../components/BinderDriftBanner';
 import { BinderView } from '../components/BinderView';
 import { BinderListView } from '../components/BinderListView';
-import { BinderVolumesBar } from '../components/BinderVolumesBar';
+import { BinderVolumesSheet } from '../components/BinderVolumesSheet';
 import { volumesFor, hasMultipleVolumes } from '../lib/binder-volumes';
 import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
@@ -70,6 +70,7 @@ export function BinderPage() {
   const setSearch = useCollectionStore((s) => s.setSearch);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
+  const updateBinder = useCollectionStore((s) => s.updateBinder);
 
   // Sync the URL param into the existing activeTab store field so child
   // components (BinderTabs, BinderView, BinderListView) keep working
@@ -81,6 +82,7 @@ export function BinderPage() {
   const [cardEditorOpen, setCardEditorOpen] = useState(false);
   const [addCardSheetOpen, setAddCardSheetOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [volumesSheetOpen, setVolumesSheetOpen] = useState(false);
   const { actionsFor } = useBinderActions();
   const [view, setView] = useStoredView<BinderViewMode>(
     'mtg-binder-view-mode',
@@ -263,6 +265,20 @@ export function BinderPage() {
       onAction: () => setBinderMode(def.id, 'manual'),
     });
   };
+  // "Use a <size>-card binder" in the volumes sheet: a normal capacity edit
+  // through the store's own update path, exactly what saving the editor
+  // would do — never a hand-rolled sync write. Same undo-toast shape as
+  // resumeRules above.
+  const applyFitCapacity = (def: BinderDef, size: number) => {
+    const previous = def.fixedCapacity;
+    updateBinder(def.id, { fixedCapacity: size });
+    toast.show({
+      message: `${def.name} now holds ${size.toLocaleString()} cards`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => updateBinder(def.id, { fixedCapacity: previous }),
+    });
+  };
 
   // `hydrating` covers reading the local cache; `awaitingFirstPull` covers the
   // window after that where a signed-in device's rows are still on their way.
@@ -355,13 +371,16 @@ export function BinderPage() {
                 {Math.ceil(active.def.fixedCapacity / active.effectivePocketSize).toLocaleString()}{' '}
                 pages
                 {hasMultipleVolumes(activeVolumes) && (
-                  <span
-                    className="binder-summary-overcap"
-                    title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards. See Volumes below.`}
-                  >
-                    {' '}
-                    ⚠ fills {activeVolumes.length} binders
-                  </span>
+                  <>
+                    {' · '}
+                    <Button
+                      variant="link"
+                      title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards`}
+                      onClick={() => setVolumesSheetOpen(true)}
+                    >
+                      {activeVolumes.length} volumes
+                    </Button>
+                  </>
                 )}
               </>
             ) : (
@@ -373,15 +392,27 @@ export function BinderPage() {
           }
         />
       )}
-      {active && active.def.fixedCapacity != null && hasMultipleVolumes(activeVolumes) && (
-        <BinderVolumesBar
-          volumes={activeVolumes}
-          fixedCapacity={active.def.fixedCapacity}
-          pocketSize={active.effectivePocketSize}
-          totalCards={active.totalCards}
-          onOpenRules={() => setEditingBinder(active.def.id)}
-        />
-      )}
+      {volumesSheetOpen &&
+        active &&
+        active.def.fixedCapacity != null &&
+        hasMultipleVolumes(activeVolumes) && (
+          <BinderVolumesSheet
+            binderName={active.def.name}
+            volumes={activeVolumes}
+            fixedCapacity={active.def.fixedCapacity}
+            pocketSize={active.effectivePocketSize}
+            totalPages={activeUnfiltered?.totalPages ?? active.totalPages}
+            onApplyFit={(size) => {
+              applyFitCapacity(active.def, size);
+              setVolumesSheetOpen(false);
+            }}
+            onOpenRules={() => {
+              setVolumesSheetOpen(false);
+              setEditingBinder(active.def.id);
+            }}
+            onClose={() => setVolumesSheetOpen(false)}
+          />
+        )}
       {shareOpen && activeId && active && (
         <ShareDialog
           kind="binder"
