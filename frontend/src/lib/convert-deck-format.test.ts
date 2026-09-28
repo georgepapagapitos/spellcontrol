@@ -288,6 +288,28 @@ describe('describeFormatSwitch', () => {
     expect(describeFormatSwitch(d, 'pioneer')).toEqual(['Nothing else changes.']);
   });
 
+  // E468: the 15-card cap is enforced, so the sheet says so when the switch
+  // starts flagging the sideboard, and only then.
+  it('names a sideboard over 15 when switching into a 60-card format', () => {
+    const side = Array.from({ length: 22 }, (_, i) => slot(card(`Side ${i}`), 100 + i));
+    expect(describeFormatSwitch(deck({ sideboard: side }), 'modern')).toContain(
+      'The sideboard has 22 cards and Modern allows 15, so it gets flagged until you trim it.'
+    );
+    const fifteen = side.slice(0, 15);
+    expect(describeFormatSwitch(deck({ sideboard: fifteen }), 'modern')).not.toContainEqual(
+      expect.stringContaining('allows 15')
+    );
+    // Modern to Pioneer keeps the same cap: already flagged, nothing new.
+    const modern = deck({ format: 'modern', commander: null, sideboard: side });
+    expect(describeFormatSwitch(modern, 'pioneer')).not.toContainEqual(
+      expect.stringContaining('allows 15')
+    );
+    // Into Commander the sideboard is an uncapped holding pile.
+    expect(describeFormatSwitch(modern, 'commander')).not.toContainEqual(
+      expect.stringContaining('allows')
+    );
+  });
+
   it('is empty for the current format', () => {
     expect(describeFormatSwitch(deck(), 'commander')).toEqual([]);
   });

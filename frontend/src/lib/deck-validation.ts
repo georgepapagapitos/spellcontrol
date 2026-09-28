@@ -138,6 +138,32 @@ export function sideboardCountsForLegality(config: DeckFormatConfig): boolean {
 }
 
 /**
+ * The sideboard cap the format enforces, or null when it enforces none. A
+ * 60-card format registers up to 15 sideboard cards; a commander format's
+ * sideboard is a holding pile with no cap (its config says Infinity), and the
+ * generation-only configs' 0 means "no sideboard", not "flag every card".
+ * Considering is never a sideboard, so nothing here reads it.
+ */
+export function sideboardLimit(config: DeckFormatConfig): number | null {
+  if (!sideboardCountsForLegality(config) || !Number.isFinite(config.sideboardSize)) return null;
+  return config.sideboardSize;
+}
+
+/**
+ * The sideboard counterpart to validateDeckSize: a warning when the sideboard
+ * holds more cards than the format registers (E468), null otherwise.
+ */
+export function validateSideboardSize(
+  sideboardCount: number,
+  config: DeckFormatConfig
+): string | null {
+  const limit = sideboardLimit(config);
+  if (limit === null || sideboardCount <= limit) return null;
+  const over = sideboardCount - limit;
+  return `${over} card${over === 1 ? '' : 's'} over the ${config.label} sideboard limit (${limit})`;
+}
+
+/**
  * The deck's legality issues, split by what they judge. `deck` is what the
  * deck's own verdicts read (the checks, the flagged count, the bracket note,
  * the complete seal); `sideboardOnly` flags sideboard rows the deck doesn't

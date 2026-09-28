@@ -5,7 +5,7 @@ import {
   commanderEligibleFor,
 } from '../components/deck/import-deck-shared';
 import { isPdhCommanderEligible } from './commanders';
-import { validateDeckZones, type LegalityIssue } from './deck-validation';
+import { sideboardLimit, validateDeckZones, type LegalityIssue } from './deck-validation';
 import { genId } from './id';
 import type { Deck, DeckCard } from '../store/decks';
 
@@ -202,6 +202,17 @@ export function describeFormatSwitch(deck: Deck, to: DeckFormat): string[] {
       target.hasCommander
         ? "The sideboard becomes a holding pile that doesn't count."
         : 'The sideboard counts toward legality.'
+    );
+  }
+
+  // The 60-card formats register 15 sideboard cards (E468). Said only when
+  // the switch starts flagging it: Modern to Pioneer keeps the same cap.
+  const cap = sideboardLimit(target);
+  const fromCap = sideboardLimit(from);
+  const side = next.sideboard.length;
+  if (cap !== null && side > cap && (fromCap === null || side <= fromCap)) {
+    lines.push(
+      `The sideboard has ${side} cards and ${target.label} allows ${cap}, so it gets flagged until you trim it.`
     );
   }
 

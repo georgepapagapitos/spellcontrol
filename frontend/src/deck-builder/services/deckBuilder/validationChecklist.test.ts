@@ -56,6 +56,34 @@ describe('buildValidationChecklist', () => {
     expect(skipped.checks.some((c) => c.id === 'legal')).toBe(false);
   });
 
+  // E468: the deck checks carry the 60-card formats' sideboard cap as a hard
+  // rule, so a 16-card sideboard counts toward "N to fix".
+  it('fails the sideboard size over the cap and passes it at the cap', () => {
+    const over = buildValidationChecklist({
+      cards: sixtyCardFourOfDeck(),
+      format: PAUPER,
+      sideboard: { count: 16, limit: 15 },
+    });
+    expect(over.checks.find((c) => c.id === 'sideboard-size')).toMatchObject({
+      label: 'Sideboard size',
+      status: 'fail',
+      detail: '16 / 15 cards',
+    });
+    expect(over.hardFails).toBe(1);
+    const at = buildValidationChecklist({
+      cards: sixtyCardFourOfDeck(),
+      format: PAUPER,
+      sideboard: { count: 15, limit: 15 },
+    });
+    expect(at.checks.find((c) => c.id === 'sideboard-size')?.status).toBe('pass');
+    expect(at.hardFails).toBe(0);
+  });
+
+  it('has no sideboard row when the format has no cap', () => {
+    const r = buildValidationChecklist({ cards: legalDeck() });
+    expect(r.checks.some((c) => c.id === 'sideboard-size')).toBe(false);
+  });
+
   it('fails deck size when not 100 cards', () => {
     const r = buildValidationChecklist({ cards: legalDeck().slice(0, 98) });
     expect(r.checks.find((c) => c.id === 'size')?.status).toBe('fail');

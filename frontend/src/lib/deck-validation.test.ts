@@ -8,6 +8,8 @@ import {
   validateDeckZones,
   sideboardCountsForLegality,
   validateDeckSize,
+  validateSideboardSize,
+  sideboardLimit,
   validateGeneratedDeckUnderSize,
   validateGeneratedLandFloor,
   validateGeneratedDeck,
@@ -15,7 +17,7 @@ import {
   deckColorFrequency,
   countFlaggedCards,
 } from './deck-validation';
-import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
+import { DECK_FORMAT_CONFIGS, getDeckFormatConfig } from '../deck-builder/lib/constants/archetypes';
 import type { ScryfallCard } from '../deck-builder/types';
 import type { DeckCard } from '../store/decks';
 
@@ -418,6 +420,39 @@ describe('validateDeckSize', () => {
 
   it('returns plural message when multiple cards over', () => {
     expect(validateDeckSize(102, commander)).toBe('3 cards over the Commander limit (99)');
+  });
+});
+
+// E468: a 60-card format registers 15 sideboard cards. The cap used to be
+// enforced nowhere, so a 30-card Modern sideboard read legal.
+describe('validateSideboardSize', () => {
+  it('flags a 16-card Modern sideboard and names the cap', () => {
+    expect(validateSideboardSize(16, DECK_FORMAT_CONFIGS.modern)).toBe(
+      '1 card over the Modern sideboard limit (15)'
+    );
+    expect(validateSideboardSize(22, DECK_FORMAT_CONFIGS.standard)).toBe(
+      '7 cards over the Standard sideboard limit (15)'
+    );
+  });
+
+  it('passes a sideboard at or under 15', () => {
+    expect(validateSideboardSize(15, DECK_FORMAT_CONFIGS.modern)).toBeNull();
+    expect(validateSideboardSize(0, DECK_FORMAT_CONFIGS.modern)).toBeNull();
+  });
+
+  it('caps every 60-card format at 15', () => {
+    for (const f of ['standard', 'pauper', 'modern', 'pioneer', 'legacy', 'vintage'] as const) {
+      expect(sideboardLimit(DECK_FORMAT_CONFIGS[f])).toBe(15);
+    }
+  });
+
+  it("never flags a commander format's holding pile", () => {
+    for (const f of ['commander', 'brawl', 'paupercommander'] as const) {
+      expect(sideboardLimit(DECK_FORMAT_CONFIGS[f])).toBeNull();
+      expect(validateSideboardSize(40, DECK_FORMAT_CONFIGS[f])).toBeNull();
+    }
+    // The generation-only configs say 0 for "no sideboard", not "cap of 0".
+    expect(validateSideboardSize(3, getDeckFormatConfig(40))).toBeNull();
   });
 });
 
