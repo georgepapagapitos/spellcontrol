@@ -235,7 +235,7 @@
 .stats-drawer-body {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 0.85rem var(--space-4) calc(var(--space-4) + var(--safe-bottom));
+  padding: var(--space-3) var(--space-4) calc(var(--space-4) + var(--safe-bottom));
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -246,7 +246,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.25rem var(--space-5);
+  padding: var(--space-5);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -513,7 +513,7 @@
   font-size: var(--text-lg);
   font-weight: 600;
   color: var(--accent);
-  padding: var(--space-3) 1.25rem;
+  padding: var(--space-3) var(--space-5);
   background: var(--surface-raised);
   border: 2px dashed var(--accent);
   border-radius: var(--radius);
@@ -723,72 +723,6 @@
   }
 }
 
-.upload-card {
-  border: 1.5px dashed var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5) 1.25rem;
-  text-align: center;
-  cursor: pointer;
-  background: var(--surface);
-  transition:
-    border-color var(--motion-fast),
-    background var(--motion-fast);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1-5);
-  min-height: 200px;
-  justify-content: center;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .upload-card:hover {
-    border-color: var(--accent);
-    background: var(--accent-light);
-  }
-}
-
-.upload-card.loading {
-  border-color: var(--accent);
-  background: var(--accent-light);
-}
-
-.upload-card-paste {
-  cursor: default;
-  align-items: stretch;
-  text-align: left;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .upload-card-paste:hover {
-    border-color: var(--border-strong);
-    background: var(--surface);
-  }
-}
-
-.upload-card-paste .upload-icon,
-.upload-card-paste .upload-text {
-  text-align: center;
-}
-
-.upload-icon {
-  font-size: var(--text-2xl);
-  margin-bottom: var(--space-1);
-}
-
-.upload-text {
-  font-size: var(--text-base);
-  color: var(--text-secondary);
-}
-
-.upload-sub {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-top: var(--space-1);
-  font-family: var(--font-mono);
-  text-align: center;
-}
-
 .paste-textarea {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -821,11 +755,6 @@
   opacity: 0.7;
 }
 
-.upload-card-paste .btn {
-  margin-top: var(--space-2);
-  align-self: center;
-}
-
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
 .link-warn:focus-visible {
   outline: 2px solid var(--accent);
@@ -838,8 +767,6 @@
 
 /* a11y (sweep 3): ring parity for :hover selectors surfaced when the
    focus-visible guard's keyword list gained `card`. */
-.upload-card:focus-visible,
-.upload-card-paste:focus-visible,
 .import-card-hint a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

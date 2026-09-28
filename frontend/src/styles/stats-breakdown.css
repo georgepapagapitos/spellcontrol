@@ -1,34 +1,5 @@
 /* stats-breakdown.css — split from global.css (#refactor).
-   Shared stats UI: stat grid, color-identity mana pip, breakdown bars (MeterBar), warnings. */
-
-/* Stats */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--space-2-5);
-  margin-bottom: var(--space-5);
-}
-
-.stat {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-4) 1.2rem;
-}
-
-.stat-label {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: var(--space-1-5);
-}
-
-.stat-value {
-  font-size: var(--text-2xl);
-  color: var(--text-primary);
-}
+   Shared stats UI: color-identity mana pip, breakdown bars (MeterBar), warnings. */
 
 .breakdown-card {
   background: var(--surface);

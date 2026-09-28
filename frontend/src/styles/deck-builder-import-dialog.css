@@ -34,7 +34,7 @@
   font-size: var(--text-lg);
   font-weight: 600;
   color: var(--accent);
-  padding: var(--space-3) 1.25rem;
+  padding: var(--space-3) var(--space-5);
   background: var(--surface-raised);
   border: 2px dashed var(--accent);
   border-radius: var(--radius);
@@ -107,7 +107,7 @@
 .import-deck-unresolved-list {
   list-style: disc;
   margin: 0;
-  padding-left: 1.25rem;
+  padding-left: var(--space-5);
   font-size: var(--text-xs);
 }
 

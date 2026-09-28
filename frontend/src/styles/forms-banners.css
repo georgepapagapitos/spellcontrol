@@ -81,19 +81,6 @@
   }
 }
 
-/* Config / sort panel */
-.panel {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem var(--space-5);
-  margin-bottom: var(--space-5);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-5);
-  align-items: flex-end;
-}
-
 .field {
   display: flex;
   flex-direction: column;

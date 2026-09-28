@@ -146,7 +146,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem var(--space-5);
+  padding: var(--space-5);
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -161,7 +161,7 @@
    variant="quiet" now (the shared .icon-btn look, T152 W8m). */
 
 .modal-body {
-  padding: 1.25rem var(--space-5);
+  padding: var(--space-5);
   overflow-y: auto;
   overflow-x: hidden;
   /* Stop scroll chaining: `body` is permanently `overflow: hidden`
@@ -301,7 +301,7 @@
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal);
-  padding: 1.25rem var(--space-5) var(--space-5);
+  padding: var(--space-5);
   max-width: 520px;
   width: 100%;
   display: flex;
@@ -350,7 +350,7 @@
 .shortcuts-overlay-body {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--space-5);
 }
 
 .shortcuts-overlay-section-title {

@@ -13,7 +13,7 @@
 
 .engine-empty {
   margin: 0;
-  padding: 1.25rem var(--space-4);
+  padding: var(--space-5) var(--space-4);
   text-align: center;
   font-size: var(--text-sm);
   color: var(--text-muted);

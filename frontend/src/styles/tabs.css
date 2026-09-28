@@ -5,7 +5,7 @@
 .tab-row {
   display: flex;
   gap: var(--space-1-5);
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--space-5);
   flex-wrap: wrap;
 }
 

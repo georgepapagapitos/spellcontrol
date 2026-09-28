@@ -9,7 +9,7 @@
   max-height: calc(var(--vh-safe) - 6rem);
   display: flex;
   flex-direction: column;
-  padding: 1.25rem var(--space-5);
+  padding: var(--space-5);
   gap: var(--space-3);
 }
 

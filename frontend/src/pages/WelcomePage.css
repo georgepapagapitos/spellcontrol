@@ -148,7 +148,7 @@
   border-top: 1px solid var(--border);
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-5) 28px;
+  gap: var(--space-5);
 }
 
 @media (min-width: 480px) {
@@ -196,7 +196,7 @@
 /* Legal footer */
 
 .welcome-footer {
-  padding-top: 20px;
+  padding-top: var(--space-5);
   border-top: 1px solid var(--border);
   text-align: center;
 }

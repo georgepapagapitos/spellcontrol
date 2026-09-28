@@ -86,7 +86,7 @@
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  padding: 1.25rem var(--space-2) var(--space-1);
+  padding: var(--space-5) var(--space-2) var(--space-1);
   background: linear-gradient(to top, var(--art-scrim), transparent);
   color: var(--art-scrim-text);
   font-size: var(--text-xs);

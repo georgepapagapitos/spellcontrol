@@ -163,13 +163,23 @@
   }
 }
 
+/* The field reserves room for the reveal toggle from the toggle's own size,
+   so the reservation grows with it. A flat 40px fitted the 32px toggle but not
+   the 44px coarse-pointer one, and typed text ran under the eye on phones. */
 .auth-input-wrap {
+  --reveal-size: 32px;
   position: relative;
   width: 100%;
 }
 
 .auth-input-wrap input {
-  padding-right: 40px;
+  padding-right: calc(var(--reveal-size) + 2 * var(--space-1));
+}
+
+/* Edge draws its own reveal button inside a password input; this field has
+   one already, and two eyes read as two different things. */
+.auth-input-wrap input::-ms-reveal {
+  display: none;
 }
 
 .auth-reveal {
@@ -180,8 +190,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: var(--reveal-size);
+  height: var(--reveal-size);
   background: transparent;
   border: 0;
   border-radius: var(--radius);
@@ -193,9 +203,13 @@
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the show/hide-password
    toggle is 32px, and it sits inside the field so a miss types into it. */
 @media (pointer: coarse) {
+  .auth-input-wrap {
+    --reveal-size: var(--touch-target);
+  }
+
   .auth-reveal {
-    width: 44px;
-    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 

@@ -9,7 +9,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: clamp(0.85rem, 2cqi, 1.25rem);
+  padding: clamp(var(--space-3), 2cqi, var(--space-5));
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
@@ -26,7 +26,7 @@
 @container bento (min-width: 640px) {
   .power-hero-pillars {
     grid-template-columns: 1fr 1fr;
-    gap: clamp(var(--space-4), 2.5cqi, 1.75rem);
+    gap: clamp(var(--space-4), 2.5cqi, var(--space-5));
   }
 }
 

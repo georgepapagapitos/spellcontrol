@@ -51,6 +51,8 @@ body {
      position:absolute against this stable 100dvh box rather than
      position:fixed, so the URL-bar shift this layout dodges can't reach it. */
   position: relative;
+  /* The FAB's size, read by its clearance below and by the button itself. */
+  --scan-fab-size: 3.5rem;
   /* Reserve the device's top safe-area strip (status bar / notch). Zero on
      desktop and most mobile browsers; non-zero on
      on iOS Safari with notched devices. */
@@ -134,7 +136,8 @@ body {
    last row sat under the button on every page (guard:
    styles/scan-fab-clearance.test.ts). */
 .app-shell:has(.scan-fab-btn) .app-main {
-  padding-bottom: 5rem;
+  /* The button, its offset above the tab bar (responsive-nav.css), a gap. */
+  padding-bottom: calc(var(--scan-fab-size) + var(--space-4) + var(--space-2));
 }
 
 button {

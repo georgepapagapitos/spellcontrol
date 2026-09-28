@@ -72,8 +72,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: clamp(0.85rem, 3vw, 1.15rem);
-  padding-top: max(1.1rem, var(--safe-top));
+  padding: clamp(var(--space-3), 3vw, var(--space-4));
+  padding-top: max(var(--space-4), var(--safe-top));
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -93,7 +93,7 @@
 
 @media (min-width: 600px) {
   .card-group-head {
-    padding-top: clamp(0.85rem, 3vw, 1.15rem);
+    padding-top: clamp(var(--space-3), 3vw, var(--space-4));
   }
 
   .card-group-handle {
@@ -157,10 +157,10 @@
 .card-group-grid {
   list-style: none;
   margin: 0;
-  padding: clamp(var(--space-3), 3vw, 1.1rem);
+  padding: clamp(var(--space-3), 3vw, var(--space-4));
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
-  gap: clamp(var(--space-2), 2vw, 0.85rem);
+  gap: clamp(var(--space-2), 2vw, var(--space-3));
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -294,7 +294,7 @@
 .card-group-list {
   list-style: none;
   margin: 0;
-  padding: clamp(0.4rem, 2vw, 0.6rem) clamp(var(--space-2), 3vw, 0.9rem);
+  padding: clamp(var(--space-1-5), 2vw, var(--space-2-5)) clamp(var(--space-2), 3vw, var(--space-4));
   display: flex;
   flex-direction: column;
   gap: var(--space-0-5);

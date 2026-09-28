@@ -27,8 +27,9 @@
 
 @media (min-width: 1024px) {
   .lobby-body {
+    --lobby-rail-w: 22rem;
     display: grid;
-    grid-template-columns: 22rem minmax(0, 1fr);
+    grid-template-columns: var(--lobby-rail-w) minmax(0, 1fr);
     align-items: start;
   }
 
@@ -40,7 +41,7 @@
   /* Clears the rail so the bar reads as the footer of the seats, not of the
      page. Same track width as the grid's second column. */
   .lobby-bar {
-    margin-left: calc(22rem + var(--space-4));
+    margin-left: calc(var(--lobby-rail-w) + var(--space-4));
   }
 }
 

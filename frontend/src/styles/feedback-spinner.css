@@ -84,7 +84,7 @@
 .import-routing-row--unrouted {
   align-items: flex-start;
   margin-top: var(--space-0-5);
-  padding-top: calc(6px + var(--space-1));
+  padding-top: var(--space-2-5);
   border-top: 1px solid var(--border);
   border-radius: 0 0 var(--radius) var(--radius);
 }
