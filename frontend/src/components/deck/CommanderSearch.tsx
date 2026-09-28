@@ -46,6 +46,7 @@ import { getCommanderStatsBatch, type CommanderStats } from '../../lib/aggregate
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { RulesTextParagraphs } from '@/components/RulesText';
 /**
  * Resolves the commander-picker platform-deck-count badge (social W4) for a
  * settled Top-EDHREC/Playstyle candidate list: looks up each visible
@@ -941,9 +942,7 @@ export function CommanderSearch({
           <div className="commander-pick-type">{value.type_line}</div>
           {oracleText && (
             <div className="commander-pick-oracle">
-              {oracleText.split('\n').map((line, i) => (
-                <p key={i}>{line}</p>
-              ))}
+              <RulesTextParagraphs text={oracleText} names={[value.name]} />
             </div>
           )}
           {playstyleMatches.length > 0 && (

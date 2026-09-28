@@ -114,6 +114,7 @@ jobs:
               ["public/tagger-tags.json", (d) => Object.keys(d.tags || {}).length >= 20],
               ["public/otag-index.json", (d) => Object.keys(d.tags || d.index || {}).length > 0],
               ["public/comprehensive-rules.json", (d) => !!d.meta],
+              ["public/keyword-glossary.json", (d) => (d.keywords || []).length > 200],
               ["public/sld-drops.json", (d) => !!d.generatedAt],
               ["public/cube-signal.json", (d) => Object.keys(d.cards || {}).length > 20000],
               ["public/cube-signal-pauper.json", (d) => Object.keys(d.cards || {}).length > 500],
@@ -206,6 +207,7 @@ jobs:
             frontend/public/tagger-tags.json
             frontend/public/otag-index.json
             frontend/public/comprehensive-rules.json
+            frontend/public/keyword-glossary.json
             frontend/public/sld-drops.json
             frontend/public/cube-signal.json
             frontend/public/cube-signal-pauper.json

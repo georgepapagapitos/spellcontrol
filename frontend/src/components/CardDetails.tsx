@@ -4,36 +4,21 @@ import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { cardFaces, isKeywordLine, legalityRows, type LegalityStatus } from '../lib/card-details';
 import { ManaCost } from './ManaCost';
-import { MagicText } from './deck/MagicText';
+import { useRulesText } from '../lib/keyword-glossary';
+import { RulesTextLine } from './RulesText';
 import './CardDetails.css';
 
 /* ── Card text (oracle / flavor / P-T) ─────────────────────────────────── */
 
-/** One oracle line: parenthetical reminder text → italic, the rest → symbols. */
-function OracleLine({ text }: { text: string }) {
-  const segs = text.split(/(\([^)]*\))/g).filter(Boolean);
-  return (
-    <>
-      {segs.map((s, i) =>
-        s.startsWith('(') && s.endsWith(')') ? (
-          <em key={i} className="card-text-reminder">
-            {s}
-          </em>
-        ) : (
-          <MagicText key={i} text={s} />
-        )
-      )}
-    </>
-  );
-}
-
 /** Rules text split into per-ability paragraphs; leading keyword lines emphasized. */
-function OracleText({ text }: { text: string }) {
+function OracleText({ text, names }: { text: string; names: readonly string[] }) {
+  const lines = useRulesText(text, names);
+  const raw = text.split('\n');
   return (
     <div className="card-text-oracle">
-      {text.split('\n').map((line, i) => (
-        <p key={i} className={`card-text-line${isKeywordLine(line) ? ' is-keyword' : ''}`}>
-          <OracleLine text={line} />
+      {lines.map((segments, i) => (
+        <p key={i} className={`card-text-line${isKeywordLine(raw[i]) ? ' is-keyword' : ''}`}>
+          <RulesTextLine segments={segments} />
         </p>
       ))}
     </div>
@@ -56,7 +41,7 @@ export function CardText({ card, detail }: { card: EnrichedCard; detail: Scryfal
               {f.typeLine && <span className="card-text-face-type">{f.typeLine}</span>}
             </div>
           )}
-          {f.oracleText && <OracleText text={f.oracleText} />}
+          {f.oracleText && <OracleText text={f.oracleText} names={[card.name]} />}
           {f.flavorText && <p className="card-text-flavor">{f.flavorText}</p>}
           {/* Single-face P/T is shown at the type line; only DFC per-face stats render here. */}
           {multi && (f.pt || f.loyalty) && (

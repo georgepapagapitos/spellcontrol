@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import { focusInto, restoreFocus, trapTab } from './overlay-layer';
 
 const DIALOG_SELECTOR = '[role="dialog"][aria-modal="true"]';
@@ -39,13 +39,18 @@ export function useFocusTrap(
   isTopmost: () => boolean,
   panelRef?: RefObject<HTMLElement | null>
 ): void {
+  // Whoever had focus before this dialog mounted gets it back on close.
+  // Read on the first render, not in the effect: by the time effects run,
+  // React has already committed the children, and a child with `autoFocus`
+  // (the rules sheet's search box on desktop) has taken focus — so the
+  // "opener" recorded was that input, gone by the time the sheet closed.
+  const [opener] = useState(() =>
+    typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)
+  );
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
-    // Whoever had focus before this dialog mounted gets it back on close —
-    // captured up front since by the time the cleanup runs, the panel (and
-    // usually the whole component) is gone.
-    const prevFocused = document.activeElement as HTMLElement | null;
+    const prevFocused = opener;
     const panel = resolvePanel(panelRef?.current);
     if (panel) focusInto(panel);
 
@@ -59,5 +64,5 @@ export function useFocusTrap(
       document.removeEventListener('keydown', onKeyDown);
       restoreFocus(prevFocused);
     };
-  }, [isTopmost, panelRef]);
+  }, [isTopmost, panelRef, opener]);
 }

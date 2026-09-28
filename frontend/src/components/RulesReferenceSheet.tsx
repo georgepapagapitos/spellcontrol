@@ -10,7 +10,7 @@ import {
   useRulesBundle,
   type RulesReferenceTab,
 } from './RulesReference';
-import { useRulesReferenceStore } from '../store/rules-reference';
+import { useRulesReferenceStore, type RulesReferenceTarget } from '../store/rules-reference';
 import './RulesReferenceSheet.css';
 import { IconButton } from '@/components/shared/Button';
 
@@ -22,15 +22,22 @@ import { IconButton } from '@/components/shared/Button';
  */
 export function RulesReferenceSheet() {
   const isOpen = useRulesReferenceStore((s) => s.isOpen);
+  const target = useRulesReferenceStore((s) => s.target);
   const close = useRulesReferenceStore((s) => s.close);
   if (!isOpen) return null;
-  return <RulesReferenceBody onClose={close} />;
+  return <RulesReferenceBody onClose={close} target={target} />;
 }
 
-function RulesReferenceBody({ onClose }: { onClose: () => void }) {
+function RulesReferenceBody({
+  onClose,
+  target,
+}: {
+  onClose: () => void;
+  target: RulesReferenceTarget | null;
+}) {
   const bundle = useRulesBundle();
-  const [tab, setTab] = useState<RulesReferenceTab>('keywords');
-  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<RulesReferenceTab>(target?.tab ?? 'keywords');
+  const [query, setQuery] = useState(target?.query ?? '');
   const labelId = useId();
   const navigate = useNavigate();
   // The AI door self-hides like every AI surface (null = unavailable/loading).
@@ -48,7 +55,12 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className={`modal-backdrop rules-ref-backdrop${isClosing ? ' is-closing' : ''}`}
+      // Over-sheet: the sheet opens from inside other overlays (a keyword in
+      // the card preview, the playtest table), and at the base modal layer it
+      // opened underneath them.
+      className={`modal-backdrop modal-backdrop--over-sheet rules-ref-backdrop${
+        isClosing ? ' is-closing' : ''
+      }`}
       onClick={(e) => {
         e.stopPropagation();
         if (e.target === e.currentTarget) beginClose();
@@ -79,6 +91,7 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
           onTabChange={setTab}
           onQueryChange={setQuery}
           autoFocusSearch={autoFocusSearch}
+          initialExpanded={target?.expand}
           bodyClassName="modal-body"
           onLeave={() => beginClose()}
           onAsk={

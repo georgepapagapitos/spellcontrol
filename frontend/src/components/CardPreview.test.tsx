@@ -47,9 +47,29 @@ const rulingsMock = vi.fn(async () => [
 ]);
 vi.mock('../lib/card-rulings', () => ({ fetchCardRulings: () => rulingsMock() }));
 
+// The rules sheet a keyword opens reads the rules bundle; a fixture, never the
+// generated file.
+vi.mock('../lib/comprehensive-rules', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/comprehensive-rules')>()),
+  loadRulesBundle: () =>
+    Promise.resolve({
+      meta: { effective: 'April 17, 2026', source: 'test' },
+      sections: [],
+      rules: [
+        { number: '702.9', text: 'Flying' },
+        { number: '702.9a', text: 'Flying is an evasion ability.' },
+      ],
+      glossary: [],
+      keywords: [{ name: 'Flying', rule: '702.9', kind: 'ability' }],
+    }),
+}));
+
 const fetchMock = vi.fn();
 
 import { CardPreview } from './CardPreview';
+import { RulesReferenceSheet } from './RulesReferenceSheet';
+import { useRulesReferenceStore } from '../store/rules-reference';
+import { KEYWORD_GLOSSARY_URL } from '../lib/keyword-glossary';
 
 beforeAll(() => {
   // happy-dom has no layout: stub the scroll/observe APIs the carousel uses.
@@ -491,5 +511,83 @@ describe('CardPreview actions that hand the card on', () => {
     expect(calls).toEqual(['cover']);
     fireEvent.click(screen.getByRole('button', { name: 'Move to binder' }));
     expect(calls).toEqual(['cover', 'close', 'move']);
+  });
+});
+
+describe('CardPreview keyword links in the rules text', () => {
+  // Layering: the popover and the rules sheet it opens sit above the preview
+  // on the overlay stack. Escape answers the top layer only; before this, the
+  // preview's capture-phase Escape closed the whole preview under them.
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url) === KEYWORD_GLOSSARY_URL
+          ? new Response(
+              JSON.stringify({
+                meta: { effective: 'April 17, 2026' },
+                keywords: [
+                  {
+                    name: 'Flying',
+                    rule: '702.9',
+                    kind: 'ability',
+                    text: 'A creature with flying can’t be blocked except by creatures with flying and/or reach.',
+                  },
+                ],
+              })
+            )
+          : new Response(null, { status: 404 })
+      )
+    );
+    useRulesReferenceStore.setState({ isOpen: false, target: null });
+  });
+
+  const closing = () => document.querySelector('.card-preview-backdrop.is-closing');
+
+  function renderWithSheet(card: EnrichedCard) {
+    return render(
+      <MemoryRouter>
+        <CardPreview
+          cards={[card]}
+          index={0}
+          binderName=""
+          sectionLabels={['']}
+          pageNumbers={[0]}
+          totalPages={0}
+          onIndexChange={() => {}}
+          onClose={() => {}}
+        />
+        <RulesReferenceSheet />
+      </MemoryRouter>
+    );
+  }
+
+  it('Escape closes the keyword popover, not the preview under it', async () => {
+    renderWithSheet(mk({ oracleText: 'Flying' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Flying' }));
+    await screen.findByRole('dialog', { name: 'Flying' });
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Flying' })).toBeNull();
+    expect(closing()).toBeNull();
+    // With the popover gone, the preview answers Escape again.
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(closing()).not.toBeNull();
+  });
+
+  it('opens the rules sheet over the preview, and Escape there closes only the sheet', async () => {
+    renderWithSheet(mk({ oracleText: 'Flying' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Flying' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Read the full rule' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Rules reference' });
+    // Over the preview's overlay layer, not under it.
+    expect(sheet.parentElement?.classList.contains('modal-backdrop--over-sheet')).toBe(true);
+    // Searched to the keyword, with its row already open on the subrules.
+    expect(await screen.findByText('Flying is an evasion ability.')).toBeTruthy();
+    expect(screen.getByDisplayValue('Flying')).toBeTruthy();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Rules reference' })).toBeNull()
+    );
+    expect(closing()).toBeNull();
   });
 });

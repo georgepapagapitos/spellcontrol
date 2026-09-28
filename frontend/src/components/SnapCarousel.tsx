@@ -191,6 +191,11 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
       ) {
         return;
       }
+      // Focus is in a dialog that isn't ours (a keyword's popover, the rules
+      // sheet it opens): the arrows belong to that layer, and paging the cards
+      // underneath would pull its anchor out from under it.
+      const layer = t instanceof Element ? t.closest('[role="dialog"]') : null;
+      if (layer && !layer.contains(trackRef.current)) return;
       // Focus sits inside the sheet, so the browser's default arrow-key scroll
       // lands on the snap track and advances it one snap point on its own —
       // stacked on `scrollTo` below that skipped a card on every desktop press.
@@ -202,7 +207,7 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
     // document-level key handling never preempts it.
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [keysEnabled, count]);
+  }, [keysEnabled, count, trackRef]);
 
   return (
     <>

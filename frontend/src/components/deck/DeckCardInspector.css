@@ -162,14 +162,20 @@
    saga can run long, so this block absorbs the overflow rather than pushing the
    ownership line and the actions off the bottom of a sticky column. */
 .deck-card-inspector-oracle {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--text-secondary);
-  white-space: pre-wrap;
+}
+
+.deck-card-inspector-oracle p {
+  margin: 0;
 }
 
 /* ── Ownership, chips, price ───────────────────────────────────────────── */

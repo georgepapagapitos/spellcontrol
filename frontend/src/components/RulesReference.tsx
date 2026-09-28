@@ -75,6 +75,8 @@ interface Props {
   onAsk?: (question: string) => void;
   /** Called before a row's menu navigates elsewhere (the sheet closes). */
   onLeave?: () => void;
+  /** A keyword row to show open on mount — the one a card's keyword link asked for. */
+  initialExpanded?: string;
 }
 
 /**
@@ -96,8 +98,9 @@ export function RulesReference({
   bodyClassName,
   onAsk,
   onLeave,
+  initialExpanded,
 }: Props) {
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(initialExpanded ?? null);
   const loaded = bundle && bundle !== 'error' ? bundle : null;
 
   // term → one-line glossary definition, for the keyword summaries.
