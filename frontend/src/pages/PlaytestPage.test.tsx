@@ -6,7 +6,7 @@
  * the second init — leaving "Shuffling…" on screen forever with no board.
  */
 import { StrictMode } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { create } from 'zustand';
@@ -179,7 +179,9 @@ describe('PlaytestPage', () => {
   it('names the deck in the tab title', async () => {
     renderAt('/decks/deck-1/playtest');
     await screen.findByTestId('board');
-    expect(document.title).toBe('Playtest · Krenko · SpellControl');
+    // The title is set by an effect, which can still be pending when findBy
+    // sees the board (E500), so the title gets waited for too.
+    await waitFor(() => expect(document.title).toBe('Playtest · Krenko · SpellControl'));
   });
 
   // Dealing before the collection loads would put one printing on the table

@@ -6,7 +6,7 @@
  * happened.", and before this the visitor only found out from the 400 after
  * tapping Going (playtest batch 11).
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicGameNight } from '../lib/game-nights-api';
@@ -96,6 +96,9 @@ describe('GameNightView — a link that goes nowhere', () => {
     renderNight();
     expect(await screen.findByRole('heading', { name: 'Link not found' })).toBeTruthy();
     expect(screen.getByText('This game night link is invalid or no longer exists.')).toBeTruthy();
-    expect(document.title).toBe('Link not found · SpellControl');
+    // The title is set by an effect, which can still be pending when findBy
+    // sees the heading (E500: CI read the homepage title here once), so the
+    // title gets waited for too.
+    await waitFor(() => expect(document.title).toBe('Link not found · SpellControl'));
   });
 });
