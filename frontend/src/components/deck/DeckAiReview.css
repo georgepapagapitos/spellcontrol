@@ -127,7 +127,7 @@
 .deck-ai-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--space-2);
   padding: var(--space-1) 0;
 }
 
@@ -167,7 +167,7 @@
 
 /* ── Result ── */
 .deck-ai-prose p {
-  margin: 0 0 0.7rem;
+  margin: 0 0 var(--space-3);
   font-size: var(--text-sm);
   color: var(--text-primary);
   line-height: 1.55;
@@ -240,7 +240,7 @@
 /* The lead section: a quiet attention rail (the app's warning idiom, minus the
    filled plate — a structural finding is a finding, not an error). */
 .deck-ai-section--weakness {
-  padding-left: 0.7rem;
+  padding-left: var(--space-3);
   border-left: 3px solid var(--warn-border);
 }
 
@@ -257,7 +257,7 @@
    (do this) against the weakness's warning rail (this is wrong), and the pair
    sits tight together as one diagnosis→prescription unit. */
 .deck-ai-section--fixes {
-  padding-left: 0.7rem;
+  padding-left: var(--space-3);
   border-left: 3px solid var(--accent);
 }
 
@@ -378,7 +378,7 @@
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: var(--space-1) var(--space-2);
-  padding: var(--space-2) 0.7rem;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-raised);
@@ -388,7 +388,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   min-width: 0;
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -432,7 +432,7 @@
 .deck-ai-tweak-done {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
@@ -478,7 +478,7 @@
 /* Apply / Apply all are the primary tier: accent fill + leading `Check`
    (STYLE_GUIDE § Action-button anatomy). `.btn` sets no gap of its own. */
 .deck-ai-review .btn-primary {
-  gap: 0.35rem;
+  gap: var(--space-1-5);
 }
 
 @media (pointer: coarse) {
@@ -614,7 +614,7 @@
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-2);
-  padding: var(--space-2) 0.7rem;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: var(--text-sm);
@@ -644,7 +644,7 @@
 }
 
 .deck-ai-history-item {
-  padding: 0.2rem var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--border);
   border-radius: 999px;
   background: none;

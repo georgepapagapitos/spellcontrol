@@ -14,9 +14,9 @@
 .gen-mode-offline {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   margin: 0 0 var(--space-3);
-  padding: var(--space-2) 0.65rem;
+  padding: var(--space-2) var(--space-2-5);
   font-size: var(--text-xs);
   color: var(--text-secondary);
   background: var(--surface-raised);
@@ -56,8 +56,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.7rem var(--space-3);
+  gap: var(--space-1-5);
+  padding: var(--space-3) var(--space-3);
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -101,7 +101,7 @@
 .gen-mode-card-head {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .gen-mode-card-head svg {
@@ -126,7 +126,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
-  padding: 0.1rem 0.35rem;
+  padding: var(--space-0-5) var(--space-1-5);
   border: 0.5px solid var(--border);
   border-radius: 999px;
 }
@@ -139,12 +139,12 @@
 
 /* ── Per-mode config ──────────────────────────────────────────────────── */
 .gen-mode-config {
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
   border-top: 0.5px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: var(--space-3);
 }
 
 /* In the guided wizard the config renders on its own step — no card grid above
@@ -169,12 +169,12 @@
 .gen-mode-toggle {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
+  gap: var(--space-2);
   cursor: pointer;
 }
 
 .gen-mode-toggle input {
-  margin-top: 0.15rem;
+  margin-top: var(--space-0-5);
   flex: 0 0 auto;
   accent-color: var(--accent);
 }
@@ -182,7 +182,7 @@
 .gen-mode-toggle > span {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
   font-size: var(--text-sm);
   color: var(--text-primary);
 }
@@ -199,7 +199,7 @@
 .gen-mode-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   margin: 0;
   padding: 0;
   border: 0;
@@ -212,8 +212,8 @@
   position: relative;
   display: inline-flex;
   align-items: baseline;
-  gap: 0.3rem;
-  padding: 0.3rem 0.6rem;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2-5);
   font-size: var(--text-xs);
   font-weight: 500;
   color: var(--text-secondary);
@@ -268,7 +268,7 @@
 .gen-mode-field {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .gen-mode-field-label {
@@ -283,7 +283,7 @@
 
 .gen-mode-input {
   width: 100%;
-  padding: 0.45rem 0.6rem;
+  padding: var(--space-2) var(--space-2-5);
   font-size: var(--text-sm);
   color: var(--text-primary);
   background: var(--surface);
@@ -312,13 +312,13 @@
 .gen-mode-preview {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .gen-mode-preview-strip {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .gen-mode-preview-tile {

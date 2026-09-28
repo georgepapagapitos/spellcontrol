@@ -1,7 +1,7 @@
 .build-report {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .build-report-line {
@@ -26,8 +26,8 @@
 .build-report-method {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding-bottom: 0.35rem;
+  gap: var(--space-0-5);
+  padding-bottom: var(--space-1-5);
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -45,7 +45,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  margin-top: 0.15rem;
+  margin-top: var(--space-0-5);
 }
 
 .build-report-gaps-label {
@@ -62,14 +62,14 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
 }
 
 .build-report-gap {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.3rem;
-  padding: 0.1rem 0.45rem;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-2);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: 999px;
@@ -99,7 +99,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  margin-top: 0.15rem;
+  margin-top: var(--space-0-5);
 }
 
 .build-report-mana-line {
@@ -125,11 +125,11 @@
    from the shared .btn-link; this only positions it within the gaps column. */
 .build-report-gaps-cta {
   align-self: flex-start;
-  margin-top: 0.1rem;
+  margin-top: var(--space-0-5);
 }
 
 .build-report-conflict-note {
-  margin: 0.15rem 0 0;
+  margin: var(--space-0-5) 0 0;
   font-size: var(--text-sm);
   color: var(--warn-text, #b85c00);
   line-height: 1.45;
@@ -139,8 +139,8 @@
 /* Loud, up-front flag when the owned pool was exhausted and the build had to
    reach outside the collection. */
 .build-report-flag {
-  margin: 0.15rem 0;
-  padding: 0.4rem 0.55rem;
+  margin: var(--space-0-5) 0;
+  padding: var(--space-1-5) var(--space-2);
   font-size: var(--text-sm);
   color: var(--warn-text);
   /* --warn-surface never existed (silent transparent) — the warn trio. */
@@ -163,8 +163,8 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
-  margin: 0 0 0.15rem;
-  padding: 0.55rem 0.7rem;
+  margin: 0 0 var(--space-0-5);
+  padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
   line-height: 1.45;
   border-radius: var(--radius);
@@ -173,7 +173,7 @@
 
 .build-report-combo-seed-icon {
   flex: none;
-  margin-top: 0.15rem;
+  margin-top: var(--space-0-5);
 }
 
 .build-report-combo-seed.is-assembled {
@@ -207,18 +207,18 @@
 
 .build-report-subs-list {
   list-style: none;
-  margin: 0.4rem 0 0;
+  margin: var(--space-1-5) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .build-report-sub {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  padding-left: 0.6rem;
+  gap: var(--space-0-5);
+  padding-left: var(--space-2-5);
   border-left: 2px solid var(--border);
 }
 
@@ -251,14 +251,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem;
-  margin-top: 0.1rem;
+  gap: var(--space-1-5);
+  margin-top: var(--space-0-5);
 }
 
 /* Disclosure footnote under the hidden-synergy picks — how many higher-lift
    candidates the hard filters (color/legal/rarity/budget/…) removed. */
 .build-report-lift-note {
-  margin: 0.4rem 0 0;
+  margin: var(--space-1-5) 0 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.4;
@@ -272,8 +272,8 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.3rem 0.55rem;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
   background: var(--accent);
   border: 0.5px solid transparent;
   border-radius: var(--radius);
@@ -339,10 +339,10 @@
    stat panels. */
 @media (max-width: 599px) {
   .build-report {
-    gap: 0.35rem;
+    gap: var(--space-1-5);
   }
 
   .build-report-gaps-list {
-    gap: 0.3rem;
+    gap: var(--space-1);
   }
 }

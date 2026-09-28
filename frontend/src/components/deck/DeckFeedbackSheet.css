@@ -197,7 +197,7 @@
 .deck-feedback-verdict {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
   min-height: 30px;
   padding: 0 var(--space-2);
   border: 0.5px solid var(--border);

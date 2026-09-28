@@ -16,7 +16,7 @@
 .deck-combos-panel.is-collapsed {
   /* When collapsed the panel becomes a single header strip — no body padding,
      just the toggle. Saves vertical space without giving up the slot. */
-  padding: 0.65rem var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
 }
 
 .deck-combos-title {
@@ -54,7 +54,7 @@
 .deck-combos-header-trailing {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   flex: 0 0 auto;
   margin-left: auto;
 }

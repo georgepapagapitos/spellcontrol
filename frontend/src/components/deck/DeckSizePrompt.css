@@ -12,7 +12,7 @@
 }
 
 .deck-size-prompt-subtitle {
-  margin: 0.15rem 0 0;
+  margin: var(--space-0-5) 0 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
@@ -39,7 +39,7 @@
 .deck-size-prompt-list {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
   margin: 0;
   padding: 0 0 var(--space-1);
   list-style: none;
@@ -69,8 +69,8 @@
 .deck-size-prompt-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.45rem 0.55rem;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-2);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
@@ -129,9 +129,9 @@
 .deck-size-prompt-subject {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   margin-top: var(--space-2);
-  padding: 0.35rem 0.55rem;
+  padding: var(--space-1-5) var(--space-2);
   width: 100%;
   text-align: left;
   background: var(--surface-raised);
@@ -148,7 +148,7 @@
 .deck-size-prompt-subject-text {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 
@@ -157,7 +157,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
 }
 
 .deck-size-prompt-name {
@@ -173,11 +173,11 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
 }
 
 .deck-size-prompt-role {
-  padding: 0.02rem 0.3rem;
+  padding: 0.02rem var(--space-1);
   border-radius: 999px;
   background: var(--surface);
   border: 0.5px solid var(--border);
@@ -204,7 +204,7 @@
 /* "Pick another card…" reveal — a quiet text button above the footer. */
 .deck-size-prompt-showall {
   width: 100%;
-  padding: 0.4rem;
+  padding: var(--space-1-5);
   border: 0;
   background: transparent;
   color: var(--accent);
@@ -227,7 +227,7 @@
 /* Footer escape hatches wrap on narrow sheets so labels never clip. */
 .deck-size-prompt-footer {
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 /* Header and footer are chrome — the body above is the ONLY shrinker, so

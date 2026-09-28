@@ -17,8 +17,8 @@
 .brew-rail-step {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.7rem;
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-3);
   /* Labelled slot-navigator button = rect (role decides shape). */
   border-radius: var(--radius);
   background: var(--surface-raised);

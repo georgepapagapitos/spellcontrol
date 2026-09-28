@@ -32,13 +32,13 @@
 .binder-rank-detail {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  margin-top: 0.15rem;
+  gap: var(--space-1);
+  margin-top: var(--space-0-5);
   min-width: 0;
 }
 
 .binder-rank-bar {
-  margin-top: 0.1rem;
+  margin-top: var(--space-0-5);
 }
 
 .binder-rank-line {
@@ -55,14 +55,14 @@
 .binder-rank-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 0.35rem;
+  gap: 0 var(--space-1-5);
 }
 
 /* Mid-dot between meta pairs: trailing, so a wrapped line never starts
    with a stray dot. */
 .binder-rank-meta > span:not(:last-child)::after {
   content: '·';
-  margin-left: 0.35rem;
+  margin-left: var(--space-1-5);
 }
 
 .binder-rank-unowned {

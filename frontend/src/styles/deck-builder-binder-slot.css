@@ -75,7 +75,7 @@
    to read at a glance without crowding the art. */
 .tooltip-image-wrap {
   position: relative;
-  margin-top: 6px;
+  margin-top: var(--space-1-5);
 }
 
 .tooltip-image-wrap .tooltip-image {

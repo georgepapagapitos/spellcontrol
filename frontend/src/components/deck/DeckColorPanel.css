@@ -20,7 +20,7 @@
 
 .deck-color-identity-pips {
   display: inline-flex;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .deck-color-identity-words {

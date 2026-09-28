@@ -18,7 +18,7 @@
      gaps look balanced. */
   width: 1.4rem;
   text-align: right;
-  padding: 0.05rem 0.15rem;
+  padding: 0.05rem var(--space-0-5);
   border-radius: var(--radius);
   cursor: pointer;
   transition:
@@ -48,7 +48,7 @@ input.deck-row-qty-input {
   width: 1.75rem;
   box-sizing: border-box;
   text-align: center;
-  padding: 0.05rem 0.2rem;
+  padding: 0.05rem var(--space-1);
   border-radius: var(--radius);
   outline: none;
   /* Hide native spin buttons — keyboard arrows still work, but the input
@@ -75,7 +75,7 @@ input.deck-row-qty-input.deck-row-qty-missing {
 .deck-row-qty-group {
   display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
 }
 
 .deck-row-qty-step {

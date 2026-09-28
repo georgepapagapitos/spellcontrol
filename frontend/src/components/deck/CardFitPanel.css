@@ -12,7 +12,7 @@
 }
 
 .card-fit-subtitle {
-  margin: 0.15rem 0 0;
+  margin: var(--space-0-5) 0 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
@@ -54,7 +54,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  padding: 0.4rem 0.55rem;
+  padding: var(--space-1-5) var(--space-2);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-left-width: 2px;
@@ -96,7 +96,7 @@
 }
 
 .card-fit-cuts-head {
-  margin: 0 0 0.35rem;
+  margin: 0 0 var(--space-1-5);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-secondary);
@@ -114,5 +114,5 @@
 
 .card-fit-footer {
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }

@@ -8,10 +8,10 @@
 
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--space-1);
   width: 100%;
   min-width: 0;
-  padding: 0.65rem 0.7rem;
+  padding: var(--space-2-5) var(--space-3);
   background: var(--surface);
   border: 0.5px solid var(--border);
   /* Left rule reads as the band accent without flooding the tile with color. */
@@ -64,7 +64,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .sub-score-tile-label {
@@ -100,7 +100,7 @@
 }
 
 .sub-score-tile-surface {
-  margin: 0.1rem 0 0;
+  margin: var(--space-0-5) 0 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.45;
