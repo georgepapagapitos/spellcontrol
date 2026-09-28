@@ -79,15 +79,6 @@
   color: var(--text-secondary);
 }
 
-.import-deck-review-tag {
-  padding: var(--space-0-5) var(--space-2);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-}
-
 .import-deck-warning {
   margin: 0 0 var(--space-3);
   padding: var(--space-2-5) var(--space-3);

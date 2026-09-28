@@ -25,20 +25,10 @@
   font-size: var(--text-sm);
 }
 
-/* Filled badge — same recipe as the authed card's .game-night-cancelled-pill
-   so the two surfaces speak the same cancelled-status vocabulary. */
 .game-night-cancelled-badge {
   display: inline-flex;
   align-items: center;
   flex: none;
-  padding: 0 var(--space-2);
-  border-radius: 999px;
-  background: var(--err-bg);
-  border: 1px solid var(--err-border);
-  color: var(--err-text);
-  font-weight: 600;
-  font-size: var(--text-xs);
-  line-height: 1.6;
 }
 
 .game-night-facts {
@@ -188,15 +178,6 @@
   gap: var(--space-2);
   /* A 40-char unbroken guest name must wrap at 320px, not clip. */
   overflow-wrap: anywhere;
-}
-
-.game-night-host-pill {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0 var(--space-2);
-  line-height: 1.5;
 }
 
 .game-night-no-replies {

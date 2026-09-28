@@ -356,11 +356,6 @@
 }
 
 .sort-mode-badge {
-  font-size: var(--text-xs);
-  color: var(--accent);
-  border: 0.5px solid var(--accent);
-  border-radius: 999px;
-  padding: var(--space-0-5) var(--space-2);
   white-space: nowrap;
 }
 

@@ -494,17 +494,8 @@
   min-width: 0;
 }
 
-/* "Wanted" — this card is on the friend's want list. Non-actionable status
-   label = pill per the shape language (999px), like .trade-offer-status. */
 .trade-wanted-badge {
   flex: 0 0 auto;
-  padding: 0 0.35em;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  color: var(--accent);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  line-height: 1.45;
   white-space: nowrap;
 }
 

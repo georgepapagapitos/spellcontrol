@@ -300,12 +300,6 @@
 }
 
 .commander-pick-playstyle-tag {
-  padding: var(--space-0-5) var(--space-2);
-  font-size: var(--text-xs);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--accent);
-  border: 0.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
   white-space: nowrap;
 }
 

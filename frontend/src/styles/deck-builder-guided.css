@@ -186,10 +186,6 @@
   .deck-row-partner-label {
     display: none;
   }
-
-  .deck-row-partner-tag {
-    padding: var(--space-0-5) var(--space-1);
-  }
 }
 
 /* a11y (sweep 3): ring parity for :hover selectors surfaced when the
