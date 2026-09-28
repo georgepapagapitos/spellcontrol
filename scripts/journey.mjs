@@ -850,7 +850,9 @@ async function main() {
           // short, so the long line is injected: whatever the text, the
           // layout must stay the viewport's width and the page on screen.
           await assertPage(rec, 'binder page viewer geometry', async () => {
-            await clickText(page, /^Browse pages$/);
+            // A phone reads "Browse" (#2490 shortened it so the sort pill
+            // beside it fits); wider screens read "Browse pages".
+            await clickText(page, /^Browse( pages)?$/, { within: '.binder-summary button' });
             await page.waitForSelector('.binder-pages-slide.is-active .binder-pages-page', {
               timeout: 15_000,
             });

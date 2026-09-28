@@ -167,4 +167,27 @@ describe('coarse-pointer ghosts stay off their neighbours', () => {
       );
     }
   });
+
+  it("the deck checks' Fix in Coach links stay off the next row's link", () => {
+    // Nightly journey 2026-09-28: `.btn-link loses its bottom edge to
+    // .btn-link` on ?view=stats. The fix links stack one per check row, and
+    // the shared `.btn-link` ghost (44px, centred) is taller than a row, so
+    // each one reached into the next row's link.
+    const card = read('components/deck/DeckIdentityCard.css');
+    const shared = read('styles/forms-banners.css');
+    const row = px(decl(card, '.deck-identity-card-check', 'min-height'));
+    const ghost = px(
+      decl(shared, '.btn-link::after', 'height', after(shared, '@media (pointer: coarse)'))
+    );
+    const reach = (ghost - row) / 2;
+    expect(reach, `shared ghost reaches ${reach}px past a ${row}px check row`).toBeGreaterThan(0);
+
+    // So in a check row the link carries its own 44px, which the row grows
+    // around, and grows no ghost.
+    const coarse = after(card, '@media (pointer: coarse) {\n  .deck-identity-card-check .btn-link');
+    expect(px(decl(card, '.deck-identity-card-check .btn-link', 'min-height', coarse))).toBe(44);
+    expect(decl(card, '.deck-identity-card-check .btn-link::after', 'content', coarse)).toBe(
+      'none'
+    );
+  });
 });
