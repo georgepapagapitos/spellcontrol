@@ -5,13 +5,13 @@ import { useCardDetail } from './use-card-detail';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
-  getCardByNameResilient: vi.fn(),
+  getPrintingResilient: vi.fn(),
 }));
-import { getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
-const mockGet = vi.mocked(getCardByNameResilient);
+import { getPrintingResilient } from '@/deck-builder/services/scryfall/client';
+const mockGet = vi.mocked(getPrintingResilient);
 
-function card(name: string): ScryfallCard {
-  return { id: 'x', oracle_id: 'o', name, cmc: 0 } as unknown as ScryfallCard;
+function card(name: string, extra: Partial<ScryfallCard> = {}): ScryfallCard {
+  return { id: 'x', oracle_id: 'o', name, cmc: 0, ...extra } as unknown as ScryfallCard;
 }
 
 afterEach(() => vi.clearAllMocks());
@@ -28,7 +28,7 @@ describe('useCardDetail', () => {
     mockGet.mockResolvedValueOnce(c);
     const { result } = renderHook(() => useCardDetail('Llanowar Elves'));
     await waitFor(() => expect(result.current).toBe(c));
-    expect(mockGet).toHaveBeenCalledWith('Llanowar Elves');
+    expect(mockGet).toHaveBeenCalledWith(undefined, 'Llanowar Elves');
   });
 
   it('refetches when the name changes', async () => {
@@ -40,6 +40,25 @@ describe('useCardDetail', () => {
     rerender({ n: 'B' });
     await waitFor(() => expect(result.current?.name).toBe('B'));
     expect(mockGet).toHaveBeenCalledTimes(2);
+  });
+
+  // Flavor text is per printing: two copies of one name in a collection must
+  // each show their own, not a representative printing's.
+  it('resolves each printing of the same name separately', async () => {
+    mockGet.mockImplementation(async (id) =>
+      card('Academy Manufactor', {
+        id: id ?? 'x',
+        flavor_text: id === 'blc-264' ? 'Automated systems' : 'Another printing',
+      })
+    );
+    const { result, rerender } = renderHook(({ id }) => useCardDetail('Academy Manufactor', id), {
+      initialProps: { id: 'blc-264' },
+    });
+    await waitFor(() => expect(result.current?.flavor_text).toBe('Automated systems'));
+    rerender({ id: 'mh2-219' });
+    await waitFor(() => expect(result.current?.flavor_text).toBe('Another printing'));
+    expect(mockGet).toHaveBeenNthCalledWith(1, 'blc-264', 'Academy Manufactor');
+    expect(mockGet).toHaveBeenNthCalledWith(2, 'mh2-219', 'Academy Manufactor');
   });
 
   it('stays null when the resolve rejects', async () => {
