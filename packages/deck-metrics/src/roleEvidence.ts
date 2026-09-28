@@ -149,12 +149,18 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   //    nontoken creature exiled this way" compensates the removed creature's
   //    controller (typically an opponent), not your own card advantage, and
   //    correctly never matches.
+  //  - E487 (2026-09-28): a card that names the graveyard in one sentence
+  //    and moves the card to hand in a later one (Deadbridge Chant: "choose
+  //    a card at random in your graveyard. If it's a creature card, put it
+  //    onto the battlefield. Otherwise, put it into your hand."). The
+  //    return/put branch needs both in one sentence; this allows up to one
+  //    sentence between, anchored on "your graveyard".
   //  - Mass graveyard-to-hand recursion phrased with "put" instead of
   //    "return" (Campfire: "Put all commanders you own from the command
   //    zone and from your graveyard into your hand.") joins the existing
   //    return-based branch.
   cardDraw:
-    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|(?:return|put)[^.]*?graveyard[^.]*?hand|(?<!whenever )you become the monarch|(?<!player )(?<!opponent )investigate/i,
+    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|(?:return|put)[^.]*?graveyard[^.]*?hand|\byour graveyard\b[^.]*\.(?:[^.]*\.)?[^.]*?\b(?:put|return) (?:it|that card|those cards|them) into your hand|(?<!whenever )you become the monarch|(?<!player )(?<!opponent )investigate/i,
 };
 
 /**

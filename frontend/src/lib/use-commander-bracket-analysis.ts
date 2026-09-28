@@ -154,8 +154,10 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *   v18 — a removal-tagged card whose removal is a scoped counter clause
  *        ("counter target noncreature spell") passes its removal evidence,
  *        so it counts as removal again.
+ *   v19 — graveyard-to-hand card advantage phrased across sentences counts
+ *        as draw (Deadbridge Chant, E487).
  */
-const ANALYSIS_ENGINE_VERSION = 'v18-counter-evidence';
+const ANALYSIS_ENGINE_VERSION = 'v19-graveyard-draw';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for

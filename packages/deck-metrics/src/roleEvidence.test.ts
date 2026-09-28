@@ -25,7 +25,7 @@ describe('checkRoleEvidence', () => {
 
 // Verbatim Scryfall oracle text (2026-09-28): the patterns are regexes, so a
 // hand-written line proves nothing.
-describe('checkRoleEvidence: scoped counter text', () => {
+describe('checkRoleEvidence: scoped counter text and graveyard-to-hand (E487)', () => {
   it.each([
     ['Negate', 'Counter target noncreature spell.'],
     [
@@ -43,5 +43,17 @@ describe('checkRoleEvidence: scoped counter text', () => {
 
   it('a counter-placing effect is not a counterspell', () => {
     expect(checkRoleEvidence('removal', 'Put a +1/+1 counter on target creature.')).toBeNull();
+  });
+
+  it('Deadbridge Chant moves a graveyard card to hand a sentence later', () => {
+    const text =
+      "When this enchantment enters, mill ten cards.\nAt the beginning of your upkeep, choose a card at random in your graveyard. If it's a creature card, put it onto the battlefield. Otherwise, put it into your hand.";
+    expect(checkRoleEvidence('cardDraw', text)).toBe('cardDraw');
+  });
+
+  it('bouncing your own permanent is not graveyard card advantage', () => {
+    expect(
+      checkRoleEvidence('cardDraw', "Return target land you control to its owner's hand.")
+    ).toBeNull();
   });
 });
