@@ -4265,8 +4265,13 @@ relevant**, built from two pieces: `lib/wedge-hints.ts` (precondition +
 device-local "never again" persistence, one pair of functions per hint — see
 the module doc for why this is _not_ a registry) and `WedgeHintStrip.tsx`
 (the shared one-row presentational shell). Reference instances: the
-binder-location hint in `CardSearchPanel.tsx`'s Collection tab and the deck
-re-sync hint in `DeckEditorPage.tsx`.
+binder-location hint in `CardSearchPanel.tsx`'s Collection tab, the deck
+re-sync hint in `DeckEditorPage.tsx`, and the playtest drag-to-play hint in
+`PlaytestBoard.tsx` (E484) — shown once a kept hand is on the board (gated
+out during the opening-hand/mulligan takeover), wording switches on
+`(pointer: coarse)` for the touch/mouse gesture name, and it retires itself
+the first time a card actually moves from hand to the battlefield, not only
+on dismiss.
 
 - **Precondition gates on the feature being genuinely usable RIGHT NOW, not
   merely "the user could set it up."** The binder hint doesn't fire because

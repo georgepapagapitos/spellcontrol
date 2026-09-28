@@ -2,19 +2,22 @@
  * Device-local, once-ever discovery hints for features that shipped without
  * any proactive signal telling the user they exist (the "wedge" audit):
  * the binder-location badge (PR #1344) only appears once a Collection-tab
- * row actually routes to a binder, and deck re-sync (PR #1347) is one item
- * among a dozen in the ⋮ overflow menu. Bare localStorage flag per hint:
+ * row actually routes to a binder, deck re-sync (PR #1347) is one item
+ * among a dozen in the ⋮ overflow menu, and the playtest drag-to-play hint
+ * (E484) only appears once a kept hand is actually on the board. Bare
+ * localStorage flag per hint:
  * device-local (never synced, same
  * precedent as every other once-only tip in this codebase — see
  * `build-report-seen.ts`), fail-safe to HIDDEN
  * on a storage error (an unwanted popup is worse than a missed one). No
- * registry — this is two hints, so it's two pairs of functions, not a
+ * registry — this is three hints, so it's three pairs of functions, not a
  * config system.
  */
 import type { DeckSource } from '../store/decks';
 
 const BINDER_HINT_KEY = 'sc-hint-binder-location-v1';
 const RESYNC_HINT_KEY = 'sc-hint-deck-resync-v1';
+const PLAYTEST_DRAG_HINT_KEY = 'sc-hint-playtest-drag-v1';
 
 function seen(key: string): boolean {
   try {
@@ -59,4 +62,18 @@ export function shouldShowResyncHint(deckHasCards: boolean, source?: DeckSource)
 
 export function dismissResyncHint(): void {
   markSeen(RESYNC_HINT_KEY);
+}
+
+/**
+ * True the first time a kept hand is sitting on the playtest board with the
+ * game actually underway. The caller gates out the opening-hand/mulligan
+ * takeover itself (there is no battlefield on screen yet to drag onto), so
+ * this only takes whether the hand is non-empty.
+ */
+export function shouldShowPlaytestDragHint(handHasCards: boolean): boolean {
+  return handHasCards && !seen(PLAYTEST_DRAG_HINT_KEY);
+}
+
+export function dismissPlaytestDragHint(): void {
+  markSeen(PLAYTEST_DRAG_HINT_KEY);
 }
