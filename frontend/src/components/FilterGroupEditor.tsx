@@ -387,7 +387,7 @@ function FilterGroupFields({
             Type line{' '}
             <InfoTip
               label="type line filter"
-              text="Substring match against the WHOLE type line, so 'Legendary Creature' works. Each chip toggles between IS and IS NOT: IS Creature + IS NOT Legendary excludes legendary creatures. For one part of the line on its own, use Supertype, Card type or Subtype."
+              text="Matches anywhere in the type line: 'Legendary Creature' works. Each chip flips between IS and IS NOT: IS Creature with IS NOT Legendary leaves out legendary creatures. Supertype, Card type and Subtype match one part."
             />
           </>
         }
