@@ -69,6 +69,8 @@ import type { PublicCard, ShareKind } from '../lib/shared-types';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
+import { SectionHeader } from '@/components/shared/SectionHeader';
 /** How many collection cards render before "Show more" — the friend's real
  *  collection can be ~11.5k unique oracle cards; filtering runs over the
  *  full set regardless of this cap (see filterFriendCollection). */
@@ -629,17 +631,17 @@ export function FriendHubPage() {
           h2h &&
           h2h.summary.gamesPlayed > 0 && (
             <section className="friend-hub-section" aria-label="Head-to-head record">
-              <h2 className="friend-hub-section-head">Head-to-head</h2>
-              <div className="friend-hub-h2h-card">
+              <SectionHeader title="Head-to-head" titleClassName="friend-hub-section-head" />
+              <Surface as="div" variant="framed" className="friend-hub-h2h-card">
                 <H2HSummary data={h2h} />
-              </div>
+              </Surface>
             </section>
           )
         )}
 
         {(wantsAnything || collectionUnknown) && (
           <section className="friend-hub-section" aria-label="Trade radar">
-            <h2 className="friend-hub-section-head">Trade radar</h2>
+            <SectionHeader title="Trade radar" titleClassName="friend-hub-section-head" />
             {radarError ? (
               <p className="friend-hub-radar-note" role="alert">
                 Couldn't check {who}'s collection against your want lists.{' '}
@@ -686,7 +688,7 @@ export function FriendHubPage() {
 
         {showWantRadar && (
           <section className="friend-hub-section" aria-label="What this friend is looking for">
-            <h2 className="friend-hub-section-head">They're looking for</h2>
+            <SectionHeader title="They're looking for" titleClassName="friend-hub-section-head" />
             {wantsError ? (
               <p className="friend-hub-radar-note" role="alert">
                 Couldn't check your collection against {who}'s want lists.{' '}
@@ -773,7 +775,7 @@ export function FriendHubPage() {
             const { plural } = KIND_META[kind];
             return (
               <section key={kind} className="friend-hub-section" aria-label={plural}>
-                <h2 className="friend-hub-section-head">{plural}</h2>
+                <SectionHeader title={plural} titleClassName="friend-hub-section-head" />
                 <ul className="friend-hub-list">
                   {rows.map((s) => (
                     <HubRow key={s.token} share={s} />

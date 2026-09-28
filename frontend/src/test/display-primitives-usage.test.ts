@@ -180,70 +180,18 @@ const ALLOWED: Record<Shape, Record<string, number>> = {
     'playtest/components/TableTicker.tsx': 1,
     'playtest/components/ZoneViewerModal.tsx': 2,
   },
-  rawSurface: {
-    'components/AdminPanel.tsx': 3,
-    'components/BinderEditor.tsx': 1,
-    'components/ComboFiltersPopover.tsx': 1,
-    'components/DeckFiltersPopover.tsx': 1,
-    'components/DiscoverDeckTile.tsx': 2,
-    'components/DiscoverFiltersPopover.tsx': 1,
-    'components/ErrorBoundary.tsx': 2,
-    'components/GuestActionPopover.tsx': 1,
-    'components/OfflineModeSettings.tsx': 1,
-    'components/RuleFieldPicker.tsx': 1,
-    'components/SelectMenu.tsx': 1,
-    'components/SortPopover.tsx': 1,
-    'components/StatsBar.tsx': 3,
-    'components/UploadPanel.tsx': 1,
-    'components/ValueTrend.tsx': 1,
-    'components/deck/CardSearchPanel.tsx': 1,
-    'components/deck/CoachFeed.tsx': 1,
-    'components/deck/CollapsibleLane.tsx': 1,
-    'components/deck/DeckAiConsent.tsx': 1,
-    'components/deck/DeckAiRefine.tsx': 1,
-    'components/deck/DeckAiReview.tsx': 1,
-    'components/deck/DeckAnalysisPanel.tsx': 1,
-    'components/deck/DeckCombosPanel.tsx': 1,
-    'components/deck/DeckIdentityCard.tsx': 1,
-    'components/deck/DeckTestHandPanel.tsx': 1,
-    'components/deck/PartnerCommanderSelector.tsx': 1,
-    'components/decks/DeckLibrary.tsx': 1,
-    'components/home/DiscoverRow.tsx': 1,
-    'components/home/HomeCard.tsx': 1,
-    'components/home/YourDecks.tsx': 2,
-    'components/play/GameNights.tsx': 2,
-    'components/play/PlayHome.tsx': 2,
-    'components/settings/SettingsSection.tsx': 1,
-    'components/shared/ToolbarPopover.tsx': 1,
-    'components/trade/TradeAcceptDialog.tsx': 1,
-    'components/trade/TradeOfferList.tsx': 1,
-    'pages/AuthPage.tsx': 1,
-    'pages/BindersIndexPage.tsx': 2,
-    'pages/ChooseUsernamePage.tsx': 1,
-    'pages/CollectionCombosPage.tsx': 1,
-    'pages/DecksIndexPage.tsx': 1,
-    'pages/ForgotPasswordPage.tsx': 1,
-    'pages/FriendHubPage.tsx': 1,
-    'pages/ListsPage.tsx': 1,
-    'pages/PodHubPage.tsx': 2,
-    'pages/PublicProfilePage.tsx': 1,
-    'pages/ResetPasswordPage.tsx': 2,
-    'pages/SearchPage.tsx': 1,
-    'pages/VerifyEmailPage.tsx': 1,
-    'pages/YouPage.tsx': 1,
-  },
+  rawSurface: {},
+  // The remaining three deck sites render on <header> with a collapse
+  // toggle + icon glyph ahead of the title, a shape SectionHeader doesn't
+  // produce; TradesPage's row wraps unconditionally whether or not its
+  // Clear-history tool renders, and SectionHeader both drops the wrapper
+  // when there's no meta/tools and always adds one around `tools` — neither
+  // matches the bare, always-present row (T166 W5 rulings).
   rawSectionHead: {
     'components/deck/CommanderOpenSlot.tsx': 1,
     'components/deck/DeckCardGrid.tsx': 1,
     'components/deck/DeckMainboardRow.tsx': 1,
-    'components/home/DiscoverRow.tsx': 1,
-    'components/home/YourDecks.tsx': 1,
-    'components/settings/AiFeaturesSettings.tsx': 1,
-    'components/share/SharedCubeView.tsx': 1,
-    'pages/FriendHubPage.tsx': 4,
-    'pages/PodHubPage.tsx': 3,
     'pages/TradesPage.tsx': 1,
-    'pages/YouPage.tsx': 3,
   },
 };
 
@@ -285,8 +233,12 @@ describe('badges, counts, surfaces and section headers come from the display pri
 
   it('the scan sees the codebase (guards the guard)', () => {
     // A parser change that silently matched nothing would pass every case
-    // above; each shape has real call sites until its wave lands.
-    for (const shape of Object.keys(ALLOWED) as Shape[])
+    // above; each shape still being migrated has real call sites until its
+    // wave lands. A shape whose ALLOWED list is already empty (rawSurface,
+    // T166 W4) is finished — nothing left to guard here.
+    for (const shape of Object.keys(ALLOWED) as Shape[]) {
+      if (Object.keys(ALLOWED[shape]).length === 0) continue;
       expect(found[shape].size, shape).toBeGreaterThan(0);
+    }
   });
 });

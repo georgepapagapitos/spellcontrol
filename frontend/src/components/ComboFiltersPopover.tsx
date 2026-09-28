@@ -13,6 +13,7 @@ import {
 } from '../lib/combo-filters';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { Surface } from '@/components/shared/Surface';
 
 const RESULT_OPTIONS = (
   Object.entries(COMBO_RESULT_LABELS) as Array<[ComboResultKind, string]>
@@ -66,7 +67,9 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
       {open &&
         panelStyle &&
         createPortal(
-          <div
+          <Surface
+            as="div"
+            variant="popover"
             ref={panelRef}
             className="filter-popover-panel deck-filters-panel"
             role="dialog"
@@ -162,7 +165,7 @@ export function ComboFiltersPopover({ filters, setFilters, hasCommanders }: Prop
                 </Button>
               </div>
             )}
-          </div>,
+          </Surface>,
           document.body
         )}
     </div>

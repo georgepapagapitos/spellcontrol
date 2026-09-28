@@ -6,6 +6,7 @@ import './DeckAiConsent.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 /** Shared across every AI surface — dismissing anywhere dismisses everywhere. */
 const INVITE_DISMISSED_KEY = 'sc-ai-invite-dismissed';
 
@@ -53,7 +54,11 @@ export function DeckAiConsent({
   };
 
   return (
-    <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">
+    <Surface
+      as="section"
+      variant="framed"
+      className="deck-stats-panel deck-stats-panel--wide deck-ai-review"
+    >
       <h4 className="deck-stats-panel-title">
         {title}
         <AiMarker />
@@ -83,6 +88,6 @@ export function DeckAiConsent({
           )}
         </div>
       </div>
-    </section>
+    </Surface>
   );
 }

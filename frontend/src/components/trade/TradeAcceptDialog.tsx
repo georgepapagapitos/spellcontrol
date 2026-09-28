@@ -21,6 +21,7 @@ import {
 } from '../../lib/trade-picker';
 import type { TradeCard } from '../../lib/trades-client';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 /** One card the offer asks for, paired with what the viewer actually owns. */
 export interface AcceptChoice {
@@ -141,7 +142,7 @@ export function TradeAcceptDialog({ counterpartyName, choices, busy, onCancel, o
               const asked = choice.asked.quantity;
               const chosen = copies.length;
               return (
-                <li key={cardKey} className="trade-accept-card">
+                <Surface as="li" variant="framed" key={cardKey} className="trade-accept-card">
                   <div className="trade-accept-card-head">
                     {/* Nothing else on the head claims this click — the steppers
                       live in the printing rows below — so the preview is
@@ -192,7 +193,7 @@ export function TradeAcceptDialog({ counterpartyName, choices, busy, onCancel, o
                     binderByCopyId={binderByCopyId}
                     label={`${choice.asked.name}: your printings`}
                   />
-                </li>
+                </Surface>
               );
             })}
           </ul>

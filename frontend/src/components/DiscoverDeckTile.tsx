@@ -15,6 +15,7 @@ import { bracketLabel } from '../deck-builder/services/deckBuilder/bracketEstima
 import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '../lib/format-bracket-label';
 import { LikeButton } from './LikeButton';
 import { BookmarkButton } from './BookmarkButton';
+import { Surface } from './shared/Surface';
 import type { DeckFormat } from '../deck-builder/types';
 import type { DiscoverDeck } from '../lib/discover-client';
 
@@ -128,7 +129,7 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
   }).primary;
 
   return (
-    <li className="decks-index-card discover-tile">
+    <Surface as="li" variant="sleeve" className="decks-index-card discover-tile">
       <Link
         to={`/d/${deck.slug}`}
         className="decks-index-card-link discover-tile-link"
@@ -271,7 +272,7 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
           onChange={onUnsaved ? (bookmarked) => !bookmarked && onUnsaved(deck.slug) : undefined}
         />
       </div>
-    </li>
+    </Surface>
   );
 }
 
@@ -287,7 +288,9 @@ export const DISCOVER_SKELETON_COUNT = 10;
  *  reserves, so there's no swap-in size jump either. */
 export function DiscoverTileSkeleton({ view }: { view: DiscoverTileView }) {
   return (
-    <li
+    <Surface
+      as="li"
+      variant="sleeve"
       className={`decks-index-card discover-tile-skeleton${view === 'list' ? ' discover-tile-skeleton--list' : ''}`}
       aria-hidden="true"
     >
@@ -297,6 +300,6 @@ export function DiscoverTileSkeleton({ view }: { view: DiscoverTileView }) {
         <span className="discover-tile-skeleton-bar discover-tile-skeleton-bar--meta" />
         <span className="discover-tile-skeleton-bar discover-tile-skeleton-bar--stats" />
       </div>
-    </li>
+    </Surface>
   );
 }

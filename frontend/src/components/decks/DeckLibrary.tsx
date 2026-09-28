@@ -12,6 +12,7 @@ import { SortMenu, type SortMenuOption } from '../SortMenu';
 import { SharedEmptyState } from '../share/SharedEmptyState';
 import { ColorPip } from '../shared/ManaSymbol';
 import { Chip } from '../shared/Chip';
+import { Surface } from '../shared/Surface';
 import { usePanelCascade, panelCascadeClass } from '../../lib/use-panel-cascade';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 
@@ -246,7 +247,9 @@ function DeckLibraryTile({
     .join(', ');
 
   return (
-    <li
+    <Surface
+      as="li"
+      variant="sleeve"
       className={`decks-index-card public-profile-tile deck-library-tile${
         cascadeCls ? ` ${cascadeCls}` : ''
       }`}
@@ -317,6 +320,6 @@ function DeckLibraryTile({
           )}
         </div>
       </Link>
-    </li>
+    </Surface>
   );
 }

@@ -60,6 +60,7 @@ import { InfoTip } from '../InfoTip';
 import { assemblyClockTip, isKillClock } from './WinConditionPanel';
 import { Chip } from '@/components/shared/Chip';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 export interface DeckTestHandPanelHandle {
   reveal(): void;
@@ -373,7 +374,9 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     const slotIds = useMemo(() => hand.map((s) => s.id), [hand]);
 
     return (
-      <div
+      <Surface
+        as="div"
+        variant="framed"
         ref={containerRef}
         className={`deck-test-hand-panel${isCollapsed ? ' is-collapsed' : ''}${embedded ? ' is-embedded' : ''}`}
         role="region"
@@ -642,7 +645,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
             onClose={() => setPreviewIndex(null)}
           />
         )}
-      </div>
+      </Surface>
     );
   }
 );

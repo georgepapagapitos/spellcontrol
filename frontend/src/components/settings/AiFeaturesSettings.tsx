@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SettingsSection } from './SettingsSection';
+import { SectionHeader } from '../shared/SectionHeader';
 import { SwitchRow } from '../shared/form';
 import { fetchAiStatus, setAiOptIn, type AiStatus } from '../../lib/ai-review';
 import { toast } from '../../store/toasts';
@@ -47,9 +48,11 @@ export function AiFeaturesSettings() {
 
   return (
     <div role="group" aria-labelledby="settings-ai-group-title">
-      <h2 id="settings-ai-group-title" className="settings-section-header">
-        AI features
-      </h2>
+      <SectionHeader
+        title="AI features"
+        id="settings-ai-group-title"
+        titleClassName="settings-section-header"
+      />
       <SettingsSection
         id="settings-ai-title"
         title="Read the deck"

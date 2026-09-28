@@ -59,6 +59,7 @@ import { Button, buttonClass } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { CopyButton } from '@/components/shared/CopyButton';
 import { copyToClipboard } from '@/lib/clipboard';
+import { Surface } from '@/components/shared/Surface';
 /** Loading placeholder — two `.game-night-card` shells (real chrome, so the
  *  silhouette can't drift from the loaded card) with shimmering bars standing
  *  in for the title/pill, when, meta, tally, and action-row lines. Mirrors the
@@ -68,7 +69,7 @@ function GameNightsSkeleton() {
   return (
     <ul className="game-nights-list" aria-label="Loading" aria-busy="true">
       {[0, 1].map((i) => (
-        <li key={i} className="game-night-card">
+        <Surface as="li" variant="sleeve" key={i} className="game-night-card">
           <div className="game-night-card-head">
             <span className="game-nights-skeleton-bar is-title" />
             <span className="game-nights-skeleton-bar is-pill" />
@@ -80,7 +81,7 @@ function GameNightsSkeleton() {
             <span className="game-nights-skeleton-bar is-action" />
             <span className="game-nights-skeleton-bar is-action" />
           </div>
-        </li>
+        </Surface>
       ))}
     </ul>
   );
@@ -407,7 +408,11 @@ function NightCard({
         ];
 
   return (
-    <li className={`game-night-card${cancelled ? ' is-cancelled' : ''}`}>
+    <Surface
+      as="li"
+      variant="sleeve"
+      className={`game-night-card${cancelled ? ' is-cancelled' : ''}`}
+    >
       <div className="game-night-card-head">
         <h3 className="game-night-card-title">{night.title}</h3>
         {/* Cancelled leads the pill group — the most urgent status reads
@@ -662,7 +667,7 @@ function NightCard({
           onClose={() => setTonightTradesOpen(false)}
         />
       )}
-    </li>
+    </Surface>
   );
 }
 

@@ -39,6 +39,7 @@ import { Tabs } from '../Tabs';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
 import { OwnershipBadge } from './OwnershipBadge';
 import { Chip } from '@/components/shared/Chip';
+import { Surface } from '@/components/shared/Surface';
 
 import { userMessage } from '@/lib/user-error';
 export interface DeckAnalysisPanelHandle {
@@ -100,7 +101,9 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
     }, [analysis]);
 
     return (
-      <div
+      <Surface
+        as="div"
+        variant="framed"
         ref={containerRef}
         className={`deck-analysis-panel deck-combos-panel${isCollapsed ? ' is-collapsed' : ''}${embedded ? ' is-embedded' : ''}`}
         role="region"
@@ -196,7 +199,7 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
             </>
           )}
         </div>
-      </div>
+      </Surface>
     );
   }
 );

@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger';
 import { Component, type ReactNode } from 'react';
 import { BrandMark } from './shared/BrandMark';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 import { isChunkLoadError, reloadForNewBuild } from '@/lib/chunk-reload';
 
 interface Props {
@@ -34,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
       // it is and offer the only thing that works.
       return (
         <div className="error-boundary-page">
-          <div className="error-boundary-card" role="alert">
+          <Surface as="div" variant="framed" className="error-boundary-card" role="alert">
             <div className="auth-brand-hero" aria-hidden="true">
               <BrandMark size={48} />
             </div>
@@ -45,14 +46,14 @@ export class ErrorBoundary extends Component<Props, State> {
                 Reload page
               </Button>
             </div>
-          </div>
+          </Surface>
         </div>
       );
     }
     if (this.state.error) {
       return (
         <div className="error-boundary-page">
-          <div className="error-boundary-card" role="alert">
+          <Surface as="div" variant="framed" className="error-boundary-card" role="alert">
             <div className="auth-brand-hero" aria-hidden="true">
               <BrandMark size={48} />
             </div>
@@ -70,7 +71,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </Button>
               <Button onClick={() => window.location.reload()}>Reload page</Button>
             </div>
-          </div>
+          </Surface>
         </div>
       );
     }

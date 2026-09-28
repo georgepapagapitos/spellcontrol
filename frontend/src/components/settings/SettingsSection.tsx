@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Surface } from '@/components/shared/Surface';
 
 interface SettingsSectionProps {
   /** Heading id — register in YouPage's `SECTION_HEADING_IDS` if it should
@@ -17,7 +18,7 @@ interface SettingsSectionProps {
  */
 export function SettingsSection({ id, title, hint, children }: SettingsSectionProps) {
   return (
-    <section className="settings-card" aria-labelledby={id}>
+    <Surface as="section" variant="framed" className="settings-card" aria-labelledby={id}>
       <header className="settings-card-header">
         <h2 id={id} className="settings-card-title">
           {title}
@@ -25,6 +26,6 @@ export function SettingsSection({ id, title, hint, children }: SettingsSectionPr
         {hint && <p className="settings-card-hint">{hint}</p>}
       </header>
       <div className="settings-card-body">{children}</div>
-    </section>
+    </Surface>
   );
 }

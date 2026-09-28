@@ -22,6 +22,7 @@ import { Tabs } from '../Tabs';
 import { ComboRow } from './ComboRow';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { Surface } from '@/components/shared/Surface';
 
 export interface DeckCombosPanelHandle {
   /** Expand the panel (if collapsed), optionally switch to `tab`, scroll it into
@@ -279,7 +280,9 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   };
 
   return (
-    <div
+    <Surface
+      as="div"
+      variant="framed"
       ref={containerRef}
       className={`deck-combos-panel${isCollapsed ? ' is-collapsed' : ''}${embedded ? ' is-embedded' : ''}`}
       role="region"
@@ -487,6 +490,6 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
           onClose={preview.close}
         />
       )}
-    </div>
+    </Surface>
   );
 });

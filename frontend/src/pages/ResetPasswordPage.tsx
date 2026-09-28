@@ -6,6 +6,7 @@ import { preventFocusSteal } from '../lib/keyboard';
 import { toast } from '../store/toasts';
 import { BrandMark } from '../components/shared/BrandMark';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 /** Mirrors AuthPage's register-mode password rules. */
 export default function ResetPasswordPage() {
@@ -57,7 +58,7 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <main className="auth-page">
-        <div className="auth-card">
+        <Surface as="div" variant="framed" className="auth-card">
           <div className="auth-brand-hero" aria-hidden="true">
             <BrandMark size={48} motion="idle" />
           </div>
@@ -68,14 +69,14 @@ export default function ResetPasswordPage() {
           <Button variant="primary" to="/forgot-password" className="auth-submit">
             Request a new link
           </Button>
-        </div>
+        </Surface>
       </main>
     );
   }
 
   return (
     <main className="auth-page">
-      <div className="auth-card">
+      <Surface as="div" variant="framed" className="auth-card">
         <div className="auth-brand-hero" aria-hidden="true">
           <BrandMark size={48} motion="idle" />
         </div>
@@ -178,7 +179,7 @@ export default function ResetPasswordPage() {
             Back to sign in
           </Link>
         )}
-      </div>
+      </Surface>
     </main>
   );
 }

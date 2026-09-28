@@ -6,6 +6,7 @@ import './GuestActionPopover.css';
 import { useMenuKeyboard } from '../lib/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 interface Props {
   open: boolean;
@@ -75,7 +76,9 @@ export function GuestActionPopover({ open, onClose, anchorRef, message }: Props)
   const returnTo = `${location.pathname}${location.search}`;
 
   return createPortal(
-    <div
+    <Surface
+      as="div"
+      variant="popover"
       ref={panelRef}
       className="filter-popover-panel guest-action-popover"
       style={{
@@ -103,7 +106,7 @@ export function GuestActionPopover({ open, onClose, anchorRef, message }: Props)
           icon={<X width={14} height={14} strokeWidth={1.8} />}
         />
       </div>
-    </div>,
+    </Surface>,
     document.body
   );
 }

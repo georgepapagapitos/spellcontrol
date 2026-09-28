@@ -4,6 +4,7 @@ import { BrandMark } from '../components/shared/BrandMark';
 import { forgotPassword } from '../lib/auth-api';
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 /**
  * Request a password-reset email. Always shows the same confirmation
@@ -35,7 +36,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="auth-page">
-      <div className="auth-card">
+      <Surface as="div" variant="framed" className="auth-card">
         <div className="auth-brand-hero" aria-hidden="true">
           <BrandMark size={48} motion="idle" />
         </div>
@@ -87,7 +88,7 @@ export default function ForgotPasswordPage() {
             </Link>
           </>
         )}
-      </div>
+      </Surface>
     </main>
   );
 }

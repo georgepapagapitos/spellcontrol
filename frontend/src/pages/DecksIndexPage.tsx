@@ -81,6 +81,7 @@ import { useAuth } from '../store/auth';
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { Surface } from '@/components/shared/Surface';
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
 
 // Stable empty-set reference for guests/pre-bootstrap — avoids allocating a
@@ -803,7 +804,9 @@ export function DecksIndexPage() {
                 const value = deckValues.get(deck.id) ?? 0;
                 const selected = sel.selected.has(deck.id);
                 return (
-                  <li
+                  <Surface
+                    as="li"
+                    variant="sleeve"
                     key={deck.id}
                     className={`decks-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
                       selected ? ' bulk-selected' : ''
@@ -1012,7 +1015,7 @@ export function DecksIndexPage() {
                         },
                       ]}
                     />
-                  </li>
+                  </Surface>
                 );
               })}
             </ul>

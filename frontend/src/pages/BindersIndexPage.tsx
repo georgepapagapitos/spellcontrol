@@ -30,6 +30,7 @@ import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu'
 import { PageHeader } from '../components/PageHeader';
 import { InfoTip } from '../components/InfoTip';
 import { EmptyState } from '../components/shared/EmptyState';
+import { Surface } from '../components/shared/Surface';
 import {
   SelectToggle,
   BulkSelectBar,
@@ -454,7 +455,9 @@ export function BindersIndexPage() {
               const selected = sel.selected.has(b.def.id);
               const art = coverArts.get(b.def.id);
               return (
-                <li
+                <Surface
+                  as="li"
+                  variant="sleeve"
                   key={b.def.id}
                   className={`binders-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
                     selected ? ' bulk-selected' : ''
@@ -546,7 +549,7 @@ export function BindersIndexPage() {
                       canReorder: sortField === 'position' && sortDir === 'asc',
                     })}
                   />
-                </li>
+                </Surface>
               );
             })}
             {/* The cards no binder takes, as the last thing in the list: it is
@@ -554,7 +557,11 @@ export function BindersIndexPage() {
                 follows. Hidden while searching or selecting (it is not a
                 binder), and absent when every card has a home. */}
             {uncategorizedCards.length > 0 && !debouncedSearch.trim() && !sel.selectMode && (
-              <li className="binders-index-card binders-index-card--uncategorized">
+              <Surface
+                as="li"
+                variant="sleeve"
+                className="binders-index-card binders-index-card--uncategorized"
+              >
                 <button
                   type="button"
                   className="binders-index-card-link"
@@ -578,7 +585,7 @@ export function BindersIndexPage() {
                     </div>
                   </div>
                 </button>
-              </li>
+              </Surface>
             )}
           </ul>
         </>

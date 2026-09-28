@@ -38,6 +38,8 @@ import {
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { InlineRename } from '@/components/shared/InlineRename';
+import { Surface } from '@/components/shared/Surface';
+import { SectionHeader } from '@/components/shared/SectionHeader';
 const POD_NAME_MAX = 60;
 
 type GamesFetch =
@@ -527,7 +529,7 @@ export function PodHubPage() {
       )}
 
       <section className="pod-hub-section" aria-label="Pod roster">
-        <h2 className="pod-hub-section-head">Members</h2>
+        <SectionHeader title="Members" titleClassName="pod-hub-section-head" />
         <ul className="pod-hub-roster">
           {activeMembers.map((m) => (
             <li key={m.userId} className="pod-hub-roster-row">
@@ -554,7 +556,7 @@ export function PodHubPage() {
 
         {invitedMembers.length > 0 && (
           <>
-            <h2 className="pod-hub-section-head">Invited</h2>
+            <SectionHeader title="Invited" titleClassName="pod-hub-section-head" />
             <ul className="pod-hub-roster">
               {invitedMembers.map((m) => (
                 <li key={m.userId} className="pod-hub-roster-row">
@@ -581,7 +583,7 @@ export function PodHubPage() {
       {isMember && (
         <>
           <div className="deck-stats-pair pod-hub-stats-pair">
-            <div className="deck-stats-panel">
+            <Surface as="div" variant="framed" className="deck-stats-panel">
               <h2 className="deck-stats-panel-title">Shared history</h2>
               {gamesFetch.status === 'loading' ? (
                 <div
@@ -638,9 +640,9 @@ export function PodHubPage() {
                   </table>
                 </div>
               )}
-            </div>
+            </Surface>
 
-            <div className="deck-stats-panel">
+            <Surface as="div" variant="framed" className="deck-stats-panel">
               <h2 className="deck-stats-panel-title">Leaderboard</h2>
               {leaderboardFetch.status === 'loading' ? (
                 <div
@@ -683,12 +685,12 @@ export function PodHubPage() {
                   <PodRecordsStrip records={leaderboardFetch.records} />
                 </>
               )}
-            </div>
+            </Surface>
           </div>
 
           {otherMembers.length > 0 && (
             <section className="pod-hub-section" aria-label="What the pod plays">
-              <h2 className="pod-hub-section-head">What the pod plays</h2>
+              <SectionHeader title="What the pod plays" titleClassName="pod-hub-section-head" />
               <ul className="pod-hub-wtpp-list">
                 {otherMembers.map((m) => {
                   const state = memberDeckState(m.userId);

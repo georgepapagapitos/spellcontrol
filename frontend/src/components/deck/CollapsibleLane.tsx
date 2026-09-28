@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Surface } from '../shared/Surface';
 
 export interface CollapsibleLaneHandle {
   /** Expand the lane, scroll it into view, and move focus to its header — used
@@ -78,7 +79,9 @@ export const CollapsibleLane = forwardRef<CollapsibleLaneHandle, CollapsibleLane
     }));
 
     return (
-      <div
+      <Surface
+        as="div"
+        variant="framed"
         ref={containerRef}
         className={`tune-lane deck-combos-panel${collapsed ? ' is-collapsed' : ''}`}
         role="region"
@@ -114,7 +117,7 @@ export const CollapsibleLane = forwardRef<CollapsibleLaneHandle, CollapsibleLane
         <div id={bodyId} className="deck-combos-body" hidden={collapsed} aria-hidden={collapsed}>
           {children}
         </div>
-      </div>
+      </Surface>
     );
   }
 );
