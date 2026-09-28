@@ -1,5 +1,9 @@
 import { logger } from '@/lib/logger';
-import { checkRoleEvidence } from '@spellcontrol/deck-metrics';
+import {
+  checkRoleEvidence,
+  isIncidentalRampByTags,
+  isRampByTags,
+} from '@spellcontrol/deck-metrics';
 const TAG_REPO_URL =
   (import.meta.env.VITE_TAG_REPO_URL as string | undefined) ?? '/tagger-tags.json';
 
@@ -119,12 +123,16 @@ export type CardDrawSubtype = 'tutor' | 'wheel' | 'cantrip' | 'card-draw' | 'car
 // cardMatchesRole, hasMultipleRoles, and getAllCardRoles.
 
 function isRampCard(cardName: string): boolean {
-  return !!(
-    tagSets?.['ramp']?.has(cardName) ||
-    tagSets?.['cost-reducer']?.has(cardName) ||
-    tagSets?.['mana-dork']?.has(cardName) ||
-    tagSets?.['mana-rock']?.has(cardName)
-  );
+  return isRampByTags((tag) => hasTag(cardName, tag));
+}
+
+/**
+ * E476: the card carries Scryfall's generic `ramp` tag but its job is
+ * something else (Mana Drain, Sword of Feast and Famine), so it never fills
+ * the ramp role anywhere. The rule lives in `@spellcontrol/deck-metrics`.
+ */
+export function isIncidentalRamp(cardName: string): boolean {
+  return isIncidentalRampByTags((tag) => hasTag(cardName, tag));
 }
 
 function isCardDrawCard(cardName: string): boolean {
@@ -201,9 +209,20 @@ export function getAllCardRoles(cardName: string): RoleKey[] {
   return roles;
 }
 
+/**
+ * A card's generation-stamped `deckRole`, minus a stale `ramp` stamp. Saved
+ * decks keep frozen card copies, so a deck generated before E476 still says
+ * Mana Drain is ramp; read the stamp through this, never `card.deckRole`.
+ */
+export function stampedRole(card: { name: string; deckRole?: string }): string | undefined {
+  return card.deckRole === 'ramp' && isIncidentalRamp(card.name) ? undefined : card.deckRole;
+}
+
 /** For cards with the 'ramp' role, return the specific subtype. */
 export function getRampSubtype(cardName: string): RampSubtype | null {
-  if (!tagSets) return null;
+  // Stamped on every card for secondary-role badges, so incidental ramp must
+  // get no subtype here either.
+  if (!tagSets || !isRampCard(cardName)) return null;
   if (tagSets['mana-dork']?.has(cardName)) return 'mana-producer';
   if (tagSets['mana-rock']?.has(cardName)) return 'mana-rock';
   if (tagSets['cost-reducer']?.has(cardName)) return 'cost-reducer';

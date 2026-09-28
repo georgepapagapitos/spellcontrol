@@ -10,8 +10,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadTaggerData } from '@/deck-builder/services/tagger/client';
-import { findOwnedSubstitute, isIncidentalRamp } from './substituteFinder';
+import { isIncidentalRamp, loadTaggerData } from '@/deck-builder/services/tagger/client';
+import { findOwnedSubstitute } from './substituteFinder';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -37,6 +37,8 @@ describe('incidental ramp (E460, real tags)', () => {
     expect(isIncidentalRamp('Arcane Signet')).toBe(false);
     expect(isIncidentalRamp('Farseek')).toBe(false);
     expect(isIncidentalRamp('Rampant Growth')).toBe(false);
+    // Tagged `bounce` for returning its own land: that is the ramp (E476).
+    expect(isIncidentalRamp('Mina and Denn, Wildborn')).toBe(false);
   });
 
   it('never offers Mana Drain as the owned stand-in for a missing ramp staple', () => {

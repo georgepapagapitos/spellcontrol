@@ -145,8 +145,12 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *   v16 — a Bracket 4 combo floor that rests on Spellbook's Ruthless rating
  *        alone names the combo and carries `ruthlessCombos`, so the estimate
  *        reads borderline 3 and the Bracket panel argues the call both ways.
+ *   v17 — incidental ramp (Mana Drain, Sword of Feast and Famine: only the
+ *        generic `ramp` tag, and a tag naming another job) no longer fills
+ *        the ramp role, so ramp counts drop and a counterspell with no other
+ *        role counts as interaction in the soft score (E476).
  */
-const ANALYSIS_ENGINE_VERSION = 'v16-rating-only-combo-floor';
+const ANALYSIS_ENGINE_VERSION = 'v17-incidental-ramp';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for

@@ -20,8 +20,11 @@ import { loadTaggerData, hasTag, getCardRole, isMassLandDenial, isExtraTurn } fr
 const TAGS: Record<string, string[]> = {
   boardwipe: ['Wrath of God', 'Damnation'],
   // Also tagged boardwipe — boardwipe must win, it is the more specific claim.
-  removal: ['Wrath of God', 'Swords to Plowshares'],
-  ramp: ['Cultivate'],
+  removal: ['Wrath of God', 'Swords to Plowshares', 'Tinder Wall'],
+  // E476: generic `ramp` plus another job's tag is not ramp; self-bounce is.
+  ramp: ['Cultivate', 'Mana Drain', 'Sword of Feast and Famine', 'Tinder Wall', 'Mana Bloom'],
+  protection: ['Sword of Feast and Famine'],
+  bounce: ['Mana Bloom'],
   'cost-reducer': ['Cloud Key'],
   'mana-dork': ['Llanowar Elves'],
   'mana-rock': ['Arcane Signet'],
@@ -33,7 +36,7 @@ const TAGS: Record<string, string[]> = {
   cantrip: ['Ponder'],
   'mass-land-denial': ['Armageddon'],
   'extra-turn': ['Time Warp'],
-  counterspell: ['Counterspell'],
+  counterspell: ['Counterspell', 'Mana Drain'],
   // Tagged, but with nothing the role folds recognise → no role.
   tapland: ['Jungle Hollow'],
 };
@@ -76,6 +79,11 @@ describe('createTagLookup matches the frontend tagger client', () => {
     for (const n of ['Rhystic Study', 'Demonic Tutor', 'Divination', 'Windfall', 'Ponder']) {
       expect(shared.getCardRole(n)).toBe('cardDraw');
     }
+    // Incidental ramp takes its other role, or none; self-bounce stays ramp.
+    expect(shared.getCardRole('Mana Drain')).toBeNull();
+    expect(shared.getCardRole('Sword of Feast and Famine')).toBeNull();
+    expect(shared.getCardRole('Tinder Wall')).toBe('removal');
+    expect(shared.getCardRole('Mana Bloom')).toBe('ramp');
     expect(shared.getCardRole('Jungle Hollow')).toBeNull();
     expect(shared.getCardRole('A Card Nobody Tagged')).toBeNull();
   });

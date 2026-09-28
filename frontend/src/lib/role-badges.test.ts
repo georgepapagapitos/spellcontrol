@@ -11,6 +11,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardDrawSubtype: vi.fn(),
   cardMatchesRole: vi.fn(),
   hasMultipleRoles: vi.fn(),
+  stampedRole: (card: { deckRole?: string }) => card.deckRole,
 }));
 
 import {
