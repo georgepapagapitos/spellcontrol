@@ -1,14 +1,19 @@
 /* ── GenerationTakeover ────────────────────────────────────────────────────
-   Focused full-width panel that replaces the inline progress strip during
-   commander-deck generation. The commander — plus its partner when there is
-   one — is shown as the real card, which anchors the wait. Uses semantic
-   tokens only; no new keyframes (reuses shared fade-in from global.css). */
+   Focused panel that replaces the page body during commander-deck generation.
+   One centred, width-bounded stage: the commander card (plus its partner) lit
+   by a blurred copy of its own art, beside a single column carrying the name,
+   the live step, the bar and the phase timeline. Nothing stretches to the
+   panel edge, so a wide desktop reads as one composition, not a strip. */
 
 .gen-takeover {
+  position: relative;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: min(38rem, 72dvh);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  isolation: isolate;
   background: var(--surface-raised);
   animation: fade-in var(--motion-base) var(--ease-out-soft) both;
 }
@@ -26,84 +31,142 @@
   transition: filter 360ms var(--ease-out-soft);
 }
 
-/* Hero region — the commander card(s) beside the headline. Stacks on phones,
-   goes side-by-side once there's room for both. */
-.gen-takeover-hero {
+/* ── Stage ─────────────────────────────────────────────────────────────────
+   Phones: card above, column below. ≥600px: card left, column right. The
+   stage is the SealBurst's positioning context. */
+.gen-takeover-stage {
   position: relative;
+  width: 100%;
+  max-width: 54rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-5) 0;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-4);
+}
+
+@media (min-width: 600px) {
+  .gen-takeover-stage {
+    flex-direction: row;
+    gap: var(--space-8);
+    padding: var(--space-8) var(--space-7);
+  }
 }
 
 /* ── Card layer ────────────────────────────────────────────────────────── */
 .gen-takeover-cards {
+  position: relative;
   display: flex;
   justify-content: center;
-  gap: var(--space-3);
   flex: none;
 }
 
-/* Card images follow the app's card-art shape: 5:7 at --radius. Width shrinks
-   with the panel so a partner pair never forces a horizontal scroll. */
+/* The commander's own art, blurred into a soft halo behind the card. */
+.gen-takeover-glow {
+  position: absolute;
+  top: 8%;
+  left: -6%;
+  width: 112%;
+  height: 84%;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: blur(2.5rem) saturate(1.4);
+  opacity: 0.55;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Card images follow the app's card-art shape: 5:7 at --radius. */
 .gen-takeover-card {
-  width: min(10rem, 34vw);
+  width: min(13rem, 56vw);
   aspect-ratio: 5 / 7;
   border-radius: var(--radius);
   background: var(--surface-raised);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-raised);
 }
 
-/* ≥600px: card(s) sit to the right of the text column, which takes the rest. */
+/* A partner pair fans: the two cards overlap and lean apart, so the pair
+   stays one object instead of forcing a wide row. */
+.gen-takeover-cards.is-pair .gen-takeover-card {
+  width: min(10.5rem, 40vw);
+}
+
+.gen-takeover-cards.is-pair .gen-takeover-card:first-of-type {
+  rotate: -4deg;
+  margin-right: -2.5rem;
+}
+
+.gen-takeover-cards.is-pair .gen-takeover-card:last-of-type {
+  rotate: 4deg;
+  margin-top: var(--space-4);
+}
+
 @media (min-width: 600px) {
-  .gen-takeover-hero {
-    flex-direction: row-reverse;
-    align-items: center;
-    padding: var(--space-5);
+  .gen-takeover-card {
+    width: min(15rem, 30vw);
   }
 
-  .gen-takeover-card {
-    width: min(11rem, 22vw);
+  .gen-takeover-cards.is-pair .gen-takeover-card {
+    width: min(12rem, 22vw);
   }
 }
 
-/* ── Content layer ─────────────────────────────────────────────────────── */
+/* ── Content column ────────────────────────────────────────────────────── */
 .gen-takeover-body {
   position: relative;
   z-index: 1;
   flex: 1;
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .gen-takeover-commander {
-  margin: 0;
+  margin: 0 0 var(--space-2);
   font-family: var(--font-serif);
-  font-size: var(--text-lg);
+  font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.01em;
-  line-height: 1.2;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+/* Live step on the left, percent on the right, sitting on the bar. */
+.gen-takeover-status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .gen-takeover-step {
   margin: 0;
+  min-width: 0;
+  min-height: 1.4em; /* prevent layout jump between messages */
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  min-height: 1.4em; /* prevent layout jump between messages */
+}
+
+.gen-takeover-percent {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
 
 /* ── Flavor line ───────────────────────────────────────────────────────── */
 .gen-takeover-flavor {
   margin: 0;
-  font-size: var(--text-xs);
+  min-height: 1.4em; /* prevent layout shift during rotation */
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
   font-style: italic;
   color: var(--text-secondary);
-  min-height: 1.4em; /* prevent layout shift during rotation */
   opacity: 1;
   transition: opacity var(--motion-fast) ease;
 }
@@ -112,23 +175,21 @@
   opacity: 0;
 }
 
-.gen-takeover-bar {
-  /* Let the bar fill the panel width. */
-}
-
-/* ── Phase outline ─────────────────────────────────────────────────────────
-   Macro build checklist below the hero — fills the otherwise-empty vertical
-   space and gives the wait a sense of forward motion. */
+/* ── Phase timeline ────────────────────────────────────────────────────────
+   The macro build outline as a vertical rail: each mark is joined to the next
+   by a hairline that fills with accent once that phase is done. */
 .gen-takeover-phases {
   list-style: none;
-  margin: 0;
-  padding: var(--space-4) var(--space-5) var(--space-5);
+  margin: var(--space-4) 0 0;
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2-5);
 }
 
 .gen-takeover-phase {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -137,16 +198,32 @@
   color: var(--text-secondary);
 }
 
+/* Rail segment from the bottom of this mark to the top of the next one. */
+.gen-takeover-phase:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--space-2) - 0.75px);
+  top: calc(50% + var(--space-2));
+  width: 1.5px;
+  height: calc(100% + var(--space-2-5) - 1rem);
+  background: var(--border);
+}
+
+.gen-takeover-phase--done:not(:last-child)::before {
+  background: var(--accent);
+}
+
 .gen-takeover-phase-mark {
   flex: none;
   position: relative;
   width: 1rem;
   height: 1rem;
   border-radius: 999px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface-raised);
 }
 
-/* Upcoming — hollow ring, dimmed label (inherits the defaults above). */
+/* Upcoming — hollow ring, dimmed label. */
 .gen-takeover-phase--upcoming {
   opacity: 0.55;
 }
@@ -154,6 +231,7 @@
 /* Current — filled accent dot that gently pulses; label brightened. */
 .gen-takeover-phase--current {
   color: var(--text-primary);
+  font-weight: 600;
 }
 
 .gen-takeover-phase--current .gen-takeover-phase-mark {
@@ -162,9 +240,10 @@
   animation: gen-takeover-pulse 1.6s var(--ease-out-soft) infinite;
 }
 
-/* Done — accent ring with a CSS checkmark. */
+/* Done — solid accent disc with a surface-coloured check. */
 .gen-takeover-phase--done .gen-takeover-phase-mark {
   border-color: var(--accent);
+  background: var(--accent);
 }
 
 .gen-takeover-phase--done .gen-takeover-phase-mark::after {
@@ -172,9 +251,9 @@
   position: absolute;
   inset: 0;
   margin: auto;
-  width: 0.28rem;
-  height: 0.5rem;
-  border: solid var(--accent);
+  width: 0.25rem;
+  height: 0.45rem;
+  border: solid var(--surface-raised);
   border-width: 0 1.5px 1.5px 0;
   transform: translateY(-1px) rotate(45deg);
 }
@@ -198,18 +277,6 @@
   to {
     opacity: 0;
     transform: translateY(var(--space-4));
-  }
-}
-
-/* ── Responsive ────────────────────────────────────────────────────────── */
-@media (max-width: 599px) {
-  .gen-takeover-hero {
-    padding: var(--space-4) var(--space-4) 0;
-  }
-
-  .gen-takeover-phases {
-    padding: var(--space-4);
-    gap: var(--space-2);
   }
 }
 

@@ -2200,7 +2200,10 @@ real card (`useCardThumb(name, 'normal')` through `CardThumb`, 5:7 at
 surface is for: a _header_ labels a page you are about to read, so a crop under
 a scrim is right; a _wait_ has nothing else to look at, so give the full card,
 which is the thing the deck is being built around. Cards stack above the text on
-phones and move to the right of it at ≥600px.
+phones and sit to the left of it at ≥600px. The whole composition lives in one
+centred stage capped at 54rem (the bar and phase list never stretch across a
+wide desktop), the card is lit by a blurred copy of its own image, and a partner
+pair fans (two overlapping cards leaning apart) instead of widening the row.
 
 ## Charts (line / trend)
 

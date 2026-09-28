@@ -115,4 +115,12 @@ describe('GenerationTakeover', () => {
     // Suppress unused variable warning — firstText is checked implicitly above.
     void firstText;
   });
+
+  it('shows the rounded percent, and 100% with every phase done while finishing', () => {
+    const { rerender } = render(<GenerationTakeover message="Building…" percent={42.6} />);
+    expect(document.querySelector('.gen-takeover-percent')?.textContent).toBe('43%');
+    rerender(<GenerationTakeover message="Building…" percent={60} isExiting />);
+    expect(document.querySelector('.gen-takeover-percent')?.textContent).toBe('100%');
+    expect(document.querySelectorAll('.gen-takeover-phase--done').length).toBe(6);
+  });
 });
