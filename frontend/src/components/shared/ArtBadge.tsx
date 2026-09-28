@@ -55,8 +55,9 @@ export function ArtBadge({
   return (
     <span
       {...rest}
-      className={className}
+      className={`art-badge ${className}`}
       data-corner={corner}
+      data-icon-only={icon && !children ? true : undefined}
       data-tone={tone}
       role={label ? 'img' : undefined}
       aria-label={label}

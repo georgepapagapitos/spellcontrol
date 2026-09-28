@@ -38,20 +38,6 @@
   opacity: 0.7;
 }
 
-.deck-combos-card-qty-badge {
-  position: absolute;
-  top: var(--space-1);
-  left: var(--space-1);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: var(--art-scrim);
-  color: var(--art-scrim-text);
-  border-radius: 999px;
-  padding: 0.05rem var(--space-1-5);
-  line-height: 1.2;
-}
-
 /* Narrow mobile: pull max-width down further so 2-card combos fit on one
    line even on small phones. */
 @media (max-width: 599px) {

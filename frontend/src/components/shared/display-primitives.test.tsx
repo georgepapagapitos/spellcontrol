@@ -41,10 +41,11 @@ describe('ArtBadge', () => {
     );
     const badge = container.firstElementChild!;
     expect(badge.tagName).toBe('SPAN');
-    expect(badge.className).toBe('deck-combos-card-qty-badge');
+    expect(badge.className).toBe('art-badge deck-combos-card-qty-badge');
     expect(badge.getAttribute('data-corner')).toBe('top-end');
     expect(badge.getAttribute('data-tone')).toBe('accent');
     expect(badge.textContent).toBe('×2');
+    expect(badge.hasAttribute('data-icon-only')).toBe(false);
     // Text that says what it means needs no second name.
     expect(badge.hasAttribute('role')).toBe(false);
   });
@@ -59,6 +60,7 @@ describe('ArtBadge', () => {
       />
     );
     const badge = screen.getByRole('img', { name: 'In 2 decks' });
+    expect(badge.hasAttribute('data-icon-only')).toBe(true);
     expect(badge.querySelector('[data-testid="glyph"]')?.getAttribute('aria-hidden')).toBe('true');
   });
 

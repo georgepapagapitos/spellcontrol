@@ -1398,67 +1398,98 @@ i.ss.set-symbol--mythic {
   min-width: 0;
 }
 
+/* The on-art badge plate (T166, § On-art scrims). ArtBadge renders
+   `.art-badge` beside the family class; everything here is wrapped in
+   :where() so it has no specificity, and a family keeps only what is its
+   own: a code's mono face, a status fill, a size tier that scales with the
+   card. The deck and binder identity marks are the domain badges' look
+   (DeckBadge / BinderBadge), not this plate. */
+:where(.art-badge:not(.card-list-deck-badge, .slot-deck-badge)) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: 999px;
+  background: var(--art-scrim);
+  color: var(--art-scrim-text);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:where(.art-badge[data-icon-only]:not(.card-list-deck-badge, .slot-deck-badge)) {
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+}
+
+/* One inset for every badge that pins itself; a cluster pins at the same
+   inset (.collection-grid-corner, .deck-card-grid-badges). */
+:where(.art-badge[data-corner]) {
+  position: absolute;
+  z-index: 1;
+}
+
+:where(.art-badge[data-corner^='top']) {
+  top: var(--space-1-5);
+}
+
+:where(.art-badge[data-corner^='bottom']) {
+  bottom: var(--space-1-5);
+}
+
+:where(.art-badge[data-corner$='start']) {
+  left: var(--space-1-5);
+}
+
+:where(.art-badge[data-corner$='end']) {
+  right: var(--space-1-5);
+}
+
+/* Tone text uses the scrim tone set, never the themed tokens (E155). */
+:where(.art-badge[data-tone='success']) {
+  color: var(--art-scrim-success);
+}
+
+:where(.art-badge[data-tone='info']) {
+  color: var(--art-scrim-info);
+}
+
+:where(.art-badge[data-tone='warn']) {
+  color: var(--art-scrim-warn);
+}
+
+:where(.art-badge[data-tone='err']) {
+  color: var(--art-scrim-err);
+}
+
+:where(.art-badge[data-tone='accent']) {
+  color: var(--art-scrim-accent);
+}
+
 /* Bottom-left corner cluster on a grid tile — the qty badge plus, when the
    same card name appears as more than one printing in the current rows, a
    small set-code chip that disambiguates otherwise-identical art crops
    (T36). Mirrors .collection-grid-badges (the bottom-right cluster). */
 .collection-grid-corner {
   position: absolute;
-  bottom: 5px;
-  left: 5px;
+  bottom: var(--space-1-5);
+  left: var(--space-1-5);
   display: flex;
   align-items: center;
   gap: var(--space-1);
   z-index: 2;
 }
 
-.collection-grid-corner .collection-grid-qty {
-  position: static;
-}
-
+/* A set code is a code: mono and uppercase on the plate. */
 .collection-grid-set {
-  background: var(--art-scrim);
-  color: var(--art-scrim-text);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  padding: var(--space-1) var(--space-2);
-  border-radius: 999px;
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
-  line-height: 1;
   text-transform: uppercase;
-  box-shadow: var(--shadow-raised);
-}
-
-/* Corner badge for the "Tradeable surplus" filter — same scrim-chip
-   treatment as .collection-grid-set, minus the mono/uppercase set-code
-   styling (this shows a plain "N free" count instead). */
-.collection-grid-surplus {
-  background: var(--art-scrim);
-  color: var(--art-scrim-text);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  padding: var(--space-1) var(--space-2);
-  border-radius: 999px;
-  line-height: 1;
-  white-space: nowrap;
-  box-shadow: var(--shadow-raised);
-}
-
-.collection-grid-qty {
-  position: absolute;
-  bottom: 5px;
-  left: 5px;
-  background: var(--art-scrim);
-  color: var(--art-scrim-text);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  padding: var(--space-1) var(--space-2);
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
-  line-height: 1;
-  box-shadow: var(--shadow-raised);
 }
 
 .collection-grid-qty-x {
@@ -1612,15 +1643,11 @@ i.ss.set-symbol--mythic {
 .collection-grid-item.grid-2x .collection-grid-qty {
   font-size: var(--text-base);
   padding: var(--space-1) var(--space-2-5);
-  bottom: 6px;
-  left: 6px;
 }
 
 .collection-grid-item.grid-3x .collection-grid-qty {
   font-size: var(--text-lg);
   padding: var(--space-1) var(--space-3);
-  bottom: var(--space-2);
-  left: var(--space-2);
 }
 
 /* Foil grid-thumbnail styles moved to src/styles/holographic.css */
