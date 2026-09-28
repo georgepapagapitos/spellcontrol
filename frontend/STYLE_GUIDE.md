@@ -402,8 +402,14 @@ meanwhile.
   `--gutter` per tier, floors `--control-h` at 44px on a touch pointer (last,
   so rule order can never undercut it), and sets `--text-base` to 1rem on a
   phone. The shared controls (`.btn`, `.pill-btn`, `.toolbar-pill`, `.tab`,
-  `.search-pill`), the page gutter and the desktop header read them. Row
-  heights are not wired yet. Guard: `styles/density-tiers.test.ts`.
+  `.search-pill`), the page gutter and the desktop header read them. List
+  and menu rows read `--row-h` the same way (`.switch-row`, the sets lists,
+  game-night attendees, Home's table and Your cards rows, rules history, tags,
+  menus). **Long card lists are the density exception** (user ruling,
+  2026-09-28): the decklist and the collection table keep their 36px rows at
+  every tier, because a full-width row has slack on the height axis and 15
+  cards fit a phone screen where 10 would at 44 (#1466). Guard:
+  `styles/density-tiers.test.ts`.
 - **A query that closes a tier ends on 599px or 1023px**, never 600 or 1024:
   `max-width: 600px` and `min-width: 600px` both match at exactly 600px, so
   that width ran phone and tablet rules together

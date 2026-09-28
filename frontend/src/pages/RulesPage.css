@@ -385,6 +385,7 @@
   white-space: nowrap;
   cursor: pointer;
   transition: border-color var(--motion-fast) ease;
+  min-height: var(--row-h);
 }
 
 @media (hover: hover) and (pointer: fine) {

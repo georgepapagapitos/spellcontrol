@@ -1708,6 +1708,7 @@
   font-size: var(--text-sm);
   text-align: left;
   cursor: pointer;
+  min-height: var(--row-h);
 }
 
 /* Menu items rest at desktop density; floor them on touch (STYLE_GUIDE

@@ -13,7 +13,10 @@ import { dirname, join } from 'node:path';
 // order its stylesheet declares its rules in (the tablet banner button that
 // read 40px on touch while the floor was a separate rule).
 const styles = join(dirname(fileURLToPath(import.meta.url)));
-const read = (f: string) => readFileSync(join(styles, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+const src = join(styles, '..');
+const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+const read = (f: string) => strip(readFileSync(join(styles, f), 'utf8'));
+const readSrc = (f: string) => strip(readFileSync(join(src, f), 'utf8'));
 
 /** The declarations of every rule whose selector list includes `selector`. */
 function decls(css: string, selector: string): string {
@@ -55,5 +58,30 @@ describe('density tiers (T135)', () => {
     const base = read('base-layout.css');
     expect(decls(base, '.app-main')).toMatch(/--page-gutter:\s*var\(--gutter\)/);
     expect(decls(base, '.site-header')).toMatch(/max\(var\(--gutter\)/);
+  });
+
+  // List and menu rows stand at the tier's row height. Long card lists are the
+  // density exception (user ruling 2026-09-28, § Layout system): a decklist or
+  // the collection table stays 36px at every tier, 15 cards to a phone screen.
+  it.each([
+    ['components/shared/form.css', '.switch-row'],
+    ['pages/SetsPage.css', '.sets-row'],
+    ['pages/SetsPage.css', '.set-list-row'],
+    ['components/play/GameNights.css', '.game-night-attendee-row'],
+    ['components/home/AroundTheTable.css', '.home-table-row'],
+    ['components/home/YourCardsCard.css', '.home-your-cards-row'],
+    ['styles/stats-breakdown.css', '.collection-insight-row'],
+    ['pages/RulesPage.css', '.rules-history-item'],
+    ['pages/TagsPage.css', '.tags-row'],
+    ['pages/cube/cube.css', '.cube-collab-friend-row'],
+    ['styles/deck-builder-card-list.css', '.deck-row-menu-item'],
+    ['styles/deck-builder-editor.css', '.deck-editor-overflow-item'],
+  ])('%s %s stands at the tier row height', (file, selector) => {
+    expect(decls(readSrc(file), selector)).toMatch(/(^|;)\s*min-height:\s*var\(--row-h\)/);
+  });
+
+  it('long card lists keep their own density, not the tier row', () => {
+    expect(decls(read('deck-builder-card-list.css'), '.deck-row')).not.toMatch(/var\(--row-h\)/);
+    expect(decls(read('collection.css'), '.collection-table-row')).not.toMatch(/var\(--row-h\)/);
   });
 });

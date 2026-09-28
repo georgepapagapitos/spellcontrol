@@ -207,6 +207,7 @@
   text-align: left;
   text-decoration: none;
   cursor: pointer;
+  min-height: var(--row-h);
 }
 
 .collection-insights-list > .collection-insight-row:first-child {

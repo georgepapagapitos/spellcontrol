@@ -172,6 +172,7 @@
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
+  min-height: var(--row-h);
 }
 
 /* Selected state carries a border AND a check-free label weight change, so it
