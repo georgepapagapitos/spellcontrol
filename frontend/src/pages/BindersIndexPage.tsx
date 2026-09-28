@@ -8,6 +8,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { CollectionHubTabs } from '@/components/CollectionHubTabs';
+import { Chip } from '@/components/shared/Chip';
 import { useCallback, useMemo, useState } from 'react';
 import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
 import { useStoredSort } from '../lib/use-stored-sort';
@@ -485,30 +486,31 @@ export function BindersIndexPage() {
                             row is tight, so a wrap never lands mid-stat with a stray "·". */}
                         <span className="binders-index-card-tags">
                           {sortField === 'position' && sortDir === 'asc' && (
-                            <span
+                            <Chip
                               className="binders-index-card-tag"
                               aria-label={`Priority ${b.def.position + 1}`}
                             >
                               #{b.def.position + 1}
-                            </span>
+                            </Chip>
                           )}
                           {b.def.mode === 'manual' && (
-                            <span className="binders-index-card-tag">Manual</span>
+                            <Chip className="binders-index-card-tag">Manual</Chip>
                           )}
                           {(reviewCounts.get(b.def.id) ?? 0) > 0 && (
-                            <span
-                              className="binders-index-card-tag binders-index-card-tag--review"
+                            <Chip
+                              className="binders-index-card-tag"
+                              tone="info"
                               aria-label={`${reviewCounts.get(b.def.id)} ${
                                 reviewCounts.get(b.def.id) === 1 ? 'change' : 'changes'
                               } to file`}
                             >
                               {reviewCounts.get(b.def.id)} to file
-                            </span>
+                            </Chip>
                           )}
                           {b.def.fixedCapacity != null && (
-                            <span className="binders-index-card-tag">
+                            <Chip className="binders-index-card-tag">
                               Cap {b.def.fixedCapacity.toLocaleString()}
-                            </span>
+                            </Chip>
                           )}
                         </span>
                         <span className="binders-index-card-stats">

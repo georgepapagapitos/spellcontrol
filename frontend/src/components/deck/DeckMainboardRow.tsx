@@ -778,10 +778,15 @@ function DeckCardRow({
             nameText
           )}
           {row.isPartner && (
-            <span className="deck-row-partner-tag" title="Partner commander">
-              <Handshake width={12} height={12} strokeWidth={2.4} aria-hidden />
-              <span className="deck-row-partner-label">Partner</span>
-            </span>
+            <Chip
+              className="deck-row-partner-tag"
+              tone="accent"
+              title="Partner commander"
+              icon={<Handshake width={12} height={12} strokeWidth={2.4} />}
+              labelClassName="deck-row-partner-label"
+            >
+              Partner
+            </Chip>
           )}
           {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
           {/* User tags (E171) — always visible when set (never hover-gated,

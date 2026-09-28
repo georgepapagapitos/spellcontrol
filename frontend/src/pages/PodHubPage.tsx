@@ -11,6 +11,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackedBar } from '../components/shared/MeterBar';
 import { EmptyState } from '../components/shared/EmptyState';
 import { UserAvatar } from '../components/UserAvatar';
+import { Chip } from '../components/shared/Chip';
 import { gameFormatLabel } from '../lib/game-formats';
 import { useAnimatedNumber } from '../lib/use-animated-number';
 import { listFriends, type Friend } from '../lib/friends-client';
@@ -533,7 +534,9 @@ export function PodHubPage() {
               <UserAvatar name={m.username} size={28} />
               <span className="pod-hub-roster-name">{m.username}</span>
               {m.userId === pod.ownerUserId && (
-                <span className="pod-hub-roster-owner-tag">Owner</span>
+                <Chip className="pod-hub-roster-owner-tag" tone="neutral">
+                  Owner
+                </Chip>
               )}
               {isOwner && m.userId !== pod.ownerUserId && (
                 <Button

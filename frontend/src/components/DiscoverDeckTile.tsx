@@ -2,6 +2,7 @@ import './DiscoverDeckTile.css';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { ColorPip } from './shared/ManaSymbol';
+import { Chip } from './shared/Chip';
 import { MeterBar } from './shared/MeterBar';
 import { UserAvatar } from './UserAvatar';
 import { useCardThumb } from '../lib/card-thumbs';
@@ -197,13 +198,13 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
                 ))}
               </span>
             )}
-            <span className="deck-format-badge">{formatLabel(deck.format)}</span>
+            <Chip className="deck-format-badge">{formatLabel(deck.format)}</Chip>
             {deck.bracket != null && (
-              <span className="deck-format-badge">
+              <Chip className="deck-format-badge">
                 {deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
                   ? bracketBadgeWithEstimate(deck.bracket, deck.estimatedBracket)
                   : bracketLabel(deck.bracket)}
-              </span>
+              </Chip>
             )}
           </div>
           {!isGrid && (

@@ -27,6 +27,7 @@ import { SelectMenu } from './SelectMenu';
 import { ADD_LANGUAGE_OPTIONS } from './PrintingPicker';
 import { SegmentedControl } from './shared/form';
 import { Button, IconButton } from './shared/Button';
+import { Chip } from './shared/Chip';
 import { conditionLabel, conditionShort } from './shared/CardRow';
 import { useSearchCards } from '../lib/use-search-cards';
 import { useConfirm } from '../lib/use-confirm';
@@ -423,16 +424,16 @@ function ScanRow({
           {card.set_name} · #{card.collector_number ?? '—'}
         </span>
         <span className="scan-row-tags">
-          <span className={`scan-row-tag finish-${entry.finish}`}>
+          <Chip className={`scan-row-tag finish-${entry.finish}`}>
             {FINISH_LABELS[entry.finish]}
-          </span>
-          <span className="scan-row-tag" title={conditionLabel(condition)}>
+          </Chip>
+          <Chip className="scan-row-tag" title={conditionLabel(condition)}>
             {conditionShort(condition)}
-          </span>
+          </Chip>
           {entry.language && (
-            <span className="scan-row-tag" title="Language">
+            <Chip className="scan-row-tag" title="Language">
               {entry.language.toUpperCase()}
-            </span>
+            </Chip>
           )}
         </span>
         {showBinderRouting && (

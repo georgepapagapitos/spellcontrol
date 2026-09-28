@@ -21,32 +21,32 @@
 
 /* Tones reuse the status tokens from global.css (single-hue --success/--info,
    border+text pairs for --warn/--err). */
-.verdict-chip.is-success {
+.verdict-chip[data-tone='success'] {
   color: var(--success);
   border-color: var(--success);
 }
 
-.verdict-chip.is-info {
+.verdict-chip[data-tone='info'] {
   color: var(--info);
   border-color: var(--info);
 }
 
-.verdict-chip.is-warn {
+.verdict-chip[data-tone='warn'] {
   color: var(--warn-text);
   border-color: var(--warn-border);
 }
 
-.verdict-chip.is-err {
+.verdict-chip[data-tone='err'] {
   color: var(--err-text);
   border-color: var(--err-border);
 }
 
-.verdict-chip.is-accent {
+.verdict-chip[data-tone='accent'] {
   color: var(--accent);
   border-color: var(--accent);
 }
 
-.verdict-chip.is-neutral {
+.verdict-chip[data-tone='neutral'] {
   color: var(--text-muted);
   border-color: var(--border);
 }

@@ -219,7 +219,9 @@ export function ComboRow({
             commander (E63). Only on commander decks where EDHREC lists it. ── */}
       {edhrec && (edhrec.percent != null || edhrec.deckCount > 0) && (
         <p className="deck-combos-edhrec" title="How often decks run this combo">
-          <span className="deck-combos-edhrec-tag">EDHREC</span>
+          <Chip className="deck-combos-edhrec-tag" tone="neutral">
+            EDHREC
+          </Chip>
           <span>
             {edhrec.percent != null
               ? `${formatPercent(edhrec.percent)} of decks`

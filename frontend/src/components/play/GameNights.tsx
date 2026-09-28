@@ -56,6 +56,7 @@ import './GameNights.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button, buttonClass } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 import { CopyButton } from '@/components/shared/CopyButton';
 import { copyToClipboard } from '@/lib/clipboard';
 /** Loading placeholder — two `.game-night-card` shells (real chrome, so the
@@ -412,11 +413,31 @@ function NightCard({
         {/* Cancelled leads the pill group — the most urgent status reads
             first, not buried after format/weekly/invite-only (STYLE_GUIDE
             "at a glance" cancelled-cue ruling). */}
-        {cancelled && <span className="game-night-cancelled-pill">Cancelled</span>}
-        {formatLabel && <span className="game-night-format-pill">{formatLabel}</span>}
-        {night.venue === 'online' && <span className="game-night-online-pill">Online</span>}
-        {weekly && <span className="game-night-weekly-pill">Weekly</span>}
-        {night.inviteOnly && <span className="game-night-invite-pill">Invite only</span>}
+        {cancelled && (
+          <Chip className="game-night-cancelled-pill" tone="err">
+            Cancelled
+          </Chip>
+        )}
+        {formatLabel && (
+          <Chip className="game-night-format-pill" tone="accent">
+            {formatLabel}
+          </Chip>
+        )}
+        {night.venue === 'online' && (
+          <Chip className="game-night-online-pill" tone="accent">
+            Online
+          </Chip>
+        )}
+        {weekly && (
+          <Chip className="game-night-weekly-pill" tone="accent">
+            Weekly
+          </Chip>
+        )}
+        {night.inviteOnly && (
+          <Chip className="game-night-invite-pill" tone="neutral">
+            Invite only
+          </Chip>
+        )}
         {hostItems.length > 0 && (
           <OverflowMenu
             className="game-night-card-menu"
@@ -707,7 +728,11 @@ function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => vo
       <li key={key} className="game-night-attendee-row">
         <span className="game-night-person-name">
           {r.displayName}
-          {r.isHost && <span className="game-night-host-pill">Host</span>}
+          {r.isHost && (
+            <Chip className="game-night-host-pill" tone="neutral">
+              Host
+            </Chip>
+          )}
         </span>
         {canAddFriend && r.username !== undefined && (
           <Button

@@ -2,6 +2,7 @@ import './TradeComposer.css';
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, Minus, Plus, X } from 'lucide-react';
 import { Modal } from '../Modal';
+import { Chip } from '../shared/Chip';
 import { SearchPill } from '../SearchPill';
 import { buildFriendSearch } from '../../lib/friend-search';
 import { getCardTags, useCardTagsReady } from '../../lib/card-tags';
@@ -872,7 +873,11 @@ function TradeSide({
  * one signal a give row can't otherwise express).
  */
 function WantedBadge() {
-  return <span className="trade-wanted-badge">Wanted</span>;
+  return (
+    <Chip className="trade-wanted-badge" tone="accent">
+      Wanted
+    </Chip>
+  );
 }
 
 /**

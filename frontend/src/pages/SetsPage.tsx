@@ -190,9 +190,9 @@ function CardSetLine({ setCode, collectorNumber, setMap, sldIndex, qty, owned }:
           {qty !== undefined && qty > 1 && <span>×{qty}</span>}
         </span>
         {owned !== undefined && (
-          <span className={`sets-card-badge ${owned ? 'is-owned' : 'is-missing'}`}>
+          <Chip className="sets-card-badge" tone={owned ? 'success' : 'neutral'}>
             {owned ? 'Owned' : 'Missing'}
-          </span>
+          </Chip>
         )}
       </Link>
     </li>
@@ -849,9 +849,9 @@ function SetListRow({ row, onOpen }: { row: SetGridRow; onOpen: () => void }) {
         </span>
         {qty > 1 && <span className="set-list-qty">×{qty}</span>}
         {card.rarity && <RarityBadge rarity={card.rarity} />}
-        <span className={`sets-card-badge ${missing ? 'is-missing' : 'is-owned'}`}>
+        <Chip className="sets-card-badge" tone={missing ? 'neutral' : 'success'}>
           {missing ? 'Missing' : 'Owned'}
-        </span>
+        </Chip>
       </button>
     </li>
   );

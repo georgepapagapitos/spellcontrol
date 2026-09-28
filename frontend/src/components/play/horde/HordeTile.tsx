@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react';
 import { ColorPip } from '../../shared/ManaSymbol';
+import { Chip } from '../../shared/Chip';
 import type { HordeCatalogEntry } from '@/lib/horde';
 import type { HordeRecordRow } from '@/lib/horde-records';
 import './horde-setup.css';
@@ -43,7 +44,7 @@ export function HordeTile({ horde, selected, onSelect, record }: Props) {
                 <ColorPip key={c} color={c} />
               ))}
             </span>
-            <span className="deck-format-badge">{horde.badge}</span>
+            <Chip className="deck-format-badge">{horde.badge}</Chip>
             {record && (
               <span className="horde-tile-record">
                 {record.won}-{record.lost}

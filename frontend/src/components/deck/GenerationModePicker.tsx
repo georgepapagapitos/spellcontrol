@@ -10,6 +10,7 @@ import {
   slugifyTag,
 } from '@/deck-builder/services/deckBuilder/phaseAlternatePool';
 import './GenerationModePicker.css';
+import { Chip } from '../shared/Chip';
 
 interface ModeDef {
   id: GenerationMode;
@@ -158,7 +159,9 @@ export function GenerationModePicker({
                   <span className="gen-mode-card-head">
                     <Icon width={18} height={18} strokeWidth={2} aria-hidden />
                     <span className="gen-mode-card-label">{m.label}</span>
-                    <span className="gen-mode-card-tag">{isPdhStandard ? 'Scryfall' : m.tag}</span>
+                    <Chip className="gen-mode-card-tag" tone="neutral">
+                      {isPdhStandard ? 'Scryfall' : m.tag}
+                    </Chip>
                   </span>
                   <span className="gen-mode-card-blurb">
                     {isPdhStandard

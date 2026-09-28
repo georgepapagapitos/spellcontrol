@@ -28,6 +28,7 @@ import type { BinderDef, EnrichedCard, MaterializedBinder } from '../types';
 import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 import { SwitchRow } from '@/components/shared/form';
 
 interface Props {
@@ -319,10 +320,14 @@ function CardsTab({
                   {card.setCode.toUpperCase()} #{card.collectorNumber}
                   {card.foil ? <span className="binder-card-editor-foil"> foil</span> : null}
                   {isPinned ? (
-                    <span className="binder-card-editor-pinned-tag" title="Manually added">
+                    <Chip
+                      className="binder-card-editor-pinned-tag"
+                      tone="accent"
+                      title="Manually added"
+                    >
                       {' '}
                       pinned
-                    </span>
+                    </Chip>
                   ) : null}
                 </span>
                 <IconButton

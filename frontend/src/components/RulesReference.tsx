@@ -12,6 +12,7 @@ import {
   type RulesBundle,
 } from '../lib/comprehensive-rules';
 import './RulesReference.css';
+import { Chip } from './shared/Chip';
 
 /** The three sections of the Comprehensive Rules reference. */
 export type RulesReferenceTab = 'keywords' | 'glossary' | 'rules';
@@ -326,7 +327,12 @@ function KeywordList({
                   strokeWidth={1.8}
                 />
                 <span className="rules-ref-keyword-name">{k.name}</span>
-                <span className={`rules-ref-badge rules-ref-badge-${k.kind}`}>{k.kind}</span>
+                <Chip
+                  className="rules-ref-badge"
+                  tone={k.kind === 'ability' ? 'accent' : 'neutral'}
+                >
+                  {k.kind}
+                </Chip>
                 <span className="rules-ref-keyword-rule">{k.rule}</span>
               </button>
               <RulesEntryMenu entry={entry} contextHost=".rules-ref-keyword" {...menu} />

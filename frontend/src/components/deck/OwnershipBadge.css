@@ -23,14 +23,14 @@
 /* Owned — green, the established "you have it" signal (matches the combos
    check). --success has pale dark-surface variants (#424) so it stays legible
    on dark themes. */
-.ownership-badge.is-owned {
+.ownership-badge[data-tone='success'] {
   color: var(--success);
   border-color: var(--success);
 }
 
 /* Not owned — muted/neutral, never alarming (it's the default state for a
    suggestion, not an error). */
-.ownership-badge.is-unowned {
+.ownership-badge[data-tone='neutral'] {
   color: var(--text-muted);
   border-color: var(--border);
 }

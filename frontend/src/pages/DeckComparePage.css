@@ -223,10 +223,10 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
-.deck-compare-delta-tag.is-added {
+.deck-compare-delta-tag[data-tone='success'] {
   color: var(--success);
 }
-.deck-compare-delta-tag.is-removed {
+.deck-compare-delta-tag[data-tone='err'] {
   color: var(--err-text);
 }
 .deck-compare-tagger-notice {

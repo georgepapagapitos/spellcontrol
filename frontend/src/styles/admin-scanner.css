@@ -1469,7 +1469,7 @@
   color: var(--text-muted);
 }
 
-.admin-role-pill.is-admin {
+.admin-role-pill[data-tone='accent'] {
   background: var(--accent-light);
   color: var(--accent);
 }

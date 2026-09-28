@@ -660,9 +660,9 @@ describe('BuildReportPanel', () => {
       const rows = container.querySelectorAll('details .build-report-sub');
       // Owned-missing combo ranks first despite far lower popularity.
       expect(rows[0].textContent).toContain('Owned Missing');
-      expect(rows[0].querySelector('.ownership-badge.is-owned')).toBeTruthy();
+      expect(rows[0].querySelector('.ownership-badge[data-tone="success"]')).toBeTruthy();
       expect(rows[1].textContent).toContain('Unowned Missing');
-      expect(rows[1].querySelector('.ownership-badge.is-unowned')).toBeTruthy();
+      expect(rows[1].querySelector('.ownership-badge[data-tone="neutral"]')).toBeTruthy();
       // The payoff line names the missing piece and the combo's result.
       expect(rows[0].textContent).toContain('Missing: Owned Missing');
       expect(rows[0].textContent).toContain('Infinite mana');

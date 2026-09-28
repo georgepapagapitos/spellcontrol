@@ -15,6 +15,7 @@ import { Field, SegmentedControl, SwitchRow } from './shared/form';
 
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Chip } from '@/components/shared/Chip';
 import { X } from 'lucide-react';
 /** True when a printing's availability means the user owns at least one copy. */
 function isOwnedAvailability(a: ChangeOwnership): boolean {
@@ -836,13 +837,13 @@ export function CardEditDialog({
                               {finishes.map((f) => {
                                 const owned = rowOwnedFinishes.includes(f as Finish);
                                 return (
-                                  <span
+                                  <Chip
                                     key={f}
                                     className={`card-edit-finish-tag card-edit-finish-tag--${f}${owned ? ' is-owned' : ''}`}
                                   >
                                     {f === 'nonfoil' ? 'NF' : f === 'foil' ? 'F' : 'E'}
                                     {owned && <span className="sr-only"> (owned)</span>}
-                                  </span>
+                                  </Chip>
                                 );
                               })}
                             </span>
@@ -851,12 +852,14 @@ export function CardEditDialog({
                               {formatMoney(price, { zeroAsDash: true })}
                             </span>
                             {availBadge && (
-                              <span className={`card-edit-avail-badge ${availBadge.className}`}>
+                              <Chip className={`card-edit-avail-badge ${availBadge.className}`}>
                                 {availBadge.label}
-                              </span>
+                              </Chip>
                             )}
                             {card.id === currentScryfallId && (
-                              <span className="card-edit-current-badge">current</span>
+                              <Chip className="card-edit-current-badge" tone="accent">
+                                current
+                              </Chip>
                             )}
                           </button>
                         );
