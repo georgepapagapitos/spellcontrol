@@ -28,7 +28,7 @@ import {
 } from '../deckFilters';
 import { calculateCardPriority } from '../cardPicking';
 import { parsePrice } from '../costAnalyzer';
-import { getCardPrice } from '@/deck-builder/services/scryfall/client';
+import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { primaryTypeOf } from '@/lib/card-matching';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
@@ -495,9 +495,14 @@ export async function applyBudgetConvergence(
           calculateCardPriority(a, state.cfg.brewLevel)
       );
 
+    const isLand = (card: ScryfallCard) => getFrontFaceTypeLine(card).includes('Land');
     const gateOk = (card: ScryfallCard): boolean => {
       const price = parsePrice(getCardPrice(card, ctx.currency));
       if (price == null || price >= cutPrice) return false; // strictly cheaper, and must be priced
+      // E485: allNonLand still carries utility lands, and the any-type tier
+      // below can reach them. Lands swap only for lands, or the deck ships
+      // off its tuned land count (the E282 rule in substituteFinder).
+      if (isLand(card) !== isLand(cutCard)) return false;
       if (ctx.cardAllowed && !ctx.cardAllowed(card)) return false;
       if (!fitsColorIdentity(card, colorIdentity)) return false;
       const isGC = state.gameChangerNames.has(card.name);
