@@ -20,6 +20,7 @@ import { STARTER_TEMPLATES } from '../lib/binder-templates';
 import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
 import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { cleanFilter } from '../lib/clean-filter';
+import { formatPagesSummary, PACK_LABEL } from '../lib/binder-pages-summary';
 import { Modal } from './Modal';
 import { SelectMenu } from './SelectMenu';
 import { ColorPicker } from './ColorPicker';
@@ -90,13 +91,11 @@ function formatCaughtBy(
   return `${caughtBy[0].binderName} and ${caughtBy.length - 1} others`;
 }
 
-const PACK_LABEL: Record<string, string> = {
-  false: 'New page per section',
-  true: 'Fit whole sections',
-  continuous: 'No gaps',
-};
-
 const STARTER_LABELS = new Set(STARTER_TEMPLATES.map((t) => t.label));
+
+/** A sort field's picker label ("Set"), for copy that names the field. */
+const sortFieldLabel = (field: string | undefined): string =>
+  SORT_FIELDS.find((f) => f.value === field)?.label ?? 'group';
 
 /** The page's pocket grid, drawn: 2×2, 3×3 or 4×3. The number sits beside it. */
 function PocketGlyph({ pockets }: { pockets: PocketSize }) {
@@ -820,14 +819,13 @@ export function BinderEditor() {
       .join(', then ') +
     (sectionMode === 'group' && groups.length >= 2 ? ' · sections by rule' : '');
 
-  const pagesSummary = [
-    `${pocketSize}-pocket`,
-    doubleSided ? 'both sides' : 'one side',
-    sectionMode !== 'group' ? PACK_LABEL[String(packSections)] : null,
-    fixedCapacity === null ? 'no limit' : `${fixedCapacity.toLocaleString()} cards`,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const pagesSummary = formatPagesSummary({
+    pocketSize,
+    doubleSided,
+    fixedCapacity,
+    packSections,
+    sectionsFromRules: sectionMode === 'group',
+  });
 
   const pagesSettings = (
     <>
@@ -1039,13 +1037,13 @@ export function BinderEditor() {
                   <div className="binder-editor-switches">
                     <SwitchRow
                       label="Include cards in decks and cubes"
-                      hint="Off hides them here until they're released. Pins stay put."
+                      hint="Off: a card in a deck or cube stays hidden here, even one added by hand, until you take it out."
                       checked={showDeckAllocated}
                       onChange={setShowDeckAllocated}
                     />
                     <SwitchRow
-                      label="Keep every printing together"
-                      hint="A matching card brings its other copies along, unless another binder already holds them."
+                      label="Keep printings together"
+                      hint="When one copy matches here, its other printings come too, unless a binder above already took them."
                       checked={keepPrintingsTogether}
                       onChange={setKeepPrintingsTogether}
                     />
@@ -1168,7 +1166,7 @@ export function BinderEditor() {
                         hint={
                           pageBreakDepth <= 1
                             ? 'Each section header starts a new page; deeper sorts order cards within it.'
-                            : `Each ${pageBreakDepth === 2 ? 'second' : `level-${pageBreakDepth}`} sort group starts its own page. Empty pockets are accepted.`
+                            : `Each new ${sortFieldLabel(sorts[pageBreakDepth - 1]?.field).toLowerCase()} starts its own page. Empty pockets are accepted.`
                         }
                       >
                         <SelectMenu
@@ -1177,7 +1175,10 @@ export function BinderEditor() {
                           onChange={(v) => setPageBreakDepth(v as number)}
                           options={Array.from({ length: sorts.length }, (_, i) => ({
                             value: i + 1,
-                            label: i === 0 ? 'Section headers only' : `First ${i + 1} sort levels`,
+                            label:
+                              i === 0
+                                ? 'Section headers only'
+                                : `Each ${sortFieldLabel(sorts[i]?.field).toLowerCase()} too`,
                           }))}
                         />
                       </Field>
