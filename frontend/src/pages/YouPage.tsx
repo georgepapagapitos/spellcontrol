@@ -50,6 +50,7 @@ import { useFriendRequests } from '../lib/use-friend-requests';
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
+import { SectionHeader } from '@/components/shared/SectionHeader';
 // Deep link (`/you?section=…`) → the heading to scroll/focus. Values are the
 // linking door's own vocabulary (the header menu's "Profile" / "Settings" /
 // old "Shared links" item, the sync pill's Account, the auto-link banner's sign-in
@@ -624,9 +625,11 @@ export function YouPage() {
       </h2>
 
       <div role="group" aria-labelledby="settings-appearance-group-title">
-        <h2 id="settings-appearance-group-title" className="settings-section-header">
-          Appearance
-        </h2>
+        <SectionHeader
+          title="Appearance"
+          id="settings-appearance-group-title"
+          titleClassName="settings-section-header"
+        />
         <SettingsSection
           id="settings-appearance-title"
           title="Theme"
@@ -670,9 +673,11 @@ export function YouPage() {
       </div>
 
       <div role="group" aria-labelledby="settings-collection-prefs-group-title">
-        <h2 id="settings-collection-prefs-group-title" className="settings-section-header">
-          Collection preferences
-        </h2>
+        <SectionHeader
+          title="Collection preferences"
+          id="settings-collection-prefs-group-title"
+          titleClassName="settings-section-header"
+        />
         <SettingsSection
           id="settings-collection-prefs-title"
           title="Price currency"
@@ -801,9 +806,11 @@ export function YouPage() {
       </div>
 
       <div role="group" aria-labelledby="settings-data-group-title">
-        <h2 id="settings-data-group-title" className="settings-section-header">
-          Data &amp; storage
-        </h2>
+        <SectionHeader
+          title="Data & storage"
+          id="settings-data-group-title"
+          titleClassName="settings-section-header"
+        />
 
         <OfflineModeSettings />
 

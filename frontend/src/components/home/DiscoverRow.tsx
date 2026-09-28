@@ -7,6 +7,7 @@ import { userMessage } from '@/lib/user-error';
 import { HomeSectionSearch } from './HomeSectionSearch';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
+import { SectionHeader } from '@/components/shared/SectionHeader';
 
 const ROW_LIMIT = 5;
 
@@ -47,23 +48,27 @@ export function DiscoverRow() {
 
   return (
     <section className="home-section" aria-labelledby="home-discover">
-      <div className="home-section-head">
-        <h2 id="home-discover" className="home-section-title">
-          Discover
-        </h2>
-        <span className="home-section-meta">New decks from other players</span>
-        <div className="home-section-tools">
-          <HomeSectionSearch
-            label="Search public decks"
-            toResults={(term) => `/decks/discover?q=${encodeURIComponent(term)}`}
-            toPage="/decks/discover"
-          />
-          <Link to="/decks/discover" className="home-door">
-            Browse
-            <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
-          </Link>
-        </div>
-      </div>
+      <SectionHeader
+        title="Discover"
+        id="home-discover"
+        className="home-section-head"
+        titleClassName="home-section-title"
+        meta={<span className="home-section-meta">New decks from other players</span>}
+        toolsClassName="home-section-tools"
+        tools={
+          <>
+            <HomeSectionSearch
+              label="Search public decks"
+              toResults={(term) => `/decks/discover?q=${encodeURIComponent(term)}`}
+              toPage="/decks/discover"
+            />
+            <Link to="/decks/discover" className="home-door">
+              Browse
+              <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
+            </Link>
+          </>
+        }
+      />
       {loading ? (
         <div role="status" aria-label="Loading" aria-busy="true">
           <ul className="decks-index-list is-grid home-rail" aria-hidden="true">

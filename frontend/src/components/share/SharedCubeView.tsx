@@ -4,6 +4,7 @@ import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatIdentity } from '../../lib/display-name';
 import { SearchPill } from '../SearchPill';
 import { SharedEmptyState } from './SharedEmptyState';
+import { SectionHeader } from '../shared/SectionHeader';
 
 interface Props {
   data: PublicCube;
@@ -109,10 +110,15 @@ export function SharedCubeView({ data, action }: Props) {
               className="shared-cube-section"
               aria-label={BUCKET_LABEL[key] ?? key}
             >
-              <h2 className="shared-cube-section-head">
-                {BUCKET_LABEL[key] ?? key}
-                <span className="shared-cube-section-count">{cards.length}</span>
-              </h2>
+              <SectionHeader
+                titleClassName="shared-cube-section-head"
+                title={
+                  <>
+                    {BUCKET_LABEL[key] ?? key}
+                    <span className="shared-cube-section-count">{cards.length}</span>
+                  </>
+                }
+              />
               <ul className="shared-cube-card-list">
                 {cards.map((c) => (
                   <li key={c.oracleId} className="shared-cube-card-row">

@@ -181,18 +181,17 @@ const ALLOWED: Record<Shape, Record<string, number>> = {
     'playtest/components/ZoneViewerModal.tsx': 2,
   },
   rawSurface: {},
+  // The remaining three deck sites render on <header> with a collapse
+  // toggle + icon glyph ahead of the title, a shape SectionHeader doesn't
+  // produce; TradesPage's row wraps unconditionally whether or not its
+  // Clear-history tool renders, and SectionHeader both drops the wrapper
+  // when there's no meta/tools and always adds one around `tools` — neither
+  // matches the bare, always-present row (T166 W5 rulings).
   rawSectionHead: {
     'components/deck/CommanderOpenSlot.tsx': 1,
     'components/deck/DeckCardGrid.tsx': 1,
     'components/deck/DeckMainboardRow.tsx': 1,
-    'components/home/DiscoverRow.tsx': 1,
-    'components/home/YourDecks.tsx': 1,
-    'components/settings/AiFeaturesSettings.tsx': 1,
-    'components/share/SharedCubeView.tsx': 1,
-    'pages/FriendHubPage.tsx': 4,
-    'pages/PodHubPage.tsx': 3,
     'pages/TradesPage.tsx': 1,
-    'pages/YouPage.tsx': 3,
   },
 };
 

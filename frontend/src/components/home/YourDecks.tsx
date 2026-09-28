@@ -16,6 +16,7 @@ import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { HomeSectionSearch } from './HomeSectionSearch';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 import { Surface } from '../shared/Surface';
+import { SectionHeader } from '../shared/SectionHeader';
 
 const RECENT_LIMIT = 5;
 const WUBRG = ['W', 'U', 'B', 'R', 'G'];
@@ -141,22 +142,26 @@ export function YourDecks() {
 
   return (
     <section className="home-section" aria-labelledby="home-your-decks">
-      <div className="home-section-head">
-        <h2 id="home-your-decks" className="home-section-title">
-          Your decks
-        </h2>
-        <div className="home-section-tools">
-          <HomeSectionSearch
-            label="Search your decks"
-            toResults={(term) => `/decks?query=${encodeURIComponent(term)}`}
-            toPage="/decks"
-          />
-          <Link to="/decks" className="home-door">
-            {loading ? 'All decks' : `All ${decks.length}`}
-            <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
-          </Link>
-        </div>
-      </div>
+      <SectionHeader
+        title="Your decks"
+        id="home-your-decks"
+        className="home-section-head"
+        titleClassName="home-section-title"
+        toolsClassName="home-section-tools"
+        tools={
+          <>
+            <HomeSectionSearch
+              label="Search your decks"
+              toResults={(term) => `/decks?query=${encodeURIComponent(term)}`}
+              toPage="/decks"
+            />
+            <Link to="/decks" className="home-door">
+              {loading ? 'All decks' : `All ${decks.length}`}
+              <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
+            </Link>
+          </>
+        }
+      />
       {loading ? (
         <div role="status" aria-label="Loading" aria-busy="true">
           <ul className="decks-index-list is-grid home-rail" aria-hidden="true">
