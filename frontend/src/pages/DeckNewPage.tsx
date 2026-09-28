@@ -475,7 +475,7 @@ export function DeckNewPage() {
               Empty deck
             </span>
             <span id={`${emptyDoorId}-desc`} className="deck-new-empty-door-desc">
-              Add cards now. Choose the commander later.
+              Add cards now, decide the rest later.
             </span>
           </span>
           <ArrowRight className="deck-new-empty-door-go" width={16} height={16} aria-hidden />
