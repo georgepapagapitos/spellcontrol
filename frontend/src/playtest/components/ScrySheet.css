@@ -57,7 +57,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
   text-align: center;
 }
 
@@ -304,7 +304,7 @@
 .playtest-scry-face {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 

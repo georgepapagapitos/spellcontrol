@@ -27,7 +27,7 @@
 .play-home-live-body {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
   flex: 1;
   min-width: 0;
 }
@@ -158,7 +158,7 @@
 .play-home-night {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
 }
 
 .play-home-night-title {

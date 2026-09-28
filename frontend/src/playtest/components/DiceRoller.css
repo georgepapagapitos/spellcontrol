@@ -80,7 +80,7 @@
 }
 
 .playtest-dice-history li {
-  padding: 2px var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: 999px;

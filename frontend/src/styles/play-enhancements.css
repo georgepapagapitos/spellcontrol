@@ -365,7 +365,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   padding: 1.75rem 2.5rem;
   border-radius: var(--radius-lg);
   background: rgba(14, 17, 24, 0.92);
@@ -430,10 +430,10 @@
 
 .win-celebration-actions {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   justify-content: center;
   flex-wrap: wrap;
-  margin-top: 0.9rem;
+  margin-top: var(--space-4);
 }
 
 .win-celebration-dismiss.is-primary {
@@ -448,7 +448,7 @@
 }
 
 .win-celebration-dismiss {
-  padding: 0.55rem 1.4rem;
+  padding: var(--space-2) var(--space-5);
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.08);

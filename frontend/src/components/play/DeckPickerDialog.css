@@ -56,17 +56,17 @@
   overflow-y: auto;
   min-height: 0;
   /* Room for the focus ring of the last row inside the scroll box. */
-  padding-right: 2px;
+  padding-right: var(--space-0-5);
 }
 
 .deck-picker-row {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 0.625rem;
+  gap: var(--space-2-5);
   width: 100%;
   min-width: 0;
-  padding: var(--space-2) 0.625rem;
+  padding: var(--space-2) var(--space-2-5);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -107,7 +107,7 @@
 .deck-picker-row-text {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: var(--space-0-5);
   min-width: 0;
   flex: 1;
 }
@@ -138,7 +138,7 @@
 .deck-picker-row-colors {
   flex: 0 0 auto;
   display: inline-flex;
-  gap: 0.125rem;
+  gap: var(--space-0-5);
 }
 
 .deck-picker-empty {

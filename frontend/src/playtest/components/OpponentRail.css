@@ -223,7 +223,7 @@
 
 .opponent-entry__designations {
   display: flex;
-  gap: 2px;
+  gap: var(--space-0-5);
   flex-wrap: wrap;
 }
 
@@ -293,7 +293,7 @@
 .opponent-entry__battlefield {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
+  gap: var(--space-1);
   min-width: 0;
 }
 

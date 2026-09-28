@@ -48,13 +48,13 @@
 /* The beat is the quiet half: the card names are what the player acts on. */
 .trigger-reminder__beat {
   display: block;
-  margin-top: 0.375rem;
+  margin-top: var(--space-1-5);
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
 
 .trigger-reminder__list {
-  margin: 0.125rem 0 0;
+  margin: var(--space-0-5) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -62,7 +62,7 @@
 .trigger-reminder__card {
   display: block;
   width: 100%;
-  padding: 0.1875rem var(--space-1);
+  padding: var(--space-1) var(--space-1);
   border: 0;
   border-radius: var(--radius);
   background: transparent;

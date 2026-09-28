@@ -105,7 +105,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 3px var(--space-1) 3px 4.25rem;
+  padding: var(--space-1) var(--space-1) var(--space-1) 4.25rem;
   background: var(--surface);
   border: 1px solid var(--border-strong, var(--border));
   border-radius: 6px;
@@ -138,7 +138,7 @@
   left: 0;
   z-index: 2;
   max-width: 75%;
-  padding: 0 5px;
+  padding: 0 var(--space-1-5);
   font-size: var(--text-xs);
   font-weight: 700;
   line-height: 1.35;
@@ -159,7 +159,7 @@
   top: 0;
   right: 0;
   z-index: 2;
-  padding: 0 5px;
+  padding: 0 var(--space-1-5);
   font-size: var(--text-xs);
   font-weight: 800;
   line-height: 1.35;
