@@ -238,7 +238,7 @@ hr {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--space-7) 1.25rem;
+    padding: var(--space-7) var(--space-4);
   }
 }
 
@@ -353,27 +353,6 @@ hr {
     opacity: 1;
     color: var(--err-text, var(--warn-text));
     outline: none;
-  }
-}
-
-.empty-state-link-warn {
-  display: inline-block;
-  margin-top: 1.25rem;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  background: transparent;
-  transition: color var(--motion-fast);
-}
-
-.empty-state-link-warn:focus-visible {
-  color: var(--warn-text);
-  background: transparent;
-}
-@media (hover: hover) and (pointer: fine) {
-  .empty-state-link-warn:hover,
-  .btn-link.empty-state-link-warn:hover {
-    color: var(--warn-text);
-    background: transparent;
   }
 }
 

@@ -216,7 +216,7 @@
 
 .win-con-clock {
   /* Tuck up toward the primary row it annotates (panel gap is --space-3). */
-  margin: calc(0.35rem - var(--space-3)) 0 0;
+  margin: calc(var(--space-1-5) - var(--space-3)) 0 0;
   padding: 0 var(--space-3);
   display: flex;
   flex-direction: column;

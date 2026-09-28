@@ -1,13 +1,5 @@
 /* binder-nav.css — split from global.css (#refactor).
-   Binder navigation chrome: stat sublabel, binder tab row/group, active-binder overflow menu, mobile binder picker sheet, tab actions. */
-
-/* ── Stat sublabel ──────────────────────────────────────────────────────── */
-.stat-sub {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  margin-top: var(--space-0-5);
-}
+   Binder navigation chrome: binder tab row/group, active-binder overflow menu, mobile binder picker sheet, tab actions. */
 
 /* ── Binder tabs (extended for new dynamic-binder model) ────────────────── */
 .binder-tab-row {

@@ -25,7 +25,7 @@
   margin: var(--space-4) 0;
 }
 .admin-section {
-  margin: 1.25rem 0;
+  margin: var(--space-5) 0;
 }
 /* The Users & reports tab hosts the same settings cards the You page used to;
    stack them the way .settings-page does. */
@@ -39,7 +39,7 @@
   font-size: var(--text-md);
 }
 .admin-section h3 {
-  margin: 1.25rem 0 var(--space-1-5);
+  margin: var(--space-5) 0 var(--space-1-5);
   font-size: var(--text-base);
 }
 .admin-table {

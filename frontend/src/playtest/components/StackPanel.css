@@ -100,7 +100,10 @@
 }
 
 /* Tokens and anything else with no art keep a text bar — the only row that
-   cannot be a picture of a card. */
+   cannot be a picture of a card. The 4.25rem left pad clears the seat chip
+   (.stack-panel__seat) for the default "A player" label. The chip is sized
+   by its text, so no scale step or derived length fits it; a longer name
+   still overlaps. */
 .stack-panel__bar {
   display: flex;
   align-items: center;

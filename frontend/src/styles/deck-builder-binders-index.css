@@ -167,13 +167,15 @@
 
 /* Name is the colored header band. White text + shadow stays legible
    on any user-chosen binder color (pale gold through dark purple).
-   Right padding clears the absolutely-positioned 3-dot menu. */
+   Right padding clears the absolutely-positioned 3-dot menu: the button, its
+   inset from the edge, and a gap. */
 .binders-index-list.is-grid .binders-index-card-name {
   background: var(--binder-color, var(--accent));
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   font-size: var(--text-lg);
-  padding: var(--space-3) 2.6rem var(--space-3) var(--space-4);
+  padding: var(--space-3) calc(var(--menu-btn) + var(--space-2) + var(--space-1)) var(--space-3)
+    var(--space-4);
   border-top-left-radius: calc(var(--radius-lg) - 1px);
   border-top-right-radius: calc(var(--radius-lg) - 1px);
 }
@@ -211,6 +213,9 @@
 }
 
 .binders-index-card {
+  /* The ⋮'s size; the name band and compact row reserve room for it from
+     this. Compact rows shrink it; a coarse pointer grows it (below). */
+  --menu-btn: 1.9rem;
   position: relative;
   /* Sleeve matte (T53) — same treatment as .decks-index-card. */
   background: var(--surface-raised);
@@ -339,7 +344,7 @@
 
 .binders-index-list.is-compact .binders-index-card-link {
   padding: var(--space-1) var(--space-3);
-  padding-right: 2.25rem;
+  padding-right: calc(var(--menu-btn) + var(--space-2) + var(--space-1));
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
@@ -416,9 +421,8 @@
 /* Shrink the 3-dot button in compact rows so its circular hover
    background doesn't pop past the card's rounded right edge — the
    default 1.9rem button is taller than the compact row's content. */
-.binders-index-list.is-compact .binders-index-card-menu-btn {
-  width: 1.5rem;
-  height: 1.5rem;
+.binders-index-list.is-compact .binders-index-card {
+  --menu-btn: 1.5rem;
 }
 
 .binders-index-card-menu {
@@ -431,8 +435,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: var(--menu-btn);
+  height: var(--menu-btn);
   background: transparent;
   border: 0;
   border-radius: 999px;
@@ -451,13 +455,14 @@
   }
 }
 @media (pointer: coarse) {
-  .binders-index-card-menu-btn {
-    width: 44px;
-    height: 44px;
+  .binders-index-card,
+  .binders-index-list.is-compact .binders-index-card {
+    --menu-btn: var(--touch-target);
   }
-  .binders-index-list.is-compact .binders-index-card-menu-btn {
-    width: 44px;
-    height: 44px;
+
+  /* The grid ⋮ keeps its painted square; a ghost carries the target. */
+  .binders-index-list.is-grid .binders-index-card {
+    --menu-btn: 1.9rem;
   }
 }
 

@@ -378,7 +378,8 @@
      sibling): the corner's own top offset (--space-2 + --seam-keepout) plus
      the name button's one line (23px). A flat 1.6rem sat inside the name on
      every board once the seam keep-out moved the corner down. */
-  padding: calc(var(--space-2) + var(--seam-keepout) + var(--space-5)) 0.4rem 0.4rem;
+  padding: calc(var(--space-2) + var(--seam-keepout) + var(--space-5)) var(--space-1-5)
+    var(--space-1-5);
   pointer-events: none;
   /* Sized in the panel's own (rotated) axes, so the halves can stack by the
      space they actually get without a sideways/upright pair of queries.

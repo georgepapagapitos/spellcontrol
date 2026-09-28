@@ -141,6 +141,33 @@ describe('auth surface touch targets', () => {
   });
 });
 
+describe('the password field clears its reveal toggle', () => {
+  // The field reserved a flat 40px for a 32px toggle. The coarse floor grows
+  // the toggle to 44px, so on a phone the typed text ran 8px under the eye
+  // (measured at 390px with touch emulation: text box to x=309, toggle from
+  // x=301). The reservation now reads the toggle's size, one variable for both.
+  const coarse = coarseBlocks(css);
+
+  it('reserves room from the toggle size, not a literal', () => {
+    const input = css.match(/\n\.auth-input-wrap input\s*\{([^}]*)\}/);
+    expect(input, '.auth-input-wrap input rule is gone').toBeTruthy();
+    expect(input![1]).toMatch(/padding-right:\s*calc\(var\(--reveal-size\)/);
+    const toggle = css.match(/\n\.auth-reveal\s*\{([^}]*)\}/);
+    expect(toggle, '.auth-reveal rule is gone').toBeTruthy();
+    expect(toggle![1]).toMatch(/width:\s*var\(--reveal-size\)/);
+  });
+
+  it('grows the reservation with the coarse toggle', () => {
+    expect(coarse).toMatch(/\.auth-input-wrap\s*\{[^}]*--reveal-size:\s*var\(--touch-target\)/);
+  });
+
+  it("hides Edge's native reveal, so the field shows one eye", () => {
+    // Chromium Edge draws its own ::-ms-reveal button on a password input,
+    // which sat beside ours: two eyes, one of them outside our toggle logic.
+    expect(css).toMatch(/\.auth-input-wrap input::-ms-reveal\s*\{[^}]*display:\s*none/);
+  });
+});
+
 describe('auth card centring', () => {
   it('.auth-back centres with a mechanism that works in a block parent', () => {
     // It previously used `align-self: center`, which is inert: its parent is

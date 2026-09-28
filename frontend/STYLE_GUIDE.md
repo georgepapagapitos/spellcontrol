@@ -5861,6 +5861,21 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   Snapping by script is fine when every shift is 2px or less; a larger shift
   gets a look on screen first and a line in the PR. Never hardcode a new
   spacing rem that matches a scale step; write `var(--space-N)`.
+- **There is no 20px step; chrome pads `--space-5` (T157).** The last ~40
+  freehand values were almost all 20px (`1.25rem`), and most were dialog and
+  panel chrome at 20 × 24. Checked on screen at 390 and 1280, they now pad
+  `--space-5` on every side, the way `.choice-dialog` already did; the modal
+  footer stays `--space-4` × `--space-5`. Section gaps, list indents and the
+  scrim fade over tile art take `--space-5` too. A 20px step was considered
+  and not added: no site needed 20 over 24 once it was seen.
+- **A length that clears another element is derived from it, never snapped
+  (T157).** Room reserved for a ⋮, a reveal toggle, the Scan button or a
+  fixed bar is `calc(<that element's size> + <gap>)`, with the size in one
+  custom property both rules read (`--menu-btn`, `--reveal-size`,
+  `--scan-fab-size`). The literals these replaced were sized for the mouse
+  and let text run 8–16px under the 44px coarse-pointer version of the same
+  button. `styles/menu-button-clearance.test.ts` and
+  `styles/auth-touch-targets.test.ts` hold the two list and field cases.
 
 ## Responsive
 

@@ -23,8 +23,7 @@
   top: 50%;
   width: var(--ping-size, 90px);
   height: var(--ping-size, 90px);
-  margin-left: calc(var(--ping-size, 90px) / -2);
-  margin-top: calc(var(--ping-size, 90px) / -2);
+  translate: -50% -50%;
   border: 3px solid var(--ping-color, var(--accent));
   border-radius: 50%;
   /* The glow is what makes a thin ring read across a busy battlefield

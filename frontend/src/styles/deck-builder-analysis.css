@@ -517,7 +517,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   align-items: stretch;
-  gap: clamp(0.85rem, 2.2cqi, var(--space-5));
+  gap: clamp(var(--space-3), 2.2cqi, var(--space-5));
 }
 
 .deck-stats-panel {
@@ -574,7 +574,7 @@
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   grid-auto-flow: row dense;
-  gap: clamp(0.85rem, 2.2cqi, var(--space-5));
+  gap: clamp(var(--space-3), 2.2cqi, var(--space-5));
   max-width: var(--analysis-max, 1320px);
   margin-inline: auto;
   /* width: 100% is load-bearing for non-block mount contexts (Home and /pods
@@ -612,7 +612,7 @@
    generous gutter (2 dense columns + spanning hero is the target, not 3-col). */
 @container bento-host (min-width: 1040px) {
   .deck-bento {
-    gap: clamp(1.1rem, 1.6cqi, 1.85rem);
+    gap: clamp(var(--space-4), 1.6cqi, var(--space-6));
   }
 }
 

@@ -278,9 +278,10 @@
 }
 
 .deck-ai-fixes li {
+  --fix-marker: 1.25rem;
   position: relative;
   counter-increment: deck-ai-fix;
-  padding-left: 1.75rem;
+  padding-left: calc(var(--fix-marker) + var(--space-2));
   font-size: var(--text-base);
   line-height: 1.55;
   color: var(--text-primary);
@@ -301,8 +302,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: var(--fix-marker);
+  height: var(--fix-marker);
   border-radius: 50%;
   background: var(--accent-light);
   color: var(--accent);

@@ -36,26 +36,6 @@
     --host-gap: var(--space-2);
     min-height: calc(var(--vh-safe) - 8.5rem - var(--safe-top));
   }
-  /* Empty state grows to fill the leftover space and centers its
-     content — feels intentional on tall phones, not abandoned. */
-  .decks-index-empty {
-    flex: 1 1 auto;
-    justify-content: center;
-    padding: var(--space-6) 1.25rem;
-  }
-}
-
-.decks-index-empty {
-  background: var(--surface);
-  border: 0.5px dashed var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: 2.5rem var(--space-5);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  align-items: center;
-  color: var(--text-secondary);
 }
 
 /* Sticky search — mirrors .collection-toolbar-row so the pill stays
@@ -204,9 +184,11 @@
 }
 
 /* Reserve the trailing gutter for the absolutely-positioned ⋮ so neither the
-   name nor the right-aligned timestamp can slide under it. */
+   name nor the right-aligned timestamp can slide under it: the button, its
+   inset from the edge, and a gap. Read off the button's own size, which grows
+   on a coarse pointer. */
 .decks-index-list.is-list .decks-index-card-link {
-  padding-right: 2.75rem;
+  padding-right: calc(var(--menu-btn) + var(--space-2) + var(--space-1));
 }
 
 /* Center the ⋮ against the row rather than pinning it to the top corner —
@@ -307,7 +289,7 @@
 /* Reserve space on the right so the absolutely-positioned 3-dot
    menu doesn't sit on top of the meta text. */
 .decks-index-list.is-compact .decks-index-card-link {
-  padding-right: 2.25rem;
+  padding-right: calc(var(--menu-btn) + var(--space-2) + var(--space-1));
 }
 
 /* Center the action menu vertically in the compact row — at full-
@@ -320,6 +302,8 @@
 }
 
 .decks-index-card {
+  /* The ⋮'s size; the rows reserve room for it from this. */
+  --menu-btn: 1.9rem;
   position: relative;
   /* Grid items default to min-width: auto (grow to fit content) — a long
      commander/deck name would otherwise push the tile past its column
@@ -481,8 +465,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: var(--menu-btn);
+  height: var(--menu-btn);
   background: transparent;
   border: 0;
   border-radius: 999px;
@@ -504,9 +488,8 @@
   }
 }
 @media (pointer: coarse) {
-  .decks-index-card-menu-btn {
-    width: 44px;
-    height: 44px;
+  .decks-index-card {
+    --menu-btn: var(--touch-target);
   }
 }
 
