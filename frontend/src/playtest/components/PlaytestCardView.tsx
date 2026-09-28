@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { handSlotDroppableId, hostDroppableId } from '../lib/zones';
+import { hostDroppableId } from '../lib/zones';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 import { useLongPress } from '@/lib/use-long-press';
 import { PlaytestCardFace } from './PlaytestCardFace';
@@ -26,11 +26,6 @@ interface Props {
   ptHidden?: boolean;
   /** Same for the counters: the caller draws clickable ones beside it. */
   countersHidden?: boolean;
-  /** In hand, with arranging on (E348): the card is also a drop target for
-   *  its neighbours, so dragging one onto it puts that card in this place.
-   *  Registered on the card's own node — the same shape as the battlefield's
-   *  host droppable below, and the only one that has a box to measure. */
-  handSlot?: boolean;
   /** Part of the current battlefield selection (E226 group copy). A plain
    *  boolean rather than the whole set so `memo` only re-renders the cards
    *  whose own selection actually changed. */
@@ -72,7 +67,6 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   positioned = false,
   ptHidden = false,
   countersHidden = false,
-  handSlot = false,
   selected = false,
   size = 'md',
   onStack = false,
@@ -90,7 +84,6 @@ export const PlaytestCardView = memo(function PlaytestCardView({
   // is inert for every other drag. Disabled off the battlefield (hand cards
   // aren't hosts) — the hook must still be called unconditionally.
   const host = useDroppable({ id: hostDroppableId(card.id), disabled: !positioned });
-  const slot = useDroppable({ id: handSlotDroppableId(card.id), disabled: !handSlot });
 
   const longPress = useLongPress({
     onLongPress: (x, y) => onLongPress?.(card.id, x, y),
@@ -129,7 +122,6 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       ref={(el) => {
         setNodeRef(el);
         host.setNodeRef(el);
-        slot.setNodeRef(el);
       }}
       card={card}
       bf={bf}
@@ -145,7 +137,6 @@ export const PlaytestCardView = memo(function PlaytestCardView({
           selected && 'playtest-card--selected',
           attacking && 'playtest-card--attacking',
           host.isOver && 'is-attach-target',
-          slot.isOver && 'is-hand-drop',
         ]
           .filter(Boolean)
           .join(' ') || undefined

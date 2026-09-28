@@ -104,6 +104,43 @@ const FAN_ARC_PX = 1.2;
 const MAX_EDGE_DEG = 6;
 const MAX_EDGE_DROP_PX = 12;
 
+/**
+ * Where a card held over the hand would go: the number of the OTHER cards
+ * whose centre lies left of `x`. `centers` are those cards' resting centres,
+ * in hand order, without the held card when it came from the hand itself. The
+ * result indexes that list, which is what both `REORDER_HAND` (remove, then
+ * insert) and `MOVE_TO_ZONE` (insert) take.
+ */
+export function fanInsertIndex(centers: readonly number[], x: number): number {
+  let i = 0;
+  while (i < centers.length && centers[i] < x) i++;
+  return i;
+}
+
+/**
+ * How far card `i` slides sideways while a card is held over the hand, so the
+ * fan opens a gap where it would land. `step` is one card's footprint in the
+ * fan (its width less the overlap). The cards either side of `insertAt` part
+ * by half a step each; a card lifted out of this same hand (`source`) gives
+ * its own step back first, so its empty box closes up instead of leaving a
+ * second hole.
+ *
+ * One step and no more, on purpose: the fan is centred, so once the card
+ * lands every other card is already where the new layout puts it.
+ */
+export function fanGapShift(
+  i: number,
+  insertAt: number,
+  step: number,
+  source: number | null = null
+): number {
+  if (i === source) return 0;
+  const after = source !== null && i > source;
+  const close = source === null ? 0 : step / 2 - (after ? step : 0);
+  const idx = after ? i - 1 : i;
+  return close + (idx < insertAt ? -step / 2 : step / 2);
+}
+
 /** Card `i` of `n`: how far it turns (degrees) and how far it drops (px). */
 export function fanTilt(i: number, n: number): { deg: number; drop: number } {
   const off = i - (n - 1) / 2;

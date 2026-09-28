@@ -110,7 +110,7 @@ import { toast } from '@/store/toasts';
 import { autoPlace } from '../lib/auto-place';
 import { makePlaytestCollision } from '../lib/attach-drop';
 import { clampGroupDelta, planGroupDrag } from '../lib/group-drag';
-import { handSlotFromDroppableId, hostFromDroppableId, zoneDropIndex } from '../lib/zones';
+import { hostFromDroppableId, zoneDropIndex } from '../lib/zones';
 import { sideboardInstanceId } from '../lib/deck-to-playtest';
 import { haptics } from '@/lib/haptics';
 import { suppressNativeContextMenu } from '@/lib/suppress-context-menu';
@@ -823,12 +823,17 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     if (!parsed) return;
     const overId = event.over?.id ? String(event.over.id) : null;
 
-    // Arranging the hand: one hand card dropped onto another takes its place.
-    const slotId = handSlotFromDroppableId(overId);
-    if (slotId && parsed.source === 'hand') {
-      const toIndex = state.zones.hand.findIndex((c) => c.id === slotId);
-      if (toIndex >= 0) {
-        dispatch({ type: 'REORDER_HAND', cardId: parsed.cardId, toIndex });
+    // The fan opens a gap where a held card would land (Hand.tsx) and rides
+    // its index on the droppable. That gap is where the card goes, whether
+    // the hand is being arranged or the card is coming in from elsewhere.
+    const handIndex =
+      overId === 'hand'
+        ? ((event.over?.data.current?.insertAt as number | null | undefined) ?? undefined)
+        : undefined;
+    if (overId === 'hand' && parsed.source === 'hand') {
+      const from = state.zones.hand.findIndex((c) => c.id === parsed.cardId);
+      if (handIndex !== undefined && from >= 0 && handIndex !== from) {
+        dispatch({ type: 'REORDER_HAND', cardId: parsed.cardId, toIndex: handIndex });
         haptics.tap();
       }
       return;
@@ -875,7 +880,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
       }
       const zoneMatch = /^zone:(.+)$/.exec(overId);
       if (overId === 'hand') {
-        dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to: 'hand' });
+        dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to: 'hand', toIndex: handIndex });
       } else if (zoneMatch) {
         const to = zoneMatch[1] as Zone;
         // `zoneDropIndex` puts a card dropped on the library on TOP; every
@@ -907,7 +912,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
     }
 
     if (overId === 'hand') {
-      dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to: 'hand' });
+      dispatch({ type: 'MOVE_TO_ZONE', cardId: parsed.cardId, to: 'hand', toIndex: handIndex });
       return;
     }
     const zoneMatch = overId ? /^zone:(.+)$/.exec(overId) : null;
@@ -3281,7 +3286,6 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
                 <Hand
                   cards={state.zones.hand}
                   fan
-                  reorderable
                   onCardMenu={handleHandCardMenu}
                   onCardPreview={handleHandCardPreview}
                   revealedIds={revealedIds}

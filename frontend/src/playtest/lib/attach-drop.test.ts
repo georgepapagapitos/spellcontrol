@@ -2,13 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CollisionDetection } from '@dnd-kit/core';
 import type { PlaytestCard } from '@/lib/playtest';
 import { makePlaytestCollision } from './attach-drop';
-import {
-  handSlotDroppableId,
-  handSlotFromDroppableId,
-  hostDroppableId,
-  hostFromDroppableId,
-  isPlaytestAttachment,
-} from './zones';
+import { hostDroppableId, hostFromDroppableId, isPlaytestAttachment } from './zones';
 
 describe('isPlaytestAttachment', () => {
   it.each([
@@ -93,9 +87,12 @@ describe('makePlaytestCollision', () => {
   });
 });
 
-/** The same shape as `args` above, but for the hand: two overlapping cards in
- *  a fan with the pointer resting on the second one. */
-function handArgs(activeCardId: string): Parameters<CollisionDetection>[0] {
+/** The fan floating over the bottom of the felt, a card overlapping both,
+ *  and the pointer at (px, py). */
+function handArgs(
+  activeId: string,
+  pointer: { x: number; y: number } | null = { x: 200, y: 560 }
+): Parameters<CollisionDetection>[0] {
   const rect = (left: number, top: number, w: number, h: number) => ({
     left,
     top,
@@ -104,16 +101,16 @@ function handArgs(activeCardId: string): Parameters<CollisionDetection>[0] {
     right: left + w,
     bottom: top + h,
   });
-  // The fan overlaps by two thirds, which is why the pointer decides.
   const droppableRects = new Map<string, ReturnType<typeof rect>>([
+    ['battlefield', rect(0, 0, 1000, 600)],
     ['hand', rect(0, 500, 400, 140)],
-    ['battlefield', rect(0, 0, 1000, 480)],
-    [handSlotDroppableId('h1'), rect(100, 500, 100, 140)],
-    [handSlotDroppableId('h2'), rect(133, 500, 100, 140)],
   ]);
   return {
-    active: { id: `hand:${activeCardId}`, data: { current: { cardId: activeCardId } } },
-    collisionRect: rect(140, 500, 100, 140),
+    active: { id: activeId, data: { current: { cardId: activeId.split(':')[1] } } },
+    // Held by its lower middle, so the card is mostly still over the felt.
+    collisionRect: pointer
+      ? rect(pointer.x - 60, pointer.y - 140, 100, 140)
+      : rect(140, 420, 100, 140),
     droppableRects,
     droppableContainers: [...droppableRects.keys()].map((id) => ({
       id,
@@ -123,44 +120,37 @@ function handArgs(activeCardId: string): Parameters<CollisionDetection>[0] {
       rect: { current: droppableRects.get(id)! },
       key: id,
     })),
-    pointerCoordinates: { x: 200, y: 560 },
+    pointerCoordinates: pointer,
   } as unknown as Parameters<CollisionDetection>[0];
 }
 
 /**
- * E348: arranging the hand is a drag from one hand card onto another, and the
- * fan overlaps by two thirds — so the card under the POINTER wins, exactly as
- * it does for drag-to-attach. Every other drag must never see a hand slot, or
- * a card dragged back from the battlefield would "arrange" instead of coming
- * home.
+ * The fan opens a gap under the POINTER (Hand.tsx), so the drop has to go
+ * where that gap is: with the pointer over the fan, the hand wins whatever the
+ * card's box still overlaps behind it. Otherwise a card could show its gap in
+ * the hand and then land on the felt.
  */
-describe('makePlaytestCollision — arranging the hand', () => {
+describe('makePlaytestCollision — the hand', () => {
   const detect = makePlaytestCollision(() => undefined);
+  const aura = makePlaytestCollision(() => ({
+    id: 'a1',
+    name: 'Rancor',
+    typeLine: 'Enchantment — Aura',
+  }));
 
-  it('round-trips the hand-slot ids and rejects every other droppable', () => {
-    expect(handSlotFromDroppableId(handSlotDroppableId('abc'))).toBe('abc');
-    expect(handSlotFromDroppableId('hand')).toBeNull();
-    expect(handSlotFromDroppableId(hostDroppableId('abc'))).toBeNull();
-    expect(handSlotFromDroppableId(null)).toBeNull();
+  it('is the hand when the pointer is over the fan, from anywhere', () => {
+    for (const id of ['hand:h1', 'bf:b1', 'zone:l1']) {
+      expect(detect(handArgs(id)).map((h) => String(h.id))).toEqual(['hand']);
+    }
   });
 
-  it('reports the hand card under the pointer when a hand card is dragged', () => {
-    expect(detect(handArgs('h1')).map((h) => String(h.id))).toEqual([handSlotDroppableId('h2')]);
+  it('beats an attachment looking for a host, since the fan is drawn on top', () => {
+    expect(aura(handArgs('bf:a1')).map((h) => String(h.id))).toEqual(['hand']);
   });
 
-  it('never offers a card its own slot', () => {
-    const hits = detect(handArgs('h2')).map((h) => String(h.id));
-    expect(hits).not.toContain(handSlotDroppableId('h2'));
-  });
-
-  it('never offers a hand slot to a card coming from the battlefield', () => {
-    const fromBoard = {
-      ...handArgs('h1'),
-      active: { id: 'bf:b1', data: { current: { cardId: 'b1' } } },
-    } as never;
-    const hits = detect(fromBoard).map((h) => String(h.id));
-    expect(hits).toContain('hand');
-    expect(hits.some((id) => id.startsWith('handslot:'))).toBe(false);
+  it('falls back to the box test off the fan, and for a keyboard drag with no pointer', () => {
+    expect(String(detect(handArgs('hand:h1', { x: 600, y: 300 }))[0].id)).toBe('battlefield');
+    expect(detect(handArgs('hand:h1', null)).length).toBeGreaterThan(0);
   });
 });
 
