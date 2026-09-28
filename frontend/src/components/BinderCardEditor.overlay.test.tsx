@@ -181,3 +181,16 @@ describe('Cards tab search', () => {
     expect(screen.getByText(/No cards yet/)).toBeTruthy();
   });
 });
+
+// E472: the drag order is a setting, so it is the kit's SwitchRow, and it is
+// "Custom order": "Manual" is the binder mode whose rules are paused.
+describe('BinderCardEditor Order tab', () => {
+  it('turns a custom order on with a switch named Custom order', () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('tab', { name: /Order/ }));
+    const toggle = screen.getByRole('switch', { name: 'Custom order' });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByText(/Manual order/)).toBeNull();
+  });
+});

@@ -30,6 +30,10 @@ import { ShareDialog } from '../components/ShareDialog';
 import { useBinderActions } from '../components/use-binder-actions';
 import { CardName } from '@/components/shared/CardName';
 import { Button } from '@/components/shared/Button';
+import { areAllGroupsEmpty } from '../lib/rules';
+import { countEffectiveLanding } from '../lib/binder-counts';
+import { toast } from '../store/toasts';
+import type { BinderDef } from '../types';
 
 export function BinderPage() {
   const { id: routeId } = useParams<{ id: string }>();
@@ -217,6 +221,36 @@ export function BinderPage() {
     for (const copyId of redundant) removeCardFromBinder(activeId, copyId, false);
   }, [activeId, cards, binders, removeCardFromBinder]);
 
+  // A manual binder with rules kept but paused: how many cards those rules
+  // would bring in, from the editor's own landing count (so the number the
+  // bar promises is the one "Switch to rules" delivers). Null when the rules
+  // are on, or there are none to go back to.
+  const setBinderMode = useCollectionStore((s) => s.setBinderMode);
+  const pausedRulesLand = useMemo(() => {
+    if (!active || active.def.mode !== 'manual' || areAllGroupsEmpty(active.def.filterGroups))
+      return null;
+    return countEffectiveLanding(
+      cards,
+      binders,
+      {
+        id: active.def.id,
+        groups: active.def.filterGroups,
+        keepPrintingsTogether: !!active.def.keepPrintingsTogether,
+        mode: 'rules',
+      },
+      { allocatedCopyIds, setMap }
+    ).lands;
+  }, [active, cards, binders, allocatedCopyIds, setMap]);
+  const resumeRules = (def: BinderDef) => {
+    setBinderMode(def.id, 'rules');
+    toast.show({
+      message: `${def.name} files by its rules again`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => setBinderMode(def.id, 'manual'),
+    });
+  };
+
   // `hydrating` covers reading the local cache; `awaitingFirstPull` covers the
   // window after that where a signed-in device's rows are still on their way.
   // Both must clear before the empty-state redirect below can be trusted.
@@ -334,9 +368,27 @@ export function BinderPage() {
           onClose={() => setShareOpen(false)}
         />
       )}
+      {active && pausedRulesLand !== null && (
+        // A manual binder shows only the cards added to it by hand; its rules
+        // are kept but paused. Binders got here silently once (a move into a
+        // binder the card didn't fit flipped it, fixed in #2421), and the
+        // only way back was inside the editor.
+        <div className="binder-manual-order-bar" role="status">
+          <span className="sort-mode-badge">Rules paused</span>
+          <span className="binder-manual-order-hint">
+            Only the cards you added show here.{' '}
+            {pausedRulesLand > 0
+              ? `Its rules would file ${pausedRulesLand.toLocaleString()} ${pausedRulesLand === 1 ? 'card' : 'cards'} here.`
+              : 'Its rules match no cards right now.'}
+          </span>
+          <Button variant="link" onClick={() => resumeRules(active.def)}>
+            Switch to rules
+          </Button>
+        </div>
+      )}
       {active?.def.manualOrder?.length ? (
         <div className="binder-manual-order-bar">
-          <span className="sort-mode-badge">Manual order active</span>
+          <span className="sort-mode-badge">Custom order</span>
           <span className="binder-manual-order-hint">
             Cards are in your custom order. Open “Manage cards” → Order tab to change.
           </span>

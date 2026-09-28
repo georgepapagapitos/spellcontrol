@@ -119,7 +119,7 @@ export function BindersIndexPage() {
     };
   }, [cards, binders, allocatedCopyIds, setMap]);
 
-  // Pending review work per binder ("N to review" chip) — same drift the
+  // Pending filing work per binder ("N to file" chip) — same drift the
   // binder page's banner computes, so the chip and the queue always agree.
   // Never-reviewed binders show nothing: their baseline auto-stamps on first
   // view, so there's no real queue to advertise yet.
@@ -500,9 +500,9 @@ export function BindersIndexPage() {
                               className="binders-index-card-tag binders-index-card-tag--review"
                               aria-label={`${reviewCounts.get(b.def.id)} ${
                                 reviewCounts.get(b.def.id) === 1 ? 'change' : 'changes'
-                              } to review`}
+                              } to file`}
                             >
-                              {reviewCounts.get(b.def.id)} to review
+                              {reviewCounts.get(b.def.id)} to file
                             </span>
                           )}
                           {b.def.fixedCapacity != null && (
