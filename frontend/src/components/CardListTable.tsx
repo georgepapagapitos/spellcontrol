@@ -125,6 +125,7 @@ import {
 } from '../lib/edit-card';
 import { compileExpression, compileFilter, isExpressionEmpty } from '../lib/rules';
 import { Button } from '@/components/shared/Button';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 interface Props {
   cards: EnrichedCard[];
@@ -2455,7 +2456,7 @@ export function CardListTable({
                   // count while the "Tradeable surplus" filter is active.
                   const dupChip =
                     setLabel === null && duplicateNames.has(r.card.name) ? (
-                      <span
+                      <ArtBadge
                         className="collection-grid-set"
                         title={setSymbolTitle({
                           setCode: r.card.setCode,
@@ -2465,18 +2466,18 @@ export function CardListTable({
                         })}
                       >
                         {r.card.setCode.toUpperCase()}
-                      </span>
+                      </ArtBadge>
                     ) : null;
                   const surplus = surplusOnly ? surplusByName.get(r.card.name) : undefined;
                   const surplusChip = surplus ? (
-                    <span
+                    <ArtBadge
                       className="collection-grid-surplus"
                       title={`${surplus} unallocated ${
                         surplus === 1 ? 'copy' : 'copies'
                       } beyond your kept copy`}
                     >
                       {surplus} free
-                    </span>
+                    </ArtBadge>
                   ) : null;
                   return (
                     <CardGridCell

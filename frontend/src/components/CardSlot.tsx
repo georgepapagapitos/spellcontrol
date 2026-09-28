@@ -11,6 +11,7 @@ import { getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { useAllocations } from '../lib/allocations';
 import { PriceOverrideBadge } from './shared/PriceOverrideBadge';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 interface Props {
   card: EnrichedCard | null;
@@ -245,9 +246,13 @@ export function CardSlot({ card, showImage }: Props) {
             </Link>
           )}
           {groupedQty > 1 && (
-            <span className="slot-qty-badge" aria-label={`${groupedQty} copies`}>
+            <ArtBadge
+              className="slot-qty-badge"
+              corner="bottom-start"
+              label={`${groupedQty} copies`}
+            >
               ×{groupedQty}
-            </span>
+            </ArtBadge>
           )}
         </div>
         {menu}
@@ -301,7 +306,8 @@ export function CardSlot({ card, showImage }: Props) {
                   onLoad={reposition}
                 />
                 {allocation && (
-                  <span
+                  <ArtBadge
+                    corner="bottom-end"
                     className="slot-deck-badge tooltip-deck-badge"
                     style={
                       {
@@ -323,7 +329,7 @@ export function CardSlot({ card, showImage }: Props) {
                     ) : (
                       <Layers width={14} height={14} strokeWidth={1.8} aria-hidden />
                     )}
-                  </span>
+                  </ArtBadge>
                 )}
               </div>
             )}

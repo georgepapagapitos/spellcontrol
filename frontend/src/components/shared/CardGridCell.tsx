@@ -10,6 +10,7 @@ import { SetSymbol } from './SetSymbol';
 import { FoilShimmer } from './FoilShimmer';
 import { printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
+import { ArtBadge } from './ArtBadge';
 
 /**
  * Grid captions — the detail lines under a grid tile, per-line toggleable from
@@ -235,12 +236,12 @@ export function CardGridCell({
         {((qty > 1 && !hideQty) || cornerExtras) && (
           <div className="collection-grid-corner">
             {qty > 1 && !hideQty && (
-              <span className="collection-grid-qty">
+              <ArtBadge className="collection-grid-qty">
                 <span className="collection-grid-qty-x" aria-hidden="true">
                   ×
                 </span>
                 {qty}
-              </span>
+              </ArtBadge>
             )}
             {cornerExtras}
           </div>

@@ -6,6 +6,7 @@ import { DeckBadge } from '../DeckBadge';
 import type { AllocationInfo } from '../../lib/allocations-core';
 import { CardGridCell, gridSetLabel, useGridCaptionPrefs } from '../shared/CardGridCell';
 import { formatMoney } from '../../lib/format-money';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 export interface CardOwnership {
   owned: boolean;
@@ -112,9 +113,9 @@ export function SharedCardTile({
       ariaExtra={`${ownedAriaSuffix(ownership)}${spare ? ' · has a spare copy' : ''}`}
       cornerExtras={
         spare ? (
-          <span className="collection-grid-surplus" title={SPARE_TITLE}>
+          <ArtBadge className="collection-grid-surplus" title={SPARE_TITLE}>
             Spare
-          </span>
+          </ArtBadge>
         ) : null
       }
       badges={

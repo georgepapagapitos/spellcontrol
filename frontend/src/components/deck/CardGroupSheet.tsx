@@ -11,6 +11,7 @@ import { VerdictBadge } from './VerdictBadge';
 import type { VerdictTone } from './VerdictBadge';
 import type { CardTally } from './useCardCarousel';
 import { IconButton } from '../shared/Button';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 import './CardGroupSheet.css';
 
 /** A role/label annotation for a card in the group sheet. */
@@ -203,7 +204,11 @@ export function CardGroupSheet({
                   ) : (
                     <span className="card-group-img card-group-img-fallback">{t.name}</span>
                   )}
-                  {t.count > 1 && <span className="card-group-qty">×{t.count}</span>}
+                  {t.count > 1 && (
+                    <ArtBadge className="card-group-qty" corner="top-end">
+                      ×{t.count}
+                    </ArtBadge>
+                  )}
                   {getChips(t).length > 0 && (
                     <span className="card-group-annotation" aria-hidden="true">
                       {getChips(t).map((chip, i) => (

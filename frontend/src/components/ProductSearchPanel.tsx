@@ -39,6 +39,7 @@ import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Field, SwitchRow } from '@/components/shared/form';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 /** Carousel entries for a product's full physical contents (one swipeable card per copy-set). */
 function physicalToEntries(physicalCards: ProductPhysicalCard[]): CarouselEntry[] {
   return physicalCards.map((pc) => ({
@@ -489,7 +490,11 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
                     src={getCardImageUrl(pc.card, 'normal')}
                     alt={pc.card.name}
                   />
-                  {pc.quantity > 1 && <span className="product-card-qty">{pc.quantity}</span>}
+                  {pc.quantity > 1 && (
+                    <ArtBadge className="product-card-qty" corner="bottom-end">
+                      {pc.quantity}
+                    </ArtBadge>
+                  )}
                 </button>
               </li>
             ))}

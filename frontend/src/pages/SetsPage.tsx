@@ -53,6 +53,7 @@ import { useSealMoment } from '../components/shared/SealMoment';
 import { CardName } from '@/components/shared/CardName';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 /** Sets whose 100%-completion seal already fired this app-open (STYLE_GUIDE
  *  "Completion moments": once per subject per app-open). */
@@ -883,14 +884,14 @@ function SetTile({ row, onOpen }: { row: SetGridRow; onOpen: () => void }) {
       )}
       {card.rarity && <RarityBadge rarity={card.rarity} className="collection-grid-rarity" />}
       <div className="collection-grid-corner">
-        <span className="collection-grid-set set-grid-num">#{card.collector_number}</span>
+        <ArtBadge className="collection-grid-set set-grid-num">#{card.collector_number}</ArtBadge>
         {qty > 1 && (
-          <span className="collection-grid-qty">
+          <ArtBadge className="collection-grid-qty">
             <span className="collection-grid-qty-x" aria-hidden="true">
               ×
             </span>
             {qty}
-          </span>
+          </ArtBadge>
         )}
       </div>
       {missing && (

@@ -50,6 +50,21 @@ const COUNT_BUBBLES = new Set([
   'commander-result-platform-count',
 ]);
 
+/** Badges on card art whose names do not end in -badge (T166 W1). */
+const ART_BADGES = new Set([
+  'collection-grid-qty',
+  'collection-grid-set',
+  'collection-grid-surplus',
+  'deck-card-grid-qty',
+  'deck-card-grid-alloc',
+  'deck-card-grid-partner',
+  'deck-card-grid-tags',
+  'deck-card-grid-synergy',
+  'card-group-qty',
+  'product-card-qty',
+  'home-deck-arrivals',
+]);
+
 /** Named -pill but a control class the control guard owns. */
 const CONTROL_CLASSES = new Set(['toolbar-pill']);
 
@@ -114,7 +129,10 @@ function count(file: string): Record<Shape, number> {
         const tokens = strings(node.initializer).join(' ').split(/\s+/);
         if (
           tokens.some(
-            (t) => (BADGE_CLASS.test(t) && !CONTROL_CLASSES.has(t)) || COUNT_BUBBLES.has(t)
+            (t) =>
+              (BADGE_CLASS.test(t) && !CONTROL_CLASSES.has(t)) ||
+              COUNT_BUBBLES.has(t) ||
+              ART_BADGES.has(t)
           )
         )
           n.rawBadge++;
@@ -139,7 +157,6 @@ const ALLOWED: Record<Shape, Record<string, number>> = {
     'components/CardEditDialog.tsx': 3,
     'components/CardPreview.tsx': 1,
     'components/CardScanner.tsx': 1,
-    'components/CardSlot.tsx': 2,
     'components/CollectionFiltersDialog.tsx': 1,
     'components/DeckBadge.tsx': 1,
     'components/DiscoverDeckTile.tsx': 2,
@@ -157,7 +174,7 @@ const ALLOWED: Record<Shape, Record<string, number>> = {
     'components/aggregates/TrendingRail.tsx': 2,
     'components/deck/BracketBreakdown.tsx': 1,
     'components/deck/CardSearchPanel.tsx': 3,
-    'components/deck/ComboRow.tsx': 2,
+    'components/deck/ComboRow.tsx': 1,
     'components/deck/CommanderResultCard.tsx': 1,
     'components/deck/CommanderSearch.tsx': 1,
     'components/deck/DeckCustomizer.tsx': 2,
@@ -170,7 +187,7 @@ const ALLOWED: Record<Shape, Record<string, number>> = {
     'components/deck/VerdictBadge.tsx': 1,
     'components/deck/WinConditionPanel.tsx': 1,
     'components/deck/import-deck-shared.tsx': 1,
-    'components/decks/DeckLibrary.tsx': 3,
+    'components/decks/DeckLibrary.tsx': 2,
     'components/home/WaitingOnYou.tsx': 1,
     'components/play/GameBoard.tsx': 5,
     'components/play/GameNights.tsx': 7,
