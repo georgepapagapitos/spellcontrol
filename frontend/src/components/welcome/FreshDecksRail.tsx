@@ -6,6 +6,7 @@ import { DiscoverDeckTile, DiscoverTileSkeleton } from '../DiscoverDeckTile';
 // so this chunk (main) has to load the stylesheet itself.
 import '../home/HomeCard.css';
 import { listDiscoverDecks, type DiscoverDeck } from '../../lib/discover-client';
+import { SwipeRow } from '../shared/SwipeRow';
 
 /** Below this many fresh decks, the rail renders nothing rather than a
  *  near-empty grid on the marketing page a cold visitor and search crawlers
@@ -68,11 +69,11 @@ export function FreshDecksRail({
         <p role="status" aria-live="polite" className="sr-only">
           Loading public decks…
         </p>
-        <ul className="decks-index-list is-grid" aria-hidden="true">
+        <SwipeRow className="decks-index-list is-grid" columns={RAIL_SIZE} aria-hidden="true">
           {Array.from({ length: RAIL_SIZE }, (_, i) => (
             <DiscoverTileSkeleton key={i} view="grid" />
           ))}
-        </ul>
+        </SwipeRow>
       </section>
     );
   }
@@ -92,11 +93,15 @@ export function FreshDecksRail({
           View all
         </Button>
       </div>
-      <ul className="decks-index-list is-grid" aria-label="Recently published public decks">
+      <SwipeRow
+        className="decks-index-list is-grid"
+        columns={RAIL_SIZE}
+        aria-label="Recently published public decks"
+      >
         {decks.slice(0, RAIL_SIZE).map((deck) => (
           <DiscoverDeckTile key={deck.slug} deck={deck} view="grid" />
         ))}
-      </ul>
+      </SwipeRow>
     </section>
   );
 }
