@@ -154,9 +154,9 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
 
   return (
     <>
-      <Modal className="modal" label={`Edit cards: ${binder.def.name}`} onClose={onClose}>
+      <Modal className="modal" label={`Manage cards: ${binder.def.name}`} onClose={onClose}>
         <div className="modal-header">
-          <h2>Edit cards: {binder.def.name}</h2>
+          <h2>Manage cards: {binder.def.name}</h2>
           <IconButton
             variant="quiet"
             onClick={onClose}

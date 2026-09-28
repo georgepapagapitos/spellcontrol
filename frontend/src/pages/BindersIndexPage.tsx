@@ -1,11 +1,8 @@
 import {
   AlignJustify,
-  ArrowDown,
-  ArrowUp,
   LayoutGrid,
   List as ListIconLucide,
   Inbox,
-  Pencil,
   Plus,
   Trash2,
   Upload,
@@ -17,9 +14,7 @@ import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
-import { toast } from '../store/toasts';
 import { materializeBinders } from '../lib/materialize';
-import { diffMembershipByDefs } from '../lib/binder-moves';
 import { computeDrift } from '../lib/binder-drift';
 import { binderCoverArt } from '../lib/binder-cover';
 import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
@@ -44,6 +39,8 @@ import { selectedCountLabel, useSelection } from '../lib/use-selection';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderExportDialog } from '../components/BinderExportDialog';
 import { UncategorizedSheet } from '../components/UncategorizedSheet';
+import { ShareDialog } from '../components/ShareDialog';
+import { useBinderActions } from '../components/use-binder-actions';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { ProgressBar } from '../components/ProgressBar';
@@ -79,11 +76,9 @@ export function BindersIndexPage() {
   const awaitingFirstPull = useAwaitingFirstPull();
   const importHistory = useCollectionStore((s) => s.importHistory);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
-  const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteBinders = useCollectionStore((s) => s.deleteBinders);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
   const sel = useSelection();
-  const moveBinder = useCollectionStore((s) => s.moveBinder);
   const loadSampleBinders = useCollectionStore((s) => s.loadSampleBinders);
   const setError = useCollectionStore((s) => s.setError);
   const { confirm, dialog: confirmDialog } = useConfirm();
@@ -197,13 +192,6 @@ export function BindersIndexPage() {
   // A single delete is undoable from the toast, so it doesn't confirm first
   // (T157) — bulk and delete-all below still do, since the toast there only
   // shows a count.
-  const handleDelete = useCallback(
-    (id: string) => {
-      deleteBinder(id);
-    },
-    [deleteBinder]
-  );
-
   const handleDeleteAll = useCallback(async () => {
     const ok = await confirm({
       title: `Delete all ${binders.length} binders?`,
@@ -220,26 +208,11 @@ export function BindersIndexPage() {
     [materialized, sel.selected]
   );
 
-  // Reordering re-routes the whole waterfall below the moved binder, so a
-  // single up/down click can silently shuffle cards between binders. Diff
-  // membership before/after (same collection, old vs new binder-def order)
-  // and toast the impact so that isn't invisible.
-  const handleMove = useCallback(
-    (id: string, direction: 'up' | 'down') => {
-      const oldDefs = binders;
-      moveBinder(id, direction);
-      const newDefs = useCollectionStore.getState().binders;
-      const changed = diffMembershipByDefs(cards, oldDefs, newDefs, { allocatedCopyIds });
-      toast.show({
-        message:
-          changed > 0
-            ? `Reorder moved ${changed.toLocaleString()} card${changed === 1 ? '' : 's'} between binders`
-            : "Reorder didn't move any cards",
-        tone: 'info',
-      });
-    },
-    [binders, moveBinder, cards, allocatedCopyIds]
-  );
+  // One list of a binder's actions for its tile ⋮ and right-click, the same
+  // list its own page's ⋮ shows (use-binder-actions.tsx).
+  const { actionsFor } = useBinderActions();
+  const [shareId, setShareId] = useState<string | null>(null);
+  const shareBinder = shareId ? binders.find((b) => b.id === shareId) : undefined;
 
   const handleBulkDelete = useCallback(async () => {
     const ids = Array.from(sel.selected);
@@ -565,37 +538,11 @@ export function BindersIndexPage() {
                     itemHref={`/collection/binders/${b.def.id}`}
                     itemName={b.def.name}
                     selection={selectionMenu(b.def.id)}
-                    items={[
-                      // Suppress reorder unless sorted by position asc — moving
-                      // wouldn't visibly change a name/count-sorted list.
-                      ...(sortField === 'position' && sortDir === 'asc'
-                        ? [
-                            {
-                              label: 'Move up',
-                              icon: ArrowUp,
-                              disabled: idx === 0,
-                              onClick: () => handleMove(b.def.id, 'up'),
-                            },
-                            {
-                              label: 'Move down',
-                              icon: ArrowDown,
-                              disabled: idx === sorted.length - 1,
-                              onClick: () => handleMove(b.def.id, 'down'),
-                            },
-                          ]
-                        : []),
-                      {
-                        label: 'Edit binder',
-                        icon: Pencil,
-                        onClick: () => setEditingBinder(b.def.id),
-                      },
-                      {
-                        label: 'Delete binder',
-                        icon: Trash2,
-                        danger: true,
-                        onClick: () => handleDelete(b.def.id),
-                      },
-                    ]}
+                    items={actionsFor(b.def, {
+                      onShare: () => setShareId(b.def.id),
+                      // Moving a binder only shows in the list's priority order.
+                      canReorder: sortField === 'position' && sortDir === 'asc',
+                    })}
                   />
                 </li>
               );
@@ -633,6 +580,15 @@ export function BindersIndexPage() {
             )}
           </ul>
         </>
+      )}
+
+      {shareBinder && (
+        <ShareDialog
+          kind="binder"
+          resourceId={shareBinder.id}
+          resourceLabel={shareBinder.name}
+          onClose={() => setShareId(null)}
+        />
       )}
 
       {uncategorizedOpen && (
