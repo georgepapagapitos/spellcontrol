@@ -173,7 +173,7 @@
 /* Non-actionable label → pill, per STYLE_GUIDE shape language. */
 .pod-hub-roster-owner-tag {
   flex-shrink: 0;
-  padding: 2px var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: 999px;
   background: var(--surface);
   color: var(--text-muted);
@@ -327,7 +327,7 @@
 .pod-hub-records li {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 

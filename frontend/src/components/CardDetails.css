@@ -18,7 +18,7 @@
 .card-text-face {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 /* Divider between the two halves of a double-faced / split / adventure card. */
@@ -31,7 +31,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .card-text-face-name {
@@ -55,7 +55,7 @@
 .card-text-oracle {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: var(--space-2);
 }
 
 .card-text-line {
@@ -110,7 +110,7 @@
 /* ── Legalities disclosure ─────────────────────────────────────────────── */
 .card-legalities {
   width: 100%;
-  margin-top: 0.3rem;
+  margin-top: var(--space-1);
 
   /* Status hues, tuned for the always-dark preview panel. Everything else in
      this file reads the theme tokens (which that panel remaps), but these
@@ -126,9 +126,9 @@
 .card-disc-toggle {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   width: 100%;
-  padding: 0.4rem 0;
+  padding: var(--space-1-5) 0;
   background: none;
   border: none;
   cursor: pointer;
@@ -160,7 +160,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-1) var(--space-5);
-  padding: 0.2rem 0 0.4rem;
+  padding: var(--space-1) 0 var(--space-1-5);
 }
 
 @media (max-width: 380px) {
@@ -172,7 +172,7 @@
 .card-legality {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   font-size: var(--text-sm);
   color: var(--text-muted);
 }

@@ -28,7 +28,7 @@
   left: var(--space-2);
   bottom: var(--space-2);
   z-index: 1;
-  padding: 0.15rem 0.45rem;
+  padding: var(--space-0-5) var(--space-2);
   border-radius: 999px;
   background: var(--art-scrim);
   color: var(--art-scrim-text);
@@ -40,7 +40,7 @@
 }
 
 .deck-library-tile-commander {
-  margin-top: 0.15rem;
+  margin-top: var(--space-0-5);
   font-size: var(--text-xs);
   color: var(--text-secondary);
   overflow: hidden;

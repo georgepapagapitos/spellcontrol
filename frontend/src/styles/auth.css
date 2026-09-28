@@ -32,7 +32,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 26px var(--space-5);
+  padding: var(--space-5) var(--space-5);
   box-shadow: var(--shadow-card);
   animation: auth-rise var(--motion-gentle) var(--ease-out-soft) both;
 }
@@ -60,7 +60,7 @@
 .auth-brand-hero {
   display: flex;
   justify-content: center;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2-5);
 }
 
 /* Serif wordmark — matches the WelcomePage brand block so the two first-run
@@ -70,7 +70,7 @@
   font-size: var(--text-2xl);
   font-weight: 400;
   letter-spacing: -0.01em;
-  margin: 0 0 6px;
+  margin: 0 0 var(--space-1-5);
   color: var(--text-primary);
 }
 
@@ -109,7 +109,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: var(--space-1-5);
   width: 100%;
   min-width: 0;
 }
@@ -137,7 +137,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 9px 11px;
+  padding: var(--space-2-5) var(--space-3);
   font-size: var(--text-base);
   color: var(--text-primary);
   font-family: inherit;
@@ -232,7 +232,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .auth-rule {
@@ -288,7 +288,7 @@
   background: var(--err-bg);
   border: 1px solid var(--err-border);
   color: var(--err-text);
-  padding: var(--space-2) 10px;
+  padding: var(--space-2) var(--space-2-5);
   border-radius: var(--radius);
   font-size: var(--text-sm);
 }
@@ -299,14 +299,14 @@
    the button reads as the same height as the input it submits. */
 .auth-submit {
   margin-top: var(--space-1);
-  padding: 10px 14px;
+  padding: var(--space-2-5) var(--space-4);
   font-size: var(--text-base);
 }
 
 /* Continue with Google: the coloured G mark carries the branding. */
 .auth-google {
   width: 100%;
-  padding: 10px 14px;
+  padding: var(--space-2-5) var(--space-4);
   font-size: var(--text-base);
 }
 
@@ -314,7 +314,7 @@
 .auth-divider {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2-5);
   margin: var(--space-3) 0;
   color: var(--text-muted);
   font-size: var(--text-xs);

@@ -7,8 +7,8 @@
 .site-nav-settings {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.55rem;
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-2);
   border: none;
   background: none;
   border-radius: var(--radius);
@@ -84,7 +84,7 @@
    avatar. */
 @media (pointer: coarse) {
   .site-avatar-menu-trigger {
-    padding: 0.4rem;
+    padding: var(--space-1-5);
     margin: -0.4rem;
   }
 }
@@ -97,8 +97,8 @@
 .sync-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 1px 0.55rem;
+  gap: var(--space-1-5);
+  padding: 1px var(--space-2);
   border-radius: 999px;
   border: 0.5px solid var(--border);
   background: var(--surface-raised);
@@ -203,8 +203,8 @@
   margin-inline: auto;
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.4rem 0.85rem;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-3);
   border-radius: 999px;
   /* Opaque, bordered, elevated chip — the old `--accent-light` fill is a 16%
      tint that washed out over the collection's busy top chrome (tabs + hero).
@@ -265,16 +265,16 @@
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: var(--space-4) 1.25rem 1.1rem;
+  padding: var(--space-4) 1.25rem var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: var(--space-3);
 }
 
 .settings-card-header {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--space-1);
 }
 
 .settings-card-title {
@@ -327,7 +327,7 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 0.1rem;
+  margin-bottom: var(--space-0-5);
 }
 
 .settings-row-value {
@@ -346,7 +346,7 @@
 .settings-row-hint {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  margin-top: 0.15rem;
+  margin-top: var(--space-0-5);
 }
 
 /* Groups 2+ buttons in one `actions` slot (e.g. "Export CSV" + "Download
@@ -374,7 +374,7 @@
 .settings-row-meta {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  margin-top: 0.2rem;
+  margin-top: var(--space-1);
 }
 
 .settings-row-meta code {
@@ -387,7 +387,7 @@
 
 .settings-row-actions {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   flex-shrink: 0;
 }
 
@@ -397,7 +397,7 @@
 
 .settings-share-kind {
   display: inline-block;
-  padding: 0.05rem 0.45rem;
+  padding: 0.05rem var(--space-2);
   border-radius: 999px;
   background: var(--surface-raised);
   color: var(--text-muted);
@@ -405,14 +405,14 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-weight: 600;
-  margin-right: 0.4rem;
+  margin-right: var(--space-1-5);
   vertical-align: middle;
 }
 
 .settings-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   cursor: pointer;
   user-select: none;
 }
@@ -425,7 +425,7 @@
 .settings-progress {
   position: relative;
   height: 6px;
-  margin-top: 0.4rem;
+  margin-top: var(--space-1-5);
   background: var(--surface-raised);
   border-radius: 999px;
   overflow: hidden;
@@ -441,8 +441,8 @@
 .card-art-placeholder {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.6rem 0.7rem;
+  gap: var(--space-1);
+  padding: var(--space-2-5) var(--space-3);
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -454,7 +454,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   font-weight: 600;
 }
 
@@ -506,9 +506,9 @@
     'swatch name'
     'swatch guild';
   align-items: center;
-  gap: 0.1rem 0.65rem;
+  gap: var(--space-0-5) var(--space-2-5);
   width: 100%;
-  padding: 0.55rem 0.7rem;
+  padding: var(--space-2) var(--space-3);
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
@@ -634,7 +634,7 @@
 /* Section header — a visual chapter-break label between groups of settings
    cards. Mono uppercase, secondary color, no card chrome. */
 .settings-section-header {
-  margin: var(--space-4) 0 0.35rem;
+  margin: var(--space-4) 0 var(--space-1-5);
   /* Section titles are --font-serif (the .deck-combos-title family) per
      STYLE_GUIDE Typography — --font-mono is data/numerals only. */
   font-family: var(--font-serif);

@@ -48,7 +48,7 @@
 .home-card-title {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   font-family: var(--font-serif);
   font-size: var(--text-md);
   font-weight: 700;
@@ -136,7 +136,7 @@
 .home-door {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-height: 32px;
   font-size: var(--text-sm);
   font-weight: 600;

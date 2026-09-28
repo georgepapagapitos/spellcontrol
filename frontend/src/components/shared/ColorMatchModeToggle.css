@@ -5,7 +5,7 @@
 .color-mode-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
   /* The pill is small type; a comfortable touch target comes from padding
      the tap area, not from growing the visual chip. */
   min-height: 24px;

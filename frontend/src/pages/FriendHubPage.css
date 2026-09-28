@@ -101,7 +101,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
 }
 
 /* Real card proportions + the app's card-scan corner treatment (matches

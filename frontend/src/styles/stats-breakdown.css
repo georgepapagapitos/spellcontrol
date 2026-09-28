@@ -5,7 +5,7 @@
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  gap: var(--space-2-5);
   margin-bottom: var(--space-5);
 }
 
@@ -22,7 +22,7 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 5px;
+  margin-bottom: var(--space-1-5);
 }
 
 .stat-value {
@@ -34,7 +34,7 @@
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
-  padding: var(--space-4) 1.1rem;
+  padding: var(--space-4) var(--space-4);
 }
 
 .breakdown-title {
@@ -43,7 +43,7 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin: 0 0 0.85rem;
+  margin: 0 0 var(--space-3);
   font-weight: 600;
 }
 
@@ -53,7 +53,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 /* Cost basis (E203) — headline gain + the coverage it's scoped to, then the
@@ -62,8 +62,8 @@
 .cost-basis-headline {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 0 0 0.85rem;
+  gap: var(--space-0-5);
+  margin: 0 0 var(--space-3);
 }
 
 .cost-basis-gain {
@@ -93,7 +93,7 @@
 .cost-basis-pair-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 

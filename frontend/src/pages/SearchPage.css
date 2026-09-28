@@ -40,8 +40,8 @@
 .search-syntax-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.15rem 0.55rem;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-2);
   border: 1px solid var(--border);
   /* Labelled disclosure button = rect (T53 Phase 4). */
   border-radius: var(--radius);
@@ -91,7 +91,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
 }
 
 .search-syntax-row {
@@ -102,7 +102,7 @@
 }
 
 .search-syntax-example {
-  padding: 0.1rem 0.4rem;
+  padding: var(--space-0-5) var(--space-1-5);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: none;
@@ -127,8 +127,8 @@
 }
 
 .search-syntax-online {
-  margin-left: 0.4rem;
-  padding: 0 0.3rem;
+  margin-left: var(--space-1-5);
+  padding: 0 var(--space-1);
   border: 1px solid var(--border);
   border-radius: 999px;
   font-size: var(--text-xs);

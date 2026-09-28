@@ -127,5 +127,5 @@
 .collection-list-name > .foil-badge,
 .card-picker-meta > .foil-badge,
 .deck-row-name > .foil-badge {
-  margin-left: 0.4rem;
+  margin-left: var(--space-1-5);
 }

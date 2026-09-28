@@ -21,7 +21,7 @@
 
 .tooltip-name {
   font-weight: bold;
-  margin-bottom: 3px;
+  margin-bottom: var(--space-1);
   color: var(--text-primary);
   /* Wrap on word boundaries; allow break-word as a fallback for the
      occasional super-long single token (set codes, weird joiners). */
@@ -74,8 +74,8 @@
 .tooltip-foil,
 .card-preview-foil {
   display: inline-block;
-  margin-left: 0.4rem;
-  padding: 0.05rem 0.4rem;
+  margin-left: var(--space-1-5);
+  padding: 0.05rem var(--space-1-5);
   font-size: var(--text-xs);
   border-radius: 999px;
   background: var(--foil-chip-bg);
@@ -87,13 +87,13 @@
 }
 
 .tooltip-set {
-  margin-top: 2px;
+  margin-top: var(--space-0-5);
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
 }
 
 .tooltip-set-icon {
@@ -106,7 +106,7 @@
 }
 
 .tooltip-image {
-  margin-top: 6px;
+  margin-top: var(--space-1-5);
   width: 200px;
   border-radius: var(--radius);
   display: block;
@@ -147,8 +147,8 @@
   z-index: var(--z-tooltip);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: var(--space-3) 14px;
+  gap: var(--space-2-5);
+  padding: var(--space-3) var(--space-4);
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -181,13 +181,13 @@
 .legend-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-1) 14px;
+  gap: var(--space-1) var(--space-4);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
@@ -297,7 +297,7 @@ hr {
   margin: 0 auto var(--space-5);
   display: inline-flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   text-align: left;
   font-family: var(--font-serif);
   font-size: var(--text-sm);
@@ -307,7 +307,7 @@ hr {
 .empty-state-binder-list li {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 .empty-state-binder-swatch {
@@ -384,7 +384,7 @@ hr {
   background: var(--err-bg);
   border: 1px solid var(--err-border);
   color: var(--err-text);
-  padding: 10px 14px;
+  padding: var(--space-2-5) var(--space-4);
   border-radius: var(--radius);
   margin-bottom: var(--space-4);
   font-size: var(--text-base);
@@ -401,7 +401,7 @@ hr {
   background: var(--accent-light);
   border: 1px solid var(--accent);
   color: var(--accent-hover);
-  padding: 10px 14px;
+  padding: var(--space-2-5) var(--space-4);
   border-radius: var(--radius);
   margin-bottom: var(--space-3);
   font-size: var(--text-base);

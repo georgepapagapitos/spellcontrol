@@ -46,7 +46,7 @@
 }
 
 .public-profile-handle {
-  margin: 0.15rem 0 0;
+  margin: var(--space-0-5) 0 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
