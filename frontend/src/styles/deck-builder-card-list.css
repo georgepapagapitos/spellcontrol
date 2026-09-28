@@ -753,20 +753,11 @@
   white-space: nowrap;
 }
 
-/* "Partner" tag distinguishing the partner commander from the primary one,
-   shown inline after the name in the list view's Commander section. */
 .deck-row-partner-tag {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   margin-left: var(--space-1-5);
-  padding: 0.05rem var(--space-1-5);
-  border-radius: 999px;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
   vertical-align: middle;
 }
 

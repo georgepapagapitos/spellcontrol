@@ -505,3 +505,324 @@ input[type='url']:focus {
     max-width: min(85vw, 22rem);
   }
 }
+
+/* ── Label pills (T166) ──────────────────────────────────────────────
+   Every label chip that names a state, a format or a role wears one pill,
+   the § Verdict badges reference: a 0.5px hairline on --surface, text-xs
+   at 600, sentence case (§ Voice: uppercase belongs to --font-label tape
+   and form section headings, never a chip). Status is `tone`: an outline
+   in the status colour. The invalidating-status pills (a cancelled night, a
+   player who left) are the one filled case (§ Invalidating-status cue).
+   The plate is in :where(), so a family keeps its own layout and margins,
+   never the pill. Coloured-text labels (rules-ref, set-card, availability)
+   are not pills. Guard: styles/label-pill-plate.test.ts. */
+:where(
+  .verdict-chip,
+  .ownership-badge,
+  .card-search-badge,
+  .game-night-cancelled-badge,
+  .game-summary-participant-badge,
+  .game-night-cancelled-pill,
+  .game-night-format-pill,
+  .game-night-host-pill,
+  .game-night-invite-pill,
+  .game-night-online-pill,
+  .game-night-weekly-pill,
+  .deck-format-badge,
+  .deck-bracket-badge,
+  .decks-index-card-public-badge,
+  .admin-role-pill,
+  .binders-index-card-tag,
+  .card-edit-current-badge,
+  .card-edit-finish-tag,
+  .commander-pick-playstyle-tag,
+  .cube-commander-coverage-pill,
+  .cube-draft-sim-pill,
+  .cube-row-locked-tag,
+  .deck-combos-edhrec-tag,
+  .deck-row-partner-tag,
+  .gen-mode-card-tag,
+  .import-deck-review-tag,
+  .pod-hub-roster-owner-tag,
+  .scan-row-tag,
+  .sort-mode-badge,
+  .tab-mode-badge,
+  .trade-wanted-badge,
+  .win-con-tag
+) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.05rem var(--space-2);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+:where(
+  .verdict-chip,
+  .ownership-badge,
+  .card-search-badge,
+  .game-night-cancelled-badge,
+  .game-summary-participant-badge,
+  .game-night-cancelled-pill,
+  .game-night-format-pill,
+  .game-night-host-pill,
+  .game-night-invite-pill,
+  .game-night-online-pill,
+  .game-night-weekly-pill,
+  .deck-format-badge,
+  .deck-bracket-badge,
+  .decks-index-card-public-badge,
+  .admin-role-pill,
+  .binders-index-card-tag,
+  .card-edit-current-badge,
+  .card-edit-finish-tag,
+  .commander-pick-playstyle-tag,
+  .cube-commander-coverage-pill,
+  .cube-draft-sim-pill,
+  .cube-row-locked-tag,
+  .deck-combos-edhrec-tag,
+  .deck-row-partner-tag,
+  .gen-mode-card-tag,
+  .import-deck-review-tag,
+  .pod-hub-roster-owner-tag,
+  .scan-row-tag,
+  .sort-mode-badge,
+  .tab-mode-badge,
+  .trade-wanted-badge,
+  .win-con-tag
+)[data-tone='success'] {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+:where(
+  .verdict-chip,
+  .ownership-badge,
+  .card-search-badge,
+  .game-night-cancelled-badge,
+  .game-summary-participant-badge,
+  .game-night-cancelled-pill,
+  .game-night-format-pill,
+  .game-night-host-pill,
+  .game-night-invite-pill,
+  .game-night-online-pill,
+  .game-night-weekly-pill,
+  .deck-format-badge,
+  .deck-bracket-badge,
+  .decks-index-card-public-badge,
+  .admin-role-pill,
+  .binders-index-card-tag,
+  .card-edit-current-badge,
+  .card-edit-finish-tag,
+  .commander-pick-playstyle-tag,
+  .cube-commander-coverage-pill,
+  .cube-draft-sim-pill,
+  .cube-row-locked-tag,
+  .deck-combos-edhrec-tag,
+  .deck-row-partner-tag,
+  .gen-mode-card-tag,
+  .import-deck-review-tag,
+  .pod-hub-roster-owner-tag,
+  .scan-row-tag,
+  .sort-mode-badge,
+  .tab-mode-badge,
+  .trade-wanted-badge,
+  .win-con-tag
+)[data-tone='info'] {
+  color: var(--info);
+  border-color: var(--info);
+}
+
+:where(
+  .verdict-chip,
+  .ownership-badge,
+  .card-search-badge,
+  .game-night-cancelled-badge,
+  .game-summary-participant-badge,
+  .game-night-cancelled-pill,
+  .game-night-format-pill,
+  .game-night-host-pill,
+  .game-night-invite-pill,
+  .game-night-online-pill,
+  .game-night-weekly-pill,
+  .deck-format-badge,
+  .deck-bracket-badge,
+  .decks-index-card-public-badge,
+  .admin-role-pill,
+  .binders-index-card-tag,
+  .card-edit-current-badge,
+  .card-edit-finish-tag,
+  .commander-pick-playstyle-tag,
+  .cube-commander-coverage-pill,
+  .cube-draft-sim-pill,
+  .cube-row-locked-tag,
+  .deck-combos-edhrec-tag,
+  .deck-row-partner-tag,
+  .gen-mode-card-tag,
+  .import-deck-review-tag,
+  .pod-hub-roster-owner-tag,
+  .scan-row-tag,
+  .sort-mode-badge,
+  .tab-mode-badge,
+  .trade-wanted-badge,
+  .win-con-tag
+)[data-tone='warn'] {
+  color: var(--warn-text);
+  border-color: var(--warn-border);
+}
+
+:where(
+  .verdict-chip,
+  .ownership-badge,
+  .card-search-badge,
+  .game-night-cancelled-badge,
+  .game-summary-participant-badge,
+  .game-night-cancelled-pill,
+  .game-night-format-pill,
+  .game-night-host-pill,
+  .game-night-invite-pill,
+  .game-night-online-pill,
+  .game-night-weekly-pill,
+  .deck-format-badge,
+  .deck-bracket-badge,
+  .decks-index-card-public-badge,
+  .admin-role-pill,
+  .binders-index-card-tag,
+  .card-edit-current-badge,
+  .card-edit-finish-tag,
+  .commander-pick-playstyle-tag,
+  .cube-commander-coverage-pill,
+  .cube-draft-sim-pill,
+  .cube-row-locked-tag,
+  .deck-combos-edhrec-tag,
+  .deck-row-partner-tag,
+  .gen-mode-card-tag,
+  .import-deck-review-tag,
+  .pod-hub-roster-owner-tag,
+  .scan-row-tag,
+  .sort-mode-badge,
+  .tab-mode-badge,
+  .trade-wanted-badge,
+  .win-con-tag
+)[data-tone='err'] {
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+
+:where(
+  .verdict-chip,
+  .ownership-badge,
+  .card-search-badge,
+  .game-night-cancelled-badge,
+  .game-summary-participant-badge,
+  .game-night-cancelled-pill,
+  .game-night-format-pill,
+  .game-night-host-pill,
+  .game-night-invite-pill,
+  .game-night-online-pill,
+  .game-night-weekly-pill,
+  .deck-format-badge,
+  .deck-bracket-badge,
+  .decks-index-card-public-badge,
+  .admin-role-pill,
+  .binders-index-card-tag,
+  .card-edit-current-badge,
+  .card-edit-finish-tag,
+  .commander-pick-playstyle-tag,
+  .cube-commander-coverage-pill,
+  .cube-draft-sim-pill,
+  .cube-row-locked-tag,
+  .deck-combos-edhrec-tag,
+  .deck-row-partner-tag,
+  .gen-mode-card-tag,
+  .import-deck-review-tag,
+  .pod-hub-roster-owner-tag,
+  .scan-row-tag,
+  .sort-mode-badge,
+  .tab-mode-badge,
+  .trade-wanted-badge,
+  .win-con-tag
+)[data-tone='accent'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+:where(
+  .verdict-chip,
+  .ownership-badge,
+  .card-search-badge,
+  .game-night-cancelled-badge,
+  .game-summary-participant-badge,
+  .game-night-cancelled-pill,
+  .game-night-format-pill,
+  .game-night-host-pill,
+  .game-night-invite-pill,
+  .game-night-online-pill,
+  .game-night-weekly-pill,
+  .deck-format-badge,
+  .deck-bracket-badge,
+  .decks-index-card-public-badge,
+  .admin-role-pill,
+  .binders-index-card-tag,
+  .card-edit-current-badge,
+  .card-edit-finish-tag,
+  .commander-pick-playstyle-tag,
+  .cube-commander-coverage-pill,
+  .cube-draft-sim-pill,
+  .cube-row-locked-tag,
+  .deck-combos-edhrec-tag,
+  .deck-row-partner-tag,
+  .gen-mode-card-tag,
+  .import-deck-review-tag,
+  .pod-hub-roster-owner-tag,
+  .scan-row-tag,
+  .sort-mode-badge,
+  .tab-mode-badge,
+  .trade-wanted-badge,
+  .win-con-tag
+)[data-tone='neutral'] {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+/* The filled pills: an invalidating status (a cancelled night, a player
+   who left, a card the format bans) takes a fill in its tone, never an
+   outline (§ Invalidating-status cue). */
+:where(
+  .game-night-cancelled-badge,
+  .game-night-cancelled-pill,
+  .game-summary-participant-badge,
+  .card-search-badge
+)[data-tone='err'] {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+
+:where(
+  .game-night-cancelled-badge,
+  .game-night-cancelled-pill,
+  .game-summary-participant-badge,
+  .card-search-badge
+)[data-tone='warn'] {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-color: var(--warn-border);
+}
+
+/* An icon-only pill (the Public globe) has an empty label: drop it, and the
+   pill closes to a near-circle around the glyph. */
+:where(.decks-index-card-public-badge > .chip-label:empty) {
+  display: none;
+}
+
+:where(.decks-index-card-public-badge):has(> .chip-label:empty) {
+  padding-inline: var(--space-1);
+}

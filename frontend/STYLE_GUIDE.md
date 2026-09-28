@@ -776,10 +776,18 @@ second round of the library, run the way T152 ran: each primitive renders
 the family's existing class, so moving a call site onto it changes no pixel,
 and the convergence PRs then give each shape one look.
 
-- A label pill, badge or tag is a label `Chip`. Its status is `tone`
-  (`success | info | warn | err | accent | neutral`, the § Verdict badges
-  vocabulary), rendered `data-tone`; a family's CSS selects on
-  `[data-tone=…]`, never on its own `is-success`/`--warn` class.
+- A label pill, badge or tag is a label `Chip`, and wears **one pill**
+  (`styles/search-controls.css`, "Label pills"): the § Verdict badges
+  reference, a 0.5px hairline on `--surface`, `text-xs` at 600, sentence
+  case (uppercase belongs to `--font-label` tape, never a chip). Its status
+  is `tone` (`success | info | warn | err | accent | neutral`), an outline
+  in the status colour painted by the pill, never a family `[data-tone]`
+  rule. An invalidating status (a cancelled night, a player who left, a card
+  the format bans) is the one filled case (§ Invalidating-status cue). A
+  family keeps its own layout (margins, flex), never the pill. Coloured-text
+  labels (rules reference, set card, availability) are not pills; a chip on
+  card art takes the scrim tones (§ On-art scrims). Guard:
+  `styles/label-pill-plate.test.ts`.
 - Anything on card art is `ArtBadge`, pinned by `corner`
   (`top-start | top-end | bottom-start | bottom-end`). An icon-only one takes
   `label`, its accessible name. It is always the scrim plate

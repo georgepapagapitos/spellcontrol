@@ -324,19 +324,7 @@
 
 .card-search-badge {
   display: inline-block;
-  padding: 0.05rem var(--space-1-5);
-  border-radius: 999px;
-  font-size: var(--text-xs);
-  font-weight: 600;
   margin-right: var(--space-1-5);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.card-search-badge[data-tone='warn'] {
-  background: var(--warn-bg, color-mix(in srgb, var(--accent) 12%, transparent));
-  color: var(--warn-text, var(--accent));
-  border: 1px solid var(--warn-border, color-mix(in srgb, var(--accent) 30%, transparent));
 }
 
 /* a11y (sweep 3): ring parity for :hover selectors surfaced when the

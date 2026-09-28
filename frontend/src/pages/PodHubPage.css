@@ -170,17 +170,8 @@
   overflow-wrap: anywhere;
 }
 
-/* Non-actionable label → pill, per STYLE_GUIDE shape language. */
 .pod-hub-roster-owner-tag {
   flex-shrink: 0;
-  padding: var(--space-0-5) var(--space-2);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .pod-hub-roster-pending {

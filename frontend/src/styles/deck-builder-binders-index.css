@@ -316,20 +316,6 @@
 
 .binders-index-card-tag {
   display: inline-block;
-  padding: 0.05rem var(--space-2);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: 0.02em;
-}
-
-/* Pending review-queue work ("N to review") — informational accent so it
-   reads as an inbox count, not a warning. */
-.binders-index-card-tag[data-tone='info'] {
-  background: var(--accent-light);
-  color: var(--info);
 }
 
 .binders-index-list.is-compact .binders-index-card {

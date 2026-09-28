@@ -994,17 +994,6 @@
   gap: var(--space-1);
 }
 
-.card-edit-finish-tag {
-  font-size: var(--text-xs);
-  padding: 1px var(--space-1-5);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 .card-edit-finish-tag--foil {
   background: var(--foil-chip-bg);
   color: var(--foil-chip-text);
@@ -1030,11 +1019,6 @@
 }
 
 .card-edit-current-badge {
-  font-size: var(--text-xs);
-  padding: 1px var(--space-1-5);
-  border-radius: 999px;
-  background: var(--accent-light);
-  color: var(--accent);
   white-space: nowrap;
 }
 
