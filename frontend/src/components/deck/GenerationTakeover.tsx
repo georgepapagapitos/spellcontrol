@@ -336,9 +336,12 @@ export function GenerationTakeover({
       aria-label={isFinishing ? 'Deck complete' : 'Building deck…'}
       onAnimationEnd={handleAnimationEnd}
     >
-      <div className="gen-takeover-hero">
+      <div className="gen-takeover-stage">
         {cards.length > 0 && (
-          <div className="gen-takeover-cards">
+          <div className={`gen-takeover-cards${cards.length > 1 ? ' is-pair' : ''}`}>
+            {/* Ambient glow — a blurred copy of the commander lights the
+                panel in the card's own colours. */}
+            <img className="gen-takeover-glow" src={cards[0].url} alt="" aria-hidden />
             {cards.map((c) => (
               <CardThumb
                 key={c.name}
@@ -360,32 +363,42 @@ export function GenerationTakeover({
               {heading}
             </p>
           )}
-          {/* During the completion beat the build chatter clears — the
-              blooming brand mark + sparks carry the moment, not text. */}
-          <p className="gen-takeover-step">{isFinishing ? '' : message}</p>
+          <div className="gen-takeover-status">
+            {/* During the completion beat the build chatter clears — the
+                blooming brand mark + sparks carry the moment, not text. */}
+            <p className="gen-takeover-step">{isFinishing ? '' : message}</p>
+            <span className="gen-takeover-percent" aria-hidden>
+              {Math.round(isFinishing ? 100 : Math.max(0, Math.min(100, percent)))}%
+            </span>
+          </div>
+          <ProgressBar percent={isFinishing ? 100 : percent} className="gen-takeover-bar" />
           <p
             className={`gen-takeover-flavor${visible && !isFinishing ? '' : ' gen-takeover-flavor--hidden'}`}
             aria-hidden="true"
           >
             {flavorText}
           </p>
-          <ProgressBar percent={isFinishing ? 100 : percent} className="gen-takeover-bar" />
+          {/* Macro outline — aria-hidden; the live region above already
+              announces the precise current step. */}
+          <ol className="gen-takeover-phases" aria-hidden>
+            {MILESTONES.map((m, i) => {
+              const state = isFinishing
+                ? 'done'
+                : i < activeMilestone
+                  ? 'done'
+                  : i === activeMilestone
+                    ? 'current'
+                    : 'upcoming';
+              return (
+                <li key={m.label} className={`gen-takeover-phase gen-takeover-phase--${state}`}>
+                  <span className="gen-takeover-phase-mark" aria-hidden />
+                  <span className="gen-takeover-phase-label">{m.label}</span>
+                </li>
+              );
+            })}
+          </ol>
         </div>
       </div>
-      {/* Macro outline — aria-hidden; the live region above already
-          announces the precise current step. */}
-      <ol className="gen-takeover-phases" aria-hidden>
-        {MILESTONES.map((m, i) => {
-          const state =
-            i < activeMilestone ? 'done' : i === activeMilestone ? 'current' : 'upcoming';
-          return (
-            <li key={m.label} className={`gen-takeover-phase gen-takeover-phase--${state}`}>
-              <span className="gen-takeover-phase-mark" aria-hidden />
-              <span className="gen-takeover-phase-label">{m.label}</span>
-            </li>
-          );
-        })}
-      </ol>
     </div>
   );
 }
