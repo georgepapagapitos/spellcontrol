@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useConfirm } from '@/lib/use-confirm';
 import {
   clearPlaytestSnapshot,
@@ -13,7 +13,6 @@ import { deckToPlaytestInit } from '@/playtest/lib/deck-to-playtest';
 import { useCollectionByCopyId } from '@/lib/allocations';
 import { usePlaytestStore, flushPendingPlaytestSnapshot, tryRecordSession } from '@/playtest/store';
 import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
-import { useNarrowViewport } from '@/playtest/hooks/use-narrow-viewport';
 import { usePrintedBodies } from '@/playtest/hooks/use-printed-bodies';
 import { Button } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -38,8 +37,6 @@ interface Props {
    */
   external?: boolean;
   back: PlaytestBackTarget;
-  /** Heading above the board. */
-  title: string;
   /** Rendered in the "this deck has no cards" state — the owner gets an "Add
    *  cards" route, a visitor only gets the way back. */
   emptyHint: string;
@@ -52,7 +49,7 @@ interface Props {
  * implementation, two deck sources. The page above decides where the deck
  * comes from, what "back" means, and what to say when it's empty.
  */
-export function PlaytestSession({ deck, external: isExternal, back, title, emptyHint }: Props) {
+export function PlaytestSession({ deck, external: isExternal, back, emptyHint }: Props) {
   const navigate = useNavigate();
   // Passed to the store so it never has to look this deck up by id.
   const external = isExternal ? deck : undefined;
@@ -62,11 +59,6 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
   const teardown = usePlaytestStore((s) => s.teardown);
   const storeDeckId = usePlaytestStore((s) => s.deckId);
   const { confirm, dialog: confirmDialog } = useConfirm();
-  // The table tier (≥1024px) has no chrome rows at all — back-navigation and
-  // the deck's name live in the board's own top-right game menu instead, so
-  // this header row is narrow-only. (Short landscape already dropped it in
-  // CSS; that tier is a subset of narrow, so nothing there changes.)
-  const isNarrow = useNarrowViewport();
   // Backfills printed power/toughness the deck's own cards are missing, so a
   // creature on the board shows a P/T box whatever era the deck was built in.
   usePrintedBodies(deck);
@@ -217,14 +209,6 @@ export function PlaytestSession({ deck, external: isExternal, back, title, empty
 
   return (
     <div className="playtest-page">
-      {isNarrow && (
-        <header className="playtest-page__header">
-          <Link to={back.to} className="playtest-page__back">
-            <span className="playtest-page__back-label">← {back.label}</span>
-          </Link>
-          <h1>{title}</h1>
-        </header>
-      )}
       <PlaytestBoard state={state} backLabel={back.label} onBack={() => navigate(back.to)} />
       {confirmDialog}
     </div>

@@ -2917,9 +2917,10 @@ lives on classes only the wide tier's markup carries and needs no media query;
 only shared elements (the felt itself, the density cap) are gated on
 `@media (min-width: 1024px)`.
 
-- **No rows.** `.playtest-page__header` renders only when narrow
-  (`PlaytestSession`), and `ActionBar` + `.playtest-trackers` only when narrow
-  (`PlaytestBoard`). Nothing the bar offered may become unreachable: every one
+- **No rows.** The page has no header row at any width: the way back is the
+  game menu's "Back to …" row, and the deck's name is in that label (E450
+  deleted a header that CSS hid at every width it rendered). `ActionBar` +
+  `.playtest-trackers` render only when narrow (`PlaytestBoard`). Nothing the bar offered may become unreachable: every one
   of its actions is in the top-right game menu, the table menu, or a corner
   button, and each is one shared handler behind all three.
 - **Four corners, anchored to the felt.** The clusters are `position:

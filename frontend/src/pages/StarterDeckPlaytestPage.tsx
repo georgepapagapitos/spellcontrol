@@ -86,7 +86,6 @@ export function StarterDeckPlaytestPage() {
         deck={ready.deck}
         external
         back={{ label: 'Decks', to: '/decks' }}
-        title="Starter deck"
         emptyHint="That starter deck came back empty. Pick another one from Decks."
       />
     );

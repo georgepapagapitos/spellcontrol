@@ -368,8 +368,6 @@ describe('the narrow tier is the same board, sized for a thumb', () => {
     // Desk-sized pills are a quarter of a phone's width each.
     expect(phone).toContain('.playtest-corner-btn,');
     expect(phone).toContain('min-width: 0');
-    // The header row goes: the game menu carries "Back to …".
-    expect(phone).toContain('.playtest-page__header {\n    display: none;\n  }');
     // The fan centres in what the piles leave, or its outer card lands off
     // the left edge and under the library.
     expect(phone).toContain('.playtest-hand--fan {');

@@ -67,7 +67,6 @@ export function PlaytestPage() {
     <PlaytestSession
       deck={deck}
       back={back}
-      title={tableCode ? 'Your board' : 'Playtest'}
       emptyHint="This deck has no cards. Add some and the goldfish table will be waiting."
     />
   );

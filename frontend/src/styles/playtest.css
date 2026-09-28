@@ -116,71 +116,6 @@ body:has(.playtest-page, .horde-table-page) {
   --pt-ring-attack: #e5484d;
 }
 
-.playtest-page__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 0.5px solid var(--border);
-}
-
-.playtest-page__header h1 {
-  margin: 0;
-  font-size: var(--text-md);
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.playtest-page__back {
-  display: inline-flex;
-  align-items: center;
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  color: var(--text-primary);
-  padding: var(--space-1) var(--space-2-5);
-  border-radius: var(--radius);
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  text-decoration: none;
-  cursor: pointer;
-  /* The label is the deck's name, which is unbounded: without a cap it
-     wrapped into a three-line button on a 360px phone and pushed the
-     Playtest title against the edge. One line, ellipsized, never more
-     than the header's share. The label is its own element so the link
-     can centre it (and meet the coarse floor below) and still ellipsize. */
-  min-width: 0;
-  max-width: 60%;
-  transition:
-    background var(--motion-fast),
-    border-color var(--motion-fast);
-}
-
-.playtest-page__back-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.playtest-page__back:focus-visible {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .playtest-page__back:hover {
-    background: var(--surface-raised);
-    border-color: var(--border-strong);
-  }
-}
-
-@media (pointer: coarse) {
-  .playtest-page__back {
-    min-height: 44px;
-  }
-}
-
 .playtest-board {
   display: flex;
   flex-direction: column;
@@ -3162,13 +3097,6 @@ button.playtest-card-pt__value--editable:focus-visible {
    tier; this tier used to swap it for a 44px strip of card NAMES under the
    table (E264, from before the table moved to corner overlays). */
 @media (max-height: 500px) and (orientation: landscape) {
-  /* The standalone header is an entire 44px+-touch-target row on its own
-     (back button) for two facts (deck name, "Playtest") that the game menu
-     carries as "Back to <deck>" — cut the row, not the way out. */
-  .playtest-page__header {
-    display: none;
-  }
-
   /* Presence rail: keep name + life (the "who's alive" glance), drop the
      per-opponent battlefield mini-cards — the single biggest per-entry cost
      — and floor entries lower than the ≥1023px tier's 44px touch target
@@ -4532,13 +4460,6 @@ button.playtest-card-pt__value--editable:focus-visible {
    simply loses to the base rule. (An earlier revision of this block sat up
    with the rest of the ≤1023px tier and did nothing at all.) */
 @media (max-width: 1023px) {
-  /* The board owns the screen. The header's back button is the game menu's
-     "Back to …" row and its title names the deck you are looking at, so the
-     row is two facts and a 44px band of chrome. */
-  .playtest-page__header {
-    display: none;
-  }
-
   /* Thumb-sized corners, not desk-sized: the 8rem floor that keeps the
      desktop's right-hand pills one width is a quarter of a phone per pill. */
   .playtest-corner-btn,
