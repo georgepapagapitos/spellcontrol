@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * Control-row budget guard (STYLE_GUIDE.md § "Toolbars & action rows" rule 2).
+ * Control-row budget guard (style-guide/components.md § "Toolbars & action rows" rule 2).
  *
  * PR #1368 fixed a phone-width deck toolbar that had silently grown from six
  * controls to nine over fifteen PRs, wrapping onto three rows at 360px and
@@ -59,7 +59,7 @@ import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
 import type { ListDef } from '../types';
 
 const STYLE_GUIDE_POINTER =
-  'Per STYLE_GUIDE.md § "Toolbars & action rows" rule 2, new display-preference ' +
+  'Per style-guide/components.md § "Toolbars & action rows" rule 2, new display-preference ' +
   'controls belong inside the "View" ToolbarPopover (or the row\'s kebab), not a ' +
   'new inline pill — fold the new control in rather than raising this budget.';
 

@@ -2,7 +2,7 @@
 //
 // Guard: config controls come from the form kit (board T139).
 //
-// STYLE_GUIDE § Config surfaces: an on/off setting is `SwitchRow`, a one-of is
+// style-guide/components.md § Config surfaces: an on/off setting is `SwitchRow`, a one-of is
 // `SegmentedControl` / `ChoiceList` (native radios) or `SelectMenu`. Before
 // T139 the app carried five on/off styles and three one-of styles, and every
 // hand-rolled copy drifted: switches without hints, aria-pressed pairs with no

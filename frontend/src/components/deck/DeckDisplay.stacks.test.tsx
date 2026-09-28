@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // Stacks view (2026-09-19): the Moxfield/Archidekt visual-stacks layout —
 // one column per group, the grid's own tile overlapped so only each name
-// strip shows. See STYLE_GUIDE § Deck list on a wide screen.
+// strip shows. See style-guide/decks.md § Deck list on a wide screen.
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';

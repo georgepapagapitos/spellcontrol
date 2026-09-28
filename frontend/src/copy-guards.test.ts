@@ -19,7 +19,7 @@
  *   TITLE_LONG  — a `title=` over 8 words hides detail from touch; use a
  *                 visible caption or InfoTip.
  *   INFOTIP_LONG — an InfoTip body is one paragraph of at most 35 words
- *                 (STYLE_GUIDE § Info tooltips, sweep-3). Reads a plain-string
+ *                 (style-guide/components.md § Info tooltips, sweep-3). Reads a plain-string
  *                 `text`, inline or a same-file const; a rich node body (lead +
  *                 list, for a multi-point explainer) is exempt.
  *   RETRY      — the retry action label is "Retry", everywhere (board T157).

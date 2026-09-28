@@ -263,7 +263,7 @@ describe('PlayPage rules door', () => {
 
 // The local setup form's rule toggles moved off the bespoke `RulePill` onto
 // the shared `SwitchRow` (board T139) — same aria contract, hint now visible
-// per STYLE_GUIDE § Config surfaces / § Table settings, unlike the lobby's
+// per style-guide/components.md § Config surfaces / § Table settings, unlike the lobby's
 // own compact RuleToggle which keeps its hint on `title`.
 describe('Local setup — rule switches', () => {
   // A prior describe block's "Start game" click leaves `local` set on the

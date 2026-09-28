@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
  * divergent copies (different tracks, radii, animations, and one actively
  * misleading full-width bug in EnginePanel). The shared primitives in
  * `src/components/shared/MeterBar.tsx` (`MeterBar` / `StackedBar`) are the
- * only place that pattern is allowed; see STYLE_GUIDE.md "Bars & meters".
+ * only place that pattern is allowed; see style-guide/data-display.md § "Bars & meters".
  *
  * Vertical charts (the curve hero, test-hand histogram) size with `height`
  * percentages and are intentionally out of scope. If a percentage *width*

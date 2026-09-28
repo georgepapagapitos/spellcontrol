@@ -47,7 +47,7 @@ describe('HomeCard', () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  // STYLE_GUIDE § Home: an empty card renders nothing. The old collapsed
+  // style-guide/app-shell.md § Home: an empty card renders nothing. The old collapsed
   // 44px row still took a grid cell and left a hole beside its tall
   // neighbour; four of them made a quarter of the page say "nothing here".
   it('renders nothing at all when empty', () => {

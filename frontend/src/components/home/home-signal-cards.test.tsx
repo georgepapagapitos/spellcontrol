@@ -145,7 +145,7 @@ describe('PriceMoversCard', () => {
     expect(screen.getByRole('status', { name: 'Loading' })).toBeTruthy();
   });
 
-  // Nothing to show renders nothing (STYLE_GUIDE § Home): it used to be a
+  // Nothing to show renders nothing (style-guide/app-shell.md § Home): it used to be a
   // "Price history builds after your next refresh." row holding a grid cell.
   it('renders nothing when there is no movers record yet', async () => {
     mockGetLatestMovers.mockResolvedValue(null);

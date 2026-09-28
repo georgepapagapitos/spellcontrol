@@ -4,7 +4,7 @@
  * owned-row table above (no keyboard nav of its own) AND, once the Scryfall
  * panel is opened for a 2+ character query, drives that panel's active row.
  * The arrows/Enter must stay inert for the first purpose and only wake up
- * for the second — see STYLE_GUIDE § Overlays and use-results-keys.ts.
+ * for the second — see style-guide/overlays.md § Overlays and use-results-keys.ts.
  */
 import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react';

@@ -160,7 +160,7 @@ describe('responsive primitives (E68 cross-device guard)', () => {
     ).toBe(false);
   });
 
-  // STYLE_GUIDE § Page hero art: a ~4:3 art_crop stretched edge-to-edge across
+  // style-guide/app-shell.md § Page hero art: a ~4:3 art_crop stretched edge-to-edge across
   // a wide, short hero only ever shows a random horizontal slice (the build
   // report sheet shipped exactly that; the deck-gen takeover did too, and now
   // shows the real commander card instead of an art header). ≥600px the

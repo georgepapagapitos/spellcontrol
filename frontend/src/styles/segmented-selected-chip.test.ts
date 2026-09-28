@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
 
 /**
- * STYLE_GUIDE § Tabs, the TRACK ruling (revised E410): the selected segment of
+ * style-guide/components.md § Tabs, the TRACK ruling (revised E410): the selected segment of
  * a segmented control inside a track is a raised chip WITH an inset
  * `1px var(--border-strong)` ring and weight-600 text. The chip alone read
  * faint on the light themes, where --surface-raised is a few shades off the

@@ -44,7 +44,7 @@ describe('Add cards sheet chrome', () => {
 
 // T153 phase 4: the sheet moved onto <Modal>, which needs `add-cards-backdrop`
 // as its `backdropClassName` and the dialog widened for the desktop two-pane
-// workbench (STYLE_GUIDE § Overlays width table). Both are load-bearing CSS
+// workbench (style-guide/overlays.md § Overlays width table). Both are load-bearing CSS
 // this test pins so a future edit can't silently narrow the dialog back down
 // or shrink the sheet breakpoint back to the shared 600px default.
 describe('Add cards desktop workbench + sheet breakpoint', () => {

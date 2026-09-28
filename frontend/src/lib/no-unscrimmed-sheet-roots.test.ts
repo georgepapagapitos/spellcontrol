@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
  * how it composes its classes. `:where()` keeps the rule at zero specificity
  * so a scoped root class that deliberately wants a stronger dim
  * (.pull-list-root, .deck-tokens-root → var(--overlay)) wins regardless of
- * import order. See STYLE_GUIDE.md "Overlays".
+ * import order. See style-guide/overlays.md § "Overlays".
  *
  * History: under the old two-place convention (scoped root class + co-located
  * background rule) the scrim shipped missing FOUR audits running — E95 #1048,
