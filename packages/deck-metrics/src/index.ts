@@ -1106,3 +1106,6 @@ export {
   type OracleTagLookup,
   type TemplateResolution,
 } from './template-query.js';
+
+// ── Deck cover art ──────────────────────────────────────────────────────────
+export { pickDeckCover, coverHasArt, type DeckCoverInput } from './cover.js';

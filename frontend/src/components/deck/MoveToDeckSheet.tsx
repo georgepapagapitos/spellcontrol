@@ -5,6 +5,7 @@ import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { ColorPip } from '../shared/ManaSymbol';
 import { effectiveDeckColors } from '@/lib/deck-validation';
+import { deckCoverArt } from '@/lib/deck-cover';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { DonorOutcomeInline } from './DonorOutcomeInline';
 import type { DonorOutcome } from '@/lib/allocations';
@@ -27,12 +28,6 @@ export interface MoveToDeckSheetProps {
     replacement: { name: string; card: ScryfallCard } | null
   ) => void;
   onCancel: () => void;
-}
-
-function deckArt(deck: Deck): string | undefined {
-  return (
-    deck.commander?.image_uris?.art_crop ?? deck.commander?.card_faces?.[0]?.image_uris?.art_crop
-  );
 }
 
 /**
@@ -137,7 +132,7 @@ export function MoveToDeckSheet({
           ) : (
             <ul className="move-deck-list" role="list">
               {others.map((d) => {
-                const art = deckArt(d);
+                const art = deckCoverArt(d);
                 const colors = Array.from(effectiveDeckColors(d));
                 const total = (d.commander ? 1 : 0) + (d.partnerCommander ? 1 : 0) + d.cards.length;
                 return (

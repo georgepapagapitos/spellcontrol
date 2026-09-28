@@ -5,7 +5,8 @@ import { ChevronRight, Sparkles } from 'lucide-react';
 import { useDecksStore, type Deck } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
 import { ColorPip } from '../shared/ManaSymbol';
-import { imageFromCard, useCardThumb } from '../../lib/card-thumbs';
+import { useCardThumb } from '../../lib/card-thumbs';
+import { deckCoverArt } from '../../lib/deck-cover';
 import { formatRelativeTime } from '../../lib/format-time';
 import { effectiveDeckColors } from '../../lib/deck-validation';
 import { aggregateNewArrivalDecks } from '../../lib/home-signals';
@@ -21,7 +22,7 @@ const SHAPE_SLOT = 'your-decks';
 
 function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
   const commander = deck.commander;
-  const direct = commander ? imageFromCard(commander, 'art_crop') : undefined;
+  const direct = deckCoverArt(deck);
   const resolved = useCardThumb(direct ? undefined : commander?.name, 'art_crop');
   const art = direct ?? resolved;
   const colors = [...effectiveDeckColors(deck)].sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b));

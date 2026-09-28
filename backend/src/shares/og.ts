@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import { pickDeckCover, type DeckCoverInput } from '@spellcontrol/deck-metrics';
 import { logger } from '../logger';
 import { loadShareContext } from './context';
 import {
@@ -225,12 +226,8 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
     const format = asString(deck.format) ?? 'Magic';
     const cardsArr = Array.isArray(deck.cards) ? deck.cards : [];
     const cards = countProjectable(cardsArr, isProjectableSlot);
-    // Commander → partner commander → first mainboard card. DeckCard wraps
-    // `card: ScryfallCard`, so the first mainboard card is `cardsArr[0]?.card`.
-    const image =
-      cardArtUrl(deck.commander) ??
-      cardArtUrl(deck.partnerCommander) ??
-      cardArtUrl(asRecord(cardsArr[0])?.card);
+    // The deck's cover, the same one its tile and page wear (pickDeckCover).
+    const image = cardArtUrl(pickDeckCover(deck as DeckCoverInput<unknown>));
     if (share.kind === 'feedback') {
       return {
         title: `${name} — feedback wanted`,

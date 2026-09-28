@@ -263,3 +263,51 @@ describe('hasCardActions', () => {
     expect(hasCardActions({ row: row(), onSetRowTags: vi.fn() })).toBe(true);
   });
 });
+
+describe('deck cover action', () => {
+  const artRow = (name: string) =>
+    row({
+      name,
+      card: {
+        name,
+        type_line: 'Creature',
+        image_uris: { art_crop: 'a.jpg' },
+      } as unknown as ScryfallCard,
+    });
+  const cover = (chosen: string | null, current: string | null) => ({
+    chosen,
+    current,
+    set: vi.fn(),
+  });
+
+  it('offers "Use as deck cover" on a card with art that is not already the cover', () => {
+    const c = cover(null, 'Tolarian Terror');
+    const action = byKey({ row: artRow('Delver'), cover: c }, 'cover-set');
+    expect(action?.label).toBe('Use as deck cover');
+    expect(action?.section).toBe('cover');
+    action!.run!();
+    expect(c.set).toHaveBeenCalledWith('Delver');
+  });
+
+  it('offers nothing on the card the deck already wears automatically', () => {
+    const ctx = { row: artRow('Tolarian Terror'), cover: cover(null, 'Tolarian Terror') };
+    expect(keys(ctx).filter((k) => k.startsWith('cover'))).toEqual([]);
+  });
+
+  it('lets the chosen cover go back to automatic', () => {
+    const c = cover('Delver', 'Delver');
+    const action = byKey({ row: artRow('Delver'), cover: c }, 'cover-clear');
+    expect(action?.label).toBe('Stop using as cover');
+    action!.run!();
+    expect(c.set).toHaveBeenCalledWith(null);
+  });
+
+  it('is absent for a card with no art, and without a cover handler', () => {
+    expect(keys({ row: row(), cover: cover(null, 'X') })).not.toContain('cover-set');
+    expect(keys({ row: artRow('Delver') })).not.toContain('cover-set');
+  });
+
+  it('files the Cover section last', () => {
+    expect(SECTION_ORDER.at(-1)).toBe('cover');
+  });
+});

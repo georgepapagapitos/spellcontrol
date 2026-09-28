@@ -137,6 +137,7 @@ export interface PublicDeck {
   averageSalt?: number;
   bracketEstimation?: unknown;
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  coverCardName?: string;
   deckGrade?: { letter: string; headline: string };
   planScore?: unknown;
   synergyAnalysis?: unknown;

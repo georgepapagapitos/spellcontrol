@@ -24,7 +24,8 @@ import { useDocumentTitle } from '../lib/use-document-title';
 import { useMediaQuery } from '../lib/use-media-query';
 import { computePopoverPlacement, getSafeViewport } from '../lib/popover-placement';
 import { haptics } from '../lib/haptics';
-import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
+import { deckCoverArt } from '../lib/deck-cover';
+import { pickDeckCover } from '@spellcontrol/deck-metrics';
 import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { useBinderByCopyId } from '../lib/use-binder-by-copy';
 import { useLocation, useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
@@ -1405,12 +1406,31 @@ export function DeckEditorPage() {
     };
   }, [deck, currency]);
 
-  // Commander presence for the hero — same art_crop resolution + offline-URL
-  // healing as the Decks index cards (see DecksIndexPage). Undefined for
-  // commanderless decks; the hero keeps its plain color-border look.
-  const rawHeroArt =
-    deck?.commander?.image_uris?.art_crop ?? deck?.commander?.card_faces?.[0]?.image_uris?.art_crop;
-  const heroArt = rawHeroArt ? scryfallArtCrop(rawHeroArt) : undefined;
+  // The deck's cover behind the hero, the same face its index tile wears
+  // (lib/deck-cover). Undefined only for a deck with no art at all; the hero
+  // then keeps its plain color-border look.
+  const heroArt = useMemo(() => (deck ? deckCoverArt(deck) : undefined), [deck]);
+  // The card menu's "Use as deck cover". `chosen` is only the pick while that
+  // card is still in the deck; after it leaves, the deck is back on automatic
+  // and the menu should say so.
+  const deckId = deck?.id;
+  const coverCardName = deck?.coverCardName ?? null;
+  const setCover = useCallback(
+    (name: string | null) => {
+      if (!deckId) return;
+      updateDeck(deckId, { coverCardName: name });
+      pushToast({
+        message: name ? `${name} is now this deck's cover.` : 'The deck picks its own cover again.',
+        tone: 'success',
+      });
+    },
+    [deckId, updateDeck, pushToast]
+  );
+  const cover = useMemo(() => {
+    if (!deck) return undefined;
+    const current = pickDeckCover(deck)?.name ?? null;
+    return { chosen: coverCardName === current ? coverCardName : null, current, set: setCover };
+  }, [deck, coverCardName, setCover]);
 
   // CoachFeed "Fit?" button — open the audition for a feed row's incoming card.
   // For swap rows, also store the outgoing card name so CardFitPanel can pin it
@@ -3336,6 +3356,7 @@ export function DeckEditorPage() {
                 ? () => setShowCommanderPicker(true)
                 : undefined
             }
+            cover={cover}
             onEditPartner={
               formatConfig?.hasCommander && deck.commander && canHavePartner(deck.commander)
                 ? () => setShowPartnerPicker(true)
