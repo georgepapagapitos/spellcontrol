@@ -24,6 +24,13 @@ interface Props {
   pages: BinderPage[];
   /** Per-page sub-label (e.g. section name). Parallel array to `pages`. */
   pageLabels: string[];
+  /**
+   * Per-page "Vol N" label, parallel to `pages` — present only when the
+   * binder is over its fixed capacity and so reads as more than one physical
+   * book (`lib/binder-volumes.ts`). Omitted entirely for a binder that fits
+   * in one book, so a single-volume binder never shows "Vol 1".
+   */
+  volumeLabels?: string[];
   startPageIndex: number;
   pocketSize: PocketSize;
   binderName: string;
@@ -64,6 +71,7 @@ function isEmptySpace(el: EventTarget): boolean {
 export function BinderPagePreview({
   pages,
   pageLabels,
+  volumeLabels,
   startPageIndex,
   pocketSize,
   binderName,
@@ -163,9 +171,11 @@ export function BinderPagePreview({
   // the position in this run diverge; say both only then.
   const current = pages[selected];
   const unfiltered = pages[pages.length - 1]?.pageNum === pages.length;
-  const where = unfiltered
+  const pagePos = unfiltered
     ? `Page ${current?.pageNum} of ${pages.length}`
     : `Page ${current?.pageNum} · ${selected + 1} of ${pages.length} shown`;
+  const currentVolume = volumeLabels?.[selected];
+  const where = currentVolume ? `${currentVolume} · ${pagePos}` : pagePos;
   const currentLabel = pageLabels[selected] ?? '';
 
   return (

@@ -18,6 +18,7 @@ import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { computeDrift } from '../lib/binder-drift';
 import { binderCoverArt } from '../lib/binder-cover';
+import { volumesFor, hasMultipleVolumes } from '../lib/binder-volumes';
 import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { formatMoney } from '../lib/format-money';
 import { useConfirm } from '../lib/use-confirm';
@@ -454,6 +455,9 @@ export function BindersIndexPage() {
             {sorted.map((b, idx) => {
               const selected = sel.selected.has(b.def.id);
               const art = coverArts.get(b.def.id);
+              // `materialized`/`sorted` come from an unfiltered pass (search: ''
+              // above), exactly what `volumesFor` requires.
+              const volumes = volumesFor(b);
               return (
                 <Surface
                   as="li"
@@ -513,6 +517,14 @@ export function BindersIndexPage() {
                           {b.def.fixedCapacity != null && (
                             <Chip className="binders-index-card-tag">
                               Cap {b.def.fixedCapacity.toLocaleString()}
+                            </Chip>
+                          )}
+                          {hasMultipleVolumes(volumes) && (
+                            <Chip
+                              className="binders-index-card-tag"
+                              aria-label={`Fills ${volumes.length} physical binders`}
+                            >
+                              {volumes.length} volumes
                             </Chip>
                           )}
                         </span>

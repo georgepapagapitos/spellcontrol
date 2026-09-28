@@ -23,6 +23,8 @@ import { BinderTabs } from '../components/BinderTabs';
 import { BinderDriftBanner } from '../components/BinderDriftBanner';
 import { BinderView } from '../components/BinderView';
 import { BinderListView } from '../components/BinderListView';
+import { BinderVolumesSheet } from '../components/BinderVolumesSheet';
+import { volumesFor, hasMultipleVolumes } from '../lib/binder-volumes';
 import { SearchPill } from '../components/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { type BinderViewControls, type BinderViewMode } from '../components/BinderSummaryBar';
@@ -68,6 +70,7 @@ export function BinderPage() {
   const setSearch = useCollectionStore((s) => s.setSearch);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
+  const updateBinder = useCollectionStore((s) => s.updateBinder);
 
   // Sync the URL param into the existing activeTab store field so child
   // components (BinderTabs, BinderView, BinderListView) keep working
@@ -79,6 +82,7 @@ export function BinderPage() {
   const [cardEditorOpen, setCardEditorOpen] = useState(false);
   const [addCardSheetOpen, setAddCardSheetOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [volumesSheetOpen, setVolumesSheetOpen] = useState(false);
   const { actionsFor } = useBinderActions();
   const [view, setView] = useStoredView<BinderViewMode>(
     'mtg-binder-view-mode',
@@ -184,6 +188,16 @@ export function BinderPage() {
   // Names the browser print job / tab title for the printable checklist.
   useDocumentTitle(active?.def.name);
 
+  // Volumes: read off an UNFILTERED materialize pass (driftBinders is already
+  // that pass, reused here rather than a third materialize call) — a
+  // search-narrowed pass would under-count pages and misreport how many
+  // physical books this binder needs. `null` = no fixed capacity.
+  const activeUnfiltered = driftBinders.find((b) => b.def.id === active?.def.id) ?? active;
+  const activeVolumes = useMemo(
+    () => (activeUnfiltered ? volumesFor(activeUnfiltered) : null),
+    [activeUnfiltered]
+  );
+
   // Printable checklist source: same section grouping as BinderListView,
   // duplicate copies rolled into a Quantity like its qty pills do.
   const printGroups = useMemo(() => {
@@ -249,6 +263,20 @@ export function BinderPage() {
       tone: 'success',
       actionLabel: 'Undo',
       onAction: () => setBinderMode(def.id, 'manual'),
+    });
+  };
+  // "Use a <size>-card binder" in the volumes sheet: a normal capacity edit
+  // through the store's own update path, exactly what saving the editor
+  // would do — never a hand-rolled sync write. Same undo-toast shape as
+  // resumeRules above.
+  const applyFitCapacity = (def: BinderDef, size: number) => {
+    const previous = def.fixedCapacity;
+    updateBinder(def.id, { fixedCapacity: size });
+    toast.show({
+      message: `${def.name} now holds ${size.toLocaleString()} cards`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => updateBinder(def.id, { fixedCapacity: previous }),
     });
   };
 
@@ -342,14 +370,17 @@ export function BinderPage() {
                 cards · {active.totalPages.toLocaleString()} /{' '}
                 {Math.ceil(active.def.fixedCapacity / active.effectivePocketSize).toLocaleString()}{' '}
                 pages
-                {active.totalCards > active.def.fixedCapacity && (
-                  <span
-                    className="binder-summary-overcap"
-                    title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards`}
-                  >
-                    {' '}
-                    ⚠ over capacity
-                  </span>
+                {hasMultipleVolumes(activeVolumes) && (
+                  <>
+                    {' · '}
+                    <Button
+                      variant="link"
+                      title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards`}
+                      onClick={() => setVolumesSheetOpen(true)}
+                    >
+                      {activeVolumes.length} volumes
+                    </Button>
+                  </>
                 )}
               </>
             ) : (
@@ -361,6 +392,27 @@ export function BinderPage() {
           }
         />
       )}
+      {volumesSheetOpen &&
+        active &&
+        active.def.fixedCapacity != null &&
+        hasMultipleVolumes(activeVolumes) && (
+          <BinderVolumesSheet
+            binderName={active.def.name}
+            volumes={activeVolumes}
+            fixedCapacity={active.def.fixedCapacity}
+            pocketSize={active.effectivePocketSize}
+            totalPages={activeUnfiltered?.totalPages ?? active.totalPages}
+            onApplyFit={(size) => {
+              applyFitCapacity(active.def, size);
+              setVolumesSheetOpen(false);
+            }}
+            onOpenRules={() => {
+              setVolumesSheetOpen(false);
+              setEditingBinder(active.def.id);
+            }}
+            onClose={() => setVolumesSheetOpen(false)}
+          />
+        )}
       {shareOpen && activeId && active && (
         <ShareDialog
           kind="binder"

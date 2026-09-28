@@ -31,6 +31,7 @@ import type {
   SortEntry,
   SortField,
   UncategorizedBucket,
+  Volume,
 } from '@spellcontrol/binder-routing';
 export type {
   BinderDef,
@@ -52,6 +53,7 @@ export type {
   SortEntry,
   SortField,
   UncategorizedBucket,
+  Volume,
 };
 
 /**

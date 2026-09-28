@@ -108,6 +108,30 @@ describe('buildCardLocationIndex', () => {
     expect(index.byCopyId.has('copy-Card A')).toBe(false);
     expect(index.byCopyId.get('copy-Card B')?.slot).toBe(1);
   });
+
+  it('stamps a volume only once the binder outgrows its own fixed capacity', () => {
+    // 20 cards at 9 pockets = 3 pages; a 9-card (1-page) capacity forces 3 volumes.
+    const names = Array.from({ length: 20 }, (_, i) => `Card ${String(i).padStart(2, '0')}`);
+    const cards = names.map((n) => card(n, `o-${n}`));
+    const over = binder('b1', 'Everything', 0, undefined, {
+      filterGroups: [{ filter: {} }],
+      fixedCapacity: 9,
+    });
+    const index = buildCardLocationIndex(layout(cards, [over]));
+    expect(index.byCopyId.get(`copy-${names[0]}`)).toMatchObject({ pageNum: 1, volume: 1 });
+    expect(index.byCopyId.get(`copy-${names[9]}`)).toMatchObject({ pageNum: 2, volume: 2 });
+    expect(index.byCopyId.get(`copy-${names[19]}`)).toMatchObject({ pageNum: 3, volume: 3 });
+  });
+
+  it('never stamps a volume when the binder fits in one book', () => {
+    const cards = [card('Sol Ring', 'o1')];
+    const fits = binder('b1', 'Everything', 0, undefined, {
+      filterGroups: [{ filter: {} }],
+      fixedCapacity: 360,
+    });
+    const index = buildCardLocationIndex(layout(cards, [fits]));
+    expect(index.byCopyId.get('copy-Sol Ring')?.volume).toBeUndefined();
+  });
 });
 
 describe('formatLocation', () => {
@@ -123,6 +147,14 @@ describe('formatLocation', () => {
 
   it('says only the page when the pocket is not known for this copy', () => {
     expect(formatLocation({ binderName: 'Mana rocks', pageNum: 3 })).toBe('Mana rocks · p. 3');
+  });
+
+  it('names the volume once the binder is more than one book', () => {
+    expect(formatLocation({ ...at, volume: 2 })).toBe('Mana rocks · Vol 2 · p. 3 · slot 5');
+  });
+
+  it('never says a volume for a binder that fits in one book', () => {
+    expect(formatLocation({ ...at, volume: undefined })).toBe('Mana rocks · p. 3 · slot 5');
   });
 });
 
@@ -161,5 +193,20 @@ describe('formatLocationSpan', () => {
 
   it('is empty for no pockets', () => {
     expect(formatLocationSpan([])).toBe('');
+  });
+
+  it('names the volume that every spot in the pile shares', () => {
+    expect(formatLocationSpan([{ pageNum: 3, slot: 5 }], { volume: 2 })).toBe(
+      'Vol 2 · p. 3 · slot 5'
+    );
+    expect(
+      formatLocationSpan(
+        [
+          { pageNum: 3, slot: 9 },
+          { pageNum: 4, slot: 1 },
+        ],
+        { volume: 1 }
+      )
+    ).toBe('Vol 1 · pp. 3–4');
   });
 });

@@ -1,0 +1,79 @@
+/* The volumes sheet (E494): opened from the binder hero's "N volumes"
+   button once a binder outgrows its own fixed capacity. A bottom sheet on a
+   phone, a centered dialog above (STYLE_GUIDE § Overlays, Pattern B). */
+.binder-volumes-sheet {
+  max-width: 480px;
+}
+
+.binder-volumes-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.binder-volumes-sheet-intro {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.binder-volumes-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cluster each row's own fields next to each other on one grid: the spine is
+   the one column that grows/shrinks (and ellipsizes), so a short spine
+   leaves the count right beside it instead of stranded at the row's far
+   edge — the defect a full-width inline bar had (STYLE_GUIDE § Sort chains,
+   "the row's controls cluster next to the field they act on"). */
+.binder-volumes-row {
+  display: grid;
+  grid-template-columns: 3.25rem auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.binder-volumes-row-index {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.binder-volumes-row-pages {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.binder-volumes-row-spine {
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.binder-volumes-row-count {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.binder-volumes-sheet-fix {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.binder-volumes-sheet-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
