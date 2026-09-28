@@ -1,6 +1,6 @@
 export { checkRoleEvidence } from './roleEvidence';
-export { isIncidentalRampByTags, isRampByTags } from './rampRole';
-import { isRampByTags } from './rampRole';
+export { isIncidentalRampByTags, isRampByTags, isRemovalByTags } from './roleTags';
+import { isRampByTags, isRemovalByTags } from './roleTags';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -209,7 +209,8 @@ export const HARDCODED_GAME_CHANGERS: ReadonlySet<string> = new Set([
  *
  * The role PRECEDENCE encoded here is the thing worth sharing — not the lookup
  * itself. `getCardRole` folds four tags into `ramp` (minus incidental ramp, see
- * `rampRole.ts`) and six into `cardDraw`, and
+ * `roleTags.ts`), `removal` and `counterspell` into `removal`, and six into
+ * `cardDraw`, and
  * checks boardwipe before removal because boardwipe is the more specific claim.
  * A second copy of those rules on the server would not fail loudly when it
  * drifted; it would quietly classify cards differently and hand back a bracket
@@ -231,7 +232,7 @@ export function createTagLookup(tags: Record<string, readonly string[]>): TagLoo
     getCardRole: (name) => {
       // Priority order — boardwipe before removal, it is the more specific tag.
       if (has('boardwipe', name)) return 'boardwipe';
-      if (has('removal', name)) return 'removal';
+      if (isRemovalByTags((tag) => has(tag, name))) return 'removal';
       if (isRampByTags((tag) => has(tag, name))) return 'ramp';
       if (
         has('card-advantage', name) ||
@@ -781,10 +782,12 @@ export function estimateBracket(
   const fastMana: string[] = [];
   const tutors: string[] = [];
   const staxPieces: string[] = [];
-  // Counterspells whose only interaction role is countering (not also tagged
-  // removal/boardwipe). getCardRole never emits a "counterspell" role, so these
-  // are otherwise invisible to the interaction-density soft signal — which badly
-  // undercounted blue control decks (audit P2 #6). Counted once, deduped.
+  // Counterspells a lookup gives no role. Since E486 a counterspell folds into
+  // the removal role (`isRemovalByTags`) and is counted through
+  // `roleCounts.removal`, so with real tag data this set stays empty; it still
+  // covers an injected lookup that leaves counterspells role-less, which is how
+  // they were invisible to interaction density before (audit P2 #6). Counted
+  // once, deduped, and never alongside the removal role, so never twice.
   const counterspells = new Set<string>();
 
   // Each distinct card once: a name listed twice is still one Game Changer.

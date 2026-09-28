@@ -13,6 +13,7 @@ import {
   getAllCardRoles,
   getCardRole,
   getRampSubtype,
+  getRemovalSubtype,
   hasMultipleRoles,
   loadTaggerData,
   stampedRole,
@@ -36,7 +37,9 @@ afterAll(() => vi.unstubAllGlobals());
 
 describe('incidental ramp is not ramp (E476, real tags)', () => {
   it('a counterspell or equipment that makes mana on the side has no ramp role', () => {
-    expect(getCardRole('Mana Drain')).toBeNull();
+    // E486: a counterspell is removal, so Mana Drain lands there, never in ramp.
+    expect(getCardRole('Mana Drain')).toBe('removal');
+    expect(getAllCardRoles('Mana Drain')).toEqual(['removal']);
     expect(getCardRole('Sword of Feast and Famine')).toBeNull();
     expect(cardMatchesRole('Mana Drain', 'ramp')).toBe(false);
     expect(cardMatchesRole('Sword of Feast and Famine', 'ramp')).toBe(false);
@@ -45,14 +48,15 @@ describe('incidental ramp is not ramp (E476, real tags)', () => {
 
   it('the oracle evidence gate inherits it (the generator and report path)', () => {
     // Mana Drain's own text passes the ramp evidence pattern ("add {C}"), so
-    // only the tag-level rule keeps it out of the ramp count.
+    // only the tag-level rule keeps it out of the ramp count; it counts as the
+    // removal its counter clause backs (E486).
     expect(
       validateCardRole({
         name: 'Mana Drain',
         oracle_text:
           "Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value.",
       })
-    ).toBeNull();
+    ).toBe('removal');
   });
 
   it('a removal card keeps removal and loses the secondary ramp role', () => {
@@ -105,5 +109,38 @@ describe('validateCardRole checks every tagged role, not only the first (E476, r
 
   it('still drops a role no tagged role corroborates', () => {
     expect(validateCardRole({ name: 'Golgari Charm', oracle_text: 'Flying.' })).toBeNull();
+  });
+});
+
+// Verbatim Scryfall oracle text (2026-09-28).
+const NEGATE = 'Counter target noncreature spell.';
+const SWAN_SONG =
+  'Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying.';
+const DEADBRIDGE_CHANT =
+  "When this enchantment enters, mill ten cards.\nAt the beginning of your upkeep, choose a card at random in your graveyard. If it's a creature card, put it onto the battlefield. Otherwise, put it into your hand.";
+
+describe('counterspells are removal (E486, real tags + real text)', () => {
+  it('a counterspell tagged only counterspell fills the removal role', () => {
+    // 489 of 546 counterspells carried no removal tag and so had no role.
+    expect(getCardRole('Counterspell')).toBe('removal');
+    expect(cardMatchesRole('Negate', 'removal')).toBe(true);
+    expect(getRemovalSubtype('Swan Song')).toBe('counterspell');
+  });
+
+  it('scoped counter text is removal evidence, not only "counter target spell"', () => {
+    expect(validateCardRole({ name: 'Negate', oracle_text: NEGATE })).toBe('removal');
+    expect(validateCardRole({ name: 'Swan Song', oracle_text: SWAN_SONG })).toBe('removal');
+  });
+
+  it('a self-bounce ramp card carries no removal subtype', () => {
+    expect(getRemovalSubtype('Mina and Denn, Wildborn')).toBeNull();
+  });
+});
+
+describe('graveyard-to-hand across sentences is card draw (E487, real tags + real text)', () => {
+  it('Deadbridge Chant counts as draw', () => {
+    expect(validateCardRole({ name: 'Deadbridge Chant', oracle_text: DEADBRIDGE_CHANT })).toBe(
+      'cardDraw'
+    );
   });
 });

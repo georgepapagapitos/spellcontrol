@@ -9,6 +9,7 @@ import type {
 } from '@/deck-builder/types';
 import { type GenerationState, markBanned } from './state';
 import { frontFaceName } from '@/lib/card-text';
+import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
   isProtectionPiece,
@@ -267,6 +268,10 @@ export async function applyCoherenceRepair(
       );
     for (const c of ranked) {
       const card = ctx.scryfallCardMap.get(c.name)!;
+      // E485: `allNonLand` still carries utility lands, and this swaps a spell
+      // slot (land repairs take the basic-swap path above). atraxa-bracket2
+      // cut Ajani for Karn's Bastion and shipped a land over its tuned count.
+      if (getFrontFaceTypeLine(card).includes('Land')) continue;
       if (pred && !pred(card)) continue;
       if (ctx.cardAllowed && !ctx.cardAllowed(card)) continue;
       if (!fitsColorIdentity(card, colorIdentity)) continue;

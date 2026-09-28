@@ -1,7 +1,8 @@
-// The ramp role, decided from tags alone. One definition, read by the frontend
-// tagger client (every role count, badge and generator phase) and by
-// `createTagLookup` (the backend's `check_bracket`), so the report, the
-// generator and the bracket estimate never disagree about what is ramp.
+// The tag folds for the ramp and removal roles, decided from tags alone. One
+// definition, read by the frontend tagger client (every role count, badge and
+// generator phase) and by `createTagLookup` (the backend's `check_bracket`), so
+// the report, the generator and the bracket estimate never disagree about what
+// a card is.
 
 /** Tags that fold into the `ramp` role. */
 const RAMP_ROLE_TAGS = ['ramp', 'cost-reducer', 'mana-dork', 'mana-rock'];
@@ -37,4 +38,15 @@ export function isIncidentalRampByTags(has: (tag: string) => boolean): boolean {
 /** Does a card with these tags fill the `ramp` role? */
 export function isRampByTags(has: (tag: string) => boolean): boolean {
   return RAMP_ROLE_TAGS.some(has) && !isIncidentalRampByTags(has);
+}
+
+/**
+ * Does a card with these tags fill the `removal` role? A counterspell is
+ * removal aimed at the stack: `getRemovalSubtype` already names it as one, and
+ * a blue deck's counters are its interaction. Before E486 only the `removal`
+ * tag folded in, so 489 of 546 counterspells, `Counterspell` itself included,
+ * had no role at all.
+ */
+export function isRemovalByTags(has: (tag: string) => boolean): boolean {
+  return has('removal') || has('counterspell');
 }

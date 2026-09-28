@@ -242,6 +242,22 @@ describe('applyCoherenceRepair', () => {
     expect(state.usedNames.has('Junk Card')).toBe(false);
   });
 
+  it('never swaps a spell for a land from the pool (E485)', async () => {
+    // allNonLand carries utility lands; atraxa-bracket2 cut Ajani for Karn's
+    // Bastion and shipped a land over its tuned count.
+    const state = makeState();
+    addToDeck(state, scryfallCard('Junk Card'));
+    const ctx = makeCtx(state);
+    ctx.scryfallCardMap.set('Safe Filler A', scryfallCard('Safe Filler A', { type_line: 'Land' }));
+
+    const { repairs } = await applyCoherenceRepair(state, ctx);
+
+    expect(repairs).toHaveLength(1);
+    expect(repairs[0].cut).toBe('Junk Card');
+    expect(repairs[0].added).not.toBe('Safe Filler A');
+    expect(deckNames(state)).not.toContain('Safe Filler A');
+  });
+
   // E87: a card this pass cuts is about to be disclosed via coherenceRepairs
   // as "cut: Junk Card" — a later mutating phase (bracket/budget convergence,
   // role-surplus rebalance) re-adding it would leave that disclosure stale

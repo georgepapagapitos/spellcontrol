@@ -73,8 +73,17 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   //  - The sacrifice-edict subject list gains "target opponent" (Tribute to
   //    Hunger: "Target opponent sacrifices a creature of their choice"),
   //    opponent-forcing like the rest of the list.
+  //
+  // E486 (2026-09-28): counterspells fold into the removal role, and the
+  // counter branch was the literal "counter target spell". Real text is
+  // mostly scoped, so every one of these failed it, verified on Scryfall:
+  // Negate / Fierce Guardianship / An Offer You Can't Refuse / Dovin's Veto
+  // ("counter target noncreature spell"), Swan Song ("counter target
+  // enchantment, instant, or sorcery spell"), Spell Pierce, Tale's End,
+  // Summary Dismissal ("exile all other spells and counter all abilities"),
+  // Stifle ("counter target activated or triggered ability").
   removal:
-    /(destroy|exile)[^.]*?target|counter target spell|return target (creature|permanent|artifact|enchantment|planeswalker|spell)|fights?[^.]*?target creature|target creature gets? [+-]?\d+\/-\d+|(target player|target opponent|each opponent|defending player|each player|each other player)[^.]*?sacrifice|damage[^.]*?to (target|any target)\b|gain control of target creature|loses all( other card types and)? abilities|put target[^.]*?(?:top|bottom) of its owner'?s library|(?:doesn't|don't) untap during (?:its|their) controller'?s (?:next )?untap step/i,
+    /(destroy|exile)[^.]*?target|\bcounter (?:target|up to (?:one|two) target|all)\b[^.]*?\b(?:spells?|abilit(?:y|ies))\b|return target (creature|permanent|artifact|enchantment|planeswalker|spell)|fights?[^.]*?target creature|target creature gets? [+-]?\d+\/-\d+|(target player|target opponent|each opponent|defending player|each player|each other player)[^.]*?sacrifice|damage[^.]*?to (target|any target)\b|gain control of target creature|loses all( other card types and)? abilities|put target[^.]*?(?:top|bottom) of its owner'?s library|(?:doesn't|don't) untap during (?:its|their) controller'?s (?:next )?untap step/i,
   // Exile-based wipes (Farewell) and return-all bounce wipes (Devastation
   // Tide) alongside the destroy-based ones. "destroy each"/"exile
   // each"/"return each" (permanent, not just creature — Selective
@@ -139,12 +148,18 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   //    nontoken creature exiled this way" compensates the removed creature's
   //    controller (typically an opponent), not your own card advantage, and
   //    correctly never matches.
+  //  - E487 (2026-09-28): a card that names the graveyard in one sentence
+  //    and moves the card to hand in a later one (Deadbridge Chant: "choose
+  //    a card at random in your graveyard. If it's a creature card, put it
+  //    onto the battlefield. Otherwise, put it into your hand."). The
+  //    return/put branch needs both in one sentence; this allows up to one
+  //    sentence between, anchored on "your graveyard".
   //  - Mass graveyard-to-hand recursion phrased with "put" instead of
   //    "return" (Campfire: "Put all commanders you own from the command
   //    zone and from your graveyard into your hand.") joins the existing
   //    return-based branch.
   cardDraw:
-    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|(?:return|put)[^.]*?graveyard[^.]*?hand|(?<!whenever )you become the monarch|(?<!player )(?<!opponent )investigate/i,
+    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|(?:return|put)[^.]*?graveyard[^.]*?hand|\byour graveyard\b[^.]*\.(?:[^.]*\.)?[^.]*?\b(?:put|return) (?:it|that card|those cards|them) into your hand|(?<!whenever )you become the monarch|(?<!player )(?<!opponent )investigate/i,
 };
 
 /**
