@@ -138,7 +138,7 @@ describe('DiscoverDecksPage', () => {
 
     const trigger = await screen.findByRole('button', { name: /^filters/i });
     expect(trigger.closest('.search-pill')).toBe(
-      screen.getByRole('combobox', { name: 'Filter by commander' }).closest('.search-pill')
+      screen.getByRole('combobox', { name: 'Search public decks' }).closest('.search-pill')
     );
   });
 

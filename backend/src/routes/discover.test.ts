@@ -241,6 +241,44 @@ describe('GET /api/discover/decks', () => {
     expect(slugsOf(guest.body).sort()).toEqual([mine.slug, theirs.slug].sort());
   });
 
+  it('q searches deck name, commander and builder, case-insensitively', async () => {
+    const token = uid('Zephyrquill');
+    const byName = await publishDeck({ name: `The ${token} Engine` });
+    const byCmdr = await publishDeck({
+      commander: {
+        id: uid('c'),
+        oracle_id: uid('o'),
+        name: `${token}, the Unbound`,
+        color_identity: ['U'],
+      },
+    });
+    const other = await publishDeck({ name: uid('Unrelated Deck') });
+
+    const res = await request(app).get('/api/discover/decks').query({ q: token.toLowerCase() });
+    expect(res.status).toBe(200);
+    expect(slugsOf(res.body).sort()).toEqual([byName.slug, byCmdr.slug].sort());
+
+    const me = await request(app).get('/api/auth/me').set('Cookie', other.cookie);
+    const byOwner = await request(app)
+      .get('/api/discover/decks')
+      .query({ q: String(me.body.user.username).toUpperCase() });
+    expect(slugsOf(byOwner.body)).toEqual([other.slug]);
+  });
+
+  it('q matches % and _ literally, not as wildcards', async () => {
+    const token = uid('Wildcardless');
+    await publishDeck({ name: `${token} Deck` });
+    const res = await request(app)
+      .get('/api/discover/decks')
+      .query({ q: `${token}%Deck` });
+    expect(res.status).toBe(200);
+    expect(res.body.decks).toEqual([]);
+    const underscore = await request(app)
+      .get('/api/discover/decks')
+      .query({ q: `${token}_Deck` });
+    expect(underscore.body.decks).toEqual([]);
+  });
+
   it('filters by exact commander name', async () => {
     const cmdrA = uid('Disco Cmdr Alpha');
     const cmdrB = uid('Disco Cmdr Beta');

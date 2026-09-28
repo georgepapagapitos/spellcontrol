@@ -67,6 +67,7 @@ export async function listDiscoverDecks(
   const qs = new URLSearchParams({ sort: params.sort ?? 'newest' });
   if (params.page) qs.set('page', String(params.page));
   if (params.exclude) qs.set('exclude', params.exclude);
+  if (params.query) qs.set('q', params.query);
   if (params.commander) qs.set('commander', params.commander);
   if (params.format) qs.set('format', params.format);
   if (params.brackets && params.brackets.length > 0) qs.set('bracket', params.brackets.join(','));

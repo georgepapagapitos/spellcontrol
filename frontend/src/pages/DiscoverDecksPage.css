@@ -8,7 +8,7 @@
 /* Single row per STYLE_GUIDE's "control row" rule: no single primary
    action among the four controls, so it wraps and may shrink rather than
    collapsing into an overflow menu. The typeahead is the only one that
-   grows (`.commander-typeahead`'s own flex-basis), which naturally pushes
+   grows (`.discover-search`'s own flex-basis), which naturally pushes
    the rest toward the trailing edge without a separate auto-margin. */
 .discover-toolbar {
   display: flex;
@@ -30,7 +30,7 @@
    374px row (390 wide), so the view toggle dropped onto a line of its own.
    The sort bar is in the nightly journey's NO_WRAP_AT_PHONE list. */
 @media (max-width: 599px) {
-  .discover-toolbar > .commander-typeahead {
+  .discover-toolbar > .discover-search {
     flex-basis: 100%;
   }
 

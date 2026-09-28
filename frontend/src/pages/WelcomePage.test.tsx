@@ -141,7 +141,7 @@ describe('WelcomePage hero', () => {
     expect(screen.getByRole('banner')).toBeTruthy();
     expect(screen.getByText('SpellControl')).toBeTruthy();
     expect(screen.getByRole('search')).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: /search public decks by commander/i })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: /search public decks/i })).toBeTruthy();
   });
 
   it('has an Import CTA and a Browse public decks CTA pointing at the right hrefs', () => {

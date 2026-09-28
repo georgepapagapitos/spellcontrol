@@ -12,7 +12,7 @@ import {
 } from '../components/DiscoverDeckTile';
 import { DiscoverFiltersPopover } from '../components/DiscoverFiltersPopover';
 import { TrendingRail } from '../components/aggregates/TrendingRail';
-import { CommanderTypeahead } from '../components/CommanderTypeahead';
+import { DiscoverSearch } from '../components/DiscoverSearch';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -62,7 +62,7 @@ const BASE_SORT_OPTIONS: SelectOption<DiscoverSortField>[] = [
 /**
  * /decks/discover — filterable/sortable browse of every public deck on the
  * platform (`w2-discover-filters-sort`). Unauthenticated read — the
- * commander typeahead, filters popover, and grid/list toggle work
+ * search box, filters popover, and grid/list toggle work
  * identically for guests and signed-in users; only the `buildable` sort
  * (percent of the viewer's OWN collection each deck builds from) is
  * authed + non-empty-collection gated, and is computed entirely client-side
@@ -230,6 +230,7 @@ export function DiscoverDecksPage() {
   }, [decks, sortField, ownedOracleIds]);
 
   const hasActiveFilters =
+    filters.query != null ||
     filters.commander != null ||
     filters.format != null ||
     filters.brackets.length > 0 ||
@@ -285,9 +286,10 @@ export function DiscoverDecksPage() {
         <TrendingRail enabled={true} />
 
         <div className="discover-toolbar">
-          <CommanderTypeahead
-            value={filters.commander}
-            onChange={(commander) => setFilters({ ...filters, commander })}
+          <DiscoverSearch
+            query={filters.query}
+            onQueryChange={(query) => setFilters({ ...filters, query })}
+            onPickCommander={(commander) => setFilters({ ...filters, commander, query: null })}
             trailing={<DiscoverFiltersPopover filters={filters} onChange={setFilters} />}
           />
           <div className="discover-sort-bar">
@@ -349,7 +351,11 @@ export function DiscoverDecksPage() {
         ) : displayDecks.length === 0 ? (
           hasActiveFilters ? (
             <EmptyState
-              tagline="No public decks match these filters."
+              tagline={
+                filters.query && filterChips.length === 0
+                  ? `No public decks match “${filters.query}”.`
+                  : 'No public decks match these filters.'
+              }
               actions={
                 <Button variant="link" onClick={() => setFilters(NO_DISCOVER_FILTERS)}>
                   Clear filters

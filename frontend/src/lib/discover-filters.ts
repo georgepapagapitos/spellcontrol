@@ -10,6 +10,9 @@ import type { DeckFormat } from '@/deck-builder/types';
 export type DiscoverBudgetKey = 'under50' | '50to150' | '150to400' | '400plus';
 
 export interface DiscoverFilters {
+  /** Free text matched against deck name, commander and builder (`q`). */
+  query: string | null;
+  /** Exact commander name, picked from the search box's suggestions. */
   commander: string | null;
   format: DeckFormat | null;
   /** Sorted ascending, deduped. */
@@ -20,6 +23,7 @@ export interface DiscoverFilters {
 }
 
 export const NO_DISCOVER_FILTERS: DiscoverFilters = {
+  query: null,
   commander: null,
   format: null,
   brackets: [],
@@ -43,6 +47,7 @@ const VALID_COLORS = new Set<string>(DISCOVER_COLOR_ORDER);
 
 /** Malformed/unknown query values fall back to "no filter" rather than throwing. */
 export function parseDiscoverFiltersFromSearchParams(params: URLSearchParams): DiscoverFilters {
+  const query = params.get('q')?.trim() || null;
   const commander = params.get('commander')?.trim() || null;
 
   const formatRaw = params.get('format');
@@ -71,11 +76,12 @@ export function parseDiscoverFiltersFromSearchParams(params: URLSearchParams): D
       ? (budgetRaw as DiscoverBudgetKey)
       : null;
 
-  return { commander, format, brackets, colors, budget };
+  return { query, commander, format, brackets, colors, budget };
 }
 
 export function discoverFiltersToSearchParams(filters: DiscoverFilters): URLSearchParams {
   const params = new URLSearchParams();
+  if (filters.query) params.set('q', filters.query);
   if (filters.commander) params.set('commander', filters.commander);
   if (filters.format) params.set('format', filters.format);
   if (filters.brackets.length > 0) params.set('bracket', filters.brackets.join(','));
