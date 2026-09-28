@@ -186,7 +186,9 @@ function multicolorGroups(): { filter: BinderFilter }[] {
   for (let mask = 0; mask < 1 << all.length; mask++) {
     const combo = all.filter((_, i) => mask & (1 << i));
     if (combo.length < 2) continue;
-    groups.push({ filter: { colorIdentity: { colors: combo, mode: 'all' }, typeTokenChips: notLand } });
+    groups.push({
+      filter: { colorIdentity: { colors: combo, mode: 'all' }, typeTokenChips: notLand },
+    });
   }
   return groups;
 }
@@ -431,7 +433,8 @@ export interface ComputeShelfPlanInput {
  * totals, and a `toCreate` builder for the checked rows.
  */
 export function computeShelfPlan(input: ComputeShelfPlanInput): ShelfPlan {
-  const { strategy, pullOutOrder, checked, pile, existingBinders, allocatedCopyIds, setMap } = input;
+  const { strategy, pullOutOrder, checked, pile, existingBinders, allocatedCopyIds, setMap } =
+    input;
 
   const pullOutRows = pullOutOrder
     .map((id) => SHELF_PULL_OUTS.find((p) => p.id === id))
@@ -468,7 +471,9 @@ export function computeShelfPlan(input: ComputeShelfPlanInput): ShelfPlan {
   const previewById = new Map(previewResult.binders.map((b) => [b.def.id, b]));
 
   // Pass 2: only checked rows (+ the always-on catch-all) — the REAL plan.
-  const checkedRows = allRows.filter(({ row, section }) => section === 'catch-all' || checked.has(row.id));
+  const checkedRows = allRows.filter(
+    ({ row, section }) => section === 'catch-all' || checked.has(row.id)
+  );
   const checkedDefs = checkedRows.map(({ row }, i) => buildDef(row, basePosition + i));
   const realResult = materializeBinders([...pile], [...existingBinders, ...checkedDefs], {
     search: '',

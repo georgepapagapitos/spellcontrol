@@ -89,10 +89,13 @@ describe('PlanShelfModal', () => {
   it('an empty collection gets an honest empty state, no picker', () => {
     renderModal();
     expect(
-      screen.getByText('Import your collection first — a shelf is planned from the cards you own.')
+      screen.getByText('Import your collection first. A shelf is planned from the cards you own.')
     ).toBeTruthy();
     expect(screen.queryByRole('radio', { name: /By color/ })).toBeFalsy();
-    expect(screen.getByRole('button', { name: 'Create 0 binders' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: 'Create 0 binders' })).toHaveProperty(
+      'disabled',
+      true
+    );
   });
 
   it('defaults to By color and shows every row with a count and page total', async () => {
@@ -104,7 +107,7 @@ describe('PlanShelfModal', () => {
     expect(screen.getByText('Everything else')).toBeTruthy();
   });
 
-  it('switching strategy recounts to the new strategy\'s own buckets', async () => {
+  it("switching strategy recounts to the new strategy's own buckets", async () => {
     useCollectionStore.setState({ cards: bigPile(), binders: [] });
     renderModal();
     await waitFor(() => expect(screen.getByText('White')).toBeTruthy());
@@ -193,10 +196,15 @@ describe('PlanShelfModal', () => {
     renderModal();
     await waitFor(() =>
       expect(
-        screen.getByText('Every card you own already has a binder. Nothing is left to plan a shelf from.')
+        screen.getByText(
+          'Every card you own already has a binder. Nothing is left to plan a shelf from.'
+        )
       ).toBeTruthy()
     );
-    expect(screen.getByRole('button', { name: /Create 0 binders/ })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: /Create 0 binders/ })).toHaveProperty(
+      'disabled',
+      true
+    );
   });
 
   it('Create calls the store once with sequential positions after existing binders, then offers a working Undo', async () => {

@@ -72,7 +72,11 @@ export function BinderStartChooser({
         // their whole collection in binders. Kept as its own small hunk —
         // lane L5 is separately regrouping the tiles below this into job
         // groups (E495); this tile is additive and doesn't touch that layout.
-        <button type="button" className="binder-start-tile binder-start-tile--shelf" onClick={planAShelf}>
+        <button
+          type="button"
+          className="binder-start-tile binder-start-tile--shelf"
+          onClick={planAShelf}
+        >
           <span className="binder-start-tile-label">Organize my whole collection</span>
           <span className="binder-start-tile-desc">
             Get a set of binders that covers everything, by color, by set or by value. You pick

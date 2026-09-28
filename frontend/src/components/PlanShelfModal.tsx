@@ -47,8 +47,11 @@ function Row({
   return (
     <li className={`plan-shelf-row${row.checked ? '' : ' is-off'}`}>
       {row.section === 'catch-all' ? (
-        <span className="plan-shelf-row-check plan-shelf-row-check--fixed" title="Always created, last">
-          <Check width={14} height={14} strokeWidth={2} aria-hidden />
+        <span
+          className="plan-shelf-row-check plan-shelf-row-check--fixed"
+          title="Always created, last"
+        >
+          <Check width={14} height={14} strokeWidth={1.8} aria-hidden />
           <span className="sr-only">Always included</span>
         </span>
       ) : (
@@ -213,7 +216,7 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
       <div className="modal-body plan-shelf-body">
         {noCollection ? (
           <p className="plan-shelf-empty">
-            Import your collection first — a shelf is planned from the cards you own.
+            Import your collection first. A shelf is planned from the cards you own.
           </p>
         ) : (
           <>
@@ -281,8 +284,8 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
                       {plan.totals.binderCount.toLocaleString()}{' '}
                       {plan.totals.binderCount === 1 ? 'binder' : 'binders'} ·{' '}
                       {plan.totals.cardCount.toLocaleString()}{' '}
-                      {plan.totals.cardCount === 1 ? 'card' : 'cards'} · {plan.totals.leftOver}{' '}
-                      left over
+                      {plan.totals.cardCount === 1 ? 'card' : 'cards'} · {plan.totals.leftOver} left
+                      over
                     </strong>
                     <p className="plan-shelf-totals-hint">
                       Rows over {DEFAULT_PLAN_CAPACITY.toLocaleString()} cards split into volumes,
@@ -310,7 +313,9 @@ export function PlanShelfModal({ onClose }: { onClose: () => void }) {
           onClick={handleCreate}
           disabled={creating || noCollection || allFiled || plan.totals.binderCount === 0}
         >
-          {creating ? 'Creating…' : `Create ${creatableCount.toLocaleString()} ${creatableCount === 1 ? 'binder' : 'binders'}`}
+          {creating
+            ? 'Creating…'
+            : `Create ${creatableCount.toLocaleString()} ${creatableCount === 1 ? 'binder' : 'binders'}`}
         </Button>
       </div>
     </Modal>

@@ -76,9 +76,16 @@ function bigPile(): EnrichedCard[] {
     })
   );
   out.push(
-    card('Atraxa, Praetors Voice', 'Legendary Creature — Angel Praetor', ['W', 'U', 'B', 'G'], 'mythic', 30, {
-      legalities: { commander: 'legal' },
-    })
+    card(
+      'Atraxa, Praetors Voice',
+      'Legendary Creature — Angel Praetor',
+      ['W', 'U', 'B', 'G'],
+      'mythic',
+      30,
+      {
+        legalities: { commander: 'legal' },
+      }
+    )
   );
   // A very expensive card, for the value pull-out / value-then-color tiers.
   out.push(card('Mana Crypt', 'Artifact', [], 'mythic', 220));
@@ -189,17 +196,23 @@ describe('shelf-plan strategies', () => {
     const created = result.toCreate(0);
     const { binders } = materializeBinders(
       pile,
-      created.map((input, i) => ({ ...input, id: `r${i}`, position: i, createdAt: 0, updatedAt: 0 })),
+      created.map((input, i) => ({
+        ...input,
+        id: `r${i}`,
+        position: i,
+        createdAt: 0,
+        updatedAt: 0,
+      })),
       { search: '' }
     );
     const commanderBinder = binders.find((b) => b.def.name === 'Commanders')!;
-    expect(commanderBinder.sections.flatMap((s) => s.cards).some((c) => c.name === 'Krenko, Mob Boss')).toBe(
-      true
-    );
+    expect(
+      commanderBinder.sections.flatMap((s) => s.cards).some((c) => c.name === 'Krenko, Mob Boss')
+    ).toBe(true);
     const redBinder = binders.find((b) => b.def.name === 'Red');
-    expect(redBinder?.sections.flatMap((s) => s.cards).some((c) => c.name === 'Krenko, Mob Boss')).toBe(
-      false
-    );
+    expect(
+      redBinder?.sections.flatMap((s) => s.cards).some((c) => c.name === 'Krenko, Mob Boss')
+    ).toBe(false);
   });
 
   it('unchecking a row folds its cards into the next matching row instead of losing them', () => {
@@ -220,7 +233,13 @@ describe('shelf-plan strategies', () => {
     const created = result.toCreate(0);
     const { binders } = materializeBinders(
       pile,
-      created.map((input, i) => ({ ...input, id: `mc${i}`, position: i, createdAt: 0, updatedAt: 0 })),
+      created.map((input, i) => ({
+        ...input,
+        id: `mc${i}`,
+        position: i,
+        createdAt: 0,
+        updatedAt: 0,
+      })),
       { search: '' }
     );
     const multi = binders.find((b) => b.def.name === 'Multicolor')!;
@@ -238,7 +257,13 @@ describe('shelf-plan strategies', () => {
     const created = result.toCreate(0);
     const { binders } = materializeBinders(
       pile,
-      created.map((input, i) => ({ ...input, id: `ld${i}`, position: i, createdAt: 0, updatedAt: 0 })),
+      created.map((input, i) => ({
+        ...input,
+        id: `ld${i}`,
+        position: i,
+        createdAt: 0,
+        updatedAt: 0,
+      })),
       { search: '' }
     );
     const landsBinder = binders.find((b) => b.def.name === 'Lands')!;
@@ -246,7 +271,9 @@ describe('shelf-plan strategies', () => {
     expect(landNames.has('Godless Shrine')).toBe(true);
     for (const b of binders) {
       if (['White', 'Blue', 'Black', 'Red', 'Green', 'Multicolor'].includes(b.def.name)) {
-        expect(b.sections.flatMap((s) => s.cards).some((c) => c.typeLine?.includes('Land'))).toBe(false);
+        expect(b.sections.flatMap((s) => s.cards).some((c) => c.typeLine?.includes('Land'))).toBe(
+          false
+        );
       }
     }
   });
@@ -257,17 +284,27 @@ describe('shelf-plan strategies', () => {
     const created = result.toCreate(0);
     const { binders } = materializeBinders(
       pile,
-      created.map((input, i) => ({ ...input, id: `v${i}`, position: i, createdAt: 0, updatedAt: 0 })),
+      created.map((input, i) => ({
+        ...input,
+        id: `v${i}`,
+        position: i,
+        createdAt: 0,
+        updatedAt: 0,
+      })),
       { search: '' }
     );
     const topTier = binders.find((b) => b.def.name === 'Worth $20 or more')!;
-    expect(topTier.sections.flatMap((s) => s.cards).some((c) => c.name === 'Mana Crypt')).toBe(true);
+    expect(topTier.sections.flatMap((s) => s.cards).some((c) => c.name === 'Mana Crypt')).toBe(
+      true
+    );
   });
 
   it('by-set: only sets clearing the minimum become their own binder', () => {
     const pile: EnrichedCard[] = [];
-    for (let i = 0; i < 40; i++) pile.push(card(`Big Set Card ${i}`, 'Instant', ['U'], 'common', 1, { setCode: 'big' }));
-    for (let i = 0; i < 5; i++) pile.push(card(`Small Set Card ${i}`, 'Instant', ['R'], 'common', 1, { setCode: 'sm' }));
+    for (let i = 0; i < 40; i++)
+      pile.push(card(`Big Set Card ${i}`, 'Instant', ['U'], 'common', 1, { setCode: 'big' }));
+    for (let i = 0; i < 5; i++)
+      pile.push(card(`Small Set Card ${i}`, 'Instant', ['R'], 'common', 1, { setCode: 'sm' }));
     const result = plan('by-set', pile);
     expect(result.rows.some((r) => r.id === 'set-big')).toBe(true);
     expect(result.rows.some((r) => r.id === 'set-sm')).toBe(false);

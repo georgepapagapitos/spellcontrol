@@ -1433,7 +1433,11 @@ describe('binder CRUD', () => {
     useCollectionStore.setState({ binders: [makeBinder({ id: 'existing', position: 0 })] });
     const created = useCollectionStore
       .getState()
-      .createBinders([binderInput({ name: 'White' }), binderInput({ name: 'Blue' }), binderInput({ name: 'Everything else' })]);
+      .createBinders([
+        binderInput({ name: 'White' }),
+        binderInput({ name: 'Blue' }),
+        binderInput({ name: 'Everything else' }),
+      ]);
     expect(created.map((b) => b.name)).toEqual(['White', 'Blue', 'Everything else']);
     expect(created.map((b) => b.position)).toEqual([1, 2, 3]);
     const ids = new Set(created.map((b) => b.id));

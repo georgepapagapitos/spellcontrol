@@ -1797,7 +1797,10 @@ export const useCollectionStore = create<CollectionState>()(
           createdAt: now,
           updatedAt: now,
         }));
-        set((s) => ({ binders: [...s.binders, ...created], activeTab: created[0]?.id ?? s.activeTab }));
+        set((s) => ({
+          binders: [...s.binders, ...created],
+          activeTab: created[0]?.id ?? s.activeTab,
+        }));
         for (let i = 0; i < created.length; i++) track('binder_created');
         return created;
       },
