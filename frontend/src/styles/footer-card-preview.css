@@ -1389,9 +1389,9 @@
     border-top: 1px solid rgb(255 255 255 / 8%);
   }
 
-  /* One step up from the phone sheet — a 30rem column reads at body size. */
+  /* One step up from the phone sheet — a 30rem column reads at body size.
+     Not the flavor text: it stays a step below the rules, as on the card. */
   .card-preview-panel .card-text-line,
-  .card-preview-panel .card-text-flavor,
   .card-preview-kv,
   .card-preview-set,
   .card-preview-ext-link,

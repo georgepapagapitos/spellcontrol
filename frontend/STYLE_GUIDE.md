@@ -5229,6 +5229,27 @@ link, on every surface at once.
   touch and click events at a `role="presentation"` wrapper, and the preview
   answers keys only while it is the topmost overlay layer.
 
+### Flavor text in card rules text (2026-09-28)
+
+Flavor is set apart the way the printed card sets it apart, in `CardText`
+(`components/CardDetails.tsx`), so the card preview and the playtest Card info
+dialog get it together. Guarded by `styles/card-text-flavor.test.ts`.
+
+- **Italic means flavor or reminder text, nothing else.** That's what it means
+  on the card. The keyword line ("Flying, double strike, haste") is upright; its
+  dotted underlines already mark it.
+- **A faded hairline sits between the rules and the flavor**, the card frame's
+  flavor bar: `--border-strong`, transparent at both ends. It is faded because a
+  full solid hairline already means "the next face of this card starts here".
+  It is keyed on `.card-text-oracle + .card-text-flavor`, so a vanilla card's
+  flavor, with nothing above it, gets no line.
+- **Flavor stays a size step below the rules at every width.** The inspector
+  column's body-size bump (≥1024px) lifts the rules lines and leaves the flavor
+  at `--text-sm`.
+- **Keep Scryfall's line breaks** (`white-space: pre-line`). An attribution
+  ("—Jhoira") and a verse's second line arrive after a `\n`, and collapsing them
+  runs the attribution into the quote.
+
 ### Deck-row "why it's here" affordances (E120)
 
 A generated deck can record a per-card pick reason (`buildReport.cardProvenance`,

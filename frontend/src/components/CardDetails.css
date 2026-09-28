@@ -66,13 +66,6 @@
   color: var(--text-primary);
 }
 
-/* Leading innate keywords (Menace, Flying…) — left-aligned like the printed
-   rules box, italicized to set them apart from the ability sentences below. */
-.card-text-line.is-keyword {
-  font-style: italic;
-  color: var(--text-primary);
-}
-
 /* Inline mana/tap symbols sit at body-text size, not the mana-font default. */
 .card-text-oracle .ms {
   /* stylelint-disable-next-line declaration-property-value-disallowed-list */
@@ -80,12 +73,26 @@
   vertical-align: -0.05em;
 }
 
+/* Italic is reserved for flavor and reminder text, as on the printed card; a
+   keyword line stays upright (its dotted underlines already mark it). Scryfall
+   puts an attribution ("—Jhoira") after a line break, so keep the breaks. */
 .card-text-flavor {
   margin: 0;
   font-style: italic;
   font-size: var(--text-sm);
   line-height: 1.45;
   color: var(--text-muted);
+  white-space: pre-line;
+}
+
+/* The printed card's flavor bar: a hairline faded at both ends between the
+   rules and the flavor. Faded so it can't read as the solid face divider
+   above; only after rules text, so a vanilla card's flavor gets no line. */
+.card-text-oracle + .card-text-flavor {
+  margin-top: var(--space-1);
+  padding-top: var(--space-3);
+  background: linear-gradient(90deg, transparent, var(--border-strong) 15% 85%, transparent) top /
+    100% 1px no-repeat;
 }
 
 /* Power/toughness or loyalty — small badge, card-bottom-right convention. */
