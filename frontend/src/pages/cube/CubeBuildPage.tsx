@@ -140,7 +140,7 @@ function PoolFilterRow({
         <InfoTip
           label="Draw from"
           ariaLabel="How Cards, Price and Rarity work"
-          text="Available cards are the copies no deck or physical cube has claimed, so what you build is what you can pull. Spares only also needs two or more copies, so your singles stay in their binders. A price ceiling reads the cheapest copy you own at today's market price; the rarity cap reads the printing you own."
+          text="Available skips copies a deck or physical cube claims, so you can pull every card. Spares only needs two or more, so singles stay put. Price reads your cheapest copy; rarity, the printing you own."
         />
       </div>
 

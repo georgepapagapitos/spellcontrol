@@ -55,7 +55,7 @@ const {
 } = SOFT_SCORE;
 
 const HARD_FLOOR_TIP =
-  'A hard floor is a deterministic signal (Game Changers, mass land denial, infinite combos, stax, or extra-turn cards) that forces a MINIMUM bracket. No amount of tuning can drop the deck below it; the only way down is to cut the offending cards.';
+  'A hard floor sets the lowest bracket this deck can be. Game Changers, mass land denial, infinite combos, stax and extra turns each set one. Cutting those cards is the only way down.';
 // One consolidated explainer for the power signal — intro + every signal —
 // so the four rows don't each need their own info icon (which read as clutter).
 const SOFT_SCORE_TIP: ReactNode = (

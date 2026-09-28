@@ -18,7 +18,11 @@
  *   APP_SUBJECT — never narrate the app ("SpellControl routes…", "we built…").
  *   TITLE_LONG  — a `title=` over 8 words hides detail from touch; use a
  *                 visible caption or InfoTip.
- *   RETRY       — the retry action label is "Retry", everywhere (board T157).
+ *   INFOTIP_LONG — an InfoTip body is one paragraph of at most 35 words
+ *                 (STYLE_GUIDE § Info tooltips, sweep-3). Reads a plain-string
+ *                 `text`, inline or a same-file const; a rich node body (lead +
+ *                 list, for a multi-point explainer) is exempt.
+ *   RETRY      — the retry action label is "Retry", everywhere (board T157).
  *                 Only fires on a `<Button>`/`<button>` child's own JSX text
  *                 or a `toast`/`actionLabel` value that reads exactly "Try
  *                 again" — a full sentence in a message ("Couldn't load X.
@@ -89,6 +93,11 @@ const RULES: Rule[] = [
     'TITLE_LONG',
     (s, kind) => kind === 'attr:title' && s.trim().split(/\s+/).length > 8,
     'title= over 8 words: move the detail to a visible caption or an InfoTip',
+  ],
+  [
+    'INFOTIP_LONG',
+    (s, kind) => kind === 'infotip:text' && s.trim().split(/\s+/).length > 35,
+    'InfoTip body over 35 words: lead with what it means to the player, cut the rest',
   ],
   [
     'RETRY',
@@ -165,6 +174,8 @@ function scan(file: string): Violation[] {
   const check = (n: ts.Node, kind: string, text: string) => {
     for (const [rule, test] of RULES) {
       if (rule === 'RETRY' && RETRY_FILE_SKIP.test(rel)) continue;
+      // The other rules already saw this string as `attr:text` or at its const.
+      if (kind === 'infotip:text' && rule !== 'INFOTIP_LONG') continue;
       if (test(text, kind))
         out.push({
           file: rel,
@@ -175,7 +186,37 @@ function scan(file: string): Violation[] {
         });
     }
   };
+  // Same-file string consts, so `<InfoTip text={SOME_TIP} />` is measured too.
+  const consts = new Map<string, string>();
+  const collect = (n: ts.Node) => {
+    if (
+      ts.isVariableDeclaration(n) &&
+      ts.isIdentifier(n.name) &&
+      n.initializer &&
+      (ts.isStringLiteral(n.initializer) || ts.isNoSubstitutionTemplateLiteral(n.initializer))
+    )
+      consts.set(n.name.text, n.initializer.text);
+    ts.forEachChild(n, collect);
+  };
+  collect(sf);
+  const isInfoTipText = (n: ts.JsxAttribute) =>
+    n.name.getText(sf) === 'text' &&
+    (ts.isJsxSelfClosingElement(n.parent.parent) || ts.isJsxOpeningElement(n.parent.parent)) &&
+    n.parent.parent.tagName.getText(sf) === 'InfoTip';
   const visit = (n: ts.Node) => {
+    if (ts.isJsxAttribute(n) && n.initializer && isInfoTipText(n)) {
+      const e = n.initializer;
+      const v = ts.isStringLiteral(e)
+        ? e.text
+        : ts.isJsxExpression(e) && e.expression
+          ? ts.isStringLiteral(e.expression) || ts.isNoSubstitutionTemplateLiteral(e.expression)
+            ? e.expression.text
+            : ts.isIdentifier(e.expression)
+              ? consts.get(e.expression.text)
+              : undefined
+          : undefined;
+      if (v != null) check(n, 'infotip:text', v);
+    }
     if (ts.isJsxText(n)) {
       const t = n.text.replace(/\s+/g, ' ').trim();
       if (t.length >= 2 && /[a-zA-Z]/.test(t)) {
