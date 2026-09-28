@@ -1,6 +1,14 @@
 import type { ClockCard } from '@/lib/opening-hand-sim';
 import { CircleAlert, Layers, Pencil, Search, Tag as TagIcon, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { useOverflowEdges } from '@/lib/use-overflow-edges';
 import { useCurrency } from '@/lib/currency';
 import { isKeyboardContextMenu, keepsBrowserMenu } from '@/lib/context-menu';
@@ -24,6 +32,8 @@ import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeckZones,
   validateDeckSize,
+  validateSideboardSize,
+  sideboardLimit,
   countFlaggedCards,
   effectiveDeckColors,
   COMMANDER_SLOT_ID,
@@ -1018,6 +1028,21 @@ export function DeckDisplay({
     () => validateDeckSize(cards.length, formatConfig),
     [cards.length, formatConfig]
   );
+  // A 60-card format registers 15 sideboard cards (E468). Commander's
+  // sideboard is uncapped and Considering is never counted.
+  const sideboardSizeWarning = useMemo(
+    () => validateSideboardSize(sideboard.length, formatConfig),
+    [sideboard.length, formatConfig]
+  );
+  // The legality banner's facts, in reading order: the two size overruns, then
+  // the flagged cards.
+  const legalityBannerParts = [
+    deckSizeWarning,
+    sideboardSizeWarning,
+    flaggedCardCount > 0
+      ? `${flaggedCardCount} ${flaggedCardCount === 1 ? 'card' : 'cards'} flagged in ${formatConfig.label}`
+      : null,
+  ].filter((part): part is string => !!part);
 
   // Deck-complete moment: the edit that takes the deck from incomplete to
   // exactly full-size with zero legality flags earns the seal + a toast —
@@ -1029,7 +1054,10 @@ export function DeckDisplay({
   const prevDeckComplete = useRef<boolean | null>(null);
   useEffect(() => {
     const complete =
-      cards.length > 0 && cards.length === formatConfig.mainboardSize && flaggedCardCount === 0;
+      cards.length > 0 &&
+      cards.length === formatConfig.mainboardSize &&
+      flaggedCardCount === 0 &&
+      !sideboardSizeWarning;
     if (
       prevDeckComplete.current === false &&
       complete &&
@@ -1056,7 +1084,16 @@ export function DeckDisplay({
       });
     }
     prevDeckComplete.current = complete;
-  }, [cards, flaggedCardCount, formatConfig, deckId, commander, partnerCommander, fireSealMoment]);
+  }, [
+    cards,
+    flaggedCardCount,
+    sideboardSizeWarning,
+    formatConfig,
+    deckId,
+    commander,
+    partnerCommander,
+    fireSealMoment,
+  ]);
 
   const visibleGroups = useMemo(
     () => applyFilterSort(groups, search, sort, sortDir),
@@ -1248,6 +1285,7 @@ export function DeckDisplay({
   // soft role/curve targets, derived from the live list + role analysis. Lives
   // here rather than in DeckAnalysisView so the Deck view can report the same
   // verdict upward (E223's tab badge) without a second, drifting computation.
+  const sideboardCap = sideboardLimit(formatConfig);
   const validation = useMemo(
     () =>
       buildValidationChecklist({
@@ -1258,6 +1296,8 @@ export function DeckDisplay({
         averageCmc: manaData.averageCmc,
         format: formatConfig,
         illegalCardNames,
+        sideboard:
+          sideboardCap === null ? undefined : { count: sideboard.length, limit: sideboardCap },
       }),
     [
       allCards,
@@ -1267,6 +1307,8 @@ export function DeckDisplay({
       manaData.averageCmc,
       formatConfig,
       illegalCardNames,
+      sideboardCap,
+      sideboard.length,
     ]
   );
 
@@ -2009,17 +2051,15 @@ export function DeckDisplay({
               />
             )}
 
-            {(flaggedCardCount > 0 || deckSizeWarning) && (
+            {legalityBannerParts.length > 0 && (
               <div className="deck-legality-banner">
                 <CircleAlert width={16} height={16} strokeWidth={2} aria-hidden />
-                {deckSizeWarning && <span>{deckSizeWarning}</span>}
-                {deckSizeWarning && flaggedCardCount > 0 && <span aria-hidden>·</span>}
-                {flaggedCardCount > 0 && (
-                  <span>
-                    {flaggedCardCount} {flaggedCardCount === 1 ? 'card' : 'cards'} flagged in{' '}
-                    {formatConfig.label}
-                  </span>
-                )}
+                {legalityBannerParts.map((part, i) => (
+                  <Fragment key={part}>
+                    {i > 0 && <span aria-hidden>·</span>}
+                    <span>{part}</span>
+                  </Fragment>
+                ))}
               </div>
             )}
 

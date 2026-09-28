@@ -7408,11 +7408,17 @@ other line's links (`styles/touch-ghost-clearance.test.ts`).
 The sheet lists the formats as a `ChoiceList`; picking one shows the lines
 that are true for THIS deck (`describeFormatSwitch`: the commander moving
 into the deck, cards the new format flags, the sideboard starting or
-stopping to count, Commander-only tools going away). The switch is one
+stopping to count, a sideboard over the new format's 15-card cap,
+Commander-only tools going away). The switch is one
 `replaceDeck` inside one `recordEdit`, removes no card (a commander the new
 format can't have moves into the deck with its copy), and its toast offers
 Undo, so it follows § Verbs: undoable, so no confirm. Never promise a rule
-nothing enforces (the 60-card formats' 15-card sideboard cap, E468).
+nothing enforces. The 60-card formats' 15-card sideboard cap is enforced
+since E468 (`validateSideboardSize`: the legality banner, the deck checks'
+"Sideboard size" row, the complete seal), so the sheet names an overrun the
+switch starts flagging. Commander's sideboard stays an uncapped holding pile
+and Considering never counts; the deck list's badge counts flagged cards
+only, so neither size overrun shows there.
 
 **Secondary modes sit below the primary action they fork from.** On
 `/decks/new` the brew door ("Prefer to pick every card?") renders _after_ the

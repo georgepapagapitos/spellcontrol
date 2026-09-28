@@ -101,3 +101,42 @@ describe('Bracket panel legality note', () => {
     expect(screen.queryByRole('note')).toBeNull();
   });
 });
+
+// E468: a 60-card format registers 15 sideboard cards. The banner names an
+// overrun; Considering is a maybe pile and never counts toward it.
+describe('Sideboard size banner', () => {
+  const MODERN = { commander: 'legal', modern: 'legal' };
+  function renderModern(sideboard: number, considering: number) {
+    const row = (card: ScryfallCard, zone: string): DeckDisplayCard => ({
+      slotId: `${zone}-${card.id}`,
+      card,
+    });
+    return render(
+      <MemoryRouter>
+        <DeckDisplay
+          title="Modern deck"
+          commander={null}
+          cards={[row(mkCard({ legalities: MODERN }), 'main')]}
+          sideboard={Array.from({ length: sideboard }, () =>
+            row(mkCard({ legalities: MODERN }), 'side')
+          )}
+          considering={Array.from({ length: considering }, () =>
+            row(mkCard({ legalities: MODERN }), 'maybe')
+          )}
+          deckId="deck-2"
+          format="modern"
+        />
+      </MemoryRouter>
+    );
+  }
+
+  it('flags a 16-card sideboard', () => {
+    renderModern(16, 0);
+    expect(screen.getByText('1 card over the Modern sideboard limit (15)')).toBeTruthy();
+  });
+
+  it('leaves 15 sideboard cards and a full Considering pile alone', () => {
+    renderModern(15, 10);
+    expect(screen.queryByText(/sideboard limit/)).toBeNull();
+  });
+});

@@ -15,7 +15,7 @@ export interface ValidationResult {
   checks: ValidationCheck[];
   passCount: number;
   total: number;
-  /** Hard-rule failures (size / identity / singleton / card legality). */
+  /** Hard-rule failures (size / sideboard size / identity / singleton / card legality). */
   hardFails: number;
   /** Soft-target shortfalls (role counts / curve). */
   softWarns: number;
@@ -66,6 +66,10 @@ export interface ValidationInput {
   /** Names of cards not legal in the format (banned included), from the deck's
    *  legality check. Omit to skip the legality gate. */
   illegalCardNames?: string[];
+  /** The registered sideboard's card count and the cap the format enforces
+   *  (`sideboardLimit`). Omit for a format with no cap: Commander's sideboard
+   *  is a holding pile, and Considering never counts. */
+  sideboard?: { count: number; limit: number };
 }
 
 /** Decks with an average MV above this read as top-heavy. Mirrors the bracket
@@ -83,7 +87,7 @@ function roleValue(map: Record<string, number> | undefined, ...keys: string[]): 
 
 /**
  * A pass/fail deck-health checklist for the Stats board: a legality gate
- * (size / color identity / singleton / card legality) plus the soft role + curve targets. Pure —
+ * (size / sideboard size / color identity / singleton / card legality) plus the soft role + curve targets. Pure —
  * derived from the live card list and the role analysis, no decision logic.
  */
 export function buildValidationChecklist(input: ValidationInput): ValidationResult {
@@ -99,6 +103,16 @@ export function buildValidationChecklist(input: ValidationInput): ValidationResu
     status: size === deckSize ? 'pass' : 'fail',
     detail: `${size} / ${deckSize} cards`,
   });
+
+  if (input.sideboard) {
+    const { count, limit } = input.sideboard;
+    checks.push({
+      id: 'sideboard-size',
+      label: 'Sideboard size',
+      status: count <= limit ? 'pass' : 'fail',
+      detail: `${count} / ${limit} cards`,
+    });
+  }
 
   if (commanderIdentity) {
     const legal = new Set(commanderIdentity);
