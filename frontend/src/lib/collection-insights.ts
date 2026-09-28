@@ -315,6 +315,12 @@ export interface GroupedBreakdownRow {
   colorSplits?: Record<string, number>;
   /** Absent = the row is not a button (no matching collection filter). */
   filterJump?: CollectionFilterJump;
+  /**
+   * Binder grouping only: the physical pages this binder fills, from the same
+   * layout BinderPage and the binders index show (`totalPages`: pocket size,
+   * double-sided sheets, page breaks). Absent for "Not in a binder".
+   */
+  pages?: number;
 }
 
 const RARITY_BUCKETS: Array<{ key: string; label: string; color: string }> = [
@@ -473,7 +479,9 @@ export function computeGroupedBreakdown(
       allocatedCopyIds: ctx.allocations ? new Set(ctx.allocations.keys()) : undefined,
     });
     const copyToBinder = new Map<string, { name: string }>();
+    const pagesByName = new Map<string, number>();
     for (const b of binders) {
+      if (b.totalPages > 0) pagesByName.set(b.def.name, b.totalPages);
       for (const section of b.sections) {
         for (const c of section.cards) {
           if (!copyToBinder.has(c.copyId)) copyToBinder.set(c.copyId, { name: b.def.name });
@@ -495,6 +503,7 @@ export function computeGroupedBreakdown(
         label: name,
         count: b.count,
         value: b.value,
+        pages: pagesByName.get(name),
         filterJump: {
           kind: 'binder',
           name: name === 'Not in a binder' ? UNCATEGORIZED_BINDER : name,

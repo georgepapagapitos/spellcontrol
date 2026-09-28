@@ -133,6 +133,11 @@
   white-space: nowrap;
 }
 
+.breakdown-row-meta {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
 .breakdown-row-count {
   font-family: var(--font-mono);
   font-weight: 600;

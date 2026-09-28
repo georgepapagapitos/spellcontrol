@@ -408,7 +408,17 @@ function BreakdownRow({
     <>
       <div className="breakdown-row-head">
         {icon}
-        <span className="breakdown-row-label">{row.label}</span>
+        <span className="breakdown-row-label">
+          {row.label}
+          {/* A physical binder's size in the unit you shelve it by. Inside
+              the label so a long name truncates this first, never the name. */}
+          {row.pages !== undefined && (
+            <span className="breakdown-row-meta">
+              {' · '}
+              {row.pages.toLocaleString()} {row.pages === 1 ? 'page' : 'pages'}
+            </span>
+          )}
+        </span>
         <span className="breakdown-row-count">{displayValue}</span>
         <span className="breakdown-row-pct">({pct}%)</span>
       </div>

@@ -9,7 +9,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { EnrichedCard } from '../types';
+import type { EnrichedCard, BinderDef } from '../types';
 import type { Deck } from '../store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCollectionStore } from '../store/collection';
@@ -83,7 +83,7 @@ function makeDeck(overrides: Partial<Deck> = {}): Deck {
   } as Deck;
 }
 
-function renderDrawer(cards: EnrichedCard[], decks: Deck[] = []) {
+function renderDrawer(cards: EnrichedCard[], decks: Deck[] = [], binderDefs: BinderDef[] = []) {
   // StatsBar takes cards/binderDefs as props now (fed by CollectionPage's
   // useBinderLayoutInputs, decorated cards) rather than reading the store
   // itself — scryfallMisses is the one field it still reads directly.
@@ -94,7 +94,13 @@ function renderDrawer(cards: EnrichedCard[], decks: Deck[] = []) {
   const onFilterJump = vi.fn();
   const { unmount } = render(
     <MemoryRouter>
-      <StatsBar open cards={cards} binderDefs={[]} onClose={onClose} onFilterJump={onFilterJump} />
+      <StatsBar
+        open
+        cards={cards}
+        binderDefs={binderDefs}
+        onClose={onClose}
+        onFilterJump={onFilterJump}
+      />
     </MemoryRouter>
   );
   return { onClose, onFilterJump, unmount };
@@ -234,6 +240,30 @@ describe('StatsBar — grouped Breakdown card', () => {
     const { onFilterJump } = renderDrawer([mk({ colorIdentity: ['W'] })]);
     fireEvent.click(screen.getByRole('button', { name: /White/ }));
     expect(onFilterJump).toHaveBeenCalledWith({ kind: 'color', key: 'W' });
+  });
+
+  it("names a binder's pages on its Binder row", () => {
+    localStorage.setItem('spellcontrol:collection-breakdown-group', 'binder');
+    const staples = {
+      id: 'b1',
+      name: 'Staples',
+      position: 0,
+      filterGroups: [{ filter: {} }],
+      sorts: [{ field: 'none', dir: 'asc' }],
+      pocketSize: 9,
+      doubleSided: false,
+      fixedCapacity: null,
+      color: '#888',
+      createdAt: 0,
+      updatedAt: 0,
+    } as unknown as BinderDef;
+    renderDrawer(
+      Array.from({ length: 10 }, () => mk()),
+      [],
+      [staples]
+    );
+    const row = screen.getByText('Staples').closest('.breakdown-row');
+    expect(row?.textContent).toContain('Staples · 2 pages'); // ceil(10 / 9)
   });
 
   it('persists the group-by/measure choice to localStorage and reloads it', () => {
