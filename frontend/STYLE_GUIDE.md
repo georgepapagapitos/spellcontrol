@@ -792,9 +792,14 @@ and the convergence PRs then give each shape one look.
   `variant` (`sleeve | framed | popover`, § Layout system). A tile that is
   itself a link or button keeps its own element.
 
-Guard: `src/test/display-primitives-usage.test.ts`. Its allowlist holds each
-file's current count and only goes down; when the last wave lands, what is
-left becomes permanent entries with their rulings.
+Guard: `src/test/display-primitives-usage.test.ts`. The migration is done
+(T166 W1-W5); what stays raw is a list of permanent entries, each with its
+ruling: playtest and live-table chrome, the glyph components that are
+themselves primitives (Foil, Proxy, PriceOverride, Rarity), counts that show
+0 on purpose, role marks (coloured text, not a pill), the deck and binder
+domain badges that render on rows and on art, and the `<header>` rows with a
+collapse toggle ahead of the title. A new match is fixed with the primitive,
+never by adding an entry.
 
 **Chips are a primitive (E435, 2026-09-26).** A chip renders `Chip` from
 `components/shared/Chip`. Chips have no shared look across roles — a label

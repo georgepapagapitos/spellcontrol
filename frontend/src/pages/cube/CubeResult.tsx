@@ -41,6 +41,7 @@ import { CubeCommandersSection, CommanderCoveragePanel, CommanderBadge } from '.
 import { Button, IconButton } from '../../components/shared/Button';
 import { CubeSuppliers } from './CubeSuppliers';
 import { Chip } from '@/components/shared/Chip';
+import { ArtBadge } from '@/components/shared/ArtBadge';
 
 /** "180 cards · 4 players · saved 1h ago · Physical · 180 reserved" — the one
  *  line that identifies a saved cube, on its row AND over the result it's loaded into. */
@@ -409,13 +410,12 @@ export function CubeResult({
                           badges={
                             <>
                               {isLocked && (
-                                <span
+                                <ArtBadge
                                   className="card-list-deck-badge"
                                   title='Locked, stays on "Rebuild the rest"'
-                                  aria-label='Locked, stays on "Rebuild the rest"'
-                                >
-                                  <Lock width={12} height={12} strokeWidth={2} aria-hidden />
-                                </span>
+                                  label='Locked, stays on "Rebuild the rest"'
+                                  icon={<Lock width={12} height={12} strokeWidth={2} />}
+                                />
                               )}
                               <DeckBadge allocations={committedFor(p.card.name)} />
                             </>

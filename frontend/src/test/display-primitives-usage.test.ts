@@ -22,10 +22,11 @@
 // A class on a <button>, link or form control belongs to the control guard
 // (control-primitives-usage.test.ts), not this one.
 //
-// The migration is in progress (T166 W1-W5): ALLOWED holds each file's
-// current count and only goes down. A file that stops matching must leave
-// the list (the stale check). When the last wave lands, what remains becomes
-// PERMANENT exemptions with their rulings, the way T152 W7 locked its guard.
+// The migration is done (T166 W1-W5). What is left is a list of PERMANENT
+// exemptions, each with the ruling that keeps it, and a test refuses any
+// entry without one: a new match is fixed with the primitive, never by adding
+// it here. A file that stops matching must leave the list (the stale check),
+// so an exemption cannot outlive its reason.
 
 import { describe, it, expect } from 'vitest';
 import { dirname, relative, resolve, sep } from 'node:path';
@@ -118,80 +119,100 @@ const PRIMITIVES = new Set(
   )
 );
 
-function count(file: string): Record<Shape, number> {
+const MIGRATED_TAGS = new Set(['ArtBadge', 'Chip', 'Count', 'Surface', 'SectionHeader']);
+
+const matches: Record<Shape, (t: string) => boolean> = {
+  rawBadge: (t) =>
+    (BADGE_CLASS.test(t) && !CONTROL_CLASSES.has(t)) || COUNT_BUBBLES.has(t) || ART_BADGES.has(t),
+  rawSurface: (t) => SURFACE_CLASSES.has(t),
+  rawSectionHead: (t) => SECTION_HEAD_CLASS.test(t),
+};
+
+const SHAPES = Object.keys(matches) as Shape[];
+const zero = (): Record<Shape, number> => ({ rawBadge: 0, rawSurface: 0, rawSectionHead: 0 });
+
+/** Raw matches per shape, and the same classes seen on a primitive (`migrated`). */
+function count(file: string): { raw: Record<Shape, number>; migrated: Record<Shape, number> } {
   const sf = parseTsx(file);
-  const n: Record<Shape, number> = { rawBadge: 0, rawSurface: 0, rawSectionHead: 0 };
+  const raw = zero();
+  const migrated = zero();
   const visit = (node: ts.Node) => {
     if (ts.isJsxAttribute(node) && /className$/i.test(node.name.getText(sf)) && node.initializer) {
       const tag = (node.parent.parent as ts.JsxOpeningLikeElement).tagName.getText(sf);
+      const tokens = strings(node.initializer).join(' ').split(/\s+/);
       // A component (`<Chip className=…>`) is a primitive or owns its markup.
-      if (/^[a-z]/.test(tag) && !CONTROL_TAGS.has(tag)) {
-        const tokens = strings(node.initializer).join(' ').split(/\s+/);
-        if (
-          tokens.some(
-            (t) =>
-              (BADGE_CLASS.test(t) && !CONTROL_CLASSES.has(t)) ||
-              COUNT_BUBBLES.has(t) ||
-              ART_BADGES.has(t)
-          )
-        )
-          n.rawBadge++;
-        if (tokens.some((t) => SURFACE_CLASSES.has(t))) n.rawSurface++;
-        if (tokens.some((t) => SECTION_HEAD_CLASS.test(t))) n.rawSectionHead++;
-      }
+      const into = MIGRATED_TAGS.has(tag)
+        ? migrated
+        : /^[a-z]/.test(tag) && !CONTROL_TAGS.has(tag)
+          ? raw
+          : null;
+      if (into) for (const shape of SHAPES) if (tokens.some(matches[shape])) into[shape]++;
     }
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  return n;
+  return { raw, migrated };
 }
 
-/** Files still to migrate, with their current counts. Lower as each wave lands. */
-const ALLOWED: Record<Shape, Record<string, number>> = {
+const BOARD_CHROME =
+  'PERMANENT: playtest and live-table board chrome is bespoke (E435 scope ruling, kept for T166)';
+const OWN_PRIMITIVE =
+  'PERMANENT: this component is itself the primitive for its glyph family (§ Manual price-override badge: the small square glyph chip)';
+const SHOWS_ZERO =
+  'PERMANENT: a count that shows 0 on purpose, and Count renders nothing at 0 (T166 W3)';
+const ROLE_TEXT =
+  'PERMANENT: role marks are coloured text from the 15-role hue map, not a pill (its CSS: "Plain coloured text, no pill")';
+const DOMAIN_BADGE =
+  'PERMANENT: a domain badge rendered both on list rows and inside a grid tile art cluster, with interactive variants; the component owns its markup (T166 W2)';
+const FALSE_FRIEND =
+  'PERMANENT: named like a badge or pill but not one (a spinner, an avatar glyph, an input container, a paragraph with a link, a skeleton bar)';
+const LAYOUT_WRAPPER =
+  'PERMANENT: the layout wrapper holding a verdict Chip and its reason, not a badge itself';
+const HEADER_ROW =
+  'PERMANENT: a <header> row with a collapse toggle and glyph ahead of the title; SectionHeader renders only a div row or a heading (T166 W5)';
+const ALWAYS_ROW =
+  'PERMANENT: the row wraps whether or not its one tool renders, and the tool is a bare sibling, which SectionHeader does not produce (T166 W5)';
+
+type Entry = { count: number; why: string };
+
+/** What stays raw after T166, each with the ruling that keeps it. */
+const ALLOWED: Record<Shape, Record<string, Entry>> = {
   rawBadge: {
-    'components/BinderBadge.tsx': 2,
-    'components/CardPreview.tsx': 1,
-    'components/DeckBadge.tsx': 1,
-    'components/FoilBadge.tsx': 1,
-    'components/Legend.tsx': 1,
-    'components/ProfileEditor.tsx': 1,
-    'components/PullToRefresh.tsx': 1,
-    'components/SearchPill.tsx': 1,
-    'components/SetFilterPicker.tsx': 1,
-    'components/Tabs.tsx': 1,
-    'components/deck/CommanderResultCard.tsx': 1,
-    'components/deck/DeckCustomizer.tsx': 1,
-    'components/deck/DeckMainboardRow.tsx': 1,
-    'components/deck/DeckToolbar.tsx': 1,
-    'components/deck/ForkedFromBadge.tsx': 1,
-    'components/deck/VerdictBadge.tsx': 1,
-    'components/play/GameBoard.tsx': 5,
-    'components/play/GameNights.tsx': 1,
-    'components/play/OnlineGameView.tsx': 6,
-    'components/shared/PriceOverrideBadge.tsx': 1,
-    'components/shared/ProxyBadge.tsx': 1,
-    'components/shared/RarityBadge.tsx': 1,
-    'pages/cube/CubeCommanders.tsx': 1,
-    'pages/cube/CubeResult.tsx': 1,
-    'playtest/components/LifeStrip.tsx': 6,
-    'playtest/components/OpeningHandSheet.tsx': 1,
-    'playtest/components/PlaytestBoard.tsx': 1,
-    'playtest/components/PlaytestStatsSheet.tsx': 4,
-    'playtest/components/TableTicker.tsx': 1,
-    'playtest/components/ZoneViewerModal.tsx': 2,
+    'components/BinderBadge.tsx': { count: 2, why: DOMAIN_BADGE },
+    'components/DeckBadge.tsx': { count: 1, why: DOMAIN_BADGE },
+    'components/CardPreview.tsx': { count: 1, why: ROLE_TEXT },
+    'components/Legend.tsx': { count: 1, why: ROLE_TEXT },
+    'components/deck/DeckMainboardRow.tsx': { count: 1, why: ROLE_TEXT },
+    'components/deck/DeckToolbar.tsx': { count: 1, why: ROLE_TEXT },
+    'components/FoilBadge.tsx': { count: 1, why: OWN_PRIMITIVE },
+    'components/shared/PriceOverrideBadge.tsx': { count: 1, why: OWN_PRIMITIVE },
+    'components/shared/ProxyBadge.tsx': { count: 1, why: OWN_PRIMITIVE },
+    'components/shared/RarityBadge.tsx': { count: 1, why: OWN_PRIMITIVE },
+    'components/ProfileEditor.tsx': { count: 1, why: FALSE_FRIEND },
+    'components/PullToRefresh.tsx': { count: 1, why: FALSE_FRIEND },
+    'components/SearchPill.tsx': { count: 1, why: FALSE_FRIEND },
+    'components/SetFilterPicker.tsx': { count: 1, why: FALSE_FRIEND },
+    'components/deck/ForkedFromBadge.tsx': { count: 1, why: FALSE_FRIEND },
+    'components/play/GameNights.tsx': { count: 1, why: FALSE_FRIEND },
+    'components/Tabs.tsx': { count: 1, why: SHOWS_ZERO },
+    'components/deck/CommanderResultCard.tsx': { count: 1, why: SHOWS_ZERO },
+    'components/deck/DeckCustomizer.tsx': { count: 1, why: SHOWS_ZERO },
+    'components/deck/VerdictBadge.tsx': { count: 1, why: LAYOUT_WRAPPER },
+    'components/play/GameBoard.tsx': { count: 5, why: BOARD_CHROME },
+    'components/play/OnlineGameView.tsx': { count: 6, why: BOARD_CHROME },
+    'playtest/components/LifeStrip.tsx': { count: 6, why: BOARD_CHROME },
+    'playtest/components/OpeningHandSheet.tsx': { count: 1, why: BOARD_CHROME },
+    'playtest/components/PlaytestBoard.tsx': { count: 1, why: BOARD_CHROME },
+    'playtest/components/PlaytestStatsSheet.tsx': { count: 4, why: BOARD_CHROME },
+    'playtest/components/TableTicker.tsx': { count: 1, why: BOARD_CHROME },
+    'playtest/components/ZoneViewerModal.tsx': { count: 2, why: BOARD_CHROME },
   },
   rawSurface: {},
-  // The remaining three deck sites render on <header> with a collapse
-  // toggle + icon glyph ahead of the title, a shape SectionHeader doesn't
-  // produce; TradesPage's row wraps unconditionally whether or not its
-  // Clear-history tool renders, and SectionHeader both drops the wrapper
-  // when there's no meta/tools and always adds one around `tools` — neither
-  // matches the bare, always-present row (T166 W5 rulings).
   rawSectionHead: {
-    'components/deck/CommanderOpenSlot.tsx': 1,
-    'components/deck/DeckCardGrid.tsx': 1,
-    'components/deck/DeckMainboardRow.tsx': 1,
-    'pages/TradesPage.tsx': 1,
+    'components/deck/CommanderOpenSlot.tsx': { count: 1, why: HEADER_ROW },
+    'components/deck/DeckCardGrid.tsx': { count: 1, why: HEADER_ROW },
+    'components/deck/DeckMainboardRow.tsx': { count: 1, why: HEADER_ROW },
+    'pages/TradesPage.tsx': { count: 1, why: ALWAYS_ROW },
   },
 };
 
@@ -208,37 +229,51 @@ describe('badges, counts, surfaces and section headers come from the display pri
     rawSurface: new Map(),
     rawSectionHead: new Map(),
   };
+  const migrated = zero();
   for (const file of sourceFiles(srcDir)) {
     const rel = relative(srcDir, file).split(sep).join('/');
     if (PRIMITIVES.has(rel)) continue;
     const n = count(file);
-    for (const shape of Object.keys(n) as Shape[]) if (n[shape]) found[shape].set(rel, n[shape]);
+    for (const shape of SHAPES) {
+      if (n.raw[shape]) found[shape].set(rel, n.raw[shape]);
+      migrated[shape] += n.migrated[shape];
+    }
   }
 
-  for (const shape of Object.keys(ALLOWED) as Shape[]) {
+  for (const shape of SHAPES) {
     it(`no new ${shape} outside the allowlist`, () => {
       const over = [...found[shape]]
-        .filter(([file, n]) => n > (ALLOWED[shape][file] ?? 0))
-        .map(([file, n]) => `${file} (${n}, allowed ${ALLOWED[shape][file] ?? 0})`);
+        .filter(([file, n]) => n > (ALLOWED[shape][file]?.count ?? 0))
+        .map(([file, n]) => `${file} (${n}, allowed ${ALLOWED[shape][file]?.count ?? 0})`);
       expect(over, `${HOW[shape]}\n  ${over.join('\n  ')}`).toEqual([]);
     });
 
     it(`the ${shape} allowlist has no stale entries`, () => {
       const stale = Object.entries(ALLOWED[shape])
-        .filter(([file, n]) => (found[shape].get(file) ?? 0) < n)
-        .map(([file, n]) => `${file} (allowed ${n}, found ${found[shape].get(file) ?? 0})`);
+        .filter(([file, e]) => (found[shape].get(file) ?? 0) < e.count)
+        .map(([file, e]) => `${file} (allowed ${e.count}, found ${found[shape].get(file) ?? 0})`);
       expect(stale, 'Lower or delete these entries:\n  ' + stale.join('\n  ')).toEqual([]);
     });
   }
 
-  it('the scan sees the codebase (guards the guard)', () => {
-    // A parser change that silently matched nothing would pass every case
-    // above; each shape still being migrated has real call sites until its
-    // wave lands. A shape whose ALLOWED list is already empty (rawSurface,
-    // T166 W4) is finished — nothing left to guard here.
-    for (const shape of Object.keys(ALLOWED) as Shape[]) {
-      if (Object.keys(ALLOWED[shape]).length === 0) continue;
-      expect(found[shape].size, shape).toBeGreaterThan(0);
-    }
+  it('every allowlist entry is a PERMANENT exemption with its reason', () => {
+    // The migration is finished: an entry without a ruling would be new debt.
+    const bare = SHAPES.flatMap((shape) =>
+      Object.entries(ALLOWED[shape])
+        .filter(([, e]) => !e.why.startsWith('PERMANENT'))
+        .map(([file]) => `${shape}: ${file}`)
+    );
+    expect(
+      bare,
+      'Move these onto the primitives, or record the ruling that exempts them:\n  ' +
+        bare.join('\n  ')
+    ).toEqual([]);
+  });
+
+  it('the scan recognises the migrated call sites (guards the guard)', () => {
+    // A matcher change that silently stopped recognising a family would pass
+    // every case above. Each shape's classes must still be found on the
+    // primitives that now carry them.
+    for (const shape of SHAPES) expect(migrated[shape], shape).toBeGreaterThan(0);
   });
 });

@@ -46,6 +46,7 @@ import { sizeInfo } from '../../lib/cube/targets';
 import { pickToPreviewCard } from './shared';
 import { Button } from '../../components/shared/Button';
 import { Chip } from '../../components/shared/Chip';
+import { ArtBadge } from '../../components/shared/ArtBadge';
 
 const ALL_IDENTITIES: LegendIdentity[] = [...COLORS, ...COLOR_PAIRS, 'other'];
 /** "W" / "WU" / "3+" — plain letters, same "color is never the only signal"
@@ -69,9 +70,12 @@ const PREVIEW_COUNT = 6;
  *  way, since both are just a `CardGridCell`'s `badges` prop. */
 export function CommanderBadge() {
   return (
-    <span className="card-list-deck-badge" title="Commander" aria-label="Commander">
-      <Crown width={11} height={11} strokeWidth={2} aria-hidden />
-    </span>
+    <ArtBadge
+      className="card-list-deck-badge"
+      title="Commander"
+      label="Commander"
+      icon={<Crown width={11} height={11} strokeWidth={2} />}
+    />
   );
 }
 
