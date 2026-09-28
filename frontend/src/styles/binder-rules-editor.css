@@ -71,7 +71,7 @@
   margin: var(--space-1) 0 0;
   font-family: var(--font-label);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-overline);
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
