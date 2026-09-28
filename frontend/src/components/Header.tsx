@@ -8,7 +8,6 @@ import { HeaderSyncIndicator } from './SyncIndicator';
 import { useAuth } from '../store/auth';
 import { useActivity } from '../lib/use-activity';
 import { formatCount } from '../lib/format-count';
-import { BrandMark } from './shared/BrandMark';
 import { Count } from './shared/Count';
 import { OverflowMenu } from './OverflowMenu';
 import { UserAvatar } from './UserAvatar';
@@ -34,11 +33,11 @@ export function Header() {
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        {/* The mark goes where the first nav item goes, Home. A plain Link: a
-            NavLink here marked itself aria-current beside the real Home link. */}
-        <Link viewTransition className="site-brand" to="/home" aria-label="SpellControl">
-          <BrandMark size={28} aria-hidden className="site-brand-mark" />
-          <span className="site-brand-text">SpellControl</span>
+        {/* The wordmark goes where the first nav item goes, Home. A plain Link:
+            a NavLink here marked itself aria-current beside the real Home link.
+            No logo beside it: the app ships without a brand mark for now. */}
+        <Link viewTransition className="site-brand" to="/home">
+          SpellControl
         </Link>
         <nav className="site-nav-links" aria-label="Primary">
           <NavLink

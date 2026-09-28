@@ -1,14 +1,13 @@
 import { useMemo } from 'react';
-import { BrandMark } from './BrandMark';
 import './SealBurst.css';
 
 /**
- * One-shot completion flourish, Magic-native by design: the grimoire seal
- * flares (the same `--brand-seal-gold` brass glow as the <BrandMark> clasp seal) and
- * sheds mana sparks in the deck's own colour identity. NOT confetti — the
- * material is the brand's seal + WUBRG mana, so the celebration knows what
- * you built. Purely decorative (`aria-hidden`); the surrounding surface
- * carries the real announcement.
+ * One-shot completion flourish, Magic-native by design: a brass seal flare
+ * (`--brand-seal-gold`) sheds mana sparks in the deck's own colour identity.
+ * NOT confetti — the material is brass + WUBRG mana, so the celebration knows
+ * what you built. Purely decorative (`aria-hidden`); the surrounding surface
+ * carries the real announcement. There is no logo at the centre: the app
+ * currently ships without a brand mark (board T167).
  *
  * Reduced-motion safe two ways: renders nothing when the user prefers reduced
  * motion, and every keyframe in SealBurst.css is also `reduce`-gated.
@@ -17,10 +16,6 @@ import './SealBurst.css';
  * `useSealMoment` (SealMoment.tsx), the compact completion moments — import
  * done, deck complete, binder review caught up. The surrounding surface
  * always carries the words; this stays purely decorative.
- *
- * ponytail: the seal flare visually rhymes with the real BrandMark seal
- * (brand-mark-seal-glow / -ring) rather than rendering the literal SVG — a
- * one-shot BrandMark would need a new motion mode on that component.
  */
 
 /** WUBRG → a spark hex readable on the darkened takeover art. Black is lifted
@@ -88,9 +83,6 @@ export function SealBurst({ colors, compact = false }: { colors: string[]; compa
     <div className={`seal-burst${compact ? ' seal-burst--compact' : ''}`} aria-hidden="true">
       <span className="seal-burst-flare" />
       <span className="seal-burst-ring" />
-      {/* The brand grimoire blooms at the centre — the icon does the
-          celebrating; the sparks radiate from it in the deck's colours. */}
-      <BrandMark size={compact ? 64 : 112} className="seal-burst-mark" aria-hidden />
       {motes.map((m, i) => (
         <span
           key={i}

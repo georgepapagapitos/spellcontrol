@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { BrandMark } from '../components/shared/BrandMark';
 import { forgotPassword } from '../lib/auth-api';
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
@@ -37,9 +36,6 @@ export default function ForgotPasswordPage() {
   return (
     <main className="auth-page">
       <Surface as="div" variant="framed" className="auth-card">
-        <div className="auth-brand-hero" aria-hidden="true">
-          <BrandMark size={48} motion="idle" />
-        </div>
         <h1 className="auth-title">Reset your password</h1>
 
         {sent ? (

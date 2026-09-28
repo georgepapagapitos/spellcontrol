@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
-import { BrandMark } from '../components/shared/BrandMark';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 
@@ -85,9 +84,6 @@ export default function ChooseUsernamePage() {
   return (
     <main className="auth-page">
       <Surface as="div" variant="framed" className="auth-card">
-        <div className="auth-brand-hero" aria-hidden="true">
-          <BrandMark size={48} motion="idle" />
-        </div>
         <h1 className="auth-title">Pick a username</h1>
         <p className="auth-subtitle">
           This is how you&apos;ll appear in SpellControl. It doesn&apos;t have to match your email.

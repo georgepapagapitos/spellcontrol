@@ -335,7 +335,6 @@ export function ListsPage() {
         </div>
       ) : lists.length === 0 ? (
         <EmptyState
-          mark
           tagline="No lists yet."
           hint="A wishlist, a trade pile, or a rule that keeps itself current. Lists never touch your collection, binders, or decks."
           actions={

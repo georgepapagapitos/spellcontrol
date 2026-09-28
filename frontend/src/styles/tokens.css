@@ -37,9 +37,8 @@
   --accent-light: rgba(53, 86, 142, 0.16);
   --on-accent: #f6f5ec;
 
-  /* Brand constant — the grimoire clasp's brass gold. Theme-invariant (no
-     theme overrides it). BrandMark.tsx mirrors it as the SEAL_GOLD const
-     because SVG presentation attributes can't take var(). */
+  /* Brand constant — the brass gold of the header hover, the game dot and the
+     SealBurst flare. Theme-invariant (no theme overrides it). */
   --brand-seal-gold: #f0c368;
 
   --warn-bg: #3a2f18;

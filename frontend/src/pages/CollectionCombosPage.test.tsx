@@ -18,7 +18,6 @@ vi.mock('../lib/api/combos', () => ({
 }));
 vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
 vi.mock('../lib/sync', () => ({ getSyncState: () => 'ready', onSyncedChange: () => () => {} }));
-vi.mock('../components/shared/BrandMark', () => ({ BrandMark: () => null }));
 vi.mock('../components/CardPreview', () => ({ CardPreview: () => null }));
 
 // One commander-eligible legend (UB) so the host-commander line has something

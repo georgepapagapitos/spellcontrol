@@ -80,11 +80,6 @@
   }
 }
 
-.shared-brand-mark {
-  display: block;
-  flex-shrink: 0;
-}
-
 .shared-brand-text {
   color: var(--text-primary);
 }
@@ -351,6 +346,14 @@
   justify-content: center;
   text-align: center;
   min-height: 60vh;
+}
+
+/* The page-level spinner size, matching `.page-loader .spinner`. */
+.shared-view--loading .spinner {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+  margin: 0;
 }
 
 .shared-view--missing h1,

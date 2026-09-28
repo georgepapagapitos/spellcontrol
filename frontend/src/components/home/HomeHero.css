@@ -491,16 +491,24 @@ a.home-hero-step:focus-visible {
 }
 
 /* Settled-empty (or guest) state: an empty sleeve, waiting for a card —
-   dashed pocket outline with the brand mark, no tape. */
+   dashed pocket outline with one quiet line saying what fills it, no tape. */
 .home-hero-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   aspect-ratio: 4 / 3;
+  padding: var(--space-4);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
+}
+
+.home-hero-fallback-text {
+  max-width: 16rem;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 
 /* Tape-label caption stuck across the sleeve's bottom edge (T53 tape tier:

@@ -506,7 +506,6 @@ export function FriendsManagement() {
             <FriendsSkeleton />
           ) : friendsList.length === 0 ? (
             <EmptyState
-              mark
               status
               tagline="No friends yet."
               hint="Search above to find and add other players."
@@ -563,7 +562,6 @@ export function FriendsManagement() {
             <FriendsSkeleton />
           ) : incomingList.length === 0 && outgoingList.length === 0 ? (
             <EmptyState
-              mark
               status
               tagline="No pending requests."
               hint="Send one from the search above, or wait for someone to send you one."
@@ -666,7 +664,6 @@ export function FriendsManagement() {
             <FriendsSkeleton />
           ) : inboxList.length === 0 ? (
             <EmptyState
-              mark
               status
               tagline="Nothing shared yet."
               hint="When a friend shares a deck or collection with you, it shows up here."
@@ -723,7 +720,6 @@ export function FriendsManagement() {
             <FriendsSkeleton />
           ) : activity.length === 0 ? (
             <EmptyState
-              mark
               status
               tagline="Nothing new from friends yet."
               hint="This fills in as friends publish decks or share with you."

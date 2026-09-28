@@ -10,7 +10,6 @@ import { materializeBinders } from '../lib/materialize';
 import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { useAllocations } from '../lib/allocations';
 import { formatMoney } from '../lib/format-money';
-import { BrandMark } from '../components/shared/BrandMark';
 import { AddCardsSheet } from '../components/AddCardsSheet';
 import { PageHeader } from '../components/PageHeader';
 import { StatsBar } from '../components/StatsBar';
@@ -156,7 +155,7 @@ export function CollectionPage() {
     <>
       {loadingCollection ? (
         <div className="page-loader page-loader--message" role="status" aria-live="polite">
-          <BrandMark size={64} motion="busy" aria-hidden />
+          <span className="spinner" aria-hidden="true" />
           <span className="page-loader-message">Loading your collection…</span>
         </div>
       ) : (

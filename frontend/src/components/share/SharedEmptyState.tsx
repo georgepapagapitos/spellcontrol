@@ -38,7 +38,7 @@ export function SharedEmptyState({
   onClearSearch,
 }: Props) {
   if (empty) {
-    return <EmptyState mark tagline={emptyTagline} hint={emptyHint} />;
+    return <EmptyState tagline={emptyTagline} hint={emptyHint} />;
   }
   return (
     <EmptyState

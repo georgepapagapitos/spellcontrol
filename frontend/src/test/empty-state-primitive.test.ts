@@ -12,9 +12,9 @@
 // `empty-state-tagline` in a className string/template literal and fails on
 // any match outside `components/shared/EmptyState.tsx` itself.
 //
-// A raw `empty-state-mark` / `empty-state-hint` / `empty-state-actions` /
-// `empty-state-action` reference is NOT flagged here — those are only ever
-// reachable through `EmptyState`'s own props (tagline/hint/actions/mark), so
+// A raw `empty-state-hint` / `empty-state-actions` / `empty-state-action`
+// reference is NOT flagged here — those are only ever reachable through
+// `EmptyState`'s own props (tagline/hint/actions), so
 // a new hand-rolled site necessarily starts with the container class this
 // guard does catch.
 import { describe, it, expect } from 'vitest';

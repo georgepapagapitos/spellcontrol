@@ -220,7 +220,6 @@ export function SearchPage() {
         </>
       ) : (
         <EmptyState
-          mark
           tagline="Every card, one search away."
           hint={
             <>

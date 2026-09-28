@@ -360,7 +360,6 @@ export function BindersIndexPage() {
       ) : binders.length === 0 ? (
         cards.length === 0 ? (
           <EmptyState
-            mark
             tagline="No binders yet."
             hint="Binders sort your collection by rule. Import it first, or try the samples to see how."
             actions={
@@ -376,7 +375,6 @@ export function BindersIndexPage() {
           />
         ) : (
           <EmptyState
-            mark
             tagline="Build your first binder."
             hint="A binder is a rule that catches cards from your collection: one per deck, format, or theme."
             actions={

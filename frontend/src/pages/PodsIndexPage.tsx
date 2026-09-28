@@ -200,7 +200,6 @@ function PodsIndexPageBody() {
         <PodsSkeleton />
       ) : isEmpty ? (
         <EmptyState
-          mark
           status
           tagline="No pods yet."
           hint="Create one to track games and trades with your regular table."

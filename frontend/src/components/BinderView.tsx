@@ -89,7 +89,6 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
   if (!active) {
     return (
       <EmptyState
-        mark
         tagline="No binder selected."
         hint="Pick a binder above, or create one with New binder."
       />
@@ -99,7 +98,6 @@ export function BinderView({ binders, driftBinders, controls, qtyByCopyId, showI
   if (active.totalCards === 0) {
     return (
       <EmptyState
-        mark
         tagline="No cards match this binder's rules."
         hint="Loosen a rule or add another match group, and cards from your collection file in here."
         actions={

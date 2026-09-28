@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { verifyEmail, resendEmailVerification } from '../lib/auth-api';
 import { userMessage } from '@/lib/user-error';
-import { BrandMark } from '../components/shared/BrandMark';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 
@@ -58,7 +57,12 @@ export default function VerifyEmailPage() {
   let body: React.ReactNode;
   if (phase === 'verifying') {
     heading = 'Verifying your email…';
-    body = <p className="auth-subtitle">One moment.</p>;
+    body = (
+      <p className="auth-subtitle">
+        <span className="spinner" aria-hidden="true" />
+        One moment.
+      </p>
+    );
   } else if (phase === 'verified') {
     heading = 'Email verified';
     body = (
@@ -95,9 +99,6 @@ export default function VerifyEmailPage() {
   return (
     <main className="auth-page">
       <Surface as="div" variant="framed" className="auth-card">
-        <div className="auth-brand-hero" aria-hidden="true">
-          <BrandMark size={48} motion={phase === 'verifying' ? 'boot' : 'idle'} />
-        </div>
         <h1 className="auth-title">{heading}</h1>
         {body}
 

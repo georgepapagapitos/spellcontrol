@@ -400,7 +400,6 @@ export function DeckComparePage() {
 
           {!diff || !deckA || !deckB || !manaA || !manaB || !phasesA || !phasesB ? (
             <EmptyState
-              mark
               tagline="Pick two decks to compare."
               hint="Select decks above, or open any deck and tap Compare from its menu."
             />

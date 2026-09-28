@@ -68,7 +68,6 @@ export function RoomBrowser({ onJoin, onWatch, onHostInstead }: Props) {
   if (games.length === 0) {
     return (
       <EmptyState
-        mark
         tagline="No public games right now."
         hint="Host a table and set it to public, or ask the host for a join code."
         actions={

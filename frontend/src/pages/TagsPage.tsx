@@ -273,7 +273,6 @@ export function TagsPage() {
         ready &&
         unknown.length === 0 && (
           <EmptyState
-            mark
             tagline="Pick a tag to see what it finds."
             hint="Combine tags to narrow: “sweeper” plus “instant speed” is a much shorter list."
           />

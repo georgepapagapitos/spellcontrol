@@ -370,7 +370,6 @@ function SetsIndex() {
 
       {progress.length === 0 ? (
         <EmptyState
-          mark
           tagline="No sets to track yet."
           hint="Add or import cards and your set completion shows up here."
           actions={

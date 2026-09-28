@@ -1152,7 +1152,7 @@ reference fix (`.deck-empty-state` in `DeckDisplay.tsx` +
 
 **Nested empties (sweep-3).** When a sub-section's own empty state (a Trending rail)
 renders inside a page whose primary region is also empty, the sub-section falls back
-to one muted line: the page-level `EmptyStateMark` is the one brand moment per screen.
+to one muted line: the page-level empty state is the one full empty state per screen.
 A rail on a guest-landing or marketing surface hides itself below its data threshold
 (the `FreshDecksRail` rule) rather than rendering an empty state. A pending state inside
 a large fixed-height sheet fills the remaining height with skeleton rows, never one line

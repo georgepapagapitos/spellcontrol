@@ -4,7 +4,6 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { preventFocusSteal } from '../lib/keyboard';
 import { toast } from '../store/toasts';
-import { BrandMark } from '../components/shared/BrandMark';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 
@@ -59,9 +58,6 @@ export default function ResetPasswordPage() {
     return (
       <main className="auth-page">
         <Surface as="div" variant="framed" className="auth-card">
-          <div className="auth-brand-hero" aria-hidden="true">
-            <BrandMark size={48} motion="idle" />
-          </div>
           <h1 className="auth-title">That link isn't valid</h1>
           <p className="auth-subtitle">
             This reset link is missing its token. Request a new one to continue.
@@ -77,9 +73,6 @@ export default function ResetPasswordPage() {
   return (
     <main className="auth-page">
       <Surface as="div" variant="framed" className="auth-card">
-        <div className="auth-brand-hero" aria-hidden="true">
-          <BrandMark size={48} motion="idle" />
-        </div>
         <h1 className="auth-title">Choose a new password</h1>
         <p className="auth-subtitle">Pick a new password for your account.</p>
 

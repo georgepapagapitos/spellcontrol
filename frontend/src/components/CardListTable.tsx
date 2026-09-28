@@ -2354,7 +2354,6 @@ export function CardListTable({
         // "no matches". Same view, just empty: point at the search bar above
         // and offer the Add cards sheet (search · list · scan) right here.
         <EmptyState
-          mark
           tagline="Your collection is empty."
           hint={
             <>

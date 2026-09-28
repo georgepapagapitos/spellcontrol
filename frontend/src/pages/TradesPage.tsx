@@ -232,7 +232,6 @@ function TradesPageBody() {
 
       {isEmpty && (
         <EmptyState
-          mark
           status
           tagline="No trades yet."
           hint="Open a friend's hub to see what they have and propose one. It shows up here for both of you until it's answered."
@@ -285,9 +284,10 @@ function TradesPageBody() {
                 )}
               </div>
               {rows.length === 0 ? (
-                // Per-group empty — text only, no brand mark. The page-level
-                // empty state above owns that treatment (STYLE_GUIDE § Empty
-                // states: micro/in-panel placeholders stay text-only).
+                // Per-group empty — one compact line. The page-level empty
+                // state above owns the full tagline/hint treatment
+                // (STYLE_GUIDE § Empty states: micro/in-panel placeholders
+                // stay text-only).
                 <EmptyState compact className="trades-group-empty">
                   {group.empty}
                 </EmptyState>
