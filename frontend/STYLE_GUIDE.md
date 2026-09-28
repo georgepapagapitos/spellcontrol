@@ -3867,10 +3867,17 @@ never shows the chooser.
   fixed 112/150/200px thumbnails: 42px pockets on a 1440 screen, and on a
   phone a lone page in one half of the row with the other half empty. Text-only
   pockets scale their name with the pocket (`cqw`), for the same reason.
-- **On a phone a section teases one page** (`PHONE_SECTION_PAGE_CAP`, ≤600px;
-  the header-less run shows four). Full-width pages made the desktop cap of
-  three a screen and a half of scroll before the next section's header. The
-  "+N more pages" expander and the page viewer carry the rest.
+- **A section teases one full row of pages, never a fixed page count**
+  (`SECTION_PAGE_ROWS`; the header-less run of a page-filled binder shows
+  `PAGE_RUN_ROWS`, three). The row's column count is read back from the
+  rendered grid (`useGridColumns`), so with 9-pocket pages it is one page on
+  a phone, two or three on a tablet, five on a laptop and seven on a 1920
+  screen, and it
+  follows every resize, rotation and zoom. A fixed three left four empty
+  columns above "+32 more pages" on a wide monitor, and was a screen and a
+  half of scroll per section on a phone. The "+N more pages" expander and the
+  page viewer carry the rest. Any inline teaser over a fluid grid follows the
+  same rule: cap in rows, not items.
 - **A page's header is its door into the page viewer.** "Page 3" on the left,
   the book glyph "Browse pages" uses on the right, the whole row one button.
   It replaced an underlined mono "page 3" link floating centred above the page.
