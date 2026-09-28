@@ -28,6 +28,7 @@ import type { BinderDef, EnrichedCard, MaterializedBinder } from '../types';
 import { nameMatchesNormalized } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
 import { Button, IconButton } from '@/components/shared/Button';
+import { SwitchRow } from '@/components/shared/form';
 
 interface Props {
   binder: MaterializedBinder;
@@ -406,20 +407,18 @@ function OrderTab({
   return (
     <>
       <div className="binder-card-editor-order-toggle">
-        <label className="field-checkbox" style={{ margin: 0 }}>
-          <input type="checkbox" checked={isManualOrder} onChange={onToggleManualOrder} />
-          Manual order
-        </label>
-        {isManualOrder && (
-          <span className="binder-card-editor-order-hint">
-            Drag cards to rearrange. New cards are appended after your ordered list.
-          </span>
-        )}
-        {!isManualOrder && (
-          <span className="binder-card-editor-order-hint">
-            Cards follow your binder's sort rules. Enable manual order to drag cards into position.
-          </span>
-        )}
+        {/* "Custom order", not "Manual order": manual is the binder MODE whose
+            rules are paused (only added cards show). This is only the order. */}
+        <SwitchRow
+          label="Custom order"
+          hint={
+            isManualOrder
+              ? 'Drag cards to rearrange. New cards go after your ordered list.'
+              : "Cards follow this binder's sort. Turn on to drag cards into place."
+          }
+          checked={isManualOrder}
+          onChange={() => onToggleManualOrder()}
+        />
       </div>
 
       {activeCards.length === 0 ? (

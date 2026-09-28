@@ -36,9 +36,9 @@ const celebratedBinderCleared = new Set<string>();
 const DRIFT_TIP = (
   <>
     <p className="info-tip-lead">
-      <strong>Drift</strong> tracks cards that have moved binders since your last physical review.
-      Rule matches shift as prices, EDHREC rank, and format legality change, even without you
-      touching anything.
+      <strong>To file</strong> lists the cards that changed binder since this binder last matched
+      the one on your shelf. Rule matches shift as prices, EDHREC rank, and format legality change,
+      even without you touching anything.
     </p>
     <ul className="info-tip-list">
       <li>
@@ -55,11 +55,11 @@ const DRIFT_TIP = (
       <li>
         <strong>One move, one confirmation:</strong> a card moving between two binders shows in both
         queues, as outgoing in one and incoming in the other. Confirming it in either binder checks
-        off the matching row in the other. You never review the same move twice.
+        off the matching row in the other. You never file the same move twice.
       </li>
       <li>
-        <strong>Mark reviewed</strong> means "I've seen everything and updated my physical binder."
-        It saves a new baseline in one shot. Drift is then measured from this point forward.
+        <strong>All filed</strong> means "the binder on my shelf matches this one now." It checks
+        off everything in one go, and the list counts from there.
       </li>
     </ul>
   </>
@@ -80,10 +80,10 @@ interface Props {
  * a snapshot AND it has cards, we silently stamp the current membership as
  * the baseline. Rationale: at creation time the binder's intentional
  * contents *are* the baseline by definition, so prompting the user to
- * "Mark reviewed" is noise. Legacy binders predating snapshots get the same
+ * "All filed" is noise. Legacy binders predating snapshots get the same
  * one-time silent capture on first view.
  *
- * After that, "Mark reviewed" re-stamps the whole binder; the per-row
+ * After that, "All filed" re-stamps the whole binder; the per-row
  * actions (Added it / Moved it / Keep it here / Don't add) surgically resolve one card at a
  * time without touching the rest of the baseline.
  */
@@ -107,7 +107,7 @@ export function BinderDriftBanner({ binder }: Props) {
   );
 
   // Queue-cleared beat: when the user resolves the last review item (or hits
-  // Mark reviewed), acknowledge the effort with one transient "caught up" row
+  // All filed), acknowledge the effort with one transient "all filed" row
   // + the seal moment instead of the banner silently vanishing. Watched in a
   // layout effect so the swap paints in the same frame as the queue's removal.
   const [justCleared, setJustCleared] = useState(false);
@@ -160,7 +160,7 @@ export function BinderDriftBanner({ binder }: Props) {
       <div className="binder-drift binder-drift--cleared" role="status">
         {sealMoment}
         <CheckCircle2 className="binder-drift-cleared-icon" width={16} height={16} aria-hidden />
-        <span>All caught up. This binder matches your last review.</span>
+        <span>All filed. The binder on your shelf matches this one.</span>
       </div>
     );
   }
@@ -266,18 +266,21 @@ export function BinderDriftBanner({ binder }: Props) {
             ▾
           </span>
           <span className="binder-drift-summary">
-            <strong>Since last reviewed</strong>
+            <strong>To file</strong>
             {drift.snapshotAt !== undefined && (
-              <span className="binder-drift-when"> ({formatRelativeTime(drift.snapshotAt)})</span>
+              <span className="binder-drift-when">
+                {' '}
+                (since {formatRelativeTime(drift.snapshotAt)})
+              </span>
             )}
             : {summarize(drift.added.length, drift.removed.length)}
           </span>
         </button>
         <span className="binder-drift-reviewed-wrap">
           <Button variant="link" onClick={handleMarkReviewed}>
-            Mark reviewed
+            All filed
           </Button>
-          <InfoTip label="drift and Mark reviewed" text={DRIFT_TIP} wide />
+          <InfoTip label="To file and All filed" text={DRIFT_TIP} wide />
         </span>
       </div>
       {expanded && (
@@ -422,7 +425,7 @@ function AddedGroupBlock({
         {group.rows.length > 1 && (
           <Button
             variant="link"
-            aria-label={`Added all: ${formatSourceLabel(group.source)}`}
+            aria-label={`${isImport ? 'Filed all' : 'Added all'}: ${formatSourceLabel(group.source)}`}
             onClick={() => onAcknowledgeAll(group.rows, group)}
           >
             {isImport ? 'Filed all' : 'Added all'}

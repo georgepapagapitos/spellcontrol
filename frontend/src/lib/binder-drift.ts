@@ -115,7 +115,7 @@ function pickLegalities(card: EnrichedCard, formats: string[]): Record<string, s
 
 /**
  * Capture every card currently routed to this binder. Called when the user
- * clicks "Mark reviewed" in BinderView. We dedupe by printingFinishKey rather
+ * clicks "All filed" in BinderView. We dedupe by printingFinishKey rather
  * than copyId because copyIds regenerate on every re-import; this matches the
  * approach used by `pinnedKeys` and `manualKeys` elsewhere on BinderDef.
  * `legalityFormats` (from `referencedLegalityFormats`) selects which per-card
@@ -394,7 +394,7 @@ export function hasDrift(result: DriftResult): boolean {
 /**
  * Surgically updates ONE card's presence in a review-baseline snapshot,
  * without recapturing the whole binder (that's what `captureBinderSnapshot` /
- * "Mark reviewed" is for). Backs the review queue's per-row "Added it" /
+ * "All filed" is for). Backs the review queue's per-row "Added it" /
  * "Moved it" confirmations.
  *
  * - `direction: 'added'` — the card now matches the binder but wasn't in the

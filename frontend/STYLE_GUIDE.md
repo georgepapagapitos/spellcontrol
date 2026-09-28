@@ -586,6 +586,21 @@ cardboard is where you say it is." Repeated identical action buttons in a list
 carry an aria-label qualified by the row's subject ("Moved it — Sol Ring") so
 screen-reader users can tell them apart.
 
+**One word for the queue: "to file" (E472).** The cards to put into or take
+out of the real binder are "to file" on every surface: Home's Waiting on you
+("cards to file"), the index chip ("3 to file") and the binder's banner ("To
+file (since 2h ago): 3 in, 1 out"). The one-click check-off for the whole
+binder is **All filed**, a past-tense confirmation like every other in the
+queue, and the cleared line reads "All filed." Never "review", "reviewed" or
+"Drift" in user copy; the code's `drift`/`review` names are internal.
+
+**Manual mode and custom order are different things.** A **manual** binder
+shows only the cards added to it by hand; its rules are kept but paused, and
+the binder page says so ("Rules paused") with the way back (**Switch to
+rules**, the editor's label, toasting with Undo). A **custom order** is only
+the order cards sit in (Manage cards › Order, a SwitchRow). Never call the
+order "manual".
+
 **Binder route headers (review queue):** every review-queue group header is a
 _move_, not a state — rendered as endpoints around a `lucide` `ArrowRight`
 (`aria-label="to"`, the WelcomeDigest route precedent): `[•source] → here` for

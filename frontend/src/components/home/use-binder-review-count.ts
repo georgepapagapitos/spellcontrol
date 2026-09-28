@@ -26,7 +26,7 @@ export interface BinderReview {
 export function useBinderReviewCount(): BinderReview | null {
   // BinderPage's inputs: this count used to decorate with tags only, so a
   // Secret Lair or release-date binder could read a different number here
-  // than its own "N to review" chip.
+  // than its own "N to file" chip.
   const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
   const hydrating = useCollectionStore((s) => s.hydrating);
   const importHistory = useCollectionStore((s) => s.importHistory);

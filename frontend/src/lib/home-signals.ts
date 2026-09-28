@@ -198,7 +198,7 @@ export function aggregateNewArrivalDecks(
 
 /**
  * Total pending binder-review changes across every binder — the same drift
- * `BindersIndexPage`'s "N to review" chips compute per binder
+ * `BindersIndexPage`'s "N to file" chips compute per binder
  * (`computeDrift(b, cards, importHistory)`, summing `added.length +
  * removed.length` for every reviewed binder), collapsed to one number for
  * Home's badge instead of a per-binder `Map`.
