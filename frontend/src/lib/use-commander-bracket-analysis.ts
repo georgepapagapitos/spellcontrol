@@ -148,7 +148,9 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *   v17 — incidental ramp (Mana Drain, Sword of Feast and Famine: only the
  *        generic `ramp` tag, and a tag naming another job) no longer fills
  *        the ramp role, so ramp counts drop and a counterspell with no other
- *        role counts as interaction in the soft score (E476).
+ *        role counts as interaction in the soft score; and a card whose first
+ *        tagged role its text doesn't back now counts as the next one it does
+ *        (Liliana, Dreadhorde General: removal, not nothing) (E476).
  */
 const ANALYSIS_ENGINE_VERSION = 'v17-incidental-ramp';
 
