@@ -34,7 +34,12 @@ export function FilterTrigger({ ref, open, onClick, activeCount, label }: Props)
       onClick={onClick}
     >
       <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
-      <Count className="collection-filters-badge" value={activeCount} placement="corner" />
+      <Count
+        className="collection-filters-badge"
+        tone="accent"
+        value={activeCount}
+        placement="corner"
+      />
     </button>
   );
 }

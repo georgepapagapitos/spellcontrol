@@ -103,14 +103,6 @@
 .pull-list-group-count {
   margin-left: auto;
   flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent-hover);
-  background: var(--accent-light);
-  border-radius: 999px;
-  padding: 0.05rem var(--space-1-5);
 }
 
 .pull-list-group-all {

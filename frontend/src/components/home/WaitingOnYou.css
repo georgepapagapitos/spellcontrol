@@ -22,16 +22,6 @@
   color: var(--text-secondary);
 }
 
-.home-waiting-count {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  padding: 0 var(--space-2);
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
 /* One line, never wrapping (§ Layout system: chip rows are one line). Below
    desktop it scrolls sideways past the page gutter with an edge fade; the
    negative margin lets the first card line up with the page edge while the

@@ -38,7 +38,7 @@ export function Count({ className, value, placement, tone, label, display, ...re
   return (
     <span
       {...rest}
-      className={className}
+      className={`count-badge ${className}`}
       data-placement={placement}
       data-tone={tone}
       role={label ? 'img' : undefined}

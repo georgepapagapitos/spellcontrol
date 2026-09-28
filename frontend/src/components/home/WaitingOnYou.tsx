@@ -229,6 +229,7 @@ export function WaitingOnYou({ actionRequired, activityLoading, nights, nightsLo
         </h2>
         <Count
           className="home-waiting-count"
+          tone="accent"
           value={tasks.length}
           placement="inline"
           label={`${tasks.length} items`}

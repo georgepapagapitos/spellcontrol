@@ -234,7 +234,12 @@ export function CollectionFiltersDialog(props: Props) {
         onClick={() => setOpen(true)}
       >
         <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
-        <Count className="collection-filters-badge" value={props.activeCount} placement="corner" />
+        <Count
+          className="collection-filters-badge"
+          tone="accent"
+          value={props.activeCount}
+          placement="corner"
+        />
       </button>
       {open &&
         createPortal(<DialogBody {...props} onClose={() => setOpen(false)} />, document.body)}

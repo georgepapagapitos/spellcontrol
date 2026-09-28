@@ -1079,6 +1079,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
               <Count
                 key={pulseKey}
                 className="scanner-stack-badge"
+                tone="accent"
                 value={totalCount}
                 placement="corner"
               />
