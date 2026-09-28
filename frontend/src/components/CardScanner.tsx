@@ -34,6 +34,7 @@ import {
 import { conditionLabel, conditionShort } from './shared/CardRow';
 import { SegmentedControl } from './shared/form';
 import { Button, IconButton } from './shared/Button';
+import { Count } from './shared/Count';
 import { SelectMenu } from './SelectMenu';
 import { detectCardBox } from '../lib/scanner-detect';
 import { prewarm, scan } from '../lib/scanner/scan';
@@ -1075,11 +1076,12 @@ export function CardScanner({ onClose, onConfirm }: Props) {
               aria-label={totalCount > 0 ? `Scanned cards, ${totalCount}` : 'Scanned cards'}
             >
               <Layers width={20} height={20} strokeWidth={1.8} />
-              {totalCount > 0 && (
-                <span key={pulseKey} className="scanner-stack-badge">
-                  {totalCount}
-                </span>
-              )}
+              <Count
+                key={pulseKey}
+                className="scanner-stack-badge"
+                value={totalCount}
+                placement="corner"
+              />
             </button>
           </div>
         </div>

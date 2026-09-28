@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import { pending } from '@/test/pending';
@@ -209,7 +209,8 @@ describe('TrendingRail', () => {
         '/d/thrasios-tymna-e5f6a7b8',
         '/d/krenko-mob-boss-c9d0e1f2',
       ]);
-      expect(links[0].textContent).toContain('9 players this week');
+      const nineBadge = within(links[0]).getByRole('img', { name: '9 players this week' });
+      expect(nineBadge.textContent).toBe('9');
       expect(screen.getByTitle('5 players this week')).toBeTruthy();
 
       expect(screen.getByText('Meren of Clan Nel Toth')).toBeTruthy();

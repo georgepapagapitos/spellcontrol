@@ -18,6 +18,7 @@ import { findPriceTargetHits } from '../../lib/price-alerts';
 import { formatIdentity } from '../../lib/display-name';
 import { upcomingGameNights } from '../../lib/home-signals';
 import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
+import { Count } from '../shared/Count';
 import type { ActionRequiredItem } from '../../lib/activity-client';
 import type { GameNight } from '../../lib/game-nights-api';
 import { formatSlot } from '../NightPoll';
@@ -226,9 +227,12 @@ export function WaitingOnYou({ actionRequired, activityLoading, nights, nightsLo
         <h2 id="home-waiting-title" className="home-waiting-title">
           Waiting on you
         </h2>
-        <span className="home-waiting-count" aria-label={`${tasks.length} items`}>
-          {tasks.length}
-        </span>
+        <Count
+          className="home-waiting-count"
+          value={tasks.length}
+          placement="inline"
+          label={`${tasks.length} items`}
+        />
       </div>
       <ul className="home-tasks">
         {tasks.map((t) => {

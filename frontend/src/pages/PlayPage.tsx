@@ -10,6 +10,7 @@ import '@/styles/play-enhancements.css';
 import '@/styles/play-layout-editor.css';
 import '@/styles/play-counters-panel.css';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Count } from '@/components/shared/Count';
 import { Check, Copy, Eye, Swords, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -1097,7 +1098,12 @@ function LocalSetup({
       <section className="play-setup-roster" aria-label="Players">
         <header className="play-setup-roster-head">
           <h3 className="play-setup-section-title">Players</h3>
-          <span className="play-setup-roster-count">{count}</span>
+          <Count
+            className="play-setup-roster-count"
+            value={count}
+            placement="inline"
+            label={`${count} players`}
+          />
         </header>
         {me && pods.length > 0 && (
           <div className="play-setup-pods" role="group" aria-label="Seat a pod">

@@ -22,6 +22,7 @@ import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
 import { useCollectionStore } from '../store/collection';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Count } from '@/components/shared/Count';
 
 /** The picker's registry groups this dialog actually sections by — every one
  *  except 'Advanced' (its one field, Scryfall query, renders under Text; see
@@ -233,11 +234,7 @@ export function CollectionFiltersDialog(props: Props) {
         onClick={() => setOpen(true)}
       >
         <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
-        {hasActive && (
-          <span className="collection-filters-badge" aria-hidden>
-            {props.activeCount}
-          </span>
-        )}
+        <Count className="collection-filters-badge" value={props.activeCount} placement="corner" />
       </button>
       {open &&
         createPortal(<DialogBody {...props} onClose={() => setOpen(false)} />, document.body)}

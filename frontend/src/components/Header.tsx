@@ -9,6 +9,7 @@ import { useAuth } from '../store/auth';
 import { useActivity } from '../lib/use-activity';
 import { formatCount } from '../lib/format-count';
 import { BrandMark } from './shared/BrandMark';
+import { Count } from './shared/Count';
 import { OverflowMenu } from './OverflowMenu';
 import { UserAvatar } from './UserAvatar';
 
@@ -51,11 +52,7 @@ export function Header() {
             }
           >
             <span>Home</span>
-            {socialCount > 0 && (
-              <span className="friends-nav-link-badge" aria-hidden="true">
-                {socialCount}
-              </span>
-            )}
+            <Count className="friends-nav-link-badge" value={socialCount} placement="inline" />
           </NavLink>
           <NavLink
             viewTransition
@@ -108,11 +105,11 @@ export function Header() {
             }
           >
             <span>Friends</span>
-            {actionRequired.length > 0 && (
-              <span className="friends-nav-link-badge" aria-hidden="true">
-                {actionRequired.length}
-              </span>
-            )}
+            <Count
+              className="friends-nav-link-badge"
+              value={actionRequired.length}
+              placement="inline"
+            />
           </NavLink>
         </nav>
         <nav className="site-nav">

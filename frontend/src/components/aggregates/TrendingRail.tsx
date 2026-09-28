@@ -6,6 +6,7 @@ import { useCardThumb } from '../../lib/card-thumbs';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Count } from '@/components/shared/Count';
 interface RisingCommander {
   commanderKey: string;
   commanderName: string;
@@ -108,9 +109,7 @@ function TrendingCommanderTile({
       <span className="commander-result-body">
         <span className="commander-result-headline">
           <span className="commander-result-name">Build with {commanderName}</span>
-          <span className="trending-deck-count" aria-hidden>
-            {deckCount}
-          </span>
+          <Count className="trending-deck-count" value={deckCount} placement="inline" />
         </span>
       </span>
     </Link>
@@ -136,10 +135,13 @@ function TrendingDeckTile({ deck }: { deck: TrendingDeck }) {
       <span className="commander-result-body">
         <span className="commander-result-headline">
           <span className="commander-result-name">{deck.deckName}</span>
-          <span className="trending-deck-count" title={playersLabel}>
-            <span aria-hidden>{deck.players}</span>
-            <span className="sr-only">{playersLabel}</span>
-          </span>
+          <Count
+            className="trending-deck-count"
+            value={deck.players}
+            placement="inline"
+            label={playersLabel}
+            title={playersLabel}
+          />
         </span>
         {deck.commanderName && <span className="commander-result-type">{deck.commanderName}</span>}
       </span>
