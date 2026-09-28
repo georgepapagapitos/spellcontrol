@@ -16,9 +16,6 @@
 }
 
 .trade-offer-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface-raised);
   padding: var(--space-3);
   display: flex;
   flex-direction: column;
@@ -320,7 +317,6 @@
 .trade-offer-card.is-compact {
   padding: var(--space-2) var(--space-3);
   gap: var(--space-1);
-  background: var(--surface);
 }
 
 /* Sides become two LEDGER ROWS, "You give · chips · value" over "You get ·

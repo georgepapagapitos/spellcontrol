@@ -23,9 +23,6 @@
 }
 
 .partner-panel {
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius);
 }
 
 .commander-search-results {

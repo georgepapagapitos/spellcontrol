@@ -521,9 +521,6 @@
 }
 
 .deck-stats-panel {
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
   padding: var(--space-3) var(--space-4);
 }
 

@@ -199,10 +199,6 @@
   width: max-content;
   min-width: min(16rem, calc(100vw - 2rem));
   max-width: min(20rem, calc(100vw - 2rem));
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-tooltip);
   padding: var(--space-2-5);
 }
 
@@ -471,10 +467,6 @@
      headroom; narrower screens clamp and the editor's own container query
      folds each row onto two lines. */
   width: min(30rem, calc(100vw - 2rem));
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-tooltip);
   padding: var(--space-3);
 }
 

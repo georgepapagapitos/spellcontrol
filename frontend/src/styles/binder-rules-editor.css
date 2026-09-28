@@ -671,10 +671,6 @@
   max-height: min(26rem, calc(100dvh - 6rem));
   display: flex;
   flex-direction: column;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-tooltip);
   overflow: hidden;
 }
 

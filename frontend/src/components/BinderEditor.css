@@ -46,10 +46,6 @@
   z-index: var(--z-portal-popover);
   width: min(20rem, calc(100vw - 1.5rem));
   padding: var(--space-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-tooltip);
 }
 
 /* Two classes: the global input[type='text'] box rule outweighs one. The
