@@ -130,7 +130,7 @@
 .play-records-table th,
 .play-records-table td {
   text-align: left;
-  padding: 0.4rem var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
   /* Print-guide rows (T53) — same voice as .shared-list-table. */
   border-bottom: 1px dotted var(--border);
 }

@@ -10,7 +10,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
   /* A real collection holds 59 printings of Mountain. Unbounded, the open list
      pushes the dialog to several screens and buries its own actions. Capped and
      scrolled — with overscroll contained, because this scroller lives inside a

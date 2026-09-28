@@ -24,7 +24,7 @@
 
 /* Standalone chip nudged off the preceding name/foil chip. */
 .collection-list-name > .proxy-badge {
-  margin-left: 0.4rem;
+  margin-left: var(--space-1-5);
 }
 
 /* Grid tile: sits beside the rarity chip in the top-right corner cluster —

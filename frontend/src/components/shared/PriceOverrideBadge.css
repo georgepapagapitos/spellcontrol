@@ -34,7 +34,7 @@
 .collection-list-price > .price-override-badge,
 .card-preview-meta > .price-override-badge,
 .tooltip-meta > .price-override-badge {
-  margin-left: 0.4rem;
+  margin-left: var(--space-1-5);
 }
 
 /* Grid tile: sits in the top-right cluster beside ProxyBadge/RarityBadge. */

@@ -59,7 +59,7 @@
 .shared-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   /* Display wordmark (E156) — matches .site-brand's treatment. */
   font-family: var(--font-display);
   font-size: var(--text-lg);
@@ -104,7 +104,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .shared-footer-cta {
@@ -190,7 +190,7 @@
    shouted like the caption around it. */
 .shared-view-owner-handle {
   display: block;
-  margin-top: 2px;
+  margin-top: var(--space-0-5);
   text-transform: none;
   letter-spacing: normal;
 }
@@ -393,14 +393,14 @@
 .shared-sort-label {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
 
 .shared-sort-dir {
   min-width: 2.1rem;
-  padding: 0 0.6rem;
+  padding: 0 var(--space-2-5);
 }
 
 /* ── Card grid ────────────────────────────────────────────────────────── */
@@ -423,7 +423,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.65rem;
+  gap: var(--space-2-5);
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 
@@ -435,7 +435,7 @@
 @media (max-width: 720px) {
   .shared-card-grid {
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 0.45rem;
+    gap: var(--space-2);
   }
   .shared-card-grid--small {
     grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
@@ -467,8 +467,8 @@
 .shared-list-owned-badges {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  margin-left: 0.4rem;
+  gap: var(--space-1);
+  margin-left: var(--space-1-5);
   vertical-align: middle;
 }
 
@@ -493,8 +493,8 @@
 .shared-deck-section-heading {
   font-family: var(--font-serif);
   font-size: var(--text-md);
-  margin: 0 0 0.6rem;
-  padding-bottom: 0.3rem;
+  margin: 0 0 var(--space-2-5);
+  padding-bottom: var(--space-1);
   border-bottom: 0.5px solid var(--border);
   color: var(--text-primary);
 }
@@ -535,7 +535,7 @@
 
 .shared-list-table th,
 .shared-list-table td {
-  padding: var(--space-2) 0.6rem;
+  padding: var(--space-2) var(--space-2-5);
   /* Print-guide rows (T53): dotted hairlines between entries, the Scrye
      price-list voice. The header keeps a solid ink rule below it. */
   border-bottom: 1px dotted var(--border);
@@ -630,7 +630,7 @@
     display: flex;
     justify-content: space-between;
     gap: var(--space-3);
-    padding: 0.15rem 0;
+    padding: var(--space-0-5) 0;
     border: 0;
     text-align: right;
   }
@@ -645,7 +645,7 @@
   /* Name leads the card as a full-width title, no inline label. */
   .shared-list-table td[data-label='Name'] {
     display: block;
-    margin-bottom: 0.2rem;
+    margin-bottom: var(--space-1);
     font-weight: 600;
     font-size: var(--text-base);
     text-align: left;
@@ -688,7 +688,7 @@
 
 .share-dialog-error {
   margin: 0;
-  padding: 0.6rem var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
   border-radius: var(--radius);
   background: var(--err-bg);
   border: 1px solid var(--err-border);
@@ -770,7 +770,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .shared-cube-gap {
@@ -823,7 +823,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
-  padding: 0.4rem 0;
+  padding: var(--space-1-5) 0;
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -897,7 +897,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 /* Deck rows are li shells holding a preview button (.feedback-row-main) +
@@ -1086,7 +1086,7 @@
   top: 5px;
   left: 5px;
   z-index: 1;
-  padding: 0.15rem var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: 999px;
   background: var(--art-scrim);
   color: var(--art-scrim-text);
@@ -1173,7 +1173,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 64px;
   min-height: 44px;
   padding: var(--space-2);

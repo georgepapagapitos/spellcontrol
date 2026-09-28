@@ -84,7 +84,7 @@
   box-sizing: border-box;
   width: 100%;
   min-height: 4.5rem;
-  padding: 6px 10px;
+  padding: var(--space-1-5) var(--space-2-5);
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--bg);

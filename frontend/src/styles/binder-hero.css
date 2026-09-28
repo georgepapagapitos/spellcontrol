@@ -4,15 +4,15 @@
 .binder-hero {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  margin: var(--space-1) 0 0.85rem;
-  padding-left: 10px;
+  gap: var(--space-0-5);
+  margin: var(--space-1) 0 var(--space-3);
+  padding-left: var(--space-2-5);
   border-left: 3px solid var(--binder-color, var(--accent));
 }
 
 @media (max-width: 599px) {
   .binder-hero {
-    margin: 0.15rem 0 0.4rem;
+    margin: var(--space-0-5) 0 var(--space-1-5);
   }
 }
 
@@ -72,11 +72,11 @@
 .binder-hero-crumbs {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   font-size: var(--text-xs);
   font-family: var(--font-mono);
   color: var(--text-muted);
-  margin-bottom: 0.15rem;
+  margin-bottom: var(--space-0-5);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -350,7 +350,7 @@
   flex: 1;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   background: none;
   border: none;
   padding: 0;
@@ -379,11 +379,11 @@
 }
 
 .binder-drift-details {
-  margin-top: 0.6rem;
+  margin-top: var(--space-2-5);
   display: grid;
   gap: var(--space-3);
   border-top: 0.5px dashed var(--accent);
-  padding-top: 0.6rem;
+  padding-top: var(--space-2-5);
 }
 
 .binder-drift-list-title {
@@ -434,8 +434,8 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.3rem;
-  padding: 3px 0;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
   color: var(--text-secondary);
 }
 
@@ -447,12 +447,12 @@
   color: var(--accent-hover);
   background: var(--accent-light);
   border-radius: 999px;
-  padding: 0.05rem 0.4rem;
+  padding: 0.05rem var(--space-1-5);
 }
 
 .binder-drift-queue-actions {
   display: inline-flex;
-  gap: 0.2rem;
+  gap: var(--space-1);
   margin-left: auto;
 }
 
@@ -464,13 +464,13 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
 }
 
 .binder-drift-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   color: var(--text-primary);
 }
 
@@ -506,7 +506,7 @@
      bug. Wraps onto two rows on narrow viewports. */
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   flex-wrap: wrap;
   margin-bottom: var(--space-4);
 }
@@ -523,7 +523,7 @@
   align-items: center;
   gap: var(--icon-gap);
   flex-shrink: 0;
-  padding: 0.45rem 0.95rem;
+  padding: var(--space-2) var(--space-4);
   /* T53 Phase 4: hero CTAs are stamped rects now — the pill-hero tier is
      retired (print boxes sit square; 999px was the dashboard-genre tell).
      The class name is historic; per STYLE_GUIDE, role decides shape. */

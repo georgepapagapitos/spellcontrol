@@ -100,7 +100,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-top: 0.3rem;
+  margin-top: var(--space-1);
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
@@ -113,8 +113,8 @@
 .discover-tile-buildable {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.35rem;
+  gap: var(--space-1-5);
+  margin-top: var(--space-1-5);
 }
 
 .discover-tile-buildable-bar {
@@ -135,7 +135,7 @@
    case) or its own value-text sibling class — mutually exclusive, and
    omitted entirely (no row at all) when neither applies. */
 .discover-tile-footer {
-  padding: 0 0.85rem 0.7rem;
+  padding: 0 var(--space-3) var(--space-3);
 }
 
 .discover-tile-value-footer {
@@ -148,7 +148,7 @@
 
 .discover-tile-owner {
   display: block;
-  padding: 0.2rem 0.85rem 0.7rem;
+  padding: var(--space-1) var(--space-3) var(--space-3);
   color: var(--text-muted);
   font-size: var(--text-xs);
   text-decoration: none;
@@ -160,7 +160,7 @@
 .decks-index-list.is-grid .discover-tile-owner {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 /* A long display name truncates on one line over the art instead of
@@ -183,7 +183,7 @@
   right: var(--space-2);
   display: flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: var(--space-1);
 }
 
 /* Mouse-only "Open" pill (grid only) — `display: none` by default so it
@@ -317,8 +317,8 @@
 .discover-tile-skeleton-body {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  padding: var(--space-3) 0.85rem var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-4);
 }
 
 .discover-tile-skeleton-bar {

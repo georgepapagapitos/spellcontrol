@@ -395,7 +395,7 @@
 .trade-picked-choose {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   flex: 0 0 auto;
   min-height: 28px;
   padding: 0 var(--space-1);

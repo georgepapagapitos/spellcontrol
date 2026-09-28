@@ -254,7 +254,7 @@
 .sets-row-body {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
 }
@@ -280,7 +280,7 @@
 }
 
 .sets-row-bar {
-  margin-top: 0.2rem;
+  margin-top: var(--space-1);
   max-width: 24rem;
 }
 
@@ -382,7 +382,7 @@
 .set-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0.65rem;
+  gap: var(--space-2-5);
 }
 
 @media (max-width: 599px) {

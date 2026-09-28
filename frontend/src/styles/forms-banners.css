@@ -11,7 +11,7 @@
 }
 
 .unresolved-list {
-  margin-top: 0.6rem;
+  margin-top: var(--space-2-5);
   padding-left: var(--space-5);
   max-height: 200px;
   overflow-y: auto;
@@ -47,7 +47,7 @@
   font-size: var(--text-sm);
   font-family: var(--font-serif);
   cursor: pointer;
-  padding: 2px 6px;
+  padding: var(--space-0-5) var(--space-1-5);
   border-radius: var(--radius);
   text-decoration: underline;
   transition: transform var(--motion-fast);
@@ -97,7 +97,7 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-1-5);
 }
 
 /* A field's own label, never a checkbox's. `.field label` alone also caught
@@ -116,7 +116,7 @@
 .field-checkbox {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
   font-size: var(--text-base);
   color: var(--text-secondary);
 }
@@ -168,7 +168,7 @@ input[type='search'] {
   background: var(--bg);
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius);
-  padding: 6px 10px;
+  padding: var(--space-1-5) var(--space-2-5);
   outline: none;
 }
 

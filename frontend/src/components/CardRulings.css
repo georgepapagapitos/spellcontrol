@@ -15,9 +15,9 @@
 .card-rulings-toggle {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   width: 100%;
-  padding: 0.4rem 0;
+  padding: var(--space-1-5) 0;
   background: none;
   border: none;
   cursor: pointer;
@@ -46,7 +46,7 @@
 .card-rulings-count {
   margin-left: auto;
   min-width: 1.25rem;
-  padding: 0 0.35rem;
+  padding: 0 var(--space-1-5);
   border-radius: var(--radius);
   background: var(--surface-raised);
   color: var(--text-secondary);
@@ -57,8 +57,8 @@
 .card-rulings-body {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  padding: var(--space-1) 0 0.4rem;
+  gap: var(--space-2);
+  padding: var(--space-1) 0 var(--space-1-5);
 }
 
 .card-rulings-status {
@@ -69,7 +69,7 @@
 
 .card-rulings-item {
   border-left: 2px solid var(--border-strong);
-  padding-left: 0.6rem;
+  padding-left: var(--space-2-5);
 }
 
 .card-rulings-comment {
@@ -80,7 +80,7 @@
 }
 
 .card-rulings-meta {
-  margin: 0.2rem 0 0;
+  margin: var(--space-1) 0 0;
   color: var(--text-muted);
   font-size: var(--text-xs);
 }

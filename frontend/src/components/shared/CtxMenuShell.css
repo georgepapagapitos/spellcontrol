@@ -43,8 +43,8 @@
 .ctx-menu-items {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 0.4rem;
+  gap: var(--space-0-5);
+  padding: var(--space-1-5);
 }
 
 .ctx-menu-sheet .ctx-menu-items {

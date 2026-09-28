@@ -199,7 +199,7 @@
 }
 
 .rules-answer-prose p {
-  margin: 0 0 0.7rem;
+  margin: 0 0 var(--space-3);
   font-size: var(--text-sm);
   color: var(--text-primary);
   line-height: 1.6;

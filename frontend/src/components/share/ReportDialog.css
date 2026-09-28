@@ -22,7 +22,7 @@
   box-sizing: border-box;
   width: 100%;
   min-height: 5rem;
-  padding: 6px 10px;
+  padding: var(--space-1-5) var(--space-2-5);
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface-raised);
@@ -47,7 +47,7 @@
 
 .report-dialog-error {
   margin: 0;
-  padding: 0.6rem var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
   border-radius: var(--radius);
   background: var(--err-bg);
   border: 1px solid var(--err-border);

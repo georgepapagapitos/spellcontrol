@@ -20,17 +20,17 @@
   margin: var(--space-2) 0 0;
   padding: 0;
   display: grid;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .import-routing-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   width: 100%;
   background: none;
   border: none;
-  padding: 6px var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
   border-radius: var(--radius);
   font: inherit;
   color: var(--text-primary);
@@ -83,7 +83,7 @@
    colour to show and a filled neutral dot would read as just another binder. */
 .import-routing-row--unrouted {
   align-items: flex-start;
-  margin-top: 2px;
+  margin-top: var(--space-0-5);
   padding-top: calc(6px + var(--space-1));
   border-top: 1px solid var(--border);
   border-radius: 0 0 var(--radius) var(--radius);
@@ -129,7 +129,7 @@
   background: var(--surface);
   border: 1px solid var(--err-border);
   border-radius: var(--radius-lg);
-  padding: 26px var(--space-5);
+  padding: var(--space-5) var(--space-5);
   box-shadow: var(--shadow-card);
   animation: auth-rise var(--motion-gentle) var(--ease-out-soft) both;
 }
@@ -155,7 +155,7 @@
 }
 
 .tooltip-img-fallback {
-  margin-top: 6px;
+  margin-top: var(--space-1-5);
   padding: var(--space-3);
   text-align: center;
   color: var(--text-muted);
@@ -174,7 +174,7 @@
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   vertical-align: middle;
-  margin-right: 6px;
+  margin-right: var(--space-1-5);
 }
 
 @keyframes spin {

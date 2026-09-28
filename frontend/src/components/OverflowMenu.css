@@ -19,7 +19,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
+  padding: var(--space-0-5);
   background: none;
   border: none;
   /* A rect like every other icon-only action (STYLE_GUIDE § Shape language:
