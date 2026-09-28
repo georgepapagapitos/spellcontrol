@@ -614,15 +614,15 @@ never shows the chooser.
 
 **The kit, one job each:**
 
-| Piece              | Use it for                                                                                                                                         | Never                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Section heading    | The heading over a block of fields. The ONLY uppercase role in a form (`.form-section-heading`).                                                   | Field labels or option text in uppercase.                               |
-| `Field`            | A sentence-case label, the control, a visible hint.                                                                                                | An InfoTip where one line of hint fits.                                 |
-| `SwitchRow`        | A setting that is on or off: full-width `role="switch"`, label, one-line hint, On / Off value ([§ Table settings](overlays.md#table-settings-holds-preferences-never-game-state-2026-09-24)).                                  | A checkbox for a setting. Checkboxes are for picking items from a list. |
-| `SegmentedControl` | Two or three short options: native radios in a track, raised chip. `fill` for a row of short tokens that must all stay in view (condition grades). | aria-pressed button pairs; options needing a sentence.                  |
-| `ChoiceList`       | One-of where each option needs a sentence.                                                                                                         | A single hint that rewrites itself per option.                          |
-| `Disclosure`       | A group of settings most people leave alone; summary while closed.                                                                                 | Identity, or the dialog's main job.                                     |
-| `SelectMenu`       | Five or more options. Inside a `Field` it draws as a field-width rect, not the toolbar pill.                                                       | A native `<select>`.                                                    |
+| Piece              | Use it for                                                                                                                                                                                    | Never                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Section heading    | The heading over a block of fields. The ONLY uppercase role in a form (`.form-section-heading`).                                                                                              | Field labels or option text in uppercase.                               |
+| `Field`            | A sentence-case label, the control, a visible hint.                                                                                                                                           | An InfoTip where one line of hint fits.                                 |
+| `SwitchRow`        | A setting that is on or off: full-width `role="switch"`, label, one-line hint, On / Off value ([§ Table settings](overlays.md#table-settings-holds-preferences-never-game-state-2026-09-24)). | A checkbox for a setting. Checkboxes are for picking items from a list. |
+| `SegmentedControl` | Two or three short options: native radios in a track, raised chip. `fill` for a row of short tokens that must all stay in view (condition grades).                                            | aria-pressed button pairs; options needing a sentence.                  |
+| `ChoiceList`       | One-of where each option needs a sentence.                                                                                                                                                    | A single hint that rewrites itself per option.                          |
+| `Disclosure`       | A group of settings most people leave alone; summary while closed.                                                                                                                            | Identity, or the dialog's main job.                                     |
+| `SelectMenu`       | Five or more options. Inside a `Field` it draws as a field-width rect, not the toolbar pill.                                                                                                  | A native `<select>`.                                                    |
 
 - **`.field label` never uppercases a checkbox.** The old descendant rule
   caught every label inside a field, so the binder editor's "Double-sided" and
@@ -733,6 +733,40 @@ never shows the chooser.
   the sort chip is the one control that ellipsizes. It used to be two copies of
   the same markup that wrapped to three rows at 390px around a stray "·", with
   two of the display toggles hidden behind an eye inside the search box.
+- **Volumes are derived, never persisted** (E494). A binder bigger than its own
+  `fixedCapacity` is physically several books — ONE rule set, N books — so
+  `planVolumes` (`@spellcontrol/binder-routing`, wrapped by
+  `lib/binder-volumes.ts`) re-derives them from an already-materialized binder
+  every render, exactly like page numbers themselves. It cuts at a section
+  boundary whenever the next section fits in what's left of the current
+  volume; a section bigger than a whole volume splits at a page boundary,
+  never mid-page.
+- **A normal shelving state, not a warning.** Splitting into volumes is how
+  the user plans to shelve an oversize binder, so it reads neutral: no ⚠, no
+  warn tone, on the hero or the index tile's "N volumes" chip. The
+  over-capacity amount still rides along in the hero control's accessible
+  title, for whoever wants the number, without painting the whole state red.
+- **Never an inline panel — a sheet.** An insight surface never displaces the
+  page's own content (`feedback_insight_surfaces_never_displace_content`), so
+  the hero's volumes item is a plain-text `Button variant="link"` reading "N
+  volumes" that opens `BinderVolumesSheet` (`Modal` +
+  `modal-backdrop--sheet`: a bottom sheet on a phone, a centered dialog
+  above — the same pattern as `DeckFormatSheet`). The sheet lists each
+  volume's page range and first/last section ("White → Blue"), never inline
+  in the page flow itself.
+- **The fit is page-based, and the fix is a real action.**
+  `smallestFittingCapacity` compares the binder's PAGE count against a
+  size's own page depth (`floor(size / pocketSize)`), never a raw card
+  count — a binder whose sections each start a fresh page can need far more
+  pockets than its card total suggests, and a card-based comparison would
+  silently offer a size that doesn't actually fit. When one fits, the sheet
+  shows "Use a &lt;size&gt;-card binder": a real `updateBinder({ fixedCapacity
+})` through the store's normal path, with an undo toast (same shape as
+  `resumeRules`'s), never a hand-rolled sync write and never just a link to
+  the editor. When nothing fits, the sheet says so plainly and still offers
+  "Binder rules" as the secondary way in.
+- Gate every volumes UI on `volumes !== null && volumes.length > 1` — a binder
+  with no fixed capacity or one that fits never says "Vol 1".
 
 ### Binder page viewer (flipbook)
 
@@ -751,9 +785,10 @@ never shows the chooser.
   grid behind read through them) and a 90% scrim.
 - **Each fact once.** The top bar says where you are ("Page 3 of 14"; during a
   search only matching pages remain, so it reads "Page 12 · 3 of 5 shown",
-  the one case where the physical page and the position differ). The panel
-  says what: the binder name, then the page's sections, at most two lines,
-  ellipsized.
+  the one case where the physical page and the position differ). Once a binder
+  reads as more than one volume, the top bar leads with which book ("Vol 2 ·
+  Page 45 of 63") — never for a binder that fits in one. The panel says what:
+  the binder name, then the page's sections, at most two lines, ellipsized.
 - **More than two pages get a scrubber** (a native range at the panel's foot).
   A 60-page binder is 59 swipes end to end; the scrubber jumps. Its touches
   stop at the input so a sideways drag can't start the sheet's swipe-down
