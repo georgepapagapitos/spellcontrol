@@ -135,8 +135,15 @@ const SUSTAINED_MISS_HINTS = 3;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
   // The scanner mounts only while it's open (every caller renders it
-  // conditionally), so it registers for its whole lifetime.
-  const { isTopmost } = useOverlayLayer();
+  // conditionally), so it registers for its whole lifetime. One Back press
+  // closes it the same way Escape does, via the shared history integration
+  // (overlay-layer.ts, E481) — the fix for the comment below. No refusal
+  // concept here, so this always accepts.
+  const dismissViaBack = useCallback(() => {
+    onClose();
+    return true;
+  }, [onClose]);
+  const { isTopmost } = useOverlayLayer(true, dismissViaBack);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -403,9 +410,10 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   // Escape + Tab containment. The scanner predates both `<Modal>` and
   // `useSheetExit`, so it had a bare Escape handler and nothing else: Tab
   // walked straight out into the page behind it despite `aria-modal="true"`,
-  // and a back navigation took the page out from
-  // under a live camera. Same shared layer stack as Modal/useSheetExit, so a
-  // dialog opened on top of the scanner is the one that answers a press.
+  // and a back navigation took the page out from under a live camera (fixed
+  // by the `onClose` passed to `useOverlayLayer` above, E481). Same shared
+  // layer stack as Modal/useSheetExit, so a dialog opened on top of the
+  // scanner is the one that answers a press.
   useEffect(() => {
     const root = rootRef.current;
     const prevFocused = document.activeElement as HTMLElement | null;

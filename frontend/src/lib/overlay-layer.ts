@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { createOverlayHistoryController } from './overlay-history';
 
 /**
  * The focus/dismiss contract shared by every overlay in the app — `<Modal>`
@@ -98,7 +99,42 @@ export function trapTab(panel: HTMLElement, e: KeyboardEvent): boolean {
   return false;
 }
 
-const layerStack: symbol[] = [];
+interface LayerEntry {
+  id: symbol;
+  /** Set only when this layer opted into back-button integration — see
+   *  `useOverlayLayer`'s second parameter. Returns whether it accepted the
+   *  close (false for a Modal with `dismissable={false}` mid-save). */
+  dismiss?: () => boolean;
+}
+
+const layerStack: LayerEntry[] = [];
+
+/**
+ * The one Back-button handler shared by every overlay kind (E481/T157): "Back
+ * closes the topmost overlay first." Built entirely from closures over
+ * `layerStack` above, handed to `overlay-history.ts`'s history mechanics —
+ * see that module for how the single history entry is marked/reused/skipped,
+ * and why `dismissTopmost` reports back whether the close was accepted. Only
+ * layers that pass a `dismiss` callback participate; a plain
+ * `useOverlayLayer()` call (still used by a handful of tests) never touches
+ * `window.history`.
+ */
+function dismissTopmostParticipant(): boolean {
+  for (let i = layerStack.length - 1; i >= 0; i--) {
+    const entry = layerStack[i];
+    if (entry.dismiss) return entry.dismiss();
+  }
+  return false;
+}
+
+function participantCount(): number {
+  return layerStack.filter((entry) => entry.dismiss).length;
+}
+
+const overlayHistory = createOverlayHistoryController({
+  participantCount,
+  dismissTopmost: dismissTopmostParticipant,
+});
 
 /**
  * Registers this overlay as a layer while `active` and reports whether it is
@@ -114,26 +150,59 @@ const layerStack: symbol[] = [];
  *
  * `isTopmost` is a getter, not a boolean, so event handlers read the live
  * stack at press time rather than closing over a stale render's value.
+ *
+ * `dismiss`, when passed, is this layer's own close path — a sheet's
+ * `beginClose`, a Modal's `beginClose`, `CardScanner`'s `onClose` — and opts
+ * the layer into the shared Back-button integration (`overlay-history.ts`):
+ * while it (or any other participating layer) is open, one hardware/browser
+ * Back press closes the topmost participating layer instead of navigating the
+ * page, through this exact function. It returns whether the close was
+ * accepted — almost always `true`; `false` only for a layer that can refuse
+ * (a Modal with `dismissable={false}` mid-save), which is what tells
+ * `overlay-history.ts` to keep the next Back intercepted too instead of
+ * letting it fall through to real navigation. Kept in a ref internally, so an
+ * inline arrow is fine. Popover menus (`useMenuKeyboard`) deliberately omit it
+ * — see STYLE_GUIDE § Overlays.
  */
-export function useOverlayLayer(active = true): { isTopmost: () => boolean } {
+export function useOverlayLayer(
+  active = true,
+  dismiss?: () => boolean
+): { isTopmost: () => boolean } {
   const idRef = useRef<symbol | null>(null);
   if (idRef.current === null) idRef.current = Symbol('overlay-layer');
+
+  const dismissRef = useRef(dismiss);
+  useEffect(() => {
+    dismissRef.current = dismiss;
+  }, [dismiss]);
 
   useEffect(() => {
     if (!active) return;
     const id = idRef.current as symbol;
-    layerStack.push(id);
+    const participates = dismiss !== undefined;
+    layerStack.push({
+      id,
+      dismiss: participates ? () => dismissRef.current?.() ?? false : undefined,
+    });
+    if (participates) overlayHistory.registered();
     return () => {
-      const i = layerStack.indexOf(id);
+      const i = layerStack.findIndex((entry) => entry.id === id);
       if (i !== -1) layerStack.splice(i, 1);
+      // Nothing to do with history here — consumption is lazy (see
+      // overlay-history.ts): a marked entry left behind by this close is
+      // either reused by whatever opens next or skipped transparently if
+      // anyone ever backs into it.
     };
+    // `dismiss` deliberately isn't a dep: it's read once via `participates`/
+    // `dismissRef` above, not something a re-registration should follow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   // Stable identity: consumers list `isTopmost` in effect deps, and a fresh
   // function each render would re-run those effects on every render — which
   // for the focus effect below means stealing focus back into the panel
   // continuously.
-  const isTopmost = useCallback(() => layerStack[layerStack.length - 1] === idRef.current, []);
+  const isTopmost = useCallback(() => layerStack[layerStack.length - 1]?.id === idRef.current, []);
 
   return { isTopmost };
 }

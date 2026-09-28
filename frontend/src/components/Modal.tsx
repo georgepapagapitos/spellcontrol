@@ -52,9 +52,6 @@ export function Modal({
   useLockBodyScroll();
 
   const panelRef = useRef<HTMLDivElement>(null);
-  // Shared with every sheet on `useSheetExit` — a confirm dialog opening on
-  // top of a sheet must be the one that answers Escape / hardware back.
-  const { isTopmost } = useOverlayLayer();
   const [isClosing, setIsClosing] = useState(false);
   // Ref guard so a double-trigger (e.g. Escape + backdrop click in the same
   // frame) can't start two exits / fire onClose twice before the state
@@ -95,6 +92,22 @@ export function Modal({
     // bubbles up) — only the panel's exit should unmount.
     if (closingRef.current && e.animationName === 'modal-panel-out') onCloseRef.current();
   }, []);
+
+  // Same gate Escape/backdrop already apply: a `dismissable={false}` modal
+  // (work in flight) doesn't close on Back either — and reporting that
+  // refusal back (E481) is what keeps the NEXT Back intercepted too, instead
+  // of silently falling through to real page navigation one press at a time.
+  const dismissViaBack = useCallback(() => {
+    if (!dismissableRef.current) return false;
+    beginClose();
+    return true;
+  }, [beginClose]);
+
+  // Shared with every sheet on `useSheetExit` — a confirm dialog opening on
+  // top of a sheet must be the one that answers Escape / hardware back, and
+  // one Back press closes this dialog through the same path Escape does
+  // (overlay-layer.ts's shared history integration, E481).
+  const { isTopmost } = useOverlayLayer(true, dismissViaBack);
 
   // Captured during THIS component's render, which happens before any child
   // mounts. Reading it in the mount effect instead was too late whenever the

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
+import { StrictMode } from 'react';
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { focusInto, getFocusable, trapTab, useOverlayLayer } from './overlay-layer';
 
 function panelWith(html: string): HTMLElement {
@@ -157,5 +158,118 @@ describe('useOverlayLayer', () => {
     c.unmount();
     expect(a.result.current.isTopmost()).toBe(true);
     a.unmount();
+  });
+});
+
+// E481/T157: "Back closes the topmost overlay first" — the shared history
+// integration a `dismiss` callback opts a layer into. The mechanics
+// themselves (mark/reuse/skip, the lazy-consumption fix for the
+// close-then-navigate race) are unit tested in isolation in
+// overlay-history.test.ts against fake hooks; these exercise the REAL wiring
+// through `useOverlayLayer` and `window.history`.
+describe('useOverlayLayer: Back-button integration (E481)', () => {
+  afterEach(() => {
+    // `history.length` only ever grows (see overlay-history.test.ts) — just
+    // park the current entry on a clean, unflagged URL between tests.
+    window.history.replaceState(null, '', '/clean');
+  });
+
+  it('a plain useOverlayLayer() (no dismiss) never touches window.history', () => {
+    const lengthBefore = window.history.length;
+    const hook = renderHook(() => useOverlayLayer());
+    expect(window.history.length).toBe(lengthBefore);
+    hook.unmount();
+    expect(window.history.length).toBe(lengthBefore);
+  });
+
+  it('opting in pushes one entry; Back calls dismiss and leaves the route unchanged, without costing an extra press to leave', () => {
+    const lengthBefore = window.history.length;
+    const hrefBefore = window.location.href;
+    const dismiss = vi.fn(() => true);
+    const hook = renderHook(() => useOverlayLayer(true, dismiss));
+    expect(window.history.length).toBe(lengthBefore + 1);
+
+    window.history.back();
+
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    expect(window.location.href).toBe(hrefBefore);
+    hook.unmount();
+
+    // The sole overlay accepted the close, so nothing was re-marked — a
+    // SECOND Back (the app itself, or whatever the test harness sends next)
+    // never re-intercepts here; dismiss stays called exactly once.
+    window.history.back();
+    expect(dismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('Back resolves to the topmost PARTICIPATING layer, skipping one above it with no dismiss', () => {
+    // A popover that never opted in (rare, but the stack allows it) sitting
+    // on top of a sheet must not swallow the Back press meant for the sheet.
+    const sheetDismiss = vi.fn(() => true);
+    const sheet = renderHook(() => useOverlayLayer(true, sheetDismiss));
+    const bystander = renderHook(() => useOverlayLayer()); // no dismiss
+    expect(bystander.result.current.isTopmost()).toBe(true);
+
+    window.history.back();
+
+    expect(sheetDismiss).toHaveBeenCalledTimes(1);
+    bystander.unmount();
+    sheet.unmount();
+  });
+
+  it('nested: closing the inner layer re-arms Back for the outer one, synchronously — no microtask wait needed', () => {
+    const outerDismiss = vi.fn(() => true);
+    const outer = renderHook(() => useOverlayLayer(true, outerDismiss));
+    const lengthAfterOuter = window.history.length;
+    const innerDismiss = vi.fn(() => {
+      inner.unmount();
+      return true;
+    });
+    const inner = renderHook(() => useOverlayLayer(true, innerDismiss));
+    // Nested open reuses the already-marked entry.
+    expect(window.history.length).toBe(lengthAfterOuter);
+
+    window.history.back();
+    expect(innerDismiss).toHaveBeenCalledTimes(1);
+    expect(outerDismiss).not.toHaveBeenCalled();
+
+    // Second Back closes the outer one immediately — the re-mark happens
+    // inside the SAME popstate handler that processed the first press,
+    // before it even calls dismiss (see overlay-history.ts), not after the
+    // inner unregisters.
+    window.history.back();
+    expect(outerDismiss).toHaveBeenCalledTimes(1);
+    outer.unmount();
+  });
+
+  it('survives a StrictMode double-invoke without leaving an extra history entry or a spurious dismiss', () => {
+    const lengthBefore = window.history.length;
+    const dismiss = vi.fn(() => true);
+    const hook = renderHook(() => useOverlayLayer(true, dismiss), { wrapper: StrictMode });
+    // Exactly one entry, not two, despite the dev double mount/cleanup/mount.
+    expect(window.history.length).toBe(lengthBefore + 1);
+    expect(dismiss).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('a topmost participant that refuses to close (e.g. Modal dismissable=false) keeps Back intercepted on the next press too', () => {
+    // Mirrors Modal's `dismissableRef` guard — dismiss is called but refuses
+    // (returns false), so nothing actually closes.
+    const guardedDismiss = vi.fn(() => false);
+    const hrefBefore = window.location.href;
+    const hook = renderHook(() => useOverlayLayer(true, guardedDismiss));
+
+    window.history.back();
+    expect(guardedDismiss).toHaveBeenCalledTimes(1);
+    expect(window.location.href).toBe(hrefBefore); // still open, still here
+
+    // Still refusing — a second Back must not fall through to real page
+    // navigation while the overlay sits there unclosed.
+    window.history.back();
+    expect(guardedDismiss).toHaveBeenCalledTimes(2);
+    expect(window.location.href).toBe(hrefBefore);
+
+    hook.unmount();
   });
 });

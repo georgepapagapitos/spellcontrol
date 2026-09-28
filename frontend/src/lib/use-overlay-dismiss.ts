@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { useOverlayLayer } from './overlay-layer';
 import { useFocusTrap } from './use-focus-trap';
 
@@ -25,13 +25,22 @@ export function useOverlayDismiss(
   onClose: () => void,
   panelRef?: RefObject<HTMLElement | null>
 ): void {
-  const { isTopmost } = useOverlayLayer();
   // Latest callback in a ref so both listeners register once — see
   // use-escape-key.ts for why re-subscribing per render drops key events.
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  // One Back press closes this overlay too (overlay-layer.ts's shared
+  // history integration, E481) — the same `onClose` Escape already uses.
+  // No refusal concept here (unlike Modal's `dismissable`), so this always
+  // accepts.
+  const dismissViaBack = useCallback(() => {
+    onCloseRef.current();
+    return true;
+  }, []);
+  const { isTopmost } = useOverlayLayer(true, dismissViaBack);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
