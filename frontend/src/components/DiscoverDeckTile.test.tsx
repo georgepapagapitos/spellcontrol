@@ -160,7 +160,10 @@ describe('DiscoverDeckTile — grid art banner', () => {
     expect(container.querySelector('.decks-index-card-banner')).toBeFalsy();
   });
 
-  it('shows a colorless pip in the swatch (never blank) for a no-commander deck with no cover art either', () => {
+  // A no-commander deck's colorIdentity is empty because the listing only
+  // derives colours from a commander, not because the deck is colourless: a
+  // mono-white Pauper deck must never wear a colorless pip.
+  it('shows no colour claim in the swatch when a no-commander deck has no known colours', () => {
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({
       format: 'pauper',
@@ -171,9 +174,7 @@ describe('DiscoverDeckTile — grid art banner', () => {
     });
 
     expect(container.querySelector('.decks-index-card-art')).toBeFalsy();
-    const pips = container.querySelector('.decks-index-card-banner-pips');
-    expect(pips).toBeTruthy();
-    expect(pips?.querySelectorAll('.ms').length).toBe(1);
+    expect(container.querySelector('.decks-index-card-banner-pips')).toBeFalsy();
   });
 
   it('still shows the real WUBRG pips in the swatch when colorIdentity is set but no art resolves', () => {

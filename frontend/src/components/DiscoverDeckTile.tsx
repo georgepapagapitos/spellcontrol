@@ -145,16 +145,19 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
               />
             ) : (
               <span className="decks-index-card-banner" aria-hidden="true">
-                {/* Same colorless-fallback idiom as the colorbar below
-                    (never an empty bar) — a deck with no colorIdentity data
-                    (any non-Commander format; see deckColorIdentity on the
-                    backend) still reads as a deliberate swatch, not a
-                    blank one (E482). */}
-                <span className="decks-index-card-banner-pips">
-                  {(deck.colorIdentity.length > 0 ? deck.colorIdentity : ['C']).map((c) => (
-                    <ColorPip key={c} color={c} pip="lg" />
-                  ))}
-                </span>
+                {/* Pips only when the colours are known. An empty
+                    colorIdentity on a no-commander deck means the listing
+                    derives colours from a commander only (deckColorIdentity
+                    on the backend), not that the deck is colourless, so a
+                    colorless pip here would be false. Such decks get their
+                    cover art (ogArtCrop) above instead (E482). */}
+                {deck.colorIdentity.length > 0 && (
+                  <span className="decks-index-card-banner-pips">
+                    {deck.colorIdentity.map((c) => (
+                      <ColorPip key={c} color={c} pip="lg" />
+                    ))}
+                  </span>
+                )}
               </span>
             )}
             <span className="discover-tile-banner-stats" aria-hidden="true">
