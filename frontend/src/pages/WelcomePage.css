@@ -62,15 +62,14 @@
   }
 }
 
-/* Door group — vertical stack of pill CTAs, constrained so they don't sprawl
- * to the full shell width. Only "Try sample cards" (async, needs this page's
- * own loading state) and "Sign in" live here now — Import/Browse moved into
- * the hero as its primary/secondary CTAs. */
+/* Door group — one pill CTA (Sign in), constrained so it doesn't sprawl to
+ * the full shell width. Import/Start a game/Browse public decks/Try sample
+ * cards all live in the hero now (E343) — this is what's left of the
+ * once-two-wide row below the live rails. */
 
 .welcome-doors {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2-5);
   max-width: 360px;
   margin: 0 auto;
 }
@@ -80,33 +79,6 @@
   justify-content: center;
   padding: var(--space-2-5) var(--space-4);
   font-size: var(--text-base);
-}
-
-/* From tablet up, the two doors sit side by side instead of stacked — a
- * 360px-tuned column stack left ~500-700px of near-empty canvas between the
- * hero and the feature grid at wider viewports (B1-07). */
-@media (min-width: 768px) {
-  .welcome-doors {
-    flex-direction: row;
-    max-width: 480px;
-  }
-
-  /* Row mode: share the row instead of each pill claiming the stacked
-     layout's width:100% (which overflowed the row — the second pill was
-     clipped past the container edge). */
-  .welcome-doors .pill-btn {
-    width: auto;
-    flex: 1 1 0;
-  }
-
-  .welcome-door-secondary {
-    margin-top: 0;
-  }
-}
-
-/* Sign in door — secondary, keeps the default pill-btn surface style. */
-.welcome-door-secondary {
-  margin-top: var(--space-1);
 }
 
 /* The way past the storefront. A quiet text link, not a third button: it is

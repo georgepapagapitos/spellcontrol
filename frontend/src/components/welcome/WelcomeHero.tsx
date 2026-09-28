@@ -1,7 +1,7 @@
 import './WelcomeHero.css';
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Import, Swords } from 'lucide-react';
+import { ArrowRight, FlaskConical, Import, Swords } from 'lucide-react';
 import { BrandMark } from '../shared/BrandMark';
 import { SearchPill } from '../SearchPill';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -9,6 +9,15 @@ import { markEverVisited } from '../../lib/first-run';
 import { track } from '../../lib/analytics';
 import { pickWelcomeHeroCard } from '../../lib/welcome-hero';
 import { Button, IconButton } from '@/components/shared/Button';
+
+interface WelcomeHeroProps {
+  /** Door 4 — Try sample cards (E343, moved up from the tightened row below
+   *  the live rails, which measured at ~73% of the page). Owned by
+   *  WelcomePage (useLoadSamples) since it needs that page's own async load
+   *  state; the hero only renders the button and defers to these props. */
+  onTrySamples: () => void;
+  samplesLoading: boolean;
+}
 
 /**
  * WelcomePage's hero band (welcome storefront, pass 2c — Moxfield-hero-
@@ -21,10 +30,10 @@ import { Button, IconButton } from '@/components/shared/Button';
  *
  * A native `<header>` (this page's one header landmark — WelcomePage itself
  * renders outside <Layout>, so there's no site header to collide with).
- * Zero props: every action here (search submit, the Import CTA's
- * markEverVisited) is self-contained, mirroring HomeHero's own signature.
+ * Every action here is self-contained (search submit, the Import CTA's
+ * markEverVisited) except the samples door, which the page owns.
  */
-export function WelcomeHero() {
+export function WelcomeHero({ onTrySamples, samplesLoading }: WelcomeHeroProps) {
   const navigate = useNavigate();
   const heroCardName = pickWelcomeHeroCard();
   // art_crop, never 'normal' — same ruling as HomeHero: the frameless
@@ -127,6 +136,19 @@ export function WelcomeHero() {
             className="welcome-hero-cta-secondary"
           >
             Browse public decks
+          </Button>
+          {/* Door 4 — the zero-commitment way in: no account, nothing of
+              your own required, just cards to look at. Same sample-load
+              path as before (importText -> loadSampleBinders, tagged
+              isSample); only the placement changed (E343). */}
+          <Button
+            placement="row"
+            onClick={onTrySamples}
+            disabled={samplesLoading}
+            className="welcome-hero-cta-secondary"
+            icon={<FlaskConical width={14} height={14} strokeWidth={1.8} />}
+          >
+            {samplesLoading ? 'Loading samples…' : 'Try sample cards'}
           </Button>
         </div>
       </div>

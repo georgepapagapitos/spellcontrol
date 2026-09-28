@@ -37,6 +37,13 @@ export interface DiscoverDeck {
   /** Viewer's own like/bookmark state — always false for a guest. */
   likedByViewer: boolean;
   bookmarkedByViewer: boolean;
+  /** The deck's cover art (#2449's "every deck gets cover art" pick — the
+   *  owner's own choice, else the commander, else the deck's signature
+   *  card), null only when the deck has no priceable/pickable card at all.
+   *  `DiscoverDeckTile` falls back to this after commanderImageNormal/a
+   *  by-name lookup, so a deck with no commander (any non-Commander format)
+   *  still gets real art instead of the colorless swatch (E482). */
+  ogArtCrop: string | null;
 }
 
 export interface ListDiscoverDecksResult {

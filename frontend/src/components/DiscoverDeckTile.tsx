@@ -112,9 +112,13 @@ interface Props {
 export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsaved }: Props) {
   // The deck's own printing first; the by-name lookup lands on Scryfall's
   // default printing, which is the wrong art for a Secret Lair commander.
+  // A deck with no commander at all (any non-Commander format) has neither,
+  // so the last resort is the deck's own cover art (`ogArtCrop` — #2449's
+  // "every deck gets cover art": the owner's pick, else the commander, else
+  // the deck's signature card) rather than the colorless swatch (E482).
   const direct = deck.commanderImageNormal ?? undefined;
   const resolved = useCardThumb(direct ? undefined : (deck.commanderName ?? undefined), 'normal');
-  const thumb = direct ?? resolved;
+  const thumb = direct ?? resolved ?? deck.ogArtCrop ?? undefined;
   const social = socialLine(deck);
   const isGrid = view === 'grid';
   const ownerName = formatIdentity({
@@ -141,13 +145,16 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
               />
             ) : (
               <span className="decks-index-card-banner" aria-hidden="true">
-                {deck.colorIdentity.length > 0 && (
-                  <span className="decks-index-card-banner-pips">
-                    {deck.colorIdentity.map((c) => (
-                      <ColorPip key={c} color={c} pip="lg" />
-                    ))}
-                  </span>
-                )}
+                {/* Same colorless-fallback idiom as the colorbar below
+                    (never an empty bar) — a deck with no colorIdentity data
+                    (any non-Commander format; see deckColorIdentity on the
+                    backend) still reads as a deliberate swatch, not a
+                    blank one (E482). */}
+                <span className="decks-index-card-banner-pips">
+                  {(deck.colorIdentity.length > 0 ? deck.colorIdentity : ['C']).map((c) => (
+                    <ColorPip key={c} color={c} pip="lg" />
+                  ))}
+                </span>
               </span>
             )}
             <span className="discover-tile-banner-stats" aria-hidden="true">

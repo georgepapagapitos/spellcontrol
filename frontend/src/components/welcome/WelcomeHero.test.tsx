@@ -16,10 +16,12 @@ vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => 'https://example.c
 import { WelcomeHero } from './WelcomeHero';
 import { hasEverVisited } from '../../lib/first-run';
 
-function renderHero() {
+const onTrySamplesMock = vi.fn();
+
+function renderHero(samplesLoading = false) {
   return render(
     <MemoryRouter>
-      <WelcomeHero />
+      <WelcomeHero onTrySamples={onTrySamplesMock} samplesLoading={samplesLoading} />
     </MemoryRouter>
   );
 }
@@ -27,6 +29,7 @@ function renderHero() {
 beforeEach(() => {
   localStorage.clear();
   navigateMock.mockReset();
+  onTrySamplesMock.mockReset();
 });
 
 describe('WelcomeHero', () => {
@@ -78,5 +81,31 @@ describe('WelcomeHero', () => {
   it('shows an art caption crediting Scryfall once art resolves', () => {
     renderHero();
     expect(screen.getByText(/· art via Scryfall/)).toBeTruthy();
+  });
+
+  // ============================================================
+  // Try sample cards (E343 — moved up from the tightened row below the
+  // live rails into the hero's own CTA group, beside Import and Start a
+  // game, so the zero-commitment door sits above the fold).
+  // ============================================================
+
+  it('renders the samples door in the same CTA group as Import and Start a game', () => {
+    renderHero();
+    const ctas = screen.getByRole('link', { name: /import your collection/i }).parentElement;
+    const samplesButton = screen.getByRole('button', { name: /try sample cards/i });
+    expect(ctas?.contains(samplesButton)).toBe(true);
+    expect(screen.getByRole('link', { name: /start a game/i })).toBeTruthy();
+  });
+
+  it('calls onTrySamples when the samples door is clicked', () => {
+    renderHero();
+    fireEvent.click(screen.getByRole('button', { name: /try sample cards/i }));
+    expect(onTrySamplesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a loading label and disables the samples door while samples load', () => {
+    renderHero(true);
+    const button = screen.getByRole('button', { name: /loading samples/i });
+    expect(button.hasAttribute('disabled')).toBe(true);
   });
 });

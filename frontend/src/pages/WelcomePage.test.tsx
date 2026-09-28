@@ -102,6 +102,7 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     cardOracleIds: [],
     likedByViewer: false,
     bookmarkedByViewer: false,
+    ogArtCrop: null,
     ...overrides,
   };
 }
@@ -162,6 +163,24 @@ describe('WelcomePage hero', () => {
     expect(importTextMock).not.toHaveBeenCalled();
     expect(loadSampleBindersMock).not.toHaveBeenCalled();
   });
+
+  it('renders Try sample cards in the hero, in the top door group beside Import and Start a game (E343)', () => {
+    renderWelcome();
+    const hero = screen.getByRole('banner');
+    const samplesButton = screen.getByRole('button', { name: /try sample cards/i });
+    // The door lives inside the hero landmark, not the tightened row below
+    // the live rails — that's the whole point of E343 (measured at ~73% of
+    // the page in its old spot).
+    expect(hero.contains(samplesButton)).toBe(true);
+
+    // Order: Import, Start a game, Browse public decks, then Try sample
+    // cards — the other doors' order is unchanged; the samples door is
+    // appended after them (task ruling: keep existing order/semantics).
+    const ctaNames = screen
+      .getAllByRole('link', { name: /import your collection|start a game|browse public decks/i })
+      .map((el) => el.textContent);
+    expect(ctaNames).toEqual(['Import your collection', 'Start a game', 'Browse public decks']);
+  });
 });
 
 // ============================================================
@@ -216,9 +235,8 @@ describe('WelcomePage fresh-decks rail', () => {
 // ============================================================
 
 describe('WelcomePage renders', () => {
-  it('shows the tightened alt-start doors (Try sample cards, Sign in)', () => {
+  it('shows the tightened alt-start row (Sign in) below the live rails', () => {
     renderWelcome();
-    expect(screen.getByRole('button', { name: /try sample cards/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /sign in/i }).getAttribute('href')).toBe('/auth');
   });
 

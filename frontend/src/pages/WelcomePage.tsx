@@ -16,20 +16,26 @@
  * fresh guest here — to the welcome storefront at `/`, not `/auth` — leaving
  * sign-in as one of this page's own doors (below) rather than a forced stop.
  *
- * Onboarding doors, now split between the hero and a tightened row below the
- * live rails:
+ * Onboarding doors, all four committed/exploratory ones now grouped in the
+ * hero (WelcomeHero owns the group; this page owns the samples door's async
+ * state and passes it down) so the zero-commitment way in sits above the
+ * fold beside the others instead of after the whole live-rails feed (E343 —
+ * a walkthrough measured the old placement at ~73% of a 3,864px page):
  *   1. Import my collection → /collection?add=list (AddCardsSheet) — the
- *      hero's own primary CTA; WelcomeHero owns this door's handler.
+ *      hero's primary CTA.
  *   2. Start a game        → /play?new=1 — the hero's second CTA. Local play
  *      needs no account and no collection, and PlayPage reads `new=1` to open
  *      on a running table rather than a setup form, so this is genuinely one
  *      tap from the landing to a life counter.
- *   3. Browse public decks  → /decks/discover — the hero's last CTA.
+ *   3. Browse public decks  → /decks/discover — the hero's third CTA.
  *   4. Try sample cards     → loads the sample pack via loadSampleBinders,
- *      then navigates to /collection — stays here (below the rails) since it
- *      needs this page's own async load state.
- *   5. Sign in              → /auth (the existing AuthPage, unchanged) —
- *      alongside door 4.
+ *      then navigates to /collection. Owned by this page (useLoadSamples,
+ *      the async load state) but rendered inside the hero's CTA row — the
+ *      only door here whose handler isn't self-contained in WelcomeHero.
+ *   5. Sign in              → /auth (the existing AuthPage, unchanged) — a
+ *      compact row below the live rails.
+ *   6. Look around first    → /collection, no side effect at all — the true
+ *      escape hatch (E342), unchanged by this pass.
  *
  * Doors 1, 2 and 4 dismiss the first-run gate permanently via
  * markEverVisited() — each is an intentional first action, and door 2 in
@@ -39,7 +45,7 @@
  */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FlaskConical, LogIn, Layers, Wand2, SlidersHorizontal, Swords } from 'lucide-react';
+import { LogIn, Layers, Wand2, SlidersHorizontal, Swords } from 'lucide-react';
 import { useLoadSamples } from '../lib/use-load-samples';
 import { markEverVisited } from '../lib/first-run';
 import { track } from '../lib/analytics';
@@ -85,10 +91,11 @@ export function WelcomePage() {
   const [hasFreshDecks, setHasFreshDecks] = useState(false);
 
   /**
-   * Door 3 — Try sample cards.
+   * Door 4 — Try sample cards.
    * `useLoadSamples` owns the load path (importText → loadSampleBinders,
    * shared with Home's get-started card); this page only wires the
-   * post-success navigation and first-run dismissal.
+   * post-success navigation and first-run dismissal. Rendered inside
+   * WelcomeHero's CTA row (E343) since that's where the button lives now.
    */
   async function handleSamples() {
     const ok = await loadSamples();
@@ -101,7 +108,9 @@ export function WelcomePage() {
   return (
     <div className="welcome-page">
       <main className="welcome-shell">
-        <WelcomeHero />
+        <WelcomeHero onTrySamples={() => void handleSamples()} samplesLoading={loadingSamples} />
+
+        {sampleError && <p className="welcome-error">{sampleError}</p>}
 
         <FreshDecksRail onVisibilityChange={setHasFreshDecks} />
 
@@ -112,42 +121,30 @@ export function WelcomePage() {
 
         <section className="welcome-alt-start" aria-label="Other ways to start">
           <div className="welcome-doors">
-            {/* Door 3 — primary: samples */}
-            <Button
-              placement="row"
-              onClick={() => void handleSamples()}
-              disabled={loadingSamples}
-              icon={<FlaskConical width={16} height={16} />}
-            >
-              {loadingSamples ? 'Loading samples…' : 'Try sample cards'}
-            </Button>
-
-            {/* Door 4 — secondary: sign in. markEverVisited is NOT called
-                here — AuthPage / auth store actions call it when the user
-                completes any auth choice (login / register / continue as
-                guest), which is the correct dismissal point. A plain <Link>
-                (not an onClick+navigate button) so cmd/ctrl/middle-click
-                still work, same reasoning as TrendingRail's own tiles. */}
+            {/* Door 5 — sign in. markEverVisited is NOT called here —
+                AuthPage / auth store actions call it when the user completes
+                any auth choice (login / register / continue as guest), which
+                is the correct dismissal point. A plain <Link> (not an
+                onClick+navigate button) so cmd/ctrl/middle-click still work,
+                same reasoning as TrendingRail's own tiles. The samples door
+                that used to sit here moved into the hero's CTA row (E343). */}
             <Button
               placement="row"
               to="/auth"
               onClick={() => track('sign_in')}
-              className="welcome-door-secondary"
               icon={<LogIn width={16} height={16} />}
             >
               Sign in
             </Button>
           </div>
 
-          {sampleError && <p className="welcome-error">{sampleError}</p>}
-
-          {/* Door 5 — the way past. Every other door here asks for something:
+          {/* Door 6 — the way past. Every other door here asks for something:
               an import, an account, a pile of cards you don't own. Without
               this one the gate has no exit that isn't a commitment, and
               `useFirstRunGate` sends a first-run guest back here from any
               non-exempt path, so someone who typed /rules could not reach it.
               Deliberately quiet: it is the answer to "I just want to look",
-              not a peer of the two real doors.
+              not a peer of the doors above.
 
               markEverVisited() because this IS an intentional first choice,
               and /collection because that is where App already routes a

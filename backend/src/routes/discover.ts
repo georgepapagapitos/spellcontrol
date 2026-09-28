@@ -114,6 +114,7 @@ interface PublicationSqlRow {
   copy_count: number;
   like_count: number;
   published_at: string;
+  og_art_crop: string | null;
 }
 
 function toListingRow(row: PublicationSqlRow): PublicationListingRow {
@@ -135,6 +136,7 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
     copyCount: row.copy_count,
     likeCount: row.like_count,
     publishedAt: Number(row.published_at),
+    ogArtCrop: row.og_art_crop,
   };
 }
 
@@ -145,7 +147,7 @@ const LISTING_COLUMNS = `dp.user_id, dp.deck_id, dp.slug, dp.deck_name, u.userna
        u.display_name AS owner_display_name, u.avatar_image_url AS owner_avatar_url,
        dp.format, dp.commander_name, dp.commander_image_normal, dp.color_identity,
        dp.bracket, dp.estimated_bracket, dp.card_count, dp.view_count, dp.copy_count,
-       dp.like_count, dp.published_at`;
+       dp.like_count, dp.published_at, dp.og_art_crop`;
 
 // Real deck_publications columns only — the required fold. $4 (colorIdentity)
 // is the one JSONB predicate, over deck_publications' own small denormalized
