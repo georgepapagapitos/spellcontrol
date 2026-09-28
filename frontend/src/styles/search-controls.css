@@ -12,6 +12,7 @@
      neighboring view toggle to a new line on narrow viewports. */
   flex: 1 1 12rem;
   min-width: 0;
+  min-height: var(--control-h);
   display: flex;
   align-items: center;
   gap: var(--space-1-5);

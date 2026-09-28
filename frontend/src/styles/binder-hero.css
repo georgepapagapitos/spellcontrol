@@ -518,6 +518,7 @@
   align-items: center;
   gap: var(--icon-gap);
   flex-shrink: 0;
+  min-height: var(--control-h);
   padding: var(--space-2) var(--space-4);
   /* T53 Phase 4: hero CTAs are stamped rects now — the pill-hero tier is
      retired (print boxes sit square; 999px was the dashboard-genre tell).
