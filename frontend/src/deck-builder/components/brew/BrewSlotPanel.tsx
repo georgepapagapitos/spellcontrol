@@ -126,7 +126,7 @@ function MechanicSearch({
   return (
     <div className="brew-mechanic-search">
       <div className="brew-mechanic-search-input">
-        <Search width={14} height={14} aria-hidden />
+        <Search width={14} height={14} strokeWidth={1.8} aria-hidden />
         <input
           type="text"
           inputMode="search"
@@ -143,7 +143,7 @@ function MechanicSearch({
               onClear();
             }}
             label="Clear mechanic search"
-            icon={<X width={14} height={14} />}
+            icon={<X width={14} height={14} strokeWidth={1.8} />}
           />
         )}
       </div>
@@ -209,7 +209,8 @@ export function BrewSlotPanel(): JSX.Element {
             'Back to suggestions'
           ) : (
             <>
-              Find a mechanic instead <ArrowRight width={14} height={14} aria-hidden />
+              Find a mechanic instead{' '}
+              <ArrowRight width={14} height={14} strokeWidth={1.8} aria-hidden />
             </>
           )}
         </Button>
@@ -278,14 +279,14 @@ export function BrewSlotPanel(): JSX.Element {
         <Button
           onClick={prevSlot}
           disabled={slotIndex === 0}
-          icon={<ArrowLeft width={14} height={14} />}
+          icon={<ArrowLeft width={14} height={14} strokeWidth={1.8} />}
         >
           Back
         </Button>
         <Button
           variant="primary"
           onClick={() => void nextSlot()}
-          iconEnd={<ArrowRight width={14} height={14} />}
+          iconEnd={<ArrowRight width={14} height={14} strokeWidth={1.8} />}
         >
           {isLastSlot ? 'Continue to manabase' : met ? 'Next slot' : 'Skip this slot'}
         </Button>

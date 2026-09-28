@@ -784,7 +784,7 @@ function YourPanel({
             title={`Undo ${undoLabel}`}
             onClick={onUndo}
           >
-            <Undo2 width={16} height={16} strokeWidth={2.2} aria-hidden />
+            <Undo2 width={16} height={16} strokeWidth={2} aria-hidden />
             Undo
           </button>
         )}
@@ -879,7 +879,8 @@ function YourPanel({
               aria-pressed={isMonarch}
               onClick={() => claim('monarch', isMonarch)}
             >
-              <Crown width={14} height={14} aria-hidden /> {isMonarch ? 'Monarch' : 'Take monarch'}
+              <Crown width={14} height={14} strokeWidth={1.8} aria-hidden />{' '}
+              {isMonarch ? 'Monarch' : 'Take monarch'}
             </button>
             <button
               type="button"
@@ -887,7 +888,7 @@ function YourPanel({
               aria-pressed={isInitiative}
               onClick={() => claim('initiative', isInitiative)}
             >
-              <Compass width={14} height={14} aria-hidden />{' '}
+              <Compass width={14} height={14} strokeWidth={1.8} aria-hidden />{' '}
               {isInitiative ? 'Initiative' : 'Take initiative'}
             </button>
           </div>

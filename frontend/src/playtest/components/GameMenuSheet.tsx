@@ -77,7 +77,7 @@ export function GameMenuSheet({ sections, footer, onClose }: Props) {
             className="playtest-game-menu__close"
             onClick={() => beginClose()}
             label="Close the game menu"
-            icon={<X width={18} height={18} strokeWidth={1.8} />}
+            icon={<X width={18} height={18} strokeWidth={2} />}
           />
         </header>
 

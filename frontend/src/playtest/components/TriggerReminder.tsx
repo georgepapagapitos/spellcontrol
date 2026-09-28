@@ -93,7 +93,7 @@ export function TriggerReminder({ cards, beat, turn, myTurn, onLocate }: Props) 
           variant="quiet"
           onClick={() => setOpenKey(null)}
           label="Dismiss triggers"
-          icon={<X size={14} />}
+          icon={<X size={14} strokeWidth={1.8} />}
         />
       </div>
       {groups.map((g) => (

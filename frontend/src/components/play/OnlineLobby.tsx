@@ -689,7 +689,7 @@ function SeatCard({
       )}
       <div className="lobby-seat-body">
         <p className="lobby-seat-name">
-          {isHost && <Crown width={15} height={15} strokeWidth={2} aria-label="Host" />}
+          {isHost && <Crown width={16} height={16} strokeWidth={2} aria-label="Host" />}
           <span>{player.name}</span>
           {isMe && <span className="lobby-seat-you">You</span>}
           {isGuest && <span className="lobby-seat-guest">Guest</span>}
@@ -725,7 +725,7 @@ function SeatCard({
               'Seated by the host'
             ) : ready ? (
               <>
-                <Check width={13} height={13} strokeWidth={2.5} aria-hidden /> Ready
+                <Check width={14} height={14} strokeWidth={1.8} aria-hidden /> Ready
               </>
             ) : player.deckId ? (
               'Not ready'
@@ -796,11 +796,11 @@ function LobbyRail({
         >
           {copied ? (
             <>
-              <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Copied
+              <Check width={14} height={14} strokeWidth={1.8} aria-hidden /> Copied
             </>
           ) : (
             <>
-              <Copy width={14} height={14} strokeWidth={2} aria-hidden /> Copy
+              <Copy width={14} height={14} strokeWidth={1.8} aria-hidden /> Copy
             </>
           )}
         </button>
@@ -927,7 +927,7 @@ function LobbyRail({
             <Button
               onClick={shuffleSeats}
               className="lobby-randomize"
-              icon={<Shuffle width={14} height={14} strokeWidth={2} />}
+              icon={<Shuffle width={14} height={14} strokeWidth={1.8} />}
             >
               Shuffle
             </Button>

@@ -89,7 +89,7 @@ export function TableProfiles({
                   className="table-profiles-delete"
                   onClick={() => setConfirmingId(profile.id)}
                   label={`Delete ${profile.name}`}
-                  icon={<Trash2 width={15} height={15} />}
+                  icon={<Trash2 width={16} height={16} />}
                 />
               )}
             </li>

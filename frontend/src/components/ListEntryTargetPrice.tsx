@@ -118,7 +118,7 @@ export function ListEntryTargetPrice({ entry, onSave }: Props) {
               clearTarget();
             }}
             label={`Clear target price for ${entry.name}`}
-            icon={<X width={13} height={13} strokeWidth={2.5} />}
+            icon={<X width={14} height={14} strokeWidth={1.8} />}
           />
         )}
       </div>

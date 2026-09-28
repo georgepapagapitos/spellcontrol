@@ -181,7 +181,7 @@ function PickerSearch({
         onClick={onRandom}
         disabled={randomDisabled}
         label="Pick a random deck"
-        icon={<Dices width={18} height={18} strokeWidth={1.8} />}
+        icon={<Dices width={18} height={18} strokeWidth={2} />}
       />
     </div>
   );

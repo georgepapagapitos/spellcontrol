@@ -410,11 +410,11 @@ export function PlayPage() {
                     >
                       {codeCopied ? (
                         <>
-                          <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Copied
+                          <Check width={14} height={14} strokeWidth={1.8} aria-hidden /> Copied
                         </>
                       ) : (
                         <>
-                          <Copy width={14} height={14} strokeWidth={2} aria-hidden /> Copy
+                          <Copy width={14} height={14} strokeWidth={1.8} aria-hidden /> Copy
                         </>
                       )}
                     </button>
@@ -1180,7 +1180,7 @@ function LocalSetup({
                   className="play-setup-seat-remove"
                   label={`Remove ${p.name || `Player ${i + 1}`}`}
                   onClick={() => removePlayer(i)}
-                  icon={<X width={14} height={14} strokeWidth={2} />}
+                  icon={<X width={14} height={14} strokeWidth={1.8} />}
                 />
               )}
             </li>
@@ -1260,7 +1260,7 @@ function SeatDeck({
             onChange(null);
             setOpen(false);
           }}
-          icon={<X width={14} height={14} strokeWidth={2} />}
+          icon={<X width={14} height={14} strokeWidth={1.8} />}
         />
       )}
     </div>
@@ -2141,7 +2141,7 @@ function HistoryTab({
                       className="play-history-remove"
                       label={`Remove game: ${when}`}
                       onClick={() => setPendingDrop([rec])}
-                      icon={<X width={14} height={14} strokeWidth={2} />}
+                      icon={<X width={14} height={14} strokeWidth={1.8} />}
                     />
                   )}
                 </div>

@@ -158,7 +158,7 @@ function SuggestionTile({
           disabled={adding}
           aria-label={`Add ${suggestion.cardName}`}
         >
-          <Plus width={14} height={14} aria-hidden />
+          <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
           {adding ? 'Adding…' : 'Add'}
         </button>
       )}

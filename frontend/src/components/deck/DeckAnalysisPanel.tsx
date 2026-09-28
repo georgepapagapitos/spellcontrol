@@ -220,7 +220,7 @@ function DiagnosisSection({ analysis }: { analysis: DeckAnalysisResult }) {
       {analysis.colorIdentity.commanderColors.length > 0 &&
         analysis.colorIdentity.offColorCards.length > 0 && (
           <div className="deck-analysis-warning">
-            <AlertTriangle width={14} height={14} aria-hidden />
+            <AlertTriangle width={14} height={14} strokeWidth={1.8} aria-hidden />
             <div>
               <strong>
                 {analysis.colorIdentity.offColorCards.length} card
@@ -269,7 +269,7 @@ function CurveVerdict({ analysis }: { analysis: DeckAnalysisResult }) {
   if (curve.verdict === 'curve-ok') return null;
   return (
     <p className={`deck-analysis-verdict deck-analysis-verdict--${curve.verdict}`}>
-      <AlertTriangle width={13} height={13} aria-hidden /> {curve.message}
+      <AlertTriangle width={14} height={14} strokeWidth={1.8} aria-hidden /> {curve.message}
     </p>
   );
 }
@@ -758,7 +758,7 @@ function SuggestionRow({
         disabled={isAdding}
         aria-label={`Add ${card.name}`}
       >
-        <Plus width={14} height={14} aria-hidden />
+        <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
         {isAdding ? 'Adding…' : 'Add'}
       </button>
     </li>

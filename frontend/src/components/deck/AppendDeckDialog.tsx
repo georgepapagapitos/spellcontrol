@@ -160,7 +160,7 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
       <div className="modal-body">
         {!online && (
           <p className="append-deck-offline" role="status">
-            <WifiOff width={14} height={14} strokeWidth={2} aria-hidden />
+            <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden />
             You're offline. Reconnect to paste a list. Everything else still works.
           </p>
         )}

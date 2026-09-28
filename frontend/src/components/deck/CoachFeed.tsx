@@ -733,7 +733,7 @@ export function CoachFeed({
   const browserSection = browser && (
     <details className="coach-feed-browser-section">
       <summary>
-        <ChevronDown width={14} height={14} aria-hidden />
+        <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
         Browse all EDHREC suggestions
       </summary>
       <div className="coach-feed-browser">{browser}</div>
@@ -842,7 +842,7 @@ export function CoachFeed({
               {activeFilter === 'budget' && dropInChanges.length > 0 && (
                 <Button
                   variant="primary"
-                  icon={<Check width={14} height={14} />}
+                  icon={<Check width={14} height={14} strokeWidth={1.8} />}
                   onClick={() =>
                     void onApplyAllDropIns(
                       dropInChanges
@@ -862,7 +862,7 @@ export function CoachFeed({
               {activeFilter === 'bracket-fit' && bracketSwaps.length > 0 && (
                 <Button
                   variant="primary"
-                  icon={<Check width={14} height={14} />}
+                  icon={<Check width={14} height={14} strokeWidth={1.8} />}
                   onClick={() =>
                     void onConvergeBracket(
                       bracketSwaps.map((r) => ({
@@ -1003,7 +1003,7 @@ export function CoachFeed({
                 aria-expanded={showAllRows}
                 onClick={() => setShowAllRows((v) => !v)}
               >
-                <ChevronDown width={14} height={14} aria-hidden />
+                <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
                 {showAllRows
                   ? 'Show fewer'
                   : `Show all ${filteredRows.length} suggestion${filteredRows.length === 1 ? '' : 's'}`}

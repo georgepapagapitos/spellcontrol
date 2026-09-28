@@ -255,7 +255,7 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
             }}
             disabled={index <= 0}
             label={prevLabel}
-            icon={<ChevronLeft width={20} height={20} strokeWidth={2.4} />}
+            icon={<ChevronLeft width={20} height={20} strokeWidth={1.8} />}
           />
           <IconButton
             className="carousel-nav carousel-nav-next"
@@ -265,7 +265,7 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
             }}
             disabled={index >= count - 1}
             label={nextLabel}
-            icon={<ChevronRight width={20} height={20} strokeWidth={2.4} />}
+            icon={<ChevronRight width={20} height={20} strokeWidth={1.8} />}
           />
         </div>
       )}

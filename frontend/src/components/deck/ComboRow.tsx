@@ -189,7 +189,13 @@ export function ComboRow({
       {/* ── Result headline — the "what does this do?" answer, always visible ── */}
       {combo.produces.length > 0 && (
         <div className="deck-combos-produces" aria-label="Result">
-          <Zap className="deck-combos-produces-icon" width={11} height={11} aria-hidden />
+          <Zap
+            className="deck-combos-produces-icon"
+            width={14}
+            height={14}
+            strokeWidth={1.8}
+            aria-hidden
+          />
           {combo.produces.slice(0, 3).map((p, i) => {
             const isInfinite = p.toLowerCase().startsWith('infinite ');
             const label = isInfinite ? p.slice(9) : p;
@@ -236,9 +242,9 @@ export function ComboRow({
           }
         >
           {missingCount > 0 || (needsTemplate && !templatesSatisfied) ? (
-            <AlertTriangle width={14} height={14} aria-hidden />
+            <AlertTriangle width={14} height={14} strokeWidth={1.8} aria-hidden />
           ) : (
-            <CheckCircle2 width={14} height={14} aria-hidden />
+            <CheckCircle2 width={14} height={14} strokeWidth={1.8} aria-hidden />
           )}
         </span>
         <ColorIdentityPips identity={combo.identity} />
@@ -321,9 +327,9 @@ export function ComboRow({
                 {isMissing && (
                   <span className={`deck-combos-card-status${isOwned ? ' is-owned' : ''}`}>
                     {isOwned ? (
-                      <CheckCircle2 width={18} height={18} strokeWidth={2.5} aria-hidden />
+                      <CheckCircle2 width={18} height={18} strokeWidth={2} aria-hidden />
                     ) : (
-                      <Circle width={18} height={18} strokeWidth={2.5} aria-hidden />
+                      <Circle width={18} height={18} strokeWidth={2} aria-hidden />
                     )}
                     <span className="sr-only">
                       {isOwned ? 'In collection' : 'Not in collection'}
@@ -333,7 +339,7 @@ export function ComboRow({
                 {/* In-deck: D2 — show not-owned icon on pieces not in collection. */}
                 {isNotOwnedInDeck && (
                   <span className="deck-combos-card-status">
-                    <Circle width={18} height={18} strokeWidth={2.5} aria-hidden />
+                    <Circle width={18} height={18} strokeWidth={2} aria-hidden />
                     <span className="sr-only">Not in collection</span>
                   </span>
                 )}
@@ -403,9 +409,9 @@ export function ComboRow({
             onClick={() => setDetailsOpen((v) => !v)}
           >
             {detailsOpen ? (
-              <ChevronDown width={13} height={13} aria-hidden />
+              <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
             ) : (
-              <ChevronRight width={13} height={13} aria-hidden />
+              <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
             )}
             {detailsOpen ? 'Hide steps' : 'Show steps'}
           </button>
@@ -413,7 +419,7 @@ export function ComboRow({
             <div id={`combo-details-${combo.id}`} className="deck-combos-detail">
               {(combo.prerequisites?.easy || combo.prerequisites?.notable || combo.manaNeeded) && (
                 <DetailSection
-                  icon={<ListChecks width={13} height={13} aria-hidden />}
+                  icon={<ListChecks width={14} height={14} strokeWidth={1.8} aria-hidden />}
                   title="Prerequisites"
                 >
                   {combo.manaNeeded && (
@@ -431,7 +437,7 @@ export function ComboRow({
 
               {steps.length > 0 && (
                 <DetailSection
-                  icon={<Footprints width={13} height={13} aria-hidden />}
+                  icon={<Footprints width={14} height={14} strokeWidth={1.8} aria-hidden />}
                   title="Steps"
                 >
                   <ol className="deck-combos-steps">
@@ -446,7 +452,7 @@ export function ComboRow({
 
               {combo.produces.length > 0 && (
                 <DetailSection
-                  icon={<InfinityIcon width={13} height={13} aria-hidden />}
+                  icon={<InfinityIcon width={14} height={14} strokeWidth={1.8} aria-hidden />}
                   title="Full results"
                 >
                   <ul className="deck-combos-results">
@@ -505,7 +511,7 @@ export function ComboRow({
           onClick={onAddMissing}
           aria-label={`Add ${missingCardName} to complete this combo`}
         >
-          <Plus width={11} height={11} aria-hidden />
+          <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
           <span className="card-name-chip-text" title={missingCardName}>
             Add {missingCardName}
           </span>

@@ -2492,7 +2492,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         aria-expanded={showGameMenu}
         onClick={() => setShowGameMenu(true)}
       >
-        <Menu width={20} height={20} aria-hidden />
+        <Menu width={20} height={20} strokeWidth={1.8} aria-hidden />
         {hasUnreadLog && <span className="playtest-corner__dot" aria-hidden />}
       </button>
       {/* The turn count IS the control: pressing it moves the game on, the
@@ -2972,7 +2972,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
           setPileMenu({ zone: 'hand', x: r.right, y: r.top, origin: 'bottom-end' });
         }}
       >
-        <ChevronDown aria-hidden width={14} height={14} />
+        <ChevronDown aria-hidden width={14} height={14} strokeWidth={1.8} />
         Hand ({state.zones.hand.length})
       </button>
       <ZonePile

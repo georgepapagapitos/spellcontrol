@@ -119,7 +119,7 @@ export function PrintingChoices({
                   onClick={() => onSet(group.key, count - 1)}
                   disabled={count === 0 || disabled}
                   label={`One fewer ${printingLabel} ${cardName}`}
-                  icon={<Minus width={14} height={14} />}
+                  icon={<Minus width={14} height={14} strokeWidth={1.8} />}
                 />
                 <span className="printing-choice-count" aria-live="polite">
                   {count}
@@ -130,7 +130,7 @@ export function PrintingChoices({
                   onClick={() => onSet(group.key, count + 1)}
                   disabled={count >= owned || disabled}
                   label={`One more ${printingLabel} ${cardName}`}
-                  icon={<Plus width={14} height={14} />}
+                  icon={<Plus width={14} height={14} strokeWidth={1.8} />}
                 />
               </span>
             ) : (

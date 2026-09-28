@@ -31,7 +31,7 @@ export function CountPage({ max, label, initial = 1, onConfirm }: Props) {
           disabled={count <= 1}
           onClick={() => setN(clamp(count - 1))}
           label="One fewer"
-          icon={<Minus width={14} height={14} />}
+          icon={<Minus width={14} height={14} strokeWidth={1.8} />}
         />
         <input
           type="number"
@@ -45,7 +45,7 @@ export function CountPage({ max, label, initial = 1, onConfirm }: Props) {
           disabled={count >= max}
           onClick={() => setN(clamp(count + 1))}
           label="One more"
-          icon={<Plus width={14} height={14} />}
+          icon={<Plus width={14} height={14} strokeWidth={1.8} />}
         />
       </div>
       <button

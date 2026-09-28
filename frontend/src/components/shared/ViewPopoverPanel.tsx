@@ -53,7 +53,7 @@ export function ViewPopoverPanel<T extends string>({
           className="toolbar-popover-item view-popover-back"
           onClick={() => setKeyOpen(false)}
         >
-          <ChevronLeft width={14} height={14} strokeWidth={2} aria-hidden />
+          <ChevronLeft width={14} height={14} strokeWidth={1.8} aria-hidden />
           <span>Back</span>
         </button>
         <LegendContent context="collection" />

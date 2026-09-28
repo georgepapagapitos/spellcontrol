@@ -41,7 +41,7 @@ export function DeckTagManager({
                 maxLength={40}
                 className="deck-tag-manager-name-btn"
                 inputClassName="deck-tag-manager-input"
-                icon={<Pencil width={13} height={13} strokeWidth={2.2} aria-hidden />}
+                icon={<Pencil width={14} height={14} strokeWidth={1.8} aria-hidden />}
               />
             ) : (
               <span className="deck-tag-manager-name">{tag}</span>
@@ -53,7 +53,7 @@ export function DeckTagManager({
                 title="Remove from every card"
                 onClick={() => onRemove(tag)}
                 label={`Remove "${tag}" from every card`}
-                icon={<Trash2 width={13} height={13} strokeWidth={2.2} />}
+                icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
               />
             )}
           </li>

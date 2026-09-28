@@ -52,13 +52,13 @@ export function BuildTimeCoachStrip({ nudge, onView, onDismiss }: Props): JSX.El
         onClick={() => onView(nudge.kind)}
       >
         {KIND_VIEW_LABEL[nudge.kind]}
-        <ChevronRight width={14} height={14} aria-hidden />
+        <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
       </button>
       <IconButton
         className="build-time-coach-strip-dismiss"
         onClick={onDismiss}
         label="Dismiss"
-        icon={<X width={14} height={14} />}
+        icon={<X width={14} height={14} strokeWidth={1.8} />}
       />
     </div>
   );

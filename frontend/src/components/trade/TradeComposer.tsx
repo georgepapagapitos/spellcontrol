@@ -675,7 +675,7 @@ export function TradeComposer({
                     ? [
                         {
                           key: 'add',
-                          icon: <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />,
+                          icon: <Plus width={18} height={18} strokeWidth={2} aria-hidden />,
                           label: 'Add',
                           onClick: run,
                         },
@@ -971,6 +971,7 @@ function PickedRow({
               <ChevronDown
                 width={14}
                 height={14}
+                strokeWidth={1.8}
                 aria-hidden
                 className={open ? 'trade-chevron is-open' : 'trade-chevron'}
               />
@@ -982,7 +983,7 @@ function PickedRow({
               className="trade-stepper-btn"
               onClick={() => onBump?.(row.key, -1, row.max)}
               label={`One fewer ${row.name}`}
-              icon={<Minus width={14} height={14} />}
+              icon={<Minus width={14} height={14} strokeWidth={1.8} />}
             />
             <span className="trade-stepper-value" aria-live="polite">
               {row.quantity ?? 0}
@@ -992,7 +993,7 @@ function PickedRow({
               onClick={() => onBump?.(row.key, 1, row.max)}
               disabled={(row.quantity ?? 0) >= row.max}
               label={`One more ${row.name}`}
-              icon={<Plus width={14} height={14} />}
+              icon={<Plus width={14} height={14} strokeWidth={1.8} />}
             />
           </span>
         )}
@@ -1001,7 +1002,7 @@ function PickedRow({
           className="trade-picked-remove"
           onClick={() => onRemove(row.key)}
           label={`Remove ${row.name} from the trade`}
-          icon={<X width={14} height={14} />}
+          icon={<X width={14} height={14} strokeWidth={1.8} />}
         />
       </div>
 

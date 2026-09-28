@@ -111,7 +111,7 @@ export function CollectionExportDialog({ cards, binderName, onClose }: Props) {
               variant="primary"
               onClick={handleDownload}
               aria-label={`Download ${fileName}`}
-              icon={<Download width={14} height={14} strokeWidth={2} />}
+              icon={<Download width={14} height={14} strokeWidth={1.8} />}
             >
               Download
             </Button>

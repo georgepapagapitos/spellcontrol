@@ -207,7 +207,7 @@ export function CardGridCell({
       >
         {selectMode && (
           <span className="collection-grid-check" data-checked={selected} aria-hidden>
-            {selected && <Check width={14} height={14} strokeWidth={3} />}
+            {selected && <Check width={14} height={14} strokeWidth={1.8} />}
           </span>
         )}
         {art ? (

@@ -134,7 +134,7 @@ export function BrewManabaseStep({ onAccept }: BrewManabaseStepProps): JSX.Eleme
           variant="primary"
           onClick={onAccept}
           disabled={landPlanLoading || !landPlan}
-          iconEnd={<ArrowRight width={14} height={14} />}
+          iconEnd={<ArrowRight width={14} height={14} strokeWidth={1.8} />}
         >
           Looks good, save my deck
         </Button>

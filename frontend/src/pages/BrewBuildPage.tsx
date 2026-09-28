@@ -288,7 +288,8 @@ export function BrewBuildPage(): JSX.Element {
                   'Loading EDHREC data…'
                 ) : (
                   <>
-                    Start brewing <ArrowRight width={14} height={14} aria-hidden />
+                    Start brewing{' '}
+                    <ArrowRight width={14} height={14} strokeWidth={1.8} aria-hidden />
                   </>
                 )}
               </Button>

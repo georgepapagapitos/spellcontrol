@@ -227,7 +227,7 @@ export function SeatMenu({
                     onCommanderDamage();
                   }}
                 >
-                  <Swords width={14} height={14} aria-hidden /> Commander damage
+                  <Swords width={14} height={14} strokeWidth={1.8} aria-hidden /> Commander damage
                 </button>
               )}
               {inPlay && (
@@ -249,11 +249,11 @@ export function SeatMenu({
                 >
                   {isActiveTurn ? (
                     <>
-                      <FastForward width={14} height={14} aria-hidden /> Pass turn
+                      <FastForward width={14} height={14} strokeWidth={1.8} aria-hidden /> Pass turn
                     </>
                   ) : (
                     <>
-                      <Play width={14} height={14} aria-hidden /> Start turn here
+                      <Play width={14} height={14} strokeWidth={1.8} aria-hidden /> Start turn here
                     </>
                   )}
                 </button>
@@ -265,7 +265,7 @@ export function SeatMenu({
                   aria-pressed={isMonarch}
                   onClick={() => designate('monarch', isMonarch)}
                 >
-                  <Crown width={14} height={14} aria-hidden /> Monarch
+                  <Crown width={14} height={14} strokeWidth={1.8} aria-hidden /> Monarch
                 </button>
               )}
               {inPlay && (
@@ -275,7 +275,7 @@ export function SeatMenu({
                   aria-pressed={isInitiative}
                   onClick={() => designate('initiative', isInitiative)}
                 >
-                  <Compass width={14} height={14} aria-hidden /> Initiative
+                  <Compass width={14} height={14} strokeWidth={1.8} aria-hidden /> Initiative
                 </button>
               )}
               <button
@@ -290,7 +290,8 @@ export function SeatMenu({
                   onClose();
                 }}
               >
-                <Skull width={14} height={14} aria-hidden /> {player.eliminated ? 'Revive' : 'Out'}
+                <Skull width={14} height={14} strokeWidth={1.8} aria-hidden />{' '}
+                {player.eliminated ? 'Revive' : 'Out'}
               </button>
             </div>
           )}
@@ -311,7 +312,7 @@ export function SeatMenu({
                   className="seat-menu-row-trigger"
                   onClick={() => setActiveEditor('name')}
                 >
-                  <Pencil width={14} height={14} aria-hidden />
+                  <Pencil width={14} height={14} strokeWidth={1.8} aria-hidden />
                   <span>Name</span>
                 </button>
               )}
@@ -321,7 +322,7 @@ export function SeatMenu({
                   className="seat-menu-row-trigger"
                   onClick={() => setActiveEditor('partner')}
                 >
-                  <Users width={14} height={14} aria-hidden />
+                  <Users width={14} height={14} strokeWidth={1.8} aria-hidden />
                   <span>Partner</span>
                 </button>
               )}
@@ -331,7 +332,7 @@ export function SeatMenu({
                   className="seat-menu-row-trigger"
                   onClick={() => setActiveEditor('color')}
                 >
-                  <Palette width={14} height={14} aria-hidden />
+                  <Palette width={14} height={14} strokeWidth={1.8} aria-hidden />
                   <span>Color</span>
                 </button>
               )}
@@ -341,7 +342,7 @@ export function SeatMenu({
                   className="seat-menu-row-trigger"
                   onClick={() => setActiveEditor('facing')}
                 >
-                  <RotateCw width={14} height={14} aria-hidden />
+                  <RotateCw width={14} height={14} strokeWidth={1.8} aria-hidden />
                   <span>Facing</span>
                 </button>
               )}
@@ -640,7 +641,7 @@ function SeatCounters({
             className="seat-menu-row-trigger pp-counters-add-trigger"
             onClick={onOpenAdd}
           >
-            <Plus width={14} height={14} aria-hidden />
+            <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
             <span>Counter</span>
           </button>
         )}
@@ -763,7 +764,7 @@ function CounterRow({
           <IconButton
             className="counter-row-remove"
             label={`Remove ${label}`}
-            icon={<Trash2 width={14} height={14} />}
+            icon={<Trash2 width={14} height={14} strokeWidth={1.8} />}
             onClick={onRemove}
           />
         )}

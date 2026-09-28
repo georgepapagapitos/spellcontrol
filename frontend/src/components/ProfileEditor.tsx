@@ -135,7 +135,7 @@ export function ProfileEditor() {
         >
           <UserAvatar imageUrl={avatar?.imageUrl} name={displayName || username || '?'} size={96} />
           <span className="profile-editor-avatar-badge" aria-hidden="true">
-            <Camera width={14} height={14} strokeWidth={2} />
+            <Camera width={14} height={14} strokeWidth={1.8} />
           </span>
         </button>
 

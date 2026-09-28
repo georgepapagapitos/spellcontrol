@@ -100,7 +100,7 @@ export function DeckPicker({
         onClick={() => setOpen(true)}
       >
         <span className="play-deck-picker-value">{valueName ?? 'Pick a deck'}</span>
-        <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
+        <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
       </button>
       {open && (
         <DeckPickerDialog

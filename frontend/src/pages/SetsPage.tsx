@@ -135,7 +135,7 @@ function SetProgressRow({ s }: { s: SetProgress }) {
           )}
         </span>
         <span className={`sets-row-pct${complete ? ' is-complete' : ''}`}>
-          {complete && <CheckCircle2 width={16} height={16} aria-hidden strokeWidth={2.2} />}
+          {complete && <CheckCircle2 width={16} height={16} aria-hidden strokeWidth={2} />}
           {s.total > 0 ? `${s.pct}%` : '—'}
         </span>
       </Link>
@@ -273,9 +273,9 @@ function CardMatchGroup({
       >
         All printings
         {open ? (
-          <ChevronUp width={14} height={14} aria-hidden />
+          <ChevronUp width={14} height={14} strokeWidth={1.8} aria-hidden />
         ) : (
-          <ChevronDown width={14} height={14} aria-hidden />
+          <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
         )}
       </button>
       <div id={bodyId} hidden={!open}>
@@ -610,7 +610,7 @@ function SetDetail({ code }: { code: string }) {
     <div className="sets-page sets-detail">
       {sealMoment}
       <Link to="/collection/sets" className="sets-back">
-        <ArrowLeft width={15} height={15} aria-hidden /> All sets
+        <ArrowLeft width={16} height={16} aria-hidden /> All sets
       </Link>
       <PageHeader
         title={
@@ -699,7 +699,7 @@ function SetDetail({ code }: { code: string }) {
                   width={16}
                   height={16}
                   aria-hidden
-                  strokeWidth={2.2}
+                  strokeWidth={2}
                 />
               )}
             </p>
@@ -731,12 +731,12 @@ function SetDetail({ code }: { code: string }) {
                 {
                   value: 'grid',
                   label: 'Grid view',
-                  icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+                  icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
                 },
                 {
                   value: 'list',
                   label: 'List view',
-                  icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+                  icon: <ListIconLucide width={14} height={14} strokeWidth={1.8} aria-hidden />,
                 },
               ]}
             />
@@ -801,9 +801,9 @@ function SetDetail({ code }: { code: string }) {
                     key: 'add',
                     icon:
                       added > 0 ? (
-                        <Check width={18} height={18} strokeWidth={2.4} aria-hidden />
+                        <Check width={18} height={18} strokeWidth={2} aria-hidden />
                       ) : (
-                        <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />
+                        <Plus width={18} height={18} strokeWidth={2} aria-hidden />
                       ),
                     label: added > 0 ? `Added ×${added}` : row.qty > 0 ? 'Add another' : 'Add',
                     onClick: () => void addFromSet(row.card),

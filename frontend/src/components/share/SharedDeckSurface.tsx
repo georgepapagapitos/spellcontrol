@@ -317,7 +317,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
               <Button
                 variant="primary"
                 to={`${basePath}/playtest`}
-                icon={<Swords width={15} height={15} strokeWidth={2} />}
+                icon={<Swords width={16} height={16} strokeWidth={2} />}
               >
                 Playtest this deck
               </Button>
@@ -334,7 +334,7 @@ export function SharedDeckSurface({ data, sourceKey, publicMeta, ownership, lead
             {isOwnDeck && (
               <Button
                 to={`/decks/${data.id}`}
-                icon={<Pencil width={15} height={15} strokeWidth={2} />}
+                icon={<Pencil width={16} height={16} strokeWidth={2} />}
               >
                 Edit this deck
               </Button>

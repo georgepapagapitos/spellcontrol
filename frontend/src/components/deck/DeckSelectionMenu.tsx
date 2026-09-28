@@ -83,7 +83,7 @@ export function DeckSelectionMenu({
               }}
             >
               Add tag
-              <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
+              <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
             </button>
             {deckTags.length > 0 && (
               <button
@@ -97,7 +97,7 @@ export function DeckSelectionMenu({
                 }}
               >
                 Remove tag
-                <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
+                <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
               </button>
             )}
           </div>
@@ -127,7 +127,7 @@ export function DeckSelectionMenu({
             setPage('root');
           }}
         >
-          <ChevronLeft width={14} height={14} strokeWidth={2} aria-hidden />
+          <ChevronLeft width={14} height={14} strokeWidth={1.8} aria-hidden />
           Back
         </button>
         {deckTags.map((tag) => (

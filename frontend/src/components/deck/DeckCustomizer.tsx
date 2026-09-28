@@ -154,7 +154,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
                 {moreSettingsSummary(customization)}
               </span>
             )}
-            <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
+            <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
           </button>
           {!moreCollapsed && (
             <div id={moreBodyId} className="deck-customizer-more-body">
@@ -1151,7 +1151,7 @@ function CardListGroup({
                 className="deck-customizer-pill-remove"
                 label={`Remove ${name}`}
                 onClick={() => onChange(values.filter((v) => v !== name))}
-                icon={<X width={14} height={14} strokeWidth={2} />}
+                icon={<X width={14} height={14} strokeWidth={1.8} />}
               />
             </li>
           ))}
@@ -1352,7 +1352,7 @@ function RangeSlider({
               className="deck-customizer-slider-suggested"
               aria-label="Matches EDHREC suggestion"
             >
-              <Check width={12} height={12} strokeWidth={3} aria-hidden />
+              <Check width={12} height={12} strokeWidth={2} aria-hidden />
               suggested
             </span>
           )}

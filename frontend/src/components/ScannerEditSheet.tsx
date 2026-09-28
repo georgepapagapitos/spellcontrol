@@ -250,7 +250,7 @@ function PrintingGrid({
         <IconButton
           className="scanner-back"
           label="Back to the card"
-          icon={<ChevronLeft width={20} height={20} strokeWidth={2} />}
+          icon={<ChevronLeft width={20} height={20} strokeWidth={1.8} />}
           onClick={onBack}
         />
         <div className="scanner-sheet-heading">

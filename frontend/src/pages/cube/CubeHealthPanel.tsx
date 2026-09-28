@@ -47,7 +47,13 @@ export function CubeHealthPanel({ cube }: { cube: GeneratedCube }): JSX.Element 
           aria-controls={open ? 'cube-health-body' : undefined}
           onClick={() => setOpen((v) => !v)}
         >
-          <ChevronDown className="cube-group-chevron" width={14} height={14} aria-hidden />
+          <ChevronDown
+            className="cube-group-chevron"
+            width={14}
+            height={14}
+            strokeWidth={1.8}
+            aria-hidden
+          />
           Cube health
         </button>
       </h3>
@@ -113,7 +119,12 @@ function CurveChart({ rows }: { rows: HealthRow[] }): JSX.Element {
                 <span aria-hidden="true">
                   {label}
                   {offTarget && (
-                    <AlertTriangle className="cube-health-curve-flag" width={9} height={9} />
+                    <AlertTriangle
+                      className="cube-health-curve-flag"
+                      width={14}
+                      height={14}
+                      strokeWidth={1.8}
+                    />
                   )}
                 </span>
                 <span className="sr-only">
@@ -168,7 +179,7 @@ function HealthRowItem({ row }: { row: HealthRow }): JSX.Element {
         {row.count} · typical {row.lo}–{row.hi}
         {offTarget && (
           <span className="cube-health-row-flag">
-            <AlertTriangle width={11} height={11} aria-hidden /> Off target
+            <AlertTriangle width={14} height={14} strokeWidth={1.8} aria-hidden /> Off target
           </span>
         )}
       </p>

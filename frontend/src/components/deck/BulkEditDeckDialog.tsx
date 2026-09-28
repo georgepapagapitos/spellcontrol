@@ -299,7 +299,7 @@ export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
 
             {offlineNames.length > 0 && (
               <p className="append-deck-offline" role="status">
-                <WifiOff width={14} height={14} strokeWidth={2} aria-hidden />
+                <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden />
                 You're offline. {offlineNames.length} new card
                 {offlineNames.length === 1 ? '' : 's'} couldn't be resolved and will be skipped.
                 Everything else in this edit still applies.

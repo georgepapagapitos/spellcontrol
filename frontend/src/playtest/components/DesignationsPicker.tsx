@@ -108,7 +108,7 @@ export function DesignationsPicker({ monarch, initiative, citysBlessing, onSet, 
                     aria-hidden
                     width={18}
                     height={18}
-                    strokeWidth={2.5}
+                    strokeWidth={2}
                   />
                 )}
               </button>

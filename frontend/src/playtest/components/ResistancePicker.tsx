@@ -89,7 +89,7 @@ export function ResistancePicker({ level, onSelect, onClose }: Props) {
                     aria-hidden
                     width={18}
                     height={18}
-                    strokeWidth={2.5}
+                    strokeWidth={2}
                   />
                 )}
               </label>

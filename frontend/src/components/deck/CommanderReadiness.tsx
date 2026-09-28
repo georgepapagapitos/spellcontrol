@@ -19,7 +19,7 @@ export function ReadinessChip({ score }: { score: ReadinessScore | 'loading' | u
   if (score === 'loading') {
     return (
       <span className="commander-search-item-readiness is-loading" aria-label="Loading readiness">
-        <Loader2 className="commander-readiness-spin" width={11} height={11} aria-hidden />
+        <Loader2 className="commander-readiness-spin" width={12} height={12} aria-hidden />
       </span>
     );
   }

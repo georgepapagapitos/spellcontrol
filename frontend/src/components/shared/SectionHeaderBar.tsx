@@ -73,7 +73,7 @@ export function SectionHeaderBar({
         className="collection-section-chevron"
         width={16}
         height={16}
-        strokeWidth={2.25}
+        strokeWidth={2}
         aria-hidden
         data-collapsed={collapsed || undefined}
       />

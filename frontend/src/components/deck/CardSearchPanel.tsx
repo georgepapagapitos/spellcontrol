@@ -347,7 +347,7 @@ function SearchResultRow({
           onClick={onAdd}
           disabled={addDisabled}
           label={addLabel}
-          icon={<Plus width={12} height={12} strokeWidth={2.5} />}
+          icon={<Plus width={12} height={12} strokeWidth={2} />}
         />
         <RowThumb name={name} nameNode={nameNode} image={image} onPreview={onPreview} />
         {manaCost && <ManaCost cost={manaCost} className="inline-card-search-mana" />}
@@ -376,9 +376,9 @@ function useAddPreviewCarousel(
         key: 'add',
         icon:
           inDeck > 0 ? (
-            <Check width={18} height={18} strokeWidth={2.4} aria-hidden />
+            <Check width={18} height={18} strokeWidth={2} aria-hidden />
           ) : (
-            <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />
+            <Plus width={18} height={18} strokeWidth={2} aria-hidden />
           ),
         label: inDeck > 0 ? `In deck ×${inDeck}` : 'Add',
         onClick: () => void addByEntry(entry),
@@ -802,7 +802,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           <InfoTip label="search syntax and keyboard shortcuts" text={SYNTAX_TIP} wide />
           <SelectMenu<AddSort>
             ariaLabel="Sort"
-            leadingIcon={<ArrowUpDown width={14} height={14} strokeWidth={2} aria-hidden />}
+            leadingIcon={<ArrowUpDown width={14} height={14} strokeWidth={1.8} aria-hidden />}
             value={sort}
             onChange={setSort}
             options={SORT_OPTIONS}

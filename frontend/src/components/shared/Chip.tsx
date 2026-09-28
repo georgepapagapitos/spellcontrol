@@ -122,7 +122,7 @@ export function Chip(props: ChipProps) {
         <IconButton
           className={removeClassName}
           label={removeLabel}
-          icon={removeIcon ?? <X width={12} height={12} strokeWidth={2.5} />}
+          icon={removeIcon ?? <X width={12} height={12} strokeWidth={2} />}
           onClick={onRemove}
         />
       </span>

@@ -455,7 +455,7 @@ export function DeckAiRefine({
                   variant="primary"
                   onClick={applyAll}
                   className="deck-ai-bulk-apply"
-                  icon={<Check width={14} height={14} strokeWidth={2.5} />}
+                  icon={<Check width={14} height={14} strokeWidth={1.8} />}
                 >
                   Apply all {bulkable.length} swaps
                 </Button>
@@ -535,7 +535,7 @@ export function DeckAiRefine({
                         />
                         {applied.has(t.add) ? (
                           <span className="deck-ai-tweak-done">
-                            <Check width={14} height={14} strokeWidth={2.5} aria-hidden /> Applied
+                            <Check width={14} height={14} strokeWidth={1.8} aria-hidden /> Applied
                           </span>
                         ) : (
                           <Button
@@ -544,7 +544,7 @@ export function DeckAiRefine({
                             aria-label={
                               t.cut ? `Swap ${t.cut} for ${shownName}` : `Add ${shownName}`
                             }
-                            icon={<Check width={14} height={14} strokeWidth={2.5} />}
+                            icon={<Check width={14} height={14} strokeWidth={1.8} />}
                           >
                             Apply
                           </Button>

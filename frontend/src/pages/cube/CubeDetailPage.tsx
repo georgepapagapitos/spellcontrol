@@ -476,7 +476,10 @@ export function CubeDetailPage() {
         )}
         {tab === 'cards' && rebuildStatus === 'idle' && (
           <div className="cube-add-from-collection">
-            <Button icon={<Plus width={14} height={14} strokeWidth={2} />} onClick={handleAddOpen}>
+            <Button
+              icon={<Plus width={14} height={14} strokeWidth={1.8} />}
+              onClick={handleAddOpen}
+            >
               Add from collection
             </Button>
           </div>

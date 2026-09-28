@@ -94,7 +94,7 @@ export function TableTickerDock({
       title="Table log"
       onClick={onToggle}
     >
-      <MessageCircle width={20} height={20} aria-hidden />
+      <MessageCircle width={20} height={20} strokeWidth={1.8} aria-hidden />
       {unread > 0 && (
         <span className="table-ticker-dock__badge" aria-hidden="true">
           {unread > 99 ? '99+' : unread}

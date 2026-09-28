@@ -108,7 +108,7 @@ export function CardOtagsSheet({ card, onClose }: Props) {
                     rel="noopener noreferrer"
                   >
                     Search on Scryfall
-                    <ExternalLink width={11} height={11} strokeWidth={2} aria-hidden />
+                    <ExternalLink width={14} height={14} strokeWidth={1.8} aria-hidden />
                   </a>
                 </div>
                 <p className="card-otags-desc">{describeOtag(tag)}</p>

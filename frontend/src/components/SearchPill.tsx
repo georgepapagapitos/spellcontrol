@@ -97,7 +97,7 @@ export const SearchPill = forwardRef<HTMLInputElement, Props>(function SearchPil
           className="search-pill-clear"
           onClick={() => onChange('')}
           label="Clear search"
-          icon={<X width={14} height={14} strokeWidth={2} />}
+          icon={<X width={14} height={14} strokeWidth={1.8} />}
         />
       )}
       {trailing}

@@ -108,9 +108,9 @@ export function DeckCardPreviewMeta({
     segments.push(
       <span key="cmd" className="deck-card-preview-meta-commander">
         {isPartner ? (
-          <Handshake width={13} height={13} strokeWidth={2.2} aria-hidden />
+          <Handshake width={14} height={14} strokeWidth={1.8} aria-hidden />
         ) : (
-          <Crown width={13} height={13} strokeWidth={2.2} aria-hidden />
+          <Crown width={14} height={14} strokeWidth={1.8} aria-hidden />
         )}
         {isPartner ? 'Partner' : 'Commander'}
       </span>
@@ -191,7 +191,7 @@ export function DeckCardPreviewMeta({
                     className="deck-card-preview-meta-tag-remove"
                     onClick={() => removeTag(t)}
                     label={`Remove tag "${t}"`}
-                    icon={<X width={11} height={11} strokeWidth={2.6} />}
+                    icon={<X width={12} height={12} strokeWidth={2} />}
                   />
                 )}
               </Chip>
@@ -229,7 +229,7 @@ export function DeckCardPreviewMeta({
                 type="submit"
                 disabled={!draft.trim()}
                 label="Add tag"
-                icon={<Plus width={14} height={14} strokeWidth={2.4} />}
+                icon={<Plus width={14} height={14} strokeWidth={1.8} />}
               />
             </form>
           )}

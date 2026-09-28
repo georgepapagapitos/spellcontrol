@@ -201,7 +201,7 @@ export function BinderPagePreview({
               beginClose();
             }}
             label="Close pages"
-            icon={<X width={20} height={20} strokeWidth={2} />}
+            icon={<X width={20} height={20} strokeWidth={1.8} />}
           />
           <div className="binder-pages-stage">
             <div className="binder-pages-topbar">

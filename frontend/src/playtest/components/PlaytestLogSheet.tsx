@@ -91,7 +91,12 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
                         }`}
                       >
                         {e.kind === 'resistance' && (
-                          <Swords className="playtest-log-entry__icon" aria-hidden size={14} />
+                          <Swords
+                            className="playtest-log-entry__icon"
+                            aria-hidden
+                            size={14}
+                            strokeWidth={1.8}
+                          />
                         )}
                         <span>{e.text}</span>
                       </li>

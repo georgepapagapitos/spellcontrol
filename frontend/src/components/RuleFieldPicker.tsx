@@ -51,7 +51,7 @@ export function RuleFieldPicker({ inUse, onPick }: Props) {
         aria-expanded={open}
         onClick={openPicker}
         className="btn-add-rule"
-        icon={<Plus width={14} height={14} strokeWidth={2} />}
+        icon={<Plus width={14} height={14} strokeWidth={1.8} />}
       >
         Add condition
       </Button>
@@ -66,7 +66,7 @@ export function RuleFieldPicker({ inUse, onPick }: Props) {
             style={panelStyle}
           >
             <div className="rule-field-search">
-              <Search width={14} height={14} strokeWidth={2} aria-hidden />
+              <Search width={14} height={14} strokeWidth={1.8} aria-hidden />
               <input
                 type="search"
                 value={query}

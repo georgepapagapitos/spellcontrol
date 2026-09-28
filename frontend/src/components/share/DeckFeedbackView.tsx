@@ -356,7 +356,7 @@ export function DeckFeedbackView({ data, token }: Props) {
                     onClick={() => addSuggestion(card)}
                     disabled={inDeck}
                   >
-                    <Plus width={14} height={14} strokeWidth={2} aria-hidden />
+                    <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
                     <RowThumb src={imageFromCard(card, 'small')} />
                     <span className="feedback-row-name">{card.name}</span>
                     <span className="feedback-row-type">
@@ -385,14 +385,14 @@ export function DeckFeedbackView({ data, token }: Props) {
                   onClick={() => removeAdd(card.oracle_id)}
                   title="Remove this suggestion"
                 >
-                  <Plus width={14} height={14} strokeWidth={2} aria-hidden />
+                  <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
                   <RowThumb src={imageFromCard(card, 'small')} />
                   <span className="feedback-row-name">{card.name}</span>
                   <span className="feedback-row-type">{card.type_line ?? ''}</span>
                   {typeof card.mana_cost === 'string' && (
                     <ManaCost cost={card.mana_cost} className="feedback-row-mana" />
                   )}
-                  <Undo2 width={14} height={14} strokeWidth={2} aria-hidden />
+                  <Undo2 width={14} height={14} strokeWidth={1.8} aria-hidden />
                 </button>
               </li>
             ))}
@@ -417,12 +417,12 @@ export function DeckFeedbackView({ data, token }: Props) {
             {
               value: 'grid',
               label: 'Grid view',
-              icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+              icon: <LayoutGrid width={14} height={14} strokeWidth={1.8} aria-hidden />,
             },
             {
               value: 'list',
               label: 'List view',
-              icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
+              icon: <ListIcon width={14} height={14} strokeWidth={1.8} aria-hidden />,
             },
           ]}
         />
@@ -457,9 +457,9 @@ export function DeckFeedbackView({ data, token }: Props) {
                         onClick={() => toggleCut(it)}
                       >
                         {isCut ? (
-                          <Undo2 width={15} height={15} strokeWidth={2} aria-hidden />
+                          <Undo2 width={16} height={16} strokeWidth={2} aria-hidden />
                         ) : (
-                          <Scissors width={15} height={15} strokeWidth={2} aria-hidden />
+                          <Scissors width={16} height={16} strokeWidth={2} aria-hidden />
                         )}
                       </button>
                     )}
@@ -506,9 +506,9 @@ export function DeckFeedbackView({ data, token }: Props) {
                         onClick={() => toggleCut(it)}
                       >
                         {isCut ? (
-                          <Undo2 width={15} height={15} strokeWidth={2} aria-hidden />
+                          <Undo2 width={16} height={16} strokeWidth={2} aria-hidden />
                         ) : (
-                          <Scissors width={15} height={15} strokeWidth={2} aria-hidden />
+                          <Scissors width={16} height={16} strokeWidth={2} aria-hidden />
                         )}
                       </button>
                     )}

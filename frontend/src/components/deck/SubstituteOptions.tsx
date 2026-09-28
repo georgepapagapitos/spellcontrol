@@ -52,8 +52,9 @@ export function SubstituteOptions({
           className="substitute-options-chevron"
           data-open={open}
           aria-hidden
-          width={13}
-          height={13}
+          width={14}
+          height={14}
+          strokeWidth={1.8}
         />
         {open ? 'Hide other options' : `${n} other owned option${n > 1 ? 's' : ''}`}
       </button>

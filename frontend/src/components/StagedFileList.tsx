@@ -43,7 +43,7 @@ export function StagedFileList({
               disabled={disabled}
               label={`Remove ${f.name}`}
               title="Remove"
-              icon={<X width={14} height={14} strokeWidth={2} />}
+              icon={<X width={14} height={14} strokeWidth={1.8} />}
             />
           </li>
         ))}

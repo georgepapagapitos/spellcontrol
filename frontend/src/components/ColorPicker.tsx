@@ -61,7 +61,7 @@ export function ColorPicker({ value, onChange, ariaLabel }: Props) {
           aria-expanded={showCustom}
           label="Custom color"
           icon={
-            <Plus className="color-swatch-custom-icon" width={14} height={14} strokeWidth={2} />
+            <Plus className="color-swatch-custom-icon" width={14} height={14} strokeWidth={1.8} />
           }
         />
       </fieldset>

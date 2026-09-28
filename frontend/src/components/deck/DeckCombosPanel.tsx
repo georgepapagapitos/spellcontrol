@@ -375,9 +375,9 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
               icon={
                 <CheckCircle2
                   className="deck-combos-filter-icon deck-combos-filter-icon--owned"
-                  width={13}
-                  height={13}
-                  strokeWidth={2.5}
+                  width={14}
+                  height={14}
+                  strokeWidth={1.8}
                 />
               }
               trailing={<span className="deck-combos-filter-count">{oneAwayOwned.length}</span>}
@@ -391,9 +391,9 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
               icon={
                 <Circle
                   className="deck-combos-filter-icon deck-combos-filter-icon--not-owned"
-                  width={13}
-                  height={13}
-                  strokeWidth={2.5}
+                  width={14}
+                  height={14}
+                  strokeWidth={1.8}
                 />
               }
               trailing={<span className="deck-combos-filter-count">{oneAwayNotOwned.length}</span>}

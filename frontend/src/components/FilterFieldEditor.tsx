@@ -245,7 +245,7 @@ export function BinderRow({
           title="Remove this condition"
           onClick={() => visibility.clearField(fieldId)}
           label={`Remove the ${filterFieldSpec(fieldId)?.label ?? 'this'} condition`}
-          icon={<X width={13} height={13} strokeWidth={2.2} />}
+          icon={<X width={14} height={14} strokeWidth={1.8} />}
         />
       )}
     </div>

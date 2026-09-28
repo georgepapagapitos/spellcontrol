@@ -88,7 +88,7 @@ export function TakebackModePicker({ mode, onSelect, onClose, online }: Props) {
                     aria-hidden
                     width={18}
                     height={18}
-                    strokeWidth={2.5}
+                    strokeWidth={2}
                   />
                 )}
               </label>

@@ -31,7 +31,7 @@ export function HordeTile({ horde, selected, onSelect, record }: Props) {
           <img src={horde.tileArt} alt="" aria-hidden="true" loading="lazy" />
           {selected && (
             <span className="horde-tile-check" aria-hidden="true">
-              <Check width={14} height={14} strokeWidth={3} />
+              <Check width={14} height={14} strokeWidth={1.8} />
             </span>
           )}
         </span>

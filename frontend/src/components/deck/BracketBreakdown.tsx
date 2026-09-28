@@ -677,7 +677,7 @@ export function BracketBreakdown({
       <details className="bracket-breakdown-section bracket-breakdown-details">
         <summary className="bracket-breakdown-heading bracket-breakdown-summary-toggle">
           <span>How the points add up</span>
-          <ChevronDown width={14} height={14} aria-hidden />
+          <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
         </summary>
         <p className="bracket-breakdown-signal-lede">
           Fast mana, tutors, a low curve, interaction and combo engines each add points.

@@ -104,7 +104,7 @@ export function CardInfoDialog({
             <Button
               onClick={() => setFace((f) => (f + 1) % artFaces.length)}
               className="card-info-flip"
-              icon={<RotateCw width={14} height={14} strokeWidth={2.2} />}
+              icon={<RotateCw width={14} height={14} strokeWidth={1.8} />}
             >
               {artFaces[(face + 1) % artFaces.length].name}
             </Button>
@@ -155,7 +155,7 @@ function ExternalAnchor({ href, label }: { href: string; label: string }) {
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className="card-info-link">
       {label}
-      <ExternalLink width={12} height={12} strokeWidth={2.4} aria-hidden />
+      <ExternalLink width={12} height={12} strokeWidth={2} aria-hidden />
     </a>
   );
 }

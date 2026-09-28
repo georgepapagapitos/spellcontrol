@@ -74,7 +74,7 @@ export function DeckCardMenuBody({
             onPageChange('root');
           }}
         >
-          <ChevronLeft width={14} height={14} strokeWidth={2} aria-hidden />
+          <ChevronLeft width={14} height={14} strokeWidth={1.8} aria-hidden />
           Back
         </button>
         {/* Radio on the move page (a card has ONE section), checkbox on the
@@ -94,7 +94,7 @@ export function DeckCardMenuBody({
             }}
           >
             <span className="deck-card-menu-pick-mark" aria-hidden>
-              {p.checked && <Check width={13} height={13} strokeWidth={2.5} />}
+              {p.checked && <Check width={14} height={14} strokeWidth={1.8} />}
             </span>
             {p.label}
           </button>
@@ -146,7 +146,7 @@ export function DeckCardMenuBody({
                   }}
                 >
                   {action.label}
-                  <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
+                  <ChevronRight width={14} height={14} strokeWidth={1.8} aria-hidden />
                 </button>
               ) : (
                 <button

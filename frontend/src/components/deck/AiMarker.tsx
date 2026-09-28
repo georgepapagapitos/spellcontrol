@@ -15,7 +15,7 @@ import './AiMarker.css';
 export function AiMarker({ label = 'AI Beta' }: { label?: string }) {
   return (
     <span className="deck-ai-marker">
-      <Sparkles width={11} height={11} aria-hidden />
+      <Sparkles width={12} height={12} aria-hidden />
       {label}
     </span>
   );

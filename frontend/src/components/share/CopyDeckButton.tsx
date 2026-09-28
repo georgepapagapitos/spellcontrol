@@ -55,7 +55,7 @@ export function CopyDeckButton({ data, variant = 'header', slug }: Props) {
     <Button
       onClick={handleCopy}
       className="shared-copy-btn"
-      icon={<Copy width={15} height={15} strokeWidth={2} />}
+      icon={<Copy width={16} height={16} strokeWidth={2} />}
     >
       Copy to my decks
     </Button>

@@ -137,7 +137,7 @@ export function HordeSetupFields({
                   aria-hidden
                   width={18}
                   height={18}
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                 />
               )}
             </label>
