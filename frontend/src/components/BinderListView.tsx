@@ -301,6 +301,12 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
   const expandAll = () => setCollapsed(new Set());
   const collapseAll = () => setCollapsed(new Set(flat.sectionRows.map((s) => s.sectionKey)));
 
+  // The phone sort sheet's "Your first sections" preview — real section
+  // labels and the page each starts on, from this same materialized binder.
+  const firstSortSections = binder.sections
+    .slice(0, 4)
+    .map((sec) => ({ label: sec.label, page: sec.pages[0]?.pageNum ?? 1 }));
+
   return (
     <>
       <BinderSummaryBar
@@ -314,6 +320,9 @@ export function BinderListView({ binder, controls, qtyByCopyId, density = 'detai
                 onSortsChange: (next) => updateBinder(binder.def.id, { sorts: next }),
                 onValueOrdersChange: (next) =>
                   updateBinder(binder.def.id, { sortValueOrders: next }),
+                firstSections: firstSortSections,
+                totalSections: binder.sections.length,
+                totalPages: binder.totalPages,
               }
             : undefined
         }

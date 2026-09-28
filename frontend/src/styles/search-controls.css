@@ -426,7 +426,10 @@
 }
 
 .sort-popover-label {
-  text-transform: lowercase;
+  /* Named orders ("Set collection") and spelled-out chains ("Rarity, then
+     price") are both authored in sentence case — force-lowercasing them
+     (the old field-id breadcrumb's own casing rule) read "set collection"
+     and "rarity, then price" with no capital anywhere (E492). */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -468,12 +471,95 @@
      folds each row onto two lines. */
   width: min(30rem, calc(100vw - 2rem));
   padding: var(--space-3);
+  max-height: calc(var(--vh-safe) - 6rem - var(--keyboard-inset));
+  overflow-y: auto;
 }
 
 @media (max-width: 640px) {
   .sort-popover-panel {
     width: calc(100vw - 1.5rem);
   }
+}
+
+/* Named orders (E491) sit above the chain editor inside the same popover —
+   the ChoiceList of preset rows, then a rule, then SortEditor's chain. */
+.sort-popover-panel > .choice-list {
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 0.5px solid var(--border);
+}
+
+/* ── Sort sheet (E492) — the same picker as a bottom sheet on a phone ────── */
+.sort-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.sort-sheet-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: normal;
+  color: var(--text-primary);
+}
+
+.sort-sheet-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+}
+
+.sort-sheet-preview {
+  margin-top: var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.sort-sheet-preview-head {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 var(--space-1-5);
+  font-family: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.sort-sheet-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sort-sheet-preview-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.sort-sheet-preview-list .mono {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.sort-sheet-preview-more {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
 }
 
 select:focus,

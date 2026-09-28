@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { SortEntry, SortField } from '../types';
-import { SortPopover } from './SortPopover';
+import { SortPopover, type SortPreviewSection } from './SortPopover';
 import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
 import { Legend, LegendContent } from './Legend';
 import { ToolbarPopover } from './shared/ToolbarPopover';
@@ -65,6 +65,11 @@ interface Props {
     valueOrders: Partial<Record<SortField, string[]>>;
     onSortsChange: (next: SortEntry[]) => void;
     onValueOrdersChange: (next: Partial<Record<SortField, string[]>>) => void;
+    /** The binder's own first few materialized sections, for the phone sort
+     *  sheet's "Your first sections" preview. */
+    firstSections?: SortPreviewSection[];
+    totalSections?: number;
+    totalPages?: number;
   };
   /** Absent when there is only one section to collapse. */
   collapse?: { allCollapsed: boolean; onToggle: () => void };
@@ -98,7 +103,9 @@ export function BinderSummaryBar({ binderName, onBrowsePages, sort, collapse, co
           aria-label={`Browse pages of ${binderName}`}
         >
           <BookOpen width={14} height={14} strokeWidth={1.8} aria-hidden />
-          <span>Browse pages</span>
+          {/* Shortened on a phone so the sort pill beside it has room — the
+              book icon already carries the rest (STYLE_GUIDE § Sort chains). */}
+          <span>{narrow ? 'Browse' : 'Browse pages'}</span>
         </button>
       )}
       {sort && <SortPopover {...sort} />}

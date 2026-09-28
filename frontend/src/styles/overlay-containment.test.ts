@@ -316,13 +316,12 @@ describe('coarse-pointer touch floor', () => {
     // Custom sort value order — DRAG targets (`touch-action: none`), so a ghost
     // is impossible: the drag listener is on the real box.
     ['styles/binder-card-management.css', '.sort-value-order-chip'],
-    // The sort editor's reorder/remove buttons. Their floor used to be gated on
-    // `max-width: 600px` as well, which left coarse-pointer tablets and
-    // touchscreen laptops on a 33x31 target.
-    ['styles/responsive-nav.css', '.tab-action'],
     // The sort row's field picker — the row's primary control, and it was the
-    // shortest thing in it (95x34 beside 44px reorder buttons).
-    ['styles/binder-rules-editor.css', '.sort-editor-row > .toolbar-pill'],
+    // shortest thing in it (95x34 beside 44px reorder buttons). E492 moved the
+    // reorder/remove buttons themselves onto `IconButton` (grip/remove) and
+    // `OverflowMenu` (the phone row menu), both already on the shared control
+    // primitives' own touch floors — this is the one bespoke rule left here.
+    ['styles/binder-rules-editor.css', '.sort-editor-row-main > .toolbar-popover > .toolbar-pill'],
     // The binder's view-option rows. The whole row is the <label>, so the row
     // IS the target; only the 14px checkbox inside gave it any height (235x30).
     ['styles/search-controls.css', '.filter-popover-row'],

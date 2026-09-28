@@ -39,193 +39,189 @@
   font-size: var(--text-sm);
 }
 
-.sort-editor {
-  align-items: center;
-}
-
-/* The GRID lives on the list, not on each row, so every row shares one set of
-   column tracks and the field pickers, direction toggles and action clusters
-   line up down the panel. Per-row grids let each row size its own columns, so
-   a "WUBRG" direction chip and an "A → Z" one sat at different x positions —
-   a ragged edge on a control column that reads as three stacked one-offs. */
-/* Layout container for the row grid below. The sort editor renders in two
-   hosts of very different widths — the binder-rules MODAL (roomy) and the
-   in-view sort POPOVER (hard-capped at 26rem) — so the row layout has to
-   respond to the space it is actually given, not to the screen. */
+/* Layout container for the row layout below. The sort editor renders in
+   three hosts of very different widths — the binder-rules MODAL (roomy), the
+   desktop in-view sort POPOVER (hard-capped at 26rem), and the phone sort
+   SHEET (full width, but still narrow in absolute terms) — so the row layout
+   has to respond to the space it is actually given, not to the screen
+   (E299), and the sheet's own rows need to fit ONE line at that width
+   (E492) — never re-derive "phone" from a viewport query here. */
 .sort-editor {
   container-type: inline-size;
+  container-name: sort-editor;
 }
 
 .sort-editor-list {
-  display: grid;
-  /* The slack goes to the LAST track, not the picker's: with the picker on
-     `1fr` the direction chip and the reorder cluster were pushed to the
-     modal's far edge, 300px from the field they act on. Now the three
-     controls read as one cluster and the trailing track just absorbs the
-     leftover width (so the span-all children below still get the full row). */
-  grid-template-columns: auto auto auto minmax(0, 1fr);
-  align-items: center;
-  column-gap: var(--space-2);
+  display: flex;
+  flex-direction: column;
   row-gap: var(--space-3);
 }
 
-/* Rows dissolve so their children become items of the list grid above. */
 .sort-editor-row {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--space-2);
 }
 
-/* Full-width children: the value-order editor, and the add button. */
-.sort-editor-row > .sort-value-order-editor,
-.sort-editor-list > .btn-add-group {
-  grid-column: 1 / -1;
-}
-
-.sort-editor-actions {
-  justify-self: start;
-}
-
-/* The direction toggle. Reads as a control rather than a status glyph — it
-   is the one thing on this row that used to have no affordance at all. */
-.sort-editor-dir {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2-5);
-  border: 0.5px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
+/* A level label sits above the row it introduces, never repeated per row —
+   "Sections" once above row 1, "Inside each section" once above row 2. This
+   is what makes the first-sort-makes-the-header rule visible instead of an
+   implicit fact nobody could see (STYLE_GUIDE § Sort chains). */
+.sort-editor-level-label {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   font-size: var(--text-xs);
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background var(--motion-fast),
-    color var(--motion-fast),
-    border-color var(--motion-fast),
-    transform var(--motion-fast);
+  color: var(--text-muted);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .sort-editor-dir:hover {
-    background: var(--accent-light);
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-}
-
-/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
-.sort-editor-dir:active {
-  transform: scale(0.97);
-}
-
-.sort-editor-dir:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.sort-editor-dir > svg {
-  flex-shrink: 0;
-  color: var(--accent);
-}
-
-/* Under ~26rem of CONTAINER width four columns don't fit, so each sort takes
-   two lines: the field and its direction on the first, the reorder/remove
-   cluster tucked under them on the second. The direction keeps its words — a
-   bare arrow is the asc/desc ambiguity the direction label exists to remove.
-
-   ⚠️ This was a `@media (max-width: 599px)` VIEWPORT query, which asked the
-   wrong question. The popover host is capped at `min(26rem, 100vw - 2rem)`, so
-   its content box is ~387px at EVERY viewport ≥ 600px — the four-track grid
-   needs ~411px, the trailing `1fr` track got starved to 79px, and the
-   103px-wide reorder cluster overflowed it and spilled past the panel's
-   border. Measured identically (23.1px over) at 1024px, 1440px and 717px: a
-   desktop-wide bug that a viewport breakpoint could never catch, and that
-   only looked like a mobile concern because 599px happened to be clean (E299). */
-@container (max-width: 26rem) {
-  .sort-editor-list {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    row-gap: var(--space-2);
-  }
-
-  .sort-editor-actions {
-    grid-column: 2 / -1;
-    justify-self: end;
-    margin-bottom: var(--space-2);
-  }
-}
-
-@media (pointer: coarse) {
-  .sort-editor-dir {
-    min-height: 44px;
-  }
-}
-
-/* Was an inline style={{}} object on the element itself, with invented rem
-   values that stylelint cannot see because they lived in JS. */
-.sort-editor-tiebreakers {
+.sort-editor-row-main {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  margin-top: var(--space-2);
-  font-size: var(--text-xs);
-}
-
-/* The field picker is the row's PRIMARY control — it's what you came here to
-   change — and it measured 95x34 on touch while the reorder buttons beside it
-   sit at 44. Scoped to this row rather than raising `.toolbar-pill` app-wide,
-   which is a sweep of its own across every toolbar in the app. */
-@media (pointer: coarse) {
-  .sort-editor-row > .toolbar-pill {
-    min-height: 44px;
-  }
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .sort-editor-num {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-muted);
-  width: 1.5rem;
+  width: 1.25rem;
   flex-shrink: 0;
   text-align: right;
 }
 
-.sort-editor-row .toolbar-popover {
-  min-width: 10rem;
+/* The field picker is the row's PRIMARY control and takes the slack, so the
+   direction control and reorder affordance stay a fixed size beside it. */
+.sort-editor-row-main > .toolbar-popover {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-/* The pill fills its track. The wrapper's 10rem floor used to size the
-   column while the pill inside stayed content-width, which left a gap of up
-   to 90px between the field and the direction chip that acts on it. */
-.sort-editor-row .toolbar-popover > .toolbar-pill {
+.sort-editor-row-main > .toolbar-popover > .toolbar-pill {
   width: 100%;
   justify-content: space-between;
+}
+
+.sort-editor-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sort-editor-grip:hover {
+    color: var(--text-secondary);
+    background: var(--surface-raised);
+  }
+}
+
+.sort-editor-grip:focus-visible {
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sort-editor-row.is-dragging {
+  z-index: 1;
+}
+
+.sort-editor-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sort-editor-remove:hover {
+    color: var(--err-text);
+    background: var(--surface-raised);
+  }
+}
+
+.sort-editor-remove:focus-visible {
+  color: var(--err-text);
+  background: var(--surface-raised);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sort-editor-row-menu {
+  flex-shrink: 0;
+}
+
+/* Direction: a two-option SegmentedControl showing BOTH outcomes (STYLE_GUIDE
+   § Sort chains) — never a single button that states the current value and
+   flips on tap. Long labels where there's room; a container query (never the
+   viewport, see above) swaps in `dirShort` once the host narrows, which is
+   what keeps every row to ONE line in the phone sheet. */
+.sort-editor-row-main .segmented {
+  flex-shrink: 0;
+}
+
+.sort-editor-row-main .dir-label-short {
+  display: none;
+}
+
+@container sort-editor (max-width: 26rem) {
+  .sort-editor-row-main .dir-label-long {
+    display: none;
+  }
+
+  .sort-editor-row-main .dir-label-short {
+    display: inline;
+  }
+}
+
+.sort-editor-color-pips {
+  display: inline-flex;
+  gap: var(--space-0-5);
+}
+
+@media (pointer: coarse) {
+  .sort-editor-grip,
+  .sort-editor-remove {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .sort-editor-row-main > .toolbar-popover > .toolbar-pill {
+    min-height: 44px;
+  }
+}
+
+.sort-editor-tiebreakers {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.sort-editor-tiebreakers-change {
+  font-size: var(--text-xs);
 }
 
 .sort-editor-list .btn-add-group {
   width: auto;
   align-self: flex-start;
   margin-top: var(--space-1);
-}
-
-/* `.tab-actions` (the base class shared with the binder/tab strips) is
-   styled to attach to a left-hand neighbor — top + right + bottom
-   borders only, with the left side intentionally seamed. The sort
-   editor uses it standalone, so we paint a complete uniform border
-   on every side and let the buttons inside provide their own vertical
-   separators. Avoids the "ledge" effect where the bottom rendered
-   thinner than the top from the mismatched 0.5px stripes. Setting
-   `min-width: 0` lets the grid track shrink the cluster on very
-   narrow viewports so the right edge (and its bottom-right corner)
-   doesn't fall off the dialog. */
-.sort-editor-actions {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  min-width: 0;
-}
-
-.sort-editor-actions .tab-action {
-  padding: var(--space-1) var(--space-2-5);
-  font-size: var(--text-sm);
 }
 
 /* ── Rule rows ──────────────────────────────────────────────────────────── */
@@ -1176,4 +1172,60 @@
 
 .rule-color-identity .color-mode-toggle {
   white-space: nowrap;
+}
+
+/* ── Named orders (E491) ──────────────────────────────────────────────────
+   Two forms of the same six presets: a chip row (BinderEditor's already-open
+   Order disclosure, where the chain editor is right below) and a ChoiceList
+   of radio rows with a description each (the sort sheet on a phone, and the
+   top of the desktop popover — SortPresets.tsx). */
+.sort-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+  margin-bottom: var(--space-3);
+}
+
+.sort-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 2rem;
+  padding: 0 var(--space-2-5);
+  border-radius: 999px;
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.sort-preset-chip.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.sort-preset-chip.is-selected svg {
+  color: var(--accent);
+}
+
+@media (pointer: coarse) {
+  .sort-preset-chip {
+    min-height: 44px;
+  }
+}
+
+.sort-preset-color-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0-5);
+  flex-wrap: wrap;
+}
+
+.sort-preset-fields-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }

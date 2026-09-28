@@ -7,9 +7,11 @@ import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
 import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
-import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS, sortDirectionLabel } from '../lib/sorting';
+import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS } from '../lib/sorting';
 import { useAnchoredPanel } from '../lib/use-anchored-panel';
 import { SortEditor } from './SortEditor';
+import { SortPresetChips } from './SortPresets';
+import { sortOrderSummaryLabel } from '../lib/sort-order-label';
 import { areAllGroupsEmpty } from '../lib/rules';
 import {
   countBinderMatches,
@@ -810,13 +812,11 @@ export function BinderEditor() {
     setStep('rules');
   };
 
+  // A stored chain matching a named order (E491) shows that name here, and on
+  // the sort pill everywhere else this binder's order appears — anything else
+  // is the chain spelled out in words ("Rarity, then price").
   const orderSummary =
-    sorts
-      .map((s) => {
-        const label = SORT_FIELDS.find((f) => f.value === s.field)?.label ?? s.field;
-        return `${label} (${sortDirectionLabel(s.field, s.dir)})`;
-      })
-      .join(', then ') +
+    sortOrderSummaryLabel(sorts) +
     (sectionMode === 'group' && groups.length >= 2 ? ' · sections by rule' : '');
 
   const pagesSummary = formatPagesSummary({
@@ -1107,6 +1107,11 @@ export function BinderEditor() {
 
               <div className="binder-editor-settings">
                 <Disclosure title="Order" summary={orderSummary}>
+                  <SortPresetChips
+                    sorts={sorts}
+                    onPick={(preset) => setSorts(preset.sorts)}
+                    onChooseFields={() => {}}
+                  />
                   <SortEditor
                     sorts={sorts}
                     valueOrders={sortValueOrders}

@@ -31,26 +31,80 @@ export const SORT_FIELDS: {
   defaultDir: SortDir;
   /** [what ascending looks like, what descending looks like] */
   dirLabels: [string, string];
+  /**
+   * Same two outcomes, shortened for a width-capped host (the sort sheet on a
+   * phone, the popover's own container query). Never a different MEANING —
+   * a caller swapping `dirLabels` for `dirShort` must land on the same
+   * direction. `color`'s ascending option is rendered as color pips by the
+   * UI layer (SortEditor); this text is its accessible name at every width.
+   */
+  dirShort: [string, string];
 }[] = [
-  { value: 'color', label: 'Color', defaultDir: 'asc', dirLabels: ['WUBRG', 'GRBUW'] },
-  { value: 'name', label: 'Name', defaultDir: 'asc', dirLabels: ['A → Z', 'Z → A'] },
+  {
+    value: 'color',
+    label: 'Color',
+    defaultDir: 'asc',
+    // "GRBUW" was never anyone's word for "reversed" — it's the WUBRG
+    // acronym read backwards.
+    dirLabels: ['WUBRG', 'Reversed'],
+    dirShort: ['WUBRG', 'Reversed'],
+  },
+  {
+    value: 'name',
+    label: 'Name',
+    defaultDir: 'asc',
+    dirLabels: ['A → Z', 'Z → A'],
+    dirShort: ['A–Z', 'Z–A'],
+  },
   {
     value: 'collectorNumber',
     label: 'Number',
     defaultDir: 'asc',
     dirLabels: ['Low → high', 'High → low'],
+    dirShort: ['Low', 'High'],
   },
-  { value: 'price', label: 'Price', defaultDir: 'desc', dirLabels: ['Cheapest', 'Priciest'] },
-  { value: 'quantity', label: 'Quantity', defaultDir: 'desc', dirLabels: ['Fewest', 'Most'] },
-  { value: 'cmc', label: 'Mana value', defaultDir: 'asc', dirLabels: ['Low → high', 'High → low'] },
+  {
+    value: 'price',
+    label: 'Price',
+    defaultDir: 'desc',
+    dirLabels: ['Cheapest', 'Priciest'],
+    dirShort: ['Cheap', 'Pricey'],
+  },
+  {
+    value: 'quantity',
+    label: 'Quantity',
+    defaultDir: 'desc',
+    dirLabels: ['Fewest', 'Most'],
+    dirShort: ['Fewest', 'Most'],
+  },
+  {
+    value: 'cmc',
+    label: 'Mana value',
+    defaultDir: 'asc',
+    dirLabels: ['Low → high', 'High → low'],
+    dirShort: ['Low', 'High'],
+  },
   {
     value: 'setReleaseDate',
     label: 'Release date',
     defaultDir: 'desc',
     dirLabels: ['Oldest first', 'Newest first'],
+    dirShort: ['Oldest', 'Newest'],
   },
-  { value: 'setName', label: 'Set', defaultDir: 'asc', dirLabels: ['A → Z', 'Z → A'] },
-  { value: 'type', label: 'Type', defaultDir: 'asc', dirLabels: ['A → Z', 'Z → A'] },
+  {
+    value: 'setName',
+    label: 'Set',
+    defaultDir: 'asc',
+    dirLabels: ['A → Z', 'Z → A'],
+    dirShort: ['A–Z', 'Z–A'],
+  },
+  {
+    value: 'type',
+    label: 'Type',
+    defaultDir: 'asc',
+    dirLabels: ['A → Z', 'Z → A'],
+    dirShort: ['A–Z', 'Z–A'],
+  },
   {
     value: 'rarity',
     label: 'Rarity',
@@ -59,6 +113,7 @@ export const SORT_FIELDS: {
     // These read the other way round until 2026-09-26: "Common first" put
     // mythics first on every surface that sorts through this list.
     dirLabels: ['Mythic first', 'Common first'],
+    dirShort: ['Mythic', 'Common'],
   },
   // Rank 1 is the most-played card, so ascending rank is the popular end.
   {
@@ -66,14 +121,22 @@ export const SORT_FIELDS: {
     label: 'EDHREC rank',
     defaultDir: 'asc',
     dirLabels: ['Most played', 'Least played'],
+    dirShort: ['Most', 'Least'],
   },
   {
     value: 'treatment',
     label: 'Treatment',
     defaultDir: 'asc',
     dirLabels: ['Listed order', 'Reversed'],
+    dirShort: ['Listed order', 'Reversed'],
   },
-  { value: 'finish', label: 'Finish', defaultDir: 'asc', dirLabels: ['Listed order', 'Reversed'] },
+  {
+    value: 'finish',
+    label: 'Finish',
+    defaultDir: 'asc',
+    dirLabels: ['Listed order', 'Reversed'],
+    dirShort: ['Listed order', 'Reversed'],
+  },
 ];
 
 /**
@@ -600,4 +663,113 @@ export function sortEntryLabel(entry: SortEntry): string {
   const isNonDefault = entry.dir !== (SORT_DEFAULT_DIR[entry.field] ?? 'asc');
   if (!isNonDefault) return label;
   return `${label} ${entry.dir === 'asc' ? '↑' : '↓'}`;
+}
+
+/**
+ * A named order (E491): a saved sort chain plus a name and a one-line
+ * description, so a newer player can pick "Set collection" without ever
+ * opening the chain editor while a collector keeps that editor for anything
+ * else. This is naming only — no engine change. `sorts` is the EXPLICIT
+ * chain (implicit tie-breakers are added the same way for every binder by
+ * `withImplicitTiebreakers`, so a preset never repeats them).
+ *
+ * The seventh "order" a person can pick isn't in this list: it's picking no
+ * preset at all and opening the chain editor directly, named "Choose fields"
+ * everywhere in the UI. That name is deliberate — "Custom order" already
+ * means the hand-dragged manual order (Manage cards › Order, #2446), and
+ * reusing it here would collide with that existing meaning.
+ */
+export interface SortPreset {
+  id: string;
+  name: string;
+  description: string;
+  sorts: SortEntry[];
+}
+
+export const SORT_PRESETS: SortPreset[] = [
+  {
+    id: 'set-collection',
+    name: 'Set collection',
+    description: 'Oldest set first, each set in number order',
+    sorts: [
+      { field: 'setReleaseDate', dir: 'asc' },
+      { field: 'setName', dir: 'asc' },
+      { field: 'collectorNumber', dir: 'asc' },
+    ],
+  },
+  {
+    id: 'newest-sets',
+    name: 'Newest sets first',
+    description: 'Newest set first, each set in number order',
+    sorts: [
+      { field: 'setReleaseDate', dir: 'desc' },
+      { field: 'setName', dir: 'asc' },
+      { field: 'collectorNumber', dir: 'asc' },
+    ],
+  },
+  {
+    id: 'by-color',
+    name: 'By color',
+    description: 'White, blue, black, red, green, then multicolor and colorless; A to Z inside',
+    sorts: [
+      { field: 'color', dir: 'asc' },
+      { field: 'name', dir: 'asc' },
+    ],
+  },
+  {
+    id: 'by-type',
+    name: 'By card type',
+    description: 'Creatures, instants, sorceries and artifacts, then by mana value',
+    sorts: [
+      { field: 'type', dir: 'asc' },
+      { field: 'cmc', dir: 'asc' },
+      { field: 'name', dir: 'asc' },
+    ],
+  },
+  {
+    id: 'most-valuable',
+    name: 'Most valuable first',
+    description: 'Priciest first, cheaper as you flip',
+    sorts: [
+      { field: 'price', dir: 'desc' },
+      { field: 'name', dir: 'asc' },
+    ],
+  },
+  {
+    id: 'a-to-z',
+    name: 'A to Z',
+    description: 'Alphabetical by name',
+    sorts: [{ field: 'name', dir: 'asc' }],
+  },
+];
+
+function sortsEqual(a: SortEntry[], b: SortEntry[]): boolean {
+  return a.length === b.length && a.every((s, i) => s.field === b[i].field && s.dir === b[i].dir);
+}
+
+/**
+ * The preset a stored chain matches, if any — so the pill, the sheet, and the
+ * editor's Order summary can all show the SAME name for the SAME chain
+ * without re-deriving the comparison three different ways. `none`/absent
+ * entries are stripped before comparing, matching how every other sort
+ * surface treats them as not-a-sort.
+ */
+export function matchSortPreset(sorts: SortEntry[]): SortPreset | undefined {
+  const active = sorts.filter((s) => s && s.field !== 'none');
+  return SORT_PRESETS.find((p) => sortsEqual(p.sorts, active));
+}
+
+/**
+ * A chain that doesn't match a preset, spelled out in words ("Rarity, then
+ * price, then name") instead of the field/arrow shorthand `sortEntryLabel`
+ * chains together — that shorthand is for a breadcrumb read by someone who
+ * already knows the vocabulary; this is for the pill and the editor summary,
+ * read by someone who might not.
+ */
+export function describeSortChain(sorts: SortEntry[]): string {
+  const active = sorts.filter((s) => s && s.field !== 'none');
+  if (!active.length) return '';
+  const labels = active.map((s) => SORT_LABEL[s.field] ?? s.field);
+  const [first, ...rest] = labels;
+  return rest.length ? `${first}, then ${rest.join(', then ')}` : first;
 }

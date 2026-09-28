@@ -1,30 +1,76 @@
-import { ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, ArrowUpDown } from 'lucide-react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SORT_FIELDS, sortDirectionLabel, sortEntryLabel } from '../lib/sorting';
+import { SORT_FIELDS, sortDirectionLabel } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
+import { SortPresetList } from './SortPresets';
+import { sortOrderSummaryLabel } from '@/lib/sort-order-label';
+import { Modal } from './Modal';
+import { Button } from '@/components/shared/Button';
 import type { SortEntry, SortField } from '../types';
 import { useAnchoredPanel } from '@/lib/use-anchored-panel';
 import { Surface } from '@/components/shared/Surface';
+import { useMediaQuery } from '@/lib/use-media-query';
 
 type ValueOrders = Partial<Record<SortField, string[]>>;
+
+/** A materialized section, trimmed to what "Your first sections" shows. */
+export interface SortPreviewSection {
+  label: string;
+  page: number;
+}
 
 interface Props {
   sorts: SortEntry[];
   valueOrders: ValueOrders;
   onSortsChange: (next: SortEntry[]) => void;
   onValueOrdersChange: (next: ValueOrders) => void;
+  /** The binder's real first few sections + the page each starts on, from the
+   *  materialized binder this page already computed — shown in the phone
+   *  sheet's chain view so picking fields has visible feedback without
+   *  closing the sheet. Absent when the caller hasn't wired it up. */
+  firstSections?: SortPreviewSection[];
+  /** Total section count, for "+N more" under the first few, and the page
+   *  count shown beside "Your first sections". */
+  totalSections?: number;
+  totalPages?: number;
 }
 
+/** Same phone tier as the rest of the app (ScanFab, BinderView) — the sort
+ *  panel becomes a bottom sheet below this width instead of an anchored
+ *  popover (E492). */
+const NARROW = '(max-width: 599px)';
+
 /**
- * In-view sort control for the binder summary line: a button showing the
- * current sort chain ("color › cmc ↓ › name") that opens the full SortEditor
- * in a popover. Edits persist immediately so the binder re-materializes live.
+ * In-view sort control for the binder summary line: a pill showing the
+ * current order's NAME ("Set collection") or, for a chain that matches no
+ * preset, the chain spelled out in words ("Rarity, then price"). Opens the
+ * full picker — named orders first, "Choose fields" drills into the chain
+ * editor — as an anchored popover on a roomy screen and a bottom sheet on a
+ * phone, where an anchored panel would either clip or fight the screen
+ * (STYLE_GUIDE § Config surfaces: a dialog on the kit opens as a sheet on a
+ * phone).
  *
- * Portals the panel to `<body>` and uses `computePopoverPlacement` so it
- * flips/clamps against the safe viewport (accounting for sticky header,
- * mobile bottom nav, and keyboard inset).
+ * Edits persist immediately so the binder re-materializes live (STYLE_GUIDE §
+ * Anchored panels: "live-apply for what you're looking at").
  */
-export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersChange }: Props) {
+export function SortPopover(props: Props) {
+  const narrow = useMediaQuery(NARROW);
+  return narrow ? <SortSheet {...props} /> : <SortAnchoredPopover {...props} />;
+}
+
+function describeAria(sorts: SortEntry[]): string {
+  const activeSorts = sorts.filter((s) => s && s.field !== 'none');
+  const spoken = activeSorts
+    .map(
+      (s) =>
+        `${SORT_FIELDS.find((f) => f.value === s.field)?.label ?? s.field}, ${sortDirectionLabel(s.field, s.dir).toLowerCase()}`
+    )
+    .join(' › ');
+  return spoken ? `Sorted by ${spoken}. Change sort order` : 'Change sort order';
+}
+
+function SortAnchoredPopover({ sorts, valueOrders, onSortsChange, onValueOrdersChange }: Props) {
   // `align: 'left'` — the sort panel is wide. `ignoreSelector` keeps the
   // SelectMenu portal-escape guard: a sort-field dropdown renders to <body>, so
   // interacting with (or scrolling) it must not collapse the sort popover.
@@ -33,19 +79,8 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
     ignoreSelector: '.toolbar-popover-panel',
   });
 
-  const activeSorts = sorts.filter((s) => s && s.field !== 'none');
-  const breadcrumb = activeSorts.map(sortEntryLabel).join(' › ');
-  // The pill's ↑/↓ glyph marks a non-default direction but can't say what it
-  // does — "release date ↑" reads two ways. The tooltip and accessible name
-  // spell each level out by effect ("Release date, oldest first"), the same
-  // wording the editor's direction buttons use (STYLE_GUIDE § Sort chains).
-  const spoken = activeSorts
-    .map(
-      (s) =>
-        `${SORT_FIELDS.find((f) => f.value === s.field)?.label ?? s.field}, ${sortDirectionLabel(s.field, s.dir).toLowerCase()}`
-    )
-    .join(' › ');
-  const description = spoken ? `Sorted by ${spoken}. Change sort order` : 'Change sort order';
+  const label = sortOrderSummaryLabel(sorts);
+  const description = describeAria(sorts);
 
   return (
     <div className="sort-popover">
@@ -60,7 +95,7 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
         onClick={toggle}
       >
         <ArrowUpDown width={14} height={14} strokeWidth={1.8} aria-hidden />
-        <span className="sort-popover-label">{breadcrumb || 'Sort'}</span>
+        <span className="sort-popover-label">{label}</span>
       </button>
       {open &&
         panelStyle &&
@@ -74,6 +109,15 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
             aria-label="Sort within binder"
             style={panelStyle}
           >
+            {/* Desktop keeps the anchored popover shape but gains the same
+                named-order list the phone sheet opens on, above the chain
+                editor it always had (E491). Picking "Choose fields" is a
+                no-op here — the chain is already showing below. */}
+            <SortPresetList
+              sorts={sorts}
+              onPick={(preset) => onSortsChange(preset.sorts)}
+              onChooseFields={() => {}}
+            />
             <SortEditor
               sorts={sorts}
               valueOrders={valueOrders}
@@ -83,6 +127,105 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
           </Surface>,
           document.body
         )}
+    </div>
+  );
+}
+
+function SortSheet({
+  sorts,
+  valueOrders,
+  onSortsChange,
+  onValueOrdersChange,
+  firstSections,
+  totalSections,
+  totalPages,
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const [page, setPage] = useState<'presets' | 'fields'>('presets');
+
+  const label = sortOrderSummaryLabel(sorts);
+  const description = describeAria(sorts);
+  const moreSections =
+    firstSections && totalSections !== undefined
+      ? Math.max(0, totalSections - firstSections.length)
+      : 0;
+
+  return (
+    <div className="sort-popover">
+      <button
+        type="button"
+        className="sort-popover-btn"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={description}
+        title={description}
+        onClick={() => {
+          setPage('presets');
+          setOpen(true);
+        }}
+      >
+        <ArrowUpDown width={14} height={14} strokeWidth={1.8} aria-hidden />
+        <span className="sort-popover-label">{label}</span>
+      </button>
+      {open && (
+        <Modal
+          backdropClassName="modal-backdrop--sheet"
+          className="choice-dialog sort-sheet"
+          label={page === 'presets' ? 'Order' : 'Choose fields'}
+          onClose={() => setOpen(false)}
+        >
+          <div className="sort-sheet-head">
+            {page === 'presets' ? (
+              <h4 className="sort-sheet-title">Order</h4>
+            ) : (
+              <button type="button" className="sort-sheet-back" onClick={() => setPage('presets')}>
+                <ArrowLeft width={14} height={14} strokeWidth={1.8} aria-hidden />
+                Choose fields
+              </button>
+            )}
+            {/* Closes the dialog's own way, per Modal's contract — no exit
+                animation to wait on, just onClose directly. */}
+            <Button variant="link" onClick={() => setOpen(false)}>
+              Done
+            </Button>
+          </div>
+          {page === 'presets' ? (
+            <SortPresetList
+              sorts={sorts}
+              onPick={(preset) => onSortsChange(preset.sorts)}
+              onChooseFields={() => setPage('fields')}
+            />
+          ) : (
+            <>
+              <SortEditor
+                sorts={sorts}
+                valueOrders={valueOrders}
+                onSortsChange={onSortsChange}
+                onValueOrdersChange={onValueOrdersChange}
+              />
+              {firstSections && firstSections.length > 0 && (
+                <div className="sort-sheet-preview">
+                  <p className="sort-sheet-preview-head">
+                    <span>Your first sections</span>
+                    {totalPages !== undefined && <span>{totalPages} pages</span>}
+                  </p>
+                  <ul className="sort-sheet-preview-list">
+                    {firstSections.map((s, i) => (
+                      <li key={`${s.label}-${i}`}>
+                        <span>{s.label}</span>
+                        <span className="mono">p. {s.page}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {moreSections > 0 && (
+                    <p className="sort-sheet-preview-more muted">+{moreSections} more</p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

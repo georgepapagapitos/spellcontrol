@@ -142,16 +142,6 @@
     min-height: 36px;
   }
 
-  .tab-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    min-width: 40px;
-    min-height: 36px;
-    font-size: var(--text-base);
-  }
-
   /* The phone density pass. Its `min-height` used to be 36px — BELOW the 44px
      touch floor, on the one viewport where the floor matters most. It is
      `.btn` at the same specificity as the base coarse floor and lands later in
@@ -720,18 +710,6 @@
     transition:
       opacity var(--motion-fast) linear,
       visibility 0s linear 0s;
-  }
-}
-
-/* Was gated on `(max-width: 600px)` too, which stranded every coarse device
-   WIDER than 600px — a tablet in landscape, a touchscreen laptop — on the
-   un-sized base rule. Measured 33x31 for the sort editor's reorder/remove
-   buttons at 768-1440px with touch emulation. A coarse pointer is a coarse
-   pointer at any width, so the floor no longer asks how wide the screen is. */
-@media (pointer: coarse) {
-  .tab-action {
-    min-width: 44px;
-    min-height: 44px;
   }
 }
 

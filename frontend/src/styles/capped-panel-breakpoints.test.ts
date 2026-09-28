@@ -8,19 +8,18 @@ import { dirname, join } from 'node:path';
 // a layout breakpoint that governs content inside a WIDTH-CAPPED panel must key
 // off the container, not the viewport.
 //
-// The sort editor's row grid needs ~411px to seat its four tracks (index,
-// field picker, direction chip, reorder cluster). Its two-line fallback existed
-// and was correct — but it was gated on `@media (max-width: 600px)`, and the
-// popover that hosts the editor is capped at `min(26rem, 100vw - 2rem)`. So the
-// panel's content box is ~387px at EVERY viewport at or above 600px: the
-// trailing `1fr` track was starved to 79px, the 103px-wide reorder cluster
-// overflowed it, and the row spilled past the panel's border. Measured at
-// 23.1px over at 1440px, 1024px and 717px alike — a desktop bug that a viewport
-// breakpoint structurally could not catch. 599px was clean, which is exactly
-// why it read as "already handled on mobile".
+// The original defect: the row grid's two-line fallback was gated on
+// `@media (max-width: 600px)`, while the popover that hosts the editor is
+// capped at `min(26rem, 100vw - 2rem)` — a content box of ~387px at EVERY
+// viewport at or above 600px, so the row overflowed the panel at 1440px,
+// 1024px and 717px alike, a desktop bug a viewport breakpoint structurally
+// could not catch.
 //
-// The rule this encodes: when a panel's width is decoupled from the viewport,
-// only a container query asks the right question.
+// E492 (2026-09-28) replaced the two-line grid fallback with one-line flex
+// rows plus a `dirShort` label pair, so a row fits at one line at every host
+// width instead of wrapping to two — but the SAME class of bug is still live
+// wherever a breakpoint governs which label (long vs short) shows: it must
+// stay keyed off the sort editor's own container, never the viewport.
 
 const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => readFileSync(join(srcRoot, rel), 'utf8');
@@ -57,13 +56,9 @@ describe('breakpoints inside width-capped panels', () => {
     expect(rules).toMatch(/\.sort-editor\s*\{[^}]*container-type:\s*inline-size/);
   });
 
-  it('the sort-row column fallback is a container query, not a viewport one', () => {
-    // The narrow layout is identified by the 3-track grid it sets.
-    const at = wrappingAtRule(
-      rules,
-      '.sort-editor-list',
-      'grid-template-columns: auto minmax(0, 1fr) auto'
-    );
+  it('the direction control swaps to its short label under a container query, not a viewport one', () => {
+    // The narrow layout is identified by the short label becoming visible.
+    const at = wrappingAtRule(rules, '.sort-editor-row-main .dir-label-short', 'display: inline');
     expect(at).not.toBeNull();
     expect(at).toMatch(/^@container/);
     expect(at).not.toMatch(/^@media/);
@@ -91,7 +86,10 @@ describe('breakpoints inside width-capped panels', () => {
     for (const m of widthMediaBlocks) {
       const block = rules.slice(m.index!, m.index! + 600);
       expect(
-        block.includes('.sort-editor-list') || block.includes('.sort-editor-actions'),
+        block.includes('.sort-editor-list') ||
+          block.includes('.sort-editor-row-main') ||
+          block.includes('.dir-label-long') ||
+          block.includes('.dir-label-short'),
         `A width media query wraps sort-editor layout again: ${m[0]}`
       ).toBe(false);
     }
