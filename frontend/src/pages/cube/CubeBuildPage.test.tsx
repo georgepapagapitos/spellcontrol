@@ -202,6 +202,15 @@ describe('CubeBuildPage — Draw from', () => {
     renderPage();
     expect(screen.getByText('Available cards · any price · any rarity')).toBeTruthy();
   });
+
+  it('the info tip sits in the filter row it explains, not on a line of its own', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Draw from/, expanded: false }));
+    const tip = screen.getByRole('button', { name: 'How Cards, Price and Rarity work' });
+    const row = tip.closest('.cube-pool-filters');
+    expect(row).not.toBeNull();
+    expect(row!.contains(screen.getByRole('button', { name: /^Rarity/ }))).toBe(true);
+  });
 });
 
 describe('CubeBuildPage — friends as a pool source', () => {

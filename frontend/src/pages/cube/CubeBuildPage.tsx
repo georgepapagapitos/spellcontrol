@@ -108,12 +108,6 @@ function PoolFilterRow({
     .filter((n): n is string => Boolean(n));
   return (
     <Disclosure title="Draw from" summary={poolFiltersSummary(filters, currency, friendNames)}>
-      <p className="cube-pool-filters-hint">
-        <InfoTip
-          label="Draw from"
-          text="Available cards are the copies no deck or physical cube has claimed, so what you build is what you can pull. Spares only also needs two or more copies, so your singles stay in their binders. A price ceiling reads the cheapest copy you own at today's market price; the rarity cap reads the printing you own."
-        />
-      </p>
       <div className="cube-pool-filters">
         <SelectMenu<PoolFilters['source']>
           label="Cards"
@@ -140,6 +134,13 @@ function PoolFilterRow({
             { value: 'peasant', label: 'Commons and uncommons' },
             { value: 'pauper', label: 'Commons only' },
           ]}
+        />
+        {/* Beside the chips it explains. On its own line under the Disclosure
+            header it read as a stray icon with no label. */}
+        <InfoTip
+          label="Draw from"
+          ariaLabel="How Cards, Price and Rarity work"
+          text="Available cards are the copies no deck or physical cube has claimed, so what you build is what you can pull. Spares only also needs two or more copies, so your singles stay in their binders. A price ceiling reads the cheapest copy you own at today's market price; the rarity cap reads the printing you own."
         />
       </div>
 
