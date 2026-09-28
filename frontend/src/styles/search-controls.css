@@ -482,9 +482,10 @@
 }
 
 /* Named orders (E491) sit above the chain editor inside the same popover —
-   the ChoiceList of preset rows, then a rule, then SortEditor's chain. */
-.sort-popover-panel > .choice-list {
-  margin-bottom: var(--space-3);
+   the preset chips, then a rule, then SortEditor's chain. The compact chip
+   row (not the sheet's description-per-row list) is what keeps this panel
+   short enough that the chain stays visible without scrolling at 1440×900. */
+.sort-popover-panel > .sort-preset-chips {
   padding-bottom: var(--space-3);
   border-bottom: 0.5px solid var(--border);
 }

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SORT_FIELDS, sortDirectionLabel } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
-import { SortPresetList } from './SortPresets';
+import { SortPresetChips, SortPresetList } from './SortPresets';
 import { sortOrderSummaryLabel } from '@/lib/sort-order-label';
 import { Modal } from './Modal';
 import { Button } from '@/components/shared/Button';
@@ -110,10 +110,13 @@ function SortAnchoredPopover({ sorts, valueOrders, onSortsChange, onValueOrdersC
             style={panelStyle}
           >
             {/* Desktop keeps the anchored popover shape but gains the same
-                named-order list the phone sheet opens on, above the chain
-                editor it always had (E491). Picking "Choose fields" is a
-                no-op here — the chain is already showing below. */}
-            <SortPresetList
+                named orders the phone sheet opens on, above the chain editor
+                it always had (E491). The compact chip form (not the sheet's
+                description-per-row list) keeps the panel short enough that
+                the chain stays visible without scrolling at 1440×900.
+                Picking "Choose fields" is a no-op here — the chain is
+                already showing below. */}
+            <SortPresetChips
               sorts={sorts}
               onPick={(preset) => onSortsChange(preset.sorts)}
               onChooseFields={() => {}}

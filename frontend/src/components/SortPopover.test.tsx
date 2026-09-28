@@ -47,17 +47,22 @@ describe('SortPopover — the pill', () => {
       { field: 'rarity', dir: 'asc' },
       { field: 'price', dir: 'desc' },
     ]);
-    expect(screen.getByText('Rarity, then Price')).toBeTruthy();
+    expect(screen.getByText('Rarity, then price')).toBeTruthy();
   });
 });
 
 describe('SortPopover — desktop: anchored popover', () => {
-  it('opens on the named orders, chain editor visible right below', () => {
+  it('opens on the named orders as compact chips, chain editor visible right below', () => {
     setup([{ field: 'name', dir: 'asc' }]);
     fireEvent.click(screen.getByRole('button', { name: /change sort order/i }));
     const panel = screen.getByRole('dialog', { name: 'Sort within binder' });
+    // Chips, not the sheet's description-per-row radio list — that's what
+    // keeps the panel short enough to show the chain with no scroll.
     expect(within(panel).getByRole('group', { name: 'Order' })).toBeTruthy();
-    expect(within(panel).getByRole('radio', { name: /^A to Z/ })).toBeTruthy();
+    expect(within(panel).getByRole('button', { name: 'A to Z' })).toBeTruthy();
+    // Not a radio group of description rows (the sheet's shape) — a preset
+    // pick here is a plain button.
+    expect(within(panel).queryByText('Alphabetical by name')).toBeNull();
     // The chain editor (SortEditor) is already showing, not one tap away.
     expect(within(panel).getByText('Sections')).toBeTruthy();
   });
@@ -65,7 +70,7 @@ describe('SortPopover — desktop: anchored popover', () => {
   it('picking a preset applies its chain immediately', () => {
     const { onSortsChange } = setup([{ field: 'name', dir: 'asc' }]);
     fireEvent.click(screen.getByRole('button', { name: /change sort order/i }));
-    fireEvent.click(screen.getByRole('radio', { name: /^By color/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'By color' }));
     expect(onSortsChange).toHaveBeenCalledWith([
       { field: 'color', dir: 'asc' },
       { field: 'name', dir: 'asc' },

@@ -760,16 +760,26 @@ export function matchSortPreset(sorts: SortEntry[]): SortPreset | undefined {
 }
 
 /**
+ * A field label, lowercased for a mid-sentence continuation ("then price"),
+ * with the one acronym label (`EDHREC rank`) restored — a plain
+ * `.toLowerCase()` would read "then edhrec rank".
+ */
+function lowerContinuation(label: string): string {
+  return label.toLowerCase().replace(/\bedhrec\b/, 'EDHREC');
+}
+
+/**
  * A chain that doesn't match a preset, spelled out in words ("Rarity, then
  * price, then name") instead of the field/arrow shorthand `sortEntryLabel`
  * chains together — that shorthand is for a breadcrumb read by someone who
  * already knows the vocabulary; this is for the pill and the editor summary,
- * read by someone who might not.
+ * read by someone who might not. Sentence case: only the first field keeps
+ * its capital, every continuation reads as a plain word.
  */
 export function describeSortChain(sorts: SortEntry[]): string {
   const active = sorts.filter((s) => s && s.field !== 'none');
   if (!active.length) return '';
   const labels = active.map((s) => SORT_LABEL[s.field] ?? s.field);
   const [first, ...rest] = labels;
-  return rest.length ? `${first}, then ${rest.join(', then ')}` : first;
+  return rest.length ? `${first}, then ${rest.map(lowerContinuation).join(', then ')}` : first;
 }

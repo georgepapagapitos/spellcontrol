@@ -19,18 +19,25 @@ function stubViewport(phone: boolean) {
   }));
 }
 
-function setup(sorts: SortEntry[], { phone = false }: { phone?: boolean } = {}) {
+function setup(
+  sorts: SortEntry[],
+  {
+    phone = false,
+    valueOrders = {},
+  }: { phone?: boolean; valueOrders?: Partial<Record<SortEntry['field'], string[]>> } = {}
+) {
   stubViewport(phone);
   const onSortsChange = vi.fn();
+  const onValueOrdersChange = vi.fn();
   render(
     <SortEditor
       sorts={sorts}
-      valueOrders={{}}
+      valueOrders={valueOrders}
       onSortsChange={onSortsChange}
-      onValueOrdersChange={vi.fn()}
+      onValueOrdersChange={onValueOrdersChange}
     />
   );
-  return { onSortsChange };
+  return { onSortsChange, onValueOrdersChange };
 }
 
 describe('SortEditor — direction', () => {
@@ -242,23 +249,45 @@ describe('SortEditor — tie-breaker sentence', () => {
     ).toBeTruthy();
   });
 
-  it('offers a Change link that adds the customizable tie-breakers to the chain', () => {
+  it('Change expands the value-order editors in place, without touching the chain', () => {
     const { onSortsChange } = setup([{ field: 'color', dir: 'asc' }]);
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
-    // Both customizable extras fit (MAX_SORTS is 3, one row is taken).
-    expect(onSortsChange).toHaveBeenCalledWith([
-      { field: 'color', dir: 'asc' },
-      { field: 'treatment', dir: 'asc' },
-      { field: 'finish', dir: 'asc' },
-    ]);
+    expect(onSortsChange).not.toHaveBeenCalled();
+    // Still just the one chain row (Color) — treatment/finish were never
+    // appended to it.
+    expect(screen.getAllByRole('button', { name: /^Sort \d field$/ })).toHaveLength(1);
+    expect(screen.getByRole('list', { name: /^treatment order/ })).toBeTruthy();
+    expect(screen.getByRole('list', { name: /^finish order/ })).toBeTruthy();
+    expect(screen.getByText('Showcase')).toBeTruthy();
   });
 
-  it('has no Change link once the chain is already at MAX_SORTS', () => {
+  it('Change toggles to Done and collapses the editors again', () => {
+    setup([{ field: 'color', dir: 'asc' }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    const done = screen.getByRole('button', { name: 'Done' });
+    expect(done).toBeTruthy();
+    fireEvent.click(done);
+    expect(screen.queryByText('Showcase')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy();
+  });
+
+  it('Change is available even when the chain is already at MAX_SORTS', () => {
     setup([
       { field: 'color', dir: 'asc' },
       { field: 'name', dir: 'asc' },
       { field: 'price', dir: 'desc' },
     ]);
-    expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy();
+  });
+
+  it('reflects an edited value order in the sentence', () => {
+    setup([{ field: 'color', dir: 'asc' }], {
+      valueOrders: { treatment: ['regular', 'promo', 'borderless', 'extendedart', 'showcase'] },
+    });
+    expect(
+      screen.getByText(
+        /^Copies that still tie: regular before showcase, foil before etched, name, set, then number\./
+      )
+    ).toBeTruthy();
   });
 });

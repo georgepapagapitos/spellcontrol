@@ -886,11 +886,20 @@ describe('describeSortChain (E491)', () => {
         { field: 'rarity', dir: 'asc' },
         { field: 'price', dir: 'desc' },
       ])
-    ).toBe('Rarity, then Price');
+    ).toBe('Rarity, then price');
   });
 
   it('names a single-field chain with no "then"', () => {
     expect(describeSortChain([{ field: 'name', dir: 'asc' }])).toBe('Name');
+  });
+
+  it('keeps the EDHREC acronym uppercase in a continuation', () => {
+    expect(
+      describeSortChain([
+        { field: 'name', dir: 'asc' },
+        { field: 'edhrec', dir: 'asc' },
+      ])
+    ).toBe('Name, then EDHREC rank');
   });
 
   it('returns an empty string for no active sorts', () => {

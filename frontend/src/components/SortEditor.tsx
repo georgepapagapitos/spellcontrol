@@ -1,5 +1,5 @@
 import { GripVertical, X } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -126,7 +126,7 @@ export function SortEditor({ sorts, valueOrders, onSortsChange, onValueOrdersCha
               onClick={() => onSortsChange([...sorts, nextDefaultSort(sorts)])}
               className="btn-add-group"
             >
-              + Add sort
+              + Then by
             </Button>
           )}
         </div>
@@ -134,7 +134,7 @@ export function SortEditor({ sorts, valueOrders, onSortsChange, onValueOrdersCha
       <ImplicitTiebreakerHint
         sorts={sorts}
         valueOrders={valueOrders}
-        onSortsChange={onSortsChange}
+        onValueOrdersChange={onValueOrdersChange}
       />
     </>
   );
@@ -336,35 +336,63 @@ function SortDirectionControl({
   );
 }
 
+/**
+ * "Change" expands, in place, the same `SortValueOrderEditor` the chain rows
+ * use for treatment/finish — it never adds those fields to the chain. They
+ * are tie-breakers precisely because nobody asked to sort by them; appending
+ * them (the earlier design) was a surprise mutation of the user's chain, and
+ * it silently stopped being offered once the chain reached `MAX_SORTS`, which
+ * this correctly has nothing to do with — the tie-breaker editors are always
+ * available.
+ */
 function ImplicitTiebreakerHint({
   sorts,
   valueOrders,
-  onSortsChange,
+  onValueOrdersChange,
 }: {
   sorts: SortEntry[];
   valueOrders: ValueOrders;
-  onSortsChange: (next: SortEntry[]) => void;
+  onValueOrdersChange: (next: ValueOrders) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const extras = getImplicitTiebreakers(sorts);
   if (!extras.length) return null;
   const sentence = describeTiebreakerSentence(extras, valueOrders);
   const changeable = extras.filter((e) => CUSTOMIZABLE_VALUE_ORDER_FIELDS.includes(e.field));
-  const canChange = changeable.length > 0 && sorts.length < MAX_SORTS;
   return (
-    <p className="muted sort-editor-tiebreakers">
-      {sentence}{' '}
-      {canChange && (
-        <Button
-          variant="link"
-          className="sort-editor-tiebreakers-change"
-          onClick={() =>
-            onSortsChange([...sorts, ...changeable.slice(0, MAX_SORTS - sorts.length)])
-          }
-        >
-          Change
-        </Button>
-      )}
-    </p>
+    <div className="sort-editor-tiebreakers">
+      <p className="muted sort-editor-tiebreakers-sentence">
+        {sentence}{' '}
+        {changeable.length > 0 && (
+          <Button
+            variant="link"
+            className="sort-editor-tiebreakers-change"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? 'Done' : 'Change'}
+          </Button>
+        )}
+      </p>
+      {expanded &&
+        changeable.map((e) => (
+          <div key={e.field} className="sort-editor-tiebreakers-field">
+            <span className="sort-editor-tiebreakers-field-label">
+              {SORT_FIELDS.find((f) => f.value === e.field)?.label ?? e.field}
+            </span>
+            <SortValueOrderEditor
+              field={e.field}
+              value={valueOrders[e.field]}
+              onChange={(next) => {
+                const copy = { ...valueOrders };
+                if (next === undefined) delete copy[e.field];
+                else copy[e.field] = next;
+                onValueOrdersChange(copy);
+              }}
+            />
+          </div>
+        ))}
+    </div>
   );
 }
 

@@ -800,10 +800,35 @@ never shows the chooser.
 
 ### Sort chains
 
-- **Direction is its own visible control.** Never a hidden gesture — the old
-  editor flipped asc/desc by re-selecting the field you already had, with
-  nothing on screen suggesting that did anything, while the ▲/▼ buttons sitting
-  where a direction control belongs did reordering.
+- **Named orders sit IN FRONT of the chain editor (E491).** Six presets — Set
+  collection, Newest sets first, By color, By card type, Most valuable first,
+  A to Z — are each just a saved chain with a name and a one-line description
+  (`SORT_PRESETS` + `matchSortPreset()`/`describeSortChain()`, all in
+  `@spellcontrol/binder-routing`; no engine change). A stored chain matching a
+  preset shows that preset's NAME everywhere the chain appears — the pill, the
+  sort sheet, the binder editor's Order summary — via one shared
+  `sortOrderSummaryLabel()`; anything else is the chain spelled out in words
+  ("Rarity, then price" — sentence case, only the first field keeps its
+  capital; `EDHREC rank`'s acronym survives the lowercasing on purpose), never
+  the field-id/arrow breadcrumb. The seventh option is **"Choose fields"** —
+  never "Custom order", which already names the hand-dragged manual order
+  (Manage cards › Order, #2446) and would collide with it. `SortPresetList`
+  (radio rows with a description each — the sort sheet) and `SortPresetChips`
+  (compact one-line pills — the binder editor's already-open Order disclosure,
+  AND the desktop popover, where seven full-description rows pushed the chain
+  editor below the fold of a 1440×900 panel) are the two renderings of the
+  same list; don't hand-roll a third.
+  - **"Choose fields" is a navigation, not a persisted value a native radio's
+    `change` event can re-fire.** When no preset matches, "Choose fields" is
+    already the checked option by construction — so a plain `onChange` handler
+    never sees a second click on it (clicking an already-checked radio fires
+    no `change` event at all). `SortPresetList` wraps the group in an
+    `onClickCapture` that fires the navigation on every click regardless.
+- **Direction is a two-option `SegmentedControl` showing BOTH outcomes**, never
+  a single button stating the current value that flips on tap — the old editor
+  flipped asc/desc by re-selecting the field you already had, with nothing on
+  screen suggesting that did anything, while the ▲/▼ buttons sitting where a
+  direction control belongs did reordering instead.
 - **Label a direction with its EFFECT, not `asc`/`desc`.** Ascending release
   date is newest-_last_; ascending EDHREC rank is most-popular-_first_;
   ascending price is cheapest-first. One word, three mental models. Each field
@@ -811,31 +836,98 @@ never shows the chooser.
   "Most played") — resolve with `sortDirectionLabel()`. A surface whose sort
   keys aren't the shared `SortField` union (decks, binders, lists) authors its
   own pair beside its option list; it does not fall back to asc/desc.
+  `SORT_FIELDS` also carries a **`dirShort`** pair beside `dirLabels` (E492) —
+  the same two outcomes, shortened ("Oldest"/"Newest", "Cheap"/"Pricey") for a
+  width-capped host. Never a different direction, only shorter words. Both
+  spans render always; a **container query** on the sort editor's own box
+  (`@container sort-editor`, never a viewport media query — the popover/sheet
+  is width-capped regardless of screen size, E299) shows the short one and
+  hides the long one once the host narrows, so the SegmentedControl's
+  accessible name — set explicitly per option, not left to the wrapping label
+  — stays the long form at every width. **Color's ascending option renders as
+  five color pips**, not the word "WUBRG" (jargon to a newer player; the pips
+  are the physical game's own symbols) — the word survives only as the
+  option's accessible name. Its descending option is "Reversed" at both
+  lengths; "GRBUW" (WUBRG spelled backwards) was never anyone's word for that.
 - **The field picker hides fields another row already uses.** A second pass on
   the same field has no ties left to break.
-- **The compact breadcrumb pill ("⇅ release date ↑ › set") keeps its glyph,
-  but its `title` / accessible name spell every level out by effect** ("Sorted
-  by Release date, oldest first › Set, A → Z"). The glyph is the only thing that
-  fits the pill; the words are what it means. The ⇅ already says "sort", so the
-  label carries no "sort:" prefix: on a 320px phone the prefix was all the pill
-  had room to show.
+- **Levels have jobs, not just positions.** Row 1 is labelled **"Sections"**
+  and has no remove control, ever — a binder needs one, so removing it isn't a
+  disabled button, it's an absent one. Every row after it is labelled **"Inside
+  each section"** once, not per row. This is the existing
+  first-sort-makes-the-header rule, now visible instead of implicit.
+- **Reorder is a drag handle with full keyboard support on a wide host, and a
+  named row menu on a narrow one — never drag inside a sheet.** A drag gesture
+  fights a bottom sheet's own swipe-to-dismiss and scroll. `SortEditor` decides
+  by the same phone-tier query the rest of the app uses (`max-width: 599px`),
+  not a prop the caller has to thread through:
+  - **Wide:** a grip (`dnd-kit`'s `PointerSensor` + `KeyboardSensor`, the same
+    machinery `SortValueOrderEditor`'s value chips already use) plus a
+    standalone remove `IconButton`.
+  - **Narrow:** an `OverflowMenu` per row — **"Use \<field\> for sections" /
+    "Move \<field\> up" / "Move \<field\> down" / "Remove the \<field\> sort"**
+    (the section row's menu has neither "Use for sections" nor "Remove") — and
+    no standalone remove button; the menu takes the × off the row entirely.
+    Every item names the row it acts on (§ Verbs — Menus), never "Move sort
+    up" three times.
+- **The tie-breaker hint is one plain sentence with a Change link, not an
+  engine-vocabulary list.** "Then tie-broken by: Treatment → Finish → Name"
+  became **"Copies that still tie: showcase before regular, foil before
+  etched, then name."** — a customizable field (treatment, finish) reads as
+  its two extreme values under its current order; a plain field is just named.
+  **Change never touches the chain.** It expands, in place under the
+  sentence, the same `SortValueOrderEditor` a chain row uses, one per
+  customizable tie-breaker, and toggles back to "Done" to collapse — the
+  earlier design *appended* Treatment/Finish to the chain, which mutated it as
+  a side effect of asking "what order do these tie-break in", silently
+  disappeared once the chain hit `MAX_SORTS`, and is exactly why a
+  tie-breaker isn't in the chain in the first place (nobody asked to sort by
+  it). Change is always available, with no `MAX_SORTS` gate.
 - **Same-day sets under a Release-date sort read A → Z** (or follow the chain's
   own Set direction when it has one) — never the date's direction. "Newest
   first" used to flip three same-day Secret Lair drops into Z → A headers while
   the cards inside sorted A → Z. The engine also keeps those sets contiguous on
   page-filled binders (`withImplicitTiebreakers` splices Set in after the date)
   so a page never labels itself with every drop released that day.
-- **Reorder/remove buttons name their row** ("Move Color earlier in the sort
-  order"), not "Move sort up" three times.
-- Put the grid on the LIST and let rows `display: contents`, so pickers,
-  direction chips and action clusters line up down the panel. Per-row grids
-  size their own columns and the control column reads as stacked one-offs.
-- **The row's controls cluster next to the field they act on; the slack goes
-  to a trailing track.** With the picker on `1fr` the direction chip and the
-  reorder/remove cluster sat at the modal's far edge, 300px from the field
-  whose direction they flip. Columns are `auto auto auto minmax(0, 1fr)`
-  above 600px (the ≤600px two-line layout is unchanged), and span-all
-  children still get the full row because the last track absorbs the width.
+- **Rows are one-line flex rows, not a shared grid.** `.sort-editor` still
+  declares `container-type: inline-size` (the popover/sheet host is
+  width-capped independent of the viewport), but the old shared-grid-with-a-
+  two-line-fallback design (E299) is gone: the field picker takes the
+  available space (`flex: 1 1 auto; min-width: 0`), and the direction control's
+  own `dirShort` swap is what keeps a row to one line at the sheet's width
+  instead of wrapping.
+
+#### The sort sheet on a phone (E492)
+
+At the app's one phone tier (`max-width: 599px`), `SortPopover` swaps its
+anchored popover for a bottom sheet built on the shared `<Modal
+backdropClassName="modal-backdrop--sheet">` primitive — reuse it, don't
+hand-roll a sheet with `useSheetExit` for this; `Modal` already gives Escape,
+back-button integration, focus trap and the sheet-vs-centered-dialog CSS split
+for free. Desktop keeps the small anchored popover it always had, now with the
+same named orders — as `SortPresetChips`, not the sheet's radio list, so the
+panel stays short enough to show the chain editor with no scroll — on top of
+the chain editor it already showed.
+
+- **The sheet opens on the named orders**, one radio row per preset with its
+  description (`SortPresetList`); **"Choose fields"** drills into the chain
+  editor with a back button reading "‹ Choose fields", and **"Done"** closes
+  the sheet outright from either page. Every pick **applies live** — no Save
+  button, because a sort is something you're looking at, not editing
+  (§ Anchored panels).
+- **"Your first sections"** — in the chain view only, a strip showing the
+  binder's real first ~4 section labels and the page each starts on, plus a
+  "+N more" tail, from the SAME materialized binder the page already computed
+  (`BinderSection.pages[0].pageNum`) — never a re-derived estimate. Gives the
+  chain editor visible feedback without closing the sheet to check it.
+- **"Browse pages" reads "Browse" on a phone** — the book icon carries the
+  rest — so the sort pill beside it keeps its width budget
+  (`control-row-budget.test.tsx`, § Phone chrome density).
+- **The camera FAB hides while ANY overlay is open**, not just its own
+  scanner — `useAnyOverlayOpen()` (`lib/overlay-layer.ts`) subscribes to the
+  same module-global layer stack every `Modal`/sheet already registers with,
+  so a new overlay never needs its own opt-in. Before this, the FAB floated on
+  top of whatever sheet or dialog was open over it.
 
 #### The compact toolbar pill (E250)
 
