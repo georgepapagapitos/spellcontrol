@@ -36,7 +36,7 @@ describe('reloadForNewBuild', () => {
     });
   });
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
   });
 
@@ -53,8 +53,11 @@ describe('reloadForNewBuild', () => {
   });
 
   it('does not reload when it cannot remember doing so (a loop would be worse)', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('storage disabled');
+    vi.stubGlobal('sessionStorage', {
+      getItem: () => {
+        throw new Error('storage disabled');
+      },
+      setItem: () => {},
     });
     expect(reloadForNewBuild()).toBe(false);
     expect(reload).not.toHaveBeenCalled();
