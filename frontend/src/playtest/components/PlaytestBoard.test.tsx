@@ -240,7 +240,6 @@ describe('PlaytestBoard', () => {
     // No action-bar row at the table tier, and nothing it offered is lost:
     // the menu carries the secondary actions, the corner the primary ones.
     expect(document.querySelector('.playtest-actionbar')).toBeNull();
-    expect(document.querySelector('.playtest-page__header')).toBeNull();
     const menu = screen.getByRole('button', { name: 'Game menu' });
     expect(menu.getAttribute('aria-haspopup')).toBe('dialog');
     fireEvent.click(menu);

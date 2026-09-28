@@ -134,7 +134,6 @@ function PublicDeckPlaytestInner({ sourceKey, isSlug }: { sourceKey: string; isS
       deck={deck!}
       external
       back={{ label: state.deck.name, to: backTo }}
-      title="Playtest"
       emptyHint="This deck has no cards in it yet, so there's nothing to draw."
     />
   );

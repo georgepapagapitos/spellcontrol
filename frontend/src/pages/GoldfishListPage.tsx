@@ -86,7 +86,6 @@ export function GoldfishListPage() {
         deck={state.deck}
         external
         back={{ label: 'Goldfish a list', to: '/decks/goldfish' }}
-        title="Goldfish"
         emptyHint="That list came back empty. Go back and paste it again."
       />
     );

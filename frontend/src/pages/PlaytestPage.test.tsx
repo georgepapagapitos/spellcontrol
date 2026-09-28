@@ -11,8 +11,17 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { create } from 'zustand';
 
+// The page has no header row (E450): its way back is the board's own, the
+// game menu's "Back to …" row (covered by PlaytestBoard.test.tsx). The mock
+// renders that one control so these tests can follow where it leads.
 vi.mock('@/playtest/components/PlaytestBoard', () => ({
-  PlaytestBoard: () => <div data-testid="board">board</div>,
+  PlaytestBoard: ({ backLabel, onBack }: { backLabel?: string; onBack?: () => void }) => (
+    <div data-testid="board">
+      <button type="button" onClick={onBack}>
+        Back to {backLabel}
+      </button>
+    </div>
+  ),
 }));
 vi.mock('@/playtest/lib/deck-to-playtest', () => ({
   deckToPlaytestInit: () => ({ library: [] }),
@@ -24,14 +33,6 @@ vi.mock('@/lib/playtest/session-snapshot', () => ({
   loadPlaytestSnapshot: () => null,
 }));
 vi.mock('@/styles/playtest.css', () => ({}));
-// The page's own `← {deck}` header is the NARROW tier's way back; the table
-// tier (≥1024px) has no chrome rows and carries back-navigation in the
-// board's game menu instead (covered by PlaytestBoard.test.tsx, since the
-// board is mocked out here). happy-dom has no matchMedia, so pin it narrow
-// and keep testing what this page actually owns.
-vi.mock('@/playtest/hooks/use-narrow-viewport', () => ({
-  useNarrowViewport: () => true,
-}));
 
 interface FakePlaytestStore {
   state: { turn: number } | null;
@@ -120,7 +121,7 @@ describe('PlaytestPage', () => {
   it('backs out to the deck when playtesting solo', async () => {
     fakePlay.setState({ online: null });
     renderAt('/decks/deck-1/playtest');
-    fireEvent.click(await screen.findByRole('link', { name: '← Krenko' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to Krenko' }));
     expect(await screen.findByText('deck page')).toBeTruthy();
   });
 
@@ -129,14 +130,14 @@ describe('PlaytestPage', () => {
       online: { code: 'JRA4', players: [{ userId: 'me', deckId: 'deck-1' }] },
     });
     renderAt('/decks/deck-1/playtest');
-    fireEvent.click(await screen.findByRole('link', { name: '← Game JRA4' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to Game JRA4' }));
     expect(await screen.findByText('play page')).toBeTruthy();
   });
 
   it('ignores an online game this device is not seated in', async () => {
     fakePlay.setState({ online: { code: 'JRA4', players: [{ userId: 'someone-else' }] } });
     renderAt('/decks/deck-1/playtest');
-    expect(await screen.findByRole('link', { name: '← Krenko' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Back to Krenko' })).toBeTruthy();
   });
 
   // Seating alone used to relabel every deck's goldfish as the table's board,
@@ -147,14 +148,14 @@ describe('PlaytestPage', () => {
       online: { code: 'JRA4', players: [{ userId: 'me', deckId: 'deck-other' }] },
     });
     renderAt('/decks/deck-1/playtest');
-    expect(await screen.findByRole('link', { name: '← Krenko' })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: '← Game JRA4' })).toBeNull();
+    expect(await screen.findByRole('button', { name: 'Back to Krenko' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Back to Game JRA4' })).toBeNull();
   });
 
   it('stays a plain playtest when the seat has no deck yet', async () => {
     fakePlay.setState({ online: { code: 'JRA4', players: [{ userId: 'me', deckId: null }] } });
     renderAt('/decks/deck-1/playtest');
-    expect(await screen.findByRole('link', { name: '← Krenko' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Back to Krenko' })).toBeTruthy();
   });
 
   it('keeps loading, not "Deck not found", while the first pull is in flight (same class as #1937)', async () => {

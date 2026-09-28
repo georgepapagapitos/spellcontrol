@@ -195,13 +195,9 @@ import { ManaPool } from './ManaPool';
 
 interface Props {
   state: PlaytestState;
-  /** B6-04: rendered as a compact "back" control folded into the ActionBar's
-   *  own row, shown only in the short-landscape tier — the standalone
-   *  `.playtest-page__header` this duplicates is a full 44px+ touch-target
-   *  row on its own, and hiding it there is the single highest-leverage way
-   *  to keep the battlefield at a usable height without shrinking any
-   *  control below its 44px floor. Optional so PlaytestBoard's existing
-   *  tests (no header context) don't need to supply it. */
+  /** The page's way back: the game menu's "Back to …" row and the opening
+   *  hand's exit. The page has no header row of its own (E450), so this is
+   *  the only one. Optional so PlaytestBoard's tests don't need to supply it. */
   backLabel?: string;
   onBack?(): void;
 }
