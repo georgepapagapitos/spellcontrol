@@ -74,9 +74,10 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   //    Hunger: "Target opponent sacrifices a creature of their choice"),
   //    opponent-forcing like the rest of the list.
   //
-  // E486 (2026-09-28): counterspells fold into the removal role, and the
-  // counter branch was the literal "counter target spell". Real text is
-  // mostly scoped, so every one of these failed it, verified on Scryfall:
+  // 2026-09-28 (E486 review): the counter branch was the literal "counter
+  // target spell", so a card Scryfall tags removal whose removal IS its
+  // counter clause failed its own evidence when the text was scoped. Every
+  // one of these failed it, verified on Scryfall:
   // Negate / Fierce Guardianship / An Offer You Can't Refuse / Dovin's Veto
   // ("counter target noncreature spell"), Swan Song ("counter target
   // enchantment, instant, or sorcery spell"), Spell Pierce, Tale's End,

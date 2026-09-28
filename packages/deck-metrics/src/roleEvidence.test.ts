@@ -25,7 +25,7 @@ describe('checkRoleEvidence', () => {
 
 // Verbatim Scryfall oracle text (2026-09-28): the patterns are regexes, so a
 // hand-written line proves nothing.
-describe('checkRoleEvidence: scoped counters (E486) and graveyard-to-hand (E487)', () => {
+describe('checkRoleEvidence: scoped counter text and graveyard-to-hand (E487)', () => {
   it.each([
     ['Negate', 'Counter target noncreature spell.'],
     [

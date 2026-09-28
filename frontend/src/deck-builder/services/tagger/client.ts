@@ -3,7 +3,6 @@ import {
   checkRoleEvidence,
   isIncidentalRampByTags,
   isRampByTags,
-  isRemovalByTags,
 } from '@spellcontrol/deck-metrics';
 const TAG_REPO_URL =
   (import.meta.env.VITE_TAG_REPO_URL as string | undefined) ?? '/tagger-tags.json';
@@ -136,11 +135,6 @@ export function isIncidentalRamp(cardName: string): boolean {
   return isIncidentalRampByTags((tag) => hasTag(cardName, tag));
 }
 
-/** Removal, counterspells included (E486); the fold lives in deck-metrics. */
-function isRemovalCard(cardName: string): boolean {
-  return isRemovalByTags((tag) => hasTag(cardName, tag));
-}
-
 function isCardDrawCard(cardName: string): boolean {
   return !!(
     tagSets?.['card-advantage']?.has(cardName) ||
@@ -157,7 +151,7 @@ export function getCardRole(cardName: string): RoleKey | null {
   if (!tagSets) return null;
   // Check in priority order — boardwipe before removal (it's more specific)
   if (tagSets['boardwipe']?.has(cardName)) return 'boardwipe';
-  if (isRemovalCard(cardName)) return 'removal';
+  if (tagSets['removal']?.has(cardName)) return 'removal';
   if (isRampCard(cardName)) return 'ramp';
   if (isCardDrawCard(cardName)) return 'cardDraw';
   return null;
@@ -184,7 +178,7 @@ export function cardMatchesRole(cardName: string, role: RoleKey): boolean {
     case 'boardwipe':
       return !!tagSets['boardwipe']?.has(cardName);
     case 'removal':
-      return isRemovalCard(cardName);
+      return !!tagSets['removal']?.has(cardName);
     case 'ramp':
       return isRampCard(cardName);
     case 'cardDraw':
@@ -198,7 +192,7 @@ export function cardMatchesRole(cardName: string, role: RoleKey): boolean {
 export function hasMultipleRoles(cardName: string): boolean {
   if (!tagSets) return false;
   let count = 0;
-  if (tagSets['boardwipe']?.has(cardName) || isRemovalCard(cardName)) count++;
+  if (tagSets['boardwipe']?.has(cardName) || tagSets['removal']?.has(cardName)) count++;
   if (isRampCard(cardName)) count++;
   if (isCardDrawCard(cardName)) count++;
   return count > 1;
@@ -209,7 +203,7 @@ export function getAllCardRoles(cardName: string): RoleKey[] {
   if (!tagSets) return [];
   const roles: RoleKey[] = [];
   if (tagSets['boardwipe']?.has(cardName)) roles.push('boardwipe');
-  if (isRemovalCard(cardName)) roles.push('removal');
+  if (tagSets['removal']?.has(cardName)) roles.push('removal');
   if (isRampCard(cardName)) roles.push('ramp');
   if (isCardDrawCard(cardName)) roles.push('cardDraw');
   return roles;
@@ -238,9 +232,7 @@ export function getRampSubtype(cardName: string): RampSubtype | null {
 
 /** For cards with the 'removal' role, return the specific subtype. */
 export function getRemovalSubtype(cardName: string): RemovalSubtype | null {
-  // Stamped on every card for secondary-role badges: a self-bounce ramp card
-  // (Mina and Denn) must not read as bounce removal.
-  if (!tagSets || !isRemovalCard(cardName)) return null;
+  if (!tagSets) return null;
   if (tagSets['counterspell']?.has(cardName)) return 'counterspell';
   if (tagSets['bounce']?.has(cardName)) return 'bounce';
   if (tagSets['spot-removal']?.has(cardName)) return 'spot-removal';

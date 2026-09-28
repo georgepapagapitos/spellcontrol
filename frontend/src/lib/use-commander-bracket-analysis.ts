@@ -151,12 +151,12 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        role counts as interaction in the soft score; and a card whose first
  *        tagged role its text doesn't back now counts as the next one it does
  *        (Liliana, Dreadhorde General: removal, not nothing) (E476).
- *   v18 — counterspells fill the removal role (E486), and graveyard-to-hand
- *        card advantage phrased across sentences counts as draw (E487), so
- *        blue decks' removal counts rise and cards like Deadbridge Chant
- *        count as draw.
+ *   v18 — graveyard-to-hand card advantage phrased across sentences counts
+ *        as draw (Deadbridge Chant, E487), and a removal-tagged card whose
+ *        removal is a scoped counter clause ("counter target noncreature
+ *        spell") passes its removal evidence.
  */
-const ANALYSIS_ENGINE_VERSION = 'v18-counterspells-are-removal';
+const ANALYSIS_ENGINE_VERSION = 'v18-graveyard-draw';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for

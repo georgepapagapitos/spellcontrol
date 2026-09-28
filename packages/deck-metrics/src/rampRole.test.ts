@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isIncidentalRampByTags, isRampByTags, isRemovalByTags } from './roleTags';
+import { isIncidentalRampByTags, isRampByTags } from './rampRole';
 import { createTagLookup, estimateBracket } from './index';
 
 // Tag sets as Scryfall's tagger ships them (tagger-tags.json, 2026-09-27).
@@ -66,31 +66,14 @@ describe('createTagLookup reads the shared ramp rule', () => {
   const lookup = createTagLookup(byTag);
 
   it('gives incidental ramp its other role, or none', () => {
-    expect(lookup.getCardRole('Mana Drain')).toBe('removal'); // E486: counterspells are removal
+    expect(lookup.getCardRole('Mana Drain')).toBeNull();
     expect(lookup.getCardRole('Sword of Feast and Famine')).toBeNull();
     expect(lookup.getCardRole('Tinder Wall')).toBe('removal');
     expect(lookup.getCardRole('Mina and Denn, Wildborn')).toBe('ramp');
   });
 
-  it('counts a counterspell as interaction once, through the removal role', () => {
-    // Callers build roleCounts from getCardRole (backend ai/bracket.ts does);
-    // the role-less-counterspell set must not count it a second time.
-    const roleCounts = { removal: 0, ramp: 0, boardwipe: 0, cardDraw: 0 };
-    roleCounts[lookup.getCardRole('Mana Drain')!]++;
-    const r = estimateBracket(['Mana Drain'], [], 3, undefined, roleCounts, new Set(), lookup);
+  it('counts a counterspell that used to read as ramp as interaction', () => {
+    const r = estimateBracket(['Mana Drain'], [], 3, undefined, {}, new Set(), lookup);
     expect(r.breakdown.interactionCount).toBe(1);
-  });
-});
-
-describe('isRemovalByTags (E486)', () => {
-  const has = (tags: string[]) => (tag: string) => tags.includes(tag);
-
-  it('folds counterspells into removal', () => {
-    expect(isRemovalByTags(has(['counterspell']))).toBe(true);
-    expect(isRemovalByTags(has(['removal', 'spot-removal']))).toBe(true);
-  });
-
-  it('does not fold bounce alone', () => {
-    expect(isRemovalByTags(has(['ramp', 'bounce']))).toBe(false);
   });
 });

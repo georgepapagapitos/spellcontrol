@@ -80,8 +80,7 @@ describe('createTagLookup matches the frontend tagger client', () => {
       expect(shared.getCardRole(n)).toBe('cardDraw');
     }
     // Incidental ramp takes its other role, or none; self-bounce stays ramp.
-    expect(shared.getCardRole('Mana Drain')).toBe('removal'); // E486: a counterspell is removal
-    expect(shared.getCardRole('Counterspell')).toBe('removal');
+    expect(shared.getCardRole('Mana Drain')).toBeNull();
     expect(shared.getCardRole('Sword of Feast and Famine')).toBeNull();
     expect(shared.getCardRole('Tinder Wall')).toBe('removal');
     expect(shared.getCardRole('Mana Bloom')).toBe('ramp');
