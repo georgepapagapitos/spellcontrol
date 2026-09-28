@@ -244,6 +244,34 @@ describe('applyRoleSurplusRebalance', () => {
     VALIDATED_OF.clear();
   });
 
+  it('converts from the role most over its target first, not the lowest-scored card overall', () => {
+    // meren-budget100 (E476 gate): the one affordable replacement went to a
+    // draw card 30% over target while ramp sat 73% over and kept its filler.
+    const state = makeState();
+    addRampCards(state, 7); // target 2 -> 3.5x
+    const draws = Array.from({ length: 6 }, (_, i) => scryfallCard(`Draw_${i + 1}`));
+    for (const c of draws) {
+      ROLE_OF.set(c.name, 'cardDraw');
+      state.usedNames.add(c.name);
+    }
+    state.categories.synergy.push(...draws); // target 3 -> 2x
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('The Only Payoff', 95),
+          ...Array.from({ length: 7 }, (_, i) => edhrecCard(`Ramp_${i + 1}`, 50)),
+          ...Array.from({ length: 6 }, (_, i) => edhrecCard(`Draw_${i + 1}`, i === 0 ? 1 : 50)),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const roleTargets = { ramp: 2, removal: 0, boardwipe: 0, cardDraw: 3 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    expect(result.conversions).toHaveLength(1);
+    expect(result.conversions[0].added).toBe('The Only Payoff');
+    expect(result.conversions[0].cut).toMatch(/^Ramp_/); // not Draw_1, the lowest-scored card
+  });
+
   it('is a no-op when no role target is set', () => {
     const state = makeState();
     addRampCards(state, 8);

@@ -736,9 +736,22 @@ export function applyRoleSurplusRebalance(
       evictable.map((e) => e.card.name),
       ctx.liftScoreOf
     );
+    // The role most over its own target goes first; survival orders cards
+    // within it. Ranking every over-cap role by survival alone spent
+    // meren-budget100's one affordable replacement on a draw card 30% over
+    // target (Fiend Artisan) while ramp sat 73% over and kept its filler
+    // (E476 gate). If the worst role has no legal swap, the loop below falls
+    // through to the next one.
+    const overageOf = (role: RoleKey): number =>
+      (liveRoleCounts[role] ?? 0) / Math.max(1, roleTargets[role] ?? 0);
     const scored = evictable
       .map((e) => ({ ...e, survival: survivalScoreOf(e.card, e.role, liftBoosts) }))
-      .sort((a, b) => Number(b.nonbo) - Number(a.nonbo) || a.survival - b.survival);
+      .sort(
+        (a, b) =>
+          Number(b.nonbo) - Number(a.nonbo) ||
+          overageOf(b.role) - overageOf(a.role) ||
+          a.survival - b.survival
+      );
 
     for (const candidate of scored) {
       const roleTarget = roleTargets[candidate.role] ?? 0;
