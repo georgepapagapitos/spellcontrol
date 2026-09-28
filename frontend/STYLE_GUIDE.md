@@ -3751,10 +3751,11 @@ never shows the chooser.
   applies to the page grid only, where fewer pockets is the point.
 - **A whole-library destructive action has one home: the last, `danger`
   item in the index page's header ⋮.** "Delete all binders" / "decks" /
-  "lists" and Collection's "Delete collection" all sit there, after the
-  divider `OverflowMenu` draws before its first danger item. It is offered
-  only when there is more than one item (one item deletes from its own card
-  or row). "Delete all binders" first sat in every binder page's tab strip
+  "lists" and Collection's "Delete collection" all sit there. Red and last
+  is the separation: the shared `OverflowMenu` draws no dividers (every card
+  ⋮ already ends on a red Delete the same way), so don't add one for this
+  item alone. It is offered only when there is more than one item (one
+  item deletes from its own card or row). "Delete all binders" first sat in every binder page's tab strip
   as a peer of "+ New binder" and "Export", then under each index as a small
   red text link, which read as an afterthought and put the same verb in a
   different place on each page. Every other page-level destructive action
