@@ -795,7 +795,11 @@ and the convergence PRs then give each shape one look.
 - A count bubble is `Count`, `placement` `inline` or `corner`. It renders
   nothing at zero and is `aria-hidden`: the control it sits in says the
   number in words. A plain text count ("12 cards") is not a bubble and stays
-  text a screen reader reads.
+  text a screen reader reads. Every bubble is one look (`styles/tabs.css`, "Count
+  bubbles"): 1.125rem, `--font-label` 700 with tabular figures; a quiet tally
+  is a hairline on `--surface`, an attention count (active filters, an unread
+  door, the scan stack) is `tone="accent"` and fills; `corner` pins at one
+  offset. Never a literal colour. Guard: `styles/count-bubble-plate.test.ts`.
 - A tile, section card or anchored panel is `Surface` with its
   `variant` (`sleeve | framed | popover`, § Layout system). A tile that is
   itself a link or button keeps its own element.

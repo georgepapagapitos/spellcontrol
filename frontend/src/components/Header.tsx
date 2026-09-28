@@ -52,7 +52,12 @@ export function Header() {
             }
           >
             <span>Home</span>
-            <Count className="friends-nav-link-badge" value={socialCount} placement="inline" />
+            <Count
+              className="friends-nav-link-badge"
+              tone="accent"
+              value={socialCount}
+              placement="inline"
+            />
           </NavLink>
           <NavLink
             viewTransition
@@ -107,6 +112,7 @@ export function Header() {
             <span>Friends</span>
             <Count
               className="friends-nav-link-badge"
+              tone="accent"
               value={actionRequired.length}
               placement="inline"
             />

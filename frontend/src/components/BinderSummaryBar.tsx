@@ -134,7 +134,12 @@ export function BinderSummaryBar({ binderName, onBrowsePages, sort, collapse, co
             triggerContent={
               <>
                 <Eye width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <Count className="collection-filters-badge" value={changed} placement="corner" />
+                <Count
+                  className="collection-filters-badge"
+                  tone="accent"
+                  value={changed}
+                  placement="corner"
+                />
               </>
             }
             triggerClassName={`${buttonClass({ placement: 'toolbar' })} binder-summary-view`}

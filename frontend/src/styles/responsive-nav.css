@@ -368,20 +368,6 @@
 }
 
 /* Pending-count badge beside a top-nav Friends link */
-.friends-nav-link-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.1rem;
-  height: 1.1rem;
-  padding: 0 var(--space-1);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  line-height: 1;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
-}
 
 /* On the active tab's accent fill the accent badge would vanish — invert. */
 .site-nav-link.active .friends-nav-link-badge {
@@ -619,22 +605,6 @@
   }
 
   /* Notification-count badge on the mobile tab bar icon (Home) */
-  .mobile-tab-bar-badge {
-    position: absolute;
-    top: -3px;
-    right: -4px;
-    min-width: 1rem;
-    height: 1rem;
-    padding: 0 var(--space-1);
-    font-size: var(--text-xs);
-    font-weight: 700;
-    line-height: 1rem;
-    text-align: center;
-    border-radius: 999px;
-    background: var(--accent);
-    color: var(--on-accent);
-    pointer-events: none;
-  }
 
   /* 6th, visually distinct item: a compact icon-only Search utility, not a
      co-equal destination — fixed width (not flex: 1 like the 5 primary

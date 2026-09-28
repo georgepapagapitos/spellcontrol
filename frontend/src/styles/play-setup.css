@@ -312,17 +312,6 @@
   margin: 0;
 }
 
-.play-setup-roster-count {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: var(--text-xs);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: var(--space-0-5) var(--space-2);
-  color: var(--text-secondary);
-}
-
 .play-setup-roster-list {
   list-style: none;
   margin: 0;

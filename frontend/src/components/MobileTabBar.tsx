@@ -68,6 +68,7 @@ export function MobileTabBar() {
           <Home {...ICON_PROPS} />
           <Count
             className="mobile-tab-bar-badge"
+            tone="accent"
             value={count}
             display={count > 9 ? '9+' : undefined}
             placement="corner"

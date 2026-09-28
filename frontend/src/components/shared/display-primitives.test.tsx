@@ -96,7 +96,7 @@ describe('Count', () => {
     );
     const count = container.firstElementChild!;
     expect(count.textContent).toBe('3');
-    expect(count.className).toBe('collection-filters-badge');
+    expect(count.className).toBe('count-badge collection-filters-badge');
     expect(count.getAttribute('aria-hidden')).toBe('true');
     expect(count.getAttribute('data-placement')).toBe('corner');
     expect(count.getAttribute('data-tone')).toBe('accent');
