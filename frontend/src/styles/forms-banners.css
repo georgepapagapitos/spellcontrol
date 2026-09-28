@@ -64,6 +64,15 @@
   transform: scale(0.97);
 }
 
+/* A link that leads on (a section's "All 12", a card's "View all") carries a
+   trailing chevron; the icon sits at the button's own gap. Only an icon-bearing
+   link turns flex: a plain one stays inline, so it wraps inside a sentence. */
+.btn-link:has(> svg) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--icon-gap);
+}
+
 /* A link button sits inside text: a sentence, a table cell, a card line. A
    min-height would push that line apart on a phone, so the 44px floor is a
    centred ghost instead (STYLE_GUIDE § Responsive, `.set-filter-chip-x`),

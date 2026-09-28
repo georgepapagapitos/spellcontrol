@@ -2,6 +2,7 @@ import './YourDecks.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Sparkles } from 'lucide-react';
+import { Button } from '@/components/shared/Button';
 import { useDecksStore, type Deck } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
 import { ColorPip } from '../shared/ManaSymbol';
@@ -160,10 +161,13 @@ export function YourDecks() {
               toResults={(term) => `/decks?query=${encodeURIComponent(term)}`}
               toPage="/decks"
             />
-            <Link to="/decks" className="home-door">
+            <Button
+              variant="link"
+              to="/decks"
+              iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
+            >
               {loading ? 'All decks' : `All ${decks.length}`}
-              <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
-            </Link>
+            </Button>
           </>
         }
       />

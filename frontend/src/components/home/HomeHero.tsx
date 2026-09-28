@@ -181,10 +181,14 @@ function HeroChecklist({ greeting }: { greeting: string }) {
           }
         />
         {sampleError && <p className="home-hero-error">{sampleError}</p>}
-        <a href="/guides/" className="home-door" onClick={() => track('guide_cta')}>
+        <Button
+          variant="link"
+          href="/guides/"
+          onClick={() => track('guide_cta')}
+          iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
+        >
           Read the guides
-          <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
-        </a>
+        </Button>
       </div>
     </>
   );

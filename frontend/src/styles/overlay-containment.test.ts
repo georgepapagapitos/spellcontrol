@@ -297,9 +297,10 @@ describe('coarse-pointer touch floor', () => {
     // opt-in, so a control is unguarded until it is named here.
     ['components/home/HomeHero.css', '.home-hero-action'],
     ['components/home/HomeHero.css', '.home-hero-more'],
-    // Home's section doors ("All 6", "Browse", "View trend"), the phone's
-    // section-search button, and the list rows under Recently added.
-    ['components/home/HomeCard.css', '.home-door'],
+    // Home's section doors ("All 6", "Browse", "View trend") are link
+    // Buttons now (T135): their floor is .btn-link's 44px ghost. Then the
+    // phone's section-search button, and the list rows under Recently added.
+    ['styles/forms-banners.css', '.btn-link::after'],
     ['pages/HomePage.css', '.home-section-search-link'],
     ['components/home/RecentlyAddedCard.css', '.home-added-fit'],
     // The quiet line's doors and Around the table's RSVP: the RSVP changes

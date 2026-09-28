@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
+import { Button } from '../shared/Button';
 import { DiscoverDeckTile, DiscoverTileSkeleton } from '../DiscoverDeckTile';
 // The rail header borrows HomeCard's header/view-all family. HomePage is lazy,
 // so this chunk (main) has to load the stylesheet itself.
@@ -83,9 +84,13 @@ export function FreshDecksRail({
         <h2 id="welcome-fresh-decks-heading" className="deck-combos-title">
           Fresh public decks
         </h2>
-        <Link to="/decks/discover" className="home-card-view-all">
-          View all →
-        </Link>
+        <Button
+          variant="link"
+          to="/decks/discover"
+          iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
+        >
+          View all
+        </Button>
       </div>
       <ul className="decks-index-list is-grid" aria-label="Recently published public decks">
         {decks.slice(0, RAIL_SIZE).map((deck) => (

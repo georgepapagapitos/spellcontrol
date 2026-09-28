@@ -376,7 +376,7 @@ meanwhile.
   promotes it to a shared primitive.
 - **Section header: title · meta · tools.** A section inside a page is a
   title, one short meta, and on the right its tools: the section's own search
-  ([§ Toolbars](style-guide/components.md#toolbars--action-rows-responsive), search beside its list) and one door. The meta hides on a
+  ([§ Toolbars](style-guide/components.md#toolbars--action-rows-responsive), search beside its list) and one door, which is `Button variant="link"` with a trailing chevron (T135: one link style app-wide, no bespoke door class). The meta hides on a
   phone before anything wraps. **Built** as `SectionHeader` (T166): Home's
   `.home-section-head` is the reference markup; a section with no meta or
   tools gets only its heading. Its `variant` is the heading's role, painted

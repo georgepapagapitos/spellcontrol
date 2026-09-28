@@ -1,7 +1,6 @@
 import './HomeCard.css';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
@@ -80,10 +79,13 @@ export function HomeCard({
         </h2>
         {meta && <span className="home-card-meta">{meta}</span>}
         {viewAllHref && !loading && (
-          <Link to={viewAllHref} className="home-door">
+          <Button
+            variant="link"
+            to={viewAllHref}
+            iconEnd={<ChevronRight width={14} height={14} strokeWidth={1.8} />}
+          >
             {viewAllLabel ?? 'View all'}
-            <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
-          </Link>
+          </Button>
         )}
       </div>
       <div className="home-card-body">
