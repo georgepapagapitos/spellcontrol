@@ -36,10 +36,10 @@
 // pattern over the source misses or double-counts.
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+import { parseTsx, sourceFiles, strings } from './jsx-scan';
 
 const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -63,29 +63,6 @@ type Shape = 'rawClass' | 'iconOnly' | 'rawChip' | 'navButton';
 
 /** A chip family's class (`verdict-chip`, `coach-feed-filter-chip--owned-empty`), not a part (`-chip-label`) or a container (`-chips`). */
 const CHIP_CLASS = /^[a-z][a-z0-9-]*-chip(--[a-z0-9-]+)?$/;
-
-function sourceFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules') continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) sourceFiles(full, out);
-    else if (/\.tsx$/.test(entry) && !/\.test\.tsx$/.test(entry)) out.push(full);
-  }
-  return out;
-}
-
-/** Every string piece in an attribute's value: literals, template parts, ternary arms. */
-function strings(node: ts.Node, out: string[] = []): string[] {
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) out.push(node.text);
-  else if (ts.isTemplateExpression(node)) {
-    out.push(node.head.text);
-    for (const span of node.templateSpans) {
-      strings(span.expression, out);
-      out.push(span.literal.text);
-    }
-  } else ts.forEachChild(node, (child) => void strings(child, out));
-  return out;
-}
 
 /** Text glyphs a button renders standing in for an icon — never a real word. */
 const GLYPH_CHARS = new Set(['×', '✕', '✖', '+', '−', '-', '‹', '›', '⋮']);
@@ -114,13 +91,7 @@ function onlyNavigates(body: ts.ConciseBody): boolean {
 }
 
 function count(file: string, intent: string[] = []): Record<Shape, number> {
-  const sf = ts.createSourceFile(
-    file,
-    readFileSync(file, 'utf8'),
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX
-  );
+  const sf = parseTsx(file);
   const n: Record<Shape, number> = { rawClass: 0, iconOnly: 0, rawChip: 0, navButton: 0 };
   const visit = (node: ts.Node) => {
     if (ts.isJsxAttribute(node) && /className$/i.test(node.name.getText(sf)) && node.initializer) {
