@@ -14,9 +14,9 @@
   color: var(--text-primary);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  /* Match the read-only .deck-row-qty cell so qty→badge and badge→name
-     gaps look balanced. */
-  width: 1.4rem;
+  /* Match the read-only .deck-row-qty cell (the section's shared qty
+     column) so qty→badge and badge→name gaps look balanced. */
+  width: var(--deck-qty-col, 1.4rem);
   text-align: right;
   padding: 0.05rem var(--space-0-5);
   border-radius: var(--radius);
@@ -45,7 +45,9 @@ input.deck-row-qty-input {
   background: var(--accent-light);
   border: 1px solid var(--accent);
   color: var(--text-primary);
-  width: 1.75rem;
+  /* Fill the section's qty column (never narrower than two digits), so
+     opening the editor on a stepper row doesn't pull the name left. */
+  width: max(1.75rem, var(--deck-qty-col, 1.4rem));
   box-sizing: border-box;
   text-align: center;
   padding: 0.05rem var(--space-1);
@@ -75,7 +77,15 @@ input.deck-row-qty-input.deck-row-qty-missing {
 .deck-row-qty-group {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  width: var(--deck-qty-col, auto);
   gap: var(--space-0-5);
+}
+
+/* Inside the stepper the count is its own fixed chip, not the column. */
+.deck-row-qty-group .deck-row-qty-edit {
+  width: 1.4rem;
 }
 
 .deck-row-qty-step {

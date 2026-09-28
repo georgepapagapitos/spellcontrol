@@ -57,6 +57,11 @@ describe('DeckDisplay per-printing expand', () => {
     expect(toggle).not.toBeNull();
     expect(toggle!.textContent).toContain('3 printings');
     expect(toggle!.getAttribute('aria-expanded')).toBe('false');
+    // The disclosure sits on its own line under the name, never beside it:
+    // inline, it kept its width and the name ellipsised to one letter.
+    const stack = toggle!.closest('.deck-row-name-stack');
+    expect(stack).not.toBeNull();
+    expect(stack!.querySelector('.deck-row-name-text')?.textContent).toBe('Mountain');
     // Collapsed: no sub-rows yet.
     expect(container.querySelectorAll('.deck-printing-sub')).toHaveLength(0);
 

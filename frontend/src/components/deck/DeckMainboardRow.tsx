@@ -626,6 +626,12 @@ function DeckCardRow({
     </button>
   );
 
+  const nameText = (
+    <span className="deck-row-name-text" title={row.name}>
+      <CardName card={row.card} />
+    </span>
+  );
+
   return (
     <>
       <li
@@ -732,39 +738,44 @@ function DeckCardRow({
             <span className="deck-row-role-badge deck-row-role-empty" aria-hidden />
           ))}
         <span className="deck-row-name" title={row.card.type_line}>
-          <span className="deck-row-name-text" title={row.name}>
-            <CardName card={row.card} />
-          </span>
-          {multiPrinting && (
-            <button
-              type="button"
-              className="deck-row-printings-toggle"
-              aria-expanded={expanded}
-              aria-controls={subListId}
-              aria-label={
-                expanded
-                  ? `Collapse ${row.name} printings`
-                  : `Show ${row.printings.length} printings of ${row.name}`
-              }
-              title={
-                expanded
-                  ? `Collapse ${row.name} printings`
-                  : `Show ${row.printings.length} printings of ${row.name}`
-              }
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpanded((v) => !v);
-              }}
-            >
-              <span className="deck-row-printings-count">{row.printings.length} printings</span>
-              <ChevronDown
-                className="deck-row-printings-chevron"
-                width={12}
-                height={12}
-                strokeWidth={2.4}
-                aria-hidden
-              />
-            </button>
+          {multiPrinting ? (
+            // A stack spanning several printings puts its disclosure on a
+            // second line under the name, so the name never trades width
+            // with it (inline, "2 printings" won and "Island" read "I").
+            <span className="deck-row-name-stack">
+              {nameText}
+              <button
+                type="button"
+                className="deck-row-printings-toggle"
+                aria-expanded={expanded}
+                aria-controls={subListId}
+                aria-label={
+                  expanded
+                    ? `Collapse ${row.name} printings`
+                    : `Show ${row.printings.length} printings of ${row.name}`
+                }
+                title={
+                  expanded
+                    ? `Collapse ${row.name} printings`
+                    : `Show ${row.printings.length} printings of ${row.name}`
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpanded((v) => !v);
+                }}
+              >
+                <span className="deck-row-printings-count">{row.printings.length} printings</span>
+                <ChevronDown
+                  className="deck-row-printings-chevron"
+                  width={12}
+                  height={12}
+                  strokeWidth={2.4}
+                  aria-hidden
+                />
+              </button>
+            </span>
+          ) : (
+            nameText
           )}
           {row.isPartner && (
             <span className="deck-row-partner-tag" title="Partner commander">
