@@ -2,7 +2,7 @@ import { AlertTriangle, Ban, Check, ChevronDown, Minus } from 'lucide-react';
 import { useState } from 'react';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { cardFaces, isKeywordLine, legalityRows, type LegalityStatus } from '../lib/card-details';
+import { cardFaces, legalityRows, type LegalityStatus } from '../lib/card-details';
 import { ManaCost } from './ManaCost';
 import { useRulesText } from '../lib/keyword-glossary';
 import { RulesTextLine } from './RulesText';
@@ -10,14 +10,13 @@ import './CardDetails.css';
 
 /* ── Card text (oracle / flavor / P-T) ─────────────────────────────────── */
 
-/** Rules text split into per-ability paragraphs; leading keyword lines emphasized. */
+/** Rules text split into per-ability paragraphs. */
 function OracleText({ text, names }: { text: string; names: readonly string[] }) {
   const lines = useRulesText(text, names);
-  const raw = text.split('\n');
   return (
     <div className="card-text-oracle">
       {lines.map((segments, i) => (
-        <p key={i} className={`card-text-line${isKeywordLine(raw[i]) ? ' is-keyword' : ''}`}>
+        <p key={i} className="card-text-line">
           <RulesTextLine segments={segments} />
         </p>
       ))}
