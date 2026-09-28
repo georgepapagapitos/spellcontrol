@@ -140,17 +140,18 @@ export function FilterGroupList({
             revealSetsSignal={i === 0 ? revealSetsSignal : 0}
             emptyGroupMatchesNothing={emptyGroupMatchesNothing}
           />
-          {i < groups.length - 1 && (
-            <div className="filter-group-or" aria-hidden="true">
-              <span>or</span>
-            </div>
-          )}
+          {/* An "or" divider follows every rule, including the last — the
+              "Also take other cards" button below adds one more rule on the
+              same "or" chain, so the divider belongs to it too. */}
+          <div className="filter-group-or" aria-hidden="true">
+            <span>or</span>
+          </div>
         </div>
       ))}
 
       <div className="filter-group-footer">
         <Button onClick={onAdd} className="btn-add-group">
-          + Or match other cards too
+          + Also take other cards
         </Button>
       </div>
     </div>
@@ -255,6 +256,10 @@ function FilterGroupCard({
           />
         ) : name ? (
           <span className="filter-group-title">{name}</span>
+        ) : summary ? (
+          // A summary is real information (what this rule actually matches),
+          // not a placeholder — it reads with the same weight as a chosen name.
+          <span className="filter-group-title">{summary}</span>
         ) : (
           <span className="filter-group-title is-generic">Match all of</span>
         )}

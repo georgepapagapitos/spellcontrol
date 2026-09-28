@@ -29,3 +29,26 @@ describe('colorChipLabel', () => {
     expect(colorChipLabel(['W', 'U'], 'all')).toBe('White + Blue');
   });
 });
+
+describe('autoSummary — Color group field', () => {
+  // E497: an unnamed rule's title is now this sentence, so a raw chip code
+  // ("U") read as the whole headline instead of a barely-visible placeholder.
+  it('names the color, not the raw WUBRG(C) code', () => {
+    expect(autoSummary({ colors: chip('U') })).toBe('Blue');
+  });
+
+  it('covers Multicolor, which colour IDENTITY has no bucket for', () => {
+    expect(autoSummary({ colors: chip('M') })).toBe('Multicolor');
+  });
+
+  it('joins and caps at two, like every other chip field', () => {
+    expect(
+      autoSummary({
+        colors: {
+          chips: [chip('W').chips[0], chip('U').chips[0], chip('B').chips[0]],
+          joiners: [],
+        },
+      })
+    ).toBe('White, Blue +1');
+  });
+});

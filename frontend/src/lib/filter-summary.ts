@@ -19,6 +19,18 @@ const FILTER_COLOR_LABELS: Record<string, string> = {
 };
 
 /**
+ * The "Color group" field's bucket keys (`FilterGroupEditor`'s `COLORS`
+ * array) — WUBRG plus Multicolor, distinct from `FILTER_COLOR_LABELS` (which
+ * only covers colour IDENTITY's WUBRG-C). A rule's autoSummary otherwise read
+ * the raw chip code ("U") as its title once an unnamed rule started showing
+ * its summary as the headline (E497).
+ */
+const COLOR_GROUP_LABELS: Record<string, string> = {
+  ...FILTER_COLOR_LABELS,
+  M: 'Multicolor',
+};
+
+/**
  * "White, Blue" for a set of WUBRG(C) filter keys. In 'all' (AND) mode the
  * chip reads as an intersection — "White + Blue" — so the label itself says
  * which combine semantics are active.
@@ -47,12 +59,22 @@ export function autoSummary(f: BinderFilter): string {
     if (s) parts.push(s);
   };
 
+  const colorGroupNames = (expr: ChipExpression | undefined, max = 2) => {
+    if (!expr || expr.chips.length === 0) return null;
+    const is = expr.chips
+      .filter((c) => !c.negate)
+      .map((c) => COLOR_GROUP_LABELS[c.value] ?? c.value);
+    if (is.length === 0) return null;
+    if (is.length <= max) return is.join(', ');
+    return `${is.slice(0, max).join(', ')} +${is.length - max}`;
+  };
+
   push(chipNames(f.rarities));
   push(chipNames(f.typeTokenChips));
   push(chipNames(f.typeChips));
   push(chipNames(f.supertypeChips));
   push(chipNames(f.subtypeChips));
-  push(chipNames(f.colors));
+  push(colorGroupNames(f.colors));
   if (f.colorIdentity?.colors.length)
     push(colorChipLabel(f.colorIdentity.colors, f.colorIdentity.mode));
   push(chipNames(f.treatments));

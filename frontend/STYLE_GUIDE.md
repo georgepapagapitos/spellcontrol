@@ -3690,10 +3690,15 @@ to anything new that edits a predicate.
   pushed the rules below the fold. They are switch rows now (§ Config
   surfaces).
 - **One vocabulary for rules.** A binder or list has **rules**; a rule is
-  "Match all of" its **conditions**, and more rules are alternatives ("Or
-  match other cards too"). "Rule" used to mean both the group and the field
-  inside it, and "AND/OR rule" asked for boolean logic before anything could
-  be built. The one explanation lives in the ⓘ on the "Cards" heading.
+  "Match all of" its **conditions**, and more rules are alternatives — the
+  "+ Also take other cards" button, under an "or" divider that follows every
+  rule (E497; reopens the wording below, kept the structure). "Rule" used to
+  mean both the group and the field inside it, and "AND/OR rule" asked for
+  boolean logic before anything could be built. The one explanation lives in
+  the ⓘ on the "Cards" heading.
+  (Superseded 2026-09-28, E497: the button read "+ Or match other cards too"
+  with no visual divider between rules — the divider now carries the "or"
+  the button text used to state, so the button can name the ACTION instead.)
 - **A predicate has one name across surfaces.** It was "Legalities" in the
   binder editor and "Format" in the collection dialog for the same field.
 - **An editing surface shows a live match count.** You should never have to
@@ -3706,10 +3711,15 @@ to anything new that edits a predicate.
   three lines apiece, and the one hint under it rewrote itself per option so
   the three could never be compared. Page filling is three radio rows with
   their hints always visible.
-- **A rule's title line is its name (or "Match all of"), its live count and a
-  `⋯` menu** holding Rename, Duplicate and Remove. The group used to open with
-  an always-editable name field and two 12px icons (⎘ ×), which made every
-  rule look like a form to fill in before it could do anything.
+- **A rule's title line is its name, else its autoSummary sentence once it
+  has a condition, else "Match all of"** (E497) — its live count and a `⋯`
+  menu hold Rename, Duplicate and Remove. An unnamed rule with conditions
+  reads what it actually matches ("rare, mythic · ≥ $1.00") instead of the
+  generic "Match all of" every unnamed rule used to show; a genuinely empty
+  rule still shows "Match all of" since there is nothing yet to summarize.
+  The group used to open with an always-editable name field and two 12px
+  icons (⎘ ×), which made every rule look like a form to fill in before it
+  could do anything.
 - **An info-tip sits beside the label it explains, never at the row's far
   edge.** `justify-content: space-between` on the Behaviour rows parked each
   (i) 350px from its short checkbox label in the 700px modal, where it read

@@ -133,7 +133,7 @@ describe('a new binder starts from a starting point', () => {
     expect(screen.getByLabelText('Card list')).toBeTruthy();
     expect(screen.getByRole('switch', { name: 'Mark all as proxies' })).toBeTruthy();
     // Membership switches do nothing on a binder of pinned cards.
-    expect(screen.queryByRole('switch', { name: /Keep every printing together/ })).toBeNull();
+    expect(screen.queryByRole('switch', { name: /Keep printings together/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Create and import' })).toBeTruthy();
   });
 
@@ -194,7 +194,9 @@ describe('Order and Pages are collapsed rows that state their value', () => {
 
     const pages = screen.getByRole('button', { name: /Pages/ });
     expect(pages.getAttribute('aria-expanded')).toBe('false');
-    expect(pages.textContent).toMatch(/12-pocket · both sides · New page per section · 480 cards/);
+    expect(pages.textContent).toMatch(
+      /Holds 480 cards \(20 sheets\) · 12-pocket · both sides · New page per section/
+    );
 
     fireEvent.click(pages);
     expect(screen.getByRole('radio', { name: '12-pocket' })).toHaveProperty('checked', true);
@@ -282,7 +284,7 @@ describe('empty-rule warning gating', () => {
 
   it('fires after a rule edit (adding a rule counts as authoring)', () => {
     openBlank();
-    fireEvent.click(screen.getByRole('button', { name: '+ Or match other cards too' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Also take other cards' }));
     expect(screen.getByText(WARNING)).toBeTruthy();
   });
 
