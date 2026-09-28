@@ -192,51 +192,6 @@
   }
 }
 
-/* ── Tile row ──────────────────────────────────────────────────────────────
-   The decks index's own tiles (`.decks-index-list.is-grid`, global), laid out
-   as five across on desktop and as one swipe row below it: each tile under
-   three-quarters of a phone's width so the next one shows and the row reads
-   as scrollable, never a grid squeezed down. The row runs out to the screen
-   edge past the page gutter. Three classes to outrank the index's two-class
-   grid rule. */
-.decks-index-list.is-grid.home-rail {
-  display: flex;
-  gap: var(--space-3);
-  margin: 0 calc(-1 * var(--page-gutter, var(--space-4)));
-  padding: var(--space-0-5) var(--page-gutter, var(--space-4)) var(--space-2);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;
-  scroll-padding-inline: var(--page-gutter, var(--space-4));
-  scrollbar-width: none;
-}
-
-.decks-index-list.is-grid.home-rail::-webkit-scrollbar {
-  display: none;
-}
-
-.decks-index-list.is-grid.home-rail > li {
-  flex: 0 0 72%;
-  scroll-snap-align: start;
-}
-
-@media (min-width: 600px) {
-  .decks-index-list.is-grid.home-rail > li {
-    flex-basis: 30%;
-  }
-}
-
-@media (min-width: 1024px) {
-  .decks-index-list.is-grid.home-rail {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: var(--space-4);
-    margin: 0;
-    padding: 0;
-    overflow: visible;
-  }
-}
-
 /* Tile skeleton — the tile's own frame, a shimmering art band and two bars. */
 .home-tile-skeleton {
   display: flex;

@@ -53,6 +53,7 @@ primitives directory.
 | `components/shared/ArtBadge`                                   | a raw badge class on card art                        | § Shape language — Badges, counts and surfaces are primitives                                                               |
 | `components/shared/Count`                                      | a raw count-bubble class                             | § Shape language — Badges, counts and surfaces are primitives                                                               |
 | `components/shared/Surface`                                    | a raw tile, section-card or popover class            | § Layout system — Surfaces: one frame                                                                                       |
+| `components/shared/SwipeRow`                                   | a hand-built horizontal tile row                     | § Layout system — A row of tiles                                                                                            |
 | `components/shared/SectionHeader`                              | a hand-built `-section-head` row                     | § Layout system — Section header                                                                                            |
 | `components/SearchPill`                                        | a bare `<input type="search">`                       | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive) · § Responsive (keep `min-width: 0`) |
 | `components/SelectMenu`                                        | a restyled `<select>`                                | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
@@ -370,8 +371,10 @@ meanwhile.
   `overflow-x: auto` becomes an accidental two-axis scroller; the
   `overlay-containment` strip guard enforces it). Tiles in the row are the
   surface's own tiles, never a second design of the same object.
-  **Not built yet:** Home's `.home-rail` (HomePage.css) is the reference; T135
-  promotes it to a shared primitive.
+  **Built** as `SwipeRow` (`components/shared/SwipeRow`, T135): the list
+  element itself, carrying the tiles' own list classes, with `columns` across
+  on desktop. Home's Your decks and Discover and the welcome page's fresh
+  public decks use it.
 - **Section header: title · meta · tools.** A section inside a page is a
   title, one short meta, and on the right its tools: the section's own search
   ([§ Toolbars](style-guide/components.md#toolbars--action-rows-responsive), search beside its list) and one door, which is `Button variant="link"` with a trailing chevron (T135: one link style app-wide, no bespoke door class). The meta hides on a

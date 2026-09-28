@@ -18,6 +18,7 @@ import { HomeSectionSearch } from './HomeSectionSearch';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 import { Surface } from '../shared/Surface';
 import { SectionHeader } from '../shared/SectionHeader';
+import { SwipeRow } from '@/components/shared/SwipeRow';
 
 const RECENT_LIMIT = 5;
 const WUBRG = ['W', 'U', 'B', 'R', 'G'];
@@ -173,7 +174,7 @@ export function YourDecks() {
       />
       {loading ? (
         <div role="status" aria-label="Loading" aria-busy="true">
-          <ul className="decks-index-list is-grid home-rail" aria-hidden="true">
+          <SwipeRow className="decks-index-list is-grid" aria-hidden="true">
             {Array.from({ length: Math.min(remembered ?? 3, RECENT_LIMIT) || 3 }, (_, i) => (
               <Surface
                 as="li"
@@ -187,14 +188,14 @@ export function YourDecks() {
                 <span className="home-tile-skeleton-bar" />
               </Surface>
             ))}
-          </ul>
+          </SwipeRow>
         </div>
       ) : (
-        <ul className="decks-index-list is-grid home-rail">
+        <SwipeRow className="decks-index-list is-grid">
           {recent.map((deck) => (
             <DeckTile key={deck.id} deck={deck} arrivals={arrivals.get(deck.id) ?? 0} />
           ))}
-        </ul>
+        </SwipeRow>
       )}
     </section>
   );

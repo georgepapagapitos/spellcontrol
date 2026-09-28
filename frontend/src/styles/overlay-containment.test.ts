@@ -180,7 +180,7 @@ describe('horizontal tab strips', () => {
     ['styles/admin-scanner.css', '.admin-users-table-scroll'],
     // Home's swipe rows: Waiting on you, and the deck / Discover tile rows.
     ['components/home/WaitingOnYou.css', '.home-tasks'],
-    ['pages/HomePage.css', '.decks-index-list.is-grid.home-rail'],
+    ['components/shared/SwipeRow.css', 'ul.swipe-row[data-swipe-row]'],
   ];
 
   for (const [file, selector] of STRIPS) {

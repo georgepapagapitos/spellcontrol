@@ -7,6 +7,7 @@ import { HomeSectionSearch } from './HomeSectionSearch';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 import { SectionHeader } from '@/components/shared/SectionHeader';
+import { SwipeRow } from '@/components/shared/SwipeRow';
 
 const ROW_LIMIT = 5;
 
@@ -73,7 +74,7 @@ export function DiscoverRow() {
       />
       {loading ? (
         <div role="status" aria-label="Loading" aria-busy="true">
-          <ul className="decks-index-list is-grid home-rail" aria-hidden="true">
+          <SwipeRow className="decks-index-list is-grid" aria-hidden="true">
             {Array.from({ length: 3 }, (_, i) => (
               <Surface
                 as="li"
@@ -87,7 +88,7 @@ export function DiscoverRow() {
                 <span className="home-tile-skeleton-bar" />
               </Surface>
             ))}
-          </ul>
+          </SwipeRow>
         </div>
       ) : error ? (
         <div className="home-quiet" role="alert">
@@ -97,11 +98,11 @@ export function DiscoverRow() {
           </Button>
         </div>
       ) : decks && decks.length > 0 ? (
-        <ul className="decks-index-list is-grid home-rail">
+        <SwipeRow className="decks-index-list is-grid">
           {decks.map((deck) => (
             <DiscoverDeckTile key={deck.slug} deck={deck} view="grid" />
           ))}
-        </ul>
+        </SwipeRow>
       ) : (
         <div className="home-quiet">
           <Compass width={16} height={16} strokeWidth={1.8} aria-hidden />
