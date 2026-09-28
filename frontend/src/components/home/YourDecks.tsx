@@ -64,7 +64,12 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
           </span>
         )}
         {arrivals > 0 && (
-          <ArtBadge className="home-deck-arrivals" corner="top-start" aria-hidden="true">
+          <ArtBadge
+            className="home-deck-arrivals"
+            corner="top-start"
+            tone="success"
+            aria-hidden="true"
+          >
             <Sparkles width={12} height={12} strokeWidth={2} />+{arrivals} new card
             {arrivals === 1 ? '' : 's'}
           </ArtBadge>

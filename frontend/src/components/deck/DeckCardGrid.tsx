@@ -499,11 +499,11 @@ export function DeckCardGrid({
                       {synergy && synergy.length > 0 && (
                         <ArtBadge
                           className="deck-card-grid-synergy"
+                          tone="accent"
                           title={`Synergy with your commander:\n• ${synergy.join('\n• ')}`}
                           label={`Synergy: ${synergy.join('; ')}`}
-                        >
-                          ✦
-                        </ArtBadge>
+                          icon={<span>✦</span>}
+                        />
                       )}
                       {role && <RoleBadge card={row.card} variant="grid" />}
                     </div>

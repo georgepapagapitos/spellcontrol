@@ -5758,6 +5758,15 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   the worst-case (bright-art) plate. The deck-grid role chips route through
   `--role-ink-scrim` set beside each role hue group so the role→hue map stays
   in one place.
+  **One plate (T166).** Everything on card art renders `ArtBadge`, which
+  adds `.art-badge`: the scrim, extra-small text at 700 with tabular
+  numerals, a pill, `--shadow-raised`, one padding, and a 1.25rem circle when
+  icon-only. `data-corner` pins it at one inset, `--space-1-5`, and a corner
+  cluster (`.collection-grid-corner`, `.deck-card-grid-badges`) pins at the
+  same inset. `tone` picks from the scrim tone set. A family keeps only what
+  is its own: a set code's mono uppercase, the owned-of badge's filled
+  warn/err status, a size tier that scales with the card. Never an accent
+  fill on art. Guard: `styles/art-badge-plate.test.ts`.
 - **Rarity as standalone text uses the ink tokens (E151), never literals or
   the chip palette.** On a themed surface (the card tooltip):
   `--rarity-{mythic,rare,uncommon}-ink` — deep inks on paper, auto-flipped to

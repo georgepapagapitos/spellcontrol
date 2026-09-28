@@ -289,17 +289,6 @@
    affordance reads identically across surfaces — same bottom-left
    placement on both. */
 .slot-qty-badge {
-  position: absolute;
-  bottom: var(--space-1);
-  left: var(--space-1);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  padding: 0.05rem var(--space-1-5);
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
   pointer-events: none;
 }
 

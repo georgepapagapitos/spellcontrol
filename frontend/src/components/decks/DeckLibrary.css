@@ -20,25 +20,6 @@
   margin-bottom: var(--space-4);
 }
 
-/* Marks a deck the viewer can see only BECAUSE they're a friend — the
-   difference between "anyone can see this" and "they showed me this".
-   Bottom-left of the art banner, opposite the stats line's own corner. */
-.deck-library-tile-badge {
-  position: absolute;
-  left: var(--space-2);
-  bottom: var(--space-2);
-  z-index: 1;
-  padding: var(--space-0-5) var(--space-2);
-  border-radius: 999px;
-  background: var(--art-scrim);
-  color: var(--art-scrim-text);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.4;
-  box-shadow: var(--shadow-raised);
-}
-
 .deck-library-tile-commander {
   margin-top: var(--space-0-5);
   font-size: var(--text-xs);

@@ -281,8 +281,6 @@
 /* A buried tile shows only its top strip, and the qty pip sits in that strip
    over the name — shrink it to a corner tag so the name stays readable. */
 .deck-card-stack .deck-card-grid-qty {
-  top: var(--space-1);
-  left: var(--space-1);
   padding: 0.05rem var(--space-1-5);
   /* stylelint-disable-next-line declaration-property-value-disallowed-list */
   font-size: 0.66rem;
@@ -342,21 +340,22 @@
 
 .deck-card-grid-badges {
   position: absolute;
-  bottom: 5px;
-  right: 5px;
+  bottom: var(--space-1-5);
+  right: var(--space-1-5);
   display: flex;
   align-items: center;
   gap: var(--space-1);
   z-index: 2;
 }
 
-.deck-card-grid-role,
-.deck-card-grid-synergy {
+/* The role mark is a control (its own popover trigger), so it is not an
+   ArtBadge, but it sits in the same cluster and wears the plate's size. */
+.deck-card-grid-role {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.15rem;
-  height: 1.15rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
   padding: 0 var(--space-1);
   border-radius: 999px;
   background: var(--art-scrim);
@@ -367,16 +366,6 @@
   font-weight: 700;
   letter-spacing: 0.03em;
   line-height: 1;
-}
-
-/* `.deck-row-role-<tone>` (shared with list view) supplies the text
-   color; the chip above supplies the dark plate so it reads on art.
-   Scrim tone set, not the themed tokens — light guilds' paper-tuned
-   hues fail AA on the always-dark plate (E155). */
-.deck-card-grid-synergy {
-  color: var(--art-scrim-accent);
-  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-  font-size: 0.72rem;
 }
 
 .deck-card-grid-badges .card-list-binder-badge {
@@ -474,54 +463,11 @@
   text-align: center;
 }
 
-.deck-card-grid-qty {
-  position: absolute;
-  top: 0.4rem;
-  left: 0.4rem;
-  background: var(--art-scrim);
-  color: var(--art-scrim-text);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  padding: var(--space-0-5) var(--space-2);
-  border-radius: 999px;
-}
-
-/* Partner-commander handshake chip. Lives inside the .deck-card-grid-badges
-   cluster alongside the role/synergy/binder chips so the card-meta icons share
-   one flex row and never overlap. Matches the synergy/role chip plate. */
-.deck-card-grid-partner {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.15rem;
-  height: 1.15rem;
-  border-radius: 999px;
-  background: var(--art-scrim);
-  box-shadow: var(--shadow-raised);
-  color: var(--art-scrim-text);
-}
-
-/* User-tag indicator (E171) — same art-scrim plate as the synergy/role
-   chips it sits beside. Icon-only for a single tag; a small count badge
-   past that (the tile has no room for the tag text itself — the card
-   preview panel is where you read/edit which tags they are). */
+/* The qty, partner, tag and synergy marks are ArtBadges on the one plate
+   (collection.css); the tag mark is icon-only for one tag and adds a count
+   past that. */
 .deck-card-grid-tags {
-  display: inline-flex;
-  align-items: center;
   gap: var(--space-0-5);
-  height: 1.15rem;
-  padding: 0 var(--space-1);
-  border-radius: 999px;
-  background: var(--art-scrim);
-  box-shadow: var(--shadow-raised);
-  color: var(--art-scrim-text);
-}
-
-.deck-card-grid-tags-count {
-  font-family: var(--font-mono);
-  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-  font-size: 0.62rem;
-  font-weight: 700;
 }
 
 .deck-card-grid-missing {
@@ -540,16 +486,7 @@
    copy — so the user can see "3 of 4 owned" at a glance instead of a
    generic warning. Warn tone for unowned, err tone for orphan. */
 .deck-card-grid-alloc {
-  position: absolute;
-  top: 0.35rem;
-  right: 0.35rem;
   min-width: 1.4rem;
-  padding: 0.05rem var(--space-1-5);
-  border-radius: 999px;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  line-height: 1.1;
-  text-align: center;
   border: 1px solid var(--art-scrim-text);
 }
 .deck-card-grid-alloc-unowned {
