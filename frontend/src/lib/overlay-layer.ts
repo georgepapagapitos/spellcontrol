@@ -176,10 +176,14 @@ export function useOverlayLayer(
     dismissRef.current = dismiss;
   }, [dismiss]);
 
+  // Whether this layer takes part in Back (it passed a dismiss). The effect
+  // follows that boolean, not the dismiss function itself, which callers
+  // pass inline and which dismissRef above keeps current.
+  const participates = dismiss !== undefined;
+
   useEffect(() => {
     if (!active) return;
     const id = idRef.current as symbol;
-    const participates = dismiss !== undefined;
     layerStack.push({
       id,
       dismiss: participates ? () => dismissRef.current?.() ?? false : undefined,
@@ -193,10 +197,7 @@ export function useOverlayLayer(
       // either reused by whatever opens next or skipped transparently if
       // anyone ever backs into it.
     };
-    // `dismiss` deliberately isn't a dep: it's read once via `participates`/
-    // `dismissRef` above, not something a re-registration should follow.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  }, [active, participates]);
 
   // Stable identity: consumers list `isTopmost` in effect deps, and a fresh
   // function each render would re-run those effects on every render — which
