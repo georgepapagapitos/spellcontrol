@@ -75,3 +75,35 @@ describe('incidental ramp is not ramp (E476, real tags)', () => {
     expect(stampedRole({ name: 'Mana Drain' })).toBeUndefined();
   });
 });
+
+// Oracle text verbatim from Scryfall (2026-09-28), never paraphrased: the
+// evidence patterns are regexes, so a hand-written line proves nothing.
+const LILIANA_DREADHORDE =
+  'Whenever a creature you control dies, draw a card.\n+1: Create a 2/2 black Zombie creature token.\n−4: Each player sacrifices two creatures of their choice.\n−9: Each opponent chooses a permanent they control of each permanent type and sacrifices the rest.';
+const GOLGARI_CHARM =
+  'Choose one —\n• All creatures get -1/-1 until end of turn.\n• Destroy target enchantment.\n• Regenerate each creature you control.';
+
+describe('validateCardRole checks every tagged role, not only the first (E476, real tags)', () => {
+  it('a planeswalker tagged boardwipe whose text is an edict counts as removal', () => {
+    // Tagged boardwipe, removal and draw. Her text is not a wipe, so checking
+    // only the first role counted her as nothing and Smart Trim read removal
+    // as short (meren, gate wf_046f4b9f).
+    expect(
+      validateCardRole({ name: 'Liliana, Dreadhorde General', oracle_text: LILIANA_DREADHORDE })
+    ).toBe('removal');
+  });
+
+  it('keeps the primary role when the text corroborates it', () => {
+    expect(validateCardRole({ name: 'Golgari Charm', oracle_text: GOLGARI_CHARM })).toBe(
+      'boardwipe'
+    );
+  });
+
+  it('trusts the primary tag when there is no text to check', () => {
+    expect(validateCardRole({ name: 'Liliana, Dreadhorde General' })).toBe('boardwipe');
+  });
+
+  it('still drops a role no tagged role corroborates', () => {
+    expect(validateCardRole({ name: 'Golgari Charm', oracle_text: 'Flying.' })).toBeNull();
+  });
+});

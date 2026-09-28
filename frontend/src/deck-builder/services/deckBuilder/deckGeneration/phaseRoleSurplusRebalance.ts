@@ -17,7 +17,7 @@ import {
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/card-text';
 import { stampRoleSubtypes, routeCardByType, roleCapTolerance } from '../categorize';
-import { computeRoleCounts } from '../commanderDeckAnalysis';
+import { computeRoleCounts, countedRoleOf } from '../commanderDeckAnalysis';
 import { computeLiftPickBoosts } from '../packageBoost';
 import {
   calculateCardPriority,
@@ -370,9 +370,15 @@ export function applyRoleSurplusRebalance(
   // Unifier both evicted for exactly this reason while a genuinely weak,
   // pool-listed low-inclusion card survived). Falls back to that role's own
   // average pool inclusion — neutral, neither best nor worst by default.
+  // A pool entry's role as this pass counts it: validated against the card's
+  // own text when the card is known, the raw tag otherwise (E166).
+  const poolRoleOf = (name: string): RoleKey | null => {
+    const card = ctx.scryfallCardMap.get(name);
+    return card ? countedRoleOf(card) : getCardRole(name);
+  };
   const roleAverageInclusion = new Map<RoleKey, number>();
   for (const role of REACTIVE_ROLES) {
-    const entries = pool.filter((c) => getCardRole(c.name) === role);
+    const entries = pool.filter((c) => poolRoleOf(c.name) === role);
     if (entries.length > 0) {
       roleAverageInclusion.set(
         role,
@@ -512,7 +518,7 @@ export function applyRoleSurplusRebalance(
     routeCardByType(card, state.categories);
     state.usedNames.add(card.name);
     if (card.name.includes(' // ')) state.usedNames.add(frontFaceName(card.name));
-    const role = getCardRole(card.name);
+    const role = countedRoleOf(card);
     if (role) liveRoleCounts[role] = (liveRoleCounts[role] ?? 0) + 1;
     if (state.gameChangerNames.has(card.name)) {
       card.isGameChanger = true;
@@ -535,7 +541,7 @@ export function applyRoleSurplusRebalance(
   // same-role upgrade can be the only kind of legal replacement available at
   // all — wrongly blocking it here silently zeroed out entire decks.
   const destinationRoleOk = (card: ScryfallCard, evictedRole: RoleKey): boolean => {
-    const role = getCardRole(card.name);
+    const role = countedRoleOf(card);
     if (!role || role === evictedRole) return true;
     return (liveRoleCounts[role] ?? 0) < capOf(role);
   };
@@ -585,44 +591,16 @@ export function applyRoleSurplusRebalance(
   // the validated EDHREC lift clusterScore boost (packageBoost.ts's
   // computeLiftPickBoosts — reused untouched, not re-derived).
   //
-  // E166 (board audit, traced against Isshin/Sun Titan gate3 evidence): the
-  // `roleFilter` check below, `addCard`'s liveRoleCounts bump, `removeCard`'s
-  // decrement, `destinationRoleOk`, and `roleAverageInclusion` all resolve a
-  // card's role via the raw tagger tag (`getCardRole`) — NOT
-  // `commanderDeckAnalysis.ts`'s `computeRoleCounts` (validateCardRole,
-  // "single source for shipped roleCounts" — see that describe block),
-  // which is what the Build Report, roleDeficitNotes.ts, and every OTHER
-  // pick-time phase (categorize.ts, cardPicking.ts, scryfallFill.ts,
-  // deckGenerator.ts's bumpRoleCapCount) treat as canonical. This is a real,
-  // still-open instance of the two-role-source pattern that cluster's
-  // single-source cleanup existed to prevent — this file just never got
-  // folded into it. Concretely: a card the tagger corpus tags for a role but
-  // whose own oracle text doesn't corroborate it (Sun Titan tagged 'ramp'
-  // for reanimating cheap permanents, incl. rocks, with no mana-producing
-  // text of its own — see tagger/client.test.ts's Sun Titan case) can seat
-  // here believing it closed a role gap, while the shipped report doesn't
-  // credit it (E166: Phase 3 backfilled Sun Titan under Ramp's banner,
-  // haveBefore=12/target=13; the Build Report still honestly said "Ramp
-  // shipped 12 of 13" because computeRoleCounts never counted it).
-  //
-  // This can ONLY ever under-report this pass's progress, never over-report
-  // it: `validateCardRole` is `getCardRole(name)` THEN require oracle-text
-  // corroboration — a strict narrowing that can never grant a role
-  // `getCardRole` didn't already assign. So the disclosed roleCounts/
-  // deficit notes can't overstate what this pass did; at worst an honest
-  // "still short" note survives a seat that looked like a fix internally.
-  // What's unverified is the INTERNAL cost: `liveRoleCounts` is seeded from
-  // a validated `computeRoleCounts` recount (see above) but then
-  // incremented/decremented via raw `getCardRole` for the rest of the pass,
-  // so across multiple conversions it can drift from what a fresh validated
-  // recount would say — e.g. Phase 3's `haveBefore >= target` loop guard or
-  // Phase 1/2's `isOverCap` could believe a deficit/surplus closed sooner
-  // than reality, under-spending the pass's own bounded repair budget on a
-  // seat that doesn't count. Switching these call sites to
-  // `validateCardRole` (which needs the full card, not just a name — the
-  // pool entries here are bare EDHREC rows) would fix that but changes which
-  // candidates clear this pass's gates on real decks — composition-
-  // affecting, so it needs the deckgen-eval-gate A/B, not a patch here.
+  // E166 (closed in E476): every role this pass reads — the eviction list,
+  // `addCard`/`removeCard`'s count moves, `destinationRoleOk`, the same-role
+  // check, `roleFilter`, the deficit donor and `roleAverageInclusion` — goes
+  // through `countedRoleOf`, the role `computeRoleCounts` seeds
+  // `liveRoleCounts` from. Before, the seed was validated but every move was
+  // the raw tag, and the two drifted in both directions: Phase 3 backfilled
+  // Sun Titan under Ramp's banner though the report never counted it, and
+  // meren evicted Liliana, Dreadhorde General "because wipes are 4/2" when
+  // the validated count never held her, so the pass stopped at a phantom 2/2
+  // and shipped three wipes under a note saying it runs one fewer.
   const findReplacement = (
     evictedScore: number,
     evictedPrice: number,
@@ -641,7 +619,7 @@ export function applyRoleSurplusRebalance(
   ): ScryfallCard | null => {
     const eligible = pool.filter(
       (c) =>
-        (!roleFilter || getCardRole(c.name) === roleFilter) &&
+        (!roleFilter || poolRoleOf(c.name) === roleFilter) &&
         !state.usedNames.has(c.name) &&
         !state.bannedCards.has(c.name) &&
         ctx.scryfallCardMap.has(c.name) &&
@@ -661,7 +639,7 @@ export function applyRoleSurplusRebalance(
     // inclusion but self-nuking symmetric wipe seated in its place).
     const ranked = eligible
       .map((ec) => {
-        const role = getCardRole(ec.name);
+        const role = poolRoleOf(ec.name);
         const scryfallCard = role === 'boardwipe' ? ctx.scryfallCardMap.get(ec.name) : undefined;
         const quality = scryfallCard
           ? wipeQualityPenalty(scryfallCard, isOneSidedWipe, getWipeScope, ctx.deckTypeTargets)
@@ -696,7 +674,7 @@ export function applyRoleSurplusRebalance(
       if (exceedsCmcCap(card, ctx.maxCmc)) continue;
       if (notOnArena(card, ctx.arenaOnly)) continue;
       if (!destinationRoleOk(card, evictedRole)) continue;
-      if (!allowSameRole && getCardRole(ec.name) === evictedRole) continue; // defect 6a: role-exit phase only
+      if (!allowSameRole && countedRoleOf(card) === evictedRole) continue; // defect 6a: role-exit phase only
       // Price sanity (E80/#1011 precedent — cardPicking.ts's PRICE_SANITY_RATIO
       // = 20, reused verbatim): a candidate dramatically pricier than the card
       // it's replacing is never worth it absent a live combo reason (Kozilek
@@ -746,7 +724,7 @@ export function applyRoleSurplusRebalance(
       if (cat === 'lands') continue;
       const cards = state.categories[cat];
       for (const card of cards) {
-        const role = getCardRole(card.name);
+        const role = countedRoleOf(card);
         if (!role || !overCapRoles.includes(role)) continue;
         if (isProtected(card)) continue;
         evictable.push({ card, category: cat, role, nonbo: nonboNames.has(card.name) });
@@ -780,7 +758,7 @@ export function applyRoleSurplusRebalance(
       );
       if (!replacement) continue; // this candidate has no legal upgrade — try the next-worst one
 
-      const wasSameRole = getCardRole(replacement.name) === candidate.role;
+      const wasSameRole = countedRoleOf(replacement) === candidate.role;
       removeCard(candidate.card, candidate.category, candidate.role);
       addCard(replacement);
       runningTotal += priceOf(replacement) - evictedPrice;
@@ -867,7 +845,7 @@ export function applyRoleSurplusRebalance(
     for (const cat of Object.keys(state.categories) as DeckCategory[]) {
       if (cat === 'lands') continue;
       for (const card of state.categories[cat]) {
-        const role = getCardRole(card.name);
+        const role = countedRoleOf(card);
         if (role === deficitRole || isProtected(card) || isFreeInteraction(card)) continue;
         if (role) {
           const roleTarget = roleTargets[role] ?? 0;
@@ -891,7 +869,7 @@ export function applyRoleSurplusRebalance(
     // the cut in the first place.
     const donorScore = (card: ScryfallCard): number => {
       const ec = poolByName.get(card.name);
-      const role = getCardRole(card.name);
+      const role = countedRoleOf(card);
       const roleFallback = role ? roleAverageInclusion.get(role) : undefined;
       const priority = ec
         ? calculateCardPriority(ec, state.cfg.brewLevel)
@@ -931,7 +909,7 @@ export function applyRoleSurplusRebalance(
       const replacement = findReplacement(-Infinity, donorPrice, role, true, role);
       if (!replacement) break;
 
-      removeCard(donor.card, donor.category, getCardRole(donor.card.name) ?? undefined);
+      removeCard(donor.card, donor.category, countedRoleOf(donor.card) ?? undefined);
       addCard(replacement);
       runningTotal += priceOf(replacement) - donorPrice;
       conversionsApplied++;
