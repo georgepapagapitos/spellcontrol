@@ -17,7 +17,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  min-height: 40px;
+  min-height: var(--row-h);
   border-top: 1px dotted var(--border);
   color: var(--text-primary);
   text-decoration: none;

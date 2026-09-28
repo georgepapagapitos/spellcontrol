@@ -528,7 +528,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  min-height: 44px;
+  min-height: var(--row-h);
 }
 
 .game-night-host-pill {

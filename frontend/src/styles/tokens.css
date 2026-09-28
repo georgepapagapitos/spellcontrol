@@ -123,6 +123,7 @@
      carrying its own media query. Desktop is the base. A coarse pointer
      still floors every shared control at 44px on top of this. */
   --control-h: 2.25rem; /* 36px desktop · 40 tablet · 44 phone and any touch */
+  --row-h: 2.25rem; /* a list or menu row: same tiers; long card lists stay 36 */
   --gutter: var(--space-6); /* 32px desktop · 24 tablet · 16 phone */
 
   /* The coarse-pointer touch floor (STYLE_GUIDE § Responsive). For a length
@@ -503,6 +504,7 @@
 @media (max-width: 1023px) {
   :root {
     --control-h: 2.5rem;
+    --row-h: 2.5rem;
     --gutter: var(--space-5);
   }
 }
@@ -510,6 +512,7 @@
 @media (max-width: 599px) {
   :root {
     --control-h: 2.75rem;
+    --row-h: 2.75rem;
     --gutter: var(--space-4);
     --text-base: 1rem;
   }
@@ -522,5 +525,6 @@
 @media (pointer: coarse) {
   :root {
     --control-h: 2.75rem;
+    --row-h: 2.75rem;
   }
 }

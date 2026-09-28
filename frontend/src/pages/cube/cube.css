@@ -1453,6 +1453,7 @@
   font-size: var(--text-sm);
   color: var(--text-primary);
   background: transparent;
+  min-height: var(--row-h);
 }
 
 .cube-collab-friend-row:has(input:focus-visible) {
