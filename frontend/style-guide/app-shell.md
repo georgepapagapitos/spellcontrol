@@ -273,57 +273,39 @@ Rulings:
   contract of `ListEntry.currency`. (The full want-list shortfall now lives on
   /collection/lists; Home surfaces only the under-target hits.)
 
-## Brand mark motion
+## Brand mark
 
-The rule: **orbit once at boot, pulse when busy, breathe when idle.** Three
-loops, one component (`components/shared/BrandMark.tsx`), one stylesheet
-(`components/shared/BrandMark.css`). Leaving the `motion` prop unset renders
-the plain static mark — unchanged, no animation cost — so every existing call
-site that doesn't opt in is unaffected.
+**The app ships without a logo for now** (board T167, 2026-09-28). The old
+clasped-grimoire `BrandMark` was an early prototype that no longer fit the
+app, and no replacement has been chosen. Until one is, the name is the whole
+brand in the UI:
 
-- **`motion="boot"`** — the clasp gem detaches and sweeps one orbit around the
-  book (with two fading ghost trails) before clicking back into its socket
-  with a small ring pulse. Reserved for the app's cold-boot placeholder
-  (`App.tsx`, the route shown while auth status is still unknown) — the one
-  moment there's genuinely nothing else on screen yet.
-- **`motion="busy"`** — the book stays still; the clasp glows, pulses three
-  times, then flares with an expanding ring, and loops. This is the loading
-  tell for a surface that's waiting on data with no other designed loading
-  state: `SharedView`'s share-link loading branch and `CollectionPage`'s
-  fresh-device "pulling your collection from the server" branch. Don't add it
-  to a surface that already has its own designed loading experience (e.g.
-  `BinderPage`, the deck-generation takeover) — those stay as they are.
-- **`motion="idle"`** — two soft glow circles breathe behind the book, plus a
-  faint sympathetic glow on the clasp. This is the hero treatment for
-  first-impression / auth moments: `WelcomePage`, `AuthPage`,
-  `ChooseUsernamePage`. It reads as "alive, waiting for you" rather than
-  "loading."
-- **Chrome stays static.** The header wordmark and the shared-view top bar
-  never animate — motion is reserved for the three moments above, not
-  decoration on every mark in the app.
-- **Reduced motion:** every loop has an explicit
-  `@media (prefers-reduced-motion: reduce)` block that turns the extra
-  glow/ring/trail/gem elements off, so the mark falls back to reading as the
-  plain static grimoire (see STYLE_GUIDE.md "Reduced motion" for why the
-  global backstop alone isn't enough for an `infinite` animation).
-- **Keyframes** live only in `BrandMark.css`, prefixed `brand-mark-*`
-  (`brand-mark-aura`, `brand-mark-seal-glow`, `brand-mark-orbit-ring`, …) —
-  never named `*-shimmer` (that family is reserved for `skeleton-shimmer`).
-  One deliberate exception: the boot gem's orbital travel is SMIL
-  (`<animateMotion>` in `BrandMark.tsx`), because CSS `offset-path`
-  mis-anchors its coordinate space on SVG children in Chrome; don't "clean it
-  up" back into a CSS keyframe without re-verifying the gem rests on the
-  clasp.
-- **Anti-pattern:** don't hand-roll a new brand-adjacent loading loop
-  elsewhere in the app, and don't add `motion` to a surface that already has
-  its own designed loading experience — three loops covering four call sites
-  is the whole system; a fifth bespoke one is drift, not a feature.
+- **Header and share bar:** the wordmark "SpellControl" as text, in
+  `--font-display`. No image beside it.
+- **Loading is never branded.** The boot screen (`App.tsx`'s `BootSplash`),
+  the share-link `LoadingView` and the collection's "pulling from the server"
+  state use the page spinner (`.page-loader` + `.spinner`), the same one
+  Layout shows while a hub's chunk loads. Pages with content load with
+  skeletons (STYLE_GUIDE § Verbs, "Loading, empty, error"). Never a logo loop:
+  when a mark returns, it does not come back as a loader.
+- **Empty states are words and a door**, no decorative mark above them
+  ([§ Empty states](components.md#empty-states-e182)).
+- **Auth and error pages** open on their title, with no logo above it.
+- **The favicon and app icons still use the old book** (`public/sc-icon*.svg`,
+  `icon-*.png`, `apple-touch-icon.png`). A browser tab and a home-screen
+  shortcut need an image, and nobody sees them in the page itself. They get
+  replaced together with any new mark.
+- **Anti-pattern:** don't add an interim logo, an icon beside the wordmark, or
+  a brand-flavoured loading animation. A new mark is a design decision with
+  its own brief (memory `project_brand_mark_exploration`), not a component
+  tweak.
 
 ## Completion moments (the seal)
 
 The seal is the app's one celebration language: `SealBurst`
-(`components/shared/SealBurst.tsx`) — the grimoire blooms in a brass flare and
-sheds mana motes in the subject's colour identity. **Never confetti, never a
+(`components/shared/SealBurst.tsx`) — a brass flare and ring bloom at the
+centre and shed mana motes in the subject's colour identity. No logo sits in
+the middle (§ Brand mark). **Never confetti, never a
 bespoke celebration** (the game board's `WinCelebration` predates this ruling
 and is grandfathered; don't copy it).
 
@@ -356,19 +338,16 @@ and is grandfathered; don't copy it).
 - **Anti-pattern — celebration inflation.** Low-stakes actions (copy link,
   add one card, cut a card) get a toast at most. If everything celebrates,
   nothing does; the seal marks _completed effort_, not activity.
-- **Timing precedent.** `SealBurst`'s bloom (mark/flare/ring) plays over
+- **Timing precedent.** `SealBurst`'s bloom (flare/ring) plays over
   **~1000ms** with `--ease-out-soft`; `useSealMoment()` holds the compact
   portal mounted for a **1250ms** total lifetime (the extra ~250ms lets the
   bloom settle before unmount). The next celebration-adjacent surface — a new
   completion moment, a variant bloom — should snap to these two numbers
   rather than inventing its own; see `SealBurst.css` and the `MOMENT_MS`
   constant in `components/shared/SealMoment.tsx`.
-- **Brass gold has exactly two definition points.** The seal's brass lives in
-  `--brand-seal-gold` (`styles/tokens.css`, theme-invariant — CSS consumers
-  like `SealBurst.css` use the var) and the mirrored `SEAL_GOLD` const in
-  `components/shared/BrandMark.tsx` (SVG presentation attributes can't take
-  `var()`). Change the hue by editing both; never reintroduce a raw `#f0c368`
-  literal anywhere else.
+- **Brass gold has exactly one definition point:** `--brand-seal-gold`
+  (`styles/tokens.css`, theme-invariant). CSS consumers like `SealBurst.css`
+  use the var; never reintroduce a raw `#f0c368` literal anywhere else.
 
 ## Full-viewport centered pages (scroll, don't clip)
 
@@ -489,14 +468,15 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   reads as "that's not my card". Name resolution is only the fallback for
   rows with no stored image (and for `WelcomeHero`'s hardcoded guest pool,
   where no copy is owned).
-- **The brand fallback never floats behind content, and never flashes.**
-  `HomeHero`'s empty state is an **empty sleeve** — the same 4:3 frame with
-  a dashed `--border-strong` outline and the brand mark centered, no tape —
-  never a mark floating behind interactive content. And it renders only for
-  a **settled** empty collection: while the IDB hydrate or a first-device
+- **The empty-sleeve fallback never floats behind content, and never
+  flashes.** `HomeHero`'s empty state is an **empty sleeve** — the same 4:3
+  frame with a dashed `--border-strong` outline and one quiet centred line
+  saying what fills it ("A card from your collection goes here."), no tape —
+  never decoration floating behind interactive content. And it renders only
+  for a **settled** empty collection: while the IDB hydrate or a first-device
   sync pull is in flight (`hydrating` / `getSyncState() === 'syncing'` with
   no pick), the frame shows the loading shimmer — an indeterminate
-  collection must not flash brand chrome that art is about to replace.
+  collection must not flash a placeholder that art is about to replace.
 - **Guests have no collection, so the hero art rotates a hardcoded pool.**
   Unlike `HomeHero`'s collection-derived pick, `WelcomeHero`'s backdrop
   rotates a small const list of iconic, evergreen Commander staples
@@ -552,11 +532,11 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   disable the hero's Import CTA or Sign in — they're independent `<Link>`s
   (no `disabled` concept at all) to independent routes, and locking them
   removes every exit during the wait.
-- **Every step of the auth funnel carries the `BrandMark`.** AuthPage and
-  ChooseUsernamePage (and any future step) open with
-  `<div className="auth-brand-hero" aria-hidden="true"><BrandMark size={48} /></div>`
-  before the `<h1>`, so a mid-funnel screen reads as the same branded flow rather
-  than a disconnected utility form.
+- **Every step of the auth funnel opens on its `.auth-title`.** AuthPage,
+  ChooseUsernamePage and the account-recovery pages (and any future step) use
+  the same `.auth-card` with the display-face title first, so a mid-funnel
+  screen reads as the same flow rather than a disconnected utility form. No
+  logo above the title (§ Brand mark).
 
 ## Guest gates — every "Sign in" door carries `returnTo`
 

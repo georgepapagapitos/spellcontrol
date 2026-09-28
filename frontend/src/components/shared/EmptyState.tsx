@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { EmptyStateMark } from './EmptyStateMark';
 import { joinClasses } from '@/lib/join-classes';
 
 interface PrimaryProps {
@@ -22,10 +21,6 @@ interface PrimaryProps {
    *  `.decks-empty-actions`), not for visual styling (put that on the
    *  buttons themselves). */
   actionsClassName?: string;
-  /** The brand-mark aura (E114) — reserve for a genuinely empty page/section,
-   *  never for a filtered-to-zero result or a sign-in gate (STYLE_GUIDE
-   *  "Empty states" / "Voice & copy"). */
-  mark?: boolean;
   /** This empty state replaces loading content (a skeleton) the user was
    *  just shown, so the region announces the transition to screen readers. */
   status?: boolean;
@@ -35,10 +30,9 @@ interface PrimaryProps {
 interface CompactProps {
   /** A single quiet line for an in-panel/nested placeholder (a sideboard
    *  slot list, a secondary section's own "nothing here", a mini-chart's
-   *  no-data line) — the two-part tagline/hint pattern and the brand mark
-   *  read visually heavy there (STYLE_GUIDE "Empty states": nested empties
-   *  and secondary sections stay text-only, one quiet line). Never combined
-   *  with mark/hint. */
+   *  no-data line) — the two-part tagline/hint pattern reads visually heavy
+   *  there (STYLE_GUIDE "Empty states": nested empties and secondary
+   *  sections stay text-only, one quiet line). Never combined with hint. */
   compact: true;
   /** The line's own styling class, owned by the caller's stylesheet (e.g.
    *  the deck sections' `.deck-section-empty`, PodHubPage's `.pod-hub-stats-empty`)
@@ -90,14 +84,12 @@ export function EmptyState(props: EmptyStateProps) {
     hint,
     actions,
     actionsClassName,
-    mark = false,
     status = false,
     className,
   } = props;
 
   return (
     <div className={joinClasses('empty-state', className)} role={status ? 'status' : undefined}>
-      {mark && <EmptyStateMark />}
       <TaglineTag className="empty-state-tagline">{tagline}</TaglineTag>
       {hint && <p className="empty-state-hint">{hint}</p>}
       {actions && (

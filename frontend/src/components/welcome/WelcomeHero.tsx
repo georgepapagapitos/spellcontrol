@@ -2,7 +2,6 @@ import './WelcomeHero.css';
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, FlaskConical, Import, Swords } from 'lucide-react';
-import { BrandMark } from '../shared/BrandMark';
 import { SearchPill } from '../SearchPill';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { markEverVisited } from '../../lib/first-run';
@@ -70,7 +69,6 @@ export function WelcomeHero({ onTrySamples, samplesLoading }: WelcomeHeroProps) 
 
       <div className="welcome-hero-content">
         <div className="welcome-hero-brand">
-          <BrandMark size={40} motion="idle" aria-hidden />
           <span className="welcome-hero-wordmark">SpellControl</span>
         </div>
 

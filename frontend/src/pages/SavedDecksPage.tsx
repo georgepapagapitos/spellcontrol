@@ -106,7 +106,6 @@ export function SavedDecksPage() {
           </div>
         ) : decks.length === 0 ? (
           <EmptyState
-            mark
             tagline="Nothing saved yet."
             hint={
               <>

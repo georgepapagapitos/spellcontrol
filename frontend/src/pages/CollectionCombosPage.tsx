@@ -11,7 +11,6 @@ import { buildCardImageIndex, buildCardIndex } from '../lib/deck-card-index';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { searchCombos } from '../lib/api/combos';
 import type { ComboSearchResult } from '../lib/offline';
-import { BrandMark } from '../components/shared/BrandMark';
 import { CardPreview } from '../components/CardPreview';
 import { Tabs } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
@@ -288,7 +287,7 @@ export function CollectionCombosPage() {
   if (loadingCollection) {
     return (
       <div className="page-loader page-loader--message" role="status" aria-live="polite">
-        <BrandMark size={64} motion="busy" aria-hidden />
+        <span className="spinner" aria-hidden="true" />
         <span className="page-loader-message">Loading your collection…</span>
       </div>
     );

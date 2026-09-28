@@ -1,5 +1,4 @@
 import { logger } from '@/lib/logger';
-import { BrandMark } from '@/components/shared/BrandMark';
 import { lazy, Suspense, useEffect, useRef, type ComponentType } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -104,23 +103,18 @@ const GameNightInviteView = lazyPage(
 );
 
 /**
- * Full-viewport brand splash. Doubles as the auth-bootstrap holding state and
+ * Full-viewport boot loader. Doubles as the auth-bootstrap holding state and
  * the Suspense fallback for lazy routes that render OUTSIDE <Layout/> (share
  * links, public profiles, game night) — for those the chunk fetch happens
- * before any app chrome exists, so the splash is the same visual the user is
- * already looking at during boot. In-Layout routes never reach this boundary;
- * Layout carries its own in-chrome fallback so the header and tab bar stay
- * put while a hub's chunk loads.
+ * before any app chrome exists. It is the same spinner as Layout's in-chrome
+ * fallback, so boot and a hub's chunk load read as one loading state. No logo:
+ * the app ships without a brand mark for now (board T167).
  */
 function BootSplash() {
   return (
-    <div
-      className="auth-page brand-boot"
-      aria-busy="true"
-      role="status"
-      aria-label="Loading SpellControl"
-    >
-      <BrandMark size={96} motion="boot" aria-hidden />
+    <div className="page-loader" role="status" aria-live="polite">
+      <span className="spinner" aria-hidden="true" />
+      <span className="visually-hidden">Loading SpellControl</span>
     </div>
   );
 }
@@ -149,7 +143,6 @@ function NotFoundPage({ homePath }: { homePath: string }) {
   const homeLabel = homePath === '/home' ? 'Home' : 'Collection';
   return (
     <EmptyState
-      mark
       taglineAs="h1"
       tagline="Page not found."
       hint="That link is broken or the page has moved."

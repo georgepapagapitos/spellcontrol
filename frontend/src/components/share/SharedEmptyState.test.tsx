@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { SharedEmptyState } from './SharedEmptyState';
 
 describe('SharedEmptyState', () => {
-  it('renders the genuine-empty branch with the brand mark and a reason, no Clear button', () => {
+  it('renders the genuine-empty branch with a reason, no Clear button', () => {
     render(
       <SharedEmptyState
         empty

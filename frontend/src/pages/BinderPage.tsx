@@ -484,7 +484,6 @@ export function BinderPage() {
           if (active.totalCards === 0) {
             return (
               <EmptyState
-                mark
                 tagline="No cards match this binder's rules."
                 hint="Loosen a rule or add another match group, and cards from your collection file in here."
                 actions={

@@ -98,13 +98,11 @@ primitives directory.
 | `components/shared/MeterBar`                                | a hand-rolled bar track                               | [§ Bars & meters](style-guide/data-display.md#bars--meters) — **never hand-roll a track**                              |
 | `components/InfoTip`                                        | inline hand-holding prose                             | [§ Info tooltips](style-guide/components.md#info-tooltips)                                                             |
 | `components/shared/EmptyState`                              | hand-rolled `.empty-state`/`.empty-state-tagline` JSX | [§ Empty states](style-guide/components.md#empty-states-e182)                                                          |
-| `components/shared/EmptyStateMark`                          | a bare "nothing here" line                            | [§ Empty states](style-guide/components.md#empty-states-e182)                                                          |
 | `components/share/SharedEmptyState`                         | a bare `<p>` in a share/friend view                   | [§ Empty states](style-guide/components.md#empty-states-e182)                                                          |
 | `components/share/SharedShell` (`LoadingView`, `ErrorView`) | a bare `Loading…` / a dead-end error on a public page | § Verbs (loading, empty, error)                                                                                        |
 | `components/shared/ThinDataNote`                            | inventing a sample-size caveat                        | [§ Deck-analysis band words](style-guide/decks.md#deck-analysis-band-words)                                            |
 | `components/deck/VerdictBadge`                              | a bespoke pass/fail pill                              | [§ Verdict badges](style-guide/decks.md#verdict-badges) · § One scoring vocabulary                                     |
 | `components/shared/SealBurst` / `SealMoment`                | confetti                                              | [§ Completion moments (the seal)](style-guide/app-shell.md#completion-moments-the-seal)                                |
-| `components/shared/BrandMark`                               | an inline logo SVG                                    | [§ Brand mark motion](style-guide/app-shell.md#brand-mark-motion)                                                      |
 | `components/UserAvatar`                                     | a bespoke initials circle                             | § Icon scale                                                                                                           |
 | `playtest/components/OpponentRail`                          | a bespoke multiplayer sidebar                         | [§ Opponent rail — never hide a seat](style-guide/overlays.md#opponent-rail--never-hide-a-seat)                        |
 | `playtest/components/OpponentQuadrant`                      | a bespoke opponent board panel                        | [§ Desktop table with opponents: 2x2, not a rail](style-guide/overlays.md#desktop-table-with-opponents-2x2-not-a-rail) |
@@ -536,14 +534,11 @@ includes the Retry pill's 44px coarse-pointer floor: it once lived in
 Discover's own sheet, and every other page shipped a 32px touch target
 (`styles/error-strip-touch-floor.test.ts` keeps it in `shared.css`).
 
-**Primary empty states also carry a brand-mark aura (E114).** `<EmptyStateMark />`
-(`components/shared/EmptyStateMark.tsx`) renders `<BrandMark size={40}
-motion="idle" />` — the shipped breathing aura, already reduced-motion-gated —
-centered above the tagline, `aria-hidden`, fixed-size (no layout shift), opacity
-tuned quiet so it never upstages the copy. It's decorative punctuation for a
-page/section going empty, not a new celebration moment — don't add motion
-beyond the existing idle loop, and don't reach for it on the inline sub-panel
-placeholders above (those stay text-only, same as always).
+**Empty states carry no logo.** The breathing brand-mark aura above primary
+empty states (E114) was retired with the mark itself
+([§ Brand mark](style-guide/app-shell.md#brand-mark)). An empty state is its
+tagline, its hint and its action; don't put an illustration or icon above it
+to fill the space.
 
 **A rail that sits above a page's own content renders nothing when it's
 empty.** Discover's Trending rail is the example: the browse grid below is the
@@ -2242,7 +2237,7 @@ must follow goes in the core.
   - [App chrome — leather & divider tabs (T53)](style-guide/app-shell.md#app-chrome--leather--divider-tabs-t53)
   - [Page hero art — phones get the art, not a downgrade](style-guide/app-shell.md#page-hero-art--phones-get-the-art-not-a-downgrade)
   - [Home — the page reads as questions, not a board (2026-09-24, T138)](style-guide/app-shell.md#home--the-page-reads-as-questions-not-a-board-2026-09-24-t138)
-  - [Brand mark motion](style-guide/app-shell.md#brand-mark-motion)
+  - [Brand mark](style-guide/app-shell.md#brand-mark)
   - [Completion moments (the seal)](style-guide/app-shell.md#completion-moments-the-seal)
   - [Full-viewport centered pages (scroll, don't clip)](style-guide/app-shell.md#full-viewport-centered-pages-scroll-dont-clip)
   - [First-run welcome / landing screen (UX-331, pass 2c "welcome storefront")](style-guide/app-shell.md#first-run-welcome--landing-screen-ux-331-pass-2c-welcome-storefront)

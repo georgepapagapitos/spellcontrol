@@ -715,7 +715,6 @@ export function DecksIndexPage() {
            a tagline, a plain-English hint, then ALL three entry points so the
            user knows what the page can do before they've done anything. */
           <EmptyState
-            mark
             tagline="No decks yet."
             hint="Build one, or bring in a list or precon you already have."
             actionsClassName="decks-empty-actions"

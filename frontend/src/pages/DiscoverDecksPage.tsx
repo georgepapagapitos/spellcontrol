@@ -364,7 +364,6 @@ export function DiscoverDecksPage() {
             />
           ) : (
             <EmptyState
-              mark
               tagline="No public decks yet."
               hint="Publish one of your own from the Decks page to be the first."
             />

@@ -4,28 +4,27 @@ import { describe, expect, it } from 'vitest';
 import { EmptyState } from './EmptyState';
 
 describe('EmptyState', () => {
-  it('renders a bare tagline with the shared markup, no mark/hint/actions/role', () => {
+  it('renders a bare tagline with the shared markup, no hint/actions/role', () => {
     const { container } = render(<EmptyState tagline="No decks yet." />);
     const root = container.querySelector('.empty-state');
     expect(root).toBeTruthy();
     expect(root?.getAttribute('role')).toBeNull();
     expect(screen.getByText('No decks yet.').tagName).toBe('P');
-    expect(container.querySelector('.empty-state-mark')).toBeNull();
     expect(container.querySelector('.empty-state-hint')).toBeNull();
     expect(container.querySelector('.empty-state-actions')).toBeNull();
   });
 
-  it('renders the hint, the mark, and wraps actions', () => {
+  // Empty states are words and a door: no decorative logo above them.
+  it('renders the hint and wraps actions, with no image or svg', () => {
     const { container } = render(
       <EmptyState
         tagline="No decks yet."
         hint="Build a deck from scratch, or generate one from your collection."
-        mark
         actions={<button type="button">New deck</button>}
       />
     );
     expect(screen.getByText(/Build a deck from scratch/)).toBeTruthy();
-    expect(container.querySelector('.empty-state-mark')).toBeTruthy();
+    expect(container.querySelector('svg, img')).toBeNull();
     const actionsWrap = container.querySelector('.empty-state-actions');
     expect(actionsWrap).toBeTruthy();
     expect(actionsWrap?.querySelector('button')).toBeTruthy();

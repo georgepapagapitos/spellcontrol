@@ -33,7 +33,7 @@ beforeEach(() => {
 });
 
 describe('WelcomeHero', () => {
-  it('renders as a header landmark with the brand mark, wordmark, and headline', () => {
+  it('renders as a header landmark with the wordmark and headline', () => {
     renderHero();
     expect(screen.getByRole('banner')).toBeTruthy();
     expect(screen.getByText('SpellControl')).toBeTruthy();

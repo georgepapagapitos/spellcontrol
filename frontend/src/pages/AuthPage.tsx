@@ -8,7 +8,6 @@ import { preventFocusSteal } from '../lib/keyboard';
 import { markEverVisited } from '../lib/first-run';
 import { toast } from '../store/toasts';
 import { Tabs } from '../components/Tabs';
-import { BrandMark } from '../components/shared/BrandMark';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 
@@ -158,9 +157,6 @@ export default function AuthPage() {
   return (
     <main className="auth-page">
       <Surface as="div" variant="framed" className="auth-card">
-        <div className="auth-brand-hero" aria-hidden="true">
-          <BrandMark size={48} motion="idle" />
-        </div>
         <h1 className="auth-title">SpellControl</h1>
         <p className="auth-subtitle">
           {mode === 'login'

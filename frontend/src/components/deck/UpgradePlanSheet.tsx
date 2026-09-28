@@ -651,7 +651,6 @@ export function UpgradePlanSheet({
   } else if (plan.picks.length === 0 && kept.size === 0 && excluded.size === 0) {
     body = (
       <EmptyState
-        mark
         className="upgrade-plan-empty"
         tagline={`Nothing fits ${budgetLabel}.`}
         hint={

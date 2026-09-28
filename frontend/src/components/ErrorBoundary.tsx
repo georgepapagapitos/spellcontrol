@@ -1,7 +1,6 @@
 import { reportError } from '@/lib/analytics';
 import { logger } from '@/lib/logger';
 import { Component, type ReactNode } from 'react';
-import { BrandMark } from './shared/BrandMark';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 import { isChunkLoadError, reloadForNewBuild } from '@/lib/chunk-reload';
@@ -36,9 +35,6 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="error-boundary-page">
           <Surface as="div" variant="framed" className="error-boundary-card" role="alert">
-            <div className="auth-brand-hero" aria-hidden="true">
-              <BrandMark size={48} />
-            </div>
             <h1 className="auth-title">A new version is ready</h1>
             <p className="auth-subtitle">Reload to open this page in it.</p>
             <div className="error-boundary-actions">
@@ -54,9 +50,6 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="error-boundary-page">
           <Surface as="div" variant="framed" className="error-boundary-card" role="alert">
-            <div className="auth-brand-hero" aria-hidden="true">
-              <BrandMark size={48} />
-            </div>
             {/* A raw JS exception message is never user-facing copy (cryptic,
                 sometimes alarming) — the real detail already went to
                 logger.error above for debugging; this stays a fixed,

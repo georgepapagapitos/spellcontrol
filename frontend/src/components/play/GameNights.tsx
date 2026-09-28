@@ -166,7 +166,6 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
     <div className="game-nights">
       {nights.length === 0 ? (
         <EmptyState
-          mark
           tagline="No game nights planned."
           hint="Pick a date or let the group vote, then share the link. Anyone can RSVP, no account needed."
           actions={

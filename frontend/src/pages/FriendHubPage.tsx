@@ -768,7 +768,6 @@ export function FriendHubPage() {
           <HubSkeleton />
         ) : sharesList.length === 0 ? (
           <EmptyState
-            mark
             status
             tagline={
               <>

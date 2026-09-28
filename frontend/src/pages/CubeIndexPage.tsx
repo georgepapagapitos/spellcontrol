@@ -85,7 +85,6 @@ export function CubeIndexPage() {
         </div>
       ) : saved.length === 0 ? (
         <EmptyState
-          mark
           tagline="Build your first cube."
           hint="A cube is a draft-sized pool pulled from your collection: best cards, an archetype-leaning build, or a mix."
           actions={

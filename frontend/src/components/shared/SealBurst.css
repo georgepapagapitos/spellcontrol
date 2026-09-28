@@ -1,7 +1,7 @@
 /* ── SealBurst ─────────────────────────────────────────────────────────────
-   Deck-generation-complete flourish: the brand grimoire blooms at the centre
-   in a soft brass glow (--brand-seal-gold, the BrandMark clasp seal) and a few mana
-   motes drift outward in the deck's colour identity, then everything fades.
+   Deck-generation-complete flourish: a soft brass glow (--brand-seal-gold)
+   blooms at the centre and a few mana motes drift outward in the deck's
+   colour identity, then everything fades.
    Restrained by design — one gentle bloom, not a firework. One-shot; plays as
    the takeover holds, then unmounts. Every keyframe is reduced-motion gated
    (the component also returns null under reduce; this is the CSS backstop). */
@@ -17,35 +17,13 @@
 /* Anchor every child to the hero's centre. */
 .seal-burst-flare,
 .seal-burst-ring,
-.seal-burst-mark,
 .seal-burst-mote {
   position: absolute;
   top: 50%;
   left: 50%;
 }
 
-/* ── The brand grimoire — settles in with a soft brass glow. ──────────────── */
-.seal-burst-mark {
-  filter: drop-shadow(0 0 0.7rem color-mix(in srgb, var(--brand-seal-gold) 55%, transparent));
-  animation: seal-burst-mark 1000ms var(--ease-out-soft, ease-out) both;
-}
-
-@keyframes seal-burst-mark {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.72);
-  }
-  55% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.03);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-/* ── The flare — a soft brass halo that swells gently behind the mark. ─────── */
+/* ── The flare — a soft brass halo that swells gently at the centre. ──────── */
 .seal-burst-flare {
   width: 24rem;
   height: 24rem;
@@ -127,8 +105,8 @@
 }
 
 /* ── Compact scale — completion moments anchored to a page, not the takeover.
-   Same choreography at ~60%: smaller flare/ring; the mark size + mote travel
-   scale in the component (BrandMark size, buildMotes dist). ───────────────── */
+   Same choreography at ~60%: smaller flare/ring; the mote travel scales in
+   the component (buildMotes dist). ────────────────────────────────────────── */
 .seal-burst--compact .seal-burst-flare {
   width: 14rem;
   height: 14rem;
@@ -148,7 +126,6 @@
 
   .seal-burst-flare,
   .seal-burst-ring,
-  .seal-burst-mark,
   .seal-burst-mote {
     animation: none;
   }

@@ -342,9 +342,13 @@ describe('HomePage', () => {
   });
 
   describe('hero featured card', () => {
-    it('shows the empty-sleeve brand fallback (no art) for a brand-new empty collection', () => {
+    it('shows the empty-sleeve fallback (no art) for a brand-new empty collection', () => {
       const { container } = renderPage();
-      expect(container.querySelector('.home-hero-fallback')).toBeTruthy();
+      const fallback = container.querySelector('.home-hero-fallback');
+      expect(fallback).toBeTruthy();
+      // It says what fills the sleeve rather than showing a logo.
+      expect(fallback?.textContent).toBe('A card from your collection goes here.');
+      expect(fallback?.querySelector('svg, img')).toBeNull();
       expect(container.querySelector('.home-hero-art')).toBeNull();
       expect(container.querySelector('.home-hero-caption')).toBeNull();
     });
@@ -376,7 +380,7 @@ describe('HomePage', () => {
       expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'art_crop');
     });
 
-    it('shows the loading shimmer, never the brand fallback, while still hydrating/syncing', () => {
+    it('shows the loading shimmer, never the empty-sleeve fallback, while still hydrating/syncing', () => {
       useCollectionStore.setState({ hydrating: true });
       const { container } = renderPage();
       expect(container.querySelector('.home-hero-fallback')).toBeNull();

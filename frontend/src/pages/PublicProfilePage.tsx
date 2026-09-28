@@ -341,7 +341,6 @@ function PublicProfilePageInner({ username }: { username: string }) {
   ) : profile.decks.length === 0 ? (
     profile.isOwner ? (
       <EmptyState
-        mark
         tagline="No public decks yet."
         hint="New decks are public unless you pick Private, and they show up here."
         actions={
@@ -351,7 +350,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
         }
       />
     ) : (
-      <EmptyState mark tagline={`${heading} hasn't shared any decks yet.`} />
+      <EmptyState tagline={`${heading} hasn't shared any decks yet.`} />
     )
   ) : (
     <DeckGrid decks={profile.decks} username={profile.username} />

@@ -221,7 +221,7 @@ describe('Header — authed avatar menu', () => {
   });
 });
 
-describe('Header — the brand mark', () => {
+describe('Header — the wordmark', () => {
   it('goes Home, like the first nav item, and never claims to be the current page', () => {
     render(
       <MemoryRouter initialEntries={['/home']}>
@@ -231,5 +231,17 @@ describe('Header — the brand mark', () => {
     const brand = screen.getByRole('link', { name: 'SpellControl' });
     expect(brand.getAttribute('href')).toBe('/home');
     expect(brand.getAttribute('aria-current')).toBeNull();
+  });
+
+  // The app ships without a logo for now: the name is the whole brand.
+  it('is the name as text, with no logo image', () => {
+    render(
+      <MemoryRouter initialEntries={['/home']}>
+        <Header />
+      </MemoryRouter>
+    );
+    const brand = screen.getByRole('link', { name: 'SpellControl' });
+    expect(brand.textContent).toBe('SpellControl');
+    expect(brand.querySelector('svg, img')).toBeNull();
   });
 });

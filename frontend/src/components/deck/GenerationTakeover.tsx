@@ -365,7 +365,7 @@ export function GenerationTakeover({
           )}
           <div className="gen-takeover-status">
             {/* During the completion beat the build chatter clears — the
-                blooming brand mark + sparks carry the moment, not text. */}
+                brass bloom + sparks carry the moment, not text. */}
             <p className="gen-takeover-step">{isFinishing ? '' : message}</p>
             <span className="gen-takeover-percent" aria-hidden>
               {Math.round(isFinishing ? 100 : Math.max(0, Math.min(100, percent)))}%

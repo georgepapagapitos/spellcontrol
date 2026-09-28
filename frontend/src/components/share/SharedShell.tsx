@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useDocumentTitle } from '../../lib/use-document-title';
-import { BrandMark } from '../shared/BrandMark';
 import { Button } from '@/components/shared/Button';
 
 interface Props {
@@ -27,8 +26,7 @@ export function SharedShell({ children, action, ctaLabel }: Props) {
   return (
     <div className="shared-shell">
       <header className="shared-brandbar">
-        <Link className="shared-brand" to="/" aria-label="SpellControl">
-          <BrandMark size={24} aria-hidden className="shared-brand-mark" />
+        <Link className="shared-brand" to="/">
           <span className="shared-brand-text">SpellControl</span>
         </Link>
         {action && <div className="shared-brandbar-action">{action}</div>}
@@ -57,13 +55,13 @@ interface LoadingViewProps {
   label?: string;
 }
 
-/** Shared pending state for any `SharedShell`-wrapped public page: the brand
- *  mark's `busy` pulse plus a visible, `aria-busy` label — never a bare
- *  "Loading…" with no motion. Same reuse rationale as `NotFoundView` below. */
+/** Shared pending state for any `SharedShell`-wrapped public page: the app's
+ *  page spinner plus a visible, `aria-busy` label — never a bare "Loading…"
+ *  with no motion. Same reuse rationale as `NotFoundView` below. */
 export function LoadingView({ label = 'Loading…' }: LoadingViewProps) {
   return (
     <div className="shared-view shared-view--loading" aria-busy="true">
-      <BrandMark size={64} motion="busy" aria-hidden />
+      <span className="spinner" aria-hidden="true" />
       <p>{label}</p>
     </div>
   );

@@ -1937,7 +1937,6 @@ function HistoryTab({
   if (history.length === 0 && userId === null) {
     return (
       <EmptyState
-        mark
         tagline="No games yet."
         hint="Pick a door on the Play tab to start your first game."
       />
@@ -1949,7 +1948,6 @@ function HistoryTab({
       {userId !== null && <FriendsLeaderboard />}
       {history.length === 0 && hiddenCount === 0 && (
         <EmptyState
-          mark
           tagline="No games yet."
           hint="Pick a door on the Play tab to start your first game."
         />

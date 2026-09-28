@@ -2,7 +2,6 @@ import './HomeHero.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CalendarPlus, Check, ChevronRight, Plus, Users } from 'lucide-react';
-import { BrandMark } from '../shared/BrandMark';
 import { AddCardsSheet } from '../AddCardsSheet';
 import { OverflowMenu } from '../OverflowMenu';
 import { ValueSparkline } from './ValueSparkline';
@@ -198,9 +197,9 @@ function HeroChecklist({ greeting }: { greeting: string }) {
  * in a sleeve frame with a tape-label caption. The value and its chart live
  * only here: the Value movers card used to restate both word for word.
  *
- * Guests and settled-empty collections get the empty sleeve with the brand
- * mark — never personal data, never a gap — and an empty collection gets the
- * setup checklist in place of the value.
+ * Guests and settled-empty collections get the empty sleeve with one line
+ * saying what fills it — never personal data, never a gap — and an empty
+ * collection gets the setup checklist in place of the value.
  */
 export function HomeHero() {
   const authed = useAuth((s) => s.status === 'authed');
@@ -258,7 +257,7 @@ export function HomeHero() {
 
   // While the local IDB hydrate or a first pull on a fresh device is still
   // in flight, an empty collection is indeterminate, not empty — show the
-  // loading shimmer, never flash the brand fallback or the checklist.
+  // loading shimmer, never flash the empty-sleeve fallback or the checklist.
   // Same subscribe-and-rerender idiom as SyncIndicator.
   const hydrating = useCollectionStore((s) => s.hydrating);
   // Last visit's resolved hero shape (lib/home-shape) — read once at mount.
@@ -353,8 +352,8 @@ export function HomeHero() {
           </figcaption>
         </>
       ) : showFallback ? (
-        <span className="home-hero-fallback" aria-hidden="true">
-          <BrandMark size={48} motion="idle" aria-hidden />
+        <span className="home-hero-fallback">
+          <span className="home-hero-fallback-text">A card from your collection goes here.</span>
         </span>
       ) : (
         <>

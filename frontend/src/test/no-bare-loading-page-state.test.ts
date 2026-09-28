@@ -69,7 +69,7 @@ describe('no bare "Loading…" as a page\'s whole loading state', () => {
     expect(files.length).toBeGreaterThan(20);
   });
 
-  it('every page loading state is a skeleton, spinner, or a labeled BrandMark/LoadingView', () => {
+  it('every page loading state is a skeleton, a spinner, or a labeled LoadingView', () => {
     const violations = files.flatMap(scan);
     const report = violations.map((v) => `  pages/${v.file}:${v.line}`).join('\n');
     expect(violations, `${violations.length} bare "Loading…" node(s):\n${report}`).toEqual([]);

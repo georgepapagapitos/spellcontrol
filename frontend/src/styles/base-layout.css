@@ -347,11 +347,6 @@ select {
   }
 }
 
-.site-brand-mark {
-  display: block;
-  flex-shrink: 0;
-}
-
 @media (max-width: 1023px) {
   /* Top header is replaced by the bottom tab bar (web) or NavFab (native)
      on tablet/mobile. Sign-in entry on small screens lives behind the

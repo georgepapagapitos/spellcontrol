@@ -196,7 +196,6 @@ export function CubeDetailPage() {
         <BackLink to="/decks/cube" label="Cubes" />
         <PageHeader title="Cube not found" />
         <EmptyState
-          mark
           tagline="This cube doesn't exist, or you don't have access to it."
           actions={
             <Button to="/decks/cube" variant="primary">
@@ -488,7 +487,6 @@ export function CubeDetailPage() {
         {tab === 'pull' && target.isPhysical && <CubePullList cube={target} />}
         {tab === 'pull' && !target.isPhysical && (
           <EmptyState
-            mark
             tagline="Mark this cube physical first."
             hint="A pull list only makes sense once a cube's cards are reserved from your binders."
             actions={
