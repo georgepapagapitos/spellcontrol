@@ -27,6 +27,7 @@ import {
   getCardsByIds,
   getOwnedPrinting,
   getCardByNameResilient,
+  getPrintingResilient,
   searchCards,
   searchCollectibleCards,
   searchTokenArt,
@@ -445,6 +446,81 @@ describe('getOwnedPrinting', () => {
     expect(result.id).toBe('my-foil-muldrotha');
     // Never hit the network in offline mode.
     expect(offlineLib.getCardByName).toHaveBeenCalledWith('Muldrotha, the Gravetide');
+  });
+});
+
+// The card detail pane's resolver. Flavor text differs per printing, so the
+// owned printing's own row must win over the name's representative printing.
+describe('getPrintingResilient', () => {
+  beforeEach(() => {
+    gate.offline = false;
+    offlineLib.getCardByName.mockReset();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // The shape prod served for Academy Manufactor on 2026-09-27: by name the dump
+  // picks MH2 #469, which prints no flavor; by id it returns BLC #264's line.
+  function stubLookup(byId: Record<string, ScryfallCard>, byName: Record<string, ScryfallCard>) {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const named = /\/api\/cards\/named\?exact=([^&]+)/.exec(String(url));
+      if (named) {
+        return { ok: true, json: async () => ({ card: byName[decodeURIComponent(named[1])] }) };
+      }
+      if (!String(url).includes('/api/cards/lookup')) {
+        return { ok: false, status: 404, statusText: 'Not Found' };
+      }
+      const body = JSON.parse(String(init?.body)) as { ids?: string[]; names?: string[] };
+      const pick = (keys: string[] | undefined, from: Record<string, ScryfallCard>) =>
+        Object.fromEntries((keys ?? []).filter((k) => from[k]).map((k) => [k, from[k]]));
+      return {
+        ok: true,
+        json: async () => ({ byId: pick(body.ids, byId), byName: pick(body.names, byName) }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('returns the owned printing, not the flavorless representative one', async () => {
+    const blc = makeCard({
+      id: 'flavor-blc-264',
+      name: 'Flavor Academy Manufactor',
+      set: 'blc',
+      flavor_text: 'Automated systems at the Tolarian Academy',
+      layout: 'normal',
+    });
+    const mh2 = makeCard({ id: 'flavor-mh2-469', name: blc.name, set: 'mh2', layout: 'normal' });
+    stubLookup({ [blc.id]: blc }, { [blc.name]: mh2 });
+
+    const result = await getPrintingResilient(blc.id, blc.name);
+
+    expect(result?.set).toBe('blc');
+    expect(result?.flavor_text).toBe('Automated systems at the Tolarian Academy');
+  });
+
+  it('an id nobody knows falls back to the name', async () => {
+    const named = makeCard({ id: 'representative', name: 'Flavor Unknown Id', layout: 'normal' });
+    stubLookup({}, { [named.name]: named });
+
+    const result = await getPrintingResilient('flavor-stale-id', named.name);
+
+    expect(result?.id).toBe('representative');
+  });
+
+  it('offline: resolves by name with no network call', async () => {
+    gate.offline = true;
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    offlineLib.getCardByName.mockResolvedValue(
+      makeCard({ name: 'Flavor Offline', layout: 'normal' })
+    );
+
+    const result = await getPrintingResilient('flavor-offline-id', 'Flavor Offline');
+
+    expect(result?.name).toBe('Flavor Offline');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

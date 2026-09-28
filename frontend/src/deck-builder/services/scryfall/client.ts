@@ -1997,3 +1997,18 @@ export async function getCardByNameResilient(
     return null;
   }
 }
+
+/**
+ * The exact printing when it can be had, else the resilient name path. Flavor
+ * text differs per printing, so the card detail pane asks for the copy the user
+ * is looking at; offline has no by-printing index, and an id Scryfall no longer
+ * knows degrades to the representative printing instead of an empty pane.
+ */
+export async function getPrintingResilient(
+  scryfallId: string | undefined,
+  name: string
+): Promise<ScryfallCard | null> {
+  // Our bulk dump first, then Scryfall; empty offline or for an unknown id.
+  const printing = scryfallId ? (await getCardsByIds([scryfallId])).get(scryfallId) : undefined;
+  return printing ?? getCardByNameResilient(name);
+}

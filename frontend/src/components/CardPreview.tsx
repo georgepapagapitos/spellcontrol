@@ -295,7 +295,7 @@ export function CardPreview({
   // Full Scryfall card for the focused slide — supplies flavor text, P/T, and
   // authoritative legalities that EnrichedCard doesn't carry. Offline-first,
   // cached; oracle text already renders instantly from the EnrichedCard.
-  const detail = useCardDetail(cards[selected]?.name);
+  const detail = useCardDetail(cards[selected]?.name, cards[selected]?.scryfallId);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const imgKey = (c: EnrichedCard) => c.scryfallId || c.copyId;
   // Fetching + staging the full-res art takes a beat on a cold cache; the button
