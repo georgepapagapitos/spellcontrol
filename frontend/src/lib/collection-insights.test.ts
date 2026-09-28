@@ -365,6 +365,24 @@ describe('computeGroupedBreakdown', () => {
     ]);
   });
 
+  // The binders index and each binder's page state "N pages" from the same
+  // materialized totalPages; the Breakdown row must agree with them.
+  it("carries a binder's physical page count, and none for the unfiled row", () => {
+    const b = binder({
+      id: 'b1',
+      name: 'Staples',
+      filterGroups: [{ filter: {} }],
+      sorts: [{ field: 'none', dir: 'asc' }],
+      pocketSize: 12,
+    });
+    const cards = Array.from({ length: 25 }, (_, i) =>
+      owned({ name: `Card ${i}`, copyId: `c${i}` })
+    );
+    const rows = computeGroupedBreakdown(cards, 'binder', { binderDefs: [b] });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ label: 'Staples', count: 25, pages: 3 }); // ceil(25 / 12)
+  });
+
   it('groups by deck use, reusing computeAllocationSplit with no filterJump', () => {
     const cards = [owned({ name: 'Sol Ring', purchasePrice: 2 })];
     const rows = computeGroupedBreakdown(cards, 'deckUse', { allocations: new Map() });
