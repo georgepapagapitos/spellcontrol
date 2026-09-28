@@ -153,6 +153,18 @@ const MAX_SAME_ROLE_UPGRADES = 2;
 // +30) or a meaningfully higher-inclusion payoff still clears it.
 const MIN_IMPROVEMENT_MARGIN = 15;
 
+// E488: how far above its role's worst evictable card an eviction may reach.
+// Within one role, a better card can only succeed where the worst one failed
+// through PRICE: the score bar rises with the evicted card's survival, so the
+// only gates a pricier eviction loosens are price sanity and the deck-budget
+// headroom. Near a budget cap that walk lands on an expensive, high-survival
+// card: meren-budget100 at $97.83/$100 evicted Protean Hulk (survival 90)
+// while Vampiric Rites and Deadbridge Chant (10) stayed. Cards within one
+// improvement margin of the worst are the same tier, so the walk may still
+// step past a near-tie; beyond that the role keeps its overage (disclosed)
+// rather than cut a card the deck wants to fund one it wants slightly more.
+const MAX_EVICTION_REACH = MIN_IMPROVEMENT_MARGIN;
+
 // Exported: reused verbatim by roleDeficitNotes.ts (E160) so the post-hoc
 // displacement disclosure covers the same four roles / speaks the same
 // vocabulary as this pass, rather than a second copy drifting from it.
@@ -712,7 +724,9 @@ export function applyRoleSurplusRebalance(
   // the-ur-dragon/atraxa-bracket2 and cut Isshin off after 1 of ~4 expected
   // conversions). `allowSameRole` gates whether a same-role candidate (net-
   // zero on the over-cap count) is eligible at all — see the two-phase
-  // caller below (defect 6a).
+  // caller below (defect 6a). The walk stays within MAX_EVICTION_REACH of each
+  // role's worst card (E488), so it can step past a stuck card but never
+  // climb to a role's best one just because evicting it frees money.
   const tryOneConversion = (
     allowSameRole: boolean
   ): { didConvert: boolean; wasSameRole: boolean } => {
@@ -757,8 +771,22 @@ export function applyRoleSurplusRebalance(
           overageOf(b.role) - overageOf(a.role) ||
           a.survival - b.survival
       );
+    // Each role's worst evictable survival, the anchor for MAX_EVICTION_REACH.
+    // A nonbo-flagged card works against the plan, so it neither sets the
+    // anchor nor is held to it.
+    const worstSurvival = new Map<RoleKey, number>();
+    for (const e of scored) {
+      if (e.nonbo) continue;
+      worstSurvival.set(e.role, Math.min(worstSurvival.get(e.role) ?? Infinity, e.survival));
+    }
 
     for (const candidate of scored) {
+      if (
+        !candidate.nonbo &&
+        candidate.survival > (worstSurvival.get(candidate.role) ?? Infinity) + MAX_EVICTION_REACH
+      ) {
+        continue;
+      }
       const roleTarget = roleTargets[candidate.role] ?? 0;
       const beforeCount = liveRoleCounts[candidate.role] ?? 0;
       // Never evict below the role's own target — should be unreachable (the
