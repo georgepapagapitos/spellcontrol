@@ -1,14 +1,16 @@
 // @vitest-environment happy-dom
 /**
- * A phone shows one full-width page per row, so a section's inline teaser drops
- * to one page there: at the desktop cap of three, a 9-pocket section was ~1,500px
- * of scroll before the next section's header. The expander and the page viewer
- * carry the rest.
+ * A section's inline teaser is ONE full row of its page grid, however many
+ * columns the width fits. It used to be a fixed three pages: on a wide monitor
+ * the row fits seven, so four columns sat empty above a "+32 more pages"
+ * button; on a phone three stacked ~520px pages cost a screen and a half per
+ * section. The count is read back from the rendered grid, so these tests stand
+ * in for each device by stubbing the grid's resolved `grid-template-columns`.
  */
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import type { BinderPage, EnrichedCard, MaterializedBinder } from '../types';
+import type { BinderPage, BinderSection, EnrichedCard, MaterializedBinder } from '../types';
 
 vi.mock('../store/collection', () => ({
   useCollectionStore: (selector: (s: Record<string, unknown>) => unknown) =>
@@ -32,19 +34,20 @@ vi.mock('./BinderPagePreview', () => ({ BinderPagePreview: () => null }));
 vi.mock('./BinderDriftBanner', () => ({ BinderDriftBanner: () => null }));
 vi.mock('./BinderSummaryBar', () => ({ BinderSummaryBar: () => null }));
 
-import { BinderView, PHONE_SECTION_PAGE_CAP, SECTION_PAGE_CAP } from './BinderView';
+import { BinderView, PAGE_RUN_ROWS } from './BinderView';
 
-function stubPhone(phone: boolean) {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: /max-width:\s*599px/.test(query) ? phone : false,
-    media: query,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  }));
+/** Make every page grid report `cols` laid-out tracks, as the browser would at
+ *  that width. */
+function stubColumns(cols: number) {
+  const real = window.getComputedStyle.bind(window);
+  vi.stubGlobal('getComputedStyle', (el: Element) => {
+    const style = real(el);
+    if (!el.classList.contains('page-row')) return style;
+    const tracks = Array.from({ length: cols }, () => '252px').join(' ');
+    return new Proxy(style, {
+      get: (t, k) => (k === 'gridTemplateColumns' ? tracks : Reflect.get(t, k)),
+    });
+  });
 }
 
 function card(i: number): EnrichedCard {
@@ -64,36 +67,47 @@ function card(i: number): EnrichedCard {
   };
 }
 
-// One section of five full 9-pocket pages.
-const cards = Array.from({ length: 45 }, (_, i) => card(i));
-const pages: BinderPage[] = Array.from({ length: 5 }, (_, p) => ({
-  pageNum: p + 1,
-  slots: cards.slice(p * 9, p * 9 + 9),
-}));
-const binder: MaterializedBinder = {
-  def: {
-    id: 'b',
-    name: 'Big',
-    color: '#000',
-    position: 0,
-    filterGroups: [{ filter: {} }],
-    sorts: [{ field: 'name', dir: 'asc' }],
-    pocketSize: 9,
-    doubleSided: false,
-    fixedCapacity: null,
-    createdAt: 0,
-    updatedAt: 0,
-  },
-  effectivePocketSize: 9,
-  effectiveSorts: [{ field: 'name', dir: 'asc' }],
-  displaySorts: [],
-  sections: [{ key: 'ALL', label: 'All cards', cards, pages }],
-  totalCards: 45,
-  totalPages: 5,
-  totalValue: 0,
-};
+/** One section of `n` full 9-pocket pages; `packed` gives it the per-page
+ *  labels of a page-filled binder, which renders as one continuous run. */
+function binderOf(n: number, packed = false): MaterializedBinder {
+  const cards = Array.from({ length: n * 9 }, (_, i) => card(i));
+  const pages: BinderPage[] = Array.from({ length: n }, (_, p) => ({
+    pageNum: p + 1,
+    slots: cards.slice(p * 9, p * 9 + 9),
+    ...(packed ? { labels: [`Drop ${p}`] } : {}),
+  }));
+  const section: BinderSection = {
+    key: 'ALL',
+    label: 'All cards',
+    cards,
+    pages,
+    ...(packed ? { labels: ['Drop A', 'Drop B'] } : {}),
+  };
+  return {
+    def: {
+      id: 'b',
+      name: 'Big',
+      color: '#000',
+      position: 0,
+      filterGroups: [{ filter: {} }],
+      sorts: [{ field: 'name', dir: 'asc' }],
+      pocketSize: 9,
+      doubleSided: false,
+      fixedCapacity: null,
+      createdAt: 0,
+      updatedAt: 0,
+    },
+    effectivePocketSize: 9,
+    effectiveSorts: [{ field: 'name', dir: 'asc' }],
+    displaySorts: [],
+    sections: [section],
+    totalCards: cards.length,
+    totalPages: n,
+    totalValue: 0,
+  };
+}
 
-const renderView = () =>
+const renderView = (binder: MaterializedBinder) =>
   render(
     <MemoryRouter>
       <BinderView
@@ -103,22 +117,52 @@ const renderView = () =>
     </MemoryRouter>
   );
 
+const pagesShown = (c: HTMLElement) => c.querySelectorAll('.page-wrap').length;
+const expander = (c: HTMLElement) => c.querySelector('.binder-section-show-more');
+
 describe('binder section page cap', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('shows one page per section on a phone', () => {
-    stubPhone(true);
-    const { container } = renderView();
-    expect(container.querySelectorAll('.page-wrap')).toHaveLength(PHONE_SECTION_PAGE_CAP);
-    expect(container.querySelector('.binder-section-show-more')?.textContent).toBe(
-      `+${5 - PHONE_SECTION_PAGE_CAP} more pages`
-    );
+  // Column counts measured in Edge on the production build, 9-pocket pages.
+  it.each([
+    ['a phone (320–599px)', 1],
+    ['a portrait tablet (768px)', 2],
+    ['a landscape phone or small laptop (820–1024px)', 3],
+    ['a laptop (1280–1440px)', 5],
+    ['a 1920px monitor', 7],
+  ])('fills exactly one row on %s (%i columns)', (_, cols) => {
+    stubColumns(cols);
+    const { container } = renderView(binderOf(35));
+    expect(pagesShown(container)).toBe(cols);
+    expect(expander(container)?.textContent).toBe(`+${35 - cols} more pages`);
   });
 
-  it('keeps the wider teaser on a desktop', () => {
-    stubPhone(false);
-    const { container } = renderView();
-    expect(container.querySelectorAll('.page-wrap')).toHaveLength(SECTION_PAGE_CAP);
-    expect(PHONE_SECTION_PAGE_CAP).toBeLessThan(SECTION_PAGE_CAP);
+  it('shows a section that fits in one row whole, with no expander', () => {
+    stubColumns(7);
+    const { container } = renderView(binderOf(5));
+    expect(pagesShown(container)).toBe(5);
+    expect(expander(container)).toBeNull();
+  });
+
+  it('says "page" for a single hidden page', () => {
+    stubColumns(4);
+    const { container } = renderView(binderOf(5));
+    expect(expander(container)?.textContent).toBe('+1 more page');
+  });
+
+  it('expands to every page', () => {
+    stubColumns(4);
+    const { container } = renderView(binderOf(35));
+    fireEvent.click(expander(container)!);
+    expect(pagesShown(container)).toBe(35);
+    expect(expander(container)).toBeNull();
+  });
+
+  it('gives a page-filled binder’s continuous run full rows too', () => {
+    stubColumns(7);
+    const { container } = renderView(binderOf(35, true));
+    expect(container.querySelector('.binder-section')).toBeNull();
+    expect(pagesShown(container)).toBe(7 * PAGE_RUN_ROWS);
+    expect(expander(container)?.textContent).toBe(`+${35 - 7 * PAGE_RUN_ROWS} more pages`);
   });
 });

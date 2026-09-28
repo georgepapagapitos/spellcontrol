@@ -29,21 +29,26 @@ import { BinderDriftBanner } from './BinderDriftBanner';
 import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
 import { useAllocations } from '../lib/allocations';
 import { useToastsStore } from '../store/toasts';
-import { useMediaQuery } from '../lib/use-media-query';
+import { useGridColumns } from '../lib/use-grid-columns';
 import { Button } from '@/components/shared/Button';
 
-/** Maximum pages rendered inline per section before the "+N more" expander. */
-export const SECTION_PAGE_CAP = 3;
+/**
+ * Inline pages are capped in ROWS of the page grid, not in pages: the row's
+ * column count is whatever the width fits (one on a phone, seven on a wide
+ * monitor), so a fixed page count left most of a wide row empty above a
+ * "+32 more pages" button, and cost a phone a screen and a half per section.
+ * A section teases one full row; the expander and the page viewer carry the
+ * rest.
+ */
+export const SECTION_PAGE_ROWS = 1;
 
-/** Same, for the header-less continuous run — it IS the whole binder, so it
+/** Same, for the header-less continuous run. It IS the whole binder, so it
  *  gets a screenful rather than a section's teaser. */
-const PAGE_RUN_CAP = 12;
+export const PAGE_RUN_ROWS = 3;
 
-/** A phone shows one full-width page per row, so the desktop caps above cost a
- *  screen and a half per section (three ~520px pages) before the next header.
- *  One page teases a section; the expander and the page viewer carry the rest. */
-export const PHONE_SECTION_PAGE_CAP = 1;
-const PHONE_PAGE_RUN_CAP = 4;
+/** Columns assumed before the grid reports its own, which only a layout-less
+ *  environment (the test DOM) ever renders with. */
+const FALLBACK_COLS = 3;
 
 interface Props {
   binders: MaterializedBinder[];
@@ -359,8 +364,6 @@ function SectionList({
   // reconcile), so hiding tooltips a frame late is invisible. Closing clears
   // a frame later so tooltips re-enable just after it (the modal is unmounting,
   // nothing is animating, so the one-frame lag is imperceptible).
-  const phone = useMediaQuery('(max-width: 599px)');
-
   const previewActive = preview !== null || pagesStartIndex !== null;
   const [gridPreviewOpen, setGridPreviewOpen] = useState(false);
   useEffect(() => {
@@ -395,7 +398,6 @@ function SectionList({
           pages={flatPages}
           labels={flatPageLabels}
           pocketSize={pocketSize}
-          pageCap={phone ? PHONE_PAGE_RUN_CAP : PAGE_RUN_CAP}
           isPreviewOpen={gridPreviewOpen}
           qtyByCopyId={qtyByCopyId}
           showImages={showImages}
@@ -418,7 +420,6 @@ function SectionList({
               headerId={headerId}
               panelId={panelId}
               pocketSize={pocketSize}
-              pageCap={phone ? PHONE_SECTION_PAGE_CAP : SECTION_PAGE_CAP}
               isPreviewOpen={gridPreviewOpen}
               qtyByCopyId={qtyByCopyId}
               showImages={showImages}
@@ -524,7 +525,6 @@ const PageRun = memo(function PageRun({
   pages,
   labels,
   pocketSize,
-  pageCap,
   isPreviewOpen,
   qtyByCopyId,
   showImages,
@@ -536,8 +536,6 @@ const PageRun = memo(function PageRun({
   /** Parallel to `pages`: what sits on each one. */
   labels: string[];
   pocketSize: PocketSize;
-  /** Pages shown before the "+N more" expander. */
-  pageCap: number;
   isPreviewOpen: boolean;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
@@ -554,12 +552,13 @@ const PageRun = memo(function PageRun({
   // When every page would carry the same heading (an ungrouped binder, where
   // each page reads "All cards"), the label is noise — drop it entirely.
   const labelled = useMemo(() => new Set(labels).size > 1, [labels]);
-  const visible = expanded ? pages : pages.slice(0, pageCap);
+  const [rowRef, cols] = useGridColumns<HTMLDivElement>();
+  const visible = expanded ? pages : pages.slice(0, (cols ?? FALLBACK_COLS) * PAGE_RUN_ROWS);
   const hiddenCount = pages.length - visible.length;
 
   return (
     <CardPreviewContext.Provider value={ctxValue}>
-      <div className={`page-row page-row--p${pocketSize}`}>
+      <div ref={rowRef} className={`page-row page-row--p${pocketSize}`}>
         {visible.map((page, i) => (
           <PageGrid
             key={page.pageNum}
@@ -588,7 +587,6 @@ const SectionBlock = memo(function SectionBlock({
   headerId,
   panelId,
   pocketSize,
-  pageCap,
   isPreviewOpen,
   qtyByCopyId,
   showImages,
@@ -603,8 +601,6 @@ const SectionBlock = memo(function SectionBlock({
   headerId: string;
   panelId: string;
   pocketSize: PocketSize;
-  /** Pages shown before the "+N more" expander. */
-  pageCap: number;
   isPreviewOpen: boolean;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
@@ -629,6 +625,8 @@ const SectionBlock = memo(function SectionBlock({
     [onOpenCard, openPages, isPreviewOpen, qtyByCopyId, cardMenu]
   );
 
+  const [rowRef, cols] = useGridColumns<HTMLDivElement>();
+  const pageCap = (cols ?? FALLBACK_COLS) * SECTION_PAGE_ROWS;
   const visiblePages = pagesExpanded ? section.pages : section.pages.slice(0, pageCap);
   const hiddenCount = section.pages.length - pageCap;
 
@@ -655,6 +653,7 @@ const SectionBlock = memo(function SectionBlock({
       {!isCollapsed && (
         <CardPreviewContext.Provider value={ctxValue}>
           <div
+            ref={rowRef}
             id={panelId}
             role="region"
             aria-labelledby={headerId}
