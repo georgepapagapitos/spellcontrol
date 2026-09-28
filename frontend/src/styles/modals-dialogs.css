@@ -36,7 +36,10 @@
   pointer-events: none;
 }
 
-.modal-backdrop--over-sheet {
+/* Compound on purpose: `.modal-backdrop` owns the base layer, and this lift
+   has to beat it by specificity, not by which rule the bundler emits last
+   (z-index-ownership.test.ts). */
+.modal-backdrop.modal-backdrop--over-sheet {
   z-index: calc(var(--z-overlay) + 1);
 }
 

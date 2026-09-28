@@ -73,12 +73,6 @@
   color: var(--text-primary);
 }
 
-/* Reminder text — italic + dimmed, matching the printed card. */
-.card-text-reminder {
-  font-style: italic;
-  color: var(--text-muted);
-}
-
 /* Inline mana/tap symbols sit at body-text size, not the mana-font default. */
 .card-text-oracle .ms {
   /* stylelint-disable-next-line declaration-property-value-disallowed-list */

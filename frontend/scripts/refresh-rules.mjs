@@ -16,6 +16,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeKeywordGlossary } from './keyword-glossary.mjs';
 
 const RULES_PAGE = 'https://magic.wizards.com/en/rules';
 const FALLBACK_URL = 'https://media.wizards.com/2026/downloads/MagicCompRules%2020260417.txt';
@@ -47,6 +48,15 @@ const noFetch = !force && process.argv.includes('--no-fetch');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dest = resolve(here, '..', 'public', 'comprehensive-rules.json');
+const glossaryDest = resolve(here, '..', 'public', 'keyword-glossary.json');
+
+// Every successful exit — fetched, still fresh, or kept under --no-fetch —
+// re-derives the card-text keyword glossary from whichever bundle is now on
+// disk, so the two files can never disagree.
+async function done() {
+  await writeKeywordGlossary(dest, glossaryDest);
+  process.exit(0);
+}
 
 async function ageDays(path) {
   // Age from the bundle's own meta.fetchedAt, NOT file mtime: the file is
@@ -68,11 +78,11 @@ const age = await ageDays(dest);
 // nothing to keep, so the fetch below runs and fails loudly if it must.
 if (noFetch && Number.isFinite(age)) {
   console.log(`[rules] --no-fetch, keeping the committed snapshot (${age.toFixed(1)}d old)`);
-  process.exit(0);
+  await done();
 }
 if (!force && age < MAX_AGE_DAYS) {
   console.log(`[rules] ${dest} is ${age.toFixed(1)}d old (< ${MAX_AGE_DAYS}d), skipping`);
-  process.exit(0);
+  await done();
 }
 
 const SOURCE_URL = process.env.RULES_SOURCE_URL ?? (await discoverLatest()) ?? FALLBACK_URL;
@@ -87,7 +97,7 @@ try {
     console.warn(
       `[rules] Fetch failed (${err.message}), keeping snapshot (${age.toFixed(1)}d old)`
     );
-    process.exit(0);
+    await done();
   }
   console.error(`[rules] Fetch failed and no local copy exists: ${err.message}`);
   process.exit(1);
@@ -100,6 +110,7 @@ console.log(
   `[rules] Wrote ${dest} (${kb} KB) — ${bundle.rules.length} rules, ` +
     `${bundle.glossary.length} glossary terms, ${bundle.keywords.length} keywords`
 );
+await done();
 
 // --- parser ---------------------------------------------------------------
 

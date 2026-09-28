@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { createRef } from 'react';
-import { renderHook } from '@testing-library/react';
+import { createElement, createRef } from 'react';
+import { render, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useFocusTrap } from './use-focus-trap';
 
@@ -167,5 +167,27 @@ describe('useFocusTrap', () => {
     document.dispatchEvent(tab());
 
     expect(isTopmostB).toHaveBeenCalled();
+  });
+
+  it('hands focus back to the opener even when a child autofocuses on mount', () => {
+    // The rules sheet autofocuses its search box on desktop. React applies
+    // autoFocus while committing children, before any effect runs, so an
+    // opener read in the effect was that input, gone once the sheet closed.
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    function Sheet() {
+      useFocusTrap(() => true);
+      return createElement(
+        'div',
+        { role: 'dialog', 'aria-modal': 'true' },
+        createElement('input', { 'aria-label': 'Search', autoFocus: true })
+      );
+    }
+    const { unmount } = render(createElement(Sheet));
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Search');
+    unmount();
+    expect(document.activeElement).toBe(trigger);
   });
 });

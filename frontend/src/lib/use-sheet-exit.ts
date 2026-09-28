@@ -176,5 +176,5 @@ export function useSheetExit(
     ? ({ ['--sheet-exit-from' as string]: `${exitFrom}px` } as CSSProperties)
     : undefined;
 
-  return { isClosing, beginClose, onAnimationEnd, exitStyle };
+  return { isClosing, beginClose, onAnimationEnd, exitStyle, isTopmost };
 }

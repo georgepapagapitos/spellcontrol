@@ -14,6 +14,7 @@ import { ManaCost } from '../ManaCost';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { RulesTextParagraphs } from '@/components/RulesText';
 interface Props {
   /** The primary commander — drives which partners are legal. */
   commander: ScryfallCard;
@@ -198,9 +199,7 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
             <div className="commander-pick-type">{partner.type_line}</div>
             {oracleText && (
               <div className="commander-pick-oracle">
-                {oracleText.split('\n').map((line, i) => (
-                  <p key={i}>{line}</p>
-                ))}
+                <RulesTextParagraphs text={oracleText} names={[partner.name]} />
               </div>
             )}
           </div>

@@ -1,0 +1,143 @@
+/* Card rules text: reminder text and linked keywords (RulesText.tsx). Shared by
+   every surface that prints a card's rules — the card preview panel, the deck
+   editor's inspector, the commander picker — so it lives with the component,
+   not with any one of them. */
+
+/* Reminder text — italic + dimmed, matching the printed card. */
+.rules-text-reminder {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* A keyword reads as the word it is. The dotted underline is the only mark:
+   no colour, no weight, so a keyword line ("Flying, trample, haste") stays a
+   line of text, not a row of links. It turns solid on hover and while its
+   popover is open, so you can see which word the popover belongs to. */
+.keyword-term {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-align: inherit;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--text-muted);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+  cursor: pointer;
+  transition: text-decoration-color var(--motion-fast) ease;
+}
+
+.keyword-term[aria-expanded='true'] {
+  text-decoration-style: solid;
+  text-decoration-color: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .keyword-term:hover {
+    text-decoration-style: solid;
+    text-decoration-color: var(--accent);
+  }
+}
+
+.keyword-term:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The word sits in a line of text, so the 44px floor is a centred ghost
+   rather than a min-height that would push the lines apart
+   (inline-control-touch-floor.test.ts). */
+@media (pointer: coarse) {
+  .keyword-term::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    min-width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* The popover is portaled to <body> and placed by useAnchoredPanel; it can
+   open from inside the card preview, so it clears the overlay layer. */
+.keyword-pop {
+  z-index: var(--z-portal-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: min(24rem, 70dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-3);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-tooltip);
+  text-align: left;
+  animation: keyword-pop-in var(--motion-fast) var(--ease-out-soft);
+}
+
+@keyframes keyword-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keyword-pop {
+    animation: none;
+  }
+}
+
+.keyword-pop-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+.keyword-pop-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.keyword-pop-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.keyword-pop-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.keyword-pop-text .ms {
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 1em;
+  vertical-align: -0.05em;
+}
+
+/* Sits flush with the text above: the link's own padding would indent it. */
+.keyword-pop-read {
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--space-1-5));
+}

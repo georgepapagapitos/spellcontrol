@@ -425,7 +425,7 @@ export function CardPreview({
   const sldIndex = useSldDrops();
 
   // Symmetric exit: every dismiss path plays sheet-fall, then unmounts.
-  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(
+  const { isClosing, beginClose, onAnimationEnd, exitStyle, isTopmost } = useSheetExit(
     onClose,
     'sheet-fall',
     // Escape stays with the capture-phase handler below: it defers to the
@@ -447,8 +447,10 @@ export function CardPreview({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // The share dialog is a layer above us and owns its own Escape; so does
-      // an open ⋮ menu in the action row.
-      if (shareOpen) return;
+      // an open ⋮ menu in the action row, a keyword's popover in the rules
+      // text, and the rules sheet that popover opens. Whatever sits above us
+      // on the overlay stack answers the key, and we leave it alone.
+      if (shareOpen || !isTopmost()) return;
       if (sheetRef.current?.querySelector('[aria-haspopup="menu"][aria-expanded="true"]')) return;
       const t = e.target;
       const typing =
@@ -466,7 +468,7 @@ export function CardPreview({
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [beginClose, shareOpen, flipOrTurn]);
+  }, [beginClose, shareOpen, flipOrTurn, isTopmost]);
 
   // Swipe down on the card stage closes the preview (the info sheet has its own
   // gesture, which stops propagation before this one sees it).

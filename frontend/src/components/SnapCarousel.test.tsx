@@ -126,4 +126,40 @@ describe('SnapCarousel', () => {
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });
+
+  it('leaves arrow keys to a dialog opened over it, and keeps them inside its own', () => {
+    // A keyword's popover or the rules sheet over the card preview: paging the
+    // cards underneath would pull the popover's anchor out from under it.
+    render(
+      <>
+        <div role="dialog" aria-label="Split second">
+          <button type="button">Read the full rule</button>
+        </div>
+        <div role="dialog" aria-label="Card preview">
+          <button type="button">Close preview</button>
+          <Harness index={1} />
+        </div>
+      </>
+    );
+    const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockClear();
+    const press = (el: Element) => {
+      const ev = new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        cancelable: true,
+        bubbles: true,
+      });
+      el.dispatchEvent(ev);
+      return ev;
+    };
+    expect(press(screen.getByRole('button', { name: 'Read the full rule' })).defaultPrevented).toBe(
+      false
+    );
+    expect(spy).not.toHaveBeenCalled();
+    // Focus on the preview's own close button still pages the cards.
+    expect(press(screen.getByRole('button', { name: 'Close preview' })).defaultPrevented).toBe(
+      true
+    );
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
 });

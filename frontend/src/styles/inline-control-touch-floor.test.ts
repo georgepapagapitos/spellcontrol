@@ -20,6 +20,8 @@ const CASES: Array<[file: string, selector: string]> = [
   ['pages/PodHubPage.css', '.pod-hub-name-btn'],
   // `variant="link"`: every link button, which by definition sits in text.
   ['styles/forms-banners.css', '.btn-link'],
+  // A keyword in a card's rules text, which opens what the rule says.
+  ['components/RulesText.css', '.keyword-term'],
 ];
 
 describe('inline controls meet the coarse touch floor', () => {

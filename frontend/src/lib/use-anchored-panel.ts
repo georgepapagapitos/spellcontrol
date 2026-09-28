@@ -53,10 +53,13 @@ export function useAnchoredPanel({ align = 'right', ignoreSelector }: Options = 
   useLayoutEffect(() => {
     if (!open || !panelRef.current || !triggerRef.current) return;
     const anchorRect = triggerRef.current.getBoundingClientRect();
-    const panelRect = panelRef.current.getBoundingClientRect();
+    // Layout size, not the painted rect: a panel with an entrance animation
+    // is still scaled down on this first frame, and measuring that shrunken
+    // box let a 320px panel clamp to 2px from the edge of a phone.
+    const { offsetWidth: width, offsetHeight: height } = panelRef.current;
     const placement = computePopoverPlacement(
       anchorRect,
-      { width: panelRect.width, height: panelRect.height },
+      { width, height },
       getSafeViewport(),
       align
     );

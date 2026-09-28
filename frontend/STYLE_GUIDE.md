@@ -5091,6 +5091,39 @@ caption or an InfoTip) — the `AvailableToggle`, the flagged-cards badge, the
 `ListEntriesView` badges and the offline-settings buttons all shipped their only
 explanation in a hover title.
 
+### Keywords in card rules text (2026-09-27)
+
+A card's rules text links its keywords to what the rules say they do. Render
+rules text through `components/RulesText.tsx` (`RulesTextLine` with
+`useRulesText`, or `RulesTextParagraphs`), never by splitting `oracle_text`
+yourself. That gives reminder text its printed-card italic and every keyword its
+link, on every surface at once.
+
+- **The word stays the word.** A keyword keeps the text's font, size and colour.
+  A dotted underline in `--text-muted` is the only mark. It turns solid accent on
+  hover and while its popover is open. A keyword line ("Flying, trample, haste")
+  has to read as a line of text, not a row of links.
+- **Click, not hover.** Rules text is read with the pointer resting on it, and a
+  bubble that opens under the cursor covers the next line. So this is **not** an
+  `InfoTip`. It is an anchored dialog (`useAnchoredPanel`) with an action in it,
+  and a tooltip cannot hold an action.
+- **Once per card, never in reminder text.** The first mention of a keyword on a
+  face links. Later ones and the reminder parenthetical stay plain, because the
+  reminder is already the explanation. The card's own name is never a keyword
+  ("Arrow Storm deals 4 damage").
+- **Everyday verbs are not links.** Destroy, exile, sacrifice, create, counter and
+  the rest of `NOT_LINKED` in `lib/keyword-glossary.ts` would underline half of
+  every card. Link the terms a player might not know.
+- **The popover says what the rule says.** Its body is the rule's own sentence
+  (`“Ward [cost]” means “…”`), derived at build time into
+  `public/keyword-glossary.json`. It is never a paraphrase of ours. "Read the full
+  rule" opens the Rules reference sheet over whatever is open, searched to that
+  keyword with its subrules expanded. Closing the sheet hands focus back to the
+  keyword.
+- A popover inside the card preview must not wake the preview. It stops its
+  touch and click events at a `role="presentation"` wrapper, and the preview
+  answers keys only while it is the topmost overlay layer.
+
 ### Deck-row "why it's here" affordances (E120)
 
 A generated deck can record a per-card pick reason (`buildReport.cardProvenance`,

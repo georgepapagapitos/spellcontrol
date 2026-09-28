@@ -10,6 +10,7 @@ import { allocationSummary, cardAllRoles, frontFaceMana } from './deck-display-r
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { RulesTextParagraphs } from '@/components/RulesText';
 
 export interface DeckCardInspectorCard {
   row: Row;
@@ -123,7 +124,11 @@ export function DeckCardInspector({
         {mana && <ManaCost cost={mana} className="deck-card-inspector-mana" />}
       </div>
       {typeLine && <p className="deck-card-inspector-type">{typeLine}</p>}
-      {oracle && <p className="deck-card-inspector-oracle">{oracle}</p>}
+      {oracle && (
+        <div className="deck-card-inspector-oracle">
+          <RulesTextParagraphs text={oracle} names={[row.name]} />
+        </div>
+      )}
 
       <div className="deck-card-inspector-owned">
         <span className="deck-card-inspector-owned-text">{allocationSummary(row)}</span>
