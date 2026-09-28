@@ -41,31 +41,36 @@ primitives directory.
 
 ### Controls & chrome
 
-| Reach for                                                      | Instead of                                      | Ruling                                                        |
-| -------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
-| `components/PageHeader`                                        | a hand-built `.binder-hero`                     | § Layout system                                               |
-| `components/shared/Button` (`Button`)                          | a raw `className="btn …"`                       | § Shape language — Buttons are a primitive                    |
-| `components/shared/Button` (`IconButton`)                      | a `<button>` holding only a glyph               | § Shape language — Buttons are a primitive                    |
-| `lib/icon-scale` (`ICON_SCALE`)                                | a one-off `lucide-react` size/strokeWidth pair  | § Icon scale                                                  |
-| `components/shared/CopyButton` (`CopyButton`/`CopyIconButton`) | a hand-rolled `Copied` label swap or copy toast | § Verbs (Copy)                                                |
-| `components/shared/Chip`                                       | a raw `className="…-chip"` element              | § Shape language — Chips are a primitive                      |
-| `components/SearchPill`                                        | a bare `<input type="search">`                  | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
-| `components/SelectMenu`                                        | a restyled `<select>`                           | § Toolbars & action rows                                      |
-| `components/OverflowMenu`                                      | a hand-rolled `⋮` popover                       | § Toolbars & action rows                                      |
-| `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                  | § Verbs (menus)                                               |
-| `lib/use-menu-keyboard`                                        | a bespoke `role="menu"` key handler             | § Verbs (menus)                                               |
-| `components/shared/InlineRename`                               | a bespoke input-swap rename flow                | § Verbs (rename)                                              |
-| `OverflowMenu` `contextHost` (+ `lib/context-menu`)            | an `onContextMenu` on an item                   | § Verbs (menus)                                               |
-| `components/shared/ToolbarPopover`                             | a second portal-popover impl                    | § Toolbars & action rows                                      |
-| `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows               | § Toolbars & action rows                                      |
-| `components/Tabs`                                              | bespoke tab markup                              | § Tabs / view switchers                                       |
-| `components/ViewModeToggle`                                    | a bespoke layout switcher                       | § View-mode toggle option order                               |
-| `components/shared/FilterChipsRow`                             | a bespoke active-filter row                     | § Tag chips                                                   |
-| `components/shared/form` (`SwitchRow`)                         | a checkbox for an on/off setting                | § Config surfaces                                             |
-| `components/shared/form` (`SegmentedControl`)                  | a new segmented-pill CSS family                 | § Config surfaces                                             |
-| `components/shared/form` (`ChoiceList`)                        | a hint that rewrites per option                 | § Config surfaces                                             |
-| `components/shared/form` (`Disclosure`)                        | a hand-rolled collapsible group                 | § Config surfaces                                             |
-| `components/shared/form` (`Field`)                             | an uppercase `.field label`                     | § Config surfaces                                             |
+| Reach for                                                      | Instead of                                           | Ruling                                                        |
+| -------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
+| `components/PageHeader`                                        | a hand-built `.binder-hero`                          | § Layout system                                               |
+| `components/shared/Button` (`Button`)                          | a raw `className="btn …"`                            | § Shape language — Buttons are a primitive                    |
+| `components/shared/Button` (`IconButton`)                      | a `<button>` holding only a glyph                    | § Shape language — Buttons are a primitive                    |
+| `lib/icon-scale` (`ICON_SCALE`)                                | a one-off `lucide-react` size/strokeWidth pair       | § Icon scale                                                  |
+| `components/shared/CopyButton` (`CopyButton`/`CopyIconButton`) | a hand-rolled `Copied` label swap or copy toast      | § Verbs (Copy)                                                |
+| `components/shared/Chip`                                       | a raw `className="…-chip"` element                   | § Shape language — Chips are a primitive                      |
+| `components/shared/Chip` (`tone`)                              | a raw `-badge`/`-pill`/`-tag` label, or `is-*` tones | § Shape language — Badges, counts and surfaces are primitives |
+| `components/shared/ArtBadge`                                   | a raw badge class on card art                        | § Shape language — Badges, counts and surfaces are primitives |
+| `components/shared/Count`                                      | a raw count-bubble class                             | § Shape language — Badges, counts and surfaces are primitives |
+| `components/shared/Surface`                                    | a raw tile, section-card or popover class            | § Layout system — Surfaces: one frame                         |
+| `components/shared/SectionHeader`                              | a hand-built `-section-head` row                     | § Layout system — Section header                              |
+| `components/SearchPill`                                        | a bare `<input type="search">`                       | § Toolbars & action rows · § Responsive (keep `min-width: 0`) |
+| `components/SelectMenu`                                        | a restyled `<select>`                                | § Toolbars & action rows                                      |
+| `components/OverflowMenu`                                      | a hand-rolled `⋮` popover                            | § Toolbars & action rows                                      |
+| `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                       | § Verbs (menus)                                               |
+| `lib/use-menu-keyboard`                                        | a bespoke `role="menu"` key handler                  | § Verbs (menus)                                               |
+| `components/shared/InlineRename`                               | a bespoke input-swap rename flow                     | § Verbs (rename)                                              |
+| `OverflowMenu` `contextHost` (+ `lib/context-menu`)            | an `onContextMenu` on an item                        | § Verbs (menus)                                               |
+| `components/shared/ToolbarPopover`                             | a second portal-popover impl                         | § Toolbars & action rows                                      |
+| `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows                    | § Toolbars & action rows                                      |
+| `components/Tabs`                                              | bespoke tab markup                                   | § Tabs / view switchers                                       |
+| `components/ViewModeToggle`                                    | a bespoke layout switcher                            | § View-mode toggle option order                               |
+| `components/shared/FilterChipsRow`                             | a bespoke active-filter row                          | § Tag chips                                                   |
+| `components/shared/form` (`SwitchRow`)                         | a checkbox for an on/off setting                     | § Config surfaces                                             |
+| `components/shared/form` (`SegmentedControl`)                  | a new segmented-pill CSS family                      | § Config surfaces                                             |
+| `components/shared/form` (`ChoiceList`)                        | a hint that rewrites per option                      | § Config surfaces                                             |
+| `components/shared/form` (`Disclosure`)                        | a hand-rolled collapsible group                      | § Config surfaces                                             |
+| `components/shared/form` (`Field`)                             | an uppercase `.field label`                          | § Config surfaces                                             |
 
 ### Overlays
 
@@ -363,8 +368,9 @@ meanwhile.
 - **Section header: title · meta · tools.** A section inside a page is a
   title, one short meta, and on the right its tools: the section's own search
   (§ Toolbars, search beside its list) and one door. The meta hides on a
-  phone before anything wraps. **Not built yet:** Home's `.home-section-head`
-  is the reference; T135 builds it once.
+  phone before anything wraps. **Built** as `SectionHeader` (T166): Home's
+  `.home-section-head` is the reference markup; a section with no meta or
+  tools gets only its heading.
 - **The camera button lives on the collection pages, on phones, only**, with
   bottom padding on the content so the last row scrolls clear of it. Everywhere
   else, scanning is reached through Add cards. **Built** (`ScanFab`): it tucks
@@ -762,6 +768,31 @@ render their own `.toolbar-pill` trigger and stay that way. When a call site
 restyles one of those triggers (`triggerClassName` on `OverflowMenu` or
 `ToolbarPopover`), it takes the class from `buttonClass({ variant, placement })`,
 the same vocabulary `Button` uses, rather than spelling out `btn …`. A label that hides on phones (`.toolbar-label-compact`) takes that class through `labelClassName`, which lands on `.btn-label` itself: a span nested inside it would leave an empty flex item holding the icon gap.
+
+**Badges, counts and surfaces are primitives (T166, 2026-09-28).** The
+second round of the library, run the way T152 ran: each primitive renders
+the family's existing class, so moving a call site onto it changes no pixel,
+and the convergence PRs then give each shape one look.
+
+- A label pill, badge or tag is a label `Chip`. Its status is `tone`
+  (`success | info | warn | err | accent | neutral`, the § Verdict badges
+  vocabulary), rendered `data-tone`; a family's CSS selects on
+  `[data-tone=…]`, never on its own `is-success`/`--warn` class.
+- Anything on card art is `ArtBadge`, pinned by `corner`
+  (`top-start | top-end | bottom-start | bottom-end`). An icon-only one takes
+  `label`, its accessible name. It is always the scrim plate
+  (§ On-art scrims), never accent.
+- A count bubble is `Count`, `placement` `inline` or `corner`. It renders
+  nothing at zero and is `aria-hidden`: the control it sits in says the
+  number in words. A plain text count ("12 cards") is not a bubble and stays
+  text a screen reader reads.
+- A tile, section card or anchored panel is `Surface` with its
+  `variant` (`sleeve | framed | popover`, § Layout system). A tile that is
+  itself a link or button keeps its own element.
+
+Guard: `src/test/display-primitives-usage.test.ts`. Its allowlist holds each
+file's current count and only goes down; when the last wave lands, what is
+left becomes permanent entries with their rulings.
 
 **Chips are a primitive (E435, 2026-09-26).** A chip renders `Chip` from
 `components/shared/Chip`. Chips have no shared look across roles — a label

@@ -28,7 +28,15 @@ import { IconButton } from './Button';
  * The label always sits in its own element (`.chip-label`). A count badge or
  * state mark that must stay a separate flex item goes in `trailing`; a leading
  * glyph or set icon goes in `icon`, rendered `aria-hidden`.
+ *
+ * A label pill or badge (a format, "Public", a verdict) is a label chip too,
+ * not a separate component. Its status goes in `tone`, rendered as
+ * `data-tone`: the one tone vocabulary every family's CSS selects on
+ * (STYLE_GUIDE § Verdict badges), in place of per-family `is-*`/`--*` classes.
  */
+
+/** The status vocabulary shared by label chips, art badges and counts. */
+export type Tone = 'success' | 'info' | 'warn' | 'err' | 'accent' | 'neutral';
 
 type Icon = ReactElement<{ 'aria-hidden'?: boolean }> | null | false | undefined;
 
@@ -43,6 +51,8 @@ interface Base {
   icon?: Icon;
   /** A badge or mark kept as its own element after the label (a count). */
   trailing?: ReactNode;
+  /** Status, rendered as `data-tone` for the family's CSS to select on. */
+  tone?: Tone;
   children: ReactNode;
 }
 
@@ -91,7 +101,7 @@ const hidden = (icon: Icon) =>
   isValidElement(icon) ? cloneElement(icon, { 'aria-hidden': true }) : null;
 
 export function Chip(props: ChipProps) {
-  const { className, labelClassName, labelTitle, icon, trailing, children } = props;
+  const { className, labelClassName, labelTitle, icon, trailing, tone, children } = props;
   const body = (
     <>
       {hidden(icon)}
@@ -113,11 +123,12 @@ export function Chip(props: ChipProps) {
       labelTitle: _lt,
       icon: _i,
       trailing: _t,
+      tone: _to,
       children: _ch,
       ...rest
     } = props;
     return (
-      <span {...rest} className={className}>
+      <span {...rest} className={className} data-tone={tone}>
         {body}
         <IconButton
           className={removeClassName}
@@ -138,11 +149,12 @@ export function Chip(props: ChipProps) {
       labelTitle: _lt,
       icon: _i,
       trailing: _t,
+      tone: _to,
       children: _ch,
       ...rest
     } = props as FilterChip | ActionChip;
     return (
-      <button {...rest} type={type} className={className} aria-pressed={pressed}>
+      <button {...rest} type={type} className={className} aria-pressed={pressed} data-tone={tone}>
         {body}
       </button>
     );
@@ -155,11 +167,12 @@ export function Chip(props: ChipProps) {
     labelTitle: _lt,
     icon: _i,
     trailing: _t,
+    tone: _to,
     children: _ch,
     ...rest
   } = props as LabelChip;
   return (
-    <Tag {...(rest as HTMLAttributes<HTMLElement>)} className={className}>
+    <Tag {...(rest as HTMLAttributes<HTMLElement>)} className={className} data-tone={tone}>
       {body}
     </Tag>
   );
