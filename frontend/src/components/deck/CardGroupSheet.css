@@ -104,7 +104,7 @@
 .card-group-head-meta {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 
@@ -179,7 +179,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
   width: 100%;
   padding: 0;
   border: none;
@@ -208,7 +208,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem;
+  padding: var(--space-1-5);
   font-size: var(--text-xs);
   color: var(--text-muted);
   text-align: center;
@@ -218,7 +218,7 @@
   position: absolute;
   top: 0.3rem;
   right: 0.3rem;
-  padding: 0.05rem 0.35rem;
+  padding: 0.05rem var(--space-1-5);
   border-radius: 999px;
   background: var(--art-scrim);
   color: var(--art-scrim-text);
@@ -237,14 +237,14 @@
   right: 0.3rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.2rem;
+  gap: var(--space-1);
   pointer-events: none;
 }
 
 /* Scale the verdict chip down to fit the small card thumbnail. */
 .card-group-annotation .verdict-chip {
   font-size: var(--text-xs);
-  padding: 0.02rem 0.28rem;
+  padding: 0.02rem var(--space-1);
   background: var(--art-scrim);
 }
 
@@ -297,7 +297,7 @@
   padding: clamp(0.4rem, 2vw, 0.6rem) clamp(var(--space-2), 3vw, 0.9rem);
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -305,9 +305,9 @@
 .card-group-row {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: var(--space-3);
   width: 100%;
-  padding: 0.4rem var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
   border: none;
   border-radius: var(--radius);
   background: none;
@@ -353,7 +353,7 @@
 .card-group-row-annotations {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
 }
 
 .card-group-row-type {

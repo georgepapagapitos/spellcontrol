@@ -57,7 +57,7 @@
 }
 
 .new-arrivals-sheet-heading {
-  margin: 0 0 0.2rem;
+  margin: 0 0 var(--space-1);
   font-family: var(--font-serif);
   font-size: var(--text-lg);
   font-weight: 700;
@@ -172,7 +172,7 @@
 .new-arrivals-row-meta {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
   min-width: 0;
   flex: 1;
 }
@@ -203,8 +203,8 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.4rem var(--space-3);
+  gap: var(--space-1);
+  padding: var(--space-1-5) var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--on-accent);

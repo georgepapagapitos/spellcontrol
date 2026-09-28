@@ -5,8 +5,8 @@
 .deck-combos-ownership-filter {
   display: flex;
   justify-content: center;
-  gap: 0.375rem;
-  padding: 0.375rem var(--space-3) var(--space-2);
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-3) var(--space-2);
 }
 
 /* These render as `<Chip className="filter-chip">` now — shape, size,
@@ -48,7 +48,7 @@
   background: var(--art-scrim);
   color: var(--art-scrim-text);
   border-radius: 999px;
-  padding: 0.05rem 0.4rem;
+  padding: 0.05rem var(--space-1-5);
   line-height: 1.2;
 }
 
@@ -71,8 +71,8 @@
 .deck-combos-produces-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.05rem 0.4rem;
+  gap: var(--space-1);
+  padding: 0.05rem var(--space-1-5);
   border-radius: 999px;
   font-size: var(--text-xs);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
@@ -88,22 +88,22 @@
 .deck-combos-detail {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  padding-top: 0.3rem;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
   border-top: 0.5px solid var(--border);
-  margin-top: 0.1rem;
+  margin-top: var(--space-0-5);
 }
 
 .deck-combos-detail-section {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .deck-combos-detail-title {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
@@ -119,13 +119,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   /* No top margin: produces now sits at the top of the row card, not after the grid. */
 }
 
 .deck-combos-produce-chip {
   display: inline-block;
-  padding: 0.15rem var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: 999px;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -154,7 +154,7 @@
 .deck-combos-edhrec {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   margin: 0;
   font-size: var(--text-xs);
   font-weight: 600;
@@ -162,7 +162,7 @@
 }
 
 .deck-combos-edhrec-tag {
-  padding: 0.05rem 0.35rem;
+  padding: 0.05rem var(--space-1-5);
   border-radius: 999px;
   background: var(--surface-raised);
   color: var(--text-secondary);
@@ -201,7 +201,7 @@
   align-self: flex-start;
   background: transparent;
   border: 0;
-  padding: 0.2rem 0;
+  padding: var(--space-1) 0;
   font-family: inherit;
   font-size: var(--text-xs);
   font-weight: 600;
@@ -224,7 +224,7 @@
 .deck-combos-detail-label {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  margin-right: 0.35rem;
+  margin-right: var(--space-1-5);
 }
 
 .deck-combos-mana-needed {
@@ -235,10 +235,10 @@
 
 .deck-combos-bullets {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
 }
 
 .deck-combos-bullets li {
@@ -255,13 +255,13 @@
   padding-left: 1.2rem;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--space-1);
 }
 
 .deck-combos-steps li {
   font-size: var(--text-sm);
   color: var(--text-primary);
-  padding-left: 0.15rem;
+  padding-left: var(--space-0-5);
 }
 
 .deck-combos-results {
@@ -270,13 +270,13 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
 }
 
 .deck-combos-results li {
   display: flex;
   align-items: baseline;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   font-size: var(--text-sm);
   color: var(--text-primary);
 }
@@ -304,7 +304,7 @@
   color: var(--on-accent);
   border: 0;
   border-radius: var(--radius);
-  padding: 0.18rem 0.55rem;
+  padding: var(--space-0-5) var(--space-2);
   font-family: inherit;
   font-size: var(--text-xs);
   font-weight: 600;
@@ -327,7 +327,7 @@
 .deck-combos-produces-icon {
   flex: 0 0 auto;
   color: var(--accent);
-  margin-right: 0.1rem;
+  margin-right: var(--space-0-5);
 }
 
 /* ── Piece count — "N of M pieces in deck" ──────────────────────────────── */
@@ -361,7 +361,7 @@
 .deck-combos-missing-footer {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -405,11 +405,11 @@
    internal density so the rich detail still reads. */
 @media (max-width: 599px) {
   .deck-combos-panel {
-    padding: 0.6rem;
+    padding: var(--space-2-5);
   }
 
   .deck-combos-row {
-    padding: 0.6rem 0.65rem;
+    padding: var(--space-2-5) var(--space-2-5);
   }
 
   .deck-combos-row-meta {
@@ -430,7 +430,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding-top: 0.35rem;
+  padding-top: var(--space-1-5);
   border-top: 1px solid var(--border);
   min-width: 0;
 }
@@ -438,7 +438,7 @@
 .combo-aside-line {
   display: flex;
   align-items: baseline;
-  gap: 0.3rem;
+  gap: var(--space-1);
   flex-wrap: wrap;
   margin: 0;
   min-width: 0;
@@ -504,7 +504,7 @@
 .combo-aside-locations {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;

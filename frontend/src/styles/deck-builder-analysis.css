@@ -124,13 +124,13 @@
      children since the meta moved into the Overview panel. */
   grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.55rem;
+  gap: var(--space-2);
   width: 100%;
   background: transparent;
   border: 0;
   border-bottom: 0.5px solid var(--border);
-  padding: var(--space-1) 0.1rem 0.55rem;
-  margin: 0 0 0.55rem 0;
+  padding: var(--space-1) var(--space-0-5) var(--space-2);
+  margin: 0 0 var(--space-2) 0;
   cursor: pointer;
   color: inherit;
   text-align: left;
@@ -224,14 +224,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.55rem 1.4rem;
+  gap: var(--space-2) var(--space-5);
   font-variant-numeric: tabular-nums;
 }
 
 .deck-stat {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: var(--space-0-5);
   white-space: nowrap;
 }
 
@@ -524,7 +524,7 @@
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
-  padding: var(--space-3) 0.875rem;
+  padding: var(--space-3) var(--space-4);
 }
 
 /* Span the whole surface row — for panels whose contents lay themselves out in
@@ -678,7 +678,7 @@
 .deck-curve {
   display: flex;
   align-items: flex-end;
-  gap: 0.3rem;
+  gap: var(--space-1);
   /* Scale with viewport height so the curve uses more vertical space on
      taller screens, with a sensible floor/ceiling. */
   height: clamp(120px, 26vh, 300px);
@@ -691,7 +691,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.2rem;
+  gap: var(--space-1);
   height: 100%;
 }
 
@@ -743,7 +743,7 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   column-gap: var(--space-2);
-  row-gap: 0.2rem;
+  row-gap: var(--space-1);
   font-size: var(--text-xs);
   color: var(--text-secondary);
   flex: 1;
@@ -780,9 +780,9 @@
 .deck-mana-prod-row {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   font-size: var(--text-xs);
-  margin-bottom: 0.2rem;
+  margin-bottom: var(--space-1);
 }
 
 .deck-mana-prod-swatch {
@@ -822,7 +822,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 .deck-roles-row {
@@ -852,7 +852,7 @@
 /* Layout-only hook on the shared <MeterBar> (components/shared/MeterBar.tsx),
    which owns the track geometry. */
 .deck-roles-bar {
-  margin: 0.2rem 0 0.15rem;
+  margin: var(--space-1) 0 var(--space-0-5);
 }
 
 .deck-roles-sub {
@@ -874,7 +874,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--space-1);
   font-size: var(--text-sm);
 }
 
@@ -892,7 +892,7 @@
 .deck-stats-bracket {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
 }
 
 /* UX-313: Bracket Fit lane moved to the Tune tab; these rules are no longer needed.
@@ -925,7 +925,7 @@
    shows only a small note + "Use the estimate" link when a bracket is stated. */
 .deck-stats-bracket-override-note {
   margin: 0;
-  margin-top: 0.35rem;
+  margin-top: var(--space-1-5);
   font-size: var(--text-xs);
   color: var(--text-muted);
 }

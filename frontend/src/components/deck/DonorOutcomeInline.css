@@ -5,7 +5,7 @@
 .donor-outcome {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 .donor-outcome-prompt,
@@ -25,7 +25,7 @@
 .donor-outcome-options {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   margin: 0;
   padding: 0;
   border: 0;
@@ -35,8 +35,8 @@
 .donor-outcome-option {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
-  padding: 0.55rem 0.65rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2-5);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-raised);
@@ -52,14 +52,14 @@
 }
 
 .donor-outcome-option input {
-  margin-top: 0.15rem;
+  margin-top: var(--space-0-5);
   accent-color: var(--accent);
 }
 
 .donor-outcome-option-text {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: var(--space-0-5);
 }
 
 .donor-outcome-option-label {
@@ -74,7 +74,7 @@
 }
 
 .donor-outcome-replace {
-  padding-top: 0.4rem;
+  padding-top: var(--space-1-5);
   border-top: 0.5px solid var(--border);
 }
 
@@ -87,7 +87,7 @@
 .donor-outcome-replace-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   margin: 0;
   padding: 0;
   list-style: none;

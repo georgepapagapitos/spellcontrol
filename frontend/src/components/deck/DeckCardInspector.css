@@ -193,7 +193,7 @@
 .deck-card-inspector-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -201,7 +201,7 @@
 }
 
 .deck-card-inspector-chip {
-  padding: 0.1rem 0.45rem;
+  padding: var(--space-0-5) var(--space-2);
   border: 1px solid var(--border);
   border-radius: 999px;
   font-size: var(--text-xs);
@@ -241,7 +241,7 @@
 .deck-card-inspector-action {
   flex: 1 1 auto;
   min-height: 32px;
-  padding: var(--space-1) 10px;
+  padding: var(--space-1) var(--space-2-5);
   font-size: var(--text-xs);
 }
 
@@ -257,7 +257,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   width: 100%;
   height: 100%;
   color: var(--text-secondary);

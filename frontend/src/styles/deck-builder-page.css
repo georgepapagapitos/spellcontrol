@@ -31,7 +31,7 @@
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.1rem 1.25rem;
+  padding: var(--space-4) 1.25rem;
 }
 
 .deck-builder-section-title {
@@ -45,7 +45,7 @@
    accent border so it reads as "here's the build intent", distinct from the
    neutral Format/Commander cards below it. */
 .combo-seed-banner {
-  padding: 0.85rem 1.1rem;
+  padding: var(--space-3) var(--space-4);
   border-color: color-mix(in srgb, var(--success) 40%, var(--border));
   background: color-mix(in srgb, var(--success) 7%, var(--surface));
 }
@@ -71,13 +71,13 @@
 }
 
 .combo-seed-banner-produces {
-  margin: 0.2rem 0 0;
+  margin: var(--space-1) 0 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
 
 .combo-seed-banner-hint {
-  margin: 0.35rem 0 0;
+  margin: var(--space-1-5) 0 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
 }

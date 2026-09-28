@@ -15,7 +15,7 @@
 .decks-index-subtitle {
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  margin: 0.35rem 0 0;
+  margin: var(--space-1-5) 0 0;
   max-width: 60ch;
 }
 
@@ -75,7 +75,7 @@
   z-index: var(--z-popover);
   background: var(--bg);
   margin: 0 calc(var(--page-gutter, var(--space-4)) * -1) var(--space-2);
-  padding: var(--space-3) var(--page-gutter, var(--space-4)) 0.65rem;
+  padding: var(--space-3) var(--page-gutter, var(--space-4)) var(--space-2-5);
 }
 
 /* Below the My Decks / Discover hub-tabs strip (DecksHubTabs), the row pins
@@ -90,7 +90,7 @@
 
 @media (max-width: 599px) {
   .decks-index-search-row {
-    padding: 0.35rem var(--page-gutter, var(--space-2)) 0.3rem;
+    padding: var(--space-1-5) var(--page-gutter, var(--space-2)) var(--space-1);
     margin-bottom: var(--space-1);
   }
 }
@@ -98,7 +98,7 @@
 .decks-index-sort-bar {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: var(--space-1-5);
   flex-wrap: wrap;
 }
 
@@ -159,7 +159,7 @@
 }
 
 .decks-index-list.is-grid .decks-index-card-body {
-  padding: 0.6rem 0.85rem var(--space-3);
+  padding: var(--space-2-5) var(--space-3) var(--space-3);
 }
 
 /* Fallback banner for grid tiles whose deck has no commander art_crop —
@@ -181,7 +181,7 @@
 
 .decks-index-list.is-grid .decks-index-card-banner-pips {
   display: inline-flex;
-  gap: 0.45rem;
+  gap: var(--space-2);
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
 }
 
@@ -235,7 +235,7 @@
    .collection-list.is-compact. */
 .decks-index-list.is-compact {
   grid-template-columns: 1fr;
-  gap: 0.2rem;
+  gap: var(--space-1);
 }
 
 .decks-index-list.is-compact .decks-index-card {
@@ -250,9 +250,9 @@
 }
 
 .decks-index-list.is-compact .decks-index-card-link {
-  padding: 0.3rem var(--space-3);
+  padding: var(--space-1) var(--space-3);
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   min-width: 0;
   overflow: hidden;
 }
@@ -277,7 +277,7 @@
   margin-top: 0;
   display: inline-flex;
   align-items: baseline;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   flex-wrap: nowrap;
   flex-shrink: 1;
   min-width: 0;
@@ -383,7 +383,7 @@
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   min-width: 0;
 }
 
@@ -403,10 +403,10 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.15rem 0.45rem;
+  gap: var(--space-0-5) var(--space-2);
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  margin-top: 0.2rem;
+  margin-top: var(--space-1);
   min-width: 0;
 }
 
@@ -449,7 +449,7 @@
 .decks-index-card-pips {
   display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
   vertical-align: -0.1em;
 }
 
@@ -457,12 +457,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
-  margin-top: 0.35rem;
+  margin-top: var(--space-1-5);
 }
 
 .decks-index-card-theme-chip {
   display: inline-block;
-  padding: 0.1rem var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: 999px;
   background: var(--accent-light);
   color: var(--accent);

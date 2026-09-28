@@ -21,7 +21,7 @@
 
 .brew-land-count-control input {
   width: 4.5rem;
-  padding: 0.35rem var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
   border-radius: var(--radius);
   border: 0.5px solid var(--border);
   background: var(--surface);
@@ -40,7 +40,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
   max-height: 24rem;
   overflow-y: auto;
 }
@@ -49,7 +49,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0.3rem 0;
+  padding: var(--space-1) 0;
 }
 
 .brew-land-row img,
@@ -84,7 +84,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .brew-land-error {

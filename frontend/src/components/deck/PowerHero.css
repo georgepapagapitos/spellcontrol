@@ -20,7 +20,7 @@
 .power-hero-pillars {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.85rem;
+  gap: var(--space-3);
 }
 
 @container bento (min-width: 640px) {
@@ -33,7 +33,7 @@
 .power-hero-pillar {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   min-width: 0;
 }
 
@@ -56,7 +56,7 @@
   align-items: center;
   width: 100%;
   margin: 0;
-  padding: 0.3rem 0;
+  padding: var(--space-1) 0;
   background: none;
   border: none;
   border-radius: var(--radius);
@@ -106,7 +106,7 @@
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -165,14 +165,14 @@
 /* Keep the target menu compact so it fits in the pillar without causing a reflow. */
 .power-hero-target-menu .toolbar-pill {
   font-size: var(--text-xs);
-  padding: 0.2rem var(--space-2);
+  padding: var(--space-1) var(--space-2);
 }
 
 /* ── Gameplan ── */
 .power-hero-engine {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
   margin: 0;
 }
 
@@ -189,7 +189,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: var(--space-1);
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -212,7 +212,7 @@
 .power-hero-lopsided {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: var(--space-1);
   font-weight: 600;
   color: var(--warn-text);
 }
@@ -231,7 +231,7 @@
 .power-hero-combos {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -266,7 +266,7 @@
 .power-hero-wincon {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-secondary);

@@ -25,7 +25,7 @@
 .combo-badge-glyph {
   display: inline-flex;
   align-items: center;
-  padding: 0 0.2rem;
+  padding: 0 var(--space-1);
   border: 0.5px solid var(--accent);
   border-radius: 3px;
   color: var(--accent);

@@ -6,14 +6,14 @@
 .move-deck-head {
   display: flex;
   align-items: flex-start;
-  gap: 0.4rem;
-  padding: var(--space-1) var(--space-1) 0.6rem;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-1) var(--space-2-5);
 }
 
 .move-deck-titles {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
   min-width: 0;
   flex: 1;
 }
@@ -46,7 +46,7 @@
 .move-deck-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -56,7 +56,7 @@
 .move-deck-row-btn {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
   width: 100%;
   padding: var(--space-2);
   border: 0.5px solid var(--border);
@@ -89,7 +89,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.1rem;
+  gap: var(--space-0-5);
   width: 3rem;
   height: 2.25rem;
   border-radius: var(--radius);
@@ -99,7 +99,7 @@
 .move-deck-row-text {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 
@@ -118,12 +118,12 @@
 }
 
 .move-deck-body {
-  padding: 0.2rem var(--space-1) 0.6rem;
+  padding: var(--space-1) var(--space-1) var(--space-2-5);
   overflow-y: auto;
 }
 
 .move-deck-actions {
-  padding: 0.6rem var(--space-1) var(--space-1);
+  padding: var(--space-2-5) var(--space-1) var(--space-1);
   border-top: 0.5px solid var(--border);
 }
 

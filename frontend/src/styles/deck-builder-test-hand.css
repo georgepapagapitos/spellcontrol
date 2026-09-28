@@ -14,7 +14,7 @@
 }
 
 .deck-test-hand-panel.is-collapsed {
-  padding: 0.65rem var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
 }
 
 .deck-test-hand-title {
@@ -61,7 +61,7 @@
 .deck-test-hand-body {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--space-2);
   margin-top: var(--space-2);
 }
 
@@ -233,14 +233,14 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .deck-test-hand-chip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 0.2rem var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: 999px;
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
@@ -269,7 +269,7 @@
 
 .deck-test-hand-chip.is-verdict {
   margin-left: var(--space-1);
-  padding-inline: 0.6rem;
+  padding-inline: var(--space-2-5);
 }
 
 .deck-test-hand-chip.is-keepable {
@@ -311,9 +311,9 @@
 .deck-test-hand-sim {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding-top: 0.6rem;
-  margin-top: 0.1rem;
+  gap: var(--space-2-5);
+  padding-top: var(--space-2-5);
+  margin-top: var(--space-0-5);
   border-top: 0.5px solid var(--border);
 }
 
@@ -322,7 +322,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.4rem 0.6rem;
+  gap: var(--space-1-5) var(--space-2-5);
 }
 
 /* Section label for the always-on odds — the inspector's headline metric. */
@@ -347,7 +347,7 @@
 .deck-test-hand-sim-report {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: var(--space-2-5);
 }
 
 .deck-test-hand-sim-stats {
@@ -357,7 +357,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .deck-test-hand-sim-stat {
@@ -365,8 +365,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.1rem;
-  padding: 0.4rem 0.3rem;
+  gap: var(--space-0-5);
+  padding: var(--space-1-5) var(--space-1);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
@@ -415,7 +415,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
   font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.5;

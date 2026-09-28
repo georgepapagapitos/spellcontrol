@@ -4,7 +4,7 @@
 .cmdr-readiness {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .cmdr-readiness-row {
@@ -42,7 +42,7 @@
    the text). Center it on the text line. */
 .cmdr-readiness-explainer .info-tip {
   vertical-align: middle;
-  margin-left: 0.15rem;
+  margin-left: var(--space-0-5);
 }
 
 .cmdr-readiness-unavailable {

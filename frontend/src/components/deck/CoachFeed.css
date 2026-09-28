@@ -14,7 +14,7 @@
   container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--space-2);
   /* Grid/flex child safety — never let a long card name blow the column out. */
   min-width: 0;
 }
@@ -26,7 +26,7 @@
 .coach-feed-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 /* ── Header (filter chips row + apply-all) ──────────────────────────────── */
@@ -72,7 +72,7 @@
 .coach-feed-owned-toggle {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
@@ -320,7 +320,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   width: 100%;
   padding: var(--space-2);
   border: 0.5px solid var(--border);
@@ -398,7 +398,7 @@
 }
 
 .coach-feed .empty-state-tagline {
-  margin: 0 0 0.4rem;
+  margin: 0 0 var(--space-1-5);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
@@ -425,7 +425,7 @@
 .coach-feed-browser-section > summary {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   cursor: pointer;
   list-style: none;
   font-family: var(--font-serif);

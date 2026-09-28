@@ -33,7 +33,7 @@
 .brew-running-colors {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 
 .brew-running-curve-row {
@@ -82,7 +82,7 @@
   align-items: center;
   gap: var(--space-2);
   font-size: var(--text-sm);
-  padding: 0.2rem 0;
+  padding: var(--space-1) 0;
 }
 
 .brew-running-item-thumb {
@@ -129,7 +129,7 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 0.2rem;
+  padding: var(--space-1);
   flex-shrink: 0;
   border-radius: var(--radius);
 }
@@ -178,7 +178,7 @@
     background: var(--surface-raised);
     border: 0.5px solid var(--border-strong);
     border-radius: 999px;
-    padding: 0.7rem var(--space-4);
+    padding: var(--space-3) var(--space-4);
     box-shadow: var(--shadow-tooltip);
     color: var(--text-primary);
     font-size: var(--text-sm);

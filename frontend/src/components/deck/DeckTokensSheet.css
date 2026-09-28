@@ -23,7 +23,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-1) 1.1rem 0;
+  padding: var(--space-1) var(--space-4) 0;
 }
 
 .deck-tokens-sheet-titles {
@@ -31,7 +31,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--space-0-5);
 }
 
 .deck-tokens-sheet-title {
@@ -57,8 +57,8 @@
 .deck-tokens-sheet-body {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
-  padding: 0.85rem 1.1rem var(--space-4);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -70,7 +70,7 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: var(--space-1-5);
 }
 
 .deck-tokens-chips > li {
@@ -81,11 +81,11 @@
 .deck-tokens-chip {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.35rem;
+  gap: var(--space-1-5);
   max-width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 0.3rem 0.65rem;
+  padding: var(--space-1) var(--space-2-5);
   background: var(--surface-raised);
   border: 1px solid transparent;
   border-radius: var(--radius);
@@ -125,8 +125,8 @@
 .deck-tokens-detail {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.6rem 0.7rem;
+  gap: var(--space-1);
+  padding: var(--space-2-5) var(--space-3);
   background: var(--surface-raised);
   border-radius: var(--radius);
 }
