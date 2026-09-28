@@ -29,6 +29,7 @@ import { resolveTradePreview } from '../../lib/trade-preview';
 import { TradePreviewCarousel, type TradePreviewState } from './TradePreviewCarousel';
 import { formatLocation, useCardLocations, type CardLocation } from '../../lib/card-locations';
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
+import { useConfirm } from '../../lib/use-confirm';
 import { Button, IconButton } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Surface } from '@/components/shared/Surface';
@@ -188,6 +189,7 @@ function TradeOfferCard({
   // Non-null while the card-preview carousel is open over this offer.
   const [preview, setPreview] = useState<TradePreviewState | null>(null);
   const headingId = useId();
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   /**
    * Open the carousel on the tapped card, spanning the WHOLE offer — give side
@@ -237,6 +239,30 @@ function TradeOfferCard({
       setBusy(false);
       onChanged();
     }
+  }
+
+  // Declining and withdrawing are final on the server (no restore endpoint,
+  // E501), so each asks first, per the verb contract (STYLE_GUIDE § Delete and
+  // remove: only an action nothing can reverse confirms). Accept has its own
+  // step, and Remove only hides a finished trade from this side's list.
+  async function decline() {
+    const ok = await confirm({
+      title: `Decline the trade from ${who}?`,
+      body: `${who} will see it as declined. This can't be undone.`,
+      confirmLabel: 'Decline',
+      danger: true,
+    });
+    if (ok) await run(() => declineTrade(offer.id), "Couldn't decline the trade. Try again.");
+  }
+
+  async function withdraw() {
+    const ok = await confirm({
+      title: `Withdraw your offer to ${who}?`,
+      body: `${who} can no longer accept it. This can't be undone.`,
+      confirmLabel: 'Withdraw',
+      danger: true,
+    });
+    if (ok) await run(() => withdrawTrade(offer.id), "Couldn't withdraw the trade. Try again.");
   }
 
   /**
@@ -391,12 +417,7 @@ function TradeOfferCard({
                     it must not be ambiguous which of the two it is doing. */}
                 {busy ? 'Working…' : needsChoice ? 'Accept…' : 'Accept'}
               </Button>
-              <Button
-                disabled={busy}
-                onClick={() =>
-                  void run(() => declineTrade(offer.id), "Couldn't decline the trade. Try again.")
-                }
-              >
+              <Button disabled={busy} onClick={() => void decline()}>
                 Decline
               </Button>
               {onCounter && (
@@ -412,12 +433,7 @@ function TradeOfferCard({
             </>
           )}
           {canWithdraw && (
-            <Button
-              disabled={busy}
-              onClick={() =>
-                void run(() => withdrawTrade(offer.id), "Couldn't withdraw the trade. Try again.")
-              }
-            >
+            <Button disabled={busy} onClick={() => void withdraw()}>
               {busy ? 'Working…' : 'Withdraw'}
             </Button>
           )}
@@ -441,6 +457,8 @@ function TradeOfferCard({
           onConfirm={(resolved) => void commit(resolved)}
         />
       )}
+
+      {confirmDialog}
     </Surface>
   );
 }

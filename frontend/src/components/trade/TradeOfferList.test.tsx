@@ -9,7 +9,7 @@
  *
  * No `@testing-library/jest-dom` in this repo — plain vitest matchers.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BinderDef, EnrichedCard } from '../../types';
@@ -35,10 +35,17 @@ vi.mock('../../lib/card-prices', async () => {
   };
 });
 const removeTrade = vi.fn();
+const declineTrade = vi.fn();
+const withdrawTrade = vi.fn();
 vi.mock('../../lib/trades-client', async () => {
   const actual =
     await vi.importActual<typeof import('../../lib/trades-client')>('../../lib/trades-client');
-  return { ...actual, removeTrade: (id: string) => removeTrade(id) };
+  return {
+    ...actual,
+    removeTrade: (id: string) => removeTrade(id),
+    declineTrade: (id: string) => declineTrade(id),
+    withdrawTrade: (id: string) => withdrawTrade(id),
+  };
 });
 
 let storeState: { cards: EnrichedCard[]; binders: BinderDef[] } = { cards: [], binders: [] };
@@ -325,5 +332,57 @@ describe('whose move, the net, and finished rows', () => {
     // Accepted but not yet settled here: the settlement sweep still needs it.
     mount({ ...open, id: 'mid', status: 'accepted', settled: false });
     expect(screen.queryByRole('button', { name: /Remove this trade/ })).toBeNull();
+  });
+});
+
+// E501: declining or withdrawing is final on the server (there is no restore
+// endpoint), so each asks first, and says so, per the verb contract. Before
+// this both were one tap with neither a confirm nor an Undo.
+describe('declining and withdrawing ask first', () => {
+  const open: TradeOffer = { ...settled, status: 'proposed', settled: false, resolvedAt: null };
+
+  beforeEach(() => {
+    declineTrade.mockReset().mockResolvedValue(undefined);
+    withdrawTrade.mockReset().mockResolvedValue(undefined);
+    storeState = { cards: [], binders: [] };
+  });
+
+  it('Decline does nothing until confirmed, and Cancel backs out', async () => {
+    mount({ ...open, id: 'in', mine: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Decline the trade from Trade Pal?',
+    });
+    expect(dialog.textContent).toContain(
+      "Trade Pal will see it as declined. This can't be undone."
+    );
+    expect(declineTrade).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(declineTrade).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+    const again = await screen.findByRole('dialog');
+    fireEvent.click(within(again).getByRole('button', { name: 'Decline' }));
+    await waitFor(() => expect(declineTrade).toHaveBeenCalledWith('in'));
+    expect(declineTrade).toHaveBeenCalledTimes(1);
+  });
+
+  it('Withdraw does nothing until confirmed', async () => {
+    mount({ ...open, id: 'out', mine: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Withdraw your offer to Trade Pal?',
+    });
+    expect(dialog.textContent).toContain(
+      "Trade Pal can no longer accept it. This can't be undone."
+    );
+    expect(withdrawTrade).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw' }));
+    await waitFor(() => expect(withdrawTrade).toHaveBeenCalledWith('out'));
   });
 });
