@@ -59,6 +59,7 @@ import { printedName } from '@spellcontrol/binder-routing';
 import { CardName } from '@/components/shared/CardName';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { Surface } from '@/components/shared/Surface';
 /** Legal in the deck's format (`legalityKey`), or no legality data to say otherwise. */
 function isFormatLegal(c: EnrichedCard, legalityKey: string): boolean {
   const legality = c.legalities?.[legalityKey];
@@ -722,7 +723,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   }, [query, activeMode, sort]);
 
   return (
-    <div className="card-search-panel">
+    <Surface as="div" variant="framed" className="card-search-panel">
       <Tabs
         tabs={sourceTabs}
         value={activeMode}
@@ -938,7 +939,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       <div className="sr-only" role="status" aria-live="polite">
         {announce}
       </div>
-    </div>
+    </Surface>
   );
 });
 

@@ -15,6 +15,7 @@ import { useAwaitingFirstPull } from '../../lib/use-awaiting-first-pull';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { HomeSectionSearch } from './HomeSectionSearch';
 import { ArtBadge } from '@/components/shared/ArtBadge';
+import { Surface } from '../shared/Surface';
 
 const RECENT_LIMIT = 5;
 const WUBRG = ['W', 'U', 'B', 'R', 'G'];
@@ -39,7 +40,12 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
     .join(', ');
 
   return (
-    <li className="decks-index-card" style={{ ['--deck-color' as string]: deck.color }}>
+    <Surface
+      as="li"
+      variant="sleeve"
+      className="decks-index-card"
+      style={{ ['--deck-color' as string]: deck.color }}
+    >
       <Link to={`/decks/${deck.id}`} className="decks-index-card-link" aria-label={label}>
         {art ? (
           <img className="decks-index-card-art" src={art} alt="" aria-hidden="true" />
@@ -84,7 +90,7 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
           </div>
         </div>
       </Link>
-    </li>
+    </Surface>
   );
 }
 
@@ -155,11 +161,17 @@ export function YourDecks() {
         <div role="status" aria-label="Loading" aria-busy="true">
           <ul className="decks-index-list is-grid home-rail" aria-hidden="true">
             {Array.from({ length: Math.min(remembered ?? 3, RECENT_LIMIT) || 3 }, (_, i) => (
-              <li key={i} className="decks-index-card home-tile-skeleton" aria-hidden="true">
+              <Surface
+                as="li"
+                variant="sleeve"
+                key={i}
+                className="decks-index-card home-tile-skeleton"
+                aria-hidden="true"
+              >
                 <span className="home-tile-skeleton-art" />
                 <span className="home-tile-skeleton-bar" />
                 <span className="home-tile-skeleton-bar" />
-              </li>
+              </Surface>
             ))}
           </ul>
         </div>

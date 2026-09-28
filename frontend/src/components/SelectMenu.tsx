@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { Surface } from '@/components/shared/Surface';
 
 export interface SelectOption<T extends string | number> {
   value: T;
@@ -183,7 +184,9 @@ export function SelectMenu<T extends string | number>({
     open &&
     panelPos &&
     createPortal(
-      <div
+      <Surface
+        as="div"
+        variant="popover"
         ref={panelRef}
         className="toolbar-popover-panel toolbar-popover-panel--fixed"
         style={{
@@ -250,7 +253,7 @@ export function SelectMenu<T extends string | number>({
           )}
         </ul>
         {footer && <div className="toolbar-popover-footer">{footer}</div>}
-      </div>,
+      </Surface>,
       document.body
     );
 

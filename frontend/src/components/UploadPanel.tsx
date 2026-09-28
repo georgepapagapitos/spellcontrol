@@ -52,6 +52,7 @@ import {
 
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 // Per-format column/line examples for the import-source InfoTip (E130 —
 // discoverability for the 5 bare text links, which named the tools but
@@ -785,7 +786,9 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       )}
 
       <div className="import-grid">
-        <div
+        <Surface
+          as="div"
+          variant="framed"
           className={`import-card file-dropzone${isDragging ? ' is-dragging' : ''}`}
           {...dropProps}
         >
@@ -1057,7 +1060,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
               </Button>
             )}
           </div>
-        </div>
+        </Surface>
       </div>
 
       {error && (

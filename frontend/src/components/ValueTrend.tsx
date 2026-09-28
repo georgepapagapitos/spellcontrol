@@ -13,6 +13,7 @@ import {
   type ValuePoint,
 } from '../lib/value-history';
 import './ValueTrend.css';
+import { Surface } from './shared/Surface';
 
 const HEIGHT = 132;
 const PAD_TOP = 24; // room for tick labels + the endpoint label
@@ -239,7 +240,12 @@ export function ValueTrend() {
   const latest = points[points.length - 1];
 
   return (
-    <section className="breakdown-card value-trend" aria-label="Collection value over time">
+    <Surface
+      as="section"
+      variant="framed"
+      className="breakdown-card value-trend"
+      aria-label="Collection value over time"
+    >
       <h3 className="breakdown-title">Value</h3>
       <p className="value-trend-delta">
         <span className="value-trend-delta-line">
@@ -299,6 +305,6 @@ export function ValueTrend() {
           </p>
         </div>
       )}
-    </section>
+    </Surface>
   );
 }

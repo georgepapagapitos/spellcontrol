@@ -49,6 +49,7 @@ import { useFriendRequests } from '../lib/use-friend-requests';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 // Deep link (`/you?section=…`) → the heading to scroll/focus. Values are the
 // linking door's own vocabulary (the header menu's "Profile" / "Settings" /
 // old "Shared links" item, the sync pill's Account, the auto-link banner's sign-in
@@ -841,7 +842,9 @@ export function YouPage() {
       </div>
 
       {/* ═══ Danger zone ═══════════════════════════════════════════════════ */}
-      <section
+      <Surface
+        as="section"
+        variant="framed"
         className="settings-card settings-card--danger"
         aria-labelledby="settings-danger-title"
       >
@@ -882,7 +885,7 @@ export function YouPage() {
             </div>
           )}
         </div>
-      </section>
+      </Surface>
 
       {/* ═══ Footer ═══════════════════════════════════════════════════════ */}
       <footer className="settings-page-about">

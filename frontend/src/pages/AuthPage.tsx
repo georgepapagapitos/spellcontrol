@@ -10,6 +10,7 @@ import { toast } from '../store/toasts';
 import { Tabs } from '../components/Tabs';
 import { BrandMark } from '../components/shared/BrandMark';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 type Mode = 'login' | 'register';
 
@@ -156,7 +157,7 @@ export default function AuthPage() {
 
   return (
     <main className="auth-page">
-      <div className="auth-card">
+      <Surface as="div" variant="framed" className="auth-card">
         <div className="auth-brand-hero" aria-hidden="true">
           <BrandMark size={48} motion="idle" />
         </div>
@@ -364,7 +365,7 @@ export default function AuthPage() {
         >
           Continue without an account
         </button>
-      </div>
+      </Surface>
     </main>
   );
 }

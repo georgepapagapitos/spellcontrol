@@ -20,6 +20,7 @@ import { InfoTip } from '@/components/InfoTip';
 import { SelectMenu, type SelectOption } from '@/components/SelectMenu';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 import type { Archetype } from '@/deck-builder/types';
 import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
 import {
@@ -212,7 +213,12 @@ export function DeckIdentityCard({
   const showHealth = analysisState !== 'ready' || edhrecMissing || planScore !== null;
 
   return (
-    <section className="deck-identity-card" aria-label="Deck identity">
+    <Surface
+      as="section"
+      variant="framed"
+      className="deck-identity-card"
+      aria-label="Deck identity"
+    >
       <div className="deck-identity-card-glance">
         {/* ── What it plays as ── */}
         <div className="deck-identity-card-plays">
@@ -386,6 +392,6 @@ export function DeckIdentityCard({
           )}
         </div>
       </div>
-    </section>
+    </Surface>
   );
 }

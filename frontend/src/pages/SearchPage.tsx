@@ -1,4 +1,5 @@
 import { EmptyState } from '../components/shared/EmptyState';
+import { Surface } from '../components/shared/Surface';
 import { AlignJustify, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -148,7 +149,12 @@ export function SearchPage() {
           Search syntax
         </button>
         {!syntaxCollapsed && (
-          <div className="search-syntax-panel" id="search-syntax-panel">
+          <Surface
+            as="div"
+            variant="framed"
+            className="search-syntax-panel"
+            id="search-syntax-panel"
+          >
             <ul className="search-syntax-list" role="list">
               {SYNTAX_ENTRIES.map((entry) => (
                 <li key={entry.example} className="search-syntax-row">
@@ -176,7 +182,7 @@ export function SearchPage() {
                 Full syntax reference
               </a>
             </p>
-          </div>
+          </Surface>
         )}
       </div>
       {query.trim().length >= 2 ? (

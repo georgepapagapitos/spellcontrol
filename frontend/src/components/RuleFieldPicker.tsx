@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useAnchoredPanel } from '@/lib/use-anchored-panel';
 import { searchFilterFields, type FilterFieldId } from '../lib/filter-fields';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 interface Props {
   /** Fields already showing a row in this group — hidden from the list. */
@@ -58,7 +59,9 @@ export function RuleFieldPicker({ inUse, onPick }: Props) {
       {open &&
         panelStyle &&
         createPortal(
-          <div
+          <Surface
+            as="div"
+            variant="popover"
             ref={panelRef}
             className="rule-field-panel"
             role="dialog"
@@ -113,7 +116,7 @@ export function RuleFieldPicker({ inUse, onPick }: Props) {
                 </section>
               ))}
             </div>
-          </div>,
+          </Surface>,
           document.body
         )}
     </div>

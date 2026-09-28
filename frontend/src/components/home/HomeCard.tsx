@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { readHomeShape, rememberHomeShape } from '../../lib/home-shape';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 interface Props {
   title: string;
@@ -52,7 +53,7 @@ export function HomeCard({
 }: Props) {
   // Read once at mount — the reservation only matters for the first paint.
   const [remembered] = useState(() => readHomeShape()[title]);
-  const ref = useRef<HTMLElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (loading || error) return;
     // Measured, not derived: the card's box is what the next visit reserves.
@@ -64,7 +65,9 @@ export function HomeCard({
 
   const reserved = loading && typeof remembered === 'number' && remembered > 1;
   return (
-    <section
+    <Surface
+      as="section"
+      variant="sleeve"
       className={`home-card${className ? ` ${className}` : ''}`}
       ref={ref}
       aria-label={title}
@@ -107,6 +110,6 @@ export function HomeCard({
           children
         )}
       </div>
-    </section>
+    </Surface>
   );
 }

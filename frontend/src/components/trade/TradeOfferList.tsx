@@ -31,6 +31,7 @@ import { formatLocation, useCardLocations, type CardLocation } from '../../lib/c
 import { TradeAcceptDialog, type AcceptChoice } from './TradeAcceptDialog';
 import { Button, IconButton } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Surface } from '@/components/shared/Surface';
 
 const STATUS_LABEL: Record<TradeOffer['status'], string> = {
   proposed: 'Waiting',
@@ -302,7 +303,9 @@ function TradeOfferCard({
   }
 
   return (
-    <article
+    <Surface
+      as="article"
+      variant="framed"
       className={`trade-offer-card${compact ? ' is-compact' : ''}`}
       aria-labelledby={headingId}
     >
@@ -438,7 +441,7 @@ function TradeOfferCard({
           onConfirm={(resolved) => void commit(resolved)}
         />
       )}
-    </article>
+    </Surface>
   );
 }
 

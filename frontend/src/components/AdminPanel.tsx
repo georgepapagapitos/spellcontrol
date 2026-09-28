@@ -23,6 +23,7 @@ import { OverflowMenu } from './OverflowMenu';
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { Surface } from '@/components/shared/Surface';
 
 /** A 404 from a row action means another tab or admin already handled that
  *  row — the outcome the action wanted is what's true, so the panel drops
@@ -370,7 +371,12 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
 
   return (
     <>
-      <section className="settings-card" aria-labelledby="settings-ai-spend-title">
+      <Surface
+        as="section"
+        variant="framed"
+        className="settings-card"
+        aria-labelledby="settings-ai-spend-title"
+      >
         <header className="settings-card-header">
           <h2 id="settings-ai-spend-title" className="settings-card-title">
             AI spend
@@ -417,9 +423,14 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
             <div className="settings-row-hint">No AI calls in the last 30 days.</div>
           )}
         </div>
-      </section>
+      </Surface>
 
-      <section className="settings-card" aria-labelledby="settings-admin-title">
+      <Surface
+        as="section"
+        variant="framed"
+        className="settings-card"
+        aria-labelledby="settings-admin-title"
+      >
         <header className="settings-card-header">
           <h2 id="settings-admin-title" className="settings-card-title">
             Manage users
@@ -727,9 +738,15 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
             </div>
           </Modal>
         )}
-      </section>
+      </Surface>
 
-      <section className="settings-card" role="group" aria-labelledby="settings-reports-title">
+      <Surface
+        as="section"
+        variant="framed"
+        className="settings-card"
+        role="group"
+        aria-labelledby="settings-reports-title"
+      >
         <header className="settings-card-header">
           <h2 id="settings-reports-title" className="settings-card-title">
             Reports
@@ -803,7 +820,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
             );
           })}
         </div>
-      </section>
+      </Surface>
 
       {pendingHide && (
         <Modal

@@ -15,6 +15,7 @@ import { ColorPip, ManaSymbol, TypeIcon } from './shared/ManaSymbol';
 import { MeterBar, StackedBar } from './shared/MeterBar';
 import { ValueTrend } from './ValueTrend';
 import { IconButton, Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 import { SelectMenu } from './SelectMenu';
 import { SegmentedControl } from './shared/form';
 import { EmptyState } from './shared/EmptyState';
@@ -127,7 +128,12 @@ function CostBasisCard({ cards }: { cards: EnrichedCard[] }) {
       : `${gain > 0 ? '+' : '−'}${formatMoney(Math.abs(gain), { wholeDollars: true })} (${gain > 0 ? '+' : '−'}${Math.abs(pct)}%)`;
 
   return (
-    <section className="breakdown-card cost-basis" aria-label="Cost basis">
+    <Surface
+      as="section"
+      variant="framed"
+      className="breakdown-card cost-basis"
+      aria-label="Cost basis"
+    >
       <h3 className="breakdown-title">Cost basis</h3>
       <p className="cost-basis-headline">
         <span className={`cost-basis-gain cost-basis-gain--${direction}`}>{headline}</span>
@@ -146,7 +152,7 @@ function CostBasisCard({ cards }: { cards: EnrichedCard[] }) {
           <dd>{formatMoney(summary.market)}</dd>
         </div>
       </dl>
-    </section>
+    </Surface>
   );
 }
 
@@ -594,7 +600,12 @@ function StatsDrawer({
           <ValueTrend />
 
           {hasInsights && (
-            <section className="breakdown-card" aria-label="Collection insights">
+            <Surface
+              as="section"
+              variant="framed"
+              className="breakdown-card"
+              aria-label="Collection insights"
+            >
               <h3 className="breakdown-title">Insights</h3>
               <div className="collection-insights-list">
                 {allocationSplit && (
@@ -667,12 +678,17 @@ function StatsDrawer({
                   />
                 )}
               </div>
-            </section>
+            </Surface>
           )}
 
           <CostBasisCard cards={cards} />
 
-          <section className="breakdown-card" aria-label="Collection breakdown by group">
+          <Surface
+            as="section"
+            variant="framed"
+            className="breakdown-card"
+            aria-label="Collection breakdown by group"
+          >
             <div className="breakdown-header-row">
               <h3 className="breakdown-title">Breakdown</h3>
             </div>
@@ -718,7 +734,7 @@ function StatsDrawer({
                 Show all {sortedRows.length} sets
               </Button>
             )}
-          </section>
+          </Surface>
         </div>
       </aside>
 

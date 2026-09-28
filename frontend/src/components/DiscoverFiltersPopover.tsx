@@ -14,6 +14,7 @@ import type { DeckFormat } from '@/deck-builder/types';
 import { ColorPip } from './shared/ManaSymbol';
 import { FilterTrigger } from './shared/FilterTrigger';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 const BRACKET_OPTIONS = [1, 2, 3, 4, 5];
 
@@ -91,7 +92,9 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
       {open &&
         panelStyle &&
         createPortal(
-          <div
+          <Surface
+            as="div"
+            variant="popover"
             ref={panelRef}
             className="filter-popover-panel discover-filters-panel"
             role="dialog"
@@ -196,7 +199,7 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
                 </Button>
               </div>
             )}
-          </div>,
+          </Surface>,
           document.body
         )}
     </div>

@@ -27,6 +27,7 @@ import './DeckAiReview.css';
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { Surface } from '@/components/shared/Surface';
 interface DeckAiReviewProps {
   deckId: string;
   format: DeckFormat;
@@ -261,7 +262,11 @@ export function DeckAiReview({
 
   // ── Opted in: idle / reading / error / result / stale ──
   return (
-    <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">
+    <Surface
+      as="section"
+      variant="framed"
+      className="deck-stats-panel deck-stats-panel--wide deck-ai-review"
+    >
       <h4 className="deck-stats-panel-title">
         Read the deck
         <AiMarker label="AI-written" />
@@ -403,7 +408,7 @@ export function DeckAiReview({
           </div>
         </div>
       )}
-    </section>
+    </Surface>
   );
 }
 

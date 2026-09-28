@@ -69,6 +69,7 @@ import type { PublicCard, ShareKind } from '../lib/shared-types';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 /** How many collection cards render before "Show more" — the friend's real
  *  collection can be ~11.5k unique oracle cards; filtering runs over the
  *  full set regardless of this cap (see filterFriendCollection). */
@@ -630,9 +631,9 @@ export function FriendHubPage() {
           h2h.summary.gamesPlayed > 0 && (
             <section className="friend-hub-section" aria-label="Head-to-head record">
               <h2 className="friend-hub-section-head">Head-to-head</h2>
-              <div className="friend-hub-h2h-card">
+              <Surface as="div" variant="framed" className="friend-hub-h2h-card">
                 <H2HSummary data={h2h} />
-              </div>
+              </Surface>
             </section>
           )
         )}

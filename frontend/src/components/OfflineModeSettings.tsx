@@ -4,6 +4,7 @@ import type { DownloadPhase } from '@/lib/offline';
 import { formatBytes } from '@/lib/format-bytes';
 import { formatRelativeTime } from '@/lib/format-time';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 /**
  * Status for the local card data, plus "Refresh" to download or update it and
@@ -61,7 +62,12 @@ export function OfflineModeSettings(): React.ReactElement | null {
   }
 
   return (
-    <section className="settings-card" aria-labelledby="settings-offline-title">
+    <Surface
+      as="section"
+      variant="framed"
+      className="settings-card"
+      aria-labelledby="settings-offline-title"
+    >
       <header className="settings-card-header">
         <h2 id="settings-offline-title" className="settings-card-title">
           Card data
@@ -102,7 +108,7 @@ export function OfflineModeSettings(): React.ReactElement | null {
           </div>
         )}
       </div>
-    </section>
+    </Surface>
   );
 }
 

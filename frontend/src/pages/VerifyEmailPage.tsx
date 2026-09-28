@@ -5,6 +5,7 @@ import { verifyEmail, resendEmailVerification } from '../lib/auth-api';
 import { userMessage } from '@/lib/user-error';
 import { BrandMark } from '../components/shared/BrandMark';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 type Phase = 'verifying' | 'verified' | 'error' | 'missing';
 
@@ -93,7 +94,7 @@ export default function VerifyEmailPage() {
 
   return (
     <main className="auth-page">
-      <div className="auth-card">
+      <Surface as="div" variant="framed" className="auth-card">
         <div className="auth-brand-hero" aria-hidden="true">
           <BrandMark size={48} motion={phase === 'verifying' ? 'boot' : 'idle'} />
         </div>
@@ -116,7 +117,7 @@ export default function VerifyEmailPage() {
             {username ? 'Back to Settings' : 'Back to sign in'}
           </Link>
         ) : null}
-      </div>
+      </Surface>
     </main>
   );
 }

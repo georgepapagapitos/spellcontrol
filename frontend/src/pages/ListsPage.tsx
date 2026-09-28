@@ -39,6 +39,7 @@ import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
 import type { ListDef, ListKind } from '../types';
 import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 type ListSortField = 'order' | 'name' | 'entries';
 type SortDir = 'asc' | 'desc';
@@ -368,7 +369,9 @@ export function ListsPage() {
             {sorted.map((l) => {
               const selected = sel.selected.has(l.id);
               return (
-                <li
+                <Surface
+                  as="li"
+                  variant="sleeve"
                   key={l.id}
                   className={`binders-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
                     selected ? ' bulk-selected' : ''
@@ -435,7 +438,7 @@ export function ListsPage() {
                       },
                     ]}
                   />
-                </li>
+                </Surface>
               );
             })}
           </ul>

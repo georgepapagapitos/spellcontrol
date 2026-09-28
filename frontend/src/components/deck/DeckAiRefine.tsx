@@ -22,6 +22,7 @@ import './DeckAiReview.css';
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { Surface } from '@/components/shared/Surface';
 interface DeckAiRefineProps {
   deckId: string;
   format: DeckFormat;
@@ -439,7 +440,11 @@ export function DeckAiRefine({
   }
 
   return (
-    <section className="deck-stats-panel deck-stats-panel--wide deck-ai-review">
+    <Surface
+      as="section"
+      variant="framed"
+      className="deck-stats-panel deck-stats-panel--wide deck-ai-review"
+    >
       <h4 className="deck-stats-panel-title">
         {title}
         <AiMarker />
@@ -641,7 +646,7 @@ export function DeckAiRefine({
       )}
 
       {carousel.preview}
-    </section>
+    </Surface>
   );
 }
 

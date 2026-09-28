@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { BrandMark } from '../components/shared/BrandMark';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 // Mirrors the backend USERNAME_REGEX.
 const USERNAME_RE = /^[a-z0-9_-]{3,32}$/;
@@ -83,7 +84,7 @@ export default function ChooseUsernamePage() {
 
   return (
     <main className="auth-page">
-      <div className="auth-card">
+      <Surface as="div" variant="framed" className="auth-card">
         <div className="auth-brand-hero" aria-hidden="true">
           <BrandMark size={48} motion="idle" />
         </div>
@@ -180,7 +181,7 @@ export default function ChooseUsernamePage() {
         <Link to="/auth" replace className="auth-back">
           Back to sign in
         </Link>
-      </div>
+      </Surface>
     </main>
   );
 }

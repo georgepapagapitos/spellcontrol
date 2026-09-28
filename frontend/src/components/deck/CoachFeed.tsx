@@ -14,6 +14,7 @@ import { VerdictBadge } from './VerdictBadge';
 import { InfoTip } from '../InfoTip';
 import { Button } from '@/components/shared/Button';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Surface } from '@/components/shared/Surface';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useTouchPeek } from '@/lib/use-touch-peek';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
@@ -768,7 +769,9 @@ export function CoachFeed({
           every other analysis panel (NBM above, the AI panels below) — bare
           chips-and-rows on the bento read as an unstructured wall and left the
           tab's core content its only unlabeled region. */}
-      <section
+      <Surface
+        as="section"
+        variant="framed"
         className="deck-stats-panel deck-stats-panel--wide coach-feed-panel"
         aria-labelledby="coach-feed-panel-title"
       >
@@ -1048,7 +1051,7 @@ export function CoachFeed({
             )}
           </>
         )}
-      </section>
+      </Surface>
 
       {/* EDHREC theme browser — the catalog sits AFTER the curated feed. It
           used to sit between the filter chips and the rows they filter, where

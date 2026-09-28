@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import { markMenuTarget } from '@/lib/context-menu';
+import { Surface } from './Surface';
 
 /**
  * Toolbar popover — portal-positioned disclosure (same mechanism as
@@ -124,7 +125,9 @@ export function ToolbarPopover({
     open &&
     panelPos &&
     createPortal(
-      <div
+      <Surface
+        as="div"
+        variant="popover"
         ref={panelRef}
         className={panelClassName ?? 'toolbar-popover-panel toolbar-popover-panel--fixed'}
         role={panelRole}
@@ -147,7 +150,7 @@ export function ToolbarPopover({
             activates an item lands back on the trigger, not at the top of the
             document. */}
         {children(closeAndReturnFocus)}
-      </div>,
+      </Surface>,
       document.body
     );
 

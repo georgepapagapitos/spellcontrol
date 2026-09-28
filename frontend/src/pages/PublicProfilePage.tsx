@@ -24,6 +24,7 @@ import './PublicProfilePage.css';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 const NOT_FOUND_MESSAGE = "This profile doesn't exist.";
 
 type ProfileTab = 'decks' | 'collection';
@@ -86,9 +87,14 @@ function ProfileSkeleton() {
       </header>
       <ul className="decks-index-list is-grid" aria-hidden="true">
         {Array.from({ length: SKELETON_TILE_COUNT }, (_, i) => (
-          <li key={i} className="decks-index-card public-profile-skeleton-tile">
+          <Surface
+            as="li"
+            variant="sleeve"
+            key={i}
+            className="decks-index-card public-profile-skeleton-tile"
+          >
             <span className="public-profile-skeleton" />
-          </li>
+          </Surface>
         ))}
       </ul>
     </div>

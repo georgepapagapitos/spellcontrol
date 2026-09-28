@@ -41,6 +41,7 @@ import type {
 
 import { userMessage } from '@/lib/user-error';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
@@ -148,7 +149,9 @@ function ColorDot({
       {open &&
         panelStyle &&
         createPortal(
-          <div
+          <Surface
+            as="div"
+            variant="popover"
             ref={panelRef}
             className="binder-color-panel"
             role="dialog"
@@ -156,7 +159,7 @@ function ColorDot({
             style={panelStyle}
           >
             <ColorPicker value={value} onChange={onChange} ariaLabel={label} />
-          </div>,
+          </Surface>,
           document.body
         )}
     </>

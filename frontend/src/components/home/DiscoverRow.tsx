@@ -6,6 +6,7 @@ import { listDiscoverDecks, type DiscoverDeck } from '../../lib/discover-client'
 import { userMessage } from '@/lib/user-error';
 import { HomeSectionSearch } from './HomeSectionSearch';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 const ROW_LIMIT = 5;
 
@@ -67,11 +68,17 @@ export function DiscoverRow() {
         <div role="status" aria-label="Loading" aria-busy="true">
           <ul className="decks-index-list is-grid home-rail" aria-hidden="true">
             {Array.from({ length: 3 }, (_, i) => (
-              <li key={i} className="decks-index-card home-tile-skeleton" aria-hidden="true">
+              <Surface
+                as="li"
+                variant="sleeve"
+                key={i}
+                className="decks-index-card home-tile-skeleton"
+                aria-hidden="true"
+              >
                 <span className="home-tile-skeleton-art" />
                 <span className="home-tile-skeleton-bar" />
                 <span className="home-tile-skeleton-bar" />
-              </li>
+              </Surface>
             ))}
           </ul>
         </div>

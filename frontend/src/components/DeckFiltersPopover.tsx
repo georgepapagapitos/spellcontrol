@@ -9,6 +9,7 @@ import { FILTER_COLOR_OPTIONS, type ColorMatchMode } from '@/lib/colors';
 import { useAnchoredPanel } from '@/lib/use-anchored-panel';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { Surface } from '@/components/shared/Surface';
 
 const SOURCE_OPTIONS: Array<{ key: DeckSource; label: string }> = [
   { key: 'generated', label: 'Generated' },
@@ -93,7 +94,9 @@ export function DeckFiltersPopover({
       {open &&
         panelStyle &&
         createPortal(
-          <div
+          <Surface
+            as="div"
+            variant="popover"
             ref={panelRef}
             className="filter-popover-panel deck-filters-panel"
             role="dialog"
@@ -167,7 +170,7 @@ export function DeckFiltersPopover({
                 </Button>
               </div>
             )}
-          </div>,
+          </Surface>,
           document.body
         )}
     </div>

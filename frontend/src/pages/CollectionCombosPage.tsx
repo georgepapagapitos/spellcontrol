@@ -37,6 +37,7 @@ import {
   countActiveFilters,
 } from '../lib/combo-filters';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 type Tab = 'complete' | 'oneAway';
 
@@ -359,7 +360,13 @@ export function CollectionCombosPage() {
 
       <FilterChipsRow chips={filterChips} onClearAll={clearAllFilters} />
 
-      <div className="deck-combos-panel is-embedded" role="region" aria-label="Collection combos">
+      <Surface
+        as="div"
+        variant="framed"
+        className="deck-combos-panel is-embedded"
+        role="region"
+        aria-label="Collection combos"
+      >
         <div className="deck-combos-body">
           {/* Searching answers a different question than the buckets do — "what
               can this card do, and how close am I?" — so the tabs step aside for
@@ -494,7 +501,7 @@ export function CollectionCombosPage() {
             </Button>
           )}
         </div>
-      </div>
+      </Surface>
 
       {preview.cards && preview.cards.length > 0 && (
         <CardPreview

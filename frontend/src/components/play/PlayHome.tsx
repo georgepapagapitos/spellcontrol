@@ -6,6 +6,7 @@ import type { GameRecord, GameState } from '../../lib/game-state';
 import { gameFormatLabel } from '../../lib/game-formats';
 import { aggregateDeckRecords } from '../../store/play';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 
 export type PlayHomeTarget =
   | { tab: 'local' }
@@ -126,7 +127,12 @@ export function PlayHome({
       </section>
 
       {!isGuest && (
-        <section className="play-home-card" aria-labelledby="play-home-night-title">
+        <Surface
+          as="section"
+          variant="sleeve"
+          className="play-home-card"
+          aria-labelledby="play-home-night-title"
+        >
           <header className="play-home-card-head">
             <h2 id="play-home-night-title" className="play-home-card-title">
               <CalendarDays width={16} height={16} strokeWidth={2} aria-hidden />
@@ -161,10 +167,15 @@ export function PlayHome({
           ) : (
             <p className="play-home-muted">Nothing on the calendar.</p>
           )}
-        </section>
+        </Surface>
       )}
 
-      <section className="play-home-card" aria-labelledby="play-home-recent-title">
+      <Surface
+        as="section"
+        variant="sleeve"
+        className="play-home-card"
+        aria-labelledby="play-home-recent-title"
+      >
         <header className="play-home-card-head">
           <h2 id="play-home-recent-title" className="play-home-card-title">
             Recent games
@@ -225,7 +236,7 @@ export function PlayHome({
             })}
           </ul>
         )}
-      </section>
+      </Surface>
     </div>
   );
 }

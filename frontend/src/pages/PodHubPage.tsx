@@ -38,6 +38,7 @@ import {
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
 import { InlineRename } from '@/components/shared/InlineRename';
+import { Surface } from '@/components/shared/Surface';
 const POD_NAME_MAX = 60;
 
 type GamesFetch =
@@ -581,7 +582,7 @@ export function PodHubPage() {
       {isMember && (
         <>
           <div className="deck-stats-pair pod-hub-stats-pair">
-            <div className="deck-stats-panel">
+            <Surface as="div" variant="framed" className="deck-stats-panel">
               <h2 className="deck-stats-panel-title">Shared history</h2>
               {gamesFetch.status === 'loading' ? (
                 <div
@@ -638,9 +639,9 @@ export function PodHubPage() {
                   </table>
                 </div>
               )}
-            </div>
+            </Surface>
 
-            <div className="deck-stats-panel">
+            <Surface as="div" variant="framed" className="deck-stats-panel">
               <h2 className="deck-stats-panel-title">Leaderboard</h2>
               {leaderboardFetch.status === 'loading' ? (
                 <div
@@ -683,7 +684,7 @@ export function PodHubPage() {
                   <PodRecordsStrip records={leaderboardFetch.records} />
                 </>
               )}
-            </div>
+            </Surface>
           </div>
 
           {otherMembers.length > 0 && (

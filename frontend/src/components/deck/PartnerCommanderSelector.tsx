@@ -14,6 +14,7 @@ import { ManaCost } from '../ManaCost';
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Surface } from '@/components/shared/Surface';
 import { RulesTextParagraphs } from '@/components/RulesText';
 interface Props {
   /** The primary commander — drives which partners are legal. */
@@ -268,7 +269,7 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
             />
           )}
 
-          <div className="commander-search-panel partner-panel">
+          <Surface as="div" variant="framed" className="commander-search-panel partner-panel">
             {loading ? (
               <p className="commander-search-status">Loading partners…</p>
             ) : error ? (
@@ -309,7 +310,7 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
                 })}
               </ul>
             )}
-          </div>
+          </Surface>
         </div>
       )}
     </section>

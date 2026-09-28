@@ -4,6 +4,7 @@ import { SORT_FIELDS, sortDirectionLabel, sortEntryLabel } from '../lib/sorting'
 import { SortEditor } from './SortEditor';
 import type { SortEntry, SortField } from '../types';
 import { useAnchoredPanel } from '@/lib/use-anchored-panel';
+import { Surface } from '@/components/shared/Surface';
 
 type ValueOrders = Partial<Record<SortField, string[]>>;
 
@@ -64,7 +65,9 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
       {open &&
         panelStyle &&
         createPortal(
-          <div
+          <Surface
+            as="div"
+            variant="popover"
             ref={panelRef}
             className="sort-popover-panel"
             role="dialog"
@@ -77,7 +80,7 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
               onSortsChange={onSortsChange}
               onValueOrdersChange={onValueOrdersChange}
             />
-          </div>,
+          </Surface>,
           document.body
         )}
     </div>
