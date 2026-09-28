@@ -14,7 +14,7 @@
      --bg framed the seats in a pale border that dulled their colour and
      glared at a dim table. Black also leaves OLED pixels off. */
   background: #000;
-  color: #f4f6fa;
+  color: var(--table-text);
   display: flex;
   /* Column, not the historical default row: the clock is now an edge strip
      stacked BELOW the seat grid (`.game-clock-strip`, a flex sibling here),
@@ -584,7 +584,7 @@
 }
 
 .player-panel-tapzone:active {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--table-press-wash);
 }
 
 /* Re-enable interactivity on actual controls inside the content layer. */
@@ -927,7 +927,7 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay);
   color: var(--pp-accent);
   border: 1px solid var(--pp-accent);
   padding: var(--space-1) var(--space-2-5);
