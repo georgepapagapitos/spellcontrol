@@ -24,6 +24,13 @@ depending on whether it is still a decision:
   is a floor (an oracle-level ask). It is omitted entirely while a side
   cannot be priced (`+?`), because a subtraction with a missing term is a lie
   with a dollar sign.
+- **Decline and Withdraw confirm (E501).** Both are final on the server:
+  there is no restore endpoint, so there is no Undo to offer. Each opens a
+  danger confirm, `Decline the trade from <who>?` / `Withdraw your offer to
+<who>?`, whose body says what the other person sees and ends
+  `This can't be undone.` (core § Delete and remove). Accept keeps its own
+  step, and Remove needs none. If a server restore ever lands, the confirm
+  goes and an Undo toast replaces it; never both.
 - **A finished trade is a ledger line, not a decision.** Declined, withdrawn
   and settled rows render `.is-compact`: tighter padding, flat `--surface`,
   no note, no net, the two sides collapsed to two ledger rows (`You give ·
