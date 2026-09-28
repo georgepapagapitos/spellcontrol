@@ -56,7 +56,9 @@ function StackCard({ item, clipped }: { item: StackPanelItem; clipped?: boolean 
   const art = item.imageUrl;
   return (
     <div
-      className={`stack-panel__card${clipped && art ? ' stack-panel__card--clipped' : ''}`}
+      className={`stack-panel__card${
+        art ? (clipped ? ' stack-panel__card--clipped' : '') : ' stack-panel__card--bar'
+      }`}
       data-preview-id={clipped && art ? item.id : undefined}
       data-token={item.isToken ? '' : undefined}
     >

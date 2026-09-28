@@ -1,7 +1,5 @@
 {
-  "spacing": {
-    "playtest/components/StackPanel.css": 1
-  },
+  "spacing": {},
   "breakpoints": {
     "components/CardDetails.css": 1,
     "components/deck/DeckAiReview.css": 1,

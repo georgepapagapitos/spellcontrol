@@ -1794,6 +1794,13 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   and let text run 8–16px under the 44px coarse-pointer version of the same
   button. `styles/menu-button-clearance.test.ts` and
   `styles/auth-touch-targets.test.ts` hold the two list and field cases.
+- **Something sized by its text is never cleared; it goes in the flow
+  (E502).** A label as wide as a username has no size to derive a clearance
+  from, so no reserved pad fits it. Lay it out as part of the row, on its
+  own line when the row is narrow, instead of positioning it over text. The
+  stack panel's text-bar rows are the case: a 4.25rem pad cleared
+  "A player" and every real seat name ran over the card name
+  (`styles/stack-panel-seat-chip.test.ts`).
 
 ## Responsive
 
