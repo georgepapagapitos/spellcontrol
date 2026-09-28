@@ -6,6 +6,7 @@ import { useAuth } from '../store/auth';
 import { useActivity } from '../lib/use-activity';
 import { getPendingCount, hasSyncError, isOnline, onSyncedChange } from '../lib/sync';
 import { UserAvatar } from './UserAvatar';
+import { Count } from './shared/Count';
 
 /**
  * True while sync has something a phone user should know about (offline,
@@ -65,11 +66,12 @@ export function MobileTabBar() {
       >
         <span className="mobile-tab-bar-glyph mobile-tab-bar-glyph-wrap">
           <Home {...ICON_PROPS} />
-          {count > 0 && (
-            <span className="mobile-tab-bar-badge" aria-hidden="true">
-              {count > 9 ? '9+' : count}
-            </span>
-          )}
+          <Count
+            className="mobile-tab-bar-badge"
+            value={count}
+            display={count > 9 ? '9+' : undefined}
+            placement="corner"
+          />
         </span>
         <span className="mobile-tab-bar-label">Home</span>
       </NavLink>

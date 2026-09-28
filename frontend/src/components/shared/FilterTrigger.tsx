@@ -1,5 +1,6 @@
 import { ListFilter } from 'lucide-react';
 import type { Ref } from 'react';
+import { Count } from './Count';
 
 interface Props {
   ref: Ref<HTMLButtonElement>;
@@ -33,11 +34,7 @@ export function FilterTrigger({ ref, open, onClick, activeCount, label }: Props)
       onClick={onClick}
     >
       <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
-      {activeCount > 0 && (
-        <span className="collection-filters-badge" aria-hidden>
-          {activeCount}
-        </span>
-      )}
+      <Count className="collection-filters-badge" value={activeCount} placement="corner" />
     </button>
   );
 }

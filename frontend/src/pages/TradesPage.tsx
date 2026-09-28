@@ -19,6 +19,7 @@ import {
 
 import { userMessage } from '@/lib/user-error';
 import { Button } from '@/components/shared/Button';
+import { Count } from '@/components/shared/Count';
 /**
  * `/trades` — every offer the viewer is party to, both directions, one place.
  *
@@ -271,11 +272,7 @@ function TradesPageBody() {
                   {/* aria-hidden like .friends-nav-link-badge: a bare "3" in the
                       section's accessible name reads as noise, and the row count
                       is already carried by the list itself. */}
-                  {rows.length > 0 && (
-                    <span className="trades-section-count" aria-hidden="true">
-                      {rows.length}
-                    </span>
-                  )}
+                  <Count className="trades-section-count" value={rows.length} placement="inline" />
                 </h2>
                 {group.id === 'past' && rows.length > 0 && (
                   <Button

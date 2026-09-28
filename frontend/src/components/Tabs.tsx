@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode, type Ref } from 'react';
 import { useOverflowEdges } from '@/lib/use-overflow-edges';
+import { Chip } from './shared/Chip';
 
 /** A tab's health badge — see {@link TabItem.badge}. */
 export interface TabBadge {
@@ -238,9 +239,9 @@ export function Tabs<T extends string>({
             )}
             {t.badge && (
               <>
-                <span className="sc-tab-badge" data-tone={t.badge.tone ?? 'neutral'} aria-hidden>
+                <Chip className="sc-tab-badge" tone={t.badge.tone ?? 'neutral'} aria-hidden>
                   {t.badge.text}
-                </span>
+                </Chip>
                 {/* Inside the button, so the badge joins the tab's accessible
                     name instead of reading as a stray number. */}
                 <span className="sr-only">, {t.badge.description}</span>

@@ -13,6 +13,7 @@ import { MeterBar } from '../shared/MeterBar';
 import { EmptyState } from '../shared/EmptyState';
 import './PullListSheet.css';
 import { Button, IconButton } from '@/components/shared/Button';
+import { Count } from '@/components/shared/Count';
 
 /**
  * Device-local checklist state for one deck's pull session — which row keys
@@ -178,6 +179,9 @@ export function PullListSheet({
               const unpulledKeys = pullable
                 ? g.rows.map((r) => rowKey(g, r.key)).filter((k) => !checked.has(k))
                 : [];
+              const groupCountText = pullable
+                ? `${groupPulled} of ${groupQty}`
+                : `${groupQty} ${groupQty === 1 ? 'card' : 'cards'}`;
               return (
                 <section key={g.key} className="pull-list-group" aria-label={g.label}>
                   <div className="pull-list-group-head">
@@ -189,11 +193,13 @@ export function PullListSheet({
                       />
                     )}
                     <h3 className="pull-list-group-title">{g.label}</h3>
-                    <span className="pull-list-group-count">
-                      {pullable
-                        ? `${groupPulled} of ${groupQty}`
-                        : `${groupQty} ${groupQty === 1 ? 'card' : 'cards'}`}
-                    </span>
+                    <Count
+                      className="pull-list-group-count"
+                      value={groupQty}
+                      placement="inline"
+                      display={groupCountText}
+                      label={groupCountText}
+                    />
                     {unpulledKeys.length > 1 && (
                       <Button
                         variant="link"

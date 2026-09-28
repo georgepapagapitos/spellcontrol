@@ -16,6 +16,7 @@ import { Legend, LegendContent } from './Legend';
 import { ToolbarPopover } from './shared/ToolbarPopover';
 import { useMediaQuery } from '../lib/use-media-query';
 import { Button, buttonClass } from '@/components/shared/Button';
+import { Count } from '@/components/shared/Count';
 
 export type BinderViewMode = 'pages' | 'list' | 'compact';
 
@@ -133,11 +134,7 @@ export function BinderSummaryBar({ binderName, onBrowsePages, sort, collapse, co
             triggerContent={
               <>
                 <Eye width={14} height={14} strokeWidth={1.8} aria-hidden />
-                {changed > 0 && (
-                  <span className="collection-filters-badge" aria-hidden>
-                    {changed}
-                  </span>
-                )}
+                <Count className="collection-filters-badge" value={changed} placement="corner" />
               </>
             }
             triggerClassName={`${buttonClass({ placement: 'toolbar' })} binder-summary-view`}
