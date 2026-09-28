@@ -1,4 +1,4 @@
-import { ListChecks, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
+import { ListChecks, Plus } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
@@ -27,6 +27,7 @@ import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { type BinderViewControls, type BinderViewMode } from '../components/BinderSummaryBar';
 import { useStoredView } from '../lib/use-stored-view';
 import { ShareDialog } from '../components/ShareDialog';
+import { useBinderActions } from '../components/use-binder-actions';
 import { CardName } from '@/components/shared/CardName';
 import { Button } from '@/components/shared/Button';
 
@@ -61,7 +62,6 @@ export function BinderPage() {
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const setSearch = useCollectionStore((s) => s.setSearch);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
-  const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
 
   // Sync the URL param into the existing activeTab store field so child
@@ -74,6 +74,7 @@ export function BinderPage() {
   const [cardEditorOpen, setCardEditorOpen] = useState(false);
   const [addCardSheetOpen, setAddCardSheetOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const { actionsFor } = useBinderActions();
   const [view, setView] = useStoredView<BinderViewMode>(
     'mtg-binder-view-mode',
     ['pages', 'list', 'compact'],
@@ -291,28 +292,13 @@ export function BinderPage() {
               disabled: !activeId,
               onClick: () => setCardEditorOpen(true),
             },
-            {
-              label: 'Binder rules',
-              icon: Pencil,
-              opensDialog: true,
-              disabled: !activeId,
-              onClick: () => activeId && setEditingBinder(activeId),
-            },
-            {
-              label: 'Share',
-              icon: Share2,
-              opensDialog: true,
-              disabled: !activeId,
-              onClick: () => setShareOpen(true),
-            },
-            {
-              label: 'Delete binder',
-              icon: Trash2,
-              danger: true,
-              menuOnly: true,
-              // Undoable from the toast, so it doesn't confirm first (T157).
-              onClick: () => deleteBinder(active.def.id),
-            },
+            // The binder's own actions, the same list its index tile's ⋮
+            // shows (use-binder-actions.tsx). Binder rules and Share may
+            // stand as buttons where there is room; reordering and Delete
+            // stay in the ⋮.
+            ...actionsFor(active.def, { onShare: () => setShareOpen(true) }).map(
+              ({ canStandAlone, ...a }) => ({ ...a, menuOnly: !canStandAlone })
+            ),
           ]}
           meta={
             active.def.fixedCapacity != null ? (

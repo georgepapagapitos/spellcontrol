@@ -56,7 +56,7 @@ beforeEach(() => {
 const renderEditor = () =>
   render(<BinderCardEditor binder={binder} allCards={allCards} onClose={onClose} />);
 
-const editorDialog = () => screen.getByRole('dialog', { name: /Edit cards/ });
+const editorDialog = () => screen.getByRole('dialog', { name: /Manage cards/ });
 
 /**
  * BinderCardEditor hand-rolled a `.modal-backdrop` + `.modal` pair with no

@@ -1172,13 +1172,14 @@ the guard flags is a real regression to fix, not a value to allowlist.
 - **`BinderTabs.tsx` is a deliberate, permanent exception to "all tabbed
   surfaces go through `Tabs.tsx`" above (E164).** It hand-rolls plain
   `<button className="tab">` elements instead of the primitive because each
-  binder tab carries a **per-tab affordance set the primitive has no slot
-  for**: a `BinderOverflowMenu` (reorder up/down, edit, delete — rendered only
-  for the active tab), a trailing "+ New binder" tab, an "Export" action, and
-  a conditional "Delete all" action. `Tabs`' `TabItem[]` is a flat
-  label/count/icon shape with one `onChange` — it has nowhere to hang a
-  per-tab trailing menu, and bolting one on for this single consumer would be
-  speculative (YAGNI) until a second tab strip needs the same thing.
+  binder tab carries **what the primitive has no slot for**: a fill in the
+  binder's own colour and a Manual badge, plus a trailing "+ New binder" tab
+  and an "Export" action. It used to hang a per-tab ⋯ menu (reorder, edit,
+  delete) off the active tab too; E472 removed it, because the binder's
+  actions have one home on its page, the header ⋮ (see § Binder views).
+  `Tabs`' `TabItem[]` is a flat label/count/icon shape with one `onChange`,
+  and bolting per-tab colour on for this single consumer would be speculative
+  (YAGNI) until a second tab strip needs the same thing.
   **The a11y gap this used to leave open is closed (E206)** — hand-rolling the
   markup doesn't mean hand-waving the semantics: `BinderTabs` carries its own
   `role="tablist"`/`"tab"`/`aria-selected` and roving tabindex with
@@ -3783,6 +3784,14 @@ never shows the chooser.
 - **The preview carries the card's binder actions**: Move to binder, then Set
   cover. Move hands the card to the move sheet, so the preview closes as it
   opens (`CardPreviewAction.closesPreview`), the way Edit does.
+- **A binder has one menu** (E472): the same items, from
+  `useBinderActions`, on its index tile's ⋮, the right-click that opens it,
+  and its own page's header ⋮: **Binder rules**, **Share**, **Move up / Move
+  down**, **Delete binder**. "Binder rules" is UX-305's name for the editor,
+  now used everywhere. On the page, Binder rules and Share may stand as buttons
+  where the header has room; reordering and Delete stay in the ⋮. Every move
+  toasts how many cards changed binder, wherever it was made. The tab strip has
+  no menu of its own.
 - **An empty binder warns only where it does harm.** Above another binder it
   takes that binder's cards: the amber banner. Last in line it is a catch-all:
   a plain note saying what it does. Both open "This binder has no conditions".

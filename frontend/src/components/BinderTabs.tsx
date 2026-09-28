@@ -1,32 +1,26 @@
-import { ChevronDown, ChevronUp, Download, MoreHorizontal, Pencil, X } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { Download } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import type { MaterializedBinder } from '../types';
 import { BinderExportDialog } from './BinderExportDialog';
-import { useMenuKeyboard } from '../lib/use-menu-keyboard';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useSheetExit } from '../lib/use-sheet-exit';
-import { IconButton } from '@/components/shared/Button';
 
 /**
  * Deliberately diverges from the shared `Tabs` component (board E164): plain
  * `<button className="tab">` elements instead of the primitive's flat
- * `TabItem[]` shape, because each tab needs a per-tab reorder/edit/delete
- * `BinderOverflowMenu` (rendered only for the active tab) that `Tabs` has no
- * slot for. E206 closed the resulting a11y gap directly on this component
+ * `TabItem[]` shape, because each tab fills with its own binder's colour and
+ * carries a Manual badge, which `Tabs` has no slot for. (It also used to hang
+ * a per-tab ⋯ menu here; E472 removed it: the binder's actions have one home
+ * on this page, the header ⋮, shared with its index tile.) E206 closed the resulting a11y gap directly on this component
  * (no second consumer of the affordance set exists, so the STYLE_GUIDE
  * revisit condition for extending `Tabs` wasn't met): the per-binder buttons
  * carry `role="tab"`/`aria-selected` inside a `role="tablist"` wrapper, with
  * roving tabindex and ←/→/Home/End navigation. The wrapper only spans the
  * real tabs — "+ New binder" / "Export" are toolbar actions,
  * not views, so they stay outside it as plain buttons (`display: contents`
- * keeps the wrapper invisible to the `.binder-tab-row` flex layout). The
- * `BinderOverflowMenu` trigger is a DOM *sibling* of the tab button inside
- * `.binder-tab-group`, never a descendant of it — nesting an interactive
- * control inside `role="tab"` would make it unreachable via the roving
- * tabindex, so this sibling shape is load-bearing, not incidental.
+ * keeps the wrapper invisible to the `.binder-tab-row` flex layout). Never
+ * nest an interactive control inside `role="tab"`: the roving tabindex could
+ * not reach it.
  *
  * Ruling (what to keep in lockstep, when to revisit): STYLE_GUIDE.md §
  * "Tabs / view switchers" — "`BinderTabs.tsx` is a deliberate, permanent
@@ -41,8 +35,6 @@ export function BinderTabs({ binders }: Props) {
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const navigate = useNavigate();
-  const moveBinder = useCollectionStore((s) => s.moveBinder);
-  const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const [exportOpen, setExportOpen] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -87,12 +79,6 @@ export function BinderTabs({ binders }: Props) {
         focusTab(sorted.length - 1);
         break;
     }
-  };
-
-  // A single delete is undoable from the toast, so it doesn't confirm first
-  // (T157) — deleteBinder shows the Undo toast itself.
-  const handleDelete = (id: string) => {
-    deleteBinder(id);
   };
 
   return (
@@ -142,18 +128,6 @@ export function BinderTabs({ binders }: Props) {
                 )}
                 <span className="tab-count">{b.totalCards.toLocaleString()}</span>
               </button>
-
-              {isActive && (
-                <BinderOverflowMenu
-                  color={b.def.color}
-                  canMoveUp={idx > 0}
-                  canMoveDown={idx < sorted.length - 1}
-                  onMoveUp={() => moveBinder(b.def.id, 'up')}
-                  onMoveDown={() => moveBinder(b.def.id, 'down')}
-                  onEdit={() => setEditingBinder(b.def.id)}
-                  onDelete={() => handleDelete(b.def.id)}
-                />
-              )}
             </div>
           );
         })}
@@ -186,214 +160,5 @@ export function BinderTabs({ binders }: Props) {
         />
       )}
     </div>
-  );
-}
-
-type PanelPos = { top: number; right: number };
-
-function BinderOverflowMenu({
-  color,
-  canMoveUp,
-  canMoveDown,
-  onMoveUp,
-  onMoveDown,
-  onEdit,
-  onDelete,
-}: {
-  color: string;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  // When the sheet is open on mobile it should claim the screen — locking
-  // body scroll prevents the page underneath from scrolling on a swipe.
-  useLockBodyScroll(open);
-
-  const handleToggle = () => {
-    if (!open && btnRef.current) {
-      // Capture the button's viewport position before the state update so the
-      // portaled panel opens right-aligned below the ⋮ button, independent of
-      // whatever overflow/container-type ancestor the trigger sits inside.
-      const r = btnRef.current.getBoundingClientRect();
-      setPanelPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
-    }
-    setOpen((v) => !v);
-  };
-
-  return (
-    <div className="binder-overflow">
-      <IconButton
-        className="binder-overflow-btn"
-        ref={btnRef}
-        style={{ borderColor: color }}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={handleToggle}
-        label="Binder actions"
-        icon={<MoreHorizontal width={18} height={18} strokeWidth={2} />}
-      />
-      {open && panelPos && (
-        <BinderOverflowPanel
-          triggerRef={btnRef}
-          panelPos={panelPos}
-          onClose={() => setOpen(false)}
-          canMoveUp={canMoveUp}
-          canMoveDown={canMoveDown}
-          onMoveUp={onMoveUp}
-          onMoveDown={onMoveDown}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
-      )}
-    </div>
-  );
-}
-
-/**
- * The open menu, split out so it (and useSheetExit's one-shot closing
- * state) unmounts with every close and mounts fresh on the next open.
- *
- * Portaled to <body> so the panel escapes the overflow-x:auto .binder-tab-row
- * scroll container (which promotes overflow-y to auto, clipping position:absolute
- * descendants at desktop). The position is passed in as fixed-viewport coords
- * computed from the trigger button's getBoundingClientRect().
- */
-function BinderOverflowPanel({
-  triggerRef,
-  panelPos,
-  onClose,
-  canMoveUp,
-  canMoveDown,
-  onMoveUp,
-  onMoveDown,
-  onEdit,
-  onDelete,
-}: {
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
-  panelPos: PanelPos;
-  onClose: () => void;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  // ≤1023px this renders as a bottom action sheet with a slide-up entry, so
-  // dismissal plays the symmetric slide-down exit via useSheetExit. On
-  // desktop it's a plain dropdown with no entry animation — exits stay
-  // instant there (symmetric with its entry), so we skip the hook's
-  // animation wait entirely.
-  // Boundary must match binder-nav.css's own @media (max-width: 1023px)
-  // exactly — a mismatch here would fire the sheet's slide-down exit
-  // animation on what CSS is rendering as the plain desktop dropdown (or
-  // vice versa), a mixed-mode animation glitch at exactly one pixel width.
-  // Escape belongs to the menu layer (useMenuKeyboard below), which sits above
-  // this sheet's own layer.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    {
-      escape: false,
-    }
-  );
-  const dismiss = useCallback(() => {
-    if (window.matchMedia('(max-width: 1023px)').matches) beginClose();
-    else onClose();
-  }, [beginClose, onClose]);
-
-  // Real menu-button keyboard semantics (WAI-ARIA menu pattern), shared with
-  // every other overflow menu in the app: initial focus into the panel,
-  // Arrow/Home/End movement between the (non-disabled) menuitems, Escape and
-  // outside-pointerdown dismiss with focus returned to the trigger. Replaces
-  // this panel's own hand-rolled mousedown+Escape listeners, which had none
-  // of the arrow-key or focus-return behavior.
-  const { closeAndReturnFocus } = useMenuKeyboard({
-    open: true,
-    onClose: dismiss,
-    panelRef,
-    triggerRef,
-  });
-
-  const closingClass = isClosing ? ' is-closing' : '';
-
-  return createPortal(
-    <>
-      {/* On mobile this backdrop converts the panel into a bottom
-          sheet. On desktop it's invisible (display:none from CSS) and
-          the panel renders as a fixed dropdown above all scroll containers. */}
-      <div
-        className={`binder-overflow-backdrop${closingClass}`}
-        onClick={() => dismiss()}
-        aria-hidden
-      />
-      <div
-        ref={panelRef}
-        className={`binder-overflow-panel${closingClass}`}
-        role="menu"
-        style={{ position: 'fixed', top: panelPos.top, right: panelPos.right }}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="binder-overflow-handle" aria-hidden />
-        <button
-          type="button"
-          role="menuitem"
-          className="binder-overflow-item"
-          disabled={!canMoveUp}
-          onClick={() => {
-            closeAndReturnFocus();
-            onMoveUp();
-          }}
-        >
-          <ChevronUp width={14} height={14} strokeWidth={1.8} aria-hidden />
-          <span>Move up</span>
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          className="binder-overflow-item"
-          disabled={!canMoveDown}
-          onClick={() => {
-            closeAndReturnFocus();
-            onMoveDown();
-          }}
-        >
-          <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
-          <span>Move down</span>
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          className="binder-overflow-item"
-          onClick={() => {
-            closeAndReturnFocus();
-            onEdit();
-          }}
-        >
-          <Pencil width={14} height={14} strokeWidth={1.8} aria-hidden />
-          <span>Edit binder</span>
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          className="binder-overflow-item binder-overflow-item--danger"
-          onClick={() => {
-            closeAndReturnFocus();
-            onDelete();
-          }}
-        >
-          <X width={14} height={14} strokeWidth={1.8} aria-hidden />
-          <span>Delete binder</span>
-        </button>
-      </div>
-    </>,
-    document.body
   );
 }

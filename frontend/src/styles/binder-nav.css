@@ -51,136 +51,6 @@
   border-radius: var(--radius);
 }
 
-.binder-tab-group.active .tab {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-/* ── Active-binder overflow menu (replaces inline action strip) ─────────── */
-.binder-overflow {
-  position: relative;
-  display: flex;
-}
-
-.binder-overflow-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0.5px solid var(--accent);
-  border-left: none;
-  border-top-right-radius: var(--radius);
-  border-bottom-right-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text-secondary);
-  padding: 0 10px;
-  min-width: 36px;
-  cursor: pointer;
-  transition: background var(--motion-fast);
-}
-
-.binder-overflow-btn[aria-expanded='true'] {
-  background: var(--surface-raised);
-  color: var(--text-primary);
-}
-@media (hover: hover) and (pointer: fine) {
-  .binder-overflow-btn:hover {
-    background: var(--surface-raised);
-    color: var(--text-primary);
-  }
-}
-
-.binder-overflow-backdrop {
-  /* Hidden by default — only used as the bottom-sheet scrim on mobile. */
-  display: none;
-}
-
-.binder-overflow-handle {
-  display: none;
-}
-
-.binder-overflow-panel {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  right: 0;
-  z-index: var(--z-dropdown);
-  min-width: 11rem;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-tooltip);
-  padding: 0.3rem;
-  display: flex;
-  flex-direction: column;
-}
-
-@media (max-width: 1023px) {
-  /* Mobile: the dropdown becomes a bottom action sheet. Full width,
-     large touch targets, scrim behind, slide-up animation. Mirrors the
-     iOS Action Sheet / Material Bottom Sheet pattern users already know
-     from native apps — and it can never be clipped by a scrolling
-     parent because it's anchored to the viewport.
-     Boundary is 1023, matching the app shell (base-layout.css) — the
-     BinderTabs.tsx dismiss() JS check must stay in lockstep with this. */
-  .binder-overflow-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: var(--overlay-sheet);
-    z-index: var(--z-sheet-bg);
-    animation: binder-sheet-fade 160ms var(--ease-out-soft);
-  }
-
-  .binder-overflow-panel {
-    position: fixed;
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: var(--z-sheet-fg);
-    min-width: 0;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    border: none;
-    border-top: 0.5px solid var(--border-strong);
-    box-shadow: var(--shadow-sheet);
-    padding: var(--space-2) var(--space-2) calc(var(--space-3) + var(--safe-bottom));
-    gap: 2px;
-    animation: binder-sheet-slide 220ms var(--ease-out-soft);
-  }
-
-  .binder-overflow-handle {
-    display: block;
-    width: 2.25rem;
-    height: 4px;
-    margin: var(--space-1) auto 0.6rem;
-    border-radius: 999px;
-    background: var(--border);
-  }
-
-  .binder-overflow-item {
-    font-size: var(--text-base);
-    padding: 0.85rem var(--space-3);
-    min-height: 3rem;
-    gap: var(--space-3);
-  }
-
-  .binder-overflow-item svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  /* Symmetric exit for the action sheet — slide back down + fade the scrim
-     (useSheetExit's .is-closing). Desktop never gets these classes: there
-     the panel is a plain dropdown with no entry animation, so close stays
-     instant (the component skips the hook outside this breakpoint). */
-  .binder-overflow-panel.is-closing {
-    animation: binder-sheet-slide-out var(--motion-gentle) var(--ease-drawer) forwards;
-  }
-
-  .binder-overflow-backdrop.is-closing {
-    animation: fade-out var(--motion-gentle) var(--ease-out-soft) forwards;
-  }
-}
-
 @keyframes binder-sheet-slide {
   from {
     transform: translateY(100%);
@@ -191,8 +61,7 @@
 }
 
 /* Mirror of binder-sheet-slide for dismissal — shared by every bottom sheet
-   that enters with binder-sheet-slide (binder overflow action sheet, the
-   card-picker family). Driven by .is-closing via useSheetExit. */
+   that enters with binder-sheet-slide (the card-picker family). Driven by .is-closing via useSheetExit. */
 @keyframes binder-sheet-slide-out {
   from {
     transform: translateY(0);
@@ -209,52 +78,6 @@
   to {
     opacity: 1;
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .binder-overflow-panel,
-  .binder-overflow-backdrop,
-  .binder-overflow-panel.is-closing,
-  .binder-overflow-backdrop.is-closing {
-    animation: none;
-  }
-}
-
-.binder-overflow-item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  background: transparent;
-  border: 0;
-  padding: var(--space-2) 0.6rem;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.binder-overflow-item:focus-visible:not(:disabled) {
-  background: var(--accent-light);
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .binder-overflow-item:hover:not(:disabled) {
-    background: var(--accent-light);
-    outline: none;
-  }
-}
-
-.binder-overflow-item:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.binder-overflow-item--danger {
-  color: var(--err-text);
 }
 
 .tab-actions {
@@ -357,10 +180,6 @@
 }
 
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
-.binder-overflow-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 .tab-action:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
