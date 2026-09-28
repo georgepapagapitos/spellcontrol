@@ -1813,9 +1813,6 @@
   color: var(--text-muted);
   max-width: 22rem;
 }
-.cube-pool-filters-hint {
-  margin: 0 0 var(--space-2);
-}
 .cube-footer-answer {
   display: flex;
   align-items: center;
