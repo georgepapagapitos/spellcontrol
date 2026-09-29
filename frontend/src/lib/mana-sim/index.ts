@@ -84,8 +84,9 @@
  *
  * `karsten.test.ts` reproduces Frank Karsten's published 99-card colour-source
  * table with his assumptions (`mulligan: 'karsten'`, 41 lands): every cost
- * shape at its published minimum and at 15 sources lands within a point of
- * his figure. `real-decks.test.ts` checks the metric moves the right way on
+ * shape at its published minimum and at 15 sources lands within four standard
+ * errors of his figure (20k games per cell; the largest gap measured was 1.1
+ * points, with no systematic sign). `real-decks.test.ts` checks the metric moves the right way on
  * real decks (fixing stripped, 33 vs 38 lands, taplands vs untapped duals).
  *
  * ## Cost
