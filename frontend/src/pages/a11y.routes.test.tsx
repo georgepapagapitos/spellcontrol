@@ -112,6 +112,7 @@ import { CubeIndexPage } from './CubeIndexPage';
 import { CubeChooserPage } from './cube/CubeChooserPage';
 import { DeckComparePage } from './DeckComparePage';
 import { DeckEditorPage } from './DeckEditorPage';
+import { ProxySheetPage } from './ProxySheetPage';
 import { PodHubPage } from './PodHubPage';
 import { FriendHubPage } from './FriendHubPage';
 import { PublicDeckPage } from './PublicDeckPage';
@@ -256,6 +257,12 @@ const CASES: RouteCase[] = [
     ready: /Add cards/,
   },
   {
+    path: '/decks/DECK/proxies',
+    seedDeck: true,
+    routes: <Route path="/decks/:id/proxies" element={<ProxySheetPage />} />,
+    ready: /Nothing to print/,
+  },
+  {
     path: '/auth',
     bare: true,
     guest: true,
@@ -353,7 +360,9 @@ describe('a11y (axe): full routes at phone width', () => {
           commander: null,
           cards: [],
         });
-        path = `/decks/${typeof deck === 'string' ? deck : (deck as { id: string }).id}`;
+        const id = typeof deck === 'string' ? deck : (deck as { id: string }).id;
+        // `/decks/DECK/proxies` opens the seeded deck's own sub-route.
+        path = c.path.replace('DECK', id);
       }
       render(
         <MemoryRouter initialEntries={[path]}>
