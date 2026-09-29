@@ -47,7 +47,6 @@ describe('volumesFor', () => {
     const cards = [card('Sol Ring', 'c1')];
     const { binders } = materializeBinders(cards, [makeBinder()], {
       search: '',
-      globalPocketSize: 9,
     });
     expect(volumesFor(binders[0])).toBeNull();
   });
@@ -55,7 +54,7 @@ describe('volumesFor', () => {
   it('splits a binder that outgrows its own capacity, using the binder’s own pocket size', () => {
     const cards = Array.from({ length: 20 }, (_, i) => card(`Card ${i}`, `c${i}`));
     const def = makeBinder({ fixedCapacity: 9 });
-    const { binders } = materializeBinders(cards, [def], { search: '', globalPocketSize: 9 });
+    const { binders } = materializeBinders(cards, [def], { search: '' });
     const volumes = volumesFor(binders[0]);
     expect(hasMultipleVolumes(volumes)).toBe(true);
     // 20 cards / 9 per page = 3 pages; capacity 9 cards = 1 page/volume -> 3 volumes.
@@ -66,7 +65,7 @@ describe('volumesFor', () => {
   it('fits in one volume when the binder is under capacity', () => {
     const cards = [card('Sol Ring', 'c1')];
     const def = makeBinder({ fixedCapacity: 360 });
-    const { binders } = materializeBinders(cards, [def], { search: '', globalPocketSize: 9 });
+    const { binders } = materializeBinders(cards, [def], { search: '' });
     const volumes = volumesFor(binders[0]);
     expect(hasMultipleVolumes(volumes)).toBe(false);
     expect(volumes).toHaveLength(1);

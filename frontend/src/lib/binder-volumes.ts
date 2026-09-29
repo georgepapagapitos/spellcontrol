@@ -49,3 +49,53 @@ export function pageVolume(volumes: Volume[] | null, pageNum: number): number | 
   if (!hasMultipleVolumes(volumes)) return undefined;
   return volumes.find((v) => pageNum >= v.pageStart && pageNum <= v.pageEnd)?.index;
 }
+
+/**
+ * The volumes vocabulary (E494), one wording for every surface that says how
+ * a binder splits into physical books: `BinderVolumesSheet`, the editor's
+ * Pages disclosure and its preview. A phrase is built here, never retyped at
+ * a second call site, so the surfaces can't drift apart.
+ */
+
+/** "binders of 360" (or "binder of 360"): the unit after a count. */
+export function bindersOfCapacity(count: number, fixedCapacity: number): string {
+  return `${count === 1 ? 'binder' : 'binders'} of ${fixedCapacity.toLocaleString()}`;
+}
+
+/** "4 binders of 360". */
+export function volumesOfCapacity(count: number, fixedCapacity: number): string {
+  return `${count.toLocaleString()} ${bindersOfCapacity(count, fixedCapacity)}`;
+}
+
+/** "1,105 cards need 4 binders of 360": the over-capacity fact. */
+export function cardsNeedVolumes(volumes: Volume[], fixedCapacity: number): string {
+  const cards = volumes.reduce((n, v) => n + v.cardCount, 0);
+  return `${cards.toLocaleString()} ${cards === 1 ? 'card needs' : 'cards need'} ${volumesOfCapacity(
+    volumes.length,
+    fixedCapacity
+  )}`;
+}
+
+/** "pp. 1–40" (or "p. 41"): the pages one volume holds. */
+export function volumePageRange(v: Volume): string {
+  return v.pageStart === v.pageEnd ? `p. ${v.pageStart}` : `pp. ${v.pageStart}–${v.pageEnd}`;
+}
+
+/** "White → Blue": the first and last section on one volume's spine. */
+export function volumeSpine(v: Volume): string {
+  return v.firstLabel === v.lastLabel ? v.firstLabel : `${v.firstLabel} → ${v.lastLabel}`;
+}
+
+/** The fix's button: "Use a 480-card binder". */
+export function fitButtonLabel(size: number): string {
+  return `Use a ${size.toLocaleString()}-card binder`;
+}
+
+/**
+ * "No standard size holds it in one book, so it stays in N volumes.": the
+ * plain answer when no marketed size fits (`smallestFittingCapacity` gave
+ * null).
+ */
+export function noFitMessage(volumeCount: number): string {
+  return `No standard size holds it in one book, so it stays in ${volumeCount} volumes.`;
+}

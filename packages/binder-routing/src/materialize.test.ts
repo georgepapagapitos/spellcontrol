@@ -63,7 +63,7 @@ function makeBinder(overrides: BinderOverrides = {}): BinderDef {
   };
 }
 
-const defaultOpts = { globalPocketSize: 9 as const, search: '' };
+const defaultOpts = { search: '' };
 
 describe('materializeBinders', () => {
   it('puts all cards in uncategorized when no binders are defined', () => {
@@ -151,15 +151,12 @@ describe('materializeBinders', () => {
     const cards = Array.from({ length: 10 }, () => makeCard({ colorIdentity: [] }));
     const binder = makeBinder({ filter: {}, sorts: [{ field: 'none', dir: 'asc' }] });
 
-    const { binders } = materializeBinders(cards, [binder], {
-      ...defaultOpts,
-      globalPocketSize: 9,
-    });
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
     const totalPages = binders[0].sections.reduce((s, sec) => s + sec.pages.length, 0);
     expect(totalPages).toBe(2);
   });
 
-  it('uses binder pocketSize when set instead of globalPocketSize', () => {
+  it('uses binder pocketSize when set instead of the default 9', () => {
     const cards = Array.from({ length: 5 }, () => makeCard({ colorIdentity: [] }));
     const binder = makeBinder({
       filter: {},
@@ -167,10 +164,7 @@ describe('materializeBinders', () => {
       pocketSize: 4,
     });
 
-    const { binders } = materializeBinders(cards, [binder], {
-      ...defaultOpts,
-      globalPocketSize: 9,
-    });
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
     expect(binders[0].effectivePocketSize).toBe(4);
     const totalPages = binders[0].sections.reduce((s, sec) => s + sec.pages.length, 0);
     expect(totalPages).toBe(2); // 4+1
@@ -853,7 +847,7 @@ describe('sectionMode: group', () => {
     expect(sections[0].label).toBe('Rares');
   });
 
-  it('falls back to "Group N" for unnamed groups', () => {
+  it('falls back to "Rule N" for unnamed rules', () => {
     const card = makeCard({ rarity: 'common' });
     const binder = makeBinder({
       filterGroups: [
@@ -862,7 +856,7 @@ describe('sectionMode: group', () => {
       sectionMode: 'group',
     });
     const { binders } = materializeBinders([card], [binder], defaultOpts);
-    expect(binders[0].sections[0].label).toBe('Group 1');
+    expect(binders[0].sections[0].label).toBe('Rule 1');
   });
 
   it('uses the group name when set', () => {
@@ -1258,9 +1252,14 @@ describe('Secret Lair drop sections + packSections', () => {
   // The drop IS the set, so the plain set sorts section by drop — newest first
   // is `setReleaseDate` descending, which reads each drop's own release date.
   const sldBinder = (overrides: Partial<BinderDef> = {}) =>
-    makeBinder({ filter: {}, sorts: [{ field: 'setReleaseDate', dir: 'desc' }], ...overrides });
+    makeBinder({
+      filter: {},
+      sorts: [{ field: 'setReleaseDate', dir: 'desc' }],
+      pocketSize: 12,
+      ...overrides,
+    });
 
-  const twelve = { globalPocketSize: 12 as const, search: '' };
+  const twelve = { search: '' };
 
   // A rolling container set (The List, SLP, SLC, PRM) holds printings from
   // many dates. Each release day is its own section, so a 2026 printing can
@@ -1276,6 +1275,7 @@ describe('Secret Lair drop sections + packSections', () => {
     const binder = makeBinder({
       filter: {},
       sorts: [{ field: 'setReleaseDate', dir: 'asc' }],
+      pocketSize: 12,
     });
     for (const order of [
       [listCard('Late', '2026-01-01'), listCard('Early', '2021-01-01'), cmm],
@@ -1404,6 +1404,7 @@ describe('Secret Lair drop sections + packSections', () => {
         const binder = makeBinder({
           filter: {},
           sorts: [{ field: 'setReleaseDate', dir }],
+          pocketSize: 12,
           packSections,
         });
         const { binders } = materializeBinders(cards, [binder], twelve);
@@ -1595,6 +1596,288 @@ describe('Secret Lair drop sections + packSections', () => {
     for (const page of pages.slice(0, -1)) {
       expect(page.slots.every((c) => c !== null)).toBe(true);
     }
+  });
+});
+
+describe('sparePockets ("leave room")', () => {
+  const opts = { search: '' };
+  const colorCard = (name: string, color: string) => makeCard({ name, colorIdentity: [color] });
+  const colorBinder = (overrides: Partial<BinderDef> = {}) =>
+    makeBinder({
+      filter: {},
+      sorts: [{ field: 'color', dir: 'asc' }],
+      pocketSize: 4,
+      ...overrides,
+    });
+  const blanks = (slots: (EnrichedCard | null)[]) => slots.filter((s) => s === null).length;
+
+  it('is a no-op at 0 (identical to leaving the field out)', () => {
+    const cards = ['W1', 'W2', 'W3'].map((n) => colorCard(n, 'W')).concat(colorCard('U1', 'U'));
+    const withField = materializeBinders(cards, [colorBinder({ sparePockets: 0 })], opts);
+    const without = materializeBinders(cards, [colorBinder({})], opts);
+    expect(withField.binders[0].sections).toEqual(without.binders[0].sections);
+  });
+
+  it("counts a section's own unfilled pockets toward the room, so no extra page is needed", () => {
+    // 3 white cards on 4-pocket pages already leave 1 blank pocket.
+    const cards = ['W1', 'W2', 'W3'].map((n) => colorCard(n, 'W'));
+    const { binders } = materializeBinders(cards, [colorBinder({ sparePockets: 1 })], opts);
+    expect(binders[0].sections[0].pages).toHaveLength(1);
+    expect(blanks(binders[0].sections[0].pages[0].slots)).toBe(1);
+  });
+
+  it('adds a wholly blank page when a section ends exactly on a page boundary', () => {
+    const cards = ['W1', 'W2', 'W3', 'W4'].map((n) => colorCard(n, 'W'));
+    cards.push(colorCard('U1', 'U'));
+    const { binders } = materializeBinders(cards, [colorBinder({ sparePockets: 2 })], opts);
+    const white = binders[0].sections.find((s) => s.label === 'White')!;
+    expect(white.pages).toHaveLength(2);
+    expect(blanks(white.pages[0].slots)).toBe(0);
+    expect(blanks(white.pages[1].slots)).toBe(4);
+    // Blue starts on the next physical page, never on White's reserved one.
+    const blue = binders[0].sections.find((s) => s.label === 'Blue')!;
+    expect(blue.pages[0].pageNum).toBe(white.pages[1].pageNum + 1);
+    expect(binders[0].totalPages).toBe(3);
+  });
+
+  it('is inert under either kind of page sharing', () => {
+    const cards = ['W1', 'W2', 'U1'].map((n) => colorCard(n, n[0]));
+    for (const packSections of [true, 'continuous'] as const) {
+      const shared = materializeBinders(cards, [colorBinder({ packSections })], opts);
+      const withRoom = materializeBinders(
+        cards,
+        [colorBinder({ packSections, sparePockets: 4 })],
+        opts
+      );
+      expect(withRoom.binders[0].sections).toEqual(shared.binders[0].sections);
+    }
+  });
+
+  it('applies to each sub-section under a deeper page break', () => {
+    const cards = [
+      makeCard({ name: 'W-1', colorIdentity: ['W'], cmc: 1 }),
+      makeCard({ name: 'W-2', colorIdentity: ['W'], cmc: 1 }),
+      makeCard({ name: 'W-3', colorIdentity: ['W'], cmc: 1 }),
+      makeCard({ name: 'W-hi', colorIdentity: ['W'], cmc: 5 }),
+    ];
+    const binder = colorBinder({
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pageBreakDepth: 2,
+      sparePockets: 2,
+    });
+    const { binders } = materializeBinders(cards, [binder], opts);
+    // [1,1,1] has 1 natural blank and needs a reserved page; [5] has 3 already.
+    const cmc1 = binders[0].sections.find((s) => s.cards[0]?.cmc === 1)!;
+    const cmc5 = binders[0].sections.find((s) => s.cards[0]?.cmc === 5)!;
+    expect(cmc1.pages).toHaveLength(2);
+    expect(blanks(cmc1.pages[1].slots)).toBe(4);
+    expect(cmc5.pages).toHaveLength(1);
+  });
+
+  it('applies to rule sections too (sectionMode: group)', () => {
+    const rare = { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } };
+    const common = { rarities: { chips: [{ value: 'common', negate: false }], joiners: [] } };
+    const cards = [
+      makeCard({ name: 'R1', rarity: 'rare' }),
+      makeCard({ name: 'R2', rarity: 'rare' }),
+      makeCard({ name: 'R3', rarity: 'rare' }),
+      makeCard({ name: 'R4', rarity: 'rare' }),
+      makeCard({ name: 'C1', rarity: 'common' }),
+    ];
+    const binder = colorBinder({
+      sectionMode: 'group',
+      filterGroups: [
+        { name: 'Rares', filter: rare },
+        { name: 'Commons', filter: common },
+      ],
+      sparePockets: 4,
+    });
+    const { binders } = materializeBinders(cards, [binder], opts);
+    const [rares, commons] = binders[0].sections;
+    expect(rares.label).toBe('Rares');
+    expect(rares.pages.map((p) => blanks(p.slots))).toEqual([0, 4]);
+    // One common leaves 3 natural blanks, so a full page of room adds one page.
+    expect(commons.pages.map((p) => blanks(p.slots))).toEqual([3, 4]);
+    expect(commons.pages[0].pageNum).toBe(3);
+  });
+
+  it('leaves reserved pages out of a search, but keeps every later page number', () => {
+    const cards = ['W1', 'W2', 'W3', 'W4'].map((n) => colorCard(n, 'W'));
+    cards.push(colorCard('U1', 'U'));
+    const def = colorBinder({ sparePockets: 4 });
+    const plain = materializeBinders(cards, [def], opts).binders[0];
+    const searched = materializeBinders(cards, [def], { search: 'W1' }).binders[0];
+    const white = searched.sections.find((s) => s.label === 'White')!;
+    expect(white.pages).toHaveLength(1); // the reserved page has no match
+    const blueSearch = materializeBinders(cards, [def], { search: 'U1' }).binders[0];
+    const bluePlain = plain.sections.find((s) => s.label === 'Blue')!;
+    expect(blueSearch.sections[0].pages[0].pageNum).toBe(bluePlain.pages[0].pageNum);
+  });
+
+  it('clamps an absurd value instead of allocating thousands of pages', () => {
+    const cards = [colorCard('W1', 'W')];
+    const { binders } = materializeBinders(cards, [colorBinder({ sparePockets: 1e9 })], opts);
+    expect(binders[0].totalPages).toBeLessThanOrEqual(5);
+    for (const bad of [-3, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const r = materializeBinders(cards, [colorBinder({ sparePockets: bad })], opts);
+      expect(r.binders[0].totalPages).toBeLessThanOrEqual(5);
+    }
+  });
+
+  // Page-integrity invariants, swept across every pocket size, every filling
+  // mode, both section sources and several amounts of room. Section sizes hit
+  // an exact page boundary, a near-full page, a lone card and a section longer
+  // than a page.
+  describe('invariants', () => {
+    const colorSizes = (pocket: number): [string, number][] => [
+      ['W', pocket * 2],
+      ['U', 1],
+      ['B', pocket - 1],
+      ['R', pocket + 3],
+    ];
+    const deck = (pocket: number) =>
+      colorSizes(pocket).flatMap(([color, n]) =>
+        Array.from({ length: n }, (_, i) =>
+          makeCard({
+            name: `${color}${String(i).padStart(2, '0')}`,
+            colorIdentity: [color],
+            rarity: color === 'W' ? 'rare' : color === 'U' ? 'uncommon' : 'common',
+          })
+        )
+      );
+    const byRarity = (value: string) => ({
+      rarities: { chips: [{ value, negate: false }], joiners: [] },
+    });
+
+    for (const pocket of [4, 9, 12] as const) {
+      for (const packSections of [false, true, 'continuous'] as const) {
+        for (const sectionMode of ['sort', 'group'] as const) {
+          for (const spare of [0, 1, Math.round(pocket / 2), pocket, pocket + 1]) {
+            const title = `${pocket}-pocket, pack ${String(packSections)}, ${sectionMode}, room ${spare}`;
+            it(title, () => {
+              const cards = deck(pocket);
+              const def = makeBinder({
+                sorts: [
+                  { field: 'color', dir: 'asc' },
+                  { field: 'name', dir: 'asc' },
+                ],
+                pocketSize: pocket,
+                packSections,
+                sparePockets: spare,
+                sectionMode,
+                filterGroups:
+                  sectionMode === 'group'
+                    ? [
+                        { name: 'Rares', filter: byRarity('rare') },
+                        { name: 'Uncommons', filter: byRarity('uncommon') },
+                        { name: 'Commons', filter: byRarity('common') },
+                      ]
+                    : [{ filter: {} }],
+              });
+              const binder = materializeBinders(cards, [def], opts).binders[0];
+              const pages = binder.sections.flatMap((s) => s.pages);
+
+              // Every page is a full pocket grid, numbered 1..N with no gaps,
+              // and no page belongs to two sections.
+              expect(pages.every((p) => p.slots.length === pocket)).toBe(true);
+              expect(pages.map((p) => p.pageNum)).toEqual(pages.map((_, i) => i + 1));
+              expect(binder.totalPages).toBe(pages.length);
+
+              // Every card sits in exactly one pocket, in section order.
+              const placed = pages.flatMap((p) => p.slots.filter((c) => c !== null));
+              expect(placed).toEqual(binder.sections.flatMap((s) => s.cards));
+              expect(placed).toHaveLength(cards.length);
+
+              // No page is wholly blank unless it is room left on purpose.
+              const roomActive = spare > 0 && packSections === false;
+              if (!roomActive) {
+                expect(pages.some((p) => p.slots.every((c) => c === null))).toBe(false);
+              }
+
+              for (const section of binder.sections) {
+                const slots = section.pages.flatMap((p) => p.slots);
+                const lastCard = slots.map((c) => c !== null).lastIndexOf(true);
+                const trailing = slots.length - 1 - lastCard;
+                if (roomActive) {
+                  // At least the room asked for, and never a page more than needed.
+                  expect(trailing).toBeGreaterThanOrEqual(spare);
+                  expect(trailing < spare + pocket).toBe(true);
+                  expect(section.labels).toBeUndefined(); // room never merges sections
+                } else {
+                  expect(trailing).toBeLessThan(pocket);
+                }
+              }
+
+              // Room is inert under sharing: identical to asking for none.
+              if (packSections !== false && spare > 0) {
+                const none = materializeBinders(cards, [{ ...def, sparePockets: 0 }], opts)
+                  .binders[0];
+                expect(binder.sections).toEqual(none.sections);
+              }
+
+              // A search keeps each surviving page's physical number.
+              const target = cards[cards.length - 1];
+              const searched = materializeBinders(cards, [def], { search: target.name }).binders[0];
+              const hit = searched.sections.flatMap((s) => s.pages);
+              expect(hit).toHaveLength(1);
+              const home = pages.find((p) => p.slots.includes(target))!;
+              expect(hit[0].pageNum).toBe(home.pageNum);
+            });
+          }
+        }
+      }
+    }
+  });
+});
+
+describe('rule sections honour page filling (sectionMode: group, E473)', () => {
+  const byRarity = (value: string) => ({
+    rarities: { chips: [{ value, negate: false }], joiners: [] },
+  });
+  const def = (packSections: BinderDef['packSections']) =>
+    makeBinder({
+      sectionMode: 'group',
+      pocketSize: 9,
+      sorts: [{ field: 'name', dir: 'asc' }],
+      filterGroups: [
+        { name: 'Mythics', filter: byRarity('mythic') },
+        { name: 'Rares', filter: byRarity('rare') },
+      ],
+      packSections,
+    });
+  const cards = [
+    ...['M2', 'M1'].map((name) => makeCard({ name, rarity: 'mythic' })),
+    ...['R3', 'R1', 'R2'].map((name) => makeCard({ name, rarity: 'rare' })),
+  ];
+
+  it('starts each rule on a fresh page by default', () => {
+    const b = materializeBinders(cards, [def(false)], defaultOpts).binders[0];
+    expect(b.sections.map((s) => s.label)).toEqual(['Mythics', 'Rares']);
+    expect(b.totalPages).toBe(2);
+  });
+
+  it('shares a page when both rules fit, in rule order, each page naming its rules', () => {
+    const b = materializeBinders(cards, [def(true)], defaultOpts).binders[0];
+    expect(b.totalPages).toBe(1);
+    expect(b.sections).toHaveLength(1);
+    const [section] = b.sections;
+    expect(section.labels).toEqual(['Mythics', 'Rares']);
+    expect(section.cards.map((c) => c.name)).toEqual(['M1', 'M2', 'R1', 'R2', 'R3']);
+    expect(section.cardLabels).toEqual(['Mythics', 'Mythics', 'Rares', 'Rares', 'Rares']);
+    expect(section.pages[0].labels).toEqual(['Mythics', 'Rares']);
+  });
+
+  it('flows edge to edge under "No gaps"', () => {
+    const many = Array.from({ length: 8 }, (_, i) =>
+      makeCard({ name: `M${i}`, rarity: 'mythic' })
+    ).concat(cards.slice(2));
+    const b = materializeBinders(many, [def('continuous')], defaultOpts).binders[0];
+    // 8 mythics + 3 rares = 11 cards on 9-pocket pages: two pages, no blank before the rares.
+    expect(b.totalPages).toBe(2);
+    expect(b.sections[0].pages[0].labels).toEqual(['Mythics', 'Rares']);
   });
 });
 

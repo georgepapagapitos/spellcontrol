@@ -64,7 +64,7 @@ function fakeBinder(): MaterializedBinder {
 
 describe('BinderEditorPreview', () => {
   it('renders a loading state while the collection hydrates', () => {
-    render(<BinderEditorPreview binder={null} loading fixedCapacity={null} />);
+    render(<BinderEditorPreview binder={null} loading />);
     expect(screen.getByText(/loading your cards/i)).toBeTruthy();
   });
 
@@ -75,12 +75,12 @@ describe('BinderEditorPreview', () => {
       totalCards: 0,
       totalPages: 0,
     };
-    render(<BinderEditorPreview binder={empty} loading={false} fixedCapacity={null} />);
+    render(<BinderEditorPreview binder={empty} loading={false} />);
     expect(screen.getByText(/nothing to preview/i)).toBeTruthy();
   });
 
   it('renders the first spread of pages, stats and the sections list', () => {
-    render(<BinderEditorPreview binder={fakeBinder()} loading={false} fixedCapacity={null} />);
+    render(<BinderEditorPreview binder={fakeBinder()} loading={false} />);
     expect(screen.getByTestId('page-1').textContent).toContain('White');
     expect(screen.getByTestId('page-2').textContent).toContain('White');
     expect(screen.getByText('27')).toBeTruthy(); // cards stat
@@ -92,18 +92,34 @@ describe('BinderEditorPreview', () => {
   });
 
   it('shows the binders-of-capacity stat only when a capacity is set', () => {
-    const { rerender } = render(
-      <BinderEditorPreview binder={fakeBinder()} loading={false} fixedCapacity={null} />
-    );
+    const { rerender } = render(<BinderEditorPreview binder={fakeBinder()} loading={false} />);
     expect(screen.queryByText(/binders? of/)).toBeNull();
 
-    rerender(<BinderEditorPreview binder={fakeBinder()} loading={false} fixedCapacity={20} />);
-    // 27 cards, capacity 20 -> ceil(27/20) = 2 binders of 20.
-    expect(screen.getByText(/binders of 20/)).toBeTruthy();
+    const capped = fakeBinder();
+    capped.def = { ...capped.def, fixedCapacity: 27 };
+    rerender(<BinderEditorPreview binder={capped} loading={false} />);
+    expect(screen.getByText('binder of 27')).toBeTruthy();
+  });
+
+  it('counts binders by pages, as the Pages answer does, not cards over capacity', () => {
+    // 19 cards on 3 pages (White ends one card into its second page). A
+    // 20-card binder holds 2 pages, so this needs 2 binders, though 19 < 20.
+    const b = fakeBinder();
+    const white = b.sections[0];
+    white.cards = white.cards.slice(0, 10);
+    white.pages = [
+      { pageNum: 1, slots: white.cards.slice(0, 9) },
+      { pageNum: 2, slots: [white.cards[9], ...Array<null>(8).fill(null)] },
+    ];
+    b.totalCards = 19;
+    b.def = { ...b.def, fixedCapacity: 20 };
+    render(<BinderEditorPreview binder={b} loading={false} />);
+    expect(screen.getByText('binders of 20')).toBeTruthy();
+    expect(screen.getByText('2')).toBeTruthy();
   });
 
   it('jumps the preview to a section on click, and steps with prev/next', () => {
-    render(<BinderEditorPreview binder={fakeBinder()} loading={false} fixedCapacity={null} />);
+    render(<BinderEditorPreview binder={fakeBinder()} loading={false} />);
     // Starts on the first spread: pages 1 and 2.
     expect(screen.getByTestId('page-1')).toBeTruthy();
     expect(screen.getByTestId('page-2')).toBeTruthy();

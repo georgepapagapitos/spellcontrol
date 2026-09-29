@@ -65,7 +65,6 @@ describe('buildReviewQueue', () => {
 
     // Baseline: only `rares` exists, and it holds the card.
     const { binders: baselineBinders } = materializeBinders([rare], [rares], {
-      globalPocketSize: 9,
       search: '',
     });
     const snapshot = captureBinderSnapshot(baselineBinders[0]);
@@ -75,7 +74,6 @@ describe('buildReviewQueue', () => {
     // binder was added — the card now lives there instead.
     const commonNow = { ...rare, rarity: 'common' };
     const { binders: liveBinders } = materializeBinders([commonNow], [reviewedRares, everything], {
-      globalPocketSize: 9,
       search: '',
     });
     const raresLive = liveBinders.find((b) => b.def.id === 'rares')!;
@@ -100,7 +98,6 @@ describe('buildReviewQueue', () => {
       filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
     });
     const { binders: baselineBinders } = materializeBinders([rare], [rares], {
-      globalPocketSize: 9,
       search: '',
     });
     const reviewedRares = {
@@ -110,7 +107,6 @@ describe('buildReviewQueue', () => {
 
     const commonNow = { ...rare, rarity: 'common' };
     const { binders: liveBinders } = materializeBinders([commonNow], [reviewedRares], {
-      globalPocketSize: 9,
       search: '',
     });
     const drift = computeDrift(liveBinders[0], [commonNow], []);
@@ -126,7 +122,6 @@ describe('buildReviewQueue', () => {
       filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
     });
     const { binders: baselineBinders } = materializeBinders([rare], [rares], {
-      globalPocketSize: 9,
       search: '',
     });
     const reviewedRares = {
@@ -136,7 +131,6 @@ describe('buildReviewQueue', () => {
 
     // Card is entirely gone now.
     const { binders: liveBinders } = materializeBinders([], [reviewedRares], {
-      globalPocketSize: 9,
       search: '',
     });
     const drift = computeDrift(liveBinders[0], [], []);
@@ -154,7 +148,6 @@ describe('buildReviewQueue', () => {
       filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
     });
     const { binders: baselineBinders } = materializeBinders([rare1, rare2], [rares], {
-      globalPocketSize: 9,
       search: '',
     });
     const reviewedRares = {
@@ -165,7 +158,6 @@ describe('buildReviewQueue', () => {
     const commonNow1 = { ...rare1, rarity: 'common' };
     const commonNow2 = { ...rare2, rarity: 'common' };
     const { binders: liveBinders } = materializeBinders([commonNow1, commonNow2], [reviewedRares], {
-      globalPocketSize: 9,
       search: '',
     });
     const drift = computeDrift(liveBinders[0], [commonNow1, commonNow2], []);
@@ -189,7 +181,7 @@ describe('buildReviewQueue', () => {
       filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
       lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} }, // reviewed, empty baseline
     });
-    const { binders } = materializeBinders([card], [rares], { globalPocketSize: 9, search: '' });
+    const { binders } = materializeBinders([card], [rares], { search: '' });
     const drift = computeDrift(binders[0], [card], []);
     expect(drift.added).toHaveLength(1);
 
@@ -205,7 +197,6 @@ describe('buildReviewQueue', () => {
     // Baseline world: only catch-all `bulk` exists and the card was reviewed there.
     const bulk = makeBinder({ id: 'bulk', name: 'Bulk', position: 1, filter: {} });
     const { binders: baseline } = materializeBinders([rare], [bulk], {
-      globalPocketSize: 9,
       search: '',
     });
     const reviewedBulk = { ...bulk, lastReviewedSnapshot: captureBinderSnapshot(baseline[0]) };
@@ -219,7 +210,6 @@ describe('buildReviewQueue', () => {
       lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} },
     });
     const { binders: live } = materializeBinders([rare], [rares, reviewedBulk], {
-      globalPocketSize: 9,
       search: '',
     });
     const raresLive = live.find((b) => b.def.id === 'rares')!;
@@ -264,7 +254,6 @@ describe('buildReviewQueue', () => {
       lastReviewedSnapshot: { at: 1, keys: [printingFinishKey(b)], cardSnapshots: {} },
     });
     const { binders: live } = materializeBinders([a, b, c], [rares, holder2, holder5], {
-      globalPocketSize: 9,
       search: '',
     });
     const raresLive = live.find((x) => x.def.id === 'rares')!;
@@ -296,7 +285,6 @@ describe('buildReviewQueue', () => {
     // *different* binder's snapshot may claim to be the source.
     const self = { ...rares, lastReviewedSnapshot: { at: 1, keys: [key], cardSnapshots: {} } };
     const { binders: live } = materializeBinders([rare], [rares], {
-      globalPocketSize: 9,
       search: '',
     });
     const drift = computeDrift(live[0], [rare], []);
@@ -315,7 +303,6 @@ describe('buildReviewQueue', () => {
       filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
     });
     const { binders: baselineBinders } = materializeBinders([a, b, c], [rares], {
-      globalPocketSize: 9,
       search: '',
     });
     const reviewedRares = {
@@ -329,7 +316,6 @@ describe('buildReviewQueue', () => {
     const aCommon = { ...a, rarity: 'common' };
     const bCommon = { ...b, rarity: 'common' };
     const { binders: liveBinders } = materializeBinders([aCommon, bCommon], [reviewedRares, late], {
-      globalPocketSize: 9,
       search: '',
     });
     const raresLive = liveBinders.find((bd) => bd.def.id === 'rares')!;
@@ -360,7 +346,6 @@ describe('buildReviewQueue', () => {
     });
     const cards = [imported1, imported2, moved];
     const { binders: live } = materializeBinders(cards, [rares], {
-      globalPocketSize: 9,
       search: '',
     });
     const raresLive = live[0];
@@ -398,7 +383,6 @@ describe('buildReviewQueue', () => {
     });
     const cards = [fromB, fromA];
     const { binders: live } = materializeBinders(cards, [rares], {
-      globalPocketSize: 9,
       search: '',
     });
     const drift = computeDrift(live[0], cards, [
@@ -423,7 +407,6 @@ describe('buildReviewQueue', () => {
       lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} },
     });
     const { binders: live } = materializeBinders([card], [rares], {
-      globalPocketSize: 9,
       search: '',
     });
     const drift = computeDrift(

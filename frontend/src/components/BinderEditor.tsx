@@ -14,7 +14,6 @@ import { SortPresetChips } from './SortPresets';
 import { sortOrderSummaryLabel } from '../lib/sort-order-label';
 import { areAllGroupsEmpty } from '../lib/rules';
 import {
-  countBinderMatches,
   countEffectiveLanding,
   formatCaughtBy,
   materializeDraftPreview,
@@ -26,7 +25,26 @@ import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { useMediaQuery } from '../lib/use-media-query';
 import { cleanFilter } from '../lib/clean-filter';
-import { formatPagesSummary, PACK_LABEL } from '../lib/binder-pages-summary';
+import {
+  formatPagesSummary,
+  PACK_LABEL,
+  leaveRoomOf,
+  leaveRoomPockets,
+  sheetCount,
+  sheetsPhrase,
+  type LeaveRoom,
+} from '../lib/binder-pages-summary';
+import {
+  cardsNeedVolumes,
+  fitButtonLabel,
+  hasMultipleVolumes,
+  noFitMessage,
+  smallestFittingCapacity,
+  standardBinderSizes,
+  volumePageRange,
+  volumeSpine,
+  volumesFor,
+} from '../lib/binder-volumes';
 import { Modal } from './Modal';
 import { SelectMenu } from './SelectMenu';
 import { ColorPicker } from './ColorPicker';
@@ -90,30 +108,74 @@ const STARTER_LABELS = new Set(STARTER_TEMPLATES.map((t) => t.label));
 const sortFieldLabel = (field: string | undefined): string =>
   SORT_FIELDS.find((f) => f.value === field)?.label ?? 'group';
 
-/** The page's pocket grid, drawn: 2×2, 3×3 or 4×3. The number sits beside it. */
+/** The page's pocket grid, drawn: 2×2, 3×3 or 4×3 card-shaped pockets. */
 function PocketGlyph({ pockets }: { pockets: PocketSize }) {
   const cols = pockets === 4 ? 2 : pockets === 12 ? 4 : 3;
-  const rows = pockets === 4 ? 2 : 3;
-  const cell = 3.2;
-  const gap = 1.2;
-  const w = cols * cell + (cols - 1) * gap;
-  const h = rows * cell + (rows - 1) * gap;
   return (
-    <svg width={w * 1.25} height={h * 1.25} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+    <span
+      className="binder-pocket-glyph"
+      style={{ '--pocket-cols': cols } as CSSProperties}
+      aria-hidden="true"
+    >
       {Array.from({ length: pockets }, (_, i) => (
-        <rect
-          key={i}
-          x={(i % cols) * (cell + gap)}
-          y={Math.floor(i / cols) * (cell + gap)}
-          width={cell}
-          height={cell}
-          rx={0.6}
-          fill="currentColor"
-        />
+        <i key={i} />
       ))}
-    </svg>
+    </span>
   );
 }
+
+/** What a binder buyer calls each pocket count: the word under the tile. */
+const POCKET_TILE_CAPTION: Record<PocketSize, string> = {
+  4: 'Toploader pages',
+  9: 'Most binders',
+  12: 'Zip binders',
+};
+
+/** One pocket-count tile: the grid, the number and what it's called. It is
+ *  a `SegmentedControl` option's label, so the tile stays a native radio. */
+function PocketTileLabel({ pockets }: { pockets: PocketSize }) {
+  return (
+    <span className="binder-pocket-tile">
+      <PocketGlyph pockets={pockets} />
+      <span className="binder-pocket-tile-n">{pockets}</span>
+      <span className="binder-pocket-tile-caption">{POCKET_TILE_CAPTION[pockets]}</span>
+    </span>
+  );
+}
+
+/**
+ * Two tiny 9-pocket pages per page-filling mode (mockup 06), so the three are
+ * seen, not parsed. Decorative (`aria-hidden`): the option's text names it.
+ * Each letter is one pocket: a, b and c are three sections in turn, e is an
+ * empty pocket. Hand-drawn to show the rule, not the user's cards; the
+ * preview column shows those.
+ */
+const FILL_PATTERNS: Record<'false' | 'true' | 'continuous', [string, string]> = {
+  false: ['aaaaeeeee', 'bbbeeeeee'],
+  true: ['aaaabbbee', 'ccccceeee'],
+  continuous: ['aaaabbbcc', 'ccceeeeee'],
+};
+
+function FillPictogram({ mode }: { mode: 'false' | 'true' | 'continuous' }) {
+  return (
+    <span className="binder-fill-pic" aria-hidden="true">
+      {FILL_PATTERNS[mode].map((page, pi) => (
+        <span key={pi} className="binder-fill-pic-page">
+          {page.split('').map((slot, si) => (
+            <i key={si} className={`binder-fill-pic-pocket--${slot}`} />
+          ))}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** "Leave room" choices, in the control's order. */
+const LEAVE_ROOM_OPTIONS: { value: LeaveRoom; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'half', label: 'Half a page' },
+  { value: 'full', label: 'A full page' },
+];
 
 /** The binder's tab colour as a dot beside its name; the picker opens on tap. */
 function ColorDot({
@@ -255,6 +317,14 @@ export function BinderEditor() {
   const [sectionMode, setSectionMode] = useState<'sort' | 'group'>('sort');
   const [pageBreakDepth, setPageBreakDepth] = useState<number>(1);
   const [packSections, setPackSections] = useState<false | true | 'continuous'>(false);
+  // "Leave room" (BinderDef.sparePockets, E473), held as the choice the
+  // control offers so the same room survives a pocket-size change; the pocket
+  // count is derived at save time (`leaveRoomPockets`).
+  const [leaveRoom, setLeaveRoom] = useState<LeaveRoom>('none');
+  // "Other…" in Holds: a size the chips don't sell. Its own state, because a
+  // custom number can equal a chip (the default 360 on a double-sided
+  // 9-pocket binder), and picking Other must still open the number field.
+  const [holdsOther, setHoldsOther] = useState(false);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
   const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
@@ -410,13 +480,28 @@ export function BinderEditor() {
         setDoubleSided(!!existing.doubleSided);
         setTradeable(!!existing.tradeable);
         setFixedCapacity(existing.fixedCapacity ?? null);
+        setHoldsOther(
+          existing.fixedCapacity != null &&
+            !standardBinderSizes(existing.pocketSize ?? 9).includes(existing.fixedCapacity)
+        );
         setShowDeckAllocated(existing.hideDeckAllocated !== false);
         setKeepPrintingsTogether(!!existing.keepPrintingsTogether);
         setSectionMode(existing.sectionMode ?? 'sort');
         setPageBreakDepth(existing.pageBreakDepth ?? 1);
+        // A deeper page break wins over page sharing in the engine
+        // (`buildSections` only packs at depth 1), so a stored binder with
+        // both shows what it really does: a new page per section.
+        const breaksDeeper =
+          existing.sectionMode !== 'group' &&
+          Math.min(existing.pageBreakDepth ?? 1, existing.sorts.length) > 1;
         setPackSections(
-          existing.packSections === 'continuous' ? 'continuous' : !!existing.packSections
+          breaksDeeper
+            ? false
+            : existing.packSections === 'continuous'
+              ? 'continuous'
+              : !!existing.packSections
         );
+        setLeaveRoom(leaveRoomOf(existing.sparePockets, existing.pocketSize ?? 9));
         const existingGroups = existing.filterGroups?.length
           ? existing.filterGroups.map((g) => ({
               name: g.name,
@@ -434,10 +519,13 @@ export function BinderEditor() {
         setDoubleSided(false);
         setTradeable(false);
         setFixedCapacity(null);
+        setHoldsOther(false);
         setShowDeckAllocated(true);
         setKeepPrintingsTogether(false);
         setSectionMode('sort');
         setPageBreakDepth(1);
+        setPackSections(false);
+        setLeaveRoom('none');
         setGroups(editingBinderSeed?.groups?.length ? editingBinderSeed.groups : [newGroup()]);
         setRoutingMode('rules');
         setSorts([...NEW_BINDER_DEFAULT_SORTS]);
@@ -468,29 +556,21 @@ export function BinderEditor() {
   // special-case "collision prompt wins"; useOverlayLayer resolves that by
   // mount order instead.
 
-  // Over-capacity check uses the same estimate the editor shows: when
-  // "keep all printings together" is on, count the printings it pulls in too,
-  // so the warning doesn't silently under-count.
   // BinderPage's inputs, so the other binders route here the way they do on
   // their own pages: a tag-rule binder above the draft needs tagged cards too,
   // or it catches nothing and its cards read as landing in the draft (a new
   // "$1+" binder said 30 land here out of a 27-card pile). Tags are added
-  // again for the draft's own rules, since it isn't committed yet. Feeds BOTH
-  // the over-capacity check below AND the per-group badge in FilterGroupList.
+  // again for the draft's own rules, since it isn't committed yet. Feeds the
+  // landing counts below and the per-group badge in FilterGroupList.
   const layout = useBinderLayoutInputs();
   const taggedCards = useCardsWithTags(layout.cards, groupsUseTags(groups));
-  // `groups` changes on every keystroke inside a condition; both reads below
+  // `groups` changes on every keystroke inside a condition; the reads below
   // scan the whole collection (a real account runs 11k+ cards), so feeding
   // them live `groups` made typing itself the janky part — the character
   // waited behind a 200ms+ scan before it could paint (E493). `groups` stays
   // live everywhere it drives what's actually being edited (FilterGroupList's
   // rows/chips); only these read-side counts lag the debounce.
   const debouncedGroups = useDebouncedValue(groups, 200);
-  const binderMatchCount = useMemo(() => {
-    if (!isOpen || fixedCapacity === null) return 0;
-    return countBinderMatches(taggedCards, debouncedGroups, keepPrintingsTogether).total;
-  }, [taggedCards, debouncedGroups, fixedCapacity, keepPrintingsTogether, isOpen]);
-
   // Where the waterfall actually seats this binder's cards, not just how many
   // match its own rules — substitutes the draft into the real binder list (in
   // position order) so a binder placed behind a broader one shows the truth:
@@ -527,6 +607,18 @@ export function BinderEditor() {
     color,
   ]);
 
+  // What the page settings actually do, which is what the Pages controls show
+  // and what Save writes. Sections come from the rules only with two or more
+  // rules. A deeper page break and "Leave room" both refine "each section
+  // starts a new page", so sharing pages turns both off (and the controls
+  // say why) instead of storing a setting the engine would ignore.
+  const rulesSections = sectionMode === 'group' && groups.length >= 2;
+  const breakDepth =
+    !rulesSections && packSections === false
+      ? Math.min(pageBreakDepth, Math.max(sorts.length, 1))
+      : 1;
+  const roomPockets = packSections === false ? leaveRoomPockets(leaveRoom, pocketSize) : 0;
+
   // The editor's own layout settings, in exactly the shape Save will persist
   // (BinderInput) — one function feeds both, so the live preview can never
   // show a different binder than the one Save writes. Debounced before it
@@ -549,14 +641,15 @@ export function BinderEditor() {
     sortValueOrders: Object.keys(sortValueOrders).length ? sortValueOrders : undefined,
     keepPrintingsTogether: keepPrintingsTogether || undefined,
     tradeable: tradeable || undefined,
-    sectionMode: sectionMode !== 'sort' ? sectionMode : undefined,
-    pageBreakDepth: sorts.length > 1 && pageBreakDepth > 1 ? pageBreakDepth : undefined,
+    sectionMode: rulesSections ? 'group' : undefined,
+    pageBreakDepth: breakDepth > 1 ? breakDepth : undefined,
     packSections: packSections || undefined,
+    sparePockets: roomPockets || undefined,
   });
 
   // Deps are the primitive fields `buildDraftInput` reads, not the function
   // itself — it's a fresh closure every render (same pattern as
-  // `binderMatchCount`/`effectiveLanding` above), so listing it would defeat
+  // `effectiveLanding` above), so listing it would defeat
   // the memo and rebuild the draft def on every unrelated re-render.
   const draftInput = useMemo(
     () => buildDraftInput(),
@@ -577,10 +670,18 @@ export function BinderEditor() {
       sectionMode,
       pageBreakDepth,
       packSections,
+      leaveRoom,
       existing?.position,
     ]
   );
   const debouncedDraftInput = useDebouncedValue(draftInput, 200);
+  // The editor stays mounted while closed, so the debounced draft still holds
+  // whatever it last saw (a blank form, or the previous binder) when it opens.
+  // Until the debounce first settles on the opened binder, the preview reads
+  // the live draft, so it never opens on the wrong pages or capacity. Called
+  // after the draft's own debounce, so on open its timer fires first.
+  const previewSettled = useDebouncedValue(isOpen && step === 'rules', 200);
+  const previewInput = previewSettled ? debouncedDraftInput : draftInput;
 
   const hydrating = useCollectionStore((s) => s.hydrating);
   const draftPreview = useMemo(() => {
@@ -589,13 +690,15 @@ export function BinderEditor() {
       taggedCards,
       binders,
       existing,
-      debouncedDraftInput,
+      previewInput,
       placeAboveId,
       layout
     );
-  }, [isOpen, step, taggedCards, binders, existing, debouncedDraftInput, placeAboveId, layout]);
+  }, [isOpen, step, taggedCards, binders, existing, previewInput, placeAboveId, layout]);
 
   const phone = useMediaQuery('(max-width: 599px)');
+  // The Holds control, so "Use a <size>-card binder" can hand focus to it.
+  const holdsRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
 
@@ -826,12 +929,6 @@ export function BinderEditor() {
     !placeAboveId &&
     (isNew ||
       binders.every((b) => b.id === existing?.id || b.position < (existing?.position ?? 0)));
-  const capacity = fixedCapacity ?? 0;
-  // Suppress over-capacity warning when filters are empty — an unfiltered binder
-  // would match every card by definition, which is never what the warning is
-  // trying to flag.
-  const overCapacity = fixedCapacity !== null && !allGroupsEmpty && binderMatchCount > capacity;
-
   const isImportBatch = step === 'import' && importFiles_.length > 0;
   const close = () => setEditingBinder(null);
 
@@ -867,108 +964,294 @@ export function BinderEditor() {
   // A stored chain matching a named order (E491) shows that name here, and on
   // the sort pill everywhere else this binder's order appears — anything else
   // is the chain spelled out in words ("Rarity, then price").
-  const orderSummary =
-    sortOrderSummaryLabel(sorts) +
-    (sectionMode === 'group' && groups.length >= 2 ? ' · sections by rule' : '');
+  const orderSummary = sortOrderSummaryLabel(sorts) + (rulesSections ? ' · sections by rule' : '');
 
+  // The draft's own volumes, from the SAME materialize pass the preview
+  // column already computes (`draftPreview`), never a second one. That pass
+  // is debounced, so a capacity edit is only answered once the preview has
+  // caught up with it: until then the old answer would be labelled with the
+  // new size. `volumesFor` needs an unfiltered pass, which the preview is.
+  const previewCurrent = !!draftPreview && draftPreview.def.fixedCapacity === fixedCapacity;
+  const draftVolumes = draftPreview ? volumesFor(draftPreview) : null;
+  const overCapacityVolumes =
+    previewCurrent && hasMultipleVolumes(draftVolumes) ? draftVolumes : null;
+  // Page-based, never a raw card count: see smallestFittingCapacity's doc for
+  // why that lies once sections start fresh pages.
+  const fitCapacity =
+    draftPreview && overCapacityVolumes
+      ? smallestFittingCapacity(draftPreview.totalPages, draftPreview.effectivePocketSize)
+      : null;
+
+  const breakField = breakDepth > 1 ? sortFieldLabel(sorts[breakDepth - 1]?.field) : null;
   const pagesSummary = formatPagesSummary({
     pocketSize,
     doubleSided,
     fixedCapacity,
     packSections,
-    sectionsFromRules: sectionMode === 'group',
+    sparePockets: roomPockets,
+    breakField,
+    volumes: overCapacityVolumes,
   });
+
+  // Holds: the sizes a binder is sold in at this pocket count, plus No limit
+  // and Other…. Exactly one is always selected.
+  const holdsSizes = standardBinderSizes(pocketSize);
+  const holdsValue: string =
+    fixedCapacity === null
+      ? 'none'
+      : holdsOther || !holdsSizes.includes(fixedCapacity)
+        ? 'other'
+        : String(fixedCapacity);
+
+  // "Use a <size>-card binder" is a draft edit like any other (applied on
+  // Save, so no toast). The answer that held the button goes away once the
+  // preview catches up, so focus moves to the size it picked and the change
+  // is announced, instead of dropping to the page.
+  const applyFit = (size: number) => {
+    setHoldsOther(false);
+    setFixedCapacity(size);
+    setLiveMsg(`Holds ${size.toLocaleString()} cards, so it fits one binder.`);
+    window.setTimeout(() => {
+      holdsRef.current?.querySelector<HTMLInputElement>('input:checked')?.focus();
+    }, 0);
+  };
+
+  // Keeps the Holds choice on the same tier when the pocket size changes (a
+  // 360-card 9-pocket binder becomes the 480-card 12-pocket one), and the
+  // untouched default capacity on the new default.
+  const setPocketSizeKeepingHolds = (next: PocketSize) => {
+    setFixedCapacity((prev) => {
+      if (prev === null) return null;
+      if (prev === defaultFixedCapacity(pocketSize, doubleSided))
+        return defaultFixedCapacity(next, doubleSided);
+      const tier = holdsOther ? -1 : holdsSizes.indexOf(prev);
+      return tier >= 0 ? standardBinderSizes(next)[tier] : prev;
+    });
+    setPocketSize(next);
+  };
 
   const pagesSettings = (
     <>
       <Field label="Pockets per page">
+        <div className="binder-pocket-tiles">
+          <SegmentedControl
+            ariaLabel="Pockets per page"
+            value={pocketSize}
+            options={([4, 9, 12] as const).map((n) => ({
+              value: n,
+              ariaLabel: `${n}-pocket, ${POCKET_TILE_CAPTION[n]}`,
+              label: <PocketTileLabel pockets={n} />,
+            }))}
+            onChange={setPocketSizeKeepingHolds}
+          />
+        </div>
+      </Field>
+      <Field label="Sides" hint="Double-sided sheets hold twice as much.">
         <SegmentedControl
-          ariaLabel="Pockets per page"
-          value={pocketSize}
-          options={([4, 9, 12] as const).map((n) => ({
-            value: n,
-            ariaLabel: `${n}-pocket`,
-            label: (
-              <>
-                <PocketGlyph pockets={n} />
-                {n}
-              </>
-            ),
-          }))}
+          ariaLabel="Sides"
+          value={doubleSided}
+          options={[
+            { value: false, label: 'One side' },
+            { value: true, label: 'Both sides' },
+          ]}
           onChange={(next) => {
             setFixedCapacity((prev) =>
               prev !== null && prev === defaultFixedCapacity(pocketSize, doubleSided)
-                ? defaultFixedCapacity(next, doubleSided)
+                ? defaultFixedCapacity(pocketSize, next)
                 : prev
             );
-            setPocketSize(next);
+            setDoubleSided(next);
           }}
         />
       </Field>
-      <SwitchRow
-        label="Double-sided sheets"
-        hint="The back of each sheet counts as its own page."
-        checked={doubleSided}
-        onChange={(next) => {
-          setFixedCapacity((prev) =>
-            prev !== null && prev === defaultFixedCapacity(pocketSize, doubleSided)
-              ? defaultFixedCapacity(pocketSize, next)
-              : prev
-          );
-          setDoubleSided(next);
-        }}
-      />
       <Field
-        label="Capacity"
+        label="Holds"
         hint={
           fixedCapacity === null
             ? 'The binder grows with its cards.'
-            : 'Cards past the limit still show, flagged as over capacity.'
+            : 'Past this, the cards go on into another volume.'
         }
       >
-        <div className="binder-capacity">
+        <div className="binder-holds" ref={holdsRef}>
           <SegmentedControl
-            ariaLabel="Capacity"
-            value={fixedCapacity === null ? 'none' : 'fixed'}
+            ariaLabel="Holds"
+            fill
+            value={holdsValue}
             options={[
               { value: 'none', label: 'No limit' },
-              { value: 'fixed', label: 'Fixed' },
+              ...holdsSizes.map((size) => ({
+                value: String(size),
+                label: size.toLocaleString(),
+                ariaLabel: `${size.toLocaleString()} cards`,
+              })),
+              { value: 'other', label: 'Other…' },
             ]}
-            onChange={(v) =>
-              setFixedCapacity(v === 'fixed' ? defaultFixedCapacity(pocketSize, doubleSided) : null)
-            }
+            onChange={(v) => {
+              setHoldsOther(v === 'other');
+              if (v === 'none') setFixedCapacity(null);
+              else if (v === 'other')
+                setFixedCapacity((prev) => prev ?? defaultFixedCapacity(pocketSize, doubleSided));
+              else setFixedCapacity(Number(v));
+            }}
           />
           {fixedCapacity !== null && (
-            <span className="binder-capacity-count">
-              <input
-                type="number"
-                min={1}
-                max={100000}
-                step={1}
-                value={fixedCapacityText}
-                onChange={(e) => setFixedCapacityText(e.target.value)}
-                onBlur={() => {
-                  const cards = parseInt(fixedCapacityText);
-                  const next = Number.isFinite(cards) && cards > 0 ? cards : 1;
-                  setFixedCapacity(next);
-                  setFixedCapacityText(String(next));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                }}
-                aria-label="Capacity in cards"
-                className="rule-number-input"
-              />
+            <p className="binder-holds-count">
+              {holdsValue === 'other' ? (
+                <input
+                  type="number"
+                  min={1}
+                  max={100000}
+                  step={1}
+                  value={fixedCapacityText}
+                  onChange={(e) => setFixedCapacityText(e.target.value)}
+                  onBlur={() => {
+                    const cards = parseInt(fixedCapacityText);
+                    const next = Number.isFinite(cards) && cards > 0 ? cards : 1;
+                    setFixedCapacity(next);
+                    setFixedCapacityText(String(next));
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                  }}
+                  aria-label="Capacity in cards"
+                  className="rule-number-input"
+                />
+              ) : (
+                <span className="binder-holds-count-n">{fixedCapacity.toLocaleString()}</span>
+              )}
               <span>
-                cards · about {Math.ceil(fixedCapacity / pocketSize).toLocaleString()}{' '}
-                {Math.ceil(fixedCapacity / pocketSize) === 1 ? 'page' : 'pages'}
+                cards · {sheetsPhrase(sheetCount(fixedCapacity, pocketSize, doubleSided))}
               </span>
-            </span>
+            </p>
           )}
         </div>
       </Field>
+      {overCapacityVolumes && fixedCapacity !== null && (
+        <div className="binder-editor-volumes-answer">
+          <p className="binder-editor-volumes-fact">
+            {cardsNeedVolumes(overCapacityVolumes, fixedCapacity)}.
+          </p>
+          <ul className="binder-editor-volumes-list">
+            {overCapacityVolumes.map((v) => (
+              <li key={v.index}>
+                <span className="binder-editor-volumes-index">Vol {v.index}</span>
+                <span>{volumePageRange(v)}</span>
+                <span className="binder-editor-volumes-spine">{volumeSpine(v)}</span>
+              </li>
+            ))}
+          </ul>
+          {fitCapacity ? (
+            <Button onClick={() => applyFit(fitCapacity)}>{fitButtonLabel(fitCapacity)}</Button>
+          ) : (
+            <p className="form-field-hint">{noFitMessage(overCapacityVolumes.length)}</p>
+          )}
+        </div>
+      )}
     </>
   );
+
+  // Page filling, room and page breaks: the rules step only (an import makes
+  // manual binders, which have no sections to end).
+  const sharing = packSections !== false;
+  const sectionEndSettings = (
+    <>
+      <Field label="When a section ends">
+        <ChoiceList
+          ariaLabel="When a section ends"
+          value={packSections}
+          options={[
+            {
+              value: false,
+              label: (
+                <>
+                  <FillPictogram mode="false" />
+                  {PACK_LABEL.false}
+                </>
+              ),
+              hint: 'Leaves room after each section for new cards.',
+            },
+            {
+              value: true,
+              label: (
+                <>
+                  <FillPictogram mode="true" />
+                  {PACK_LABEL.true}
+                </>
+              ),
+              hint: "Sections share pages, but one that won't fit starts a new page.",
+            },
+            {
+              value: 'continuous',
+              label: (
+                <>
+                  <FillPictogram mode="continuous" />
+                  {PACK_LABEL.continuous}
+                </>
+              ),
+              hint: "A new card shifts everything after it, so it suits sets that won't grow.",
+            },
+          ]}
+          onChange={setPackSections}
+        />
+      </Field>
+      <Field
+        label="Leave room after each section"
+        hint={
+          sharing
+            ? 'Sections share pages here, so there is no page end to leave room at. Pick New page per section to use it.'
+            : 'Empty pockets for cards you add later, so nothing after them moves.'
+        }
+      >
+        <SegmentedControl
+          ariaLabel="Leave room after each section"
+          value={sharing ? 'none' : leaveRoom}
+          options={LEAVE_ROOM_OPTIONS.map((o) => ({
+            ...o,
+            disabled: sharing && o.value !== 'none',
+          }))}
+          onChange={setLeaveRoom}
+        />
+      </Field>
+      {sorts.length > 1 && (
+        <Field
+          label="Page breaks"
+          hint={
+            rulesSections
+              ? 'Sections come from your rules here, so pages break only between rules.'
+              : sharing
+                ? 'Sections share pages here. Pick New page per section to break deeper.'
+                : undefined
+          }
+        >
+          <SelectMenu
+            ariaLabel="Page breaks"
+            value={breakDepth}
+            onChange={(v) => setPageBreakDepth(v as number)}
+            disabled={rulesSections || sharing}
+            options={Array.from({ length: sorts.length }, (_, i) => ({
+              value: i + 1,
+              label:
+                i === 0
+                  ? 'Section headers only'
+                  : `Each ${sortFieldLabel(sorts[i]?.field).toLowerCase()} too`,
+            }))}
+          />
+        </Field>
+      )}
+    </>
+  );
+
+  // "Section headers come from": the first sort field by name, or the rules
+  // by name. The rule names are the headers the binder will print: a rule's
+  // name, else "Rule N" (`buildGroupSections`).
+  const firstField = sorts[0]?.field && sorts[0].field !== 'none' ? sorts[0].field : null;
+  const ruleHeader = (i: number) => groups[i]?.name?.trim() || `Rule ${i + 1}`;
+  const ruleHeadersHint =
+    groups.length >= 2
+      ? `“${ruleHeader(0)}”, then “${ruleHeader(1)}”${
+          groups.length > 2 ? ` and ${groups.length - 2} more` : ''
+        }.`
+      : `“${ruleHeader(0)}”, then your next rule. Needs two or more rules.`;
 
   return (
     <>
@@ -1042,7 +1325,6 @@ export function BinderEditor() {
                 <BinderEditorPreviewStrip
                   binder={draftPreview}
                   loading={hydrating}
-                  fixedCapacity={fixedCapacity}
                   binderName={name.trim() || 'This binder'}
                 />
               )}
@@ -1157,15 +1439,6 @@ export function BinderEditor() {
                         </div>
                       ))}
 
-                    {overCapacity && (
-                      <div className="warn-banner binder-editor-warn">
-                        {binderMatchCount.toLocaleString()} cards match, but the capacity is{' '}
-                        {capacity.toLocaleString()}. The extra{' '}
-                        {(binderMatchCount - capacity).toLocaleString()} still show, flagged as over
-                        capacity.
-                      </div>
-                    )}
-
                     <div className="sr-only" role="status" aria-live="polite">
                       {liveMsg}
                     </div>
@@ -1184,64 +1457,34 @@ export function BinderEditor() {
                         onSortsChange={setSorts}
                         onValueOrdersChange={setSortValueOrders}
                       />
-                      {groups.length >= 2 && (
-                        <Field label="Section headers come from">
-                          <SegmentedControl
-                            ariaLabel="Section headers come from"
-                            value={sectionMode}
-                            options={[
-                              { value: 'sort', label: 'The first sort' },
-                              { value: 'group', label: 'Rules' },
-                            ]}
-                            onChange={setSectionMode}
-                          />
-                        </Field>
-                      )}
+                      <Field label="Section headers come from">
+                        <ChoiceList
+                          ariaLabel="Section headers come from"
+                          value={rulesSections ? 'group' : 'sort'}
+                          options={[
+                            {
+                              value: 'sort',
+                              label: firstField
+                                ? `The first field above (${sortFieldLabel(firstField)})`
+                                : 'The first field above',
+                              hint: firstField
+                                ? undefined
+                                : 'No field is set yet, so every card sits in one section.',
+                            },
+                            {
+                              value: 'group',
+                              label: 'Each rule',
+                              hint: ruleHeadersHint,
+                              disabled: groups.length < 2,
+                            },
+                          ]}
+                          onChange={setSectionMode}
+                        />
+                      </Field>
                     </Disclosure>
                     <Disclosure title="Pages" summary={pagesSummary}>
                       {pagesSettings}
-                      {sectionMode !== 'group' && (
-                        <Field label="Page filling">
-                          <ChoiceList
-                            ariaLabel="Page filling"
-                            value={packSections}
-                            options={[
-                              {
-                                value: false,
-                                label: PACK_LABEL.false,
-                                hint: 'Leaves room after each section for new cards.',
-                              },
-                              {
-                                value: true,
-                                label: PACK_LABEL.true,
-                                hint: "Sections share pages, but one that won't fit starts a new page.",
-                              },
-                              {
-                                value: 'continuous',
-                                label: PACK_LABEL.continuous,
-                                hint: "A new card shifts everything after it, so it suits sets that won't grow.",
-                              },
-                            ]}
-                            onChange={setPackSections}
-                          />
-                        </Field>
-                      )}
-                      {sectionMode !== 'group' && sorts.length > 1 && (
-                        <Field label="Page breaks">
-                          <SelectMenu
-                            ariaLabel="Page breaks"
-                            value={pageBreakDepth}
-                            onChange={(v) => setPageBreakDepth(v as number)}
-                            options={Array.from({ length: sorts.length }, (_, i) => ({
-                              value: i + 1,
-                              label:
-                                i === 0
-                                  ? 'Section headers only'
-                                  : `Each ${sortFieldLabel(sorts[i]?.field).toLowerCase()} too`,
-                            }))}
-                          />
-                        </Field>
-                      )}
+                      {sectionEndSettings}
                     </Disclosure>
                   </div>
 
@@ -1252,13 +1495,7 @@ export function BinderEditor() {
                     onChange={setTradeable}
                   />
                 </div>
-                {!phone && (
-                  <BinderEditorPreview
-                    binder={draftPreview}
-                    loading={hydrating}
-                    fixedCapacity={fixedCapacity}
-                  />
-                )}
+                {!phone && <BinderEditorPreview binder={draftPreview} loading={hydrating} />}
               </div>
             </>
           )}

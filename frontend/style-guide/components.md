@@ -891,6 +891,68 @@ directly rather than re-deriving counts.
   collection that reaches the sheet anyway (a direct link, a reload mid-param)
   gets an honest sentence instead of a picker with nothing to pick.
 
+### Pages as pictures (E494/E473) — the editor's own Pages disclosure
+
+Everything above is the binder PAGE's volumes UI (post-save). The editor's
+Pages disclosure (`BinderEditor`) answers the same "what will my pages look
+like" question while the binder is still a draft:
+
+- **Pocket count is tiles, not a bare number.** The kit's own
+  `SegmentedControl` (native radios — never a hand-rolled tile/card
+  component), each option's label a `PocketGlyph` grid plus the count plus
+  what a buyer would call it ("Most binders", "Toploader pages", "Zip
+  binders") — a physical product, not a raw integer.
+- **Sides is a two-outcome `SegmentedControl`** ("One side" / "Both sides"),
+  matching the sort-direction ruling (§ Sort chains) rather than a switch —
+  Double-sided read as a setting with only one label showing at a time.
+- **Holds is chips of real SKU sizes**, from `standardBinderSizes(pocketSize)`
+  (so a 4- or 12-pocket binder shows its OWN sizes, not the 9-pocket numbers),
+  plus "No limit" and "Other…" (reveals the number input only then). A custom
+  size that doesn't match a chip shows as "Other…" selected — never a chip
+  silently unchecked.
+- **"When a section ends" (page filling) gets a decorative pictogram per
+  option** — two tiny CSS pages, `aria-hidden`, so "Keep sections whole" vs "Fill every
+  pocket" is seen, not parsed from three sentences that all start "Every
+  section…". The pictogram sits inside the same `<label>` as the option text,
+  contributing nothing to its accessible name.
+- **A control that can't do anything right now stays in the group, disabled,
+  with the reason in view (T139)** — never hidden. Page filling and page
+  breaks disable (with a one-line reason) when `sectionMode: 'group'`, since
+  `buildGroupSections` never reads either; "Keep sections whole" disables when
+  Leave room is set (see below); page breaks and "Section headers come from ›
+  Rules" disable, rather than hide, below two rules.
+- **"Leave room" (`BinderDef.sparePockets`, E473) reserves trailing pockets
+  after each section** so new cards have somewhere to go without reshuffling
+  everything after them — a `ChoiceList` of None / Half a page / A full page,
+  sized to the current pocket count. It **forces page sharing off**
+  (`packSections: true` disables) — reserved room can only stay contiguous
+  and adjacent to its own section if nothing else is ever packed onto the
+  same page — and is **inert under "Fill every pocket" packing**, which already leaves
+  zero pockets by design; the field's own hint says so rather than blocking
+  the pick.
+- **The page-break select is named by the fields, not by "levels"**: "Nothing
+  deeper", then "‹field› inside each ‹previous field›" — replacing "First 2
+  sort levels" and "Section headers only".
+- **Section headers come from" is a `ChoiceList`, not a `SegmentedControl`**
+  (T139: options that need a sentence each) naming the REAL first field
+  ("The first field above (Color)") instead of the generic "The first sort",
+  and lives in the Order disclosure next to the fields that make the
+  sections, not in Pages.
+- **The editor's own over-capacity answer reuses the binder page's volumes
+  vocabulary**, never a separate one: `formatPagesSummary` appends "N need M
+  binders of C" to the closed summary the moment the DRAFT (not the saved
+  binder) outgrows its own capacity, computed from the same debounced
+  `materializeDraftPreview` pass the preview column already runs — never a
+  second materialize call. The open body lists each volume compactly and
+  offers "Use a binder that fits", which sets `fixedCapacity` to
+  `smallestFittingCapacity(draftPreview.totalPages, …)` as an ordinary draft
+  edit (applied on Save like everything else in this dialog — no toast, since
+  nothing has been saved yet). When nothing fits, the same `noFitMessage()` the
+  sheet uses says so, with no button. `volumesOfCapacity()`/`noFitMessage()`
+  (`lib/binder-volumes.ts`) are the ONE wording for "N binders of C" and "N/A
+  fits" — `BinderVolumesSheet` and the editor both call them; a phrase should
+  never be retyped at a second call site.
+
 ### Binder page viewer (flipbook)
 
 - **Same geometry model as the card preview (rebuilt 2026-09-25).** Every
@@ -1001,7 +1063,7 @@ directly rather than re-deriving counts.
   **Change never touches the chain.** It expands, in place under the
   sentence, the same `SortValueOrderEditor` a chain row uses, one per
   customizable tie-breaker, and toggles back to "Done" to collapse — the
-  earlier design *appended* Treatment/Finish to the chain, which mutated it as
+  earlier design _appended_ Treatment/Finish to the chain, which mutated it as
   a side effect of asking "what order do these tie-break in", silently
   disappeared once the chain hit `MAX_SORTS`, and is exactly why a
   tie-breaker isn't in the chain in the first place (nobody asked to sort by

@@ -183,10 +183,7 @@ describe('planVolumes — invariants over materializeBinders', () => {
             fixedCapacity: capacityCards,
             sorts: [{ field: 'name', dir: 'asc' }],
           });
-          const { binders } = materializeBinders(cards, [def], {
-            search: '',
-            globalPocketSize: pocketSize,
-          });
+          const { binders } = materializeBinders(cards, [def], { search: '' });
           const binder = binders[0];
           const volumes = planVolumes(binder.sections, {
             capacityCards,
@@ -262,10 +259,7 @@ describe('planVolumes — invariants over materializeBinders', () => {
       fixedCapacity: 90,
       manualOrder: manualCards.map((c) => c.copyId),
     });
-    const { binders } = materializeBinders(manualCards, [def], {
-      search: '',
-      globalPocketSize: 9,
-    });
+    const { binders } = materializeBinders(manualCards, [def], { search: '' });
     const binder = binders[0];
     // Manual order collapses to ALL_SECTION — one flat section, no headers.
     expect(binder.sections).toHaveLength(1);

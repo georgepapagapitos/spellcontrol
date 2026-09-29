@@ -216,9 +216,12 @@ describe('Order and Pages are collapsed rows that state their value', () => {
     );
 
     fireEvent.click(pages);
-    expect(screen.getByRole('radio', { name: '12-pocket' })).toHaveProperty('checked', true);
-    expect(screen.getByRole('switch', { name: 'Double-sided sheets' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: /Keep sections whole/ })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: '12-pocket, Zip binders' })).toHaveProperty(
+      'checked',
+      true
+    );
+    expect(screen.getByRole('radio', { name: 'Both sides' })).toHaveProperty('checked', true);
+    expect(screen.getByRole('radio', { name: /^Keep sections whole/ })).toBeTruthy();
   });
 
   it('a pocket change in Pages persists on save', () => {
@@ -228,7 +231,7 @@ describe('Order and Pages are collapsed rows that state their value', () => {
     open(existing.id);
 
     fireEvent.click(screen.getByRole('button', { name: /Pages/ }));
-    fireEvent.click(screen.getByRole('radio', { name: '4-pocket' }));
+    fireEvent.click(screen.getByRole('radio', { name: '4-pocket, Toploader pages' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(updateBinder).toHaveBeenCalledWith(
       existing.id,

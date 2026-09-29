@@ -4,12 +4,12 @@ import type { BinderSection, EnrichedCard, MaterializedBinder } from '../types';
 import { PageGrid } from './PageGrid';
 import { BinderPagePreview } from './BinderPagePreview';
 import { EmptyState } from './shared/EmptyState';
+import { volumesFor, volumesOfCapacity } from '../lib/binder-volumes';
 import './BinderEditorPreviewStrip.css';
 
 interface Props {
   binder: MaterializedBinder | null;
   loading: boolean;
-  fixedCapacity: number | null;
   binderName: string;
 }
 
@@ -32,7 +32,7 @@ function pageNumbersForSection(section: BinderSection): number[] {
  * header instead of a sticky column (no room for one at 390px). Tapping it
  * opens the real page viewer on the draft's own pages.
  */
-export function BinderEditorPreviewStrip({ binder, loading, fixedCapacity, binderName }: Props) {
+export function BinderEditorPreviewStrip({ binder, loading, binderName }: Props) {
   const [pagesOpen, setPagesOpen] = useState(false);
 
   const flat = useMemo(() => {
@@ -83,7 +83,9 @@ export function BinderEditorPreviewStrip({ binder, loading, fixedCapacity, binde
   const startLine = firstSection
     ? `Starts with ${firstSection.label}, ${firstSection.cards.length.toLocaleString()} cards`
     : '';
-  const binderCount = fixedCapacity ? Math.ceil(binder.totalCards / fixedCapacity) : null;
+  // Page-based, from the same pass as the Pages answer (see BinderEditorPreview).
+  const fixedCapacity = binder.def.fixedCapacity;
+  const binderCount = fixedCapacity !== null ? (volumesFor(binder)?.length ?? null) : null;
 
   return (
     <>
@@ -109,8 +111,8 @@ export function BinderEditorPreviewStrip({ binder, loading, fixedCapacity, binde
         <span className="binder-editor-preview-strip-text">
           <span className="binder-editor-preview-strip-headline">
             {binder.totalPages.toLocaleString()} {binder.totalPages === 1 ? 'page' : 'pages'}
-            {binderCount !== null
-              ? ` · ${binderCount.toLocaleString()} ${binderCount === 1 ? 'binder' : 'binders'} of ${fixedCapacity?.toLocaleString()}`
+            {binderCount !== null && fixedCapacity !== null
+              ? ` · ${volumesOfCapacity(binderCount, fixedCapacity)}`
               : ''}
           </span>
           {startLine && <span className="binder-editor-preview-strip-sub">{startLine}</span>}

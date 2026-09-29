@@ -65,7 +65,6 @@ function makeBinder(overrides: BinderOverrides = {}): BinderDef {
 
 function materializeOne(cards: EnrichedCard[], def: BinderDef): MaterializedBinder {
   const { binders } = materializeBinders(cards, [def], {
-    globalPocketSize: 9,
     search: '',
   });
   return binders[0];
@@ -403,7 +402,7 @@ describe('drift ignores the in-binder search filter', () => {
     def: BinderDef,
     search: string
   ): MaterializedBinder {
-    const { binders } = materializeBinders(cards, [def], { globalPocketSize: 9, search });
+    const { binders } = materializeBinders(cards, [def], { search });
     return binders[0];
   }
 
