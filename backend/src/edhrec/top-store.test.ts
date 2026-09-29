@@ -173,9 +173,40 @@ describe('getTopList', () => {
 
   it('shares one fetch between concurrent requests for a list it has never stored', async () => {
     const { calls } = stubEdhrec({ '/pages/top/salt.json': topSalt });
-    const [a, b] = await Promise.all([getTopList(SALT, 7), getTopList(SALT, 7)]);
+    const results = await Promise.all(Array.from({ length: 10 }, () => getTopList(SALT, 7)));
     expect(calls).toHaveLength(1);
-    expect(a.entries).toEqual(b.entries);
-    expect(a.entries[0].salt).toBeGreaterThan(3);
+    for (const r of results) expect(r.entries).toEqual(results[0].entries);
+    expect(results[0].entries[0].salt).toBeGreaterThan(3);
+  });
+
+  // E523: this used to be timing-dependent. Each request read the table on
+  // its own, so a second request whose read returned "no row" after the first
+  // had fetched, stored and finished started a second fetch (it failed CI on
+  // #2545 with 2 fetches). Joining the whole load, read included, closes it.
+  it('hands a concurrent request the load already running, read included', async () => {
+    const { calls } = stubEdhrec({
+      '/pages/top/salt.json': topSalt,
+      '/pages/commanders/week.json': commandersWeek,
+    });
+    const first = getTopList(SALT, 7);
+    expect(getTopList(SALT, 7)).toBe(first);
+    const other = getTopList(COMMANDERS, 7);
+    expect(other).not.toBe(first);
+    await Promise.all([first, other]);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('starts a new load once the last one settles, success or failure', async () => {
+    const { calls } = stubEdhrec({ '/pages/commanders/week.json': 503 });
+    await expect(getTopList(COMMANDERS, 5)).rejects.toBeInstanceOf(EdhrecUnavailableError);
+    await expect(getTopList(COMMANDERS, 6)).rejects.toBeInstanceOf(EdhrecUnavailableError);
+    expect(calls).toHaveLength(2);
+
+    vi.restoreAllMocks();
+    const ok = stubEdhrec({ '/pages/commanders/week.json': commandersWeek });
+    await getTopList(COMMANDERS, 8);
+    // Settled and stored: the next request reads the fresh copy, no fetch.
+    expect(await getTopList(COMMANDERS, 9)).toMatchObject({ stale: false, fetchedAt: 8 });
+    expect(ok.calls).toHaveLength(1);
   });
 });
