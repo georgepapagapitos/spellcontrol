@@ -1,0 +1,93 @@
+/* DiscoverBrewersPage: the search box, the rails and the spotlight. The card
+   itself is components/social/BrewerCard.css; the shell is reused
+   (.decks-index-page, .discover-decks-error, .empty-state). */
+
+/* The panel is a column, so the pill's own `flex: 1 1 12rem` would grow it
+   into a tall block. Two classes to outweigh search-controls.css. */
+.search-pill.brewers-search {
+  flex: none;
+  width: 100%;
+  max-width: 32rem;
+}
+
+.brewers-spotlight,
+.brewers-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Rail: a snapping sideways scroller on a phone. The cards peek at the edge
+   (a fixed basis a little under half the row plus a bit), and the edge with
+   more behind it fades (`data-overflow`, set by useOverflowEdges). */
+.brewers-rail-track {
+  display: flex;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  /* breathing room for the card shadow inside the clipping scroller */
+  padding-block: var(--space-1);
+}
+
+.brewers-rail-track::-webkit-scrollbar {
+  display: none;
+}
+
+.brewers-rail-track > .brewer-card {
+  flex: 0 0 min(15rem, 72%);
+  scroll-snap-align: start;
+}
+
+.brewers-rail-track[data-overflow='end'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--space-6)), transparent);
+}
+
+.brewers-rail-track[data-overflow='start'] {
+  mask-image: linear-gradient(to left, #000 calc(100% - var(--space-6)), transparent);
+}
+
+.brewers-rail-track[data-overflow='both'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--space-6),
+    #000 calc(100% - var(--space-6)),
+    transparent
+  );
+}
+
+/* Wide: the same eight cards as a grid. Nothing scrolls, so nothing hides. */
+@media (min-width: 1024px) {
+  .brewers-rail-track {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    overflow: visible;
+    mask-image: none !important;
+  }
+
+  .brewers-rail-track > .brewer-card {
+    flex: none;
+  }
+}
+
+.brewers-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.brewers-skeleton-title {
+  width: 9rem;
+  height: 1.25rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}

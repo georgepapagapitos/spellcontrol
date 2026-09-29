@@ -39,6 +39,12 @@ const ROUTES: ReadonlyArray<{ label: string; path: string; hint?: string; keywor
   { label: 'Sets', path: '/collection/sets', hint: 'Collection' },
   { label: 'Decks', path: '/decks' },
   { label: 'Discover decks', path: '/decks/discover', hint: 'Decks' },
+  {
+    label: 'Discover brewers',
+    path: '/decks/discover/brewers',
+    hint: 'Decks',
+    keywords: ['people', 'players'],
+  },
   { label: 'Saved decks', path: '/decks/saved', hint: 'Decks' },
   { label: 'Cubes', path: '/decks/cube', hint: 'Decks' },
   { label: 'Compare decks', path: '/decks/compare', hint: 'Decks' },

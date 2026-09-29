@@ -12,8 +12,8 @@ import type { AuthStatus } from '../store/auth';
  * made), OAuth landing pages, and every public/share route App.tsx renders
  * outside the auth gate
  * (unauthed-reachable, no <Layout> chrome) — `/s/:token`, `/u/:username`,
- * `/d/:slug`, `/gn/:token`, `/gn/s/:token` — plus `/decks/discover`, the one
- * always-reachable public route that DOES live inside <Layout>. Mirror
+ * `/d/:slug`, `/gn/:token`, `/gn/s/:token` — plus `/decks/discover` and its
+ * `/brewers` view, the always-reachable public routes that DOES live inside <Layout>. Mirror
  * App.tsx's own route table when either list changes: this used to list only
  * `/s/`, so a first-time guest following a `/u/`, `/d/`, or `/gn/` link (or
  * the welcome hero's own "Browse public decks" CTA, which deliberately marks
@@ -34,7 +34,8 @@ export function isFirstRunExempt(pathname: string): boolean {
     pathname.startsWith('/u/') ||
     pathname.startsWith('/d/') ||
     pathname.startsWith('/gn/') ||
-    pathname === '/decks/discover'
+    pathname === '/decks/discover' ||
+    pathname === '/decks/discover/brewers'
   );
 }
 

@@ -231,3 +231,39 @@ Game record panels, then the deck library.
   games, wins, win rate and the most-played deck. Nothing renders when off.
 - Panels sit side by side from about 45rem, one column on a phone. Controls
   keep the 44px coarse-pointer floor.
+
+## Brewer cards and the Brewers tab (T175)
+
+**Brewers is a view of Discover, not a hub tab.** `/decks/discover/brewers` sits
+under the same hub strip as Discover, and `DiscoverSwitch` (`Decks | Brewers`,
+the `underline` variant of `Tabs`, per § Tabs / view switchers) sits under it on
+both pages so it never moves. Both pages hang their content in `DiscoverPanel`,
+the tabpanel the switch controls. Precons stay under Decks (`?source=precons`).
+
+**`BrewerCard`** (`components/social/`) is the one brewer tile. Three variants:
+`card` (16:9 art banner, avatar straddling its lower edge, name, `@handle`,
+"N decks · N followers", "Brews <commander>", `ColorIdentityBar`), `row`
+(no banner, for search results and lists) and `featured` (the spotlight: stacked
+on a phone, banner beside body from 600px). The whole card is one link to
+`/u/:username`, named by identity, stats and commander; there is no Follow
+button on it (Follow lives on the profile). The banner is the art crop the
+server picked; without one it takes the same flat accent field as a deck tile.
+The scrim under the avatar is `--art-scrim`, always dark in both themes.
+Followers pass the `social-proof` floor (`formatSocialCount`), so a brewer with
+four followers reads "3 decks", never "4 followers". `BrewerCardSkeleton` has
+the same boxes.
+
+**A rail under its people floor renders nothing.** The server sends `[]`; the
+page draws no heading and no empty card. If every rail and the spotlight are
+empty, one empty state invites the viewer to publish a deck. Rail order:
+"Brewing your commanders" (signed in), "Newest brewers", "Most liked brewers",
+"Most followed brewers"; the spotlight leads them all.
+
+**Rails scroll on a phone and grid when wide.** Below 1024px a rail is a snapping
+sideways scroller that fades its overflowing edge (`useOverflowEdges`); from
+1024px the same cards lay out as a grid, so a mouse never needs a horizontal
+wheel. (`SnapCarousel` is the centred card-preview carousel and is not a rail.)
+
+**Search replaces the rails.** Two characters minimum, debounced 300ms; under two
+the rails stay. Results are `row` cards; states are skeleton rows, "No brewers
+match “…”", and the shared `.discover-decks-error` strip with Retry.
