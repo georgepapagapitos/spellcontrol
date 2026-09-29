@@ -92,14 +92,17 @@ function ToastItem({
     <li
       ref={(el) => registerItem(toast.id, el)}
       className={`toast toast-${toast.tone}${leaving ? ' is-leaving' : ''}`}
-      // Errors interrupt (assertive); everything else waits its turn (polite).
-      role={toast.tone === 'error' ? 'alert' : 'status'}
       style={style}
       onAnimationEnd={handleAnimationEnd}
     >
-      <span className="toast-message">{toast.message}</span>
+      {/* The live region is the message, not the li: an li with a role stops
+          being a listitem (axe `list`), and the buttons stay out of the
+          announcement. Errors interrupt (assertive); the rest wait (polite). */}
+      <span className="toast-message" role={toast.tone === 'error' ? 'alert' : 'status'}>
+        {toast.message}
+      </span>
       {toast.repeat && toast.repeat > 1 && (
-        <span className="toast-repeat" aria-label={`${toast.repeat} times`}>
+        <span className="toast-repeat" aria-label={`${toast.repeat} times`} role="img">
           ×{toast.repeat}
         </span>
       )}

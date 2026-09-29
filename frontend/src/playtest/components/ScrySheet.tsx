@@ -482,6 +482,7 @@ function SortableScryCard({
         {...attributes}
         {...listeners}
         aria-label={`${card.name}, ${columnLabel}, position ${position} of ${total}`}
+        role="group"
       >
         <ScryCardFace card={card} />
       </div>

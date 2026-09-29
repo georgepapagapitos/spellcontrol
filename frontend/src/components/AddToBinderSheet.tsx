@@ -152,7 +152,11 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
                       {currentBinderId ? 'Moved' : 'Added'}
                     </span>
                   ) : isCurrent ? (
-                    <span className="add-to-binder-current" aria-label="Already in this binder">
+                    <span
+                      className="add-to-binder-current"
+                      aria-label="Already in this binder"
+                      role="img"
+                    >
                       Already here
                     </span>
                   ) : (

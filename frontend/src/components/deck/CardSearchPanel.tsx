@@ -426,7 +426,7 @@ export function FitSignal({
         }`
       : undefined;
   return (
-    <span aria-label={ariaLabel}>
+    <span aria-label={ariaLabel} role="group">
       {info?.kind === 'pct' && (
         <>
           {' · '}

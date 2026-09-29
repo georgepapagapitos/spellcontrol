@@ -413,7 +413,7 @@ function StarterRow({
           </span>
         </span>
         {busy ? (
-          <span className="spinner" aria-label="Picking that deck" />
+          <span className="spinner" aria-label="Picking that deck" role="img" />
         ) : (
           summary &&
           cost && (

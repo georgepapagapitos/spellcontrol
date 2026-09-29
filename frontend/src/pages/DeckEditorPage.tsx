@@ -3359,7 +3359,7 @@ export function DeckEditorPage() {
                     ("Bracket 2 · est. 4", § Bracket: the owner's word); the deck
                     stats under the list no longer repeat either. */}
             {bracketValue != null && (
-              <span className="deck-hero-bracket" aria-label={heroBracket?.aria}>
+              <span className="deck-hero-bracket" aria-label={heroBracket?.aria} role="img">
                 {`\u00A0· ${heroBracket?.text.replace(/ /g, '\u00A0')}`}
               </span>
             )}

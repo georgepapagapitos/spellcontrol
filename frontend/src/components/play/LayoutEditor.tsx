@@ -349,7 +349,7 @@ export function CustomLayoutEditor({
         </DndContext>
 
         {placedCount < count && (
-          <div className="cle-tray" aria-label="Unplaced seats">
+          <div className="cle-tray" aria-label="Unplaced seats" role="group">
             <span className="cle-label">Tap a seat, then a cell</span>
             <div className="cle-tray-chips">
               {placements.map((p, i) =>
@@ -368,7 +368,7 @@ export function CustomLayoutEditor({
         )}
 
         {sel && (
-          <div className="cle-controls" aria-label="Selected seat">
+          <div className="cle-controls" aria-label="Selected seat" role="group">
             <span className="cle-controls-name">
               {game.players[selected!]?.name ?? `Seat ${selected! + 1}`}
             </span>

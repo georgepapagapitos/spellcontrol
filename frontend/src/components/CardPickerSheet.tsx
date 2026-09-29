@@ -108,7 +108,7 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
                   {card.foil ? <FoilBadge card={card} /> : null}
                 </span>
                 {isAdded ? (
-                  <span className="card-picker-added" aria-label="Already added">
+                  <span className="card-picker-added" aria-label="Already added" role="img">
                     Added
                   </span>
                 ) : (

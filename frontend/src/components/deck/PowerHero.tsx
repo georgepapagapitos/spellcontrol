@@ -147,6 +147,7 @@ function BorderlineMarker({ current, neighbour }: { current: number; neighbour: 
     <span
       className="power-hero-borderline"
       aria-label={`Borderline between Bracket ${lo} and Bracket ${hi}`}
+      role="img"
     >
       Borderline {lo}/{hi}
     </span>

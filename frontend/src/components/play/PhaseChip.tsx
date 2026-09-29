@@ -57,7 +57,7 @@ export function PhaseChip({
 
   if (!isActiveOwner || mySeat == null) {
     return (
-      <span className="ogv-phase-chip" aria-label={`Phase: ${label}`}>
+      <span className="ogv-phase-chip" aria-label={`Phase: ${label}`} role="group">
         <span role="status">{label}</span>
       </span>
     );

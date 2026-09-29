@@ -897,6 +897,7 @@ export function DecksIndexPage() {
                               className="decks-index-card-pull"
                               title={`${pull.pullable} of ${pull.total} cards have a free copy to pull from your binders`}
                               aria-label={`${pull.pullable} of ${pull.total} cards pullable from your binders`}
+                              role="img"
                             >
                               {pull.pullable} of {pull.total} pullable
                             </span>
@@ -904,7 +905,11 @@ export function DecksIndexPage() {
                         </div>
                         <div className="decks-index-card-meta">
                           {colorIdentity.length > 0 && (
-                            <span className="decks-index-card-pips" aria-label="Color identity">
+                            <span
+                              className="decks-index-card-pips"
+                              aria-label="Color identity"
+                              role="group"
+                            >
                               {colorIdentity.map((c) => (
                                 <ColorPip key={c} color={c} />
                               ))}

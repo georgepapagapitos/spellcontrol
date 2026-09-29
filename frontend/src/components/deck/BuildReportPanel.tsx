@@ -824,7 +824,11 @@ export function BuildReportPanel({
             {roleGaps.map((g) => (
               <li key={g.role} className="build-report-gap">
                 <span className="build-report-gap-label">{humanizeRole(g.role)}</span>
-                <span className="build-report-gap-count" aria-label={`${g.have} of ${g.want}`}>
+                <span
+                  className="build-report-gap-count"
+                  aria-label={`${g.have} of ${g.want}`}
+                  role="group"
+                >
                   {g.have}
                   <span className="build-report-gap-target">
                     {' / '}
@@ -849,7 +853,11 @@ export function BuildReportPanel({
             {roleExcesses.map((g) => (
               <li key={g.role} className="build-report-gap">
                 <span className="build-report-gap-label">{humanizeRole(g.role)}</span>
-                <span className="build-report-gap-count" aria-label={`${g.have} of ${g.want}`}>
+                <span
+                  className="build-report-gap-count"
+                  aria-label={`${g.have} of ${g.want}`}
+                  role="group"
+                >
                   {g.have}
                   <span className="build-report-gap-target">
                     {' / '}

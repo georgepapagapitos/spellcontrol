@@ -61,7 +61,7 @@ import { effectiveMulliganType, usePlaytestStore } from '../store';
 function TurnTimer({ startedAt }: { startedAt: number }) {
   const now = useNow(true, (t) => msToNextSecond(t - startedAt));
   return (
-    <span className="playtest-turn-chip__clock" aria-label="Time on this turn">
+    <span className="playtest-turn-chip__clock" aria-label="Time on this turn" role="img">
       {formatClock(Math.max(0, now - startedAt))}
     </span>
   );
