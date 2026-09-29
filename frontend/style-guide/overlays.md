@@ -712,6 +712,31 @@ same line.
 - **An option that only means something online appears only online.** The turn
   alert is absent in solo playtest, where nobody passes the turn to you.
 
+### Resistance arms an opponent, so it commits on Save (2026-09-29, E533)
+
+The Resistance sheet opens from a Table settings row but doesn't follow that
+sheet's apply-as-you-go rule. Picking a level arms a fresh opponent and writes
+a log line. That's a game event, not a look you watch land, so the sheet is a
+draft with Cancel and Save, the same as "Fight a horde". Trying three levels
+before settling must not leave three announcements in the log.
+
+- **The level is the main job and is always open** (`ChoiceList`, one line
+  under each level). The level that fits the deck's bracket carries a "Fits
+  bracket N" label chip: 1 and 2 → Casual, 3 → Standard, 4 and 5 → Ruthless.
+  With no bracket known, the chip falls back to "Last used". It never picks
+  a level for you. Off stays Off until you choose.
+- **Timing and Answers are `Disclosure` rows that state their value** ("From
+  turn 3", "All 6 · Game Changers"), shown only while a level other than Off
+  is picked. Most people keep the defaults.
+- **Game Changers follows the deck, not the device.** It defaults on from
+  bracket 3 up, the line the bracket rules draw, and is set again each new
+  game. Timing and answers are device preferences.
+- **Every answer off is a warning with its fix** ("Turn all on"), not a
+  silently idle opponent.
+- **A resumed game keeps the rules it started under.** A snapshot saved before
+  E533 has no options and resumes on `LEGACY_RESISTANCE_OPTIONS` (answers from
+  turn 1, no attacks or discard). Never backfill it with the new defaults.
+
 ### The table's look is per-device, never table-wide (2026-09-20, E347)
 
 The felt colour and the sleeves are **preferences on this device**, the same
