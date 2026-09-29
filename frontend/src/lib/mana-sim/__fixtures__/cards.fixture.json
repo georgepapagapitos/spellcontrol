@@ -430,6 +430,17 @@
       "keywords": ["Scry"]
     },
     {
+      "name": "Chord of Calling",
+      "layout": "normal",
+      "mana_cost": "{X}{G}{G}{G}",
+      "cmc": 3,
+      "type_line": "Instant",
+      "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nSearch your library for a creature card with mana value X or less, put it onto the battlefield, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Convoke"]
+    },
+    {
       "name": "Chromatic Lantern",
       "layout": "normal",
       "mana_cost": "{3}",
@@ -530,6 +541,17 @@
       "oracle_text": "Counter target spell.",
       "colors": ["U"],
       "color_identity": ["U"],
+      "keywords": []
+    },
+    {
+      "name": "Crop Rotation",
+      "layout": "normal",
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "type_line": "Instant",
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for a land card, put that card onto the battlefield, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
       "keywords": []
     },
     {
@@ -1054,6 +1076,18 @@
       "produced_mana": ["B", "G", "R", "U", "W"]
     },
     {
+      "name": "Gilt-Leaf Palace",
+      "layout": "normal",
+      "mana_cost": "",
+      "cmc": 0,
+      "type_line": "Land",
+      "oracle_text": "As this land enters, you may reveal an Elf card from your hand. If you don't, this land enters tapped.\n{T}: Add {B} or {G}.",
+      "colors": [],
+      "color_identity": ["B", "G"],
+      "keywords": [],
+      "produced_mana": ["B", "G"]
+    },
+    {
       "name": "Glacial Fortress",
       "layout": "normal",
       "mana_cost": "",
@@ -1106,6 +1140,18 @@
       "cmc": 2,
       "type_line": "Artifact",
       "oracle_text": "This artifact doesn't untap during your untap step.\n{T}: Add {C}{C}{C}.\n{4}: Untap this artifact.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "produced_mana": ["C"]
+    },
+    {
+      "name": "Grixis Panorama",
+      "layout": "normal",
+      "mana_cost": "",
+      "cmc": 0,
+      "type_line": "Land",
+      "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice this land: Search your library for a basic Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.",
       "colors": [],
       "color_identity": [],
       "keywords": [],
@@ -1429,6 +1475,18 @@
       "colors": ["U"],
       "color_identity": ["U"],
       "keywords": []
+    },
+    {
+      "name": "Lotus Petal",
+      "layout": "normal",
+      "mana_cost": "{0}",
+      "cmc": 0,
+      "type_line": "Artifact",
+      "oracle_text": "{T}, Sacrifice this artifact: Add one mana of any color.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "produced_mana": ["B", "G", "R", "U", "W"]
     },
     {
       "name": "Lyra Dawnbringer",
@@ -1918,6 +1976,18 @@
       "color_identity": ["U", "W"],
       "keywords": [],
       "produced_mana": ["U", "W"]
+    },
+    {
+      "name": "Priest of Titania",
+      "layout": "normal",
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "type_line": "Creature — Elf Druid",
+      "oracle_text": "{T}: Add {G} for each Elf on the battlefield.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "produced_mana": ["G"]
     },
     {
       "name": "Primeval Titan",
@@ -2456,6 +2526,18 @@
       "color_identity": ["U", "W"],
       "keywords": ["Scry"],
       "produced_mana": ["U", "W"]
+    },
+    {
+      "name": "Temple of the Dragon Queen",
+      "layout": "normal",
+      "mana_cost": "",
+      "cmc": 0,
+      "type_line": "Land",
+      "oracle_text": "As this land enters, you may reveal a Dragon card from your hand. This land enters tapped unless you revealed a Dragon card this way or you control a Dragon.\nAs this land enters, choose a color.\n{T}: Add one mana of the chosen color.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "produced_mana": ["B", "G", "R", "U", "W"]
     },
     {
       "name": "Temple of the False God",

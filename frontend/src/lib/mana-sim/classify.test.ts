@@ -60,6 +60,19 @@ describe('land entry, read from Oracle text', () => {
     expect(land("Emeria's Call").entry.kind).toBe('shock');
     expect(land('Valakut Awakening').entry.kind).toBe('tapped');
   });
+
+  it('reads a condition it has no model for as conditional (tapped in play)', () => {
+    // A tribal reveal: "you may reveal an Elf card … If you don't, … tapped".
+    expect(land('Gilt-Leaf Palace')).toMatchObject({
+      entry: { kind: 'conditional' },
+      units: [MANA_B | MANA_G],
+    });
+    // "… tapped unless you revealed a Dragon card this way or you control a Dragon".
+    expect(land('Temple of the Dragon Queen', AZORIUS)).toMatchObject({
+      entry: { kind: 'conditional' },
+      choice: { fixed: 0, options: AZORIUS },
+    });
+  });
 });
 
 describe('land mana', () => {
@@ -143,6 +156,10 @@ describe('fetch lands', () => {
     expect(land('Fabled Passage').fetch).toMatchObject({ tapped: true, untapAtLands: 4 });
   });
 
+  it('does not read a Panorama as a fetch: its crack costs {1}', () => {
+    expect(land('Grixis Panorama')).toMatchObject({ fetch: null, units: [MANA_C] });
+  });
+
   it('does not read a fetch that costs mana to crack (Myriad Landscape)', () => {
     expect(land('Myriad Landscape')).toMatchObject({ fetch: null, units: [MANA_C] });
   });
@@ -185,6 +202,19 @@ describe('ramp', () => {
 
   it('reads Gilded Lotus as three any-colour units', () => {
     expect(ramp('Gilded Lotus')).toMatchObject({ units: [FIVE, FIVE, FIVE] });
+  });
+
+  it('reads a sacrifice rock as one-shot and a "for each" dork as one mana', () => {
+    expect(ramp('Lotus Petal')).toMatchObject({ units: [FIVE], oneShot: true, delay: 0 });
+    expect(ramp('Priest of Titania')).toMatchObject({ units: [MANA_G], delay: 1, oneShot: false });
+  });
+
+  it('reads a search for any land card, and ignores a search for a creature', () => {
+    expect(ramp('Crop Rotation')).toMatchObject({
+      search: { basicOnly: false, types: ANY_COLOR, count: 1, tapped: false },
+      sacrificeLand: true,
+    });
+    expect(ramp('Chord of Calling')).toBeNull();
   });
 
   it('reads land searches: to the battlefield, tapped or not, and to hand', () => {
