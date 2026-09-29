@@ -110,11 +110,25 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
     section follows the source**: deck → In this deck (`renderPanelMeta`),
     search → the printing picker (`renderPanelExtra`), collection/binder →
     Your copy, playtest → Rules text with Rulings open. After the lead the
-    order is fixed: Rules text, Printing, Rulings, Legalities. **Rules text
-    stays in the panel on purpose.** It is how a screen reader reads the card,
-    and it carries current Oracle wording. It just doesn't lead. Rulings and
-    Legalities open by default, and rulings wait for the card to settle before
-    fetching.
+    order is fixed: Rules text, Played in, Printing, Rulings, Legalities.
+    **Rules text stays in the panel on purpose.** It is how a screen reader
+    reads the card, and it carries current Oracle wording. It just doesn't
+    lead. Played in, Rulings and Legalities open by default, and the two that
+    fetch wait for the card to settle first.
+  - **Played in** (`components/PlayedInSection.tsx`, E519) lists the
+    commanders EDHREC sees the card played under: the card's own rate across
+    decks that can play it, the Top commanders (five, then Show all) and New
+    commanders, each row reading "In N% of its Nk decks" over a `MeterBar`
+    with an Owned marker for the viewer's own collection. A row opens that
+    commander in a preview of its own, stacked on this one, whose Build a
+    deck action leaves for the generator. It renders nothing when EDHREC has
+    no page for the card or the device is offline, a Retry line when the
+    fetch fails, and never in the playtest inspector. It ends with View on
+    EDHREC (see STYLE_GUIDE § Third-party numbers name their source).
+  - **A preview can open a preview.** The one stacked above answers keys and
+    Back first (it is the topmost overlay layer), and a `role="presentation"`
+    wrapper stops its touch and click events before they reach the sheet
+    below, the rule the keyword popover already follows.
   - **Actions are labelled rects on the panel**, never pills floating over the
     scrim. Owner/management actions (`overflow: true`, e.g. Remove from deck)
     go in the row's ⋮. Flip / Turn act on the image, so they sit **on the

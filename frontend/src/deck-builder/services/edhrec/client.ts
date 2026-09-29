@@ -256,9 +256,13 @@ async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
 
   const data = await response.json();
 
-  // EDHREC returns { redirect: "..." } instead of real data for wrong partner orderings
+  // EDHREC returns { redirect: "..." } instead of real data for wrong partner
+  // orderings, and for one half of a split card ("fire" → "/cards/fire-ice").
+  // The target rides on the error for callers that can follow it.
   if (data.redirect) {
-    throw new Error(`EDHREC redirect to ${data.redirect}`);
+    throw Object.assign(new Error(`EDHREC redirect to ${data.redirect}`), {
+      redirect: String(data.redirect),
+    });
   }
 
   return data;
@@ -1749,6 +1753,8 @@ interface RawCardPageResponse {
     json_dict?: {
       cardlists?: RawCardPageList[];
       similar?: string[]; // not consumed here — see cardSimilar.ts
+      /** The page's own card: how many decks run it out of how many could. */
+      card?: { num_decks?: number; potential_decks?: number };
     };
   };
 }
@@ -1827,28 +1833,129 @@ export function parseCardRelations(raw: RawCardPageResponse): {
   return { highLift: build('highliftcards'), topCards: build('topcards') };
 }
 
-const cardPageCache = new Map<string, { raw: RawCardPageResponse; timestamp: number }>();
+/** What a card-page slug answered. `none` is EDHREC having no page for it
+ *  (its bucket answers 403/404); `redirect` is its pointer to another card
+ *  page; `error` is anything else, worth a retry. */
+type CardPageResult =
+  | { kind: 'ok'; raw: RawCardPageResponse }
+  | { kind: 'none' }
+  | { kind: 'redirect'; to: string }
+  | { kind: 'error' };
+
+// Every answer but an error is cached, so swiping back to a card with no page
+// doesn't ask again.
+const cardPageCache = new Map<string, { result: CardPageResult; timestamp: number }>();
 const CARD_PAGE_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
-// Shared by fetchCardLiftPool/fetchCardRelations so a card page is fetched
-// (and rate-limited) at most once per TTL window regardless of which caller
-// asks first.
-async function fetchRawCardPage(cardName: string): Promise<RawCardPageResponse | null> {
-  const slug = formatCommanderNameForUrl(cardName);
-
+// Shared by every card-page reader so a page is fetched (and rate-limited) at
+// most once per TTL window regardless of which caller asks first.
+async function loadCardPage(slug: string, cardName: string): Promise<CardPageResult> {
   const cached = cardPageCache.get(slug);
-  if (cached && Date.now() - cached.timestamp < CARD_PAGE_CACHE_TTL) return cached.raw;
-
-  if (offlineActive()) return null;
+  if (cached && Date.now() - cached.timestamp < CARD_PAGE_CACHE_TTL) return cached.result;
+  // Offline reads as no page, uncached: EDHREC has no offline shadow.
+  if (offlineActive()) return { kind: 'none' };
 
   try {
     const raw = await edhrecFetch<RawCardPageResponse>(`/pages/cards/${slug}.json`);
-    cardPageCache.set(slug, { raw, timestamp: Date.now() });
-    return raw;
+    const result: CardPageResult = { kind: 'ok', raw };
+    cardPageCache.set(slug, { result, timestamp: Date.now() });
+    return result;
   } catch (error) {
+    const { status, redirect } = error as { status?: number; redirect?: string };
+    let result: CardPageResult | null = null;
+    if (status === 403 || status === 404) result = { kind: 'none' };
+    else if (redirect) result = { kind: 'redirect', to: redirect };
+    if (result) {
+      cardPageCache.set(slug, { result, timestamp: Date.now() });
+      return result;
+    }
     logger.warn(`[EDHREC] Failed to fetch card page for "${cardName}":`, error);
-    return null;
+    return { kind: 'error' };
   }
+}
+
+async function fetchRawCardPage(cardName: string): Promise<RawCardPageResponse | null> {
+  const result = await loadCardPage(formatCommanderNameForUrl(cardName), cardName);
+  return result.kind === 'ok' ? result.raw : null;
+}
+
+/** One commander a card is played under, and how many of its decks run it. */
+export interface CommanderPlay {
+  name: string;
+  numDecks: number;
+  potentialDecks: number;
+  /** numDecks / potentialDecks as an unrounded percent. Render it through
+   *  `classifyInclusion`, never bare: under 1% reads as Off-meta. */
+  pct: number;
+}
+
+export type CardPlayedIn =
+  | {
+      status: 'ok';
+      /** EDHREC's page slug, for the link back to it. */
+      slug: string;
+      /** The card across every deck that could run it, when the page says. */
+      card: { numDecks: number; potentialDecks: number; pct: number } | null;
+      top: CommanderPlay[];
+      new: CommanderPlay[];
+    }
+  | { status: 'none' }
+  | { status: 'error' };
+
+function toCommanderPlay(cv: RawCardPageView): CommanderPlay | null {
+  // A partner pair ("Thrasios, Triton Hero // Tymna the Weaver") is two
+  // commanders on one page; it has no single card to show or open.
+  if (!cv.name || cv.name.includes(' // ')) return null;
+  const numDecks = cv.num_decks ?? cv.inclusion ?? 0;
+  const potentialDecks = cv.potential_decks ?? 0;
+  if (numDecks <= 0 || potentialDecks <= 0) return null;
+  return { name: cv.name, numDecks, potentialDecks, pct: (numDecks / potentialDecks) * 100 };
+}
+
+/**
+ * The commanders a card is played under, off its EDHREC card page: the page's
+ * Top Commanders and New Commanders lists in EDHREC's own order, plus the
+ * card's own play rate across every deck that could run it.
+ */
+export function parseCardPlayedIn(
+  raw: RawCardPageResponse,
+  slug: string
+): Extract<CardPlayedIn, { status: 'ok' }> {
+  const dict = raw.container?.json_dict;
+  const lists = dict?.cardlists ?? [];
+  const build = (tag: string): CommanderPlay[] =>
+    (lists.find((l) => l.tag === tag)?.cardviews ?? [])
+      .map(toCommanderPlay)
+      .filter((p): p is CommanderPlay => p !== null);
+  const numDecks = dict?.card?.num_decks ?? 0;
+  const potentialDecks = dict?.card?.potential_decks ?? 0;
+  return {
+    status: 'ok',
+    slug,
+    card:
+      numDecks > 0 && potentialDecks > 0
+        ? { numDecks, potentialDecks, pct: (numDecks / potentialDecks) * 100 }
+        : null,
+    top: build('topcommanders'),
+    new: build('newcommanders'),
+  };
+}
+
+/**
+ * "Played in" for the card preview. Unlike the deck-generation readers this
+ * tells "EDHREC has no page" (render nothing) apart from a failed fetch (offer
+ * a retry), and follows a split card's redirect to its real page.
+ */
+export async function fetchCardPlayedIn(cardName: string): Promise<CardPlayedIn> {
+  let slug = formatCommanderNameForUrl(cardName);
+  let result = await loadCardPage(slug, cardName);
+  const target = result.kind === 'redirect' ? /^\/cards\/([a-z0-9-]+)$/.exec(result.to) : null;
+  if (target) {
+    slug = target[1];
+    result = await loadCardPage(slug, cardName);
+  }
+  if (result.kind === 'ok') return parseCardPlayedIn(result.raw, slug);
+  return result.kind === 'error' ? { status: 'error' } : { status: 'none' };
 }
 
 /**
