@@ -27,8 +27,9 @@ vi.mock('@/lib/trade/trade-value', async () => {
 // The device-local price cache a pinned printing is priced from.
 let pinned: Record<string, number> = {};
 vi.mock('@/lib/collection/card-prices', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/collection/card-prices')>('@/lib/collection/card-prices');
+  const actual = await vi.importActual<typeof import('@/lib/collection/card-prices')>(
+    '@/lib/collection/card-prices'
+  );
   return {
     ...actual,
     getPrice: (id: string) => (id in pinned ? { usd: pinned[id], eur: pinned[id] } : undefined),
@@ -38,8 +39,9 @@ const removeTrade = vi.fn();
 const declineTrade = vi.fn();
 const withdrawTrade = vi.fn();
 vi.mock('@/lib/trade/trades-client', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/trade/trades-client')>('@/lib/trade/trades-client');
+  const actual = await vi.importActual<typeof import('@/lib/trade/trades-client')>(
+    '@/lib/trade/trades-client'
+  );
   return {
     ...actual,
     removeTrade: (id: string) => removeTrade(id),

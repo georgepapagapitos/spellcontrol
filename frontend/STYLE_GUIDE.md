@@ -29,15 +29,15 @@ primitives directory.
 
 ### Card surfaces
 
-| Reach for                                                   | Instead of                    | Ruling                                                                                                                            |
-| ----------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `components/shared/CardGridCell`                            | a bespoke grid tile           | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy) · § Index tiles wear cover art |
-| `components/shared/CardRow`                                 | a bespoke list row            | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy)                                |
+| Reach for                                                         | Instead of                    | Ruling                                                                                                                            |
+| ----------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `components/shared/CardGridCell`                                  | a bespoke grid tile           | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy) · § Index tiles wear cover art |
+| `components/shared/CardRow`                                       | a bespoke list row            | [§ Card row information hierarchy](style-guide/cards-collection.md#card-row-information-hierarchy)                                |
 | `components/CardThumb` + `lib/cards/card-thumbs` (`useCardThumb`) | a raw Scryfall image URL      | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129)                                            |
-| `components/CardPreview`                                    | a second card-detail view     | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129) — there is exactly one card view           |
-| `components/shared/ManaSymbol` (`ColorPip`)                 | a bare `mana-font` class      | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
-| `components/ManaCost`                                       | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                     |
-| `components/shared/SetSymbol`                               | a bare `keyrune` class        | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
+| `components/CardPreview`                                          | a second card-detail view     | [§ Card art peek](style-guide/overlays.md#card-art-peek--hover--touch-long-press-e129) — there is exactly one card view           |
+| `components/shared/ManaSymbol` (`ColorPip`)                       | a bare `mana-font` class      | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
+| `components/ManaCost`                                             | mapping a mana string by hand | [§ Card-stat terminology](style-guide/cards-collection.md#card-stat-terminology-mana-value--mana-cost--price)                     |
+| `components/shared/SetSymbol`                                     | a bare `keyrune` class        | [§ Symbol key / Legend](style-guide/cards-collection.md#symbol-key--legend)                                                       |
 
 ### Controls & chrome
 
@@ -46,7 +46,7 @@ primitives directory.
 | `components/PageHeader`                                        | a hand-built `.binder-hero`                          | § Layout system                                                                                                             |
 | `components/shared/Button` (`Button`)                          | a raw `className="btn …"`                            | § Shape language — Buttons are a primitive                                                                                  |
 | `components/shared/Button` (`IconButton`)                      | a `<button>` holding only a glyph                    | § Shape language — Buttons are a primitive                                                                                  |
-| `lib/util/icon-scale` (`ICON_SCALE`)                                | a one-off `lucide-react` size/strokeWidth pair       | § Icon scale                                                                                                                |
+| `lib/util/icon-scale` (`ICON_SCALE`)                           | a one-off `lucide-react` size/strokeWidth pair       | § Icon scale                                                                                                                |
 | `components/shared/CopyButton` (`CopyButton`/`CopyIconButton`) | a hand-rolled `Copied` label swap or copy toast      | § Verbs (Copy)                                                                                                              |
 | `components/shared/Chip`                                       | a raw `className="…-chip"` element                   | § Shape language — Chips are a primitive                                                                                    |
 | `components/shared/Chip` (`tone`)                              | a raw `-badge`/`-pill`/`-tag` label, or `is-*` tones | § Shape language — Badges, counts and surfaces are primitives                                                               |
@@ -60,9 +60,9 @@ primitives directory.
 | `components/SelectMenu`                                        | a restyled `<select>`                                | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/OverflowMenu`                                      | a hand-rolled `⋮` popover                            | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/shared/CtxMenuShell`                               | a hand-rolled right-click menu                       | § Verbs (menus)                                                                                                             |
-| `lib/overlays/use-menu-keyboard`                                        | a bespoke `role="menu"` key handler                  | § Verbs (menus)                                                                                                             |
+| `lib/overlays/use-menu-keyboard`                               | a bespoke `role="menu"` key handler                  | § Verbs (menus)                                                                                                             |
 | `components/shared/InlineRename`                               | a bespoke input-swap rename flow                     | § Verbs (rename)                                                                                                            |
-| `OverflowMenu` `contextHost` (+ `lib/overlays/context-menu`)            | an `onContextMenu` on an item                        | § Verbs (menus)                                                                                                             |
+| `OverflowMenu` `contextHost` (+ `lib/overlays/context-menu`)   | an `onContextMenu` on an item                        | § Verbs (menus)                                                                                                             |
 | `components/shared/ToolbarPopover`                             | a second portal-popover impl                         | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/shared/ViewPopoverPanel`                           | letting a phone toolbar wrap rows                    | [§ Toolbars & action rows](style-guide/components.md#toolbars--action-rows-responsive)                                      |
 | `components/Tabs`                                              | bespoke tab markup                                   | [§ Tabs / view switchers](style-guide/components.md#tabs--view-switchers)                                                   |
@@ -86,12 +86,12 @@ primitives directory.
   containing block, which is how the share dialog once opened clipped inside
   the deck hero with a backdrop that dimmed only that card.
 
-| Reach for                                         | Instead of                           | Ruling                                                                  |
-| ------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
-| `components/Modal`                                | a bespoke `position: fixed` layer    | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
+| Reach for                                                           | Instead of                           | Ruling                                                                  |
+| ------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
+| `components/Modal`                                                  | a bespoke `position: fixed` layer    | § Overlays — hand-rolled `.modal-backdrop` dialogs are the anti-pattern |
 | `lib/overlays/use-sheet-exit` + `lib/overlays/use-lock-body-scroll` | hand-rolled open/close + scroll lock | § Overlays                                                              |
-| `lib/overlays/use-escape-key`                              | a bare `keydown` listener            | § Overlays                                                              |
-| `components/ConfirmDialog` / `components/use-confirm`    | `window.confirm`                     | § Overlays                                                              |
+| `lib/overlays/use-escape-key`                                       | a bare `keydown` listener            | § Overlays                                                              |
+| `components/ConfirmDialog` / `components/use-confirm`               | `window.confirm`                     | § Overlays                                                              |
 
 ### Feedback, state & identity
 

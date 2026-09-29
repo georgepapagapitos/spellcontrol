@@ -15,7 +15,9 @@ vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
   useCardThumb: () => undefined,
 }));
 vi.mock('@/lib/api', () => ({ useSetMap: () => ({}) }));
-vi.mock('@/lib/discover/aggregates-client', () => ({ getCommanderStats: () => Promise.resolve(null) }));
+vi.mock('@/lib/discover/aggregates-client', () => ({
+  getCommanderStats: () => Promise.resolve(null),
+}));
 
 const SOL_RING_ID = '6d5537da-112e-4ea8-9e4e-8a5ec1a8b2c4';
 const SOL_RING = {

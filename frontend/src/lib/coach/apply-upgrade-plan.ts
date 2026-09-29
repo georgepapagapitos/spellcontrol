@@ -9,7 +9,11 @@ import { useCollectionStore } from '@/store/collection';
 import { useCubeStore } from '@/store/cube';
 import { useDeckHistoryStore } from '@/store/deck-history';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
-import { buildAllocationMap, makeDeckAllocationInfo, pickCollectionCopy } from '@/lib/collection/allocations';
+import {
+  buildAllocationMap,
+  makeDeckAllocationInfo,
+  pickCollectionCopy,
+} from '@/lib/collection/allocations';
 import { genId } from '@/lib/util/id';
 
 export interface PlanStep {

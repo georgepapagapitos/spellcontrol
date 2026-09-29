@@ -30,8 +30,9 @@ vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 const listTrades = vi.fn();
 const clearTradeHistory = vi.fn();
 vi.mock('@/lib/trade/trades-client', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/trade/trades-client')>('@/lib/trade/trades-client');
+  const actual = await vi.importActual<typeof import('@/lib/trade/trades-client')>(
+    '@/lib/trade/trades-client'
+  );
   return {
     ...actual,
     listTrades: (...args: unknown[]) => listTrades(...args),

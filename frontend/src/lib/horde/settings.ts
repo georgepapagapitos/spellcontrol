@@ -14,7 +14,12 @@
  */
 
 export type { HordeLevel, HordeSettings } from '@/lib/play/game-state';
-import type { HordeRevealMode, HordeSafeZone, HordeLevel, HordeSettings } from '@/lib/play/game-state';
+import type {
+  HordeRevealMode,
+  HordeSafeZone,
+  HordeLevel,
+  HordeSettings,
+} from '@/lib/play/game-state';
 export type RevealMode = HordeRevealMode;
 export type SafeZone = HordeSafeZone;
 

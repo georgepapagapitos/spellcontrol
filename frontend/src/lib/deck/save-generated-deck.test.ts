@@ -112,9 +112,7 @@ function deckFixture(overrides: Partial<Deck> = {}): Deck {
 type CreateDeckInput = Parameters<
   ReturnType<typeof import('@/store/decks').useDecksStore.getState>['createDeck']
 >[0];
-type CreateDeckFn = ReturnType<
-  typeof import('@/store/decks').useDecksStore.getState
->['createDeck'];
+type CreateDeckFn = ReturnType<typeof import('@/store/decks').useDecksStore.getState>['createDeck'];
 
 /**
  * Fake `createDeck` that records the input it would have persisted, so

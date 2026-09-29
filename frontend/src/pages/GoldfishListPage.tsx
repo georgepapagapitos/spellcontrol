@@ -4,7 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { importDeckText } from '@/lib/api';
 import { userMessage } from '@/lib/util/user-error';
 import { useDocumentTitle } from '@/lib/util/use-document-title';
-import { importToDeck, pastedDeckLocalId, pastedListToken } from '@/lib/import-export/import-to-deck';
+import {
+  importToDeck,
+  pastedDeckLocalId,
+  pastedListToken,
+} from '@/lib/import-export/import-to-deck';
 import { PlaytestSession } from '@/playtest/components/PlaytestSession';
 import { toast } from '@/store/toasts';
 import type { Deck } from '@/store/decks';

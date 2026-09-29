@@ -13,7 +13,11 @@ import type { EnrichedCard, MaterializedBinder } from '@/types/index';
 import type { ImportHistoryEntry } from '@/lib/sync/local-cards';
 import { fitsColorIdentity } from '@/lib/deck/deck-validation';
 import { computeDrift } from '@/lib/binder/binder-drift';
-import type { ArrivalCandidateCard, ArrivalDeckSlot, NewArrivalsInput } from '@/lib/coach/new-arrivals';
+import type {
+  ArrivalCandidateCard,
+  ArrivalDeckSlot,
+  NewArrivalsInput,
+} from '@/lib/coach/new-arrivals';
 import type { ArrivalWatchlists } from '@/lib/coach/arrival-watchlist';
 
 // ── New arrivals ─────────────────────────────────────────────────────────

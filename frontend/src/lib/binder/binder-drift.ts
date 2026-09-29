@@ -1,4 +1,9 @@
-import type { BinderDef, BinderReviewSnapshot, EnrichedCard, MaterializedBinder } from '@/types/index';
+import type {
+  BinderDef,
+  BinderReviewSnapshot,
+  EnrichedCard,
+  MaterializedBinder,
+} from '@/types/index';
 import { legalityFormatLabel } from '@/lib/cards/card-details';
 import { printingFinishKey } from '@/lib/collection/collection-mutations';
 import { formatMoney } from '@/lib/collection/format-money';

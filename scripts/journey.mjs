@@ -100,10 +100,14 @@ const AXE_SRC = A11Y ? src('../frontend/node_modules/axe-core/axe.min.js') : '';
 // Read the registries rather than re-typing them, so a new theme or type set
 // is swept the day it lands.
 const THEMES = [
-  ...src('../frontend/src/lib/account/themes.ts').matchAll(/id: '([a-z]+)',[^}]*?scheme: '(light|dark)'/g),
+  ...src('../frontend/src/lib/account/themes.ts').matchAll(
+    /id: '([a-z]+)',[^}]*?scheme: '(light|dark)'/g
+  ),
 ].map((m) => ({ id: m[1], scheme: m[2] }));
 const TYPESETS = [
-  ...src('../frontend/src/lib/account/typesets.ts').matchAll(/id: '([a-z]+)',[^}]*?href: (null|'[^']+')/g),
+  ...src('../frontend/src/lib/account/typesets.ts').matchAll(
+    /id: '([a-z]+)',[^}]*?href: (null|'[^']+')/g
+  ),
 ].map((m) => ({ id: m[1], href: m[2] === 'null' ? null : m[2].slice(1, -1) }));
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 

@@ -3,7 +3,10 @@
 // Extracted verbatim from deckGenerator.ts.
 import { logger } from '@/lib/util/logger';
 import { BASIC_LAND_NAMES } from '@/lib/collection/allocations';
-import { planBasicPrintings, type BasicPrintingAvail } from '@/lib/collection/collection-availability';
+import {
+  planBasicPrintings,
+  type BasicPrintingAvail,
+} from '@/lib/collection/collection-availability';
 import type {
   EDHRECCard,
   ScryfallCard,

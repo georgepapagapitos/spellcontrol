@@ -47,7 +47,11 @@ import type { GenerationContext } from './deckGeneration/state';
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { assembleBuildReport } from './buildReport';
 import { getCardByName, getCardPrice } from '@/deck-builder/services/scryfall/client';
-import { getScryfallStats, resetScryfallStats, type ScryfallStats } from '@/lib/cards/scryfall-fetch';
+import {
+  getScryfallStats,
+  resetScryfallStats,
+  type ScryfallStats,
+} from '@/lib/cards/scryfall-fetch';
 import { validateCardRole, getCardTags } from '@/deck-builder/services/tagger/client';
 import {
   fetchCommanderData,

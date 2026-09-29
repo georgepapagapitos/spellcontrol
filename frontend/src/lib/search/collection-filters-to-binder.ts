@@ -1,4 +1,9 @@
-import type { BinderFilter, BinderFilterGroup, ChipExpression, ScryfallQueryRule } from '@/types/index';
+import type {
+  BinderFilter,
+  BinderFilterGroup,
+  ChipExpression,
+  ScryfallQueryRule,
+} from '@/types/index';
 import { currencySymbol } from '@/lib/collection/currency';
 import type { ColorMatchMode } from '@/lib/cards/colors';
 import { isExpressionEmpty } from '@/lib/binder/rules';

@@ -16,7 +16,9 @@ vi.mock('@/lib/cards/card-thumbs', async (importOriginal) => ({
   useCardThumb: () => undefined,
 }));
 vi.mock('@/lib/api', () => ({ useSetMap: () => ({}) }));
-vi.mock('@/lib/discover/aggregates-client', () => ({ getCommanderStats: () => Promise.resolve(null) }));
+vi.mock('@/lib/discover/aggregates-client', () => ({
+  getCommanderStats: () => Promise.resolve(null),
+}));
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   searchCards: () => Promise.resolve({ data: [] }),
   getCardByNameResilient: () => Promise.resolve(null),

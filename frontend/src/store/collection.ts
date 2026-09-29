@@ -28,7 +28,13 @@ import {
   type ImportHistoryEntry,
   type StoredCollection,
 } from '@/lib/sync/local-cards';
-import { applyPrices, getPrice, setPrices, priceKey, type PriceEntry } from '@/lib/collection/card-prices';
+import {
+  applyPrices,
+  getPrice,
+  setPrices,
+  priceKey,
+  type PriceEntry,
+} from '@/lib/collection/card-prices';
 import { setReleaseDates } from '@/lib/cards/card-release-dates';
 import { getCurrency } from '@/lib/collection/currency';
 import type { Backup } from '@/lib/import-export/backup';
@@ -39,7 +45,11 @@ import { fetchWithAbortTimeout } from '@/lib/api/fetch-utils';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '@/lib/binder/samples';
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '@/lib/binder/binder-refs';
 import { acknowledgeInSnapshot, referencedLegalityFormats } from '@/lib/binder/binder-drift';
-import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '@/lib/binder/binder-moves';
+import {
+  computeBinderMoves,
+  formatBinderMoveMessage,
+  type BinderMove,
+} from '@/lib/binder/binder-moves';
 import {
   computeMarketMove,
   computeMovers,
@@ -1972,9 +1982,7 @@ useCollectionStore.subscribe((state, prev) => {
   // a missing IDB (tests) or network-down push must never crash the mutation;
   // the sync driver retries on next focus / online.
   if (isApplyingServer()) return;
-  void import('@/lib/sync')
-    .then((sync) => sync.persistBindersState(state.binders))
-    .catch(() => {});
+  void import('@/lib/sync').then((sync) => sync.persistBindersState(state.binders)).catch(() => {});
 });
 
 /**

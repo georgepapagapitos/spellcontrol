@@ -22,7 +22,11 @@ import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/
 import { colorChipLabel } from '@/lib/search/filter-summary';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { listDiscoverDecks, type DiscoverDeck, type DiscoverSortKey } from '@/lib/discover/discover-client';
+import {
+  listDiscoverDecks,
+  type DiscoverDeck,
+  type DiscoverSortKey,
+} from '@/lib/discover/discover-client';
 import {
   parseDiscoverFiltersFromSearchParams,
   discoverFiltersToSearchParams,

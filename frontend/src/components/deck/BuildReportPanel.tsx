@@ -10,7 +10,10 @@ import { OwnershipBadge } from './OwnershipBadge';
 import { ColorPip } from '@/components/shared/ManaSymbol';
 import { THIN_SAMPLE_FLOOR } from '@/components/shared/ThinDataNote';
 import { InfoTip } from '../InfoTip';
-import { EXHIBITION_BRACKET_NOTE, formatBracketLabel } from '@/lib/deck-analysis/format-bracket-label';
+import {
+  EXHIBITION_BRACKET_NOTE,
+  formatBracketLabel,
+} from '@/lib/deck-analysis/format-bracket-label';
 import { Button, IconButton } from '@/components/shared/Button';
 
 const COLOR_WORDS: Record<string, string> = {

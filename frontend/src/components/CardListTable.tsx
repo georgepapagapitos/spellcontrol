@@ -52,7 +52,11 @@ import { setSymbolTitle } from '@/lib/cards/set-symbols';
 import { DeckBadge } from './DeckBadge';
 import { Legend } from './Legend';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
-import { useAllocations, computeSurplusByName, type AllocationInfo } from '@/lib/collection/allocations';
+import {
+  useAllocations,
+  computeSurplusByName,
+  type AllocationInfo,
+} from '@/lib/collection/allocations';
 import { useCubeListings } from '@/lib/cube/cube-listings';
 import type { CollectionFilterJump } from '@/lib/collection/collection-insights';
 import { ViewModeToggle } from './ViewModeToggle';

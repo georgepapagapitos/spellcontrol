@@ -24,7 +24,11 @@ import { _resetForTests as resetPriceCache } from '@/lib/collection/card-prices'
 import { useCurrencyStore } from '@/lib/collection/currency';
 import { captureCollectionSnapshot } from '@/lib/collection/collection-snapshot';
 import { materializeBinders } from '@/lib/binder/materialize';
-import { clearValueHistory, getValueHistory, recordValueSnapshot } from '@/lib/collection/value-history';
+import {
+  clearValueHistory,
+  getValueHistory,
+  recordValueSnapshot,
+} from '@/lib/collection/value-history';
 import type { BinderDef, BinderInput, EnrichedCard, ListEntry, UploadResponse } from '../types';
 
 function enriched(

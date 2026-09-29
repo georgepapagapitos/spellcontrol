@@ -31,7 +31,9 @@ vi.mock('../store/collection', () => ({
 // The real hook subscribes to the persisted decks/cube stores; nothing here
 // allocates a copy, so an empty claim map is the whole truth.
 vi.mock('@/lib/collection/allocations', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/collection/allocations')>('@/lib/collection/allocations');
+  const actual = await vi.importActual<typeof import('@/lib/collection/allocations')>(
+    '@/lib/collection/allocations'
+  );
   return { ...actual, useAllocations: () => new Map() };
 });
 
@@ -78,8 +80,9 @@ vi.mock('@/lib/sync/use-awaiting-first-pull', () => ({
 
 const fetchFriendWants = vi.fn();
 vi.mock('@/lib/social/friends-client', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/social/friends-client')>('@/lib/social/friends-client');
+  const actual = await vi.importActual<typeof import('@/lib/social/friends-client')>(
+    '@/lib/social/friends-client'
+  );
   return { ...actual, fetchFriendWants: (...args: unknown[]) => fetchFriendWants(...args) };
 });
 
@@ -89,8 +92,9 @@ const listTrades = vi.fn((_opts?: unknown): Promise<{ offers: TradeOffer[]; trun
   Promise.resolve({ offers: [], truncated: false })
 );
 vi.mock('@/lib/trade/trades-client', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/trade/trades-client')>('@/lib/trade/trades-client');
+  const actual = await vi.importActual<typeof import('@/lib/trade/trades-client')>(
+    '@/lib/trade/trades-client'
+  );
   return { ...actual, listTrades: (opts?: unknown) => listTrades(opts) };
 });
 // The composer's per-printing binder badges and tag search — not under test.

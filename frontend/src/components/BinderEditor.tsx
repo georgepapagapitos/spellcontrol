@@ -5,7 +5,11 @@ import { fetchTypeSuggestions, fetchOracleSuggestions } from '@/lib/cards/scryfa
 import { importFile, importText, type ImportProgressCallback } from '@/lib/api';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
-import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '@/lib/import-export/staged-files';
+import {
+  mergeStagedFiles,
+  stagedFilesNotice,
+  stripExtension,
+} from '@/lib/import-export/staged-files';
 import { useFileDrop } from '@/lib/import-export/use-file-drop';
 import { NEW_BINDER_DEFAULT_SORTS, SORT_FIELDS, SORT_PRESETS } from '@/lib/search/sorting';
 import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';

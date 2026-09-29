@@ -60,13 +60,16 @@ const MATERIALIZE_ALLOWLIST: Record<string, string> = {
   'lib/binder/card-locations.ts': 'takes BinderLayoutInputs whole',
   'lib/import-export/import-routing.ts': 'takes BinderLayoutInputs whole',
   'lib/binder/use-binder-by-copy.ts': 'its hook reads useBinderLayoutInputs',
-  'lib/collection/ownership-lens.ts': 'fed by use-ownership-lens, which reads useBinderLayoutInputs',
+  'lib/collection/ownership-lens.ts':
+    'fed by use-ownership-lens, which reads useBinderLayoutInputs',
   'lib/collection/collection-insights.ts':
     "fed by StatsBar, whose cards/binders come from CollectionPage's useBinderLayoutInputs",
-  'lib/collection/pull-list.ts': 'fed by DeckEditorPage and DecksIndexPage from useBinderLayoutInputs',
+  'lib/collection/pull-list.ts':
+    'fed by DeckEditorPage and DecksIndexPage from useBinderLayoutInputs',
   'lib/cube/pull-list.ts': 'fed by CubePullList from useBinderLayoutInputs',
   'lib/binder/binder-moves.ts': "the store's price-refresh move notice, outside React",
-  'lib/binder/binder-counts.ts': 'fed by BinderEditor from useBinderLayoutInputs, plus the unsaved draft',
+  'lib/binder/binder-counts.ts':
+    'fed by BinderEditor from useBinderLayoutInputs, plus the unsaved draft',
   'lib/binder/shelf-plan.ts':
     'fed by PlanShelfModal from useBinderLayoutInputs, plus a batch of unsaved draft binders (E496)',
   'lib/binder/binder-chooser-preview.ts':

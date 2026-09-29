@@ -13,7 +13,10 @@ import { formatRelativeTime } from '@/lib/util/format-time';
 import { formatIdentity } from '@/lib/social/display-name';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import { bracketLabel } from '../deck-builder/services/deckBuilder/bracketEstimator';
-import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
+import {
+  bracketBadgeWithEstimate,
+  bracketAriaWithEstimate,
+} from '@/lib/deck-analysis/format-bracket-label';
 import { LikeButton } from './LikeButton';
 import { BookmarkButton } from './BookmarkButton';
 import { ColorIdentityBar } from './shared/ColorIdentityBar';

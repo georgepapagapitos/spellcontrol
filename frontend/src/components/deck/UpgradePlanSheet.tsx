@@ -23,7 +23,12 @@ import { useCurrency, currencySymbol } from '@/lib/collection/currency';
 import { formatMoney } from '@/lib/collection/format-money';
 import { formatBracketLabel } from '@/lib/deck-analysis/format-bracket-label';
 import { toSwapAgainst, type Change } from '@/lib/coach/deck-change';
-import { planUpgrades, type LeftOut, type PlannedMove, type UpgradeGoal } from '@/lib/coach/upgrade-plan';
+import {
+  planUpgrades,
+  type LeftOut,
+  type PlannedMove,
+  type UpgradeGoal,
+} from '@/lib/coach/upgrade-plan';
 import type { UpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
 import type { PlanStep } from '@/lib/coach/apply-upgrade-plan';
 import { useToastsStore } from '@/store/toasts';

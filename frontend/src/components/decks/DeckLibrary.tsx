@@ -3,7 +3,10 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { bracketBadgeWithEstimate, bracketAriaWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
+import {
+  bracketBadgeWithEstimate,
+  bracketAriaWithEstimate,
+} from '@/lib/deck-analysis/format-bracket-label';
 import type { DeckFormat } from '@/deck-builder/types';
 import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '@/lib/discover/discover-filters';
 import { DiscoverFiltersPopover } from '../DiscoverFiltersPopover';

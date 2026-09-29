@@ -11,7 +11,13 @@
  * once the user changes a row, and hands the result's `toCreate` list to the
  * store's `createBinders`. A row that would land nothing is never created.
  */
-import type { BinderDef, BinderFilter, BinderInput, ChipExpression, EnrichedCard } from '@/types/index';
+import type {
+  BinderDef,
+  BinderFilter,
+  BinderInput,
+  ChipExpression,
+  EnrichedCard,
+} from '@/types/index';
 import type { SetMap } from '@/lib/api';
 import { materializeBinders } from './materialize';
 import { cardMatchesAnyGroup, compileFilterGroups } from './rules';

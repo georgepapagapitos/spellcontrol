@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
-import { applyProducedMana, namesMissingProducedMana, producedManaFrom } from '@/lib/deck-analysis/produced-mana';
+import {
+  applyProducedMana,
+  namesMissingProducedMana,
+  producedManaFrom,
+} from '@/lib/deck-analysis/produced-mana';
 
 const NOTHING: ReadonlyMap<string, string[]> = new Map();
 

@@ -52,7 +52,13 @@ import { SwitchRow } from '../components/shared/form';
 import type { PickedDeck } from '../components/play/DeckPickerDialog';
 import { deckBoardPath, starterFileName } from '@/lib/play/starter-decks';
 import { TableProfiles } from '../components/play/TableProfiles';
-import type { GameAction, GameFormat, GamePlayer, GameRecord, GameState } from '@/lib/play/game-state';
+import type {
+  GameAction,
+  GameFormat,
+  GamePlayer,
+  GameRecord,
+  GameState,
+} from '@/lib/play/game-state';
 import { useCopyFeedback } from '@/lib/util/use-copy-feedback';
 import { gameToRecord } from '@/lib/play/game-state';
 import type { PublicBoard } from '../lib/playtest/projection';

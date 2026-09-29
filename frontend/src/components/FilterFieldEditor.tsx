@@ -18,7 +18,11 @@ import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { X } from 'lucide-react';
 import { InfoTip } from './InfoTip';
 import { useRuleFieldVisibility } from './RuleFieldContext';
-import { filterFieldSpec, type FilterFieldGroup, type FilterFieldId } from '@/lib/search/filter-fields';
+import {
+  filterFieldSpec,
+  type FilterFieldGroup,
+  type FilterFieldId,
+} from '@/lib/search/filter-fields';
 import { Field } from './shared/form';
 import { Button, IconButton } from '@/components/shared/Button';
 

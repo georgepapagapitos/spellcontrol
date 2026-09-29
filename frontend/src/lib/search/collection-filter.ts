@@ -1,4 +1,8 @@
-import { cardMatchesCompiled, exactMatchesExpression, type CompiledExpression } from '@/lib/binder/rules';
+import {
+  cardMatchesCompiled,
+  exactMatchesExpression,
+  type CompiledExpression,
+} from '@/lib/binder/rules';
 import { colorSelectionMatches, getColorKey, type ColorMatchMode } from '@/lib/cards/colors';
 import type { compileFilter } from '@/lib/binder/rules';
 import type { EnrichedCard } from '@/types/index';

@@ -81,7 +81,9 @@ function themes(): Array<{ name: string; tokens: Record<string, string> }> {
   return out;
 }
 const scheme = (name: string) =>
-  read('../lib/account/themes.ts').match(new RegExp(`id: '${name}',[\\s\\S]*?scheme: '(light|dark)'`))![1];
+  read('../lib/account/themes.ts').match(
+    new RegExp(`id: '${name}',[\\s\\S]*?scheme: '(light|dark)'`)
+  )![1];
 
 describe('card-preview panel: every ground the theme defines is remapped', () => {
   // The bug class: a ground token left at the theme's value inside the island.
