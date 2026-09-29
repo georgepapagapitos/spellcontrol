@@ -37,9 +37,10 @@
 // (macOS app bundles, Linux /usr/bin). puppeteer-core drives Chrome over CDP
 // and Firefox over WebDriver BiDi; no browser download.
 import { mkdir, writeFile } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
+import { TIERS, executable } from './journey-browser.mjs';
 
 // Expected sample-pack card count, read straight from the source constant
 // (not re-typed here) so it can't drift from lib/samples.ts.
@@ -63,33 +64,6 @@ const SETTLE_MS = Number(opt('--settle', 1500));
 // backend's ADMIN_USERNAMES so the walk also covers /admin (admin-only route);
 // re-runs against the same DB sign in instead of registering.
 const USERNAME = opt('--username', null);
-
-const TIERS = {
-  phone: { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-  desktop: { width: 1440, height: 900, deviceScaleFactor: 1 },
-};
-
-function executable() {
-  const env = BROWSER === 'firefox' ? process.env.JOURNEY_FIREFOX : process.env.JOURNEY_CHROME;
-  if (env) return env;
-  const candidates =
-    BROWSER === 'firefox'
-      ? [
-          '/Applications/Firefox.app/Contents/MacOS/firefox',
-          '/usr/bin/firefox',
-          '/snap/bin/firefox',
-        ]
-      : [
-          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-          '/usr/bin/google-chrome',
-          '/usr/bin/google-chrome-stable',
-          '/usr/bin/chromium-browser',
-          '/usr/bin/chromium',
-        ];
-  const found = candidates.find((c) => existsSync(c));
-  if (!found) throw new Error(`no ${BROWSER} binary found; set JOURNEY_${BROWSER.toUpperCase()}`);
-  return found;
-}
 
 /**
  * Console noise that is not a defect of ours: the browser's own "Failed to
@@ -789,7 +763,7 @@ async function main() {
   await mkdir(OUT, { recursive: true });
   const browser = await puppeteer.launch({
     browser: BROWSER,
-    executablePath: executable(),
+    executablePath: executable(BROWSER),
     headless: true,
     protocolTimeout: 300_000,
     args:

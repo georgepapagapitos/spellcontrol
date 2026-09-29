@@ -12,6 +12,10 @@ Disallow: /s/
 # recipient-only URL as /s/ shares above — not for indexing.
 Disallow: /gn/
 
+# The component catalog (dev specimen sheet, T176) ships in the production
+# build for the nightly visual diff; it is not a page for search results.
+Disallow: /dev/
+
 # /u/<username> and /d/<slug> — public profile and deck landing pages — are
 # intentionally NOT disallowed. Unlike /s/ and /gn/ above, these are meant
 # to be indexed: absence of a Disallow line here is already "crawlable" per
