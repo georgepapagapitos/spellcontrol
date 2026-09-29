@@ -1,0 +1,808 @@
+[
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "budget20",
+    "overrides": {
+      "deckBudget": 20
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "budget5000-expensive",
+    "overrides": {
+      "deckBudget": 5000,
+      "budgetOption": "expensive"
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "maxprice1",
+    "overrides": {
+      "maxCardPrice": 1
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "maxprice025-budget15",
+    "overrides": {
+      "maxCardPrice": 0.25,
+      "deckBudget": 15
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "eur-budget80",
+    "overrides": {
+      "currency": "EUR",
+      "deckBudget": 80
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "budgetoption-budget",
+    "overrides": {
+      "budgetOption": "budget"
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "bracket1",
+    "overrides": {
+      "targetBracket": 1
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "bracket3",
+    "overrides": {
+      "targetBracket": 3
+    }
+  },
+  {
+    "commanderName": "Yuriko, the Tiger's Shadow",
+    "variant": "bracket5",
+    "overrides": {
+      "targetBracket": 5
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "bracket4-gc-none",
+    "overrides": {
+      "targetBracket": 4,
+      "gameChangerLimit": "none"
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "gc1",
+    "overrides": {
+      "gameChangerLimit": 1
+    }
+  },
+  {
+    "commanderName": "Yuriko, the Tiger's Shadow",
+    "variant": "bracket2-gc3",
+    "overrides": {
+      "targetBracket": 2,
+      "gameChangerLimit": 3
+    }
+  },
+  {
+    "commanderName": "Lathril, Blade of the Elves",
+    "variant": "rarity-common",
+    "overrides": {
+      "maxRarity": "common"
+    }
+  },
+  {
+    "commanderName": "Talrand, Sky Summoner",
+    "variant": "rarity-uncommon",
+    "overrides": {
+      "maxRarity": "uncommon"
+    }
+  },
+  {
+    "commanderName": "Yuriko, the Tiger's Shadow",
+    "variant": "tinyleaders",
+    "overrides": {
+      "tinyLeaders": true
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "arenaonly",
+    "overrides": {
+      "arenaOnly": true
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "query-year2012",
+    "overrides": {
+      "scryfallQuery": "year<=2012"
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "query-set-mkm",
+    "overrides": {
+      "scryfallQuery": "set:mkm"
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "query-invalid",
+    "overrides": {
+      "scryfallQuery": "garbage(("
+    },
+    "expectedError": "Your Scryfall filter"
+  },
+  {
+    "commanderName": "Talrand, Sky Summoner",
+    "variant": "combos0",
+    "overrides": {
+      "comboCount": 0
+    }
+  },
+  {
+    "commanderName": "Sythis, Harvest's Hand",
+    "variant": "combos3",
+    "overrides": {
+      "comboCount": 3
+    }
+  },
+  {
+    "commanderName": "Isshin, Two Heavens as One",
+    "variant": "roles-off",
+    "overrides": {
+      "balancedRoles": false
+    }
+  },
+  {
+    "commanderName": "The Ur-Dragon",
+    "variant": "pacing-aggro",
+    "overrides": {
+      "tempoAutoDetect": false,
+      "tempoPacing": "aggressive-early"
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "pacing-late",
+    "overrides": {
+      "tempoAutoDetect": false,
+      "tempoPacing": "late-game"
+    }
+  },
+  {
+    "commanderName": "Yuriko, the Tiger's Shadow",
+    "variant": "salt0",
+    "overrides": {
+      "saltTolerance": 0
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "salt3",
+    "overrides": {
+      "saltTolerance": 3
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "lands30-nonbasic30",
+    "overrides": {
+      "landCount": 30,
+      "nonBasicLandCount": 30
+    }
+  },
+  {
+    "commanderName": "The Ur-Dragon",
+    "variant": "lands45-nonbasic0",
+    "overrides": {
+      "landCount": 45,
+      "nonBasicLandCount": 0
+    }
+  },
+  {
+    "commanderName": "Kozilek, the Great Distortion",
+    "variant": "lands37-nonbasic20",
+    "overrides": {
+      "landCount": 37,
+      "nonBasicLandCount": 20
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "lands25",
+    "overrides": {
+      "landCount": 25,
+      "nonBasicLandCount": 5
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "brew0",
+    "overrides": {
+      "brewLevel": 0
+    }
+  },
+  {
+    "commanderName": "Sythis, Harvest's Hand",
+    "variant": "brew1",
+    "overrides": {
+      "brewLevel": 1
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "mustinclude-mixed",
+    "overrides": {
+      "mustIncludeCards": [
+        "Goblin Chieftain",
+        "Skirk Prospector",
+        "Counterspell",
+        "Flash",
+        "Not A Real Card Name",
+        "Goblin Chieftain",
+        "Sol Ring",
+        "Lightning Bolt",
+        "Impact Tremors",
+        "Purphoros, God of the Forge"
+      ]
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "banned-staples",
+    "overrides": {
+      "bannedCards": [
+        "Sol Ring",
+        "Arcane Signet",
+        "Command Tower",
+        "Swords to Plowshares",
+        "Cyclonic Rift"
+      ],
+      "banLists": [
+        {
+          "id": "bl1",
+          "name": "House bans",
+          "cards": ["Rhystic Study", "Smothering Tithe", "Fierce Guardianship"],
+          "isPreset": false,
+          "enabled": true
+        },
+        {
+          "id": "bl2",
+          "name": "Disabled list",
+          "cards": ["Doubling Season"],
+          "isPreset": false,
+          "enabled": false
+        }
+      ]
+    }
+  },
+  {
+    "commanderName": "Lathril, Blade of the Elves",
+    "variant": "mustinclude-and-banned",
+    "overrides": {
+      "mustIncludeCards": ["Elvish Archdruid", "Craterhoof Behemoth"],
+      "bannedCards": ["Elvish Archdruid"]
+    }
+  },
+  {
+    "commanderName": "The Ur-Dragon",
+    "variant": "mustinclude40",
+    "overrides": {
+      "mustIncludeCards": [
+        "Scion of the Ur-Dragon",
+        "Tiamat",
+        "Lathliss, Dragon Queen",
+        "Utvara Hellkite",
+        "Balefire Dragon",
+        "Terror of the Peaks",
+        "Steel Hellkite",
+        "Hellkite Tyrant",
+        "Dragonlord Dromoka",
+        "Dragonlord Ojutai",
+        "Dragonlord Silumgar",
+        "Dragonlord Atarka",
+        "Dragonlord Kolaghan",
+        "Niv-Mizzet, Parun",
+        "Old Gnawbone",
+        "Goldspan Dragon",
+        "Ancient Copper Dragon",
+        "Ancient Gold Dragon",
+        "Ancient Silver Dragon",
+        "Ancient Brass Dragon",
+        "Ancient Bronze Dragon",
+        "Miirym, Sentinel Wyrm",
+        "Morophon, the Boundless",
+        "Dragon Tempest",
+        "Temur Ascendancy",
+        "Crucible of Fire",
+        "Dragonspeaker Shaman",
+        "Dragonlord's Servant",
+        "Urza's Incubator",
+        "Herald's Horn",
+        "Rhythm of the Wild",
+        "Sarkhan, Fireblood",
+        "Sarkhan Unbroken",
+        "Kindred Discovery",
+        "Kindred Charge",
+        "Kindred Summons",
+        "Path of Ancestry",
+        "Cavern of Souls",
+        "Unclaimed Territory",
+        "Haven of the Spirit Dragon"
+      ]
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "tempbans",
+    "overrides": {
+      "tempBannedCards": ["Sol Ring", "Sakura-Tribe Elder"],
+      "tempMustIncludeCards": ["Mikaeus, the Unhallowed", "Walking Ballista"]
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "oracle-role-permanents",
+    "overrides": {
+      "generationMode": "oracle-role",
+      "permanentsOnly": true
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "art-theme-goblin",
+    "overrides": {
+      "generationMode": "art-theme",
+      "artThemeTag": "goblin"
+    }
+  },
+  {
+    "commanderName": "Talrand, Sky Summoner",
+    "variant": "historical2005",
+    "overrides": {
+      "generationMode": "historical",
+      "historicalYear": 2005
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "historical1995",
+    "overrides": {
+      "generationMode": "historical",
+      "historicalYear": 1995
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "coll-prefer",
+    "overrides": {
+      "collectionStrategy": "prefer"
+    },
+    "collection": true
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "coll-full",
+    "overrides": {
+      "collectionMode": true,
+      "collectionStrategy": "full"
+    },
+    "collection": true
+  },
+  {
+    "commanderName": "Lathril, Blade of the Elves",
+    "variant": "coll-partial100",
+    "overrides": {
+      "collectionMode": true,
+      "collectionStrategy": "partial",
+      "collectionOwnedPercent": 100
+    },
+    "collection": true
+  },
+  {
+    "commanderName": "Sythis, Harvest's Hand",
+    "variant": "coll-available",
+    "overrides": {
+      "collectionMode": true,
+      "collectionStrategy": "available"
+    },
+    "collection": true
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "coll-full-budget30-ignoreowned",
+    "overrides": {
+      "collectionMode": true,
+      "collectionStrategy": "partial",
+      "collectionOwnedPercent": 50,
+      "deckBudget": 30,
+      "ignoreOwnedBudget": true,
+      "maxRarity": "rare",
+      "ignoreOwnedRarity": true
+    },
+    "collection": true
+  },
+  {
+    "commanderName": "Tatyova, Benthic Druid",
+    "variant": "pdh",
+    "overrides": {
+      "mtgFormat": "paupercommander"
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "pdh-illegal-commander",
+    "overrides": {
+      "mtgFormat": "paupercommander"
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "brawl60",
+    "overrides": {
+      "mtgFormat": "brawl",
+      "deckFormat": 60,
+      "landCount": 24,
+      "nonBasicLandCount": 8
+    }
+  },
+  {
+    "commanderName": "Yuriko, the Tiger's Shadow",
+    "variant": "format40",
+    "overrides": {
+      "deckFormat": 40,
+      "landCount": 16,
+      "nonBasicLandCount": 6
+    }
+  },
+  {
+    "commanderName": "Thrasios, Triton Hero",
+    "variant": "partner-tymna",
+    "partnerName": "Tymna the Weaver"
+  },
+  {
+    "commanderName": "Wilson, Refined Grizzly",
+    "variant": "background",
+    "partnerName": "Raised by Giants"
+  },
+  {
+    "commanderName": "Commodore Guff",
+    "variant": "pw-commander"
+  },
+  {
+    "commanderName": "Esika, God of the Tree // The Prismatic Bridge",
+    "variant": "mdfc"
+  },
+  {
+    "commanderName": "Tetsuko Umezawa, Fugitive",
+    "variant": "niche"
+  },
+  {
+    "commanderName": "Lutri, the Spellchaser",
+    "variant": "banned-commander"
+  },
+  {
+    "commanderName": "Giada, Font of Hope",
+    "variant": "mono-w"
+  },
+  {
+    "commanderName": "Giada, Font of Hope",
+    "variant": "mono-w-theme-angels",
+    "themeName": "Angels",
+    "themeSlug": "angels"
+  },
+  {
+    "commanderName": "Yuriko, the Tiger's Shadow",
+    "variant": "kitchen-sink",
+    "overrides": {
+      "targetBracket": 2,
+      "deckBudget": 40,
+      "maxRarity": "rare",
+      "saltTolerance": 0,
+      "comboCount": 0,
+      "brewLevel": 1,
+      "landCount": 33,
+      "nonBasicLandCount": 10,
+      "mustIncludeCards": [
+        "Ninja of the Deep Hours",
+        "Changeling Outcast",
+        "Ingenious Infiltrator"
+      ],
+      "bannedCards": ["Sol Ring", "Force of Will", "Mystic Remora"]
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "impossible",
+    "overrides": {
+      "deckBudget": 30,
+      "maxCardPrice": 0.5,
+      "maxRarity": "uncommon",
+      "arenaOnly": true,
+      "targetBracket": 1
+    }
+  },
+  {
+    "commanderName": "The Prismatic Piper",
+    "variant": "choose-color-solo",
+    "overrides": {},
+    "chosenColor": "G"
+  },
+  {
+    "commanderName": "The Prismatic Piper",
+    "variant": "choose-color-partner",
+    "partnerName": "Kenrith, the Returned King",
+    "overrides": {},
+    "chosenColor": "R"
+  },
+  {
+    "commanderName": "Clara Oswald",
+    "variant": "doctor-companion",
+    "partnerName": "The Tenth Doctor",
+    "overrides": {},
+    "chosenColor": "U"
+  },
+  {
+    "commanderName": "Faceless One",
+    "variant": "choose-color-bg",
+    "overrides": {},
+    "chosenColor": "W"
+  },
+  {
+    "commanderName": "The Tenth Doctor",
+    "variant": "doctor-rose",
+    "partnerName": "Rose Tyler",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Pir, Imaginative Rascal",
+    "variant": "partner-with",
+    "partnerName": "Toothy, Imaginary Friend",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Karn, Legacy Reforged",
+    "variant": "colorless",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Jodah, the Unifier",
+    "variant": "fivecolor",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Rhys the Redeemed",
+    "variant": "hybrid",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Lim-Dûl the Necromancer",
+    "variant": "nonascii",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Grist, the Hunger Tide",
+    "variant": "pw",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Lurrus of the Dream-Den",
+    "variant": "companion-kw",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Karumonix, the Rat King",
+    "variant": "multicopy",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Karumonix, the Rat King",
+    "variant": "multicopy-mustinc",
+    "overrides": {
+      "mustIncludeCards": ["Rat Colony"]
+    }
+  },
+  {
+    "commanderName": "Llanowar Elves",
+    "variant": "not-legendary",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Seven of Nine",
+    "variant": "unreleased",
+    "overrides": {}
+  },
+  {
+    "commanderName": "U.S.S. Enterprise-D, Galaxy-Class",
+    "variant": "unreleased-colorless",
+    "overrides": {}
+  },
+  {
+    "commanderName": "La'An Noonien-Singh, Security",
+    "variant": "punct-name",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Obeka, Splitter of Seconds",
+    "variant": "thin",
+    "overrides": {}
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "brew025",
+    "overrides": {
+      "brewLevel": 0.25
+    }
+  },
+  {
+    "commanderName": "Sythis, Harvest's Hand",
+    "variant": "brew0",
+    "overrides": {
+      "brewLevel": 0
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "brew1",
+    "overrides": {
+      "brewLevel": 1
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "manaphil-greedy",
+    "overrides": {
+      "manaPhilosophy": {
+        "reliable": 0,
+        "greedy": 20,
+        "spelllands": 0,
+        "budget": 0
+      }
+    }
+  },
+  {
+    "commanderName": "Giada, Font of Hope",
+    "variant": "blend-angels",
+    "themeName": "Angels",
+    "themeSlug": "angels",
+    "overrides": {
+      "archetypeBlend": true
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "salt1",
+    "overrides": {
+      "saltTolerance": 1
+    }
+  },
+  {
+    "commanderName": "Yuriko, the Tiger's Shadow",
+    "variant": "pricesanity-off",
+    "overrides": {
+      "priceSanity": false
+    }
+  },
+  {
+    "commanderName": "Yuriko, the Tiger's Shadow",
+    "variant": "bracket5-gcnone",
+    "overrides": {
+      "targetBracket": 5,
+      "gameChangerLimit": "none"
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "tiny-lands42",
+    "overrides": {
+      "tinyLeaders": true,
+      "landCount": 42,
+      "nonBasicLandCount": 10
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "mustinc-basics",
+    "overrides": {
+      "mustIncludeCards": ["Mountain", "Command Tower", "Sol Ring"]
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "query-goblin",
+    "overrides": {
+      "scryfallQuery": "t:goblin"
+    }
+  },
+  {
+    "commanderName": "Meren of Clan Nel Toth",
+    "variant": "query-lands",
+    "overrides": {
+      "scryfallQuery": "t:land"
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "size60-commander",
+    "overrides": {
+      "deckFormat": 60,
+      "landCount": 24,
+      "nonBasicLandCount": 6
+    }
+  },
+  {
+    "commanderName": "Thrasios, Triton Hero",
+    "variant": "partner-coll-full",
+    "partnerName": "Tymna the Weaver",
+    "collection": true,
+    "overrides": {
+      "collectionMode": true,
+      "collectionStrategy": "full"
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "art-bogus",
+    "overrides": {
+      "generationMode": "art-theme",
+      "artThemeTag": "zzzz-not-a-tag"
+    }
+  },
+  {
+    "commanderName": "Kozilek, the Great Distortion",
+    "variant": "art-eldrazi",
+    "overrides": {
+      "generationMode": "art-theme",
+      "artThemeTag": "eldrazi"
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "historical1993",
+    "overrides": {
+      "generationMode": "historical",
+      "historicalYear": 1993
+    }
+  },
+  {
+    "commanderName": "Kozilek, the Great Distortion",
+    "variant": "oracle-role",
+    "overrides": {
+      "generationMode": "oracle-role",
+      "permanentsOnly": false
+    }
+  },
+  {
+    "commanderName": "Krenko, Mob Boss",
+    "variant": "coll-partial25",
+    "collection": true,
+    "overrides": {
+      "collectionMode": true,
+      "collectionStrategy": "partial",
+      "collectionOwnedPercent": 25
+    }
+  },
+  {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "variant": "budget-10-bracket4",
+    "overrides": {
+      "deckBudget": 10,
+      "targetBracket": 4
+    }
+  },
+  {
+    "commanderName": "Tatyova, Benthic Druid",
+    "variant": "pdh-budget",
+    "overrides": {
+      "mtgFormat": "paupercommander",
+      "deckBudget": 20,
+      "arenaOnly": true
+    }
+  }
+]
