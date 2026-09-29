@@ -15,6 +15,28 @@ describe('CardName', () => {
     expect(container.querySelector('.card-name-oracle')?.textContent).toBe('Light Up the Stage');
   });
 
+  it('leads with the oracle name when asked, for a decklist', () => {
+    const { container } = render(<CardName card={promise} oracleFirst />);
+    const [first, , second] = Array.from(container.querySelectorAll('.card-name > span'));
+    expect(first.textContent).toBe('Light Up the Stage');
+    expect(second.textContent).toBe('A Promise Fulfilled');
+    expect(second.className).toBe('card-name-printed');
+  });
+
+  // A deck row passes `row`, whose set and collector number come from the
+  // owned copy. The stored card was Marvel's renamed Dauthi Voidwalker; the
+  // copy in the binder is a plain printing, so no printed name shows.
+  it('names the owned printing, not the stored one', () => {
+    const stored = { name: 'Dauthi Voidwalker', set: 'mar', collector_number: '63' };
+    expect(render(<CardName card={stored} oracleFirst />).container.textContent).toContain(
+      'Widow-Making Infiltrator'
+    );
+    const owned = { name: 'Dauthi Voidwalker', setCode: 'h1r', collectorNumber: '2' };
+    expect(render(<CardName card={owned} oracleFirst />).container.innerHTML).toBe(
+      'Dauthi Voidwalker'
+    );
+  });
+
   it('renders a card without a flavor name as its bare name', () => {
     const { container } = render(
       <CardName card={{ name: 'Lightning Bolt', set: 'lea', collector_number: '161' }} />
@@ -38,8 +60,10 @@ describe('deck list rows', () => {
       (r) => r.name
     );
 
-  it('sort by the name printed on the card', () => {
-    expect(names('')).toEqual(['Light Up the Stage', 'Abrade', 'Lightning Bolt']);
+  // A decklist sorts by the oracle name it leads with (2026-09-29); the
+  // printed-name sort still holds on collection and binder surfaces.
+  it('sort by the oracle name', () => {
+    expect(names('')).toEqual(['Abrade', 'Light Up the Stage', 'Lightning Bolt']);
   });
 
   it('find a flavor-named printing by either name', () => {

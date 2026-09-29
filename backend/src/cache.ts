@@ -1,3 +1,4 @@
+import { flavorNameOf } from '@spellcontrol/binder-routing';
 import { logger } from './logger';
 import Database from 'better-sqlite3';
 import path from 'path';
@@ -459,11 +460,19 @@ export class ScryfallCache {
    * cheapest nonfoil USD, else cheapest foil USD, else whatever printing came
    * back. Returns null when nothing is cached inside `maxAgeMs`, which the
    * caller reads as "go ask Scryfall".
+   *
+   * `avoidRenamed` skips printings that carry their own printed name (a
+   * crossover printing: Dauthi Voidwalker is also Marvel's "Widow-Making
+   * Infiltrator") whenever the card has any other printing. A list line that
+   * names only the card means the card, and the cheapest printing is often
+   * the renamed one. A price question (the AI budget ceiling) leaves it off:
+   * any printing is a real way to buy the card.
    */
   getCheapestByName(
     name: string,
     maxAgeMs: number = TTL_MS,
-    currency: 'usd' | 'eur' = 'usd'
+    currency: 'usd' | 'eur' = 'usd',
+    opts: { avoidRenamed?: boolean } = {}
   ): ScryfallCard | null {
     // Multi-face names are stored under the front face (see cardAliasKeys).
     const front = name.split(' // ')[0].trim().toLowerCase();
@@ -494,6 +503,8 @@ export class ScryfallCache {
         }
       }
       if (cards.length === 0) return null;
+      const plain = opts.avoidRenamed ? cards.filter((c) => !flavorNameOf(c)) : cards;
+      const pool = plain.length > 0 ? plain : cards;
 
       // Infinity == "no price in this currency", so it always loses the min.
       // Not `Number(raw)` alone: the dump writes an absent price as null, and
@@ -508,15 +519,15 @@ export class ScryfallCache {
         return Number.isFinite(n) ? n : Infinity;
       };
       const cheapestBy = (key: 'usd' | 'usd_foil' | 'eur' | 'eur_foil'): ScryfallCard | null =>
-        cards.reduce<ScryfallCard | null>(
+        pool.reduce<ScryfallCard | null>(
           (best, card) =>
             priceOf(card, key) < (best ? priceOf(best, key) : Infinity) ? card : best,
           null
         );
 
       return currency === 'eur'
-        ? (cheapestBy('eur') ?? cheapestBy('eur_foil') ?? cards[0])
-        : (cheapestBy('usd') ?? cheapestBy('usd_foil') ?? cards[0]);
+        ? (cheapestBy('eur') ?? cheapestBy('eur_foil') ?? pool[0])
+        : (cheapestBy('usd') ?? cheapestBy('usd_foil') ?? pool[0]);
     } catch (err) {
       logger.error('[cache] getCheapestByName failed, treating as cache miss:', err);
       return null;
@@ -538,7 +549,9 @@ export class ScryfallCache {
   ): { byName: Record<string, ScryfallCard>; byId: Record<string, ScryfallCard> } {
     const byName: Record<string, ScryfallCard> = {};
     for (const name of names) {
-      const card = this.getCheapestByName(name, maxAgeMs);
+      // A name from the browser is a list line or a search pick: the card,
+      // never a renamed crossover printing it didn't ask for.
+      const card = this.getCheapestByName(name, maxAgeMs, 'usd', { avoidRenamed: true });
       if (card) byName[name] = card;
     }
     return { byName, byId: Object.fromEntries(this.getMany(ids, false, maxAgeMs)) };

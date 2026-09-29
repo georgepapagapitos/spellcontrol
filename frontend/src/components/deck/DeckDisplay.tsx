@@ -2591,7 +2591,7 @@ export function DeckDisplay({
                     <li key={row.slotIds[0] ?? row.name}>
                       <span className="print-list-qty">{row.qty}</span>
                       <span className="print-list-name">
-                        <CardName card={row} />
+                        <CardName card={row} oracleFirst />
                       </span>
                       <span className="print-list-printing">
                         {row.setCode.toUpperCase()} {row.collectorNumber}
@@ -2611,7 +2611,7 @@ export function DeckDisplay({
                     <li key={row.slotIds[0] ?? row.name}>
                       <span className="print-list-qty">{row.qty}</span>
                       <span className="print-list-name">
-                        <CardName card={row} />
+                        <CardName card={row} oracleFirst />
                       </span>
                       <span className="print-list-printing">
                         {row.setCode.toUpperCase()} {row.collectorNumber}

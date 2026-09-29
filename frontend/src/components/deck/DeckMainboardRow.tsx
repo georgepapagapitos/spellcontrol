@@ -646,7 +646,11 @@ function DeckCardRow({
 
   const nameText = (
     <span className="deck-row-name-text" title={row.name}>
-      <CardName card={row.card} />
+      {/* `row`, not `row.card`: the row's set and collector number come from
+          the owned copy when one is allocated, so the name matches the art
+          and the set beside it. The stored card can be a printing you never
+          chose (an import once picked a renamed crossover printing). */}
+      <CardName card={row} oracleFirst />
     </span>
   );
 
