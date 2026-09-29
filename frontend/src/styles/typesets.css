@@ -4,7 +4,7 @@
  * tokens.css. Nothing else belongs here: sizing stays on the --text-* scale,
  * and color stays with the themes, so a set and a theme compose freely.
  *
- * Registry + font loading: lib/typesets.ts. Import order is load-bearing —
+ * Registry + font loading: lib/account/typesets.ts. Import order is load-bearing —
  * this must come after tokens.css (see STYLE_GUIDE "CSS file layout").
  *
  * Every stack ends in the same generic families as the tokens.css defaults, so

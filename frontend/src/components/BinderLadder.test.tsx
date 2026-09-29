@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { BinderLadder } from './BinderLadder';
-import { UNCATEGORIZED_LADDER_ID, type LadderEntry } from '../lib/binder-counts';
+import { UNCATEGORIZED_LADDER_ID, type LadderEntry } from '@/lib/binder/binder-counts';
 
 function stubViewport(phone: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({

@@ -5,10 +5,10 @@ import type { Finish, ListDef } from '../types';
 import { SearchPill } from './SearchPill';
 import { InlineCardSearch } from './InlineCardSearch';
 import { useCollectionStore } from '../store/collection';
-import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { useResultsKeys } from '../lib/use-results-keys';
-import { useSheetExit } from '../lib/use-sheet-exit';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useResultsKeys } from '@/lib/search/use-results-keys';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { Button } from '@/components/shared/Button';
 
 interface Props {

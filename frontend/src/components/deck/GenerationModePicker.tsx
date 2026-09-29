@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Sparkles, Wrench, Palette, Hourglass, WifiOff } from 'lucide-react';
 import type { Customization, GenerationMode, ScryfallCard } from '@/deck-builder/types';
 import { searchCardsLive } from '@/deck-builder/services/scryfall/client';
-import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import {
   ART_THEME_PRESETS,
   HISTORICAL_PRESETS,

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { usePlayStore } from '@/store/play';
-import { turnStartedAt } from '@/lib/game-clock';
-import { publishBoard } from '@/lib/games-board';
+import { turnStartedAt } from '@/lib/play/game-clock';
+import { publishBoard } from '@/lib/play/games-board';
 import { toPublicBoard, toPublicTicker, type PublicBoard } from '@/lib/playtest/projection';
 import type { PlaytestState } from '@/lib/playtest';
-import { capture } from '@/lib/undo-stack';
+import { capture } from '@/lib/play/undo-stack';
 import { toast } from '@/store/toasts';
 import type {
   GameAction,
@@ -12,7 +12,7 @@ import type {
   GamePhase,
   GamePlayer,
   MulliganType,
-} from '@/lib/game-state';
+} from '@/lib/play/game-state';
 import { usePlaytestStore } from '../store';
 import { useTableSeat } from './use-table-seat';
 import type { OpponentSeat } from '../components/OpponentRail';

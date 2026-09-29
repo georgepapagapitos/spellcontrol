@@ -1,10 +1,10 @@
-import { seatCountsForDeck } from '@/lib/table-read';
-import { logger } from '@/lib/logger';
+import { seatCountsForDeck } from '@/lib/play/table-read';
+import { logger } from '@/lib/util/logger';
 import { create } from 'zustand';
-import { genId } from '../lib/id';
-import { track } from '../lib/analytics';
+import { genId } from '@/lib/util/id';
+import { track } from '@/lib/util/analytics';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { safeLocalStorage } from '@/lib/safe-local-storage';
+import { safeLocalStorage } from '@/lib/util/safe-local-storage';
 import {
   applyAction,
   createGameState,
@@ -17,7 +17,7 @@ import {
   type GameRecord,
   type GameState,
   type HordeStep,
-} from '../lib/game-state';
+} from '@/lib/play/game-state';
 import {
   createGame as apiCreateGame,
   getGame as apiGetGame,
@@ -33,14 +33,14 @@ import {
   type GameSignal,
   type GameSignalInput,
   type JoinGameInput,
-} from '../lib/games-api';
-import { subscribeGameEvents } from '../lib/games-sse';
-import { subscribeGameLongPoll, usesLongPoll } from '../lib/games-longpoll';
-import { cancelBoardPublish } from '../lib/games-board';
-import { setHapticsEnabled } from '../lib/haptics';
-import { clearUndo } from '../lib/undo-stack';
-import { applyEditToRecord, applyEditToState } from '../lib/edit-game-record';
-import { FORMAT_OPTIONS } from '../lib/game-formats';
+} from '@/lib/play/games-api';
+import { subscribeGameEvents } from '@/lib/play/games-sse';
+import { subscribeGameLongPoll, usesLongPoll } from '@/lib/play/games-longpoll';
+import { cancelBoardPublish } from '@/lib/play/games-board';
+import { setHapticsEnabled } from '@/lib/util/haptics';
+import { clearUndo } from '@/lib/play/undo-stack';
+import { applyEditToRecord, applyEditToState } from '@/lib/play/edit-game-record';
+import { FORMAT_OPTIONS } from '@/lib/play/game-formats';
 import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
 import {
   deleteGameResult,
@@ -50,11 +50,11 @@ import {
   fetchMyResults,
   postLocalResult,
   resultToRecord,
-} from '../lib/game-results-client';
+} from '@/lib/play/game-results-client';
 import { useAuth } from './auth';
 import { toast } from './toasts';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 const POLL_INTERVAL_MS = 2500;
 
 export interface LocalGameSetup {
@@ -1708,7 +1708,7 @@ export const usePlayStore = create<PlayState>()(
  * the moment the account is there: queue flush on every guest → authed
  * transition, plus a fresh read of the server's list.
  */
-// Guarded like lib/use-ai-status.ts: component tests stand in a bare selector
+// Guarded like lib/ai/use-ai-status.ts: component tests stand in a bare selector
 // for `useAuth`, which has no `subscribe`.
 if (typeof useAuth.subscribe === 'function') {
   useAuth.subscribe((state, prev) => {
@@ -1747,7 +1747,7 @@ export function aggregateDeckRecords(
   for (const rec of history) {
     for (const p of rec.players) {
       // Horde is co-op (its own tally); online counts only the viewer's seat.
-      // One rule with the Bracket panel's read (lib/table-read.ts).
+      // One rule with the Bracket panel's read (lib/play/table-read.ts).
       if (!p.deckId || !seatCountsForDeck(rec, p, userId)) continue;
       const cur = byDeck.get(p.deckId) ?? {
         deckId: p.deckId,

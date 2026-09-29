@@ -15,7 +15,7 @@
  * junk). Consumers use it as a bounded re-rank signal, never as the sole gate.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { producedManaColors } from '@/lib/mana-sources';
+import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import { fetchableBasicColors, fetchedBasicRequirement } from './manabaseMath';
 import { isMdfcLand, isChannelLand } from '../scryfall/client';
 

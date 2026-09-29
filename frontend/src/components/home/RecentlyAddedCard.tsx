@@ -8,11 +8,11 @@ import {
   aggregateNewArrivalDecks,
   isRecentPartialImport,
   latestImport,
-} from '../../lib/home-signals';
-import { readArrivalWatchlists } from '../../lib/arrival-watchlist';
-import { useCardThumb } from '../../lib/card-thumbs';
-import { useAnimatedNumber } from '../../lib/use-animated-number';
-import { dayKey, formatDayKey } from '../../lib/value-history';
+} from '@/lib/home/home-signals';
+import { readArrivalWatchlists } from '@/lib/coach/arrival-watchlist';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { useAnimatedNumber } from '@/lib/util/use-animated-number';
+import { dayKey, formatDayKey } from '@/lib/collection/value-history';
 import { HomeCard } from './HomeCard';
 
 const FAN_LIMIT = 5;
@@ -35,7 +35,7 @@ function FanThumb({ name, owned }: { name: string; owned?: string }) {
  * figure is the import's own card count, the fan is cards from that import
  * (the copies you hold, owned art first), and the list names the decks whose
  * coach wants some of the new cards, each linking to that deck's new-arrivals
- * sheet (lib/arrival-watchlist.ts). The per-deck number also sits on each deck's tile
+ * sheet (lib/coach/arrival-watchlist.ts). The per-deck number also sits on each deck's tile
  * in Your decks, where it belongs to the deck. No import yet: nothing.
  *
  * Nor when the latest import is over a month old or is (nearly) the whole

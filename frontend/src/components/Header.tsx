@@ -1,13 +1,13 @@
 import { BookOpen, Globe, LogOut, Search, Settings, UserRound } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
 import { HeaderSyncIndicator } from './SyncIndicator';
 import { useAuth } from '../store/auth';
-import { useActivity } from '../lib/use-activity';
-import { formatCount } from '../lib/format-count';
+import { useActivity } from '@/lib/social/use-activity';
+import { formatCount } from '@/lib/util/format-count';
 import { Count } from './shared/Count';
 import { OverflowMenu } from './OverflowMenu';
 import { UserAvatar } from './UserAvatar';

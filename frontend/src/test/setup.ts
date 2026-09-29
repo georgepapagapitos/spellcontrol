@@ -135,7 +135,7 @@ if (!process.env.LIVE_GEN) {
     )) as typeof fetch;
 }
 
-// The first-party usage beacon (lib/analytics) fires on every route change.
+// The first-party usage beacon (lib/util/analytics) fires on every route change.
 // happy-dom's sendBeacon is a real window.fetch under the hood, which fails
 // against the test origin and surfaces as an unhandled NetworkError per
 // navigation; a no-op beacon keeps the suite quiet.

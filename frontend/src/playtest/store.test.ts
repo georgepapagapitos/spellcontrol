@@ -27,7 +27,7 @@ import { buildHordeLibrary, resolveHordeSettings, type HordeSettings } from '@/l
 const STANDARD = RESISTANCE_PRESETS.standard;
 
 // The decks-store sync subscriber (E133) fire-and-forgets a dynamic
-// `import('../lib/sync')` on every `decks` change; mock it the same way
+// `import('@/lib/sync')` on every `decks` change; mock it the same way
 // `store/decks.test.ts` does so seeding a deck here can't touch the network.
 vi.mock('@/lib/sync', () => ({
   persistDecksState: vi.fn().mockResolvedValue(undefined),

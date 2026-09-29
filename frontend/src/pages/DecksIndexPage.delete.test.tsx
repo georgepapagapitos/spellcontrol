@@ -37,7 +37,7 @@ vi.mock('../components/deck/ImportDeckDialog', () => ({ ImportDeckDialog: () => 
 vi.mock('../components/ProductSearchDialog', () => ({ ProductSearchDialog: () => null }));
 vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
 vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
   deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),

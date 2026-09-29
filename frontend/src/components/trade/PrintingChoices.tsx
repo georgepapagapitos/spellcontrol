@@ -2,11 +2,11 @@ import './PrintingChoices.css';
 import { Minus, Plus } from 'lucide-react';
 import { DeckBadge } from '../DeckBadge';
 import { BinderBadge } from '../BinderBadge';
-import { useAllocations, type AllocationInfo } from '../../lib/allocations';
-import type { BinderRef } from '../../lib/use-binder-by-copy';
-import { useCardThumb } from '../../lib/card-thumbs';
-import { formatMoney } from '../../lib/format-money';
-import type { PrintingGroup } from '../../lib/trade-picker';
+import { useAllocations, type AllocationInfo } from '@/lib/collection/allocations';
+import type { BinderRef } from '@/lib/binder/use-binder-by-copy';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { formatMoney } from '@/lib/collection/format-money';
+import type { PrintingGroup } from '@/lib/trade/trade-picker';
 import { IconButton } from '@/components/shared/Button';
 
 /** "LEA · #233 · foil · NM" — the identity of one printing, compactly.

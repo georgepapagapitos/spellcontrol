@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 
 /**
  * Keyboard shortcuts for the table — the binding table, its persistence, and

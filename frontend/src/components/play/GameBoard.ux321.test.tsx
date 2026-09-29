@@ -10,8 +10,8 @@
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GamePlayer, GameState } from '../../lib/game-state';
-import { createGameState, makePlayer } from '../../lib/game-state';
+import type { GamePlayer, GameState } from '@/lib/play/game-state';
+import { createGameState, makePlayer } from '@/lib/play/game-state';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 
@@ -102,13 +102,13 @@ vi.mock('../../store/play', () => {
   return { usePlayStore };
 });
 
-vi.mock('../../lib/haptics', () => ({
+vi.mock('@/lib/util/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn() },
 }));
 
-vi.mock('../../lib/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
+vi.mock('@/lib/util/use-wake-lock', () => ({ useWakeLock: vi.fn() }));
 
-vi.mock('../../lib/undo-stack', () => ({
+vi.mock('@/lib/play/undo-stack', () => ({
   capture: vi.fn(),
   clearUndo: vi.fn(),
   peekLabel: vi.fn(() => 'Commander damage'),
@@ -131,7 +131,7 @@ vi.mock('@dnd-kit/core', () => ({
 // never calls it with a name, so it's a same-tick no-op either way). This
 // stub only gives the commander-art tests below a synchronous, offline-safe
 // "normal" thumb to derive an art_crop URL from.
-vi.mock('../../lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: (name: string | undefined) =>
     name === 'Atraxa, Praetors Voice'
       ? 'https://cards.scryfall.io/normal/front/a/b/atraxa.jpg'
@@ -139,7 +139,7 @@ vi.mock('../../lib/card-thumbs', () => ({
 }));
 
 import { GameBoard } from './GameBoard';
-import { haptics } from '../../lib/haptics';
+import { haptics } from '@/lib/util/haptics';
 
 function renderGameBoard(game: GameState, dispatch = vi.fn()) {
   return render(<GameBoard game={game} dispatch={dispatch} canControlAll />);
@@ -237,7 +237,7 @@ describe('UX-325 — elimination beat + inline Undo', () => {
   });
 
   it('pp-elim-undo-btn calls the undo path when clicked', async () => {
-    const { popRestore } = await import('../../lib/undo-stack');
+    const { popRestore } = await import('@/lib/play/undo-stack');
     const mockRestore = vi.mocked(popRestore);
 
     const player = makeTestPlayer({ eliminated: false });

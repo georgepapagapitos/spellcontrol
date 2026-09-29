@@ -41,11 +41,11 @@ import {
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '../../store/decks';
-import { useCollapsedPref } from '../../lib/use-collapsed-pref';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
+import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
-import { useTaggerReady } from '@/lib/use-tagger-ready';
-import { COLOR_INFO } from '../../lib/colors';
+import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
+import { COLOR_INFO } from '@/lib/cards/colors';
 import {
   assemblyClockSentence,
   isKeepableHand,
@@ -53,8 +53,8 @@ import {
   simulateAssemblyClock,
   simulateOpeningHands,
   type SimResult,
-} from '../../lib/opening-hand-sim';
-import { cardCmc, isLand, toClockCard, toSimCard } from '../../lib/hand-classify';
+} from '@/lib/mana-sim/opening-hand-sim';
+import { cardCmc, isLand, toClockCard, toSimCard } from '@/lib/mana-sim/hand-classify';
 import { CardPreview } from '../CardPreview';
 import { InfoTip } from '../InfoTip';
 import { assemblyClockTip, isKillClock } from './WinConditionPanel';

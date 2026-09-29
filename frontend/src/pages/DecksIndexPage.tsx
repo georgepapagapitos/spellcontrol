@@ -1,5 +1,5 @@
 // Shared with DeckNewPage / DeckEditorPage; ships with those chunks, not the boot payload (E265).
-import { canRegenerate, regenerateHref, regenerateState } from '../lib/regenerate-prefill';
+import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
 import '@/styles/deck-builder-import-dialog.css';
 import {
   AlignJustify,
@@ -21,31 +21,31 @@ import {
   Wand2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
-import { useStoredSort } from '../lib/use-stored-sort';
-import { useStoredView } from '../lib/use-stored-view';
-import { deckCoverArt } from '../lib/deck-cover';
+import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
+import { useStoredSort } from '@/lib/util/use-stored-sort';
+import { useStoredView } from '@/lib/util/use-stored-view';
+import { deckCoverArt } from '@/lib/deck/deck-cover';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
 import { PageHeader } from '../components/PageHeader';
 import { useDecksStore } from '../store/decks';
-import { formatRelativeTime } from '../lib/format-time';
-import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { ProductSearchDialog } from '../components/ProductSearchDialog';
 import { DeckPickerDialog } from '../components/play/DeckPickerDialog';
-import { deckBoardPath } from '../lib/starter-decks';
+import { deckBoardPath } from '@/lib/play/starter-decks';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SortMenu, type SortMenuOption } from '../components/SortMenu';
 import { ColorIdentityBar } from '../components/shared/ColorIdentityBar';
 import { ColorPip } from '../components/shared/ManaSymbol';
-import { colorSelectionMatches, type ColorMatchMode } from '../lib/colors';
+import { colorSelectionMatches, type ColorMatchMode } from '@/lib/cards/colors';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
-import { colorChipLabel } from '../lib/filter-summary';
+import { colorChipLabel } from '@/lib/search/filter-summary';
 import { OverflowMenu, type OverflowMenuItem } from '../components/OverflowMenu';
 import { InfoTip } from '../components/InfoTip';
 import {
@@ -54,17 +54,17 @@ import {
   SelectCheck,
   selectInteraction,
 } from '../components/BulkSelectBar';
-import { selectedCountLabel, useSelection } from '../lib/use-selection';
-import { useDebouncedValue } from '../lib/use-debounced-value';
+import { selectedCountLabel, useSelection } from '@/lib/util/use-selection';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { useCollectionStore } from '../store/collection';
-import { MIN_COLLECTION_SIZE } from '../lib/commander-readiness';
-import { useAllocations } from '../lib/allocations';
-import { useSetMap } from '../lib/api';
-import { useBinderLayoutInputs } from '../lib/use-binder-layout-inputs';
-import { buildBinderPlacement, buildPullList, isPullableKind } from '../lib/pull-list';
-import { deckValue } from '../lib/deck-value';
-import { useCurrency } from '../lib/currency';
-import { formatMoney } from '../lib/format-money';
+import { MIN_COLLECTION_SIZE } from '@/lib/deck/commander-readiness';
+import { useAllocations } from '@/lib/collection/allocations';
+import { useSetMap } from '@/lib/api';
+import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
+import { buildBinderPlacement, buildPullList, isPullableKind } from '@/lib/collection/pull-list';
+import { deckValue } from '@/lib/deck/deck-value';
+import { useCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
 import type { Deck, DeckSource } from '../store/decks';
 import type { DeckFormat } from '../deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
@@ -73,13 +73,13 @@ import {
   deckDisplayColors,
   validateDeckZones,
   countFlaggedCards,
-} from '../lib/deck-validation';
+} from '@/lib/deck/deck-validation';
 import { ShareDialog } from '../components/ShareDialog';
-import { listMyPublications, publishDeck, unpublishDeck } from '../lib/publications-client';
+import { listMyPublications, publishDeck, unpublishDeck } from '@/lib/social/publications-client';
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
@@ -377,7 +377,7 @@ export function DecksIndexPage() {
 
   const [showImport, setShowImport] = useState(false);
   // The command palette's "Import deck" lands here with `{ openImport: true }`
-  // in location state (lib/commands.ts). Derived from the current location
+  // in location state (lib/search/commands.ts). Derived from the current location
   // rather than read once at mount, because the palette can fire while this
   // page is already open. Closing drops the flag from history, so Back
   // doesn't reopen the dialog.

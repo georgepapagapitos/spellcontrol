@@ -17,7 +17,7 @@ vi.mock('../components/AddCardsSheet', () => ({
 // Every section fetches or reads IndexedDB on mount — stubbed so this suite
 // stays hermetic and exercises HomePage's composition and the hero, not each
 // section's own branching (covered by each section's own test file).
-vi.mock('../lib/use-activity', () => ({
+vi.mock('@/lib/social/use-activity', () => ({
   useActivity: () => ({ count: 0, actionRequired: [], recent: [], following: [], loading: false }),
 }));
 
@@ -33,10 +33,10 @@ vi.mock('../store/auth', () => ({
   useAuth: (selector: (s: typeof mockAuthState) => unknown) => selector(mockAuthState),
 }));
 
-vi.mock('../lib/friends-client', () => ({
+vi.mock('@/lib/social/friends-client', () => ({
   getFriendsActivity: () => Promise.resolve([]),
 }));
-vi.mock('../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   listDiscoverDecks: () => Promise.resolve({ decks: [], page: 1, hasMore: false }),
   likeDeck: vi.fn(),
   unlikeDeck: vi.fn(),
@@ -49,8 +49,8 @@ vi.mock('../components/play/GameNights', () => ({
 // Controllable so the hero's pending-value branch (E277 reservation) is
 // reachable — the default resolves empty like before.
 const mockGetValueHistory = vi.hoisted(() => vi.fn((): Promise<unknown> => Promise.resolve([])));
-vi.mock('../lib/value-history', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/value-history')>();
+vi.mock('@/lib/collection/value-history', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/collection/value-history')>();
   return {
     ...actual,
     getValueHistory: mockGetValueHistory,
@@ -65,13 +65,13 @@ vi.mock('../lib/value-history', async (importOriginal) => {
 const mockPickHeroCard = vi.hoisted(() =>
   vi.fn(() => null as { name: string; art?: string; reason: 'top' | 'recent' | 'commander' } | null)
 );
-vi.mock('../lib/home-hero', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../lib/home-hero')>();
+vi.mock('@/lib/home/home-hero', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/home/home-hero')>();
   return { ...actual, pickHeroCard: mockPickHeroCard, heroGreeting: () => 'Good morning' };
 });
 
 const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
-vi.mock('../lib/card-thumbs', () => ({
+vi.mock('@/lib/cards/card-thumbs', () => ({
   useCardThumb: mockUseCardThumb,
   imageFromCard: () => undefined,
 }));
@@ -80,7 +80,7 @@ vi.mock('../lib/card-thumbs', () => ({
 // settling" — pinned to idle here so the fallback branch is deterministic;
 // the settling branch flips this per-test.
 const mockSyncState = vi.hoisted(() => ({ state: 'ready' as string }));
-vi.mock('../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   getSyncState: () => mockSyncState.state,
   onSyncedChange: () => () => {},
   // The hero, YourDecks and WaitingOnYou read `useAwaitingFirstPull`, which bails
@@ -98,7 +98,7 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import type { BinderDef, EnrichedCard } from '../types';
 import type { Deck } from '../store/decks';
-import { dayKey } from '../lib/value-history';
+import { dayKey } from '@/lib/collection/value-history';
 
 /** The thinnest rows the scale line's three counts can be taken from — the
  *  cards below still walk them (NewArrivalsCard reads deck.cards), so an

@@ -6,9 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Stub heavy dependencies so the test stays lightweight and focused on the
 // deep-link / sheet-open behaviour, not on data rendering.
-vi.mock('../lib/allocations', () => ({ useAllocations: () => new Map() }));
-vi.mock('../lib/api', () => ({ useSetMap: () => new Map() }));
-vi.mock('../lib/materialize', () => ({
+vi.mock('@/lib/collection/allocations', () => ({ useAllocations: () => new Map() }));
+vi.mock('@/lib/api', () => ({ useSetMap: () => new Map() }));
+vi.mock('@/lib/binder/materialize', () => ({
   materializeBinders: () => ({ binders: [] }),
 }));
 vi.mock('../components/CardListTable', () => ({
@@ -32,7 +32,7 @@ vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
 // Controllable sync state so we can exercise the fresh-device "loading your
 // collection" branch without standing up the real sync engine.
 const syncMock = vi.hoisted(() => ({ state: 'idle' as 'idle' | 'syncing' | 'ready' }));
-vi.mock('../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   getSyncState: () => syncMock.state,
   onSyncedChange: () => () => {},
 }));

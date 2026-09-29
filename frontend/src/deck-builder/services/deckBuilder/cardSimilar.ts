@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 
 // Data-driven substitute index: per-card EDHREC `similar` lists (deck
 // co-occurrence — "what replaces this card"), built offline by

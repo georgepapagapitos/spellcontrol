@@ -8,7 +8,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckAiReview } from './DeckAiReview';
-import { __resetAiStatus } from '../../lib/use-ai-status';
+import { __resetAiStatus } from '@/lib/ai/use-ai-status';
 
 // The carousel pulls in the Scryfall client + CardPreview; the panel only needs
 // to prove it hands the tapped name over.
@@ -26,7 +26,7 @@ vi.mock('./useCardCarousel', () => ({
   }),
 }));
 
-vi.mock('../../lib/deck-analysis', () => ({
+vi.mock('@/lib/deck-analysis/deck-analysis', () => ({
   analyzeDeck: () => ({
     totalNonCommander: 99,
     expectedSize: 99,
@@ -48,7 +48,7 @@ vi.mock('../../lib/deck-analysis', () => ({
     taggerReady: true,
   }),
 }));
-vi.mock('@/lib/use-tagger-ready', () => ({ useTaggerReady: () => true }));
+vi.mock('@/lib/cards/use-tagger-ready', () => ({ useTaggerReady: () => true }));
 
 function card(name: string): ScryfallCard {
   return { id: name, oracle_id: `o-${name}`, name } as ScryfallCard;

@@ -1,17 +1,17 @@
 import { ArrowLeft, ArrowUpDown } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SORT_FIELDS, sortDirectionLabel } from '../lib/sorting';
+import { SORT_FIELDS, sortDirectionLabel } from '@/lib/search/sorting';
 import { SortEditor } from './SortEditor';
-import { focusFirstSortField } from '../lib/sort-field-focus';
+import { focusFirstSortField } from '@/lib/search/sort-field-focus';
 import { SortPresetChips, SortPresetList } from './SortPresets';
-import { sortOrderSummaryLabel } from '@/lib/sort-order-label';
+import { sortOrderSummaryLabel } from '@/lib/search/sort-order-label';
 import { Modal } from './Modal';
 import { Button } from '@/components/shared/Button';
 import type { SortEntry, SortField } from '../types';
-import { useAnchoredPanel } from '@/lib/use-anchored-panel';
+import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
 import { Surface } from '@/components/shared/Surface';
-import { useMediaQuery } from '@/lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 
 type ValueOrders = Partial<Record<SortField, string[]>>;
 

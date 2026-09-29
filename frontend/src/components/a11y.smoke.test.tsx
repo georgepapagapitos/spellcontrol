@@ -57,7 +57,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 }));
 
 import { CardListTable } from './CardListTable';
-import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
+import { ShortcutRegistryProvider } from './shortcut-registry';
 
 /**
  * Component-scoped axe run:

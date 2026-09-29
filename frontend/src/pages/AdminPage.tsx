@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 // Admin + scanner sheet: shared with YouPage and CardScanner, off the boot payload (E265).
@@ -8,15 +8,15 @@ import '@/styles/settings-page.css';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { AdminPanel } from '../components/AdminPanel';
-import { useConfirm } from '../lib/use-confirm';
-import { stopSyncAndWipeLocal } from '../lib/sync';
+import { useConfirm } from '@/components/use-confirm';
+import { stopSyncAndWipeLocal } from '@/lib/sync';
 import { Tabs } from '../components/Tabs';
 import { useDecksStore, type Deck } from '../store/decks';
 import {
   buildAllocationMap,
   findSuboptimalPrintings,
   useCollectionByCopyId,
-} from '../lib/allocations';
+} from '@/lib/collection/allocations';
 import type { EnrichedCard } from '../types';
 import {
   listEvents,
@@ -24,12 +24,12 @@ import {
   type ErrorCountRow,
   type EventCountRow,
   type VitalCountRow,
-} from '../lib/admin-api';
-import { formatRelativeTime } from '../lib/format-time';
-import { userMessage } from '../lib/user-error';
+} from '@/lib/account/admin-api';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { userMessage } from '@/lib/util/user-error';
 import { toast } from '../store/toasts';
 import { Button } from '@/components/shared/Button';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyToClipboard } from '@/lib/util/clipboard';
 
 type Tab = 'analytics' | 'users' | 'overview' | 'decks' | 'storage' | 'raw';
 
@@ -66,7 +66,7 @@ export function AdminPage() {
   const remapAllocations = useDecksStore((s) => s.remapAllocations);
 
   const [tab, setTab] = useState<Tab>('analytics');
-  // First-party beacon counters (lib/analytics + /api/admin/events), fetched
+  // First-party beacon counters (lib/util/analytics + /api/admin/events), fetched
   // once when the tab is first opened. null = not loaded yet.
   const [events, setEvents] = useState<BeaconRows | null>(null);
   const [eventsError, setEventsError] = useState<string | null>(null);

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PrintingChoices, describePrinting } from './PrintingChoices';
-import { groupByPrinting, type OwnedTradeLine } from '../../lib/trade-picker';
+import { groupByPrinting, type OwnedTradeLine } from '@/lib/trade/trade-picker';
 import { useDecksStore } from '../../store/decks';
 import type { EnrichedCard } from '../../types';
 

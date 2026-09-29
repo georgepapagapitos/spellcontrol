@@ -1,6 +1,6 @@
 /* FriendsPage.css — /friends route */
 
-/* `scrollToHeading` (lib/scroll-to-heading.ts) focuses this non-interactive
+/* `scrollToHeading` (lib/util/scroll-to-heading.ts) focuses this non-interactive
    heading on a `?tab=` deep link so sighted users land in the right place and
    screen readers get the announcement. It's not a control, so it gets no
    `:focus-visible` ring pairing — suppress the raw default outline rather

@@ -1,0 +1,352 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+  cancelGameRequest,
+  createGame,
+  getGame,
+  joinGame,
+  leaveGame,
+  listGames,
+  patchGame,
+  pollGame,
+  postBoard,
+  raiseGameRequest,
+  respondGameRequest,
+  sendGameSignal,
+  type GameListing,
+  type GameRequest,
+} from './games-api';
+import type { GameState } from './game-state';
+import type { PublicBoard } from '@/lib/playtest/projection';
+
+function mockState(overrides: Partial<GameState> = {}): GameState {
+  return {
+    id: 'g1',
+    code: 'ABCD',
+    mode: 'online',
+    status: 'lobby',
+    hostUserId: 'u0',
+    format: 'commander',
+    startingLife: 40,
+    commanderDamageEnabled: true,
+    poisonEnabled: false,
+    mulliganType: 'commander' as const,
+    turnTimerEnabled: false,
+    name: '',
+    visibility: 'private',
+    voiceUrl: null,
+    layout: 'pod',
+    tapOrientation: 'horizontal',
+    activeSeat: null,
+    startingSeat: null,
+    designations: { monarch: null, initiative: null },
+    players: [],
+    events: [],
+    winnerSeat: null,
+    createdAt: 0,
+    updatedAt: 0,
+    startedAt: null,
+    endedAt: null,
+    version: 0,
+    ...overrides,
+  };
+}
+
+function mockRequest(overrides: Partial<GameRequest> = {}): GameRequest {
+  return {
+    id: 'req1',
+    code: 'ABCD',
+    kind: 'rewind',
+    payload: { steps: 2, summary: 'undo two draws' },
+    requesterSeat: 0,
+    approvals: {},
+    status: 'pending',
+    createdAt: 0,
+    expiresAt: 60_000,
+    ...overrides,
+  };
+}
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+beforeEach(() => {
+  fetchSpy = vi.spyOn(globalThis, 'fetch');
+});
+
+afterEach(() => {
+  fetchSpy.mockRestore();
+});
+
+describe('games-api', () => {
+  it('createGame POSTs to /api/games and returns the game', async () => {
+    const game = mockState();
+    fetchSpy.mockResolvedValueOnce(json({ game }));
+    const result = await createGame({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    });
+    expect(result).toEqual(game);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/games',
+      expect.objectContaining({ method: 'POST', credentials: 'same-origin' })
+    );
+  });
+
+  it('getGame URL-encodes the code', async () => {
+    const game = mockState({ code: 'AB CD' });
+    fetchSpy.mockResolvedValueOnce(json({ game }));
+    expect(await getGame('AB CD')).toEqual(game);
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/games/AB%20CD');
+  });
+
+  it('getGame appends knownVersion and returns the full state when it changed', async () => {
+    const game = mockState({ version: 9 });
+    fetchSpy.mockResolvedValueOnce(json({ game }));
+    expect(await getGame('ABCD', 8)).toEqual(game);
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/games/ABCD?knownVersion=8');
+  });
+
+  it('getGame resolves to null when the server reports it is unchanged', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ unchanged: true }));
+    expect(await getGame('ABCD', 5)).toBeNull();
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/games/ABCD?knownVersion=5');
+  });
+
+  it('joinGame POSTs payload to /join', async () => {
+    const game = mockState();
+    fetchSpy.mockResolvedValueOnce(json({ game }));
+    const result = await joinGame('ABCD', { name: 'Alice', deckId: 'd1' });
+    expect(result).toEqual(game);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/join');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      name: 'Alice',
+      deckId: 'd1',
+    });
+  });
+
+  it('patchGame returns the server game on 200', async () => {
+    const game = mockState({ version: 5 });
+    fetchSpy.mockResolvedValueOnce(json({ game }));
+    const result = await patchGame('ABCD', 4, [{ type: 'start' }]);
+    expect(result.game).toEqual(game);
+  });
+
+  it('patchGame throws with status 409 on a version conflict', async () => {
+    // Must throw (not swallow the snapshot) so dispatchOnline's 409 recovery runs.
+    const current = mockState({ version: 7 });
+    fetchSpy.mockResolvedValueOnce(json({ current }, 409));
+    await expect(patchGame('ABCD', 4, [{ type: 'start' }])).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it('patchGame throws on non-409 errors', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ error: 'nope' }, 403));
+    await expect(patchGame('ABCD', 0, [{ type: 'start' }])).rejects.toThrow(/nope/);
+  });
+
+  it('leaveGame returns the body verbatim', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ deleted: true }));
+    expect(await leaveGame('ABCD')).toEqual({ deleted: true });
+    fetchSpy.mockResolvedValueOnce(json({ game: mockState() }));
+    const r = await leaveGame('EFGH');
+    expect(r.game?.code).toBe('ABCD');
+  });
+
+  it('listGames GETs /api/games and returns the rows', async () => {
+    const games: GameListing[] = [
+      {
+        code: 'ABCD',
+        name: 'Bracket 3 chill',
+        format: 'commander',
+        status: 'lobby',
+        seated: 2,
+        max: 8,
+        joinable: true,
+        visibility: 'public',
+        bracket: { min: 3, max: 3 },
+      },
+    ];
+    fetchSpy.mockResolvedValueOnce(json({ games }));
+    expect(await listGames()).toEqual(games);
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/games');
+  });
+
+  it('pollGame builds the URL with since, and appends catchUp=1 only when requested', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ unchanged: true }));
+    await pollGame('ABCD', 3);
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/games/ABCD/poll?since=3');
+
+    fetchSpy.mockResolvedValueOnce(json({ unchanged: true }));
+    await pollGame('ABCD', 3, undefined, true);
+    expect(fetchSpy.mock.calls[1][0]).toBe('/api/games/ABCD/poll?since=3&catchUp=1');
+  });
+
+  it('pollGame resolves game:null on { unchanged: true }', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ unchanged: true }));
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game: null,
+      boards: undefined,
+      board: undefined,
+      requests: undefined,
+      request: undefined,
+    });
+  });
+
+  it('pollGame forwards the game, boards, and requests from a full response', async () => {
+    const game = mockState({ version: 5 });
+    const boards = [{ seat: 1, board: { seat: 1 } }];
+    const requests = [mockRequest({ requesterSeat: 1 })];
+    fetchSpy.mockResolvedValueOnce(json({ game, boards, requests }));
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game,
+      boards,
+      board: undefined,
+      requests,
+      request: undefined,
+    });
+  });
+
+  it('pollGame forwards a single resolved board', async () => {
+    const board = { seat: 2, board: { seat: 2 } };
+    fetchSpy.mockResolvedValueOnce(json({ board }));
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game: null,
+      boards: undefined,
+      board,
+      requests: undefined,
+      request: undefined,
+    });
+  });
+
+  it('pollGame forwards a single resolved request', async () => {
+    const req = mockRequest({ status: 'approved' });
+    fetchSpy.mockResolvedValueOnce(json({ request: req }));
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game: null,
+      boards: undefined,
+      board: undefined,
+      requests: undefined,
+      request: req,
+    });
+  });
+
+  it('pollGame forwards a signal that resolved a held poll', async () => {
+    const signal = { kind: 'roll', seat: 1, ts: 42, die: 'd6', value: 4 };
+    fetchSpy.mockResolvedValueOnce(json({ signal }));
+    expect(await pollGame('ABCD', 3)).toEqual({
+      game: null,
+      boards: undefined,
+      board: undefined,
+      requests: undefined,
+      request: undefined,
+      signal,
+    });
+  });
+
+  it('sendGameSignal POSTs a reaction and returns the server-stamped signal', async () => {
+    const signal = { kind: 'reaction', seat: 0, ts: 100, emote: '🔥' };
+    fetchSpy.mockResolvedValueOnce(json({ signal }));
+    const result = await sendGameSignal('ABCD', { kind: 'reaction', emote: '🔥' });
+    expect(result).toEqual(signal);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/signal');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      kind: 'reaction',
+      emote: '🔥',
+    });
+  });
+
+  it('sendGameSignal POSTs a roll and returns the server-rolled value', async () => {
+    const signal = { kind: 'roll', seat: 1, ts: 200, die: 'd20', value: 17 };
+    fetchSpy.mockResolvedValueOnce(json({ signal }));
+    const result = await sendGameSignal('ABCD', { kind: 'roll', die: 'd20' });
+    expect(result).toEqual(signal);
+    expect(JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string)).toEqual({
+      kind: 'roll',
+      die: 'd20',
+    });
+  });
+
+  it('sendGameSignal throws on a non-2xx response', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ error: 'Invalid emote.' }, 400));
+    await expect(sendGameSignal('ABCD', { kind: 'reaction', emote: '💀' })).rejects.toThrow(
+      /Invalid emote/
+    );
+  });
+
+  it('postBoard POSTs the board to /board and resolves on success', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ ok: true }));
+    const board = { seat: 0, turn: 1 } as unknown as PublicBoard;
+    await postBoard('ABCD', board);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/board');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual(board);
+  });
+
+  it('postBoard throws on a non-2xx response', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ error: 'Not a participant.' }, 403));
+    await expect(postBoard('ABCD', {} as PublicBoard)).rejects.toThrow(/Not a participant/);
+  });
+
+  it('raiseGameRequest POSTs kind+payload to /request and returns the created request', async () => {
+    const req = mockRequest();
+    fetchSpy.mockResolvedValueOnce(json({ request: req }, 201));
+    const result = await raiseGameRequest('ABCD', 'rewind', {
+      steps: 2,
+      summary: 'undo two draws',
+    });
+    expect(result).toEqual(req);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/request');
+    expect((init as RequestInit).method).toBe('POST');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      kind: 'rewind',
+      payload: { steps: 2, summary: 'undo two draws' },
+    });
+  });
+
+  it('raiseGameRequest throws on a 409 (already pending for this seat)', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ error: 'A request is already pending.' }, 409));
+    await expect(
+      raiseGameRequest('ABCD', 'rewind', { steps: 1, summary: 'x' })
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('respondGameRequest POSTs { approve } to /request/:id/respond', async () => {
+    const req = mockRequest({ status: 'approved' });
+    fetchSpy.mockResolvedValueOnce(json({ request: req }));
+    const result = await respondGameRequest('ABCD', 'req1', true);
+    expect(result).toEqual(req);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/request/req1/respond');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ approve: true });
+  });
+
+  it('respondGameRequest throws when the responder is the requester (self-approve)', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ error: 'Cannot respond to your own request.' }, 403));
+    await expect(respondGameRequest('ABCD', 'req1', true)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('cancelGameRequest POSTs to /request/:id/cancel with no body', async () => {
+    const req = mockRequest({ status: 'cancelled' });
+    fetchSpy.mockResolvedValueOnce(json({ request: req }));
+    const result = await cancelGameRequest('ABCD', 'req1');
+    expect(result).toEqual(req);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('/api/games/ABCD/request/req1/cancel');
+    expect((init as RequestInit).method).toBe('POST');
+  });
+});

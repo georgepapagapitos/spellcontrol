@@ -10,7 +10,7 @@ import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
 // mainboard (tap the number, type, Enter), wired through the host's single
 // zone-aware `onSetQty(zone, ...)`. There is no −/+ stepper on any row.
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 function bolt(): ScryfallCard {
   return {

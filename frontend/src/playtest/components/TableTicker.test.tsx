@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlayStore, type TickerItem } from '@/store/play';
 import type { PublicBoard, TickerEntry } from '@/lib/playtest/projection';
-import type { GamePlayer } from '@/lib/game-state';
+import type { GamePlayer } from '@/lib/play/game-state';
 import type { OnlineTable } from '../hooks/use-online-table';
 import { GLANCE_QUERY } from './OpponentRail';
 import { TableTicker, TableTickerDock, tickerSeatName } from './TableTicker';

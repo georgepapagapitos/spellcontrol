@@ -2,9 +2,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import type { BrewerCard } from '@/lib/brewers-client';
+import type { BrewerCard } from '@/lib/social/brewers-client';
 
-vi.mock('@/lib/brewers-client', () => ({
+vi.mock('@/lib/social/brewers-client', () => ({
   followUser: vi.fn(),
   unfollowUser: vi.fn(),
 }));

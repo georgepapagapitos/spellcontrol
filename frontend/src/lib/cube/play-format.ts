@@ -12,7 +12,7 @@
 // targets come from the corpus of popular CubeCobra Commander cubes.
 //
 // Eligibility reads Scryfall's oracle tags (the bundled otag index, see
-// lib/card-tags): `commander-matters` is Scryfall's own curated "cares about
+// lib/cards/card-tags): `commander-matters` is Scryfall's own curated "cares about
 // commander mechanics" set and `synergy-commander` its wider sibling; together
 // they cover every blank in the dev collection that an oracle-text regex finds,
 // without the regex's false positives (Partner reminder text, Lieutenant

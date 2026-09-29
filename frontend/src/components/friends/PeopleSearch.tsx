@@ -16,11 +16,11 @@ import {
   type FriendRequest,
   type FriendStatus,
   type FriendUser,
-} from '@/lib/friends-client';
-import { searchBrewers, type BrewerCard } from '@/lib/brewers-client';
-import { formatIdentity } from '@/lib/display-name';
-import { useDebouncedValue } from '@/lib/use-debounced-value';
-import { userMessage } from '@/lib/user-error';
+} from '@/lib/social/friends-client';
+import { searchBrewers, type BrewerCard } from '@/lib/social/brewers-client';
+import { formatIdentity } from '@/lib/social/display-name';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { userMessage } from '@/lib/util/user-error';
 import { toast } from '@/store/toasts';
 
 const DEBOUNCE_MS = 300;

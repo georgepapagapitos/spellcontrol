@@ -1,7 +1,7 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { DetectedCombo } from '@/deck-builder/types';
 import type { GenerationState } from './state';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 
 // Detect combos present in the generated deck.
 // Verbatim extraction from generateDeck: the closed-over containers

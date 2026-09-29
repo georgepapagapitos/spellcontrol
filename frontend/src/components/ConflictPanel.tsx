@@ -4,7 +4,7 @@ import { Modal } from './Modal';
 import { useConflictsStore, type DeckConflict } from '../store/conflicts';
 import { useDecksStore } from '../store/decks';
 import { toast } from '../store/toasts';
-import { diffDeckCards, type CardDelta } from '../lib/deck-diff';
+import { diffDeckCards, type CardDelta } from '@/lib/deck/deck-diff';
 import { DiffCardRow, type Tone } from './deck/DiffCardRow';
 import './ConflictPanel.css';
 import { Button } from '@/components/shared/Button';
@@ -122,7 +122,7 @@ function ConflictDialog({
 
 /**
  * Root-mounted (Layout.tsx, alongside ToastViewport) global overlay for a
- * rejected deck push (E170). `applyPushResult` (lib/sync.ts) can fire from a
+ * rejected deck push (E170). `applyPushResult` (lib/sync/index.ts) can fire from a
  * background push while the user is on any page — it isn't a React
  * component — so it pushes structured conflict data into `store/conflicts.ts`
  * instead of calling into a component directly; this always-mounted viewport

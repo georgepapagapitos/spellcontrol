@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
-import { contrastRatio } from '../lib/ink';
+import { contrastRatio } from '@/lib/util/ink';
 
 // Contrast guards for the grounds themes-contrast.test.ts does not reach
 // (a11y sweep 2026-09: --text-muted measured 4.16:1 on a selected choice card
@@ -238,8 +238,8 @@ describe('text on the deck identity warn/fail row tints', () => {
   });
 });
 
-// Text painted on a binder's own colour takes its ink from lib/ink.ts (numeric
-// proof in lib/ink.test.ts); these pin the wiring so a fixed colour can't return.
+// Text painted on a binder's own colour takes its ink from lib/util/ink.ts (numeric
+// proof in lib/util/ink.test.ts); these pin the wiring so a fixed colour can't return.
 describe('binder colour fills use the picked ink', () => {
   it('the active binder tab and the index name band read --binder-ink', () => {
     expect(read('binder-nav.css')).toMatch(/\.tab\.active\s*\{\s*color:\s*var\(--binder-ink/);

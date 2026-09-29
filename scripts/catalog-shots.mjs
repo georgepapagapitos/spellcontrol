@@ -39,8 +39,8 @@ const read = (file) => readFileSync(new URL(file, import.meta.url), 'utf8');
 const ids = (file) => [...read(file).matchAll(/^\s{4}id: '([a-z-]+)',/gm)].map((m) => m[1]);
 const constant = (file, name) =>
   read(file).match(new RegExp(`export const ${name} = '([a-z-]+)'`))[1];
-const THEMES_TS = '../frontend/src/lib/themes.ts';
-const TYPESETS_TS = '../frontend/src/lib/typesets.ts';
+const THEMES_TS = '../frontend/src/lib/account/themes.ts';
+const TYPESETS_TS = '../frontend/src/lib/account/typesets.ts';
 const pick = (flag, all) => (opt(flag, 'all') === 'all' ? all : opt(flag, '').split(','));
 const THEMES = pick('--themes', ids(THEMES_TS));
 const TYPESETS = pick('--typesets', ids(TYPESETS_TS));

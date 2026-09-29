@@ -49,7 +49,7 @@ const REGENERATED_ASSETS = [
  * eval's nDCG floor silently scoring against different data and sending someone
  * off to retune validated weights.
  */
-const ALLOWED = new Set(['lib/otag-descriptions.test.ts']);
+const ALLOWED = new Set(['lib/cards/otag-descriptions.test.ts']);
 
 function testFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

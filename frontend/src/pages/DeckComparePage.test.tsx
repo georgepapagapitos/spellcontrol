@@ -6,11 +6,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../store/decks', () => ({
   useDecksStore: vi.fn(),
 }));
-vi.mock('../lib/deck-diff', () => ({
+vi.mock('@/lib/deck/deck-diff', () => ({
   diffDecks: vi.fn(),
 }));
-vi.mock('../lib/use-tagger-ready', () => ({ useTaggerReady: () => false }));
-vi.mock('../lib/build-mana-data', () => ({
+vi.mock('@/lib/cards/use-tagger-ready', () => ({ useTaggerReady: () => false }));
+vi.mock('@/lib/deck-analysis/build-mana-data', () => ({
   buildManaData: vi.fn(() => ({
     manaCurve: {},
     averageCmc: 0,
@@ -25,7 +25,7 @@ vi.mock('../lib/build-mana-data', () => ({
 
 import { DeckComparePage } from './DeckComparePage';
 import { useDecksStore } from '../store/decks';
-import { diffDecks } from '../lib/deck-diff';
+import { diffDecks } from '@/lib/deck/deck-diff';
 
 const mockUseDecksStore = useDecksStore as unknown as ReturnType<typeof vi.fn>;
 const mockDiffDecks = diffDecks as unknown as ReturnType<typeof vi.fn>;

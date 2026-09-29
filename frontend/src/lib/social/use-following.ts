@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchFollowing, type BrewerCard } from '../brewers-client';
-import { userMessage } from '../user-error';
+import { fetchFollowing, type BrewerCard } from './brewers-client';
+import { userMessage } from '@/lib/util/user-error';
 
 /**
  * Who the signed-in viewer follows, newest follow first. `brewers` is null

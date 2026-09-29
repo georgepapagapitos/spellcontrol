@@ -8,10 +8,10 @@ import {
   hasSyncError,
   getLastSyncedAt,
   onSyncedChange,
-} from '../lib/sync';
-import { formatRelativeTime } from '../lib/format-time';
+} from '@/lib/sync';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import { useAuth } from '../store/auth';
-import { offlineSavedLine } from '../lib/shared-copy';
+import { offlineSavedLine } from '@/lib/util/shared-copy';
 
 // Sync-badge options: 45s "just now" threshold (label stabilizes quickly —
 // the header isn't a second-by-second timer) + no months/years tier

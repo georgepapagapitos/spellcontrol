@@ -1,8 +1,8 @@
 import { Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAnchoredPanel } from '@/lib/use-anchored-panel';
-import { searchFilterFields, type FilterFieldId } from '../lib/filter-fields';
+import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
+import { searchFilterFields, type FilterFieldId } from '@/lib/search/filter-fields';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 

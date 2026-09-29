@@ -18,7 +18,7 @@ const { hapticsMock } = vi.hoisted(() => ({
     eliminate: vi.fn(),
   },
 }));
-vi.mock('../lib/haptics', () => ({ haptics: hapticsMock }));
+vi.mock('@/lib/util/haptics', () => ({ haptics: hapticsMock }));
 
 import { ConfirmDialog } from './ConfirmDialog';
 

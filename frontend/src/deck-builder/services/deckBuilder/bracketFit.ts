@@ -41,7 +41,7 @@ import {
   type BracketEstimation,
 } from './bracketEstimator';
 import { getCardRole, isExtraTurn } from '@/deck-builder/services/tagger/client';
-import { frontFaceName, getByCardName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
 import { ROLE_LABELS } from './deckAnalyzer';
 import { calculateCardPriority } from './cardPicking';

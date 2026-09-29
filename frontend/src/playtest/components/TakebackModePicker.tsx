@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 import './TakebackModePicker.css';
-import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { TAKEBACK_MODES, TAKEBACK_MODE_DESCRIPTION, TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import type { TakebackMode } from '../lib/takeback';
 import { Button } from '@/components/shared/Button';

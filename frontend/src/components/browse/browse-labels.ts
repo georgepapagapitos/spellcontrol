@@ -1,7 +1,7 @@
 import { formatDeckCount } from '@/components/deck/CommanderResultCard';
 import { saltBandWord } from '@/components/deck/SaltiestPanel';
-import { classifyInclusion } from '@/lib/inclusion-label';
-import type { BrowseItem, BrowseListId } from '@/lib/browse-lists';
+import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
+import type { BrowseItem, BrowseListId } from '@/lib/discover/browse-lists';
 
 /** "Released Aug 14", with the year only when it isn't this one. */
 function releaseLabel(date: string, now = new Date()): string {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Smartphone } from 'lucide-react';
 import { Modal } from '@/components/Modal';
-import { useMediaQuery } from '@/lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import { PHONE_MAX_WIDTH } from '../hooks/use-narrow-viewport';
 import { Button } from '@/components/shared/Button';
 

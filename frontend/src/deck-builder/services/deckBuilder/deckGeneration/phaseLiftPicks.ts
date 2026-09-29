@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { DeckCategory, LiftPackagePick, ScryfallCard } from '@/deck-builder/types';
 import { getCardsByNames, upgradeCardPrintings } from '@/deck-builder/services/scryfall/client';
 import { aggregateLiftCandidates, selectTopLiftPicks, type LiftCandidate } from '../liftSynergy';

@@ -7,7 +7,7 @@ import {
   makePlayer,
   type GameAction,
   type GameState,
-} from '@/lib/game-state';
+} from '@/lib/play/game-state';
 import { loadHordeDeck, resolveHordeSettings, type HordeDeckDef } from '@/lib/horde';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';

@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard, DeckCategory, CoherenceRepair } from '@/deck-builder/types';
 import {
   getCardRole,

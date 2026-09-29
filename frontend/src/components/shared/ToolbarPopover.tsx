@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
-import { markMenuTarget } from '@/lib/context-menu';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
+import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
+import { markMenuTarget } from '@/lib/overlays/context-menu';
 import { Surface } from './Surface';
 
 /**

@@ -1,4 +1,4 @@
-import { isBasicLandName } from '@/lib/allocations';
+import { isBasicLandName } from '@/lib/collection/allocations';
 import type { DeckFormatConfig } from '@/deck-builder/types';
 
 /** A single deck-health gate. `fail` = hard rule (legality); `warn` = soft target. */

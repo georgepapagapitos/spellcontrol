@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { ScannedEntry } from '../lib/use-scan-queue';
+import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
 
 // Heavy dependencies are stubbed: each is exercised by its own test
 // suite (CardSearchResults.test.tsx covers onActiveChange/hideRowDisclosure
@@ -82,11 +82,11 @@ vi.mock('./CardScanner', () => ({
   ),
 }));
 
-vi.mock('../lib/use-lock-body-scroll', () => ({
+vi.mock('@/lib/overlays/use-lock-body-scroll', () => ({
   useLockBodyScroll: () => {},
 }));
 
-vi.mock('../lib/use-can-scan', () => ({
+vi.mock('@/lib/scanner/use-can-scan', () => ({
   useCanScan: vi.fn(() => true),
 }));
 
@@ -97,7 +97,7 @@ const importTextMock = vi.fn(async (_text: string) => ({
   scryfallHits: 1,
   format: 'mtga',
 }));
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   importText: (text: string) => importTextMock(text),
   // The desktop inspector's PrintingPicker calls this; an empty result falls
   // back to the card it already has (its own fallback-to-[fallback] logic).
@@ -124,8 +124,8 @@ vi.mock('../store/collection', () => ({
 }));
 
 import { AddCardsSheet } from './AddCardsSheet';
-import { useCanScan } from '../lib/use-can-scan';
-import { useScanQueueStore } from '../lib/use-scan-queue';
+import { useCanScan } from '@/lib/scanner/use-can-scan';
+import { useScanQueueStore } from '@/lib/scanner/use-scan-queue';
 
 beforeEach(() => {
   importTextMock.mockClear();

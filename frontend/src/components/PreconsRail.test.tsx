@@ -2,19 +2,19 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DiscoverDeck } from '../lib/discover-client';
-import { NO_DISCOVER_FILTERS } from '../lib/discover-filters';
+import type { DiscoverDeck } from '@/lib/discover/discover-client';
+import { NO_DISCOVER_FILTERS } from '@/lib/discover/discover-filters';
 
 const { mockListDiscoverDecks } = vi.hoisted(() => ({ mockListDiscoverDecks: vi.fn() }));
 // Named-export-complete: the tile's Like/Bookmark buttons import from here too.
-vi.mock('../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   listDiscoverDecks: mockListDiscoverDecks,
   likeDeck: vi.fn(),
   unlikeDeck: vi.fn(),
   bookmarkDeck: vi.fn(),
   unbookmarkDeck: vi.fn(),
 }));
-vi.mock('../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 import { PreconsRail } from './PreconsRail';
 

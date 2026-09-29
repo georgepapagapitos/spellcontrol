@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { useSearchCards } from '../lib/use-search-cards';
+import { useSearchCards } from '@/lib/search/use-search-cards';
 import {
   CardSearchResults,
   type CardSearchResultsHandle,

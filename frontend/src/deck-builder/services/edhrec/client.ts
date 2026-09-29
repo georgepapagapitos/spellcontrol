@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type {
   EDHRECTheme,
   EDHRECCard,
@@ -12,9 +12,9 @@ import type {
   LiftEntry,
 } from '@/deck-builder/types';
 import { offlineSearchCards } from '@/lib/offline';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { sortWUBRG } from '@/deck-builder/lib/edhrecUtils';
-import { fetchEdhrecTop } from '@/lib/edhrec-top';
+import { fetchEdhrecTop } from '@/lib/discover/edhrec-top';
 
 const BASE_URL = import.meta.env.DEV ? '/edhrec-api' : 'https://json.edhrec.com';
 
@@ -1081,7 +1081,7 @@ export async function fetchTopCommanders(colors: string[]): Promise<EDHRECTopCom
   if (offlineActive()) return [];
 
   try {
-    // Our backend's daily snapshot of EDHREC's list (lib/edhrec-top.ts), not
+    // Our backend's daily snapshot of EDHREC's list (lib/discover/edhrec-top.ts), not
     // EDHREC itself: an EDHREC outage then serves yesterday's list.
     const list = await fetchEdhrecTop({ kind: 'commanders', period: 'year', colors: key });
     const isOverall = key === '';

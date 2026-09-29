@@ -81,15 +81,15 @@ vi.mock('@/store/auth', () => ({
 // The first-pull window: a cold device's store is empty while the account's
 // rows are still on their way. Flipped per test.
 const firstPull = { awaiting: false };
-vi.mock('@/lib/use-awaiting-first-pull', () => ({
+vi.mock('@/lib/sync/use-awaiting-first-pull', () => ({
   useAwaitingFirstPull: () => firstPull.awaiting,
 }));
 
 // The session waits for the collection so it can deal the printings you own
 // (deck-to-playtest). `undefined` = still loading. Flipped per test.
 const collection: { byId: Map<string, unknown> | undefined } = { byId: new Map() };
-vi.mock('@/lib/allocations', async (orig) => ({
-  ...(await orig<typeof import('@/lib/allocations')>()),
+vi.mock('@/lib/collection/allocations', async (orig) => ({
+  ...(await orig<typeof import('@/lib/collection/allocations')>()),
   useCollectionByCopyId: () => collection.byId,
 }));
 

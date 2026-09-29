@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getCardsByNames, getCardPrice } from '@/deck-builder/services/scryfall/client';
-import { getCurrency } from '../../lib/currency';
+import { getCurrency } from '@/lib/collection/currency';
 
 /**
  * Market prices for the *missing* piece of each near-miss combo.

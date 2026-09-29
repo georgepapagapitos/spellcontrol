@@ -3,18 +3,18 @@ import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { Modal } from './Modal';
 import { useDecksStore } from '../store/decks';
-import { useAiStatus } from '../lib/use-ai-status';
-import { useCanScan } from '../lib/use-can-scan';
-import { useSearchCards } from '../lib/use-search-cards';
+import { useAiStatus } from '@/lib/ai/use-ai-status';
+import { useCanScan } from '@/lib/scanner/use-can-scan';
+import { useSearchCards } from '@/lib/search/use-search-cards';
 import { useCardCarousel } from './deck/useCardCarousel';
-import { createEmptyDeck } from '../lib/create-empty-deck';
+import { createEmptyDeck } from '@/lib/deck/create-empty-deck';
 import {
   buildCommands,
   flattenGroups,
   matchCommands,
   type Command,
   type CommandGroupResult,
-} from '../lib/commands';
+} from '@/lib/search/commands';
 import './CommandPalette.css';
 
 interface Props {

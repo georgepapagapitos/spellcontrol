@@ -13,11 +13,11 @@ import {
   type BrowseListDef,
   type BrowseListId,
   type EdhrecProvenance,
-} from '@/lib/browse-lists';
-import { formatRelativeTime } from '@/lib/format-time';
-import { useOnline } from '@/lib/use-online';
-import { userMessage } from '@/lib/user-error';
-import { useOwnedNames } from '@/lib/use-owned-names';
+} from '@/lib/discover/browse-lists';
+import { formatRelativeTime } from '@/lib/util/format-time';
+import { useOnline } from '@/lib/util/use-online';
+import { userMessage } from '@/lib/util/user-error';
+import { useOwnedNames } from '@/lib/discover/use-owned-names';
 import { BrowseTile, BrowseTileSkeleton } from './BrowseTile';
 import { useBrowsePreview } from './use-browse-preview';
 
@@ -217,7 +217,7 @@ function BrowseSources({ edhrec }: { edhrec: EdhrecProvenance[] }) {
 }
 
 /**
- * The Search page's landing: one rail per browse list (lib/browse-lists.ts),
+ * The Search page's landing: one rail per browse list (lib/discover/browse-lists.ts),
  * each a row of the list's top cards with a door to the full list.
  */
 export function BrowseRails() {

@@ -5,8 +5,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 
 const { fetchMock, setMock } = vi.hoisted(() => ({ fetchMock: vi.fn(), setMock: vi.fn() }));
-vi.mock('../lib/auth-api', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../lib/auth-api')>()),
+vi.mock('@/lib/account/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/account/auth-api')>()),
   fetchCollectionVisibility: () => fetchMock(),
   setCollectionVisibility: (v: string) => setMock(v),
 }));

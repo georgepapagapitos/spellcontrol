@@ -5,23 +5,23 @@
 // JSX-returning helpers (SectionIcon, FoilShimmer, AllocationChip).
 import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
 import { classifyCardCategory } from '@/deck-builder/services/deckBuilder/categorize';
-import { cardTagsOf, isTagsEdited } from '@/lib/deck-tags';
-import { classifyType, type TypeGroup } from '@/lib/build-mana-data';
-import { priceOf } from '@/lib/deck-value';
-import { typeIcon } from '../../lib/card-types';
-import { COLOR_INFO } from '../../lib/colors';
-import { classifyFoil } from '../../lib/foil-style';
+import { cardTagsOf, isTagsEdited } from '@/lib/deck/deck-tags';
+import { classifyType, type TypeGroup } from '@/lib/deck-analysis/build-mana-data';
+import { priceOf } from '@/lib/deck/deck-value';
+import { typeIcon } from '@/lib/cards/card-types';
+import { COLOR_INFO } from '@/lib/cards/colors';
+import { classifyFoil } from '@/lib/cards/foil-style';
 import {
   classifyAllocation,
   BASIC_LAND_NAMES,
   type AllocationInfo,
   type AllocationStatus,
-} from '../../lib/allocations';
+} from '@/lib/collection/allocations';
 import type { EnrichedCard } from '../../types';
-import { COMMANDER_SLOT_ID, PARTNER_COMMANDER_SLOT_ID } from '../../lib/deck-validation';
-import { rolesForCard, ROLE_TITLES, type RoleKey } from '../../lib/role-badges';
+import { COMMANDER_SLOT_ID, PARTNER_COMMANDER_SLOT_ID } from '@/lib/deck/deck-validation';
+import { rolesForCard, ROLE_TITLES, type RoleKey } from '@/lib/deck-analysis/role-badges';
 import { stampedRole } from '@/deck-builder/services/tagger/client';
-import { effectiveSortIndex } from '@/lib/deck-reorder';
+import { effectiveSortIndex } from '@/lib/deck/deck-reorder';
 import type { DeckDisplayCard } from './DeckDisplay';
 import { nameMatchesNormalized, normalizeForSearch } from '@spellcontrol/binder-routing';
 
@@ -69,7 +69,7 @@ export function cardAllRoles(card: ScryfallCard): RoleKey[] {
 }
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
-// classifyType / TypeGroup live in lib/build-mana-data (shared with the
+// classifyType / TypeGroup live in lib/deck-analysis/build-mana-data (shared with the
 // deck-compare page); DISPLAY_ORDER is DeckDisplay's own row ordering.
 const DISPLAY_ORDER: TypeGroup[] = [
   'Planeswalker',
@@ -114,11 +114,11 @@ export const CATEGORY_TITLES: Record<DeckCategory, string> = {
 // ── Helpers ───────────────────────────────────────────────────────────────
 export type CurrencyCode = 'USD' | 'EUR';
 
-// One card's price now lives beside the deck total in lib/deck-value.
+// One card's price now lives beside the deck total in lib/deck/deck-value.
 export { priceOf };
 
 // Role-badge data + decoding (ROLE_BADGE_BY_TONE, getRoleBadge,
-// multiRoleTitle, …) lives in lib/role-badges so the deck list, grid
+// multiRoleTitle, …) lives in lib/deck-analysis/role-badges so the deck list, grid
 // tiles, toolbar legend, tap-to-reveal popover, and card preview panel
 // all share one source of truth. See the `role-badges` import above.
 
@@ -334,7 +334,7 @@ export interface Row {
   /** Manual drag-order position (E172) — min across the row's slots, mirroring
    *  addedAt's aggregation. Undefined until the row (or its stack) is dragged
    *  at least once; 'custom' sort then falls back to addedAt (see sortRows /
-   *  lib/deck-reorder.ts). */
+   *  lib/deck/deck-reorder.ts). */
   sortIndex?: number;
   /** True for the partner commander's synthetic row — drives the "Partner"
    *  tag that distinguishes it from the primary commander. */
@@ -647,7 +647,7 @@ export function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[
       break;
     case 'custom':
       // Dragged rows compare by their persisted sortIndex; never-dragged rows
-      // fall back to addedAt (same ms scale — see lib/deck-reorder.ts).
+      // fall back to addedAt (same ms scale — see lib/deck/deck-reorder.ts).
       sorted.sort((a, b) => (effectiveSortIndex(a) - effectiveSortIndex(b)) * sign || byName(a, b));
       break;
     case 'name':

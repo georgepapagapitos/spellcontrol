@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { flushSync } from '../lib/sync';
+import { flushSync } from '@/lib/sync';
 import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
-import { clearCollection } from '../lib/local-cards';
+import { clearCollection } from '@/lib/sync/local-cards';
 import type { BinderDef, EnrichedCard, UploadResponse } from '../types';
 
 function enriched(

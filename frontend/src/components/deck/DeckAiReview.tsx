@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
-import { analyzeDeck } from '../../lib/deck-analysis';
-import { useTaggerReady } from '@/lib/use-tagger-ready';
-import { isBasicLandName } from '../../lib/allocations-core';
-import { formatRelativeTime } from '../../lib/format-time';
+import { analyzeDeck } from '@/lib/deck-analysis/deck-analysis';
+import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
+import { isBasicLandName } from '@/lib/collection/allocations-core';
+import { formatRelativeTime } from '@/lib/util/format-time';
 import {
   buildDeckReviewCards,
   deckContentKey,
@@ -16,19 +16,19 @@ import {
   toAiAnalysis,
   tokenizeCardNames,
   type ReviewReading,
-} from '../../lib/ai-review';
-import type { AiScope } from '../../lib/ai-scope';
-import { aiPriceCurrency, useCurrency } from '../../lib/currency';
-import { noteAiExhausted, noteAiSpend, useAiStatus } from '../../lib/use-ai-status';
+} from '@/lib/ai/ai-review';
+import type { AiScope } from '@/lib/ai/ai-scope';
+import { aiPriceCurrency, useCurrency } from '@/lib/collection/currency';
+import { noteAiExhausted, noteAiSpend, useAiStatus } from '@/lib/ai/use-ai-status';
 import { AiMarker, DeckAiConsent, isAiInviteDismissed } from './DeckAiConsent';
 import { useCardCarousel } from './useCardCarousel';
 import './DeckAiReview.css';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
-import { aiConsentBlurb } from '@/lib/shared-copy';
+import { aiConsentBlurb } from '@/lib/util/shared-copy';
 interface DeckAiReviewProps {
   deckId: string;
   format: DeckFormat;

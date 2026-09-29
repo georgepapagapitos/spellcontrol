@@ -2,10 +2,10 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PublicDeck } from '../../lib/shared-types';
+import type { PublicDeck } from '@/lib/social/shared-types';
 
 const copySharedDeckMock = vi.fn((_data: PublicDeck, _token?: string) => 'new-deck-id');
-vi.mock('../../lib/copy-shared-deck', () => ({
+vi.mock('@/lib/social/copy-shared-deck', () => ({
   copySharedDeck: (data: PublicDeck, token?: string) => copySharedDeckMock(data, token),
 }));
 

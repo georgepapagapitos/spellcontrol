@@ -11,7 +11,7 @@ import { DeckDisplay } from './DeckDisplay';
 // generator built the deck, not a stat, so it rests as one row naming the
 // archetype and opens in place.
 
-vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 const card = {
   id: 'sf-1',

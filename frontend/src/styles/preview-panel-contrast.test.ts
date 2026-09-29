@@ -81,7 +81,9 @@ function themes(): Array<{ name: string; tokens: Record<string, string> }> {
   return out;
 }
 const scheme = (name: string) =>
-  read('../lib/themes.ts').match(new RegExp(`id: '${name}',[\\s\\S]*?scheme: '(light|dark)'`))![1];
+  read('../lib/account/themes.ts').match(
+    new RegExp(`id: '${name}',[\\s\\S]*?scheme: '(light|dark)'`)
+  )![1];
 
 describe('card-preview panel: every ground the theme defines is remapped', () => {
   // The bug class: a ground token left at the theme's value inside the island.
@@ -191,7 +193,7 @@ describe('card-preview context pill: any container colour reads', () => {
   const hoverAt = panelCss.indexOf('.card-preview-context-pill:focus-visible {');
   const hoverRule = panelCss.slice(hoverAt, panelCss.indexOf('}', hoverAt));
   const presets = [
-    ...readFileSync(join(here, '../lib/preset-colors.ts'), 'utf8').matchAll(
+    ...readFileSync(join(here, '../lib/util/preset-colors.ts'), 'utf8').matchAll(
       /hex: '(#[0-9a-f]{6})'/gi
     ),
   ].map((m) => hex(m[1]));

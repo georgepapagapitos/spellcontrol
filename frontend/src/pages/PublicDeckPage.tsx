@@ -5,17 +5,17 @@ import {
   PublicDeckNotFoundError,
   recordDeckView,
   type PublicDeckPage as PublicDeckPageData,
-} from '../lib/share-client';
+} from '@/lib/social/share-client';
 import { SharedDeckSurface } from '../components/share/SharedDeckSurface';
 import { NotFoundView, ErrorView, LoadingView } from '../components/share/SharedShell';
 import { useAuth } from '../store/auth';
 import { useDecksStore } from '../store/decks';
-import { useDocumentTitle } from '../lib/use-document-title';
-import { useOwnershipLens } from '../lib/use-ownership-lens';
+import { useDocumentTitle } from '@/lib/util/use-document-title';
+import { useOwnershipLens } from '@/lib/collection/use-ownership-lens';
 import { OwnershipLensStrip } from '../components/deck/OwnershipLensStrip';
-import type { PublicDeckCard } from '../lib/shared-types';
+import type { PublicDeckCard } from '@/lib/social/shared-types';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 // Stable empty array — passed to useOwnershipLens before the deck has
 // loaded, so its useMemo deps don't thrash on a fresh [] literal every render.
 const EMPTY_DECK_CARDS: PublicDeckCard[] = [];

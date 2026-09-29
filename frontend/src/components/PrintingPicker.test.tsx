@@ -2,11 +2,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PrintingPicker } from './PrintingPicker';
-import { useScannerSettings } from '../lib/scanner-settings';
+import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 const fetchPrintingsMock = vi.fn();
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   fetchPrintings: (...args: unknown[]) => fetchPrintingsMock(...args),
 }));
 

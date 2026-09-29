@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react';
 import { useId, useState } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
-import { PRESET_COLORS } from '../lib/preset-colors';
+import { PRESET_COLORS } from '@/lib/util/preset-colors';
 import { IconButton } from '@/components/shared/Button';
 
 interface Props {

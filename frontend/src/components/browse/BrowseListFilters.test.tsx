@@ -1,7 +1,11 @@
 // @vitest-environment happy-dom
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_BROWSE_FILTERS, browseListDef, type BrowseFilters } from '@/lib/browse-lists';
+import {
+  DEFAULT_BROWSE_FILTERS,
+  browseListDef,
+  type BrowseFilters,
+} from '@/lib/discover/browse-lists';
 import { BrowseListFilters } from './BrowseListFilters';
 
 function stubPhone(phone: boolean) {

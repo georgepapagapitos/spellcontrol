@@ -25,7 +25,7 @@ import {
 import type { CubeCard } from './core';
 import type { CubeSize } from './targets';
 import type { CubeProgress, CubeWorkerRequest, CubeWorkerResponse } from './generate-async-types';
-import { logger } from '../logger';
+import { logger } from '@/lib/util/logger';
 
 export type { CubeProgress };
 

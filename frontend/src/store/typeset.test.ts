@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useTypeSetStore, bootstrapTypeSet } from './typeset';
-import { DEFAULT_TYPESET, TYPESETS } from '../lib/typesets';
+import { DEFAULT_TYPESET, TYPESETS } from '@/lib/account/typesets';
 
 // Must NOT be DEFAULT_TYPESET: these cases assert that a non-default set
 // injects a font <link>, and the default deliberately injects none (its faces

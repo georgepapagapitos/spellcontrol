@@ -4,7 +4,7 @@ import { BrewerCard, BrewerCardSkeleton } from '../social/BrewerCard';
 import { FollowButton } from '../social/FollowButton';
 import { Button } from '../shared/Button';
 import { EmptyState } from '../shared/EmptyState';
-import type { BrewerCard as BrewerCardData } from '@/lib/brewers-client';
+import type { BrewerCard as BrewerCardData } from '@/lib/social/brewers-client';
 
 interface Props {
   /** null until the first answer. */

@@ -1,7 +1,7 @@
 import './RadarCardTile.css';
-import { useCardThumb } from '@/lib/card-thumbs';
-import { formatMoney } from '@/lib/format-money';
-import type { TradeRadarMatch } from '@/lib/trade-radar';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { formatMoney } from '@/lib/collection/format-money';
+import type { TradeRadarMatch } from '@/lib/trade/trade-radar';
 
 /** One want-list card the friend owns: thumbnail (CDN via useCardThumb, never
  *  the throttled Scryfall API), name, and which list wants it + target price.

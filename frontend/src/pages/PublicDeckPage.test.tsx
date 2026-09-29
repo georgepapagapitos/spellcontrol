@@ -12,8 +12,8 @@ const { fetchPublicDeckPageMock, recordDeckViewMock } = vi.hoisted(() => ({
   fetchPublicDeckPageMock: vi.fn(),
   recordDeckViewMock: vi.fn(),
 }));
-vi.mock('../lib/share-client', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../lib/share-client')>();
+vi.mock('@/lib/social/share-client', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/social/share-client')>();
   return {
     ...real,
     fetchPublicDeckPage: fetchPublicDeckPageMock,
@@ -23,7 +23,7 @@ vi.mock('../lib/share-client', async (importOriginal) => {
 vi.mock('../components/share/SharedDeckSurface', () => ({
   SharedDeckSurface: () => <div>public deck surface</div>,
 }));
-vi.mock('../lib/use-ownership-lens', () => ({
+vi.mock('@/lib/collection/use-ownership-lens', () => ({
   useOwnershipLens: () => ({
     lens: null,
     missingCost: null,

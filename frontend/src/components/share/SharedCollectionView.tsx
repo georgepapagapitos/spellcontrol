@@ -1,24 +1,24 @@
 import { useMemo, useState } from 'react';
-import type { PublicCollection } from '../../lib/shared-types';
+import type { PublicCollection } from '@/lib/social/shared-types';
 import {
   filterBySearch,
   groupCards,
   sortGrouped,
   type SharedSortKey,
   type SortDir,
-} from '../../lib/shared-grouping';
+} from '@/lib/social/shared-grouping';
 import { AlignJustify, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { SharedEmptyState } from './SharedEmptyState';
 import { CardPreview } from '../CardPreview';
-import { publicCardToEnriched } from '../../lib/shared-filter';
+import { publicCardToEnriched } from '@/lib/social/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
 import { SortMenu, type SortMenuOption } from '../SortMenu';
 import { ViewModeToggle } from '../ViewModeToggle';
-import { formatMoney } from '../../lib/format-money';
-import { formatIdentity } from '../../lib/display-name';
+import { formatMoney } from '@/lib/collection/format-money';
+import { formatIdentity } from '@/lib/social/display-name';
 import { Button } from '@/components/shared/Button';
 
 interface Props {

@@ -13,8 +13,13 @@
  * frontend needs to change. Only the functions below are local.
  */
 
-export type { HordeLevel, HordeSettings } from '@/lib/game-state';
-import type { HordeRevealMode, HordeSafeZone, HordeLevel, HordeSettings } from '@/lib/game-state';
+export type { HordeLevel, HordeSettings } from '@/lib/play/game-state';
+import type {
+  HordeRevealMode,
+  HordeSafeZone,
+  HordeLevel,
+  HordeSettings,
+} from '@/lib/play/game-state';
 export type RevealMode = HordeRevealMode;
 export type SafeZone = HordeSafeZone;
 

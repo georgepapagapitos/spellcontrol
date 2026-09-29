@@ -13,7 +13,7 @@ import {
   librarySeed,
   simulateAssemblyClock,
   type ClockCard,
-} from '@/lib/opening-hand-sim';
+} from '@/lib/mana-sim/opening-hand-sim';
 import { InfoTip } from '../InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { IconButton } from '@/components/shared/Button';

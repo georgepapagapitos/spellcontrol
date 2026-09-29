@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { wipe } = vi.hoisted(() => ({ wipe: vi.fn(async () => {}) }));
-vi.mock('../lib/sync', () => ({ stopSyncAndWipeLocal: wipe }));
+vi.mock('@/lib/sync', () => ({ stopSyncAndWipeLocal: wipe }));
 
 import { wipeThisDevice } from './AdminPage';
 

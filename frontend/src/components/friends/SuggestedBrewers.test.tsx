@@ -2,10 +2,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrewerCard, BrewerRails } from '@/lib/brewers-client';
+import type { BrewerCard, BrewerRails } from '@/lib/social/brewers-client';
 
 const { mockRails } = vi.hoisted(() => ({ mockRails: vi.fn() }));
-vi.mock('@/lib/brewers-client', () => ({ fetchBrewerRails: mockRails }));
+vi.mock('@/lib/social/brewers-client', () => ({ fetchBrewerRails: mockRails }));
 
 import { SuggestedBrewers } from './SuggestedBrewers';
 

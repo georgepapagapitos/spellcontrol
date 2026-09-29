@@ -9,7 +9,7 @@ const { bookmarkDeckMock, unbookmarkDeckMock } = vi.hoisted(() => ({
   bookmarkDeckMock: vi.fn(),
   unbookmarkDeckMock: vi.fn(),
 }));
-vi.mock('../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   bookmarkDeck: bookmarkDeckMock,
   unbookmarkDeck: unbookmarkDeckMock,
 }));

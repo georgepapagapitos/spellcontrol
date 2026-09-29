@@ -19,17 +19,17 @@ vi.mock('../../store/decks', () => ({
   useDecksStore: (sel: (s: { decks: unknown[] }) => unknown) => sel({ decks: [] }),
 }));
 
-vi.mock('../../lib/build-deck-from-import', () => ({
+vi.mock('@/lib/import-export/build-deck-from-import', () => ({
   useBuildDeckFromImport: () => vi.fn(),
 }));
 
 const importDeckFileMock = vi.fn<() => Promise<DeckImportResponse>>();
-vi.mock('../../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   importDeckText: vi.fn(),
   importDeckFile: () => importDeckFileMock(),
 }));
 
-vi.mock('../../lib/sync', () => ({
+vi.mock('@/lib/sync', () => ({
   isOnline: () => true,
   onSyncedChange: () => () => {},
 }));

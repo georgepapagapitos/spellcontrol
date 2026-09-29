@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { PublicGameResultShare } from '../../lib/shared-types';
+import type { PublicGameResultShare } from '@/lib/social/shared-types';
 
 const submitReportMock = vi.fn((_input: { kind: string; targetId: string; reason: string }) =>
   Promise.resolve()
 );
-vi.mock('../../lib/report-client', () => ({
+vi.mock('@/lib/social/report-client', () => ({
   submitReport: (input: { kind: string; targetId: string; reason: string }) =>
     submitReportMock(input),
 }));

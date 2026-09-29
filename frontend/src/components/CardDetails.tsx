@@ -2,9 +2,9 @@ import { AlertTriangle, Ban, Check, ChevronDown, Minus } from 'lucide-react';
 import { useState } from 'react';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { cardFaces, legalityRows, type LegalityStatus } from '../lib/card-details';
+import { cardFaces, legalityRows, type LegalityStatus } from '@/lib/cards/card-details';
 import { ManaCost } from './ManaCost';
-import { useRulesText } from '../lib/keyword-glossary';
+import { useRulesText } from '@/lib/cards/keyword-glossary';
 import { RulesTextLine } from './RulesText';
 import './CardDetails.css';
 

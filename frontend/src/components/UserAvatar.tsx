@@ -1,5 +1,5 @@
-import { contrastRatio, inkOn } from '../lib/ink';
-import { PRESET_COLORS } from '../lib/preset-colors';
+import { contrastRatio, inkOn } from '@/lib/util/ink';
+import { PRESET_COLORS } from '@/lib/util/preset-colors';
 import './UserAvatar.css';
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
   size?: number;
 }
 
-// FNV-1a — deterministic, tiny, no dependencies. Mirrors lib/seat-palette.ts's
+// FNV-1a — deterministic, tiny, no dependencies. Mirrors lib/play/seat-palette.ts's
 // per-string hash (duplicated rather than imported: that file's palette/hash
 // are scoped to game-seat coloring, an unrelated feature — importing across
 // that boundary for five lines of arithmetic would couple two features that

@@ -1,6 +1,6 @@
-import type { GameAction, GamePhase } from '../../lib/game-state';
-import { GAME_PHASES } from '../../lib/game-state';
-import { haptics } from '../../lib/haptics';
+import type { GameAction, GamePhase } from '@/lib/play/game-state';
+import { GAME_PHASES } from '@/lib/play/game-state';
+import { haptics } from '@/lib/util/haptics';
 import './PhaseChip.css';
 
 const PHASE_LABELS: Record<GamePhase, string> = {

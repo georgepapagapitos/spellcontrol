@@ -1,6 +1,6 @@
 import type { EnrichedCard } from '../types';
-import { classifyFoil } from '../lib/foil-style';
-import { useHolographic } from '../lib/use-holographic';
+import { classifyFoil } from '@/lib/cards/foil-style';
+import { useHolographic } from '@/lib/cards/use-holographic';
 import { FoilShimmer } from './shared/FoilShimmer';
 
 interface Props {

@@ -13,12 +13,12 @@ import { Field } from './shared/form';
 import { conditionLabel } from './shared/CardRow';
 import { SelectMenu } from './SelectMenu';
 import { ADD_LANGUAGE_OPTIONS } from './PrintingPicker';
-import { fetchPrintings } from '../lib/api';
-import { formatMoney } from '../lib/format-money';
-import { userMessage } from '../lib/user-error';
+import { fetchPrintings } from '@/lib/api';
+import { formatMoney } from '@/lib/collection/format-money';
+import { userMessage } from '@/lib/util/user-error';
 import { useCollectionStore } from '../store/collection';
-import { FINISH_LABELS, finishUnitPrice } from '../lib/scanner-feedback';
-import type { ScannedEntry } from '../lib/use-scan-queue';
+import { FINISH_LABELS, finishUnitPrice } from '@/lib/scanner/scanner-feedback';
+import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
 import { SCANNER_SHEET_BACKDROP } from './ScannerQueueSheet';
 
 interface Props {

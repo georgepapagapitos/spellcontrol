@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CtxMenuShell } from '@/components/shared/CtxMenuShell';
-import { useMediaQuery } from '../../lib/use-media-query';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import { DeckCardMenuBody, type DeckCardMenuPage } from './DeckCardMenuBody';
 import type { DeckCardActionCtx } from './deck-card-actions';
 import type { Row } from './deck-display-rows';

@@ -4,11 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '../../store/auth';
 
 const unpublishDeck = vi.fn((_id: string): Promise<void> => Promise.resolve());
-vi.mock('../../lib/publications-client', () => ({
+vi.mock('@/lib/social/publications-client', () => ({
   unpublishDeck: (id: string) => unpublishDeck(id),
 }));
 const notifyDeckVisibilityChanged = vi.fn();
-vi.mock('../../lib/use-deck-visibility', () => ({
+vi.mock('@/lib/social/use-deck-visibility', () => ({
   notifyDeckVisibilityChanged: (id: string) => notifyDeckVisibilityChanged(id),
 }));
 

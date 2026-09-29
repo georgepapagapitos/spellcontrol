@@ -16,17 +16,17 @@ import {
   type GameRecord,
   type GameState,
   type HordeStep,
-} from '../lib/game-state';
+} from '@/lib/play/game-state';
 import { resolveHordeSettings } from '../lib/horde';
-import { gameElapsed } from '../lib/game-clock';
+import { gameElapsed } from '@/lib/play/game-clock';
 import type { PublicBoard, TickerEntry } from '../lib/playtest/projection';
-import * as gamesBoard from '../lib/games-board';
+import * as gamesBoard from '@/lib/play/games-board';
 import { toast } from './toasts';
 import { useAuth } from './auth';
 
 // The online flow talks to the games HTTP API; mock it so dispatch/refresh
 // branches can be exercised without a server.
-vi.mock('../lib/games-api', () => ({
+vi.mock('@/lib/play/games-api', () => ({
   createGame: vi.fn(),
   getGame: vi.fn(),
   joinGame: vi.fn(),
@@ -48,7 +48,7 @@ import {
   sendGameSignal,
   type GameRequest,
   type GameSignal,
-} from '../lib/games-api';
+} from '@/lib/play/games-api';
 
 const mockCreate = vi.mocked(createGame);
 const mockGet = vi.mocked(getGame);
@@ -63,7 +63,7 @@ const mockSendSignal = vi.mocked(sendGameSignal);
 // for that in isolation); here we mock the whole module so store tests can
 // drive its handlers directly, the same way the SSE tests below drive a
 // FakeEventSource.
-vi.mock('../lib/games-longpoll', () => ({
+vi.mock('@/lib/play/games-longpoll', () => ({
   usesLongPoll: vi.fn(() => false),
   subscribeGameLongPoll: vi.fn(),
 }));
@@ -72,7 +72,7 @@ import {
   usesLongPoll,
   subscribeGameLongPoll,
   type GameLongPollHandlers,
-} from '../lib/games-longpoll';
+} from '@/lib/play/games-longpoll';
 
 /** Narrow a feed item to its projected-log form and read its source `seq`.
  *  Throws rather than returning undefined so a chat line accidentally landing
@@ -1347,7 +1347,7 @@ describe('usePlayStore — online flow', () => {
 /**
  * Minimal `EventSource` stand-in — Node has no global `EventSource`, so
  * `startSSE` (store/play.ts) no-ops outside a browser unless one is stubbed
- * in. See lib/games-sse.test.ts for the client wrapper's own unit tests;
+ * in. See lib/play/games-sse.test.ts for the client wrapper's own unit tests;
  * these cover how the store reconciles pushes with the poll fallback.
  */
 class FakeEventSource {

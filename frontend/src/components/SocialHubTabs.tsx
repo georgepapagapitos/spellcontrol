@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../store/auth';
-import { useActivity } from '../lib/use-activity';
-import { listPods, pendingPodInviteCount, type Pod } from '../lib/pods-client';
+import { useActivity } from '@/lib/social/use-activity';
+import { listPods, pendingPodInviteCount, type Pod } from '@/lib/social/pods-client';
 import { HubTabsNav } from './HubTabsNav';
 
 /**

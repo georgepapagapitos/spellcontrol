@@ -5,9 +5,9 @@ import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { toast } from '../../store/toasts';
 import type { EnrichedCard } from '../../types';
 import type { ComboCardRef } from '../../types/combos';
-import { formatLocation, type CardLocation } from '../../lib/card-locations';
+import { formatLocation, type CardLocation } from '@/lib/binder/card-locations';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 const SHOWN_COMMANDERS = 3;
 /**

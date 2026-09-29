@@ -17,7 +17,7 @@
 //   Leaning synergy      the commander's strongest-synergy cards (a few)
 //   Synergy (1)          its high-synergy cards (more of them)
 // Balanced, the default, seats nothing: generation is byte-identical.
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/util/logger';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchAverageDeckSpells } from '@/deck-builder/services/edhrec/client';
 import {

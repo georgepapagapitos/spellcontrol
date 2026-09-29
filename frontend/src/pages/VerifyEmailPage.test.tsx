@@ -8,7 +8,7 @@ const { mockVerifyEmail, mockResend, authState } = vi.hoisted(() => ({
   mockResend: vi.fn(),
   authState: { username: null as string | null },
 }));
-vi.mock('../lib/auth-api', () => ({
+vi.mock('@/lib/account/auth-api', () => ({
   verifyEmail: mockVerifyEmail,
   resendEmailVerification: mockResend,
 }));

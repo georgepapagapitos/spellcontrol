@@ -13,8 +13,8 @@ import { VerdictBadge } from '../components/deck/VerdictBadge';
 import { useCubeStore, SavedCube } from '../store/cube';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
-import { bindCubeCopies } from '../lib/bind-cube-copies';
-import { useAwaitingFirstPull } from '../lib/use-awaiting-first-pull';
+import { bindCubeCopies } from '@/lib/cube/bind-cube-copies';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { SavedCubeMeta } from './cube/CubeResult';
 import { Button } from '../components/shared/Button';
 

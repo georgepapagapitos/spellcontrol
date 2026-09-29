@@ -3,10 +3,10 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, FlaskConical, Import, Swords } from 'lucide-react';
 import { SearchPill } from '../SearchPill';
-import { useCardThumb } from '../../lib/card-thumbs';
-import { markEverVisited } from '../../lib/first-run';
-import { track } from '../../lib/analytics';
-import { pickWelcomeHeroCard } from '../../lib/welcome-hero';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { markEverVisited } from '@/lib/home/first-run';
+import { track } from '@/lib/util/analytics';
+import { pickWelcomeHeroCard } from '@/lib/home/welcome-hero';
 import { Button, IconButton } from '@/components/shared/Button';
 
 interface WelcomeHeroProps {

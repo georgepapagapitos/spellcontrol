@@ -6,9 +6,9 @@ import '@/styles/deck-builder-combos-list.css';
 import type { ComboMatch } from '../types/combos';
 import { useCollectionStore } from '../store/collection';
 import { useAuth } from '../store/auth';
-import { getSyncState, onSyncedChange } from '../lib/sync';
-import { buildCardImageIndex, buildCardIndex } from '../lib/deck-card-index';
-import { useDeckCombos } from '../lib/use-deck-combos';
+import { getSyncState, onSyncedChange } from '@/lib/sync';
+import { buildCardImageIndex, buildCardIndex } from '@/lib/deck-analysis/deck-card-index';
+import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
 import { searchCombos } from '../lib/api/combos';
 import type { ComboSearchResult } from '../lib/offline';
 import { CardPreview } from '../components/CardPreview';
@@ -16,25 +16,25 @@ import { Tabs } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
 import { ComboFiltersPopover } from '../components/ComboFiltersPopover';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
-import { colorChipLabel } from '../lib/filter-summary';
+import { colorChipLabel } from '@/lib/search/filter-summary';
 import { ComboRow } from '../components/deck/ComboRow';
 import { ComboCollectionAside } from '../components/deck/ComboCollectionAside';
 import { useComboPreview } from '../components/deck/use-combo-preview';
 import { useMissingCardPrices } from '../components/deck/use-missing-prices';
-import { useDebouncedValue } from '../lib/use-debounced-value';
-import { useCardLocations } from '../lib/card-locations';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { useCardLocations } from '@/lib/binder/card-locations';
 import {
   commandersForIdentity,
   hasHostForIdentity,
   ownedCommanders,
   rankHosts,
-} from '../lib/combo-hosts';
+} from '@/lib/deck-analysis/combo-hosts';
 import {
   COMBO_RESULT_LABELS,
   emptyComboFilters,
   filterCombos,
   countActiveFilters,
-} from '../lib/combo-filters';
+} from '@/lib/deck-analysis/combo-filters';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 import '../styles/deck-builder-binders-index.css';

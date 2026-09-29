@@ -12,10 +12,10 @@ import { StackedBar } from '../components/shared/MeterBar';
 import { EmptyState } from '../components/shared/EmptyState';
 import { UserAvatar } from '../components/UserAvatar';
 import { Chip } from '../components/shared/Chip';
-import { gameFormatLabel } from '../lib/game-formats';
-import { useAnimatedNumber } from '../lib/use-animated-number';
-import { listFriends, type Friend } from '../lib/friends-client';
-import { getFriendShares, type FriendShareRow } from '../lib/share-client';
+import { gameFormatLabel } from '@/lib/play/game-formats';
+import { useAnimatedNumber } from '@/lib/util/use-animated-number';
+import { listFriends, type Friend } from '@/lib/social/friends-client';
+import { getFriendShares, type FriendShareRow } from '@/lib/social/share-client';
 import {
   acceptPodInvite,
   declinePodInvite,
@@ -33,9 +33,9 @@ import {
   type PodMember,
   type PodStanding,
   type PodRecords,
-} from '../lib/pods-client';
+} from '@/lib/social/pods-client';
 
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { InlineRename } from '@/components/shared/InlineRename';
 import { Surface } from '@/components/shared/Surface';

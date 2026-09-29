@@ -1,7 +1,7 @@
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '../commanderDeckAnalysis';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { REACTIVE_ROLES, ROLE_LABEL } from './phaseRoleSurplusRebalance';
 
 // How many unseated pool candidates to name per deficient role — enough to

@@ -1,25 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useSignInPath } from '../lib/sign-in-path';
+import { useSignInPath } from '@/lib/account/sign-in-path';
 import { Modal } from './Modal';
 import { VisibilityChoice } from './VisibilityChoice';
 import { SelectMenu } from './SelectMenu';
 import { ShareQrCode } from './shared/ShareQrCode';
 import { useSealMoment } from './shared/SealMoment';
-import { createShare, listShares, revokeShare, shareUrl } from '../lib/share-client';
+import { createShare, listShares, revokeShare, shareUrl } from '@/lib/social/share-client';
 import {
   getPublication,
   publicationUrl,
   publishDeck,
   unpublishDeck,
   type Publication,
-} from '../lib/publications-client';
-import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
-import { listFriends, type Friend } from '../lib/friends-client';
-import { canShare, openShareSheet } from '@/lib/web-share';
-import type { ShareKind, ShareRow } from '../lib/shared-types';
+} from '@/lib/social/publications-client';
+import { shouldCelebrateFirstPublish } from '@/lib/social/first-publish-celebration';
+import { listFriends, type Friend } from '@/lib/social/friends-client';
+import { canShare, openShareSheet } from '@/lib/util/web-share';
+import type { ShareKind, ShareRow } from '@/lib/social/shared-types';
 import { useAuth } from '../store/auth';
-import { userMessage } from '@/lib/user-error';
+import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { CopyButton } from '@/components/shared/CopyButton';
 

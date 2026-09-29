@@ -2,11 +2,11 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { DiscoverDeck, ListDiscoverDecksResult } from '../../lib/discover-client';
+import type { DiscoverDeck, ListDiscoverDecksResult } from '@/lib/discover/discover-client';
 
 const mockListDiscoverDecks = vi.fn<(params: unknown) => Promise<ListDiscoverDecksResult>>();
 // Named-export-complete: the tiles' Like/Bookmark buttons import these too.
-vi.mock('../../lib/discover-client', () => ({
+vi.mock('@/lib/discover/discover-client', () => ({
   listDiscoverDecks: (params: unknown) => mockListDiscoverDecks(params),
   likeDeck: vi.fn(),
   unlikeDeck: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock('../../lib/discover-client', () => ({
   unbookmarkDeck: vi.fn(),
 }));
 
-vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
 import { DiscoverRow } from './DiscoverRow';
 

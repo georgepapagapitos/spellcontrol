@@ -4,8 +4,8 @@ import { ChevronRight } from 'lucide-react';
 import { BrewerCard } from '../social/BrewerCard';
 import { Button } from '../shared/Button';
 import { SectionHeader } from '../shared/SectionHeader';
-import { fetchBrewerRails, type BrewerCard as BrewerCardData } from '@/lib/brewers-client';
-import { useOverflowEdges } from '@/lib/use-overflow-edges';
+import { fetchBrewerRails, type BrewerCard as BrewerCardData } from '@/lib/social/brewers-client';
+import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
 
 const LIMIT = 6;
 

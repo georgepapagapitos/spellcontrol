@@ -1,5 +1,5 @@
 import { useRef, useState, type CSSProperties } from 'react';
-import { useLongPress } from '@/lib/use-long-press';
+import { useLongPress } from '@/lib/util/use-long-press';
 import { counterColor, counterGlyph, counterLabel, sortCounters } from '../lib/counter-kinds';
 import './CardCounters.css';
 

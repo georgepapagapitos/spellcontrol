@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { isFilterEmpty } from '../lib/rules';
-import { countBinderMatches } from '../lib/binder-counts';
-import { useDebouncedValue } from '../lib/use-debounced-value';
-import { autoSummary } from '../lib/filter-summary';
+import { isFilterEmpty } from '@/lib/binder/rules';
+import { countBinderMatches } from '@/lib/binder/binder-counts';
+import { useDebouncedValue } from '@/lib/util/use-debounced-value';
+import { autoSummary } from '@/lib/search/filter-summary';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { InfoTip } from './InfoTip';
 import { OverflowMenu } from './OverflowMenu';
@@ -11,7 +11,7 @@ import { BinderRow as RuleRow, FilterFieldEditor, NumberRangeInput } from './Fil
 import { RuleFieldContext } from './RuleFieldContext';
 import { RuleFieldPicker } from './RuleFieldPicker';
 import { SetFilterPicker } from './SetFilterPicker';
-import { filterFieldSpec, setFilterFields, type FilterFieldId } from '../lib/filter-fields';
+import { filterFieldSpec, setFilterFields, type FilterFieldId } from '@/lib/search/filter-fields';
 import type {
   BinderFilter,
   BinderFilterGroup,
@@ -23,7 +23,7 @@ import type {
 import { Button, IconButton } from '@/components/shared/Button';
 import { ColorPip } from './shared/ManaSymbol';
 import { ColorMatchModeToggle } from './shared/ColorMatchModeToggle';
-import { FILTER_COLOR_OPTIONS } from '../lib/colors';
+import { FILTER_COLOR_OPTIONS } from '@/lib/cards/colors';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
 

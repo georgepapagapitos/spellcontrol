@@ -3,7 +3,7 @@ import { Check, CheckSquare } from 'lucide-react';
 import './BulkSelectBar.css';
 import { Button } from '@/components/shared/Button';
 import type { OverflowMenuItem } from './OverflowMenu';
-import { selectedCountLabel } from '../lib/use-selection';
+import { selectedCountLabel } from '@/lib/util/use-selection';
 
 /**
  * Shared multi-select affordances for list/index surfaces (decks, binders,

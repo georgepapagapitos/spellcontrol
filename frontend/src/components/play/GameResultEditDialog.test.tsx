@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { GameResultEditDialog } from './GameResultEditDialog';
-import type { GameRecord } from '../../lib/game-state';
+import type { GameRecord } from '@/lib/play/game-state';
 
 /**
  * The dialog shows a seat's deck by name, but a GameRecord does not carry the

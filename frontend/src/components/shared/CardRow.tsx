@@ -7,8 +7,8 @@ import {
 } from 'react';
 import { Check } from 'lucide-react';
 import type { Condition, EnrichedCard } from '../../types';
-import type { AllocationInfo } from '../../lib/allocations';
-import type { CubeListing } from '../../lib/cube-listings';
+import type { AllocationInfo } from '@/lib/collection/allocations';
+import type { CubeListing } from '@/lib/cube/cube-listings';
 import { FoilBadge } from '../FoilBadge';
 import { DeckBadge } from '../DeckBadge';
 import { BinderBadge } from '../BinderBadge';
@@ -17,11 +17,11 @@ import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
 import { ManaCost } from '../ManaCost';
 import { TypeIcon } from './ManaSymbol';
-import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '../../lib/copy-options';
-import { getCardType } from '../../lib/card-types';
-import { getColorKey, COLOR_INFO } from '../../lib/colors';
-import { formatMoney } from '../../lib/format-money';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
+import { getCardType } from '@/lib/cards/card-types';
+import { getColorKey, COLOR_INFO } from '@/lib/cards/colors';
+import { formatMoney } from '@/lib/collection/format-money';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { CARD_TABLE_COLUMNS, type CardTableCol } from './CardTable';
 import { CardName } from '@/components/shared/CardName';
 

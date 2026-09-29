@@ -2,7 +2,7 @@
  * Helpers shared by the objective's terms.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { frontFaceName } from '@/lib/card-text';
+import { frontFaceName } from '@/lib/cards/card-text';
 import type { CardNote, ObjectiveContext, ObjectiveDeck, TermResult } from '../types';
 import { isLandCard } from '../context';
 

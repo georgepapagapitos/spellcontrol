@@ -8,14 +8,14 @@ import { useCallback, useMemo, useState } from 'react';
 import { useCollectionStore } from '@/store/collection';
 import { useDecksStore } from '@/store/decks';
 import { useCubeStore } from '@/store/cube';
-import { buildAvailableCollection } from '@/lib/collection-availability';
+import { buildAvailableCollection } from '@/lib/collection/collection-availability';
 import { filterPool, type PoolFilters } from './pool-filters';
 import { fetchCubeOracle } from './oracle';
 import { namesToCubePool } from './pool';
 import { loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { loadCubeSignal } from './signal';
-import { ensureCardTags, getCardTags, useCardTagsReady } from '@/lib/card-tags';
-import { userMessage } from '@/lib/user-error';
+import { ensureCardTags, getCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
+import { userMessage } from '@/lib/util/user-error';
 import type { CardFetchProgress } from '@/deck-builder/services/scryfall/card-repository';
 import type { CubeCard } from './core';
 

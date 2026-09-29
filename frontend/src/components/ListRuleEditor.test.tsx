@@ -15,12 +15,12 @@ import { useCollectionStore } from '../store/collection';
 import { Modal } from './Modal';
 import { ListRuleEditor } from './ListRuleEditor';
 
-vi.mock('../lib/scryfall-catalog', () => ({
+vi.mock('@/lib/cards/scryfall-catalog', () => ({
   fetchTypeSuggestions: async () => [],
   fetchOracleSuggestions: async () => [],
 }));
-vi.mock('../lib/card-tags', async (importActual) => ({
-  ...(await importActual<typeof import('../lib/card-tags')>()),
+vi.mock('@/lib/cards/card-tags', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/cards/card-tags')>()),
   useCardTagsReady: () => true,
   useCardTagsError: () => false,
   useCardsWithTags: (cards: EnrichedCard[]) => cards,

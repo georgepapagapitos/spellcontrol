@@ -7,7 +7,7 @@ import {
   clearValueHistory,
   recordDailyMovers,
   recordValueSnapshot,
-} from '../lib/value-history';
+} from '@/lib/collection/value-history';
 import { ValueTrend } from './ValueTrend';
 
 const daysAgo = (n: number) => Date.now() - n * 86400000;

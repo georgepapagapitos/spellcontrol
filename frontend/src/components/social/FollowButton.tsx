@@ -2,8 +2,8 @@ import { useRef, useState } from 'react';
 import { Check, UserPlus } from 'lucide-react';
 import { useAuth } from '../../store/auth';
 import { toast } from '../../store/toasts';
-import { followUser, unfollowUser } from '../../lib/brewers-client';
-import { userMessage } from '../../lib/user-error';
+import { followUser, unfollowUser } from '@/lib/social/brewers-client';
+import { userMessage } from '@/lib/util/user-error';
 import { GuestActionPopover } from '../GuestActionPopover';
 import { Button } from '../shared/Button';
 

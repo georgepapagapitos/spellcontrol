@@ -1,5 +1,5 @@
 import { ZoomIn, ZoomOut } from 'lucide-react';
-import { ZOOM_MIN, nextZoomStep, zoomTier } from '../lib/grid-zoom';
+import { ZOOM_MIN, nextZoomStep, zoomTier } from '@/lib/util/grid-zoom';
 import { IconButton } from '@/components/shared/Button';
 
 interface Props {

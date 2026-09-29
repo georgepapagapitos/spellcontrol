@@ -3,9 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ComponentProps } from 'react';
-import type { ActionRequiredItem } from '../../lib/activity-client';
-import type { GameNight, NightOption } from '../../lib/game-nights-api';
-import type { PriceTargetHit } from '../../lib/price-alerts';
+import type { ActionRequiredItem } from '@/lib/social/activity-client';
+import type { GameNight, NightOption } from '@/lib/play/game-nights-api';
+import type { PriceTargetHit } from '@/lib/collection/price-alerts';
 
 const collection = vi.hoisted(() => ({
   cards: [] as unknown[],
@@ -23,7 +23,7 @@ vi.mock('../../store/decks', () => ({
 }));
 
 const awaiting = vi.hoisted(() => ({ value: false }));
-vi.mock('../../lib/use-awaiting-first-pull', () => ({
+vi.mock('@/lib/sync/use-awaiting-first-pull', () => ({
   useAwaitingFirstPull: () => awaiting.value,
 }));
 
@@ -35,12 +35,12 @@ vi.mock('./use-binder-review-count', () => ({
 }));
 
 const priceHits = vi.hoisted(() => ({ value: [] as unknown[] }));
-vi.mock('../../lib/price-alerts', () => ({
+vi.mock('@/lib/collection/price-alerts', () => ({
   findPriceTargetHits: () => priceHits.value,
 }));
 
 import { WaitingOnYou } from './WaitingOnYou';
-import { readHomeShape } from '../../lib/home-shape';
+import { readHomeShape } from '@/lib/home/home-shape';
 
 function tradeOffer(overrides: Partial<Extract<ActionRequiredItem, { type: 'trade_offer' }>> = {}) {
   return {

@@ -33,7 +33,7 @@ vi.mock('./CardPreview', () => ({
 }));
 
 import { CardListTable } from './CardListTable';
-import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
+import { ShortcutRegistryProvider } from './shortcut-registry';
 
 let idSeq = 0;
 function mk(o: Partial<EnrichedCard> = {}): EnrichedCard {

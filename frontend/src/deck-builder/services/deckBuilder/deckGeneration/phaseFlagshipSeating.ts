@@ -1,7 +1,7 @@
 import type { CoherenceRepair, DeckCategory, MaxRarity, ScryfallCard } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import { markUsed } from './state';
-import { frontFaceName, getByCardName } from '@/lib/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import {
   validateCardRole,
   isProtectionPiece,

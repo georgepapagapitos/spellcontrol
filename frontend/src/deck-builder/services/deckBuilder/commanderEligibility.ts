@@ -22,7 +22,7 @@
 //   - Brawl: the same, plus any legendary planeswalker, against the `brawl`
 //     legality.
 //   - Pauper Commander: an uncommon creature that isn't banned, the app's
-//     existing rule (lib/commanders isPdhCommanderEligible).
+//     existing rule (lib/deck/commanders isPdhCommanderEligible).
 //   - A second commander must pair with the first the way the app pairs them
 //     everywhere else (areValidPartners: Partner, Partner with, Friends
 //     forever, Choose a Background, Doctor's companion). A Background is a
@@ -33,8 +33,8 @@
 // companion, and is a legal commander), so Scryfall's `banned` status is the
 // whole answer.
 import type { Customization, ScryfallCard } from '@/deck-builder/types';
-import { canBeCommanderByType, isPdhCommanderEligible } from '@/lib/commanders';
-import { frontFaceName } from '@/lib/card-text';
+import { canBeCommanderByType, isPdhCommanderEligible } from '@/lib/deck/commanders';
+import { frontFaceName } from '@/lib/cards/card-text';
 import { areValidPartners } from '@/deck-builder/lib/partnerUtils';
 
 export type CommanderIneligibleReason =

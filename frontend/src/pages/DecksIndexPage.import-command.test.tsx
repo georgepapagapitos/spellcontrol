@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * The command palette's "Import deck" (lib/commands.ts) sends
+ * The command palette's "Import deck" (lib/search/commands.ts) sends
  * `navigate('/decks', { state: { openImport: true } })`. DecksIndexPage used to
  * ignore that state, so the command only ever opened the Decks page. Guards:
  * the dialog opens on arrival, opens when the command fires while the page is
@@ -27,7 +27,7 @@ vi.mock('../components/ProductSearchDialog', () => ({ ProductSearchDialog: () =>
 vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
 vi.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 vi.mock('../components/DeckFiltersPopover', () => ({ DeckFiltersPopover: () => null }));
-vi.mock('../lib/deck-validation', () => ({
+vi.mock('@/lib/deck/deck-validation', () => ({
   effectiveDeckColors: () => [],
   deckDisplayColors: () => [],
   validateDeckZones: () => ({ deck: [], sideboardOnly: [] }),

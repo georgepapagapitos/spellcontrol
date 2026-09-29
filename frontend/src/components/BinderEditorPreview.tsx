@@ -5,7 +5,7 @@ import { PageGrid } from './PageGrid';
 import { ColorPip } from './shared/ManaSymbol';
 import { EmptyState } from './shared/EmptyState';
 import { IconButton } from '@/components/shared/Button';
-import { bindersOfCapacity, volumesFor } from '../lib/binder-volumes';
+import { bindersOfCapacity, volumesFor } from '@/lib/binder/binder-volumes';
 import './BinderEditorPreview.css';
 
 interface Props {

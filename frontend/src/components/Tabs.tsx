@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode, type Ref } from 'react';
-import { useOverflowEdges } from '@/lib/use-overflow-edges';
+import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
 import { Chip } from './shared/Chip';
 
 /** A tab's health badge — see {@link TabItem.badge}. */

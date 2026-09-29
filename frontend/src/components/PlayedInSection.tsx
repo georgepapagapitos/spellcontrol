@@ -10,10 +10,10 @@ import { Button } from '@/components/shared/Button';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { OwnershipBadge } from '@/components/deck/OwnershipBadge';
 import { useCardCarousel, type CarouselEntry } from '@/components/deck/useCardCarousel';
-import { useCardThumb } from '@/lib/card-thumbs';
-import { frontFaceName } from '@/lib/card-text';
-import { formatCount } from '@/lib/format-count';
-import { classifyInclusion, inclusionColor } from '@/lib/inclusion-label';
+import { useCardThumb } from '@/lib/cards/card-thumbs';
+import { frontFaceName } from '@/lib/cards/card-text';
+import { formatCount } from '@/lib/util/format-count';
+import { classifyInclusion, inclusionColor } from '@/lib/deck-analysis/inclusion-label';
 import { useCollectionStore } from '@/store/collection';
 import './PlayedInSection.css';
 
