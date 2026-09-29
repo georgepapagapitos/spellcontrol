@@ -1,0 +1,2000 @@
+{
+  "_source": "Scryfall /cards/collection, fetched 2026-09-29 for deckInvariants.test.ts. Real oracle text; fields trimmed to what the checker reads.",
+  "cards": [
+    {
+      "id": "eabc978a-0666-472d-bdc6-d4b29d29eca4",
+      "oracle_id": "0715e860-3b3b-4331-9718-207973e94fee",
+      "name": "Tatyova, Benthic Druid",
+      "mana_cost": "{3}{G}{U}",
+      "cmc": 5.0,
+      "type_line": "Legendary Creature — Merfolk Druid",
+      "oracle_text": "Landfall — Whenever a land you control enters, you gain 1 life and draw a card.",
+      "colors": ["G", "U"],
+      "color_identity": ["G", "U"],
+      "keywords": ["Landfall"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "fdn",
+      "set_name": "Foundations",
+      "games": ["paper", "arena", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.28",
+        "eur": "0.14"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "ec7d6864-7b6b-4f74-8474-9b9ec96b1d33",
+      "oracle_id": "36cd2364-d113-47d1-b2c4-b088d9eb88dd",
+      "name": "Brainstorm",
+      "mana_cost": "{U}",
+      "cmc": 1.0,
+      "type_line": "Instant",
+      "oracle_text": "Draw three cards, then put two cards from your hand on top of your library in any order.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "frc",
+      "set_name": "Reality Fracture Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "1.06",
+        "eur": "2.41"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "617208ff-dd9b-44fd-a740-d3188081e5cc",
+      "oracle_id": "f6036065-7196-44d4-8a27-2199f0e1a03c",
+      "name": "Harmonized Trio // Brainstorm",
+      "mana_cost": "{U} // {U}",
+      "cmc": 1.0,
+      "type_line": "Creature — Merfolk Bard Wizard // Instant",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Prepared"],
+      "rarity": "rare",
+      "layout": "prepare",
+      "set": "sos",
+      "set_name": "Secrets of Strixhaven",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "card_faces": [
+        {
+          "name": "Harmonized Trio",
+          "mana_cost": "{U}",
+          "type_line": "Creature — Merfolk Bard Wizard",
+          "oracle_text": "{T}, Tap two untapped creatures you control: This creature becomes prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)"
+        },
+        {
+          "name": "Brainstorm",
+          "mana_cost": "{U}",
+          "type_line": "Instant",
+          "oracle_text": "Draw three cards, then put two cards from your hand on top of your library in any order."
+        }
+      ],
+      "prices": {
+        "usd": "0.74",
+        "eur": "0.43"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "f7e12477-d59f-442b-a678-1be746d0b7be",
+      "oracle_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+      "name": "Swords to Plowshares",
+      "mana_cost": "{W}",
+      "cmc": 1.0,
+      "type_line": "Instant",
+      "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "frc",
+      "set_name": "Reality Fracture Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "1.02",
+        "eur": "1.71"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "9869a753-5e41-4098-ab41-e75b4396ec50",
+      "oracle_id": "e6c41473-2398-4888-9f0c-467dce7c39a4",
+      "name": "Emeritus of Truce // Swords to Plowshares",
+      "mana_cost": "{1}{W}{W} // {W}",
+      "cmc": 3.0,
+      "type_line": "Creature — Cat Cleric // Instant",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": ["Prepared"],
+      "rarity": "mythic",
+      "layout": "prepare",
+      "set": "sos",
+      "set_name": "Secrets of Strixhaven",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "card_faces": [
+        {
+          "name": "Emeritus of Truce",
+          "mana_cost": "{1}{W}{W}",
+          "type_line": "Creature — Cat Cleric",
+          "oracle_text": "When this creature enters, target player creates a 1/1 white and black Inkling creature token with flying. Then if an opponent controls more creatures than you, this creature becomes prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)"
+        },
+        {
+          "name": "Swords to Plowshares",
+          "mana_cost": "{W}",
+          "type_line": "Instant",
+          "oracle_text": "Exile target creature. Its controller gains life equal to its power."
+        }
+      ],
+      "prices": {
+        "usd": "1.17",
+        "eur": "1.62"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "368b6903-5fc4-43e7-bd44-46b8107c8bb4",
+      "oracle_id": "a044474a-cd72-4e9d-bd8d-a08f2de9cdc0",
+      "name": "Reanimate",
+      "mana_cost": "{B}",
+      "cmc": 1.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "dsc",
+      "set_name": "Duskmourn: House of Horror Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "9.81",
+        "eur": "9.22"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "8b1e10e8-ea14-4761-910b-4072e2a18456",
+      "oracle_id": "6cb8b8c4-0674-4f14-9d89-010969fbb80e",
+      "name": "Grave Researcher // Reanimate",
+      "mana_cost": "{2}{B} // {B}",
+      "cmc": 3.0,
+      "type_line": "Creature — Troll Warlock // Sorcery",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": ["Surveil", "Prepared"],
+      "rarity": "rare",
+      "layout": "prepare",
+      "set": "sos",
+      "set_name": "Secrets of Strixhaven",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "card_faces": [
+        {
+          "name": "Grave Researcher",
+          "mana_cost": "{2}{B}",
+          "type_line": "Creature — Troll Warlock",
+          "oracle_text": "At the beginning of your upkeep, surveil 1. Then if there are three or more creature cards in your graveyard, this creature becomes prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)"
+        },
+        {
+          "name": "Reanimate",
+          "mana_cost": "{B}",
+          "type_line": "Sorcery",
+          "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value."
+        }
+      ],
+      "prices": {
+        "usd": "1.80",
+        "eur": "2.37"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "22017ec2-3552-4865-af76-dba042b141f5",
+      "oracle_id": "9fb8cd81-403a-4988-8f1c-b8eccf8abd9c",
+      "name": "Karn's Bastion",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Land",
+      "oracle_text": "{T}: Add {C}.\n{4}, {T}: Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Proliferate"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "eoc",
+      "set_name": "Edge of Eternities Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "2.44",
+        "eur": "2.64"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "cbab7e1f-305e-4733-aa70-b27285740925",
+      "oracle_id": "7fab8d65-af51-47d3-8f10-2676bf6e8ba3",
+      "name": "Eldrazi Temple",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Land",
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {C}{C}. Spend this mana only to cast colorless Eldrazi spells or activate abilities of colorless Eldrazi.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "3.38",
+        "eur": "3.16"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "dce15387-4114-4b3e-91aa-5b42b45c44ac",
+      "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+      "name": "Forest",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Basic Land — Forest",
+      "oracle_text": "({T}: Add {G}.)",
+      "colors": [],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "trk",
+      "set_name": "Star Trek",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "f3cc07cd-cc79-4745-b0b7-eade60175cc3",
+      "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+      "name": "Island",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Basic Land — Island",
+      "oracle_text": "({T}: Add {U}.)",
+      "colors": [],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "trk",
+      "set_name": "Star Trek",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "baf8f4f2-9f25-4cd2-8d78-1041e134aeac",
+      "oracle_id": "05d24b0c-904a-46b6-b42a-96a4d91a0dd4",
+      "name": "Wastes",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Basic Land",
+      "oracle_text": "{T}: Add {C}.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "eoc",
+      "set_name": "Edge of Eternities Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.79",
+        "eur": "0.42"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "1ac6cb62-45da-4e9a-84c6-09e6eacf0664",
+      "oracle_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+      "name": "Command Tower",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Land",
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "frc",
+      "set_name": "Reality Fracture Commander",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.56",
+        "eur": "0.19"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "8ee443cc-e17a-493b-9c93-1f9e141a30e4",
+      "oracle_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+      "name": "Sol Ring",
+      "mana_cost": "{1}",
+      "cmc": 1.0,
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Add {C}{C}.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "frc",
+      "set_name": "Reality Fracture Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "1.54",
+        "eur": "1.25"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "c6b6117c-faab-4bbb-b851-07bd8061ef03",
+      "oracle_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+      "name": "Arcane Signet",
+      "mana_cost": "{2}",
+      "cmc": 2.0,
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "frc",
+      "set_name": "Reality Fracture Commander",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.79",
+        "eur": "0.32"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "537d2b05-3f52-45d6-8fe3-26282085d0c6",
+      "oracle_id": "34515b16-c9a4-4f98-8c77-416a7a523407",
+      "name": "Wrath of God",
+      "mana_cost": "{2}{W}{W}",
+      "cmc": 4.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Destroy all creatures. They can't be regenerated.",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "4.14",
+        "eur": "2.60"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "dfb7c4b9-f2f4-4d4e-baf2-86551c8150fe",
+      "oracle_id": "d75b9c82-1b49-4c3e-a1b5-aeef57d6644b",
+      "name": "Cyclonic Rift",
+      "mana_cost": "{1}{U}",
+      "cmc": 2.0,
+      "type_line": "Instant",
+      "oracle_text": "Return target nonland permanent you don't control to its owner's hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Overload"],
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "rvr",
+      "set_name": "Ravnica Remastered",
+      "games": ["paper", "mtgo"],
+      "game_changer": true,
+      "prices": {
+        "usd": "39.16",
+        "eur": "37.86"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "9f37c5b6-a59c-45cd-9a99-e9357fe9ea1b",
+      "oracle_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+      "name": "Rhystic Study",
+      "mana_cost": "{2}{U}",
+      "cmc": 3.0,
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "j22",
+      "set_name": "Jumpstart 2022",
+      "games": ["paper", "mtgo"],
+      "game_changer": true,
+      "prices": {
+        "usd": "70.36",
+        "eur": "44.26"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "banned",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "75f47b6e-9557-4853-b8d6-7602a91c59a7",
+      "oracle_id": "104ea189-14cd-420f-afdc-57b0f827ab8e",
+      "name": "Relentless Rats",
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3.0,
+      "type_line": "Creature — Rat",
+      "oracle_text": "This creature gets +1/+1 for each other creature on the battlefield named Relentless Rats.\nA deck can have any number of cards named Relentless Rats.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "a25",
+      "set_name": "Masters 25",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "4.20",
+        "eur": "1.67"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "464adbae-70ea-48e1-b8ae-b404766f7a5a",
+      "oracle_id": "526ca4a9-3f50-4f7a-8169-2bda95792401",
+      "name": "Seven Dwarves",
+      "mana_cost": "{1}{R}",
+      "cmc": 2.0,
+      "type_line": "Creature — Dwarf",
+      "oracle_text": "This creature gets +1/+1 for each other creature named Seven Dwarves you control.\nA deck can have up to seven cards named Seven Dwarves.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "eld",
+      "set_name": "Throne of Eldraine",
+      "games": ["arena", "paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.74",
+        "eur": "0.30"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "630febf5-58ff-4dab-a5a8-575ebc5435a6",
+      "oracle_id": "0c367958-729e-416d-988b-098e90e7a1fd",
+      "name": "Ruby Medallion",
+      "mana_cost": "{2}",
+      "cmc": 2.0,
+      "type_line": "Artifact",
+      "oracle_text": "Red spells you cast cost {1} less to cast.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "mh3",
+      "set_name": "Modern Horizons 3",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "prices": {
+        "usd": "14.40",
+        "eur": "11.22"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "c470539a-9cc7-4175-8f7c-c982b6072b6d",
+      "oracle_id": "6ec2a242-9068-4ee2-8ac8-8341cc570f56",
+      "name": "Emeria's Call // Emeria, Shattered Skyclave",
+      "cmc": 7.0,
+      "type_line": "Sorcery // Land",
+      "color_identity": ["W"],
+      "keywords": [],
+      "rarity": "mythic",
+      "layout": "modal_dfc",
+      "set": "znr",
+      "set_name": "Zendikar Rising",
+      "games": ["arena", "paper", "mtgo"],
+      "game_changer": false,
+      "card_faces": [
+        {
+          "name": "Emeria's Call",
+          "mana_cost": "{4}{W}{W}{W}",
+          "type_line": "Sorcery",
+          "oracle_text": "Create two 4/4 white Angel Warrior creature tokens with flying. Non-Angel creatures you control gain indestructible until your next turn.",
+          "colors": ["W"]
+        },
+        {
+          "name": "Emeria, Shattered Skyclave",
+          "mana_cost": "",
+          "type_line": "Land",
+          "oracle_text": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {W}.",
+          "colors": []
+        }
+      ],
+      "prices": {
+        "usd": "3.67",
+        "eur": "3.15"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "b5b71cd2-de35-451f-b16e-2e3936169407",
+      "oracle_id": "d6d72f5f-8f5d-4180-b514-f22ff5482902",
+      "name": "Bonecrusher Giant // Stomp",
+      "mana_cost": "{2}{R} // {1}{R}",
+      "cmc": 3.0,
+      "type_line": "Creature — Giant // Instant — Adventure",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "adventure",
+      "set": "clb",
+      "set_name": "Commander Legends: Battle for Baldur's Gate",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "card_faces": [
+        {
+          "name": "Bonecrusher Giant",
+          "mana_cost": "{2}{R}",
+          "type_line": "Creature — Giant",
+          "oracle_text": "Whenever this creature becomes the target of a spell, this creature deals 2 damage to that spell's controller."
+        },
+        {
+          "name": "Stomp",
+          "mana_cost": "{1}{R}",
+          "type_line": "Instant — Adventure",
+          "oracle_text": "Damage can't be prevented this turn. Stomp deals 2 damage to any target."
+        }
+      ],
+      "prices": {
+        "usd": "0.38",
+        "eur": "0.40"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "e3ddbebf-72cd-4d1b-ba0d-d94934654ab7",
+      "oracle_id": "e996cd67-739c-40f4-b276-0042acf26c71",
+      "name": "Dryad Arbor",
+      "mana_cost": "",
+      "cmc": 0.0,
+      "type_line": "Land Creature — Forest Dryad",
+      "oracle_text": "(This land isn't a spell, it's affected by summoning sickness, and it has \"{T}: Add {G}.\")",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "dsc",
+      "set_name": "Duskmourn: House of Horror Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "3.78",
+        "eur": "3.08"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "6a0b230b-d391-4998-a3f7-7b158a0ec2cd",
+      "oracle_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+      "name": "Llanowar Elves",
+      "mana_cost": "{G}",
+      "cmc": 1.0,
+      "type_line": "Creature — Elf Druid",
+      "oracle_text": "{T}: Add {G}.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "fdn",
+      "set_name": "Foundations",
+      "games": ["paper", "arena", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.39",
+        "eur": "0.22"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "e60deb92-f7dd-4f4e-9036-e47dd586f985",
+      "oracle_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+      "name": "Cultivate",
+      "mana_cost": "{2}{G}",
+      "cmc": 3.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.42",
+        "eur": "0.50"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "4f616706-ec97-4923-bb1e-11a69fbaa1f8",
+      "oracle_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+      "name": "Counterspell",
+      "mana_cost": "{U}{U}",
+      "cmc": 2.0,
+      "type_line": "Instant",
+      "oracle_text": "Counter target spell.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "dsc",
+      "set_name": "Duskmourn: House of Horror Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "3.72",
+        "eur": "4.02"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "7673784e-db4b-43a1-8d55-1bb9fc1e284f",
+      "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+      "name": "Lightning Bolt",
+      "mana_cost": "{R}",
+      "cmc": 1.0,
+      "type_line": "Instant",
+      "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.79",
+        "eur": "2.01"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "726e8b29-13e9-4138-b6a9-d2a0d8188d1c",
+      "oracle_id": "1de1b591-a73f-4974-b507-8c63e07a0868",
+      "name": "Thassa's Oracle",
+      "mana_cost": "{U}{U}",
+      "cmc": 2.0,
+      "type_line": "Creature — Merfolk Wizard",
+      "oracle_text": "When this creature enters, look at the top X cards of your library, where X is your devotion to blue. Put up to one of them on top of your library and the rest on the bottom of your library in a random order. If X is greater than or equal to the number of cards in your library, you win the game. (Each {U} in the mana costs of permanents you control counts toward your devotion to blue.)",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "thb",
+      "set_name": "Theros Beyond Death",
+      "games": ["arena", "paper", "mtgo"],
+      "game_changer": true,
+      "prices": {
+        "usd": "22.10",
+        "eur": "13.29"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "276f5cee-a501-4658-bd4d-7a044bf1ccbc",
+      "oracle_id": "8c52bd39-0586-48ca-b263-17210cf9feb6",
+      "name": "Craterhoof Behemoth",
+      "mana_cost": "{5}{G}{G}{G}",
+      "cmc": 8.0,
+      "type_line": "Creature — Beast",
+      "oracle_text": "Haste\nWhen this creature enters, creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you control.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Haste"],
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "tdm",
+      "set_name": "Tarkir: Dragonstorm",
+      "games": ["paper", "arena", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "24.36",
+        "eur": "19.44"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "400b43aa-c1d2-4435-b863-061f43889422",
+      "oracle_id": "7735eeba-693b-47e2-bd51-414379cf1016",
+      "name": "Beast Within",
+      "mana_cost": "{2}{G}",
+      "cmc": 3.0,
+      "type_line": "Instant",
+      "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Beast creature token.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.62",
+        "eur": "0.88"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "08b9a296-3b76-4f8f-9d71-7c9af92bb3b4",
+      "oracle_id": "3f3b2c10-21f8-4e13-be83-4ef3fa36e123",
+      "name": "Elvish Mystic",
+      "mana_cost": "{G}",
+      "cmc": 1.0,
+      "type_line": "Creature — Elf Druid",
+      "oracle_text": "{T}: Add {G}.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "hoc",
+      "set_name": "The Hobbit Eternal",
+      "games": ["paper", "arena", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "5.21",
+        "eur": "2.93"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "dc69f960-68ba-4315-8146-6a7a82047503",
+      "oracle_id": "02090581-61aa-4348-ad57-451be8ee91c2",
+      "name": "Ponder",
+      "mana_cost": "{U}",
+      "cmc": 1.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Look at the top three cards of your library, then put them back in any order. You may shuffle.\nDraw a card.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "tdc",
+      "set_name": "Tarkir: Dragonstorm Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "4.07",
+        "eur": "3.70"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "dd29a0e5-c1de-4e8a-8866-715e9f9cde1f",
+      "oracle_id": "ac641490-ca14-48d7-8cc4-b69ce984befa",
+      "name": "Preordain",
+      "mana_cost": "{U}",
+      "cmc": 1.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Scry 2, then draw a card. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Scry"],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "tdc",
+      "set_name": "Tarkir: Dragonstorm Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.79",
+        "eur": "1.28"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "b30a8f92-ce42-4b27-a893-bcf97fde228d",
+      "oracle_id": "c97361b5-af16-4a7b-af85-a429dbaf4ad2",
+      "name": "Mind Stone",
+      "mana_cost": "{2}",
+      "cmc": 2.0,
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "mbc",
+      "set_name": "Mystery Booster Commander Edition",
+      "games": ["paper"],
+      "game_changer": false,
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "b7c47024-5e08-4b17-b41a-7647f8b814b9",
+      "oracle_id": "8539f295-5d58-4436-a73a-b9277c4c7795",
+      "name": "Rampant Growth",
+      "mana_cost": "{1}{G}",
+      "cmc": 2.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "tdc",
+      "set_name": "Tarkir: Dragonstorm Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.81",
+        "eur": "0.66"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "bd7138fb-6aa7-455e-b1f7-ca08d747277d",
+      "oracle_id": "7eff84f1-f772-497a-b350-bbc93d0230f7",
+      "name": "Harmonize",
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Draw three cards.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.25",
+        "eur": "0.23"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "1d58d08d-cd62-416d-8d8e-7d9c56d5c4da",
+      "oracle_id": "b45fdeab-00cc-4422-af9f-66f30a880a7c",
+      "name": "Evolution Sage",
+      "mana_cost": "{2}{G}",
+      "cmc": 3.0,
+      "type_line": "Creature — Elf Druid",
+      "oracle_text": "Landfall — Whenever a land you control enters, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Proliferate", "Landfall"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "ecc",
+      "set_name": "Lorwyn Eclipsed Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "3.21",
+        "eur": "2.57"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "fd4b7ee2-de65-4288-872d-486065a4f226",
+      "oracle_id": "bb2b324c-970a-4920-884e-c92ba49669f0",
+      "name": "Tamiyo's Safekeeping",
+      "mana_cost": "{G}",
+      "cmc": 1.0,
+      "type_line": "Instant",
+      "oracle_text": "Target permanent you control gains hexproof and indestructible until end of turn. You gain 2 life. (A permanent with hexproof and indestructible can't be the target of spells or abilities your opponents control. Damage and effects that say \"destroy\" don't destroy it.)",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "neo",
+      "set_name": "Kamigawa: Neon Dynasty",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "prices": {
+        "usd": "6.09",
+        "eur": "4.51"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "90c423cc-1264-4067-9c50-e7c88c68ef2d",
+      "oracle_id": "1593ea18-2f2f-4ab4-83fb-6ccc0bec8a90",
+      "name": "Kodama's Reach",
+      "mana_cost": "{2}{G}",
+      "cmc": 3.0,
+      "type_line": "Sorcery — Arcane",
+      "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "ecc",
+      "set_name": "Lorwyn Eclipsed Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "1.94",
+        "eur": "1.63"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "1e5530fc-0291-4a17-b048-c5d24e6f51d8",
+      "oracle_id": "7c779721-cd1b-4696-9ae9-68ccc284ed2a",
+      "name": "Aetherize",
+      "mana_cost": "{3}{U}",
+      "cmc": 4.0,
+      "type_line": "Instant",
+      "oracle_text": "Return all attacking creatures to their owner's hand.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "fdn",
+      "set_name": "Foundations",
+      "games": ["paper", "arena", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.65",
+        "eur": "0.54"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "2d4bacd1-b602-4bcc-9aea-1229949a7d20",
+      "oracle_id": "161b6d06-e6a7-488e-9f9c-d266c1402a3a",
+      "name": "Mystic Snake",
+      "mana_cost": "{1}{G}{U}{U}",
+      "cmc": 4.0,
+      "type_line": "Creature — Snake",
+      "oracle_text": "Flash\nWhen this creature enters, counter target spell.",
+      "colors": ["G", "U"],
+      "color_identity": ["G", "U"],
+      "keywords": ["Flash"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "a25",
+      "set_name": "Masters 25",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "1.51",
+        "eur": "0.70"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "0e259db1-14db-4314-998c-6a076a28d8cb",
+      "oracle_id": "d209b948-9afb-4fd1-a961-72c87282878c",
+      "name": "Kenrith, the Returned King",
+      "mana_cost": "{4}{W}",
+      "cmc": 5.0,
+      "type_line": "Legendary Creature — Human Noble",
+      "oracle_text": "{R}: All creatures gain trample and haste until end of turn.\n{1}{G}: Put a +1/+1 counter on target creature.\n{2}{W}: Target player gains 5 life.\n{3}{U}: Target player draws a card.\n{4}{B}: Put target creature card from a graveyard onto the battlefield under its owner's control.",
+      "colors": ["W"],
+      "color_identity": ["B", "G", "R", "U", "W"],
+      "keywords": [],
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "plst",
+      "set_name": "The List",
+      "games": ["paper"],
+      "game_changer": false,
+      "prices": {
+        "usd": "2.99",
+        "eur": "1.11"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "bc7cbe9b-324e-42b8-94e2-36e91cb32163",
+      "oracle_id": "d15642e4-e61c-4d29-af48-de837991245e",
+      "name": "Tymna the Weaver",
+      "mana_cost": "{1}{W}{B}",
+      "cmc": 3.0,
+      "type_line": "Legendary Creature — Human Cleric",
+      "oracle_text": "Lifelink\nAt the beginning of each of your postcombat main phases, you may pay X life, where X is the number of opponents that were dealt combat damage this turn. If you do, draw X cards.\nPartner (You can have two commanders if both have partner.)",
+      "colors": ["B", "W"],
+      "color_identity": ["B", "W"],
+      "keywords": ["Lifelink", "Partner"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "c16",
+      "set_name": "Commander 2016",
+      "games": ["paper"],
+      "game_changer": false,
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "21e27b91-c7f1-4709-aa0d-8b5d81b22a0a",
+      "oracle_id": "3d867016-2601-4a37-a73d-308898d3bd37",
+      "name": "Thrasios, Triton Hero",
+      "mana_cost": "{G}{U}",
+      "cmc": 2.0,
+      "type_line": "Legendary Creature — Merfolk Wizard",
+      "oracle_text": "{4}: Scry 1, then reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card.\nPartner (You can have two commanders if both have partner.)",
+      "colors": ["G", "U"],
+      "color_identity": ["G", "U"],
+      "keywords": ["Partner", "Scry"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "c16",
+      "set_name": "Commander 2016",
+      "games": ["paper"],
+      "game_changer": false,
+      "prices": {
+        "usd": null,
+        "eur": null
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "5358b87a-1a29-426d-b165-40c97da2c14d",
+      "oracle_id": "bcc6eece-75ea-494c-b33a-d4477d504e0b",
+      "name": "Sink into Stupor // Soporific Springs",
+      "cmc": 3.0,
+      "type_line": "Instant // Land",
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "modal_dfc",
+      "set": "mh3",
+      "set_name": "Modern Horizons 3",
+      "games": ["paper", "mtgo", "arena"],
+      "game_changer": false,
+      "card_faces": [
+        {
+          "name": "Sink into Stupor",
+          "mana_cost": "{1}{U}{U}",
+          "type_line": "Instant",
+          "oracle_text": "Return target spell or nonland permanent an opponent controls to its owner's hand.",
+          "colors": ["U"]
+        },
+        {
+          "name": "Soporific Springs",
+          "mana_cost": "",
+          "type_line": "Land",
+          "oracle_text": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}.",
+          "colors": []
+        }
+      ],
+      "prices": {
+        "usd": "8.38",
+        "eur": "7.23"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "1e10e2b4-9639-41ae-8b8e-253224d3d513",
+      "oracle_id": "34bcc217-dd91-45a0-90d7-a94d02f1f317",
+      "name": "Growth Spiral",
+      "mana_cost": "{G}{U}",
+      "cmc": 2.0,
+      "type_line": "Instant",
+      "oracle_text": "Draw a card. You may put a land card from your hand onto the battlefield.",
+      "colors": ["G", "U"],
+      "color_identity": ["G", "U"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "dsc",
+      "set_name": "Duskmourn: House of Horror Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.32",
+        "eur": "0.51"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "7afc4a15-5ff8-457a-aa62-803b2d78d912",
+      "oracle_id": "78826359-fe63-44ad-adc4-a17ffcd710e4",
+      "name": "Nature's Lore",
+      "mana_cost": "{1}{G}",
+      "cmc": 2.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "2.04",
+        "eur": "2.80"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "99bf792f-963e-4509-8d3c-7db129c6a77f",
+      "oracle_id": "1b882a0e-0ede-4d1a-bd1a-9b7cffbcde8e",
+      "name": "Three Visits",
+      "mana_cost": "{1}{G}",
+      "cmc": 2.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for a Forest card, put it onto the battlefield, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "5.63",
+        "eur": "4.88"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "c1aac0f5-1d01-4673-b8d3-878d9a1d423c",
+      "oracle_id": "495e52e6-4c2b-4574-9474-eadbdcc8b4ac",
+      "name": "Farseek",
+      "mana_cost": "{1}{G}",
+      "cmc": 2.0,
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for a Plains, Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.48",
+        "eur": "0.77"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "ab9dbf0b-2c1d-463c-b675-ff711c282e56",
+      "oracle_id": "b8f566ea-8283-4afa-9ac8-737e26419283",
+      "name": "Explore",
+      "mana_cost": "{1}{G}",
+      "cmc": 2.0,
+      "type_line": "Sorcery",
+      "oracle_text": "You may play an additional land this turn.\nDraw a card.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "tle",
+      "set_name": "Avatar: The Last Airbender Eternal",
+      "games": ["paper", "arena", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.22",
+        "eur": "0.25"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "5b372045-a4a0-44c8-96ec-1e201d61ed26",
+      "oracle_id": "0c2841bb-038c-4fbf-8360-bc0a1522b58d",
+      "name": "Exploration",
+      "mana_cost": "{G}",
+      "cmc": 1.0,
+      "type_line": "Enchantment",
+      "oracle_text": "You may play an additional land on each of your turns.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "dmr",
+      "set_name": "Dominaria Remastered",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "30.48",
+        "eur": "27.22"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "6da045f8-6278-4c84-9d39-025adf0789c1",
+      "oracle_id": "88cf4c1a-5863-45fc-b76d-7ad33b175b2b",
+      "name": "Burgeoning",
+      "mana_cost": "{G}",
+      "cmc": 1.0,
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever an opponent plays a land, you may put a land card from your hand onto the battlefield.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "c16",
+      "set_name": "Commander 2016",
+      "games": ["paper"],
+      "game_changer": false,
+      "prices": {
+        "usd": "33.56",
+        "eur": "26.75"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "2fe97fbe-a6d6-4e96-8c26-f81bcdf579a1",
+      "oracle_id": "6c2c8bf3-9bf8-4a86-89d3-3bb36260dc51",
+      "name": "Azusa, Lost but Seeking",
+      "mana_cost": "{2}{G}",
+      "cmc": 3.0,
+      "type_line": "Legendary Creature — Human Monk",
+      "oracle_text": "You may play two additional lands on each of your turns.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "13.08",
+        "eur": "9.00"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "ab19808f-a5b8-4dfd-800e-2064cd6538c8",
+      "oracle_id": "6c5b02eb-7829-436a-8555-fea200e4b67f",
+      "name": "Oracle of Mul Daya",
+      "mana_cost": "{3}{G}",
+      "cmc": 4.0,
+      "type_line": "Creature — Elf Shaman",
+      "oracle_text": "You may play an additional land on each of your turns.\nPlay with the top card of your library revealed.\nYou may play lands from the top of your library.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "eoc",
+      "set_name": "Edge of Eternities Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "1.97",
+        "eur": "2.82"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "a1e048e0-19d2-4076-892d-f8b3104dee37",
+      "oracle_id": "ab8d5f5c-1976-4f77-8ed2-8d28ee666741",
+      "name": "Tireless Provisioner",
+      "mana_cost": "{2}{G}",
+      "cmc": 3.0,
+      "type_line": "Creature — Elf Scout",
+      "oracle_text": "Landfall — Whenever a land you control enters, create a Food token or a Treasure token. (Food is an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\" Treasure is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Treasure", "Food", "Landfall"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "moc",
+      "set_name": "March of the Machine Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "3.98",
+        "eur": "2.83"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "d8c5e52d-57ae-464b-8860-7dd39ebfef64",
+      "oracle_id": "16e015b2-f8a3-4b1a-80be-58a8f5fb5e8c",
+      "name": "Frantic Search",
+      "mana_cost": "{2}{U}",
+      "cmc": 3.0,
+      "type_line": "Instant",
+      "oracle_text": "Draw two cards, then discard two cards. Untap up to three lands.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "tle",
+      "set_name": "Avatar: The Last Airbender Eternal",
+      "games": ["paper", "arena", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "2.31",
+        "eur": "1.07"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "eb1a25c5-1918-40f3-b54f-5d31cf6b4eb2",
+      "oracle_id": "437b2dab-15e0-4b9a-a204-58622d37a3b3",
+      "name": "Fact or Fiction",
+      "mana_cost": "{3}{U}",
+      "cmc": 4.0,
+      "type_line": "Instant",
+      "oracle_text": "Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "frc",
+      "set_name": "Reality Fracture Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": null,
+        "eur": "0.18"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "3de308cc-14ac-407e-99e7-568572ecd0e7",
+      "oracle_id": "24d0f5e7-0d9e-4b76-900e-a7274e80312d",
+      "name": "Mulldrifter",
+      "mana_cost": "{4}{U}",
+      "cmc": 5.0,
+      "type_line": "Creature — Elemental",
+      "oracle_text": "Flying\nWhen this creature enters, draw two cards.\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Flying", "Evoke"],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "ecc",
+      "set_name": "Lorwyn Eclipsed Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.37",
+        "eur": "0.36"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "55fb93e6-d057-4b70-ad12-e98291fd4a2c",
+      "oracle_id": "b99ada26-9a61-4175-9fb8-15a106960220",
+      "name": "Ohran Frostfang",
+      "mana_cost": "{3}{G}{G}",
+      "cmc": 5.0,
+      "type_line": "Snow Creature — Snake",
+      "oracle_text": "Attacking creatures you control have deathtouch.\nWhenever a creature you control deals combat damage to a player, draw a card.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "soc",
+      "set_name": "Secrets of Strixhaven Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "7.87",
+        "eur": "6.33"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "e82e61d1-488d-4627-a54c-d8496a967814",
+      "oracle_id": "a8e707ec-ce77-4bc5-8c76-5ea3e81e8c7f",
+      "name": "Toski, Bearer of Secrets",
+      "mana_cost": "{3}{G}",
+      "cmc": 4.0,
+      "type_line": "Legendary Creature — Squirrel",
+      "oracle_text": "This spell can't be countered.\nIndestructible\nToski attacks each combat if able.\nWhenever a creature you control deals combat damage to a player, draw a card.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Indestructible"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "mkc",
+      "set_name": "Murders at Karlov Manor Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "8.06",
+        "eur": "4.69"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "137acb70-a1fd-4ea9-a5d9-f4b438eb5e82",
+      "oracle_id": "d4a84e78-d9b9-4c67-8a4b-4329e65f0f15",
+      "name": "Hullbreaker Horror",
+      "mana_cost": "{5}{U}{U}",
+      "cmc": 7.0,
+      "type_line": "Creature — Kraken Horror",
+      "oracle_text": "Flash\nThis spell can't be countered.\nWhenever you cast a spell, choose up to one —\n• Return target spell you don't control to its owner's hand.\n• Return target nonland permanent to its owner's hand.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Flash"],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "inr",
+      "set_name": "Innistrad Remastered",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "6.26",
+        "eur": "4.45"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "b11037bc-e719-461e-a89e-9c026dfd9fd4",
+      "oracle_id": "fdd94383-b573-439a-8e1c-925af887c5a6",
+      "name": "Evacuation",
+      "mana_cost": "{3}{U}{U}",
+      "cmc": 5.0,
+      "type_line": "Instant",
+      "oracle_text": "Return all creatures to their owners' hands.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "lcc",
+      "set_name": "The Lost Caverns of Ixalan Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.30",
+        "eur": "0.32"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "4131fa63-5afc-4b63-a4b4-f47b4bced87f",
+      "oracle_id": "05849bd6-8f38-4031-be2b-e2aa03beb8cc",
+      "name": "Pongify",
+      "mana_cost": "{U}",
+      "cmc": 1.0,
+      "type_line": "Instant",
+      "oracle_text": "Destroy target creature. It can't be regenerated. Its controller creates a 3/3 green Ape creature token.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "tdc",
+      "set_name": "Tarkir: Dragonstorm Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "3.59",
+        "eur": "2.04"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "ccda5bda-5afd-4548-bd48-12c780bfa68b",
+      "oracle_id": "06692cd9-ac2f-4a32-8fd1-043ba3c0fe71",
+      "name": "Rapid Hybridization",
+      "mana_cost": "{U}",
+      "cmc": 1.0,
+      "type_line": "Instant",
+      "oracle_text": "Destroy target creature. It can't be regenerated. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "uncommon",
+      "layout": "normal",
+      "set": "soc",
+      "set_name": "Secrets of Strixhaven Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.72",
+        "eur": "1.31"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "52d58fe4-6070-4022-9cd7-c35a11b44525",
+      "oracle_id": "3407fe41-fdd3-4119-8f70-4bc4590a379f",
+      "name": "Negate",
+      "mana_cost": "{1}{U}",
+      "cmc": 2.0,
+      "type_line": "Instant",
+      "oracle_text": "Counter target noncreature spell.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "tmt",
+      "set_name": "Teenage Mutant Ninja Turtles",
+      "games": ["paper", "arena", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.34",
+        "eur": "0.07"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "5eb843ef-b223-40d0-a461-54b16d188d0e",
+      "oracle_id": "ab1cc360-b9de-48d9-9983-4dfe4a7d2a37",
+      "name": "Arcane Denial",
+      "mana_cost": "{1}{U}",
+      "cmc": 2.0,
+      "type_line": "Instant",
+      "oracle_text": "Counter target spell. Its controller may draw up to two cards at the beginning of the next turn's upkeep.\nYou draw a card at the beginning of the next turn's upkeep.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "rarity": "common",
+      "layout": "normal",
+      "set": "msc",
+      "set_name": "Marvel Super Heroes Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "1.61",
+        "eur": "2.08"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "e32c67d1-187f-40df-b3b3-6036f5c92834",
+      "oracle_id": "24882fa2-3fe9-4c1b-aa3d-0e6488b9db27",
+      "name": "Heroic Intervention",
+      "mana_cost": "{1}{G}",
+      "cmc": 2.0,
+      "type_line": "Instant",
+      "oracle_text": "Permanents you control gain hexproof and indestructible until end of turn.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "cmm",
+      "set_name": "Commander Masters",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "17.27",
+        "eur": "13.65"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "a391da36-0b40-46ea-b771-50d2b920207e",
+      "oracle_id": "8b610f8f-c8dd-4eeb-bc6e-3bc706d5f63e",
+      "name": "Nyxbloom Ancient",
+      "mana_cost": "{4}{G}{G}{G}",
+      "cmc": 7.0,
+      "type_line": "Enchantment Creature — Elemental",
+      "oracle_text": "Trample\nIf you tap a permanent for mana, it produces three times as much of that mana instead.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Trample"],
+      "rarity": "mythic",
+      "layout": "normal",
+      "set": "thb",
+      "set_name": "Theros Beyond Death",
+      "games": ["arena", "paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "28.17",
+        "eur": "18.59"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "legal"
+      }
+    },
+    {
+      "id": "81e0d739-990f-4ba5-b456-165c033014cf",
+      "oracle_id": "a3a8a044-283d-443e-bc40-c2f826d70c22",
+      "name": "Mana Reflection",
+      "mana_cost": "{4}{G}{G}",
+      "cmc": 6.0,
+      "type_line": "Enchantment",
+      "oracle_text": "If you tap a permanent for mana, it produces twice as much of that mana instead.",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "2xm",
+      "set_name": "Double Masters",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "2.91",
+        "eur": "1.96"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal"
+      }
+    },
+    {
+      "id": "11ee15d5-1c93-4c30-911f-32e2aabf020e",
+      "oracle_id": "3673219d-d2b5-43ad-b0c8-58b583491158",
+      "name": "Plasm Capture",
+      "mana_cost": "{G}{G}{U}{U}",
+      "cmc": 4.0,
+      "type_line": "Instant",
+      "oracle_text": "Counter target spell. At the beginning of your next first main phase, add X mana in any combination of colors, where X is that spell's mana value.",
+      "colors": ["G", "U"],
+      "color_identity": ["G", "U"],
+      "keywords": [],
+      "rarity": "rare",
+      "layout": "normal",
+      "set": "otc",
+      "set_name": "Outlaws of Thunder Junction Commander",
+      "games": ["paper", "mtgo"],
+      "game_changer": false,
+      "prices": {
+        "usd": "0.38",
+        "eur": "0.32"
+      },
+      "legalities": {
+        "commander": "legal",
+        "paupercommander": "not_legal",
+        "brawl": "not_legal"
+      }
+    }
+  ]
+}
